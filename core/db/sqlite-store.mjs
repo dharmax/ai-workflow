@@ -186,6 +186,12 @@ function emptyMetricsSetSummary() {
       fastEnoughRate: 0,
       qualityScore: 0
     },
+    tokenUsage: {
+      callsWithReportedUsage: 0,
+      callsMissingUsage: 0,
+      coveragePercent: 0,
+      missingReasons: []
+    },
     diagnostics: {
       fallbackRuns: 0,
       fallbackRecoveries: 0,
@@ -300,6 +306,8 @@ function summarizeMetricSet(metrics) {
   let estimatedManualMs = 0;
   const byModel = new Map();
   const byTaskClass = new Map();
+  let callsWithReportedUsage = 0;
+  const missingTokenReasons = new Map();
 
   for (const metric of metrics) {
     const prompt = Number(metric.prompt_tokens ?? 0);
@@ -308,6 +316,10 @@ function summarizeMetricSet(metrics) {
     const success = Boolean(metric.success);
     const activeMs = estimateMetricActiveWorkMs(metric);
     const manualMs = estimateMetricManualBaselineMs(metric);
+    const tokenUsage = metric.details?.tokenUsage ?? null;
+    const usageAvailable = tokenUsage?.available === true
+      || prompt > 0
+      || completion > 0;
 
     promptTokens += prompt;
     completionTokens += completion;
@@ -317,6 +329,11 @@ function summarizeMetricSet(metrics) {
     localCalls += metric.provider_id === "ollama" ? 1 : 0;
     estimatedToolMs += activeMs;
     estimatedManualMs += manualMs;
+    callsWithReportedUsage += usageAvailable ? 1 : 0;
+    if (!usageAvailable) {
+      const reason = String(tokenUsage?.reason ?? "Metric recorded no token usage details.").trim() || "Metric recorded no token usage details.";
+      missingTokenReasons.set(reason, (missingTokenReasons.get(reason) ?? 0) + 1);
+    }
 
     const modelEntry = byModel.get(metric.model_id) ?? {
       model_id: metric.model_id,
@@ -351,6 +368,7 @@ function summarizeMetricSet(metrics) {
   const failureRate = 100 - successRate;
   const qualityScore = Math.round((successRate * 0.7) + (fastEnoughRate * 0.3));
   const diagnostics = summarizeMetricDiagnostics(metrics);
+  const callsMissingUsage = calls - callsWithReportedUsage;
   const estimatedMinutesSaved = Math.round((estimatedManualMs - estimatedToolMs) / 60000);
   const leverageRatio = estimatedToolMs > 0
     ? Number((estimatedManualMs / estimatedToolMs).toFixed(2))
@@ -401,6 +419,15 @@ function summarizeMetricSet(metrics) {
       failureRate,
       fastEnoughRate,
       qualityScore
+    },
+    tokenUsage: {
+      callsWithReportedUsage,
+      callsMissingUsage,
+      coveragePercent: Math.round((callsWithReportedUsage / calls) * 100),
+      missingReasons: Array.from(missingTokenReasons.entries())
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason))
+        .slice(0, 5)
     },
     diagnostics
   };
@@ -947,7 +974,10 @@ export class SqliteWorkflowStore {
       INSERT INTO notes (id, note_type, status, file_path, symbol_name, line, column, body, normalized_body, source_kind, provenance, risk_score, leverage_score, ticket_value_score, candidate_score, observed_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
-        status = excluded.status,
+        status = CASE
+          WHEN notes.status = 'resolved' AND excluded.status = 'observed' THEN notes.status
+          ELSE excluded.status
+        END,
         symbol_name = excluded.symbol_name,
         line = excluded.line,
         column = excluded.column,
@@ -991,6 +1021,10 @@ export class SqliteWorkflowStore {
       clauses.push("file_path = ?");
       values.push(filters.filePath);
     }
+    if (filters.statuses?.length) {
+      clauses.push(`status IN (${filters.statuses.map(() => "?").join(", ")})`);
+      values.push(...filters.statuses);
+    }
     const query = `
       SELECT *
       FROM notes
@@ -1016,6 +1050,41 @@ export class SqliteWorkflowStore {
       observedAt: row.observed_at,
       updatedAt: row.updated_at
     }));
+  }
+
+  getNoteById(noteId) {
+    const row = this.db.prepare("SELECT * FROM notes WHERE id = ?").get(noteId);
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.id,
+      noteType: row.note_type,
+      status: row.status,
+      filePath: row.file_path,
+      symbolName: row.symbol_name,
+      line: row.line,
+      column: row.column,
+      body: row.body,
+      normalizedBody: row.normalized_body,
+      sourceKind: row.source_kind,
+      provenance: row.provenance,
+      riskScore: row.risk_score,
+      leverageScore: row.leverage_score,
+      ticketValueScore: row.ticket_value_score,
+      candidateScore: row.candidate_score,
+      observedAt: row.observed_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  updateNoteStatus(noteId, status, updatedAt = nowIso()) {
+    const result = this.db.prepare(`
+      UPDATE notes
+      SET status = ?, updated_at = ?
+      WHERE id = ?
+    `).run(status, updatedAt, noteId);
+    return result.changes > 0 ? this.getNoteById(noteId) : null;
   }
 
   listSymbols(filters = {}) {
@@ -1680,6 +1749,229 @@ export class SqliteWorkflowStore {
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }));
+  }
+
+  upsertWorkflowContract(contract) {
+    const updatedAt = contract.updatedAt ?? nowIso();
+    this.db.prepare(`
+      INSERT INTO workflow_contracts (
+        run_id,
+        root,
+        source,
+        user_wish,
+        success_definition,
+        attempted_status,
+        fulfillment_status,
+        truthfulness_status,
+        enlightenment_status,
+        misleading_level,
+        summary,
+        evidence_json,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(run_id) DO UPDATE SET
+        root = excluded.root,
+        source = excluded.source,
+        user_wish = excluded.user_wish,
+        success_definition = excluded.success_definition,
+        attempted_status = excluded.attempted_status,
+        fulfillment_status = excluded.fulfillment_status,
+        truthfulness_status = excluded.truthfulness_status,
+        enlightenment_status = excluded.enlightenment_status,
+        misleading_level = excluded.misleading_level,
+        summary = excluded.summary,
+        evidence_json = excluded.evidence_json,
+        updated_at = excluded.updated_at
+    `).run(
+      contract.runId,
+      path.resolve(String(contract.root ?? this.projectRoot ?? ".")),
+      contract.source ?? "unknown",
+      contract.userWish ?? "",
+      contract.successDefinition ?? "",
+      contract.attemptedStatus ?? "needs_human_review",
+      contract.fulfillmentStatus ?? "needs_human_review",
+      contract.truthfulnessStatus ?? "needs_human_review",
+      contract.enlightenmentStatus ?? "needs_human_review",
+      contract.misleadingLevel ?? "unknown",
+      contract.summary ?? "",
+      asJson(contract.evidence ?? {}),
+      updatedAt
+    );
+  }
+
+  getLatestWorkflowContract(root = null) {
+    const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
+    const row = this.db.prepare(`
+      SELECT *
+      FROM workflow_contracts
+      WHERE root = ?
+      ORDER BY updated_at DESC, run_id DESC
+      LIMIT 1
+    `).get(resolvedRoot);
+    if (!row) {
+      return null;
+    }
+    return {
+      runId: row.run_id,
+      root: row.root,
+      source: row.source,
+      userWish: row.user_wish,
+      successDefinition: row.success_definition,
+      attemptedStatus: row.attempted_status,
+      fulfillmentStatus: row.fulfillment_status,
+      truthfulnessStatus: row.truthfulness_status,
+      enlightenmentStatus: row.enlightenment_status,
+      misleadingLevel: row.misleading_level,
+      summary: row.summary,
+      evidence: parseJson(row.evidence_json),
+      updatedAt: row.updated_at
+    };
+  }
+
+  upsertWorkflowGapReview(review) {
+    const updatedAt = review.updatedAt ?? nowIso();
+    this.db.prepare(`
+      INSERT INTO workflow_gap_reviews (
+        run_id,
+        root,
+        source,
+        status,
+        severity,
+        summary,
+        gap_types_json,
+        actions_json,
+        evidence_json,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(run_id) DO UPDATE SET
+        root = excluded.root,
+        source = excluded.source,
+        status = excluded.status,
+        severity = excluded.severity,
+        summary = excluded.summary,
+        gap_types_json = excluded.gap_types_json,
+        actions_json = excluded.actions_json,
+        evidence_json = excluded.evidence_json,
+        updated_at = excluded.updated_at
+    `).run(
+      review.runId,
+      path.resolve(String(review.root ?? this.projectRoot ?? ".")),
+      review.source ?? "unknown",
+      review.status ?? "open",
+      review.severity ?? "medium",
+      review.summary ?? "",
+      asJson(review.gapTypes ?? []),
+      asJson(review.actions ?? []),
+      asJson(review.evidence ?? {}),
+      updatedAt
+    );
+  }
+
+  getLatestWorkflowGapReview(root = null) {
+    const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
+    const row = this.db.prepare(`
+      SELECT *
+      FROM workflow_gap_reviews
+      WHERE root = ?
+      ORDER BY updated_at DESC, run_id DESC
+      LIMIT 1
+    `).get(resolvedRoot);
+    if (!row) {
+      return null;
+    }
+    return {
+      runId: row.run_id,
+      root: row.root,
+      source: row.source,
+      status: row.status,
+      severity: row.severity,
+      summary: row.summary,
+      gapTypes: parseJson(row.gap_types_json, []),
+      actions: parseJson(row.actions_json, []),
+      evidence: parseJson(row.evidence_json, {}),
+      updatedAt: row.updated_at
+    };
+  }
+
+  appendWorkspaceMutation(mutation) {
+    const startedAt = mutation.startedAt ?? nowIso();
+    const completedAt = mutation.completedAt ?? startedAt;
+    const root = path.resolve(String(mutation.root ?? this.projectRoot ?? "."));
+    const id = mutation.id ?? stableId("workspace-mutation", root, mutation.operation, completedAt, asJson(mutation.changedFiles ?? []));
+
+    this.db.prepare(`
+      INSERT INTO workspace_mutations (
+        id,
+        root,
+        operation,
+        status,
+        before_dirty,
+        after_dirty,
+        changed_files_json,
+        details_json,
+        started_at,
+        completed_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        status = excluded.status,
+        before_dirty = excluded.before_dirty,
+        after_dirty = excluded.after_dirty,
+        changed_files_json = excluded.changed_files_json,
+        details_json = excluded.details_json,
+        started_at = excluded.started_at,
+        completed_at = excluded.completed_at
+    `).run(
+      id,
+      root,
+      mutation.operation,
+      mutation.status ?? "completed",
+      mutation.beforeDirty ? 1 : 0,
+      mutation.afterDirty ? 1 : 0,
+      asJson(mutation.changedFiles ?? []),
+      asJson(mutation.details ?? {}),
+      startedAt,
+      completedAt
+    );
+
+    return id;
+  }
+
+  listWorkspaceMutations({ root = null, limit = 50 } = {}) {
+    const clauses = [];
+    const values = [];
+    if (root) {
+      clauses.push("root = ?");
+      values.push(path.resolve(String(root)));
+    }
+
+    const boundedLimit = Math.max(1, Number(limit ?? 50) || 50);
+    const query = `
+      SELECT *
+      FROM workspace_mutations
+      ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+      ORDER BY completed_at DESC, started_at DESC, id DESC
+      LIMIT ?
+    `;
+
+    return this.db.prepare(query).all(...values, boundedLimit).map((row) => ({
+      id: row.id,
+      root: row.root,
+      operation: row.operation,
+      status: row.status,
+      beforeDirty: Boolean(row.before_dirty),
+      afterDirty: Boolean(row.after_dirty),
+      changedFiles: parseJson(row.changed_files_json, []),
+      details: parseJson(row.details_json, {}),
+      startedAt: row.started_at,
+      completedAt: row.completed_at
+    }));
+  }
+
+  getLatestWorkspaceMutation(root = null) {
+    return this.listWorkspaceMutations({ root: root ?? this.projectRoot, limit: 1 })[0] ?? null;
   }
   }
 function normalizeText(value) {

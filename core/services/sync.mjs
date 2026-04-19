@@ -27,13 +27,17 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       const integrityRepair = repairWorkflowEntityIntegrity(store);
     const files = snapshot.map((entry) => entry.relativePath);
 
-    if (lastSync?.fingerprint === fingerprint && !integrityRepair.changed) {
-      const summary = buildProjectSummary(store);
-      const projections = writeProjections
-        ? await writeProjectProjections(store, { projectRoot })
-        : null;
-      return {
-        projectRoot,
+	    if (lastSync?.fingerprint === fingerprint && !integrityRepair.changed) {
+	      const summary = buildProjectSummary(store);
+	      const projections = writeProjections
+	        ? await writeProjectProjections(store, { projectRoot })
+	        : null;
+	      if (projections) {
+	        const projectionSnapshot = await collectProjectFileSnapshot(projectRoot, { ignore: dynamicIgnores });
+	        recordProjectionMutation(store, projectRoot, projections, projectionSnapshot);
+	      }
+	      return {
+	        projectRoot,
         dbPath: store.dbPath,
         indexedFiles: 0,
         indexedSymbols: 0,
@@ -112,10 +116,12 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     // RAG-003: Shadow Sync
     await performShadowSync(store, projectRoot);
 
-    let projections = null;
-    if (writeProjections) {
-      projections = await writeProjectProjections(store, { projectRoot, reconcileLegacy: false });
-    }
+	    let projections = null;
+	    if (writeProjections) {
+	      projections = await writeProjectProjections(store, { projectRoot, reconcileLegacy: false });
+	      const projectionSnapshot = await collectProjectFileSnapshot(projectRoot, { ignore: dynamicIgnores });
+	      recordProjectionMutation(store, projectRoot, projections, projectionSnapshot);
+	    }
 
     const finalFingerprint = await computeProjectFingerprint({ projectRoot, store, snapshot });
 
@@ -154,6 +160,27 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     } finally {
       store.close();
     }
+  });
+	}
+
+function recordProjectionMutation(store, projectRoot, projections, snapshot = []) {
+  store.appendWorkspaceMutation({
+    root: projectRoot,
+    operation: "sync projections",
+    status: "completed",
+    beforeDirty: false,
+    afterDirty: false,
+    changedFiles: [
+      path.relative(projectRoot, projections.kanbanPath),
+      path.relative(projectRoot, projections.epicsPath)
+    ],
+    details: {
+      source: "syncProject",
+      writtenAt: projections.writtenAt,
+      snapshot
+    },
+    startedAt: projections.writtenAt,
+    completedAt: projections.writtenAt
   });
 }
 
@@ -670,6 +697,43 @@ export async function addManualNote({ projectRoot = process.cwd(), note }) {
       }
     }
     return stored ?? materialized;
+  });
+}
+
+export async function resolveProjectNote({ projectRoot = process.cwd(), noteId, reason = null }) {
+  return withWorkflowStore(projectRoot, async (store) => {
+    const existing = store.getNoteById(noteId);
+    if (!existing) {
+      throw new Error(`Unknown note: ${noteId}`);
+    }
+    const timestamp = new Date().toISOString();
+    const resolved = store.updateNoteStatus(noteId, "resolved", timestamp);
+    const relatedCandidate = store.listCandidates().find((candidate) => candidate.noteId === noteId);
+    if (relatedCandidate) {
+      store.upsertCandidate({
+        ...relatedCandidate,
+        status: "archived",
+        reason: reason
+          ? `${relatedCandidate.reason}; note resolved: ${reason}`
+          : `${relatedCandidate.reason}; note resolved`,
+        updatedAt: timestamp,
+        lastReviewAt: timestamp,
+        nextReviewAt: null
+      });
+    }
+    store.appendEvent({
+      eventType: "note_resolved",
+      entityType: "note",
+      entityId: noteId,
+      payload: {
+        reason,
+        noteType: existing.noteType,
+        body: existing.body
+      },
+      createdAt: timestamp
+    });
+    createSearchDocumentsForEntities(store);
+    return resolved ?? existing;
   });
 }
 

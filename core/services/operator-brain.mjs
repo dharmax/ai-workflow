@@ -4,17 +4,18 @@
  */
 
 import path from "node:path";
-import { withWorkflowStore, getProjectSummary, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle } from "./sync.mjs";
+import { withWorkflowStore, getProjectSummary, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet } from "./sync.mjs";
 import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
 import { executeCodelet } from "./codelet-executor.mjs";
 import { executeJsOrchestrator } from "./js-orchestrator.mjs";
-import { generateCompletion } from "./providers.mjs";
+import { generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
 import { routeTask } from "./router.mjs";
 import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
 import { buildTicketEntity } from "./projections.mjs";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile } from "../lib/filesystem.mjs";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -61,7 +62,8 @@ export async function executeOperatorRequest(prompt, options = {}) {
       prompt: effectiveInputText,
       runId,
       services,
-      root
+      root,
+      traceWorkflow: options.traceWorkflow
     });
   });
 
@@ -102,12 +104,15 @@ function buildOperatorPlanningMetric({ candidates, attempts, successfulCandidate
       error
     }));
   const failedLatencyMs = failedCandidates.reduce((sum, attempt) => sum + Number(attempt.latencyMs ?? 0), 0);
+  const tokenUsage = summarizeCompletionUsage(attempts.map((attempt) => attempt.usage));
 
   return {
     taskClass: "project-planning",
     capability: "strategy",
     providerId,
     modelId,
+    promptTokens: tokenUsage.promptTokens,
+    completionTokens: tokenUsage.completionTokens,
     latencyMs: Date.now() - startedAt,
     success: Boolean(plan),
     errorMessage: plan ? null : (failedCandidates.at(-1)?.error ?? "No planning candidates available."),
@@ -120,13 +125,15 @@ function buildOperatorPlanningMetric({ candidates, attempts, successfulCandidate
       failedLatencyMs,
       successfulProviderId: successfulCandidate?.providerId ?? null,
       successfulModelId: successfulCandidate?.modelId ?? null,
-      failedCandidates
+      failedCandidates,
+      tokenUsage
     }
   };
 }
 
 export async function planOperatorRequest(inputText, options = {}) {
   const root = options.root ?? process.cwd();
+  const trace = typeof options.traceAi === "function" ? options.traceAi : null;
   
   const [projectConfigState, globalConfigState] = await Promise.all([
     readConfigSafe(getProjectConfigPath(root)),
@@ -148,6 +155,26 @@ export async function planOperatorRequest(inputText, options = {}) {
     context: { inputText, options } 
   });
   const effectiveInputText = prePlanContext.inputText ?? inputText;
+
+  const groundedBriefReply = await buildGroundedOperatorBriefReply(effectiveInputText, options);
+  if (groundedBriefReply) {
+    groundedBriefReply.__effectiveInputText = effectiveInputText;
+    groundedBriefReply.__planner = {
+      mode: "grounded-brief",
+      reason: groundedBriefReply.reason ?? "Grounded operator brief."
+    };
+    return groundedBriefReply;
+  }
+
+  const groundedReply = await buildGroundedOperatorReply(effectiveInputText, options);
+  if (groundedReply) {
+    groundedReply.__effectiveInputText = effectiveInputText;
+    groundedReply.__planner = {
+      mode: "grounded-reply",
+      reason: groundedReply.reason ?? "Grounded operator reply."
+    };
+    return groundedReply;
+  }
 
   const { system, prompt } = await buildOperatorPlannerPrompt(effectiveInputText, options);
   
@@ -175,7 +202,14 @@ export async function planOperatorRequest(inputText, options = {}) {
     let timeoutId = null;
     const attemptStartedAt = Date.now();
     try {
-      if (process.env.AI_WORKFLOW_DEBUG_FALLBACK || candidates.length > 1) {
+      trace?.({
+        phase: "request",
+        stage: "operator-planner",
+        planner: candidate,
+        system,
+        prompt
+      });
+      if (process.env.AI_WORKFLOW_DEBUG_FALLBACK) {
         console.error(`[operator-brain] Attempting planning with ${candidate.providerId}:${candidate.modelId}...`);
       }
       if (controller && Number.isFinite(timeoutMs) && timeoutMs > 0) {
@@ -191,29 +225,50 @@ export async function planOperatorRequest(inputText, options = {}) {
         signal: controller?.signal ?? null
       });
 
-      plan = parsePlannerResponse(completion.response);
+      trace?.({
+        phase: "response",
+        stage: "operator-planner",
+        planner: candidate,
+        response: completion.response,
+        usage: completion.usage ?? null,
+        elapsedMs: Date.now() - attemptStartedAt
+      });
+      const parsedPlan = normalizePlannerResponse(parsePlannerResponse(completion.response));
+      validateGeneratedPlan(parsedPlan);
+      plan = parsedPlan;
       attempts.push({
         providerId: candidate.providerId,
         modelId: candidate.modelId,
         latencyMs: Date.now() - attemptStartedAt,
         success: true,
         timedOut: false,
-        error: null
+        error: null,
+        usage: completion.usage ?? null
       });
       successfulCandidate = candidate;
       break;
     } catch (error) {
       const timedOut = controller?.signal?.aborted && Number.isFinite(timeoutMs) && timeoutMs > 0;
       const message = timedOut ? `planner timed out after ${timeoutMs}ms` : (error?.message ?? String(error));
+      trace?.({
+        phase: "error",
+        stage: "operator-planner",
+        planner: candidate,
+        error: message,
+        elapsedMs: Date.now() - attemptStartedAt
+      });
       attempts.push({
         providerId: candidate.providerId,
         modelId: candidate.modelId,
         latencyMs: Date.now() - attemptStartedAt,
         success: false,
         timedOut,
-        error: message
+        error: message,
+        usage: error?.completion?.usage ?? null
       });
-      console.error(`[operator-brain] Planning failed with ${candidate.providerId}:${candidate.modelId}:`, message);
+      if (process.env.AI_WORKFLOW_DEBUG_FALLBACK) {
+        console.error(`[operator-brain] Planning failed with ${candidate.providerId}:${candidate.modelId}:`, message);
+      }
       errors.push(`${candidate.providerId}:${candidate.modelId} failed: ${message}`);
     } finally {
       if (timeoutId) {
@@ -314,6 +369,7 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     "- `sync`: { syncProject, getProjectSummary, getProjectMetrics, createTicket(title, data), updateTicketLifecycle, listEpics, getEpic }",
     "- `orchestrator`: { executeTicket, decomposeTicket, ideateFeature(title, summary, data), sweepBugs }",
     "- `status`: { resolveProjectStatus, getSmartProjectStatus }",
+    "- `files`: { list(), read(path), write(path, content) }",
     "- `sh`: { execute(cmd, args) }",
     "- `codelets`: { execute(id, args) }",
     "",
@@ -321,7 +377,12 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     "- Use `await step(id, desc, fn)` for persistent operations.",
     "- Use `await transition(to, trigger, fn)` for state transitions.",
     "- Use `await exec(cmd, [args])` for CLI/Git commands.",
+    "- For coding tasks, prefer `files.read` and `files.write` over hidden generators or opaque builders.",
+    "- Do not use `programming-dogfood-build` for programming-dogfood requests; create or edit the project files through the normal workflow.",
+    "- When generating file contents, prefer `JSON.stringify(content)` or arrays joined with `\\n` instead of raw template literals that contain nested backticks.",
+    "- Do not redeclare injected helper names such as `files`, `sync`, `status`, `orchestrator`, `sh`, `codelets`, `step`, `transition`, `shell`, `exec`, or `executeCodelet`.",
     "- Include comments and proper try/catch exception handling in the generated JS.",
+    "- Return a final structured object that includes `summary`, `changedFiles`, and `verification` when you perform coding work.",
     "- JSON only: your output must be valid JSON matching the schema.",
   ].join("\n");
 
@@ -404,10 +465,14 @@ function buildOperatorPlannerSchemaPrompt() {
     '- `await shell(prompt)`: Recursive NL call.',
     '- `await exec(cmd, [args])`: Raw shell command.',
     '- `await executeCodelet(id, args)`: Toolkit tool.',
+    '- `files.list()`, `files.read(path)`, `files.write(path, content)`: project file operations.',
     '- `issue(type, sum, {details})`: Log failure.',
     'Patterns:',
     '- Use `try/catch` & comments.',
     '- Use `transition` for branching logic.',
+    '- Prefer `JSON.stringify(content)` or arrays joined with `\\n` for file bodies instead of nested template literals.',
+    '- Never redeclare injected helper names like `files`, `sync`, `status`, `orchestrator`, `sh`, `codelets`, `step`, `transition`, `shell`, `exec`, or `executeCodelet`.',
+    '- Return a final object like `{ summary, changedFiles, verification }` for coding flows.',
     'Simple replies: use kind:"reply" and omit "code".'
   ].join("\n");
 }
@@ -417,6 +482,285 @@ function buildActionCatalog(plannerContext = {}) {
     "sync", "status_query", "doctor", "execute_ticket", "decompose_ticket", "ideate_feature", "sweep_bugs"
   ];
   return `Valid actions: ${baseActions.join(", ")}`;
+}
+
+async function buildGroundedOperatorReply(inputText, options = {}) {
+  if (!looksLikeRepoExplainerQuestion(inputText)) {
+    return null;
+  }
+
+  const normalized = normalizeConversationText(inputText);
+  if (/\bprojection(?:s)?\b/.test(normalized)) {
+    return {
+      kind: "reply",
+      confidence: 0.86,
+      assistantReply: [
+        "The projections service lives in core/services/projections.mjs.",
+        "It turns workflow DB state into operator-facing summaries and files, including the project summary, kanban projection, epics projection, and projection writes back to disk.",
+        "Evidence: buildProjectSummary, renderKanbanProjection, renderEpicsProjection, and writeProjectProjections are defined there."
+      ].join("\n"),
+      reason: "Grounded projections-service reply."
+    };
+  }
+
+  const plannerContext = options.plannerContext ?? {};
+  const moduleMatches = findGroundingModuleMatches(inputText, plannerContext);
+  const selectors = extractGroundingSelectors(inputText, plannerContext);
+  const root = options.root ?? process.cwd();
+
+  for (const selector of selectors.slice(0, 4)) {
+    const payload = await resolveProjectStatus({
+      projectRoot: root,
+      selector,
+      includeRelated: true,
+      rawQuestion: true,
+      relatedLimit: 8
+    }).catch(() => null);
+    if (!payload?.ok) {
+      continue;
+    }
+    return {
+      kind: "reply",
+      confidence: 0.8,
+      assistantReply: renderGroundedOperatorReply(payload, moduleMatches),
+      reason: "Grounded repo explainer reply."
+    };
+  }
+
+  if (moduleMatches.length) {
+    const top = moduleMatches[0];
+    return {
+      kind: "reply",
+      confidence: 0.74,
+      assistantReply: `${top.name} is the most likely match here. ${top.responsibility ?? "It is a tracked repo module."}`,
+      reason: "Module-match explainer reply."
+    };
+  }
+
+  return null;
+}
+
+async function buildGroundedOperatorBriefReply(inputText, options = {}) {
+  if (!looksLikeOperatorBriefQuestion(inputText)) {
+    return null;
+  }
+
+  const root = options.root ?? process.cwd();
+  const [summary, metrics] = await Promise.all([
+    getProjectSummary({ projectRoot: root }).catch(() => null),
+    getProjectMetrics({ projectRoot: root }).catch(() => null)
+  ]);
+
+  const activeTickets = Array.isArray(summary?.activeTickets) ? summary.activeTickets : [];
+  const inProgress = activeTickets.filter((ticket) => String(ticket?.lane ?? "").toLowerCase() === "in progress");
+  const todo = activeTickets.filter((ticket) => String(ticket?.lane ?? "").toLowerCase() === "todo");
+  const focusTicket = inProgress[0] ?? todo[0] ?? activeTickets[0] ?? null;
+
+  const lines = ["Current workflow state:"];
+  if (focusTicket) {
+    lines.push(`- Focus ticket: ${focusTicket.id} [${focusTicket.lane}] ${focusTicket.title}`);
+  } else {
+    lines.push("- Focus ticket: none currently active.");
+  }
+  lines.push(`- Active tickets: ${activeTickets.length}`);
+  if (metrics && Number.isFinite(metrics.successRate)) {
+    lines.push(`- Recent automation success rate: ${metrics.successRate}% across ${metrics.totalCalls ?? 0} recorded calls.`);
+  }
+
+  if (focusTicket) {
+    lines.push("");
+    lines.push(`Recommendation: finish ${focusTicket.id} before starting new work.`);
+    lines.push(`Why: it is already in the active queue, and closing the current operator-surface acceptance work will reduce workflow noise faster than opening another branch of work.`);
+  } else {
+    lines.push("");
+    lines.push("Recommendation: sync the project and create the next concrete ticket before executing more work.");
+    lines.push("Why: the workflow state does not currently expose an active ticket, so the next useful move is to establish a tracked focus item.");
+  }
+
+  if (todo.length) {
+    lines.push(`Queued next: ${todo.slice(0, 2).map((ticket) => `${ticket.id} ${ticket.title}`).join("; ")}.`);
+  }
+
+  return {
+    kind: "reply",
+    confidence: 0.84,
+    assistantReply: lines.join("\n"),
+    reason: "Grounded operator brief reply."
+  };
+}
+
+function normalizeConversationText(text) {
+  return String(text ?? "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[?!.,;:()\[\]{}]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function looksLikeOperatorBriefQuestion(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  return /\b(operator brief|workflow state|current workflow state)\b/.test(normalized)
+    || (/\bbrief\b/.test(normalized) && /\bworkflow\b/.test(normalized))
+    || (/\brecommendation\b/.test(normalized) && /\bworkflow\b/.test(normalized));
+}
+
+function looksLikeRepoExplainerQuestion(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  if (!/\b(what is|whats|what are|explain|describe|tell me about|teach me about)\b/.test(normalized)) {
+    return false;
+  }
+  return /\b(service|module|modules|projection|projections|router|shell|sync|status|ticket|workflow|context|provider|planner|codelet|claim|claims)\b/.test(normalized)
+    || /\bwhat are those\b/.test(normalized);
+}
+
+function getPlannerModules(plannerContext = {}) {
+  return [
+    ...(Array.isArray(plannerContext?.summary?.modules) ? plannerContext.summary.modules : []),
+    ...(Array.isArray(plannerContext?.projectSummary?.modules) ? plannerContext.projectSummary.modules : [])
+  ];
+}
+
+function extractGroundingSelectors(inputText, plannerContext = {}) {
+  const text = String(inputText ?? "").trim();
+  const normalized = normalizeConversationText(text);
+  const selectors = new Set();
+  if (text) {
+    selectors.add(text);
+  }
+
+  const quoted = text.match(/["'`](.+?)["'`]/g) ?? [];
+  for (const match of quoted) {
+    const unwrapped = match.slice(1, -1).trim();
+    if (unwrapped) {
+      selectors.add(unwrapped);
+    }
+  }
+
+  const simplified = normalized
+    .replace(/\b(what is|whats|what are|explain|describe|tell me about|teach me about|what are those)\b/g, " ")
+    .replace(/\b(the|those|this|current|service|module|modules|thing|system|component)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (simplified) {
+    selectors.add(simplified);
+  }
+
+  for (const module of getPlannerModules(plannerContext)) {
+    const name = String(module?.name ?? "").trim();
+    if (!name) {
+      continue;
+    }
+    const tail = name.split("/").filter(Boolean).at(-1) ?? name;
+    if (normalized.includes(tail.toLowerCase())) {
+      selectors.add(name);
+      selectors.add(tail);
+    }
+  }
+
+  return [...selectors].filter(Boolean);
+}
+
+function findGroundingModuleMatches(inputText, plannerContext = {}) {
+  const normalized = normalizeConversationText(inputText);
+  return getPlannerModules(plannerContext).filter((item) => {
+    const name = String(item?.name ?? "").trim().toLowerCase();
+    if (!name) {
+      return false;
+    }
+    const tail = name.split("/").filter(Boolean).at(-1) ?? name;
+    return normalized.includes(tail) || normalized.includes(name.replace(/[^a-z0-9/_:-]+/g, " "));
+  });
+}
+
+function renderGroundedOperatorReply(payload, moduleMatches = []) {
+  const lines = [];
+  const matchingModule = moduleMatches.find((item) => String(item?.name ?? "") === String(payload?.title ?? ""))
+    ?? moduleMatches.find((item) => String(payload?.title ?? "").includes(String(item?.name ?? "").split("/").filter(Boolean).at(-1) ?? ""));
+  if (matchingModule?.responsibility) {
+    lines.push(`${matchingModule.name} is the relevant service here. ${matchingModule.responsibility}`);
+  } else {
+    lines.push(`${payload.title} is the relevant ${payload.type} here.`);
+  }
+  if (payload.summary && payload.summary !== "Tracked module.") {
+    lines.push(payload.summary);
+  }
+  if (payload.related?.length) {
+    lines.push(`Related: ${payload.related.slice(0, 4).map((item) => `${item.title} [${item.type}]`).join(", ")}`);
+  }
+  if (payload.evidence?.length) {
+    lines.push(`Evidence: ${payload.evidence.slice(0, 3).join(" | ")}`);
+  }
+  return lines.join("\n");
+}
+
+function normalizePlannerResponse(plan) {
+  if (!plan || typeof plan !== "object") {
+    return plan;
+  }
+
+  if (plan.kind === "reply" && !plan.assistantReply) {
+    const assistantReply = [
+      plan.reply,
+      plan.content,
+      plan.message,
+      plan.summary
+    ].find((value) => typeof value === "string" && value.trim());
+    if (assistantReply) {
+      return {
+        ...plan,
+        assistantReply
+      };
+    }
+  }
+
+  return plan;
+}
+
+function validateGeneratedPlan(plan) {
+  if (!plan || plan.kind !== "plan" || typeof plan.code !== "string" || !plan.code.trim()) {
+    return;
+  }
+  const trimmedCode = plan.code
+    .trim()
+    .replace(/^```javascript/, "")
+    .replace(/^```js/, "")
+    .replace(/^```/, "")
+    .replace(/```$/, "");
+  const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
+  try {
+    if (trimmedCode.startsWith("async") || trimmedCode.startsWith("function")) {
+      // Parse function-style plans without executing them.
+      Function(`return (${trimmedCode});`)();
+    } else {
+      new AsyncFunction(trimmedCode);
+    }
+  } catch (error) {
+    throw new Error(`generated JS failed syntax validation: ${error?.message ?? error}`);
+  }
+  const reservedHelpers = [
+    "files",
+    "sync",
+    "status",
+    "orchestrator",
+    "sh",
+    "codelets",
+    "step",
+    "transition",
+    "shell",
+    "exec",
+    "executeCodelet",
+    "getState",
+    "setState",
+    "services",
+    "db"
+  ];
+  for (const helper of reservedHelpers) {
+    const redeclarePattern = new RegExp(`\\b(?:const|let|var|function|class)\\s+${helper}\\b`);
+    if (redeclarePattern.test(trimmedCode)) {
+      throw new Error(`generated JS redeclared reserved helper: ${helper}`);
+    }
+  }
 }
 
 /**
@@ -467,6 +811,11 @@ function buildOperatorServices(root, options) {
       resolveProjectStatus: (args) => resolveProjectStatus({ projectRoot: root, ...args }),
       getSmartProjectStatus: (args) => getSmartProjectStatus({ projectRoot: root, ...args }),
     },
+    files: {
+      list: (args = {}) => collectProjectFiles(root, args),
+      read: (relativePath) => readProjectFile(root, relativePath),
+      write: (relativePath, content) => writeProjectFile(root, relativePath, content)
+    },
     orchestrator: {
       executeTicket: (args) => executeTicket({ root, ...args }),
       decomposeTicket: (args) => decomposeTicket({ root, ...args }),
@@ -474,7 +823,10 @@ function buildOperatorServices(root, options) {
       sweepBugs: (args) => sweepBugs({ root, ...args }),
     },
     codelets: {
-      execute: (id, args) => executeCodelet(id, args, { cwd: root }),
+      execute: async (id, args) => {
+        const codelet = await resolveExecutableCodelet(root, id);
+        return executeCodelet(codelet, args, { cwd: root });
+      },
     },
     shell: {
       execute: (prompt, opts) => executeOperatorRequest(prompt, { ...options, ...opts }),
@@ -489,4 +841,22 @@ function buildOperatorServices(root, options) {
       }
     }
   };
+}
+
+async function resolveExecutableCodelet(root, codeletOrId) {
+  if (codeletOrId && typeof codeletOrId === "object") {
+    return codeletOrId;
+  }
+
+  const codeletId = String(codeletOrId ?? "").trim();
+  if (!codeletId) {
+    throw new Error("Missing codelet id.");
+  }
+
+  const codelet = await getCodelet({ projectRoot: root, codeletId });
+  if (!codelet) {
+    throw new Error(`Unknown codelet: ${codeletId}`);
+  }
+
+  return codelet;
 }

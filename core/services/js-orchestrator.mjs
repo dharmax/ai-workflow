@@ -18,7 +18,8 @@ export async function executeJsOrchestrator(code, {
   runId,
   services = {},
   initialState = {},
-  root = process.cwd()
+  root = process.cwd(),
+  traceWorkflow = null
 } = {}) {
   const finalRunId = runId ?? stableId("run", prompt, Date.now());
   
@@ -35,9 +36,19 @@ export async function executeJsOrchestrator(code, {
     }
   };
 
-  const session = new WorkflowSession({ workflowStore, runId: finalRunId, services, config, root });
+  const session = new WorkflowSession({
+    workflowStore,
+    runId: finalRunId,
+    services,
+    config,
+    root,
+    traceWorkflow
+  });
 
   const sandbox = {
+    // Services (Spread for direct access like sync.createTicket)
+    ...services,
+
     // Core Helpers
     step: session.step.bind(session),
     transition: session.transition.bind(session),
@@ -49,9 +60,6 @@ export async function executeJsOrchestrator(code, {
     // State Management
     getState: session.getState.bind(session),
     setState: session.setState.bind(session),
-    
-    // Services (Spread for direct access like sync.createTicket)
-    ...services,
     
     // Legacy/Explicit Access
     services,
@@ -117,12 +125,13 @@ export async function executeJsOrchestrator(code, {
 }
 
 class WorkflowSession {
-  constructor({ workflowStore, runId, services, config = {}, root = process.cwd() }) {
+  constructor({ workflowStore, runId, services, config = {}, root = process.cwd(), traceWorkflow = null }) {
     this.workflowStore = workflowStore;
     this.runId = runId;
     this.services = services;
     this.config = config;
     this.root = root;
+    this.traceWorkflow = typeof traceWorkflow === "function" ? traceWorkflow : null;
     this.completedSteps = new Set();
     
     // Load completed steps from DB to support recovery
@@ -134,9 +143,29 @@ class WorkflowSession {
     }
   }
 
+  emitWorkflowEvent(event) {
+    if (!this.traceWorkflow) {
+      return;
+    }
+    try {
+      this.traceWorkflow({
+        runId: this.runId,
+        recordedAt: new Date().toISOString(),
+        ...event
+      });
+    } catch {
+      // Ignore trace sink failures so workflow execution keeps moving.
+    }
+  }
+
   async step(id, description, fn) {
     if (this.completedSteps.has(id)) {
-      console.log(`[Workflow] Resuming step: ${id}`);
+      console.error(`[Workflow] Resuming step: ${id} | ${description}`);
+      this.emitWorkflowEvent({
+        type: "step_resume",
+        stepId: id,
+        description
+      });
       const steps = this.workflowStore.listWorkflowSteps(this.runId);
       return steps.find(s => s.stepId === id)?.result;
     }
@@ -149,6 +178,12 @@ class WorkflowSession {
       status: "running",
       startedAt: now
     });
+    console.error(`[Workflow] Starting step: ${id} | ${description}`);
+    this.emitWorkflowEvent({
+      type: "step_start",
+      stepId: id,
+      description
+    });
 
     try {
       const result = await fn();
@@ -160,6 +195,12 @@ class WorkflowSession {
         completedAt: new Date().toISOString()
       });
       this.completedSteps.add(id);
+      console.error(`[Workflow] Completed step: ${id} | ${description}`);
+      this.emitWorkflowEvent({
+        type: "step_complete",
+        stepId: id,
+        description
+      });
       return result;
     } catch (err) {
       const errorDetails = { message: err.message, stack: err.stack };
@@ -169,6 +210,13 @@ class WorkflowSession {
         status: "failed",
         error: errorDetails,
         completedAt: new Date().toISOString()
+      });
+      console.error(`[Workflow] Failed step: ${id} | ${description} | ${errorDetails.message}`);
+      this.emitWorkflowEvent({
+        type: "step_fail",
+        stepId: id,
+        description,
+        error: errorDetails.message
       });
       
       // Log to issues table for the refinement loop
@@ -182,7 +230,7 @@ class WorkflowSession {
     const stepId = `transition-${from}-to-${to}-${label.replace(/\s+/g, "-")}`;
     
     return this.step(stepId, `Transition: ${from} -> ${to} (${label})`, async () => {
-      console.log(`[Workflow] Transitioning: ${from} -> ${to} [Trigger: ${label}]`);
+      console.error(`[Workflow] Transitioning: ${from} -> ${to} [Trigger: ${label}]`);
       const result = await action();
       
       this.workflowStore.addWorkflowTransition({

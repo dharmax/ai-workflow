@@ -1,7 +1,9 @@
 import path from "node:path";
 import { readFile, stat } from "node:fs/promises";
 import { routeTask } from "./router.mjs";
-import { generateCompletion } from "./providers.mjs";
+import { generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
+import { normalizeHonestyContract, isHonestyContractPass } from "./honesty-contract.mjs";
+import { withWorkflowStore } from "./sync.mjs";
 
 const TEXT_EXTENSIONS = new Set([
   ".md",
@@ -46,6 +48,21 @@ const SHELL_JUDGE_DIMENSIONS = [
   "codexAcceptance"
 ];
 
+function getShellTranscriptJudgeTimeoutMs(candidate) {
+  const envValue = Number(
+    process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS
+    ?? process.env.AI_WORKFLOW_ARTIFACT_JUDGE_TIMEOUT_MS
+    ?? ""
+  );
+  if (Number.isFinite(envValue) && envValue > 0) {
+    return envValue;
+  }
+  if (candidate?.providerId === "ollama") {
+    return 15000;
+  }
+  return 10000;
+}
+
 export async function judgeShellTranscripts({
   projectRoot = process.cwd(),
   artifactPaths = [],
@@ -80,9 +97,10 @@ export async function judgeShellTranscripts({
   const routed = applyRouteOverride(route, providerId, modelId);
   const prompt = buildShellTranscriptJudgePrompt({ projectRoot, rubric: rubricText, goal, artifacts });
   const contentParts = buildShellTranscriptJudgeContentParts({ artifacts });
+  const startedAt = Date.now();
 
   if (!routed.recommended) {
-    return buildFallbackShellTranscriptJudgment({
+    const unavailablePayload = buildFallbackShellTranscriptJudgment({
       projectRoot,
       route: sanitizeRoute(routed),
       prompt,
@@ -91,48 +109,131 @@ export async function judgeShellTranscripts({
       artifacts,
       reason: "No suitable model route is available."
     });
-  }
-
-  const provider = routed.providers?.[routed.recommended.providerId] ?? {};
-  try {
-    const completion = await generateCompletion({
-      providerId: routed.recommended.providerId,
-      modelId: routed.recommended.modelId,
-      prompt,
-      system: [
-        "You are a strict shell transcript judge.",
-        "Return concise JSON only.",
-        "Judge whether the shell behaves like a strong Codex-like operator for the given request.",
-        "Score each requested dimension independently and fail if the transcript is shallow, ungrounded, or visibly inferior to a good coding assistant."
-      ].join(" "),
-      config: provider,
-      contentParts
-    });
-
-    return {
-      codelet: {
-        id: "shell-transcript-judge",
-        summary: "Judge shell transcripts for intent handling, grounding, and Codex-like answer quality.",
-        taskClass: "artifact-evaluation"
-      },
-      root: projectRoot,
-      route: sanitizeRoute(routed),
-      goal,
-      rubric: rubricText,
-      artifacts,
-      result: normalizeShellTranscriptJudgment(completion.response, artifacts, rubricText, goal)
-    };
-  } catch (error) {
-    return buildFallbackShellTranscriptJudgment({
+    await recordShellTranscriptJudgeMetric({
       projectRoot,
-      route: sanitizeRoute(routed),
-      prompt,
-      rubric: rubricText,
-      goal,
-      artifacts,
-      reason: error?.message ?? String(error)
+      route: routed,
+      attempts: [],
+      successfulCandidate: null,
+      success: false,
+      errorMessage: unavailablePayload.result.summary,
+      startedAt
     });
+    return unavailablePayload;
   }
+
+  const attempts = [];
+  const candidates = buildRouteCandidates(routed);
+
+  for (const candidate of candidates) {
+    const timeoutMs = getShellTranscriptJudgeTimeoutMs(candidate);
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    let timeoutId = null;
+    const attemptStartedAt = Date.now();
+    try {
+      if (controller && Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        timeoutId = setTimeout(() => controller.abort(new Error(`judge timed out after ${timeoutMs}ms`)), timeoutMs);
+      }
+      const completion = await generateCompletion({
+        providerId: candidate.providerId,
+        modelId: candidate.modelId,
+        prompt,
+        system: [
+          "You are a strict shell transcript judge.",
+          "Return concise JSON only.",
+          "Judge whether the shell behaves like a strong Codex-like operator for the given request.",
+          "Score each requested dimension independently and fail if the transcript is shallow, ungrounded, or visibly inferior to a good coding assistant."
+        ].join(" "),
+        config: routed.providers?.[candidate.providerId] ?? {},
+        contentParts,
+        signal: controller?.signal ?? null
+      });
+
+      const result = normalizeShellTranscriptJudgment(completion.response, artifacts, rubricText, goal);
+      if (!result.structuredVerdict) {
+        attempts.push({
+          providerId: candidate.providerId,
+          modelId: candidate.modelId,
+          success: false,
+          latencyMs: Date.now() - attemptStartedAt,
+          error: "judge returned unstructured output",
+          rawResponse: result.rawResponse ?? null,
+          usage: completion.usage ?? null
+        });
+        continue;
+      }
+
+      attempts.push({
+        providerId: candidate.providerId,
+        modelId: candidate.modelId,
+        success: true,
+        latencyMs: Date.now() - attemptStartedAt,
+        error: null,
+        usage: completion.usage ?? null
+      });
+
+      const payload = {
+        codelet: {
+          id: "shell-transcript-judge",
+          summary: "Judge shell transcripts for intent handling, grounding, and Codex-like answer quality.",
+          taskClass: "artifact-evaluation"
+        },
+        root: projectRoot,
+        route: sanitizeRoute(routed),
+        goal,
+        rubric: rubricText,
+        artifacts,
+        diagnostics: summarizeRouteAttempts(attempts, candidate),
+        result
+      };
+      await recordShellTranscriptJudgeMetric({
+        projectRoot,
+        route: routed,
+        attempts,
+        successfulCandidate: candidate,
+        success: true,
+        errorMessage: null,
+        startedAt
+      });
+      return payload;
+    } catch (error) {
+      const timedOut = controller?.signal?.aborted && Number.isFinite(timeoutMs) && timeoutMs > 0;
+      attempts.push({
+        providerId: candidate.providerId,
+        modelId: candidate.modelId,
+        success: false,
+        latencyMs: Date.now() - attemptStartedAt,
+        timedOut,
+        error: timedOut ? `judge timed out after ${timeoutMs}ms` : (error?.message ?? String(error)),
+        rawResponse: null,
+        usage: error?.completion?.usage ?? null
+      });
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  const fallbackPayload = buildFallbackShellTranscriptJudgment({
+    projectRoot,
+    route: sanitizeRoute(routed),
+    prompt,
+    rubric: rubricText,
+    goal,
+    artifacts,
+    reason: buildAttemptFailureReason(attempts, "Shell transcript judging failed because every routed candidate returned an error or an unstructured verdict."),
+    diagnostics: summarizeRouteAttempts(attempts, null)
+  });
+  await recordShellTranscriptJudgeMetric({
+    projectRoot,
+    route: routed,
+    attempts,
+    successfulCandidate: null,
+    success: false,
+    errorMessage: fallbackPayload.result.summary,
+    startedAt
+  });
+  return fallbackPayload;
 }
 
 export async function runShellTranscriptJudge(argv = process.argv.slice(2)) {
@@ -189,10 +290,10 @@ export function buildShellTranscriptJudgePrompt({ projectRoot, goal = null, rubr
   return [
     "Judge the supplied shell transcripts against the rubric.",
     "Return JSON only with the shape:",
-    "{ status, score, confidence, summary, findings[], recommendations[], dimensions:{ intentCorrectness:{score,status,reason}, capabilityFit:{score,status,reason}, grounding:{score,status,reason}, subjectPreservation:{score,status,reason}, executionQuality:{score,status,reason}, synthesisQuality:{score,status,reason}, verbosityMatch:{score,status,reason}, codexAcceptance:{score,status,reason} }, artifacts[{path,status,score,findings[]}], needs_human_review }",
+    "{ status, score, confidence, summary, findings[], recommendations[], contract:{ userWish, successDefinition, summary, attemptedRealWish:{score,status,reason}, wishFulfillment:{score,status,reason}, reportTruthfulness:{score,status,reason}, reportEnlightenment:{score,status,reason}, misleadingRisk, missingEvidence[] }, dimensions:{ intentCorrectness:{score,status,reason}, capabilityFit:{score,status,reason}, grounding:{score,status,reason}, subjectPreservation:{score,status,reason}, executionQuality:{score,status,reason}, synthesisQuality:{score,status,reason}, verbosityMatch:{score,status,reason}, codexAcceptance:{score,status,reason} }, artifacts[{path,status,score,findings[]}], needs_human_review }",
     "Use status values pass, fail, or needs_human_review.",
-    "Pass only when the transcript is grounded, useful, and would satisfy a demanding Codex user for this request.",
-    "Fail when the transcript loses the user's subject, gives shallow routing instead of a usable answer, leaks planner internals, or asks for rephrasing when a concrete next step was possible.",
+    "Pass only when the transcript is grounded, useful, would satisfy a demanding Codex user for this request, and the report is truthful and enlightening rather than misleading.",
+    "Fail when the transcript loses the user's subject, gives shallow routing instead of a usable answer, misses the user's real wish, overclaims success, leaks planner internals, or asks for rephrasing when a concrete next step was possible.",
     "",
     `Project root: ${projectRoot}`,
     goal ? `Goal: ${goal}` : "Goal: none",
@@ -285,18 +386,27 @@ function normalizeShellTranscriptJudgment(text, artifacts, rubric, goal) {
         score,
         findings: normalizeArray(parsed.findings)
       }));
+  const contract = normalizeHonestyContract(parsed.contract, {
+    goal,
+    fallbackScore: score ?? 0,
+    fallbackWish: goal ? `Satisfy this user goal: ${goal}` : "Understand the user's real wish and answer it directly.",
+    fallbackSuccessDefinition: "Answer the real user request directly, truthfully, and with useful reporting."
+  });
+  const finalStatus = isHonestyContractPass(contract) ? status : (status === "pass" ? "needs_human_review" : status);
 
   return {
-    status,
+    status: finalStatus,
     score,
     confidence,
-    summary: String(parsed.summary ?? "").trim() || defaultSummaryForStatus(status, artifacts.length),
+    summary: String(parsed.summary ?? "").trim() || defaultSummaryForStatus(finalStatus, artifacts.length),
     findings: normalizeArray(parsed.findings),
     recommendations: normalizeArray(parsed.recommendations),
+    contract,
     dimensions,
     artifacts: artifactsResult,
-    needs_human_review: Boolean(parsed.needs_human_review ?? status === "needs_human_review"),
-    rawResponse: trimmed
+    needs_human_review: Boolean(parsed.needs_human_review ?? finalStatus === "needs_human_review"),
+    rawResponse: trimmed,
+    structuredVerdict: true
   };
 }
 
@@ -340,7 +450,7 @@ function defaultDimensionReason(dimension, score) {
   return `${dimension} needs human review.`;
 }
 
-function buildFallbackShellTranscriptJudgment({ projectRoot, route, prompt, rubric, goal, artifacts, reason }) {
+function buildFallbackShellTranscriptJudgment({ projectRoot, route, prompt, rubric, goal, artifacts, reason, diagnostics = null }) {
   return {
     codelet: {
       id: "shell-transcript-judge",
@@ -353,6 +463,7 @@ function buildFallbackShellTranscriptJudgment({ projectRoot, route, prompt, rubr
     rubric,
     artifacts,
     prompt,
+    diagnostics,
     result: buildDefaultShellTranscriptJudgment(artifacts, rubric, goal, reason)
   };
 }
@@ -368,6 +479,12 @@ function buildDefaultShellTranscriptJudgment(artifacts, rubric, goal, reason) {
       "The shell transcript judge could not produce a structured verdict.",
       "Inspect the transcript manually or rerun with a compatible model."
     ],
+    contract: normalizeHonestyContract({}, {
+      goal,
+      fallbackScore: 0,
+      fallbackWish: goal ? `Satisfy this user goal: ${goal}` : "Understand the user's real wish and answer it directly.",
+      fallbackSuccessDefinition: "Answer the real user request directly, truthfully, and with useful reporting."
+    }),
     dimensions: normalizeShellJudgeDimensions({}, 0),
     artifacts: artifacts.map((artifact) => ({
       path: artifact.path,
@@ -378,7 +495,8 @@ function buildDefaultShellTranscriptJudgment(artifacts, rubric, goal, reason) {
     })),
     needs_human_review: true,
     rubric,
-    goal
+    goal,
+    structuredVerdict: false
   };
 }
 
@@ -397,6 +515,17 @@ function formatShellTranscriptJudgeOutput(payload) {
       const item = result.dimensions[key];
       lines.push(`- ${key}: ${item?.status ?? "unknown"} (${item?.score ?? "n/a"})${item?.reason ? ` | ${item.reason}` : ""}`);
     }
+  }
+  if (result.contract) {
+    lines.push("");
+    lines.push("Honesty Contract:");
+    lines.push(`- User wish: ${result.contract.userWish}`);
+    lines.push(`- Success: ${result.contract.successDefinition}`);
+    lines.push(`- Attempted real wish: ${result.contract.attemptedRealWish?.status ?? "unknown"}`);
+    lines.push(`- Wish fulfillment: ${result.contract.wishFulfillment?.status ?? "unknown"}`);
+    lines.push(`- Report truthfulness: ${result.contract.reportTruthfulness?.status ?? "unknown"}`);
+    lines.push(`- Report enlightenment: ${result.contract.reportEnlightenment?.status ?? "unknown"}`);
+    lines.push(`- Misleading risk: ${result.contract.misleadingRisk ?? "unknown"}`);
   }
   return `${lines.join("\n").trimEnd()}\n`;
 }
@@ -541,14 +670,21 @@ function applyRouteOverride(route, providerId, modelId) {
   }
   const providers = route.providers ?? {};
   const provider = providers[normalizedProvider] ?? {};
+  const existing = route.recommended?.providerId === normalizedProvider && route.recommended?.modelId === normalizedModel
+    ? route.recommended
+    : null;
   return {
     ...route,
     recommended: {
+      ...(existing ?? {}),
       providerId: normalizedProvider,
       modelId: normalizedModel,
       local: Boolean(provider.local),
       reason: "explicit provider/model override"
-    }
+    },
+    fallbackChain: buildRouteCandidates(route)
+      .filter((candidate) => candidate.providerId !== normalizedProvider || candidate.modelId !== normalizedModel)
+      .slice(0, 4)
   };
 }
 
@@ -556,6 +692,12 @@ function sanitizeRoute(route) {
   if (!route || typeof route !== "object") {
     return route;
   }
+  const redactCandidate = (candidate) => candidate && typeof candidate === "object"
+    ? {
+        ...candidate,
+        apiKey: candidate.apiKey ? "[redacted]" : candidate.apiKey
+      }
+    : candidate;
   const providers = {};
   for (const [providerId, provider] of Object.entries(route.providers ?? {})) {
     providers[providerId] = provider && typeof provider === "object"
@@ -567,8 +709,81 @@ function sanitizeRoute(route) {
   }
   return {
     ...route,
+    recommended: redactCandidate(route.recommended),
+    fallbackChain: Array.isArray(route.fallbackChain) ? route.fallbackChain.map(redactCandidate) : route.fallbackChain,
+    candidates: Array.isArray(route.candidates) ? route.candidates.map(redactCandidate) : route.candidates,
     providers
   };
+}
+
+function buildRouteCandidates(route) {
+  const ordered = [];
+  const seen = new Set();
+  for (const candidate of [route.recommended, ...(Array.isArray(route.fallbackChain) ? route.fallbackChain : [])]) {
+    if (!candidate?.providerId || !candidate?.modelId) {
+      continue;
+    }
+    const key = `${candidate.providerId}:${candidate.modelId}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    ordered.push(candidate);
+  }
+  return ordered;
+}
+
+function summarizeRouteAttempts(attempts, successfulCandidate) {
+  const normalized = Array.isArray(attempts) ? attempts : [];
+  return {
+    attempts: normalized,
+    failedAttempts: normalized.filter((attempt) => attempt.success === false).length,
+    successfulProviderId: successfulCandidate?.providerId ?? null,
+    successfulModelId: successfulCandidate?.modelId ?? null
+  };
+}
+
+function buildAttemptFailureReason(attempts, fallback) {
+  const failures = (Array.isArray(attempts) ? attempts : [])
+    .filter((attempt) => attempt.success === false)
+    .map((attempt) => `${attempt.providerId}:${attempt.modelId} ${attempt.error}`)
+    .filter(Boolean);
+  if (!failures.length) {
+    return fallback;
+  }
+  return `${fallback}\n- ${failures.join("\n- ")}`;
+}
+
+async function recordShellTranscriptJudgeMetric({ projectRoot, route, attempts, successfulCandidate, success, errorMessage, startedAt }) {
+  const diagnostics = summarizeRouteAttempts(attempts, successfulCandidate);
+  const failedLatencyMs = (Array.isArray(attempts) ? attempts : [])
+    .filter((attempt) => attempt.success === false)
+    .reduce((total, attempt) => total + Math.max(0, Number(attempt.latencyMs ?? 0)), 0);
+  const tokenUsage = summarizeCompletionUsage((Array.isArray(attempts) ? attempts : []).map((attempt) => attempt.usage));
+  const metric = {
+    taskClass: "artifact-evaluation",
+    capability: route?.capability ?? "logic",
+    providerId: successfulCandidate?.providerId ?? route?.recommended?.providerId ?? "unavailable",
+    modelId: successfulCandidate?.modelId ?? route?.recommended?.modelId ?? "unavailable",
+    promptTokens: tokenUsage.promptTokens,
+    completionTokens: tokenUsage.completionTokens,
+    latencyMs: Date.now() - startedAt,
+    success,
+    errorMessage: success ? null : errorMessage,
+    details: {
+      stage: "shell-transcript-judge",
+      attemptCount: Array.isArray(attempts) ? attempts.length : 0,
+      fallbackUsed: diagnostics.failedAttempts > 0,
+      failedAttempts: diagnostics.failedAttempts,
+      failedLatencyMs,
+      successfulProviderId: diagnostics.successfulProviderId,
+      successfulModelId: diagnostics.successfulModelId,
+      tokenUsage
+    }
+  };
+  await withWorkflowStore(projectRoot, async (store) => {
+    store.appendMetric(metric);
+  }).catch(() => {});
 }
 
 function buildHelp() {

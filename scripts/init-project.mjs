@@ -78,23 +78,28 @@ const plan = [
   },
   {
     source: path.resolve(templatesRoot, "AGENTS.md"),
-    target: path.resolve(targetRoot, "AGENTS.md")
+    target: path.resolve(targetRoot, "AGENTS.md"),
+    essential: true
   },
   {
     source: path.resolve(templatesRoot, "CONTRIBUTING.md"),
-    target: path.resolve(targetRoot, "CONTRIBUTING.md")
+    target: path.resolve(targetRoot, "CONTRIBUTING.md"),
+    essential: true
   },
   {
     source: path.resolve(templatesRoot, "execution-protocol.md"),
-    target: path.resolve(targetRoot, "execution-protocol.md")
+    target: path.resolve(targetRoot, "execution-protocol.md"),
+    essential: true
   },
   {
     source: path.resolve(templatesRoot, "enforcement.md"),
-    target: path.resolve(targetRoot, "enforcement.md")
+    target: path.resolve(targetRoot, "enforcement.md"),
+    essential: true
   },
   {
     source: path.resolve(templatesRoot, "project-guidelines.md"),
-    target: path.resolve(targetRoot, "project-guidelines.md")
+    target: path.resolve(targetRoot, "project-guidelines.md"),
+    essential: true
   },
   {
     source: path.resolve(templatesRoot, ".github", "workflows", "ai-workflow-audit.yml"),

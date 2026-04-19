@@ -92,7 +92,7 @@ export function buildProjectSummary(store) {
     }));
 
   const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
-  const notes = store.listNotes().slice(0, 20);
+  const notes = store.listNotes({ statuses: ["observed"] }).slice(0, 20);
   const modules = store.listModules().map(m => ({ name: m.name, responsibility: m.responsibility }));
 
   return {

@@ -43,11 +43,13 @@ const report = await runDogfood({
 
 if (args.json) {
   console.log(JSON.stringify(report, null, 2));
-  process.exitCode = 0;
+  process.exitCode = report.status === "fail" ? 1 : 0;
 } else {
   const lines = [
     `Dogfood report: ${path.resolve(root, ".ai-workflow", "generated", "dogfood-report.json")}`,
-    `Profile: ${report.profile}`
+    `Profile: ${report.profile}`,
+    `Status: ${report.status}`,
+    `Workspace honesty: ${report.workspaceHonesty?.status ?? "unknown"}`
   ];
 
   for (const [surfaceId, surface] of Object.entries(report.surfaces ?? {})) {
@@ -58,4 +60,5 @@ if (args.json) {
   }
 
   console.log(lines.join("\n"));
+  process.exitCode = report.status === "fail" ? 1 : 0;
 }

@@ -6,7 +6,11 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs, asArray, printAndExit } from "./lib/cli.mjs";
 import { judgeArtifacts } from "../../../core/services/artifact-verification.mjs";
+import { stableId } from "../../../core/lib/hash.mjs";
+import { assessWorkflowGap } from "../../../core/services/gap-closure.mjs";
+import { isHonestyContractPass } from "../../../core/services/honesty-contract.mjs";
 import { judgeShellTranscripts } from "../../../core/services/shell-transcript-verification.mjs";
+import { withWorkflowStore } from "../../../core/services/sync.mjs";
 
 const HELP = `Usage:
   node scripts/ai-workflow/verification-summary.mjs --cmd "pnpm test" --cmd "pnpm build"
@@ -74,28 +78,44 @@ export async function runVerificationSummary(argv = process.argv.slice(2)) {
     });
     artifactJudgment.durationMs = Date.now() - startedAt;
   }
+  const honestyContract = artifactJudgment?.result?.contract ?? null;
+  const gapReview = assessWorkflowGap({
+    honestyContract,
+    artifactJudgment,
+    results,
+    judgeMode,
+    ticket: args.ticket ? String(args.ticket) : null
+  });
 
   const passed = results.filter((result) => result.exitCode === 0).length;
   const failed = results.filter((result) => result.exitCode !== 0).length;
   const artifactFailed = artifactJudgment && artifactJudgment.result?.status !== "pass";
+  const honestyFailed = honestyContract && !isHonestyContractPass(honestyContract);
+  const unresolvedGap = gapReview.status === "open";
   const hasEvidence = results.length > 0 || Boolean(artifactJudgment);
   let conclusion = "not verified";
 
-  if (hasEvidence && failed === 0 && skips.length === 0 && !artifactFailed) {
+  if (hasEvidence && failed === 0 && skips.length === 0 && !artifactFailed && !honestyFailed && !unresolvedGap) {
     conclusion = "verified";
-  } else if (hasEvidence && failed === 0 && !artifactFailed) {
+  } else if (hasEvidence && failed === 0 && !artifactFailed && !unresolvedGap) {
     conclusion = "partially verified";
   }
 
+  const runId = stableId("verification-summary", root, args.ticket ? String(args.ticket) : "no-ticket", Date.now());
   const summary = {
+    runId,
     root,
     ticket: args.ticket ? String(args.ticket) : null,
     conclusion,
     results,
     artifactJudgment,
+    honestyContract,
+    gapReview,
     judgeMode,
     skips
   };
+
+  await persistVerificationSummary(summary).catch(() => {});
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
@@ -117,6 +137,28 @@ export async function runVerificationSummary(argv = process.argv.slice(2)) {
     lines.push("Artifact judgment:");
     lines.push(`- ${artifactJudgment.result?.status === "pass" ? "PASS" : "FAIL"} ${summary.judgeMode === "shell-transcript" ? "shell-transcript-judge" : "artifact-judge"} (${artifactJudgment.durationMs}ms)`);
     lines.push(`  Evidence: ${formatArtifactEvidence(artifactJudgment.result)}`);
+  }
+
+  if (honestyContract) {
+    lines.push("Honesty contract:");
+    lines.push(`- User wish: ${honestyContract.userWish}`);
+    lines.push(`- Success: ${honestyContract.successDefinition}`);
+    lines.push(`- Attempted real wish: ${honestyContract.attemptedRealWish?.status ?? "unknown"}`);
+    lines.push(`- Wish fulfillment: ${honestyContract.wishFulfillment?.status ?? "unknown"}`);
+    lines.push(`- Report truthfulness: ${honestyContract.reportTruthfulness?.status ?? "unknown"}`);
+    lines.push(`- Report enlightenment: ${honestyContract.reportEnlightenment?.status ?? "unknown"}`);
+    lines.push(`- Misleading risk: ${honestyContract.misleadingRisk ?? "unknown"}`);
+  }
+
+  if (gapReview) {
+    lines.push("Gap review:");
+    lines.push(`- Status: ${gapReview.status}`);
+    lines.push(`- Severity: ${gapReview.severity}`);
+    lines.push(`- Summary: ${gapReview.summary}`);
+    for (const action of gapReview.actions ?? []) {
+      const target = action.providerId && action.modelId ? ` (${action.providerId}:${action.modelId})` : "";
+      lines.push(`- Next: ${action.type}${target} | ${action.reason}`);
+    }
   }
 
   for (const skip of skips) {
@@ -161,6 +203,56 @@ function formatArtifactEvidence(result = {}) {
   ].filter(Boolean);
 
   return parts.join(" | ");
+}
+
+async function persistVerificationSummary(summary) {
+  await withWorkflowStore(summary.root, async (store) => {
+    store.upsertWorkflowRun({
+      id: summary.runId,
+      prompt: summary.honestyContract?.userWish ?? summary.ticket ?? "verification summary",
+      code: "verification-summary",
+      status: summary.conclusion === "verified" ? "completed" : "failed",
+      result: {
+        conclusion: summary.conclusion,
+        judgeMode: summary.judgeMode,
+        ticket: summary.ticket
+      }
+    });
+    store.setWorkflowState(summary.runId, "verification-summary", summary);
+    if (summary.honestyContract) {
+      store.upsertWorkflowContract({
+        runId: summary.runId,
+        root: summary.root,
+        source: summary.judgeMode === "shell-transcript" ? "shell-transcript-judge" : "artifact-judge",
+        userWish: summary.honestyContract.userWish,
+        successDefinition: summary.honestyContract.successDefinition,
+        attemptedStatus: summary.honestyContract.attemptedRealWish?.status,
+        fulfillmentStatus: summary.honestyContract.wishFulfillment?.status,
+        truthfulnessStatus: summary.honestyContract.reportTruthfulness?.status,
+        enlightenmentStatus: summary.honestyContract.reportEnlightenment?.status,
+        misleadingLevel: summary.honestyContract.misleadingRisk,
+        summary: summary.honestyContract.summary,
+        evidence: {
+          ticket: summary.ticket,
+          conclusion: summary.conclusion,
+          judgeMode: summary.judgeMode,
+          skips: summary.skips,
+          resultStatus: summary.artifactJudgment?.result?.status ?? null
+        }
+      });
+    }
+    store.upsertWorkflowGapReview({
+      runId: summary.runId,
+      root: summary.root,
+      source: summary.judgeMode === "shell-transcript" ? "shell-transcript-judge" : "artifact-judge",
+      status: summary.gapReview?.status ?? "resolved",
+      severity: summary.gapReview?.severity ?? "low",
+      summary: summary.gapReview?.summary ?? "No workflow gap review recorded.",
+      gapTypes: summary.gapReview?.gapTypes ?? [],
+      actions: summary.gapReview?.actions ?? [],
+      evidence: summary.gapReview?.evidence ?? {}
+    });
+  });
 }
 
 function runCommand(rootPath, command) {

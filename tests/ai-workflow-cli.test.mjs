@@ -79,6 +79,54 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
   }
 });
 
+test("ai-workflow project note resolve updates note status in the workflow DB", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-note-resolve-"));
+
+  try {
+    await runNode([path.join(repoRoot, "scripts", "init-project.mjs"), "--target", targetRoot]);
+
+    const addResult = await runNode(
+      [
+        path.join(repoRoot, "cli", "ai-workflow.mjs"),
+        "project",
+        "note",
+        "add",
+        "--type",
+        "RISK",
+        "--body",
+        "stale audit note should be explicitly retired",
+        "--json"
+      ],
+      { cwd: targetRoot }
+    );
+    assert.equal(addResult.code, 0, addResult.stderr || addResult.stdout);
+    const note = JSON.parse(addResult.stdout);
+
+    const resolveResult = await runNode(
+      [
+        path.join(repoRoot, "cli", "ai-workflow.mjs"),
+        "project",
+        "note",
+        "resolve",
+        note.id,
+        "--reason",
+        "superseded by fresh audit evidence",
+        "--json"
+      ],
+      { cwd: targetRoot }
+    );
+    assert.equal(resolveResult.code, 0, resolveResult.stderr || resolveResult.stdout);
+    const resolved = JSON.parse(resolveResult.stdout);
+    assert.equal(resolved.status, "resolved");
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      assert.equal(store.getNoteById(note.id)?.status, "resolved");
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("ai-workflow doctor reports local diagnostics and ollama absence cleanly", { concurrency: false }, async () => {
   const result = await runNode([path.join(repoRoot, "cli", "ai-workflow.mjs"), "doctor", "--json"]);
   assert.equal(result.code, 0);

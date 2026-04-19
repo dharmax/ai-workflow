@@ -28,7 +28,7 @@ import { refreshProviderQuotaState } from "../../core/services/providers.mjs";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore } from "../../core/services/codelets.mjs";
 import { executeCodelet } from "../../core/services/codelet-executor.mjs";
 import { buildTicketEntity, importLegacyProjections, inferTicketLane, renderEpicsProjection, renderKanbanProjection, writeProjectProjections } from "../../core/services/projections.mjs";
-import { addManualNote, createTicket, evaluateProjectReadiness, getEpic, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
+import { addManualNote, createTicket, evaluateProjectReadiness, getEpic, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
 import { buildTelegramPreview } from "../../core/services/telegram.mjs";
 import { onboardProjectBrief } from "../../core/services/orchestrator.mjs";
 import { updateKnowledgeRemote } from "../../core/services/knowledge.mjs";
@@ -88,6 +88,7 @@ const HELP = `Usage:
   ai-workflow project ticket start <ticket-id> [--json]
   ai-workflow project ticket reopen <ticket-id> [--lane <lane>] [--json]
   ai-workflow project note add --type <NOTE|TODO|FIXME|HACK|BUG|RISK> --body <text> [--file <path>] [--line <n>] [--symbol <name>] [--json]
+  ai-workflow project note resolve <note-id> [--reason <text>] [--json]
   ai-workflow project review-candidates [--json]
   ai-workflow extract ticket <id> [options]
   ai-workflow extract guidelines [options]
@@ -824,6 +825,27 @@ async function handleProject(rest) {
         return 0;
       }
       process.stdout.write(`${note.noteType} ${note.body}\n`);
+      return 0;
+    });
+  }
+
+  if (subcommand === "note" && args._[0] === "resolve") {
+    assertDirectCommandChannel("ai-workflow project note resolve");
+    return withWorkspaceMutation(process.cwd(), "project note resolve", async () => {
+      const noteId = String(args._[1] ?? args.id ?? "").trim();
+      if (!noteId) {
+        printAndExit("Usage: ai-workflow project note resolve <note-id> [--reason <text>] [--json]", 1);
+      }
+      const note = await resolveProjectNote({
+        projectRoot: process.cwd(),
+        noteId,
+        reason: args.reason ? String(args.reason) : null
+      });
+      if (args.json) {
+        process.stdout.write(`${JSON.stringify(note, null, 2)}\n`);
+        return 0;
+      }
+      process.stdout.write(`${note.id} resolved\n`);
       return 0;
     });
   }

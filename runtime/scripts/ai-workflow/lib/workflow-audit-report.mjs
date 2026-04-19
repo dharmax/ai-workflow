@@ -1,10 +1,12 @@
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { openWorkflowStore } from "../../../../core/db/sqlite-store.mjs";
 import { fileExistsRelative, runGuidelineAudit } from "./audit-utils.mjs";
 import { DEFAULT_DOGFOOD_REPORT_PATH, readDogfoodReport } from "./dogfood-utils.mjs";
 import { readText } from "./fs-utils.mjs";
 import { collectOperatorSurfaceState, compareSurfaceHashes } from "./operator-surfaces.mjs";
 import { parseKanban } from "./kanban-utils.mjs";
+import { inspectWorkspaceHonesty } from "./workspace-honesty.mjs";
 import { renderManualHtml } from "../../../../scripts/generate-manual-html.mjs";
 
 const REQUIRED_DOCS = [
@@ -174,6 +176,44 @@ for (const relativePath of activeDocs) {
 
 const dogfoodReport = await readDogfoodReport(resolvedRoot);
 const operatorSurfaces = await collectOperatorSurfaceState(resolvedRoot);
+const workspaceHonesty = await inspectWorkspaceHonesty(resolvedRoot).catch((error) => ({
+  status: "fail",
+  summary: `workspace honesty check failed: ${error.message}`,
+  suspiciousCount: 0,
+  suspiciousFiles: [],
+  latestMutation: null
+}));
+const latestWorkflowContract = await readLatestWorkflowContract(resolvedRoot).catch(() => null);
+const latestWorkflowGapReview = await readLatestWorkflowGapReview(resolvedRoot).catch(() => null);
+
+if (workspaceHonesty.status === "fail") {
+  findings.push(createFinding({
+    category: "honesty",
+    message: workspaceHonesty.summary
+  }));
+}
+
+if (latestWorkflowContract && (
+  [
+    latestWorkflowContract.attemptedStatus,
+    latestWorkflowContract.fulfillmentStatus,
+    latestWorkflowContract.truthfulnessStatus,
+    latestWorkflowContract.enlightenmentStatus
+  ].some((status) => status === "fail") ||
+  latestWorkflowContract.misleadingLevel === "high"
+)) {
+  findings.push(createFinding({
+    category: "honesty",
+    message: `latest workflow contract is not closure-safe: ${latestWorkflowContract.summary}`
+  }));
+}
+
+if (latestWorkflowGapReview?.status === "open" && latestWorkflowGapReview.severity === "high") {
+  findings.push(createFinding({
+    category: "honesty",
+    message: `latest workflow gap review is still open: ${latestWorkflowGapReview.summary}`
+  }));
+}
 
 for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
   if (!snapshot.fileCount) {
@@ -377,19 +417,40 @@ for (const finding of guidelineAudit.findings) {
 }
 const failures = findings.map(formatWorkflowFinding);
 
-const summary = {
-  root: resolvedRoot,
-  status: failures.length ? "fail" : "pass",
-  failures,
-  findings,
-  activeDocs,
-  packageScripts: [...packageScripts].sort(),
-  guidelineAudit: {
-    blockCount: guidelineAudit.blockCount,
-    ruleCounts: guidelineAudit.ruleCounts
-  }
-};
+  const summary = {
+    root: resolvedRoot,
+    status: failures.length ? "fail" : "pass",
+    failures,
+    findings,
+    activeDocs,
+    packageScripts: [...packageScripts].sort(),
+    workspaceHonesty,
+    latestWorkflowContract,
+    latestWorkflowGapReview,
+    guidelineAudit: {
+      blockCount: guidelineAudit.blockCount,
+      ruleCounts: guidelineAudit.ruleCounts
+    }
+  };
 return summary;
+}
+
+async function readLatestWorkflowContract(root) {
+  const store = await openWorkflowStore({ projectRoot: root });
+  try {
+    return store.getLatestWorkflowContract(root);
+  } finally {
+    store.close();
+  }
+}
+
+async function readLatestWorkflowGapReview(root) {
+  const store = await openWorkflowStore({ projectRoot: root });
+  try {
+    return store.getLatestWorkflowGapReview(root);
+  } finally {
+    store.close();
+  }
 }
 
 function collectMarkdownRefs(docPath, text) {
@@ -463,7 +524,7 @@ function formatWorkflowFinding(finding) {
 }
 
 function groupFindings(findingsList) {
-  const order = ["workflow-docs", "references", "scripts", "kanban", "guideline-rules"];
+  const order = ["workflow-docs", "references", "scripts", "honesty", "kanban", "guideline-rules"];
   const grouped = new Map();
 
   for (const category of order) {
@@ -487,6 +548,8 @@ function formatCategoryLabel(category) {
       return "References";
     case "scripts":
       return "Scripts";
+    case "honesty":
+      return "Honesty";
     case "kanban":
       return "Kanban";
     case "guideline-rules":

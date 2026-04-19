@@ -18,8 +18,21 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 ## ToDo
 <!-- canonical alias: ## Todo -->
 
-- [ ] TKT-SHELL-TRANSCRIPT-001 Harden shell transcript judge against malformed model output
-  - Summary: Dogfood still shows shell transcript judge returning raw numeric arrays instead of a structured verdict. Add parser hardening, routing fallback, and regression coverage.
+- [ ] 2a5f10962269f7154a11336ae784527a4518f7ab Leaderboards Feature
+  - State: open
+- [ ] 69b35836fb3e8a7adb4f073b5f975d87f97217b1 Power-ups Feature
+  - State: open
+- [ ] 3f08e3e870e768740e48076d56cc0144a6e1d70c Scoring System Feature
+  - State: open
+- [ ] e12bfffb5674322c7d9545d5358f5929aa677eac Basic Game Mechanics Feature
+  - State: open
+- [ ] 7a054f32ec901db5d243e5b868a510c5a84692bb Multiplayer Support Epic
+  - State: open
+- [ ] 75dfcb10dc44152d1178e7e97e66f78d0cffd31a Level Design Epic
+  - State: open
+- [ ] bb543f7b2de395cf5d8041f5f416d68e43db14a6 Emoji Ships Epic
+  - State: open
+- [ ] 205f7b3908dc67324727f776746a2a5c92872d74 Game Engine Epic
   - State: open
 
 ## Bugs P1
@@ -32,8 +45,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## In Progress
 
-- [ ] d90a89c1cc0ce2a2b88e14a1479d9abf96c6a752 Modular, Expandable 3D Canvas Space Invaders-style Game with Emoji Ships
-  - State: open
+- No items
 
 ## Human Inspection
 
@@ -45,6 +57,28 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] TKT-HONESTY-004 Add workflow note resolution and stale-risk retirement ✅ 2026-04-19
+  - Summary: Add a DB-backed note resolution flow so stale BUG/RISK/TODO evidence can be retired with explicit reason, excluded from readiness blockers, and archived in candidate/projection state when later work closes the gap.
+  - State: archived
+- [ ] TKT-HONESTY-003 Add gap guardrails and escalation policy ✅ 2026-04-19
+  - Summary: Detect wish-vs-done gaps, choose recovery actions such as retry/escalate/web-search/user-input/trial-and-error, persist them in the workflow DB, and surface them in verification and audit outputs.
+  - State: archived
+- [ ] TKT-HONESTY-002 Make dogfood and audit fail on mixed manual-plus-shell artifacts ✅ 2026-04-19
+  - Summary: Detect and report when a dogfood target was repaired outside ai-workflow, persist that evidence, and fail dogfood/workflow-audit until a clean run exists.
+  - State: archived
+- [ ] TKT-HONESTY-001 Enforce shell honesty and manual-contamination detection ✅ 2026-04-19
+  - Summary: Add first-class workflow evidence that separates ai-workflow-authored work from manual edits, blocks closure when manual contamination exists, and makes failure honesty DB/kanban-auditable.
+  - State: archived
+- [ ] 272af4783f188efd601c99883e18eca9320dee2d Initialize Project ✅ 2026-04-19
+  - State: archived
+- [ ] TKT-SHELL-AUDIT-001 Make shell dogfood evidence and metrics audit-grade ✅ 2026-04-19
+  - Summary: The current dogfood/reporting path still leaves critical trust gaps: the report does not show per-turn model provenance, the raw transcript is dominated by JSON envelopes so English->JS evidence is unclear, deterministic run_codelet routing is not distinguished from model-authored JS, and metrics still show zero token usage plus weak per-session accounting. Implement audit-grade provenance, transcript artifacts, and metrics so a user can verify what the shell planned, what JS it generated, what codelet executed, which model/provider was used, and what the session actually cost.
+  - State: archived
+- [ ] TKT-SHELL-TRANSCRIPT-001 Harden shell transcript judge against malformed model output ✅ 2026-04-19
+  - Summary: Dogfood still shows shell transcript judge returning raw numeric arrays instead of a structured verdict. Add parser hardening, routing fallback, and regression coverage.
+  - State: archived
+- [ ] d90a89c1cc0ce2a2b88e14a1479d9abf96c6a752 Modular, Expandable 3D Canvas Space Invaders-style Game with Emoji Ships ✅ 2026-04-19
+  - State: archived
 - [ ] TKT-PROGRAMMING-DOGFOOD-001 Add smart programming dogfood that generates and verifies a modular emoji Space Invaders game ✅ 2026-04-18
   - Summary: Create an ai-workflow-driven programming dogfood flow that plans, brainstorms, implements, tests, debugs, and reports on a generated dedicated-folder project: a modular expandable 3d canvas Space Invaders-style game using emoji ships, epics/features/modules/vision, and readable efficiency metrics.
   - State: archived

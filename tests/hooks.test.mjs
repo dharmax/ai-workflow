@@ -56,7 +56,7 @@ test("BeforePlan hook can modify inputText", async () => {
   }
 });
 
-test("BeforeAction hook can modify shell prompt in JS Orchestrator", async () => {
+test("JS Orchestrator shell helper stays callable when services.shell is injected", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "hook-action-test-"));
   const originalFetch = globalThis.fetch;
   
@@ -94,7 +94,7 @@ test("BeforeAction hook can modify shell prompt in JS Orchestrator", async () =>
       addWorkflowTransition: () => {},
     };
 
-    await executeJsOrchestrator('await shell("test shell prompt")', {
+    const result = await executeJsOrchestrator('return await shell("test shell prompt")', {
       workflowStore: mockStore,
       prompt: "test",
       root: targetRoot,
@@ -103,6 +103,8 @@ test("BeforeAction hook can modify shell prompt in JS Orchestrator", async () =>
 
     assert.ok(capturedShellPrompt, "Should have captured a shell prompt");
     assert.ok(capturedShellPrompt.includes("test shell prompt [SHELL-HOOKED]"), `Prompt should contain [SHELL-HOOKED], got: ${capturedShellPrompt}`);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.result, { ok: true });
 
   } finally {
     globalThis.fetch = originalFetch;

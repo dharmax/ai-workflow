@@ -1,3 +1,4 @@
+import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -28,6 +29,7 @@ export async function withWorkspaceMutation(root, operation, callback, { writePr
 
   guardDepth += 1;
   try {
+    const startedAt = new Date().toISOString();
     const before = await probeWorkspaceState(root).catch(() => ({
       gitRepo: false,
       dirty: true,
@@ -58,11 +60,34 @@ export async function withWorkspaceMutation(root, operation, callback, { writePr
         changedFiles: [],
         source: "probe-error"
       }));
+      let finalAfter = after;
+      let syncTriggered = false;
 
       if (syncAfter && (before.dirty || after.dirty || !before.gitRepo || !after.gitRepo || failed)) {
         const { syncProject } = await import("../services/sync.mjs");
+        syncTriggered = true;
         await syncProject({ projectRoot: root, writeProjections }).catch(() => {});
+        finalAfter = await probeWorkspaceState(root).catch(() => after);
       }
+      const { collectProjectFileSnapshot } = await import("./filesystem.mjs");
+      const finalSnapshot = await collectProjectFileSnapshot(root).catch(() => []);
+
+      await recordWorkspaceMutation(root, {
+        operation,
+        status: failed ? "failed" : "completed",
+        beforeDirty: before.dirty,
+        afterDirty: finalAfter.dirty,
+        changedFiles: finalAfter.changedFiles,
+        details: {
+          before,
+          after: finalAfter,
+          snapshot: finalSnapshot,
+          syncTriggered,
+          error: failed ? String(failed?.message ?? failed) : null
+        },
+        startedAt,
+        completedAt: new Date().toISOString()
+      }).catch(() => {});
     }
   } finally {
     guardDepth = Math.max(0, guardDepth - 1);
@@ -113,4 +138,17 @@ function parseStatusShort(output) {
     .filter(Boolean)
     .map((line) => line.slice(3).trim())
     .filter(Boolean);
+}
+
+async function recordWorkspaceMutation(root, mutation) {
+  const { openWorkflowStore } = await import("../db/sqlite-store.mjs");
+  const store = await openWorkflowStore({ projectRoot: root });
+  try {
+    store.appendWorkspaceMutation({
+      ...mutation,
+      root: path.resolve(root)
+    });
+  } finally {
+    store.close();
+  }
 }

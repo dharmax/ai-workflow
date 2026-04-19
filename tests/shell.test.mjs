@@ -2335,7 +2335,7 @@ test("planShellRequestHeuristically parses explicit run codelet prompts with quo
   }]);
 });
 
-test("planShellRequestHeuristically routes natural-language programming dogfood build prompts", () => {
+test("planShellRequestHeuristically does not route natural-language programming dogfood build prompts to the hidden builder", () => {
   const dogfoodPlannerContext = {
     ...plannerContext,
     toolkitCodelets: [...plannerContext.toolkitCodelets, { id: "programming-dogfood-build", summary: "Build the programming dogfood project." }]
@@ -2346,14 +2346,11 @@ test("planShellRequestHeuristically routes natural-language programming dogfood 
   );
 
   assert.equal(plan.kind, "plan");
-  assert.deepEqual(plan.actions, [{
-    type: "run_codelet",
-    codeletId: "programming-dogfood-build",
-    args: ["--target", "/tmp/space-invaders-dogfood", "--force", "--json"]
-  }]);
+  assert.doesNotMatch(JSON.stringify(plan), /programming-dogfood-build/);
+  assert.notEqual(plan.actions?.[0]?.codeletId, "programming-dogfood-build");
 });
 
-test("planShellRequestHeuristically carries prior game context into a dogfood build follow-up", () => {
+test("planShellRequestHeuristically keeps dogfood follow-ups on the normal workflow path", () => {
   const dogfoodPlannerContext = {
     ...plannerContext,
     toolkitCodelets: [...plannerContext.toolkitCodelets, { id: "programming-dogfood-build", summary: "Build the programming dogfood project." }]
@@ -2375,11 +2372,8 @@ test("planShellRequestHeuristically carries prior game context into a dogfood bu
   );
 
   assert.equal(plan.kind, "plan");
-  assert.deepEqual(plan.actions, [{
-    type: "run_codelet",
-    codeletId: "programming-dogfood-build",
-    args: ["--target", "/tmp/space-invaders-follow-up", "--force", "--json"]
-  }]);
+  assert.doesNotMatch(JSON.stringify(plan), /programming-dogfood-build/);
+  assert.notEqual(plan.actions?.[0]?.codeletId, "programming-dogfood-build");
 });
 
 test("handleShellCommand updates operator work mode separately from mutation stance", () => {

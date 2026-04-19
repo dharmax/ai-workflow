@@ -299,7 +299,13 @@ export async function generateWithOllama({ model, prompt, system = "", host, for
       host: resolvedHost,
       model,
       response: String(text ?? "").trim(),
-      raw: payload
+      raw: payload,
+      usage: normalizeCompletionUsage({
+        promptTokens: payload.prompt_eval_count,
+        completionTokens: payload.eval_count,
+        source: "ollama-eval-counts",
+        reason: "Ollama response omitted eval counts."
+      })
     };
   }
 
@@ -332,7 +338,13 @@ export async function generateWithOllama({ model, prompt, system = "", host, for
     host: resolvedHost,
     model,
     response: String(payload.response ?? "").trim(),
-    raw: payload
+    raw: payload,
+    usage: normalizeCompletionUsage({
+      promptTokens: payload.prompt_eval_count,
+      completionTokens: payload.eval_count,
+      source: "ollama-eval-counts",
+      reason: "Ollama response omitted eval counts."
+    })
   };
 }
 
@@ -390,7 +402,14 @@ export async function generateWithGemini({ model, prompt, system = "", apiKey, c
     providerId: "google",
     model,
     response: text.trim(),
-    raw: payload
+    raw: payload,
+    usage: normalizeCompletionUsage({
+      promptTokens: payload.usageMetadata?.promptTokenCount,
+      completionTokens: payload.usageMetadata?.candidatesTokenCount,
+      totalTokens: payload.usageMetadata?.totalTokenCount,
+      source: "gemini-usageMetadata",
+      reason: "Gemini response omitted usageMetadata token counts."
+    })
   };
 }
 
@@ -435,7 +454,14 @@ export async function generateWithOpenAI({ model, prompt, system = "", apiKey, b
     providerId: "openai",
     model,
     response: text.trim(),
-    raw: payload
+    raw: payload,
+    usage: normalizeCompletionUsage({
+      promptTokens: payload.usage?.prompt_tokens,
+      completionTokens: payload.usage?.completion_tokens,
+      totalTokens: payload.usage?.total_tokens,
+      source: "openai-usage",
+      reason: "OpenAI response omitted usage token counts."
+    })
   };
 }
 
@@ -479,7 +505,14 @@ export async function generateWithAnthropic({ model, prompt, system = "", apiKey
     providerId: "anthropic",
     model,
     response: text.trim(),
-    raw: payload
+    raw: payload,
+    usage: normalizeCompletionUsage({
+      promptTokens: payload.usage?.input_tokens,
+      completionTokens: payload.usage?.output_tokens,
+      totalTokens: payload.usage?.input_tokens + payload.usage?.output_tokens,
+      source: "anthropic-usage",
+      reason: "Anthropic response omitted usage token counts."
+    })
   };
 }
 
@@ -516,6 +549,83 @@ export async function generateCompletion({ providerId, modelId, prompt, system, 
     default:
       throw new Error(`Unsupported provider for completion: ${providerId}`);
   }
+}
+
+function normalizeTokenCount(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  return Math.max(0, Math.round(numeric));
+}
+
+export function normalizeCompletionUsage(usage = {}, fallback = {}) {
+  const promptTokens = normalizeTokenCount(usage?.promptTokens ?? fallback.promptTokens);
+  const completionTokens = normalizeTokenCount(usage?.completionTokens ?? fallback.completionTokens);
+  const totalTokens = normalizeTokenCount(
+    usage?.totalTokens
+    ?? fallback.totalTokens
+    ?? ((promptTokens !== null || completionTokens !== null)
+      ? (promptTokens ?? 0) + (completionTokens ?? 0)
+      : null)
+  );
+  const source = String(usage?.source ?? fallback.source ?? "").trim() || null;
+  const reason = String(usage?.reason ?? fallback.reason ?? "").trim() || null;
+  const available = promptTokens !== null || completionTokens !== null || totalTokens !== null;
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    available,
+    source,
+    reason: available ? null : (reason ?? "Provider did not report token usage.")
+  };
+}
+
+export function summarizeCompletionUsage(usages = []) {
+  const normalized = (Array.isArray(usages) ? usages : []).map((usage) => normalizeCompletionUsage(usage));
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let totalTokens = 0;
+  let anyUsage = false;
+  let reportedCount = 0;
+  let missingCount = 0;
+  const sources = new Set();
+  const missingReasons = new Map();
+
+  for (const usage of normalized) {
+    if (usage.available) {
+      anyUsage = true;
+      reportedCount += 1;
+      promptTokens += usage.promptTokens ?? 0;
+      completionTokens += usage.completionTokens ?? 0;
+      totalTokens += usage.totalTokens ?? ((usage.promptTokens ?? 0) + (usage.completionTokens ?? 0));
+      if (usage.source) {
+        sources.add(usage.source);
+      }
+      continue;
+    }
+    missingCount += 1;
+    const key = usage.reason ?? "Provider did not report token usage.";
+    missingReasons.set(key, (missingReasons.get(key) ?? 0) + 1);
+  }
+
+  const sortedReasons = Array.from(missingReasons.entries())
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
+
+  return {
+    available: anyUsage,
+    promptTokens: anyUsage ? promptTokens : null,
+    completionTokens: anyUsage ? completionTokens : null,
+    totalTokens: anyUsage ? totalTokens : null,
+    reportedCount,
+    missingCount,
+    sources: Array.from(sources),
+    reason: anyUsage ? null : (sortedReasons[0]?.reason ?? "Provider did not report token usage."),
+    missingReasons: sortedReasons
+  };
 }
 
 function buildOpenAIMessageContent({ prompt, contentParts = null }) {

@@ -8,7 +8,13 @@ export function deriveCandidateFromNote(note, options = {}) {
   const decisionKey = stableId("candidate-key", note.filePath ?? "manual", note.noteType, note.body.trim().toLowerCase());
   const score = scores.candidateScore;
   const title = buildCandidateTitle(note);
-  const status = score >= 0.72 ? "ai-candidate" : score >= 0.5 ? "doubtful-relevancy" : "ignored";
+  const status = note.status === "resolved"
+    ? "ignored"
+    : score >= 0.72
+      ? "ai-candidate"
+      : score >= 0.5
+        ? "doubtful-relevancy"
+        : "ignored";
 
   return {
     id: stableId("candidate", decisionKey),
@@ -17,7 +23,9 @@ export function deriveCandidateFromNote(note, options = {}) {
     status,
     score,
     decisionKey,
-    reason: `${note.noteType} note scored ${score}`,
+    reason: note.status === "resolved"
+      ? `${note.noteType} note is resolved`
+      : `${note.noteType} note scored ${score}`,
     data: {
       noteType: note.noteType,
       filePath: note.filePath ?? null

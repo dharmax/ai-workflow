@@ -72,7 +72,7 @@ export async function evaluateReadiness(store, request) {
   }
 
   const tickets = store.listEntities({ entityType: "ticket" }).filter(isActiveTicket);
-  const notes = store.listNotes({ noteTypes: ["BUG", "RISK", "FIXME", "TODO"] });
+  const notes = store.listNotes({ noteTypes: ["BUG", "RISK", "FIXME", "TODO"], statuses: ["observed"] });
   const files = store.db.prepare("SELECT path, indexed_at, mtime_ms FROM files ORDER BY path").all();
 
   const verificationArtifacts = files.filter((row) => isVerificationArtifact(row.path));

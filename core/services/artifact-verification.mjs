@@ -1,7 +1,8 @@
 import path from "node:path";
 import { readFile, stat } from "node:fs/promises";
 import { routeTask } from "./router.mjs";
-import { generateCompletion } from "./providers.mjs";
+import { generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
+import { normalizeHonestyContract, isHonestyContractPass } from "./honesty-contract.mjs";
 import { withWorkflowStore } from "./sync.mjs";
 
 const TEXT_EXTENSIONS = new Set([
@@ -124,7 +125,8 @@ export async function judgeArtifacts({
           success: false,
           latencyMs: Date.now() - attemptStartedAt,
           error: "judge returned unstructured output",
-          rawResponse: result.rawResponse ?? null
+          rawResponse: result.rawResponse ?? null,
+          usage: completion.usage ?? null
         });
         continue;
       }
@@ -134,7 +136,8 @@ export async function judgeArtifacts({
         modelId: candidate.modelId,
         success: true,
         latencyMs: Date.now() - attemptStartedAt,
-        error: null
+        error: null,
+        usage: completion.usage ?? null
       });
 
       const payload = {
@@ -168,7 +171,8 @@ export async function judgeArtifacts({
         success: false,
         latencyMs: Date.now() - attemptStartedAt,
         error: error?.message ?? String(error),
-        rawResponse: null
+        rawResponse: null,
+        usage: error?.completion?.usage ?? null
       });
     }
   }
@@ -250,10 +254,11 @@ export function buildArtifactJudgePrompt({ projectRoot, goal = null, rubric, art
   return [
     "Judge the supplied artifacts against the rubric.",
     "Return JSON only with the shape:",
-    "{ status, score, confidence, summary, findings[], recommendations[], artifacts[{path,status,score,findings[]}], needs_human_review }",
+    "{ status, score, confidence, summary, findings[], recommendations[], contract:{ userWish, successDefinition, summary, attemptedRealWish:{score,status,reason}, wishFulfillment:{score,status,reason}, reportTruthfulness:{score,status,reason}, reportEnlightenment:{score,status,reason}, misleadingRisk, missingEvidence[] }, artifacts[{path,status,score,findings[]}], needs_human_review }",
     "Use status values pass, fail, or needs_human_review.",
-    "Use pass only when the artifacts clearly satisfy the rubric.",
+    "Use pass only when the artifacts clearly satisfy the rubric, the work appears to pursue the user's real wish, and the report would be truthful and enlightening rather than misleading.",
     "Use fail when the rubric is violated.",
+    "Use fail when the artifacts are narrow or polished but miss the user's real goal, overclaim readiness, or hide critical gaps.",
     "Use needs_human_review when the evidence is incomplete or ambiguous.",
     "",
     `Project root: ${projectRoot}`,
@@ -385,6 +390,18 @@ function formatArtifactJudgeOutput(payload) {
     }
   }
 
+  if (result.contract) {
+    lines.push("");
+    lines.push("Honesty Contract:");
+    lines.push(`- User wish: ${result.contract.userWish}`);
+    lines.push(`- Success: ${result.contract.successDefinition}`);
+    lines.push(`- Attempted real wish: ${result.contract.attemptedRealWish?.status ?? "unknown"}`);
+    lines.push(`- Wish fulfillment: ${result.contract.wishFulfillment?.status ?? "unknown"}`);
+    lines.push(`- Report truthfulness: ${result.contract.reportTruthfulness?.status ?? "unknown"}`);
+    lines.push(`- Report enlightenment: ${result.contract.reportEnlightenment?.status ?? "unknown"}`);
+    lines.push(`- Misleading risk: ${result.contract.misleadingRisk ?? "unknown"}`);
+  }
+
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -440,16 +457,24 @@ function normalizeJudgmentResponse(text, artifacts, rubric, goal) {
         findings: normalizeArray(parsed.findings),
         recommendations: normalizeArray(parsed.recommendations)
       }));
+  const contract = normalizeHonestyContract(parsed.contract, {
+    goal,
+    fallbackScore: score ?? 0,
+    fallbackWish: goal ? `Satisfy this user goal: ${goal}` : "Satisfy the user's real goal, not just the narrow artifact rubric.",
+    fallbackSuccessDefinition: "Meet the rubric and only claim success if the result truthfully satisfies the real user goal."
+  });
+  const finalStatus = isHonestyContractPass(contract) ? status : (status === "pass" ? "needs_human_review" : status);
 
   return {
-    status,
+    status: finalStatus,
     score,
     confidence,
-    summary: String(parsed.summary ?? parsed.message ?? "").trim() || defaultSummaryForStatus(status, artifacts.length),
+    summary: String(parsed.summary ?? parsed.message ?? "").trim() || defaultSummaryForStatus(finalStatus, artifacts.length),
     findings: normalizeArray(parsed.findings),
     recommendations: normalizeArray(parsed.recommendations),
+    contract,
     artifacts: artifactsResult,
-    needs_human_review: Boolean(parsed.needs_human_review ?? status === "needs_human_review"),
+    needs_human_review: Boolean(parsed.needs_human_review ?? finalStatus === "needs_human_review"),
     rawResponse: trimmed,
     structuredVerdict: true
   };
@@ -466,6 +491,12 @@ function buildDefaultJudgment(artifacts, rubric, goal, reason) {
       "The judge could not produce a structured verdict.",
       "Inspect the artifacts manually or rerun with a compatible model."
     ],
+    contract: normalizeHonestyContract({}, {
+      goal,
+      fallbackScore: 0,
+      fallbackWish: goal ? `Satisfy this user goal: ${goal}` : "Satisfy the user's real goal, not just the artifact rubric.",
+      fallbackSuccessDefinition: "Meet the rubric and report the true state without overclaiming."
+    }),
     artifacts: artifacts.map((artifact) => ({
       path: artifact.path,
       kind: artifact.kind,
@@ -688,11 +719,14 @@ async function recordArtifactJudgeMetric({ projectRoot, route, attempts, success
   const failedLatencyMs = (Array.isArray(attempts) ? attempts : [])
     .filter((attempt) => attempt.success === false)
     .reduce((total, attempt) => total + Math.max(0, Number(attempt.latencyMs ?? 0)), 0);
+  const tokenUsage = summarizeCompletionUsage((Array.isArray(attempts) ? attempts : []).map((attempt) => attempt.usage));
   const metric = {
     taskClass: "artifact-evaluation",
     capability: route?.capability ?? "visual",
     providerId: successfulCandidate?.providerId ?? route?.recommended?.providerId ?? "unavailable",
     modelId: successfulCandidate?.modelId ?? route?.recommended?.modelId ?? "unavailable",
+    promptTokens: tokenUsage.promptTokens,
+    completionTokens: tokenUsage.completionTokens,
     latencyMs: Date.now() - startedAt,
     success,
     errorMessage: success ? null : errorMessage,
@@ -703,7 +737,8 @@ async function recordArtifactJudgeMetric({ projectRoot, route, attempts, success
       failedAttempts: diagnostics.failedAttempts,
       failedLatencyMs,
       successfulProviderId: diagnostics.successfulProviderId,
-      successfulModelId: diagnostics.successfulModelId
+      successfulModelId: diagnostics.successfulModelId,
+      tokenUsage
     }
   };
   await withWorkflowStore(projectRoot, async (store) => {

@@ -12,10 +12,10 @@ import { stdin as input, stdout as output } from "node:process";
 import { getToolkitRoot, listToolkitCodelets } from "./codelets.mjs";
 import { listProjectCodelets } from "./project-codelets.mjs";
 import { routeTask } from "../../core/services/router.mjs";
-import { discoverProviderState, generateCompletion, generateWithOllama } from "../../core/services/providers.mjs";
+import { discoverProviderState, generateCompletion, generateWithOllama, summarizeCompletionUsage } from "../../core/services/providers.mjs";
 import { decomposeTicket, executeTicket, ideateFeature, sweepBugs } from "../../core/services/orchestrator.mjs";
 import { auditArchitecture } from "../../core/services/critic.mjs";
-import { addManualNote, createTicket, evaluateProjectReadiness, getProjectMetrics, getProjectSummary, getSmartProjectStatus, recordMetric, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
+import { addManualNote, createTicket, evaluateProjectReadiness, getCodelet, getProjectMetrics, getProjectSummary, getSmartProjectStatus, recordMetric, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
 import { executeCodelet } from "../../core/services/codelet-executor.mjs";
 import { buildTicketEntity, inferTicketLane } from "../../core/services/projections.mjs";
 import { buildTelegramPreview } from "../../core/services/telegram.mjs";
@@ -30,6 +30,7 @@ import { runProviderSetupWizard } from "./provider-setup.mjs";
 import { handleProviderConnect } from "./provider-connect.mjs";
 import { stableId } from "../../core/lib/hash.mjs";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile } from "../../core/lib/filesystem.mjs";
 import { formatStatusReport, resolveProjectStatus } from "../../core/services/status.mjs";
 import { executeJsOrchestrator } from "../../core/services/js-orchestrator.mjs";
 import { executeOperatorRequest } from "../../core/services/operator-brain.mjs";
@@ -198,6 +199,7 @@ export async function handleShell(rest, { cliPath } = {}) {
   }
 
   const root = process.cwd();
+  const disableFastPath = process.env.AI_WORKFLOW_DISABLE_FAST_SHELL_PATH === "1";
   const stateFile = args["state-file"] ? path.resolve(root, String(args["state-file"])) : null;
   const restoredState = stateFile ? await readShellStateFile(stateFile) : null;
   const options = {
@@ -215,22 +217,61 @@ export async function handleShell(rest, { cliPath } = {}) {
     stateFile,
     runId: String(args["run-id"] ?? restoredState?.runId ?? stableId("shell-run", root, Date.now())),
     activeGraphState: restoredState?.activeGraphState ?? null,
+    aiTraceEvents: [],
+    workflowTraceEvents: [],
     history: Array.isArray(restoredState?.history) ? restoredState.history : [],
     cliPath: cliPath ?? path.resolve(root, "cli", "ai-workflow.mjs"),
     plannerContext: null,
     planners: null
   };
-  options.traceAi = (event) => logShellTrace(options, event);
+  options.traceAi = (event) => recordShellTraceEvent(options, event);
 
   const prompt = args._.join(" ").trim();
   if (prompt) {
-    refreshShellWorkModeForInput(prompt, options);
-    const fastResult = await tryRunShellFastPath(prompt, options);
-    if (fastResult) {
-      options.activeGraphState = fastResult.continuationState ?? options.activeGraphState ?? null;
-      recordShellTurnHistory(options, prompt, fastResult);
+    const commandResult = handleShellCommand(prompt, options);
+    if (commandResult?.handled) {
+      const result = {
+        input: prompt,
+        plan: {
+          kind: "reply",
+          reply: commandResult.reply ?? "Shell state updated."
+        },
+        executed: [],
+        executedGraph: null,
+        preRendered: false,
+        history: options.history ?? [],
+        assistantReply: commandResult.reply ?? "Shell state updated.",
+        workflowResult: null,
+        traceEvents: [],
+        workflowTraceEvents: [],
+        options: {
+          root: options.root,
+          json: Boolean(options.json),
+          trace: Boolean(options.trace),
+          shellMode: options.shellMode,
+          requestedWorkMode: options.requestedWorkMode ?? null,
+          effectiveWorkMode: options.effectiveWorkMode ?? null,
+          modeSource: options.modeSource ?? null,
+          runId: options.runId ?? null
+        }
+      };
+      recordShellTurnHistory(options, prompt, result);
       await writeShellStateFile(stateFile, options);
-      return emitShellResult(fastResult, options);
+      return emitShellResult(result, options);
+    }
+    options.aiTraceEvents = [];
+    options.workflowTraceEvents = [];
+    refreshShellWorkModeForInput(prompt, options);
+    if (!disableFastPath) {
+      const fastResult = await tryRunShellFastPath(prompt, options);
+      if (fastResult) {
+        fastResult.traceEvents = [...(options.aiTraceEvents ?? [])];
+        fastResult.workflowTraceEvents = [...(options.workflowTraceEvents ?? [])];
+        options.activeGraphState = fastResult.continuationState ?? options.activeGraphState ?? null;
+        recordShellTurnHistory(options, prompt, fastResult);
+        await writeShellStateFile(stateFile, options);
+        return emitShellResult(fastResult, options);
+      }
     }
     const processingIndicator = createShellProcessingIndicator(options);
     try {
@@ -246,6 +287,8 @@ export async function handleShell(rest, { cliPath } = {}) {
         const provider = options.plannerContext.providerState.providers[p];
         options.planner = { providerId: p, modelId: m, host: provider?.host };
       }
+      options.aiTraceEvents = [];
+      options.workflowTraceEvents = [];
       processingIndicator.update("planning and running", { planner: getShellProgressPlanner(prompt, options) });
       const result = await runShellTurn(prompt, options);
       options.activeGraphState = result.continuationState ?? options.activeGraphState ?? null;
@@ -340,23 +383,190 @@ async function tryRunShellFastPath(inputText, options) {
         assistantReply: null
       };
     }
-    const executedGraph = await executeActionGraph(plan.graph, fastOptions);
-    const executed = executedGraph.nodes
-      .filter((node) => node.execution)
-      .map((node) => node.execution);
-    return {
-      input: inputText,
-      plan,
-      executed,
-      executedGraph,
-      continuationState: buildContinuationState({ inputText, plan, executedGraph }),
-      preRendered: true,
-      recovery: null,
-      assistantReply: null
-    };
+    return executeFastShellPlanWithJs(inputText, plan, fastOptions);
   }
 
   return null;
+}
+
+function describeShellActionForStep(action, index) {
+  const prefix = `shell-step-${index + 1}`;
+  const compact = (value, limit = 80) => {
+    const text = String(value ?? "").replace(/\s+/g, " ").trim();
+    return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
+  };
+  switch (action?.type) {
+    case "run_codelet":
+      return `${prefix}: run codelet ${action.codeletId ?? "unknown"}`;
+    case "search":
+      return `${prefix}: search ${compact(action.query)}`;
+    case "status_query":
+      return `${prefix}: status ${compact(action.query)}`;
+    case "route":
+      return `${prefix}: route ${String(action.taskClass ?? "task")}`;
+    default:
+      return `${prefix}: ${String(action?.type ?? "action")}`;
+  }
+}
+
+function compileFastShellActionPlanToJs(actions = []) {
+  const lines = [
+    "async function () {",
+    "  const results = [];"
+  ];
+  actions.forEach((action, index) => {
+    const stepId = `shell-action-${index + 1}-${String(action?.type ?? "unknown").replace(/[^A-Za-z0-9_-]/g, "-")}`;
+    lines.push(
+      `  results.push(await step(${JSON.stringify(stepId)}, ${JSON.stringify(describeShellActionForStep(action, index))}, async () => shellAction(${JSON.stringify(action)})));`
+    );
+  });
+  lines.push("  return results;");
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function buildShellWorkflowTraceEmitter(options) {
+  return (event) => {
+    const normalized = {
+      type: event?.type ?? "workflow",
+      runId: event?.runId ?? options.runId ?? null,
+      stepId: event?.stepId ?? null,
+      description: event?.description ?? null,
+      error: event?.error ?? null,
+      recordedAt: event?.recordedAt ?? new Date().toISOString()
+    };
+    options.workflowTraceEvents ??= [];
+    options.workflowTraceEvents.push(normalized);
+
+    const verb = normalized.type.replace(/^step_/, "").replace(/_/g, " ");
+    const parts = [
+      "[workflow]",
+      normalized.runId ?? "unknown-run",
+      normalized.stepId ?? "unknown-step",
+      verb
+    ];
+    if (normalized.description) {
+      parts.push(`| ${normalized.description}`);
+    }
+    if (normalized.error) {
+      parts.push(`| ${normalized.error}`);
+    }
+    process.stderr.write(`${parts.join(" ")}\n`);
+  };
+}
+
+function buildFastShellExecutedGraph(plan, executions, workflowResult) {
+  const actionNodes = (Array.isArray(plan?.actions) ? plan.actions : []).map((action, index) => {
+    const execution = executions[index] ?? null;
+    const ok = execution?.ok !== false;
+    return {
+      id: `shell-action-${index + 1}`,
+      kind: "action",
+      type: action?.type ?? "unknown",
+      dependsOn: index > 0 ? [`shell-action-${index}`] : [],
+      status: ok ? "ok" : "failed",
+      execution,
+      result: execution ? buildNodeResultEnvelope({
+        id: `shell-action-${index + 1}`,
+        kind: "action",
+        type: action?.type ?? "unknown",
+        action
+      }, execution) : null
+    };
+  });
+
+  const workflowNode = {
+    id: "js-main",
+    kind: "action",
+    type: "js-orchestrator",
+    dependsOn: actionNodes.length ? [actionNodes[actionNodes.length - 1].id] : [],
+    status: workflowResult?.ok === false ? "failed" : "ok",
+    result: {
+      summary: workflowResult?.ok === false
+        ? (workflowResult?.error ?? "JS workflow failed")
+        : "JS workflow completed"
+    }
+  };
+
+  return {
+    nodes: [...actionNodes, workflowNode],
+    executions,
+    branchPath: []
+  };
+}
+
+async function executeFastShellPlanWithJs(inputText, plan, options) {
+  const compiledCode = firstNonEmptyString(plan?.code) || compileFastShellActionPlanToJs(plan?.actions ?? []);
+  const planWithCode = plan?.code === compiledCode ? plan : {
+    ...plan,
+    code: compiledCode
+  };
+  const services = {
+    ...buildJsOrchestratorServices(options),
+    shellAction: async (action) => executeShellAction(action, options)
+  };
+  const traceWorkflow = buildShellWorkflowTraceEmitter(options);
+
+  try {
+    const workflowResult = await withWorkflowStore(options.root, async (workflowStore) => {
+      workflowStore.upsertWorkflowRun({
+        id: options.runId,
+        prompt: inputText,
+        code: compiledCode,
+        status: "running",
+        result: null
+      });
+
+      return executeJsOrchestrator(compiledCode, {
+        workflowStore,
+        prompt: inputText,
+        runId: options.runId,
+        services,
+        root: options.root,
+        traceWorkflow
+      });
+    });
+
+    const executed = Array.isArray(workflowResult?.result)
+      ? workflowResult.result
+      : workflowResult?.result != null
+        ? [workflowResult.result]
+        : [];
+    const executedGraph = buildFastShellExecutedGraph(planWithCode, executed, workflowResult);
+    return {
+      input: inputText,
+      plan: planWithCode,
+      executed,
+      executedGraph,
+      continuationState: buildContinuationState({ inputText, plan: planWithCode, executedGraph }),
+      preRendered: true,
+      recovery: null,
+      assistantReply: null,
+      workflowResult,
+      workflowTraceEvents: [...(options.workflowTraceEvents ?? [])]
+    };
+  } catch (error) {
+    const workflowResult = {
+      runId: options.runId,
+      ok: false,
+      error: error?.message ?? String(error),
+      result: null
+    };
+    const executed = [{ ok: false, error: workflowResult.error, summary: workflowResult.error }];
+    const executedGraph = buildFastShellExecutedGraph(planWithCode, executed, workflowResult);
+    return {
+      input: inputText,
+      plan: planWithCode,
+      executed,
+      executedGraph,
+      continuationState: buildContinuationState({ inputText, plan: planWithCode, executedGraph }),
+      preRendered: true,
+      recovery: null,
+      assistantReply: null,
+      workflowResult,
+      workflowTraceEvents: [...(options.workflowTraceEvents ?? [])]
+    };
+  }
 }
 
 function isFastShellReplyPlan(plan) {
@@ -2411,6 +2621,7 @@ export async function planShellRequestWithAgent(inputText, options) {
     throw error;
   } finally {
     const latencyMs = Date.now() - start;
+    const tokenUsage = summarizeCompletionUsage([completion?.usage ?? null]);
     await recordMetric({
       projectRoot: options.root,
       metric: {
@@ -2418,6 +2629,8 @@ export async function planShellRequestWithAgent(inputText, options) {
         capability: "strategy",
         providerId: options.planner.providerId,
         modelId: options.planner.modelId,
+        promptTokens: tokenUsage.promptTokens,
+        completionTokens: tokenUsage.completionTokens,
         latencyMs,
         success,
         errorMessage: errorMsg,
@@ -2429,7 +2642,8 @@ export async function planShellRequestWithAgent(inputText, options) {
           failedAttempts: success ? 0 : 1,
           failedLatencyMs: success ? 0 : latencyMs,
           responseKind: planResult?.kind ?? null,
-          timedOut: !success && /timed out/i.test(errorMsg ?? "")
+          timedOut: !success && /timed out/i.test(errorMsg ?? ""),
+          tokenUsage
         }
       }
     }).catch(() => {});
@@ -2516,6 +2730,7 @@ async function runShellCompletion({ stage, planner, system, prompt, config = {},
       stage,
       planner,
       response: completion.response,
+      usage: completion.usage ?? null,
       elapsedMs: Date.now() - start
     });
     return completion;
@@ -3795,7 +4010,9 @@ export async function runShellTurn(inputText, options) {
     runId: options.runId,
     plannerContext: options.plannerContext,
     history: options.history,
-    planner: options.planner
+    planner: options.planner ?? options.planners?.planners?.[0] ?? null,
+    traceAi: options.traceAi,
+    traceWorkflow: buildShellWorkflowTraceEmitter(options)
   });
 
   const result = {
@@ -3806,7 +4023,19 @@ export async function runShellTurn(inputText, options) {
     preRendered: false,
     history: options.history ?? [],
     assistantReply: operatorResult.assistantReply,
-    options
+    workflowResult: operatorResult.workflowResult ?? null,
+    traceEvents: [...(options.aiTraceEvents ?? [])],
+    workflowTraceEvents: [...(options.workflowTraceEvents ?? [])],
+    options: {
+      root: options.root,
+      json: Boolean(options.json),
+      trace: Boolean(options.trace),
+      shellMode: options.shellMode,
+      requestedWorkMode: options.requestedWorkMode ?? null,
+      effectiveWorkMode: options.effectiveWorkMode ?? null,
+      modeSource: options.modeSource ?? null,
+      runId: options.runId ?? null
+    }
   };
 
   if (operatorResult.workflowResult) {
@@ -4145,7 +4374,8 @@ export async function runInteractiveShell(options) {
   options.history ??= [];
   options.shellMode ??= "plan";
   options.trace ??= false;
-  options.traceAi ??= (event) => logShellTrace(options, event);
+  options.aiTraceEvents ??= [];
+  options.traceAi ??= (event) => recordShellTraceEvent(options, event);
   const processingIndicator = createShellProcessingIndicator(options);
   try {
     if (!options.plannerContext || !options.planners) {
@@ -4223,8 +4453,12 @@ export async function runInteractiveShell(options) {
         }
 
         refreshShellWorkModeForInput(line, options);
+        options.aiTraceEvents = [];
+        options.workflowTraceEvents = [];
         const fastResult = await tryRunShellFastPath(line, options);
         if (fastResult) {
+          fastResult.traceEvents = [...(options.aiTraceEvents ?? [])];
+          fastResult.workflowTraceEvents = [...(options.workflowTraceEvents ?? [])];
           options.activeGraphState = fastResult.continuationState ?? null;
           recordShellTurnHistory(options, line, fastResult);
           await writeShellStateFile(options.stateFile, options);
@@ -4245,6 +4479,8 @@ export async function runInteractiveShell(options) {
         options.plannerContext = await buildShellContext(options.root);
         options.planners = await resolveShellPlanners(options.root, { providerState: options.plannerContext.providerState });
 
+        options.aiTraceEvents = [];
+        options.workflowTraceEvents = [];
         processingIndicator.update("planning and running", { planner: getShellProgressPlanner(line, options) });
         const result = await runShellTurn(line, options);
         processingIndicator.clear();
@@ -4347,52 +4583,52 @@ export function handleShellCommand(line, options) {
     if (!options.json) {
       output.write(`${renderShellCommandHelp("doctor")}\n`);
     }
-    return { handled: true };
+    return { handled: true, reply: renderShellCommandHelp("doctor") };
   }
 
   if (normalized === "plan") {
     setShellMode(options, "plan", { announce: true });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: renderShellModeMessage("plan") };
   }
 
   if (normalized === "mutate") {
     setShellMode(options, "mutate", { announce: true });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: renderShellModeMessage("mutate") };
   }
 
   if (normalized === "mode status" || normalized === "status mode") {
     if (!options.json) {
       output.write(`${renderShellModeLine(options)}\n`);
     }
-    return { handled: true };
+    return { handled: true, reply: renderShellModeLine(options) };
   }
 
   if (normalized === "mode auto") {
     setShellWorkMode(options, "auto", { announce: true, source: "explicit" });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: renderShellWorkModeMessage(options) };
   }
 
   const modeMatch = normalized.match(/^mode\s+(planning|fixing|feature|auditing|bug-hunting)$/);
   if (modeMatch) {
     setShellWorkMode(options, modeMatch[1], { announce: true, source: "explicit" });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: renderShellWorkModeMessage(options) };
   }
 
   if (normalized === "trace on") {
     setShellTrace(options, true, { announce: true });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: "Trace enabled." };
   }
 
   if (normalized === "trace off") {
     setShellTrace(options, false, { announce: true });
-    return { handled: true, stateChanged: true };
+    return { handled: true, stateChanged: true, reply: "Trace disabled." };
   }
 
   if (normalized === "trace") {
     if (!options.json) {
       output.write(`Trace is ${options.trace ? "on" : "off"}.\n`);
     }
-    return { handled: true };
+    return { handled: true, reply: `Trace is ${options.trace ? "on" : "off"}.` };
   }
 
   return null;
@@ -4406,17 +4642,18 @@ function logShellTrace(options, event) {
   const stage = String(event?.stage ?? "ai").trim();
   const phase = String(event?.phase ?? "event").trim();
   const planner = describeShellPlanner(event?.planner);
+  const verbose = process.env.AI_WORKFLOW_TRACE_VERBOSE === "1";
   const lines = [`[trace] ${stage} ${phase} -> ${planner}`];
 
-  if (event?.system) {
+  if (verbose && event?.system) {
     lines.push("system:");
     lines.push(String(event.system).trimEnd());
   }
-  if (event?.prompt) {
+  if (verbose && event?.prompt) {
     lines.push("prompt:");
     lines.push(String(event.prompt).trimEnd());
   }
-  if (event?.response !== undefined) {
+  if (verbose && event?.response !== undefined) {
     lines.push("response:");
     lines.push(String(event.response).trimEnd());
   }
@@ -4427,13 +4664,67 @@ function logShellTrace(options, event) {
   if (Number.isFinite(event?.elapsedMs)) {
     lines.push(`latency: ${event.elapsedMs}ms`);
   }
+  if (event?.usage) {
+    const usage = summarizeCompletionUsage([event.usage]);
+    if (usage.available) {
+      lines.push(`usage: prompt=${usage.promptTokens ?? "n/a"} completion=${usage.completionTokens ?? "n/a"} total=${usage.totalTokens ?? "n/a"}`);
+    } else if (usage.reason) {
+      lines.push(`usage: unavailable (${usage.reason})`);
+    }
+  }
 
   const traceText = `${lines.join("\n")}\n`;
-  if (options?.json) {
-    process.stderr.write(traceText);
+  process.stderr.write(traceText);
+}
+
+function recordShellTraceEvent(options, event) {
+  const normalized = normalizeShellTraceEvent(event);
+  if (!normalized) {
     return;
   }
-  output.write(traceText);
+  options.aiTraceEvents ??= [];
+  options.aiTraceEvents.push(normalized);
+  logShellTrace(options, normalized);
+}
+
+function normalizeShellTraceEvent(event) {
+  if (!event || typeof event !== "object") {
+    return null;
+  }
+
+  const planner = event.planner && typeof event.planner === "object"
+    ? {
+        mode: event.planner.mode ?? null,
+        providerId: event.planner.providerId ?? null,
+        modelId: event.planner.modelId ?? null,
+        host: event.planner.host ?? null,
+        reason: event.planner.reason ?? null
+      }
+    : null;
+  const systemText = event.system === undefined ? "" : String(event.system ?? "");
+  const promptText = event.prompt === undefined ? "" : String(event.prompt ?? "");
+  const responseText = event.response === undefined ? "" : String(event.response ?? "");
+
+  return {
+    recordedAt: new Date().toISOString(),
+    stage: String(event.stage ?? "ai").trim(),
+    phase: String(event.phase ?? "event").trim(),
+    planner,
+    system: systemText ? truncateShellTraceField(systemText, 1200) : null,
+    systemLength: systemText.length,
+    prompt: promptText ? truncateShellTraceField(promptText, 2400) : null,
+    promptLength: promptText.length,
+    response: responseText ? truncateShellTraceField(responseText, 2400) : null,
+    responseLength: responseText.length,
+    error: event.error === undefined ? null : String(event.error ?? ""),
+    elapsedMs: Number.isFinite(event.elapsedMs) ? Number(event.elapsedMs) : null,
+    usage: event.usage ? summarizeCompletionUsage([event.usage]) : null
+  };
+}
+
+function truncateShellTraceField(text, limit = 1200) {
+  const value = String(text ?? "");
+  return value.length > limit ? `${value.slice(0, limit)}\n... [truncated]` : value;
 }
 
 function describeShellPlanner(planner) {
@@ -4871,7 +5162,12 @@ function renderHumanShellResult(result) {
     output.write(`Strategy: ${result.plan.strategy}\n\n`);
   }
   if (result.plan.kind === "reply") {
-    output.write(`${String(result.plan.reply ?? "").trim()}\n`);
+    const replyText = firstNonEmptyString(
+      result.plan.reply,
+      result.plan.assistantReply,
+      result.assistantReply
+    );
+    output.write(`${String(replyText ?? "").trim()}\n`);
     return;
   }
 
@@ -5749,6 +6045,9 @@ function isMutatingAction(action) {
   if (action?.type === "execute_ticket") {
     return action.apply !== false;
   }
+  if (action?.type === "run_codelet") {
+    return true;
+  }
   return MUTATING_ACTIONS.has(action.type);
 }
 
@@ -5868,6 +6167,20 @@ function actionPlan(actions, confidence, reason, meta = {}) {
     graph: buildActionGraph(actions),
     confidence,
     reason
+  }, meta.inputText ?? "", meta.plannerContext ?? {}, meta);
+}
+
+function jsWorkflowPlan(code, confidence, reason, meta = {}) {
+  return normalizeShellPlanEnvelope({
+    kind: "plan",
+    actions: [],
+    graph: buildActionGraph([]),
+    code: String(code ?? "").trim(),
+    confidence,
+    reason,
+    strategy: meta.strategy ?? null,
+    planner: meta.planner ?? null,
+    presentation: meta.presentation ?? null
   }, meta.inputText ?? "", meta.plannerContext ?? {}, meta);
 }
 
@@ -6333,13 +6646,6 @@ function hasKnownCodelet(plannerContext, codeletId) {
 }
 
 function buildExplicitShellCommandPlan(text, lower, plannerContext, { activeGraphState = null } = {}) {
-  const dogfoodBuildPlan = buildProgrammingDogfoodBuildPlan(text, plannerContext, {
-    activeGraphState
-  });
-  if (dogfoodBuildPlan) {
-    return dogfoodBuildPlan;
-  }
-
   const searchMatch = text.match(/^(?:(?:please\s+)?(?:search|find|look up)(?:\s+for)?|(?:can|could|would)\s+you\s+(?:search for|find|look up))\s+(.+?)[?.!]*$/i);
   if (searchMatch) {
     const query = searchMatch[1]
@@ -6404,62 +6710,6 @@ function buildExplicitShellCommandPlan(text, lower, plannerContext, { activeGrap
   }
 
   return null;
-}
-
-function buildProgrammingDogfoodBuildPlan(text, plannerContext, { activeGraphState = null } = {}) {
-  if (!hasKnownCodelet(plannerContext, "programming-dogfood-build")) {
-    return null;
-  }
-
-  const requestText = String(text ?? "");
-  const lower = requestText.toLowerCase();
-  const priorContext = [
-    activeGraphState?.focus?.subject,
-    activeGraphState?.request,
-    ...(Array.isArray(activeGraphState?.references?.evidence) ? activeGraphState.references.evidence : [])
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  const mentionsProgrammingDogfood = /\b(programming dogfood project|dogfood project)\b/.test(lower);
-  const mentionsGenericTarget = /\b(dedicated project|project folder|project in|from scratch)\b/.test(lower);
-  const mentionsGameInRequest = /\b(space invaders|emoji ships|emoji ship|3d canvas|game)\b/.test(lower);
-  const mentionsGameInPriorContext = /\b(space invaders|emoji ships|emoji ship|3d canvas|game)\b/.test(priorContext);
-  const refersBackToPriorSubject = /\b(that|it|this)\b/.test(lower);
-  const soundsLikeDogfoodBuild = (
-    /\b(build|create|generate|make)\b/.test(lower)
-    && (
-      mentionsProgrammingDogfood
-      || (
-        mentionsGenericTarget
-        && (mentionsGameInRequest || (refersBackToPriorSubject && mentionsGameInPriorContext))
-      )
-    )
-  );
-  if (!soundsLikeDogfoodBuild) {
-    return null;
-  }
-
-  const quotedPathMatch = requestText.match(/["'](\/[^"']+)["']/);
-  const barePathMatch = requestText.match(/\s(\/[A-Za-z0-9._/-]+)/);
-  const targetPath = quotedPathMatch?.[1] ?? barePathMatch?.[1] ?? null;
-  if (!targetPath) {
-    return null;
-  }
-
-  const args = ["--target", targetPath];
-  if (/\b(from scratch|recreate|replace|overwrite|start over|clean rebuild|fresh)\b/.test(lower)) {
-    args.push("--force");
-  }
-  if (/\bjson\b/.test(lower)) {
-    args.push("--json");
-  }
-
-  return actionPlan([{
-    type: "run_codelet",
-    codeletId: "programming-dogfood-build",
-    args
-  }], 0.97, "Natural-language programming dogfood build request.");
 }
 
 function splitShellWords(text) {
@@ -7626,6 +7876,11 @@ function buildJsOrchestratorServices(options) {
       resolveProjectStatus: (args) => resolveProjectStatus({ projectRoot: root, ...args }),
       getSmartProjectStatus: (args) => getSmartProjectStatus({ projectRoot: root, ...args }),
     },
+    files: {
+      list: (args = {}) => collectProjectFiles(root, args),
+      read: (relativePath) => readProjectFile(root, relativePath),
+      write: (relativePath, content) => writeProjectFile(root, relativePath, content)
+    },
     orchestrator: {
       executeTicket: (args) => executeTicket({ root, ...args }),
       decomposeTicket: (args) => decomposeTicket({ root, ...args }),
@@ -7633,7 +7888,10 @@ function buildJsOrchestratorServices(options) {
       sweepBugs: (args) => sweepBugs({ root, ...args }),
     },
     codelets: {
-      execute: (id, args) => executeCodelet(id, args, { cwd: root }),
+      execute: async (id, args) => {
+        const codelet = await resolveExecutableCodelet(root, id);
+        return executeCodelet(codelet, args, { cwd: root });
+      },
     },
     shell: {
       execute: (prompt, opts) => runShellTurn(prompt, { ...options, ...opts }),
@@ -7645,4 +7903,31 @@ function buildJsOrchestratorServices(options) {
       }
     }
   };
+}
+
+async function resolveExecutableCodelet(root, codeletOrId) {
+  if (codeletOrId && typeof codeletOrId === "object") {
+    return codeletOrId;
+  }
+
+  const codeletId = String(codeletOrId ?? "").trim();
+  if (!codeletId) {
+    throw new Error("Missing codelet id.");
+  }
+
+  const codelet = await getCodelet({ projectRoot: root, codeletId });
+  if (codelet) {
+    return codelet;
+  }
+
+  const [toolkitCodelets, projectCodelets] = await Promise.all([
+    listToolkitCodelets(),
+    listProjectCodelets(root)
+  ]);
+  const fallback = [...projectCodelets, ...toolkitCodelets].find((item) => item?.id === codeletId);
+  if (fallback) {
+    return fallback;
+  }
+
+  throw new Error(`Unknown codelet: ${codeletId}`);
 }

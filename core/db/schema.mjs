@@ -224,6 +224,50 @@ CREATE TABLE IF NOT EXISTS workflow_issues (
   FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS workflow_contracts (
+  run_id TEXT PRIMARY KEY,
+  root TEXT NOT NULL,
+  source TEXT NOT NULL,
+  user_wish TEXT NOT NULL,
+  success_definition TEXT NOT NULL,
+  attempted_status TEXT NOT NULL,
+  fulfillment_status TEXT NOT NULL,
+  truthfulness_status TEXT NOT NULL,
+  enlightenment_status TEXT NOT NULL,
+  misleading_level TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  evidence_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS workflow_gap_reviews (
+  run_id TEXT PRIMARY KEY,
+  root TEXT NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  gap_types_json TEXT NOT NULL,
+  actions_json TEXT NOT NULL,
+  evidence_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS workspace_mutations (
+  id TEXT PRIMARY KEY,
+  root TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  status TEXT NOT NULL,
+  before_dirty INTEGER NOT NULL DEFAULT 0,
+  after_dirty INTEGER NOT NULL DEFAULT 0,
+  changed_files_json TEXT NOT NULL DEFAULT '[]',
+  details_json TEXT NOT NULL DEFAULT '{}',
+  started_at TEXT NOT NULL,
+  completed_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS test_runs (
   id TEXT PRIMARY KEY,
   run_id TEXT NOT NULL,
@@ -255,4 +299,7 @@ CREATE INDEX IF NOT EXISTS idx_search_scope_ref ON search_index(scope, ref_id);
 CREATE INDEX IF NOT EXISTS idx_arch_graph_subject ON architectural_graph(subject_id);
 CREATE INDEX IF NOT EXISTS idx_arch_graph_object ON architectural_graph(object_id);
 CREATE INDEX IF NOT EXISTS idx_arch_graph_predicate ON architectural_graph(predicate);
+CREATE INDEX IF NOT EXISTS idx_workflow_contracts_root_updated ON workflow_contracts(root, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_gap_reviews_root_updated ON workflow_gap_reviews(root, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workspace_mutations_root_completed ON workspace_mutations(root, completed_at DESC);
 `;

@@ -6,6 +6,7 @@ import { judgeShellTranscripts } from "../../../../core/services/shell-transcrip
 import { ensureDir, readText } from "./fs-utils.mjs";
 import { getToolkitRoot } from "./toolkit-root.mjs";
 import { collectOperatorSurfaceState, listOperatorSurfaceIds } from "./operator-surfaces.mjs";
+import { inspectWorkspaceHonesty } from "./workspace-honesty.mjs";
 
 export const DEFAULT_DOGFOOD_REPORT_PATH = ".ai-workflow/generated/dogfood-report.json";
 
@@ -22,13 +23,16 @@ export async function runDogfood({
   const cliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.mjs");
   const startedAt = new Date().toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
+  const workspaceHonesty = await inspectWorkspaceHonesty(normalizedRoot);
   const report = {
-    version: 1,
+    version: 2,
     generatedAt: startedAt,
     root: normalizedRoot,
     toolkitRoot,
     profile,
     timeoutMs,
+    status: "pass",
+    workspaceHonesty,
     surfaces: {}
   };
 
@@ -42,6 +46,17 @@ export async function runDogfood({
       cliPath,
       timeoutMs
     });
+    const surfaceHonesty = summarizeSurfaceHonesty(workspaceHonesty, snapshot.files ?? []);
+    if (surfaceHonesty.status === "fail") {
+      scenarios.push({
+        id: "workspace-honesty",
+        description: "surface files are newer than the latest ai-workflow mutation record",
+        ok: false,
+        stdout: "",
+        stderr: surfaceHonesty.summary,
+        code: 1
+      });
+    }
     const passed = scenarios.every((scenario) => scenario.ok);
 
     report.surfaces[surfaceId] = {
@@ -51,9 +66,15 @@ export async function runDogfood({
       fileHashes: snapshot.fileHashes ?? {},
       scenarioCount: scenarios.length,
       status: passed ? "pass" : "fail",
+      workspaceHonesty: surfaceHonesty,
       scenarios
     };
   }
+
+  report.status = Object.values(report.surfaces).every((surface) => surface.status === "pass")
+    && workspaceHonesty.status !== "fail"
+    ? "pass"
+    : "fail";
 
   if (writeReport) {
     const reportPath = path.resolve(normalizedRoot, DEFAULT_DOGFOOD_REPORT_PATH);
@@ -80,6 +101,35 @@ export async function readDogfoodReport(root = process.cwd()) {
 
 function dedupeSurfaceIds(surfaceIds) {
   return Array.from(new Set((surfaceIds ?? []).map((value) => String(value).trim()).filter(Boolean)));
+}
+
+function summarizeSurfaceHonesty(workspaceHonesty, files) {
+  if (workspaceHonesty?.status !== "fail") {
+    return {
+      status: workspaceHonesty?.status ?? "unknown",
+      suspiciousCount: 0,
+      suspiciousFiles: [],
+      summary: workspaceHonesty?.summary ?? "workspace honesty status unavailable"
+    };
+  }
+
+  const fileSet = new Set((files ?? []).map((file) => String(file)));
+  const suspiciousFiles = (workspaceHonesty.suspiciousFiles ?? []).filter((file) => fileSet.has(file.relativePath));
+  if (!suspiciousFiles.length) {
+    return {
+      status: "pass",
+      suspiciousCount: 0,
+      suspiciousFiles: [],
+      summary: "surface files align with the latest ai-workflow mutation record"
+    };
+  }
+
+  return {
+    status: "fail",
+    suspiciousCount: suspiciousFiles.length,
+    suspiciousFiles,
+    summary: `found ${suspiciousFiles.length} surface file(s) newer than the latest ai-workflow mutation record`
+  };
 }
 
 async function runSurfaceScenarios({ surfaceId, profile, root, toolkitRoot, cliPath, timeoutMs }) {

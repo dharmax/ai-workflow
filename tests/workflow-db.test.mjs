@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import { addManualNote, evaluateProjectReadiness, getEpic, getProjectSummary, listEpicUserStories, listEpics, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, withWorkflowStore } from "../core/services/sync.mjs";
+import { addManualNote, evaluateProjectReadiness, getEpic, getProjectSummary, listEpicUserStories, listEpics, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, withWorkflowStore } from "../core/services/sync.mjs";
 import { buildTicketEntity, inferTicketLane, renderEpicsProjection, renderKanbanProjection } from "../core/services/projections.mjs";
 import { openWorkflowStore } from "../core/db/sqlite-store.mjs";
 import { PROTOCOL_VERSION, validateEvaluateReadinessResponse } from "../core/contracts/dual-surface-protocol.mjs";
@@ -259,6 +259,72 @@ test("manual notes, candidate review, and search operate against the DB-first st
     });
     assert.equal(exactSymbolResults[0]?.scope, "symbol");
     assert.equal(exactSymbolResults[0]?.title, "function runApp");
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolved notes are retired from readiness evidence and candidate review", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-resolved-note-"));
+
+  try {
+    await writeFile(path.join(targetRoot, "README.md"), "# Ready Fixture\n", "utf8");
+    await mkdir(path.join(targetRoot, "docs"), { recursive: true });
+    await mkdir(path.join(targetRoot, "tests"), { recursive: true });
+    await writeFile(path.join(targetRoot, "docs", "beta-checklist.md"), "# Beta Checklist\n- smoke\n", "utf8");
+    await writeFile(path.join(targetRoot, "tests", "smoke.test.js"), "export const smoke = true;\n", "utf8");
+    await writeFile(path.join(targetRoot, "kanban.md"), "# Kanban\n\n## Done\n- [x] REL-001 Ready\n", "utf8");
+
+    await syncProject({ projectRoot: targetRoot });
+    const note = await addManualNote({
+      projectRoot: targetRoot,
+      note: {
+        noteType: "RISK",
+        body: "readiness still reflects an obsolete shell audit warning"
+      }
+    });
+
+    const withRisk = await evaluateProjectReadiness({
+      projectRoot: targetRoot,
+      request: {
+        protocol_version: PROTOCOL_VERSION,
+        operation: "evaluate_readiness",
+        goal: {
+          type: "beta_readiness",
+          target: "project",
+          question: "Is this ready for beta testing?"
+        }
+      }
+    });
+    assert.equal(withRisk.evidence.some((item) => item.kind === "risk_note"), true);
+
+    const resolved = await resolveProjectNote({
+      projectRoot: targetRoot,
+      noteId: note.id,
+      reason: "fresh dogfood and workflow audit superseded the old shell warning"
+    });
+    assert.equal(resolved?.status, "resolved");
+
+    const afterResolve = await evaluateProjectReadiness({
+      projectRoot: targetRoot,
+      request: {
+        protocol_version: PROTOCOL_VERSION,
+        operation: "evaluate_readiness",
+        goal: {
+          type: "beta_readiness",
+          target: "project",
+          question: "Is this ready for beta testing?"
+        }
+      }
+    });
+    assert.equal(afterResolve.evidence.some((item) => item.kind === "risk_note"), false);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const stored = store.getNoteById(note.id);
+      const candidate = store.listCandidates().find((item) => item.noteId === note.id);
+      assert.equal(stored?.status, "resolved");
+      assert.equal(candidate?.status, "archived");
+    });
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

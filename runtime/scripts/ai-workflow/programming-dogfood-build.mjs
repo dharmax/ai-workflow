@@ -122,6 +122,16 @@ const EPICS_MD = `# Epics
 
 - Long-term vision: turn the first playable wave-defense loop into a reusable arcade framework with alternate formations, boss encounters, and drop-in renderers.
 - Outcome: a polished first-play experience with deterministic automation and modular game rules.
+- User stories:
+  - As a new player, I can start the game immediately and understand the controls without reading source code.
+  - As a returning player, I can clear waves, lose lives, and restart the game without refreshing the page.
+  - As an operator, I can inspect the current game state through deterministic browser hooks and text output.
+  - As a future contributor, I can add formations or bosses by extending isolated modules rather than rewriting the whole game.
+- Ticket batches:
+  - Batch A: scaffolding, docs, and game-loop shell.
+  - Batch B: movement, shooting, collisions, score, and lives.
+  - Batch C: deterministic automation hooks, tests, and browser verification.
+  - Batch D: future extensions for bosses, modifiers, and alternate formations.
 - Features:
   - Playable emoji wave defense
   - Browser automation hooks
@@ -132,11 +142,22 @@ const EPICS_MD = `# Epics
   - src/game/render.js
   - src/game/text-state.js
   - src/main.js
+- Graph notes:
+  - model -> update -> render is the core runtime edge.
+  - main wires input, animation frames, fullscreen, and debug hooks around the core runtime.
+  - text-state reads from the model/update state without mutating gameplay.
 
 ## EPIC-GAME-002 Expansion Packs
 
 - Long-term vision: add bosses, modifiers, and optional co-op input without rewriting the core simulation.
 - Outcome: content packs plug into the existing wave, render, and scoring surfaces.
+- User stories:
+  - As a designer, I can define new formations and bosses without changing collision rules.
+  - As a player, I can opt into harder wave packs and modifiers once the core loop is stable.
+- Ticket batches:
+  - Batch A: formation presets and boss timing hooks.
+  - Batch B: modifier system, shields, and score multipliers.
+  - Batch C: optional co-op controls and shared HUD updates.
 `;
 
 const KANBAN_MD = `# Kanban
@@ -148,10 +169,17 @@ const KANBAN_MD = `# Kanban
 - [x] **GAME-TEST-001**: Add deterministic simulation hooks and logic tests.
 - [x] **GAME-REPORT-001**: Summarize build, verification, and next extensions.
 
+## Next Batches
+
+- [ ] **GAME-BATCH-002A**: Add alternate enemy formations with wave descriptors in \`src/game/model.js\`.
+- [ ] **GAME-BATCH-002B**: Introduce boss and shield entities while keeping update rules deterministic.
+- [ ] **GAME-BATCH-002C**: Expand \`render_game_to_text\` and browser checks for boss/debug scenarios.
+
 ## Backlog
 
 - [ ] **GAME-EXPAND-001**: Add boss waves and shield mechanics.
 - [ ] **GAME-EXPAND-002**: Introduce difficulty presets and alternate enemy formations.
+- [ ] **GAME-EXPAND-003**: Add audio, touch controls, and accessibility tuning.
 `;
 
 const PROGRESS_MD = `Original prompt: Build a modular, expandable 3d canvas Space Invaders-like game using emoji ships, with workflow docs and verification.

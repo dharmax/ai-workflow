@@ -313,6 +313,196 @@ test("shell transcript judge returns dimensioned verdicts for transcript artifac
   }
 });
 
+test("shell transcript judge falls back when the first provider returns unstructured output", { concurrency: false }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "shell-transcript-fallback-"));
+  const primaryProviderId = `mock-shell-transcript-primary-${Date.now()}`;
+  const fallbackProviderId = `mock-shell-transcript-fallback-${Date.now()}`;
+
+  try {
+    await mkdir(path.join(root, ".ai-workflow"), { recursive: true });
+    await writeFile(path.join(root, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        [primaryProviderId]: {
+          apiKey: "primary-key",
+          models: ["judge-v1"]
+        },
+        [fallbackProviderId]: {
+          apiKey: "fallback-key",
+          models: ["judge-v2"]
+        },
+        openai: { enabled: false },
+        anthropic: { enabled: false },
+        google: { enabled: false },
+        ollama: { enabled: false }
+      }
+    }, null, 2), "utf8");
+    await mkdir(path.join(root, "artifacts"), { recursive: true });
+    await writeFile(path.join(root, "artifacts", "shell.txt"), [
+      "Prompt: explain the shell transcript",
+      "",
+      "The shell answers directly and stays grounded."
+    ].join("\n"), "utf8");
+
+    registerProvider(primaryProviderId, {
+      generate: async () => ({
+        providerId: primaryProviderId,
+        modelId: "judge-v1",
+        response: "[0.42, 0.22, 0.79, 0.38]"
+      })
+    });
+    registerProvider(fallbackProviderId, {
+      generate: async () => ({
+        providerId: fallbackProviderId,
+        modelId: "judge-v2",
+        response: JSON.stringify({
+          status: "pass",
+          score: 94,
+          confidence: 0.98,
+          summary: "Fallback shell transcript judge returned a valid structured verdict.",
+          findings: ["Grounded", "Direct", "Codex-grade"],
+          recommendations: [],
+          dimensions: {
+            intentCorrectness: { score: 95, status: "pass", reason: "Direct answer." },
+            capabilityFit: { score: 92, status: "pass", reason: "The shell fit the request." },
+            grounding: { score: 94, status: "pass", reason: "Grounded in the artifact." },
+            subjectPreservation: { score: 95, status: "pass", reason: "The subject was preserved." },
+            executionQuality: { score: 91, status: "pass", reason: "No unnecessary detours." },
+            synthesisQuality: { score: 93, status: "pass", reason: "Useful synthesis." },
+            verbosityMatch: { score: 90, status: "pass", reason: "Reasonable density." },
+            codexAcceptance: { score: 94, status: "pass", reason: "Acceptable to a demanding operator." }
+          },
+          artifacts: [
+            {
+              path: "artifacts/shell.txt",
+              status: "pass",
+              score: 94,
+              findings: ["Fallback provider judged the transcript"]
+            }
+          ],
+          needs_human_review: false
+        })
+      })
+    });
+
+    const payload = await judgeShellTranscripts({
+      projectRoot: root,
+      artifactPaths: ["artifacts/shell.txt"],
+      rubric: "The shell transcript must answer directly, remain grounded, and feel Codex-grade.",
+      providerId: primaryProviderId,
+      modelId: "judge-v1"
+    });
+
+    assert.equal(payload.result.status, "pass");
+    assert.equal(payload.result.structuredVerdict, true);
+    assert.equal(payload.diagnostics.failedAttempts, 1);
+    assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("shell transcript judge falls back when the first provider times out", { concurrency: false }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "shell-transcript-timeout-"));
+  const primaryProviderId = `mock-shell-transcript-timeout-${Date.now()}`;
+  const fallbackProviderId = `mock-shell-transcript-timeout-fallback-${Date.now()}`;
+  const originalTimeout = process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS;
+
+  try {
+    process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS = "25";
+    await mkdir(path.join(root, ".ai-workflow"), { recursive: true });
+    await writeFile(path.join(root, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        [primaryProviderId]: {
+          apiKey: "primary-key",
+          models: ["judge-v1"]
+        },
+        [fallbackProviderId]: {
+          apiKey: "fallback-key",
+          models: ["judge-v2"]
+        },
+        openai: { enabled: false },
+        anthropic: { enabled: false },
+        google: { enabled: false },
+        ollama: { enabled: false }
+      }
+    }, null, 2), "utf8");
+    await mkdir(path.join(root, "artifacts"), { recursive: true });
+    await writeFile(path.join(root, "artifacts", "shell.txt"), [
+      "Prompt: explain the shell transcript",
+      "",
+      "The shell answers directly and stays grounded."
+    ].join("\n"), "utf8");
+
+    registerProvider(primaryProviderId, {
+      generate: async ({ signal }) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          resolve({
+            providerId: primaryProviderId,
+            modelId: "judge-v1",
+            response: JSON.stringify({ status: "pass", score: 10, summary: "too late" })
+          });
+        }, 250);
+        signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(signal.reason ?? new Error("aborted"));
+        }, { once: true });
+      })
+    });
+    registerProvider(fallbackProviderId, {
+      generate: async () => ({
+        providerId: fallbackProviderId,
+        modelId: "judge-v2",
+        response: JSON.stringify({
+          status: "pass",
+          score: 94,
+          confidence: 0.98,
+          summary: "Fallback shell transcript judge returned a valid structured verdict after a timeout.",
+          findings: ["Grounded", "Direct", "Codex-grade"],
+          recommendations: [],
+          dimensions: {
+            intentCorrectness: { score: 95, status: "pass", reason: "Direct answer." },
+            capabilityFit: { score: 92, status: "pass", reason: "The shell fit the request." },
+            grounding: { score: 94, status: "pass", reason: "Grounded in the artifact." },
+            subjectPreservation: { score: 95, status: "pass", reason: "The subject was preserved." },
+            executionQuality: { score: 91, status: "pass", reason: "No unnecessary detours." },
+            synthesisQuality: { score: 93, status: "pass", reason: "Useful synthesis." },
+            verbosityMatch: { score: 90, status: "pass", reason: "Reasonable density." },
+            codexAcceptance: { score: 94, status: "pass", reason: "Acceptable to a demanding operator." }
+          },
+          artifacts: [
+            {
+              path: "artifacts/shell.txt",
+              status: "pass",
+              score: 94,
+              findings: ["Fallback provider judged the transcript after timeout"]
+            }
+          ],
+          needs_human_review: false
+        })
+      })
+    });
+
+    const payload = await judgeShellTranscripts({
+      projectRoot: root,
+      artifactPaths: ["artifacts/shell.txt"],
+      rubric: "The shell transcript must answer directly, remain grounded, and feel Codex-grade.",
+      providerId: primaryProviderId,
+      modelId: "judge-v1"
+    });
+
+    assert.equal(payload.result.status, "pass");
+    assert.equal(payload.diagnostics.failedAttempts, 1);
+    assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
+  } finally {
+    if (originalTimeout == null) {
+      delete process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS;
+    } else {
+      process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS = originalTimeout;
+    }
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("verification summary supports shell-transcript judge mode", { concurrency: false }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "shell-verify-summary-"));
   const providerId = `mock-shell-summary-${Date.now()}`;
