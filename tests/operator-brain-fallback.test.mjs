@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { openWorkflowStore } from "../core/db/sqlite-store.mjs";
-import { planOperatorRequest } from "../core/services/operator-brain.mjs";
+import { executeOperatorRequest, planOperatorRequest } from "../core/services/operator-brain.mjs";
 
 test("planOperatorRequest falls back to another candidate if the first one fails", async () => {
   const originalFetch = globalThis.fetch;
@@ -179,6 +179,102 @@ test("planOperatorRequest grounds projections service questions to the projectio
     assert.match(result.assistantReply, /core\/services\/projections\.mjs/i);
     assert.match(result.assistantReply, /renderKanbanProjection/i);
     assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("planOperatorRequest answers provider status follow-ups without invoking the AI planner", async () => {
+  const originalFetch = globalThis.fetch;
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-provider-followup-"));
+  let fetchCalls = 0;
+
+  globalThis.fetch = async () => {
+    fetchCalls++;
+    throw new Error("fetch should not be called for grounded provider replies");
+  };
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+
+    const result = await planOperatorRequest("what about ollama?", {
+      root: targetRoot,
+      plannerContext: {
+        providerState: {
+          providers: {
+            ollama: {
+              available: true,
+              local: true,
+              host: "http://127.0.0.1:11434",
+              models: [{ id: "qwen2.5-coder:7b" }]
+            }
+          }
+        }
+      }
+    });
+
+    assert.equal(result.kind, "reply");
+    assert.match(result.assistantReply, /Ollama status:/);
+    assert.match(result.assistantReply, /http:\/\/127\.0\.0\.1:11434/);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("executeOperatorRequest preserves successful structured JS workflow results", async () => {
+  const originalFetch = globalThis.fetch;
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-js-result-"));
+
+  globalThis.fetch = async (url) => {
+    const urlStr = String(url);
+    if (urlStr.includes("/chat/completions")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  kind: "plan",
+                  confidence: 0.94,
+                  reason: "Return a direct JS plan.",
+                  code: `async () => ({ summary: "List of modules in the project", changedFiles: [], verification: ["cli", "core/services"] })`
+                })
+              }
+            }],
+            usage: {
+              prompt_tokens: 100,
+              completion_tokens: 20,
+              total_tokens: 120
+            }
+          };
+        }
+      };
+    }
+    throw new Error(`Unexpected fetch URL: ${urlStr}`);
+  };
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, ".ai-workflow", "config.json"),
+      JSON.stringify({
+        providers: {
+          openai: { apiKey: "o-key" },
+          ollama: { enabled: false }
+        }
+      }, null, 2),
+      "utf8"
+    );
+
+    const result = await executeOperatorRequest("list me the modules of this project", { root: targetRoot });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.workflowResult?.result?.summary, "List of modules in the project");
+    assert.deepEqual(Array.from(result.workflowResult?.result?.verification ?? []), ["cli", "core/services"]);
   } finally {
     globalThis.fetch = originalFetch;
     await rm(targetRoot, { recursive: true, force: true });

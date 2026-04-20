@@ -32,6 +32,7 @@ const OPTIONAL_TICKET_LANES = [
   "AI Candidates",
   "Risk Watch",
   "Doubtful Relevancy",
+  "Blocked",
   "Ideas"
 ];
 
@@ -165,8 +166,9 @@ export function renderKanbanProjection(store) {
 
     for (const item of items) {
       const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
+      const cleanTitle = sanitizeProjectionTicketTitle(item.title);
       const doneSuffix = lane === "Done" ? ` ✅ ${formatCompletionDate(item)}` : "";
-      lines.push(`- [ ] ${id} ${item.title}${doneSuffix}`);
+      lines.push(`- [ ] ${id} ${cleanTitle}${doneSuffix}`);
       if (item.data?.summary) {
         lines.push(`  - Summary: ${item.data.summary}`);
       }
@@ -194,7 +196,7 @@ export function renderKanbanProjection(store) {
     lines.push("");
     for (const item of items) {
       const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
-      lines.push(`- [ ] ${id} ${item.title}`);
+      lines.push(`- [ ] ${id} ${sanitizeProjectionTicketTitle(item.title)}`);
       if (item.data?.summary) {
         lines.push(`  - Summary: ${item.data.summary}`);
       }
@@ -593,19 +595,21 @@ function parseKanbanTicketLine(line) {
   }
 
   if (match.length === 4) {
+    const rawTitle = match[3].trim();
     return {
       checked: /[xX]/.test(match[1]),
-      completedAt: null,
+      completedAt: extractTicketCompletionDate(rawTitle),
       ticketId: match[2],
-      title: match[3].trim()
+      title: sanitizeProjectionTicketTitle(rawTitle)
     };
   }
 
+  const rawTitle = String(match[4] ?? "").trim();
   return {
     checked: /[xX]/.test(match[1]),
-    completedAt: match[2] ?? null,
+    completedAt: match[2] ?? extractTicketCompletionDate(rawTitle),
     ticketId: match[3],
-    title: String(match[4] ?? "").replace(/\s*✅\s*\d{4}-\d{2}-\d{2}\s*$/u, "").trim()
+    title: sanitizeProjectionTicketTitle(rawTitle)
   };
 }
 
@@ -625,6 +629,7 @@ function normalizeLaneName(name) {
     ["human testing", "Human Inspection"],
     ["human inspection", "Human Inspection"],
     ["suggestions", "Suggestions"],
+    ["blocked", "Blocked"],
     ["done", "Done"],
     ["archived", "Archived"]
   ]);
@@ -647,6 +652,7 @@ function normalizeDisplayLaneName(name) {
     ["human inspection", "Human Inspection"],
     ["human testing", "Human Inspection"],
     ["suggestions", "Suggestions"],
+    ["blocked", "Blocked"],
     ["done", "Done"],
     ["archived", "Archived"]
   ]);
@@ -654,11 +660,22 @@ function normalizeDisplayLaneName(name) {
 }
 
 function formatCompletionDate(item) {
-  const value = String(item?.data?.completedAt ?? item?.updatedAt ?? "").trim();
+  const value = String(item?.data?.completedAt ?? extractTicketCompletionDate(item?.title) ?? item?.updatedAt ?? "").trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
   }
   return new Date().toISOString().slice(0, 10);
+}
+
+export function sanitizeProjectionTicketTitle(value) {
+  return String(value ?? "")
+    .replace(/(?:\s*✅\s*\d{4}-\d{2}-\d{2})+\s*$/gu, "")
+    .trim();
+}
+
+export function extractTicketCompletionDate(value) {
+  const matches = [...String(value ?? "").matchAll(/✅\s*(\d{4}-\d{2}-\d{2})/gu)];
+  return matches.length ? matches.at(-1)?.[1] ?? null : null;
 }
 
 function normalizeTicketFieldName(label) {

@@ -7,6 +7,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { getToolkitRoot, listToolkitCodelets } from "./codelets.mjs";
@@ -208,7 +209,9 @@ export async function handleShell(rest, { cliPath } = {}) {
     yes: Boolean(args.yes),
     noAi: Boolean(args["no-ai"]),
     planOnly: Boolean(args["plan-only"]),
-    trace: Boolean(args.trace),
+    trace: Boolean(args.trace || restoredState?.trace),
+    traceFilePath: restoredState?.traceFilePath ? resolveShellTracePath(restoredState.traceFilePath, { root }) : null,
+    traceConsole: restoredState?.traceConsole ?? true,
     autoExecuteSafe: true,
     shellMode: restoredState?.executionStance === "mutation-enabled" ? "mutate" : "plan",
     requestedWorkMode: normalizeRequestedShellWorkMode(args.mode ?? restoredState?.requestedWorkMode ?? "auto"),
@@ -224,6 +227,9 @@ export async function handleShell(rest, { cliPath } = {}) {
     plannerContext: null,
     planners: null
   };
+  if (options.trace && options.traceFilePath) {
+    options.traceConsole = false;
+  }
   options.traceAi = (event) => recordShellTraceEvent(options, event);
 
   const prompt = args._.join(" ").trim();
@@ -248,6 +254,8 @@ export async function handleShell(rest, { cliPath } = {}) {
           root: options.root,
           json: Boolean(options.json),
           trace: Boolean(options.trace),
+          traceFilePath: options.traceFilePath ?? null,
+          traceConsole: options.traceConsole !== false,
           shellMode: options.shellMode,
           requestedWorkMode: options.requestedWorkMode ?? null,
           effectiveWorkMode: options.effectiveWorkMode ?? null,
@@ -451,7 +459,7 @@ function buildShellWorkflowTraceEmitter(options) {
     if (normalized.error) {
       parts.push(`| ${normalized.error}`);
     }
-    process.stderr.write(`${parts.join(" ")}\n`);
+    emitShellTraceText(options, `${parts.join(" ")}\n`);
   };
 }
 
@@ -495,6 +503,145 @@ function buildFastShellExecutedGraph(plan, executions, workflowResult) {
   };
 }
 
+function formatOperatorWorkflowField(label, value) {
+  if (value == null) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => formatOperatorWorkflowLeaf(item))
+      .filter(Boolean);
+    if (!items.length) {
+      return null;
+    }
+    return `${label}:\n${items.map((item) => `- ${item}`).join("\n")}`;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value)
+      .map(([key, item]) => {
+        const rendered = formatOperatorWorkflowLeaf(item);
+        return rendered ? `- ${key}: ${rendered}` : null;
+      })
+      .filter(Boolean);
+    if (!entries.length) {
+      return null;
+    }
+    return `${label}:\n${entries.join("\n")}`;
+  }
+  const rendered = String(value).trim();
+  return rendered ? `${label}: ${rendered}` : null;
+}
+
+function formatOperatorWorkflowLeaf(value) {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return value.trim() || null;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => formatOperatorWorkflowLeaf(item))
+      .filter(Boolean);
+    return items.length ? items.join(", ") : null;
+  }
+  if (typeof value === "object") {
+    const preferred = ["summary", "title", "message", "status", "command"];
+    for (const key of preferred) {
+      const rendered = formatOperatorWorkflowLeaf(value[key]);
+      if (rendered) {
+        return rendered;
+      }
+    }
+    const compact = Object.entries(value)
+      .map(([key, item]) => {
+        const rendered = formatOperatorWorkflowLeaf(item);
+        return rendered ? `${key}=${rendered}` : null;
+      })
+      .filter(Boolean)
+      .slice(0, 3);
+    return compact.length ? compact.join(", ") : null;
+  }
+  return null;
+}
+
+function renderOperatorWorkflowReply(workflowResult) {
+  if (!workflowResult?.ok || workflowResult.result == null) {
+    return null;
+  }
+  const payload = workflowResult.result;
+  if (typeof payload === "string") {
+    return payload.trim() || null;
+  }
+  if (Array.isArray(payload)) {
+    const items = payload
+      .map((item) => formatOperatorWorkflowLeaf(item))
+      .filter(Boolean);
+    return items.length ? items.map((item) => `- ${item}`).join("\n") : null;
+  }
+  if (typeof payload !== "object") {
+    return String(payload);
+  }
+
+  const lines = [];
+  const summary = typeof payload.summary === "string" ? payload.summary.trim() : "";
+  if (summary) {
+    lines.push(summary);
+  }
+
+  const changedFiles = formatOperatorWorkflowField("Changed files", payload.changedFiles);
+  if (changedFiles) {
+    lines.push(changedFiles);
+  }
+
+  const verification = formatOperatorWorkflowField("Verification", payload.verification);
+  if (verification) {
+    lines.push(verification);
+  }
+
+  if (!lines.length) {
+    const fallback = Object.entries(payload)
+      .map(([key, value]) => {
+        const rendered = formatOperatorWorkflowLeaf(value);
+        return rendered ? `${key}: ${rendered}` : null;
+      })
+      .filter(Boolean)
+      .slice(0, 6);
+    if (fallback.length) {
+      lines.push(...fallback);
+    }
+  }
+
+  return lines.length ? lines.join("\n") : null;
+}
+
+function listKnownProviderAliases(providerMap = {}) {
+  return Array.from(new Set([
+    ...Object.keys(providerMap ?? {}).map((key) => String(key).trim().toLowerCase()).filter(Boolean),
+    "ollama",
+    "openai",
+    "google",
+    "gemini",
+    "anthropic"
+  ]));
+}
+
+function textMentionsKnownProvider(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  return listKnownProviderAliases(providerMap).some((providerId) => new RegExp(`\\b${escapeRegExp(providerId)}\\b`, "i").test(normalized));
+}
+
+function looksLikeProviderStatusFollowUp(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  if (!textMentionsKnownProvider(normalized, providerMap)) {
+    return false;
+  }
+  return /\b(what about|how about|status|health|healthy|configured|connected|available|working|broken|failing|routeable)\b/.test(normalized);
+}
+
 async function executeFastShellPlanWithJs(inputText, plan, options) {
   const compiledCode = firstNonEmptyString(plan?.code) || compileFastShellActionPlanToJs(plan?.actions ?? []);
   const planWithCode = plan?.code === compiledCode ? plan : {
@@ -523,7 +670,8 @@ async function executeFastShellPlanWithJs(inputText, plan, options) {
         runId: options.runId,
         services,
         root: options.root,
-        traceWorkflow
+        traceWorkflow,
+        workflowLogger: null
       });
     });
 
@@ -1102,6 +1250,7 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
   const lower = text.toLowerCase();
   const normalizedQuestion = normalizeConversationText(text);
   const activeGraphState = options.activeGraphState ?? null;
+  const providerMap = plannerContext?.providerState?.providers ?? {};
   const implicitTicketId = resolveImplicitTicketId(plannerContext, text);
   const intent = analyzeShellIntent(text, plannerContext);
   const routing = routeShellIntent(intent);
@@ -1205,6 +1354,11 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     return stagedPlan;
   }
 
+  const selfConfigPlan = buildNaturalLanguageSelfConfigPlan(text);
+  if (selfConfigPlan) {
+    return selfConfigPlan;
+  }
+
   const contextualReply = buildContextualShellReply(text, plannerContext);
   if (contextualReply) {
     return contextualReply;
@@ -1271,10 +1425,11 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
 
   const isSimpleProviderStatusRequest = (
     /\b(?:what|which|show|list)\b.*\b(?:ai\s+)?providers?\b/.test(lower) ||
-    /\bproviders?\b.*\b(?:connected|configured|available|active|status|looking|doing|healthy|health)\b/.test(lower)
+    /\bproviders?\b.*\b(?:connected|configured|available|active|status|looking|doing|healthy|health)\b/.test(lower) ||
+    /\b(?:which|what)\b.*\b(?:llms?|models?)\b.*\b(?:would you use|should (?:i|we) use|do you use|for shell planning)\b/.test(lower)
   ) && !/\b(inspect|investigate|debug|diagnose|deep|deeply|why|fix|repair|resolve|trace)\b/.test(lower);
 
-  if (isSimpleProviderStatusRequest) {
+  if (isSimpleProviderStatusRequest || looksLikeProviderStatusFollowUp(text, providerMap)) {
     return actionPlan([{ type: "provider_status" }], 0.99, "Explicit provider status request.");
   }
 
@@ -2031,6 +2186,41 @@ function buildWorkflowKickoffShellPlan(inputText, plannerContext = {}) {
       /new branch/i.test(text) ? "Do not create a branch in plan-only mode; confirm the implementation slice after discovery." : null,
       "Then rank the matching tickets in execution order before starting code changes."
     ].filter(Boolean).join(" ")
+  };
+}
+
+function buildNaturalLanguageSelfConfigPlan(inputText) {
+  const text = String(inputText ?? "").trim();
+  const normalized = normalizeConversationText(text);
+  if (!normalized) {
+    return null;
+  }
+
+  const asksConfig = /\b(configure|set up|setup|enable|connect)\b/.test(normalized)
+    && /\b(yourself|you|shell|workflow)\b/.test(normalized);
+  if (!asksConfig) {
+    return null;
+  }
+
+  const actions = [];
+  const global = /\bglobal|globally|for all projects\b/.test(normalized);
+  if (/\bollama\b/.test(normalized)) {
+    actions.push({ type: "set_ollama_hw", global });
+  }
+  if (/\bopenai\b/.test(normalized)) {
+    actions.push({ type: "set_provider_key", providerId: "openai", global });
+  }
+  if (/\b(gemini|google ai studio|google)\b/.test(normalized)) {
+    actions.push({ type: "set_provider_key", providerId: "google", global });
+  }
+
+  if (!actions.length) {
+    return null;
+  }
+
+  return {
+    ...actionPlan(actions, 0.94, "Natural-language self-configuration request mapped to provider setup actions."),
+    presentation: "assistant-first"
   };
 }
 
@@ -4022,7 +4212,7 @@ export async function runShellTurn(inputText, options) {
     executedGraph: null,
     preRendered: false,
     history: options.history ?? [],
-    assistantReply: operatorResult.assistantReply,
+    assistantReply: renderOperatorWorkflowReply(operatorResult.workflowResult) ?? operatorResult.assistantReply,
     workflowResult: operatorResult.workflowResult ?? null,
     traceEvents: [...(options.aiTraceEvents ?? [])],
     workflowTraceEvents: [...(options.workflowTraceEvents ?? [])],
@@ -4030,6 +4220,8 @@ export async function runShellTurn(inputText, options) {
       root: options.root,
       json: Boolean(options.json),
       trace: Boolean(options.trace),
+      traceFilePath: options.traceFilePath ?? null,
+      traceConsole: options.traceConsole !== false,
       shellMode: options.shellMode,
       requestedWorkMode: options.requestedWorkMode ?? null,
       effectiveWorkMode: options.effectiveWorkMode ?? null,
@@ -4374,6 +4566,8 @@ export async function runInteractiveShell(options) {
   options.history ??= [];
   options.shellMode ??= "plan";
   options.trace ??= false;
+  options.traceFilePath ??= null;
+  options.traceConsole ??= !options.traceFilePath;
   options.aiTraceEvents ??= [];
   options.traceAi ??= (event) => recordShellTraceEvent(options, event);
   const processingIndicator = createShellProcessingIndicator(options);
@@ -4386,7 +4580,7 @@ export async function runInteractiveShell(options) {
     const primary = options.noAi
       ? getActiveShellPlanner(options)
       : options.planners.planners[0] ?? options.planners.heuristic;
-    output.write(`ai-workflow shell\n${renderPlannerLine(primary)}\n${renderShellModeLine(options)}\nType 'help' for examples. Type 'plan', 'mutate', 'trace on', 'trace off', or 'exit' to quit.\n\n`);
+    output.write(`ai-workflow shell\n${renderPlannerLine(primary)}\n${renderShellModeLine(options)}\nType 'help' for examples. Type 'plan', 'mutate', 'trace on', 'trace on file <path>', 'trace off', or 'exit' to quit.\n\n`);
 
     if (!options.noAi && !options.planners.planners.length) {
       output.write([
@@ -4403,6 +4597,10 @@ export async function runInteractiveShell(options) {
     }
     if ((primary.configWarnings ?? []).length) {
       output.write("\n");
+    }
+    const proactiveAdvice = buildProactiveShellAdvice(options.plannerContext);
+    if (proactiveAdvice) {
+      output.write(`${proactiveAdvice}\n\n`);
     }
     if (!options.noAi && primary.needsHardwareHint) {
       output.write([
@@ -4547,7 +4745,7 @@ function renderShellModeLine(options) {
   const modeLabel = requestedMode === effectiveMode ? requestedMode : `${requestedMode} -> ${effectiveMode}`;
   const source = normalizeShellModeSource(options.modeSource ?? "default");
   const stance = options.shellMode === "mutate" ? "mutation-enabled" : "plan-only";
-  const trace = options.trace ? "on" : "off";
+  const trace = renderShellTraceState(options);
   return `mode: ${modeLabel} | source: ${source} | stance: ${stance} | trace: ${trace}`;
 }
 
@@ -4566,10 +4764,61 @@ function setShellMode(options, mode, { announce = false } = {}) {
   }
 }
 
-function setShellTrace(options, enabled, { announce = false } = {}) {
+function resolveShellTracePath(inputPath, options = {}) {
+  return path.resolve(options.root ?? process.cwd(), String(inputPath ?? "").trim());
+}
+
+function renderShellTraceState(options = {}) {
+  if (!options.trace) {
+    return "off";
+  }
+  if (options.traceFilePath) {
+    return `file:${options.traceFilePath}`;
+  }
+  return "on";
+}
+
+function renderShellTraceMessage(options = {}) {
+  if (!options.trace) {
+    return "Trace disabled.";
+  }
+  if (options.traceFilePath) {
+    return `Trace enabled. Writing trace to ${options.traceFilePath}.`;
+  }
+  return "Trace enabled.";
+}
+
+function initializeShellTraceFile(filePath) {
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, "", "utf8");
+}
+
+function emitShellTraceText(options, text) {
+  if (!options?.trace) {
+    return;
+  }
+  const traceText = String(text ?? "");
+  if (!traceText) {
+    return;
+  }
+  if (options.traceFilePath) {
+    mkdirSync(path.dirname(options.traceFilePath), { recursive: true });
+    appendFileSync(options.traceFilePath, traceText, "utf8");
+  }
+  if (options.traceConsole !== false) {
+    process.stderr.write(traceText);
+  }
+}
+
+function setShellTrace(options, enabled, { announce = false, traceFilePath = null, traceConsole } = {}) {
   options.trace = enabled;
+  options.traceFilePath = enabled && traceFilePath ? resolveShellTracePath(traceFilePath, options) : null;
+  options.traceConsole = enabled ? (traceConsole ?? !options.traceFilePath) : true;
+  if (enabled && options.traceFilePath) {
+    initializeShellTraceFile(options.traceFilePath);
+  }
   if (announce && !options.json) {
-    output.write(`${enabled ? "Trace enabled." : "Trace disabled."}\n`);
+    output.write(`${renderShellTraceMessage(options)}\n`);
   }
 }
 
@@ -4619,6 +4868,16 @@ export function handleShellCommand(line, options) {
     return { handled: true, stateChanged: true, reply: "Trace enabled." };
   }
 
+  const traceFileMatch = String(line ?? "").trim().match(/^trace\s+on\s+file\s+(.+)$/i);
+  if (traceFileMatch) {
+    setShellTrace(options, true, {
+      announce: true,
+      traceFilePath: traceFileMatch[1],
+      traceConsole: false
+    });
+    return { handled: true, stateChanged: true, reply: renderShellTraceMessage(options) };
+  }
+
   if (normalized === "trace off") {
     setShellTrace(options, false, { announce: true });
     return { handled: true, stateChanged: true, reply: "Trace disabled." };
@@ -4626,9 +4885,9 @@ export function handleShellCommand(line, options) {
 
   if (normalized === "trace") {
     if (!options.json) {
-      output.write(`Trace is ${options.trace ? "on" : "off"}.\n`);
+      output.write(`${renderShellTraceMessage(options)}\n`);
     }
-    return { handled: true, reply: `Trace is ${options.trace ? "on" : "off"}.` };
+    return { handled: true, reply: renderShellTraceMessage(options) };
   }
 
   return null;
@@ -4673,8 +4932,7 @@ function logShellTrace(options, event) {
     }
   }
 
-  const traceText = `${lines.join("\n")}\n`;
-  process.stderr.write(traceText);
+  emitShellTraceText(options, `${lines.join("\n")}\n`);
 }
 
 function recordShellTraceEvent(options, event) {
@@ -5153,7 +5411,7 @@ function emitShellResult(result, options) {
 
 function renderHumanShellResult(result) {
   if (result.options?.trace && result.plan?.code) {
-    output.write(`[trace] Generated JS:\n${result.plan.code}\n\n`);
+    emitShellTraceText(result.options, `[trace] Generated JS:\n${result.plan.code}\n\n`);
   }
   if (!result.preRendered && result.plan.planner && !result.assistantReply && result.plan.kind !== "reply") {
     output.write(`${renderPlannerLine(result.plan.planner)}\n`);
@@ -6211,6 +6469,7 @@ function renderShellHelp(plannerContext) {
     "plan",
     "mutate",
     "trace on",
+    "trace on file ./artifacts/shell.trace.log",
     "trace off",
     "summary",
     "version",
@@ -6392,13 +6651,14 @@ function buildContextualShellReply(inputText, plannerContext) {
   }
 
   if (asksCodebaseAssessment) {
-    if (!modules.length) {
-      return replyPlan(`I can ground that better after a fresh sync. Right now I only know you are in \`${projectName}\`.`, 0.7, "Limited codebase assessment without module data.");
-    }
-    return replyPlan([
-      `The codebase looks structured around ${modules.slice(0, 5).map((item) => item.name).join(", ")}.`,
-      activeTickets[0] ? `The most obvious current pressure point is ${activeTickets[0].id}: ${activeTickets[0].title}.` : "I do not see an obvious active ticket yet."
-    ].join("\n"), 0.82, "Grounded codebase assessment reply.");
+    return replyPlan(renderStructuredProjectAssessment({
+      projectName,
+      modules,
+      activeTickets,
+      shellTickets,
+      providerMap,
+      knowledgeFacts: plannerContext?.knowledge?.facts ?? []
+    }), 0.9, "Grounded codebase assessment reply.");
   }
 
   if ((hasProjectQuestion || asksTellAboutProject || /\bproject am i in\b/.test(normalized)) && asksNext) {
@@ -6540,6 +6800,167 @@ function renderShellWorkSummaryReply({ plannerContext, responseStyle, shellTicke
     `Shell work is currently centered on ${briefFocus.join("; ")}.`,
     nextTicket ? `Next step: ${nextTicket.id}: ${nextTicket.title}.` : "Next step: refresh the shell todo lane."
   ].join("\n");
+}
+
+function renderStructuredProjectAssessment({ projectName, modules, activeTickets, shellTickets, providerMap, knowledgeFacts = [] }) {
+  const findings = buildProjectFindings({ modules, activeTickets, shellTickets, providerMap, knowledgeFacts });
+  if (!findings.length) {
+    return `Assessment:\n- [medium][context] ${projectName}: I need a fresher sync before I can give a grounded assessment.`;
+  }
+
+  const lines = [
+    "Assessment:"
+  ];
+  for (const finding of findings.slice(0, 5)) {
+    lines.push(`- [${finding.importance}][${finding.tags.join(",")}] ${finding.text}`);
+  }
+
+  const advice = buildProjectAdvice(findings);
+  if (advice.length) {
+    lines.push("");
+    lines.push("Advice:");
+    for (const item of advice) {
+      lines.push(`- ${item}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("Evidence:");
+  lines.push(`- Project: ${projectName}`);
+  if (modules.length) {
+    lines.push(`- Modules: ${modules.slice(0, 4).map((item) => `${item.name} (${item.responsibility})`).join("; ")}`);
+  }
+  if (activeTickets.length) {
+    lines.push(`- Active tickets: ${activeTickets.slice(0, 3).map((ticket) => `${ticket.id} [${ticket.lane}]`).join(", ")}`);
+  }
+  if (knowledgeFacts.length) {
+    lines.push(`- Knowledge: ${knowledgeFacts.slice(0, 3).join("; ")}`);
+  }
+  return lines.join("\n");
+}
+
+function buildProjectFindings({ modules = [], activeTickets = [], shellTickets = [], providerMap = {}, knowledgeFacts = [] } = {}) {
+  const findings = [];
+  const seenTickets = new Set();
+  const topTickets = [...shellTickets, ...activeTickets].filter((ticket) => {
+    const id = String(ticket?.id ?? "");
+    if (!id || seenTickets.has(id)) {
+      return false;
+    }
+    seenTickets.add(id);
+    return true;
+  });
+  for (const ticket of topTickets.slice(0, 3)) {
+    findings.push({
+      importance: inferTicketImportance(ticket),
+      tags: inferTicketTags(ticket),
+      text: `${ticket.id}: ${ticket.title} (${ticket.lane ?? "unknown lane"})`
+    });
+  }
+
+  const coarseModules = modules.filter((module) => /^Heuristic module for /i.test(String(module.responsibility ?? "")));
+  if (coarseModules.length) {
+    findings.push({
+      importance: "medium",
+      tags: ["architecture", "recognition"],
+      text: `Module responsibilities are still coarse in ${coarseModules.slice(0, 3).map((module) => module.name).join(", ")}.`
+    });
+  }
+
+  const unhealthyProviders = Object.entries(providerMap)
+    .filter(([, provider]) => provider && provider.available === false)
+    .map(([providerId]) => providerId);
+  if (unhealthyProviders.length) {
+    findings.push({
+      importance: "medium",
+      tags: ["providers", "setup"],
+      text: `Provider issues are visible for ${unhealthyProviders.join(", ")}.`
+    });
+  }
+
+  if (knowledgeFacts.length) {
+    findings.push({
+      importance: "medium",
+      tags: ["knowledge"],
+      text: `Project knowledge already captures ${knowledgeFacts.slice(0, 2).join("; ")}.`
+    });
+  }
+
+  if (!findings.length && modules.length) {
+    findings.push({
+      importance: "medium",
+      tags: ["architecture"],
+      text: `The codebase is organized around ${modules.slice(0, 4).map((module) => module.name).join(", ")}.`
+    });
+  }
+
+  return findings;
+}
+
+function inferTicketImportance(ticket) {
+  const lane = String(ticket?.lane ?? "").toLowerCase();
+  const haystack = normalizeConversationText(`${ticket?.id ?? ""} ${ticket?.title ?? ""}`);
+  if (/in progress|bugs p1|blocked/.test(lane) || /\bfixer|trust|bug|regression|shell\b/.test(haystack)) {
+    return "high";
+  }
+  if (/todo|bugs p2/.test(lane)) {
+    return "medium";
+  }
+  return "low";
+}
+
+function inferTicketTags(ticket) {
+  const haystack = normalizeConversationText(`${ticket?.id ?? ""} ${ticket?.title ?? ""}`);
+  const tags = [];
+  if (/\bshell|workflow|operator\b/.test(haystack)) tags.push("shell");
+  if (/\bfix|bug|regression|patch|fixer\b/.test(haystack)) tags.push("fixing");
+  if (/\btrust|audit|dogfood|transcript\b/.test(haystack)) tags.push("trust");
+  if (/\bprovider|ollama|openai|gemini\b/.test(haystack)) tags.push("providers");
+  if (/\bknowledge\b/.test(haystack)) tags.push("knowledge");
+  if (/\bartifact|module|drift|architecture\b/.test(haystack)) tags.push("architecture");
+  if (!tags.length) tags.push("workflow");
+  return tags;
+}
+
+function buildProjectAdvice(findings = []) {
+  const advice = [];
+  const hasFixing = findings.some((finding) => finding.tags.includes("fixing"));
+  const hasTrust = findings.some((finding) => finding.tags.includes("trust"));
+  const hasRecognitionGap = findings.some((finding) => finding.tags.includes("recognition"));
+  if (hasFixing) {
+    advice.push("Keep the active fixing path ahead of lower-priority parallelism or polish work.");
+  }
+  if (hasTrust) {
+    advice.push("Prove shell behavior with transcript-backed operator evidence before claiming the surface is fixed.");
+  }
+  if (hasRecognitionGap) {
+    advice.push("Improve module and boundary recognition before leaning on architectural summaries for planning.");
+  }
+  return advice.slice(0, 3);
+}
+
+export function buildProactiveShellAdvice(plannerContext = {}) {
+  const findings = buildProjectFindings({
+    modules: plannerContext?.summary?.modules ?? [],
+    activeTickets: plannerContext?.summary?.activeTickets ?? [],
+    shellTickets: extractShellFocusedTickets(plannerContext?.summary?.activeTickets ?? []),
+    providerMap: plannerContext?.providerState?.providers ?? {},
+    knowledgeFacts: plannerContext?.knowledge?.facts ?? []
+  });
+  const urgent = findings.filter((finding) => finding.importance === "high").slice(0, 2);
+  const advice = buildProjectAdvice(findings).slice(0, 2);
+  if (!urgent.length && !advice.length) {
+    return null;
+  }
+
+  const lines = ["Advice before you start:"];
+  for (const finding of urgent) {
+    lines.push(`- [${finding.importance}] ${finding.text}`);
+  }
+  for (const item of advice) {
+    lines.push(`- ${item}`);
+  }
+  return lines.join("\n");
 }
 
 function resolveImplicitTicketId(plannerContext, inputText) {
@@ -6821,6 +7242,8 @@ async function writeShellStateFile(filePath, options) {
     modeSource: normalizeShellModeSource(options.modeSource ?? "default"),
     executionStance: options.shellMode === "mutate" ? "mutation-enabled" : "plan-only",
     trace: Boolean(options.trace),
+    traceFilePath: options.traceFilePath ?? null,
+    traceConsole: options.traceConsole !== false,
     activeGraphState: options.activeGraphState ?? null,
     history: Array.isArray(options.history) ? options.history : [],
     updatedAt: new Date().toISOString()
@@ -7051,6 +7474,9 @@ function looksLikeGenericStatusQuery(inputText, plannerContext) {
   const text = String(inputText ?? "").trim();
   const normalized = normalizeConversationText(text);
   if (!text || /^(status|summary|project summary|show status|show tickets|list tickets)$/i.test(text)) {
+    return false;
+  }
+  if (textMentionsKnownProvider(normalized, plannerContext?.providerState?.providers ?? {})) {
     return false;
   }
   if (/\b(readiness|ready for beta|ready for release|doctor|diagnostics|provider|providers|version|metrics|stats|usage)\b/.test(normalized)) {
@@ -7853,7 +8279,7 @@ Notes:
   - It uses a high-power remote planner (Gemini/OpenAI) if available, falling back to local Ollama.
   - It can now "chat" and answer general project questions if a smart model is configured.
   - The shell starts in plan mode. Use \`mutate\` to switch into mutating mode and \`plan\` to return to read-only mode.
-  - Use \`trace on\` and \`trace off\` to show or hide AI prompts, responses, and selected models.
+  - Use \`trace on\`, \`trace on file <path>\`, and \`trace off\` to control AI and workflow tracing.
   - Mutating actions still respect workflow gating when they target in-progress ticket execution.
 
 Examples:

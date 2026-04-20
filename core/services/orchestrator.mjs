@@ -9,6 +9,7 @@ import { withWorkflowStore } from "./sync.mjs";
 import { buildTicketEntity, writeProjectProjections } from "./projections.mjs";
 import { withSupergitTransaction } from "./supergit.mjs";
 import { buildTicketExecutionPlan, runVerificationPlan } from "./execution-planner.mjs";
+import { recordProjectKnowledge } from "./knowledge.mjs";
 
 export async function sweepBugs(options) {
   const root = options.root;
@@ -19,20 +20,29 @@ export async function sweepBugs(options) {
 
   if (!bugs.length) return "No pending bugs found in Todo lane.\n";
 
-  let report = `Sweeping ${bugs.length} bugs...\n\n`;
+  const prioritizedBugs = bugs
+    .map((bug) => ({ bug, selection: buildBugSweepSelection(bug) }))
+    .sort((left, right) => compareBugSelections(left.selection, right.selection, left.bug, right.bug));
 
-  for (const bug of bugs) {
+  let report = `Sweeping ${prioritizedBugs.length} bugs...\n\nPriority order:\n`;
+  for (const { bug, selection } of prioritizedBugs) {
+    report += `- ${bug.id}: score ${selection.priorityScore} (${selection.reasons.join(", ")})\n`;
+  }
+  report += "\n";
+
+  for (const { bug, selection } of prioritizedBugs) {
     console.log(`[orchestrator] Attempting fix for ${bug.id}...`);
     const result = await executeTicket({
       root,
       ticketId: bug.id,
       apply: true,
       verificationTimeoutMs: options.verificationTimeoutMs,
-      baselineVerificationCache
+      baselineVerificationCache,
+      selection
     });
 
     const verificationSummary = formatVerificationSummary(result?.verification);
-    report += `- ${bug.id}: ${result?.success ? `Fixed${verificationSummary}` : `Failed (${result?.error}) -> Moved to Blocked`}\n`;
+    report += `- ${bug.id}: ${result?.success ? `Fixed${verificationSummary}` : `Failed (${result?.error}) -> Moved to Blocked`} [priority ${selection.priorityScore}: ${selection.reasons.join(", ")}]\n`;
   }
 
   return report;
@@ -45,6 +55,7 @@ export async function executeTicket(options) {
   const verificationTimeoutMs = options.verificationTimeoutMs;
   const baselineVerificationCache = options.baselineVerificationCache ?? new Map();
   const ticket = await withWorkflowStore(root, async (store) => store.getEntity(ticketId));
+  const selection = options.selection ?? buildBugSweepSelection(ticket);
 
   if (!ticket || ticket.entityType !== "ticket") {
     return {
@@ -68,7 +79,14 @@ export async function executeTicket(options) {
         executionPlan,
         executionResult: {
           status: "blocked",
-          reason: executionPlan.concerns.join("; ")
+          reason: executionPlan.concerns.join("; "),
+          selection,
+          attempts: [],
+          lessons: buildExecutionLessons({
+            status: "blocked",
+            error: executionPlan.concerns.join("; "),
+            selection
+          })
         }
       });
     }
@@ -76,15 +94,25 @@ export async function executeTicket(options) {
       success: false,
       status: "blocked",
       error: `Unsafe to execute: ${executionPlan.concerns.join("; ")}`,
-      executionPlan
+      executionPlan,
+      selection,
+      attempts: [],
+      lessons: buildExecutionLessons({
+        status: "blocked",
+        error: executionPlan.concerns.join("; "),
+        selection
+      })
     };
   }
 
   if (apply) {
     await updateTicketState(root, ticket, "In Progress", {
+      executionSelection: selection,
       executionPlan,
       executionResult: {
-        status: "running"
+        status: "running",
+        selection,
+        attempts: []
       }
     });
   }
@@ -96,7 +124,14 @@ export async function executeTicket(options) {
         executionPlan,
         executionResult: {
           status: "baseline-red",
-          verification: baselineVerification
+          verification: baselineVerification,
+          selection,
+          attempts: [],
+          lessons: buildExecutionLessons({
+            status: "baseline-red",
+            verification: baselineVerification,
+            selection
+          })
         }
       });
     }
@@ -106,7 +141,14 @@ export async function executeTicket(options) {
       status: "baseline-red",
       error: `Verification baseline red: ${failure?.command ?? "unknown command"}`,
       executionPlan,
-      verification: baselineVerification
+      verification: baselineVerification,
+      selection,
+      attempts: [],
+      lessons: buildExecutionLessons({
+        status: "baseline-red",
+        verification: baselineVerification,
+        selection
+      })
     };
   }
 
@@ -121,15 +163,26 @@ export async function executeTicket(options) {
 
   return withSupergitTransaction(root, ticket.id, async () => {
     const model = (await routeTask({ root, taskClass: "debugging" })).recommended;
+    const attempts = [];
     if (!model) {
+      const lessons = buildExecutionLessons({
+        status: "blocked",
+        error: "No debugging model available",
+        selection,
+        attempts
+      });
       await updateTicketState(root, ticket, "Blocked", {
+        executionSelection: selection,
         executionPlan,
         executionResult: {
           status: "blocked",
-          reason: "No debugging model available"
+          reason: "No debugging model available",
+          selection,
+          attempts,
+          lessons
         }
       });
-      return { success: false, status: "blocked", error: "No debugging model available", executionPlan };
+      return { success: false, status: "blocked", error: "No debugging model available", executionPlan, selection, attempts, lessons };
     }
 
     const system = `You are a developer fixing a bug. Output ONLY SEARCH/REPLACE blocks.
@@ -155,6 +208,19 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       const start = Date.now();
+      const attemptRecord = {
+        attempt: attempt + 1,
+        providerId: model.providerId,
+        modelId: model.modelId,
+        startedAt: new Date(start).toISOString(),
+        requestSuccess: true,
+        requestError: null,
+        patchSuccess: false,
+        patchError: null,
+        changedFiles: [],
+        responseExcerpt: null,
+        latencyMs: null
+      };
       let completion;
       let requestSuccess = true;
       let reqError = null;
@@ -174,6 +240,9 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
         break;
       } finally {
         const latencyMs = Date.now() - start;
+        attemptRecord.latencyMs = latencyMs;
+        attemptRecord.requestSuccess = requestSuccess;
+        attemptRecord.requestError = reqError;
         await withWorkflowStore(root, async (store) => {
           store.appendMetric({
             taskClass: "debugging",
@@ -187,11 +256,19 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
         }).catch(() => {});
       }
 
-      if (!requestSuccess) break;
+      if (!requestSuccess) {
+        attempts.push(attemptRecord);
+        break;
+      }
 
       patchResult = await verifyAndApplyPatch(root, completion.response, {
         allowedFiles: executionPlan.workingSet
       });
+      attemptRecord.responseExcerpt = truncateExecutionText(completion.response, 500);
+      attemptRecord.patchSuccess = patchResult.success;
+      attemptRecord.patchError = patchResult.error ?? null;
+      attemptRecord.changedFiles = patchResult.changedFiles ?? [];
+      attempts.push(attemptRecord);
       if (patchResult.success) {
         await processRefinements(root, completion.response);
         patchSuccess = true;
@@ -203,23 +280,45 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
     }
 
     if (!patchSuccess) {
+      const lessons = buildExecutionLessons({
+        status: "patch-failed",
+        error: lastError ?? "Patch application failed",
+        attempts,
+        selection
+      });
       await updateTicketState(root, ticket, "Blocked", {
+        executionSelection: selection,
         executionPlan,
         executionResult: {
           status: "patch-failed",
-          reason: lastError ?? "Patch application failed"
+          reason: lastError ?? "Patch application failed",
+          selection,
+          attempts,
+          lessons
         }
       });
-      return { success: false, status: "patch-failed", error: lastError ?? "Patch application failed", executionPlan };
+      return { success: false, status: "patch-failed", error: lastError ?? "Patch application failed", executionPlan, selection, attempts, lessons };
     }
 
     const verification = await runVerificationPlan(root, executionPlan, { timeoutMs: verificationTimeoutMs });
     if (!verification.ok) {
+      const lessons = buildExecutionLessons({
+        status: "verification-failed",
+        verification,
+        attempts,
+        selection,
+        changedFiles: patchResult?.changedFiles ?? []
+      });
       await updateTicketState(root, ticket, "Blocked", {
+        executionSelection: selection,
         executionPlan,
         executionResult: {
           status: "verification-failed",
-          verification
+          verification,
+          selection,
+          attempts,
+          changedFiles: patchResult?.changedFiles ?? [],
+          lessons
         }
       });
       const failure = verification.results.find((item) => item.exitCode !== 0);
@@ -228,16 +327,31 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
         status: "verification-failed",
         error: `Verification failed: ${failure?.command ?? "unknown command"}`,
         executionPlan,
-        verification
+        verification,
+        selection,
+        attempts,
+        changedFiles: patchResult?.changedFiles ?? [],
+        lessons
       };
     }
 
+    const lessons = buildExecutionLessons({
+      status: "verified",
+      verification,
+      attempts,
+      selection,
+      changedFiles: patchResult?.changedFiles ?? []
+    });
     await updateTicketState(root, ticket, "Done", {
+      executionSelection: selection,
       executionPlan,
       executionResult: {
         status: "verified",
         verification,
-        changedFiles: patchResult?.changedFiles ?? []
+        changedFiles: patchResult?.changedFiles ?? [],
+        selection,
+        attempts,
+        lessons
       }
     });
     return {
@@ -245,24 +359,73 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
       status: "verified",
       executionPlan,
       verification,
-      changedFiles: patchResult?.changedFiles ?? []
+      changedFiles: patchResult?.changedFiles ?? [],
+      selection,
+      attempts,
+      lessons
     };
   });
 }
 
 async function updateTicketState(root, bug, lane, payload = {}) {
+  let historyEntry = null;
   await withWorkflowStore(root, async (store) => {
-    const updated = {
-      ...bug,
+    const current = store.getEntity(bug.id) ?? bug;
+    const currentData = current.data ?? {};
+    const nextData = {
+      ...currentData,
+      ...payload
+    };
+    historyEntry = buildExecutionHistoryEntry({
       lane,
-      data: {
-        ...(bug.data ?? {}),
-        ...payload
-      }
+      payload,
+      existingData: currentData
+    });
+    if (historyEntry) {
+      nextData.executionHistory = [
+        ...(Array.isArray(currentData.executionHistory) ? currentData.executionHistory : []),
+        historyEntry
+      ].slice(-10);
+    }
+    const updated = {
+      ...current,
+      lane,
+      data: nextData
     };
     store.upsertEntity(updated);
-    await writeProjectProjections(store, { projectRoot: root });
+    await writeProjectProjections(store, { projectRoot: root, reconcileLegacy: false });
+    store.upsertEntity(updated);
   });
+
+  if (historyEntry) {
+    await recordProjectKnowledge({
+      root,
+      ticketId: bug.id,
+      title: bug.title,
+      lane,
+      status: historyEntry.status,
+      lessons: historyEntry.lessons,
+      changedFiles: historyEntry.changedFiles,
+      selection: historyEntry.selection
+    }).catch(() => {});
+  }
+}
+
+function buildExecutionHistoryEntry({ lane, payload, existingData }) {
+  const status = payload?.executionResult?.status ?? null;
+  if (!status || status === "running") {
+    return null;
+  }
+  return {
+    recordedAt: new Date().toISOString(),
+    lane,
+    status,
+    reason: payload.executionResult.reason ?? null,
+    changedFiles: payload.executionResult.changedFiles ?? [],
+    selection: payload.executionResult.selection ?? payload.executionSelection ?? existingData.executionSelection ?? null,
+    attempts: summarizeAttempts(payload.executionResult.attempts ?? []),
+    lessons: payload.executionResult.lessons ?? []
+  };
 }
 
 function formatVerificationSummary(verification) {
@@ -280,6 +443,110 @@ async function getBaselineVerification(root, executionPlan, cache, timeoutMs) {
   const verification = await runVerificationPlan(root, executionPlan, { timeoutMs });
   cache.set(cacheKey, verification);
   return verification;
+}
+
+function buildBugSweepSelection(ticket) {
+  const text = [
+    ticket?.title,
+    ticket?.data?.summary,
+    ticket?.data?.outcome,
+    ticket?.data?.verification
+  ].map((value) => String(value ?? "")).join("\n").toLowerCase();
+  let priorityScore = 0;
+  const reasons = [];
+
+  if (String(ticket?.id ?? "").startsWith("BUG")) {
+    priorityScore += 10;
+    reasons.push("bug-ticket");
+  }
+  if (/\b(critical|urgent|sev0|sev1|p0|production|prod|outage|security|data loss)\b/.test(text)) {
+    priorityScore += 100;
+    reasons.push("critical-impact");
+  }
+  if (/\b(crash|crashes|panic|broken|fails|failing|failure|regression)\b/.test(text)) {
+    priorityScore += 35;
+    reasons.push("active-failure");
+  }
+  if (/\b(shell|workflow|operator|dogfood)\b/.test(text)) {
+    priorityScore += 20;
+    reasons.push("operator-surface");
+  }
+  if (ticket?.data?.verification) {
+    priorityScore += 5;
+    reasons.push("explicit-verification");
+  }
+  if (!reasons.length) {
+    reasons.push("default-order");
+  }
+
+  return {
+    priorityScore,
+    reasons
+  };
+}
+
+function compareBugSelections(left, right, leftBug, rightBug) {
+  if (right.priorityScore !== left.priorityScore) {
+    return right.priorityScore - left.priorityScore;
+  }
+  return String(leftBug?.id ?? "").localeCompare(String(rightBug?.id ?? ""));
+}
+
+function summarizeAttempts(attempts = []) {
+  return attempts.map((attempt) => ({
+    attempt: attempt.attempt,
+    providerId: attempt.providerId,
+    modelId: attempt.modelId,
+    latencyMs: attempt.latencyMs,
+    requestSuccess: attempt.requestSuccess,
+    requestError: attempt.requestError,
+    patchSuccess: attempt.patchSuccess,
+    patchError: attempt.patchError,
+    changedFiles: attempt.changedFiles ?? []
+  }));
+}
+
+function buildExecutionLessons({ status, error = null, verification = null, attempts = [], selection = null, changedFiles = [] } = {}) {
+  const lessons = [];
+  if (selection?.reasons?.length) {
+    lessons.push(`Selected with priority ${selection.priorityScore}: ${selection.reasons.join(", ")}`);
+  }
+  if (status === "baseline-red") {
+    const failure = verification?.results?.find((item) => item.exitCode !== 0);
+    lessons.push(`Verification baseline was already red before changes${failure?.command ? ` (${failure.command})` : ""}.`);
+  }
+  if (status === "patch-failed") {
+    const patchFailures = attempts
+      .map((attempt) => attempt.patchError)
+      .filter(Boolean);
+    if (patchFailures.length) {
+      lessons.push(`Patch attempts failed ${patchFailures.length} time(s): ${patchFailures.at(-1)}`);
+    } else if (error) {
+      lessons.push(`Patch loop stopped before a clean patch was applied: ${error}`);
+    }
+  }
+  if (status === "verification-failed") {
+    const failure = verification?.results?.find((item) => item.exitCode !== 0);
+    lessons.push(`Patch applied but verification still failed${failure?.command ? ` (${failure.command})` : ""}.`);
+  }
+  if (status === "verified") {
+    lessons.push(`Verified fix against ${verification?.results?.length ?? 0} command(s).`);
+    if (changedFiles.length) {
+      lessons.push(`Changed files: ${changedFiles.join(", ")}`);
+    }
+  }
+  if ((status === "blocked" || status === "patch-failed") && error && !lessons.some((item) => item.includes(error))) {
+    lessons.push(error);
+  }
+  if (attempts.length > 1) {
+    lessons.push(`Needed ${attempts.length} model attempts before reaching a terminal state.`);
+  }
+  return lessons;
+}
+
+function truncateExecutionText(text, limit = 500) {
+  const value = String(text ?? "");
+  return value.length > limit ? `${value.slice(0, limit)}... [truncated]` : value;
 }
 
 async function verifyAndApplyPatch(root, patchText, options = {}) {

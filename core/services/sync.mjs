@@ -4,7 +4,7 @@ import { collectProjectFileSnapshot, readProjectFile } from "../lib/filesystem.m
 import { sha1, stableId } from "../lib/hash.mjs";
 import { parseIndexedFile } from "../parsers/index.mjs";
 import { deriveCandidateFromNote, reviewCandidates } from "./lifecycle.mjs";
-import { buildProjectSummary, buildSmartProjectStatus, compareEpicPriority, createSearchDocumentsForEntities, deriveEpicState, importLegacyProjections, writeProjectProjections } from "./projections.mjs";
+import { buildProjectSummary, buildSmartProjectStatus, compareEpicPriority, createSearchDocumentsForEntities, deriveEpicState, extractTicketCompletionDate, importLegacyProjections, sanitizeProjectionTicketTitle, writeProjectProjections } from "./projections.mjs";
 import { auditArchitecture } from "./critic.mjs";
 import { SEMANTICS } from "../lib/registry.mjs";
 import { evaluateReadiness } from "./readiness-evaluator.mjs";
@@ -154,7 +154,9 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       summary,
       integrityRepair: {
         promotedEpics: integrityRepair.promotedEpics + postImportIntegrityRepair.promotedEpics,
-        removedPlaceholderEpics: integrityRepair.removedPlaceholderEpics + postImportIntegrityRepair.removedPlaceholderEpics
+        removedPlaceholderEpics: integrityRepair.removedPlaceholderEpics + postImportIntegrityRepair.removedPlaceholderEpics,
+        sanitizedTicketTitles: integrityRepair.sanitizedTicketTitles + postImportIntegrityRepair.sanitizedTicketTitles,
+        archivedOpaqueSyntheticTickets: integrityRepair.archivedOpaqueSyntheticTickets + postImportIntegrityRepair.archivedOpaqueSyntheticTickets
       }
     };
     } finally {
@@ -282,6 +284,7 @@ async function reconcileEpicStates(store) {
 
 const EPIC_ID_PATTERN = /^(?:EPIC|EPC)-[A-Z0-9-]+$/i;
 const PLACEHOLDER_ENTITY_IDS = new Set(["true", "false", "null", "undefined"]);
+const OPAQUE_SYNTHETIC_TICKET_ID_PATTERN = /^[a-f0-9]{40}$/i;
 
 function repairWorkflowEntityIntegrity(store) {
   const tickets = store.listEntities({ entityType: "ticket" });
@@ -289,45 +292,80 @@ function repairWorkflowEntityIntegrity(store) {
   const promotedTicketIds = new Set();
   let promotedEpics = 0;
   let removedPlaceholderEpics = 0;
+  let sanitizedTicketTitles = 0;
+  let archivedOpaqueSyntheticTickets = 0;
 
   for (const ticket of tickets) {
-    if (!shouldPromoteTicketToEpic(ticket, tickets)) {
+    const cleanedTitle = sanitizeProjectionTicketTitle(ticket.title);
+    const extractedCompletedAt = extractTicketCompletionDate(ticket.title);
+    const nextData = {
+      ...(ticket.data ?? {}),
+      ...(extractedCompletedAt && !ticket.data?.completedAt ? { completedAt: extractedCompletedAt } : {})
+    };
+    const normalizedTicket = {
+      ...ticket,
+      title: cleanedTitle,
+      data: nextData
+    };
+
+    if (cleanedTitle !== ticket.title || (extractedCompletedAt && ticket.data?.completedAt !== extractedCompletedAt)) {
+      store.upsertEntity(normalizedTicket);
+      sanitizedTicketTitles += 1;
+    }
+
+    if (shouldArchiveLowSignalSyntheticTicket(normalizedTicket, tickets)) {
+      store.upsertEntity({
+        ...normalizedTicket,
+        lane: "Archived",
+        state: "archived",
+        provenance: "integrity-repair",
+        data: {
+          ...nextData,
+          previousLane: normalizedTicket.lane ?? "Todo",
+          archivedReason: "opaque synthetic ticket with no supporting workflow context"
+        }
+      });
+      archivedOpaqueSyntheticTickets += 1;
+      continue;
+    }
+
+    if (!shouldPromoteTicketToEpic(normalizedTicket, tickets)) {
       continue;
     }
 
     const placeholderSource = epics.find((epic) =>
-      epic.id === ticket.parentId
-      || epic.id === ticket.data?.epic
-      || epic.id === ticket.data?.parent
+      epic.id === normalizedTicket.parentId
+      || epic.id === normalizedTicket.data?.epic
+      || epic.id === normalizedTicket.data?.parent
     ) ?? null;
     const linkedTickets = tickets.filter((candidate) =>
-      candidate.id !== ticket.id
-      && (candidate.parentId === ticket.id || candidate.data?.epic === ticket.id)
+      candidate.id !== normalizedTicket.id
+      && (candidate.parentId === normalizedTicket.id || candidate.data?.epic === normalizedTicket.id)
     );
 
     store.upsertEntity({
-      id: ticket.id,
+      id: normalizedTicket.id,
       entityType: "epic",
-      title: ticket.title,
+      title: normalizedTicket.title,
       lane: null,
       state: deriveEpicState({ state: "open" }, linkedTickets),
-      confidence: ticket.confidence ?? 1,
+      confidence: normalizedTicket.confidence ?? 1,
       provenance: "integrity-repair",
-      sourceKind: ticket.sourceKind ?? "manual",
-      reviewState: ticket.reviewState ?? "active",
-      createdAt: ticket.createdAt,
-      updatedAt: ticket.updatedAt,
+      sourceKind: normalizedTicket.sourceKind ?? "manual",
+      reviewState: normalizedTicket.reviewState ?? "active",
+      createdAt: normalizedTicket.createdAt,
+      updatedAt: normalizedTicket.updatedAt,
       parentId: null,
-      relevantUntil: ticket.relevantUntil ?? null,
-      consultationQuestion: ticket.consultationQuestion ?? null,
+      relevantUntil: normalizedTicket.relevantUntil ?? null,
+      consultationQuestion: normalizedTicket.consultationQuestion ?? null,
       data: {
-        summary: firstNonEmptyString(ticket.data?.summary, placeholderSource?.data?.summary, ""),
+        summary: firstNonEmptyString(normalizedTicket.data?.summary, placeholderSource?.data?.summary, ""),
         userStories: normalizeStringList(placeholderSource?.data?.userStories ?? placeholderSource?.data?.stories),
         ticketBatches: normalizeStringList(placeholderSource?.data?.ticketBatches ?? placeholderSource?.data?.batches),
         graphNotes: normalizeStringList(placeholderSource?.data?.graphNotes)
       }
     });
-    promotedTicketIds.add(ticket.id);
+    promotedTicketIds.add(normalizedTicket.id);
     promotedEpics += 1;
   }
 
@@ -340,9 +378,11 @@ function repairWorkflowEntityIntegrity(store) {
   }
 
   return {
-    changed: promotedEpics > 0 || removedPlaceholderEpics > 0,
+    changed: promotedEpics > 0 || removedPlaceholderEpics > 0 || sanitizedTicketTitles > 0 || archivedOpaqueSyntheticTickets > 0,
     promotedEpics,
-    removedPlaceholderEpics
+    removedPlaceholderEpics,
+    sanitizedTicketTitles,
+    archivedOpaqueSyntheticTickets
   };
 }
 
@@ -383,6 +423,35 @@ function shouldDeletePlaceholderEpic(epic, tickets, promotedTicketIds) {
     || normalizeStringList(epic.data?.ticketBatches ?? epic.data?.batches).length > 0;
 
   return referencedByPromotedTicket || !hasMeaningfulData;
+}
+
+function shouldArchiveLowSignalSyntheticTicket(ticket, tickets) {
+  if (!OPAQUE_SYNTHETIC_TICKET_ID_PATTERN.test(String(ticket?.id ?? "").trim())) {
+    return false;
+  }
+  if (String(ticket?.state ?? "").trim().toLowerCase() !== "open") {
+    return false;
+  }
+  const lane = String(ticket?.lane ?? "").trim().toLowerCase();
+  if (!["todo", "to-do", "todoo"].includes(lane)) {
+    return false;
+  }
+  if (String(ticket?.sourceKind ?? "").trim() !== "manual" || String(ticket?.provenance ?? "").trim() !== "manual") {
+    return false;
+  }
+  if (String(ticket?.data?.summary ?? "").trim() || String(ticket?.data?.userStory ?? "").trim()) {
+    return false;
+  }
+  if (ticket?.parentId || ticket?.data?.epic || ticket?.data?.parent) {
+    return false;
+  }
+  if (!/\b(?:Feature|Epic)\b/.test(String(ticket?.title ?? ""))) {
+    return false;
+  }
+  return !tickets.some((candidate) =>
+    candidate.id !== ticket.id
+    && (candidate.parentId === ticket.id || candidate.data?.epic === ticket.id || candidate.data?.parent === ticket.id)
+  );
 }
 
 function looksLikeEpicId(value) {
@@ -744,6 +813,7 @@ export async function reviewProjectCandidates({ projectRoot = process.cwd() } = 
 async function syncArchitecture(projectRoot, store) {
   const files = store.db.prepare("SELECT path FROM files").all();
   const modules = new Map();
+  const moduleFiles = new Map();
 
   // Rebuild the heuristic module map from the current indexed snapshot only.
   store.resetArchitecture();
@@ -755,18 +825,24 @@ async function syncArchitecture(projectRoot, store) {
     if (!modules.has(moduleName)) {
       const moduleId = `MOD-${moduleName.toUpperCase().replace(/\//g, "-")}`;
       modules.set(moduleName, moduleId);
-      store.upsertModule({
-        id: moduleId,
-        name: moduleName,
-        responsibility: `Heuristic module for ${moduleName}`
-      });
     }
+    const paths = moduleFiles.get(moduleName) ?? [];
+    paths.push(file.path);
+    moduleFiles.set(moduleName, paths);
 
     const moduleId = modules.get(moduleName);
     store.appendArchitecturalPredicate({
       subjectId: file.path,
       predicate: "belongs_to",
       objectId: moduleId
+    });
+  }
+
+  for (const [moduleName, moduleId] of modules.entries()) {
+    store.upsertModule({
+      id: moduleId,
+      name: moduleName,
+      responsibility: inferModuleResponsibility(moduleName, moduleFiles.get(moduleName) ?? [])
     });
   }
 }
@@ -936,6 +1012,59 @@ function inferModuleName(filePath) {
 
 function looksLikeFileName(segment) {
   return /\.[A-Za-z0-9]+$/.test(segment);
+}
+
+function inferModuleResponsibility(moduleName, filePaths = []) {
+  const normalized = String(moduleName ?? "").trim();
+  const lower = normalized.toLowerCase();
+  const basenames = [...new Set(
+    filePaths
+      .map((filePath) => path.basename(String(filePath), path.extname(String(filePath))))
+      .filter((name) => name && !["index", "main", "mod"].includes(name))
+  )];
+
+  if (lower === "cli" || lower.startsWith("cli/")) {
+    return "CLI entrypoints, interactive shell behavior, and local operator tooling.";
+  }
+  if (lower === "core/services" || lower.startsWith("core/services")) {
+    return "Core workflow services for sync, orchestration, routing, status, and verification.";
+  }
+  if (lower === "core/db" || lower.startsWith("core/db")) {
+    return "Workflow database persistence, schema management, and indexed state storage.";
+  }
+  if (lower === "core/lib" || lower.startsWith("core/lib")) {
+    return "Shared workflow runtime helpers used across the CLI and core services.";
+  }
+  if (lower === "core/parsers" || lower.startsWith("core/parsers")) {
+    return "Parsers and extraction logic for indexed source files and structured project facts.";
+  }
+  if (lower === "runtime/scripts" || lower.startsWith("runtime/scripts")) {
+    return "Runtime automation scripts, dogfood helpers, and operator utilities.";
+  }
+  if (lower === "runtime/web" || lower.startsWith("runtime/web")) {
+    return "Web runtime assets and browser-facing workflow surfaces.";
+  }
+  if (lower === "docs" || lower.startsWith("docs/")) {
+    return lower.startsWith("docs/handoffs")
+      ? "Implementation handoffs, audit notes, and execution guidance for ongoing tickets."
+      : "Project documentation, operating guidance, and design notes.";
+  }
+  if (lower === "tests" || lower.startsWith("tests")) {
+    return "Automated test coverage, fixtures, and workflow verification scenarios.";
+  }
+  if (lower === "scripts" || lower.startsWith("scripts")) {
+    return "Local scripts for project setup, maintenance, and developer workflows.";
+  }
+  if (lower.startsWith("shared/")) {
+    return "Shared templates, codelets, and reusable workflow assets.";
+  }
+  if (lower === ".gemini") {
+    return "Gemini-specific prompts, configuration, and local provider support files.";
+  }
+  if (basenames.length) {
+    return `Owns ${basenames.slice(0, 4).join(", ")}.`;
+  }
+  return `Owns the ${normalized} area of the workflow toolkit.`;
 }
 
 function deriveCandidateScores(note, filePath) {

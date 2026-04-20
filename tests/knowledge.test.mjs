@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { updateKnowledgeRemote } from "../core/services/knowledge.mjs";
+import { loadKnowledge, recordProjectKnowledge, updateKnowledgeRemote } from "../core/services/knowledge.mjs";
 
 test("updateKnowledgeRemote writes a normalized builtin knowledge payload from a configured source", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-remote-"));
@@ -79,6 +79,69 @@ test("updateKnowledgeRemote skips cleanly when no remote source is configured", 
     } else {
       process.env.AIWF_BUILTIN_KNOWLEDGE_URL = previousUrl;
     }
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("loadKnowledge merges project knowledge facts from markdown", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-facts-"));
+
+  try {
+    await writeFile(path.join(targetRoot, "knowledge.md"), [
+      "# Project Knowledge",
+      "",
+      "## Learned Fixes",
+      "",
+      "- Verification baseline was already red before changes.",
+      "- Changed files: cli/lib/shell.mjs",
+      "  - Lane: Blocked"
+    ].join("\n"), "utf8");
+
+    const knowledge = await loadKnowledge({ root: targetRoot, projectConfig: {}, globalConfig: {} });
+    assert.equal(Array.isArray(knowledge.facts), true);
+    assert.equal(knowledge.facts.includes("Verification baseline was already red before changes."), true);
+    assert.equal(knowledge.facts.includes("Changed files: cli/lib/shell.mjs"), true);
+    assert.equal(knowledge.facts.some((fact) => /^Lane: /i.test(fact)), false);
+    assert.equal(knowledge.projectKnowledgePath, path.join(targetRoot, "knowledge.md"));
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("recordProjectKnowledge appends durable learned fixes without duplicating the same summary", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-record-"));
+
+  try {
+    const first = await recordProjectKnowledge({
+      root: targetRoot,
+      ticketId: "BUG-999",
+      title: "Fix shell regression",
+      lane: "Done",
+      status: "verified",
+      lessons: ["Verified fix against 1 command.", "Changed files: cli/lib/shell.mjs"],
+      changedFiles: ["cli/lib/shell.mjs"],
+      selection: { priorityScore: 30, reasons: ["bug-ticket", "operator-surface"] }
+    });
+    const second = await recordProjectKnowledge({
+      root: targetRoot,
+      ticketId: "BUG-999",
+      title: "Fix shell regression",
+      lane: "Done",
+      status: "verified",
+      lessons: ["Verified fix against 1 command."],
+      changedFiles: ["cli/lib/shell.mjs"],
+      selection: { priorityScore: 30, reasons: ["bug-ticket", "operator-surface"] }
+    });
+
+    assert.equal(first.updated, true);
+    assert.equal(second.updated, false);
+
+    const written = await readFile(path.join(targetRoot, "knowledge.md"), "utf8");
+    assert.match(written, /## Learned Fixes/);
+    assert.match(written, /BUG-999 \[verified\] Fix shell regression/);
+    assert.match(written, /Priority: 30 \(bug-ticket, operator-surface\)/);
+    assert.match(written, /Changed files: cli\/lib\/shell\.mjs/);
+  } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });

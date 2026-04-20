@@ -23,7 +23,6 @@ export async function runDogfood({
   const cliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.mjs");
   const startedAt = new Date().toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
-  const workspaceHonesty = await inspectWorkspaceHonesty(normalizedRoot);
   const report = {
     version: 2,
     generatedAt: startedAt,
@@ -32,10 +31,11 @@ export async function runDogfood({
     profile,
     timeoutMs,
     status: "pass",
-    workspaceHonesty,
+    workspaceHonesty: null,
     surfaces: {}
   };
 
+  const pendingSurfaces = {};
   for (const surfaceId of requestedSurfaces) {
     const snapshot = surfaceSnapshots[surfaceId] ?? { fileCount: 0, files: [], fileHashes: {} };
     const scenarios = await runSurfaceScenarios({
@@ -46,7 +46,21 @@ export async function runDogfood({
       cliPath,
       timeoutMs
     });
-    const surfaceHonesty = summarizeSurfaceHonesty(workspaceHonesty, snapshot.files ?? []);
+    pendingSurfaces[surfaceId] = {
+      description: snapshot.description ?? null,
+      fileCount: snapshot.fileCount ?? 0,
+      files: snapshot.files ?? [],
+      fileHashes: snapshot.fileHashes ?? {},
+      scenarios
+    };
+  }
+
+  const workspaceHonesty = await inspectWorkspaceHonesty(normalizedRoot);
+  report.workspaceHonesty = workspaceHonesty;
+
+  for (const [surfaceId, pendingSurface] of Object.entries(pendingSurfaces)) {
+    const scenarios = [...pendingSurface.scenarios];
+    const surfaceHonesty = summarizeSurfaceHonesty(workspaceHonesty, pendingSurface.files ?? []);
     if (surfaceHonesty.status === "fail") {
       scenarios.push({
         id: "workspace-honesty",
@@ -60,10 +74,7 @@ export async function runDogfood({
     const passed = scenarios.every((scenario) => scenario.ok);
 
     report.surfaces[surfaceId] = {
-      description: snapshot.description ?? null,
-      fileCount: snapshot.fileCount ?? 0,
-      files: snapshot.files ?? [],
-      fileHashes: snapshot.fileHashes ?? {},
+      ...pendingSurface,
       scenarioCount: scenarios.length,
       status: passed ? "pass" : "fail",
       workspaceHonesty: surfaceHonesty,

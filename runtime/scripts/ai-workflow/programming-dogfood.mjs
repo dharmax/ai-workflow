@@ -21,11 +21,11 @@ const FORBIDDEN_DOGFOOD_CODELETS = new Set(["programming-dogfood-build"]);
 function getShellPrompts(targetRoot) {
   return [
     {
-      cwd: REPO_ROOT,
+      cwd: targetRoot,
       prompt: "mutate"
     },
     {
-      cwd: REPO_ROOT,
+      cwd: targetRoot,
       prompt: `Build a dedicated programming dogfood project in "${targetRoot}" from scratch for a modular, expandable 3d canvas Space Invaders-style game that uses emoji ships. Do the actual work through the normal shell workflow: plan it, create or edit the project files directly, and return a structured JSON result with summary, changedFiles, and verification. Do not use programming-dogfood-build, do not call a hidden generator, and do not treat this as search-only work. The finished project must include the long-term vision, epics, features, modules, planning notes, runnable tests, and a ready-to-play browser app.`
     },
     {

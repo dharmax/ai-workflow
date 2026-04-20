@@ -56,6 +56,24 @@ test("syncProject groups top-level source files into stable modules and drops ig
   }
 });
 
+test("syncProject assigns readable module responsibilities instead of placeholder text", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "arch-responsibility-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot });
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const modules = store.listModules();
+      const servicesModule = modules.find((module) => module.name === "src/core");
+      assert.equal(Boolean(servicesModule), true);
+      assert.doesNotMatch(String(servicesModule?.responsibility ?? ""), /^Heuristic module for /);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("auditArchitecture detects direct circular dependencies", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "arch-audit-"));
 

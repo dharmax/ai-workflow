@@ -7,11 +7,16 @@ import { readText } from "../../runtime/scripts/ai-workflow/lib/fs-utils.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUILTIN_KNOWLEDGE_PATH = path.resolve(__dirname, "../../shared/knowledge.json");
 const MODEL_REFERENCE_PATH = path.resolve(__dirname, "../../shared/model-reference.json");
+const PROJECT_KNOWLEDGE_CANDIDATES = [
+  "knowledge.md",
+  path.join("docs", "knowledge.md")
+];
 
 export async function loadKnowledge({ root = process.cwd(), projectConfig = {}, globalConfig = {} } = {}) {
-  const [builtinText, referenceText] = await Promise.all([
+  const [builtinText, referenceText, projectKnowledge] = await Promise.all([
     readText(BUILTIN_KNOWLEDGE_PATH, "{}"),
-    readText(MODEL_REFERENCE_PATH, "{\"models\":[]}")
+    readText(MODEL_REFERENCE_PATH, "{\"models\":[]}"),
+    loadProjectKnowledge(root)
   ]);
   const builtin = JSON.parse(builtinText);
   const reference = JSON.parse(referenceText);
@@ -26,13 +31,77 @@ export async function loadKnowledge({ root = process.cwd(), projectConfig = {}, 
       ...(globalConfig.knowledge?.capabilityMapping ?? {}),
       ...(projectConfig.knowledge?.capabilityMapping ?? {})
     },
+    facts: mergeLists(
+      builtin.facts,
+      globalConfig.knowledge?.facts,
+      projectConfig.knowledge?.facts,
+      projectKnowledge.facts
+    ),
     minimumQuality: {
       ...builtin.minimumQuality,
       ...(globalConfig.knowledge?.minimumQuality ?? {}),
       ...(projectConfig.knowledge?.minimumQuality ?? {})
     },
-    models: mergeModels(builtin.models, globalConfig.knowledge?.models, projectConfig.knowledge?.models)
+    models: mergeModels(builtin.models, globalConfig.knowledge?.models, projectConfig.knowledge?.models),
+    projectKnowledgePath: projectKnowledge.path
   };
+}
+
+export async function recordProjectKnowledge({
+  root = process.cwd(),
+  ticketId,
+  title = "",
+  lane = "",
+  status = "",
+  lessons = [],
+  changedFiles = [],
+  selection = null
+} = {}) {
+  const resolvedPath = await resolveProjectKnowledgePath(root);
+  const heading = "# Project Knowledge";
+  const sectionHeading = "## Learned Fixes";
+  const current = await readText(resolvedPath, "");
+  const lines = [];
+
+  if (!current.trim()) {
+    lines.push(heading, "", sectionHeading, "");
+  } else {
+    lines.push(current.trimEnd());
+    if (!/\n## Learned Fixes\b/.test(current)) {
+      lines.push("", sectionHeading, "");
+    }
+  }
+
+  const summaryParts = [
+    `[${new Date().toISOString().slice(0, 10)}]`,
+    ticketId ? `${ticketId}` : null,
+    status ? `[${status}]` : null,
+    title ? title.trim() : null
+  ].filter(Boolean);
+  const summaryLine = `- ${summaryParts.join(" ")}`;
+  const existingText = lines.join("\n");
+  if (existingText.includes(summaryLine)) {
+    return { updated: false, path: resolvedPath };
+  }
+
+  lines.push(summaryLine);
+  if (lane) {
+    lines.push(`  - Lane: ${lane}`);
+  }
+  if (selection?.reasons?.length) {
+    lines.push(`  - Priority: ${selection.priorityScore ?? "n/a"} (${selection.reasons.join(", ")})`);
+  }
+  for (const lesson of normalizeStringArray(lessons).slice(0, 5)) {
+    lines.push(`  - ${lesson}`);
+  }
+  if (Array.isArray(changedFiles) && changedFiles.length) {
+    lines.push(`  - Changed files: ${changedFiles.join(", ")}`);
+  }
+  lines.push("");
+
+  await mkdir(path.dirname(resolvedPath), { recursive: true });
+  await writeFile(resolvedPath, `${lines.join("\n").trimEnd()}\n`, "utf8");
+  return { updated: true, path: resolvedPath };
 }
 
 export async function updateKnowledgeRemote({
@@ -173,11 +242,50 @@ function normalizeKnowledgePayload(payload) {
     ...payload,
     version: String(payload.version ?? "").trim() || "unknown",
     tasks: normalizeStringArray(payload.tasks),
+    facts: normalizeStringArray(payload.facts),
     capabilityMapping: normalizeStringMap(payload.capabilityMapping),
     minimumQuality: normalizeStringMap(payload.minimumQuality),
     inferenceHeuristics: isPlainObject(payload.inferenceHeuristics) ? payload.inferenceHeuristics : {},
     models: normalizeModelGroups(payload.models)
   };
+}
+
+async function loadProjectKnowledge(root) {
+  const knowledgePath = await findExistingProjectKnowledgePath(root);
+  if (!knowledgePath) {
+    return { path: null, facts: [] };
+  }
+  const markdown = await readText(knowledgePath, "");
+  return {
+    path: knowledgePath,
+    facts: extractKnowledgeFacts(markdown)
+  };
+}
+
+async function findExistingProjectKnowledgePath(root) {
+  for (const relativePath of PROJECT_KNOWLEDGE_CANDIDATES) {
+    const absolutePath = path.resolve(root, relativePath);
+    const content = await readText(absolutePath, "");
+    if (content) {
+      return absolutePath;
+    }
+  }
+  return null;
+}
+
+async function resolveProjectKnowledgePath(root) {
+  return (await findExistingProjectKnowledgePath(root)) ?? path.resolve(root, "knowledge.md");
+}
+
+function extractKnowledgeFacts(markdown) {
+  return normalizeStringArray(
+    String(markdown ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line))
+      .map((line) => line.replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+      .filter((line) => line && !/^Lane: /i.test(line) && !/^Priority: /i.test(line))
+  );
 }
 
 function normalizeStringArray(value) {

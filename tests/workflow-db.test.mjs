@@ -114,6 +114,89 @@ test("syncProject repairs malformed epic placeholders even when the file snapsho
   }
 });
 
+test("syncProject repairs repeated done suffixes without re-polluting kanban titles", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-done-title-repair-"));
+
+  try {
+    await mkdir(targetRoot, { recursive: true });
+    await writeFile(path.join(targetRoot, "package.json"), JSON.stringify({ name: "done-title-repair", type: "module" }, null, 2), "utf8");
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity({
+        ...buildTicketEntity({
+          id: "TKT-101",
+          title: "Fix projection pollution ✅ 2026-04-20 ✅ 2026-04-20",
+          lane: "Done",
+          summary: "Keep Done titles stable across sync runs."
+        }),
+        lane: "Done",
+        state: "archived",
+        data: {
+          ticketId: "TKT-101",
+          summary: "Keep Done titles stable across sync runs.",
+          completedAt: "2026-04-20"
+        }
+      });
+    });
+
+    const first = await syncProject({ projectRoot: targetRoot, writeProjections: true });
+    assert.equal(first.integrityRepair.sanitizedTicketTitles, 1);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const repaired = store.getEntity("TKT-101");
+      assert.equal(repaired?.title, "Fix projection pollution");
+      assert.equal(repaired?.data?.completedAt, "2026-04-20");
+    });
+
+    const firstKanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    const firstLine = firstKanban.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
+    assert.match(firstLine, /TKT-101 Fix projection pollution ✅ 2026-04-20$/);
+    assert.equal((firstLine.match(/✅/g) ?? []).length, 1);
+
+    const second = await syncProject({ projectRoot: targetRoot, writeProjections: true });
+    assert.equal(second.skipped, true);
+
+    const secondKanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    const secondLine = secondKanban.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
+    assert.equal((secondLine.match(/✅/g) ?? []).length, 1);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("syncProject archives low-signal opaque synthetic tickets so they do not pollute todo", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-opaque-ticket-repair-"));
+
+  try {
+    await mkdir(targetRoot, { recursive: true });
+    await writeFile(path.join(targetRoot, "package.json"), JSON.stringify({ name: "opaque-ticket-repair", type: "module" }, null, 2), "utf8");
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity(buildTicketEntity({
+        id: "2a5f10962269f7154a11336ae784527a4518f7ab",
+        title: "Leaderboards Feature",
+        lane: "Todo",
+        summary: ""
+      }));
+    });
+
+    const result = await syncProject({ projectRoot: targetRoot, writeProjections: true });
+    assert.equal(result.integrityRepair.archivedOpaqueSyntheticTickets, 1);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const ticket = store.getEntity("2a5f10962269f7154a11336ae784527a4518f7ab");
+      assert.equal(ticket?.state, "archived");
+      assert.equal(ticket?.lane, "Archived");
+      assert.equal(ticket?.data?.archivedReason, "opaque synthetic ticket with no supporting workflow context");
+    });
+
+    const kanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    assert.doesNotMatch(kanban, /Leaderboards Feature/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("resolveProjectStatus materializes surface links and test evidence", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-status-surface-"));
 

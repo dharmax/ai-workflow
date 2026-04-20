@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { chooseShellPlannerModel, compileShellAction, handleShellCommand, planShellRequest, planShellRequestHeuristically, validateShellPlan, buildShellContext, buildShellPlannerPrompt, planShellRequestWithAgent, resolveShellPlanners, runShellTurn } from "../cli/lib/shell.mjs";
+import { chooseShellPlannerModel, compileShellAction, handleShellCommand, planShellRequest, planShellRequestHeuristically, validateShellPlan, buildShellContext, buildShellPlannerPrompt, buildProactiveShellAdvice, planShellRequestWithAgent, resolveShellPlanners, runShellTurn } from "../cli/lib/shell.mjs";
 import { registerProvider } from "../core/services/providers.mjs";
 import { attemptActionCorrection } from "../core/lib/self-correction.mjs";
 import { syncProject } from "../core/services/sync.mjs";
@@ -1013,24 +1013,38 @@ test("planShellRequestWithAgent multi-turn grounding scenario", async (t) => {
   assert.match(capturedPrompt, /\[TKT-99\] Add tests/);
 });
 
-test("handleShellCommand toggles plan, mutate, and trace state", () => {
+test("handleShellCommand toggles plan, mutate, and trace state", async () => {
   const options = {
+    root: path.resolve("/tmp/ai-workflow-shell-command-test-" + Math.random().toString(36).slice(2)),
     shellMode: "plan",
     trace: false,
     json: false
   };
 
-  assert.deepEqual(handleShellCommand("mutate", options), { handled: true, stateChanged: true });
-  assert.equal(options.shellMode, "mutate");
+  try {
+    assert.equal(handleShellCommand("mutate", options)?.handled, true);
+    assert.equal(options.shellMode, "mutate");
 
-  assert.deepEqual(handleShellCommand("trace on", options), { handled: true, stateChanged: true });
-  assert.equal(options.trace, true);
+    assert.equal(handleShellCommand("trace on", options)?.handled, true);
+    assert.equal(options.trace, true);
+    assert.equal(options.traceFilePath, null);
+    assert.equal(options.traceConsole, true);
 
-  assert.deepEqual(handleShellCommand("plan", options), { handled: true, stateChanged: true });
-  assert.equal(options.shellMode, "plan");
+    const traceFileCommand = handleShellCommand("trace on file traces/session.log", options);
+    assert.equal(traceFileCommand?.handled, true);
+    assert.equal(options.trace, true);
+    assert.equal(options.traceConsole, false);
+    assert.equal(options.traceFilePath, path.resolve(options.root, "traces/session.log"));
 
-  assert.deepEqual(handleShellCommand("trace off", options), { handled: true, stateChanged: true });
-  assert.equal(options.trace, false);
+    assert.equal(handleShellCommand("plan", options)?.handled, true);
+    assert.equal(options.shellMode, "plan");
+
+    assert.equal(handleShellCommand("trace off", options)?.handled, true);
+    assert.equal(options.trace, false);
+    assert.equal(options.traceFilePath, null);
+  } finally {
+    await fs.rm(options.root, { recursive: true, force: true });
+  }
 });
 
 test("planShellRequestWithAgent traces the selected model and response", async () => {
@@ -1130,6 +1144,33 @@ test("heuristic shell planner handles provider status questions without AI plann
   ]);
 });
 
+test("heuristic shell planner routes short provider follow-ups to provider status", () => {
+  const plan = planShellRequestHeuristically("what about ollama?", {
+    ...plannerContext,
+    providerState: {
+      providers: {
+        ollama: {
+          available: true,
+          local: true,
+          host: "http://127.0.0.1:11434"
+        }
+      }
+    }
+  });
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(plan.actions, [
+    { type: "provider_status" }
+  ]);
+});
+
+test("heuristic shell planner maps llm-selection questions onto provider status", () => {
+  const plan = planShellRequestHeuristically("which llms would you use?", plannerContext);
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(plan.actions, [
+    { type: "provider_status" }
+  ]);
+});
+
 test("heuristic shell planner handles version requests directly", () => {
   const plan = planShellRequestHeuristically("version", plannerContext);
   assert.equal(plan.kind, "plan");
@@ -1161,6 +1202,15 @@ test("heuristic shell planner can answer setup and troubleshooting questions", (
   assert.match(providerFailure.reply, /doctor/);
 });
 
+test("heuristic shell planner maps natural-language self-configuration to setup actions", () => {
+  const plan = planShellRequestHeuristically("configure yourself to use openai and ollama globally", plannerContext);
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(plan.actions, [
+    { type: "set_ollama_hw", global: true },
+    { type: "set_provider_key", providerId: "openai", global: true }
+  ]);
+});
+
 test("heuristic shell planner answers capability and greeting prompts like an assistant", () => {
   const capability = planShellRequestHeuristically("what can you do here?", plannerContext);
   assert.equal(capability.kind, "reply");
@@ -1169,6 +1219,59 @@ test("heuristic shell planner answers capability and greeting prompts like an as
   const greeting = planShellRequestHeuristically("how's it going? ready to help?", plannerContext);
   assert.equal(greeting.kind, "reply");
   assert.match(greeting.reply, /Ready\./);
+});
+
+test("heuristic shell planner returns a graded assessment for codebase evaluation prompts", () => {
+  const assessment = planShellRequestHeuristically("what do you think about the codebase?", {
+    ...plannerContext,
+    knowledge: {
+      ...plannerContext.knowledge,
+      facts: ["Verified fix against 1 command.", "Changed files: cli/lib/shell.mjs"]
+    },
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-FIXER-LOOP-001", title: "Build a real autonomous fixer loop", lane: "In Progress" },
+        { id: "TKT-SHELL-TRUST-001", title: "Make shell proof and tests auditably honest", lane: "Todo" }
+      ],
+      modules: [
+        { name: "core/services", responsibility: "Core workflow services for sync, orchestration, routing, status, and verification." },
+        { name: "core/lib", responsibility: "Shared workflow runtime helpers used across the CLI and core services." }
+      ]
+    }
+  });
+  assert.equal(assessment.kind, "reply");
+  assert.match(assessment.reply, /Assessment:/);
+  assert.match(assessment.reply, /\[high\]\[fixing\] TKT-FIXER-LOOP-001/);
+  assert.match(assessment.reply, /Advice:/);
+  assert.match(assessment.reply, /active fixing path/);
+  assert.match(assessment.reply, /Evidence:/);
+  assert.match(assessment.reply, /Knowledge:/);
+  assert.match(assessment.reply, /Verified fix against 1 command/);
+});
+
+test("buildProactiveShellAdvice surfaces high-priority startup guidance", () => {
+  const advice = buildProactiveShellAdvice({
+    ...plannerContext,
+    knowledge: {
+      ...plannerContext.knowledge,
+      facts: ["Verification baseline was already red before changes."]
+    },
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-FIXER-LOOP-001", title: "Build a real autonomous fixer loop", lane: "In Progress" },
+        { id: "TKT-SHELL-TRUST-001", title: "Make shell proof and tests auditably honest", lane: "Todo" }
+      ],
+      modules: [
+        { name: "core/services", responsibility: "Core workflow services for sync, orchestration, routing, status, and verification." }
+      ]
+    }
+  });
+
+  assert.match(advice, /Advice before you start:/);
+  assert.match(advice, /TKT-FIXER-LOOP-001/);
+  assert.match(advice, /active fixing path/i);
 });
 
 test("heuristic shell planner handles broad project-next questions and implicit in-progress ticket references", () => {
@@ -1654,6 +1757,91 @@ test("runShellTurn narrates non-mutating tool results through the assistant laye
     assert.equal(Array.isArray(result.executedGraph?.nodes), true);
     assert.equal(result.executedGraph.nodes[0].id, "n1");
     assert.equal(result.executedGraph.nodes[0].status, "ok");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runShellTurn surfaces successful operator JS workflow results instead of a generic success banner", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-operator-js-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+
+  registerProvider("mock-operator-js-result", {
+    local: false,
+    available: true,
+    models: [{ id: "brain-v1", quality: "high" }],
+    generate: async () => ({
+      response: JSON.stringify({
+        kind: "plan",
+        confidence: 0.95,
+        reason: "Use JS to gather the answer directly.",
+        code: `async () => ({
+          summary: "List of modules in the project",
+          changedFiles: [],
+          verification: ["cli", "core/services", "tests"]
+        })`
+      })
+    })
+  });
+
+  try {
+    const result = await runShellTurn("list me the modules of this project", {
+      root,
+      json: false,
+      yes: false,
+      noAi: false,
+      planOnly: false,
+      plannerContext,
+      planners: {
+        planners: [{ providerId: "mock-operator-js-result", modelId: "brain-v1" }],
+        heuristic: { mode: "heuristic", reason: "fallback" }
+      },
+      history: []
+    });
+
+    assert.equal(result.plan.kind, "plan");
+    assert.match(result.assistantReply, /List of modules in the project/);
+    assert.match(result.assistantReply, /Verification:/);
+    assert.doesNotMatch(result.assistantReply, /Workflow completed successfully/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runShellTurn answers short provider follow-ups through the operator entrypoint", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-provider-followup-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+
+  try {
+    const result = await runShellTurn("what about ollama?", {
+      root,
+      json: false,
+      yes: false,
+      noAi: false,
+      planOnly: false,
+      plannerContext: {
+        ...plannerContext,
+        providerState: {
+          providers: {
+            ollama: {
+              available: true,
+              local: true,
+              host: "http://127.0.0.1:11434",
+              models: [{ id: "qwen2.5-coder:7b" }]
+            }
+          }
+        }
+      },
+      planners: {
+        planners: [],
+        heuristic: { mode: "heuristic", reason: "fallback" }
+      },
+      history: []
+    });
+
+    assert.equal(result.plan.kind, "reply");
+    assert.match(result.assistantReply, /Ollama status:/);
+    assert.match(result.assistantReply, /http:\/\/127\.0\.0\.1:11434/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -2387,14 +2575,16 @@ test("handleShellCommand updates operator work mode separately from mutation sta
   };
 
   const modeResult = handleShellCommand("mode bug-hunting", options);
-  assert.deepEqual(modeResult, { handled: true, stateChanged: true });
+  assert.equal(modeResult?.handled, true);
+  assert.equal(modeResult?.stateChanged, true);
   assert.equal(options.requestedWorkMode, "bug-hunting");
   assert.equal(options.effectiveWorkMode, "bug-hunting");
   assert.equal(options.modeSource, "explicit");
   assert.equal(options.shellMode, "plan");
 
   const stanceResult = handleShellCommand("mutate", options);
-  assert.deepEqual(stanceResult, { handled: true, stateChanged: true });
+  assert.equal(stanceResult?.handled, true);
+  assert.equal(stanceResult?.stateChanged, true);
   assert.equal(options.shellMode, "mutate");
   assert.equal(options.requestedWorkMode, "bug-hunting");
 });
@@ -2432,6 +2622,47 @@ test("shell one-shot invocations persist state when --state-file is provided", a
     const secondState = JSON.parse(await fs.readFile(statePath, "utf8"));
     assert.equal(secondState.runId, state.runId);
     assert.equal(secondState.history.length, 4);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("shell one-shot trace can be redirected to a file without polluting stderr", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-trace-" + Math.random().toString(36).slice(2));
+  const statePath = path.join(root, "shell-state.json");
+  const tracePath = path.join(root, "artifacts", "shell.trace.log");
+  await fs.mkdir(root, { recursive: true });
+
+  try {
+    const configureTrace = await runNode([
+      "cli/ai-workflow.mjs",
+      "shell",
+      "--json",
+      "--state-file",
+      statePath,
+      `trace on file ${tracePath}`
+    ], { cwd: repoRoot });
+    assert.equal(configureTrace.code, 0, configureTrace.stderr || configureTrace.stdout);
+
+    const configuredState = JSON.parse(await fs.readFile(statePath, "utf8"));
+    assert.equal(configuredState.trace, true);
+    assert.equal(configuredState.traceConsole, false);
+    assert.equal(configuredState.traceFilePath, tracePath);
+
+    const result = await runNode([
+      "cli/ai-workflow.mjs",
+      "shell",
+      "--no-ai",
+      "--state-file",
+      statePath,
+      "version"
+    ], { cwd: repoRoot });
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+    assert.doesNotMatch(result.stderr, /\[trace\]|\[workflow\]|\[Workflow\]/);
+
+    const traceText = await fs.readFile(tracePath, "utf8");
+    assert.match(traceText, /\[workflow\]/);
+    assert.doesNotMatch(traceText, /\[Workflow\]/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

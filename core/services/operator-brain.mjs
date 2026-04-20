@@ -9,7 +9,7 @@ import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
 import { executeCodelet } from "./codelet-executor.mjs";
 import { executeJsOrchestrator } from "./js-orchestrator.mjs";
-import { generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
+import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
 import { routeTask } from "./router.mjs";
 import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
@@ -63,7 +63,8 @@ export async function executeOperatorRequest(prompt, options = {}) {
       runId,
       services,
       root,
-      traceWorkflow: options.traceWorkflow
+      traceWorkflow: options.traceWorkflow,
+      workflowLogger: null
     });
   });
 
@@ -485,6 +486,11 @@ function buildActionCatalog(plannerContext = {}) {
 }
 
 async function buildGroundedOperatorReply(inputText, options = {}) {
+  const groundedProviderReply = await buildGroundedProviderReply(inputText, options);
+  if (groundedProviderReply) {
+    return groundedProviderReply;
+  }
+
   if (!looksLikeRepoExplainerQuestion(inputText)) {
     return null;
   }
@@ -538,6 +544,43 @@ async function buildGroundedOperatorReply(inputText, options = {}) {
   }
 
   return null;
+}
+
+async function buildGroundedProviderReply(inputText, options = {}) {
+  if (!looksLikeProviderStatusQuestion(inputText, options?.plannerContext?.providerState?.providers ?? {})) {
+    return null;
+  }
+
+  const root = options.root ?? process.cwd();
+  const providerState = options?.plannerContext?.providerState ?? await discoverProviderState({ root }).catch(() => null);
+  const providers = providerState?.providers ?? {};
+  const mentionedProviders = findMentionedProviders(inputText, providers);
+  const targets = mentionedProviders.length
+    ? mentionedProviders.filter((providerId) => providers[providerId])
+    : Object.keys(providers);
+
+  if (!targets.length) {
+    return {
+      kind: "reply",
+      confidence: 0.75,
+      assistantReply: "I could not find any connected provider state in this environment.",
+      reason: "Grounded provider-status reply."
+    };
+  }
+
+  const lines = targets.length === 1
+    ? [`${formatProviderDisplayName(targets[0])} status: ${renderGroundedProviderLine(targets[0], providers[targets[0]])}`]
+    : [
+      "AI providers:",
+      ...targets.map((providerId) => `- ${renderGroundedProviderLine(providerId, providers[providerId])}`)
+    ];
+
+  return {
+    kind: "reply",
+    confidence: 0.88,
+    assistantReply: lines.join("\n"),
+    reason: "Grounded provider-status reply."
+  };
 }
 
 async function buildGroundedOperatorBriefReply(inputText, options = {}) {
@@ -612,6 +655,87 @@ function looksLikeRepoExplainerQuestion(inputText) {
   }
   return /\b(service|module|modules|projection|projections|router|shell|sync|status|ticket|workflow|context|provider|planner|codelet|claim|claims)\b/.test(normalized)
     || /\bwhat are those\b/.test(normalized);
+}
+
+function looksLikeProviderStatusQuestion(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  const simpleProviderStatusRequest = (
+    /\b(?:what|which|show|list)\b.*\b(?:ai\s+)?providers?\b/.test(normalized)
+      || /\bproviders?\b.*\b(?:connected|configured|available|active|status|looking|doing|healthy|health)\b/.test(normalized)
+  ) && !/\b(inspect|investigate|debug|diagnose|deep|deeply|why|fix|repair|resolve|trace)\b/.test(normalized);
+
+  if (simpleProviderStatusRequest) {
+    return true;
+  }
+
+  return textMentionsKnownProvider(inputText, providerMap)
+    && /\b(what about|how about|status|health|healthy|configured|connected|available|working|broken|failing|routeable)\b/.test(normalized);
+}
+
+function listKnownProviderAliases(providerMap = {}) {
+  return Array.from(new Set([
+    ...Object.keys(providerMap ?? {}).map((key) => String(key).trim().toLowerCase()).filter(Boolean),
+    "ollama",
+    "openai",
+    "google",
+    "gemini",
+    "anthropic"
+  ]));
+}
+
+function textMentionsKnownProvider(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  return listKnownProviderAliases(providerMap).some((providerId) => new RegExp(`\\b${escapeRegExp(providerId)}\\b`, "i").test(normalized));
+}
+
+function canonicalizeProviderAlias(providerId) {
+  if (providerId === "gemini") {
+    return "google";
+  }
+  return providerId;
+}
+
+function findMentionedProviders(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  return listKnownProviderAliases(providerMap)
+    .filter((providerId) => new RegExp(`\\b${escapeRegExp(providerId)}\\b`, "i").test(normalized))
+    .map((providerId) => canonicalizeProviderAlias(providerId))
+    .filter((providerId, index, items) => items.indexOf(providerId) === index);
+}
+
+function formatProviderDisplayName(providerId) {
+  if (providerId === "ollama") return "Ollama";
+  if (providerId === "openai") return "OpenAI";
+  if (providerId === "google") return "Google/Gemini";
+  if (providerId === "anthropic") return "Anthropic";
+  return providerId;
+}
+
+function renderGroundedProviderLine(providerId, provider = {}) {
+  const parts = [providerId];
+  if (provider.local) {
+    parts.push(provider.available ? "available" : "unavailable");
+    if (provider.host) {
+      parts.push(`host ${provider.host}`);
+    }
+    if (Array.isArray(provider.models) && provider.models.length) {
+      parts.push(`${provider.models.length} model${provider.models.length === 1 ? "" : "s"}`);
+    }
+    if (provider.details && !provider.available) {
+      parts.push(String(provider.details));
+    }
+  } else {
+    parts.push(provider.configured ? "configured" : (provider.available ? "available via env" : "not configured"));
+    parts.push(provider.available ? "routeable" : "not routeable");
+    if (provider.paidAllowed === false) {
+      parts.push("paid disabled");
+    }
+  }
+  return parts.join(", ");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function getPlannerModules(plannerContext = {}) {
@@ -799,7 +923,7 @@ function buildOperatorServices(root, options) {
       getProjectSummary: (args) => getProjectSummary({ projectRoot: root, ...args }),
       getProjectMetrics: (args) => getProjectMetrics({ projectRoot: root, ...args }),
       createTicket: (title, data = {}) => {
-        const id = data.id ?? stableId("tkt", title, Date.now());
+        const id = data.id ?? buildReadableAutoTicketId(title);
         const entity = buildTicketEntity({ id, title, ...data });
         return createTicket({ projectRoot: root, entity });
       },
@@ -841,6 +965,15 @@ function buildOperatorServices(root, options) {
       }
     }
   };
+}
+
+function buildReadableAutoTicketId(title) {
+  const slug = String(title ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24) || "UNTITLED";
+  return `TKT-AUTO-${slug}-${Date.now().toString(36).toUpperCase()}`;
 }
 
 async function resolveExecutableCodelet(root, codeletOrId) {
