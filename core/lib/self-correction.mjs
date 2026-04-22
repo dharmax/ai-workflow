@@ -1,12 +1,14 @@
 import { generateCompletion } from "../services/providers.mjs";
+import { loadPromptTemplate } from "./filesystem.mjs";
 
 /**
  * Self-Correction and Proactive Clarification logic.
  */
 
 export async function attemptActionCorrection({ failedAction, error, options, history }) {
+  const template = await loadPromptTemplate("self-correction.system");
   const system = [
-    "You are the self-correction module for 'ai-workflow'.",
+    template || "You are the self-correction module for 'ai-workflow'.",
     "An action failed with an error. You must analyze the error and propose a corrected action or a diagnostic step.",
     "",
     `FAILED ACTION: ${JSON.stringify(failedAction)}`,

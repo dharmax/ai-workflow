@@ -28,7 +28,7 @@ import { refreshProviderQuotaState } from "../../core/services/providers.mjs";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore } from "../../core/services/codelets.mjs";
 import { executeCodelet } from "../../core/services/codelet-executor.mjs";
 import { buildTicketEntity, importLegacyProjections, inferTicketLane, renderEpicsProjection, renderKanbanProjection, writeProjectProjections } from "../../core/services/projections.mjs";
-import { addManualNote, createTicket, evaluateProjectReadiness, getEpic, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
+import { addManualNote, createProjectAssessment, createTicket, evaluateProjectReadiness, getEpic, getProjectAssessment, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, listProjectAssessments, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
 import { buildTelegramPreview } from "../../core/services/telegram.mjs";
 import { onboardProjectBrief } from "../../core/services/orchestrator.mjs";
 import { updateKnowledgeRemote } from "../../core/services/knowledge.mjs";
@@ -87,8 +87,8 @@ const HELP = `Usage:
   ai-workflow project ticket close <ticket-id> [--json]
   ai-workflow project ticket start <ticket-id> [--json]
   ai-workflow project ticket reopen <ticket-id> [--lane <lane>] [--json]
-  ai-workflow project note add --type <NOTE|TODO|FIXME|HACK|BUG|RISK> --body <text> [--file <path>] [--line <n>] [--symbol <name>] [--json]
-  ai-workflow project note resolve <note-id> [--reason <text>] [--json]
+  ai-workflow project assessment <list|show|run> [...]
+  ai-workflow project note add --type <NOTE|TODO|FIXME|HACK|BUG|RISK> --body <text> [--file <path>] [--line <n>] [--symbol <name>] [--json]  ai-workflow project note resolve <note-id> [--reason <text>] [--json]
   ai-workflow project review-candidates [--json]
   ai-workflow extract ticket <id> [options]
   ai-workflow extract guidelines [options]
@@ -881,7 +881,91 @@ async function handleProject(rest) {
     });
   }
 
-  printAndExit("Usage: ai-workflow project <summary|status|readiness|search|epic|story|codelet|ticket|note|review-candidates|render|import-projections> ...", 1);
+  if (subcommand === "assessment") {
+    return handleProjectAssessment(args);
+  }
+
+  printAndExit("Usage: ai-workflow project <summary|status|readiness|search|epic|story|codelet|ticket|note|assessment|review-candidates|render|import-projections> ...", 1);
+}
+
+async function handleProjectAssessment(args) {
+  const [action, ...extras] = args._;
+
+  if (action === "list") {
+    const assessments = await listProjectAssessments({ projectRoot: process.cwd() });
+    if (args.json) {
+      process.stdout.write(`${JSON.stringify(assessments, null, 2)}\n`);
+      return 0;
+    }
+    process.stdout.write("Assessments:\n");
+    for (const a of assessments) {
+      process.stdout.write(`- [${a.id}] ${a.scope} on ${a.targetType}:${a.targetId} (${a.status})\n`);
+    }
+    return 0;
+  }
+
+  if (action === "show") {
+    const id = extras[0] ?? args.id;
+    if (!id) {
+      printAndExit("Usage: ai-workflow project assessment show <id> [--json]", 1);
+    }
+    const assessment = await getProjectAssessment({ projectRoot: process.cwd(), assessmentId: id });
+    if (!assessment) {
+      printAndExit(`Unknown assessment: ${id}`, 1);
+    }
+    if (args.json) {
+      process.stdout.write(`${JSON.stringify(assessment, null, 2)}\n`);
+      return 0;
+    }
+    process.stdout.write(`Assessment: ${assessment.id}\n`);
+    process.stdout.write(`Target: ${assessment.targetType}:${assessment.targetId}\n`);
+    process.stdout.write(`Scope: ${assessment.scope}\n`);
+    process.stdout.write(`Status: ${assessment.status}\n`);
+    process.stdout.write(`Created: ${assessment.createdAt}\n\n`);
+    if (assessment.plan) {
+      process.stdout.write("Plan:\n");
+      process.stdout.write(JSON.stringify(assessment.plan, null, 2) + "\n\n");
+    }
+    if (assessment.criticism) {
+      process.stdout.write("Criticism:\n");
+      process.stdout.write(JSON.stringify(assessment.criticism, null, 2) + "\n\n");
+    }
+    if (assessment.result) {
+      process.stdout.write("Result:\n");
+      process.stdout.write(JSON.stringify(assessment.result, null, 2) + "\n");
+    }
+    return 0;
+  }
+
+  if (action === "run") {
+    const type = args.type;
+    const id = args.id;
+    const scope = args.scope ?? "general";
+    if (!type || !id) {
+      printAndExit("Usage: ai-workflow project assessment run --type <project|module|feature> --id <id> [--scope <scope>] [--json]", 1);
+    }
+    
+    let planner = null;
+    if (process.env.AI_WORKFLOW_PLANNER_MODEL) {
+      const [p, m] = process.env.AI_WORKFLOW_PLANNER_MODEL.split(":");
+      planner = { providerId: p, modelId: m };
+    }
+
+    const result = await createProjectAssessment({
+      projectRoot: process.cwd(),
+      target: { type, id },
+      options: { scope, planner }
+    });
+    if (args.json) {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return 0;
+    }
+    process.stdout.write(`Assessment completed: ${result.id}\n`);
+    process.stdout.write(`Status: ${result.status}\n`);
+    return 0;
+  }
+
+  printAndExit("Usage: ai-workflow project assessment <list|show|run> ...", 1);
 }
 
 async function handleProjectCodelet(args) {

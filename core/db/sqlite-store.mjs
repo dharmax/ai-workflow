@@ -818,7 +818,7 @@ export class SqliteWorkflowStore {
     `).run(
       entity.id,
       entity.entityType,
-      entity.title,
+      entity.title ?? '',
       entity.lane ?? null,
       entity.state ?? "open",
       entity.confidence ?? 1,
@@ -1971,9 +1971,87 @@ export class SqliteWorkflowStore {
   }
 
   getLatestWorkspaceMutation(root = null) {
-    return this.listWorkspaceMutations({ root: root ?? this.projectRoot, limit: 1 })[0] ?? null;
+   return this.listWorkspaceMutations({ root: root ?? this.projectRoot, limit: 1 })[0] ?? null;
+  }
+
+  upsertAssessment(assessment) {
+   const now = nowIso();
+   this.db.prepare(`
+    INSERT INTO assessments (id, target_type, target_id, status, scope, plan_json, criticism_json, result_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+     status = excluded.status,
+     scope = excluded.scope,
+     plan_json = excluded.plan_json,
+     criticism_json = excluded.criticism_json,
+     result_json = excluded.result_json,
+     updated_at = excluded.updated_at
+   `).run(
+    assessment.id,
+    assessment.targetType,
+    assessment.targetId,
+    assessment.status ?? "pending",
+    assessment.scope ?? "general",
+    asJson(assessment.plan),
+    asJson(assessment.criticism),
+    asJson(assessment.result),
+    assessment.createdAt ?? now,
+    now
+   );
+  }
+
+  getAssessmentById(id) {
+   const row = this.db.prepare("SELECT * FROM assessments WHERE id = ?").get(id);
+   if (!row) return null;
+   return {
+    id: row.id,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    status: row.status,
+    scope: row.scope,
+    plan: parseJson(row.plan_json),
+    criticism: parseJson(row.criticism_json),
+    result: parseJson(row.result_json),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+   };
+  }
+
+  listAssessments(filters = {}) {
+   const clauses = [];
+   const values = [];
+   if (filters.targetType) {
+    clauses.push("target_type = ?");
+    values.push(filters.targetType);
+   }
+   if (filters.targetId) {
+    clauses.push("target_id = ?");
+    values.push(filters.targetId);
+   }
+   if (filters.status) {
+    clauses.push("status = ?");
+    values.push(filters.status);
+   }
+   const query = `
+    SELECT * FROM assessments
+    ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+    ORDER BY created_at DESC
+   `;
+   return this.db.prepare(query).all(...values).map(row => ({
+    id: row.id,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    status: row.status,
+    scope: row.scope,
+    plan: parseJson(row.plan_json),
+    criticism: parseJson(row.criticism_json),
+    result: parseJson(row.result_json),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+   }));
   }
   }
+
 function normalizeText(value) {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
 }

@@ -1,3 +1,4 @@
+import { promptMultiChoice } from "../lib/disambiguation.mjs";
 import path from "node:path";
 import { readText } from "../../runtime/scripts/ai-workflow/lib/fs-utils.mjs";
 import { writeProjectFile } from "../lib/filesystem.mjs";
@@ -22,12 +23,12 @@ const CORE_TICKET_LANES = [
   "ToDo",
   "Bugs P1",
   "Bugs P2/P3",
+  "Assessments",
   "In Progress",
   "Human Inspection",
   "Suggestions",
   "Done"
 ];
-
 const OPTIONAL_TICKET_LANES = [
   "AI Candidates",
   "Risk Watch",
@@ -40,12 +41,14 @@ export function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
   const counts = store.getSummary();
   const tickets = store.listEntities({ entityType: "ticket" }).filter(t => t.state !== "archived");
   const epics = store.listEntities({ entityType: "epic" }).filter(e => e.state !== "archived");
+  const assessments = store.listAssessments({ status: "pending" });
   const metrics = store.listMetrics({ limit: 50 });
 
   const activeEpic = epics.find(e => e.state === "open") || epics[0];
   const inProgress = tickets.filter(t => t.lane === "In Progress");
   const todo = tickets.filter(t => t.lane === "Todo");
   const others = tickets.filter(t => t.lane !== "In Progress" && t.lane !== "Todo");
+
   const failures = metrics.filter(m => !m.success).slice(0, 5);
 
   const auditSummary = auditFindings.reduce((acc, f) => {
@@ -57,12 +60,13 @@ export function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
     `Environment: ${process.platform} | CWD: ${store.projectRoot}`,
     `Project: ${path.basename(store.projectRoot)}`,
     `Epic: ${activeEpic ? `[${activeEpic.id}] ${activeEpic.title} (${activeEpic.state})` : "None"}`,
-    `Inventory: ${counts.files} files, ${tickets.length} active tickets, ${counts.candidates} candidates`,
+    `Inventory: ${counts.files} files, ${tickets.length} active tickets, ${assessments.length} pending assessments, ${counts.candidates} candidates`,
     "",
     "### ACTIVE PRIORITY QUEUE",
     inProgress.length ? inProgress.map(t => `- [IN_PROGRESS] ${t.id}: ${t.title}`).join("\n") : "- No tickets currently in progress.",
     todo.length ? todo.slice(0, 20).map(t => `- [TODO] ${t.id}: ${t.title}`).join("\n") : "",
     todo.length > 20 ? `... and ${todo.length - 20} more TODOs` : "",
+    assessments.length ? `\n### PENDING ASSESSMENTS\n${assessments.map(a => `- [${a.scope}] ${a.targetType}:${a.targetId}`).join("\n")}` : "",
     others.length ? `\n### BACKLOG / OTHER\n${others.slice(0, 20).map(t => `- [${t.lane}] ${t.id}: ${t.title}`).join("\n")}` : "",
     others.length > 20 ? `... and ${others.length - 20} more items in backlog` : "",
     "",
@@ -91,7 +95,7 @@ export function buildProjectSummary(store) {
       summary: t.data?.summary ?? "No description provided.",
       domain: t.data?.domain ?? "unknown"
     }));
-
+  const assessments = store.listAssessments();
   const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
   const notes = store.listNotes({ statuses: ["observed"] }).slice(0, 20);
   const modules = store.listModules().map(m => ({ name: m.name, responsibility: m.responsibility }));
@@ -102,6 +106,7 @@ export function buildProjectSummary(store) {
     symbolCount: counts.symbols,
     claimCount: counts.claims,
     ticketCount: counts.tickets,
+    assessmentCount: assessments.length,
     codeletCount: counts.codelets,
     candidateCount: counts.candidates,
     activeTickets,
@@ -113,9 +118,11 @@ export function buildProjectSummary(store) {
 
 export function renderKanbanProjection(store) {
   const tickets = store.listEntities({ entityType: "ticket" });
+  const assessments = store.listAssessments();
   const candidateTickets = store.listEntities({ entityType: "candidate-ticket" });
   const ideas = store.listEntities({ entityType: "idea" });
   const risks = store.listEntities({ entityType: "risk" });
+
   const coreLaneMap = new Map(CORE_TICKET_LANES.map((lane) => [lane, []]));
   const optionalLaneMap = new Map(OPTIONAL_TICKET_LANES.map((lane) => [lane, []]));
 
@@ -125,11 +132,20 @@ export function renderKanbanProjection(store) {
       coreLaneMap.get(lane)?.push(ticket);
       continue;
     }
-
     if (optionalLaneMap.has(lane)) {
       optionalLaneMap.get(lane)?.push(ticket);
     }
   }
+
+  for (const assessment of assessments) {
+    coreLaneMap.get("Assessments")?.push({
+      id: assessment.id,
+      title: `Assessment: ${assessment.scope} on ${assessment.targetType}:${assessment.targetId}`,
+      state: assessment.status,
+      data: { summary: `Status: ${assessment.status}. Plan: ${assessment.plan ? "Available" : "Pending"}` }
+    });
+  }
+
   for (const ticket of candidateTickets) {
     optionalLaneMap.get("AI Candidates")?.push(ticket);
   }
@@ -151,6 +167,7 @@ export function renderKanbanProjection(store) {
     "_Core lanes are fixed. Rare lanes only render when they contain cards. `Archived` history lives in `kanban-archive.md`._",
     ""
   ];
+
   for (const lane of CORE_TICKET_LANES) {
     lines.push(`## ${lane}`);
     if (lane === "ToDo") {
@@ -163,7 +180,6 @@ export function renderKanbanProjection(store) {
       lines.push("");
       continue;
     }
-
     for (const item of items) {
       const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
       const cleanTitle = sanitizeProjectionTicketTitle(item.title);
@@ -191,7 +207,6 @@ export function renderKanbanProjection(store) {
     if (!items.length) {
       continue;
     }
-
     lines.push(`## ${lane}`);
     lines.push("");
     for (const item of items) {
@@ -219,6 +234,7 @@ export function renderKanbanProjection(store) {
   lines.push('{"kanban-plugin":"board"}');
   lines.push("```");
   lines.push("%%");
+
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -256,6 +272,7 @@ export function renderEpicsProjection(store) {
       lines.push("None captured yet.");
       lines.push("");
     }
+
     lines.push("### Ticket batches");
     if (ticketBatches.length) {
       for (const batch of ticketBatches) {
@@ -289,9 +306,27 @@ export function renderEpicsProjection(store) {
 }
 
 export async function writeProjectProjections(store, { projectRoot, reconcileLegacy = true } = {}) {
-  // Preserve manual projection edits by reconciling them back into the DB
-  // before ad hoc projection rewrites. The main sync path already imports
-  // projections earlier and may have computed fresher DB state afterward.
+  const currentDigest = store.getMeta("lastProjectionDigest", null);
+  const { existsSync, readFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+
+  // Item 1: Bidirectional Sync Drift Detection
+  for (const file of ["kanban.md", "epics.md"]) {
+    const fullP = path.resolve(projectRoot, file);
+    if (existsSync(fullP)) {
+        const content = readFileSync(fullP, "utf8");
+        const h = createHash("sha1").update(content).digest("hex");
+        const oldH = currentDigest && currentDigest[file.replace(".md", "")];
+        if (oldH && h !== oldH) {
+            console.warn(`[projections] Drift detected in ${file}. Reconciling...`);
+            // We force a legacy import to pull manual changes into DB before overwriting
+            await importLegacyProjections(store, { projectRoot });
+            // Re-fetch current digest if import updated it
+            break; 
+        }
+    }
+  }
+
   if (reconcileLegacy) {
     await importLegacyProjections(store, { projectRoot });
   }
@@ -310,21 +345,24 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
   if (mission) {
     writes.push(writeProjectFile(projectRoot, "MISSION.md", mission));
   }
+
   if (gemini) {
     const geminiPath = (async () => {
-      const { existsSync } = await import("node:fs");
-      if (existsSync(path.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
+      const { existsSync: exists } = await import("node:fs");
+      if (exists(path.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
       return "GEMINI.md";
     })();
     writes.push(writeProjectFile(projectRoot, await geminiPath, gemini));
   }
 
   await Promise.all(writes);
+
   store.setMeta("lastProjectionDigest", {
     writtenAt,
     kanban: sha1(kanban),
     epics: sha1(epics)
   });
+
   return {
     kanbanPath: path.resolve(projectRoot, "kanban.md"),
     epicsPath: path.resolve(projectRoot, "epics.md"),
@@ -334,13 +372,16 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
 
 export async function importLegacyProjections(store, { projectRoot }) {
   const lastProjectionDigest = store.getMeta("lastProjectionDigest");
+
   const kanbanSource = await selectProjectionSource(projectRoot, ["docs/kanban.md", "kanban.md"], countKanbanTickets, { lastProjectionDigest });
   const epicsSource = await selectProjectionSource(projectRoot, ["docs/epics.md", "epics.md"], countEpicEntries, { lastProjectionDigest });
+
   const kanbanText = kanbanSource.text;
   const epicsText = epicsSource.text;
+
   const missionText = await readProjectOrTemplate(projectRoot, "MISSION.md");
   const geminiText = await readText(path.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
-  
+
   if (missionText) {
     store.setMeta("mission", missionText);
   }
@@ -356,6 +397,7 @@ export async function importLegacyProjections(store, { projectRoot }) {
   let importedTickets = 0;
   let importedEpics = 0;
   let currentTicket = null;
+
   const importedTicketIds = new Set();
   const importedEpicIds = new Set();
 
@@ -371,13 +413,16 @@ export async function importLegacyProjections(store, { projectRoot }) {
     if (ticketMatch) {
       const existing = store.getEntity(ticketMatch.ticketId);
       const state = ticketMatch.checked || currentLane === "Done" || currentLane === "Archived" ? "archived" : "open";
+      
       const ticketData = {
         ...(existing?.data ?? {}),
         ticketId: ticketMatch.ticketId
       };
+
       if (ticketMatch.completedAt) {
         ticketData.completedAt = ticketMatch.completedAt;
       }
+
       store.upsertEntity({
         id: ticketMatch.ticketId,
         entityType: "ticket",
@@ -392,6 +437,7 @@ export async function importLegacyProjections(store, { projectRoot }) {
         parentId: existing?.parentId ?? null,
         data: ticketData
       });
+
       importedTicketIds.add(ticketMatch.ticketId);
       currentTicket = ticketMatch.ticketId;
       importedTickets += 1;
@@ -403,12 +449,15 @@ export async function importLegacyProjections(store, { projectRoot }) {
       const existing = store.getEntity(currentTicket);
       const fieldName = normalizeTicketFieldName(fieldMatch[1]);
       const value = fieldMatch[2].trim();
+
       const nextData = {
         ...(existing?.data ?? {}),
         ticketId: currentTicket,
         [fieldName]: value
       };
-      const nextParentId = fieldName === "epic" ? value : existing?.parentId ?? null;
+
+      const nextParentId = fieldName === "epic" ? value : (existing?.parentId ?? null);
+
       store.upsertEntity({
         ...existing,
         id: currentTicket,
@@ -547,18 +596,19 @@ export function createSearchDocumentsForEntities(store) {
 async function selectProjectionSource(projectRoot, candidates, scorer, { lastProjectionDigest = null } = {}) {
   let best = { path: candidates[0], text: "", score: -1 };
   let skippedGenerated = false;
+
   for (const relativePath of candidates) {
     const text = await readText(path.resolve(projectRoot, relativePath), "");
     if (lastProjectionDigest && shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest)) {
       skippedGenerated = true;
       continue;
     }
-
     const score = scorer(text);
     if (score > best.score) {
       best = { path: relativePath, text, score };
     }
   }
+
   return {
     ...best,
     skippedGenerated
@@ -572,6 +622,7 @@ function shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest)
     : normalized.endsWith("epics.md")
       ? "epics"
       : null;
+
   if (!digestKey || !lastProjectionDigest?.[digestKey]) {
     return false;
   }
@@ -590,6 +641,7 @@ function countEpicEntries(text) {
 function parseKanbanTicketLine(line) {
   const match = line.match(/^- \[([ xX])\]\s+(?:(?:\*\*)?(\d{4}-\d{2}-\d{2})\s+)?(?:\*\*)?([A-Z][A-Z0-9-]+)(?:\*\*)?:\s+(.+)$/)
     ?? line.match(/^- \[([ xX])\]\s+([A-Z][A-Z0-9-]+)\s+(.+)$/);
+
   if (!match) {
     return null;
   }
@@ -675,7 +727,7 @@ export function sanitizeProjectionTicketTitle(value) {
 
 export function extractTicketCompletionDate(value) {
   const matches = [...String(value ?? "").matchAll(/✅\s*(\d{4}-\d{2}-\d{2})/gu)];
-  return matches.length ? matches.at(-1)?.[1] ?? null : null;
+  return matches.length ? (matches.at(-1)?.[1] ?? null) : null;
 }
 
 function normalizeTicketFieldName(label) {
@@ -743,6 +795,7 @@ function parseEpicEntries(text) {
       currentSection = null;
       const label = field[1].toLowerCase();
       const value = field[2].trim();
+
       if (label === "goal" || label === "summary") {
         flushCurrentStory();
         current.summary = value || current.summary;
@@ -803,6 +856,7 @@ function parseEpicEntries(text) {
         current.currentStory = null;
         continue;
       }
+
       if (currentSection === "userStories") {
         if (current.currentStory) {
           current.userStories.push(mergeEpicStory(current.currentStory));
@@ -822,7 +876,7 @@ function parseEpicEntries(text) {
         continue;
       }
       if (currentSection === "status") {
-        current.state = /^\[x\]/i.test(value) || /^(done|archived)$/i.test(value) ? "archived" : "open";
+        current.state = (/^\[x\]/i.test(value) || /^(done|archived)$/i.test(value)) ? "archived" : "open";
         continue;
       }
       if (currentSection === "userStories") {
@@ -886,11 +940,9 @@ function parseEpicEntries(text) {
   }
 
   flushCurrentStory();
-
   if (current && Array.isArray(current.goalLines) && current.goalLines.length) {
     current.summary = current.goalLines.join("\n").trim() || current.summary;
   }
-
   if (current) {
     entries.push(current);
   }
@@ -913,21 +965,16 @@ function preferNonEmpty(value, fallback = "") {
 }
 
 function normalizeEpicStories(epic) {
-  const stories = Array.isArray(epic.data?.userStories)
-    ? epic.data.userStories
-    : Array.isArray(epic.data?.stories)
-      ? epic.data.stories
-      : [];
-
+  const stories = Array.isArray(epic.data?.userStories) 
+    ? epic.data.userStories 
+    : (Array.isArray(epic.data?.stories) ? epic.data.stories : []);
   return stories.map((story) => String(story ?? "").trim()).filter(Boolean);
 }
 
 function normalizeEpicTicketBatches(epic) {
   const batches = Array.isArray(epic.data?.ticketBatches)
     ? epic.data.ticketBatches
-    : Array.isArray(epic.data?.batches)
-      ? epic.data.batches
-      : [];
+    : (Array.isArray(epic.data?.batches) ? epic.data.batches : []);
   return batches.map((batch) => String(batch ?? "").trim()).filter(Boolean);
 }
 
@@ -979,7 +1026,6 @@ function formatEpicStoryText(story) {
   if (!match) {
     return normalized;
   }
-
   const actor = match[1].trim();
   const separator = match[2] ?? "";
   const remainder = match[3] ?? "";
@@ -1013,6 +1059,7 @@ function pruneProjectionImportedEntities(store, { entityType, keepIds }) {
           AND id NOT IN (${placeholders})
       )
   `).run(entityType, ...ids);
+
   store.db.prepare(`
     DELETE FROM entities
     WHERE entity_type = ?

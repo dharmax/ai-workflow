@@ -4,10 +4,11 @@ import { collectProjectFileSnapshot, readProjectFile } from "../lib/filesystem.m
 import { sha1, stableId } from "../lib/hash.mjs";
 import { parseIndexedFile } from "../parsers/index.mjs";
 import { deriveCandidateFromNote, reviewCandidates } from "./lifecycle.mjs";
-import { buildProjectSummary, buildSmartProjectStatus, compareEpicPriority, createSearchDocumentsForEntities, deriveEpicState, extractTicketCompletionDate, importLegacyProjections, sanitizeProjectionTicketTitle, writeProjectProjections } from "./projections.mjs";
+import { buildProjectSummary, buildSmartProjectStatus, compareEpicPriority, createSearchDocumentsForEntities, deriveEpicState, extractTicketCompletionDate, importLegacyProjections, inferTicketLane, sanitizeProjectionTicketTitle, writeProjectProjections } from "./projections.mjs";
 import { auditArchitecture } from "./critic.mjs";
 import { SEMANTICS } from "../lib/registry.mjs";
 import { evaluateReadiness } from "./readiness-evaluator.mjs";
+import { runAssessment } from "./assessment.mjs";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore, listProjectCodelets } from "./codelets.mjs";
 import { withWorkspaceMutationGuardDisabled } from "../lib/workspace-mutation.mjs";
 import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.mjs";
@@ -110,8 +111,14 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
 
     const lifecycle = reviewCandidates(store);
     const codeletRegistry = await refreshCodeletRegistry(store, { projectRoot });
-    await syncStatusGraph({ projectRoot, store });
-    createSearchDocumentsForEntities(store);
+
+    // Trigger Automatic Assessment if project is messy
+    const projectStatus = buildSmartProjectStatus(store);
+    if (!process.env.AI_WORKFLOW_SKIP_AUTO_ASSESSMENT && (projectStatus.includes("FAILURE") || projectStatus.includes("Medium issues"))) {
+      runAssessment({ type: "project", id: path.basename(projectRoot) }, { root: projectRoot, scope: "health" }).catch(e => console.error(`[sync] Auto-assessment failed: ${e.message}`));
+    }
+
+    await syncStatusGraph({ projectRoot, store });    createSearchDocumentsForEntities(store);
 
     // RAG-003: Shadow Sync
     await performShadowSync(store, projectRoot);
@@ -808,6 +815,18 @@ export async function resolveProjectNote({ projectRoot = process.cwd(), noteId, 
 
 export async function reviewProjectCandidates({ projectRoot = process.cwd() } = {}) {
   return withWorkflowStore(projectRoot, async (store) => reviewCandidates(store));
+}
+
+export async function listProjectAssessments({ projectRoot = process.cwd(), filters = {} } = {}) {
+  return withWorkflowStore(projectRoot, async (store) => store.listAssessments(filters));
+}
+
+export async function getProjectAssessment({ projectRoot = process.cwd(), assessmentId } = {}) {
+  return withWorkflowStore(projectRoot, async (store) => store.getAssessmentById(assessmentId));
+}
+
+export async function createProjectAssessment({ projectRoot = process.cwd(), target, options = {} } = {}) {
+  return runAssessment(target, { root: projectRoot, ...options });
 }
 
 async function syncArchitecture(projectRoot, store) {

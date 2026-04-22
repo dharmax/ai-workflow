@@ -31,10 +31,10 @@ import { runProviderSetupWizard } from "./provider-setup.mjs";
 import { handleProviderConnect } from "./provider-connect.mjs";
 import { stableId } from "../../core/lib/hash.mjs";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.mjs";
-import { collectProjectFiles, readProjectFile, writeProjectFile } from "../../core/lib/filesystem.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate } from "../../core/lib/filesystem.mjs";
 import { formatStatusReport, resolveProjectStatus } from "../../core/services/status.mjs";
 import { executeJsOrchestrator } from "../../core/services/js-orchestrator.mjs";
-import { executeOperatorRequest } from "../../core/services/operator-brain.mjs";
+import { executeOperatorRequest, updateManagedContext } from "../../core/services/operator-brain.mjs";
 
 const STREAMED_STDIO = "__STREAMED_STDIO__";
 const SHELL_GRAPH_NODE_KINDS = new Set(["action", "branch", "assert", "synthesize", "replan"]);
@@ -263,7 +263,7 @@ export async function handleShell(rest, { cliPath } = {}) {
           runId: options.runId ?? null
         }
       };
-      recordShellTurnHistory(options, prompt, result);
+      await recordShellTurnHistory(options, prompt, result);
       await writeShellStateFile(stateFile, options);
       return emitShellResult(result, options);
     }
@@ -276,7 +276,7 @@ export async function handleShell(rest, { cliPath } = {}) {
         fastResult.traceEvents = [...(options.aiTraceEvents ?? [])];
         fastResult.workflowTraceEvents = [...(options.workflowTraceEvents ?? [])];
         options.activeGraphState = fastResult.continuationState ?? options.activeGraphState ?? null;
-        recordShellTurnHistory(options, prompt, fastResult);
+        await recordShellTurnHistory(options, prompt, fastResult);
         await writeShellStateFile(stateFile, options);
         return emitShellResult(fastResult, options);
       }
@@ -300,7 +300,7 @@ export async function handleShell(rest, { cliPath } = {}) {
       processingIndicator.update("planning and running", { planner: getShellProgressPlanner(prompt, options) });
       const result = await runShellTurn(prompt, options);
       options.activeGraphState = result.continuationState ?? options.activeGraphState ?? null;
-      recordShellTurnHistory(options, prompt, result);
+      await recordShellTurnHistory(options, prompt, result);
       await writeShellStateFile(stateFile, options);
       processingIndicator.clear();
       return emitShellResult(result, options);
@@ -2541,7 +2541,8 @@ export async function buildShellPlannerPrompt(inputText, options) {
   const notesLoreExtra = buildShellPlannerNotesLoreExtra({ recentMemory, longTermMemorySummary, activeGraphState });
   const schemaPrompt = buildShellPlannerSchemaPrompt();
 
-  const system = [
+  const template = await loadPromptTemplate("shell-planner.system");
+  const system = template || [
     "You are the shell planning brain inside ai-workflow.",
     "Behave like a strong operator that decides how to use tools, not like a chatty project summarizer.",
     "Choose the smallest truthful next step.",
@@ -3580,11 +3581,12 @@ async function synthesizeShellExecutionReply({ inputText, plan, executed, option
     return renderFallbackAssistantReply({ inputText, plan, executed, plannerContext: options.plannerContext });
   }
 
+  const template = await loadPromptTemplate("shell-conversational.system");
   try {
     const completion = await runShellCompletion({
       stage: "assistant",
       planner,
-      system: [
+      system: template || [
         "You are the conversational shell for ai-workflow.",
         "Speak like a strong coding assistant, not a command router.",
         "You already have tool results. Answer the user's request directly and naturally.",
@@ -4658,7 +4660,7 @@ export async function runInteractiveShell(options) {
           fastResult.traceEvents = [...(options.aiTraceEvents ?? [])];
           fastResult.workflowTraceEvents = [...(options.workflowTraceEvents ?? [])];
           options.activeGraphState = fastResult.continuationState ?? null;
-          recordShellTurnHistory(options, line, fastResult);
+          await recordShellTurnHistory(options, line, fastResult);
           await writeShellStateFile(options.stateFile, options);
           if (options.json) {
             output.write(`${JSON.stringify(fastResult, null, 2)}\n`);
@@ -4683,7 +4685,7 @@ export async function runInteractiveShell(options) {
         const result = await runShellTurn(line, options);
         processingIndicator.clear();
         options.activeGraphState = result.continuationState ?? null;
-        recordShellTurnHistory(options, line, result);
+        await recordShellTurnHistory(options, line, result);
         await writeShellStateFile(options.stateFile, options);
         if (result.plan.kind === "exit") {
           break;
@@ -4901,7 +4903,7 @@ function logShellTrace(options, event) {
   const stage = String(event?.stage ?? "ai").trim();
   const phase = String(event?.phase ?? "event").trim();
   const planner = describeShellPlanner(event?.planner);
-  const verbose = process.env.AI_WORKFLOW_TRACE_VERBOSE === "1";
+  const verbose = true; // Make it verbose by default when trace is on
   const lines = [`[trace] ${stage} ${phase} -> ${planner}`];
 
   if (verbose && event?.system) {
@@ -7196,27 +7198,34 @@ function setShellWorkMode(options, requestedMode, { announce = false, source = "
   }
 }
 
-function recordShellTurnHistory(options, line, result) {
+export async function recordShellTurnHistory(options, line, result) {
   options.history ??= [];
   options.history.push({ role: "user", content: line });
+  
+  let assistantReply = "";
   if (result.plan?.reply) {
-    options.history.push({ role: "ai", content: result.plan.reply });
+    assistantReply = result.plan.reply;
   } else if (result.plan?.actions?.length || result.executed?.length) {
     const executionSummary = (result.executed ?? []).map((execution) => {
       const out = String(execution.stdout ?? "").trim();
       const displayOut = out.length > 500 ? `${out.slice(0, 500)}... [truncated]` : out;
       return `Action [${execution.action?.type ?? execution.summary ?? "unknown"}] output:\n${displayOut || execution.summary || "(no output)"}`;
     }).join("\n\n");
-    options.history.push({
-      role: "ai",
-      content: `Strategy: ${result.plan?.strategy || "Execute actions"}\n\n${executionSummary || result.assistantReply || "(no output)"}`
-    });
+    assistantReply = `Strategy: ${result.plan?.strategy || "Execute actions"}\n\n${executionSummary || result.assistantReply || "(no output)"}`;
   } else if (result.assistantReply) {
-    options.history.push({ role: "ai", content: result.assistantReply });
+    assistantReply = result.assistantReply;
   }
+
+  if (assistantReply) {
+    options.history.push({ role: "ai", content: assistantReply });
+  }
+
   if (options.history.length > 10) {
     options.history = options.history.slice(-10);
   }
+
+  // Update Managed Context (Continuous LLM Condensation)
+  options.managedContext = await updateManagedContext(options.managedContext, line, assistantReply, options);
 }
 
 async function readShellStateFile(filePath) {
@@ -7246,6 +7255,7 @@ async function writeShellStateFile(filePath, options) {
     traceConsole: options.traceConsole !== false,
     activeGraphState: options.activeGraphState ?? null,
     history: Array.isArray(options.history) ? options.history : [],
+    managedContext: options.managedContext ?? null,
     updatedAt: new Date().toISOString()
   };
   await mkdir(path.dirname(filePath), { recursive: true });

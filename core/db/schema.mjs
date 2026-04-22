@@ -284,6 +284,19 @@ CREATE TABLE IF NOT EXISTS test_runs (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assessments (
+  id TEXT PRIMARY KEY,
+  target_type TEXT NOT NULL, -- 'project', 'module', 'feature', 'ticket'
+  target_id TEXT NOT NULL,
+  status TEXT NOT NULL, -- 'pending', 'planned', 'criticized', 'executing', 'resolved'
+  scope TEXT NOT NULL, -- 'security', 'architecture', 'quality', 'completeness'
+  plan_json TEXT,
+  criticism_json TEXT,
+  result_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_symbols_file_path ON symbols(file_path);
 CREATE INDEX IF NOT EXISTS idx_metrics_task ON metrics(task_class);
 CREATE INDEX IF NOT EXISTS idx_metrics_provider ON metrics(provider_id);
@@ -302,4 +315,5 @@ CREATE INDEX IF NOT EXISTS idx_arch_graph_predicate ON architectural_graph(predi
 CREATE INDEX IF NOT EXISTS idx_workflow_contracts_root_updated ON workflow_contracts(root, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workflow_gap_reviews_root_updated ON workflow_gap_reviews(root, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workspace_mutations_root_completed ON workspace_mutations(root, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assessments_target ON assessments(target_type, target_id);
 `;

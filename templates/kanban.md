@@ -30,6 +30,8 @@ Lane order is intentional. Keep the board in this order.
 ## Bugs P1
 ## Bugs P2/P3
 
+## Assessments
+
 ## In Progress
 
 ## Human Inspection

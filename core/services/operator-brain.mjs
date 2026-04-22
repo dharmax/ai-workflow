@@ -3,10 +3,12 @@
  * Scope: Handles grounding, planning (NL-to-JS), and execution orchestration.
  */
 
+import { promptMultiChoice } from "../lib/disambiguation.mjs";
 import path from "node:path";
 import { withWorkflowStore, getProjectSummary, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet } from "./sync.mjs";
 import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
+import { runAssessment } from "./assessment.mjs";
 import { executeCodelet } from "./codelet-executor.mjs";
 import { executeJsOrchestrator } from "./js-orchestrator.mjs";
 import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
@@ -15,7 +17,7 @@ import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
 import { buildTicketEntity } from "./projections.mjs";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
-import { collectProjectFiles, readProjectFile, writeProjectFile } from "../lib/filesystem.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate } from "../lib/filesystem.mjs";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -134,7 +136,7 @@ function buildOperatorPlanningMetric({ candidates, attempts, successfulCandidate
 
 export async function planOperatorRequest(inputText, options = {}) {
   const root = options.root ?? process.cwd();
-  const trace = typeof options.traceAi === "function" ? options.traceAi : null;
+  const traceEvent = typeof options.traceAi === "function" ? options.traceAi : null;
   
   const [projectConfigState, globalConfigState] = await Promise.all([
     readConfigSafe(getProjectConfigPath(root)),
@@ -164,6 +166,13 @@ export async function planOperatorRequest(inputText, options = {}) {
       mode: "grounded-brief",
       reason: groundedBriefReply.reason ?? "Grounded operator brief."
     };
+    traceEvent?.({
+      stage: "planning",
+      phase: "grounded-brief",
+      planner: groundedBriefReply.__planner,
+      prompt: effectiveInputText,
+      result: groundedBriefReply.assistantReply
+    });
     return groundedBriefReply;
   }
 
@@ -174,6 +183,13 @@ export async function planOperatorRequest(inputText, options = {}) {
       mode: "grounded-reply",
       reason: groundedReply.reason ?? "Grounded operator reply."
     };
+    traceEvent?.({
+      stage: "planning",
+      phase: "grounded",
+      planner: groundedReply.__planner,
+      prompt: effectiveInputText,
+      result: groundedReply.assistantReply
+    });
     return groundedReply;
   }
 
@@ -203,7 +219,7 @@ export async function planOperatorRequest(inputText, options = {}) {
     let timeoutId = null;
     const attemptStartedAt = Date.now();
     try {
-      trace?.({
+      traceEvent?.({
         phase: "request",
         stage: "operator-planner",
         planner: candidate,
@@ -226,7 +242,7 @@ export async function planOperatorRequest(inputText, options = {}) {
         signal: controller?.signal ?? null
       });
 
-      trace?.({
+      traceEvent?.({
         phase: "response",
         stage: "operator-planner",
         planner: candidate,
@@ -251,7 +267,7 @@ export async function planOperatorRequest(inputText, options = {}) {
     } catch (error) {
       const timedOut = controller?.signal?.aborted && Number.isFinite(timeoutMs) && timeoutMs > 0;
       const message = timedOut ? `planner timed out after ${timeoutMs}ms` : (error?.message ?? String(error));
-      trace?.({
+      traceEvent?.({
         phase: "error",
         stage: "operator-planner",
         planner: candidate,
@@ -312,6 +328,19 @@ export async function planOperatorRequest(inputText, options = {}) {
     finalPlan.__planner = successfulCandidate;
   }
 
+  // Item 2: Plan Persistence
+  if (finalPlan && finalPlan.kind === "plan") {
+    const fsP = await import("node:fs/promises");
+    const pathP = await import("node:path");
+    const designDir = pathP.resolve(root, "design");
+    await fsP.mkdir(designDir, { recursive: true });
+    const runId = options.runId || Date.now();
+    await fsP.writeFile(pathP.resolve(designDir, "plan-" + runId + ".json"), JSON.stringify(finalPlan, null, 2), "utf8");
+    await withWorkflowStore(root, async (store) => {
+        store.setWorkflowState(runId, "plan", finalPlan);
+    }).catch(() => {});
+  }
+
   return finalPlan;
 }
 
@@ -343,6 +372,8 @@ async function buildOperatorPlannerPrompt(inputText, options) {
   const catalog = buildActionCatalog(plannerContext);
   const runtimeContext = buildOperatorPlannerRuntimeContext(plannerContext, options);
   const groundingContext = await buildOperatorPlannerGroundingContext(inputText, options);
+  const historyContext = buildOperatorPlannerHistoryContext(options.history);
+  const managedContext = options.managedContext ?? "";
   const schemaPrompt = buildOperatorPlannerSchemaPrompt();
 
   const system = [
@@ -351,12 +382,19 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     "Goal: Reach a 'READY' state by identifying work, creating tickets, and executing code.",
     "",
     "## Operating Contract",
-    "- Use `kind: \"plan\"` ONLY when you need to execute code, create tickets, or change project state.",
+    "- Use `kind: \"plan\"` ALWAYS when you change files, create tickets, or change project state.",
+    "- NEVER implementation a new feature without first creating a ticket for it.",
+    "- CRITICAL: `sync.createTicket` must be the VERY FIRST call in your `code` block before any `files.write` or execution.",
+    "- A 'Done' state requires BOTH the code changes AND a resolved ticket.",
     "- Use `kind: \"reply\"` for design discussions, architectural analysis, trade-off comparisons, or simple greetings.",
     "- NEVER reply saying 'I do not see an active ticket' or 'Please create a ticket'. This is a failure state.",
-    "- If no tickets exist and the user provides a goal, your FIRST STEP is to call `orchestrator.ideateFeature` or `sync.createTicket`.",
-    "- If a ticket exists but isn't 'In Progress', your FIRST STEP is to call `exec('ai-workflow project ticket start <id>')`.",
-    "- You have implicit permission to create and start tickets to get the job done.",
+    "- If no tickets exist and the user provides a goal, your FIRST STEP is to call `await sync.createTicket(...)` AND THEN IMMEDIATELY call `await sync.updateTicketLifecycle({ ticketId: '...', action: 'move', lane: 'In Progress' })` before performing the work in the SAME plan.",
+    "- If a ticket exists but isn't 'In Progress', your FIRST STEP is to call `await sync.updateTicketLifecycle({ ticketId: '...', action: 'move', lane: 'In Progress' })`.",
+    "- You have implicit permission to create, start, and resolve tickets to get the job done.",
+    "- CRITICAL: You MUST NOT implement a feature if its ticket is in 'Todo' or 'Backlog'. It MUST be moved to 'In Progress' first.",
+    "- When you create a ticket, you can usually infer its ID from the title or check the project summary, but `createTicket` will return the entity object.",
+    "- When a user asks for a new feature or change, do not just describe it; IMPLEMENT IT by creating the necessary tickets AND moving them to 'In Progress' AND executing code.",
+    "- Use `await sync.assess(target, options)` when a project, module, or feature seems complex or messy. It runs an iterative loop: Plan -> Criticize -> Revisit -> Execute.",
     "",
     "## Available Helpers:",
     "- `await step(id, desc, fn)`: Persistent operation.",
@@ -367,7 +405,7 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     "- `issue(type, sum, {details})`: Log failure.",
     "",
     "## Service Objects (Available as globals):",
-    "- `sync`: { syncProject, getProjectSummary, getProjectMetrics, createTicket(title, data), updateTicketLifecycle, listEpics, getEpic }",
+    "- `sync`: { syncProject, getProjectSummary, getProjectMetrics, createTicket(title, data), updateTicketLifecycle({ ticketId, action, lane }), listEpics, getEpic }",
     "- `orchestrator`: { executeTicket, decomposeTicket, ideateFeature(title, summary, data), sweepBugs }",
     "- `status`: { resolveProjectStatus, getSmartProjectStatus }",
     "- `files`: { list(), read(path), write(path, content) }",
@@ -390,6 +428,8 @@ async function buildOperatorPlannerPrompt(inputText, options) {
   const promptSections = [
     "## Environment",
     runtimeContext,
+    managedContext ? `\n## Managed Context\n${managedContext}` : "",
+    historyContext ? `\n## Session History\n${historyContext}` : "",
     groundingContext ? `\n## Evidence\n${groundingContext}` : "\n## Evidence\nNo active tickets or recent status found. This project is a blank slate.",
     "",
     "## Schema",
@@ -402,6 +442,65 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     system,
     prompt: promptSections.join("\n")
   };
+}
+
+/**
+ * Updates the managed (condensed) context with the latest turn.
+ */
+export async function updateManagedContext(currentContext, lastUserTurn, lastAiTurn, options = {}) {
+  const root = options.root ?? process.cwd();
+  
+  const system = [
+    "You are the CONTEXT MANAGER for ai-workflow.",
+    "Goal: Maintain a condensed, high-density summary of the conversation so far.",
+    "Identify active goals, discovered facts, and key constraints.",
+    "If the context is already comprehensive, just update it with new information.",
+    "Keep it under 300 words.",
+    "Output ONLY the condensed context string. No preamble, no markers."
+  ].join("\n");
+
+  const prompt = [
+    "## Current Managed Context",
+    currentContext || "(No context yet)",
+    "",
+    "## New Turn",
+    `User: ${lastUserTurn}`,
+    `AI: ${lastAiTurn}`,
+    "",
+    "## Task",
+    "Produce the updated, condensed managed context."
+  ].join("\n");
+
+  const route = await routeTask({ root, taskClass: "project-planning" });
+  const candidate = route.recommended ?? route.candidates?.[0];
+
+  if (!candidate) {
+    return `${currentContext || ""}\nUser: ${lastUserTurn}\nAI: ${lastAiTurn}`.slice(-2000);
+  }
+
+  try {
+    const completion = await generateCompletion({
+      providerId: candidate.providerId,
+      modelId: candidate.modelId,
+      system,
+      prompt,
+      config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "text" }
+    });
+
+    return completion.response.trim();
+  } catch (error) {
+    return `${currentContext || ""}\nUser: ${lastUserTurn}\nAI: ${lastAiTurn}`.slice(-2000);
+  }
+}
+
+function buildOperatorPlannerHistoryContext(history) {
+  if (!Array.isArray(history) || history.length === 0) {
+    return "";
+  }
+  return history.map(turn => {
+    const role = turn.role === "user" ? "User" : "Assistant";
+    return `${role}: ${turn.content}`;
+  }).join("\n---\n");
 }
 
 async function buildOperatorPlannerGroundingContext(inputText, options = {}) {
@@ -473,11 +572,11 @@ function buildOperatorPlannerSchemaPrompt() {
     '- Use `transition` for branching logic.',
     '- Prefer `JSON.stringify(content)` or arrays joined with `\\n` for file bodies instead of nested template literals.',
     '- Never redeclare injected helper names like `files`, `sync`, `status`, `orchestrator`, `sh`, `codelets`, `step`, `transition`, `shell`, `exec`, or `executeCodelet`.',
+    '- CRITICAL: NEVER use `require()`. This is an ESM environment. You MUST use dynamic `await import()` (e.g., `const fs = await import("node:fs/promises");`).',
     '- Return a final object like `{ summary, changedFiles, verification }` for coding flows.',
     'Simple replies: use kind:"reply" and omit "code".'
   ].join("\n");
 }
-
 function buildActionCatalog(plannerContext = {}) {
   const baseActions = [
     "sync", "status_query", "doctor", "execute_ticket", "decompose_ticket", "ideate_feature", "sweep_bugs"
@@ -651,6 +750,10 @@ function looksLikeOperatorBriefQuestion(inputText) {
 function looksLikeRepoExplainerQuestion(inputText) {
   const normalized = normalizeConversationText(inputText);
   if (!/\b(what is|whats|what are|explain|describe|tell me about|teach me about)\b/.test(normalized)) {
+    return false;
+  }
+  // Do not preempt if it looks like an action request
+  if (/\b(add|create|new|implement|fix|repair|resolve|run|execute|mutate|start)\b/.test(normalized)) {
     return false;
   }
   return /\b(service|module|modules|projection|projections|router|shell|sync|status|ticket|workflow|context|provider|planner|codelet|claim|claims)\b/.test(normalized)
@@ -862,6 +965,11 @@ function validateGeneratedPlan(plan) {
   } catch (error) {
     throw new Error(`generated JS failed syntax validation: ${error?.message ?? error}`);
   }
+
+  if (/\brequire\s*\(/.test(trimmedCode)) {
+    throw new Error("generated JS failed validation: 'require()' is forbidden in this ESM environment. Use dynamic 'await import()'.");
+  }
+
   const reservedHelpers = [
     "files",
     "sync",
@@ -930,6 +1038,7 @@ function buildOperatorServices(root, options) {
       updateTicketLifecycle: (args) => updateTicketLifecycle({ projectRoot: root, ...args }),
       listEpics: (args) => listEpics({ projectRoot: root, ...args }),
       getEpic: (args) => getEpic({ projectRoot: root, ...args }),
+      assess: (target, opts = {}) => runAssessment(target, { root, planner: options.planner, ...opts }),
     },
     status: {
       resolveProjectStatus: (args) => resolveProjectStatus({ projectRoot: root, ...args }),
@@ -953,7 +1062,7 @@ function buildOperatorServices(root, options) {
       },
     },
     shell: {
-      execute: (prompt, opts) => executeOperatorRequest(prompt, { ...options, ...opts }),
+      execute: (prompt, opts) => executeOperatorRequest(prompt, { ...options, traceAi: options.traceAi, trace: options.trace, ...opts }),
     },
     sh: {
       execute: async (command, args = []) => {

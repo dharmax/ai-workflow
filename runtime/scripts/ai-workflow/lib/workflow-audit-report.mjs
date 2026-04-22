@@ -63,6 +63,7 @@ const KANBAN_SECTIONS = [
   "ToDo",
   "Bugs P1",
   "Bugs P2/P3",
+  "Assessments",
   "In Progress",
   "Human Inspection",
   "Suggestions",

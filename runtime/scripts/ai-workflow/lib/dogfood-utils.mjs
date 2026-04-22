@@ -304,10 +304,11 @@ async function buildInitScenarios({ timeoutMs, toolkitRoot }) {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-dogfood-init-"));
   const initScriptPath = path.resolve(toolkitRoot, "scripts", "init-project.mjs");
   const auditScriptPath = path.resolve(fixtureRoot, "scripts", "ai-workflow", "workflow-audit.mjs");
+  const initTimeoutMs = Math.max(timeoutMs, 90000);
   try {
     const initResult = await runNodeProcess({
       cwd: toolkitRoot,
-      timeoutMs,
+      timeoutMs: initTimeoutMs,
       args: [initScriptPath, "--target", fixtureRoot]
     });
     const auditResult = initResult.code === 0

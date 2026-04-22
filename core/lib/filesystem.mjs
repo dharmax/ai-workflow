@@ -242,6 +242,20 @@ export async function readProjectFile(root, relativePath) {
   };
 }
 
+/**
+ * Loads a prompt template from shared/prompts.
+ */
+export async function loadPromptTemplate(templateName) {
+  const { getToolkitRoot } = await import("./operating-context.mjs");
+  const toolkitRoot = getToolkitRoot();
+  const templatePath = path.resolve(toolkitRoot, "shared", "prompts", `${templateName}.md`);
+  try {
+    return await readFile(templatePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
 export async function writeProjectFile(root, relativePath, content) {
   if (!isWorkspaceMutationGuardDisabled()) {
     return withWorkspaceMutation(root, `write ${relativePath}`, async () => withWorkspaceMutationGuardDisabled(async () => writeProjectFileRaw(root, relativePath, content)));
