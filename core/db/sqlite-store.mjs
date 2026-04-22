@@ -2050,8 +2050,68 @@ export class SqliteWorkflowStore {
     updatedAt: row.updated_at
    }));
   }
+
+  upsertGuidelineBlock(block) {
+   const now = nowIso();
+   this.db.prepare(`
+    INSERT INTO guideline_blocks (id, source_file, category, tags, title, body, checksum, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+     category = excluded.category,
+     tags = excluded.tags,
+     title = excluded.title,
+     body = excluded.body,
+     checksum = excluded.checksum,
+     updated_at = excluded.updated_at
+   `).run(
+    block.id,
+    block.sourceFile,
+    block.category ?? "general",
+    block.tags ?? "",
+    block.title,
+    block.body,
+    block.checksum,
+    now
+   );
   }
 
+  listGuidelineBlocks(filters = {}) {
+   const clauses = [];
+   const values = [];
+   if (filters.sourceFile) {
+    clauses.push("source_file = ?");
+    values.push(filters.sourceFile);
+   }
+   if (filters.category) {
+    clauses.push("category = ?");
+    values.push(filters.category);
+   }
+   const query = `
+    SELECT * FROM guideline_blocks
+    ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+   `;
+   return this.db.prepare(query).all(...values).map(row => ({
+    id: row.id,
+    sourceFile: row.source_file,
+    category: row.category,
+    tags: row.tags,
+    title: row.title,
+    body: row.body,
+    checksum: row.checksum,
+    updatedAt: row.updated_at
+   }));
+  }
+
+  pruneGuidelineBlocks(sourceFile, keepIds) {
+   const ids = Array.from(keepIds);
+   if (!ids.length) {
+    this.db.prepare("DELETE FROM guideline_blocks WHERE source_file = ?").run(sourceFile);
+    return;
+   }
+   const placeholders = ids.map(() => "?").join(", ");
+   this.db.prepare(`DELETE FROM guideline_blocks WHERE source_file = ? AND id NOT IN (${placeholders})`).run(sourceFile, ...ids);
+  }
+  }
 function normalizeText(value) {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
 }

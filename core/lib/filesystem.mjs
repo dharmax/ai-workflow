@@ -244,16 +244,48 @@ export async function readProjectFile(root, relativePath) {
 
 /**
  * Loads a prompt template from shared/prompts.
+ * Extracts JSON frontmatter (if present) and strips HTML-style comments.
+ * Returns { content, manifest }.
  */
 export async function loadPromptTemplate(templateName) {
   const { getToolkitRoot } = await import("./operating-context.mjs");
   const toolkitRoot = getToolkitRoot();
   const templatePath = path.resolve(toolkitRoot, "shared", "prompts", `${templateName}.md`);
   try {
-    return await readFile(templatePath, "utf8");
+    let raw = await readFile(templatePath, "utf8");
+    let manifest = {};
+    
+    // Extract JSON frontmatter: ---json ... ---
+    const frontmatterMatch = raw.match(/^---\s*json\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n/);
+    if (frontmatterMatch) {
+      try {
+        manifest = JSON.parse(frontmatterMatch[1]);
+      } catch (e) {
+        console.warn(`[prompt-engine] Failed to parse JSON frontmatter in ${templateName}.md`);
+      }
+      raw = raw.slice(frontmatterMatch[0].length);
+    }
+
+    // Strip comments: <!-- anything -->
+    const content = raw.replace(/<!--[\s\S]*?-->/g, "").trim();
+
+    return { content, manifest };
   } catch {
-    return null;
+    return { content: null, manifest: {} };
   }
+}
+
+/**
+ * Replaces {{variables}} in the template string.
+ */
+export function renderTemplate(content, variables = {}) {
+  if (!content) return null;
+  let rendered = content;
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\{[ \\t]*${key}[ \\t]*\\}\\}`, "g");
+    rendered = rendered.replace(regex, value ?? "");
+  }
+  return rendered;
 }
 
 export async function writeProjectFile(root, relativePath, content) {

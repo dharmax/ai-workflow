@@ -33,6 +33,7 @@ import { stableId } from "../../core/lib/hash.mjs";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.mjs";
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate } from "../../core/lib/filesystem.mjs";
 import { formatStatusReport, resolveProjectStatus } from "../../core/services/status.mjs";
+import { getRelevantGuidelineBlocks } from "../../core/services/guidelines.mjs";
 import { executeJsOrchestrator } from "../../core/services/js-orchestrator.mjs";
 import { executeOperatorRequest, updateManagedContext } from "../../core/services/operator-brain.mjs";
 
@@ -2597,9 +2598,12 @@ export async function buildShellPlannerPrompt(inputText, options) {
     `## Current User Request:\n"${inputText}"\n\nYour Response (JSON):`
   ];
 
+  const templateVariables = { catalog, runtimeContext, responseStyle: renderShellResponseStyle(responseStyle), guidanceContext, groundingContext, notesLoreExtra, schemaPrompt, inputText };
+  const systemResult = await loadPromptTemplate("shell-planner.system", templateVariables);
+  const promptResult = await loadPromptTemplate("shell-planner.prompt", templateVariables);
   return {
-    system,
-    prompt: promptSections.join("\n")
+    system: systemResult || "You are the shell planning brain. Plan the request.",
+    prompt: promptResult || `## Request:\n"${inputText}"\n\nYour Response (JSON):`
   };
 }
 
@@ -3582,6 +3586,9 @@ async function synthesizeShellExecutionReply({ inputText, plan, executed, option
   }
 
   const template = await loadPromptTemplate("shell-conversational.system");
+  const templateVariables = { inputText, responseStyle: renderShellResponseStyle(responseStyle), actionGraph: renderActionGraph(plan.graph), nodeResults: renderedOutputs };
+  const systemResult = await loadPromptTemplate("shell-conversational.system", templateVariables);
+  const promptResult = await loadPromptTemplate("shell-conversational.prompt", templateVariables);
   try {
     const completion = await runShellCompletion({
       stage: "assistant",

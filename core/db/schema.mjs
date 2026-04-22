@@ -297,6 +297,17 @@ CREATE TABLE IF NOT EXISTS assessments (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS guideline_blocks (
+  id TEXT PRIMARY KEY,
+  source_file TEXT NOT NULL, -- 'project-guidelines.md', 'knowledge.md', etc.
+  category TEXT NOT NULL, -- 'coding', 'architecture', 'process', 'lore'
+  tags TEXT NOT NULL, -- comma separated
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  checksum TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_symbols_file_path ON symbols(file_path);
 CREATE INDEX IF NOT EXISTS idx_metrics_task ON metrics(task_class);
 CREATE INDEX IF NOT EXISTS idx_metrics_provider ON metrics(provider_id);
@@ -316,4 +327,5 @@ CREATE INDEX IF NOT EXISTS idx_workflow_contracts_root_updated ON workflow_contr
 CREATE INDEX IF NOT EXISTS idx_workflow_gap_reviews_root_updated ON workflow_gap_reviews(root, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workspace_mutations_root_completed ON workspace_mutations(root, completed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assessments_target ON assessments(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_guideline_blocks_source ON guideline_blocks(source_file, category);
 `;

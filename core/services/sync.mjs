@@ -9,6 +9,7 @@ import { auditArchitecture } from "./critic.mjs";
 import { SEMANTICS } from "../lib/registry.mjs";
 import { evaluateReadiness } from "./readiness-evaluator.mjs";
 import { runAssessment } from "./assessment.mjs";
+import { syncGuidelineBlocks } from "./guidelines.mjs";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore, listProjectCodelets } from "./codelets.mjs";
 import { withWorkspaceMutationGuardDisabled } from "../lib/workspace-mutation.mjs";
 import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.mjs";
@@ -118,7 +119,9 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       runAssessment({ type: "project", id: path.basename(projectRoot) }, { root: projectRoot, scope: "health" }).catch(e => console.error(`[sync] Auto-assessment failed: ${e.message}`));
     }
 
-    await syncStatusGraph({ projectRoot, store });    createSearchDocumentsForEntities(store);
+    await syncStatusGraph({ projectRoot, store });
+    await syncGuidelineBlocks(store, { projectRoot });
+    createSearchDocumentsForEntities(store);
 
     // RAG-003: Shadow Sync
     await performShadowSync(store, projectRoot);

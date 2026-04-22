@@ -9,6 +9,7 @@ import { withWorkflowStore, getProjectSummary, syncProject, getProjectMetrics, g
 import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
 import { runAssessment } from "./assessment.mjs";
+import { getRelevantGuidelineBlocks } from "./guidelines.mjs";
 import { executeCodelet } from "./codelet-executor.mjs";
 import { executeJsOrchestrator } from "./js-orchestrator.mjs";
 import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
@@ -367,8 +368,9 @@ function parsePlannerResponse(text) {
 }
 
 async function buildOperatorPlannerPrompt(inputText, options) {
+  const root = options.root ?? process.cwd();
   const plannerContext = options.plannerContext ?? {};
-  
+
   const catalog = buildActionCatalog(plannerContext);
   const runtimeContext = buildOperatorPlannerRuntimeContext(plannerContext, options);
   const groundingContext = await buildOperatorPlannerGroundingContext(inputText, options);
@@ -376,100 +378,51 @@ async function buildOperatorPlannerPrompt(inputText, options) {
   const managedContext = options.managedContext ?? "";
   const schemaPrompt = buildOperatorPlannerSchemaPrompt();
 
-  const system = [
-    "You are the OPERATOR BRAIN, the high-level steering logic of ai-workflow.",
-    "Behave like a Senior Principal Engineer taking control of a messy project.",
-    "Goal: Reach a 'READY' state by identifying work, creating tickets, and executing code.",
-    "",
-    "## Operating Contract",
-    "- Use `kind: \"plan\"` ALWAYS when you change files, create tickets, or change project state.",
-    "- NEVER implementation a new feature without first creating a ticket for it.",
-    "- CRITICAL: `sync.createTicket` must be the VERY FIRST call in your `code` block before any `files.write` or execution.",
-    "- A 'Done' state requires BOTH the code changes AND a resolved ticket.",
-    "- Use `kind: \"reply\"` for design discussions, architectural analysis, trade-off comparisons, or simple greetings.",
-    "- NEVER reply saying 'I do not see an active ticket' or 'Please create a ticket'. This is a failure state.",
-    "- If no tickets exist and the user provides a goal, your FIRST STEP is to call `await sync.createTicket(...)` AND THEN IMMEDIATELY call `await sync.updateTicketLifecycle({ ticketId: '...', action: 'move', lane: 'In Progress' })` before performing the work in the SAME plan.",
-    "- If a ticket exists but isn't 'In Progress', your FIRST STEP is to call `await sync.updateTicketLifecycle({ ticketId: '...', action: 'move', lane: 'In Progress' })`.",
-    "- You have implicit permission to create, start, and resolve tickets to get the job done.",
-    "- CRITICAL: You MUST NOT implement a feature if its ticket is in 'Todo' or 'Backlog'. It MUST be moved to 'In Progress' first.",
-    "- When you create a ticket, you can usually infer its ID from the title or check the project summary, but `createTicket` will return the entity object.",
-    "- When a user asks for a new feature or change, do not just describe it; IMPLEMENT IT by creating the necessary tickets AND moving them to 'In Progress' AND executing code.",
-    "- Use `await sync.assess(target, options)` when a project, module, or feature seems complex or messy. It runs an iterative loop: Plan -> Criticize -> Revisit -> Execute.",
-    "",
-    "## Available Helpers:",
-    "- `await step(id, desc, fn)`: Persistent operation.",
-    "- `await transition(toState, trigger, fn)`: State-machine move.",
-    "- `await shell(prompt)`: Recursive NL call.",
-    "- `await exec(cmd, [args])`: Raw shell command.",
-    "- `await executeCodelet(id, args)`: Toolkit tool.",
-    "- `issue(type, sum, {details})`: Log failure.",
-    "",
-    "## Service Objects (Available as globals):",
-    "- `sync`: { syncProject, getProjectSummary, getProjectMetrics, createTicket(title, data), updateTicketLifecycle({ ticketId, action, lane }), listEpics, getEpic }",
-    "- `orchestrator`: { executeTicket, decomposeTicket, ideateFeature(title, summary, data), sweepBugs }",
-    "- `status`: { resolveProjectStatus, getSmartProjectStatus }",
-    "- `files`: { list(), read(path), write(path, content) }",
-    "- `sh`: { execute(cmd, args) }",
-    "- `codelets`: { execute(id, args) }",
-    "",
-    "## Planning Rules",
-    "- Use `await step(id, desc, fn)` for persistent operations.",
-    "- Use `await transition(to, trigger, fn)` for state transitions.",
-    "- Use `await exec(cmd, [args])` for CLI/Git commands.",
-    "- For coding tasks, prefer `files.read` and `files.write` over hidden generators or opaque builders.",
-    "- Do not use `programming-dogfood-build` for programming-dogfood requests; create or edit the project files through the normal workflow.",
-    "- When generating file contents, prefer `JSON.stringify(content)` or arrays joined with `\\n` instead of raw template literals that contain nested backticks.",
-    "- Do not redeclare injected helper names such as `files`, `sync`, `status`, `orchestrator`, `sh`, `codelets`, `step`, `transition`, `shell`, `exec`, or `executeCodelet`.",
-    "- Include comments and proper try/catch exception handling in the generated JS.",
-    "- Return a final structured object that includes `summary`, `changedFiles`, and `verification` when you perform coding work.",
-    "- JSON only: your output must be valid JSON matching the schema.",
-  ].join("\n");
+  // Item: Targeted Guideline & Knowledge Injection
+  const { guidelines, lore } = await withWorkflowStore(root, async (store) => {
+    const relevantGuidelines = await getRelevantGuidelineBlocks(store, { inputText, categories: ["coding", "process"] });
+    const relevantLore = await getRelevantGuidelineBlocks(store, { inputText, categories: ["lore"] });
 
-  const promptSections = [
-    "## Environment",
+    return {
+      guidelines: relevantGuidelines.map(b => `### ${b.title}\n${b.body}`).join("\n\n"),
+      lore: relevantLore.map(b => `### ${b.title}\n${b.body}`).join("\n\n")
+    };
+  });
+
+  const templateVariables = {
     runtimeContext,
-    managedContext ? `\n## Managed Context\n${managedContext}` : "",
-    historyContext ? `\n## Session History\n${historyContext}` : "",
-    groundingContext ? `\n## Evidence\n${groundingContext}` : "\n## Evidence\nNo active tickets or recent status found. This project is a blank slate.",
-    "",
-    "## Schema",
+    managedContext,
+    historyContext,
+    groundingContext: groundingContext || "No active tickets or recent status found. This project is a blank slate.",
     schemaPrompt,
-    "",
-    `## Request:\n"${inputText}"\n\nYour Response (JSON):`
-  ];
+    guidelines,
+    lore,
+    inputText
+  };
+
+  const system = await loadPromptTemplate("operator-brain.system", templateVariables);
+  const prompt = await loadPromptTemplate("operator-brain.prompt", templateVariables);
 
   return {
-    system,
-    prompt: promptSections.join("\n")
+    system: system || "You are the OPERATOR BRAIN. Plan the request.",
+    prompt: prompt || `## Request:\n"${inputText}"\n\nYour Response (JSON):`
   };
 }
-
 /**
  * Updates the managed (condensed) context with the latest turn.
  */
 export async function updateManagedContext(currentContext, lastUserTurn, lastAiTurn, options = {}) {
   const root = options.root ?? process.cwd();
-  
-  const system = [
-    "You are the CONTEXT MANAGER for ai-workflow.",
-    "Goal: Maintain a condensed, high-density summary of the conversation so far.",
-    "Identify active goals, discovered facts, and key constraints.",
-    "If the context is already comprehensive, just update it with new information.",
-    "Keep it under 300 words.",
-    "Output ONLY the condensed context string. No preamble, no markers."
-  ].join("\n");
 
-  const prompt = [
-    "## Current Managed Context",
-    currentContext || "(No context yet)",
-    "",
-    "## New Turn",
-    `User: ${lastUserTurn}`,
-    `AI: ${lastAiTurn}`,
-    "",
-    "## Task",
-    "Produce the updated, condensed managed context."
-  ].join("\n");
+  const templateVariables = {
+    currentContext: currentContext || "(No context yet)",
+    lastUserTurn,
+    lastAiTurn
+  };
+
+  const system = await loadPromptTemplate("context-manager.system", templateVariables);
+  const prompt = await loadPromptTemplate("context-manager.prompt", templateVariables);
+
 
   const route = await routeTask({ root, taskClass: "project-planning" });
   const candidate = route.recommended ?? route.candidates?.[0];
