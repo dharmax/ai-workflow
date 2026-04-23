@@ -6,7 +6,7 @@ import { loadPromptTemplate } from "./filesystem.mjs";
  */
 
 export async function attemptActionCorrection({ failedAction, error, options, history }) {
-  const template = await loadPromptTemplate("self-correction.system");
+  const { content: template } = await loadPromptTemplate("self-correction.system");
   const system = [
     template || "You are the self-correction module for 'ai-workflow'.",
     "An action failed with an error. You must analyze the error and propose a corrected action or a diagnostic step.",

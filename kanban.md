@@ -30,9 +30,27 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
-- [ ] 1d1ef2971724581f7c875453d4c1883612c2c2f6 Assessment: health on project:ai-workflow
+- [ ] ed9ca010eb7ac22550bae7e28ccde7d2d25ba644 Assessment: health on project:ai-workflow
   - Summary: Status: pending. Plan: Available
   - State: pending
+- [ ] e1a5300cdc6e501d9c589cc207af06c6735db999 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] 1579bf546c1f1c08ce24e3f9b27f4e1a7c7194e1 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] 77f328560502d67fa4581e71d45286f5eeb12789 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] 95473e1227a3795e382ab1ccd9b70949d5b709c0 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] e03493b212eca01bf8b502b380ed8f6dece7b76e Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] 1d1ef2971724581f7c875453d4c1883612c2c2f6 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 - [ ] fbf30041db19173d59e4c7fc5c0ea40a8b6b3d00 Assessment: health on project:ai-workflow
   - Summary: Status: failed. Plan: Available
   - State: failed

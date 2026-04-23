@@ -1,10 +1,14 @@
 <!-- Responsibility: Define the required execution order, scope control, validation behavior, and closure policy.
 Scope: Project-specific technical standards and durable lessons belong in project-guidelines.md and knowledge.md, not in this protocol. -->
 # Execution Protocol
+<!-- category: process -->
+<!-- tags: discipline, testing, handoff -->
 
 Keep execution disciplined, test-backed, and easy to hand off.
 
 ## Required Order
+<!-- category: process -->
+<!-- tags: kanban, workflow, ticketing, validation, documentation -->
 
 1. If the work is large enough to span an epic or a multi-ticket batch, create a fresh branch before implementation starts.
 2. If the repo state is already in motion, capture a baseline commit and push it before opening the next implementation slice.
@@ -22,12 +26,16 @@ Keep execution disciplined, test-backed, and easy to hand off.
 14. If the work begins from a messy project description, run the brief-onboarding flow first (`ai-workflow init --brief <file>` or `ai-workflow onboard <file>`), then generate epics from the stabilized brief.
 
 ## Workflow-First Context
+<!-- category: process -->
+<!-- tags: ai-workflow, workflow-first, dogfood, audit, sync -->
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 - Operator-surface changes are not done until `ai-workflow dogfood` (or `node scripts/ai-workflow/dogfood.mjs`) and `workflow-audit` both pass.
 - Keep `ai-workflow sync` as the first step before major context extraction so the DB and projections are current before deeper inspection.
 
 ## Ticket Ownership
+<!-- category: architecture -->
+<!-- tags: files, organization, structure, guidelines -->
 
 - `kanban.md`: live execution state
 - `kanban-archive.md`: completed ticket history that no longer belongs on the live board
@@ -38,6 +46,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - `enforcement.md`: machine-enforced baseline rules and narrow exceptions
 
 ## Kanban Discipline
+<!-- category: planning -->
+<!-- tags: kanban, workflow, discipline, automation -->
 
 - Update `kanban.md` in real time as work moves.
 - When you start a ticket, move it to `In Progress` immediately.
@@ -54,6 +64,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - Treat `tool observe` and the smart-codelet observer loop as dev-mode defaults when the task involves recurring patterns, candidate codelets, or improvement discovery.
 
 ## Scope Control
+<!-- category: planning -->
+<!-- tags: agile, workflow, prioritization -->
 
 - Default to one epic at a time when the work is roadmap-level or broader.
 - Default to one owned problem family at a time.
@@ -65,12 +77,16 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - If the user points to inline ticket notes as active instructions, do that work now instead of deferring it behind cleaner opportunistic tasks.
 
 ## Burst Budget
+<!-- category: assessing -->
+<!-- tags: risk-assessment, prioritization, ticket-tracking -->
 
 - Low-risk visual/system polish: 3-8 related tickets or one explicit sweep ticket.
 - Medium-risk UI/runtime behavior: 2-4 tightly coupled tickets.
 - High-risk mechanics, persistence, routing, or data integrity: one ticket or one narrow regression family.
 
 ## Validation Rules
+<!-- category: assessing -->
+<!-- tags: testing, validation, reliability, efficiency -->
 
 - Never claim a command was run if it was not.
 - Validation goal: minimum time and token cost that still preserves reliability.
@@ -98,12 +114,16 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - If workflow docs or project rules changed, run `node runtime/scripts/ai-workflow/workflow-audit.mjs`.
 
 ## Failure Handling
+<!-- category: assessing -->
+<!-- tags: bug-hunting, debugging, error-handling -->
 
 - If `ai-workflow` fails, stop, identify root cause, and either fix it or report the blocker before continuing.
 - If you discover a bug while working on something else, stop and tell the operator unless they explicitly asked for full-batch triage.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 
 ## Session Hygiene
+<!-- category: process -->
+<!-- tags: session management, context switching, productivity -->
 
 - Keep live context small: extract the active ticket and relevant guidelines instead of dragging full boards and docs through the hot path.
 - Recommend `/compact` when the current thread still has useful recent state but the working set details are starting to sprawl.
@@ -111,6 +131,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - Treat `/clear` as a human/operator action only. Do not pretend the tool can force or verify internal chat-history deletion.
 
 ## Validation Examples
+<!-- category: testing -->
+<!-- tags: unit-testing, integration-testing, end-to-end-testing, simulation-testing -->
 
 - Small ticket:
   - example: one reducer fix, one parser guard, one helper bug
@@ -126,6 +148,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
   - default proof: add a special-purpose test for that exact mechanism instead of trusting generic coverage
 
 ## Status Rules
+<!-- category: assessing -->
+<!-- tags: status-tracking, workflow-management -->
 
 - A ticket may end only as `DONE`, `PARTIAL`, or `BLOCKED`.
 - `DONE` requires complete implementation plus explicit verification.
@@ -135,12 +159,16 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - When a ticket is being worked, its live lane should become `In Progress` before model work starts and remain current throughout the burst.
 
 ## Proof Standard
+<!-- category: assessing -->
+<!-- tags: testing, verification, evidence-based -->
 
 - A claim without evidence does not count as verification.
 - For each acceptance criterion, mark it satisfied, not satisfied, or partially verified.
 - Tie proof to the actual change through commands run, observed behavior, changed code paths, or relevant artifacts.
 
 ## Closure Gate
+<!-- category: assessing -->
+<!-- tags: definition-of-done, acceptance-criteria, proof, partial-blocked-states -->
 
 - Do not move a ticket to `Done` unless every requested item was implemented.
 - Apply the `Definition of Done` in `project-guidelines.md`, not a lighter local interpretation.
@@ -149,6 +177,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - If any required work or proof is missing, keep the ticket open as `PARTIAL` or `BLOCKED`.
 
 ## Adversarial Self-Check
+<!-- category: assessing -->
+<!-- tags: quality-control, verification, testing -->
 
 - what requested work is still missing?
 - what acceptance criterion is not truly verified?
@@ -157,6 +187,8 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - why would a strict reviewer reject closure?
 
 ## Completion Report
+<!-- category: assessing -->
+<!-- tags: status, implementation, verification, testing, reopening -->
 
 - `Status: DONE | PARTIAL | BLOCKED`
 - requested changes implemented

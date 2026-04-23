@@ -380,7 +380,10 @@ async function buildOperatorPlannerPrompt(inputText, options) {
 
   // Item: Targeted Guideline & Knowledge Injection
   const { guidelines, lore } = await withWorkflowStore(root, async (store) => {
-    const relevantGuidelines = await getRelevantGuidelineBlocks(store, { inputText, categories: ["coding", "process"] });
+    const relevantGuidelines = await getRelevantGuidelineBlocks(store, { 
+      inputText, 
+      categories: ["coding", "process", "styling", "js-coding", "data-structure", "architecture", "planning", "assessing", "documentation", "debugging", "bug-hunting", "analysis", "fixing", "deployment", "testing"] 
+    });
     const relevantLore = await getRelevantGuidelineBlocks(store, { inputText, categories: ["lore"] });
 
     return {
@@ -400,8 +403,10 @@ async function buildOperatorPlannerPrompt(inputText, options) {
     inputText
   };
 
-  const system = await loadPromptTemplate("operator-brain.system", templateVariables);
-  const prompt = await loadPromptTemplate("operator-brain.prompt", templateVariables);
+  const { content: systemTemplate } = await loadPromptTemplate("operator-brain.system");
+  const { content: promptTemplate } = await loadPromptTemplate("operator-brain.prompt");
+  const system = renderTemplate(systemTemplate, templateVariables);
+  const prompt = renderTemplate(promptTemplate, templateVariables);
 
   return {
     system: system || "You are the OPERATOR BRAIN. Plan the request.",
@@ -413,15 +418,17 @@ async function buildOperatorPlannerPrompt(inputText, options) {
  */
 export async function updateManagedContext(currentContext, lastUserTurn, lastAiTurn, options = {}) {
   const root = options.root ?? process.cwd();
-
+  
   const templateVariables = {
     currentContext: currentContext || "(No context yet)",
     lastUserTurn,
     lastAiTurn
   };
 
-  const system = await loadPromptTemplate("context-manager.system", templateVariables);
-  const prompt = await loadPromptTemplate("context-manager.prompt", templateVariables);
+  const { content: systemTemplate } = await loadPromptTemplate("context-manager.system");
+  const { content: promptTemplate } = await loadPromptTemplate("context-manager.prompt");
+  const system = renderTemplate(systemTemplate, templateVariables);
+  const prompt = renderTemplate(promptTemplate, templateVariables);
 
 
   const route = await routeTask({ root, taskClass: "project-planning" });

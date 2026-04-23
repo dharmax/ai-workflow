@@ -832,6 +832,11 @@ export async function createProjectAssessment({ projectRoot = process.cwd(), tar
   return runAssessment(target, { root: projectRoot, ...options });
 }
 
+export async function enrichProjectGuidelines({ projectRoot = process.cwd(), options = {} } = {}) {
+  const { enrichGuidelineBlocks } = await import("./guidelines.mjs");
+  return withWorkflowStore(projectRoot, async (store) => enrichGuidelineBlocks(store, { projectRoot, options }));
+}
+
 async function syncArchitecture(projectRoot, store) {
   const files = store.db.prepare("SELECT path FROM files").all();
   const modules = new Map();

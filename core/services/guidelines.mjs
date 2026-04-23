@@ -1,10 +1,12 @@
 /**
  * Responsibility: Parse and synchronize project guidelines and knowledge into tagged blocks.
- * Scope: Handles markdown parsing, metadata extraction, and DB persistence for targeted injection.
+ * Scope: Handles markdown parsing, metadata extraction, enrichment (LLM), and DB persistence.
  */
 
 import { sha1, stableId } from "../lib/hash.mjs";
-import { readProjectFile } from "../lib/filesystem.mjs";
+import { readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.mjs";
+import { generateCompletion } from "./providers.mjs";
+import { routeTask } from "./router.mjs";
 
 /**
  * Synchronizes guidelines and knowledge from files into the database.
@@ -36,8 +38,138 @@ export async function syncGuidelineBlocks(store, { projectRoot }) {
 }
 
 /**
+ * Enriches guideline files with LLM-generated categories and tags.
+ */
+export async function enrichGuidelineBlocks(store, { projectRoot, options = {} }) {
+  const files = [
+    "project-guidelines.md",
+    "execution-protocol.md",
+    "knowledge.md"
+  ];
+
+  for (const filePath of files) {
+    const file = await readProjectFile(projectRoot, filePath).catch(() => null);
+    if (!file || !file.content) continue;
+
+    console.log(`[guidelines] Enriching ${filePath}...`);
+    const blocks = parseMarkdownBlocks(file.content, filePath, "general");
+    let updatedContent = file.content;
+
+    for (const block of blocks) {
+      // Skip if already has tags and category (and category is not the default generic one)
+      if (block.hasExplicitMetadata && block.category !== "general" && !options.force) {
+        continue;
+      }
+
+      console.log(`  - Suggesting metadata for: ${block.title}`);
+      const metadata = await suggestBlockMetadata(block, { projectRoot });
+      if (metadata) {
+        updatedContent = injectBlockMetadata(updatedContent, block.title, metadata);
+      }
+    }
+
+    if (updatedContent !== file.content) {
+      await writeProjectFile(projectRoot, filePath, updatedContent);
+      console.log(`[guidelines] Updated ${filePath} with enriched metadata.`);
+    }
+  }
+}
+
+async function suggestBlockMetadata(block, { projectRoot }) {
+  const { content: system } = await loadPromptTemplate("guideline-enricher.system");
+  const { content: userTemplate } = await loadPromptTemplate("guideline-enricher.prompt");
+  
+  if (!system || !userTemplate) {
+    throw new Error("Missing guideline-enricher prompt templates.");
+  }
+
+  const prompt = renderTemplate(userTemplate, {
+    title: block.title,
+    body: block.body
+  });
+
+  const route = await routeTask({ root: projectRoot, taskClass: "classification" });
+  let candidate = route.recommended ?? route.candidates?.[0];
+
+  if (process.env.AI_WORKFLOW_PLANNER_MODEL) {
+    const [p, m] = process.env.AI_WORKFLOW_PLANNER_MODEL.split(":");
+    const envProvider = route.providers[p];
+    candidate = { providerId: p, modelId: m, host: envProvider?.host, apiKey: envProvider?.apiKey, baseUrl: envProvider?.baseUrl };
+  }
+
+  if (!candidate) return null;
+
+  try {
+    const completion = await generateCompletion({
+      providerId: candidate.providerId,
+      modelId: candidate.modelId,
+      system,
+      prompt,
+      config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
+    });
+
+    const text = completion.response.trim();
+    let result = null;
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) {
+        try { result = JSON.parse(match[1]); } catch (e2) {}
+      }
+      if (!result) {
+        const first = text.indexOf("{");
+        const last = text.lastIndexOf("}");
+        if (first !== -1 && last > first) {
+          try { result = JSON.parse(text.slice(first, last + 1)); } catch (e3) {}
+        }
+      }
+    }
+    
+    if (result && typeof result === "object") {
+        return {
+            category: String(result.category || "general"),
+            tags: String(result.tags || "")
+        };
+    }
+    return null;
+  } catch (error) {
+    console.error(`[guidelines] Enrichment failed for ${block.title}: ${error.message}`);
+    return null;
+  }
+}
+
+function injectBlockMetadata(content, title, metadata) {
+  if (!metadata || !metadata.category || !metadata.tags) {
+    return content;
+  }
+  const lines = content.split(/\r?\n/);
+  const result = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    result.push(lines[i]);
+    const headerMatch = lines[i].match(/^(#{1,3})\s+(.+)$/);
+    if (headerMatch && headerMatch[2].trim() === title) {
+      // Check if metadata already exists in subsequent lines
+      let found = false;
+      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          if (lines[j].includes("<!-- category:") || lines[j].includes("<!-- tags:")) {
+              found = true;
+              break;
+          }
+      }
+      if (!found) {
+        result.push(`<!-- category: ${metadata.category} -->`);
+        result.push(`<!-- tags: ${metadata.tags} -->`);
+      }
+    }
+  }
+
+  return result.join("\n");
+}
+
+/**
  * Parses a markdown string into logical blocks based on headers and tags.
- * Supports <!-- tags: tag1, tag2 --> and <!-- category: architecture -->
  */
 function parseMarkdownBlocks(content, sourceFile, defaultCategory) {
   const blocks = [];
@@ -61,22 +193,24 @@ function parseMarkdownBlocks(content, sourceFile, defaultCategory) {
         category: defaultCategory,
         tags: "",
         title,
-        body: ""
+        body: "",
+        hasExplicitMetadata: false
       };
       continue;
     }
 
     if (currentBlock) {
-      // Look for metadata tags: <!-- tags: tag1, tag2 -->
       const tagMatch = line.match(/<!--\s*tags:\s*(.+?)\s*-->/i);
       if (tagMatch) {
         currentBlock.tags = tagMatch[1].trim();
+        currentBlock.hasExplicitMetadata = true;
         continue;
       }
 
       const catMatch = line.match(/<!--\s*category:\s*(.+?)\s*-->/i);
       if (catMatch) {
         currentBlock.category = catMatch[1].trim();
+        currentBlock.hasExplicitMetadata = true;
         continue;
       }
 
@@ -105,23 +239,17 @@ export async function getRelevantGuidelineBlocks(store, { inputText, categories 
 
   const lowerInput = inputText.toLowerCase();
   
-  // Rank and filter based on simple keyword matching for now
-  // In the future, this can use semantic embeddings
   return blocks
     .map(block => {
       let score = 0;
       const tags = block.tags.split(",").map(t => t.trim().toLowerCase());
       
-      // Tag match = high priority
       for (const tag of tags) {
         if (tag && lowerInput.includes(tag)) score += 10;
       }
 
-      // Title match = medium priority
       if (lowerInput.includes(block.title.toLowerCase())) score += 5;
 
-      // Body match = low priority
-      // (Simplified: check for a few keywords)
       const keywords = lowerInput.split(/\s+/).filter(w => w.length > 4);
       for (const word of keywords) {
         if (block.body.toLowerCase().includes(word)) score += 1;
@@ -129,8 +257,8 @@ export async function getRelevantGuidelineBlocks(store, { inputText, categories 
 
       return { block, score };
     })
-    .filter(res => res.score > 0 || categories.length > 0) // Always return categories if explicitly requested
+    .filter(res => res.score > 0 || categories.length > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 10) // Limit to top 10
+    .slice(0, 15)
     .map(res => res.block);
 }

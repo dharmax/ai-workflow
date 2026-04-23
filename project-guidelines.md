@@ -1,10 +1,14 @@
 <!-- Responsibility: Define durable engineering constraints, architectural boundaries, and review standards for the project.
 Scope: Queue state belongs in kanban.md and machine-enforced baseline rules belong in enforcement.md, not in this narrative guidance doc. -->
 # Project Guidelines
+<!-- category: planning -->
+<!-- tags: guidelines, documentation -->
 
 Keep this file short and durable. If a point is ticket-local, keep it out.
 
 ## Non-Negotiables
+<!-- category: architecture -->
+<!-- tags: state-mutation, validation, actor-model, async, core-state, UI, guidance, kanban, codelets, routing, planning, shell-workflow -->
 
 - Keep deterministic state mutation deterministic.
 - Treat AI output as untrusted input: validate, bound, and default safely.
@@ -18,6 +22,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Mutating shell work must be blocked until the board has exactly one ticket in `In Progress`; the shell should tell the operator to move the ticket first instead of bypassing workflow state. State changes with their own command surface should use that command surface instead of shell execution.
 
 ## Architecture
+<!-- category: architecture -->
+<!-- tags: kanban, epics, projections, modules, services, APIs, boundaries -->
 
 - The workflow DB is the canonical operational state. `kanban.md` and `epics.md` are controlled projections, and direct edits must be reconciled instead of silently overwritten.
 - Shell, codelets, and CLI surfaces orchestrate work; durable domain behavior belongs in cohesive modules and services behind stable APIs.
@@ -25,12 +31,16 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Critical surfaces should preserve a real entrypoint, a degraded path, and testable seams at each boundary.
 
 ## Layer Boundaries
+<!-- category: architecture -->
+<!-- tags: layers, boundaries, imports -->
 
 - Keep domain logic behind cohesive module APIs.
 - UI should orchestrate modules; domain invariants should be testable without browser rendering.
 - Avoid reverse imports from domain layers into UI layers.
 
 ## Change Boundaries
+<!-- category: planning -->
+<!-- tags: agile, delivery, tickets, epics -->
 
 - Prefer minimal diffs.
 - Preserve established patterns unless the ticket requires a deliberate change.
@@ -40,12 +50,16 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - For roadmap work, finish one epic before starting the next unless a blocker or dependency makes the order impossible.
 
 ## Data Contracts
+<!-- category: data-structure -->
+<!-- tags: contract, normalization, validation -->
 
 - Prefer explicit contract shapes over ad-hoc object literals.
 - Handle unknown external or AI-shaped payloads defensively.
 - Normalize and validate external or AI-shaped payloads at the boundary so downstream code can stay simple.
 
 ## Structure and Ownership
+<!-- category: architecture -->
+<!-- tags: domain-driven-design, encapsulation, separation-of-concerns -->
 
 - Before introducing significant logic or state, choose the right construct deliberately: `interface`, `type`, `class`, module object, or singleton service.
 - Stateful domain entities should expose behavior through cohesive modules or classes, not scattered inline mutation.
@@ -53,12 +67,16 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Keep generic shells generic; domain-specific content selection belongs outside the shell.
 
 ## File Responsibility Headers
+<!-- category: architecture -->
+<!-- tags: file-structure, boundaries, separation-of-concerns -->
 
 - Every source or owned-doc file should start with a short `Responsibility:` and `Scope:` header.
 - Keep both lines concise. If the header cannot stay honest and short, the file boundary is probably wrong.
 - When a file starts owning multiple unrelated concerns, split it instead of widening the header until it becomes meaningless.
 
 ## UI Discipline
+<!-- category: styling -->
+<!-- tags: css-first, semantic-state, dom-depth, event-handlers, selector-patterns, tooltips -->
 
 - Prefer CSS-first interaction behavior for presentation changes.
 - JS should toggle semantic state, not drive cosmetic pixel math unless there is a real exception.
@@ -67,6 +85,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Avoid native `title` tooltips for important product surfaces; use explicit tooltip contracts instead.
 
 ## Concurrency and Persistence
+<!-- category: coding -->
+<!-- tags: js, concurrency, persistence -->
 
 - Every lock start must have a terminal unlock path.
 - Early returns in action or async flow must still emit required completion or failure paths.
@@ -74,6 +94,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Save logic should be debounced where practical and immediate on critical lifecycle events.
 
 ## Test Strategy
+<!-- category: testing -->
+<!-- tags: efficiency, reliability, determinism, integration, end-to-end, bug-catching, test-driven-development, dogfooding, audit -->
 
 - Goal: maximize efficiency in time and token cost without compromising reliability.
 - Prefer fast deterministic module tests for domain behavior.
@@ -96,6 +118,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
   - human-only acceptance should stay explicit instead of being implied by green automation
 
 ## Definition of Done
+<!-- category: assessing -->
+<!-- tags: definition-of-done, workflow, state, capability, consistency, testing -->
 
 - A ticket is not done because a helper changed. It is done when the requested behavior exists at the real entrypoint that the operator or host surface uses.
 - If the behavior claims workflow awareness, it must be grounded in canonical DB-backed state instead of prompt glue, transient locals, or duplicated surface-specific memory.
@@ -114,6 +138,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - GoE or model-governance work is not done just because the loop exists. It is done when weaker or cheaper routes show observable quality uplift under the governed flow.
 
 ## Review Triggers
+<!-- category: assessing -->
+<!-- tags: testing, code-review, audit-rules -->
 
 - Config or dependency changes require explicit mention.
 - Production code without tests requires justification.
@@ -149,6 +175,8 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 ```
 
 ## Audit Extensions
+<!-- category: coding -->
+<!-- tags: javascript, json-schema -->
 
 Add machine-readable rule blocks in fenced `ai-workflow-audit` JSON blocks when a project-specific rule becomes important enough to enforce automatically.
 Keep the rules narrow, file-scoped, and explainable.

@@ -148,7 +148,7 @@ async function executeAssessment(plan, target, options) {
 }
 
 async function buildPlanningPrompt(target, options) {
-  const template = await loadPromptTemplate("assessment-plan.system");
+  const { content: template } = await loadPromptTemplate("assessment-plan.system");
   return {
     system: template || "You are a Senior Architect. Plan a deep assessment of the target.",
     prompt: `Target: ${target.type} ${target.id}\nScope: ${options.scope}\nOutput a JSON plan with a "steps" array.`
@@ -156,7 +156,7 @@ async function buildPlanningPrompt(target, options) {
 }
 
 async function buildCriticismPrompt(plan, target, options) {
-  const template = await loadPromptTemplate("assessment-criticism.system");
+  const { content: template } = await loadPromptTemplate("assessment-criticism.system");
   return {
     system: template || "You are a skeptical Principal Engineer. Find flaws in the assessment plan.",
     prompt: `Target: ${target.type} ${target.id}\nPlan: ${JSON.stringify(plan)}\nOutput a JSON criticism with "flaws" and "missingPoints" arrays.`
@@ -164,7 +164,7 @@ async function buildCriticismPrompt(plan, target, options) {
 }
 
 async function buildRefinementPrompt(plan, criticism, target, options) {
-  const template = await loadPromptTemplate("assessment-refinement.system");
+  const { content: template } = await loadPromptTemplate("assessment-refinement.system");
   return {
     system: template || "You are a pragmatic Tech Lead. Update the assessment plan based on criticism.",
     prompt: `Original Plan: ${JSON.stringify(plan)}\nCriticism: ${JSON.stringify(criticism)}\nOutput the final refined JSON plan.`

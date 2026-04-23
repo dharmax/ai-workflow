@@ -2537,73 +2537,42 @@ export async function buildShellPlannerPrompt(inputText, options) {
   const responseStyle = inferShellResponseStyle(inputText);
   const { recentMemory, longTermMemorySummary } = await summarizeHistory(history);
   const runtimeContext = buildShellPlannerRuntimeContext(options.plannerContext, options);
-  const guidanceContext = buildShellPlannerGuidanceContext(inputText, options.plannerContext);
+  
+  // Item: Targeted Guideline & Knowledge Injection
+  const { guidelines, lore } = await withWorkflowStore(options.root, async (store) => {
+    const relevantGuidelines = await getRelevantGuidelineBlocks(store, { 
+      inputText, 
+      categories: ["process", "planning", "assessing", "analysis"] 
+    });
+    const relevantLore = await getRelevantGuidelineBlocks(store, { inputText, categories: ["lore"] });
+    
+    return {
+      guidelines: relevantGuidelines.map(b => `### ${b.title}\n${b.body}`).join("\n\n"),
+      lore: relevantLore.map(b => `### ${b.title}\n${b.body}`).join("\n\n")
+    };
+  });
+
   const groundingContext = await buildShellPlannerGroundingContext(inputText, options);
   const notesLoreExtra = buildShellPlannerNotesLoreExtra({ recentMemory, longTermMemorySummary, activeGraphState });
   const schemaPrompt = buildShellPlannerSchemaPrompt();
 
-  const template = await loadPromptTemplate("shell-planner.system");
-  const system = template || [
-    "You are the shell planning brain inside ai-workflow.",
-    "Behave like a strong operator that decides how to use tools, not like a chatty project summarizer.",
-    "Choose the smallest truthful next step.",
-    "",
-    "## Operating Contract",
-    "- Convert every user request into a typed intent envelope.",
-    "- Use `kind=intent` for normal planning output. `kind=exit` is only for explicit exit requests.",
-    "- For project-state questions, prefer discovery actions before answering.",
-    "- Do not assume project facts that have not been discovered in this turn or a prior node result.",
-    "- Keep the first plan minimal. Prefer flat `actions`; only use `graph` if truly needed.",
-    "- If the answer is purely shell-local, you may leave `actions` empty and provide `assistantReply`, but you must still emit the full typed intent envelope.",
-    "",
-    "## Graph Contract",
-    "- Use direct `actions` for simple deterministic status, summary, and extraction work.",
-    "- Use `graph.nodes` only when branching, gating, or replanning is required.",
-    "",
-    "## Available Actions (Your Capabilities):",
+  const templateVariables = {
     catalog,
-    "",
-    "## Planning Rules",
-    "- Start with the user's intent, then decide what context must be pulled.",
-    "- Pull project info only when the request makes that context necessary.",
-    "- Prefer targeted discovery like `project_summary`, `extract_ticket`, `search`, or `route` over broad context dumps.",
-    "- If the question is only about shell usage or capabilities, keep `actions` empty and provide a shell-local `assistantReply` inside `kind=intent`.",
-    "- If `Grounded Repo Evidence` is present and directly answers the user's question, prefer a grounded `assistantReply` inside `kind=intent`.",
-    "- For repo concept questions like services, modules, claims, projections, router, or sync behavior, prefer a grounded reply or a single `status_query` over a vague clarification request.",
-    "- If the answer depends on project state, use tools first unless the needed state is already present in prior node results.",
-    "- For multi-clause, goal-driven, ordered, or ambiguous requests, prefer a small ordered `actions` list over a long reply.",
-    "- Never emit the stock shell fallback about needing the AI planner or asking for a more direct phrasing.",
-    "- Prefer coding/debugging/review/design/project-planning capability families over generic classification.",
-    "- If you are uncertain, choose the smallest truthful probe such as `status_query`, `search`, `project_summary`, or `route` instead of asking the user to rephrase.",
-    "- Preserve the user's requested order unless observed tool results prove a blocker.",
-    "- When the user states a goal or success criterion, use it to choose discovery steps and rank remaining work.",
-    "- Do not collapse a long request into a shallow answer just because one phrase matches a simpler pattern.",
-    "- For conversational follow-ups, resolve pronouns and ellipsis from `Active Turn Memory` and set `intent.followUpMode` explicitly.",
-    "- Do not decide follow-up mode from stock trigger phrases alone; use prior turn state, prior evidence, and the current request together.",
-    "- Never invent facts. If a ticket, file, or condition is unknown, discover it or say so.",
-    "- JSON only: your output must be valid JSON matching the schema.",
-  ].join("\n");
-
-  const promptSections = [
-    "## Runtime Context",
     runtimeContext,
-    `\n## Desired Response Style\n${renderShellResponseStyle(responseStyle)}`,
-    guidanceContext ? `\n## Guidance Highlights\n${guidanceContext}` : "",
-    groundingContext ? `\n## Grounded Repo Evidence\n${groundingContext}` : "",
-    notesLoreExtra ? `\n${notesLoreExtra}` : "",
-    "",
-    "## Allowed JSON Schema:",
+    responseStyle: renderShellResponseStyle(responseStyle),
+    guidanceContext: guidelines,
+    groundingContext,
+    notesLoreExtra: (notesLoreExtra || "") + "\n\n" + (lore || ""),
     schemaPrompt,
-    "",
-    `## Current User Request:\n"${inputText}"\n\nYour Response (JSON):`
-  ];
+    inputText
+  };
 
-  const templateVariables = { catalog, runtimeContext, responseStyle: renderShellResponseStyle(responseStyle), guidanceContext, groundingContext, notesLoreExtra, schemaPrompt, inputText };
-  const systemResult = await loadPromptTemplate("shell-planner.system", templateVariables);
-  const promptResult = await loadPromptTemplate("shell-planner.prompt", templateVariables);
+  const { content: systemTemplate } = await loadPromptTemplate("shell-planner.system"); const systemResult = renderTemplate(systemTemplate, templateVariables);
+  const { content: promptTemplate } = await loadPromptTemplate("shell-planner.prompt"); const promptResult = renderTemplate(promptTemplate, templateVariables);
+
   return {
-    system: systemResult || "You are the shell planning brain. Plan the request.",
-    prompt: promptResult || `## Request:\n"${inputText}"\n\nYour Response (JSON):`
+    system: systemResult.content || "You are the shell planning brain. Plan the request.",
+    prompt: renderTemplate(promptResult.content, templateVariables) || `## Request:\n"${inputText}"\n\nYour Response (JSON):`
   };
 }
 
@@ -3587,8 +3556,8 @@ async function synthesizeShellExecutionReply({ inputText, plan, executed, option
 
   const template = await loadPromptTemplate("shell-conversational.system");
   const templateVariables = { inputText, responseStyle: renderShellResponseStyle(responseStyle), actionGraph: renderActionGraph(plan.graph), nodeResults: renderedOutputs };
-  const systemResult = await loadPromptTemplate("shell-conversational.system", templateVariables);
-  const promptResult = await loadPromptTemplate("shell-conversational.prompt", templateVariables);
+  const { content: systemTemplate } = await loadPromptTemplate("shell-conversational.system"); const systemResult = renderTemplate(systemTemplate, templateVariables);
+  const { content: promptTemplate } = await loadPromptTemplate("shell-conversational.prompt"); const promptResult = renderTemplate(promptTemplate, templateVariables);
   try {
     const completion = await runShellCompletion({
       stage: "assistant",

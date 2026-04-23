@@ -28,7 +28,7 @@ import { refreshProviderQuotaState } from "../../core/services/providers.mjs";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore } from "../../core/services/codelets.mjs";
 import { executeCodelet } from "../../core/services/codelet-executor.mjs";
 import { buildTicketEntity, importLegacyProjections, inferTicketLane, renderEpicsProjection, renderKanbanProjection, writeProjectProjections } from "../../core/services/projections.mjs";
-import { addManualNote, createProjectAssessment, createTicket, evaluateProjectReadiness, getEpic, getProjectAssessment, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, listProjectAssessments, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
+import { addManualNote, createProjectAssessment, createTicket, enrichProjectGuidelines, evaluateProjectReadiness, getEpic, getProjectAssessment, getProjectMetrics, getProjectSummary, listEpicUserStories, listEpics, listProjectAssessments, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
 import { buildTelegramPreview } from "../../core/services/telegram.mjs";
 import { onboardProjectBrief } from "../../core/services/orchestrator.mjs";
 import { updateKnowledgeRemote } from "../../core/services/knowledge.mjs";
@@ -88,6 +88,7 @@ const HELP = `Usage:
   ai-workflow project ticket start <ticket-id> [--json]
   ai-workflow project ticket reopen <ticket-id> [--lane <lane>] [--json]
   ai-workflow project assessment <list|show|run> [...]
+  ai-workflow project enrich-guidelines [--force] [--json]
   ai-workflow project note add --type <NOTE|TODO|FIXME|HACK|BUG|RISK> --body <text> [--file <path>] [--line <n>] [--symbol <name>] [--json]  ai-workflow project note resolve <note-id> [--reason <text>] [--json]
   ai-workflow project review-candidates [--json]
   ai-workflow extract ticket <id> [options]
@@ -885,7 +886,18 @@ async function handleProject(rest) {
     return handleProjectAssessment(args);
   }
 
+  if (subcommand === "enrich-guidelines") {
+    return handleProjectEnrichGuidelines(args);
+  }
+
   printAndExit("Usage: ai-workflow project <summary|status|readiness|search|epic|story|codelet|ticket|note|assessment|review-candidates|render|import-projections> ...", 1);
+}
+
+async function handleProjectEnrichGuidelines(args) {
+  const root = process.cwd();
+  await enrichProjectGuidelines({ projectRoot: root, options: { force: Boolean(args.force) } });
+  process.stdout.write("Enrichment completed.\n");
+  return 0;
 }
 
 async function handleProjectAssessment(args) {

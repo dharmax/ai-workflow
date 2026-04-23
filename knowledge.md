@@ -1,10 +1,14 @@
 <!-- Responsibility: Record durable lessons, traps, and decisions that should outlive a single ticket.
 Scope: The active queue and baseline enforcement rules belong in kanban.md and enforcement.md, not in this lessons log. -->
 # Knowledge
+<!-- category: documentation -->
+<!-- tags: knowledge management, fact recording -->
 
 Record durable facts that reduce future context cost. Do not mirror transient ticket notes.
 
 ## Load Order
+<!-- category: planning -->
+<!-- tags: order, sequence, files -->
 
 1. `kanban.md`
 2. `execution-protocol.md`
@@ -13,17 +17,23 @@ Record durable facts that reduce future context cost. Do not mirror transient ti
 5. this file
 
 ## Facts
+<!-- category: planning -->
+<!-- tags: agile, epics, user-stories, kanban, database -->
 
 - `epics.md` is a natural-language epic catalog, not a flat epic-name index.
 - The canonical workflow order is epic -> user stories -> kanban tickets -> DB-backed query surfaces.
 
 ## Pitfalls
+<!-- category: assessing -->
+<!-- tags: workflow, db, epic, ticket, rewrite -->
 
 - Writing graph predicates or architectural edge lists into `epics.md` instead of querying the workflow DB.
 - Letting projection rewrites silently overwrite direct edits in `epics.md` or `kanban.md`.
 - Treating kanban tickets as the narrative source instead of execution units underneath epics.
 
 ## Durable Lessons
+<!-- category: process -->
+<!-- tags: agile, kanban, epics, user-stories, branching -->
 
 - Epic projections should include an explicit status block with a visible checkbox and a machine-readable status comment, and user-story actors should be bolded in the rendered file.
 - User-story actors may be the `AI`, the `tool`, the `router`, a `user`, or a `maintainer`; choose the actor that owns the action and bold the actor phrase in the epic story.
@@ -35,9 +45,13 @@ Record durable facts that reduce future context cost. Do not mirror transient ti
 - Smart codelets only stay trustworthy when they route through the router and feed new recurring patterns back into the workflow DB.
 
 ## Decisions
+<!-- category: planning -->
+<!-- tags: decision-making, record-keeping -->
 
 - YYYY-MM-DD: decision and reason
 
 ## Gaps
+<!-- category: assessing -->
+<!-- tags: unknowns, unresolved -->
 
 - Unknowns worth resolving later
