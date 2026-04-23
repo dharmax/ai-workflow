@@ -30,37 +30,10 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
-- [ ] 9fce6cc1d0b1b098a52bfa4f838bb707b26ffc9a Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 7364ee4a044a36a52dacd2f8c6b44b6b54418418 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] ed9ca010eb7ac22550bae7e28ccde7d2d25ba644 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] e1a5300cdc6e501d9c589cc207af06c6735db999 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 1579bf546c1f1c08ce24e3f9b27f4e1a7c7194e1 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 77f328560502d67fa4581e71d45286f5eeb12789 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 95473e1227a3795e382ab1ccd9b70949d5b709c0 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] e03493b212eca01bf8b502b380ed8f6dece7b76e Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 1d1ef2971724581f7c875453d4c1883612c2c2f6 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] fbf30041db19173d59e4c7fc5c0ea40a8b6b3d00 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
-- [ ] 738b983712ea5f67845a427853f236dab17092b9 Assessment: health on project:ai-workflow
+- [ ] a033eca2658f8b60ab98652005032aff355f323e Assessment: health on project:ai-workflow
+  - Summary: Status: pending. Plan: Available
+  - State: pending
+- [ ] 39a24358aae17d63b2ca80e970d5008341146b34 Assessment: health on project:ai-workflow
   - Summary: Status: failed. Plan: Available
   - State: failed
 - [ ] 059a79bf4ffb368f9e49627c8582a00047c90c74 Assessment: architecture on project:ai-workflow
@@ -81,6 +54,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] TKT-PLAN-PERSISTENCE Implement DB storage for architectural plans and epics references ✅ 2026-04-22
+  - Summary: When planning, the plan must be kept somewhere - both in md files and in the db with references in the epics and wherever relevant, or else plans disappear. Store the full plan on a special folder called 'design'.
+  - State: archived
 - [ ] TKT-AUTO-CREATE-STRING-UTILS-MODU-MO9WY7CS Create string-utils module with capitalizeFirstLetter function ✅ 2026-04-22
   - State: archived
 - [ ] TKT-BIDIRECTIONAL-SYNC Ensure MD file edits sync correctly with DB using timestamp diffing ✅ 2026-04-22
@@ -88,8 +64,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
   - State: archived
 - [ ] TKT-MANUAL-SYNC-TEST This ticket was added manually in the markdown file. ✅ 2026-04-22
   - State: archived
-- [ ] TKT-PLAN-PERSISTENCE Implement DB storage for architectural plans and epics references ✅ 2026-04-22
-  - Summary: When planning, the plan must be kept somewhere - both in md files and in the db with references in the epics and wherever relevant, or else plans disappear. Store the full plan on a special folder called 'design'.
+- [ ] TKT-SHELL-JS-001 Implement JS-based orchestration driver ✅ 2026-04-23
+  - State: archived
+- [ ] TKT-DOGFOOD-001 Reproduce and fix shell/metrics issues + Smart Programming Dogfood Harness ✅ 2026-04-23
   - State: archived
 - [ ] echo-test-codelet Add echo-test codelet ✅ 2026-04-21
   - State: open

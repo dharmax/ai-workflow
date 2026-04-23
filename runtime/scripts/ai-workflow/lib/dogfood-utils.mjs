@@ -7,6 +7,7 @@ import { ensureDir, readText } from "./fs-utils.mjs";
 import { getToolkitRoot } from "./toolkit-root.mjs";
 import { collectOperatorSurfaceState, listOperatorSurfaceIds } from "./operator-surfaces.mjs";
 import { inspectWorkspaceHonesty } from "./workspace-honesty.mjs";
+import { runDogfoodHarness } from "../../../../core/services/dogfood-harness.mjs";
 
 export const DEFAULT_DOGFOOD_REPORT_PATH = ".ai-workflow/generated/dogfood-report.json";
 
@@ -156,8 +157,49 @@ async function runSurfaceScenarios({ surfaceId, profile, root, toolkitRoot, cliP
         return [];
       }
       return buildInitScenarios({ cliPath, root, timeoutMs, toolkitRoot });
+    case "smart-programming":
+      return buildSmartProgrammingScenarios({ root, timeoutMs });
     default:
       return [];
+  }
+}
+
+async function buildSmartProgrammingScenarios({ root, timeoutMs }) {
+  const startedAt = Date.now();
+  console.log("[dogfood] Starting smart-programming dogfood (Space Invaders Game generation)...");
+  
+  try {
+    const report = await runDogfoodHarness({ root });
+    const durationMs = Date.now() - startedAt;
+    
+    return [
+      {
+        id: "space-invaders-generation",
+        description: "Generate and verify a modular emoji space-invaders-style 3d canvas game",
+        ok: report.ok,
+        durationMs,
+        stdout: report.summary,
+        stderr: report.ok ? "" : (report.error ?? "Generation failed"),
+        model: "ai-workflow:recursive",
+        progressLines: [
+          `[progress] latency: ${report.verification.latencyMs}ms`,
+          `[progress] tokens: ${report.verification.tokens}`,
+          `[progress] files: ${report.verification.fileCount}`
+        ]
+      }
+    ];
+  } catch (err) {
+    return [
+      {
+        id: "space-invaders-generation",
+        description: "Generate and verify a modular emoji space-invaders-style 3d canvas game",
+        ok: false,
+        durationMs: Date.now() - startedAt,
+        stdout: "",
+        stderr: `Dogfood harness crash: ${err.message}`,
+        model: "ai-workflow:recursive"
+      }
+    ];
   }
 }
 

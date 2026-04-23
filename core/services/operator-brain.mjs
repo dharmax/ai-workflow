@@ -5,7 +5,7 @@
 
 import { promptMultiChoice } from "../lib/disambiguation.mjs";
 import path from "node:path";
-import { withWorkflowStore, getProjectSummary, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet } from "./sync.mjs";
+import { withWorkflowStore, getProjectSummary, getActiveTickets, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet } from "./sync.mjs";
 import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
 import { runAssessment } from "./assessment.mjs";
@@ -19,6 +19,8 @@ import { runHooks } from "./hooks.mjs";
 import { buildTicketEntity } from "./projections.mjs";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.mjs";
+import * as fs from "node:fs/promises";
+import * as pathMod from "node:path";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -525,7 +527,13 @@ function buildOperatorPlannerSchemaPrompt() {
     '- `await shell(prompt)`: Recursive NL call.',
     '- `await exec(cmd, [args])`: Raw shell command.',
     '- `await executeCodelet(id, args)`: Toolkit tool.',
-    '- `files.list()`, `files.read(path)`, `files.write(path, content)`: project file operations.',
+    '- `sync`: { syncProject(), getProjectSummary(), getActiveTickets(), createTicket(title, data), updateTicketLifecycle({ticketId, action, lane}), assess(target, opts) }',
+    '- `status`: { resolveProjectStatus({selector}), getSmartProjectStatus() }',
+    '- `files`: { list({ignore}), read(path), write(path, content) }',
+    '- `fs`: node:fs/promises wrapper',
+    '- `path`: node:path wrapper',
+    '- `orchestrator`: { executeTicket({ticketId}), decomposeTicket({ticketId}), ideateFeature(title, summary, data) }',
+    '- `sh`: { execute(cmd, args) }',
     '- `issue(type, sum, {details})`: Log failure.',
     'Patterns:',
     '- Use `try/catch` & comments.',
@@ -950,6 +958,11 @@ function validateGeneratedPlan(plan, options = {}) {
     }
   }
 
+  // Guardrail: Enforce recursive mkdir
+  if (/\bmkdir\s*\(\s*[^,)]+\s*\)/.test(trimmedCode) && !/\brecursive:\s*true/.test(trimmedCode)) {
+    throw new Error("generated JS failed validation: Any 'mkdir' call MUST include '{ recursive: true }' to ensure idempotency and prevent crashes if the directory already exists.");
+  }
+
   const reservedHelpers = [
     "files",
     "sync",
@@ -1009,6 +1022,8 @@ function buildOperatorServices(root, options) {
     sync: {
       syncProject: (args) => syncProject({ projectRoot: root, ...args }),
       getProjectSummary: (args) => getProjectSummary({ projectRoot: root, ...args }),
+      getActiveTickets: (args) => getActiveTickets({ projectRoot: root, ...args }),
+      listActiveTickets: (args) => getActiveTickets({ projectRoot: root, ...args }),
       getProjectMetrics: (args) => getProjectMetrics({ projectRoot: root, ...args }),
       createTicket: (title, data = {}) => {
         const id = data.id ?? buildReadableAutoTicketId(title);
@@ -1029,6 +1044,9 @@ function buildOperatorServices(root, options) {
       read: (relativePath) => readProjectFile(root, relativePath),
       write: (relativePath, content) => writeProjectFile(root, relativePath, content)
     },
+    // Item: Pre-injected Node.js globals for reliability
+    fs,
+    path: pathMod,
     orchestrator: {
       executeTicket: (args) => executeTicket({ root, ...args }),
       decomposeTicket: (args) => decomposeTicket({ root, ...args }),
@@ -1049,7 +1067,11 @@ function buildOperatorServices(root, options) {
         const { execFile } = await import("node:child_process");
         const { promisify } = await import("node:util");
         const execFileAsync = promisify(execFile);
-        const { stdout, stderr } = await execFileAsync(command, args, { cwd: root, shell: true });
+        
+        // Item: Shell Safety - ensure arguments with spaces are handled correctly
+        // When shell:true is used, we need to be careful with concatenation.
+        // For git commit specifically, ensure the message is treated as a single arg.
+        const { stdout, stderr } = await execFileAsync(command, args, { cwd: root, shell: false });
         return { stdout: stdout.trim(), stderr: stderr.trim(), ok: true };
       }
     }

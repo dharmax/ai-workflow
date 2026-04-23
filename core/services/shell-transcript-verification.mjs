@@ -139,9 +139,9 @@ export async function judgeShellTranscripts({
         prompt,
         system: [
           "You are a strict shell transcript judge.",
-          "Return concise JSON only.",
-          "Judge whether the shell behaves like a strong Codex-like operator for the given request.",
-          "Score each requested dimension independently and fail if the transcript is shallow, ungrounded, or visibly inferior to a good coding assistant."
+          "Return valid JSON only. No prose, no markdown blocks.",
+          "Judge whether the shell behaves like a high-quality coding assistant for the given request.",
+          "Score independently and fail if the transcript is shallow, ungrounded, or visibly inferior."
         ].join(" "),
         config: routed.providers?.[candidate.providerId] ?? {},
         contentParts,

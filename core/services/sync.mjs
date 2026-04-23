@@ -544,6 +544,14 @@ export async function withWorkflowStore(projectRoot, callback) {
   }
 }
 
+export async function getActiveTickets({ projectRoot = process.cwd() } = {}) {
+  return withWorkflowStore(projectRoot, async (store) => {
+    return store.listEntities({ entityType: "ticket" })
+      .filter((ticket) => !["Done", "Archived"].includes(ticket.lane ?? ""))
+      .sort(compareEpicPriority);
+  });
+}
+
 export async function getProjectSummary({ projectRoot = process.cwd() } = {}) {
   return withWorkflowStore(projectRoot, async (store) => buildProjectSummary(store));
 }

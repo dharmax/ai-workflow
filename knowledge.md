@@ -55,3 +55,13 @@ Record durable facts that reduce future context cost. Do not mirror transient ti
 <!-- tags: unknowns, unresolved -->
 
 - Unknowns worth resolving later
+
+### 3D Emoji Rendering
+<!-- category: lore -->
+<!-- tags: threejs, graphics, canvas, textures -->
+To render emojis in a 3D environment (like Three.js) without external assets:
+1. Create a hidden `canvas` element.
+2. Draw the emoji character to the canvas context at a high font size.
+3. Use the canvas as a source for a `THREE.CanvasTexture`.
+4. Apply that texture to a `THREE.SpriteMaterial` or a `THREE.MeshBasicMaterial`.
+5. Example: `const tex = new THREE.CanvasTexture(canvas); const mat = new THREE.SpriteMaterial({ map: tex });`

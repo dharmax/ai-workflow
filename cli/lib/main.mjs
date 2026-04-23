@@ -43,6 +43,7 @@ import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.mjs";
 import { STATUS_NODE_TYPES, formatStatusReport, resolveProjectStatus } from "../../core/services/status.mjs";
 import { listWorkflowIssues, refineWorkflowIssue } from "../../core/services/workflow-refinement.mjs";
 import { runShellBenchmark } from "../../core/services/shell-benchmark.mjs";
+import { runDogfoodHarness } from "../../core/services/dogfood-harness.mjs";
 
 const toolkitRoot = getToolkitRoot();
 const execFileAsync = promisify(execFile);
@@ -107,8 +108,8 @@ const HELP = `Usage:
   ai-workflow tool observe [--complaint <text>] [--json]
   ai-workflow tool refine [issue-id] [--json]
   ai-workflow tool benchmark <prompt> [--json]
-  ai-workflow tool finalize [--json]
-  ai-workflow web tutorial [--port <n>] [--host <host>] [--json]
+  ai-workflow tool dogfood-harness [--json]
+  ai-workflow tool finalize [--json]  ai-workflow web tutorial [--port <n>] [--host <host>] [--json]
 
   ai-workflow config get [key]
   ai-workflow config set <key> <value>
@@ -1260,14 +1261,34 @@ async function handleTool(rest) {
     return handleToolRefine(extras);
   }
   if (action === "benchmark") {
-    return handleToolBenchmark(extras);
+   return handleToolBenchmark(extras);
+  }
+  if (action === "dogfood-harness") {
+   return handleToolDogfoodHarness(extras);
   }
   if (action === "finalize") {
-    return handleToolFinalize(extras);
+   return handleToolFinalize(extras);
   }
-  printAndExit("Usage: ai-workflow tool observe [--complaint <text>] [--json]\n       ai-workflow tool refine [issue-id] [--json]\n       ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool finalize [--json]", 1);
-}
+  printAndExit("Usage: ai-workflow tool observe [--complaint <text>] [--json]\n       ai-workflow tool refine [issue-id] [--json]\n       ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool dogfood-harness [--json]\n       ai-workflow tool finalize [--json]", 1);
+  }
 
+  async function handleToolDogfoodHarness(rest) {
+  const args = parseArgs(rest);
+  const root = process.cwd();
+  process.stdout.write("Running Smart Programming Dogfood Harness...\n");
+
+  const report = await runDogfoodHarness({ root });
+
+  if (args.json) {
+   process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+  } else {
+   process.stdout.write(`\nDogfood Result: ${report.ok ? "PASS" : "FAIL"}\n`);
+   process.stdout.write(`Summary: ${report.summary}\n`);
+   process.stdout.write(`Project: ${report.projectPath}\n`);
+   process.stdout.write(`Metrics: ${report.verification.fileCount} files, ${report.verification.tokens} tokens, ${report.verification.latencyMs}ms\n`);
+  }
+  return report.ok ? 0 : 1;
+  }
 async function handleToolFinalize(rest) {
   const args = parseArgs(rest);
   const root = process.cwd();

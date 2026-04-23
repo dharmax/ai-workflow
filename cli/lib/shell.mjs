@@ -1271,6 +1271,18 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     return replyPlan("Tell me what you want to do. Example: `sync and show review hotspots`.");
   }
 
+  if (/^(?:(?:please\s+)?sync\s+and\s+show\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "sync" }, { type: "list_tickets" }], 0.98, "Explicit sync and ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|list|get)\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "list_tickets" }], 0.98, "Explicit ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|get)\s+(?:me\s+)?(?:project\s+)?summary)$/i.test(text)) {
+    return actionPlan([{ type: "project_summary" }], 0.98, "Explicit project summary request.");
+  }
+
   if (readinessContinuationPlan) {
     return readinessContinuationPlan;
   }
@@ -1439,6 +1451,18 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     return actionPlan([{ type: "provider_connect", providerId: match[2] }], 0.98, "Explicit provider connect request.");
   }
 
+  if (/^(?:(?:please\s+)?sync\s+and\s+show\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "sync" }, { type: "list_tickets" }], 0.98, "Explicit sync and ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|list|get)\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "list_tickets" }], 0.98, "Explicit ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|get)\s+(?:me\s+)?(?:project\s+)?summary)$/i.test(text)) {
+    return actionPlan([{ type: "project_summary" }], 0.98, "Explicit project summary request.");
+  }
+
   if (/^(audit\s+architecture|check\s+wiring|arch\s+audit)$/i.test(text)) {
     return actionPlan([{ type: "audit_architecture" }], 0.98, "Architectural audit request.");
   }
@@ -1543,6 +1567,18 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
       type: "ideate_feature",
       intent: featureMatch[1].trim()
     }], 0.95, "New feature ideation request.");
+  }
+
+  if (/^(?:(?:please\s+)?sync\s+and\s+show\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "sync" }, { type: "list_tickets" }], 0.98, "Explicit sync and ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|list|get)\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "list_tickets" }], 0.98, "Explicit ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|get)\s+(?:me\s+)?(?:project\s+)?summary)$/i.test(text)) {
+    return actionPlan([{ type: "project_summary" }], 0.98, "Explicit project summary request.");
   }
 
   if (text.match(/^(?:sweep|fix|handle)\s+(?:all\s+)?(?:top\s+)?(?:priority\s+)?bugs\b/i)) {
@@ -7116,6 +7152,18 @@ function buildExplicitShellCommandPlan(text, lower, plannerContext, { activeGrap
       type: "ideate_feature",
       intent: featureMatch[1].trim()
     }], 0.95, "New feature ideation request.");
+  }
+
+  if (/^(?:(?:please\s+)?sync\s+and\s+show\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "sync" }, { type: "list_tickets" }], 0.98, "Explicit sync and ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|list|get)\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
+    return actionPlan([{ type: "list_tickets" }], 0.98, "Explicit ticket list request.");
+  }
+
+  if (/^(?:(?:please\s+)?(?:show|get)\s+(?:me\s+)?(?:project\s+)?summary)$/i.test(text)) {
+    return actionPlan([{ type: "project_summary" }], 0.98, "Explicit project summary request.");
   }
 
   if (text.match(/^(?:sweep|fix|handle)\s+(?:all\s+)?(?:top\s+)?(?:priority\s+)?bugs\b/i)) {

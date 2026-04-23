@@ -6,73 +6,53 @@ import { listRepoFiles } from "./audit-utils.mjs";
 export const OPERATOR_SURFACES = {
   shell: {
     description: "Interactive and non-interactive shell routing, planner selection, and mutation control.",
-    exact: [
-      "cli/lib/shell.mjs",
-      "docs/MANUAL.md"
-    ]
+    exact: ["cli/lib/shell.mjs"],
+    prefixes: ["tests/shell.test.mjs", "tests/shell-chat.test.mjs", "tests/shell-retrieval.test.mjs", "docs/MANUAL.md"]
   },
   provider: {
     description: "Provider discovery, routing, setup, and local model hardware behavior.",
-    exact: [
-      "cli/lib/doctor.mjs",
-      "cli/lib/ollama-hw.mjs",
-      "cli/lib/provider-connect.mjs",
-      "cli/lib/provider-setup.mjs",
-      "core/services/model-fit.mjs",
-      "core/services/providers.mjs",
-      "core/services/router.mjs"
-    ]
+    exact: ["core/services/providers.mjs", "core/services/router.mjs", "cli/lib/doctor.mjs", "cli/lib/ollama-hw.mjs", "cli/lib/provider-connect.mjs", "cli/lib/provider-setup.mjs"],
+    prefixes: ["tests/providers.test.mjs"]
   },
   workflow: {
     description: "Top-level workflow command dispatch, ask/host resolution, and project workflow scripts.",
-    exact: [
-      "cli/lib/main.mjs",
-      "core/services/host-resolver.mjs",
-      "core/services/knowledge.mjs",
-      "core/services/projections.mjs",
-      "core/services/sync.mjs",
-      "runtime/scripts/ai-workflow/context-pack.mjs",
-      "runtime/scripts/ai-workflow/guidance-summary.mjs",
-      "runtime/scripts/ai-workflow/guideline-audit.mjs",
-      "runtime/scripts/ai-workflow/kanban-ticket.mjs",
-      "runtime/scripts/ai-workflow/kanban.mjs",
-      "runtime/scripts/ai-workflow/project-summary.mjs",
-      "runtime/scripts/ai-workflow/route-task.mjs",
-      "runtime/scripts/ai-workflow/sync.mjs",
-      "runtime/scripts/ai-workflow/verification-summary.mjs"
-    ],
-    prefixes: [
-      "scripts/ai-workflow/"
-    ]
+    exact: ["cli/lib/main.mjs", "core/services/sync.mjs", "core/services/orchestrator.mjs", "core/services/js-orchestrator.mjs", "core/services/projections.mjs"],
+    prefixes: ["tests/orchestrator.test.mjs", "tests/sync.test.mjs", "scripts/ai-workflow/"]
   },
   init: {
     description: "Project bootstrap, template install, audit baseline, and dogfooding/report scaffolding.",
-    exact: [
-      "AGENTS.md",
-      "execution-protocol.md",
-      "project-guidelines.md",
-      "enforcement.md",
-      "knowledge.md",
-      "cli/lib/install.mjs",
-      "runtime/scripts/ai-workflow/dogfood.mjs",
-      "runtime/scripts/ai-workflow/lib/audit-utils.mjs",
-      "runtime/scripts/ai-workflow/lib/dogfood-utils.mjs",
-      "runtime/scripts/ai-workflow/lib/operator-surfaces.mjs",
-      "runtime/scripts/ai-workflow/workflow-audit.mjs",
-      "scripts/generate-manual-html.mjs",
-      "scripts/init-project.mjs",
-      "docs/manual.html",
-      "scripts/ai-workflow/dogfood.mjs",
-      "scripts/ai-workflow/workflow-audit.mjs"
-    ],
-    prefixes: [
-      "templates/"
-    ]
+    prefixes: ["templates/", "scripts/init-project.mjs", "docs/MANUAL.md", "AGENTS.md", "execution-protocol.md", "project-guidelines.md", "enforcement.md", "knowledge.md"]
+  },
+  "smart-programming": {
+    description: "Harness for generating and verifying complex features autonomously.",
+    prefixes: ["core/services/dogfood-harness.mjs", "cli/lib/main.mjs"]
   }
 };
 
 export function listOperatorSurfaceIds() {
   return Object.keys(OPERATOR_SURFACES);
+}
+
+export async function computeSurfaceDigest(surfaceId) {
+  const definition = OPERATOR_SURFACES[surfaceId];
+  if (!definition) {
+    throw new Error(`Unknown operator surface: ${surfaceId}`);
+  }
+
+  const files = await listRepoFiles();
+  const surfaceFiles = files.filter((f) => matchesSurfaceFile(f, definition));
+  const hashes = [];
+
+  for (const filePath of surfaceFiles) {
+    try {
+      const content = await readFile(filePath, "utf8");
+      hashes.push(createHash("sha1").update(content).digest("hex"));
+    } catch {
+      // ignore
+    }
+  }
+
+  return createHash("sha1").update(hashes.sort().join(",")).digest("hex");
 }
 
 export async function collectOperatorSurfaceState(root, requestedSurfaceIds = listOperatorSurfaceIds()) {
@@ -90,8 +70,12 @@ export async function collectOperatorSurfaceState(root, requestedSurfaceIds = li
 
     for (const relativePath of files) {
       const absolutePath = path.resolve(root, relativePath);
-      const buffer = await readFile(absolutePath);
-      fileHashes[relativePath] = createHash("sha256").update(buffer).digest("hex");
+      try {
+        const buffer = await readFile(absolutePath);
+        fileHashes[relativePath] = createHash("sha256").update(buffer).digest("hex");
+      } catch {
+        // ignore
+      }
     }
 
     surfaces[surfaceId] = {

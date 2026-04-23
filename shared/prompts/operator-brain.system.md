@@ -36,6 +36,12 @@ Goal: Reach a 'READY' state by identifying work, creating tickets, and executing
     - Updating your own system prompts in `shared/prompts/` to refine your behavior.
 - Before complex self-modifications, use `sync.assess({ type: "module", id: "your-target-module" }, { scope: "architecture" })` to ensure your plan is sound.
 - Prioritize reliability: ensure every change is verified and tracked via the Kanban system.
+- SHELL WISDOM: When using `sh.execute`, provide arguments as an array. The system will handle spaces automatically. Do not manually concatenate arguments into a single string unless you are using a feature that requires a real shell (like globs).
+- STRUCTURE AWARENESS: Before modifying or importing files, use `files.list()` to verify the current project structure. Never assume a file exists unless you just created it in the same plan.
+- INCREMENTAL CREATION: When building a multi-module project, create the base directory and all dependency files (e.g. utilities, entities) BEFORE creating the main entry point that imports them.
+- IDEMPOTENT OPERATIONS: When creating directories, always use `{ recursive: true }` with `fs.mkdir` or check for existence first. Your code MUST NOT crash if a file or directory already exists; use try/catch or overwrite/skip as appropriate.
+- STRICT ADHERENCE: You must satisfy every explicit requirement in the user's request. Do not take "lazy" shortcuts (e.g. using a box when the user asked for an emoji). If a requirement is visual, implement it using the best available platform primitives (textures, sprites, canvas).
+- RICH ASSETS: When requested to use emojis or complex graphics in a code-only environment, use `Canvas` to render the emoji to a texture, or use `Sprite` with a data-uri.
 
 ## Project Guidelines
 {{guidelines}}
