@@ -21,6 +21,17 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - Shell planning should use the live model-fit matrix plus cached web evidence and explicit refresh controls; `providers.ollama.plannerModel` is a manual override, not the normal default.
 - Mutating shell work must be blocked until the board has exactly one ticket in `In Progress`; the shell should tell the operator to move the ticket first instead of bypassing workflow state. State changes with their own command surface should use that command surface instead of shell execution.
 
+## Machine-Enforced Guardrails
+<!-- category: architecture -->
+<!-- tags: validation, guardrails, automated-testing, integrity -->
+
+These rules are HARD-CODED into the `operator-brain` and will cause any plan to fail and trigger self-correction if violated:
+
+1. **The ESM Law**: `require()` is forbidden. All imports must use dynamic `await import()`.
+2. **The Ticket Mandate**: Any plan that calls `files.write` or performs a `git` mutation MUST also call `sync.createTicket` or `sync.updateTicketLifecycle` to ensure work is tracked.
+3. **The Core Safety Lock**: Any plan that modifies files in `core/` or `cli/` MUST also include a call to `sync.assess` on the relevant target. This prevents accidental corruption of the tool's engine.
+4. **The Helper Preservation Act**: Plans are forbidden from redeclaring standard helper names (e.g. `const sync = ...`) which would shadow the system-injected globals.
+
 ## Architecture
 <!-- category: architecture -->
 <!-- tags: kanban, epics, projections, modules, services, APIs, boundaries -->

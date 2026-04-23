@@ -30,9 +30,15 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
+- [ ] 9fce6cc1d0b1b098a52bfa4f838bb707b26ffc9a Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] 7364ee4a044a36a52dacd2f8c6b44b6b54418418 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 - [ ] ed9ca010eb7ac22550bae7e28ccde7d2d25ba644 Assessment: health on project:ai-workflow
-  - Summary: Status: pending. Plan: Available
-  - State: pending
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 - [ ] e1a5300cdc6e501d9c589cc207af06c6735db999 Assessment: health on project:ai-workflow
   - Summary: Status: failed. Plan: Available
   - State: failed

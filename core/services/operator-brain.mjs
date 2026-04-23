@@ -18,7 +18,7 @@ import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
 import { buildTicketEntity } from "./projections.mjs";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
-import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate } from "../lib/filesystem.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.mjs";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -252,7 +252,7 @@ export async function planOperatorRequest(inputText, options = {}) {
         elapsedMs: Date.now() - attemptStartedAt
       });
       const parsedPlan = normalizePlannerResponse(parsePlannerResponse(completion.response));
-      validateGeneratedPlan(parsedPlan);
+      validateGeneratedPlan(parsedPlan, options);
       plan = parsedPlan;
       attempts.push({
         providerId: candidate.providerId,
@@ -904,8 +904,12 @@ function normalizePlannerResponse(plan) {
   return plan;
 }
 
-function validateGeneratedPlan(plan) {
+function validateGeneratedPlan(plan, options = {}) {
   if (!plan || plan.kind !== "plan" || typeof plan.code !== "string" || !plan.code.trim()) {
+    return;
+  }
+
+  if (options.skipGuardrails) {
     return;
   }
   const trimmedCode = plan.code
@@ -928,6 +932,22 @@ function validateGeneratedPlan(plan) {
 
   if (/\brequire\s*\(/.test(trimmedCode)) {
     throw new Error("generated JS failed validation: 'require()' is forbidden in this ESM environment. Use dynamic 'await import()'.");
+  }
+
+  // Guardrail: Ticket Prerequisite for Mutations
+  if (/\bfiles\.write\s*\(/.test(trimmedCode) || /\bsh\.execute\s*\(\s*['"`]git\b/.test(trimmedCode)) {
+    const hasTicketCall = /\bsync\.createTicket\s*\(/.test(trimmedCode) || /\bsync\.updateTicketLifecycle\s*\(/.test(trimmedCode);
+    if (!hasTicketCall) {
+      throw new Error("generated JS failed validation: Any code that modifies files or git state MUST first create or update a ticket via 'sync.createTicket' or 'sync.updateTicketLifecycle'.");
+    }
+  }
+
+  // Guardrail: Safety for Core modifications
+  if (/\bfiles\.write\s*\(\s*['"`](?:core|cli)\//.test(trimmedCode)) {
+    const hasAssessment = /\bsync\.assess\s*\(/.test(trimmedCode);
+    if (!hasAssessment) {
+       throw new Error("generated JS failed validation: Modifying core system files (core/ or cli/) requires a preceding 'await sync.assess(target, { scope: \"architecture\" })' call to ensure systemic integrity.");
+    }
   }
 
   const reservedHelpers = [

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-04-22T17:05:19.986Z",
+  "generatedAt": "2026-04-23T07:00:18.810Z",
   "root": "/home/dharmax/work/ai-workflow",
   "toolkitRoot": "/home/dharmax/work/ai-workflow",
   "profile": "full",
@@ -9,15 +9,15 @@
   "workspaceHonesty": {
     "status": "pass",
     "root": "/home/dharmax/work/ai-workflow",
-    "checkedAt": "2026-04-22T17:08:29.057Z",
-    "trackedFileCount": 239,
+    "checkedAt": "2026-04-23T07:03:22.182Z",
+    "trackedFileCount": 245,
     "suspiciousCount": 0,
     "suspiciousFiles": [],
     "latestMutation": {
-      "id": "ec67e73aac7dbe18573f88313161521da1138cff",
+      "id": "56a21703d22c1687e9d636050e2ae1e1116db57d",
       "operation": "sync projections",
       "status": "completed",
-      "completedAt": "2026-04-22T17:06:19.975Z",
+      "completedAt": "2026-04-23T07:01:14.977Z",
       "changedFiles": [
         "kanban.md",
         "epics.md"
@@ -34,7 +34,7 @@
         "docs/MANUAL.md"
       ],
       "fileHashes": {
-        "cli/lib/shell.mjs": "b6da4b82e2020bb0bc06030705a88cdd7da32beaab5749df6758121d017f3eba",
+        "cli/lib/shell.mjs": "7da83419f4e1c32db5f100cf9f10451d3ca19846b210c1331305c8a35f4c85b2",
         "docs/MANUAL.md": "0d6047efb8d2a318eb8f85567e69fe236ff428fa66062eef5763c9a593d73881"
       },
       "scenarios": [
@@ -45,7 +45,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 6981,
+          "durationMs": 1855,
           "model": null,
           "progressLines": [],
           "stdout": "{\n  \"input\": \"doctor\",\n  \"plan\": {\n    \"kind\": \"plan\",\n    \"actions\": [\n      {\n        \"type\": \"doctor\"\n      }\n    ],\n    \"graph\": {\n      \"nodes\": [\n        {\n          \"id\": \"n1\",\n          \"kind\": \"action\",\n          \"type\": \"doctor\",\n          \"action\": {\n            \"type\": \"doctor\"\n          },\n          \"dependsOn\": [],\n          \"status\": \"pending\"\n        },\n        {\n          \"id\": \"n2\",\n          \"kind\": \"synthesize\",\n          \"type\": \"synthesize\",\n          \"dependsOn\": [\n            \"n1\"\n          ],\n          \"status\": \"pending\"\n        }\n      ]\n    },\n    \"confidence\": 0.98,\n    \"reason\": \"Explicit diagnostics request.\",\n    \"assistantReply\": null,\n    \"intent\": {\n      \"version\": \"1\",\n      \"capability\": \"project-planning\",\n      \"objective\": \"Handle the current shell request.\",\n      \"subject\": null,\n      \"taskClass\": null,\n      \"scope\": \"repo-targeted\",\n      \"risk\": \"low\",\n      \"responseStyle\": {\n        \"detail\": \"normal\",\n        \"format\": \"paragraphs\",\n        \"includeExamples\": false\n      },\n      \"needsRepoContext\": true,\n      \"needsMutation\": false,\n      \"safeToAutoExecute\": false,\n      \"followUpMode\": \"new-request\",\n      \"references\": {\n        \"tickets\": [],\n        \"files\": [],\n        \"modules\": [],\n        \"graphNodeIds\": [],\n        \"evidence\": []\n      },\n      \"directAnswerOnly\": false\n    },\n    \"finalAnswerPolicy\": {\n      \"verbosity\": \"normal\",\n      \"format\": \"paragraphs\",\n      \"includeEvidence\": true,\n      \"includeNextSteps\": true,\n      \"includeExamples\": false\n    },\n    \"executionGraph\": {\n      \"nodes\": [\n        {\n  \n... [truncated]",
@@ -58,10 +58,10 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 496,
+          "durationMs": 641,
           "model": null,
           "progressLines": [],
-          "stdout": "{\n  \"input\": \"doctor help\",\n  \"plan\": {\n    \"kind\": \"reply\",\n    \"reply\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\"\n  },\n  \"executed\": [],\n  \"executedGraph\": null,\n  \"preRendered\": false,\n  \"history\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"doctor help\"\n    },\n    {\n      \"role\": \"ai\",\n      \"content\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\"\n    }\n  ],\n  \"assistantReply\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\",\n  \"workflowResult\": null,\n  \"traceEvents\": [],\n  \"workflowTraceEvents\": [],\n  \"options\": {\n    \"root\": \"/home/dharmax/work/ai-workflow\",\n    \"json\": true,\n    \"trace\": false,\n    \"traceFilePath\": null,\n    \"traceConsole\": true,\n    \"shellMode\": \"plan\",\n    \"requestedWorkMode\": \"auto\",\n    \"effectiveWorkMode\": \"planning\",\n    \"modeSource\": \"default\",\n    \"runId\": \"96910e1ed5e71dee3a32fc9b35367d9c1c7410b5\"\n  }\n}\n",
+          "stdout": "{\n  \"input\": \"doctor help\",\n  \"plan\": {\n    \"kind\": \"reply\",\n    \"reply\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\"\n  },\n  \"executed\": [],\n  \"executedGraph\": null,\n  \"preRendered\": false,\n  \"history\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"doctor help\"\n    },\n    {\n      \"role\": \"ai\",\n      \"content\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\"\n    }\n  ],\n  \"assistantReply\": \"doctor: run local diagnostics and provider visibility checks.\\nUsage: `doctor`\\nCLI equivalent: `ai-workflow doctor`\",\n  \"workflowResult\": null,\n  \"traceEvents\": [],\n  \"workflowTraceEvents\": [],\n  \"options\": {\n    \"root\": \"/home/dharmax/work/ai-workflow\",\n    \"json\": true,\n    \"trace\": false,\n    \"traceFilePath\": null,\n    \"traceConsole\": true,\n    \"shellMode\": \"plan\",\n    \"requestedWorkMode\": \"auto\",\n    \"effectiveWorkMode\": \"planning\",\n    \"modeSource\": \"default\",\n    \"runId\": \"5cb914fc4f182314aa39e92bde78d31f849e6352\"\n  }\n}\n",
           "stderr": ""
         },
         {
@@ -71,7 +71,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 519,
+          "durationMs": 632,
           "model": null,
           "progressLines": [],
           "stdout": "{\n  \"input\": \"can you write an epic?\",\n  \"plan\": {\n    \"kind\": \"reply\",\n    \"actions\": [],\n    \"graph\": {\n      \"nodes\": []\n    },\n    \"reply\": \"Yes.\\nGive me the epic topic, or say `create epic for <topic>`.\\nExample: `create epic for Telegram remote-control`.\",\n    \"confidence\": 0.98,\n    \"reason\": \"Epic ideation request is missing a topic.\",\n    \"assistantReply\": \"Yes.\\nGive me the epic topic, or say `create epic for <topic>`.\\nExample: `create epic for Telegram remote-control`.\",\n    \"intent\": {\n      \"version\": \"1\",\n      \"capability\": \"project-planning\",\n      \"objective\": \"Handle the current shell request.\",\n      \"subject\": null,\n      \"taskClass\": null,\n      \"scope\": \"workflow-state\",\n      \"risk\": \"low\",\n      \"responseStyle\": {\n        \"detail\": \"normal\",\n        \"format\": \"paragraphs\",\n        \"includeExamples\": false\n      },\n      \"needsRepoContext\": false,\n      \"needsMutation\": false,\n      \"safeToAutoExecute\": false,\n      \"followUpMode\": \"new-request\",\n      \"references\": {\n        \"tickets\": [],\n        \"files\": [],\n        \"modules\": [],\n        \"graphNodeIds\": [],\n        \"evidence\": []\n      },\n      \"directAnswerOnly\": true\n    },\n    \"finalAnswerPolicy\": {\n      \"verbosity\": \"normal\",\n      \"format\": \"paragraphs\",\n      \"includeEvidence\": false,\n      \"includeNextSteps\": true,\n      \"includeExamples\": false\n    },\n    \"executionGraph\": {\n      \"nodes\": []\n    },\n    \"focusTaskClass\": null\n  },\n  \"executed\": [],\n  \"executedGraph\": {\n    \"nodes\": [],\n    \"executions\": [],\n    \"branchPath\": []\n  },\n  \"continuationState\": {\n    \"request\": \"can you write\n... [truncated]",
@@ -84,7 +84,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 522,
+          "durationMs": 621,
           "model": null,
           "progressLines": [],
           "stdout": "{\n  \"input\": \"epic?\",\n  \"plan\": {\n    \"kind\": \"reply\",\n    \"actions\": [],\n    \"graph\": {\n      \"nodes\": []\n    },\n    \"reply\": \"There is no active epic yet.\\nFor the full list, run `ai-workflow project epic list`.\\nTo create a new one, say `create epic for ...`.\",\n    \"confidence\": 0.9,\n    \"reason\": \"No active epic in smart status.\",\n    \"assistantReply\": \"There is no active epic yet.\\nFor the full list, run `ai-workflow project epic list`.\\nTo create a new one, say `create epic for ...`.\",\n    \"intent\": {\n      \"version\": \"1\",\n      \"capability\": \"project-planning\",\n      \"objective\": \"Handle the current shell request.\",\n      \"subject\": null,\n      \"taskClass\": null,\n      \"scope\": \"workflow-state\",\n      \"risk\": \"low\",\n      \"responseStyle\": {\n        \"detail\": \"normal\",\n        \"format\": \"paragraphs\",\n        \"includeExamples\": false\n      },\n      \"needsRepoContext\": false,\n      \"needsMutation\": false,\n      \"safeToAutoExecute\": false,\n      \"followUpMode\": \"new-request\",\n      \"references\": {\n        \"tickets\": [],\n        \"files\": [],\n        \"modules\": [],\n        \"graphNodeIds\": [],\n        \"evidence\": []\n      },\n      \"directAnswerOnly\": true\n    },\n    \"finalAnswerPolicy\": {\n      \"verbosity\": \"normal\",\n      \"format\": \"paragraphs\",\n      \"includeEvidence\": false,\n      \"includeNextSteps\": true,\n      \"includeExamples\": false\n    },\n    \"executionGraph\": {\n      \"nodes\": []\n    },\n    \"focusTaskClass\": null\n  },\n  \"executed\": [],\n  \"executedGraph\": {\n    \"nodes\": [],\n    \"executions\": [],\n    \"branchPath\": []\n  },\n  \"continuationState\": {\n    \"request\": \"epic?\n... [truncated]",
@@ -97,7 +97,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 9824,
+          "durationMs": 10549,
           "model": "ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434",
           "progressLines": [
             "[progress] refreshing providers",
@@ -105,7 +105,7 @@
             "[progress] refreshing context",
             "[progress] planning and running -> ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434"
           ],
-          "stdout": "Current workflow state:\n- Focus ticket: none currently active.\n- Active tickets: 0\n- Recent automation success rate: 84% across 141 recorded calls.\n\nRecommendation: sync the project and create the next concrete ticket before executing more work.\nWhy: the workflow state does not currently expose an active ticket, so the next useful move is to establish a tracked focus item.\n",
+          "stdout": "Current workflow state:\n- Focus ticket: none currently active.\n- Active tickets: 0\n- Recent automation success rate: 83% across 155 recorded calls.\n\nRecommendation: sync the project and create the next concrete ticket before executing more work.\nWhy: the workflow state does not currently expose an active ticket, so the next useful move is to establish a tracked focus item.\n",
           "stderr": "[progress] refreshing providers\n[progress] syncing project\n[progress] refreshing context\n[progress] planning and running -> ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434\n[trace] planning grounded-brief -> grounded-brief\nprompt:\nGive me a concise operator brief grounded in the current workflow state, and justify the recommendation.\nresponse:\nnull\nerror:\nnull\n\nsemantic validation warning: Shell transcript judging failed because every routed candidate returned an error or an unstructured verdict.\n- ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest judge timed out after 15000ms\n- ollama:moondream:latest judge timed out after 15000ms\n- google:gemini-2.0-flash Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- google:gemini-2.0-pro-exp Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- openai:gpt-4o judge timed out after 10000ms",
           "semanticJudgment": {
             "status": "needs_human_review",
@@ -121,7 +121,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 2033,
+          "durationMs": 2411,
           "model": "ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434",
           "progressLines": [
             "[progress] refreshing providers",
@@ -130,12 +130,12 @@
             "[progress] planning and running -> ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434"
           ],
           "stdout": "The projections service lives in core/services/projections.mjs.\nIt turns workflow DB state into operator-facing summaries and files, including the project summary, kanban projection, epics projection, and projection writes back to disk.\nEvidence: buildProjectSummary, renderKanbanProjection, renderEpicsProjection, and writeProjectProjections are defined there.\n",
-          "stderr": "[progress] refreshing providers\n[progress] syncing project\n[progress] refreshing context\n[progress] planning and running -> ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434\n[trace] planning grounded -> grounded-reply\nprompt:\nwhat is the projections service?\nresponse:\nnull\nerror:\nnull\n",
+          "stderr": "[progress] refreshing providers\n[progress] syncing project\n[progress] refreshing context\n[progress] planning and running -> ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest @ http://lotus:11434\n[trace] planning grounded -> grounded-reply\nprompt:\nwhat is the projections service?\nresponse:\nnull\nerror:\nnull\n\nsemantic validation warning: Shell transcript judging failed because every routed candidate returned an error or an unstructured verdict.\n- ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest judge timed out after 15000ms\n- ollama:moondream:latest judge timed out after 15000ms\n- google:gemini-2.0-flash Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- google:gemini-2.0-pro-exp Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- openai:gpt-4o judge timed out after 10000ms",
           "semanticJudgment": {
-            "status": "pass",
-            "score": 9,
-            "confidence": 1,
-            "summary": "The shell transcript successfully explains the projections service with grounded evidence from the repository."
+            "status": "needs_human_review",
+            "score": 0,
+            "confidence": 0,
+            "summary": "Shell transcript judging failed because every routed candidate returned an error or an unstructured verdict.\n- ollama:fluffy/llama-3.1-8b-stheno-v3.4:latest judge timed out after 15000ms\n- ollama:moondream:latest judge timed out after 15000ms\n- google:gemini-2.0-flash Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- google:gemini-2.0-pro-exp Gemini API key is blocked for Generative Language API. Please ensure 'Generative Language API' is enabled in your Google Cloud Project and that your API key has permission to use it.\n- openai:gpt-4o judge timed out after 10000ms"
           }
         }
       ],
@@ -177,7 +177,7 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 1130,
+          "durationMs": 1156,
           "model": null,
           "progressLines": [],
           "stdout": "{\n  \"cwd\": \"/home/dharmax/work/ai-workflow\",\n  \"platform\": \"linux\",\n  \"arch\": \"x64\",\n  \"node\": \"v25.8.1\",\n  \"cpuCount\": 16,\n  \"totalMemoryGb\": 31.29,\n  \"leanCtx\": {\n    \"installed\": true,\n    \"path\": \"/usr/bin/lean-ctx\",\n    \"version\": \"3.3.2\",\n    \"details\": \"lean-ctx available at /usr/bin/lean-ctx (3.3.2)\"\n  },\n  \"git\": {\n    \"installed\": true,\n    \"details\": \"git version 2.53.0\"\n  },\n  \"providers\": {\n    \"openai\": {\n      \"available\": true,\n      \"modelCount\": 2,\n      \"local\": false\n    },\n    \"anthropic\": {\n      \"available\": false,\n      \"modelCount\": 2,\n      \"local\": false\n    },\n    \"google\": {\n      \"available\": true,\n      \"modelCount\": 2,\n      \"local\": false\n    },\n    \"ollama\": {\n      \"available\": true,\n      \"modelCount\": 11,\n      \"local\": true\n    }\n  },\n  \"ollama\": {\n    \"installed\": true,\n    \"configured\": true,\n    \"status\": \"available\",\n    \"host\": \"http://lotus:11434\",\n    \"hardwareClass\": null,\n    \"plannerModel\": null,\n    \"plannerMaxQuality\": null,\n    \"maxModelSizeB\": 4,\n    \"models\": [\n      {\n        \"id\": \"hermes3:8b\",\n        \"quality\": \"medium\",\n        \"capabilities\": {\n          \"logic\": 2.9,\n          \"strategy\": 3.2,\n          \"creative\": 3.9,\n          \"visual\": 0,\n          \"prose\": 4.6\n        },\n        \"fitScore\": 85,\n        \"fitReasons\": [\n          \"capability fit 69.8/100\",\n          \"quality medium\",\n          \"local provider\",\n          \"model family fit +8.0\",\n          \"cost signal +8.0\"\n        ]\n      },\n      {\n        \"id\": \"gemma4:e4b\",\n        \"quality\": \"medium\",\n        \"capabilities\": {\n          \"logic\": 2.5,\n      \n... [truncated]",
@@ -190,10 +190,10 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 201,
+          "durationMs": 235,
           "model": null,
           "progressLines": [],
-          "stdout": "{\n  \"taskClass\": \"shell-planning\",\n  \"capability\": \"strategy\",\n  \"minimumQuality\": \"low\",\n  \"recommended\": {\n    \"providerId\": \"ollama\",\n    \"modelId\": \"fluffy/llama-3.1-8b-stheno-v3.4:latest\",\n    \"local\": true,\n    \"quality\": \"medium\",\n    \"costTier\": 1,\n    \"competency\": 2.5,\n    \"fitScore\": 78,\n    \"fitReasons\": [\n      \"capability fit 63.0/100\",\n      \"quality medium\",\n      \"local provider\",\n      \"model family fit +8.0\",\n      \"cost signal +8.0\"\n    ],\n    \"quota\": null,\n    \"freeQuotaRemaining\": null,\n    \"apiKey\": null,\n    \"host\": \"http://lotus:11434\",\n    \"baseUrl\": null,\n    \"score\": 42.9,\n    \"reason\": \"competency 2.5/5 for strategy, local-first candidate, fit score 78, low cost tier\"\n  },\n  \"fallbackChain\": [\n    {\n      \"providerId\": \"ollama\",\n      \"modelId\": \"gemma4:e4b\",\n      \"local\": true,\n      \"quality\": \"medium\",\n      \"costTier\": 1,\n      \"competency\": 2.5,\n      \"fitScore\": 84,\n      \"fitReasons\": [\n        \"capability fit 63.0/100\",\n        \"quality medium\",\n        \"local provider\",\n        \"model family fit +14.0\",\n        \"cost signal +8.0\"\n      ],\n      \"quota\": null,\n      \"freeQuotaRemaining\": null,\n      \"apiKey\": null,\n      \"host\": \"http://lotus:11434\",\n      \"baseUrl\": null,\n      \"score\": 40.4,\n      \"reason\": \"competency 2.5/5 for strategy, local-first candidate, fit score 84, low cost tier\"\n    },\n    {\n      \"providerId\": \"ollama\",\n      \"modelId\": \"qwen2.5-coder:7b\",\n      \"local\": true,\n      \"quality\": \"low\",\n      \"costTier\": 1,\n      \"competency\": 3.2,\n      \"fitScore\": 68,\n      \"fitReasons\": [\n        \"capability fit 67.0/100\"\n... [truncated]",
+          "stdout": "{\n  \"taskClass\": \"shell-planning\",\n  \"capability\": \"strategy\",\n  \"minimumQuality\": \"low\",\n  \"recommended\": {\n    \"providerId\": \"ollama\",\n    \"modelId\": \"fluffy/llama-3.1-8b-stheno-v3.4:latest\",\n    \"local\": true,\n    \"quality\": \"medium\",\n    \"costTier\": 1,\n    \"competency\": 2.5,\n    \"fitScore\": 78,\n    \"fitReasons\": [\n      \"capability fit 63.0/100\",\n      \"quality medium\",\n      \"local provider\",\n      \"model family fit +8.0\",\n      \"cost signal +8.0\"\n    ],\n    \"quota\": null,\n    \"freeQuotaRemaining\": null,\n    \"apiKey\": null,\n    \"host\": \"http://lotus:11434\",\n    \"baseUrl\": null,\n    \"score\": 42.349999999999994,\n    \"reason\": \"competency 2.5/5 for strategy, local-first candidate, fit score 78, low cost tier\"\n  },\n  \"fallbackChain\": [\n    {\n      \"providerId\": \"ollama\",\n      \"modelId\": \"gemma4:e4b\",\n      \"local\": true,\n      \"quality\": \"medium\",\n      \"costTier\": 1,\n      \"competency\": 2.5,\n      \"fitScore\": 84,\n      \"fitReasons\": [\n        \"capability fit 63.0/100\",\n        \"quality medium\",\n        \"local provider\",\n        \"model family fit +14.0\",\n        \"cost signal +8.0\"\n      ],\n      \"quota\": null,\n      \"freeQuotaRemaining\": null,\n      \"apiKey\": null,\n      \"host\": \"http://lotus:11434\",\n      \"baseUrl\": null,\n      \"score\": 40.4,\n      \"reason\": \"competency 2.5/5 for strategy, local-first candidate, fit score 84, low cost tier\"\n    },\n    {\n      \"providerId\": \"ollama\",\n      \"modelId\": \"qwen2.5-coder:7b\",\n      \"local\": true,\n      \"quality\": \"low\",\n      \"costTier\": 1,\n      \"competency\": 3.2,\n      \"fitScore\": 68,\n      \"fitReasons\": [\n        \"capability\n... [truncated]",
           "stderr": ""
         }
       ],
@@ -226,11 +226,11 @@
         "runtime/scripts/ai-workflow/verification-summary.mjs"
       ],
       "fileHashes": {
-        "cli/lib/main.mjs": "b202e5c16a7fac3d00a648df598096261c528c19fcbecfb6171f7080e0c1d341",
+        "cli/lib/main.mjs": "1ad0be7cabb9aa1ab8fc805df687d023bcea5f73c1b2a368cdea664a2bc7ed4e",
         "core/services/host-resolver.mjs": "dc56a65cbf41d2ca1aa342d4a51a5ef857f464da89c7f69f5a18a50c9b9955f3",
         "core/services/knowledge.mjs": "68591f28c14e4c2db10438a4ecee6cb04fe05f4ee427c2824714dca63a9c9f5f",
         "core/services/projections.mjs": "8f407a7c8963364ff866f73fa35f6e975e78760f5719d654b16c31dbdfb10bd7",
-        "core/services/sync.mjs": "2e59f9c252ddeb5d295856db749269503d93609f0d6cb6be842e1b19e9845975",
+        "core/services/sync.mjs": "a94e28a9b63f1ab08f93be6a8c882aa7402788a905e01d7375e0b51bdb7ee12d",
         "runtime/scripts/ai-workflow/context-pack.mjs": "7bd3d23b468c95ed830cc9f825aedeac72ecfdcacac3898a598a10556f7930b9",
         "runtime/scripts/ai-workflow/guidance-summary.mjs": "c8087ce72fd3a923d9a00d859757564dd41ed4529ea5fb6d75a398b45cc2d206",
         "runtime/scripts/ai-workflow/guideline-audit.mjs": "ea69f55549131aaf11494344aaf418d753c9b6b3eec7452d7de7ce524a7efe3d",
@@ -249,10 +249,10 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 126,
+          "durationMs": 139,
           "model": null,
           "progressLines": [],
-          "stdout": "{\n  \"projectRoot\": \"/home/dharmax/work/ai-workflow\",\n  \"dbPath\": \"/home/dharmax/work/ai-workflow/.ai-workflow/state/workflow.db\",\n  \"indexedFiles\": 0,\n  \"indexedSymbols\": 0,\n  \"indexedClaims\": 0,\n  \"indexedNotes\": 0,\n  \"codeletRegistry\": {\n    \"codeletsIndexed\": 33\n  },\n  \"importSummary\": {\n    \"importedTickets\": 0\n  },\n  \"lifecycle\": {\n    \"reviewed\": [],\n    \"skipped\": true\n  },\n  \"projections\": null,\n  \"summary\": {\n    \"fileCount\": 240,\n    \"noteCount\": 8,\n    \"symbolCount\": 6450,\n    \"claimCount\": 7227,\n    \"ticketCount\": 15,\n    \"assessmentCount\": 2,\n    \"codeletCount\": 33,\n    \"candidateCount\": 2,\n    \"activeTickets\": [],\n    \"candidates\": [\n      {\n        \"id\": \"f04b28fde356b99c5bae2ac3218e96339a50a71b\",\n        \"noteId\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n        \"title\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banner instead of returned modules\",\n        \"status\": \"doubtful-relevancy\",\n        \"reason\": \"BUG note scored 0.577\",\n        \"score\": 0.577,\n        \"decisionKey\": \"c3df12084540abc11da7fa91eaf90cc0c9f50903\",\n        \"lastReviewAt\": \"2026-04-19T12:30:44.020Z\",\n        \"nextReviewAt\": \"2026-04-21T00:30:44.020Z\",\n        \"data\": {\n          \"noteType\": \"BUG\",\n          \"filePath\": null\n        },\n        \"createdAt\": \"2026-04-19T12:30:35.344Z\",\n        \"updatedAt\": \"2026-04-22T17:05:35.729Z\"\n      }\n    ],\n    \"notes\": [\n      {\n    \n... [truncated]",
+          "stdout": "{\n  \"projectRoot\": \"/home/dharmax/work/ai-workflow\",\n  \"dbPath\": \"/home/dharmax/work/ai-workflow/.ai-workflow/state/workflow.db\",\n  \"indexedFiles\": 0,\n  \"indexedSymbols\": 0,\n  \"indexedClaims\": 0,\n  \"indexedNotes\": 0,\n  \"codeletRegistry\": {\n    \"codeletsIndexed\": 33\n  },\n  \"importSummary\": {\n    \"importedTickets\": 0\n  },\n  \"lifecycle\": {\n    \"reviewed\": [],\n    \"skipped\": true\n  },\n  \"projections\": null,\n  \"summary\": {\n    \"fileCount\": 246,\n    \"noteCount\": 8,\n    \"symbolCount\": 6512,\n    \"claimCount\": 7311,\n    \"ticketCount\": 15,\n    \"assessmentCount\": 12,\n    \"codeletCount\": 33,\n    \"candidateCount\": 2,\n    \"activeTickets\": [],\n    \"candidates\": [\n      {\n        \"id\": \"f04b28fde356b99c5bae2ac3218e96339a50a71b\",\n        \"noteId\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n        \"title\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banner instead of returned modules\",\n        \"status\": \"doubtful-relevancy\",\n        \"reason\": \"BUG note scored 0.577\",\n        \"score\": 0.577,\n        \"decisionKey\": \"c3df12084540abc11da7fa91eaf90cc0c9f50903\",\n        \"lastReviewAt\": \"2026-04-19T12:30:44.020Z\",\n        \"nextReviewAt\": \"2026-04-21T00:30:44.020Z\",\n        \"data\": {\n          \"noteType\": \"BUG\",\n          \"filePath\": null\n        },\n        \"createdAt\": \"2026-04-19T12:30:35.344Z\",\n        \"updatedAt\": \"2026-04-23T07:00:30.456Z\"\n      }\n    ],\n    \"notes\": [\n      {\n   \n... [truncated]",
           "stderr": ""
         },
         {
@@ -262,10 +262,10 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 94,
+          "durationMs": 101,
           "model": null,
           "progressLines": [],
-          "stdout": "{\n  \"fileCount\": 240,\n  \"noteCount\": 8,\n  \"symbolCount\": 6450,\n  \"claimCount\": 7227,\n  \"ticketCount\": 15,\n  \"assessmentCount\": 2,\n  \"codeletCount\": 33,\n  \"candidateCount\": 2,\n  \"activeTickets\": [],\n  \"candidates\": [\n    {\n      \"id\": \"f04b28fde356b99c5bae2ac3218e96339a50a71b\",\n      \"noteId\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n      \"title\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banner instead of returned modules\",\n      \"status\": \"doubtful-relevancy\",\n      \"reason\": \"BUG note scored 0.577\",\n      \"score\": 0.577,\n      \"decisionKey\": \"c3df12084540abc11da7fa91eaf90cc0c9f50903\",\n      \"lastReviewAt\": \"2026-04-19T12:30:44.020Z\",\n      \"nextReviewAt\": \"2026-04-21T00:30:44.020Z\",\n      \"data\": {\n        \"noteType\": \"BUG\",\n        \"filePath\": null\n      },\n      \"createdAt\": \"2026-04-19T12:30:35.344Z\",\n      \"updatedAt\": \"2026-04-22T17:05:35.729Z\"\n    }\n  ],\n  \"notes\": [\n    {\n      \"id\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n      \"noteType\": \"BUG\",\n      \"status\": \"observed\",\n      \"filePath\": null,\n      \"symbolName\": \"shell\",\n      \"line\": null,\n      \"column\": null,\n      \"body\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banner\n... [truncated]",
+          "stdout": "{\n  \"fileCount\": 246,\n  \"noteCount\": 8,\n  \"symbolCount\": 6512,\n  \"claimCount\": 7311,\n  \"ticketCount\": 15,\n  \"assessmentCount\": 12,\n  \"codeletCount\": 33,\n  \"candidateCount\": 2,\n  \"activeTickets\": [],\n  \"candidates\": [\n    {\n      \"id\": \"f04b28fde356b99c5bae2ac3218e96339a50a71b\",\n      \"noteId\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n      \"title\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banner instead of returned modules\",\n      \"status\": \"doubtful-relevancy\",\n      \"reason\": \"BUG note scored 0.577\",\n      \"score\": 0.577,\n      \"decisionKey\": \"c3df12084540abc11da7fa91eaf90cc0c9f50903\",\n      \"lastReviewAt\": \"2026-04-19T12:30:44.020Z\",\n      \"nextReviewAt\": \"2026-04-21T00:30:44.020Z\",\n      \"data\": {\n        \"noteType\": \"BUG\",\n        \"filePath\": null\n      },\n      \"createdAt\": \"2026-04-19T12:30:35.344Z\",\n      \"updatedAt\": \"2026-04-23T07:00:30.456Z\"\n    }\n  ],\n  \"notes\": [\n    {\n      \"id\": \"2e151afebd557fce9ae3be109a6327706f24a5f6\",\n      \"noteType\": \"BUG\",\n      \"status\": \"observed\",\n      \"filePath\": null,\n      \"symbolName\": \"shell\",\n      \"line\": null,\n      \"column\": null,\n      \"body\": \"Shell transcript regression: 'teach me how to use you' and 'which llms would you use?' produced generic assistant advice; 'what about ollama?' routed to project status; 'list me the modules of this project' generated JS successfully but only showed a success banne\n... [truncated]",
           "stderr": ""
         },
         {
@@ -275,10 +275,10 @@
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 171,
+          "durationMs": 192,
           "model": null,
           "progressLines": [],
-          "stdout": "\nActive Guardrails\n- [required] Operator-surface work is not done until the required surface gates pass: `ai-workflow dogfood` when applicable, and `workflow-audit` whenever workflow docs or operator contracts changed. (Project Guidelines)\n- [strong] Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline. (Manual)\n- [required] The workflow DB is the canonical operational state. `kanban.md` and `epics.md` are controlled projections, and direct edits must be reconciled instead of silently overwritten. (Project Guidelines)\n- [required] If the behavior claims workflow awareness, it must be grounded in canonical DB-backed state instead of prompt glue, transient locals, or duplicated surface-specific memory. (Project Guidelines)\n- [required] Workflow state must stay honest before closure: sync, projections, ticket lane, and archived state should all agree with the implemented result. (Project Guidelines)\n- [required] Failure honesty is part of done: if the system lacks evidence, capability, or readiness, it must surface that clearly instead of bluffing. (Project Guidelines)\n- [strong] Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer. (AGENTS)\n- [required] Treat the workflow DB as canonical state, and treat projections as readable outputs that must stay reconciled. (Manual)\n\nSuggested Validation\n- Level: small-ticket\n- Recommendation: Run quick but meaningful unit or module tests for the touched behavior.\n- C\n... [truncated]",
+          "stdout": "\nActive Guardrails\n- [required] Operator-surface work is not done until the required surface gates pass: `ai-workflow dogfood` when applicable, and `workflow-audit` whenever workflow docs or operator contracts changed. (Project Guidelines)\n- [strong] Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline. (Manual)\n- [required] **The Ticket Mandate**: Any plan that calls `files.write` or performs a `git` mutation MUST also call `sync.createTicket` or `sync.updateTicketLifecycle` to ensure work is tracked. (Project Guidelines)\n- [required] The workflow DB is the canonical operational state. `kanban.md` and `epics.md` are controlled projections, and direct edits must be reconciled instead of silently overwritten. (Project Guidelines)\n- [required] If the behavior claims workflow awareness, it must be grounded in canonical DB-backed state instead of prompt glue, transient locals, or duplicated surface-specific memory. (Project Guidelines)\n- [required] Workflow state must stay honest before closure: sync, projections, ticket lane, and archived state should all agree with the implemented result. (Project Guidelines)\n- [required] Failure honesty is part of done: if the system lacks evidence, capability, or readiness, it must surface that clearly instead of bluffing. (Project Guidelines)\n- [strong] Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer. (AGENTS)\n\nSuggested Validation\n- Level: small-ticket\n- Recommend\n... [truncated]",
           "stderr": ""
         }
       ],
@@ -326,9 +326,9 @@
         "cli/lib/install.mjs": "426f5debfb5285693e2121529abb84b27b2e064c09a0ec419e1bfdf791b23c3d",
         "docs/manual.html": "3d010b0d9a659ca01ad1e6637e90eca009ea8ea9d479e39da529014a324114a8",
         "enforcement.md": "f5716969046ee32ad3aa91093eab60b815c9d2ac5eb79753a2d3ccf891b8d0de",
-        "execution-protocol.md": "111169962ea325f26edc7a5ff4854e26428b36b3b700a205a68bc7dfc70f4027",
-        "knowledge.md": "0861119a18a50e70762b51672457b7c791a4a0aa0856a40d26fbc504c2558967",
-        "project-guidelines.md": "51ce88683f504ae5dae3ffe2a9c9092c388b48b9002f7c609614fcef8b8f4530",
+        "execution-protocol.md": "7dea071365868ba0cea351eb09e1781075da7e7819d438eb23e564099fc77c8a",
+        "knowledge.md": "91ff1abe706299b726d13e10f6ca156b2ba25e616e9ede38e3a20d16f94c57d6",
+        "project-guidelines.md": "aad6ab1b05d3a93c49fad5c3c4185db2caaadfcc31ee92716cc742a1ce885eb8",
         "runtime/scripts/ai-workflow/dogfood.mjs": "e3dc1be8fc63a12e6e2bb4c0b889c27be8bc1362b6f49f3296483719ae50d380",
         "runtime/scripts/ai-workflow/lib/audit-utils.mjs": "3a0dee68339e8a1268927b66af4f37e705d96b806e9953779a015f76ceb1dcd6",
         "runtime/scripts/ai-workflow/lib/dogfood-utils.mjs": "9f99f2e6b08293436b83e39fad93fa61e2c42cd6a35f4bdb7cfc01faca52b740",
@@ -352,27 +352,27 @@
         {
           "id": "init-project",
           "description": "init installs workflow scaffolding and bootstrap dogfood report",
-          "command": "/usr/local/bin/node /home/dharmax/work/ai-workflow/scripts/init-project.mjs --target /tmp/ai-workflow-dogfood-init-G9oIDY",
+          "command": "/usr/local/bin/node /home/dharmax/work/ai-workflow/scripts/init-project.mjs --target /tmp/ai-workflow-dogfood-init-B4Wz6K",
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 87055,
+          "durationMs": 82189,
           "model": null,
           "progressLines": [],
-          "stdout": "Target: /tmp/ai-workflow-dogfood-init-G9oIDY\nMode: write\nJS/TS project hint: package.json not found\nInitial sync: completed\n\nInstalled: 31\n- kanban.md\n- kanban-archive.md\n- epics.md\n- knowledge.md\n- AGENTS.md\n- CONTRIBUTING.md\n- execution-protocol.md\n- enforcement.md\n- project-guidelines.md\n- scripts/ai-workflow/artifact-judge.mjs\n- scripts/ai-workflow/context-pack.mjs\n- scripts/ai-workflow/dogfood.mjs\n- scripts/ai-workflow/execute-ticket.mjs\n- scripts/ai-workflow/execution-dry-run.mjs\n- scripts/ai-workflow/guidance-summary.mjs\n- scripts/ai-workflow/guideline-audit.mjs\n- scripts/ai-workflow/kanban-ticket.mjs\n- scripts/ai-workflow/kanban.mjs\n- scripts/ai-workflow/programming-dogfood-build.mjs\n- scripts/ai-workflow/programming-dogfood.mjs\n- scripts/ai-workflow/project-summary.mjs\n- scripts/ai-workflow/review-summary.mjs\n- scripts/ai-workflow/route-task.mjs\n- scripts/ai-workflow/shell-transcript-judge.mjs\n- scripts/ai-workflow/smart-codelet-runner.mjs\n- scripts/ai-workflow/sync.mjs\n- scripts/ai-workflow/telegram-preview.mjs\n- scripts/ai-workflow/ticket-proving-run.mjs\n- scripts/ai-workflow/tutorial-web.mjs\n- scripts/ai-workflow/verification-summary.mjs\n- scripts/ai-workflow/workflow-audit.mjs\n\nOverwritten: 0\n\nSkipped existing: 0\n\nIdentical: 0\n\nDB: /tmp/ai-workflow-dogfood-init-G9oIDY/.ai-workflow/state/workflow.db\nIndexed files: 31\nSymbols: 93\nClaims: 225\nNotes: 0\n",
+          "stdout": "Target: /tmp/ai-workflow-dogfood-init-B4Wz6K\nMode: write\nJS/TS project hint: package.json not found\nInitial sync: completed\n\nInstalled: 31\n- kanban.md\n- kanban-archive.md\n- epics.md\n- knowledge.md\n- AGENTS.md\n- CONTRIBUTING.md\n- execution-protocol.md\n- enforcement.md\n- project-guidelines.md\n- scripts/ai-workflow/artifact-judge.mjs\n- scripts/ai-workflow/context-pack.mjs\n- scripts/ai-workflow/dogfood.mjs\n- scripts/ai-workflow/execute-ticket.mjs\n- scripts/ai-workflow/execution-dry-run.mjs\n- scripts/ai-workflow/guidance-summary.mjs\n- scripts/ai-workflow/guideline-audit.mjs\n- scripts/ai-workflow/kanban-ticket.mjs\n- scripts/ai-workflow/kanban.mjs\n- scripts/ai-workflow/programming-dogfood-build.mjs\n- scripts/ai-workflow/programming-dogfood.mjs\n- scripts/ai-workflow/project-summary.mjs\n- scripts/ai-workflow/review-summary.mjs\n- scripts/ai-workflow/route-task.mjs\n- scripts/ai-workflow/shell-transcript-judge.mjs\n- scripts/ai-workflow/smart-codelet-runner.mjs\n- scripts/ai-workflow/sync.mjs\n- scripts/ai-workflow/telegram-preview.mjs\n- scripts/ai-workflow/ticket-proving-run.mjs\n- scripts/ai-workflow/tutorial-web.mjs\n- scripts/ai-workflow/verification-summary.mjs\n- scripts/ai-workflow/workflow-audit.mjs\n\nOverwritten: 0\n\nSkipped existing: 0\n\nIdentical: 0\n\nDB: /tmp/ai-workflow-dogfood-init-B4Wz6K/.ai-workflow/state/workflow.db\nIndexed files: 31\nSymbols: 93\nClaims: 225\nNotes: 0\n",
           "stderr": ""
         },
         {
           "id": "init-audit",
           "description": "initialized project passes workflow-audit immediately",
-          "command": "/usr/local/bin/node /tmp/ai-workflow-dogfood-init-G9oIDY/scripts/ai-workflow/workflow-audit.mjs --json",
+          "command": "/usr/local/bin/node /tmp/ai-workflow-dogfood-init-B4Wz6K/scripts/ai-workflow/workflow-audit.mjs --json",
           "ok": true,
           "code": 0,
           "timedOut": false,
-          "durationMs": 158,
+          "durationMs": 168,
           "model": null,
           "progressLines": [],
-          "stdout": "{\n  \"root\": \"/tmp/ai-workflow-dogfood-init-G9oIDY\",\n  \"status\": \"pass\",\n  \"failures\": [],\n  \"findings\": [],\n  \"activeDocs\": [\n    \"AGENTS.md\",\n    \"CONTRIBUTING.md\",\n    \"execution-protocol.md\",\n    \"enforcement.md\",\n    \"project-guidelines.md\",\n    \"knowledge.md\",\n    \"kanban.md\",\n    \"kanban-archive.md\",\n    \"epics.md\"\n  ],\n  \"packageScripts\": [],\n  \"workspaceHonesty\": {\n    \"status\": \"pass\",\n    \"root\": \"/tmp/ai-workflow-dogfood-init-G9oIDY\",\n    \"checkedAt\": \"2026-04-22T17:08:29.010Z\",\n    \"trackedFileCount\": 31,\n    \"suspiciousCount\": 0,\n    \"suspiciousFiles\": [],\n    \"latestMutation\": {\n      \"id\": \"96ed358c11f4017a7056c67678cfa3a1e8277675\",\n      \"operation\": \"init project\",\n      \"status\": \"completed\",\n      \"completedAt\": \"2026-04-22T17:08:28.867Z\",\n      \"changedFiles\": []\n    },\n    \"summary\": \"tracked files align with the latest ai-workflow mutation record\"\n  },\n  \"latestWorkflowContract\": null,\n  \"latestWorkflowGapReview\": null,\n  \"guidelineAudit\": {\n    \"blockCount\": 1,\n    \"ruleCounts\": {\n      \"headers\": 1,\n      \"forbiddenPatterns\": 3,\n      \"requiredPatterns\": 5,\n      \"forbiddenImports\": 1,\n      \"allowlists\": 0\n    }\n  }\n}\n",
+          "stdout": "{\n  \"root\": \"/tmp/ai-workflow-dogfood-init-B4Wz6K\",\n  \"status\": \"pass\",\n  \"failures\": [],\n  \"findings\": [],\n  \"activeDocs\": [\n    \"AGENTS.md\",\n    \"CONTRIBUTING.md\",\n    \"execution-protocol.md\",\n    \"enforcement.md\",\n    \"project-guidelines.md\",\n    \"knowledge.md\",\n    \"kanban.md\",\n    \"kanban-archive.md\",\n    \"epics.md\"\n  ],\n  \"packageScripts\": [],\n  \"workspaceHonesty\": {\n    \"status\": \"pass\",\n    \"root\": \"/tmp/ai-workflow-dogfood-init-B4Wz6K\",\n    \"checkedAt\": \"2026-04-23T07:03:22.132Z\",\n    \"trackedFileCount\": 31,\n    \"suspiciousCount\": 0,\n    \"suspiciousFiles\": [],\n    \"latestMutation\": {\n      \"id\": \"3228142f5cb6654f461b48a3b7785cb6b9d38794\",\n      \"operation\": \"init project\",\n      \"status\": \"completed\",\n      \"completedAt\": \"2026-04-23T07:03:21.982Z\",\n      \"changedFiles\": []\n    },\n    \"summary\": \"tracked files align with the latest ai-workflow mutation record\"\n  },\n  \"latestWorkflowContract\": null,\n  \"latestWorkflowGapReview\": null,\n  \"guidelineAudit\": {\n    \"blockCount\": 1,\n    \"ruleCounts\": {\n      \"headers\": 1,\n      \"forbiddenPatterns\": 3,\n      \"requiredPatterns\": 5,\n      \"forbiddenImports\": 1,\n      \"allowlists\": 0\n    }\n  }\n}\n",
           "stderr": "fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n"
         }
       ],

@@ -2537,6 +2537,24 @@ export async function buildShellPlannerPrompt(inputText, options) {
   const responseStyle = inferShellResponseStyle(inputText);
   const { recentMemory, longTermMemorySummary } = await summarizeHistory(history);
   const runtimeContext = buildShellPlannerRuntimeContext(options.plannerContext, options);
+  const { guidelines, lore } = await withWorkflowStore(options.root, async (store) => { const relevantGuidelines = await getRelevantGuidelineBlocks(store, { inputText, categories: ["process", "planning", "assessing", "analysis"] }); const relevantLore = await getRelevantGuidelineBlocks(store, { inputText, categories: ["lore"] }); return { guidelines: relevantGuidelines.map(b => `### ${b.title}\n${b.body}`).join("\n\n"), lore: relevantLore.map(b => `### ${b.title}\n${b.body}`).join("\n\n") }; });
+  const groundingContext = await buildShellPlannerGroundingContext(inputText, options);
+  const notesLoreExtra = buildShellPlannerNotesLoreExtra({ recentMemory, longTermMemorySummary, activeGraphState });
+  const schemaPrompt = buildShellPlannerSchemaPrompt();
+  const templateVariables = { catalog, runtimeContext, responseStyle: renderShellResponseStyle(responseStyle), guidanceContext: guidelines, groundingContext, notesLoreExtra: (notesLoreExtra || "") + "\n\n" + (lore || ""), schemaPrompt, inputText };
+  const { content: systemTemplate } = await loadPromptTemplate("shell-planner.system");
+  const systemResult = renderTemplate(systemTemplate, templateVariables);
+  const { content: promptTemplate } = await loadPromptTemplate("shell-planner.prompt");
+  const promptResult = renderTemplate(promptTemplate, templateVariables);
+  return { system: systemResult || "You are the shell planning brain. Plan the request.", prompt: promptResult || `## Request:\n"${inputText}"\n\nYour Response (JSON):` };
+}
+async function __original_buildShellPlannerPrompt__(inputText, options) {
+  const catalog = buildActionCatalog(options.plannerContext);
+  const history = options.history ?? [];
+  const activeGraphState = options.activeGraphState ?? null;
+  const responseStyle = inferShellResponseStyle(inputText);
+  const { recentMemory, longTermMemorySummary } = await summarizeHistory(history);
+  const runtimeContext = buildShellPlannerRuntimeContext(options.plannerContext, options);
   
   // Item: Targeted Guideline & Knowledge Injection
   const { guidelines, lore } = await withWorkflowStore(options.root, async (store) => {
@@ -5418,20 +5436,25 @@ function renderHumanShellResult(result) {
       output.write(`\nAI recovery:\n${renderRecovery(result.recovery)}`);
     }
     return;
-  }
-  for (const execution of result.executed) {
+    }
+
+    const suppressHeader = result.plan.actions.length === 1 && !result.preRendered;
+
+    for (const execution of result.executed) {
     const streamText = execution.ok ? execution.stdout : `${execution.stdout}${execution.stderr}`;
     const rendered = String(streamText ?? "").trim();
     if (rendered === STREAMED_STDIO) {
       continue;
     }
-    output.write(`\n> ${execution.command}\n`);
+    if (!suppressHeader) {
+      output.write(`\n> ${execution.command}\n`);
+    }
     if (rendered && rendered !== STREAMED_STDIO) {
       output.write(`${rendered}\n`);
     } else if (!execution.ok) {
       output.write("Command failed.\n");
     }
-  }
+    }
   if (result.recovery && result.plan.presentation !== "assistant-first") {
     output.write(`\nAI recovery:\n${renderRecovery(result.recovery)}`);
   }
@@ -7199,6 +7222,7 @@ export async function recordShellTurnHistory(options, line, result) {
   if (options.history.length > 10) {
     options.history = options.history.slice(-10);
   }
+  options.managedContext = await updateManagedContext(options.managedContext, line, assistantReply, options);
 
   // Update Managed Context (Continuous LLM Condensation)
   options.managedContext = await updateManagedContext(options.managedContext, line, assistantReply, options);
@@ -7235,7 +7259,7 @@ async function writeShellStateFile(filePath, options) {
     updatedAt: new Date().toISOString()
   };
   await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  payload.managedContext = options.managedContext || null; await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
 function buildTicketContextPackArgs(plannerContext, ticketId) {
