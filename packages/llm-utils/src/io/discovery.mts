@@ -1,4 +1,4 @@
-import { ProviderId, ProviderConfig, ModelInfo } from '../types.js';
+import { ProviderId, ProviderConfig, ModelInfo } from '../types';
 
 export interface DiscoveryOptions {
   forceRefresh?: boolean;
@@ -81,7 +81,11 @@ export class ProviderDiscovery {
        };
     }
 
-    return { providers, knowledge };
+    return { 
+      providers, 
+      knowledge,
+      routingPolicy: config.routingPolicy || { quotaStrategy: 'prefer-free-remote' }
+    };
   }
 
   /**

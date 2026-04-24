@@ -1,8 +1,8 @@
-import { ProviderConfig, ModelInfo, GenerationResult, ProviderAdapter, GenerateOptions } from '../types.js';
-import { OllamaProvider } from '../io/ollama-adapter.js';
-import { OpenAIAdapter } from '../io/openai-adapter.js';
-import { GoogleAdapter } from '../io/google-adapter.js';
-import { AnthropicAdapter } from '../io/anthropic-adapter.js';
+import { ProviderConfig, ModelInfo, GenerationResult, ProviderAdapter, GenerateOptions } from '../types';
+import { OllamaProvider } from '../io/ollama-adapter';
+import { OpenAIAdapter } from '../io/openai-adapter';
+import { GoogleAdapter } from '../io/google-adapter';
+import { AnthropicAdapter } from '../io/anthropic-adapter';
 
 export interface CompletionOptions {
   system?: string;

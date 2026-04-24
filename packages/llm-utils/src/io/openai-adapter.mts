@@ -1,4 +1,4 @@
-import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types.js';
+import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types';
 
 export class OpenAIAdapter implements ProviderAdapter {
   id: ProviderId = 'openai';
@@ -35,11 +35,11 @@ export class OpenAIAdapter implements ProviderAdapter {
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await responseon().catch(() => ({}));
         throw new Error(`OpenAI error: ${response.status} ${errData.error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await responseon();
       const text = data.choices?.[0]?.message?.content || '';
 
       return {

@@ -65,7 +65,17 @@ export async function executeOperatorRequest(prompt, options = {}) {
 
   // 3. (Legacy branch for JS execution logic from existing operator-brain)
   // ... the rest of the execution logic remains, but planning is now via LLMSession
-  return { ok: true, assistantReply: result.text, plan: result.raw?.plan };
+  return { 
+    ok: true, 
+    assistantReply: result.text, 
+    plan: {
+      kind: result.raw?.kind || 'reply',
+      assistantReply: result.text,
+      planner: result.model ? { providerId: result.model.providerId, modelId: result.model.modelId } : null,
+      strategy: result.raw?.strategy || null,
+      code: result.raw?.code || null
+    }
+  };
 }
 
 function getOperatorPlannerTimeoutMs(options, candidate) {

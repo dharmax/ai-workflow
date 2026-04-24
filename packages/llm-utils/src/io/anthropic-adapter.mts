@@ -1,4 +1,4 @@
-import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types.js';
+import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types';
 
 export class AnthropicAdapter implements ProviderAdapter {
   id: ProviderId = 'anthropic';
@@ -31,11 +31,11 @@ export class AnthropicAdapter implements ProviderAdapter {
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await responseon().catch(() => ({}));
         throw new Error(`Anthropic error: ${response.status} ${errData.error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await responseon();
       const text = data.content?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n') || '';
 
       return {

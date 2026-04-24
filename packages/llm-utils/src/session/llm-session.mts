@@ -1,9 +1,11 @@
-import { Asker } from '../asker.js';
-import { GenerationResult, SessionContext } from '../types.js';
-import { ContextCompressor } from '../context/compressor.js';
+import { Asker } from '../asker';
+import { InteractionTurn, GenerationResult, SessionContext } from '../types';
+import { ContextCompressor } from '../context/compressor';
+import { MetricsEngine } from '../logic/metrics';
 
 export class LLMSession {
   private context: SessionContext;
+  private metrics: MetricsEngine;
 
   constructor(
     private asker: Asker,
@@ -11,10 +13,11 @@ export class LLMSession {
     initialContext?: SessionContext
   ) {
     this.context = initialContext ?? { history: [] };
+    this.metrics = new MetricsEngine();
   }
 
   /**
-   * High-fidelity interaction with Grounding Loop.
+   * High-fidelity interaction with Grounding Loop and Metrics.
    */
   async prompt(templateName: string, data: any): Promise<GenerationResult> {
     const promptEngine = this.asker.getPromptEngine();
@@ -38,10 +41,16 @@ export class LLMSession {
       managedContext: this.context.managedContext
     };
 
+    const startTime = Date.now();
     const result = await this.asker.prompt(templateName, this.toolkit, enrichedData);
+    const latencyMs = Date.now() - startTime;
 
-    // 4. Update History
+    // 4. Record Metrics
     if (result.ok) {
+      this.metrics.record(result, latencyMs);
+      this.context.metrics = this.metrics.getReport();
+      
+      // Update History
       this.context.history.push({ role: 'user', content: data.inputText || 'Prompt' });
       this.context.history.push({ role: 'ai', content: result.text });
       
@@ -50,7 +59,10 @@ export class LLMSession {
       }
     }
 
-    return result;
+    return {
+      ...result,
+      latencyMs
+    };
   }
 
   private async runPreflightStep(step: any, data: any) {

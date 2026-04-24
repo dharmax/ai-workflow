@@ -1,4 +1,4 @@
-import { InteractionProvider, InteractionTurn, GenerationResult, ProviderConfig, ProviderId } from '../types.js';
+import { InteractionProvider, InteractionTurn, GenerationResult, ProviderConfig, ProviderId } from '../types';
 
 export class OllamaProvider implements InteractionProvider {
   id: ProviderId = 'ollama';
@@ -24,7 +24,7 @@ export class OllamaProvider implements InteractionProvider {
       });
 
       if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
-      const data = await response.json();
+      const data = await responseon();
 
       return {
         text: data.response,

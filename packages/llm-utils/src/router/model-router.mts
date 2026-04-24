@@ -1,4 +1,4 @@
-import { ProviderConfig, ModelInfo, TaskType } from '../types.js';
+import { ProviderConfig, ModelInfo, TaskType } from '../types';
 
 export interface RouterOptions {
   preferLocal?: boolean;

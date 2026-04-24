@@ -1,5 +1,5 @@
-import { PromptTemplate } from '../types.js';
-import { TemplateSource } from '../core/interfaces.js';
+import { PromptTemplate } from '../types';
+import { TemplateSource } from '../core/interfaces';
 
 export class PromptEngine {
   constructor(private source: TemplateSource) {}

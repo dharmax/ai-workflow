@@ -1,4 +1,4 @@
-import { ModelCapabilities, ModelInfo, TaskType } from '../types.js';
+import { ModelCapabilities, ModelInfo, TaskType } from '../types';
 
 /**
  * Gold Heuristics ported from core/services/model-fit.mjs

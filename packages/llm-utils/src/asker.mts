@@ -1,9 +1,10 @@
-import { ProviderId, ProviderConfig, TaskType, GenerationResult, ModelInfo, InteractionTurn } from './types.js';
-import { PromptEngine } from './prompts/prompt-engine.js';
-import { ContextManager } from './context/context-manager.js';
-import { CompletionEngine } from './router/completion-engine.js';
-import { RouterHeuristics } from './logic/heuristics.js';
-import { ModelRouter } from './router/model-router.js';
+import { ProviderId, ProviderConfig, TaskType, GenerationResult, ModelInfo, InteractionTurn, SystemStatus } from './types';
+import { PromptEngine } from './prompts/prompt-engine';
+import { ContextManager } from './context/context-manager';
+import { CompletionEngine } from './router/completion-engine';
+import { RouterHeuristics } from './logic/heuristics';
+import { ModelRouter } from './router/model-router';
+import { SystemProbe } from './io/system';
 
 export class Asker {
   private providerConfigs: Map<ProviderId, ProviderConfig>;
@@ -22,6 +23,13 @@ export class Asker {
 
   getPromptEngine(): PromptEngine {
     return this.promptEngine;
+  }
+
+  /**
+   * Retrieves the current system status (e.g. lean-ctx installation).
+   */
+  async getSystemStatus(): Promise<SystemStatus> {
+    return SystemProbe.getStatus();
   }
 
   /**

@@ -1,4 +1,4 @@
-import { PromptTemplate } from '../types.js';
+import { PromptTemplate } from '../types';
 
 export interface PromptVariables {
   [key: string]: string | number | boolean | any;

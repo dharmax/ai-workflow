@@ -1,4 +1,4 @@
-import { ContextBlock } from '../context/context-manager.js';
+import { ContextBlock } from '../context/context-manager';
 
 /**
  * Superb Abstraction for Context Storage.

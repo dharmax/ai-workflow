@@ -1,4 +1,4 @@
-import { InteractionProvider, InteractionTurn, GenerationResult, ProviderConfig, ProviderId } from '../types.js';
+import { InteractionProvider, InteractionTurn, GenerationResult, ProviderConfig, ProviderId } from '../types';
 
 export class OpenAIProvider implements InteractionProvider {
   id: ProviderId = 'openai';
@@ -28,11 +28,11 @@ export class OpenAIProvider implements InteractionProvider {
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
+        const err = await responseon().catch(() => ({}));
         throw new Error(err.error?.message || `OpenAI error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await responseon();
       return {
         text: data.choices[0]?.message?.content || '',
         ok: true,

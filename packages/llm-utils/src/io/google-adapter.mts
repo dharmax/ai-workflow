@@ -1,4 +1,4 @@
-import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types.js';
+import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types';
 
 export class GoogleAdapter implements ProviderAdapter {
   id: ProviderId = 'google';
@@ -35,11 +35,11 @@ export class GoogleAdapter implements ProviderAdapter {
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await responseon().catch(() => ({}));
         throw new Error(`Google error: ${response.status} ${errData.error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await responseon();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       return {

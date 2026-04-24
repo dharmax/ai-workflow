@@ -4239,7 +4239,7 @@ export async function runShellTurn(inputText, options) {
 
   const result = {
     input: inputText,
-    plan: operatorResult.plan,
+    plan: operatorResult.plan || { kind: 'reply', assistantReply: operatorResult.assistantReply },
     executed: operatorResult.workflowResult?.ok ? [{ ok: true, summary: "JS workflow completed" }] : [],
     executedGraph: null,
     preRendered: false,

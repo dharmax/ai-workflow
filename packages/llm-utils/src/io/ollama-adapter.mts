@@ -1,4 +1,4 @@
-import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types.js';
+import { ProviderAdapter, GenerateOptions, GenerationResult, ProviderId } from '../types';
 
 export class OllamaProvider implements ProviderAdapter {
   id: ProviderId = 'ollama';
@@ -29,7 +29,7 @@ export class OllamaProvider implements ProviderAdapter {
         throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await responseon();
       
       return {
         text: data.response,
