@@ -62,8 +62,6 @@ This package is built on **High-Fidelity Abstractions**:
 If you find this utility valuable and wish to support its continued development, donations are gratefully accepted.
 
 - **PayPal**: [dharmax@gmail.com](https://www.paypal.com/paypalme/dharmax)
-- **BTC**: `your-btc-address-here`
-- **ETH**: `your-eth-address-here`
 
 ## License
 
