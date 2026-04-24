@@ -18,7 +18,21 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 ## ToDo
 <!-- canonical alias: ## Todo -->
 
-- No items
+- [ ] TKT-LLM-UTILS-005 ai-workflow: Integrate llm-utils package
+  - Summary: Refactor core services in ai-workflow to depend on the new llm-utils package, removing redundant local logic.
+  - State: open
+- [ ] TKT-LLM-UTILS-004 llm-utils: Session Continuity and Condensation
+  - Summary: Implement LLMSession class with managed context, history tracking, and high-density memory condensation logic.
+  - State: open
+- [ ] TKT-LLM-UTILS-003 llm-utils: Prompt and Context Management
+  - Summary: Port manifest-based templating and guideline block retrieval. Implement PromptManager with comment stripping and placeholder injection.
+  - State: open
+- [ ] TKT-LLM-UTILS-002 llm-utils: Router and Dynamic Task Mapping
+  - Summary: Port logic from router.mjs and model-fit.mjs. Implement Asker.ask() and the dynamic LLM-based model-to-task scoring on startup.
+  - State: open
+- [ ] TKT-LLM-UTILS-001 llm-utils: Scaffolding and Core API definition
+  - Summary: Initialize the packages/llm-utils directory, setup package.json for ESM/TS, and define core interfaces: Asker, LLMSession, TaskType, and ProviderConfig.
+  - State: open
 
 ## Bugs P1
 
@@ -30,9 +44,15 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
+- [ ] 4ff32e62dc7503be5f62d13b6f0f759fd98f9620 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
+- [ ] c15f89da0ba18fbc6392a05bb2ca1dd55aa1b099 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 - [ ] a033eca2658f8b60ab98652005032aff355f323e Assessment: health on project:ai-workflow
-  - Summary: Status: pending. Plan: Available
-  - State: pending
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 - [ ] 39a24358aae17d63b2ca80e970d5008341146b34 Assessment: health on project:ai-workflow
   - Summary: Status: failed. Plan: Available
   - State: failed

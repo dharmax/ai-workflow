@@ -50,6 +50,8 @@ Record durable facts that reduce future context cost. Do not mirror transient ti
 
 - YYYY-MM-DD: decision and reason
 
+- 2026-04-24: extraction/porting failure: missing name mappings (e.g. 'brain' vs 'operator-brain'). ALWAYS use `ai-workflow project search` to map all symbols, including string-literal identifiers, before porting logic.
+
 ## Gaps
 <!-- category: assessing -->
 <!-- tags: unknowns, unresolved -->

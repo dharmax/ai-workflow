@@ -1,0 +1,29 @@
+{
+  "name": "@dharmax/llm-utils",
+  "version": "0.1.0",
+  "description": "A generic and sophisticated code-to-llm bridge including routing, prompt management, and session context.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/tests/**/*.test.js"
+  },
+  "keywords": [
+    "llm",
+    "ai",
+    "routing",
+    "prompt-management",
+    "session-context"
+  ],
+  "author": "dharmax",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

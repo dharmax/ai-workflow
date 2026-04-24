@@ -57,5 +57,8 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@dharmax/llm-utils": "file:./packages/llm-utils"
   }
 }
