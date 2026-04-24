@@ -21,9 +21,19 @@
   ],
   "author": "dharmax",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dharmax/ai-workflow.git",
+    "directory": "packages/llm-utils"
+  },
+  "bugs": {
+    "url": "https://github.com/dharmax/ai-workflow/issues"
+  },
+  "homepage": "https://github.com/dharmax/ai-workflow#readme",
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.25.0",
     "typescript": "^5.0.0"
   }
 }
