@@ -4,61 +4,35 @@
   "private": false,
   "type": "module",
   "description": "Autonomous Engineering OS and ai-workflow CLI for token-efficient JS/TS repository work.",
-  "files": [
-    "AGENTS.md",
-    "CONTRIBUTING.md",
-    "MISSION.md",
-    "README.md",
-    "cli",
-    "core",
-    "docs",
-    "enforcement.md",
-    "epics.md",
-    "execution-protocol.md",
-    "kanban-archive.md",
-    "kanban.md",
-    "knowledge.md",
-    "project-guidelines.md",
-    "runtime",
-    "scripts",
-    "shared",
-    "skills",
-    "templates"
-  ],
   "bin": {
-    "ai-workflow": "./cli/ai-workflow.mjs",
-    "ai-workflow-init": "./scripts/init-project.mjs",
-    "ai-workflow-kanban": "./runtime/scripts/ai-workflow/kanban.mjs",
-    "ai-workflow-ticket": "./runtime/scripts/ai-workflow/kanban-ticket.mjs",
-    "ai-workflow-guidance": "./runtime/scripts/ai-workflow/guidance-summary.mjs",
-    "ai-workflow-verify": "./runtime/scripts/ai-workflow/verification-summary.mjs",
-    "ai-workflow-review": "./runtime/scripts/ai-workflow/review-summary.mjs",
-    "ai-workflow-guideline-audit": "./runtime/scripts/ai-workflow/guideline-audit.mjs",
-    "ai-workflow-audit": "./runtime/scripts/ai-workflow/workflow-audit.mjs"
+    "ai-workflow": "./cli/ai-workflow.mjs"
   },
   "scripts": {
-    "docs:manual": "node scripts/generate-manual-html.mjs",
-    "init:here": "node scripts/init-project.mjs --target .",
-    "kanban": "node runtime/scripts/ai-workflow/kanban.mjs",
-    "ai-workflow-ticket": "node runtime/scripts/ai-workflow/kanban-ticket.mjs",
-    "ai-workflow-guidance": "node runtime/scripts/ai-workflow/guidance-summary.mjs",
-    "ai-workflow-verify": "node runtime/scripts/ai-workflow/verification-summary.mjs",
-    "ai-workflow-review": "node runtime/scripts/ai-workflow/review-summary.mjs",
-    "ai-workflow-audit:guidelines": "node runtime/scripts/ai-workflow/guideline-audit.mjs",
-    "ai-workflow-audit": "node runtime/scripts/ai-workflow/workflow-audit.mjs",
-    "ticket": "node runtime/scripts/ai-workflow/kanban-ticket.mjs",
-    "guidance": "node runtime/scripts/ai-workflow/guidance-summary.mjs",
-    "verify": "node runtime/scripts/ai-workflow/verification-summary.mjs",
-    "review": "node runtime/scripts/ai-workflow/review-summary.mjs",
-    "audit:guidelines": "node runtime/scripts/ai-workflow/guideline-audit.mjs",
-    "audit": "node runtime/scripts/ai-workflow/workflow-audit.mjs",
-    "ai-workflow": "node cli/ai-workflow.mjs",
-    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
+    "build": "echo 'No build step for CLI'",
+    "generate-docs": "node scripts/generate-manual-html.mjs",
+    "install:tools": "npm install -g .",
+    "lint": "eslint .",
+    "perfection-marathon": "node tests/perfection-marathon.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:fast": "node --test tests/*.test.mjs",
+    "workflow:audit": "node scripts/ai-workflow/workflow-audit.mjs",
+    "workflow:dogfood": "node scripts/ai-workflow/dogfood.mjs",
+    "workflow:guidance": "node scripts/ai-workflow/guidance-summary.mjs",
+    "workflow:guideline-audit": "node scripts/ai-workflow/guideline-audit.mjs",
+    "workflow:kanban": "node scripts/ai-workflow/kanban.mjs",
+    "workflow:review": "node scripts/ai-workflow/review-summary.mjs",
+    "workflow:ticket": "node scripts/ai-workflow/kanban-ticket.mjs",
+    "workflow:verify": "node scripts/ai-workflow/verification-summary.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@dharmax/llm-utils": "file:./packages/llm-utils"
+    "@dharmax/codebase-parser": "file:../codebase-parser",
+    "@dharmax/block-patcher": "file:../block-patcher",
+    "@dharmax/goe-governance": "file:../goe-governance",
+    "@dharmax/human2js": "file:../human2js",
+    "@dharmax/llm-utils": "file:../llm-utils",
+    "@dharmax/shell-proc-utils": "file:../shell-proc-utils"
   }
 }

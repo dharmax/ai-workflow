@@ -1,3 +1,8 @@
+/**
+ * @file host-resolver.mjs
+ * @brief Auto-generated header for host-resolver.mjs. Needs detailed responsibility and scope.
+ */
+
 import { evaluateProjectReadiness, getProjectSummary } from "./sync.mjs";
 import path from "node:path";
 import { readFile } from "node:fs/promises";

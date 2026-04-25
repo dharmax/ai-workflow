@@ -1,3 +1,8 @@
+/**
+ * @file filesystem.mjs
+ * @brief Auto-generated header for filesystem.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";

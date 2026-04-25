@@ -30,7 +30,7 @@ export const OPERATOR_SURFACES = {
 };
 
 export function listOperatorSurfaceIds() {
-  return Object.keys(OPERATOR_SURFACES);
+  return ["shell", "provider", "workflow", "init"];
 }
 
 export async function computeSurfaceDigest(surfaceId) {

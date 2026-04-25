@@ -1,3 +1,8 @@
+/**
+ * @file markup.mjs
+ * @brief Auto-generated header for markup.mjs. Needs detailed responsibility and scope.
+ */
+
 import { extractTaggedNotes } from "./shared.mjs";
 import { parseJsFamily } from "./js-family.mjs";
 import { parseStyles } from "./styles.mjs";

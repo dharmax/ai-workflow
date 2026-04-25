@@ -1,3 +1,8 @@
+/**
+ * @file codelets.mjs
+ * @brief Auto-generated header for codelets.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.mjs";

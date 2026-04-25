@@ -102,19 +102,25 @@ const plan = [
     essential: true
   },
   {
+    source: path.resolve(templatesRoot, "project-brief.md"),
+    target: path.resolve(targetRoot, "project-brief.md"),
+    essential: true
+  },
+  {
     source: path.resolve(templatesRoot, ".github", "workflows", "ai-workflow-audit.yml"),
-    target: path.resolve(targetRoot, ".github", "workflows", "ai-workflow-audit.yml")
+    target: path.resolve(targetRoot, ".github", "workflows", "ai-workflow-audit.yml"),
+    essential: true
   }
 ];
-const runtimeScripts = await readdir(runtimeRoot, { withFileTypes: true });
-for (const entry of runtimeScripts) {
-  if (!entry.isFile() || !entry.name.endsWith(".mjs")) {
-    continue;
-  }
-  const relativeRuntimePath = entry.name;
+const runtimeFiles = (await walkFiles(runtimeRoot))
+  .map((filePath) => path.relative(runtimeRoot, filePath))
+  .sort();
+for (const relativeRuntimePath of runtimeFiles) {
   plan.push({
     target: path.resolve(targetRoot, "scripts", "ai-workflow", relativeRuntimePath),
-    content: buildRuntimeWrapper(relativeRuntimePath),
+    ...(relativeRuntimePath.includes(path.sep)
+      ? { source: path.resolve(runtimeRoot, relativeRuntimePath) }
+      : { content: buildRuntimeWrapper(relativeRuntimePath) }),
     essential: true
   });
 }
@@ -160,6 +166,50 @@ if (dryRun) {
       summary.overwritten.push(relative);
     } else {
       summary.installed.push(relative);
+    }
+  }
+} else if (args["no-sync"]) {
+  for (const entry of activePlan) {
+    const action = await classifyAction(entry, force);
+
+    if (action.type === "identical") {
+      summary.identical.push(relativeTarget(targetRoot, entry.target));
+      continue;
+    }
+
+    if (action.type === "skip") {
+      summary.skipped.push(relativeTarget(targetRoot, entry.target));
+      continue;
+    }
+
+    await mkdir(path.dirname(entry.target), { recursive: true });
+    if (entry.content !== undefined) {
+      await writeFile(entry.target, entry.content, "utf8");
+    } else {
+      await copyFile(entry.source, entry.target);
+    }
+    if (entry.target.endsWith(".mjs")) {
+      await chmod(entry.target, 0o755).catch(() => {});
+    }
+
+    const relative = relativeTarget(targetRoot, entry.target);
+    if (action.type === "overwrite") {
+      summary.overwritten.push(relative);
+    } else {
+      summary.installed.push(relative);
+    }
+  }
+
+  if (looksLikeJsProject) {
+    await reconcilePackageScripts(targetRoot, summary.packageScripts, { force, dryRun });
+  }
+
+  if (briefSource) {
+    const briefRl = readline.createInterface({ input, output });
+    try {
+      briefResult = await onboardProjectBrief(briefSource, { root: targetRoot, rl: briefRl });
+    } finally {
+      briefRl.close();
     }
   }
 } else {
@@ -383,6 +433,7 @@ child.on("exit", (code, signal) => {
 async function classifyAction(entry, forceOverwrite) {
   const sourceContent = entry.content ?? await readFile(entry.source, "utf8");
   const targetPath = entry.target;
+  const targetRelative = relativeTarget(targetRoot, targetPath);
 
   if (!(await fileExists(targetPath))) {
     return { type: "install" };
@@ -391,6 +442,10 @@ async function classifyAction(entry, forceOverwrite) {
   const targetContent = await readFile(targetPath, "utf8");
 
   if (targetContent === sourceContent) {
+    return { type: "identical" };
+  }
+
+  if ((targetRelative === "kanban.md" || targetRelative === "epics.md") && isManagedProjection(targetContent)) {
     return { type: "identical" };
   }
 
@@ -403,6 +458,10 @@ async function classifyAction(entry, forceOverwrite) {
   }
 
   return { type: "skip" };
+}
+
+function isManagedProjection(content) {
+  return /Generated from the workflow DB/.test(content) || /_Generated from the workflow DB/.test(content);
 }
 
 async function fileExists(filePath) {

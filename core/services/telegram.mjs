@@ -1,3 +1,8 @@
+/**
+ * @file telegram.mjs
+ * @brief Auto-generated header for telegram.mjs. Needs detailed responsibility and scope.
+ */
+
 import { getProjectSummary } from "./sync.mjs";
 
 export async function buildTelegramPreview({ projectRoot = process.cwd() } = {}) {

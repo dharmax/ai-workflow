@@ -1,3 +1,8 @@
+/**
+ * @file projections.mjs
+ * @brief Auto-generated header for projections.mjs. Needs detailed responsibility and scope.
+ */
+
 import { promptMultiChoice } from "../lib/disambiguation.mjs";
 import path from "node:path";
 import { readText } from "../../runtime/scripts/ai-workflow/lib/fs-utils.mjs";

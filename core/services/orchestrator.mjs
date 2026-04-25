@@ -1,3 +1,8 @@
+/**
+ * @file orchestrator.mjs
+ * @brief Auto-generated header for orchestrator.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { parsePatch, applyPatch } from "../lib/patch.mjs";
@@ -261,16 +266,16 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
         break;
       }
 
-      patchResult = await verifyAndApplyPatch(root, completion.response, {
+      patchResult = await verifyAndApplyPatch(root, completion.text, {
         allowedFiles: executionPlan.workingSet
       });
-      attemptRecord.responseExcerpt = truncateExecutionText(completion.response, 500);
+      attemptRecord.responseExcerpt = truncateExecutionText(completion.text, 500);
       attemptRecord.patchSuccess = patchResult.success;
       attemptRecord.patchError = patchResult.error ?? null;
       attemptRecord.changedFiles = patchResult.changedFiles ?? [];
       attempts.push(attemptRecord);
       if (patchResult.success) {
-        await processRefinements(root, completion.response);
+        await processRefinements(root, completion.text);
         patchSuccess = true;
         break;
       }
@@ -593,7 +598,7 @@ export async function ideateFeature(intent, options) {
   const root = options.root;
   const rl = options.rl;
 
-  const model = (await routeTask({ root, taskClass: "creative-thinking" })).recommended;
+  const model = (await routeTask({ root, taskClass: "creative-thinking", allowWeak: true })).recommended;
   if (!model) throw new Error("No model available for ideation.");
 
   let chatContext = `User Intent: ${intent}`;
@@ -625,7 +630,7 @@ Otherwise return JSON: { "status": "questioning", "reply": "..." }
       config: { host: model.host, apiKey: model.apiKey, format: "json" }
     });
 
-    const parsed = JSON.parse(completion.response);
+    const parsed = JSON.parse(completion.text);
     if (parsed.status === "complete") {
       result = parsed;
     } else {
@@ -725,7 +730,7 @@ async function attemptDecomposition(context, { root, quality }) {
     }).catch(() => {});
   }
 
-  return JSON.parse(completion.response);
+  return JSON.parse(completion.text);
 }
 
 export async function onboardProjectBrief(filePath, options) {
@@ -810,7 +815,7 @@ Rules:
       }).catch(() => {});
     }
 
-    const parsed = JSON.parse(completion.response);
+    const parsed = JSON.parse(completion.text);
     if (parsed.briefMarkdown) {
       briefDraft = normalizeBriefDraft(parsed.briefMarkdown);
       await writeProjectFile(root, workingBriefLabel, briefDraft);

@@ -1,3 +1,8 @@
+/**
+ * @file context-packer.mjs
+ * @brief Auto-generated header for context-packer.mjs. Needs detailed responsibility and scope.
+ */
+
 import { withWorkflowStore } from "./sync.mjs";
 import { readProjectFile } from "../lib/filesystem.mjs";
 import { SEMANTICS } from "../lib/registry.mjs";

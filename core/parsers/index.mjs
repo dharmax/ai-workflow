@@ -1,3 +1,8 @@
+/**
+ * @file index.mjs
+ * @brief Auto-generated header for index.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { parseJsFamily } from "./js-family.mjs";
 import { parseStyles } from "./styles.mjs";

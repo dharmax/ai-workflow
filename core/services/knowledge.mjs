@@ -1,3 +1,8 @@
+/**
+ * @file knowledge.mjs
+ * @brief Auto-generated header for knowledge.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";

@@ -1,3 +1,8 @@
+/**
+ * @file ollama-hw.mjs
+ * @brief Auto-generated header for ollama-hw.mjs. Needs detailed responsibility and scope.
+ */
+
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import path from "node:path";

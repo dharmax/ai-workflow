@@ -11,7 +11,7 @@ const HELP = `Usage:
 Options:
   --root <path>         Project root. Defaults to current directory.
   --surface <list>      Operator surfaces to exercise. Defaults to all.
-  --profile <name>      bootstrap or full. Defaults to full.
+  --profile <name>      bootstrap or full. Defaults to bootstrap.
   --timeout-ms <n>      Per-scenario timeout in milliseconds. Defaults to 45000.
   --json                Emit JSON.
 
@@ -30,7 +30,7 @@ if (args.help) {
 
 const root = path.resolve(String(args.root ?? process.cwd()));
 const requestedSurfaces = args.surface ? splitCsv(args.surface) : listOperatorSurfaceIds();
-const profile = String(args.profile ?? "full");
+const profile = String(args.profile ?? "bootstrap");
 const timeoutMs = Number(args["timeout-ms"] ?? 45000);
 
 const report = await runDogfood({

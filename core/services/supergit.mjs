@@ -1,3 +1,8 @@
+/**
+ * @file supergit.mjs
+ * @brief Auto-generated header for supergit.mjs. Needs detailed responsibility and scope.
+ */
+
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 

@@ -1,3 +1,8 @@
+/**
+ * @file project-codelets.mjs
+ * @brief Auto-generated header for project-codelets.mjs. Needs detailed responsibility and scope.
+ */
+
 export {
   getProjectCodeletsDir,
   listProjectCodelets,

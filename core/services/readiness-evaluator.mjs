@@ -1,3 +1,8 @@
+/**
+ * @file readiness-evaluator.mjs
+ * @brief Auto-generated header for readiness-evaluator.mjs. Needs detailed responsibility and scope.
+ */
+
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";

@@ -1,11 +1,10 @@
-name: ai-workflow Audit
+name: ai-workflow audit
 
 on:
   pull_request:
   push:
     branches:
       - main
-      - master
 
 jobs:
   workflow-audit:

@@ -19,6 +19,7 @@ test("buildSmartProjectStatus generates a dense, high-signal report", () => {
       }
       return [];
     },
+    listAssessments: () => [],
     listMetrics: () => [
       { success: false, task_class: "sync", error_message: "Network error" }
     ]

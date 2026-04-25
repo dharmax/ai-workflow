@@ -1,3 +1,8 @@
+/**
+ * @file codelet-executor.mjs
+ * @brief Auto-generated header for codelet-executor.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";

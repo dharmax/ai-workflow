@@ -1,3 +1,8 @@
+/**
+ * @file sync.mjs
+ * @brief Auto-generated header for sync.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { openWorkflowStore } from "../db/sqlite-store.mjs";
 import { collectProjectFileSnapshot, readProjectFile } from "../lib/filesystem.mjs";
@@ -796,13 +801,18 @@ export async function resolveProjectNote({ projectRoot = process.cwd(), noteId, 
     const timestamp = new Date().toISOString();
     const resolved = store.updateNoteStatus(noteId, "resolved", timestamp);
     const relatedCandidate = store.listCandidates().find((candidate) => candidate.noteId === noteId);
-    if (relatedCandidate) {
+    const candidateToArchive = relatedCandidate ?? {
+      ...deriveCandidateFromNote({ ...existing, status: "active" }),
+      status: "ai-candidate",
+      score: 0
+    };
+    if (candidateToArchive) {
       store.upsertCandidate({
-        ...relatedCandidate,
+        ...candidateToArchive,
         status: "archived",
         reason: reason
-          ? `${relatedCandidate.reason}; note resolved: ${reason}`
-          : `${relatedCandidate.reason}; note resolved`,
+          ? `${candidateToArchive.reason}; note resolved: ${reason}`
+          : `${candidateToArchive.reason}; note resolved`,
         updatedAt: timestamp,
         lastReviewAt: timestamp,
         nextReviewAt: null

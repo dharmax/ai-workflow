@@ -1,3 +1,8 @@
+/**
+ * @file codelets.mjs
+ * @brief Auto-generated header for codelets.mjs. Needs detailed responsibility and scope.
+ */
+
 export {
   getToolkitRoot,
   getSharedCodeletsDir,

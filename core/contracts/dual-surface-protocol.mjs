@@ -1,3 +1,8 @@
+/**
+ * @file dual-surface-protocol.mjs
+ * @brief Auto-generated header for dual-surface-protocol.mjs. Needs detailed responsibility and scope.
+ */
+
 export const PROTOCOL_VERSION = "1.0";
 
 export const READINESS_OPERATION = "evaluate_readiness";

@@ -1,4 +1,9 @@
-import { extractTaggedNotes } from "./shared.mjs";
+/**
+ * @file data-files.mjs
+ * @brief Auto-generated header for data-files.mjs. Needs detailed responsibility and scope.
+ */
+
+import { extractTaggedNotes } from "../lib/fuzzy.mjs";
 import { findNotesFuzzily } from "../lib/fuzzy.mjs";
 
 export function parseJsonFile({ filePath, content }) {

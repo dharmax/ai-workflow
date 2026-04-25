@@ -1,3 +1,8 @@
+/**
+ * @file node-template-source.mjs
+ * @brief Auto-generated header for node-template-source.mjs. Needs detailed responsibility and scope.
+ */
+
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getToolkitRoot } from '../lib/operating-context.mjs';

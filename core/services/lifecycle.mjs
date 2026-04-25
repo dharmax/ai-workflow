@@ -1,3 +1,8 @@
+/**
+ * @file lifecycle.mjs
+ * @brief Auto-generated header for lifecycle.mjs. Needs detailed responsibility and scope.
+ */
+
 import { stableId } from "../lib/hash.mjs";
 import { buildCandidateTitle, scoreNote } from "../parsers/shared.mjs";
 

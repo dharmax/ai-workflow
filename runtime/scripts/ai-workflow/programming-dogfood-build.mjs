@@ -202,8 +202,7 @@ const PACKAGE_JSON = `{
 }
 `;
 
-const DEV_SERVER_MJS = `#!/usr/bin/env node
-
+const DEV_SERVER_MJS = `
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

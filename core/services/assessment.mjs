@@ -89,7 +89,7 @@ async function generateAssessmentPlan(target, options) {
     config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
   });
 
-  return JSON.parse(completion.response);
+  return JSON.parse(completion.text);
 }
 
 async function criticizeAssessmentPlan(plan, target, options) {
@@ -112,7 +112,7 @@ async function criticizeAssessmentPlan(plan, target, options) {
     config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
   });
 
-  return JSON.parse(completion.response);
+  return JSON.parse(completion.text);
 }
 
 async function refineAssessmentPlan(plan, criticism, target, options) {
@@ -134,7 +134,7 @@ async function refineAssessmentPlan(plan, criticism, target, options) {
     config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
   });
 
-  return JSON.parse(completion.response);
+  return JSON.parse(completion.text);
 }
 
 async function executeAssessment(plan, target, options) {

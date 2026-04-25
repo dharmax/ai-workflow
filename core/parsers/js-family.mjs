@@ -1,4 +1,9 @@
-import { countLineColumn } from "./shared.mjs";
+/**
+ * @file js-family.mjs
+ * @brief Auto-generated header for js-family.mjs. Needs detailed responsibility and scope.
+ */
+
+import { countLineColumn } from "../lib/fuzzy.mjs";
 import { findNotesFuzzily } from "../lib/fuzzy.mjs";
 
 const KEYWORDS = new Set(["if", "for", "while", "switch", "catch", "return", "new", "import", "function"]);

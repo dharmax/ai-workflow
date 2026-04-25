@@ -13,13 +13,13 @@
 ## Available Actions (Your Capabilities):
 {{catalog}}
 
-## Environment
+## Runtime Context
 {{runtimeContext}}
 
-## Guidelines
+## Guidance Highlights
 {{guidanceContext}}
 
-## Evidence
+## Grounded Repo Evidence
 {{groundingContext}}
 
 ## History & Notes
@@ -28,7 +28,7 @@
 ## Schema
 {{schemaPrompt}}
 
-## Request:
-"{{inputText}}"
+## Current User Request:
+{{inputText}}
 
 Your Response (JSON):

@@ -1,3 +1,8 @@
+/**
+ * @file codelet-runtime.mjs
+ * @brief Auto-generated header for codelet-runtime.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { buildSurgicalContext, formatContextForPrompt } from "./context-packer.mjs";
 import { getCodelet, getProjectSummary, withWorkflowStore } from "./sync.mjs";

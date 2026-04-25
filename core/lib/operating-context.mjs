@@ -1,3 +1,8 @@
+/**
+ * @file operating-context.mjs
+ * @brief Auto-generated header for operating-context.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";

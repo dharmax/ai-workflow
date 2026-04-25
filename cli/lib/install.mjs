@@ -1,3 +1,8 @@
+/**
+ * @file install.mjs
+ * @brief Auto-generated header for install.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.mjs";

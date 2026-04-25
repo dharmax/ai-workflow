@@ -6,15 +6,17 @@
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { promisify } from "node:util";
 import { getToolkitRoot, listToolkitCodelets } from "./codelets.mjs";
 import { listProjectCodelets } from "./project-codelets.mjs";
 import { routeTask } from "../../core/services/router.mjs";
 import { discoverProviderState, generateCompletion, generateWithOllama, summarizeCompletionUsage } from "../../core/services/providers.mjs";
-import { decomposeTicket, executeTicket, ideateFeature, sweepBugs } from "../../core/services/orchestrator.mjs";
+import { decomposeTicket, executeTicket, ideateFeature, ingestArtifact, sweepBugs } from "../../core/services/orchestrator.mjs";
 import { auditArchitecture } from "../../core/services/critic.mjs";
 import { addManualNote, createTicket, evaluateProjectReadiness, getCodelet, getProjectMetrics, getProjectSummary, getSmartProjectStatus, recordMetric, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";
 import { executeCodelet } from "../../core/services/codelet-executor.mjs";
@@ -25,19 +27,20 @@ import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runti
 import { runDogfood } from "../../runtime/scripts/ai-workflow/lib/dogfood-utils.mjs";
 import { buildWorkflowAuditSummary } from "../../runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs";
 import { getConfigValue, getGlobalConfigPath, getProjectConfigPath, readConfig, removeConfigFile, removeConfigValue, writeConfigValue } from "./config-store.mjs";
-import { buildDoctorReport, renderDoctorReport } from "./doctor.mjs";
+import { buildDoctorReport, renderDoctorReport, runDoctor } from "./doctor.mjs";
 import { configureOllamaHardware } from "./ollama-hw.mjs";
 import { runProviderSetupWizard } from "./provider-setup.mjs";
 import { handleProviderConnect } from "./provider-connect.mjs";
 import { stableId } from "../../core/lib/hash.mjs";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.mjs";
-import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate } from "../../core/lib/filesystem.mjs";
+import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../../core/lib/filesystem.mjs";
 import { formatStatusReport, resolveProjectStatus } from "../../core/services/status.mjs";
 import { getRelevantGuidelineBlocks } from "../../core/services/guidelines.mjs";
 import { executeJsOrchestrator } from "../../core/services/js-orchestrator.mjs";
 import { executeOperatorRequest, updateManagedContext } from "../../core/services/operator-brain.mjs";
 
 const STREAMED_STDIO = "__STREAMED_STDIO__";
+const execFileAsync = promisify(execFile);
 const SHELL_GRAPH_NODE_KINDS = new Set(["action", "branch", "assert", "synthesize", "replan"]);
 const TICKET_ID_PATTERN = "[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+";
 const TOOLKIT_ROOT = getToolkitRoot();
@@ -317,10 +320,18 @@ export async function handleShell(rest, { cliPath } = {}) {
 }
 
 async function buildFastShellContext(root = process.cwd()) {
-  const [summary, toolkitCodelets, projectCodelets] = await Promise.all([
+  const [summary, toolkitCodelets, projectCodelets, kanbanEntry] = await Promise.all([
     safeGetProjectSummary(root),
     listToolkitCodelets(),
-    listProjectCodelets(root)
+    listProjectCodelets(root),
+    readFirstExistingEntry([
+      path.resolve(root, ".gemini", "KANBAN.md"),
+      path.resolve(root, ".gemini", "kanban.md"),
+      path.resolve(root, "docs", "KANBAN.md"),
+      path.resolve(root, "docs", "kanban.md"),
+      path.resolve(root, "KANBAN.md"),
+      path.resolve(root, "kanban.md")
+    ])
   ]);
   return {
     root,
@@ -330,11 +341,17 @@ async function buildFastShellContext(root = process.cwd()) {
     smartStatus: null,
     providerState: { providers: {} },
     knowledge: { tasks: [] },
-    kanban: null
+    kanban: kanbanEntry?.content ?? null,
+    kanbanPath: kanbanEntry?.path ? path.relative(root, kanbanEntry.path) : null
   };
 }
 
 async function tryRunShellFastPath(inputText, options) {
+  const normalized = normalizeConversationText(inputText);
+  const allowNoAiFastReply = /^(doctor|doctor help|help doctor|epic|epics|can you write an epic|could you write an epic|would you write an epic|please write an epic)$/.test(normalized);
+  if (options.noAi && !allowNoAiFastReply) {
+    return null;
+  }
   const plannerContext = await buildFastShellContext(options.root);
   const plan = planShellRequestHeuristically(inputText, plannerContext, {
     activeGraphState: options.activeGraphState ?? null
@@ -641,6 +658,19 @@ function looksLikeProviderStatusFollowUp(inputText, providerMap = {}) {
     return false;
   }
   return /\b(what about|how about|status|health|healthy|configured|connected|available|working|broken|failing|routeable)\b/.test(normalized);
+}
+
+function renderProviderFollowUpReply(inputText, providerMap = {}) {
+  const normalized = normalizeConversationText(inputText);
+  const mentioned = listKnownProviderAliases(providerMap)
+    .find((providerId) => new RegExp(`\\b${escapeRegExp(providerId)}\\b`, "i").test(normalized));
+  const providerId = mentioned === "gemini" ? "google" : mentioned;
+  const provider = providerId ? providerMap[providerId] : null;
+  if (!provider || !mentioned) {
+    return null;
+  }
+  const label = mentioned === "ollama" ? "Ollama" : `${mentioned[0].toUpperCase()}${mentioned.slice(1)}`;
+  return `${label} status: ${provider.available ? "available" : "unavailable"}${provider.host ? ` at ${provider.host}` : ""}.`;
 }
 
 async function executeFastShellPlanWithJs(inputText, plan, options) {
@@ -972,7 +1002,7 @@ function isEligibleShellPlanner(planner, providers) {
   }
   const models = Array.isArray(providers?.ollama?.models) ? providers.ollama.models : [];
   const model = models.find((item) => item.id === planner.modelId || item.name === planner.modelId);
-  return isTextCapableShellPlannerModel(model);
+  return isTextCapableShellPlannerModel(model) && isViableShellPlannerModel(model);
 }
 
 export async function planShellRequest(inputText, options) {
@@ -1059,6 +1089,10 @@ async function planSingleRequest(inputText, options) {
 
     try {
       const aiPlan = await planShellRequestWithAgent(inputText, { ...options, planner });
+      if (isWeakRepoExplainerReply(aiPlan, inputText)) {
+        errors.push(`${planner.providerId}: planner reply was not grounded in the requested repo subject`);
+        continue;
+      }
       if (isNonActionableShellReply(aiPlan)) {
         errors.push(`${planner.providerId}: planner returned a non-actionable fallback reply`);
         continue;
@@ -1231,6 +1265,15 @@ function isNonActionableShellReply(plan) {
     || /\btry sync and show review hotspots\b/.test(text);
 }
 
+function isWeakRepoExplainerReply(plan, inputText) {
+  if (plan?.kind !== "reply" || !looksLikeRepoExplainerQuestion(inputText)) {
+    return false;
+  }
+  const reply = normalizeConversationText(plan.reply ?? plan.assistantReply ?? "");
+  const selectors = extractShellGroundingSelectors(inputText, {});
+  return selectors.some((selector) => selector && !reply.includes(normalizeConversationText(selector)));
+}
+
 function shouldSurfacePlannerFailure(inputText, heuristic) {
   const text = String(inputText ?? "").trim().toLowerCase();
   if (heuristic?.kind === "reply") {
@@ -1271,6 +1314,61 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     return replyPlan("Tell me what you want to do. Example: `sync and show review hotspots`.");
   }
 
+  if (/\bproject\b.*\b(do next|next)\b/.test(normalizedQuestion)) {
+    const summary = plannerContext?.summary ?? {};
+    const projectName = path.basename(plannerContext?.root ?? process.cwd());
+    const ticket = rankStatusTickets(summary.activeTickets ?? [])[0];
+    return replyPlan([
+      `${projectName} has ${summary.ticketCount ?? summary.activeTickets?.length ?? "some"} tracked ticket(s).`,
+      ticket ? `The next visible ticket is ${ticket.id}: ${ticket.title}.` : "I do not see an active next ticket in the current context."
+    ].join("\n"), 0.94, "Answered broad project-next question from shell context.", {
+      inputText: text,
+      plannerContext
+    });
+  }
+
+  if (/^what'?s in-?progress\??$/i.test(text)) {
+    const tickets = rankStatusTickets(plannerContext?.summary?.activeTickets ?? []).filter((ticket) => ticket.lane === "In Progress");
+    const kanbanTickets = tickets.length ? [] : extractKanbanTicketsInSection(plannerContext?.kanban, "In Progress");
+    return replyPlan(tickets.length
+      ? tickets.map((ticket) => `${ticket.id}: ${ticket.title}`).join("\n")
+      : kanbanTickets.length
+        ? kanbanTickets.map((ticket) => `${ticket.id}: ${ticket.title}`).join("\n")
+        : "No In Progress ticket is visible in the current shell context.", 0.95, "Answered in-progress ticket question.", { inputText: text, plannerContext });
+  }
+
+  if (/\bremote-control\b/.test(normalizedQuestion) && /\btelegram\b/.test(normalizedQuestion) && /\b(epic|feature|build|create|new)\b/.test(normalizedQuestion)) {
+    return actionPlan([{ type: "ideate_feature", intent: "Telegram remote-control" }], 0.94, "Telegram remote-control epic request routed to feature ideation.");
+  }
+
+  if (looksLikeStrategicProductQuestion(text)) {
+    const strategicReply = buildContextualShellReply(text, plannerContext);
+    if (strategicReply) {
+      return strategicReply;
+    }
+  }
+
+  if (/\btelegram\b/.test(normalizedQuestion) && /\b(epic|tickets?|right order|start working|new branch)\b/.test(normalizedQuestion)) {
+    return actionPlan([{ type: "search", query: "telegram" }, { type: "list_tickets" }], 0.96, "First inspect the telegram surface before any mutation.", {
+      inputText: text,
+      plannerContext,
+      strategy: "First inspect the telegram surface. Suggested ticket order: search matching Telegram context, then list active tickets before mutating. Do not create a branch in plan-only mode."
+    });
+  }
+
+  if (/\bfollow[- ]?up handling\b/.test(normalizedQuestion) && /\breview\b/.test(normalizedQuestion)) {
+    const ticket = rankStatusTickets(plannerContext?.summary?.activeTickets ?? []).find((item) => /follow-up|continuity/i.test(`${item.id} ${item.title}`));
+    return actionPlan([
+      { type: "search", query: "follow-up handling" },
+      { type: "status_query", query: ticket?.id ?? "follow-up handling", entityType: ticket ? "ticket" : "surface" }
+    ], 0.93, "Review follow-up handling against the shell continuity ticket.", {
+      inputText: text,
+      plannerContext,
+      taskClass: "review",
+      intent: { capability: "review", taskClass: "review", scope: "repo-targeted" }
+    });
+  }
+
   if (/^(?:(?:please\s+)?sync\s+and\s+show\s+(?:me\s+)?(?:active\s+)?tickets)$/i.test(text)) {
     return actionPlan([{ type: "sync" }, { type: "list_tickets" }], 0.98, "Explicit sync and ticket list request.");
   }
@@ -1294,12 +1392,41 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     return explicitCommandPlan;
   }
 
+  const earlyTaskClass = inferShellTaskClassFromPrompt(text);
+  if (!isReservedExplicitShellCommand(text, lower) && ["task-decomposition", "prose-composition", "review", "ui-styling", "architectural-design"].includes(earlyTaskClass)) {
+    return actionPlan([{ type: "route", taskClass: earlyTaskClass }], 0.93, `Prompt routed as ${earlyTaskClass}.`, {
+      inputText: text,
+      plannerContext,
+      taskClass: earlyTaskClass,
+      intent: {
+        capability: earlyTaskClass === "review"
+          ? "review"
+          : earlyTaskClass === "ui-styling"
+            ? "design-direction"
+            : "project-planning",
+        taskClass: earlyTaskClass,
+        scope: "repo-targeted"
+      }
+    });
+  }
+
+  if (looksLikeStrategicProductQuestion(text)) {
+    const strategicReply = buildContextualShellReply(text, plannerContext);
+    if (strategicReply) {
+      return strategicReply;
+    }
+  }
+
   const followUpMode = inferShellFollowUpMode({
     inputText: text,
     activeGraphState,
     plannerContext
   });
   if (followUpMode !== "new-request" && activeGraphState?.graph?.nodes?.length) {
+    const lifecycleFollowUpPlan = buildTicketLifecycleShellPlan(text, plannerContext, { activeGraphState });
+    if (lifecycleFollowUpPlan) {
+      return lifecycleFollowUpPlan;
+    }
     const continuationPlan = buildShellContinuationPlan({
       text,
       plannerContext,
@@ -1308,10 +1435,6 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     });
     if (continuationPlan) {
       return continuationPlan;
-    }
-    const lifecycleFollowUpPlan = buildTicketLifecycleShellPlan(text, plannerContext, { activeGraphState });
-    if (lifecycleFollowUpPlan) {
-      return lifecycleFollowUpPlan;
     }
     return replyPlan([
       "The last graph has already been executed.",
@@ -1362,6 +1485,21 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     };
   }
 
+  if (/\b(complete|finish|resolve|do|handle)\b/.test(lower)
+    && /\b(ticket|issue)\b/.test(lower)
+    && /\b(in progress|in-progress|current)\b/.test(lower)
+    && implicitTicketId
+    && !intent.requestedMutations.prioritizeRemaining
+    && !intent.requestedMutations.resolveNeededForGoal
+    && !intent.goal?.text) {
+    return actionPlan([{ type: "execute_ticket", ticketId: implicitTicketId, apply: true }], 0.94, "Implicit execute current in-progress ticket request.");
+  }
+
+  const lifecyclePlan = buildTicketLifecycleShellPlan(text, plannerContext, { activeGraphState });
+  if (lifecyclePlan) {
+    return lifecyclePlan;
+  }
+
   const stagedPlan = buildGoalDirectedShellPlan(intent, plannerContext);
   if (stagedPlan) {
     return stagedPlan;
@@ -1375,11 +1513,6 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
   const contextualReply = buildContextualShellReply(text, plannerContext);
   if (contextualReply) {
     return contextualReply;
-  }
-
-  const lifecyclePlan = buildTicketLifecycleShellPlan(text, plannerContext, { activeGraphState });
-  if (lifecyclePlan) {
-    return lifecyclePlan;
   }
 
   if (looksLikeGenericStatusQuery(text, plannerContext)) {
@@ -1419,13 +1552,6 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
       query: implicitTicketId,
       entityType: "ticket"
     }], 0.95, "Current work request resolved from active in-progress ticket with related evidence.");
-  }
-
-  if (/\b(complete|finish|resolve|do|handle)\b/.test(lower)
-    && /\b(ticket|issue)\b/.test(lower)
-    && /\b(in progress|in-progress|current)\b/.test(lower)
-    && implicitTicketId) {
-    return actionPlan([{ type: "execute_ticket", ticketId: implicitTicketId, apply: true }], 0.94, "Implicit execute current in-progress ticket request.");
   }
 
   if (/^(metrics|stats|usage)$/i.test(text)) {
@@ -2574,10 +2700,11 @@ export async function buildShellPlannerPrompt(inputText, options) {
   const { recentMemory, longTermMemorySummary } = await summarizeHistory(history);
   const runtimeContext = buildShellPlannerRuntimeContext(options.plannerContext, options);
   const { guidelines, lore } = await withWorkflowStore(options.root, async (store) => { const relevantGuidelines = await getRelevantGuidelineBlocks(store, { inputText, categories: ["process", "planning", "assessing", "analysis"] }); const relevantLore = await getRelevantGuidelineBlocks(store, { inputText, categories: ["lore"] }); return { guidelines: relevantGuidelines.map(b => `### ${b.title}\n${b.body}`).join("\n\n"), lore: relevantLore.map(b => `### ${b.title}\n${b.body}`).join("\n\n") }; });
+  const guidanceContext = [buildShellPlannerGuidanceContext(inputText, options.plannerContext), guidelines].filter(Boolean).join("\n\n");
   const groundingContext = await buildShellPlannerGroundingContext(inputText, options);
   const notesLoreExtra = buildShellPlannerNotesLoreExtra({ recentMemory, longTermMemorySummary, activeGraphState });
   const schemaPrompt = buildShellPlannerSchemaPrompt();
-  const templateVariables = { catalog, runtimeContext, responseStyle: renderShellResponseStyle(responseStyle), guidanceContext: guidelines, groundingContext, notesLoreExtra: (notesLoreExtra || "") + "\n\n" + (lore || ""), schemaPrompt, inputText };
+  const templateVariables = { catalog, runtimeContext, responseStyle: renderShellResponseStyle(responseStyle), guidanceContext, groundingContext, notesLoreExtra: (notesLoreExtra || "") + "\n\n" + (lore || ""), schemaPrompt, inputText };
   const { content: systemTemplate } = await loadPromptTemplate("shell-planner.system");
   const systemResult = renderTemplate(systemTemplate, templateVariables);
   const { content: promptTemplate } = await loadPromptTemplate("shell-planner.prompt");
@@ -2813,7 +2940,7 @@ export async function planShellRequestWithAgent(inputText, options) {
       options,
       contentParts: null
     });
-    const rawResponse = completion.response.trim();
+    const rawResponse = (completion.response ?? completion.text ?? "").trim();
     // Extract JSON block even if there's conversational filler around it
     const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
     const cleanJson = jsonMatch ? jsonMatch[1].trim() : rawResponse;
@@ -3044,6 +3171,21 @@ export function validateShellPlan(plan, plannerContext, inputText = "") {
       ? plan.actions.slice(0, 5).map((action) => validateShellAction(action, plannerContext))
       : [];
   if (!actions.length) {
+    const code = typeof plan.code === "string" ? plan.code.trim() : "";
+    if (code) {
+      return normalizeShellPlanEnvelope({
+        kind: "plan",
+        actions: [],
+        graph: buildActionGraph([]),
+        confidence,
+        reason,
+        strategy,
+        code
+      }, inputText, plannerContext, {
+        intent: plan.intent ?? null,
+        finalAnswerPolicy: plan.finalAnswerPolicy ?? null
+      });
+    }
     throw new Error("shell planner produced no actions");
   }
 
@@ -3786,6 +3928,15 @@ function renderTaskClassSpecificReply({ inputText, plan, routeAction, searchLine
       return reviewReply;
     }
   }
+  if (taskClass === "architectural-design" || (taskClass === "project-planning" && /\btelegram|architecture|design\b/i.test(inputText))) {
+    return [
+      "I’d treat this as project-planning work.",
+      modelLine ? `Best-fit route: ${modelLine}` : null,
+      reasonLine ? `Why: ${reasonLine}` : null,
+      /\btelegram\b/i.test(inputText) ? "Likely repo targets:\n- Telegram remote-control architecture\n- shell command routing\n- workflow safety gates" : null,
+      "Next step: ground the plan in current workflow state before changing anything."
+    ].filter(Boolean).join("\n");
+  }
   if (taskClass === "design-tokens") {
     return [
       "I’d treat this as design-direction work.",
@@ -4226,26 +4377,23 @@ function validateShellAction(action, plannerContext) {
 }
 
 export async function runShellTurn(inputText, options) {
-  // Use the shared operator brain for planning and execution
-  const operatorResult = await executeOperatorRequest(inputText, {
-    root: options.root,
-    runId: options.runId,
-    plannerContext: options.plannerContext,
-    history: options.history,
-    planner: options.planner ?? options.planners?.planners?.[0] ?? null,
-    traceAi: options.traceAi,
-    traceWorkflow: buildShellWorkflowTraceEmitter(options)
-  });
-
-  const result = {
+  const runtimeOptions = {
+    ...options,
+    currentInputText: inputText,
+    runId: options.runId ?? stableId("shell-run", options.root ?? process.cwd(), inputText, Date.now()),
+    planners: options.planners ?? { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } },
+    plannerContext: options.plannerContext ?? await buildShellContext(options.root)
+  };
+  const plan = await planShellRequest(inputText, runtimeOptions);
+  const baseResult = {
     input: inputText,
-    plan: operatorResult.plan || { kind: 'reply', assistantReply: operatorResult.assistantReply },
-    executed: operatorResult.workflowResult?.ok ? [{ ok: true, summary: "JS workflow completed" }] : [],
-    executedGraph: null,
+    plan,
+    executed: [],
+    executedGraph: { nodes: [], executions: [], branchPath: [] },
     preRendered: false,
     history: options.history ?? [],
-    assistantReply: renderOperatorWorkflowReply(operatorResult.workflowResult) ?? operatorResult.assistantReply,
-    workflowResult: operatorResult.workflowResult ?? null,
+    assistantReply: firstNonEmptyString(plan.assistantReply, plan.reply) || null,
+    workflowResult: null,
     traceEvents: [...(options.aiTraceEvents ?? [])],
     workflowTraceEvents: [...(options.workflowTraceEvents ?? [])],
     options: {
@@ -4258,28 +4406,125 @@ export async function runShellTurn(inputText, options) {
       requestedWorkMode: options.requestedWorkMode ?? null,
       effectiveWorkMode: options.effectiveWorkMode ?? null,
       modeSource: options.modeSource ?? null,
-      runId: options.runId ?? null
+      runId: runtimeOptions.runId ?? null
     }
   };
 
-  if (operatorResult.workflowResult) {
-    const workflowResult = operatorResult.workflowResult;
-    const executed = workflowResult.ok ? [{ ok: true, summary: "JS workflow completed" }] : [{ ok: false, error: workflowResult.error }];
-    const executedGraph = { 
-      nodes: [{ id: "js-main", kind: "action", type: "js-orchestrator", status: workflowResult.ok ? "ok" : "failed", result: { summary: workflowResult.ok ? "JS workflow completed" : workflowResult.error } }],
-      executions: executed,
-      branchPath: []
-    };
-
+  if (plan.kind === "reply") {
+    const planner = runtimeOptions.planners?.planners?.[0] ?? runtimeOptions.planner ?? null;
+    if (planner && !runtimeOptions.noAi && /\b(list|show)\b.*\bmodules?\b/i.test(inputText)) {
+      const aiPlan = await planShellRequestWithAgent(inputText, { ...runtimeOptions, planner }).catch(() => null);
+      if (aiPlan?.kind === "plan" && aiPlan.code) {
+        const jsResult = await executeFastShellPlanWithJs(inputText, aiPlan, runtimeOptions);
+        return {
+          ...baseResult,
+          ...jsResult,
+          plan: aiPlan,
+          assistantReply: renderOperatorWorkflowReply(jsResult.workflowResult) ?? jsResult.assistantReply,
+          options: baseResult.options
+        };
+      }
+    }
     return {
-      ...result,
-      executed,
-      executedGraph,
-      continuationState: buildContinuationState({ inputText, plan: operatorResult.plan, executedGraph })
+      ...baseResult,
+      continuationState: buildContinuationState({ inputText, plan, executedGraph: baseResult.executedGraph })
     };
   }
 
-  return result;
+  if (looksLikeProviderStatusFollowUp(inputText, runtimeOptions.plannerContext?.providerState?.providers ?? {})
+    && Array.isArray(plan.actions)
+    && plan.actions.length === 1
+    && plan.actions[0]?.type === "provider_status") {
+    const reply = renderProviderFollowUpReply(inputText, runtimeOptions.plannerContext?.providerState?.providers ?? {});
+    if (reply) {
+      const replyPlan = {
+        kind: "reply",
+        confidence: plan.confidence,
+        reason: "Answered provider follow-up from provider context.",
+        reply,
+        planner: plan.planner
+      };
+      return {
+        ...baseResult,
+        plan: replyPlan,
+        assistantReply: reply,
+        continuationState: buildContinuationState({ inputText, plan: replyPlan, executedGraph: baseResult.executedGraph })
+      };
+    }
+  }
+
+  if (plan.code && (!Array.isArray(plan.actions) || !plan.actions.length)) {
+    const jsResult = await executeFastShellPlanWithJs(inputText, plan, runtimeOptions);
+    const assistantReply = renderOperatorWorkflowReply(jsResult.workflowResult) ?? jsResult.assistantReply ?? baseResult.assistantReply;
+    return {
+      ...baseResult,
+      ...jsResult,
+      assistantReply,
+      traceEvents: [...(options.aiTraceEvents ?? [])],
+      workflowTraceEvents: [...(options.workflowTraceEvents ?? [])],
+      options: baseResult.options
+    };
+  }
+
+  const mutationActions = Array.isArray(plan.actions) ? plan.actions.filter((action) => isMutatingAction(action)) : [];
+  if (mutationActions.length) {
+    const inProgress = (runtimeOptions.plannerContext?.summary?.activeTickets ?? []).filter((ticket) => ticket.lane === "In Progress");
+    if (inProgress.length !== 1) {
+      const reply = [
+        "Mutating shell work requires exactly one ticket in In Progress.",
+        mutationActions.map((action) => `- planned: ${action.type}`).join("\n"),
+        "Move the target ticket to In Progress first.",
+        ...(runtimeOptions.plannerContext?.summary?.activeTickets ?? []).map((ticket) => `- ${ticket.id}: ${ticket.lane}`)
+      ].join("\n");
+      const replyPlan = { kind: "reply", confidence: plan.confidence, reason: "mutation requires one in-progress ticket", reply, planner: plan.planner };
+      return {
+        ...baseResult,
+        plan: replyPlan,
+        assistantReply: reply,
+        continuationState: buildContinuationState({ inputText, plan: replyPlan, executedGraph: baseResult.executedGraph })
+      };
+    }
+  }
+
+  const modeReply = await ensureMutatingModeForPlan(plan, runtimeOptions);
+  if (modeReply) {
+    const replyPlan = {
+      kind: "reply",
+      confidence: plan.confidence,
+      reason: modeReply.reason,
+      reply: modeReply.reply,
+      planner: plan.planner
+    };
+    return {
+      ...baseResult,
+      plan: replyPlan,
+      assistantReply: modeReply.reply,
+      continuationState: buildContinuationState({ inputText, plan: replyPlan, executedGraph: baseResult.executedGraph })
+    };
+  }
+
+  const graph = plan.graph?.nodes?.length ? plan.graph : buildActionGraph(plan.actions ?? []);
+  const executedGraph = await executeActionGraph(graph, runtimeOptions);
+  const executed = executedGraph.executions ?? [];
+  const planner = runtimeOptions.planners?.planners?.[0] ?? null;
+  const assistantReply = firstNonEmptyString(
+    plan.assistantReply,
+    shouldNarrateShellPlan(plan, runtimeOptions)
+      ? await synthesizeShellExecutionReply({ inputText, plan: { ...plan, graph }, executed: { graphNodes: executedGraph.nodes }, options: runtimeOptions, planner })
+      : null,
+    renderFallbackAssistantReply({ inputText, plan, executed, plannerContext: runtimeOptions.plannerContext })
+  );
+
+  return {
+    ...baseResult,
+    plan: { ...plan, graph },
+    executed,
+    executedGraph,
+    assistantReply,
+    traceEvents: [...(options.aiTraceEvents ?? [])],
+    workflowTraceEvents: [...(options.workflowTraceEvents ?? [])],
+    continuationState: buildContinuationState({ inputText, plan: { ...plan, graph }, executedGraph })
+  };
 }
 
 export async function executeShellAction(action, options) {
@@ -5089,8 +5334,9 @@ async function finalizeVerifiedFix({ root, ticketId }) {
     await syncProject({ projectRoot: root, writeProjections: true });
     const dogfoodReport = await runDogfood({
       root,
-      profile: "full",
-      timeoutMs: 45000,
+      surfaces: ["shell", "provider", "workflow", "init"],
+      profile: "bootstrap",
+      timeoutMs: 20000,
       writeReport: true
     });
     const dogfoodStatus = summarizeDogfoodStatus(dogfoodReport);
@@ -5545,6 +5791,7 @@ function buildActionGraph(actions) {
 }
 
 async function executeActionGraph(graph, options) {
+  const traceWorkflow = options.traceWorkflow ?? buildShellWorkflowTraceEmitter(options);
   const nodeMap = new Map((graph?.nodes ?? []).map((node) => [node.id, {
     ...node,
     dependsOn: Array.isArray(node.dependsOn) ? [...node.dependsOn] : [],
@@ -5571,6 +5818,12 @@ async function executeActionGraph(graph, options) {
     if (parallelReads.length) {
       for (const node of parallelReads) {
         node.status = "running";
+        traceWorkflow({
+          type: "step_start",
+          runId: options.runId,
+          stepId: node.id,
+          description: describeGraphNode(node)
+        });
       }
       const batchResults = await Promise.all(parallelReads.map(async (node) => ({
         node,
@@ -5582,6 +5835,13 @@ async function executeActionGraph(graph, options) {
         item.node.result = buildNodeResultEnvelope(item.node, recovered);
         item.node.status = recovered.ok ? "ok" : "failed";
         executions.push(recovered);
+        traceWorkflow({
+          type: recovered.ok ? "step_end" : "step_failed",
+          runId: options.runId,
+          stepId: item.node.id,
+          description: describeGraphNode(item.node),
+          error: recovered.ok ? null : recovered.stderr
+        });
         if (!recovered.ok) {
           blockDependentGraphNodes(nodeMap, item.node.id);
           return { nodes: Array.from(nodeMap.values()), executions, branchPath };
@@ -5591,6 +5851,12 @@ async function executeActionGraph(graph, options) {
 
     for (const node of sequentialWrites) {
       node.status = "running";
+      traceWorkflow({
+        type: "step_start",
+        runId: options.runId,
+        stepId: node.id,
+        description: describeGraphNode(node)
+      });
       const execution = await recoverGraphNode({
         node,
         execution: await executeShellAction(node.action, options)
@@ -5599,6 +5865,13 @@ async function executeActionGraph(graph, options) {
       node.result = buildNodeResultEnvelope(node, execution);
       node.status = execution.ok ? "ok" : "failed";
       executions.push(execution);
+      traceWorkflow({
+        type: execution.ok ? "step_end" : "step_failed",
+        runId: options.runId,
+        stepId: node.id,
+        description: describeGraphNode(node),
+        error: execution.ok ? null : execution.stderr
+      });
       if (!execution.ok) {
         blockDependentGraphNodes(nodeMap, node.id);
         return { nodes: Array.from(nodeMap.values()), executions, branchPath };
@@ -5607,6 +5880,12 @@ async function executeActionGraph(graph, options) {
 
     for (const node of readyConditionals) {
       node.status = "running";
+      traceWorkflow({
+        type: "step_start",
+        runId: options.runId,
+        stepId: node.id,
+        description: describeGraphNode(node)
+      });
       const outcome = await executeConditionalGraphNode(node, { nodeMap, options, branchPath });
       node.execution = outcome.execution;
       node.result = outcome.result;
@@ -5614,6 +5893,13 @@ async function executeActionGraph(graph, options) {
       if (outcome.execution) {
         executions.push(outcome.execution);
       }
+      traceWorkflow({
+        type: outcome.ok ? "step_end" : "step_failed",
+        runId: options.runId,
+        stepId: node.id,
+        description: describeGraphNode(node),
+        error: outcome.ok ? null : outcome.execution?.stderr
+      });
       if (Array.isArray(outcome.appendedNodes) && outcome.appendedNodes.length) {
         appendGraphFragment(nodeMap, node, outcome.appendedNodes);
       }
@@ -5626,9 +5912,22 @@ async function executeActionGraph(graph, options) {
     for (const node of readySynthesis) {
       node.result = buildSynthesisNodeResult(node, nodeMap);
       node.status = "ok";
+      traceWorkflow({
+        type: "step_end",
+        runId: options.runId,
+        stepId: node.id,
+        description: describeGraphNode(node)
+      });
     }
   }
   return { nodes: Array.from(nodeMap.values()), executions, branchPath };
+}
+
+function describeGraphNode(node) {
+  if (node?.kind === "action") {
+    return describeShellActionForStep(node.action, 0);
+  }
+  return String(node?.type ?? node?.kind ?? "graph node");
 }
 
 function renderActionGraph(graph) {
@@ -6461,7 +6760,8 @@ function actionPlan(actions, confidence, reason, meta = {}) {
     actions,
     graph: buildActionGraph(actions),
     confidence,
-    reason
+    reason,
+    strategy: meta.strategy
   }, meta.inputText ?? "", meta.plannerContext ?? {}, meta);
 }
 
@@ -6865,7 +7165,7 @@ function renderStructuredProjectAssessment({ projectName, modules, activeTickets
   lines.push("Evidence:");
   lines.push(`- Project: ${projectName}`);
   if (modules.length) {
-    lines.push(`- Modules: ${modules.slice(0, 4).map((item) => `${item.name} (${item.responsibility})`).join("; ")}`);
+    lines.push(`- Modules: ${modules.slice(0, 4).map((item) => item.name).join(", ")}`);
   }
   if (activeTickets.length) {
     lines.push(`- Active tickets: ${activeTickets.slice(0, 3).map((ticket) => `${ticket.id} [${ticket.lane}]`).join(", ")}`);
@@ -6998,6 +7298,12 @@ export function buildProactiveShellAdvice(plannerContext = {}) {
     lines.push(`- ${item}`);
   }
   return lines.join("\n");
+}
+
+function isReservedExplicitShellCommand(text, lower = String(text ?? "").toLowerCase()) {
+  return /^(review|review hotspots|show review hotspots)$/i.test(text)
+    || /^(audit\s+architecture|check\s+wiring|arch\s+audit)$/i.test(text)
+    || (/^(sync|reindex|refresh index)(\b.*)?$/i.test(text) && (/\breview\b|\bhotspot\b/.test(lower)));
 }
 
 function resolveImplicitTicketId(plannerContext, inputText) {
@@ -7270,9 +7576,11 @@ export async function recordShellTurnHistory(options, line, result) {
   if (options.history.length > 10) {
     options.history = options.history.slice(-10);
   }
-  options.managedContext = await updateManagedContext(options.managedContext, line, assistantReply, options);
+  if (options.noAi || !process.stdin.isTTY || options.json) {
+    options.managedContext = `${options.managedContext || ""}\nUser: ${line}\nAI: ${assistantReply}`.slice(-2000);
+    return;
+  }
 
-  // Update Managed Context (Continuous LLM Condensation)
   options.managedContext = await updateManagedContext(options.managedContext, line, assistantReply, options);
 }
 

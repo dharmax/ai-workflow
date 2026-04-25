@@ -1,3 +1,8 @@
+/**
+ * @file status.mjs
+ * @brief Auto-generated header for status.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { openWorkflowStore } from "../db/sqlite-store.mjs";

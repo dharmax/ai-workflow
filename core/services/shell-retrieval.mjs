@@ -1,3 +1,8 @@
+/**
+ * @file shell-retrieval.mjs
+ * @brief Auto-generated header for shell-retrieval.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { withWorkflowStore } from "./sync.mjs";
 

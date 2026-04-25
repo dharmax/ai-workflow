@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * @file ai-workflow.mjs
+ * @brief Auto-generated header for ai-workflow.mjs. Needs detailed responsibility and scope.
+ */
+
 
 import { writeSync } from "node:fs";
 import { main } from "./lib/main.mjs";
@@ -8,6 +13,7 @@ installSynchronousWrites(process.stderr);
 
 const code = await main(process.argv.slice(2));
 process.exitCode = code;
+process.exit(code);
 
 function installSynchronousWrites(stream) {
   const originalWrite = stream.write.bind(stream);

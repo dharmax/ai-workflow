@@ -1,3 +1,8 @@
+/**
+ * @file command-channel.mjs
+ * @brief Auto-generated header for command-channel.mjs. Needs detailed responsibility and scope.
+ */
+
 const DIRECT_COMMAND_CHANNEL = "direct";
 const SHELL_COMMAND_CHANNEL = "shell";
 

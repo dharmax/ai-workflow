@@ -1,3 +1,8 @@
+/**
+ * @file styles.mjs
+ * @brief Auto-generated header for styles.mjs. Needs detailed responsibility and scope.
+ */
+
 import { extractTaggedNotes } from "./shared.mjs";
 
 export function parseStyles({ filePath, content, language }) {

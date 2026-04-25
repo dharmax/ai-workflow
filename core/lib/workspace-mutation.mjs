@@ -1,3 +1,8 @@
+/**
+ * @file workspace-mutation.mjs
+ * @brief Auto-generated header for workspace-mutation.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";

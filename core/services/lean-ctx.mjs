@@ -1,3 +1,8 @@
+/**
+ * @file lean-ctx.mjs
+ * @brief Auto-generated header for lean-ctx.mjs. Needs detailed responsibility and scope.
+ */
+
 import { SystemProbe } from "@dharmax/llm-utils";
 
 export async function probeLeanCtx() {

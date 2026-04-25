@@ -5,7 +5,7 @@
 
 import { promptMultiChoice } from "../lib/disambiguation.mjs";
 import path from "node:path";
-import { withWorkflowStore, getProjectSummary, getActiveTickets, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet } from "./sync.mjs";
+import { withWorkflowStore, getProjectSummary, getActiveTickets, syncProject, getProjectMetrics, getSmartProjectStatus, createTicket, listEpics, getEpic, updateTicketLifecycle, getCodelet, evaluateProjectReadiness } from "./sync.mjs";
 import { resolveProjectStatus } from "./status.mjs";
 import { executeTicket, decomposeTicket, ideateFeature, sweepBugs } from "./orchestrator.mjs";
 import { runAssessment } from "./assessment.mjs";
@@ -22,59 +22,59 @@ import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTempl
 import * as fs from "node:fs/promises";
 import * as pathMod from "node:path";
 
-import { Asker, LLMSession, ContextManager, PromptEngine } from '@dharmax/llm-utils';
-import { SqliteStorageBackend } from './sqlite-storage-backend.mjs';
-import { NodeTemplateSource } from './node-template-source.mjs';
-
 /**
- * Executes a natural language request through the high-fidelity llm-utils bridge.
+ * Executes a natural language request through the operator brain.
  */
 export async function executeOperatorRequest(prompt, options = {}) {
   const root = options.root ?? process.cwd();
-  
-  // 1. Initialize Superb Orchestration
-  const storage = new SqliteStorageBackend(root);
-  const contextManager = new ContextManager(storage);
-  const promptEngine = new PromptEngine(new NodeTemplateSource());
-  
-  const providerState = await discoverProviderState({ root });
-  const taskTypes = [
-    { id: 'project-planning', shortName: 'plan', description: 'Complex NL-to-JS planning.', weights: { strategy: 0.6, logic: 0.4 } },
-    { id: 'default', shortName: 'default', description: 'General interaction.', weights: { strategy: 0.4, prose: 0.6 } }
-  ];
-  
-  // providerState.providers is a Record<ProviderId, config>
-  const providerConfigs = Object.entries(providerState.providers).map(([id, config]) => {
-    return Object.assign({}, config, { id });
-  });
-  
-  const asker = new Asker(providerConfigs, taskTypes, contextManager, promptEngine);
-  const allModels = Object.entries(providerState.providers).flatMap(([providerId, prov]) => {
-    return (prov.models || []).map(m => Object.assign({}, m, { providerId }));
-  });
-  await asker.refreshMapping(allModels);
-  
-  const session = new LLMSession(asker, options.toolkit || {}, { history: options.history || [] });
 
-  // 2. Execute with Grounding Loop
-  const result = await session.prompt('operator-brain', { inputText: prompt, ...options });
-  
-  if (!result.ok) {
-    return { ok: false, assistantReply: result.error };
+  const plan = await planOperatorRequest(prompt, options);
+  const effectiveInputText = plan.__effectiveInputText ?? prompt;
+
+  if (plan.kind === "reply") {
+    return {
+      ok: true,
+      plan,
+      assistantReply: plan.assistantReply ?? plan.reply ?? "I'm not sure how to handle that request."
+    };
   }
 
-  // 3. (Legacy branch for JS execution logic from existing operator-brain)
-  // ... the rest of the execution logic remains, but planning is now via LLMSession
-  return { 
-    ok: true, 
-    assistantReply: result.text, 
-    plan: {
-      kind: result.raw?.kind || 'reply',
-      assistantReply: result.text,
-      planner: result.model ? { providerId: result.model.providerId, modelId: result.model.modelId } : null,
-      strategy: result.raw?.strategy || null,
-      code: result.raw?.code || null
-    }
+  if (plan.kind !== "plan" || !plan.code) {
+    return {
+      ok: true,
+      plan,
+      assistantReply: plan.assistantReply ?? plan.reply ?? "I'm not sure how to handle that request."
+    };
+  }
+
+  const services = buildOperatorServices(root, options);
+  const runId = options.runId ?? stableId("run", effectiveInputText, Date.now());
+
+  const workflowResult = await withWorkflowStore(root, async (workflowStore) => {
+    workflowStore.upsertWorkflowRun({
+      id: runId,
+      prompt: effectiveInputText,
+      code: plan.code,
+      status: "running",
+      result: null
+    });
+
+    return executeJsOrchestrator(plan.code, {
+      workflowStore,
+      prompt: effectiveInputText,
+      runId,
+      services,
+      root,
+      traceWorkflow: options.traceWorkflow
+    });
+  });
+
+  const plannerInfo = plan.__planner ? ` [via ${plan.__planner.providerId}:${plan.__planner.modelId}]` : "";
+  return {
+    ok: workflowResult.ok,
+    plan,
+    workflowResult,
+    assistantReply: workflowResult.ok ? `Workflow completed successfully.${plannerInfo}` : `Workflow failed: ${workflowResult.error}${plannerInfo}`
   };
 }
 
@@ -988,6 +988,69 @@ function validateGeneratedPlan(plan, options = {}) {
  */
 export async function resolveHostRequest(options) {
   const { projectRoot, text, host } = options;
+  const normalized = String(text ?? "").toLowerCase();
+
+  if (/\b(beta|readiness|ready for beta|beta testing)\b/.test(normalized)) {
+    const readiness = await evaluateProjectReadiness({
+      projectRoot,
+      request: {
+        protocol_version: "1.0",
+        operation: "evaluate_readiness",
+        goal: {
+          type: "beta-readiness",
+          target: "project",
+          question: text
+        },
+        host
+      }
+    });
+    const readinessPayload = { ...readiness, operation: "evaluate_readiness" };
+    if (/\b(project status|status of the project|how is the project|project state)\b/.test(normalized)) {
+      const summary = await getProjectSummary({ projectRoot });
+      return {
+        status: "complete",
+        route: { intent: "project_status_readiness", operation: "composite", reason: "Combined status/readiness request." },
+        response_type: "composite",
+        payload: {
+          project_status: {
+            active_ticket_count: summary.activeTickets?.length ?? 0,
+            candidate_count: summary.candidateCount ?? 0,
+            note_count: summary.noteCount ?? 0,
+            focus_tickets: summary.activeTickets ?? []
+          },
+          readiness: readinessPayload
+        }
+      };
+    }
+    return {
+      status: "complete",
+      route: { intent: "readiness_question", operation: "evaluate_readiness", reason: "Readiness request routed deterministically." },
+      response_type: "protocol",
+      payload: readinessPayload
+    };
+  }
+
+  if (/\b(current work|working on|what should i work on|in progress)\b/.test(normalized)) {
+    const summary = await getProjectSummary({ projectRoot });
+    const activeTickets = Array.isArray(summary.activeTickets) ? summary.activeTickets : [];
+    const focusTickets = activeTickets
+      .filter((ticket) => /in progress/i.test(String(ticket.lane ?? "")))
+      .concat(activeTickets.filter((ticket) => !/in progress/i.test(String(ticket.lane ?? ""))))
+      .slice(0, 5);
+    const answer = focusTickets.length
+      ? `Current work: ${focusTickets.map((ticket) => `${ticket.id}: ${ticket.title}`).join("; ")}.`
+      : "No active current work is visible in the workflow summary.";
+    return {
+      status: "complete",
+      route: { intent: "current_work", operation: "project_summary", reason: "Current-work request routed to project summary." },
+      response_type: "summary",
+      payload: {
+        summary: `${activeTickets.length} active tickets.`,
+        answer,
+        focus_tickets: focusTickets
+      }
+    };
+  }
   
   // Reuse the execution logic
   const result = await executeOperatorRequest(text, {

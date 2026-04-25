@@ -1,3 +1,8 @@
+/**
+ * @file hash.mjs
+ * @brief Auto-generated header for hash.mjs. Needs detailed responsibility and scope.
+ */
+
 import crypto from "node:crypto";
 
 export function sha1(value) {

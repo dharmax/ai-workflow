@@ -1,3 +1,8 @@
+/**
+ * @file gap-closure.mjs
+ * @brief Auto-generated header for gap-closure.mjs. Needs detailed responsibility and scope.
+ */
+
 function normalizeTextList(values) {
   return Array.isArray(values)
     ? values.map((value) => String(value ?? "").trim()).filter(Boolean)

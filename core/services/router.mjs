@@ -1,3 +1,8 @@
+/**
+ * @file router.mjs
+ * @brief Auto-generated header for router.mjs. Needs detailed responsibility and scope.
+ */
+
 import { discoverProviderState } from "./providers.mjs";
 import { applyModelFitMatrix, buildModelFitMatrix } from "./model-fit.mjs";
 
@@ -20,10 +25,10 @@ export async function routeTask({
     throw new Error("taskClass is required");
   }
 
-  const discoveredProviderState = providerState ?? await discoverProviderState({ root, forceRefresh });
+  const discoveredProviderState = providerState ?? await discoverProviderState({ root: root || process.cwd(), forceRefresh });
   const modelFitMatrix = await buildModelFitMatrix({ root, providerState: discoveredProviderState, taskClass });
   const routedState = applyModelFitMatrix(discoveredProviderState, modelFitMatrix);
-  const knowledge = routedState.knowledge;
+  const knowledge = routedState.knowledge || { capabilityMapping: {}, minimumQuality: {} };
   const capability = knowledge.capabilityMapping[taskClass] ?? domain ?? "logic";
   const minimumQuality = knowledge.minimumQuality[taskClass] ?? "medium";
   const preferLocalForTask = preferLocal ?? routedState.routingPolicy.preferLocalFor?.includes(taskClass) ?? routedState.routingPolicy.preferLocalFor?.includes(capability) ?? false;
@@ -56,7 +61,7 @@ export async function routeTask({
       // 0-5 competency score (Data-driven inference)
       const competency = model.capabilities?.[capability] ?? inferCompetency(model, capability, knowledge.inferenceHeuristics);
 
-      if (competency < 2 || (!shellPlanningLocal && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
+      if (competency < 2 || (!allowWeak && !shellPlanningLocal && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
         continue;
       }
 

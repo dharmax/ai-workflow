@@ -1,3 +1,8 @@
+/**
+ * @file disambiguation.mjs
+ * @brief Auto-generated header for disambiguation.mjs. Needs detailed responsibility and scope.
+ */
+
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 export async function promptMultiChoice({ message, options, defaultIndex }) {

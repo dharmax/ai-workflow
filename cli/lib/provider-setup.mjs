@@ -1,3 +1,8 @@
+/**
+ * @file provider-setup.mjs
+ * @brief Auto-generated header for provider-setup.mjs. Needs detailed responsibility and scope.
+ */
+
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe, writeConfigValue } from "./config-store.mjs";

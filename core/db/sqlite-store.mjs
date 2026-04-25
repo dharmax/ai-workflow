@@ -1,3 +1,8 @@
+/**
+ * @file sqlite-store.mjs
+ * @brief Auto-generated header for sqlite-store.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { mkdir } from "node:fs/promises";
@@ -46,7 +51,9 @@ function parseJson(value, fallback = {}) {
     return fallback;
   }
 }
-export async function openWorkflowStore({ projectRoot, dbPath } = {}) {
+export async function openWorkflowStore(options = {}) {
+  const projectRoot = options.projectRoot || (typeof options === "string" ? options : process.cwd());
+  const dbPath = options.dbPath;
   const resolvedDbPath = dbPath ?? path.resolve(projectRoot, ".ai-workflow", "state", "workflow.db");
   await mkdir(path.dirname(resolvedDbPath), { recursive: true });
   for (let attempt = 0; attempt < WORKFLOW_STORE_OPEN_RETRY_DELAYS_MS.length; attempt += 1) {
@@ -1278,14 +1285,19 @@ export class SqliteWorkflowStore {
     );
   }
 
-  getMetricsSummary({ now = new Date() } = {}) {
+  getMetricsSummary({ now = null } = {}) {
     const rows = this.listMetrics({ limit: null, order: "asc" });
+    const referenceNow = now instanceof Date
+      ? now
+      : rows.length
+        ? new Date(metricTimestampMs(rows[rows.length - 1]))
+        : new Date();
     const allTime = summarizeMetricsWindow(rows);
     const sessions = splitMetricSessions(rows);
     const latestSessionRows = sessions.at(-1) ?? [];
     const latestSession = summarizeMetricsWindow(latestSessionRows);
     const last4WorkHoursRows = selectLastActiveWorkRows(rows, METRICS_LAST_WORK_HOURS_MS);
-    const trailingWeekRows = rows.filter((row) => metricTimestampMs(row) >= now.getTime() - METRICS_TRAILING_WEEK_MS);
+    const trailingWeekRows = rows.filter((row) => metricTimestampMs(row) >= referenceNow.getTime() - METRICS_TRAILING_WEEK_MS);
     const trailingWeek = summarizeMetricsWindow(trailingWeekRows);
 
     return {

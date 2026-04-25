@@ -1,3 +1,8 @@
+/**
+ * @file execution-planner.mjs
+ * @brief Auto-generated header for execution-planner.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";

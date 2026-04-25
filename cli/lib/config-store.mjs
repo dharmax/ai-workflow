@@ -1,3 +1,8 @@
+/**
+ * @file config-store.mjs
+ * @brief Auto-generated header for config-store.mjs. Needs detailed responsibility and scope.
+ */
+
 import os from "node:os";
 import path from "node:path";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";

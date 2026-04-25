@@ -1,3 +1,8 @@
+/**
+ * @file model-fit.mjs
+ * @brief Auto-generated header for model-fit.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { sha1 } from "../lib/hash.mjs";

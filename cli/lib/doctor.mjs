@@ -1,3 +1,8 @@
+/**
+ * @file doctor.mjs
+ * @brief Auto-generated header for doctor.mjs. Needs detailed responsibility and scope.
+ */
+
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
