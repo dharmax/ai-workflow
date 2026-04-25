@@ -1,3 +1,8 @@
+/**
+ * @file run-artifacts.mjs
+ * @brief Auto-generated header for run-artifacts.mjs. Needs detailed responsibility and scope.
+ */
+
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
