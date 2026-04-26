@@ -1816,6 +1816,28 @@ test("shell conversation eval handles broader natural-language prompts", async (
   }
 });
 
+test("project status replies use ranked active tickets instead of raw summary order", async () => {
+  const customContext = {
+    ...plannerContext,
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-LATER-02", title: "Lower-priority later ticket", lane: "Deep Backlog" },
+        { id: "TKT-NOW-01", title: "Current execution ticket", lane: "In Progress" }
+      ]
+    }
+  };
+
+  const plan = await planShellRequest("what's the project status?", {
+    plannerContext: customContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply, /Top active ticket: TKT-NOW-01 \(In Progress\)\./);
+  assert.doesNotMatch(plan.reply, /Top active ticket: TKT-LATER-02/);
+});
+
 test("runShellTurn narrates non-mutating tool results through the assistant layer", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-" + Math.random().toString(36).slice(2));
   await fs.mkdir(root, { recursive: true });
@@ -2716,6 +2738,31 @@ test("shell one-shot invocations persist state when --state-file is provided", a
     const secondState = JSON.parse(await fs.readFile(statePath, "utf8"));
     assert.equal(secondState.runId, state.runId);
     assert.equal(secondState.history.length, 4);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("shell one-shot invocations tolerate an empty pre-existing state file", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-empty-state-" + Math.random().toString(36).slice(2));
+  const statePath = path.join(root, "shell-state.json");
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(statePath, "", "utf8");
+
+  try {
+    const result = await runNode([
+      "cli/ai-workflow.mjs",
+      "shell",
+      "--json",
+      "--state-file",
+      statePath,
+      "version"
+    ], { cwd: repoRoot });
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+
+    const state = JSON.parse(await fs.readFile(statePath, "utf8"));
+    assert.equal(typeof state.runId, "string");
+    assert.equal(state.history.length, 2);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

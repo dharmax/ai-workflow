@@ -6911,6 +6911,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   const summary = plannerContext?.summary ?? {};
   const activeTickets = Array.isArray(summary.activeTickets) ? summary.activeTickets : [];
   const shellTickets = extractShellFocusedTickets(activeTickets);
+  const rankedActiveTickets = rankStatusTickets(activeTickets);
   const kanbanInProgress = extractKanbanTicketsInSection(plannerContext?.kanban, "In Progress");
   const modules = Array.isArray(summary.modules) ? summary.modules : [];
   const providerState = plannerContext?.providerState ?? {};
@@ -7074,7 +7075,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   }
 
   if ((hasProjectQuestion || asksTellAboutProject || /\bproject am i in\b/.test(normalized)) && asksNext) {
-    const top = activeTickets[0];
+    const top = rankedActiveTickets[0];
     if (!top) {
       return replyPlan(`You are in \`${projectName}\`. I do not see an obvious active ticket yet.`, 0.88, "Answered from project root and summary.");
     }
@@ -7088,12 +7089,12 @@ function buildContextualShellReply(inputText, plannerContext) {
     if (!activeTickets.length) {
       return replyPlan("I do not see an obvious active ticket yet. Run `sync` if the board may be stale, or ask me to inspect the project state.", 0.82, "No active tickets in summary.");
     }
-    const top = asksWorkplan ? selectNextWorkplanTicket(activeTickets) : activeTickets[0];
+    const top = asksWorkplan ? selectNextWorkplanTicket(activeTickets) : rankedActiveTickets[0];
     return replyPlan(`Start with ${top.id}: ${top.title}. It is currently in ${top.lane}.`, 0.88, "Suggested next work from active tickets.");
   }
 
   if ((hasProjectQuestion && asksWhere) || ["what project am i in", "which project is this", "what repo is this"].includes(normalized)) {
-    const ticketHint = activeTickets[0] ? ` The top active ticket looks like ${activeTickets[0].id}: ${activeTickets[0].title}.` : "";
+    const ticketHint = rankedActiveTickets[0] ? ` The top active ticket looks like ${rankedActiveTickets[0].id}: ${rankedActiveTickets[0].title}.` : "";
     return replyPlan(`You are in \`${projectName}\`. Indexed modules and tickets are available here.${ticketHint}`, 0.88, "Answered from project root and summary.");
   }
 
@@ -7134,7 +7135,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   }
 
   if (asksStatus && hasProjectQuestion) {
-    const ticketHint = activeTickets[0] ? `Top active ticket: ${activeTickets[0].id} (${activeTickets[0].lane}).` : "No active ticket is obvious yet.";
+    const ticketHint = rankedActiveTickets[0] ? `Top active ticket: ${rankedActiveTickets[0].id} (${rankedActiveTickets[0].lane}).` : "No active ticket is obvious yet.";
     const moduleHint = modules.length ? `Main areas: ${modules.slice(0, 5).map((item) => item.name).join(", ")}.` : "Module summary is not available yet.";
     const counts = [];
     if (Number.isFinite(summary.fileCount)) counts.push(`${summary.fileCount} files`);
@@ -7736,6 +7737,9 @@ export async function recordShellTurnHistory(options, line, result) {
 async function readShellStateFile(filePath) {
   try {
     const raw = await readFile(filePath, "utf8");
+    if (!String(raw).trim()) {
+      return null;
+    }
     return JSON.parse(raw);
   } catch (error) {
     if (error?.code === "ENOENT") {

@@ -22,11 +22,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 ## ToDo
 <!-- canonical alias: ## Todo -->
 
-- [ ] TKT-SHELL-PHASE1-004 Phase 1: stabilize shell routing and status after dogfood fix
-  - Summary: After the dogfood blocker is fixed, harden local-first routing, explicit local-unavailable reporting, and grounded status/explainer output across repeated shell use. This is the regression layer that keeps the fix from drifting back into shallow status reads. Exit criteria: repeated dogfood stays green, project status prompts remain grounded, and explicit fallback states are visible in no-ai and normal runs. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/status.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs.
-  - Epic: EPIC-001
-  - Parent: EPIC-001
-  - State: open
+- No items
 
 ## Bugs P1
 
@@ -56,6 +52,11 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] TKT-SHELL-PHASE1-004 Phase 1: stabilize shell routing and status after dogfood fix ✅ 2026-04-26
+  - Summary: After the dogfood blocker is fixed, harden local-first routing, explicit local-unavailable reporting, and grounded status/explainer output across repeated shell use. This is the regression layer that keeps the fix from drifting back into shallow status reads. Exit criteria: repeated dogfood stays green, project status prompts remain grounded, and explicit fallback states are visible in no-ai and normal runs. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/status.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs.
+  - Epic: EPIC-001
+  - Parent: EPIC-001
+  - State: archived
 - [ ] BUG-CODELET-ASK-001 Make tool-dev ask answer codelet-registry questions from workflow state ✅ 2026-04-26
   - Summary: The tool-dev ask path should answer codelet-registry and refactor-codelet coverage questions directly from the synced workflow DB/registry instead of returning a vague investigation response. Exit criteria: ai-workflow ask --mode tool-dev can state whether a refactor execution codelet exists, cite the matching codelets, and surface registry-backed evidence without manual grep.
   - State: archived
