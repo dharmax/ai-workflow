@@ -48,6 +48,7 @@ test("ai-workflow list reports built-in codelets", { concurrency: false }, async
   assert.equal(Array.isArray(payload.toolkitCodelets), true);
   assert.equal(payload.toolkitCodelets.some((item) => item.id === "sync"), true);
   assert.equal(payload.toolkitCodelets.some((item) => item.id === "css-refactor"), true);
+  assert.equal(payload.toolkitCodelets.some((item) => item.id === "refactor-ticket"), true);
   assert.equal(payload.toolkitCodelets.some((item) => item.id === "codelet-observer"), true);
 });
 
@@ -74,6 +75,14 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
     const showPayload = JSON.parse(showResult.stdout);
     assert.equal(showPayload.id, "doctor");
     assert.equal(showPayload.backing.status, "builtin");
+
+    const searchResult = await runNode(
+      [path.join(repoRoot, "cli", "ai-workflow.mjs"), "project", "codelet", "search", "refactor", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(searchResult.code, 0);
+    const searchPayload = JSON.parse(searchResult.stdout);
+    assert.equal(searchPayload.some((item) => item.id === "refactor-ticket"), true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

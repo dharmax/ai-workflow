@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { syncProject, createTicket } from "../core/services/sync.mjs";
-import { sweepBugs } from "../core/services/orchestrator.mjs";
+import { deriveTicketExecutionProfile, sweepBugs } from "../core/services/orchestrator.mjs";
 import { withWorkflowStore } from "../core/services/sync.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -235,4 +235,29 @@ test("sweepBugs prioritizes higher-impact bugs first and records the selection r
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
+});
+
+test("deriveTicketExecutionProfile classifies refactor tickets separately from bug fixes", () => {
+  const refactorProfile = deriveTicketExecutionProfile({
+    id: "REF-SHELL-01",
+    title: "Refactor shell routing into smaller modules",
+    lane: "Todo",
+    data: {
+      summary: "Modularize the planner and fallback code without changing behavior."
+    }
+  });
+  assert.equal(refactorProfile.kind, "refactor");
+  assert.equal(refactorProfile.taskClass, "refactoring");
+  assert.match(refactorProfile.goalInstruction, /keep behavior stable/i);
+
+  const bugProfile = deriveTicketExecutionProfile({
+    id: "BUG-SHELL-01",
+    title: "Fix shell routing regression",
+    lane: "Todo",
+    data: {
+      summary: "Repair the broken fallback path."
+    }
+  });
+  assert.equal(bugProfile.kind, "bugfix");
+  assert.equal(bugProfile.taskClass, "bug-hunting");
 });

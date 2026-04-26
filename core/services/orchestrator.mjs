@@ -61,6 +61,7 @@ export async function executeTicket(options) {
   const baselineVerificationCache = options.baselineVerificationCache ?? new Map();
   const ticket = await withWorkflowStore(root, async (store) => store.getEntity(ticketId));
   const selection = options.selection ?? buildBugSweepSelection(ticket);
+  const executionProfile = deriveTicketExecutionProfile(ticket);
 
   if (!ticket || ticket.entityType !== "ticket") {
     return {
@@ -167,12 +168,13 @@ export async function executeTicket(options) {
   }
 
   return withSupergitTransaction(root, ticket.id, async () => {
-    const model = (await routeTask({ root, taskClass: "debugging" })).recommended;
+    const route = await routeTask({ root, taskClass: executionProfile.taskClass });
+    const model = route.recommended;
     const attempts = [];
     if (!model) {
       const lessons = buildExecutionLessons({
         status: "blocked",
-        error: "No debugging model available",
+        error: `No ${executionProfile.taskClass} model available`,
         selection,
         attempts
       });
@@ -181,16 +183,25 @@ export async function executeTicket(options) {
         executionPlan,
         executionResult: {
           status: "blocked",
-          reason: "No debugging model available",
+          reason: `No ${executionProfile.taskClass} model available`,
           selection,
           attempts,
           lessons
         }
       });
-      return { success: false, status: "blocked", error: "No debugging model available", executionPlan, selection, attempts, lessons };
+      return {
+        success: false,
+        status: "blocked",
+        error: `No ${executionProfile.taskClass} model available`,
+        executionPlan,
+        selection,
+        attempts,
+        lessons
+      };
     }
 
-    const system = `You are a developer fixing a bug. Output ONLY SEARCH/REPLACE blocks.
+    const system = `${executionProfile.systemInstruction}
+Output ONLY SEARCH/REPLACE blocks.
 Format each block exactly like this:
 File: path/to/file.js
 <<<< SEARCH
@@ -205,7 +216,17 @@ Only edit files that are already in the provided working set.
 If you gain insights about the architectural mapping, you may ALSO output a JSON block like this:
 { "action": "refine_map", "file": "path/to/file.js", "module": "module-name", "features": ["feature-a", "feature-b"] }
 `;
-    let prompt = `Context:\n${formatContextForPrompt(context)}\n\nAllowed files:\n${executionPlan.workingSet.join("\n")}\n\nFix this bug.`;
+    let prompt = [
+      `Ticket: ${ticket.id} ${ticket.title}`,
+      ticket.data?.summary ? `Ticket summary: ${String(ticket.data.summary).trim()}` : null,
+      `Execution profile: ${executionProfile.kind}`,
+      "",
+      `Context:\n${formatContextForPrompt(context)}`,
+      "",
+      `Allowed files:\n${executionPlan.workingSet.join("\n")}`,
+      "",
+      executionProfile.goalInstruction
+    ].filter(Boolean).join("\n");
     let patchSuccess = false;
     let lastError = null;
     let patchResult = null;
@@ -250,7 +271,7 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
         attemptRecord.requestError = reqError;
         await withWorkflowStore(root, async (store) => {
           store.appendMetric({
-            taskClass: "debugging",
+            taskClass: executionProfile.taskClass,
             capability: "logic",
             providerId: model.providerId,
             modelId: model.modelId,
@@ -370,6 +391,39 @@ If you gain insights about the architectural mapping, you may ALSO output a JSON
       lessons
     };
   });
+}
+
+export function deriveTicketExecutionProfile(ticket) {
+  const id = String(ticket?.id ?? "").trim();
+  const title = String(ticket?.title ?? "").trim();
+  const summary = String(ticket?.data?.summary ?? "").trim();
+  const lane = String(ticket?.lane ?? "").trim();
+  const haystack = [id, title, summary, lane].join(" ").toLowerCase();
+
+  if (/\b(refactor|restructure|simplify|cleanup|clean up|extract|untangle|modulari[sz]e|split)\b/.test(haystack)) {
+    return {
+      kind: "refactor",
+      taskClass: "refactoring",
+      systemInstruction: "You are a developer performing a bounded refactor. Preserve behavior unless the ticket explicitly calls for a behavior change.",
+      goalInstruction: "Carry out this refactor with the smallest coherent patch. Improve structure, keep behavior stable, and do not broaden scope beyond the ticket."
+    };
+  }
+
+  if (/\b(feature|implement|build|add|introduce|create)\b/.test(haystack)) {
+    return {
+      kind: "feature",
+      taskClass: "code-generation",
+      systemInstruction: "You are a developer implementing a bounded feature increment. Keep the change focused and consistent with the surrounding codebase.",
+      goalInstruction: "Implement this change with the smallest coherent patch that satisfies the ticket without drifting into unrelated cleanup."
+    };
+  }
+
+  return {
+    kind: "bugfix",
+    taskClass: "bug-hunting",
+    systemInstruction: "You are a developer fixing a bug.",
+    goalInstruction: "Fix this bug with the smallest coherent patch."
+  };
 }
 
 async function updateTicketState(root, bug, lane, payload = {}) {

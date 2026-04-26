@@ -1,0 +1,8 @@
+{
+  "id": "refactor-ticket",
+  "summary": "Plan or execute a bounded refactor ticket with DB-backed context, guarded patching, and verification.",
+  "stability": "experimental",
+  "category": "refactoring",
+  "runner": "node-script",
+  "entry": "runtime/scripts/ai-workflow/execute-ticket.mjs"
+}

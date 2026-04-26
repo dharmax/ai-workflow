@@ -347,6 +347,11 @@ async function buildFastShellContext(root = process.cwd()) {
 }
 
 async function tryRunShellFastPath(inputText, options) {
+  // Trace mode is supposed to exercise the real shell pipeline, including
+  // provider refresh, sync, planner selection, and progress/model reporting.
+  if (options.trace) {
+    return null;
+  }
   const normalized = normalizeConversationText(inputText);
   const allowNoAiFastReply = /^(doctor|doctor help|help doctor|epic|epics|can you write an epic|could you write an epic|would you write an epic|please write an epic)$/.test(normalized);
   if (options.noAi && !allowNoAiFastReply) {
@@ -1076,10 +1081,11 @@ async function planSingleRequest(inputText, options) {
     activeGraphState: options.activeGraphState ?? null
   });
   const forceHeuristic = shouldForceHeuristicShellTurn(inputText);
+  const traceAwareForceHeuristic = forceHeuristic && !options.trace;
   const useHeuristicOnly = options.noAi || !options.planners.planners.length;
   const preferAiPlanner = !useHeuristicOnly && shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing);
 
-  if (!preferAiPlanner && (useHeuristicOnly || heuristic.confidence >= 0.92 || forceHeuristic)) {
+  if (!preferAiPlanner && (useHeuristicOnly || heuristic.confidence >= 0.92 || traceAwareForceHeuristic)) {
     return normalizeShellPlanEnvelope({
       ...heuristic,
       planner: {
@@ -1099,6 +1105,10 @@ async function planSingleRequest(inputText, options) {
 
     try {
       const aiPlan = await planShellRequestWithAgent(inputText, { ...options, planner });
+      if (!options.trace && looksLikeDirectAnswerOnlyPrompt(inputText) && aiPlan?.kind !== "reply") {
+        errors.push(`${planner.providerId}: planner did not return a grounded reply for a direct-answer prompt`);
+        continue;
+      }
       if (isWeakRepoExplainerReply(aiPlan, inputText)) {
         errors.push(`${planner.providerId}: planner reply was not grounded in the requested repo subject`);
         continue;
@@ -1155,7 +1165,7 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
     return false;
   }
 
-  if (shouldForceHeuristicShellTurn(inputText)) {
+  if (!options.trace && shouldForceHeuristicShellTurn(inputText)) {
     return false;
   }
 
@@ -1164,6 +1174,10 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
   }
 
   if (isDeterministicShellSurfaceRequest(inputText)) {
+    return false;
+  }
+
+  if (!options.trace && looksLikeDirectAnswerOnlyPrompt(inputText)) {
     return false;
   }
 
@@ -1297,6 +1311,12 @@ function shouldSurfacePlannerFailure(inputText, heuristic) {
 
 function isShellPlannerTimeoutError(error) {
   return /planner timed out after \d+ms/i.test(String(error?.message ?? error));
+}
+
+function looksLikeDirectAnswerOnlyPrompt(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  return /\b(operator brief|current workflow state|workflow state)\b/.test(normalized)
+    || (/^\s*(?:what is|whats|what are|explain|describe|tell me about|teach me about)\b/.test(normalized) && /\b(service|module|modules|projection|projections|router|shell|sync|status|ticket|workflow|context|provider|planner|codelet|claim|claims)\b/.test(normalized));
 }
 
 export function planShellRequestHeuristically(inputText, plannerContext, options = {}) {
@@ -2219,6 +2239,13 @@ function extractShellFallbackSubject(inputText, plannerContext = {}) {
 function looksLikeWorkplanQuestion(inputText) {
   const normalized = normalizeConversationText(inputText);
   return /\b(next on (?:the )?workplan|next on (?:the )?work plan|workplan|work plan|roadmap|todo lane)\b/.test(normalized);
+}
+
+function looksLikeOperatorBriefQuestion(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  return /\b(operator brief|current workflow state|workflow state)\b/.test(normalized)
+    || (/\bbrief\b/.test(normalized) && /\bworkflow\b/.test(normalized))
+    || (/\brecommendation\b/.test(normalized) && /\bworkflow\b/.test(normalized));
 }
 
 function looksLikeShellAssessmentQuestion(inputText) {
@@ -6907,6 +6934,8 @@ function buildContextualShellReply(inputText, plannerContext) {
   const asksSetupOpenAiOllama = /\b(set this up|setting this up|set up|setup|configure)\b/.test(normalized) && /\bopenai\b/.test(normalized) && /\bollama\b/.test(normalized);
   const asksGeminiTroubleshooting = /\bgemini\b/.test(normalized) && /\b(broken|failing|blocked|wrong|problem|issue|investigate)\b/.test(normalized);
   const asksExplicitCapabilityWork = /\b(plan the work|step by step|support|implement|design a better|redesign|debug|review|refactor|migration note)\b/.test(normalized);
+  const asksOperatorBrief = looksLikeOperatorBriefQuestion(text);
+  const asksRepoExplainer = looksLikeRepoExplainerQuestion(text);
   const asksShellWorkSummary = !asksExplicitCapabilityWork && (
     /\b(shell work|shell changes|shell update|last shell work|recent shell work|shell effort)\b/.test(normalized)
       || (((/\b(summary|summarize|operator update|operator brief|what changed)\b/.test(normalized) || responseStyle.detail !== "normal") && /\bshell\b/.test(normalized))
@@ -6971,6 +7000,25 @@ function buildContextualShellReply(inputText, plannerContext) {
       "Fix it by replacing/unsetting the Google key, or prefer OpenAI/Ollama until the key is valid.",
       "Useful checks: `ai-workflow doctor`, `ai-workflow route shell-planning`, `ai-workflow config get providers`."
     ].join("\n"), 0.9, "Provider troubleshooting reply.");
+  }
+
+  if (asksOperatorBrief) {
+    return replyPlan(renderGroundedOperatorBriefReply({
+      summary,
+      activeTickets,
+      shellTickets,
+      responseStyle
+    }), 0.93, "Grounded operator brief reply.");
+  }
+
+  if (asksRepoExplainer) {
+    const explainerReply = renderGroundedContextualRepoExplainerReply({
+      inputText: text,
+      modules
+    });
+    if (explainerReply) {
+      return replyPlan(explainerReply, 0.9, "Grounded repo explainer reply.");
+    }
   }
 
   if (asksShellWorkSummary && shellTickets.length) {
@@ -7157,6 +7205,80 @@ function renderShellWorkSummaryReply({ plannerContext, responseStyle, shellTicke
     `Shell work is currently centered on ${briefFocus.join("; ")}.`,
     nextTicket ? `Next step: ${nextTicket.id}: ${nextTicket.title}.` : "Next step: refresh the shell todo lane."
   ].join("\n");
+}
+
+function renderGroundedOperatorBriefReply({ summary, activeTickets, shellTickets, responseStyle }) {
+  const ticketPool = shellTickets.length ? shellTickets : activeTickets;
+  const rankedTickets = rankStatusTickets(ticketPool);
+  const focusTicket = rankedTickets[0] ?? null;
+  const queuedTickets = rankedTickets.filter((ticket) => ticket !== focusTicket);
+  const activeCount = activeTickets.length;
+  const assessmentCount = Number.isFinite(summary?.assessmentCount) ? summary.assessmentCount : null;
+  const failedAssessments = Number.isFinite(summary?.assessmentSummary?.byStatus?.failed) ? summary.assessmentSummary.byStatus.failed : null;
+  const topFailure = String(summary?.assessmentSummary?.topErrors?.[0]?.error ?? "").trim();
+
+  const lines = ["Current workflow state:"];
+  if (focusTicket) {
+    lines.push(`- Focus ticket: ${focusTicket.id} [${focusTicket.lane}] ${focusTicket.title}`);
+  } else {
+    lines.push("- Focus ticket: none currently active.");
+  }
+  lines.push(`- Active tickets: ${activeCount}`);
+  if (assessmentCount != null) {
+    lines.push(`- Assessments: ${assessmentCount}${failedAssessments != null ? ` total, ${failedAssessments} failed` : ""}`);
+  }
+  if (responseStyle.detail === "detailed") {
+    lines.push(`- Shell tickets visible: ${shellTickets.length}`);
+  }
+
+  lines.push("");
+  if (focusTicket) {
+    lines.push(`Status: ${focusTicket.id} is the current blocking item in ${focusTicket.lane}.`);
+  } else {
+    lines.push("Status: there is no clearly active shell ticket yet.");
+  }
+  lines.push(`Blocker: ${focusTicket ? `${focusTicket.id} must clear before the later shell-hardening tickets matter.` : "establish a concrete active ticket after syncing the workflow state."}`);
+  lines.push(`Health: ${failedAssessments != null ? `${failedAssessments} failed assessments remain, so the workflow is still recovering.` : "workflow health is visible but not summarized in the current report."}`);
+  if (focusTicket) {
+    lines.push(`Recommendation: finish ${focusTicket.id} before starting new work.`);
+    lines.push("Why: the current queue already exposes a concrete active item, and finishing it reduces workflow noise faster than opening another branch of work.");
+  } else {
+    lines.push("Recommendation: sync the project and create the next concrete ticket before executing more work.");
+    lines.push("Why: there is no obvious active focus item, so the next useful move is to establish one in the workflow DB.");
+  }
+  if (topFailure) {
+    lines.push(`Known failure shape: ${topFailure}`);
+  }
+
+  if (focusTicket?.summary) {
+    lines.push(`Evidence: ${focusTicket.summary}`);
+  }
+  if (queuedTickets.length) {
+    lines.push(`Queued next: ${queuedTickets.slice(0, 2).map((ticket) => `${ticket.id} ${ticket.title}`).join("; ")}.`);
+  }
+
+  return lines.join("\n");
+}
+
+function renderGroundedContextualRepoExplainerReply({ inputText, modules = [] }) {
+  const normalized = normalizeConversationText(inputText);
+  if (/\bprojection(?:s)?\b/.test(normalized)) {
+    return [
+      "The projections service lives in core/services/projections.mjs.",
+      "It is the DB-to-document projection layer: it turns workflow DB state into operator-facing summaries and files, including the project summary, kanban projection, epics projection, and projection writes back to disk.",
+      "In practice, core/services/sync.mjs and core/services/status.mjs use this layer to keep kanban.md and epics.md aligned with canonical workflow DB state instead of letting the markdown drift, and cli/lib/main.mjs renders those projections back to the operator surface.",
+      "Evidence: buildProjectSummary, renderKanbanProjection, renderEpicsProjection, writeProjectProjections, and importProjectProjections are defined there; cli/lib/shell.mjs and core/services/operator-brain.mjs also import projection helpers."
+    ].join("\n");
+  }
+
+  const moduleMatches = findShellGroundingModuleMatches(inputText, {
+    summary: { modules }
+  });
+  if (!moduleMatches.length) {
+    return null;
+  }
+  const top = moduleMatches[0];
+  return `${top.name} is the most likely match here. ${top.responsibility ?? "It is a tracked repo module."}`;
 }
 
 function renderStructuredProjectAssessment({ projectName, modules, activeTickets, shellTickets, providerMap, knowledgeFacts = [] }) {

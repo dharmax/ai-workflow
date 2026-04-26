@@ -941,8 +941,10 @@ test("planShellRequest does not split a single natural-language request on plain
   };
 
   const plan = await planShellRequest("Give me a concise operator brief grounded in the current workflow state, and justify the recommendation.", options);
-  assert.equal(plan.kind, "plan");
-  assert.equal(callCount, 1);
+  assert.equal(plan.kind, "reply");
+  assert.equal(callCount, 0);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Current workflow state:/);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Recommendation:/);
 });
 
 test("planShellRequest times out a slow planner and falls back to the next one", async () => {
@@ -1428,16 +1430,26 @@ test("heuristic shell planner handles broad project-next questions and implicit 
   ]);
 });
 
-test("heuristic fallback treats operator-brief phrasing as project status", async () => {
+test("heuristic fallback returns a grounded operator brief", async () => {
   const plan = await planShellRequest("Give me a concise operator brief grounded in the current workflow state, and justify the recommendation.", {
     plannerContext,
     noAi: true,
     planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
   });
-  assert.equal(plan.kind, "plan");
-  assert.deepEqual(plan.actions, [
-    { type: "project_summary" }
-  ]);
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Current workflow state:/);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Recommendation:/);
+});
+
+test("heuristic fallback returns a grounded projections explainer", async () => {
+  const plan = await planShellRequest("what is the projections service?", {
+    plannerContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /core\/services\/projections\.mjs/i);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /renderKanbanProjection|project summary|epics projection/i);
 });
 
 test("heuristic shell planner routes complex goal-directed ticket requests through staged planning", () => {
