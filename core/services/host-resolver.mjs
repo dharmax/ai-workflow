@@ -3,14 +3,16 @@
  * @brief Auto-generated header for host-resolver.mjs. Needs detailed responsibility and scope.
  */
 
-import { evaluateProjectReadiness, getProjectSummary } from "./sync.mjs";
+import { evaluateProjectReadiness, getProjectSummary, withWorkflowStore } from "./sync.mjs";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runtime/scripts/ai-workflow/lib/active-guardrails.mjs";
+import { listCodeletsFromStore, refreshCodeletRegistry } from "./codelets.mjs";
 
 const CURRENT_WORK_RE = /\b(working on right now|working on now|what are we working on|what were working on|current work|current focus|in progress right now|currently in progress)\b/i;
 const READINESS_RE = /\b(ready|readiness|before beta|before release|for beta|for release|for handoff)\b/i;
 const STATUS_RE = /\b(project status|what'?s the project status|what is the project status|overall status|how ready)\b/i;
+const CODELET_RE = /\b(codelet|codelets|smart codelet|workflow-native codelet)\b/i;
 
 export async function resolveHostRequest({
   projectRoot = process.cwd(),
@@ -146,6 +148,20 @@ export async function resolveHostRequest({
     };
   }
 
+  if (CODELET_RE.test(normalizedText)) {
+    const payload = await resolveCodeletRegistryQuestion(projectRoot, normalizedText);
+    return {
+      status: "complete",
+      route: {
+        intent: "codelet_registry_question",
+        operation: "project_codelet_registry",
+        reason: "Natural-language codelet question routed to the synced codelet registry."
+      },
+      response_type: "summary",
+      payload
+    };
+  }
+
   const summary = await getProjectSummary({ projectRoot });
   return {
     status: "complete",
@@ -163,6 +179,131 @@ export async function resolveHostRequest({
       recommended_next_actions: ["Ask a narrower question like 'is this ready for beta testing?' or 'what are we working on right now?'."]
     }
   };
+}
+
+async function resolveCodeletRegistryQuestion(projectRoot, text) {
+  const codelets = await withWorkflowStore(projectRoot, async (store) => {
+    await refreshCodeletRegistry(store, { projectRoot });
+    return listCodeletsFromStore(store);
+  });
+
+  const matches = rankCodeletMatches(codelets, text).slice(0, 5);
+  const top = matches[0] ?? null;
+  const asksRefactorExecution = /\b(refactor|restructure|cleanup|simplify|extract|modulari[sz]e)\b/i.test(text)
+    && /\b(execution|execute|run|apply|patch|verification|verify|test|workflow db|workflow state|db)\b/i.test(text);
+  const hasWorkflowNativeRefactor = matches.some((item) => item.id === "refactor-ticket");
+
+  let summary = top
+    ? `Found ${matches.length} matching codelets in the workflow registry.`
+    : "No matching codelets were found in the synced workflow registry.";
+  if (asksRefactorExecution) {
+    summary = hasWorkflowNativeRefactor
+      ? "Yes. The workflow registry includes a first-class refactor execution codelet."
+      : "No exact workflow-native refactor execution codelet was found in the current registry.";
+  }
+
+  const lines = [summary];
+  if (matches.length) {
+    lines.push("");
+    lines.push("Matching codelets:");
+    for (const codelet of matches) {
+      lines.push(`- ${codelet.id} [${codelet.sourceKind}] ${codelet.summary}`);
+      const evidence = buildCodeletEvidence(codelet);
+      for (const item of evidence) {
+        lines.push(`  ${item}`);
+      }
+    }
+  }
+
+  const recommendedNextActions = [];
+  if (hasWorkflowNativeRefactor) {
+    recommendedNextActions.push("Use `ai-workflow run refactor-ticket --ticket <ID>` for a workflow-native refactor execution path.");
+  } else if (asksRefactorExecution) {
+    recommendedNextActions.push("Add a refactor execution codelet or extend an existing execution codelet with explicit refactor semantics.");
+  }
+  recommendedNextActions.push("Use `ai-workflow project codelet search <topic>` to inspect nearby codelets from the registry.");
+
+  return {
+    summary,
+    answer: lines.join("\n"),
+    matching_codelets: matches.map((codelet) => ({
+      id: codelet.id,
+      summary: codelet.summary,
+      source_kind: codelet.sourceKind,
+      category: codelet.category ?? null,
+      entry_path: codelet.entryPath ?? null,
+      manifest_path: codelet.manifestPath ?? null
+    })),
+    recommended_next_actions: recommendedNextActions.slice(0, 3)
+  };
+}
+
+function rankCodeletMatches(codelets, text) {
+  const normalized = String(text ?? "").toLowerCase();
+  return (Array.isArray(codelets) ? codelets : [])
+    .map((codelet) => ({
+      ...codelet,
+      _score: scoreCodeletMatch(codelet, normalized)
+    }))
+    .filter((codelet) => codelet._score > 0)
+    .sort((left, right) => right._score - left._score || String(left.id).localeCompare(String(right.id)));
+}
+
+function scoreCodeletMatch(codelet, normalized) {
+  const haystack = [
+    codelet.id,
+    codelet.summary,
+    codelet.category,
+    codelet.taskClass,
+    codelet.entryPath,
+    codelet.manifestPath
+  ].join("\n").toLowerCase();
+  let score = 0;
+
+  if (/\brefactor|restructure|cleanup|simplify|extract|modulari[sz]e\b/.test(normalized)) {
+    if (/\brefactor\b/.test(haystack)) score += 30;
+    if (String(codelet.id) === "refactor-ticket") score += 50;
+  }
+  if (/\b(execution|execute|run|apply|patch)\b/.test(normalized)) {
+    if (/\bexecute|execution|run|ticket\b/.test(haystack)) score += 20;
+  }
+  if (/\b(verify|verification|test|prove|audit|judge)\b/.test(normalized)) {
+    if (/\bverify|verification|test|audit|judge\b/.test(haystack)) score += 15;
+  }
+  if (/\b(db|database|workflow db|workflow state|registry|context)\b/.test(normalized)) {
+    if (/\bworkflow|context|registry\b/.test(haystack)) score += 10;
+  }
+  if (/\bcodelet\b/.test(normalized)) {
+    score += 5;
+  }
+
+  if (score === 0 && /\brefactor\b/.test(haystack)) {
+    score = 5;
+  }
+
+  return score;
+}
+
+function buildCodeletEvidence(codelet) {
+  const evidence = [];
+  if (codelet.category) {
+    evidence.push(`Category: ${codelet.category}`);
+  }
+  if (codelet.entryPath) {
+    evidence.push(`Entry: ${path.relative(process.cwd(), codelet.entryPath)}`);
+  }
+  if (codelet.manifestPath) {
+    evidence.push(`Manifest: ${path.relative(process.cwd(), codelet.manifestPath)}`);
+  }
+  if (codelet.id === "refactor-ticket") {
+    evidence.push("Execution path: execute-ticket -> orchestrator executeTicket");
+    evidence.push("Workflow evidence: executeTicket uses withWorkflowStore, buildSurgicalContext, verifyAndApplyPatch, and runVerificationPlan.");
+  } else if (codelet.id === "execute-ticket") {
+    evidence.push("Execution path: runtime/scripts/ai-workflow/execute-ticket.mjs -> core/services/orchestrator.mjs");
+  } else if (codelet.id === "verify") {
+    evidence.push("Verification role: registry-backed verification helper.");
+  }
+  return evidence;
 }
 
 function formatGoalLabel(goalType) {

@@ -1177,7 +1177,7 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
     return false;
   }
 
-  if (!options.trace && looksLikeDirectAnswerOnlyPrompt(inputText)) {
+  if (looksLikeDirectAnswerOnlyPrompt(inputText)) {
     return false;
   }
 
@@ -1521,6 +1521,13 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     }], 0.97, "Readiness judgment request routed to the shared readiness evaluator."),
       presentation: "assistant-first"
     };
+  }
+
+  if (looksLikeDirectAnswerOnlyPrompt(text)) {
+    const directAnswerReply = buildContextualShellReply(text, plannerContext);
+    if (directAnswerReply) {
+      return directAnswerReply;
+    }
   }
 
   if (/\b(complete|finish|resolve|do|handle)\b/.test(lower)

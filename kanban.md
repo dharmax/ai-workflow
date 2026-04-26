@@ -34,9 +34,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Bugs P2/P3
 
-- [ ] BUG-CODELET-ASK-001 Make tool-dev ask answer codelet-registry questions from workflow state
-  - Summary: The tool-dev ask path should answer codelet-registry and refactor-codelet coverage questions directly from the synced workflow DB/registry instead of returning a vague investigation response. Exit criteria: ai-workflow ask --mode tool-dev can state whether a refactor execution codelet exists, cite the matching codelets, and surface registry-backed evidence without manual grep.
-  - State: open
+- No items
 
 ## Assessments
 
@@ -58,6 +56,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] BUG-CODELET-ASK-001 Make tool-dev ask answer codelet-registry questions from workflow state ✅ 2026-04-26
+  - Summary: The tool-dev ask path should answer codelet-registry and refactor-codelet coverage questions directly from the synced workflow DB/registry instead of returning a vague investigation response. Exit criteria: ai-workflow ask --mode tool-dev can state whether a refactor execution codelet exists, cite the matching codelets, and surface registry-backed evidence without manual grep.
+  - State: archived
 - [ ] BUG-SHELL-DOGFOOD-001 Fix shell planning and explainer dogfood failures ✅ 2026-04-26
   - Summary: Dogfood shows the shell collapsing a planning prompt into a status lookup and failing the grounded explainer rubric. The failure surface needs non-interactive progress output, a more comprehensive answer shape, and clearer routing for repo-explainer prompts. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs. Exit criteria: ai-planning-read and ai-explainer-read both pass in fresh dogfood runs.
   - State: archived

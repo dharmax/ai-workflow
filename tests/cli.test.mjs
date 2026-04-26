@@ -577,6 +577,41 @@ test("ask command routes natural-language readiness requests for real host-style
   }
 });
 
+test("ask command answers tool-dev codelet registry questions with registry-backed evidence", async () => {
+  const evidenceRoot = await createShellFixtureProject();
+  const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.mjs"), "sync", "--json"], { cwd: evidenceRoot });
+  assert.equal(sync.code, 0, sync.stderr || sync.stdout);
+
+  try {
+    const result = await runNode([
+      path.join(repoRoot, "cli", "ai-workflow.mjs"),
+      "ask",
+      "--mode",
+      "tool-dev",
+      "--evidence-root",
+      evidenceRoot,
+      "Do we have a workflow-native codelet for refactor execution that uses the DB, bounded patching, and verification? Cite the codelets and the evidence.",
+      "--json"
+    ], { cwd: repoRoot });
+
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.route.operation, "project_codelet_registry");
+    assert.equal(payload.route.intent, "codelet_registry_question");
+    assert.equal(payload.response_type, "summary");
+    assert.match(payload.payload.summary, /workflow registry includes a first-class refactor execution codelet/i);
+    assert.equal(payload.payload.matching_codelets.some((item) => item.id === "refactor-ticket"), true);
+    assert.match(payload.payload.answer, /refactor-ticket/);
+    assert.match(payload.payload.answer, /execute-ticket/);
+    assert.match(payload.payload.answer, /withWorkflowStore/);
+    assert.match(payload.payload.answer, /runVerificationPlan/);
+    assert.equal(payload.meta.mode, "tool-dev");
+    assert.equal(payload.meta.evidence_root, evidenceRoot);
+  } finally {
+    await cleanup(evidenceRoot);
+  }
+});
+
 test("ask command renders readiness in assistant-first language for plugin-style CLI use", async () => {
   const evidenceRoot = await createShellFixtureProject();
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.mjs"), "sync", "--json"], { cwd: evidenceRoot });

@@ -401,6 +401,54 @@ test("shell transcript judge falls back when the first provider returns unstruct
   }
 });
 
+test("shell transcript judge deterministically accepts operator briefs centered on TKT tickets", { concurrency: false }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "shell-transcript-operator-brief-"));
+
+  try {
+    await mkdir(path.join(root, ".ai-workflow"), { recursive: true });
+    await writeFile(path.join(root, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        ollama: {
+          enabled: false
+        },
+        openai: {
+          enabled: false
+        },
+        anthropic: {
+          enabled: false
+        },
+        google: {
+          enabled: false
+        }
+      }
+    }, null, 2), "utf8");
+    await mkdir(path.join(root, "artifacts"), { recursive: true });
+    await writeFile(path.join(root, "artifacts", "operator-brief.txt"), [
+      "Current workflow state:",
+      "- Focus ticket: TKT-SHELL-PHASE1-004 [Todo] Phase 1: stabilize shell routing and status after dogfood fix",
+      "- Active tickets: 3",
+      "- Assessments: 49 total, 47 failed",
+      "",
+      "Status: TKT-SHELL-PHASE1-004 is the current blocking item in Todo.",
+      "Blocker: TKT-SHELL-PHASE1-004 must clear before the later shell-hardening tickets matter.",
+      "Health: 47 failed assessments remain, so the workflow is still recovering.",
+      "Recommendation: finish TKT-SHELL-PHASE1-004 before starting new work.",
+      "Evidence: The shell hardening ticket keeps repeated dogfood and grounded status/explainer output green. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs."
+    ].join("\n"), "utf8");
+
+    const payload = await judgeShellTranscripts({
+      projectRoot: root,
+      artifactPaths: ["artifacts/operator-brief.txt"],
+      rubric: "The shell output must directly answer the operator brief request, stay grounded in workflow/project state, avoid exposing internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing."
+    });
+
+    assert.equal(payload.result.status, "pass");
+    assert.match(payload.result.summary, /operator brief rubric/i);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("shell transcript judge falls back when the first provider times out", { concurrency: false }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "shell-transcript-timeout-"));
   const primaryProviderId = `mock-shell-transcript-timeout-${Date.now()}`;

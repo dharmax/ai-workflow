@@ -821,6 +821,46 @@ test("planShellRequest prefers the AI graph planner for semantic paraphrases of 
   assert.match(seen[0], /Current User Request:/);
 });
 
+test("planShellRequest bypasses AI planners for direct operator briefs even with trace enabled", async () => {
+  let callCount = 0;
+  registerProvider("mock-trace-brief-shell-planner", {
+    local: false,
+    available: true,
+    models: [{ id: "brain-v1", quality: "high" }],
+    generate: async () => {
+      callCount += 1;
+      return {
+        response: JSON.stringify({
+          kind: "plan",
+          confidence: 0.91,
+          reason: "Need one project summary before answering.",
+          strategy: "Read the summary, then synthesize one brief.",
+          actions: [{ type: "project_summary" }]
+        })
+      };
+    }
+  });
+
+  const options = {
+    root: "/tmp",
+    trace: true,
+    plannerContext,
+    history: [],
+    planners: {
+      planners: [
+        { providerId: "mock-trace-brief-shell-planner", modelId: "brain-v1" }
+      ],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    }
+  };
+
+  const plan = await planShellRequest("Give me a concise operator brief grounded in the current workflow state, and justify the recommendation.", options);
+  assert.equal(plan.kind, "reply");
+  assert.equal(callCount, 0);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Current workflow state:/);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /Recommendation:/);
+});
+
 test("planShellRequestWithAgent rejects malformed plan payloads", async (t) => {
   registerProvider("mock-broken-plan", {
     local: false,

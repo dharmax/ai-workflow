@@ -12,6 +12,7 @@ import { runAssessment } from "./assessment.mjs";
 import { getRelevantGuidelineBlocks } from "./guidelines.mjs";
 import { executeCodelet } from "./codelet-executor.mjs";
 import { executeJsOrchestrator } from "./js-orchestrator.mjs";
+import { resolveHostRequest as resolveDeterministicHostRequest } from "./host-resolver.mjs";
 import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "./providers.mjs";
 import { routeTask } from "./router.mjs";
 import { stableId } from "../lib/hash.mjs";
@@ -988,6 +989,16 @@ function validateGeneratedPlan(plan, options = {}) {
  */
 export async function resolveHostRequest(options) {
   const { projectRoot, text, host } = options;
+  const deterministic = await resolveDeterministicHostRequest({
+    projectRoot,
+    text,
+    continuationState: options.continuationState ?? null,
+    host
+  });
+  if (deterministic?.route?.intent && deterministic.route.intent !== "broad_project_question") {
+    return deterministic;
+  }
+
   const normalized = String(text ?? "").toLowerCase();
 
   if (/\b(beta|readiness|ready for beta|beta testing)\b/.test(normalized)) {

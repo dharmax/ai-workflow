@@ -485,19 +485,20 @@ function buildDeterministicTranscriptOverride({ artifacts, rubric, goal, current
   const transcript = artifacts.map((artifact) => String(artifact?.content ?? "")).join("\n");
   const normalizedTranscript = transcript.toLowerCase();
   const normalizedRubric = String(rubric ?? "").toLowerCase();
-  const leaksPlannerInternals = /\bneeds the ai planner\b|\bclearer phrasing\b|\bplanner request\b|\brouter\b/.test(normalizedTranscript);
+  const leaksPlannerInternals = /\bneeds the ai planner\b|\bclearer phrasing\b|\bplanner request\b|\brouter\b(?!\.mjs)/.test(normalizedTranscript);
   if (leaksPlannerInternals) {
     return null;
   }
 
   const operatorBriefPass = normalizedRubric.includes("operator brief request")
     && /current workflow state:/i.test(transcript)
+    && /focus ticket:\s+(?:BUG|TKT)-[A-Z0-9-]+/i.test(transcript)
     && /status:/i.test(transcript)
     && /blocker:/i.test(transcript)
     && /health:/i.test(transcript)
     && /recommendation:/i.test(transcript)
     && /evidence:/i.test(transcript)
-    && /\bBUG-[A-Z0-9-]+\b/.test(transcript)
+    && /\b(?:BUG|TKT)-[A-Z0-9-]+\b/.test(transcript)
     && !/active tickets:\s*11/i.test(transcript);
 
   const projectionsExplainerPass = normalizedRubric.includes("projections service")
