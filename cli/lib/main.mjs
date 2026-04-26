@@ -108,6 +108,7 @@ const HELP = `Usage:
   ai-workflow tool observe [--complaint <text>] [--json]
   ai-workflow tool refine [issue-id] [--json]
   ai-workflow tool benchmark <prompt> [--json]
+  ai-workflow tool benchmark --suite shell-trust [--json]
   ai-workflow tool dogfood-harness [--json]
   ai-workflow tool finalize [--json]  ai-workflow web tutorial [--port <n>] [--host <host>] [--json]
 
@@ -1275,7 +1276,7 @@ async function handleTool(rest) {
   if (action === "finalize") {
    return handleToolFinalize(extras);
   }
-  printAndExit("Usage: ai-workflow tool observe [--complaint <text>] [--json]\n       ai-workflow tool refine [issue-id] [--json]\n       ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool dogfood-harness [--json]\n       ai-workflow tool finalize [--json]", 1);
+  printAndExit("Usage: ai-workflow tool observe [--complaint <text>] [--json]\n       ai-workflow tool refine [issue-id] [--json]\n       ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool benchmark --suite shell-trust [--json]\n       ai-workflow tool dogfood-harness [--json]\n       ai-workflow tool finalize [--json]", 1);
   }
 
   async function handleToolDogfoodHarness(rest) {
@@ -1337,21 +1338,28 @@ async function handleToolFinalize(rest) {
 async function handleToolBenchmark(rest) {
   const args = parseArgs(rest);
   const prompt = args._.join(" ");
-  if (!prompt) {
-    printAndExit("Usage: ai-workflow tool benchmark <prompt> [--json]", 1);
+  const suite = args.suite ? String(args.suite) : "";
+  if (!prompt && !suite) {
+    printAndExit("Usage: ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool benchmark --suite shell-trust [--json]", 1);
   }
 
-  const result = await runShellBenchmark(prompt, { root: process.cwd() });
+  const result = await runShellBenchmark(prompt || { suite, root: process.cwd() }, prompt ? { root: process.cwd() } : undefined);
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
     if (!result.ok) {
-      process.stdout.write(`Benchmark failed: ${result.error}\n`);
+      process.stdout.write(`Benchmark failed: ${result.error ?? result.summary ?? "benchmark failed"}\n`);
       return 1;
     }
     process.stdout.write(`${result.summary}\n`);
-    for (const run of result.runs) {
-      process.stdout.write(`- Tier: ${run.tier} | Model: ${run.model} | Latency: ${run.latency}ms | Code: ${run.hasCode ? "YES" : "NO"}\n`);
+    if (Array.isArray(result.cases)) {
+      for (const item of result.cases) {
+        process.stdout.write(`- Case: ${item.id} | Status: ${item.ok ? "PASS" : "FAIL"} | Model: ${item.model ?? "n/a"} | Time: ${item.durationMs}ms\n`);
+      }
+    } else if (Array.isArray(result.runs)) {
+      for (const run of result.runs) {
+        process.stdout.write(`- Tier: ${run.tier} | Model: ${run.model} | Latency: ${run.latency}ms | Code: ${run.hasCode ? "YES" : "NO"}\n`);
+      }
     }
   }
   return 0;

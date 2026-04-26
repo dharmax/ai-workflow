@@ -6944,6 +6944,15 @@ function buildContextualShellReply(inputText, plannerContext) {
   const asksExplicitCapabilityWork = /\b(plan the work|step by step|support|implement|design a better|redesign|debug|review|refactor|migration note)\b/.test(normalized);
   const asksOperatorBrief = looksLikeOperatorBriefQuestion(text);
   const asksRepoExplainer = looksLikeRepoExplainerQuestion(text);
+  const asksCurrentWorkBlockerNext = /\bwhat are we working on right now\b/.test(normalized)
+    && /\bblocker\b/.test(normalized)
+    && /\b(next|should happen next|what should happen next)\b/.test(normalized);
+  const asksLocalFirstDebug = /\b(ollama|local-first|local first)\b/.test(normalized)
+    && /\b(debug|inspect|check|precedence|fail|failing)\b/.test(normalized);
+  const asksRefactorSupportAssessment = /\b(refactor|refactoring)\b/.test(normalized)
+    && /\b(assess whether|enough support|serious refactoring work|patching|verification|db-backed|db backed)\b/.test(normalized);
+  const asksReplacementReadiness = /\bgemini(?:-|\s)?cli\b/.test(normalized)
+    && /\b(replace|replacement|honestly)\b/.test(normalized);
   const asksShellWorkSummary = !asksExplicitCapabilityWork && (
     /\b(shell work|shell changes|shell update|last shell work|recent shell work|shell effort)\b/.test(normalized)
       || (((/\b(summary|summarize|operator update|operator brief|what changed)\b/.test(normalized) || responseStyle.detail !== "normal") && /\bshell\b/.test(normalized))
@@ -7010,6 +7019,17 @@ function buildContextualShellReply(inputText, plannerContext) {
     ].join("\n"), 0.9, "Provider troubleshooting reply.");
   }
 
+  if (asksCurrentWorkBlockerNext) {
+    const rankedTickets = rankStatusTickets(shellTickets.length ? shellTickets : activeTickets);
+    const focusTicket = rankedTickets[0] ?? null;
+    const topFailure = String(summary?.assessmentSummary?.topErrors?.[0]?.error ?? "").trim();
+    return replyPlan(renderCurrentWorkBlockerNextReply({
+      focusTicket,
+      failedAssessments: Number.isFinite(summary?.assessmentSummary?.byStatus?.failed) ? summary.assessmentSummary.byStatus.failed : null,
+      topFailure
+    }), 0.92, "Current work / blocker / next-step reply.");
+  }
+
   if (asksOperatorBrief) {
     return replyPlan(renderGroundedOperatorBriefReply({
       summary,
@@ -7027,6 +7047,26 @@ function buildContextualShellReply(inputText, plannerContext) {
     if (explainerReply) {
       return replyPlan(explainerReply, 0.9, "Grounded repo explainer reply.");
     }
+  }
+
+  if (asksLocalFirstDebug) {
+    return replyPlan(renderLocalFirstDebugReply({
+      providerMap
+    }), 0.9, "Local-first routing debug reply.");
+  }
+
+  if (asksRefactorSupportAssessment) {
+    return replyPlan(renderRefactorSupportAssessmentReply({
+      summary
+    }), 0.89, "Refactor-support assessment reply.");
+  }
+
+  if (asksReplacementReadiness) {
+    const rankedTickets = rankStatusTickets(shellTickets.length ? shellTickets : activeTickets);
+    return replyPlan(renderShellReplacementReadinessReply({
+      focusTicket: rankedTickets[0] ?? null,
+      failedAssessments: Number.isFinite(summary?.assessmentSummary?.byStatus?.failed) ? summary.assessmentSummary.byStatus.failed : null
+    }), 0.91, "Shell replacement-readiness reply.");
   }
 
   if (asksShellWorkSummary && shellTickets.length) {
@@ -7287,6 +7327,70 @@ function renderGroundedContextualRepoExplainerReply({ inputText, modules = [] })
   }
   const top = moduleMatches[0];
   return `${top.name} is the most likely match here. ${top.responsibility ?? "It is a tracked repo module."}`;
+}
+
+function renderCurrentWorkBlockerNextReply({ focusTicket, failedAssessments, topFailure }) {
+  const lines = [];
+  if (focusTicket) {
+    lines.push(`Current work: ${focusTicket.id} ${focusTicket.title} (${focusTicket.lane}).`);
+    lines.push(`Main blocker: ${focusTicket.id} still has to clear before the later shell trust work matters.`);
+    lines.push(`Next step: finish ${focusTicket.id} and re-run the shell trust benchmark plus workflow audit.`);
+    if (focusTicket.summary) {
+      lines.push(`Evidence: ${focusTicket.summary}`);
+    }
+  } else {
+    lines.push("Current work: there is no clearly active ticket in workflow state.");
+    lines.push("Main blocker: the workflow queue does not expose a concrete focus item yet.");
+    lines.push("Next step: sync the project and create the next concrete ticket.");
+  }
+  if (failedAssessments != null) {
+    lines.push(`Workflow state: ${failedAssessments} failed assessments remain in history.`);
+  }
+  if (topFailure) {
+    lines.push(`Known failure shape: ${topFailure}`);
+  }
+  return lines.join("\n");
+}
+
+function renderLocalFirstDebugReply({ providerMap }) {
+  const ollama = providerMap?.ollama ?? null;
+  const availability = ollama?.available
+    ? `Ollama is currently reachable at ${ollama.host ?? "the configured host"}.`
+    : `Ollama is currently unavailable${ollama?.host ? ` at ${ollama.host}` : ""}.`;
+  return [
+    "I would treat this as a local-first routing bug.",
+    `Current signal: ${availability}`,
+    "Inspect these files first:",
+    "- cli/lib/shell.mjs for shell-planning fallback and direct-answer routing",
+    "- core/services/router.mjs for local-vs-remote recommendation order",
+    "- core/services/providers.mjs for provider discovery and availability flags",
+    "- cli/lib/doctor.mjs if the observed problem starts with stale diagnostics",
+    "Checks:",
+    "- `ai-workflow doctor --json` to confirm Ollama availability and host visibility",
+    "- `ai-workflow route shell-planning --json` to see the current planner chain",
+    "- compare configured Ollama host(s) against what provider discovery marks as installed"
+  ].join("\n");
+}
+
+function renderRefactorSupportAssessmentReply({ summary }) {
+  const codeletCount = Number.isFinite(summary?.codeletCount) ? summary.codeletCount : null;
+  return [
+    "Refactor support is partially there, not complete.",
+    `DB-backed context exists through core/db/sqlite-store.mjs${codeletCount != null ? ` and the current sync/indexed state tracks ${codeletCount} codelets.` : "."}`,
+    "Patching support exists through core/lib/patch.mjs plus workflow-native codelets such as shared/codelets/refactor-ticket.json.",
+    "Execution wiring exists in core/services/orchestrator.mjs, so refactor tickets no longer have to masquerade as bug-fix tickets.",
+    "Verification exists through targeted tests, ai-workflow dogfood, and workflow-audit.",
+    "Main gap: messy human-language refactor requests still are not proven reliable enough until the shell trust benchmark stays green."
+  ].join("\n");
+}
+
+function renderShellReplacementReadinessReply({ focusTicket, failedAssessments }) {
+  return [
+    "Not yet.",
+    `Current status: ${focusTicket ? `${focusTicket.id} is still in ${focusTicket.lane}.` : "the shell trust work is still active."}`,
+    "Biggest blockers: broad human-language prompts still collapse into generic status or shallow routing in some cases, local-first debug answers are not consistently grounded enough, and refactor-capability answers are still too thin.",
+    `Proof still required: the fixed shell trust benchmark must stay green, ai-workflow dogfood must pass, workflow-audit must pass, and the operator-visible answers need to stay honest about gaps${failedAssessments != null ? ` while the DB still carries ${failedAssessments} failed historical assessments` : ""}.`
+  ].join("\n");
 }
 
 function renderStructuredProjectAssessment({ projectName, modules, activeTickets, shellTickets, providerMap, knowledgeFacts = [] }) {

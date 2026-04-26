@@ -9,11 +9,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Deep Backlog
 
-- [ ] TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance
-  - Summary: After Phase 1 passes, make the shell measurable and auditable: define a fixed benchmark corpus for realistic operator prompts, require dogfood and workflow-audit before operator-surface changes ship, and record per-turn provenance for model choice, fallback, and execution path. Exit criteria: repeatable benchmark pass rates, stale report prevention, and reviewable evidence for local-vs-escalated routing. Primary touch points: runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/shell-benchmark.mjs, core/services/operator-brain.mjs, @dharmax/llm-utils.
-  - Epic: EPIC-001
-  - Parent: EPIC-001
-  - State: open
+- No items
 
 ## Backlog
 
@@ -34,6 +30,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
+- [ ] 8cec5b6eebc12c1541e09d955485f6edf5e28490 Assessment: health on project:ai-workflow
+  - Summary: Status: pending. Plan: Available
+  - State: pending
 - [ ] 838bedb679c0747daf0b0b08d660994a125cf11c Assessment: health on project:ai-workflow
   - Summary: Status: failed. Plan: Available
   - State: failed
@@ -52,6 +51,11 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance ✅ 2026-04-26
+  - Summary: After Phase 1 passes, make the shell measurable and auditable: define a fixed benchmark corpus for realistic operator prompts, require dogfood and workflow-audit before operator-surface changes ship, and record per-turn provenance for model choice, fallback, and execution path. Exit criteria: repeatable benchmark pass rates, stale report prevention, and reviewable evidence for local-vs-escalated routing. Primary touch points: runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/shell-benchmark.mjs, core/services/operator-brain.mjs, @dharmax/llm-utils.
+  - Epic: EPIC-001
+  - Parent: EPIC-001
+  - State: archived
 - [ ] TKT-SHELL-PHASE1-004 Phase 1: stabilize shell routing and status after dogfood fix ✅ 2026-04-26
   - Summary: After the dogfood blocker is fixed, harden local-first routing, explicit local-unavailable reporting, and grounded status/explainer output across repeated shell use. This is the regression layer that keeps the fix from drifting back into shallow status reads. Exit criteria: repeated dogfood stays green, project status prompts remain grounded, and explicit fallback states are visible in no-ai and normal runs. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/status.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs.
   - Epic: EPIC-001

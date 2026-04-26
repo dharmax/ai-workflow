@@ -8,6 +8,11 @@ import { collectOperatorSurfaceState, compareSurfaceHashes } from "./operator-su
 import { parseKanban } from "./kanban-utils.mjs";
 import { inspectWorkspaceHonesty } from "./workspace-honesty.mjs";
 import { renderManualHtml } from "../../../../scripts/generate-manual-html.mjs";
+import {
+  SHELL_TRUST_BENCHMARK_MIN_CASES,
+  SHELL_TRUST_BENCHMARK_SUITE_ID,
+  SHELL_TRUST_BENCHMARK_THRESHOLD
+} from "../../../../shared/prompts/shell-trust-benchmark.mjs";
 
 const REQUIRED_DOCS = [
   "AGENTS.md",
@@ -254,6 +259,50 @@ for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
       file: DEFAULT_DOGFOOD_REPORT_PATH,
       message: `dogfood report is stale for operator surface -> ${surfaceId}. Re-run node scripts/ai-workflow/dogfood.mjs`
     }));
+  }
+
+  if (surfaceId === "shell" && dogfoodReport.profile === "full") {
+    const benchmarkScenario = Array.isArray(reportedSurface.scenarios)
+      ? reportedSurface.scenarios.find((scenario) => scenario.id === "human-language-benchmark")
+      : null;
+    if (!benchmarkScenario) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `full shell dogfood is missing the ${SHELL_TRUST_BENCHMARK_SUITE_ID} benchmark scenario`
+      }));
+      continue;
+    }
+    const benchmark = benchmarkScenario.benchmark ?? null;
+    if (!benchmark || benchmark.suiteId !== SHELL_TRUST_BENCHMARK_SUITE_ID) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell dogfood benchmark metadata is missing or invalid for ${SHELL_TRUST_BENCHMARK_SUITE_ID}`
+      }));
+      continue;
+    }
+    if ((benchmark.caseCount ?? 0) < SHELL_TRUST_BENCHMARK_MIN_CASES) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark is too small: expected at least ${SHELL_TRUST_BENCHMARK_MIN_CASES} cases`
+      }));
+    }
+    if (Number(benchmark.passRate ?? 0) < Math.max(Number(benchmark.threshold ?? 0), SHELL_TRUST_BENCHMARK_THRESHOLD)) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark pass rate is too low: ${benchmark.passRate} < ${Math.max(Number(benchmark.threshold ?? 0), SHELL_TRUST_BENCHMARK_THRESHOLD)}`
+      }));
+    }
+    if (Array.isArray(benchmark.failedCriticalCases) && benchmark.failedCriticalCases.length) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark has critical failures: ${benchmark.failedCriticalCases.join(", ")}`
+      }));
+    }
   }
 }
 

@@ -8,6 +8,7 @@ import { getToolkitRoot } from "./toolkit-root.mjs";
 import { collectOperatorSurfaceState, listOperatorSurfaceIds } from "./operator-surfaces.mjs";
 import { inspectWorkspaceHonesty } from "./workspace-honesty.mjs";
 import { runDogfoodHarness } from "../../../../core/services/dogfood-harness.mjs";
+import { runShellTrustBenchmark } from "../../../../core/services/shell-benchmark.mjs";
 
 export const DEFAULT_DOGFOOD_REPORT_PATH = ".ai-workflow/generated/dogfood-report.json";
 
@@ -267,6 +268,40 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
         semanticRubric: "The shell output must answer what the projections service is, mention projections directly, stay grounded in repo/project evidence, avoid internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing."
       }
     }));
+    const benchmark = await runShellTrustBenchmark({
+      root,
+      cliPath,
+      timeoutMs: Math.max(timeoutMs, 90000),
+      expectLocalModel: shellPlanningExpectation.expectLocalModel,
+      artifactRoot: path.resolve(root, ".ai-workflow", "generated", "shell-benchmark")
+    });
+    scenarios.push({
+      id: "human-language-benchmark",
+      description: "shell survives a fixed corpus of messy operator prompts grounded in this repo",
+      command: `${process.execPath} ${cliPath} tool benchmark --suite shell-trust --json`,
+      ok: benchmark.ok,
+      code: benchmark.ok ? 0 : 1,
+      timedOut: false,
+      durationMs: benchmark.durationMs,
+      model: null,
+      progressLines: [
+        `[progress] benchmark pass rate: ${benchmark.passedCount}/${benchmark.caseCount}`,
+        `[progress] benchmark threshold: ${benchmark.threshold}`
+      ],
+      stdout: truncateText(JSON.stringify({
+        summary: benchmark.summary,
+        suiteId: benchmark.suiteId,
+        passRate: benchmark.passRate,
+        passedCount: benchmark.passedCount,
+        caseCount: benchmark.caseCount,
+        failedCaseIds: benchmark.failedCaseIds,
+        artifactRoot: benchmark.artifactRoot
+      }, null, 2)),
+      stderr: benchmark.ok
+        ? ""
+        : truncateText(benchmark.cases.filter((item) => !item.ok).map((item) => `${item.id}: ${item.failures.join("; ")}`).join("\n")),
+      benchmark
+    });
   }
 
   return scenarios;

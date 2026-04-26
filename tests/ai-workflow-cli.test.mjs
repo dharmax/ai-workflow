@@ -10,6 +10,7 @@ import { withWorkflowStore } from "../core/services/sync.mjs";
 import { registerProvider } from "../core/services/providers.mjs";
 import { runSmartCodelet } from "../runtime/scripts/ai-workflow/smart-codelet-runner.mjs";
 import { buildWorkflowAuditSummary } from "../runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs";
+import { SHELL_TRUST_BENCHMARK_SUITE_ID } from "../shared/prompts/shell-trust-benchmark.mjs";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -164,6 +165,47 @@ test("workflow-audit shared report builder and CLI JSON stay aligned", { concurr
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.status, "pass");
     assert.deepEqual(payload.failures, []);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("workflow-audit fails full shell dogfood reports that omit the shell trust benchmark", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-audit-shell-benchmark-"));
+
+  try {
+    await runNode([path.join(repoRoot, "scripts", "init-project.mjs"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, "cli", "lib"), { recursive: true });
+    await writeFile(path.join(targetRoot, "cli", "lib", "shell.mjs"), "export const shell = true;\n", "utf8");
+    const reportPath = path.join(targetRoot, ".ai-workflow", "generated", "dogfood-report.json");
+    const report = JSON.parse(await readFile(reportPath, "utf8"));
+    report.profile = "full";
+    report.surfaces.shell = report.surfaces.shell ?? {
+      description: "Interactive shell surface",
+      fileCount: 1,
+      files: ["cli/lib/shell.mjs"],
+      fileHashes: {},
+      status: "pass",
+      scenarios: [
+        {
+          id: "doctor-command",
+          description: "shell handles doctor locally",
+          ok: true,
+          code: 0,
+          stdout: "{}",
+          stderr: ""
+        }
+      ]
+    };
+    report.surfaces.shell.scenarioCount = report.surfaces.shell.scenarios.length;
+    await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+
+    const summary = await buildWorkflowAuditSummary(targetRoot);
+    assert.equal(summary.status, "fail");
+    assert.equal(
+      summary.findings.some((finding) => String(finding.message).includes(`${SHELL_TRUST_BENCHMARK_SUITE_ID} benchmark scenario`)),
+      true
+    );
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

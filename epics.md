@@ -10,8 +10,8 @@ Make the shell behave like a reliable project operator: it should answer plannin
 
 ### Status
 
-- [ ] Active
-<!-- status: open -->
+- [x] Archived
+<!-- status: archived -->
 
 ### User stories
 #### Story 1
@@ -31,7 +31,7 @@ Make the shell behave like a reliable project operator: it should answer plannin
 - Phase 2: lock shell trust with benchmarks and provenance.
 
 ### Kanban tickets
-- TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance [Deep Backlog]
+- TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance [Done]
 - TKT-SHELL-PHASE1-004 Phase 1: stabilize shell routing and status after dogfood fix [Done]
 - TKT-SHELL-PHASE1-003 Phase 1: make shell pass planning and explainer dogfood [Done]
 - TEST-TICKET-EPIC-CHECK temp [Done]

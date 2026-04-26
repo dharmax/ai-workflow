@@ -1492,6 +1492,55 @@ test("heuristic fallback returns a grounded projections explainer", async () => 
   assert.match(plan.reply ?? plan.assistantReply ?? "", /renderKanbanProjection|project summary|epics projection/i);
 });
 
+test("heuristic fallback answers current-work blocker and next-step prompts directly", async () => {
+  const plan = await planShellRequest("What are we working on right now, what is the main blocker, and what should happen next? Answer from the workflow state, not from generic advice.", {
+    plannerContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? "", /Current work:/);
+  assert.match(plan.reply ?? "", /Main blocker:/);
+  assert.match(plan.reply ?? "", /Next step:/);
+});
+
+test("heuristic fallback answers local-first debug prompts with grounded files", async () => {
+  const plan = await planShellRequest("I have a messy project request: debug why local Ollama precedence might fail, tell me the exact files you would inspect first, and keep the answer grounded in this repo.", {
+    plannerContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? "", /core\/services\/router\.mjs/i);
+  assert.match(plan.reply ?? "", /core\/services\/providers\.mjs/i);
+  assert.match(plan.reply ?? "", /cli\/lib\/shell\.mjs/i);
+});
+
+test("heuristic fallback answers shell replacement readiness honestly", async () => {
+  const plan = await planShellRequest("Can this shell honestly replace gemini-cli for messy project work today? Answer with current status, biggest blockers, and the proof still required.", {
+    plannerContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? "", /Not yet\./);
+  assert.match(plan.reply ?? "", /Biggest blockers:/);
+  assert.match(plan.reply ?? "", /Proof still required:/);
+});
+
+test("heuristic fallback answers refactor-support assessment prompts with concrete gaps", async () => {
+  const plan = await planShellRequest("Assess whether ai-workflow already has enough support for serious refactoring work. Be honest about gaps, mention DB-backed context, patching, verification, and the most relevant modules.", {
+    plannerContext,
+    noAi: true,
+    planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
+  });
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? "", /Refactor support is partially there, not complete\./);
+  assert.match(plan.reply ?? "", /core\/db\/sqlite-store\.mjs/i);
+  assert.match(plan.reply ?? "", /core\/lib\/patch\.mjs/i);
+  assert.match(plan.reply ?? "", /shared\/codelets\/refactor-ticket\.json/i);
+});
+
 test("heuristic shell planner routes complex goal-directed ticket requests through staged planning", () => {
   const complexContext = {
     ...plannerContext,
