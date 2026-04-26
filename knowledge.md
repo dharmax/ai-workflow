@@ -43,6 +43,8 @@ Record durable facts that reduce future context cost. Do not mirror transient ti
 - State-changing workflow commands should refresh the DB and projection files immediately, and active work should move to `In Progress` before model work starts so the board stays live while the burst is running.
 - The core kanban lanes stay fixed. Rare lanes should only appear when populated, and `Archived` history belongs in `kanban-archive.md`.
 - Smart codelets only stay trustworthy when they route through the router and feed new recurring patterns back into the workflow DB.
+- `ai-workflow tool observe` is only project-safe when the toolkit root is explicit in this install mode. On a global pnpm install it may resolve the toolkit root to the package cache, so use `AI_WORKFLOW_TOOLKIT_ROOT` or an explicit `--root` when recording observations for the checked-out repo.
+- `node scripts/ai-workflow/kanban.mjs new` can succeed even when the post-write assessment hook emits `Unexpected end of JSON input`. That failure is worth hardening because it obscures whether the write or the follow-up assessment actually failed.
 
 ## Decisions
 <!-- category: planning -->

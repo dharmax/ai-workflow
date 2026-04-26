@@ -72,69 +72,45 @@ export async function runAssessment(target, options = {}) {
 
 async function generateAssessmentPlan(target, options) {
   const { system, prompt } = await buildPlanningPrompt(target, options);
-  let candidate;
-  
-  if (options.planner) {
-    candidate = options.planner;
-  } else {
-    const route = await routeTask({ root: options.root, taskClass: "architectural-design" });
-    candidate = route.recommended ?? route.candidates?.[0];
-  }
-
-  const completion = await generateCompletion({
-    providerId: candidate.providerId,
-    modelId: candidate.modelId,
+  const fallback = buildFallbackAssessmentPlan(target, options);
+  return runAssessmentStage({
+    stage: "plan",
+    taskClass: "architectural-design",
+    root: options.root,
+    planner: options.planner,
     system,
     prompt,
-    config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
+    fallback
   });
-
-  return JSON.parse(completion.text);
 }
 
 async function criticizeAssessmentPlan(plan, target, options) {
   const { system, prompt } = await buildCriticismPrompt(plan, target, options);
-  let candidate;
-
-  if (options.planner) {
-    candidate = options.planner;
-  } else {
-    // Escalate to a higher model for criticism if available
-    const route = await routeTask({ root: options.root, taskClass: "review" });
-    candidate = route.candidates?.find(c => c.score >= 90) ?? route.recommended ?? route.candidates?.[0];
-  }
-
-  const completion = await generateCompletion({
-    providerId: candidate.providerId,
-    modelId: candidate.modelId,
+  const fallback = buildFallbackAssessmentCriticism(plan, target, options);
+  return runAssessmentStage({
+    stage: "criticism",
+    taskClass: "review",
+    root: options.root,
+    planner: options.planner,
     system,
     prompt,
-    config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
+    fallback,
+    chooseCandidate: (route) => route.candidates?.find((candidate) => candidate.score >= 90) ?? route.recommended ?? route.candidates?.[0] ?? null
   });
-
-  return JSON.parse(completion.text);
 }
 
 async function refineAssessmentPlan(plan, criticism, target, options) {
   const { system, prompt } = await buildRefinementPrompt(plan, criticism, target, options);
-  let candidate;
-
-  if (options.planner) {
-    candidate = options.planner;
-  } else {
-    const route = await routeTask({ root: options.root, taskClass: "architectural-design" });
-    candidate = route.recommended ?? route.candidates?.[0];
-  }
-
-  const completion = await generateCompletion({
-    providerId: candidate.providerId,
-    modelId: candidate.modelId,
+  const fallback = buildFallbackRefinedAssessmentPlan(plan, criticism, target, options);
+  return runAssessmentStage({
+    stage: "refinement",
+    taskClass: "architectural-design",
+    root: options.root,
+    planner: options.planner,
     system,
     prompt,
-    config: { host: candidate.host, apiKey: candidate.apiKey, baseUrl: candidate.baseUrl, format: "json" }
+    fallback
   });
-
-  return JSON.parse(completion.text);
 }
 
 async function executeAssessment(plan, target, options) {
@@ -168,5 +144,154 @@ async function buildRefinementPrompt(plan, criticism, target, options) {
   return {
     system: template || "You are a pragmatic Tech Lead. Update the assessment plan based on criticism.",
     prompt: `Original Plan: ${JSON.stringify(plan)}\nCriticism: ${JSON.stringify(criticism)}\nOutput the final refined JSON plan.`
+  };
+}
+
+async function runAssessmentStage({
+  stage,
+  taskClass,
+  root,
+  planner = null,
+  system,
+  prompt,
+  fallback,
+  chooseCandidate = null
+}) {
+  const candidate = planner ?? await resolveAssessmentCandidate({
+    root,
+    taskClass,
+    chooseCandidate
+  });
+
+  if (!candidate) {
+    return annotateAssessmentFallback(fallback, `${stage}:no-candidate`);
+  }
+
+  try {
+    const completion = await generateCompletion({
+      providerId: candidate.providerId,
+      modelId: candidate.modelId,
+      system,
+      prompt,
+      config: {
+        host: candidate.host,
+        apiKey: candidate.apiKey,
+        baseUrl: candidate.baseUrl,
+        format: "json"
+      }
+    });
+    return parseAssessmentJson(completion?.text, { stage, fallback });
+  } catch (error) {
+    return annotateAssessmentFallback(fallback, `${stage}:fallback:${error?.message ?? error}`);
+  }
+}
+
+async function resolveAssessmentCandidate({ root, taskClass, chooseCandidate = null }) {
+  const route = await routeTask({ root, taskClass });
+  if (typeof chooseCandidate === "function") {
+    return chooseCandidate(route);
+  }
+  return route.recommended ?? route.candidates?.[0] ?? null;
+}
+
+function parseAssessmentJson(text, { stage, fallback }) {
+  const raw = String(text ?? "").trim();
+  if (!raw) {
+    return annotateAssessmentFallback(fallback, `${stage}:empty-response`);
+  }
+
+  const candidates = [raw];
+  const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) {
+    candidates.unshift(fencedMatch[1].trim());
+  }
+
+  const jsonSlice = extractJsonSlice(raw);
+  if (jsonSlice && !candidates.includes(jsonSlice)) {
+    candidates.unshift(jsonSlice);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next normalization candidate.
+    }
+  }
+
+  return annotateAssessmentFallback(fallback, `${stage}:invalid-json`);
+}
+
+function extractJsonSlice(raw) {
+  const trimmed = String(raw ?? "").trim();
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+  const firstBracket = trimmed.indexOf("[");
+  const lastBracket = trimmed.lastIndexOf("]");
+  if (firstBracket >= 0 && lastBracket > firstBracket) {
+    return trimmed.slice(firstBracket, lastBracket + 1);
+  }
+  return null;
+}
+
+function buildFallbackAssessmentPlan(target, options) {
+  const scope = String(options.scope ?? "general").trim() || "general";
+  return {
+    source: "heuristic-fallback",
+    scope,
+    target: `${target.type}:${target.id}`,
+    steps: [
+      `Inspect current workflow state for ${target.type}:${target.id}.`,
+      `Summarize the highest-risk issues within the ${scope} scope.`,
+      "Recommend the smallest safe next action with verification."
+    ]
+  };
+}
+
+function buildFallbackAssessmentCriticism(plan, target, options) {
+  const steps = Array.isArray(plan?.steps) ? plan.steps : [];
+  return {
+    source: "heuristic-fallback",
+    target: `${target.type}:${target.id}`,
+    scope: String(options.scope ?? "general").trim() || "general",
+    flaws: steps.length ? [] : ["The assessment plan has no concrete steps."],
+    missingPoints: [
+      "Confirm whether the current workflow state is actionable.",
+      "Name the smallest verification needed for the next action."
+    ]
+  };
+}
+
+function buildFallbackRefinedAssessmentPlan(plan, criticism, target, options) {
+  const originalSteps = Array.isArray(plan?.steps) ? plan.steps : [];
+  const missingPoints = Array.isArray(criticism?.missingPoints) ? criticism.missingPoints : [];
+  const steps = originalSteps.length ? [...originalSteps] : buildFallbackAssessmentPlan(target, options).steps.slice();
+  for (const missingPoint of missingPoints) {
+    const normalized = String(missingPoint ?? "").trim();
+    if (!normalized) {
+      continue;
+    }
+    if (!steps.some((step) => step === normalized)) {
+      steps.push(normalized);
+    }
+  }
+  return {
+    source: "heuristic-fallback",
+    scope: String(options.scope ?? "general").trim() || "general",
+    target: `${target.type}:${target.id}`,
+    steps
+  };
+}
+
+function annotateAssessmentFallback(payload, reason) {
+  return {
+    ...payload,
+    fallback: {
+      used: true,
+      reason: String(reason ?? "fallback").trim()
+    }
   };
 }

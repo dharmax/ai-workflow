@@ -197,6 +197,90 @@ test("syncProject archives low-signal opaque synthetic tickets so they do not po
   }
 });
 
+test("syncProject retires stale auto-assessments and limits kanban assessment noise", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-assessment-hygiene-"));
+
+  try {
+    await mkdir(targetRoot, { recursive: true });
+    await writeFile(path.join(targetRoot, "package.json"), JSON.stringify({ name: "assessment-hygiene", type: "module" }, null, 2), "utf8");
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        ollama: { enabled: false },
+        google: { enabled: false },
+        openai: { enabled: false },
+        anthropic: { enabled: false }
+      }
+    }, null, 2), "utf8");
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      for (let index = 0; index < 6; index += 1) {
+        const createdAt = `2026-04-25T0${index}:00:00.000Z`;
+        store.upsertAssessment({
+          id: `ASM-PENDING-${index}`,
+          targetType: "project",
+          targetId: path.basename(targetRoot),
+          status: "pending",
+          scope: "health",
+          plan: null,
+          criticism: null,
+          result: null,
+          createdAt,
+        });
+      }
+      for (let index = 0; index < 4; index += 1) {
+        const createdAt = `2026-04-24T0${index}:00:00.000Z`;
+        store.upsertAssessment({
+          id: `ASM-FAILED-${index}`,
+          targetType: "project",
+          targetId: path.basename(targetRoot),
+          status: "failed",
+          scope: "health",
+          plan: {},
+          criticism: {},
+          result: { error: `historical failure ${index}` },
+          createdAt
+        });
+      }
+      store.appendMetric({
+        taskClass: "shell-planning",
+        capability: "strategy",
+        providerId: "ollama",
+        modelId: "missing",
+        promptTokens: 0,
+        completionTokens: 0,
+        latencyMs: 1,
+        success: false,
+        errorMessage: "forced failure for auto-assessment trigger",
+        createdAt: "2026-04-26T00:00:00.000Z"
+      });
+    });
+    const db = new DatabaseSync(path.join(targetRoot, ".ai-workflow", "state", "workflow.db"));
+    db.exec("UPDATE assessments SET updated_at = created_at WHERE id LIKE 'ASM-PENDING-%' OR id LIKE 'ASM-FAILED-%';");
+    db.close();
+
+    await syncProject({ projectRoot: targetRoot, writeProjections: true });
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const assessments = store.listAssessments({ targetType: "project", targetId: path.basename(targetRoot) })
+        .filter((item) => item.scope === "health");
+      const pendingCount = assessments.filter((item) => item.status === "pending").length;
+      const staleFailures = assessments.filter((item) => item.result?.stale === true);
+      const latest = assessments[0];
+
+      assert.equal(pendingCount, 0);
+      assert.equal(staleFailures.length >= 6, true);
+      assert.equal(latest.status, "resolved");
+    });
+
+    const kanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    const assessmentLines = kanban.split(/\r?\n/).filter((line) => line.includes("Assessment: health on project:"));
+    assert.equal(assessmentLines.length <= 3, true);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("resolveProjectStatus materializes surface links and test evidence", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-status-surface-"));
 

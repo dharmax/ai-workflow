@@ -19,6 +19,10 @@ import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, sea
 import { withWorkspaceMutationGuardDisabled } from "../lib/workspace-mutation.mjs";
 import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.mjs";
 
+const AUTO_ASSESSMENT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const AUTO_ASSESSMENT_STALE_MS = 20 * 60 * 1000;
+const ACTIVE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
+
 export async function syncProject({ projectRoot = process.cwd(), writeProjections = false } = {}) {
   const startedAt = new Date().toISOString();
 
@@ -121,7 +125,7 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     // Trigger Automatic Assessment if project is messy
     const projectStatus = buildSmartProjectStatus(store);
     if (!process.env.AI_WORKFLOW_SKIP_AUTO_ASSESSMENT && (projectStatus.includes("FAILURE") || projectStatus.includes("Medium issues"))) {
-      runAssessment({ type: "project", id: path.basename(projectRoot) }, { root: projectRoot, scope: "health" }).catch(e => console.error(`[sync] Auto-assessment failed: ${e.message}`));
+      await maybeRunAutoAssessment(store, { projectRoot, scope: "health" });
     }
 
     await syncStatusGraph({ projectRoot, store });
@@ -179,6 +183,49 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     }
   });
 	}
+
+async function maybeRunAutoAssessment(store, { projectRoot, scope = "health" } = {}) {
+  const targetId = path.basename(projectRoot);
+  const assessments = store.listAssessments({ targetType: "project", targetId }).filter((item) => item.scope === scope);
+  const now = Date.now();
+
+  for (const assessment of assessments) {
+    if (!ACTIVE_ASSESSMENT_STATUSES.has(assessment.status)) {
+      continue;
+    }
+    const updatedAtMs = Date.parse(assessment.updatedAt ?? assessment.createdAt ?? 0);
+    if (!Number.isFinite(updatedAtMs) || now - updatedAtMs < AUTO_ASSESSMENT_STALE_MS) {
+      continue;
+    }
+    store.upsertAssessment({
+      ...assessment,
+      status: "failed",
+      result: {
+        error: "Auto-assessment abandoned before completion.",
+        stale: true
+      }
+    });
+  }
+
+  const latest = store.listAssessments({ targetType: "project", targetId }).find((item) => item.scope === scope) ?? null;
+  if (latest) {
+    const updatedAtMs = Date.parse(latest.updatedAt ?? latest.createdAt ?? 0);
+    const staleFailure = latest.status === "failed" && latest.result?.stale === true;
+    if (!staleFailure && Number.isFinite(updatedAtMs) && now - updatedAtMs < AUTO_ASSESSMENT_COOLDOWN_MS) {
+      return latest;
+    }
+  }
+
+  try {
+    return await runAssessment(
+      { type: "project", id: targetId },
+      { root: projectRoot, scope }
+    );
+  } catch (error) {
+    console.error(`[sync] Auto-assessment failed: ${error.message}`);
+    return null;
+  }
+}
 
 function recordProjectionMutation(store, projectRoot, projections, snapshot = []) {
   store.appendWorkspaceMutation({

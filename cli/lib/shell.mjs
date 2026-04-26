@@ -911,6 +911,17 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
   });
   const planners = [];
   const providers = route.providers ?? {};
+  const ollamaProvider = providers.ollama;
+
+  if (ollamaProvider?.configured && !ollamaProvider.available) {
+    return {
+      planners: [],
+      heuristic: {
+        mode: "local-unavailable",
+        reason: `Local Ollama planner is configured at ${ollamaProvider.host ?? "the configured host"} but unavailable. Restore local access before remote escalation.`
+      }
+    };
+  }
 
   if (route.recommended) {
     const mapped = mapRouteCandidateToPlanner(route.recommended, providers);
@@ -919,7 +930,6 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
     }
   }
 
-  const ollamaProvider = providers.ollama;
   if (!planners.length && ollamaProvider?.available) {
     try {
       const localShellModel = chooseShellPlannerModel(ollamaProvider);
@@ -1417,6 +1427,14 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     }
   }
 
+  if (/\b(assessment|assessments|workflow)\b/.test(lower)
+    && /\b(status|health|healthy|failed|failure|failures|root cause|root causes|why)\b/.test(lower)) {
+    return {
+      ...actionPlan([{ type: "project_summary" }], 0.96, "Assessment-health request routed to project summary."),
+      presentation: "assistant-first"
+    };
+  }
+
   const followUpMode = inferShellFollowUpMode({
     inputText: text,
     activeGraphState,
@@ -1879,6 +1897,8 @@ function buildHeuristicSemanticFallbackPlan(inputText, plannerContext = {}) {
   const entityType = inferFallbackEntityType(text, subject, plannerContext);
   const asksProjectHealth = /\b(project|repo|repository|codebase)\b/.test(normalized)
     && /\b(status|state|shape|health|healthy|doing|good|bad|tell me about|what do you think)\b/.test(normalized);
+  const asksAssessmentHealth = /\b(assessment|assessments|workflow)\b/.test(normalized)
+    && /\b(status|state|health|healthy|failed|failure|failures|root cause|root causes|why)\b/.test(normalized);
   const asksWorkflowBrief = /\b(brief|operator brief|recommendation|recommend|what should i do next|next step|current workflow state|workflow state)\b/.test(normalized)
     && /\b(project|repo|workflow|current)\b/.test(normalized);
   const asksStatusLikeQuestion = /\b(status|state|shape|health|healthy|good|bad|doing|what is up with|whats up with|tell me about|what do you think about|explain|describe|what is|whats|what are|do we have|is there|anything called|named|called)\b/.test(normalized);
@@ -1886,7 +1906,7 @@ function buildHeuristicSemanticFallbackPlan(inputText, plannerContext = {}) {
   const imperativeWorkflowRequest = looksLikeEpicKickoffRequest(text) || looksLikeImperativeWorkflowRequest(text);
   const safeStatusTarget = isSafeShellStatusTarget(subject, { inputText, entityType });
 
-  if (asksProjectHealth || asksWorkflowBrief) {
+  if (asksProjectHealth || asksAssessmentHealth || asksWorkflowBrief) {
     return {
       ...actionPlan([{ type: "project_summary" }], 0.78, "Semantic fallback routed the request to a project summary."),
       presentation: "assistant-first"
@@ -8460,13 +8480,19 @@ function formatProjectSummary(summary, json) {
   if (json) {
     return `${JSON.stringify(summary, null, 2)}\n`;
   }
+  const assessmentStatusBits = Object.entries(summary.assessmentSummary?.byStatus ?? {})
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([status, count]) => `${count} ${status}`);
+  const topAssessmentError = summary.assessmentSummary?.topErrors?.[0] ?? null;
   const lines = [
     `Files indexed: ${summary.fileCount}`,
     `Symbols indexed: ${summary.symbolCount}`,
     `Notes tracked: ${summary.noteCount}`,
     `Tickets: ${summary.activeTickets.length}`,
+    `Assessments: ${summary.assessmentCount}${assessmentStatusBits.length ? ` (${assessmentStatusBits.join(", ")})` : ""}`,
+    topAssessmentError ? `Top assessment failure: ${topAssessmentError.error} (${topAssessmentError.count})` : null,
     `Candidates: ${summary.candidates.length}`
-  ];
+  ].filter(Boolean);
 
   if (summary.activeTickets.length) {
     lines.push("\nActive Tickets:");

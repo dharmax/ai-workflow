@@ -155,6 +155,41 @@ test("resolveShellPlanners keeps local Ollama first even when a remote provider 
   }
 });
 
+test("resolveShellPlanners refuses silent remote fallback when local Ollama is configured but unreachable", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-local-unreachable-" + Math.random().toString(36).slice(2));
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/api/tags")) {
+      throw new Error("connect ECONNREFUSED");
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
+  await fs.writeFile(
+    path.join(root, ".ai-workflow", "config.json"),
+    JSON.stringify({
+      providers: {
+        ollama: {
+          host: "http://127.0.0.1:11434"
+        },
+        openai: {
+          apiKey: "openai-key"
+        }
+      }
+    }, null, 2)
+  );
+
+  try {
+    const planners = await resolveShellPlanners(root);
+    assert.deepEqual(planners.planners, []);
+    assert.match(planners.heuristic.reason, /Restore local access before remote escalation/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("resolveShellPlanners prefers a text-capable Ollama model over a vision-only one", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-text-model-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
@@ -1475,6 +1510,13 @@ test("heuristic shell planner routes generic surface status questions to the sta
     query: "what's the status of shell and what did the tests cover?",
     entityType: "surface"
   }]);
+});
+
+test("heuristic shell planner routes assessment-health prompts to project summary", () => {
+  const plan = planShellRequestHeuristically("show the active ticket ids and titles, summarize the current assessment health, and tell me the root causes behind the assessment failures.", plannerContext);
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(plan.actions, [{ type: "project_summary" }]);
+  assert.equal(plan.presentation, "assistant-first");
 });
 
 test("heuristic shell planner answers shell-quality checks from active shell work instead of stale surface status", () => {

@@ -41,6 +41,7 @@ const OPTIONAL_TICKET_LANES = [
   "Blocked",
   "Ideas"
 ];
+const ACTIONABLE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
 
 export function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
   const counts = store.getSummary();
@@ -104,6 +105,7 @@ export function buildProjectSummary(store) {
   const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
   const notes = store.listNotes({ statuses: ["observed"] }).slice(0, 20);
   const modules = store.listModules().map(m => ({ name: m.name, responsibility: m.responsibility }));
+  const assessmentSummary = summarizeAssessments(assessments);
 
   return {
     fileCount: counts.files,
@@ -112,6 +114,7 @@ export function buildProjectSummary(store) {
     claimCount: counts.claims,
     ticketCount: counts.tickets,
     assessmentCount: assessments.length,
+    assessmentSummary,
     codeletCount: counts.codelets,
     candidateCount: counts.candidates,
     activeTickets,
@@ -123,7 +126,7 @@ export function buildProjectSummary(store) {
 
 export function renderKanbanProjection(store) {
   const tickets = store.listEntities({ entityType: "ticket" });
-  const assessments = store.listAssessments();
+  const assessments = selectProjectedAssessments(store.listAssessments());
   const candidateTickets = store.listEntities({ entityType: "candidate-ticket" });
   const ideas = store.listEntities({ entityType: "idea" });
   const risks = store.listEntities({ entityType: "risk" });
@@ -241,6 +244,58 @@ export function renderKanbanProjection(store) {
   lines.push("%%");
 
   return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function selectProjectedAssessments(assessments = []) {
+  const ordered = [...assessments].sort((left, right) =>
+    (Date.parse(right.updatedAt ?? right.createdAt ?? 0) || 0) - (Date.parse(left.updatedAt ?? left.createdAt ?? 0) || 0)
+  );
+  const actionable = ordered.filter((item) => ACTIONABLE_ASSESSMENT_STATUSES.has(item.status));
+  const recentFailures = [];
+  const seenFailureKeys = new Set();
+
+  for (const assessment of ordered) {
+    if (assessment.status !== "failed") {
+      continue;
+    }
+    const key = `${assessment.targetType}:${assessment.targetId}:${assessment.scope}`;
+    if (seenFailureKeys.has(key)) {
+      continue;
+    }
+    seenFailureKeys.add(key);
+    recentFailures.push(assessment);
+    if (recentFailures.length >= 3) {
+      break;
+    }
+  }
+
+  return [...actionable, ...recentFailures].slice(0, 8);
+}
+
+function summarizeAssessments(assessments = []) {
+  const byStatus = {};
+  const byError = new Map();
+
+  for (const assessment of assessments) {
+    const status = String(assessment.status ?? "unknown").trim() || "unknown";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    const error = String(assessment.result?.error ?? "").trim();
+    if (!error) {
+      continue;
+    }
+    byError.set(error, (byError.get(error) ?? 0) + 1);
+  }
+
+  const topErrors = [...byError.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 5)
+    .map(([error, count]) => ({ error, count }));
+
+  return {
+    total: assessments.length,
+    byStatus,
+    topErrors
+  };
 }
 
 export function renderEpicsProjection(store) {
