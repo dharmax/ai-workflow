@@ -32,6 +32,7 @@
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/goe-governance": "file:../goe-governance",
     "@dharmax/human2js": "file:../human2js",
+    "@dharmax/context-manager": "file:../context-manager",
     "@dharmax/llm-utils": "file:../llm-utils",
     "@dharmax/shell-proc-utils": "file:../shell-proc-utils"
   }

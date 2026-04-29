@@ -7,6 +7,7 @@ import { sha1, stableId } from "../lib/hash.mjs";
 import { readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.mjs";
 import { generateCompletion } from "./providers.mjs";
 import { routeTask } from "./router.mjs";
+import { HeuristicContextManager } from "@dharmax/context-manager";
 
 /**
  * Synchronizes guidelines and knowledge from files into the database.
@@ -231,34 +232,36 @@ function parseMarkdownBlocks(content, sourceFile, defaultCategory) {
  * Retrieves relevant blocks based on input text and context.
  */
 export async function getRelevantGuidelineBlocks(store, { inputText, categories = [] }) {
-  let blocks = store.listGuidelineBlocks();
-  
-  if (categories.length) {
-    blocks = blocks.filter(b => categories.includes(b.category));
-  }
+  const originalBlocks = store.listGuidelineBlocks();
+  const blocksById = new Map(originalBlocks.map((block) => [block.id, block]));
+  const manager = new HeuristicContextManager({
+    async query() {
+      return originalBlocks.map((block) => ({
+        id: block.id,
+        category: block.category,
+        tags: String(block.tags ?? "")
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        title: block.title,
+        body: block.body
+      }));
+    }
+  }, {
+    defaultMaxItems: 15
+  });
 
-  const lowerInput = inputText.toLowerCase();
-  
-  return blocks
-    .map(block => {
-      let score = 0;
-      const tags = block.tags.split(",").map(t => t.trim().toLowerCase());
-      
-      for (const tag of tags) {
-        if (tag && lowerInput.includes(tag)) score += 10;
-      }
+  const result = await manager.resolve({
+    query: inputText,
+    categories,
+    maxItems: 15,
+    output: {
+      mode: "items",
+      format: "markdown"
+    }
+  });
 
-      if (lowerInput.includes(block.title.toLowerCase())) score += 5;
-
-      const keywords = lowerInput.split(/\s+/).filter(w => w.length > 4);
-      for (const word of keywords) {
-        if (block.body.toLowerCase().includes(word)) score += 1;
-      }
-
-      return { block, score };
-    })
-    .filter(res => res.score > 0 || categories.length > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15)
-    .map(res => res.block);
+  return (result.items ?? [])
+    .map((item) => blocksById.get(item.id))
+    .filter(Boolean);
 }

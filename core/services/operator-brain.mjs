@@ -18,6 +18,7 @@ import { routeTask } from "./router.mjs";
 import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
 import { buildTicketEntity } from "./projections.mjs";
+import { LeanContextCompressor } from "@dharmax/context-manager";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.mjs";
 import * as fs from "node:fs/promises";
@@ -433,7 +434,7 @@ export async function updateManagedContext(currentContext, lastUserTurn, lastAiT
   const candidate = route.recommended ?? route.candidates?.[0];
 
   if (!candidate) {
-    return `${currentContext || ""}\nUser: ${lastUserTurn}\nAI: ${lastAiTurn}`.slice(-2000);
+    return compressManagedContextFallback(currentContext, lastUserTurn, lastAiTurn);
   }
 
   try {
@@ -447,8 +448,13 @@ export async function updateManagedContext(currentContext, lastUserTurn, lastAiT
 
     return completion.response.trim();
   } catch (error) {
-    return `${currentContext || ""}\nUser: ${lastUserTurn}\nAI: ${lastAiTurn}`.slice(-2000);
+    return compressManagedContextFallback(currentContext, lastUserTurn, lastAiTurn);
   }
+}
+
+async function compressManagedContextFallback(currentContext, lastUserTurn, lastAiTurn) {
+  const combined = `${currentContext || ""}\nUser: ${lastUserTurn}\nAI: ${lastAiTurn}`.trim();
+  return LeanContextCompressor.patternCompress(combined, 300);
 }
 
 function buildOperatorPlannerHistoryContext(history) {
