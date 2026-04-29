@@ -78,7 +78,7 @@ export async function runSmartDogfood(argv = process.argv.slice(2)) {
     
     tk.sm.memory.buildOutput = buildResult.stdout;
     return tk.sm.transition("VERIFY", "Built successfully");
-  }, { "VERIFY": "VERIFY" });
+  }, { "VERIFY": "VERIFY" }, 300_000);
 
   sm.state("VERIFY", "Verify the generated project", async (ctx, tk) => {
     console.log("[smart-dogfood] Verifying tests...");
@@ -103,7 +103,7 @@ Is the project functionally complete and verified? Respond in JSON: { "ok": bool
 
     tk.sm.memory.judgment = parsedJudgment;
     return tk.sm.transition("REPORT", "Verification complete");
-  }, { "REPORT": "REPORT" });
+  }, { "REPORT": "REPORT" }, 300_000);
 
   sm.state("REPORT", "Generate dogfood report and metrics", async (ctx, tk) => {
     console.log("[smart-dogfood] Generating report...");
