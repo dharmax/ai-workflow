@@ -192,121 +192,25 @@ export async function generateCompletion(options = {}) {
     throw new Error("providerId and modelId are required");
   }
 
-  let result;
-  const adapter = registeredAdapters.get(providerId);
-  if (adapter?.generate && !["ollama", "openai", "google", "anthropic"].includes(providerId)) {
-    result = await adapter.generate({
-      modelId,
-      prompt: options.prompt,
+  const result = await CompletionEngine.generate(
+    options.prompt,
+    { id: modelId, providerId },
+    {
+      ...(options.config ?? {}),
+      apiKey: options.config?.apiKey ?? options.apiKey,
+      baseUrl: options.config?.baseUrl ?? options.baseUrl,
+      host: options.config?.host ?? options.host
+    },
+    {
       system: options.system,
-      config: options.config ?? {},
       format: options.format ?? options.config?.format,
       signal: options.signal,
       contentParts: options.contentParts,
       generationOptions: options.generationOptions
-    });
-  } else if (providerId === "ollama") {
-    result = await generateWithOllama({ ...options, model: modelId, host: options.config?.host ?? options.host });
-  } else if (providerId === "anthropic" && !registeredAdapters.has(providerId)) {
-    result = await generateWithAnthropic({ ...options, model: modelId, apiKey: options.config?.apiKey ?? options.apiKey, baseUrl: options.config?.baseUrl ?? options.baseUrl });
-  } else {
-    result = await CompletionEngine.generate(
-      options.prompt,
-      { id: modelId, providerId },
-      {
-        ...(options.config ?? {}),
-        apiKey: options.config?.apiKey ?? options.apiKey,
-        baseUrl: options.config?.baseUrl ?? options.baseUrl,
-        host: options.config?.host ?? options.host
-      },
-      {
-        system: options.system,
-        format: options.format ?? options.config?.format,
-        signal: options.signal,
-        contentParts: options.contentParts,
-        generationOptions: options.generationOptions
-      }
-    );
-  }
+    }
+  );
 
   return normalizeCompletionResult(result, { providerId, modelId });
-}
-
-export async function generateWithOllama({ model, prompt, system = "", host, format = null, contentParts = null, signal = null, generationOptions = null } = {}) {
-  if (!model) throw new Error("model is required");
-  const resolvedHost = normalizeOllamaHost(host ?? process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434");
-  const body = {
-    model,
-    prompt,
-    system,
-    stream: false,
-    ...(format ? { format } : {}),
-    ...(generationOptions ? { options: generationOptions } : {})
-  };
-  if (contentParts) {
-    body.contentParts = contentParts;
-  }
-  const response = await fetch(`${resolvedHost}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal
-  });
-  if (!response.ok) {
-    throw new Error(`Ollama request failed with ${response.status}`);
-  }
-  const payload = await response.json();
-  return normalizeCompletionResult({
-    providerId: "ollama",
-    modelId: model,
-    host: resolvedHost,
-    model,
-    response: payload.response ?? "",
-    usage: {
-      promptTokens: payload.prompt_eval_count ?? 0,
-      completionTokens: payload.eval_count ?? 0,
-      totalTokens: (payload.prompt_eval_count ?? 0) + (payload.eval_count ?? 0),
-      available: true
-    },
-    raw: payload
-  }, { providerId: "ollama", modelId: model });
-}
-
-export async function generateWithAnthropic({ model, prompt, system = "", apiKey, baseUrl = "https://api.anthropic.com/v1", signal = null } = {}) {
-  if (!model) throw new Error("model is required");
-  const response = await fetch(`${baseUrl}/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      system: system || undefined,
-      max_tokens: 4096,
-      temperature: 0.1
-    }),
-    signal
-  });
-  if (!response.ok) {
-    throw new Error(`Anthropic request failed with ${response.status}`);
-  }
-  const payload = await response.json();
-  const text = payload.content?.filter((part) => part.type === "text").map((part) => part.text).join("\n") ?? "";
-  return normalizeCompletionResult({
-    providerId: "anthropic",
-    modelId: model,
-    response: text,
-    usage: {
-      promptTokens: payload.usage?.input_tokens ?? 0,
-      completionTokens: payload.usage?.output_tokens ?? 0,
-      totalTokens: (payload.usage?.input_tokens ?? 0) + (payload.usage?.output_tokens ?? 0),
-      available: true
-    },
-    raw: payload
-  }, { providerId: "anthropic", modelId: model });
 }
 
 export async function probeOllama({ host } = {}) {

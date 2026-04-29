@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 import { getToolkitRoot, listToolkitCodelets } from "./codelets.mjs";
 import { listProjectCodelets } from "./project-codelets.mjs";
 import { routeTask } from "../../core/services/router.mjs";
-import { discoverProviderState, generateCompletion, generateWithOllama, summarizeCompletionUsage } from "../../core/services/providers.mjs";
+import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "../../core/services/providers.mjs";
 import { decomposeTicket, executeTicket, ideateFeature, ingestArtifact, sweepBugs } from "../../core/services/orchestrator.mjs";
 import { auditArchitecture } from "../../core/services/critic.mjs";
 import { addManualNote, createTicket, evaluateProjectReadiness, getCodelet, getProjectMetrics, getProjectSummary, getSmartProjectStatus, recordMetric, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";

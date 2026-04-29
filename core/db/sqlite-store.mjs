@@ -6,8 +6,10 @@
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { mkdir } from "node:fs/promises";
+import { LlmMetrics } from "@dharmax/llm-utils";
 import { SQLITE_SCHEMA } from "./schema.mjs";
 import { stableId } from "../lib/hash.mjs";
+import { buildMetricsServiceFromRows, WorkflowMetricsStoreAdapter } from "./llm-metrics-store.mjs";
 
 const WORKFLOW_STORE_OPEN_RETRY_DELAYS_MS = [0, 50, 150, 300, 600, 1200];
 const METRICS_SESSION_IDLE_GAP_MS = 45 * 60 * 1000;
@@ -303,35 +305,26 @@ function summarizeMetricSet(metrics) {
     return emptyMetricsSetSummary();
   }
 
-  let promptTokens = 0;
-  let completionTokens = 0;
-  let latencyTotal = 0;
-  let successCount = 0;
   let fastEnoughCount = 0;
   let localCalls = 0;
   let estimatedToolMs = 0;
   let estimatedManualMs = 0;
-  const byModel = new Map();
   const byTaskClass = new Map();
   let callsWithReportedUsage = 0;
   const missingTokenReasons = new Map();
+  const metricsService = buildMetricsServiceFromRows(metrics);
+  const totals = metricsService.totals();
+  const byModel = metricsService.byModel();
 
   for (const metric of metrics) {
-    const prompt = Number(metric.prompt_tokens ?? 0);
-    const completion = Number(metric.completion_tokens ?? 0);
-    const latency = Number(metric.latency_ms ?? 0);
     const success = Boolean(metric.success);
     const activeMs = estimateMetricActiveWorkMs(metric);
     const manualMs = estimateMetricManualBaselineMs(metric);
     const tokenUsage = metric.details?.tokenUsage ?? null;
     const usageAvailable = tokenUsage?.available === true
-      || prompt > 0
-      || completion > 0;
+      || Number(metric.prompt_tokens ?? 0) > 0
+      || Number(metric.completion_tokens ?? 0) > 0;
 
-    promptTokens += prompt;
-    completionTokens += completion;
-    latencyTotal += latency;
-    successCount += success ? 1 : 0;
     fastEnoughCount += isFastEnoughMetric(metric) ? 1 : 0;
     localCalls += metric.provider_id === "ollama" ? 1 : 0;
     estimatedToolMs += activeMs;
@@ -341,18 +334,6 @@ function summarizeMetricSet(metrics) {
       const reason = String(tokenUsage?.reason ?? "Metric recorded no token usage details.").trim() || "Metric recorded no token usage details.";
       missingTokenReasons.set(reason, (missingTokenReasons.get(reason) ?? 0) + 1);
     }
-
-    const modelEntry = byModel.get(metric.model_id) ?? {
-      model_id: metric.model_id,
-      provider_id: metric.provider_id,
-      count: 0,
-      successes: 0,
-      latencyTotal: 0
-    };
-    modelEntry.count += 1;
-    modelEntry.successes += success ? 1 : 0;
-    modelEntry.latencyTotal += latency;
-    byModel.set(metric.model_id, modelEntry);
 
     const taskEntry = byTaskClass.get(metric.task_class) ?? {
       task_class: metric.task_class,
@@ -369,8 +350,10 @@ function summarizeMetricSet(metrics) {
   }
 
   const calls = metrics.length;
-  const totalTokens = promptTokens + completionTokens;
-  const successRate = Math.round((successCount / calls) * 100);
+  const totalPromptTokens = totals.promptTokens;
+  const totalCompletionTokens = totals.completionTokens;
+  const totalTokens = totals.totalTokens;
+  const successRate = Math.round(totals.successRate);
   const fastEnoughRate = Math.round((fastEnoughCount / calls) * 100);
   const failureRate = 100 - successRate;
   const qualityScore = Math.round((successRate * 0.7) + (fastEnoughRate * 0.3));
@@ -385,10 +368,10 @@ function summarizeMetricSet(metrics) {
 
   return {
     calls,
-    totalPromptTokens: promptTokens,
-    totalCompletionTokens: completionTokens,
+    totalPromptTokens,
+    totalCompletionTokens,
     totalTokens,
-    avgLatencyMs: Math.round(latencyTotal / calls),
+    avgLatencyMs: totals.avgLatencyMs,
     successRate,
     activeWorkHours: Number((estimatedToolMs / (60 * 60 * 1000)).toFixed(2)),
     wallClockHours: Number((Math.max(0, lastTimestamp - firstTimestamp) / (60 * 60 * 1000)).toFixed(2)),
@@ -396,13 +379,13 @@ function summarizeMetricSet(metrics) {
     remoteCalls: calls - localCalls,
     periodStart: metrics[0].created_at,
     periodEnd: metrics[metrics.length - 1].created_at,
-    byModel: Array.from(byModel.values())
+    byModel: byModel
       .map((entry) => ({
-        model_id: entry.model_id,
-        provider_id: entry.provider_id,
-        count: entry.count,
-        success_rate: Math.round((entry.successes / entry.count) * 100),
-        avg_latency: Math.round(entry.latencyTotal / entry.count)
+        model_id: entry.modelId,
+        provider_id: entry.providerId,
+        count: entry.metrics.calls,
+        success_rate: Math.round(entry.metrics.successRate),
+        avg_latency: entry.metrics.avgLatencyMs
       }))
       .sort((left, right) => right.count - left.count || left.model_id.localeCompare(right.model_id)),
     byTaskClass: Array.from(byTaskClass.values())
@@ -1287,6 +1270,15 @@ export class SqliteWorkflowStore {
 
   getMetricsSummary({ now = null } = {}) {
     const rows = this.listMetrics({ limit: null, order: "asc" });
+    const metricsService = new LlmMetrics(new WorkflowMetricsStoreAdapter(this));
+    const allTimeTotals = metricsService.totals({ order: "asc" });
+    const allTimeByModel = metricsService.byModel({ order: "asc" }).map((entry) => ({
+      model_id: entry.modelId,
+      provider_id: entry.providerId,
+      count: entry.metrics.calls,
+      success_rate: Math.round(entry.metrics.successRate),
+      avg_latency: entry.metrics.avgLatencyMs
+    }));
     const referenceNow = now instanceof Date
       ? now
       : rows.length
@@ -1301,12 +1293,12 @@ export class SqliteWorkflowStore {
     const trailingWeek = summarizeMetricsWindow(trailingWeekRows);
 
     return {
-      totalCalls: allTime.calls,
-      totalPromptTokens: allTime.totalPromptTokens,
-      totalCompletionTokens: allTime.totalCompletionTokens,
-      avgLatencyMs: allTime.avgLatencyMs,
-      successRate: allTime.successRate,
-      byModel: allTime.byModel,
+      totalCalls: allTimeTotals.calls,
+      totalPromptTokens: allTimeTotals.promptTokens,
+      totalCompletionTokens: allTimeTotals.completionTokens,
+      avgLatencyMs: allTimeTotals.avgLatencyMs,
+      successRate: Math.round(allTimeTotals.successRate),
+      byModel: allTimeByModel,
       sessionCount: sessions.length,
       assumptions: {
         helpVsBaseline: "heuristic estimate from task-class manual baselines versus active ai-workflow work time",
@@ -1704,6 +1696,15 @@ export class SqliteWorkflowStore {
   getWorkflowState(runId, key, fallback = null) {
     const row = this.db.prepare("SELECT value_json FROM workflow_state WHERE run_id = ? AND key = ?").get(runId, key);
     return row ? parseJson(row.value_json, fallback) : fallback;
+  }
+
+  getWorkflowStateMap(runId) {
+    const rows = this.db.prepare("SELECT key, value_json FROM workflow_state WHERE run_id = ?").all(runId);
+    const result = {};
+    for (const row of rows) {
+      result[row.key] = parseJson(row.value_json);
+    }
+    return result;
   }
 
   upsertWorkflowIssue(issue) {

@@ -8,6 +8,7 @@ import { readProjectFile } from "../lib/filesystem.mjs";
 import { SEMANTICS } from "../lib/registry.mjs";
 import { probeLeanCtx } from "./lean-ctx.mjs";
 import { inferTicketRetrievalContextFromStore } from "./shell-retrieval.mjs";
+import { LeanContextCompressor } from "@dharmax/context-manager";
 
 /**
  * Context Packer
@@ -57,12 +58,10 @@ export async function buildSurgicalContext(projectRoot, { symbolNames = [], file
 
     for (const filePath of limitedFilePaths) {
       const file = await readProjectFile(projectRoot, filePath);
-      const lines = file.content.split("\n");
-      // Surgical Slice: Limit file size to 300 lines or 5000 chars
-      const truncated = lines.slice(0, 300).join("\n");
+      const content = await LeanContextCompressor.patternCompress(file.content, 500);
       context.files.push({
         path: filePath,
-        content: truncated.length > 5000 ? truncated.slice(0, 5000) + "... [TRUNCATED]" : truncated
+        content
       });
     }
 

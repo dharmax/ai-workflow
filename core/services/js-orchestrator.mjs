@@ -7,6 +7,7 @@ import vm from "node:vm";
 import { stableId } from "../lib/hash.mjs";
 import { runHooks } from "./hooks.mjs";
 import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.mjs";
+import { AnnotatedStateMachine } from "@dharmax/text-compiler";
 
 /**
  * Orchestrates JS-based workflows with persistence and recovery.
@@ -136,14 +137,19 @@ class WorkflowSession {
     this.traceWorkflow = typeof traceWorkflow === "function" ? traceWorkflow : null;
     this.workflowLogger = typeof workflowLogger === "function" ? workflowLogger : null;
     this.completedSteps = new Set();
+    this.sm = new AnnotatedStateMachine();
     
-    // Load completed steps from DB to support recovery
+    // Load completed steps and state from DB to support recovery
     const steps = workflowStore.listWorkflowSteps(runId);
     for (const s of steps) {
       if (s.status === "completed") {
         this.completedSteps.add(s.stepId);
       }
     }
+
+    // Initialize SM memory from workflowStore
+    const initialState = workflowStore.getWorkflowStateMap?.(runId) ?? {};
+    this.sm.memory = { ...initialState };
   }
 
   emitWorkflowEvent(event) {
@@ -345,15 +351,15 @@ class WorkflowSession {
   }
 
   setState(key, value) {
+    this.sm.memory[key] = value;
     this.workflowStore.setWorkflowState(this.runId, key, value);
   }
 
   getState(key, fallback = null) {
-    return this.workflowStore.getWorkflowState(this.runId, key, fallback);
+    return this.sm.memory[key] ?? this.workflowStore.getWorkflowState(this.runId, key, fallback);
   }
 
   getAllState() {
-    // This could be optimized to fetch all at once
-    return {}; 
+    return { ...this.sm.memory };
   }
 }

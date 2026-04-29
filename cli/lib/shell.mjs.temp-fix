@@ -11,7 +11,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { getToolkitRoot, listToolkitCodelets } from "./codelets.mjs";
 import { listProjectCodelets } from "./project-codelets.mjs";
 import { routeTask } from "../../core/services/router.mjs";
-import { discoverProviderState, generateCompletion, generateWithOllama } from "../../core/services/providers.mjs";
+import { discoverProviderState, generateCompletion } from "../../core/services/providers.mjs";
 import { decomposeTicket, executeTicket, ideateFeature, sweepBugs } from "../../core/services/orchestrator.mjs";
 import { auditArchitecture } from "../../core/services/critic.mjs";
 import { addManualNote, createTicket, evaluateProjectReadiness, getProjectMetrics, getProjectSummary, getSmartProjectStatus, recordMetric, searchProject, syncProject, updateTicketLifecycle, withWorkflowStore } from "../../core/services/sync.mjs";

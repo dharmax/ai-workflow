@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { generateWithAnthropic, generateWithOllama, probeOllama, refreshProviderQuotaState, resolveOllamaConfig } from "../core/services/providers.mjs";
+import { probeOllama, refreshProviderQuotaState, resolveOllamaConfig } from "../core/services/providers.mjs";
 import { discoverProviderState, refreshProviderRegistry } from "../core/services/providers.mjs";
 import { buildModelFitMatrix } from "../core/services/model-fit.mjs";
 import { searchWebEvidence } from "../core/services/web-search.mjs";
@@ -29,46 +29,6 @@ test("probeOllama reads models from a configured HTTP host", async () => {
     assert.equal(result.installed, true);
     assert.deepEqual(result.models, [{ id: "qwen2.5:14b", sizeB: null }, { id: "llama3.2:3b", sizeB: null }]);
     assert.equal(result.host, "http://127.0.0.1:11434");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateWithOllama sends a direct HTTP request to the configured host", async () => {
-  const originalFetch = globalThis.fetch;
-  let captured = null;
-  globalThis.fetch = async (url, init) => {
-    captured = {
-      url,
-      init
-    };
-    return {
-      ok: true,
-      async json() {
-        return {
-          response: "{\"kind\":\"reply\",\"reply\":\"ok\"}"
-        };
-      }
-    };
-  };
-
-  try {
-    const result = await generateWithOllama({
-      host: "http://127.0.0.1:11434",
-      model: "qwen2.5:14b",
-      system: "planner",
-      prompt: "status",
-      format: "json"
-    });
-
-    assert.equal(result.host, "http://127.0.0.1:11434");
-    assert.equal(result.model, "qwen2.5:14b");
-    assert.equal(captured.url, "http://127.0.0.1:11434/api/generate");
-    const body = JSON.parse(captured.init.body);
-    assert.equal(body.model, "qwen2.5:14b");
-    assert.equal(body.system, "planner");
-    assert.equal(body.prompt, "status");
-    assert.equal(body.format, "json");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -752,38 +712,6 @@ test("refreshProviderRegistry tolerates read-only global config paths when write
     await chmod(tempHome, 0o755);
     await rm(root, { recursive: true, force: true });
     await rm(tempHome, { recursive: true, force: true });
-  }
-});
-
-test("generateWithAnthropic sends a direct API request", async () => {
-  const originalFetch = globalThis.fetch;
-  let captured = null;
-  globalThis.fetch = async (url, init) => {
-    captured = { url, init };
-    return {
-      ok: true,
-      async json() {
-        return {
-          content: [{ type: "text", text: "hello from claude" }]
-        };
-      }
-    };
-  };
-
-  try {
-    const result = await generateWithAnthropic({
-      model: "claude-3-5-sonnet-latest",
-      prompt: "status",
-      system: "planner",
-      apiKey: "anthropic-key"
-    });
-    assert.equal(captured.url, "https://api.anthropic.com/v1/messages");
-    const body = JSON.parse(captured.init.body);
-    assert.equal(body.model, "claude-3-5-sonnet-latest");
-    assert.equal(body.system, "planner");
-    assert.equal(result.response, "hello from claude");
-  } finally {
-    globalThis.fetch = originalFetch;
   }
 });
 
