@@ -208,13 +208,20 @@ function mergeLists(...lists) {
 }
 
 function mergeModels(builtin, global = {}, project = {}) {
-  const providers = new Set([...Object.keys(builtin), ...Object.keys(global), ...Object.keys(project)]);
+  const builtinModels = isPlainObject(builtin) ? builtin : {};
+  const globalModels = isPlainObject(global) ? global : {};
+  const projectModels = isPlainObject(project) ? project : {};
+  const providers = new Set([
+    ...Object.keys(builtinModels),
+    ...Object.keys(globalModels),
+    ...Object.keys(projectModels)
+  ]);
   const result = {};
 
   for (const id of providers) {
     // For now, we simple-merge the model arrays. 
     // In a more advanced version, we could merge specific model entries by ID.
-    result[id] = project[id] ?? global[id] ?? builtin[id] ?? [];
+    result[id] = projectModels[id] ?? globalModels[id] ?? builtinModels[id] ?? [];
   }
 
   return result;

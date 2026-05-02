@@ -12,7 +12,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { promisify } from "node:util";
-import { getToolkitRoot, listToolkitCodelets } from "./codelets.ts";
+import { listToolkitCodelets } from "./codelets.ts";
 import { listProjectCodelets } from "./project-codelets.ts";
 import { routeTask } from "../../core/services/router.ts";
 import { discoverProviderState, generateCompletion, summarizeCompletionUsage } from "../../core/services/providers.ts";
@@ -38,12 +38,13 @@ import { formatStatusReport, resolveProjectStatus } from "../../core/services/st
 import { getRelevantGuidelineBlocks } from "../../core/services/guidelines.ts";
 import { executeJsOrchestrator } from "../../core/services/text-compiler-host.ts";
 import { executeOperatorRequest, updateManagedContext } from "../../core/services/operator-brain.ts";
+import { getCliToolkitRoot } from "./toolkit-root.ts";
 
 const STREAMED_STDIO = "__STREAMED_STDIO__";
 const execFileAsync = promisify(execFile);
 const SHELL_GRAPH_NODE_KINDS = new Set(["action", "branch", "assert", "synthesize", "replan"]);
 const TICKET_ID_PATTERN = "[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+";
-const TOOLKIT_ROOT = getToolkitRoot();
+const TOOLKIT_ROOT = getCliToolkitRoot();
 const SHELL_REFERENTIAL_TOKENS = new Set([
   "it",
   "that",
@@ -227,7 +228,7 @@ export async function handleShell(rest, { cliPath } = {}) {
     aiTraceEvents: [],
     workflowTraceEvents: [],
     history: Array.isArray(restoredState?.history) ? restoredState.history : [],
-    cliPath: cliPath ?? path.resolve(root, "cli", "ai-workflow.ts"),
+    cliPath: cliPath ?? path.resolve(root, "cli", "ai-workflow.mjs"),
     plannerContext: null,
     planners: null
   };
@@ -5454,11 +5455,11 @@ async function runShellActionDirect(action, options) {
     case "metrics":
       return formatProjectMetrics(await getProjectMetrics({ projectRoot: options.root }), options.json);
     case "version": {
-      const packageJson = JSON.parse(await readFileIfExists(path.resolve(getToolkitRoot(), "package.json")));
+      const packageJson = JSON.parse(await readFileIfExists(path.resolve(getCliToolkitRoot(), "package.json")));
       const payload = {
         name: packageJson.name,
         version: packageJson.version,
-        toolkitRoot: getToolkitRoot()
+        toolkitRoot: getCliToolkitRoot()
       };
       return options.json
         ? `${JSON.stringify(payload, null, 2)}\n`
@@ -5669,7 +5670,7 @@ async function runShellActionDirect(action, options) {
       }
       const stagedDir = path.resolve(options.root, ".ai-workflow", "staged-codelets");
       const entryPath = path.resolve(stagedDir, `dynamic-${Date.now()}.js`);
-      const toolkitRoot = getToolkitRoot();
+      const toolkitRoot = getCliToolkitRoot();
       const sqliteStoreUrl = pathToFileURL(path.resolve(toolkitRoot, "core", "db", "sqlite-store.ts")).href;
       const syncUrl = pathToFileURL(path.resolve(toolkitRoot, "core", "services", "sync.ts")).href;
       const source = [

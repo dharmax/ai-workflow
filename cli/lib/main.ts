@@ -11,7 +11,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { parseArgs, printAndExit } from "../../runtime/scripts/ai-workflow/lib/cli.ts";
-import { getToolkitCodelet, getToolkitRoot } from "./codelets.ts";
+import { getToolkitCodelet } from "./codelets.ts";
 import { buildWorkflowAuditSummary } from "../../runtime/scripts/ai-workflow/lib/workflow-audit-report.ts";
 import { getConfigValue, getGlobalConfigPath, getProjectConfigPath, readConfig, removeConfigFile, removeConfigValue, writeConfigValue } from "./config-store.ts";
 import { runDoctor } from "./doctor.ts";
@@ -44,8 +44,9 @@ import { STATUS_NODE_TYPES, formatStatusReport, resolveProjectStatus } from "../
 import { listWorkflowIssues, refineWorkflowIssue } from "../../core/services/workflow-refinement.ts";
 import { runShellBenchmark } from "../../core/services/shell-benchmark.ts";
 import { runDogfoodHarness } from "../../core/services/dogfood-harness.ts";
+import { getCliToolkitRoot } from "./toolkit-root.ts";
 
-const toolkitRoot = getToolkitRoot();
+const toolkitRoot = getCliToolkitRoot();
 const execFileAsync = promisify(execFile);
 
 const HELP = `Usage:
@@ -159,7 +160,7 @@ export async function main(argv) {
     case "consult":
       return handleConsult(rest);
     case "shell":
-      return handleShell(rest, { cliPath: path.resolve(toolkitRoot, "cli", "ai-workflow.ts") });
+      return handleShell(rest, { cliPath: path.resolve(toolkitRoot, "cli", "ai-workflow.mjs") });
     case "ask":
       return handleAsk(rest);
     case "sync":

@@ -3,14 +3,10 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { ensureDir } from "../runtime/scripts/ai-workflow/lib/fs-utils.ts";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..");
-
 export async function generateManualHtml({
-  root = repoRoot,
+  root = process.cwd(),
   source = path.resolve(root, "docs", "MANUAL.md"),
   output = path.resolve(root, "docs", "manual.html")
 } = {}) {
@@ -237,10 +233,4 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = process.cwd();
-  const result = await generateManualHtml({ root });
-  process.stdout.write(`${path.relative(root, result.output).replace(/\\/g, "/")}\n`);
 }

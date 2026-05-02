@@ -334,9 +334,9 @@ function resolveCliPath(root, options) {
     return path.resolve(String(options.cliPath));
   }
   if (options.toolkitRoot) {
-    return path.resolve(String(options.toolkitRoot), "cli", "ai-workflow.ts");
+    return path.resolve(String(options.toolkitRoot), "cli", "ai-workflow.mjs");
   }
-  return path.resolve(root, "cli", "ai-workflow.ts");
+  return path.resolve(root, "cli", "ai-workflow.mjs");
 }
 
 function normalizeTimeout(timeoutMs) {

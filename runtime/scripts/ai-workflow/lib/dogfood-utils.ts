@@ -22,7 +22,7 @@ export async function runDogfood({
 } = {}) {
   const normalizedRoot = path.resolve(root);
   const requestedSurfaces = dedupeSurfaceIds(surfaces);
-  const cliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.ts");
+  const cliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.mjs");
   const startedAt: string = new Date().toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
   const report = {

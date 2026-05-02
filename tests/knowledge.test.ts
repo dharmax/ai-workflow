@@ -108,6 +108,24 @@ test("loadKnowledge merges project knowledge facts from markdown", async () => {
   }
 });
 
+test("loadKnowledge tolerates null model maps in global and project config", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-null-models-"));
+
+  try {
+    const knowledge = await loadKnowledge({
+      root: targetRoot,
+      globalConfig: { knowledge: { models: null } },
+      projectConfig: { knowledge: { models: null } }
+    });
+
+    assert.equal(typeof knowledge.models, "object");
+    assert.equal(Array.isArray(knowledge.modelReference), true);
+    assert.equal(Array.isArray(Object.values(knowledge.models).at(0)), true);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("recordProjectKnowledge appends durable learned fixes without duplicating the same summary", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-record-"));
 
