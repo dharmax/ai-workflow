@@ -5,11 +5,11 @@
   "type": "module",
   "description": "Autonomous Engineering OS and ai-workflow CLI for token-efficient JS/TS repository work.",
   "bin": {
-    "ai-workflow": "./cli/ai-workflow.ts"
+    "ai-workflow": "./cli/ai-workflow.mjs"
   },
   "scripts": {
-    "build": "echo 'No build step for CLI'",
-    "generate-docs": "tsx scripts/generate-manual-html.ts",
+    "build": "node scripts/build-cli.mjs",
+    "generate-docs": "tsx scripts/generate-manual-html-cli.ts",
     "install:gemini-skill": "tsx scripts/install-ai-workflow-skill.ts --project . --force",
     "install:tools": "npm install -g .",
     "lint": "eslint .",
