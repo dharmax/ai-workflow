@@ -10,8 +10,8 @@ import { getToolkitRoot } from "./lib/toolkit-root.ts";
 import { inferTicketWorkingSet, loadTicketContext } from "./lib/workflow-store-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/context-pack.mjs --ticket TKT-001 --changed
-  node scripts/ai-workflow/context-pack.mjs --files src/app.ts,tests/app.spec.ts
+  tsx scripts/ai-workflow/context-pack.mjs --ticket TKT-001 --changed
+  tsx scripts/ai-workflow/context-pack.mjs --files src/app.ts,tests/app.spec.ts
 
 Options:
   --root <path>      Project root. Defaults to current directory.

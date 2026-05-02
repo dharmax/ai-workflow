@@ -7,7 +7,7 @@ import path from "node:path";
 import { readFile, stat } from "node:fs/promises";
 import { routeTask } from "./router.ts";
 import { generateCompletion, summarizeCompletionUsage } from "./providers.ts";
-import { normalizeHonestyContract, isHonestyContractPass } from "./honesty-contract.ts";
+import { normalizeHonestyContract, isHonestyContractPass } from "../contracts/honesty-contract.ts";
 import { withWorkflowStore } from "./sync.ts";
 
 const TEXT_EXTENSIONS = new Set([

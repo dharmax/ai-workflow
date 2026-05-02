@@ -22,7 +22,7 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
       /health:/i,
       /recommendation:/i,
       /evidence:/i,
-      /\b(?:BUG|TKT)-[A-Z0-9-]+\b/
+      /\b(?:BUG|TKT|REF)-[A-Z0-9-]+\b/
     ],
     bannedPatterns: [
       /needs the ai planner/i,
@@ -40,8 +40,8 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
     rubric: "The shell output must answer what the projections service is, mention projections directly, stay grounded in repo/project evidence, cite the most relevant files, avoid internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing.",
     requiredPatterns: [
       /projections/i,
-      /core\/services\/projections\.mjs/i,
-      /core\/services\/sync\.mjs|core\/services\/status\.mjs|cli\/lib\/main\.mjs/i,
+      /core\/services\/projections\.ts/i,
+      /core\/services\/sync\.ts|core\/services\/status\.ts|cli\/lib\/main\.ts/i,
       /evidence:/i
     ],
     bannedPatterns: [
@@ -79,7 +79,7 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
     requiredPatterns: [
       /ollama|local-first|local/i,
       /router|provider|shell/i,
-      /core\/services\/router\.mjs|core\/services\/providers\.mjs|cli\/lib\/shell\.mjs/i
+      /core\/services\/router\.ts|core\/services\/providers\.ts|cli\/lib\/shell\.ts/i
     ],
     bannedPatterns: [
       /needs the ai planner/i,
@@ -99,7 +99,7 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
       /db|workflow db|sqlite/i,
       /patch|patching/i,
       /verification|dogfood|audit/i,
-      /shared\/codelets|core\/services\/orchestrator\.mjs|core\/db\//i
+      /shared\/codelets|core\/services\/orchestrator\.ts|core\/db\//i
     ],
     bannedPatterns: [
       /needs the ai planner/i,

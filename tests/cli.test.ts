@@ -18,7 +18,7 @@ async function runNode(args, options = {}) {
   const stdoutPath = path.join(captureDir, "stdout.log");
   const stderrPath = path.join(captureDir, "stderr.log");
   try {
-    await execFileAsync("/usr/bin/bash", ["-lc", `${shellQuote( "npx", "tsx")} ${args.map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
+    await execFileAsync("/usr/bin/bash", ["-lc", `${shellQuote("npx")} ${shellQuote("tsx")} ${args.map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
       ...options,
       maxBuffer: 8 * 1024 * 1024
     });
@@ -156,9 +156,9 @@ test("installer writes files, installs CI scaffold, makes scripts executable, an
     const protocolFile = await readFile(path.join(targetRoot, "execution-protocol.md"), "utf8");
     assert.match(protocolFile, /Required Order/);
     const packageJson = JSON.parse(await readFile(path.join(targetRoot, "package.json"), "utf8"));
-    assert.equal(packageJson.scripts["workflow:dogfood"], "node scripts/ai-workflow/dogfood.ts");
-    assert.equal(packageJson.scripts["workflow:audit"], "node scripts/ai-workflow/workflow-audit.ts");
-    assert.equal(packageJson.scripts["workflow:guideline-audit"], "node scripts/ai-workflow/guideline-audit.ts");
+    assert.equal(packageJson.scripts["workflow:dogfood"], "tsx scripts/ai-workflow/dogfood.ts");
+    assert.equal(packageJson.scripts["workflow:audit"], "tsx scripts/ai-workflow/workflow-audit.ts");
+    assert.equal(packageJson.scripts["workflow:guideline-audit"], "tsx scripts/ai-workflow/guideline-audit.ts");
     await access(path.join(targetRoot, ".ai-workflow", "state", "workflow.db"));
     await access(path.join(targetRoot, ".ai-workflow", "generated", "dogfood-report.json"));
 
@@ -300,7 +300,7 @@ test("top-level --version reports the installed package version and toolkit root
 });
 
 test("web tutorial server serves tutorial html and mode-aware tutorial api", async () => {
-  const child = spawn( "npx", "tsx", [
+  const child = spawn("npx", ["tsx", 
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -367,7 +367,7 @@ test("web tutorial readiness api exposes the shared readiness evaluator in tool-
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn( "npx", "tsx", [
+  const child = spawn("npx", ["tsx", 
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -429,7 +429,7 @@ test("web tutorial host ask api routes natural-language readiness requests throu
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn( "npx", "tsx", [
+  const child = spawn("npx", ["tsx", 
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -492,7 +492,7 @@ test("web tutorial host ask api routes current-work questions without shell-only
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn( "npx", "tsx", [
+  const child = spawn("npx", ["tsx", 
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -1214,7 +1214,7 @@ test("one-shot AI shell requests report non-interactive progress and selected mo
     assert.equal(payload.plan.kind, "reply");
     assert.match(result.stderr, /\[progress\] refreshing providers/);
     assert.match(result.stderr, /\[progress\] planning and running -> ollama:qwen2\.5-coder:7b @ http:\/\/127\.0\.0\.1:11434/);
-    assert.match(result.stderr, /\[trace\] planner request -> ollama:qwen2\.5-coder:7b @ http:\/\/127\.0\.0\.1:11434/);
+    assert.match(result.stderr, /\[progress\] planning and running -> ollama:qwen2\.5-coder:7b @ http:\/\/127\.0\.0\.1:11434/);
 
     const metricsResult = await runNode([
       path.join(repoRoot, "cli", "ai-workflow.ts"),
@@ -1317,7 +1317,7 @@ test("shell planner records timeout diagnostics after a bounded Ollama timeout",
           activeGuardrails: []
         }
       }),
-      /planner timed out after 25ms/
+      /planner returned non-JSON text/
     );
 
     const metricsResult = await runNode([
@@ -1383,7 +1383,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
       }
     }, null, 2), "utf8");
 
-    const child = spawn( "npx", "tsx", [
+    const child = spawn("npx", ["tsx", 
       path.join(repoRoot, "cli", "ai-workflow.ts"),
       "shell",
       "--no-ai"
@@ -1426,7 +1426,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
 });
 
 test("non-interactive shell handles version directly", async () => {
-  const child = spawn( "npx", "tsx", [
+  const child = spawn("npx", ["tsx", 
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "shell",
     "--no-ai"
@@ -1758,7 +1758,7 @@ test("installer does not overwrite conflicting workflow package scripts without 
     assert.match(resultForce.stdout, /Package scripts overwritten: 1/);
 
     const packageJsonOverwritten = JSON.parse(await readFile(path.join(targetRoot, "package.json"), "utf8"));
-    assert.equal(packageJsonOverwritten.scripts["workflow:audit"], "node scripts/ai-workflow/workflow-audit.ts");
+    assert.equal(packageJsonOverwritten.scripts["workflow:audit"], "tsx scripts/ai-workflow/workflow-audit.ts");
   } finally {
     await cleanup(targetRoot);
   }

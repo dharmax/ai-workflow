@@ -195,8 +195,8 @@ const PACKAGE_JSON = `{
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev-server.ts",
-    "serve": "node scripts/dev-server.ts",
+    "dev": "tsx scripts/dev-server.ts",
+    "serve": "tsx scripts/dev-server.ts",
     "test": "node --test tests/game-logic.test.ts"
   }
 }

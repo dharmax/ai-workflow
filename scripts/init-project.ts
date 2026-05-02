@@ -12,7 +12,7 @@ import { withWorkspaceMutation } from "../core/lib/workspace-mutation.ts";
 import { runDogfood } from "../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
 
 const HELP = `Usage:
-  node scripts/init-project.js --target /path/to/project [options]
+  tsx scripts/init-project.js --target /path/to/project [options]
 
 Options:
   --target <path>    Target project root. Defaults to current directory.
@@ -28,14 +28,14 @@ const repoRoot = path.resolve(__dirname, "..");
 const templatesRoot = path.resolve(repoRoot, "templates");
 const runtimeRoot = path.resolve(repoRoot, "runtime", "scripts", "ai-workflow");
 const WORKFLOW_PACKAGE_SCRIPTS = {
-  "workflow:kanban": "node scripts/ai-workflow/kanban.ts",
-  "workflow:ticket": "node scripts/ai-workflow/kanban-ticket.ts",
-  "workflow:guidance": "node scripts/ai-workflow/guidance-summary.ts",
-  "workflow:review": "node scripts/ai-workflow/review-summary.ts",
-  "workflow:verify": "node scripts/ai-workflow/verification-summary.ts",
-  "workflow:dogfood": "node scripts/ai-workflow/dogfood.ts",
-  "workflow:guideline-audit": "node scripts/ai-workflow/guideline-audit.ts",
-  "workflow:audit": "node scripts/ai-workflow/workflow-audit.ts"
+  "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
+  "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
+  "workflow:guidance": "tsx scripts/ai-workflow/guidance-summary.ts",
+  "workflow:review": "tsx scripts/ai-workflow/review-summary.ts",
+  "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts",
+  "workflow:dogfood": "tsx scripts/ai-workflow/dogfood.ts",
+  "workflow:guideline-audit": "tsx scripts/ai-workflow/guideline-audit.ts",
+  "workflow:audit": "tsx scripts/ai-workflow/workflow-audit.ts"
 };
 
 const args = parseArgs(process.argv.slice(2));

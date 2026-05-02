@@ -7,8 +7,8 @@ import { findTicket, parseKanban, renderTicket } from "./lib/kanban-utils.ts";
 import { loadTicketContext, selectKanbanSource } from "./lib/workflow-store-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/kanban-ticket.mjs --id TKT-001
-  node scripts/ai-workflow/kanban-ticket.mjs --section "ToDo"
+  tsx scripts/ai-workflow/kanban-ticket.mjs --id TKT-001
+  tsx scripts/ai-workflow/kanban-ticket.mjs --section "ToDo"
 
 Options:
   --root <path>      Project root. Defaults to current directory.

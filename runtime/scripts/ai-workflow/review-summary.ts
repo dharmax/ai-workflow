@@ -6,9 +6,9 @@ import { normalizePath } from "./lib/fs-utils.ts";
 import { getChanges, isGitRepo } from "./lib/git-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/review-summary.mjs
-  node scripts/ai-workflow/review-summary.mjs --base origin/main
-  node scripts/ai-workflow/review-summary.mjs --files src/app.ts,tests/app.spec.ts
+  tsx scripts/ai-workflow/review-summary.mjs
+  tsx scripts/ai-workflow/review-summary.mjs --base origin/main
+  tsx scripts/ai-workflow/review-summary.mjs --files src/app.ts,tests/app.spec.ts
 
 Options:
   --root <path>      Project root. Defaults to current directory.

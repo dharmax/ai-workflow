@@ -5,7 +5,7 @@ import { parseArgs, printAndExit } from "./lib/cli.ts";
 import { buildWorkflowAuditSummary } from "./lib/workflow-audit-report.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/workflow-audit.mjs
+  tsx scripts/ai-workflow/workflow-audit.mjs
 
 Options:
   --root <path>      Project root. Defaults to current directory.

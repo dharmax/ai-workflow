@@ -6,7 +6,7 @@ import { listOperatorSurfaceIds } from "./lib/operator-surfaces.ts";
 import { runDogfood } from "./lib/dogfood-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/dogfood.mjs [--surface <id[,id...]>] [--profile <bootstrap|full>] [--timeout-ms <n>] [--json]
+  tsx scripts/ai-workflow/dogfood.mjs [--surface <id[,id...]>] [--profile <bootstrap|full>] [--timeout-ms <n>] [--json]
 
 Options:
   --root <path>         Project root. Defaults to current directory.

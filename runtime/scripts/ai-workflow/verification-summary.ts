@@ -8,13 +8,13 @@ import { parseArgs, asArray, printAndExit } from "./lib/cli.ts";
 import { judgeArtifacts } from "../../../core/services/artifact-verification.ts";
 import { stableId } from "../../../core/lib/hash.ts";
 import { assessWorkflowGap } from "../../../core/services/gap-closure.ts";
-import { isHonestyContractPass } from "../../../core/services/honesty-contract.ts";
+import { isHonestyContractPass } from "../../../core/contracts/honesty-contract.ts";
 import { judgeShellTranscripts } from "../../../core/services/shell-transcript-verification.ts";
 import { withWorkflowStore } from "../../../core/services/sync.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/verification-summary.mjs --cmd "pnpm test" --cmd "pnpm build"
-  node scripts/ai-workflow/verification-summary.mjs --artifact ./screenshot.png --rubric "Matches the reference layout"
+  tsx scripts/ai-workflow/verification-summary.mjs --cmd "pnpm test" --cmd "pnpm build"
+  tsx scripts/ai-workflow/verification-summary.mjs --artifact ./screenshot.png --rubric "Matches the reference layout"
 
 Options:
   --root <path>      Project root. Defaults to current directory.

@@ -30,9 +30,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
-- [ ] cdcb92f3b3fe33a835a84611411da866f3cd5789 Assessment: health on project:ai-workflow
-  - Summary: Status: failed. Plan: Available
-  - State: failed
+- No items
 
 ## In Progress
 
@@ -48,30 +46,30 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
-- [ ] TKT-AUTO-CLOSEOUT-001 Record dependency closeout mutation ✅ 2026-05-01
-  - Summary: Capture the final dependency manifest cleanup so workflow honesty records match the repo state.
-  - State: archived
-- [ ] TKT-AUTO-AUDIT-FOR-SIBLING-PACKAG-MOMUUARL Audit for sibling-package duplication and misuse ✅ 2026-05-01
-  - State: archived
-- [ ] TKT-PKG-DEDUPE-001 Replace duplicated sibling-package logic with thin integrations ✅ 2026-05-01
-  - Summary: Audit and remove repo-local reimplementations of sibling package capabilities, prioritizing @dharmax/text-compiler, @dharmax/llm-utils, @dharmax/shell-proc-utils, and related helper surfaces so ai-workflow uses shared packages instead of drifted duplicates.
-  - State: archived
-- [ ] TKT-TS-TEXT-COMPILER-001 Reintegrate text-compiler through a TS-first boundary ✅ 2026-05-01
-  - Summary: Replace AnnotatedStateMachine-centric duplication with the upgraded @dharmax/text-compiler compiler API, and introduce a coherent TypeScript integration boundary for workflow compilation/execution.
-  - State: archived
-- [ ] TKT-REPO-TIGHTEN-001 Tighten repo operations, docs, and Gemini bridge ✅ 2026-05-01
-  - Summary: Make ai-workflow honest, compact, and operational by wiring the shared parser, pruning stale docs, fixing local Gemini skill availability, and revalidating workflow surfaces.
-  - State: archived
-- [ ] TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance ✅ 2026-04-26
-  - Summary: After Phase 1 passes, make the shell measurable and auditable: define a fixed benchmark corpus for realistic operator prompts, require dogfood and workflow-audit before operator-surface changes ship, and record per-turn provenance for model choice, fallback, and execution path. Exit criteria: repeatable benchmark pass rates, stale report prevention, and reviewable evidence for local-vs-escalated routing. Primary touch points: runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/shell-benchmark.js, core/services/operator-brain.js, @dharmax/llm-utils.
+- [ ] TEST-TICKET-EPIC-CHECK temp ✅ 2026-04-26
+  - Summary: temp
   - Epic: EPIC-001
   - Parent: EPIC-001
   - State: archived
-- [ ] BUG-CODELET-ASK-001 Make tool-dev ask answer codelet-registry questions from workflow state ✅ 2026-04-26
-  - Summary: The tool-dev ask path should answer codelet-registry and refactor-codelet coverage questions directly from the synced workflow DB/registry instead of returning a vague investigation response. Exit criteria: ai-workflow ask --mode tool-dev can state whether a refactor execution codelet exists, cite the matching codelets, and surface registry-backed evidence without manual grep.
+- [ ] TKT-SHELL-PHASE1-002 Phase 1: make shell pass planning and explainer dogfood ✅ 2026-04-26
+  - Summary: Fix the exact failure that is blocking trust today: the shell must stop collapsing planning prompts into status reads, produce the expected progress/output shape in non-interactive runs, and answer repo-explainer prompts with grounded detail. Exit criteria: fresh dogfood runs pass ai-planning-read and ai-explainer-read. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs.
   - State: archived
-- [ ] BUG-SHELL-DOGFOOD-001 Fix shell planning and explainer dogfood failures ✅ 2026-04-26
-  - Summary: Dogfood shows the shell collapsing a planning prompt into a status lookup and failing the grounded explainer rubric. The failure surface needs non-interactive progress output, a more comprehensive answer shape, and clearer routing for repo-explainer prompts. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs. Exit criteria: ai-planning-read and ai-explainer-read both pass in fresh dogfood runs.
+- [ ] TKT-SHELL-PHASE1-003 Phase 1: make shell pass planning and explainer dogfood ✅ 2026-04-26
+  - Summary: Fix the exact failure that is blocking trust today: the shell must stop collapsing planning prompts into status reads, produce the expected progress/output shape in non-interactive runs, and answer repo-explainer prompts with grounded detail. Exit criteria: fresh dogfood runs pass ai-planning-read and ai-explainer-read. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs.
+  - Epic: EPIC-001
+  - Parent: EPIC-001
+  - State: archived
+- [ ] TKT-SHELL-PLAN-002 Rebuild the shell trust plan around dogfood failures ✅ 2026-04-26
+  - Summary: Supersedes the earlier broad shell-plan draft. The plan must be anchored to the live failure mode: shell still fails planning/explainer dogfood prompts, and only after that should we extend to benchmark and audit hardening. Phase 1 must restore correct answer shape and routing; Phase 2 must lock it with repeatable benchmarks and provenance. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs, runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.js, core/services/shell-benchmark.js, @dharmax/llm-utils.
+  - State: archived
+- [ ] TKT-SHELL-PHASE1-001 Phase 1: make shell honest and workflow state stable ✅ 2026-04-26
+  - Summary: Fix the trust substrate first: keep local-first routing honest, stop silent fallback when Ollama is configured but unavailable, retire stale auto-assessments instead of spamming the board, and keep project summary/kanban aligned with current health. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/assessment.mjs, core/services/sync.mjs, core/services/projections.mjs, core/db/sqlite-store.mjs. Exit criteria: one truthful project summary path, no new stale assessment noise, and clear failure reporting when local execution is unavailable.
+  - State: archived
+- [ ] TKT-SHELL-PHASE2-001 Phase 2: make shell operator-grade and auditable ✅ 2026-04-26
+  - Summary: Build the trust layer after Phase 1 is stable: create a fixed benchmark suite for human-style project prompts, require dogfood and workflow-audit before operator-surface changes ship, and expose per-turn provenance so model choice and execution path are reviewable. Primary touch points: runtime/scripts/ai-workflow/programming-dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/operator-brain.js, core/services/context-packer.js, @dharmax/llm-utils. Exit criteria: repeatable benchmark results, audit-grade traces, and explicit local-versus-escalated routing evidence.
+  - State: archived
+- [ ] TKT-SHELL-PHASE2-002 Phase 2: lock shell trust with benchmarks and provenance ✅ 2026-04-26
+  - Summary: After Phase 1 passes, make the shell measurable and auditable: define a fixed benchmark corpus for realistic operator prompts, require dogfood and workflow-audit before operator-surface changes ship, and record per-turn provenance for model choice, fallback, and execution path. Exit criteria: repeatable benchmark pass rates, stale report prevention, and reviewable evidence for local-vs-escalated routing. Primary touch points: runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/shell-benchmark.js, core/services/operator-brain.js, @dharmax/llm-utils.
   - State: archived
 - [ ] TKT-AUTO-DEFINE-INITIAL-PROJECT-G-MOG5RDZO Define Initial Project Goal ✅ 2026-05-01
   - State: archived
@@ -83,30 +81,30 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 - [ ] TKT-SHELL-PLAN-001 Publish the two-phase shell reliability plan ✅ 2026-04-26
   - Summary: Define the shell reliability roadmap in two phases: Phase 1 stabilizes honest local-first routing and workflow truth; Phase 2 raises shell behavior to operator-grade trust with benchmarked prompts, provenance, and audit gates. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/assessment.mjs, core/services/sync.mjs, core/services/projections.mjs, runtime/scripts/ai-workflow/*, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/operator-brain.mjs, core/services/context-packer.mjs, @dharmax/llm-utils.
   - State: archived
-- [ ] TKT-SHELL-PHASE2-001 Phase 2: make shell operator-grade and auditable ✅ 2026-04-26
-  - Summary: Build the trust layer after Phase 1 is stable: create a fixed benchmark suite for human-style project prompts, require dogfood and workflow-audit before operator-surface changes ship, and expose per-turn provenance so model choice and execution path are reviewable. Primary touch points: runtime/scripts/ai-workflow/programming-dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/operator-brain.js, core/services/context-packer.js, @dharmax/llm-utils. Exit criteria: repeatable benchmark results, audit-grade traces, and explicit local-versus-escalated routing evidence.
+- [ ] BUG-CODELET-ASK-001 Make tool-dev ask answer codelet-registry questions from workflow state ✅ 2026-04-26
+  - Summary: The tool-dev ask path should answer codelet-registry and refactor-codelet coverage questions directly from the synced workflow DB/registry instead of returning a vague investigation response. Exit criteria: ai-workflow ask --mode tool-dev can state whether a refactor execution codelet exists, cite the matching codelets, and surface registry-backed evidence without manual grep.
   - State: archived
-- [ ] TKT-SHELL-PHASE1-001 Phase 1: make shell honest and workflow state stable ✅ 2026-04-26
-  - Summary: Fix the trust substrate first: keep local-first routing honest, stop silent fallback when Ollama is configured but unavailable, retire stale auto-assessments instead of spamming the board, and keep project summary/kanban aligned with current health. Primary touch points: cli/lib/shell.mjs, core/services/router.mjs, core/services/providers.mjs, core/services/assessment.mjs, core/services/sync.mjs, core/services/projections.mjs, core/db/sqlite-store.mjs. Exit criteria: one truthful project summary path, no new stale assessment noise, and clear failure reporting when local execution is unavailable.
+- [ ] BUG-SHELL-DOGFOOD-001 Fix shell planning and explainer dogfood failures ✅ 2026-04-26
+  - Summary: Dogfood shows the shell collapsing a planning prompt into a status lookup and failing the grounded explainer rubric. The failure surface needs non-interactive progress output, a more comprehensive answer shape, and clearer routing for repo-explainer prompts. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs. Exit criteria: ai-planning-read and ai-explainer-read both pass in fresh dogfood runs.
   - State: archived
-- [ ] TKT-SHELL-PHASE2-002 Phase 2: lock shell trust with benchmarks and provenance ✅ 2026-04-26
+- [ ] TKT-REPO-TIGHTEN-001 Tighten repo operations, docs, and Gemini bridge ✅ 2026-05-01
+  - Summary: Make ai-workflow honest, compact, and operational by wiring the shared parser, pruning stale docs, fixing local Gemini skill availability, and revalidating workflow surfaces.
+  - State: archived
+- [ ] TKT-SHELL-PHASE2-003 Phase 2: lock shell trust with benchmarks and provenance ✅ 2026-04-26
   - Summary: After Phase 1 passes, make the shell measurable and auditable: define a fixed benchmark corpus for realistic operator prompts, require dogfood and workflow-audit before operator-surface changes ship, and record per-turn provenance for model choice, fallback, and execution path. Exit criteria: repeatable benchmark pass rates, stale report prevention, and reviewable evidence for local-vs-escalated routing. Primary touch points: runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.mjs, core/services/shell-benchmark.js, core/services/operator-brain.js, @dharmax/llm-utils.
-  - State: archived
-- [ ] TKT-SHELL-PLAN-002 Rebuild the shell trust plan around dogfood failures ✅ 2026-04-26
-  - Summary: Supersedes the earlier broad shell-plan draft. The plan must be anchored to the live failure mode: shell still fails planning/explainer dogfood prompts, and only after that should we extend to benchmark and audit hardening. Phase 1 must restore correct answer shape and routing; Phase 2 must lock it with repeatable benchmarks and provenance. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs, runtime/scripts/ai-workflow/dogfood.mjs, runtime/scripts/ai-workflow/lib/workflow-audit-report.mjs, core/services/shell-transcript-verification.mjs, core/services/artifact-verification.js, core/services/shell-benchmark.js, @dharmax/llm-utils.
-  - State: archived
-- [ ] TKT-SHELL-PHASE1-002 Phase 1: make shell pass planning and explainer dogfood ✅ 2026-04-26
-  - Summary: Fix the exact failure that is blocking trust today: the shell must stop collapsing planning prompts into status reads, produce the expected progress/output shape in non-interactive runs, and answer repo-explainer prompts with grounded detail. Exit criteria: fresh dogfood runs pass ai-planning-read and ai-explainer-read. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs.
-  - State: archived
-- [ ] TKT-SHELL-PHASE1-003 Phase 1: make shell pass planning and explainer dogfood ✅ 2026-04-26
-  - Summary: Fix the exact failure that is blocking trust today: the shell must stop collapsing planning prompts into status reads, produce the expected progress/output shape in non-interactive runs, and answer repo-explainer prompts with grounded detail. Exit criteria: fresh dogfood runs pass ai-planning-read and ai-explainer-read. Primary touch points: cli/lib/shell.mjs, core/services/operator-brain.mjs, core/services/shell-retrieval.mjs, core/services/context-packer.mjs, core/services/router.mjs, core/services/providers.mjs.
   - Epic: EPIC-001
   - Parent: EPIC-001
   - State: archived
-- [ ] TEST-TICKET-EPIC-CHECK temp ✅ 2026-04-26
-  - Summary: temp
-  - Epic: EPIC-001
-  - Parent: EPIC-001
+- [ ] TKT-TS-TEXT-COMPILER-001 Reintegrate text-compiler through a TS-first boundary ✅ 2026-05-01
+  - Summary: Replace AnnotatedStateMachine-centric duplication with the upgraded @dharmax/text-compiler compiler API, and introduce a coherent TypeScript integration boundary for workflow compilation/execution.
+  - State: archived
+- [ ] TKT-AUTO-AUDIT-FOR-SIBLING-PACKAG-MOMUUARL Audit for sibling-package duplication and misuse ✅ 2026-05-01
+  - State: archived
+- [ ] TKT-AUTO-CLOSEOUT-001 Record dependency closeout mutation ✅ 2026-05-01
+  - Summary: Capture the final dependency manifest cleanup so workflow honesty records match the repo state.
+  - State: archived
+- [ ] TKT-PKG-DEDUPE-001 Replace duplicated sibling-package logic with thin integrations ✅ 2026-05-01
+  - Summary: Audit and remove repo-local reimplementations of sibling package capabilities, prioritizing @dharmax/text-compiler, @dharmax/llm-utils, @dharmax/shell-proc-utils, and related helper surfaces so ai-workflow uses shared packages instead of drifted duplicates.
   - State: archived
 
 %% kanban:settings

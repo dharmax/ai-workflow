@@ -16,7 +16,7 @@ import {
 } from "./lib/kanban-edit-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/kanban.mjs <new|move|next|archive|migrate> [options]
+  tsx scripts/ai-workflow/kanban.mjs <new|move|next|archive|migrate> [options]
 
 Commands:
   new        Create a ticket card in a lane.

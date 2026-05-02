@@ -230,7 +230,7 @@ for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
     findings.push(createFinding({
       category: "dogfood",
       file: DEFAULT_DOGFOOD_REPORT_PATH,
-      message: `missing dogfood report for operator surface -> ${surfaceId}. Run node scripts/ai-workflow/dogfood.mjs`
+      message: `missing dogfood report for operator surface -> ${surfaceId}. Run tsx scripts/ai-workflow/dogfood.mjs`
     }));
     continue;
   }
@@ -240,7 +240,7 @@ for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
     findings.push(createFinding({
       category: "dogfood",
       file: DEFAULT_DOGFOOD_REPORT_PATH,
-      message: `dogfood report missing operator surface -> ${surfaceId}. Run node scripts/ai-workflow/dogfood.mjs --surface ${surfaceId}`
+      message: `dogfood report missing operator surface -> ${surfaceId}. Run tsx scripts/ai-workflow/dogfood.mjs --surface ${surfaceId}`
     }));
     continue;
   }
@@ -257,7 +257,7 @@ for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
     findings.push(createFinding({
       category: "dogfood",
       file: DEFAULT_DOGFOOD_REPORT_PATH,
-      message: `dogfood report is stale for operator surface -> ${surfaceId}. Re-run node scripts/ai-workflow/dogfood.mjs`
+      message: `dogfood report is stale for operator surface -> ${surfaceId}. Re-run tsx scripts/ai-workflow/dogfood.mjs`
     }));
   }
 

@@ -5,7 +5,7 @@ import { parseArgs, printAndExit } from "./lib/cli.ts";
 import { runGuidelineAudit } from "./lib/audit-utils.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/guideline-audit.mjs
+  tsx scripts/ai-workflow/guideline-audit.mjs
 
 Options:
   --root <path>      Project root. Defaults to current directory.

@@ -12,7 +12,7 @@ import { resolveOperatingContext } from "../../../core/lib/operating-context.ts"
 import { recordRunArtifact } from "../../../core/lib/run-artifacts.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/ticket-proving-run.mjs --limit 25
+  tsx scripts/ai-workflow/ticket-proving-run.mjs --limit 25
 
 Options:
   --root <path>       Project root. Defaults to current directory.

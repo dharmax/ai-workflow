@@ -89,7 +89,7 @@ export async function buildSurgicalContext(projectRoot, { symbolNames = [], file
       }
     }
 
-    if (gathered.metrics.totalItems > budget.MAX_FILES) {
+    if (gathered.diagnostics?.excluded?.length > 0) {
       context.budgetReached = true;
     }
 

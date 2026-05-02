@@ -8,7 +8,7 @@ import { assertSafeRepairTarget, resolveOperatingContext } from "../../../core/l
 import { recordRunArtifact } from "../../../core/lib/run-artifacts.ts";
 
 const HELP = `Usage:
-  node scripts/ai-workflow/execution-dry-run.mjs --ticket TKT-001
+  tsx scripts/ai-workflow/execution-dry-run.mjs --ticket TKT-001
 
 Options:
   --root <path>       Project root. Defaults to current directory.
