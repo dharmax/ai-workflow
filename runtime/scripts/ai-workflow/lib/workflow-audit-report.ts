@@ -1,0 +1,646 @@
+import path from "node:path";
+import { execSync } from "node:child_process";
+import { openWorkflowStore } from "../../../../core/db/sqlite-store.ts";
+import { fileExistsRelative, runGuidelineAudit } from "./audit-utils.ts";
+import { DEFAULT_DOGFOOD_REPORT_PATH, readDogfoodReport } from "./dogfood-utils.ts";
+import { readText } from "./fs-utils.ts";
+import { collectOperatorSurfaceState, compareSurfaceHashes } from "./operator-surfaces.ts";
+import { parseKanban } from "./kanban-utils.ts";
+import { inspectWorkspaceHonesty } from "./workspace-honesty.ts";
+import { renderManualHtml } from "../../../../scripts/generate-manual-html.ts";
+import {
+  SHELL_TRUST_BENCHMARK_MIN_CASES,
+  SHELL_TRUST_BENCHMARK_SUITE_ID,
+  SHELL_TRUST_BENCHMARK_THRESHOLD
+} from "../../../../shared/prompts/shell-trust-benchmark.ts";
+
+const REQUIRED_DOCS = [
+  "AGENTS.md",
+  "CONTRIBUTING.md",
+  "execution-protocol.md",
+  "enforcement.md",
+  "project-guidelines.md",
+  "knowledge.md",
+  "kanban.md",
+  "kanban-archive.md",
+  "epics.md"
+];
+const OPTIONAL_DOCS = [
+  "docs/MANUAL.md"
+];
+
+const DOC_SNIPPETS = {
+  "AGENTS.md": ["## Read Order", "## Core Contract"],
+  "CONTRIBUTING.md": ["## Burst Rule", "## Validation By Risk", "## Truthfulness Rules"],
+  "execution-protocol.md": [
+    "## Required Order",
+    "## Ticket Ownership",
+    "## Kanban Discipline",
+    "## Validation Rules",
+    "## Status Rules",
+    "## Proof Standard",
+    "## Closure Gate",
+    "## Adversarial Self-Check"
+  ],
+  "enforcement.md": ["# Enforcement", "```ai-workflow-audit", "## How To Extend"],
+  "epics.md": ["# Epics"],
+  "kanban-archive.md": ["# Kanban Archive"],
+  "project-guidelines.md": [
+    "## Non-Negotiables",
+    "## Layer Boundaries",
+    "## File Responsibility Headers",
+    "## Test Strategy"
+  ],
+  "knowledge.md": ["## Durable Lessons"]
+  ,
+  "docs/MANUAL.md": [
+    "## What It Is",
+    "## Shell Mode",
+    "## Command Reference",
+    "## Configuration Reference",
+    "## Troubleshooting And Failure Modes"
+  ]
+};
+
+const KANBAN_SECTIONS = [
+  "Deep Backlog",
+  "Backlog",
+  "ToDo",
+  "Bugs P1",
+  "Bugs P2/P3",
+  "Assessments",
+  "In Progress",
+  "Human Inspection",
+  "Suggestions",
+  "Done"
+];
+const OPTIONAL_KANBAN_SECTIONS = [
+  "AI Candidates",
+  "Risk Watch",
+  "Doubtful Relevancy",
+  "Ideas"
+];
+const ALLOWED_KANBAN_SECTIONS = [...KANBAN_SECTIONS, ...OPTIONAL_KANBAN_SECTIONS];
+const DONE_DATE_PATTERN = /✅\s*(\d{4}-\d{2}-\d{2})/i;
+const EPIC_PATTERN = /(?:^|\n)-\s*Epic:\s*([A-Z][A-Z0-9]+-\d+)\s*(?:\n|$)/i;
+const MAX_LIVE_DONE_DAYS = 7;
+
+export async function buildWorkflowAuditSummary(root = process.cwd()) {
+const resolvedRoot = path.resolve(String(root ?? process.cwd()));
+const findings = [];
+const activeDocs = [];
+
+for (const relativePath of REQUIRED_DOCS) {
+  if (!(await fileExistsRelative(resolvedRoot, relativePath))) {
+    findings.push(createFinding({
+      category: "workflow-docs",
+      file: relativePath,
+      message: "missing required doc"
+    }));
+    continue;
+  }
+
+  activeDocs.push(relativePath);
+}
+
+for (const relativePath of OPTIONAL_DOCS) {
+  if (await fileExistsRelative(resolvedRoot, relativePath)) {
+    activeDocs.push(relativePath);
+  }
+}
+
+let packageScripts = new Set();
+if (await fileExistsRelative(resolvedRoot, "package.json")) {
+  try {
+    const packageJson = JSON.parse(await readText(path.resolve(resolvedRoot, "package.json")));
+    packageScripts = new Set(Object.keys(packageJson.scripts ?? {}));
+  } catch (error) {
+    findings.push(createFinding({
+      category: "scripts",
+      file: "package.json",
+      message: `invalid JSON (${error.message})`
+    }));
+  }
+}
+
+if (activeDocs.includes("docs/MANUAL.md")) {
+  const manualMarkdown = await readText(path.resolve(resolvedRoot, "docs", "MANUAL.md"));
+  const manualHtmlPath = path.resolve(resolvedRoot, "docs", "manual.html");
+  const expectedHtml = renderManualHtml(manualMarkdown, { sourcePath: "docs/MANUAL.md" });
+
+  if (!(await fileExistsRelative(resolvedRoot, "docs/manual.html"))) {
+    findings.push(createFinding({
+      category: "workflow-docs",
+      file: "docs/manual.html",
+      message: "missing generated semantic HTML manual"
+    }));
+  } else {
+    const actualHtml = await readText(manualHtmlPath);
+    if (actualHtml !== expectedHtml) {
+      findings.push(createFinding({
+        category: "workflow-docs",
+        file: "docs/manual.html",
+        message: "generated semantic HTML manual is stale; run pnpm docs:manual"
+      }));
+    }
+  }
+}
+
+for (const relativePath of activeDocs) {
+  const text = await readText(path.resolve(resolvedRoot, relativePath));
+
+  for (const snippet of DOC_SNIPPETS[relativePath] ?? []) {
+    if (!text.includes(snippet)) {
+      findings.push(createFinding({
+        category: "workflow-docs",
+        file: relativePath,
+        message: `missing required workflow snippet -> ${snippet}`
+      }));
+    }
+  }
+
+  for (const target of collectMarkdownRefs(relativePath, text)) {
+    if (!(await fileExistsRelative(resolvedRoot, target))) {
+      findings.push(createFinding({
+        category: "references",
+        file: relativePath,
+        message: `broken local ref -> ${target}`
+      }));
+    }
+  }
+
+  for (const scriptName of collectPnpmScriptRefs(text)) {
+    if (!packageScripts.has(scriptName)) {
+      findings.push(createFinding({
+        category: "scripts",
+        file: relativePath,
+        message: `unknown pnpm script -> ${scriptName}`
+      }));
+    }
+  }
+}
+
+const dogfoodReport = await readDogfoodReport(resolvedRoot);
+const operatorSurfaces = await collectOperatorSurfaceState(resolvedRoot);
+const workspaceHonesty = await inspectWorkspaceHonesty(resolvedRoot).catch((error) => ({
+  status: "fail",
+  summary: `workspace honesty check failed: ${error.message}`,
+  suspiciousCount: 0,
+  suspiciousFiles: [],
+  latestMutation: null
+}));
+const latestWorkflowContract = await readLatestWorkflowContract(resolvedRoot).catch(() => null);
+const latestWorkflowGapReview = await readLatestWorkflowGapReview(resolvedRoot).catch(() => null);
+
+if (workspaceHonesty.status === "fail") {
+  findings.push(createFinding({
+    category: "honesty",
+    message: workspaceHonesty.summary
+  }));
+}
+
+if (latestWorkflowContract && (
+  [
+    latestWorkflowContract.attemptedStatus,
+    latestWorkflowContract.fulfillmentStatus,
+    latestWorkflowContract.truthfulnessStatus,
+    latestWorkflowContract.enlightenmentStatus
+  ].some((status) => status === "fail") ||
+  latestWorkflowContract.misleadingLevel === "high"
+)) {
+  findings.push(createFinding({
+    category: "honesty",
+    message: `latest workflow contract is not closure-safe: ${latestWorkflowContract.summary}`
+  }));
+}
+
+if (latestWorkflowGapReview?.status === "open" && latestWorkflowGapReview.severity === "high") {
+  findings.push(createFinding({
+    category: "honesty",
+    message: `latest workflow gap review is still open: ${latestWorkflowGapReview.summary}`
+  }));
+}
+
+for (const [surfaceId, snapshot] of Object.entries(operatorSurfaces)) {
+  if (!snapshot.fileCount) {
+    continue;
+  }
+
+  if (!dogfoodReport) {
+    findings.push(createFinding({
+      category: "dogfood",
+      file: DEFAULT_DOGFOOD_REPORT_PATH,
+      message: `missing dogfood report for operator surface -> ${surfaceId}. Run node scripts/ai-workflow/dogfood.mjs`
+    }));
+    continue;
+  }
+
+  const reportedSurface = dogfoodReport.surfaces?.[surfaceId];
+  if (!reportedSurface) {
+    findings.push(createFinding({
+      category: "dogfood",
+      file: DEFAULT_DOGFOOD_REPORT_PATH,
+      message: `dogfood report missing operator surface -> ${surfaceId}. Run node scripts/ai-workflow/dogfood.mjs --surface ${surfaceId}`
+    }));
+    continue;
+  }
+
+  if (reportedSurface.status !== "pass") {
+    findings.push(createFinding({
+      category: "dogfood",
+      file: DEFAULT_DOGFOOD_REPORT_PATH,
+      message: `dogfood report failed for operator surface -> ${surfaceId}`
+    }));
+  }
+
+  if (!compareSurfaceHashes(reportedSurface, snapshot)) {
+    findings.push(createFinding({
+      category: "dogfood",
+      file: DEFAULT_DOGFOOD_REPORT_PATH,
+      message: `dogfood report is stale for operator surface -> ${surfaceId}. Re-run node scripts/ai-workflow/dogfood.mjs`
+    }));
+  }
+
+  if (surfaceId === "shell" && dogfoodReport.profile === "full") {
+    const benchmarkScenario = Array.isArray(reportedSurface.scenarios)
+      ? reportedSurface.scenarios.find((scenario) => scenario.id === "human-language-benchmark")
+      : null;
+    if (!benchmarkScenario) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `full shell dogfood is missing the ${SHELL_TRUST_BENCHMARK_SUITE_ID} benchmark scenario`
+      }));
+      continue;
+    }
+    const benchmark = benchmarkScenario.benchmark ?? null;
+    if (!benchmark || benchmark.suiteId !== SHELL_TRUST_BENCHMARK_SUITE_ID) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell dogfood benchmark metadata is missing or invalid for ${SHELL_TRUST_BENCHMARK_SUITE_ID}`
+      }));
+      continue;
+    }
+    if ((benchmark.caseCount ?? 0) < SHELL_TRUST_BENCHMARK_MIN_CASES) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark is too small: expected at least ${SHELL_TRUST_BENCHMARK_MIN_CASES} cases`
+      }));
+    }
+    if (Number(benchmark.passRate ?? 0) < Math.max(Number(benchmark.threshold ?? 0), SHELL_TRUST_BENCHMARK_THRESHOLD)) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark pass rate is too low: ${benchmark.passRate} < ${Math.max(Number(benchmark.threshold ?? 0), SHELL_TRUST_BENCHMARK_THRESHOLD)}`
+      }));
+    }
+    if (Array.isArray(benchmark.failedCriticalCases) && benchmark.failedCriticalCases.length) {
+      findings.push(createFinding({
+        category: "dogfood",
+        file: DEFAULT_DOGFOOD_REPORT_PATH,
+        message: `shell trust benchmark has critical failures: ${benchmark.failedCriticalCases.join(", ")}`
+      }));
+    }
+  }
+}
+
+if (activeDocs.includes("kanban.md")) {
+  const kanban = await readText(path.resolve(root, "kanban.md"));
+  const parsed = parseKanban(kanban);
+  const sectionNames = new Set(parsed.sections.map((section) => section.name));
+  const epics = activeDocs.includes("epics.md")
+    ? collectEpicIds(await readText(path.resolve(resolvedRoot, "epics.md")))
+    : new Set();
+
+  if (!/^%%\s*kanban:settings\s*$/im.test(kanban) || !/"kanban-plugin"\s*:\s*"board"/.test(kanban)) {
+    findings.push(createFinding({
+      category: "kanban",
+      file: "kanban.md",
+      message: 'missing Obsidian Kanban settings block (`%% kanban:settings` with `"kanban-plugin": "board"` )'
+    }));
+  }
+
+  for (const section of KANBAN_SECTIONS) {
+    if (!sectionNames.has(section)) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        message: `missing section -> ${section}`
+      }));
+    }
+  }
+
+  const sectionOrder = parsed.sections
+    .map((section) => section.name)
+    .filter((name) => ALLOWED_KANBAN_SECTIONS.includes(name));
+  const expectedSectionOrder = [
+    ...KANBAN_SECTIONS,
+    ...OPTIONAL_KANBAN_SECTIONS.filter((name) => sectionNames.has(name))
+  ];
+
+  if (sectionOrder.join("|") !== expectedSectionOrder.join("|")) {
+    findings.push(createFinding({
+      category: "kanban",
+      file: "kanban.md",
+      message: `expected lane order -> ${expectedSectionOrder.join(" -> ")}`
+    }));
+  }
+
+  for (const section of parsed.sections) {
+    if (!ALLOWED_KANBAN_SECTIONS.includes(section.name)) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        line: section.headingLine + 1,
+        message: `unexpected lane -> ${section.name}`
+      }));
+      continue;
+    }
+
+    if (OPTIONAL_KANBAN_SECTIONS.includes(section.name) && !section.tickets.length) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        line: section.headingLine + 1,
+        message: `optional lane should be omitted when empty -> ${section.name}`
+      }));
+    }
+  }
+
+  const inProgressTickets = parsed.tickets.filter((ticket) => ticket.section === "In Progress");
+  if (inProgressTickets.length > 1) {
+    findings.push(createFinding({
+      category: "kanban",
+      file: "kanban.md",
+      message: `expected at most 1 ticket in In Progress, found ${inProgressTickets.length}`
+    }));
+  }
+
+  for (const ticket of parsed.tickets) {
+    if (ticket.section === "Deep Backlog") {
+      const epicId = extractMetadata(ticket.body, EPIC_PATTERN);
+
+      if (!epicId) {
+        findings.push(createFinding({
+          category: "kanban",
+          file: "kanban.md",
+          line: ticket.line,
+          message: `${ticket.id ?? ticket.heading}: Deep Backlog tickets must include "- Epic: EPIC-###"`
+        }));
+        continue;
+      }
+
+      if (epics.size && !epics.has(epicId)) {
+        findings.push(createFinding({
+          category: "kanban",
+          file: "kanban.md",
+          line: ticket.line,
+          message: `${ticket.id ?? ticket.heading}: references unknown epic -> ${epicId}`
+        }));
+      }
+    }
+
+    if (ticket.section !== "Done") {
+      continue;
+    }
+
+    const doneDateValue = ticket.doneDate ?? extractMetadata(ticket.body, DONE_DATE_PATTERN);
+    if (!doneDateValue) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        line: ticket.line,
+        message: `${ticket.id ?? ticket.heading}: Done tickets must use an Obsidian task line ending with "✅ YYYY-MM-DD"`
+      }));
+      continue;
+    }
+
+    const ageDays = diffDaysFromToday(doneDateValue);
+    if (ageDays == null) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        line: ticket.line,
+        message: `${ticket.id ?? ticket.heading}: invalid Done date -> ${doneDateValue}`
+      }));
+      continue;
+    }
+
+    if (ageDays > MAX_LIVE_DONE_DAYS) {
+      findings.push(createFinding({
+        category: "kanban",
+        file: "kanban.md",
+        line: ticket.line,
+        message: `${ticket.id ?? ticket.heading}: done ticket is ${ageDays} days old; move it to kanban-archive.md`
+      }));
+    }
+  }
+
+  // Zombie Work Detection: Check if open tickets appear in recent commit history
+  const openTickets = parsed.tickets.filter(t => t.section !== "Done" && t.id);
+  if (openTickets.length > 0) {
+    try {
+      const recentCommits = execSync("git log -n 20 --pretty=format:%s", { cwd: resolvedRoot, encoding: "utf8" });
+      for (const ticket of openTickets) {
+        if (recentCommits.includes(ticket.id)) {
+          findings.push(createFinding({
+            category: "integrity",
+            file: "kanban.md",
+            message: `zombie work detected: ticket ${ticket.id} is mentioned in recent commits but remains in lane '${ticket.section}'. Resolve it now.`
+          }));
+        }
+      }
+    } catch (error) {
+      // Ignore if not a git repo or other git error
+    }
+  }
+}
+
+const guidelineAudit = await runGuidelineAudit(resolvedRoot);
+for (const finding of guidelineAudit.findings) {
+  findings.push({
+    category: "guideline-rules",
+    ...finding
+  });
+}
+const failures = findings.map(formatWorkflowFinding);
+
+  const summary = {
+    root: resolvedRoot,
+    status: failures.length ? "fail" : "pass",
+    failures,
+    findings,
+    activeDocs,
+    packageScripts: [...packageScripts].sort(),
+    workspaceHonesty,
+    latestWorkflowContract,
+    latestWorkflowGapReview,
+    guidelineAudit: {
+      blockCount: guidelineAudit.blockCount,
+      ruleCounts: guidelineAudit.ruleCounts
+    }
+  };
+return summary;
+}
+
+async function readLatestWorkflowContract(root) {
+  const store = await openWorkflowStore({ projectRoot: root });
+  try {
+    return store.getLatestWorkflowContract(root);
+  } finally {
+    store.close();
+  }
+}
+
+async function readLatestWorkflowGapReview(root) {
+  const store = await openWorkflowStore({ projectRoot: root });
+  try {
+    return store.getLatestWorkflowGapReview(root);
+  } finally {
+    store.close();
+  }
+}
+
+function collectMarkdownRefs(docPath, text) {
+  const targets = new Set();
+  const markdownLinks = /\[[^\]]*]\((?!https?:\/\/|#|mailto:)([^)]+)\)/g;
+  const codePathRefs = /`((?:\.\.\/|\.\/)?(?:AGENTS|CONTRIBUTING|execution-protocol|enforcement|project-guidelines|knowledge|kanban(?:-archive)?|epics|README|docs|src|tests|package)\S*)`/g;
+
+  for (const match of text.matchAll(markdownLinks)) {
+    const target = normalizeRef(docPath, match[1]);
+    if (target) {
+      targets.add(target);
+    }
+  }
+
+  for (const match of text.matchAll(codePathRefs)) {
+    const target = normalizeRef(docPath, match[1].replace(/[),.;:]+$/, ""));
+    if (target) {
+      targets.add(target);
+    }
+  }
+
+  return [...targets];
+}
+
+function collectPnpmScriptRefs(text) {
+  const scripts = [];
+  const commandRefs = /`pnpm\s+-s\s+([a-z0-9:_-]+)(?:\s+[^`]*)?`/gi;
+
+  for (const match of text.matchAll(commandRefs)) {
+    scripts.push(match[1]);
+  }
+
+  return scripts;
+}
+
+function normalizeRef(docPath, target) {
+  const clean = String(target).split("#")[0].trim();
+
+  if (!clean || clean.endsWith("/*")) {
+    return null;
+  }
+
+  if (clean.startsWith("./") || clean.startsWith("../")) {
+    const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(docPath), clean));
+    return resolved.startsWith("../") ? null : resolved;
+  }
+
+  if (clean.startsWith("/")) {
+    return null;
+  }
+
+  return path.posix.normalize(clean);
+}
+
+function createFinding({ category, file = null, line = null, message }) {
+  return {
+    category,
+    file,
+    line,
+    ruleKind: null,
+    ruleId: null,
+    ruleSource: null,
+    message
+  };
+}
+
+function formatWorkflowFinding(finding) {
+  const location = finding.file ? `${finding.file}${finding.line ? `:${finding.line}` : ""}` : "audit";
+  const source = finding.ruleSource ? ` (${finding.ruleSource})` : "";
+  return `${location}: ${finding.message}${source}`;
+}
+
+function groupFindings(findingsList) {
+  const order = ["workflow-docs", "references", "scripts", "honesty", "kanban", "guideline-rules"];
+  const grouped = new Map();
+
+  for (const category of order) {
+    grouped.set(category, []);
+  }
+
+  for (const finding of findingsList) {
+    const bucket = grouped.get(finding.category) ?? [];
+    bucket.push(finding);
+    grouped.set(finding.category, bucket);
+  }
+
+  return [...grouped.entries()].filter(([, items]) => items.length);
+}
+
+function formatCategoryLabel(category) {
+  switch (category) {
+    case "workflow-docs":
+      return "Workflow Docs";
+    case "references":
+      return "References";
+    case "scripts":
+      return "Scripts";
+    case "honesty":
+      return "Honesty";
+    case "kanban":
+      return "Kanban";
+    case "guideline-rules":
+      return "Guideline Rules";
+    default:
+      return "Findings";
+  }
+}
+
+function collectEpicIds(markdown) {
+  const epics = new Set();
+  const headingPattern = /^#{2,3}\s+([A-Z][A-Z0-9]+-\d+)\b/mg;
+
+  for (const match of markdown.matchAll(headingPattern)) {
+    epics.add(match[1]);
+  }
+
+  return epics;
+}
+
+function extractMetadata(text, pattern) {
+  const match = String(text ?? "").match(pattern);
+  return match ? match[1] : null;
+}
+
+function diffDaysFromToday(dateValue) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return null;
+  }
+
+  const target = new Date(`${dateValue}T00:00:00Z`);
+  if (Number.isNaN(target.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  const current = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const diffMs = current.getTime() - target.getTime();
+  if (diffMs < 0) {
+    return 0;
+  }
+
+  return Math.floor(diffMs / 86400000);
+}

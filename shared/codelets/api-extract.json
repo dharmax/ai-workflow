@@ -4,7 +4,7 @@
   "category": "architecture",
   "summary": "Extract a clean API from a larger implementation surface.",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/smart-codelet-runner.mjs",
+  "entry": "runtime/scripts/ai-workflow/smart-codelet-runner.ts",
   "execution": "js",
   "focus": "api-extract",
   "taskClass": "architectural-reasoning"

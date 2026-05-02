@@ -46,6 +46,12 @@ npm install -g @dharmax/ai-workflow
 ai-workflow install --project .
 ```
 
+- Refresh the repo-local Gemini skill bridge:
+
+```bash
+node scripts/install-ai-workflow-skill.mjs --project . --force
+```
+
 - Initialize from a brief:
 
 ```bash
@@ -76,6 +82,12 @@ ai-workflow mode status --json
 
 ```bash
 ai-workflow project summary --json
+```
+
+- Confirm the Gemini bridge exists:
+
+```bash
+ls .gemini/GEMINI.md .gemini/skills/ai-workflow
 ```
 
 ## Core Workflow

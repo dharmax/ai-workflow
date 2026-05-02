@@ -5,24 +5,26 @@
   "type": "module",
   "description": "Autonomous Engineering OS and ai-workflow CLI for token-efficient JS/TS repository work.",
   "bin": {
-    "ai-workflow": "./cli/ai-workflow.mjs"
+    "ai-workflow": "./cli/ai-workflow.ts"
   },
   "scripts": {
     "build": "echo 'No build step for CLI'",
-    "generate-docs": "node scripts/generate-manual-html.mjs",
+    "generate-docs": "tsx scripts/generate-manual-html.ts",
+    "install:gemini-skill": "tsx scripts/install-ai-workflow-skill.ts --project . --force",
     "install:tools": "npm install -g .",
     "lint": "eslint .",
-    "perfection-marathon": "node tests/perfection-marathon.mjs",
-    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
-    "test:fast": "node --test tests/*.test.mjs",
-    "workflow:audit": "node scripts/ai-workflow/workflow-audit.mjs",
-    "workflow:dogfood": "node scripts/ai-workflow/dogfood.mjs",
-    "workflow:guidance": "node scripts/ai-workflow/guidance-summary.mjs",
-    "workflow:guideline-audit": "node scripts/ai-workflow/guideline-audit.mjs",
-    "workflow:kanban": "node scripts/ai-workflow/kanban.mjs",
-    "workflow:review": "node scripts/ai-workflow/review-summary.mjs",
-    "workflow:ticket": "node scripts/ai-workflow/kanban-ticket.mjs",
-    "workflow:verify": "node scripts/ai-workflow/verification-summary.mjs"
+    "perfection-marathon": "tsx tests/perfection-marathon.ts",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "test:fast": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "workflow:audit": "tsx scripts/ai-workflow/workflow-audit.ts",
+    "workflow:dogfood": "tsx scripts/ai-workflow/dogfood.ts",
+    "workflow:guidance": "tsx scripts/ai-workflow/guidance-summary.ts",
+    "workflow:guideline-audit": "tsx scripts/ai-workflow/guideline-audit.ts",
+    "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
+    "workflow:review": "tsx scripts/ai-workflow/review-summary.ts",
+    "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
+    "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -30,11 +32,13 @@
   "dependencies": {
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/block-patcher": "file:../block-patcher",
-    "@dharmax/goe-governance": "file:../goe-governance",
-    "@dharmax/human2js": "file:../human2js",
     "@dharmax/text-compiler": "file:../text-compiler",
     "@dharmax/context-manager": "file:../context-manager",
     "@dharmax/llm-utils": "file:../llm-utils",
     "@dharmax/shell-proc-utils": "file:../shell-proc-utils"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "tsx": "^4.21.0"
   }
 }

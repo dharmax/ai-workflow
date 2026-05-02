@@ -4,5 +4,5 @@
   "category": "routing",
   "summary": "Resolve the cheapest suitable provider/model route for a task class.",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/route-task.mjs"
+  "entry": "runtime/scripts/ai-workflow/route-task.ts"
 }

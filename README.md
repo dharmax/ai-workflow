@@ -1,21 +1,35 @@
-# AI Workflow Project
+# AI Workflow
 
-`ai-workflow` is a workflow operating layer for AI agents. Its job is to keep execution aligned with the real user wish, persist canonical state in the workflow DB, and make success depend on both delivered outcomes and truthful reporting.
+`ai-workflow` is a repo-local operating layer for AI-assisted engineering. It keeps canonical state in the workflow DB, projects readable status into `kanban.md` and `epics.md`, routes work through explicit commands, and treats verification as part of delivery rather than a postscript.
 
 Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 
 Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 
-The current reliability direction is strict by design:
+## Operating Surface
 
-- success means trying to satisfy the real user wish, not a narrower substitute task
-- closure depends on evidence, not confident prose
-- reports must be true, not misleading, and should explain gaps in a way that helps the operator decide what to do next
-- unresolved wish-vs-done gaps must produce a concrete recovery plan, such as more implementation, stronger-model retry, web research, trial-and-error, or explicit user clarification
-- the workflow DB is canonical, while `kanban.md` and `epics.md` are projections that must stay reconciled
+- Canonical state: `.ai-workflow/state/workflow.db`
+- Human-readable projections: `kanban.md`, `epics.md`, `MISSION.md`
+- Core operator docs: `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, `knowledge.md`
+- Deep reference manual: `docs/MANUAL.md`
+- Gemini bridge: `.gemini/GEMINI.md` and `.gemini/skills/ai-workflow`
 
-Before calling work done on operator-facing changes, run:
+## High-Value Commands
 
-- `ai-workflow sync --write-projections --json`
-- `ai-workflow dogfood --surface workflow,shell,provider,init --json`
-- `ai-workflow audit workflow --json`
+```bash
+ai-workflow sync --write-projections --json
+ai-workflow project summary --json
+ai-workflow extract guidelines repo
+ai-workflow dogfood --surface workflow,shell,provider,init --json
+ai-workflow audit workflow --json
+```
+
+## Local Gemini Skill
+
+Install or refresh the repo-local Gemini skill with:
+
+```bash
+node scripts/install-ai-workflow-skill.mjs --project . --force
+```
+
+This keeps the Gemini-facing skill under `.gemini/skills/ai-workflow` instead of relying on accidental global state.

@@ -14,7 +14,7 @@ If a rule's failure text should be identical to the pattern text, omit `message`
     {
       "id": "responsibility-headers",
       "include": ["AGENTS.md", "CONTRIBUTING.md", "execution-protocol.md", "enforcement.md", "project-guidelines.md", "kanban-archive.md"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".md", ".mdx", ".riot"],
+      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".ts", ".cjs", ".md", ".mdx", ".riot"],
       "exclude": ["docs/kanban.md"],
       "requiredNearTop": ["Responsibility:", "Scope:"],
       "maxLines": 24,
@@ -25,21 +25,21 @@ If a rule's failure text should be identical to the pattern text, omit `message`
     {
       "id": "no-fake-privacy",
       "include": ["src", "tests"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".riot"],
+      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".ts", ".cjs", ".riot"],
       "pattern": "\\b(_[a-zA-Z]\\w*|__\\w+)\\s*[:=]",
       "message": "Use explicit names or real language privacy instead of underscore pseudo-private state."
     },
     {
       "id": "no-source-todo",
       "include": ["src"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".riot", ".css"],
+      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".ts", ".cjs", ".riot", ".css"],
       "pattern": "\\b(?:TODO|FIXME)\\b",
       "message": "Do not leave TODO/FIXME markers in production source; ticket the work or finish it."
     },
     {
       "id": "no-native-title-tooltips",
       "include": ["src/ui"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".riot"],
+      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".riot"],
       "pattern": "<(button|a|div|span|img|input|label|textarea)[^>]*\\btitle\\s*=",
       "flags": "g",
       "message": "Use explicit tooltip contracts instead of native title attributes on UI surfaces."
@@ -81,7 +81,7 @@ If a rule's failure text should be identical to the pattern text, omit `message`
     {
       "id": "no-engine-to-ui-imports",
       "include": ["src/engine"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".ts", ".cjs"],
       "targets": ["../ui", "../../ui", "../../../ui", "src/ui", "@/ui"],
       "message": "Engine-layer code must not import from UI-owned paths."
     }

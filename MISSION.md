@@ -1,45 +1,29 @@
-# 🎯 MISSION: Autonomous Engineering OS
+# Mission
 
-## 🗺️ Roadmap
+`ai-workflow` should make messy repo work operational instead of theatrical.
 
-### Phase 1: The "Surgical Strike" Foundation 🛠️
-**Goal:** Eliminate file rewrites, reduce token cost by 80%, and prevent regressions via strict patching.
-- [x] **Unified Patch Engine:** Implement `SEARCH/REPLACE` block parser and applicator.
-- [x] **Graph-Powered Context Packer:** Use SQLite graph to build surgical prompts (symbol-only context).
-- [x] **AST Verification:** Run syntax checks/linting on patched files before saving.
-- [x] **Patch Fallback:** Cheap AI fuzzy-matching for failed patch applications.
+## Current Goal
 
-### Phase 2: The PM/Architect Flow 📝
-**Goal:** Transform vague intent into structured Epics/Tickets without writing code.
-- [x] **Ideation State Machine:** Q&A loop for feature scoping.
-- [x] **Epic Scaffolding:** Generate Epic + Ticket hierarchy in SQLite.
-- [x] **Domain Tagging:** Auto-assign `visual`, `logic`, etc., to tickets.
-- [x] **Markdown Projection:** Sync DB entities to `kanban.md` and `epics.md`.
+Build a workflow layer that can:
 
-### Phase 3: Architectural Intelligence & Mapping 🏛️
-**Goal:** Modularize the codebase and automate technical debt management.
-- [x] **Module/Feature Mapping:** First-class DB entities for architectural boundaries and user features.
-- [x] **Heuristic Initializer:** Free, directory-based baseline mapping during sync.
-- [x] **Architectural Critic:** SQL-powered audit for circular dependencies and leaky abstractions.
-- [x] **Progressive Refinement:** AI learns and corrects the architectural map as it works.
-- [x] **Consultation Loop:** Asynchronous Q&A for complex architectural decisions.
+- keep canonical state in the workflow DB
+- project honest human-readable status into markdown
+- route work through explicit commands and guarded shell behavior
+- prefer cheap capable models without hiding capability gaps
+- require real verification before operator-facing closure
 
-### Phase 4: The Orchestrator & Dispatcher ⚡
-**Goal:** Concurrent execution of sub-tasks using the cheapest specialized models.
-- [ ] **Parallel Dispatcher:** Run multiple sub-task models simultaneously.
-- [ ] **Semantic Stitching:** Conflict detection and resolution for concurrent patches.
-- [ ] **State Tracking:** Live progress updates in the shell.
+## Current Priorities
 
-### Phase 4: Autonomous Loop & Learning 🔄
-**Goal:** Self-healing codebase and automatic knowledge extraction.
-- [ ] **The Fixer Loop:** `sweep bugs` -> execute -> test -> retry on failure.
-- [ ] **Insight Extraction:** Generate new `Knowledge` nodes from solved hurdles.
-- [ ] **Automated Retros:** Update project guidelines based on model performance.
+1. Keep the DB-first workflow truthful and easy to inspect.
+2. Make shell, provider, workflow, and init surfaces reliable under dogfood.
+3. Keep docs compact enough that active guidance stays usable.
+4. Reuse sibling packages where they are the canonical implementation instead of duplicating them in-tree.
+5. Improve local client bridges such as Gemini without creating parallel state models.
 
----
+## Definition Of Better
 
-## 🛠️ Special Coordination Comments
-We use these tags in code to anchor AI tasks and coordinate surgical strikes:
-- `// [ai-task: TKT-001]`: Anchors a specific ticket to a line of code.
-- `// [ai-knowledge: tag]`: Marks a block as a vital context node for specific domains.
-- `// [ai-guard: rule]`: Hard enforcement rule for the auditor.
+- Fewer duplicate implementations.
+- Fewer stale docs and one-off artifacts.
+- More honest status output.
+- Faster, cheaper bounded context extraction.
+- Clean installer/bootstrap flows that leave a repo ready to use immediately.

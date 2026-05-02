@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="e99510db7701a1e80e4cb6513a80cf323d79c11b">
+  <meta name="manual-source-sha1" content="78f51398104d6c064923c8d550a8a6fba54ef547">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:e99510db7701a1e80e4cb6513a80cf323d79c11b -->
+  <!-- generated from docs/MANUAL.md sha1:78f51398104d6c064923c8d550a8a6fba54ef547 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -109,6 +109,10 @@ npm install -g @dharmax/ai-workflow</code></pre>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow install --project .</code></pre>
       <ul data-list-kind="unordered">
+      <li>Refresh the repo-local Gemini skill bridge:</li>
+      </ul>
+      <pre data-block-kind="code"><code class="language-bash">node scripts/install-ai-workflow-skill.mjs --project . --force</code></pre>
+      <ul data-list-kind="unordered">
       <li>Initialize from a brief:</li>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow init --brief ./project-brief.md</code></pre>
@@ -131,6 +135,10 @@ npm install -g @dharmax/ai-workflow</code></pre>
       <li>Show current project summary:</li>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow project summary --json</code></pre>
+      <ul data-list-kind="unordered">
+      <li>Confirm the Gemini bridge exists:</li>
+      </ul>
+      <pre data-block-kind="code"><code class="language-bash">ls .gemini/GEMINI.md .gemini/skills/ai-workflow</code></pre>
       </section>
       </section>
       <section aria-labelledby="core-workflow" data-heading-level="2">

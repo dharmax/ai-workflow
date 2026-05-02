@@ -10,7 +10,7 @@ export default [
     ]
   },
   {
-    files: ["**/*.mjs", "**/*.js"],
+    files: ["**/*.ts", "**/*.ts"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
