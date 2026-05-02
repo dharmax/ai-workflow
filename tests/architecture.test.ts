@@ -91,7 +91,7 @@ test("auditArchitecture detects direct circular dependencies", async () => {
       store.upsertModule({ id: modB, name: "src/core" });
 
       const symA = { id: "sym-a", name: "a", file_path: "src/app.ts", kind: "function", exported: 1, metadata_json: "{}", source_kind: "js", updated_at: "now" };
-      const symB = { id: "sym-b", name: "b", file_path: "src/core/router.js", kind: "function", exported: 1, metadata_json: "{}", source_kind: "js", updated_at: "now" };
+      const symB = { id: "sym-b", name: "b", file_path: "src/core/router.ts", kind: "function", exported: 1, metadata_json: "{}", source_kind: "js", updated_at: "now" };
       
       store.db.prepare("INSERT INTO symbols (id, name, file_path, kind, exported, metadata_json, source_kind, updated_at) VALUES (?,?,?,?,?,?,?,?)").run(symA.id, symA.name, symA.file_path, symA.kind, symA.exported, symA.metadata_json, symA.source_kind, symA.updated_at);
       store.db.prepare("INSERT INTO symbols (id, name, file_path, kind, exported, metadata_json, source_kind, updated_at) VALUES (?,?,?,?,?,?,?,?)").run(symB.id, symB.name, symB.file_path, symB.kind, symB.exported, symB.metadata_json, symB.source_kind, symB.updated_at);

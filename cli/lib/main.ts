@@ -215,8 +215,8 @@ export async function main(argv) {
 async function handleList(rest) {
   const json = rest.includes("--json");
   const { toolkitCodelets, projectCodelets } = await withRefreshedCodeletRegistry(process.cwd(), async (store) => ({
-    toolkitCodelets: await listCodeletsFromStore(store, { sourceKind: "toolkit" }),
-    projectCodelets: await listCodeletsFromStore(store, { sourceKind: "project" })
+    toolkitCodelets: await listCodeletsFromStore(store, { sourceKind: "toolkit" as any }),
+    projectCodelets: await listCodeletsFromStore(store, { sourceKind: "project" as any })
   }));
 
   if (json) {
@@ -239,7 +239,7 @@ async function handleList(rest) {
 }
 
 async function handleVersion(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const packageJson = JSON.parse(await readFile(path.resolve(toolkitRoot, "package.json"), "utf8"));
   const payload = {
     name: packageJson.name,
@@ -258,7 +258,7 @@ async function handleVersion(rest) {
 
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const result = await syncProject({
     projectRoot: process.cwd(),
     writeProjections: Boolean(args["write-projections"])
@@ -301,7 +301,7 @@ async function handleDogfood(rest) {
 }
 
 async function handleAsk(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const text = String(args._.join(" ") ?? "").trim();
   if (!text) {
     printAndExit("Usage: ai-workflow ask [request...] [--mode <default|tool-dev>] [--root <path>] [--evidence-root <path>] [--json]", 1);
@@ -464,7 +464,7 @@ async function handleForge(rest) {
 
 async function handleProject(rest) {
   const [subcommand, ...extras] = rest;
-  const args = parseArgs(extras);
+  const args: any = parseArgs(extras);
 
   if (subcommand === "summary") {
     const summary = await getProjectSummary({ projectRoot: process.cwd() });
@@ -1042,7 +1042,7 @@ async function handleRoute(rest) {
   if (!taskClass) {
     printAndExit("Usage: ai-workflow route <task-class> [--json]", 1);
   }
-  const args = parseArgs(extras);
+  const args: any = parseArgs(extras);
   const route = await routeTask({
     root: process.cwd(),
     taskClass,
@@ -1064,7 +1064,7 @@ async function handleRoute(rest) {
 
 async function handleTelegram(rest) {
   const [subcommand, ...extras] = rest;
-  const args = parseArgs(extras);
+  const args: any = parseArgs(extras);
   if (subcommand !== "preview") {
     printAndExit("Usage: ai-workflow telegram preview [--json]", 1);
   }
@@ -1082,7 +1082,7 @@ async function handleProvider(rest) {
   if (subcommand === "setup") {
     assertDirectCommandChannel("ai-workflow provider setup");
     return withWorkspaceMutation(process.cwd(), "provider setup", async () => {
-      const args = parseArgs(rest.slice(1));
+      const args: any = parseArgs(rest.slice(1));
       const scope = args.project ? "project" : "global";
       const result = await runProviderSetupWizard({
         root: process.cwd(),
@@ -1111,7 +1111,7 @@ async function handleProvider(rest) {
     assertDirectCommandChannel("ai-workflow provider refresh");
     return withWorkspaceMutation(process.cwd(), "provider refresh", async () => {
       const target = providerId ?? "models";
-      const args = parseArgs(extras);
+      const args: any = parseArgs(extras);
       if (target === "models" || target === "all") {
         await invalidateModelFitCache(process.cwd());
         await invalidateWebSearchCache(process.cwd());
@@ -1139,7 +1139,7 @@ async function handleProvider(rest) {
   if (subcommand === "connect") {
     assertDirectCommandChannel("ai-workflow provider connect");
     return withWorkspaceMutation(process.cwd(), "provider connect", async () => {
-      const args = parseArgs(extras);
+      const args: any = parseArgs(extras);
       if (String(providerId ?? "").toLowerCase() === "ollama") {
         const result = await runProviderSetupWizard({
           root: process.cwd(),
@@ -1159,7 +1159,7 @@ async function handleProvider(rest) {
   }
   if (subcommand === "quota") {
     const [action, target] = [providerId, extras[0]];
-    const args = parseArgs(extras.slice(1));
+    const args: any = parseArgs(extras.slice(1));
     if (action === "refresh") {
       assertDirectCommandChannel("ai-workflow provider quota refresh");
       return withWorkspaceMutation(process.cwd(), "provider quota refresh", async () => {
@@ -1184,7 +1184,7 @@ async function handleProvider(rest) {
 
 async function handleMode(rest) {
   const [action, ...tail] = rest;
-  const args = parseArgs(tail);
+  const args: any = parseArgs(tail);
   const value = args._[0];
   const scope = args.global ? "global" : "project";
   const configPath = scope === "global" ? getGlobalConfigPath() : getProjectConfigPath(process.cwd());
@@ -1231,7 +1231,7 @@ async function handleMode(rest) {
 
 async function handleKnowledge(rest) {
   const [action, ...tail] = rest;
-  const args = parseArgs(tail);
+  const args: any = parseArgs(tail);
 
   if (action === "update-remote") {
     assertDirectCommandChannel("ai-workflow knowledge update-remote");
@@ -1280,7 +1280,7 @@ async function handleTool(rest) {
   }
 
   async function handleToolDogfoodHarness(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const root = process.cwd();
   process.stdout.write("Running Smart Programming Dogfood Harness...\n");
 
@@ -1297,7 +1297,7 @@ async function handleTool(rest) {
   return report.ok ? 0 : 1;
   }
 async function handleToolFinalize(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const root = process.cwd();
 
   process.stdout.write("Finalizing workflow...\n");
@@ -1336,7 +1336,7 @@ async function handleToolFinalize(rest) {
 }
 
 async function handleToolBenchmark(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const prompt = args._.join(" ");
   const suite = args.suite ? String(args.suite) : "";
   if (!prompt && !suite) {
@@ -1367,7 +1367,7 @@ async function handleToolBenchmark(rest) {
 
 async function handleToolRefine(rest) {
   const [issueId] = rest;
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const root = process.cwd();
 
   return withWorkflowStore(root, async (store) => {
@@ -1411,7 +1411,7 @@ async function handleWeb(rest) {
 
 async function handleConfig(rest) {
   const [action, key, value, ...extras] = rest;
-  const args = parseArgs(extras);
+  const args: any = parseArgs(extras);
   const scope = args.global ? "global" : "project";
   const configPath = scope === "global" ? getGlobalConfigPath() : getProjectConfigPath(process.cwd());
 
@@ -1466,7 +1466,7 @@ async function handleConfig(rest) {
 
 async function handleInstall(rest) {
   assertDirectCommandChannel("ai-workflow install");
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const projectRoot = path.resolve(String(args.project ?? process.cwd()));
   return withWorkspaceMutation(projectRoot, "install", async () => {
     await installAgents({
@@ -1479,7 +1479,7 @@ async function handleInstall(rest) {
 }
 
 async function handleAudit(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const root = process.cwd();
   const sub = args._[0];
 
@@ -1519,7 +1519,7 @@ async function handleSetProviderKey(rest) {
     if (!providerId) {
       printAndExit("Usage: ai-workflow set-provider-key <provider-id> [--global]", 1);
     }
-    const args = parseArgs(rest);
+    const args: any = parseArgs(rest);
     const scope = args.global ? "global" : "project";
     const configPath = scope === "global" ? getGlobalConfigPath() : getProjectConfigPath(process.cwd());
 
@@ -1546,7 +1546,7 @@ async function handleSetProviderKey(rest) {
 }
 
 async function handleMetrics(rest) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const metrics = await getProjectMetrics({ projectRoot: process.cwd() });
   
   if (args.json) {
@@ -1613,7 +1613,7 @@ async function handleOnboard(rest) {
     if (!filePath || filePath === "--help" || filePath === "-h") {
       printAndExit("Usage: ai-workflow onboard <brief-file> [--json]", 1);
     }
-    const args = parseArgs(rest);
+    const args: any = parseArgs(rest);
     const rl = readline.createInterface({ input, output });
 
     try {
@@ -1676,7 +1676,7 @@ async function handleConsult(rest) {
 
 function runNodeScript(scriptPath, args, options = {}) {
   return new Promise((resolve) => {
-    const child = spawn("npx", ["tsx", ...[scriptPath, ...args]], {
+    const child = spawn("tsx", [scriptPath, ...args], {
       cwd: process.cwd(),
       env: options.env ? { ...process.env, ...options.env } : process.env,
       stdio: ["ignore", "pipe", "pipe"]
@@ -1761,7 +1761,7 @@ function formatCodeletOutput(codelet) {
 
 function runNodeScriptLive(scriptPath, args) {
   return new Promise((resolve) => {
-    const child = spawn("npx", ["tsx", ...[scriptPath, ...args]], {
+    const child = spawn("tsx", [scriptPath, ...args], {
       cwd: process.cwd(),
       stdio: "inherit"
     });
@@ -1792,7 +1792,7 @@ function runNodeScriptLive(scriptPath, args) {
 
 async function handleToolObserve(rest) {
   assertDirectCommandChannel("ai-workflow tool observe");
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   const context = await resolveOperatingContext({
     cwd: process.cwd(),
     mode: args.mode ? String(args.mode) : "tool-dev",

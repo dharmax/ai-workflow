@@ -1,6 +1,6 @@
 /**
- * @file sqlite-store.js
- * @brief Auto-generated header for sqlite-store.js. Needs detailed responsibility and scope.
+ * @file sqlite-store.ts
+ * @brief Canonical SQLite-based workflow database implementation.
  */
 
 import path from "node:path";
@@ -9,6 +9,7 @@ import { mkdir } from "node:fs/promises";
 import { LlmMetrics } from "@dharmax/llm-utils";
 import { SQLITE_SCHEMA } from "./schema.ts";
 import { stableId } from "../lib/hash.ts";
+import type { Entity, FileRecord, SymbolRecord } from "./types.ts";
 import { buildMetricsServiceFromRows, WorkflowMetricsStoreAdapter } from "./llm-metrics-store.ts";
 
 const WORKFLOW_STORE_OPEN_RETRY_DELAYS_MS = [0, 50, 150, 300, 600, 1200];
@@ -20,7 +21,7 @@ const METRICS_DEFAULT_PROFILE = {
   operatorOverheadMs: 75 * 1000,
   fastEnoughMs: 15 * 1000
 };
-const METRICS_TASK_PROFILES = {
+const METRICS_TASK_PROFILES: Record<string, any> = {
   "shell-planning": { manualBaselineMs: 8 * 60 * 1000, operatorOverheadMs: 45 * 1000, fastEnoughMs: 8 * 1000 },
   "project-planning": { manualBaselineMs: 14 * 60 * 1000, operatorOverheadMs: 75 * 1000, fastEnoughMs: 15 * 1000 },
   "task-decomposition": { manualBaselineMs: 18 * 60 * 1000, operatorOverheadMs: 90 * 1000, fastEnoughMs: 20 * 1000 },
@@ -38,28 +39,29 @@ const METRICS_TASK_PROFILES = {
   "data": { manualBaselineMs: 10 * 60 * 1000, operatorOverheadMs: 60 * 1000, fastEnoughMs: 12 * 1000 }
 };
 
-function nowIso() {
+function nowIso(): string {
   return new Date().toISOString();
 }
 
-function asJson(value) {
+function asJson(value: any): string {
   return JSON.stringify(value ?? {});
 }
 
-function parseJson(value, fallback = {}) {
+function parseJson(value: any, fallback = {}): any {
   try {
     return value ? JSON.parse(value) : fallback;
   } catch {
     return fallback;
   }
 }
-export async function openWorkflowStore(options = {}) {
+
+export async function openWorkflowStore(options: any = {}) {
   const projectRoot = options.projectRoot || (typeof options === "string" ? options : process.cwd());
   const dbPath = options.dbPath;
   const resolvedDbPath = dbPath ?? path.resolve(projectRoot, ".ai-workflow", "state", "workflow.db");
   await mkdir(path.dirname(resolvedDbPath), { recursive: true });
   for (let attempt = 0; attempt < WORKFLOW_STORE_OPEN_RETRY_DELAYS_MS.length; attempt += 1) {
-    let db = null;
+    let db: any = null;
     try {
       db = new DatabaseSync(resolvedDbPath);
       db.exec("PRAGMA busy_timeout = 5000;");
@@ -89,41 +91,41 @@ export async function openWorkflowStore(options = {}) {
   throw new Error(`failed to open workflow store at ${resolvedDbPath}`);
 }
 
-function isWorkflowStoreLockError(error) {
+function isWorkflowStoreLockError(error: any): boolean {
   const text = `${error?.code ?? ""} ${error?.message ?? error ?? ""}`;
   return /(?:database|sqlite).*(?:locked|busy)|ERR_SQLITE_ERROR/i.test(text);
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function metricTimestampMs(metric) {
+function metricTimestampMs(metric: any): number {
   return Date.parse(metric?.created_at ?? 0) || 0;
 }
 
-function metricProfile(taskClass) {
+function metricProfile(taskClass: any): any {
   return METRICS_TASK_PROFILES[String(taskClass ?? "").trim()] ?? METRICS_DEFAULT_PROFILE;
 }
 
-function estimateMetricActiveWorkMs(metric) {
+function estimateMetricActiveWorkMs(metric: any): number {
   const profile = metricProfile(metric?.task_class);
   return Math.max(0, Number(metric?.latency_ms ?? 0)) + profile.operatorOverheadMs;
 }
 
-function estimateMetricManualBaselineMs(metric) {
+function estimateMetricManualBaselineMs(metric: any): number {
   return metricProfile(metric?.task_class).manualBaselineMs;
 }
 
-function isFastEnoughMetric(metric) {
+function isFastEnoughMetric(metric: any): boolean {
   const profile = metricProfile(metric?.task_class);
   return Boolean(metric?.success) && Number(metric?.latency_ms ?? 0) <= profile.fastEnoughMs;
 }
 
-function splitMetricSessions(metrics) {
-  const sessions = [];
-  let current = [];
-  let previousAt = null;
+function splitMetricSessions(metrics: any[]): any[][] {
+  const sessions: any[][] = [];
+  let current: any[] = [];
+  let previousAt: number | null = null;
 
   for (const metric of metrics) {
     const createdAtMs = metricTimestampMs(metric);
@@ -142,8 +144,8 @@ function splitMetricSessions(metrics) {
   return sessions;
 }
 
-function selectLastActiveWorkRows(metrics, targetMs) {
-  const selected = [];
+function selectLastActiveWorkRows(metrics: any[], targetMs: number): any[] {
+  const selected: any[] = [];
   let accumulatedMs = 0;
 
   for (let index = metrics.length - 1; index >= 0; index -= 1) {
@@ -158,7 +160,7 @@ function selectLastActiveWorkRows(metrics, targetMs) {
   return selected;
 }
 
-function isMockMetric(metric) {
+function isMockMetric(metric: any): boolean {
   const providerId = String(metric?.provider_id ?? "").trim().toLowerCase();
   const modelId = String(metric?.model_id ?? "").trim().toLowerCase();
   return /^mock(?:[-_:]|$)/.test(providerId)
@@ -166,7 +168,7 @@ function isMockMetric(metric) {
     || /(?:^|[-_:])mock(?:[-_:]|$)/.test(modelId);
 }
 
-function emptyMetricsSetSummary() {
+function emptyMetricsSetSummary(): any {
   return {
     calls: 0,
     totalPromptTokens: 0,
@@ -212,7 +214,7 @@ function emptyMetricsSetSummary() {
   };
 }
 
-function normalizeMetricFailureLabel(text) {
+function normalizeMetricFailureLabel(text: any): string {
   const normalized = String(text ?? "")
     .replace(/\s+/g, " ")
     .trim();
@@ -222,7 +224,7 @@ function normalizeMetricFailureLabel(text) {
   return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
 }
 
-function summarizeMetricDiagnostics(metrics) {
+function summarizeMetricDiagnostics(metrics: any[]): any {
   if (!metrics.length) {
     return emptyMetricsSetSummary().diagnostics;
   }
@@ -284,7 +286,7 @@ function summarizeMetricDiagnostics(metrics) {
     failedAttempts,
     wastedLatencyMs,
     byStage: Array.from(byStage.values())
-      .map((entry) => ({
+      .map((entry: any) => ({
         stage: entry.stage,
         calls: entry.calls,
         successRate: Math.round((entry.successes / entry.calls) * 100),
@@ -300,7 +302,7 @@ function summarizeMetricDiagnostics(metrics) {
   };
 }
 
-function summarizeMetricSet(metrics) {
+function summarizeMetricSet(metrics: any[]): any {
   if (!metrics.length) {
     return emptyMetricsSetSummary();
   }
@@ -389,7 +391,7 @@ function summarizeMetricSet(metrics) {
       }))
       .sort((left, right) => right.count - left.count || left.model_id.localeCompare(right.model_id)),
     byTaskClass: Array.from(byTaskClass.values())
-      .map((entry) => ({
+      .map((entry: any) => ({
         task_class: entry.task_class,
         count: entry.count,
         success_rate: Math.round((entry.successes / entry.count) * 100),
@@ -423,7 +425,7 @@ function summarizeMetricSet(metrics) {
   };
 }
 
-function summarizeMetricsWindow(metrics) {
+function summarizeMetricsWindow(metrics: any[]): any {
   const overall = summarizeMetricSet(metrics);
   const realMetrics = metrics.filter((metric) => !isMockMetric(metric));
   const mockMetrics = metrics.filter((metric) => isMockMetric(metric));
@@ -490,16 +492,17 @@ function summarizeMetricsWindow(metrics) {
 }
 
 export class SqliteWorkflowStore {
+  private readonly db: any;
+  public readonly dbPath: string;
+  public readonly projectRoot: string;
+
   async ensureSchemaConsistency() {
-    // Item 37: SchemaGuardian - Detect and fix missing columns.
-    // Older or externally-mutated DBs can behave inconsistently here; ignore
-    // duplicate-column failures and re-read the schema after each attempt.
     await this.ensureColumn("entities", "consultation_question", "TEXT");
     await this.ensureColumn("entities", "parent_id", "TEXT");
     await this.ensureColumn("metrics", "details_json", "TEXT NOT NULL DEFAULT '{}'");
   }
 
-  constructor({ db, dbPath, projectRoot }) {
+  constructor({ db, dbPath, projectRoot }: { db: any; dbPath: string; projectRoot: string }) {
     this.db = db;
     this.dbPath = dbPath;
     this.projectRoot = projectRoot;
@@ -509,8 +512,8 @@ export class SqliteWorkflowStore {
     this.db.close();
   }
 
-  async ensureColumn(tableName, columnName, columnType) {
-    const names = this.db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => column.name);
+  async ensureColumn(tableName: string, columnName: string, columnType: string) {
+    const names = this.db.prepare(`PRAGMA table_info(${tableName})`).all().map((column: any) => column.name);
     if (names.includes(columnName)) {
       return;
     }
@@ -523,16 +526,16 @@ export class SqliteWorkflowStore {
     }
   }
 
-  setMeta(key, value) {
+  setMeta(key: string, value: any) {
     this.db.prepare(`
       INSERT INTO workspace_meta (key, value_json)
       VALUES (?, ?)
       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json
-    `).run(key, asJson(value));
+    `).run(String(key), asJson(value));
   }
 
-  getEntity(id) {
-    const row = this.db.prepare("SELECT * FROM entities WHERE id = ?").get(id);
+  getEntity(id: string) {
+    const row = this.db.prepare("SELECT * FROM entities WHERE id = ?").get(String(id));
     if (!row) return null;
     return {
       id: row.id,
@@ -553,13 +556,13 @@ export class SqliteWorkflowStore {
     };
   }
 
-  getMeta(key, fallback = null) {
-    const row = this.db.prepare("SELECT value_json FROM workspace_meta WHERE key = ?").get(key);
+  getMeta(key: string, fallback: any = null) {
+    const row = this.db.prepare("SELECT value_json FROM workspace_meta WHERE key = ?").get(String(key));
     return row ? parseJson(row.value_json, fallback) : fallback;
   }
 
-  getFile(filePath) {
-    const row = this.db.prepare("SELECT * FROM files WHERE path = ?").get(filePath);
+  getFile(filePath: string) {
+    const row = this.db.prepare("SELECT * FROM files WHERE path = ?").get(String(filePath));
     if (!row) {
       return null;
     }
@@ -576,7 +579,7 @@ export class SqliteWorkflowStore {
   }
 
   listFiles() {
-    return this.db.prepare("SELECT * FROM files ORDER BY path").all().map((row) => ({
+    return this.db.prepare("SELECT * FROM files ORDER BY path").all().map((row: any) => ({
       path: row.path,
       language: row.language,
       fileKind: row.file_kind,
@@ -588,8 +591,9 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  replaceIndexedFile({ file, parsed, sha1, indexedAt }) {
-    const symbolIds = this.db.prepare("SELECT id FROM symbols WHERE file_path = ? AND source_kind = 'indexed'").all(file.relativePath);
+  replaceIndexedFile({ file, parsed, sha1, indexedAt }: any) {
+    const finalPath = String(file.relativePath);
+    const symbolIds = this.db.prepare("SELECT id FROM symbols WHERE file_path = ? AND source_kind = 'indexed'").all(finalPath);
     this.db.prepare(`
       INSERT INTO files (path, language, file_kind, sha1, size_bytes, mtime_ms, metadata_json, indexed_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -602,26 +606,28 @@ export class SqliteWorkflowStore {
         metadata_json = excluded.metadata_json,
         indexed_at = excluded.indexed_at
     `).run(
-      file.relativePath,
-      parsed.language,
-      parsed.fileKind,
-      sha1,
-      file.sizeBytes,
-      file.mtimeMs,
+      finalPath,
+      String(parsed.language ?? "unknown"),
+      String(parsed.fileKind ?? "unknown"),
+      String(sha1),
+      Number(file.sizeBytes) || 0,
+      Number(file.mtimeMs) || 0,
       asJson(parsed.metadata),
-      indexedAt
+      String(indexedAt)
     );
 
-    this.db.prepare("DELETE FROM symbols WHERE file_path = ? AND source_kind = 'indexed'").run(file.relativePath);
-    this.db.prepare("DELETE FROM claims WHERE file_path = ? AND source_kind = 'indexed'").run(file.relativePath);
-    this.db.prepare("DELETE FROM notes WHERE file_path = ? AND source_kind = 'indexed'").run(file.relativePath);
-    this.db.prepare("DELETE FROM search_index WHERE scope = 'file' AND ref_id = ?").run(file.relativePath);
+    this.db.prepare("DELETE FROM symbols WHERE file_path = ? AND source_kind = 'indexed'").run(finalPath);
+    this.db.prepare("DELETE FROM claims WHERE file_path = ? AND source_kind = 'indexed'").run(finalPath);
+    this.db.prepare("DELETE FROM notes WHERE file_path = ? AND source_kind = 'indexed'").run(finalPath);
+    this.db.prepare("DELETE FROM search_index WHERE scope = 'file' AND ref_id = ?").run(finalPath);
     for (const symbol of symbolIds) {
       this.db.prepare("DELETE FROM search_index WHERE scope = 'symbol' AND ref_id = ?").run(symbol.id);
     }
 
     for (const [index, symbol] of (parsed.symbols ?? []).entries()) {
-      const symbolId = stableId("symbol", file.relativePath, symbol.kind, symbol.name, index);
+      const symbolId = stableId("symbol", finalPath, symbol.kind, symbol.name, index);
+      const finalKind = String(symbol.kind ?? "unknown");
+      const finalName = String(symbol.name ?? "unknown");
       this.db.prepare(`
         INSERT INTO symbols (id, file_path, name, kind, exported, line, column, metadata_json, source_kind, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'indexed', ?)
@@ -637,14 +643,14 @@ export class SqliteWorkflowStore {
           updated_at = excluded.updated_at
       `).run(
         symbolId,
-        file.relativePath,
-        symbol.name,
-        symbol.kind,
+        finalPath,
+        finalName,
+        finalKind,
         symbol.exported ? 1 : 0,
         symbol.line ?? null,
         symbol.column ?? null,
         asJson(symbol.metadata),
-        indexedAt
+        String(indexedAt)
       );
 
       this.db.prepare(`
@@ -658,14 +664,16 @@ export class SqliteWorkflowStore {
       `).run(
         stableId("search", "symbol", symbolId),
         symbolId,
-        renderSymbolSearchTitle(symbol),
-        renderSymbolSearchBody(file.relativePath, symbol),
-        [symbol.kind, symbol.exported ? "exported" : "local", file.relativePath, symbol.name].join(","),
-        indexedAt
+        String(renderSymbolSearchTitle(symbol)),
+        String(renderSymbolSearchBody(finalPath, symbol)),
+        String([finalKind, symbol.exported ? "exported" : "local", finalPath, finalName].join(",")),
+        String(indexedAt)
       );
     }
 
     for (const [index, fact] of (parsed.facts ?? []).entries()) {
+      const finalPredicate = String(fact.predicate ?? "unknown");
+      const finalObjectText = String(fact.objectText ?? fact.objectId ?? "unknown");
       this.db.prepare(`
         INSERT INTO claims (id, subject_id, predicate, object_id, object_text, kind, confidence, provenance, source_kind, lifecycle_state, file_path, line, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'indexed', ?, ?, ?, ?, ?)
@@ -683,34 +691,34 @@ export class SqliteWorkflowStore {
           line = excluded.line,
           updated_at = excluded.updated_at
       `).run(
-        stableId("claim", file.relativePath, fact.predicate, fact.objectText ?? fact.objectId, fact.line ?? index),
-        `file:${file.relativePath}`,
-        fact.predicate,
+        stableId("claim", finalPath, finalPredicate, finalObjectText, fact.line ?? index),
+        `file:${finalPath}`,
+        finalPredicate,
         fact.objectId ?? null,
-        fact.objectText ?? null,
-        fact.kind ?? "fact",
-        fact.confidence ?? 1,
-        fact.provenance ?? file.relativePath,
-        fact.lifecycleState ?? "active",
-        file.relativePath,
+        finalObjectText,
+        String(fact.kind ?? "fact"),
+        Number(fact.confidence ?? 1),
+        String(fact.provenance ?? finalPath),
+        String(fact.lifecycleState ?? "active"),
+        finalPath,
         fact.line ?? null,
-        indexedAt,
-        indexedAt
+        String(indexedAt),
+        String(indexedAt)
       );
     }
 
     for (const note of parsed.notes ?? []) {
       this.upsertNote({
-        id: stableId("note", file.relativePath, note.noteType, note.line ?? 0, note.body),
+        id: stableId("note", finalPath, note.noteType, note.line ?? 0, note.body),
         noteType: note.noteType,
         status: "observed",
-        filePath: file.relativePath,
+        filePath: finalPath,
         symbolName: note.symbolName ?? null,
         line: note.line ?? null,
         column: note.column ?? null,
         body: note.body,
         sourceKind: "indexed",
-        provenance: file.relativePath,
+        provenance: finalPath,
         riskScore: note.riskScore,
         leverageScore: note.leverageScore,
         ticketValueScore: note.ticketValueScore,
@@ -728,17 +736,17 @@ export class SqliteWorkflowStore {
         tags = excluded.tags,
         updated_at = excluded.updated_at
     `).run(
-      stableId("search", "file", file.relativePath),
-      file.relativePath,
-      file.relativePath,
-      parsed.searchText ?? "",
-      [parsed.language, parsed.fileKind].join(","),
-      indexedAt
+      stableId("search", "file", finalPath),
+      finalPath,
+      finalPath,
+      String(parsed.searchText ?? ""),
+      String([parsed.language, parsed.fileKind].join(",")),
+      String(indexedAt)
     );
   }
 
-  pruneIndexedFiles(activePaths = []) {
-    const normalizedPaths = [...new Set(activePaths.filter(Boolean))];
+  pruneIndexedFiles(activePaths: string[] = []) {
+    const normalizedPaths = [...new Set(activePaths.filter(Boolean))].map(String);
     if (!normalizedPaths.length) {
       this.db.prepare("DELETE FROM search_index WHERE scope = 'symbol'").run();
       this.db.prepare("DELETE FROM symbols WHERE source_kind = 'indexed'").run();
@@ -786,8 +794,8 @@ export class SqliteWorkflowStore {
     `).run(...normalizedPaths);
   }
 
-  upsertEntity(entity) {
-    const timestamp = entity.updatedAt ?? nowIso();
+  upsertEntity(entity: Entity) {
+    const timestamp = String(entity.updatedAt ?? nowIso());
     this.db.prepare(`
       INSERT INTO entities (id, entity_type, title, lane, state, confidence, provenance, source_kind, review_state, parent_id, relevant_until, consultation_question, data_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -806,32 +814,34 @@ export class SqliteWorkflowStore {
         data_json = excluded.data_json,
         updated_at = excluded.updated_at
     `).run(
-      entity.id,
-      entity.entityType,
-      entity.title ?? '',
-      entity.lane ?? null,
-      entity.state ?? "open",
-      entity.confidence ?? 1,
-      entity.provenance ?? "manual",
-      entity.sourceKind ?? "manual",
-      entity.reviewState ?? "active",
-      entity.parentId ?? null,
-      entity.relevantUntil ?? null,
-      entity.consultationQuestion ?? null,
+      String(entity.id),
+      String(entity.entityType),
+      String(entity.title ?? ''),
+      entity.lane != null ? String(entity.lane) : null,
+      String(entity.state ?? "open"),
+      Number(entity.confidence ?? 1),
+      String(entity.provenance ?? "manual"),
+      String(entity.sourceKind ?? "manual"),
+      String(entity.reviewState ?? "active"),
+      entity.parentId != null ? String(entity.parentId) : null,
+      entity.relevantUntil != null ? String(entity.relevantUntil) : null,
+      entity.consultationQuestion != null ? String(entity.consultationQuestion) : null,
       asJson(entity.data),
-      entity.createdAt ?? timestamp,
+      String(entity.createdAt ?? timestamp),
       timestamp
     );
   }
 
-  deleteEntity(id) {
-    this.db.prepare("DELETE FROM search_index WHERE scope = 'entity' AND ref_id = ?").run(id);
-    this.db.prepare("DELETE FROM entities WHERE id = ?").run(id);
+  deleteEntity(id: string) {
+    const finalId = String(id);
+    this.db.prepare("DELETE FROM search_index WHERE scope = 'entity' AND ref_id = ?").run(finalId);
+    this.db.prepare("DELETE FROM entities WHERE id = ?").run(finalId);
   }
 
-  upsertModule(module) {
+  upsertModule(module: any) {
     const now = nowIso();
-    const existing = this.db.prepare("SELECT created_at FROM modules WHERE id = ?").get(module.id);
+    const finalId = String(module.id);
+    const existing = this.db.prepare("SELECT created_at FROM modules WHERE id = ?").get(finalId);
     const createdAt = existing ? existing.created_at : now;
 
     this.db.prepare(`
@@ -843,18 +853,19 @@ export class SqliteWorkflowStore {
         api_paradigm = excluded.api_paradigm,
         updated_at = excluded.updated_at
     `).run(
-      module.id,
-      module.name,
-      module.responsibility ?? null,
-      module.apiParadigm ?? "method-calls",
-      createdAt,
+      finalId,
+      String(module.name ?? "unknown"),
+      module.responsibility != null ? String(module.responsibility) : null,
+      String(module.apiParadigm ?? "method-calls"),
+      String(createdAt),
       now
     );
   }
 
-  upsertFeature(feature) {
+  upsertFeature(feature: any) {
     const now = nowIso();
-    const existing = this.db.prepare("SELECT created_at FROM features WHERE id = ?").get(feature.id);
+    const finalId = String(feature.id);
+    const existing = this.db.prepare("SELECT created_at FROM features WHERE id = ?").get(finalId);
     const createdAt = existing ? existing.created_at : now;
 
     this.db.prepare(`
@@ -866,24 +877,27 @@ export class SqliteWorkflowStore {
         status = excluded.status,
         updated_at = excluded.updated_at
     `).run(
-      feature.id,
-      feature.name,
-      feature.description ?? null,
-      feature.status ?? "active",
-      createdAt,
+      finalId,
+      String(feature.name ?? "unknown"),
+      feature.description != null ? String(feature.description) : null,
+      String(feature.status ?? "active"),
+      String(createdAt),
       now
     );
   }
 
-  appendArchitecturalPredicate({ subjectId, predicate, objectId, metadata = {} }) {
+  appendArchitecturalPredicate({ subjectId, predicate, objectId, metadata = {} }: any) {
+    const finalSubjectId = String(subjectId);
+    const finalPredicate = String(predicate);
+    const finalObjectId = String(objectId);
     this.db.prepare(`
       INSERT INTO architectural_graph (id, subject_id, predicate, object_id, metadata_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
-      stableId("arch", subjectId, predicate, objectId, Math.random()),
-      subjectId,
-      predicate,
-      objectId,
+      stableId("arch", finalSubjectId, finalPredicate, finalObjectId, Math.random()),
+      finalSubjectId,
+      finalPredicate,
+      finalObjectId,
       asJson(metadata),
       nowIso()
     );
@@ -914,23 +928,23 @@ export class SqliteWorkflowStore {
     return this.db.prepare("SELECT * FROM architectural_graph").all();
   }
 
-  listEntities(filters = {}) {
+  listEntities(filters: any = {}) {
     const clauses = [];
     const values = [];
 
     if (filters.entityType) {
       clauses.push("entity_type = ?");
-      values.push(filters.entityType);
+      values.push(String(filters.entityType));
     }
 
     if (filters.lanes?.length) {
       clauses.push(`lane IN (${filters.lanes.map(() => "?").join(", ")})`);
-      values.push(...filters.lanes);
+      values.push(...filters.lanes.map(String));
     }
 
     if (filters.states?.length) {
       clauses.push(`state IN (${filters.states.map(() => "?").join(", ")})`);
-      values.push(...filters.states);
+      values.push(...filters.states.map(String));
     }
 
     const query = `
@@ -940,7 +954,7 @@ export class SqliteWorkflowStore {
       ORDER BY entity_type, COALESCE(lane, ''), updated_at DESC, id
     `;
 
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       entityType: row.entity_type,
       title: row.title,
@@ -959,7 +973,10 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  upsertNote(note) {
+  upsertNote(note: any) {
+    const finalId = String(note.id);
+    const finalType = String(note.noteType);
+    const finalBody = String(note.body ?? "");
     this.db.prepare(`
       INSERT INTO notes (id, note_type, status, file_path, symbol_name, line, column, body, normalized_body, source_kind, provenance, risk_score, leverage_score, ticket_value_score, candidate_score, observed_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -980,40 +997,40 @@ export class SqliteWorkflowStore {
         candidate_score = excluded.candidate_score,
         updated_at = excluded.updated_at
     `).run(
-      note.id,
-      note.noteType,
-      note.status ?? "observed",
-      note.filePath ?? null,
-      note.symbolName ?? null,
+      finalId,
+      finalType,
+      String(note.status ?? "observed"),
+      note.filePath != null ? String(note.filePath) : null,
+      note.symbolName != null ? String(note.symbolName) : null,
       note.line ?? null,
       note.column ?? null,
-      note.body,
-      normalizeText(note.body),
-      note.sourceKind ?? "manual",
-      note.provenance ?? "manual",
-      note.riskScore ?? 0,
-      note.leverageScore ?? 0,
-      note.ticketValueScore ?? 0,
-      note.candidateScore ?? 0,
-      note.observedAt ?? nowIso(),
-      note.updatedAt ?? nowIso()
+      finalBody,
+      normalizeText(finalBody),
+      String(note.sourceKind ?? "manual"),
+      String(note.provenance ?? "manual"),
+      Number(note.riskScore ?? 0),
+      Number(note.leverageScore ?? 0),
+      Number(note.ticketValueScore ?? 0),
+      Number(note.candidateScore ?? 0),
+      String(note.observedAt ?? nowIso()),
+      String(note.updatedAt ?? nowIso())
     );
   }
 
-  listNotes(filters = {}) {
+  listNotes(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.noteTypes?.length) {
       clauses.push(`note_type IN (${filters.noteTypes.map(() => "?").join(", ")})`);
-      values.push(...filters.noteTypes);
+      values.push(...filters.noteTypes.map(String));
     }
     if (filters.filePath) {
       clauses.push("file_path = ?");
-      values.push(filters.filePath);
+      values.push(String(filters.filePath));
     }
     if (filters.statuses?.length) {
       clauses.push(`status IN (${filters.statuses.map(() => "?").join(", ")})`);
-      values.push(...filters.statuses);
+      values.push(...filters.statuses.map(String));
     }
     const query = `
       SELECT *
@@ -1021,7 +1038,7 @@ export class SqliteWorkflowStore {
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY candidate_score DESC, updated_at DESC
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       noteType: row.note_type,
       status: row.status,
@@ -1042,8 +1059,8 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  getNoteById(noteId) {
-    const row = this.db.prepare("SELECT * FROM notes WHERE id = ?").get(noteId);
+  getNoteById(noteId: string) {
+    const row = this.db.prepare("SELECT * FROM notes WHERE id = ?").get(String(noteId));
     if (!row) {
       return null;
     }
@@ -1068,25 +1085,26 @@ export class SqliteWorkflowStore {
     };
   }
 
-  updateNoteStatus(noteId, status, updatedAt = nowIso()) {
+  updateNoteStatus(noteId: string, status: string, updatedAt = nowIso()) {
+    const finalId = String(noteId);
     const result = this.db.prepare(`
       UPDATE notes
       SET status = ?, updated_at = ?
       WHERE id = ?
-    `).run(status, updatedAt, noteId);
-    return result.changes > 0 ? this.getNoteById(noteId) : null;
+    `).run(String(status), String(updatedAt), finalId);
+    return result.changes > 0 ? this.getNoteById(finalId) : null;
   }
 
-  listSymbols(filters = {}) {
+  listSymbols(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.filePath) {
       clauses.push("file_path = ?");
-      values.push(filters.filePath);
+      values.push(String(filters.filePath));
     }
     if (filters.name) {
       clauses.push("name = ?");
-      values.push(filters.name);
+      values.push(String(filters.name));
     }
     const query = `
       SELECT *
@@ -1094,7 +1112,7 @@ export class SqliteWorkflowStore {
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY file_path, line, name
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       filePath: row.file_path,
       name: row.name,
@@ -1108,8 +1126,8 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  getSymbolById(symbolId) {
-    const row = this.db.prepare("SELECT * FROM symbols WHERE id = ?").get(symbolId);
+  getSymbolById(symbolId: string) {
+    const row = this.db.prepare("SELECT * FROM symbols WHERE id = ?").get(String(symbolId));
     if (!row) {
       return null;
     }
@@ -1127,20 +1145,20 @@ export class SqliteWorkflowStore {
     };
   }
 
-  listClaims(filters = {}) {
+  listClaims(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.subjectId) {
       clauses.push("subject_id = ?");
-      values.push(filters.subjectId);
+      values.push(String(filters.subjectId));
     }
     if (filters.predicate) {
       clauses.push("predicate = ?");
-      values.push(filters.predicate);
+      values.push(String(filters.predicate));
     }
     if (filters.filePath) {
       clauses.push("file_path = ?");
-      values.push(filters.filePath);
+      values.push(String(filters.filePath));
     }
     const query = `
       SELECT *
@@ -1148,7 +1166,7 @@ export class SqliteWorkflowStore {
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY updated_at DESC, id
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       subjectId: row.subject_id,
       predicate: row.predicate,
@@ -1166,8 +1184,9 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  upsertCandidate(candidate) {
-    const existing = this.db.prepare("SELECT * FROM candidates WHERE id = ?").get(candidate.id);
+  upsertCandidate(candidate: any) {
+    const finalId = String(candidate.id);
+    const existing = this.db.prepare("SELECT * FROM candidates WHERE id = ?").get(finalId);
     const preservedStatus = existing && ["rejected", "archived", "promoted"].includes(existing.status)
       ? existing.status
       : candidate.status;
@@ -1186,28 +1205,28 @@ export class SqliteWorkflowStore {
         data_json = excluded.data_json,
         updated_at = excluded.updated_at
     `).run(
-      candidate.id,
-      candidate.noteId,
-      candidate.title,
-      preservedStatus,
-      candidate.reason,
-      candidate.score,
-      candidate.decisionKey,
-      candidate.lastReviewAt ?? null,
-      candidate.nextReviewAt ?? null,
+      finalId,
+      String(candidate.noteId ?? "unknown"),
+      String(candidate.title ?? "unknown"),
+      String(preservedStatus ?? "pending"),
+      String(candidate.reason ?? ""),
+      Number(candidate.score ?? 0),
+      String(candidate.decisionKey ?? "unknown"),
+      candidate.lastReviewAt != null ? String(candidate.lastReviewAt) : null,
+      candidate.nextReviewAt != null ? String(candidate.nextReviewAt) : null,
       asJson(candidate.data),
-      candidate.createdAt ?? nowIso(),
-      candidate.updatedAt ?? nowIso(),
-      preservedStatus
+      String(candidate.createdAt ?? nowIso()),
+      String(candidate.updatedAt ?? nowIso()),
+      String(preservedStatus ?? "pending")
     );
   }
 
-  listCandidates(filters = {}) {
+  listCandidates(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.statuses?.length) {
       clauses.push(`status IN (${filters.statuses.map(() => "?").join(", ")})`);
-      values.push(...filters.statuses);
+      values.push(...filters.statuses.map(String));
     }
     const query = `
       SELECT *
@@ -1215,7 +1234,7 @@ export class SqliteWorkflowStore {
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY score DESC, updated_at DESC
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       noteId: row.note_id,
       title: row.title,
@@ -1231,50 +1250,60 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  appendEvent({ eventType, entityType, entityId = null, payload = {}, createdAt = nowIso() }) {
+  appendEvent({ eventType, entityType, entityId = null, payload = {}, createdAt = nowIso() }: any) {
+    const finalEventType = String(eventType ?? "unknown");
+    const finalEntityType = String(entityType ?? "unknown");
+    const finalEntityId = entityId != null ? String(entityId) : null;
+    const finalCreatedAt = String(createdAt);
     this.db.prepare(`
       INSERT INTO events (id, event_type, entity_type, entity_id, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
-      stableId("event", eventType, entityType, entityId, createdAt, Math.random()),
-      eventType,
-      entityType,
-      entityId,
+      stableId("event", finalEventType, finalEntityType, finalEntityId, finalCreatedAt, Math.random()),
+      finalEventType,
+      finalEntityType,
+      finalEntityId,
       asJson(payload),
-      createdAt
+      finalCreatedAt
     );
   }
 
-  appendMetric({ taskClass, capability, providerId, modelId, promptTokens, completionTokens, latencyMs, success, errorMessage = null, details = null, createdAt = nowIso() }) {
+  appendMetric({ taskClass, capability, providerId, modelId, promptTokens, completionTokens, latencyMs, success, errorMessage = null, details = null, createdAt = nowIso() }: any) {
     const normalizedPromptTokens = Number.isFinite(Number(promptTokens)) ? Number(promptTokens) : 0;
     const normalizedCompletionTokens = Number.isFinite(Number(completionTokens)) ? Number(completionTokens) : 0;
     const normalizedLatencyMs = Number.isFinite(Number(latencyMs)) ? Math.max(0, Math.round(Number(latencyMs))) : 0;
+    
+    const finalTaskClass = String(taskClass ?? "unknown");
+    const finalCapability = String(capability ?? "unknown");
+    const finalProviderId = String(providerId ?? "unknown");
+    const finalModelId = String(modelId ?? "unknown");
+    const finalCreatedAt = String(createdAt);
+
     this.db.prepare(`
       INSERT INTO metrics (id, task_class, capability, provider_id, model_id, prompt_tokens, completion_tokens, latency_ms, success, error_message, details_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      stableId("metric", taskClass, providerId, modelId, createdAt, Math.random()),
-      taskClass,
-      capability,
-      providerId,
-      modelId,
+      stableId("metric", finalTaskClass, finalCapability, finalProviderId, finalModelId, finalCreatedAt, Math.random()),
+      finalTaskClass,
+      finalCapability,
+      finalProviderId,
+      finalModelId,
       normalizedPromptTokens,
       normalizedCompletionTokens,
       normalizedLatencyMs,
       success ? 1 : 0,
-      errorMessage,
+      errorMessage != null ? String(errorMessage) : null,
       asJson(details ?? {}),
-      createdAt
+      finalCreatedAt
     );
   }
 
-  getMetricsSummary({ now = null } = {}) {
+  getMetricsSummary({ now = null }: { now?: Date | null } = {}) {
     const rows = this.listMetrics({ limit: null, order: "asc" });
     const metricsService = new LlmMetrics(new WorkflowMetricsStoreAdapter(this));
     
-    // Utilize @dharmax/llm-utils for totals and model grouping
     const allTimeTotals = metricsService.totals();
-    const allTimeByModel = metricsService.byModel().map((entry) => ({
+    const allTimeByModel = metricsService.byModel().map((entry: any) => ({
       model_id: entry.modelId,
       provider_id: entry.providerId,
       count: entry.metrics.calls,
@@ -1329,7 +1358,7 @@ export class SqliteWorkflowStore {
     };
   }
 
-  listMetrics({ limit = 20, order = "desc" } = {}) {
+  listMetrics({ limit = 20, order = "desc" }: { limit?: number | null; order?: string } = {}) {
     const normalizedOrder = String(order).toLowerCase() === "asc" ? "ASC" : "DESC";
     const query = limit == null
       ? `SELECT * FROM metrics ORDER BY created_at ${normalizedOrder}`
@@ -1337,7 +1366,7 @@ export class SqliteWorkflowStore {
     const rows = limit == null
       ? this.db.prepare(query).all()
       : this.db.prepare(query).all(limit);
-    return rows.map(m => ({
+    return rows.map((m: any) => ({
       id: m.id,
       task_class: m.task_class,
       capability: m.capability,
@@ -1363,7 +1392,7 @@ export class SqliteWorkflowStore {
     `).run();
   }
 
-  search(query, { limit = 20, scopes = [] } = {}) {
+  search(query: string, { limit = 20, scopes = [] }: { limit?: number; scopes?: string[] } = {}) {
     const trimmed = String(query).trim().toLowerCase();
     if (!trimmed) {
       return [];
@@ -1389,7 +1418,7 @@ export class SqliteWorkflowStore {
       LIMIT ?
     `).all(trimmed, trimmed, trimmed, trimmed, trimmed, trimmed, trimmed, trimmed, trimmed, trimmed, ...scopes, limit);
 
-    const indexedResults = rows.map((row) => ({
+    const indexedResults = rows.map((row: any) => ({
       id: row.id,
       scope: row.scope,
       refId: row.ref_id,
@@ -1408,7 +1437,7 @@ export class SqliteWorkflowStore {
       LIMIT ?
     `).all(trimmed, trimmed, limit);
 
-    const noteResults = noteRows.map((row) => ({
+    const noteResults = noteRows.map((row: any) => ({
       id: `note:${row.id}`,
       scope: "note",
       refId: row.id,
@@ -1434,23 +1463,24 @@ export class SqliteWorkflowStore {
     return { files, notes, symbols, claims, tickets, codelets, candidates };
   }
 
-  deleteEntitiesBySourceKind(sourceKind, entityTypes = []) {
-    const values = [sourceKind];
+  deleteEntitiesBySourceKind(sourceKind: string, entityTypes: string[] = []) {
+    const finalSourceKind = String(sourceKind);
+    const values: any[] = [finalSourceKind];
     let entityClause = "";
     if (entityTypes.length) {
       entityClause = ` AND entity_type IN (${entityTypes.map(() => "?").join(", ")})`;
-      values.push(...entityTypes);
+      values.push(...entityTypes.map(String));
     }
     const ids = this.db.prepare(`
       SELECT id
       FROM entities
       WHERE source_kind = ?
       ${entityClause}
-    `).all(...values).map((row) => row.id);
+    `).all(...values).map((row: any) => row.id);
     if (!ids.length) {
       return 0;
     }
-    const deleteValues = [sourceKind, ...entityTypes];
+    const deleteValues = [finalSourceKind, ...entityTypes.map(String)];
     this.db.prepare(`
       DELETE FROM entities
       WHERE source_kind = ?
@@ -1460,29 +1490,29 @@ export class SqliteWorkflowStore {
       DELETE FROM search_index
       WHERE scope = 'entity'
         AND ref_id IN (${ids.map(() => "?").join(", ")})
-    `).run(...ids);
+    `).run(...ids.map(String));
     return ids.length;
   }
 
-  deleteArchitecturalPredicatesByMetadataToken(token) {
+  deleteArchitecturalPredicatesByMetadataToken(token: string) {
     const pattern = `%${String(token)}%`;
     return this.db.prepare("DELETE FROM architectural_graph WHERE metadata_json LIKE ?").run(pattern).changes ?? 0;
   }
 
-  listArchitecturalPredicates(filters = {}) {
+  listArchitecturalPredicates(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.subjectId) {
       clauses.push("subject_id = ?");
-      values.push(filters.subjectId);
+      values.push(String(filters.subjectId));
     }
     if (filters.objectId) {
       clauses.push("object_id = ?");
-      values.push(filters.objectId);
+      values.push(String(filters.objectId));
     }
     if (filters.predicate) {
       clauses.push("predicate = ?");
-      values.push(filters.predicate);
+      values.push(String(filters.predicate));
     }
     const query = `
       SELECT *
@@ -1490,7 +1520,7 @@ export class SqliteWorkflowStore {
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY created_at DESC, id
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       subjectId: row.subject_id,
       predicate: row.predicate,
@@ -1500,8 +1530,8 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  upsertTestRun(run) {
-    const timestamp = run.updatedAt ?? nowIso();
+  upsertTestRun(run: any) {
+    const timestamp = String(run.updatedAt ?? nowIso());
     this.db.prepare(`
       INSERT INTO test_runs (id, run_id, test_id, target_id, source, label, status, command, summary, artifact_ref, recorded_at, details_json, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1519,43 +1549,44 @@ export class SqliteWorkflowStore {
         details_json = excluded.details_json,
         updated_at = excluded.updated_at
     `).run(
-      run.id,
-      run.runId,
-      run.testId,
-      run.targetId,
-      run.source,
-      run.label ?? null,
-      run.status,
-      run.command ?? null,
-      run.summary ?? null,
-      run.artifactRef ?? null,
-      run.recordedAt ?? timestamp,
+      String(run.id),
+      String(run.runId),
+      String(run.testId),
+      String(run.targetId),
+      String(run.source),
+      run.label != null ? String(run.label) : null,
+      String(run.status),
+      run.command != null ? String(run.command) : null,
+      run.summary != null ? String(run.summary) : null,
+      run.artifactRef != null ? String(run.artifactRef) : null,
+      String(run.recordedAt ?? timestamp),
       asJson(run.details),
       timestamp
     );
   }
 
-  replaceTestRunsForSource(source, runs = []) {
-    this.db.prepare("DELETE FROM test_runs WHERE source = ?").run(source);
+  replaceTestRunsForSource(source: string, runs = []) {
+    const finalSource = String(source);
+    this.db.prepare("DELETE FROM test_runs WHERE source = ?").run(finalSource);
     for (const run of runs) {
       this.upsertTestRun(run);
     }
   }
 
-  listTestRuns(filters = {}) {
+  listTestRuns(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.source) {
       clauses.push("source = ?");
-      values.push(filters.source);
+      values.push(String(filters.source));
     }
     if (filters.testId) {
       clauses.push("test_id = ?");
-      values.push(filters.testId);
+      values.push(String(filters.testId));
     }
     if (filters.targetId) {
       clauses.push("target_id = ?");
-      values.push(filters.targetId);
+      values.push(String(filters.targetId));
     }
     const query = `
      SELECT *
@@ -1563,7 +1594,7 @@ export class SqliteWorkflowStore {
      ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
      ORDER BY recorded_at DESC, updated_at DESC, id DESC
     `;
-    return this.db.prepare(query).all(...values).map((row) => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       runId: row.run_id,
       testId: row.test_id,
@@ -1580,14 +1611,14 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  upsertWorkflowRun(run) {
+  upsertWorkflowRun(run: any) {
     const now = nowIso();
-    const existing = this.getWorkflowRun(run.id);
+    const finalId = String(run.id);
+    const existing = this.getWorkflowRun(finalId);
     
-    // Ensure we don't overwrite prompt/code/createdAt with nulls on partial updates
-    const finalPrompt = run.prompt ?? existing?.prompt ?? "unknown";
-    const finalCode = run.code ?? existing?.code ?? "";
-    const finalCreatedAt = run.createdAt ?? existing?.createdAt ?? now;
+    const finalPrompt = String(run.prompt ?? existing?.prompt ?? "unknown");
+    const finalCode = String(run.code ?? existing?.code ?? "");
+    const finalCreatedAt = String(run.createdAt ?? existing?.createdAt ?? now);
 
     this.db.prepare(`
       INSERT INTO workflow_runs (id, prompt, code, status, current_state, result_json, created_at, updated_at)
@@ -1598,34 +1629,40 @@ export class SqliteWorkflowStore {
         result_json = excluded.result_json,
         updated_at = excluded.updated_at
     `).run(
-      run.id,
+      finalId,
       finalPrompt,
       finalCode,
-      run.status ?? existing?.status ?? "running",
-      run.currentState ?? null,
+      String(run.status ?? existing?.status ?? "running"),
+      run.currentState != null ? String(run.currentState) : null,
       asJson(run.result),
       finalCreatedAt,
       now
     );
   }
 
-  addWorkflowTransition(transition) {
+  addWorkflowTransition(transition: any) {
+    const finalRunId = String(transition.runId ?? "unknown");
+    const finalFrom = String(transition.from ?? transition.from_state ?? "start");
+    const finalTo = String(transition.to ?? transition.to_state ?? "end");
+    const finalLabel = transition.label != null ? String(transition.label) : null;
+    const finalTriggerType = String(transition.triggerType ?? transition.trigger_type ?? "unknown");
+
     this.db.prepare(`
       INSERT INTO workflow_transitions (run_id, from_state, to_state, label, trigger_type, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
-      transition.runId,
-      transition.from,
-      transition.to,
-      transition.label ?? null,
-      transition.triggerType,
+      finalRunId,
+      finalFrom,
+      finalTo,
+      finalLabel,
+      finalTriggerType,
       asJson(transition.payload),
       nowIso()
     );
   }
 
-  listWorkflowTransitions(runId) {
-    return this.db.prepare("SELECT * FROM workflow_transitions WHERE run_id = ? ORDER BY created_at").all(runId).map(row => ({
+  listWorkflowTransitions(runId: string) {
+    return this.db.prepare("SELECT * FROM workflow_transitions WHERE run_id = ? ORDER BY created_at").all(String(runId)).map((row: any) => ({
       runId: row.run_id,
       from: row.from_state,
       to: row.to_state,
@@ -1636,8 +1673,8 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  getWorkflowRun(id) {
-    const row = this.db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id);
+  getWorkflowRun(id: string) {
+    const row = this.db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(String(id));
     if (!row) return null;
     return {
       id: row.id,
@@ -1650,8 +1687,13 @@ export class SqliteWorkflowStore {
     };
   }
 
-  upsertWorkflowStep(step) {
+  upsertWorkflowStep(step: any) {
     const now = nowIso();
+    const finalRunId = String(step.runId ?? step.run_id ?? "unknown");
+    const finalStepId = String(step.stepId ?? step.step_id ?? "unknown");
+    const finalDescription = String(step.description ?? finalStepId);
+    const finalStatus = String(step.status ?? "completed");
+
     this.db.prepare(`
       INSERT INTO workflow_steps (run_id, step_id, description, status, result_json, error_json, started_at, completed_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -1661,19 +1703,19 @@ export class SqliteWorkflowStore {
         error_json = excluded.error_json,
         completed_at = excluded.completed_at
     `).run(
-      step.runId,
-      step.stepId,
-      step.description ?? null,
-      step.status,
+      finalRunId,
+      finalStepId,
+      finalDescription,
+      finalStatus,
       asJson(step.result),
       asJson(step.error),
-      step.startedAt ?? now,
-      step.completedAt ?? null
+      String(step.startedAt ?? step.started_at ?? now),
+      String(step.completedAt ?? step.completed_at ?? now)
     );
   }
 
-  listWorkflowSteps(runId) {
-    return this.db.prepare("SELECT * FROM workflow_steps WHERE run_id = ? ORDER BY started_at").all(runId).map(row => ({
+  listWorkflowSteps(runId: string) {
+    return this.db.prepare("SELECT * FROM workflow_steps WHERE run_id = ? ORDER BY started_at").all(String(runId)).map((row: any) => ({
       runId: row.run_id,
       stepId: row.step_id,
       description: row.description,
@@ -1685,32 +1727,33 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  setWorkflowState(runId, key, value) {
+  setWorkflowState(runId: string, key: string, value: any) {
     this.db.prepare(`
       INSERT INTO workflow_state (run_id, key, value_json, updated_at)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(run_id, key) DO UPDATE SET
         value_json = excluded.value_json,
         updated_at = excluded.updated_at
-    `).run(runId, key, asJson(value), nowIso());
+    `).run(String(runId), String(key), asJson(value), nowIso());
   }
 
-  getWorkflowState(runId, key, fallback = null) {
-    const row = this.db.prepare("SELECT value_json FROM workflow_state WHERE run_id = ? AND key = ?").get(runId, key);
+  getWorkflowState(runId: string, key: string, fallback: any = null) {
+    const row = this.db.prepare("SELECT value_json FROM workflow_state WHERE run_id = ? AND key = ?").get(String(runId), String(key));
     return row ? parseJson(row.value_json, fallback) : fallback;
   }
 
-  getWorkflowStateMap(runId) {
-    const rows = this.db.prepare("SELECT key, value_json FROM workflow_state WHERE run_id = ?").all(runId);
-    const result = {};
+  getWorkflowStateMap(runId: string) {
+    const rows = this.db.prepare("SELECT key, value_json FROM workflow_state WHERE run_id = ?").all(String(runId));
+    const result: Record<string, any> = {};
     for (const row of rows) {
       result[row.key] = parseJson(row.value_json);
     }
     return result;
   }
 
-  upsertWorkflowIssue(issue) {
+  upsertWorkflowIssue(issue: any) {
     const now = nowIso();
+    const finalId = String(issue.id);
     this.db.prepare(`
       INSERT INTO workflow_issues (id, run_id, issue_type, severity, summary, details_json, status, resolution_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1723,36 +1766,36 @@ export class SqliteWorkflowStore {
         resolution_json = excluded.resolution_json,
         updated_at = excluded.updated_at
     `).run(
-      issue.id,
-      issue.runId ?? null,
-      issue.issueType,
-      issue.severity,
-      issue.summary,
+      finalId,
+      issue.runId != null ? String(issue.runId) : null,
+      String(issue.issueType),
+      String(issue.severity),
+      String(issue.summary),
       asJson(issue.details),
-      issue.status ?? "open",
+      String(issue.status ?? "open"),
       asJson(issue.resolution),
-      issue.createdAt ?? now,
+      String(issue.createdAt ?? now),
       now
     );
   }
 
-  listWorkflowIssues(filters = {}) {
+  listWorkflowIssues(filters: any = {}) {
     const clauses = [];
     const values = [];
     if (filters.status) {
       clauses.push("status = ?");
-      values.push(filters.status);
+      values.push(String(filters.status));
     }
     if (filters.issueType) {
       clauses.push("issue_type = ?");
-      values.push(filters.issueType);
+      values.push(String(filters.issueType));
     }
     const query = `
       SELECT * FROM workflow_issues
       ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
       ORDER BY created_at DESC
     `;
-    return this.db.prepare(query).all(...values).map(row => ({
+    return this.db.prepare(query).all(...values).map((row: any) => ({
       id: row.id,
       runId: row.run_id,
       issueType: row.issue_type,
@@ -1766,8 +1809,8 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  upsertWorkflowContract(contract) {
-    const updatedAt = contract.updatedAt ?? nowIso();
+  upsertWorkflowContract(contract: any) {
+    const updatedAt = String(contract.updatedAt ?? nowIso());
     this.db.prepare(`
       INSERT INTO workflow_contracts (
         run_id,
@@ -1799,23 +1842,23 @@ export class SqliteWorkflowStore {
         evidence_json = excluded.evidence_json,
         updated_at = excluded.updated_at
     `).run(
-      contract.runId,
+      String(contract.runId),
       path.resolve(String(contract.root ?? this.projectRoot ?? ".")),
-      contract.source ?? "unknown",
-      contract.userWish ?? "",
-      contract.successDefinition ?? "",
-      contract.attemptedStatus ?? "needs_human_review",
-      contract.fulfillmentStatus ?? "needs_human_review",
-      contract.truthfulnessStatus ?? "needs_human_review",
-      contract.enlightenmentStatus ?? "needs_human_review",
-      contract.misleadingLevel ?? "unknown",
-      contract.summary ?? "",
+      String(contract.source ?? "unknown"),
+      String(contract.userWish ?? ""),
+      String(contract.successDefinition ?? ""),
+      String(contract.attemptedStatus ?? "needs_human_review"),
+      String(contract.fulfillmentStatus ?? "needs_human_review"),
+      String(contract.truthfulnessStatus ?? "needs_human_review"),
+      String(contract.enlightenmentStatus ?? "needs_human_review"),
+      String(contract.misleadingLevel ?? "unknown"),
+      String(contract.summary ?? ""),
       asJson(contract.evidence ?? {}),
       updatedAt
     );
   }
 
-  getLatestWorkflowContract(root = null) {
+  getLatestWorkflowContract(root: string | null = null) {
     const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
     const row = this.db.prepare(`
       SELECT *
@@ -1844,8 +1887,8 @@ export class SqliteWorkflowStore {
     };
   }
 
-  upsertWorkflowGapReview(review) {
-    const updatedAt = review.updatedAt ?? nowIso();
+  upsertWorkflowGapReview(review: any) {
+    const updatedAt = String(review.updatedAt ?? nowIso());
     this.db.prepare(`
       INSERT INTO workflow_gap_reviews (
         run_id,
@@ -1871,12 +1914,12 @@ export class SqliteWorkflowStore {
         evidence_json = excluded.evidence_json,
         updated_at = excluded.updated_at
     `).run(
-      review.runId,
+      String(review.runId),
       path.resolve(String(review.root ?? this.projectRoot ?? ".")),
-      review.source ?? "unknown",
-      review.status ?? "open",
-      review.severity ?? "medium",
-      review.summary ?? "",
+      String(review.source ?? "unknown"),
+      String(review.status ?? "open"),
+      String(review.severity ?? "medium"),
+      String(review.summary ?? ""),
       asJson(review.gapTypes ?? []),
       asJson(review.actions ?? []),
       asJson(review.evidence ?? {}),
@@ -1884,7 +1927,7 @@ export class SqliteWorkflowStore {
     );
   }
 
-  getLatestWorkflowGapReview(root = null) {
+  getLatestWorkflowGapReview(root: string | null = null) {
     const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
     const row = this.db.prepare(`
       SELECT *
@@ -1910,11 +1953,11 @@ export class SqliteWorkflowStore {
     };
   }
 
-  appendWorkspaceMutation(mutation) {
-    const startedAt = mutation.startedAt ?? nowIso();
-    const completedAt = mutation.completedAt ?? startedAt;
+  appendWorkspaceMutation(mutation: any) {
+    const startedAt = String(mutation.startedAt ?? nowIso());
+    const completedAt = String(mutation.completedAt ?? startedAt);
     const root = path.resolve(String(mutation.root ?? this.projectRoot ?? "."));
-    const id = mutation.id ?? stableId("workspace-mutation", root, mutation.operation, completedAt, asJson(mutation.changedFiles ?? []));
+    const id = String(mutation.id ?? stableId("workspace-mutation", root, mutation.operation, completedAt, asJson(mutation.changedFiles ?? [])));
 
     this.db.prepare(`
       INSERT INTO workspace_mutations (
@@ -1941,8 +1984,8 @@ export class SqliteWorkflowStore {
     `).run(
       id,
       root,
-      mutation.operation,
-      mutation.status ?? "completed",
+      String(mutation.operation ?? "unknown"),
+      String(mutation.status ?? "completed"),
       mutation.beforeDirty ? 1 : 0,
       mutation.afterDirty ? 1 : 0,
       asJson(mutation.changedFiles ?? []),
@@ -1954,7 +1997,7 @@ export class SqliteWorkflowStore {
     return id;
   }
 
-  listWorkspaceMutations({ root = null, limit = 50 } = {}) {
+  listWorkspaceMutations({ root = null, limit = 50 }: { root?: string | null; limit?: number } = {}) {
     const clauses = [];
     const values = [];
     if (root) {
@@ -1971,7 +2014,7 @@ export class SqliteWorkflowStore {
       LIMIT ?
     `;
 
-    return this.db.prepare(query).all(...values, boundedLimit).map((row) => ({
+    return this.db.prepare(query).all(...values, boundedLimit).map((row: any) => ({
       id: row.id,
       root: row.root,
       operation: row.operation,
@@ -1985,12 +2028,13 @@ export class SqliteWorkflowStore {
     }));
   }
 
-  getLatestWorkspaceMutation(root = null) {
+  getLatestWorkspaceMutation(root: string | null = null) {
    return this.listWorkspaceMutations({ root: root ?? this.projectRoot, limit: 1 })[0] ?? null;
   }
 
-  upsertAssessment(assessment) {
+  upsertAssessment(assessment: any) {
    const now = nowIso();
+   const finalId = String(assessment.id);
    this.db.prepare(`
     INSERT INTO assessments (id, target_type, target_id, status, scope, plan_json, criticism_json, result_json, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2002,21 +2046,21 @@ export class SqliteWorkflowStore {
      result_json = excluded.result_json,
      updated_at = excluded.updated_at
    `).run(
-    assessment.id,
-    assessment.targetType,
-    assessment.targetId,
-    assessment.status ?? "pending",
-    assessment.scope ?? "general",
+    finalId,
+    String(assessment.targetType ?? "unknown"),
+    String(assessment.targetId ?? "unknown"),
+    String(assessment.status ?? "pending"),
+    String(assessment.scope ?? "general"),
     asJson(assessment.plan),
     asJson(assessment.criticism),
     asJson(assessment.result),
-    assessment.createdAt ?? now,
+    String(assessment.createdAt ?? now),
     now
    );
   }
 
-  getAssessmentById(id) {
-   const row = this.db.prepare("SELECT * FROM assessments WHERE id = ?").get(id);
+  getAssessmentById(id: string) {
+   const row = this.db.prepare("SELECT * FROM assessments WHERE id = ?").get(String(id));
    if (!row) return null;
    return {
     id: row.id,
@@ -2032,27 +2076,27 @@ export class SqliteWorkflowStore {
    };
   }
 
-  listAssessments(filters = {}) {
+  listAssessments(filters: any = {}) {
    const clauses = [];
    const values = [];
    if (filters.targetType) {
     clauses.push("target_type = ?");
-    values.push(filters.targetType);
+    values.push(String(filters.targetType));
    }
    if (filters.targetId) {
     clauses.push("target_id = ?");
-    values.push(filters.targetId);
+    values.push(String(filters.targetId));
    }
    if (filters.status) {
     clauses.push("status = ?");
-    values.push(filters.status);
+    values.push(String(filters.status));
    }
    const query = `
     SELECT * FROM assessments
     ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
     ORDER BY created_at DESC
    `;
-   return this.db.prepare(query).all(...values).map(row => ({
+   return this.db.prepare(query).all(...values).map((row: any) => ({
     id: row.id,
     targetType: row.target_type,
     targetId: row.target_id,
@@ -2066,7 +2110,7 @@ export class SqliteWorkflowStore {
    }));
   }
 
-  upsertGuidelineBlock(block) {
+  upsertGuidelineBlock(block: any) {
    const now = nowIso();
    this.db.prepare(`
     INSERT INTO guideline_blocks (id, source_file, category, tags, title, body, checksum, updated_at)
@@ -2079,63 +2123,65 @@ export class SqliteWorkflowStore {
      checksum = excluded.checksum,
      updated_at = excluded.updated_at
    `).run(
-    block.id,
-    block.sourceFile,
-    block.category ?? "general",
-    block.tags ?? "",
-    block.title,
-    block.body,
-    block.checksum,
+    String(block.id),
+    String(block.sourceFile),
+    String(block.category ?? "general"),
+    String(block.tags ?? ""),
+    String(block.title ?? ""),
+    String(block.body ?? ""),
+    String(block.checksum ?? ""),
     now
    );
   }
 
-  listGuidelineBlocks(filters = {}) {
-   const clauses = [];
-   const values = [];
-   if (filters.sourceFile) {
-    clauses.push("source_file = ?");
-    values.push(filters.sourceFile);
-   }
-   if (filters.category) {
-    clauses.push("category = ?");
-    values.push(filters.category);
-   }
-   const query = `
-    SELECT * FROM guideline_blocks
-    ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
-   `;
-   return this.db.prepare(query).all(...values).map(row => ({
-    id: row.id,
-    sourceFile: row.source_file,
-    category: row.category,
-    tags: row.tags,
-    title: row.title,
-    body: row.body,
-    checksum: row.checksum,
-    updatedAt: row.updated_at
-   }));
+  listGuidelineBlocks(filters: any = {}) {
+    const clauses = [];
+    const values = [];
+    if (filters.sourceFile) {
+      clauses.push("source_file = ?");
+      values.push(String(filters.sourceFile));
+    }
+    if (filters.category) {
+      clauses.push("category = ?");
+      values.push(String(filters.category));
+    }
+    const query = `
+      SELECT * FROM guideline_blocks
+      ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+    `;
+    return this.db.prepare(query).all(...values).map((row: any) => ({
+      id: row.id,
+      sourceFile: row.source_file,
+      category: row.category,
+      tags: row.tags,
+      title: row.title,
+      body: row.body,
+      checksum: row.checksum,
+      updatedAt: row.updated_at
+    }));
   }
 
-  pruneGuidelineBlocks(sourceFile, keepIds) {
-   const ids = Array.from(keepIds);
-   if (!ids.length) {
-    this.db.prepare("DELETE FROM guideline_blocks WHERE source_file = ?").run(sourceFile);
-    return;
-   }
-   const placeholders = ids.map(() => "?").join(", ");
-   this.db.prepare(`DELETE FROM guideline_blocks WHERE source_file = ? AND id NOT IN (${placeholders})`).run(sourceFile, ...ids);
+  pruneGuidelineBlocks(sourceFile: string, keepIds: Set<string> | string[]) {
+    const ids = Array.from(keepIds).map(String);
+    const finalSourceFile = String(sourceFile);
+    if (!ids.length) {
+      this.db.prepare("DELETE FROM guideline_blocks WHERE source_file = ?").run(finalSourceFile);
+      return;
+    }
+    const placeholders = ids.map(() => "?").join(", ");
+    this.db.prepare(`DELETE FROM guideline_blocks WHERE source_file = ? AND id NOT IN (${placeholders})`).run(finalSourceFile, ...ids);
   }
-  }
-function normalizeText(value) {
+}
+
+function normalizeText(value: any): string {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function renderSymbolSearchTitle(symbol) {
+function renderSymbolSearchTitle(symbol: any): string {
   return `${symbol.kind} ${symbol.name}`;
 }
 
-function renderSymbolSearchBody(filePath, symbol) {
+function renderSymbolSearchBody(filePath: string, symbol: any): string {
   const metadata = symbol.metadata ?? {};
   const signature = String(metadata.signature ?? "").trim();
   const lineText = symbol.line ? `${filePath}:${symbol.line}` : filePath;

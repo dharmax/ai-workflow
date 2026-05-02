@@ -70,7 +70,7 @@ async function runNodeStreaming(args, cwd, {
   onStderr = null
 } = {}) {
   return await new Promise((resolve) => {
-    const child = spawn("npx", ["tsx", ...args], {
+    const child = spawn("tsx", [...args], {
       cwd,
       env: { ...process.env, ...env },
       stdio: ["ignore", "pipe", "pipe"]
@@ -135,7 +135,7 @@ async function runNodeStreaming(args, cwd, {
 }
 
 async function runShellPrompt({ cwd, prompt, statePath, runId, timeoutMs = DEFAULT_TIMEOUT_MS, env = {} }) {
-  const startedAt = new Date().toISOString();
+  const startedAt: string = new Date().toISOString();
   const result = await runNodeStreaming([
     CLI_PATH,
     "shell",
@@ -1600,7 +1600,7 @@ async function writeReport({
 }
 
 export async function runProgrammingDogfood(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const targetRoot = path.resolve(String(args.target ?? DEFAULT_TARGET));
   const force = Boolean(args.force);
   const json = Boolean(args.json);

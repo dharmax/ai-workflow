@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 
-const child = spawn("npx", ["tsx", "/home/dharmax/work/ai-workflow/runtime/scripts/ai-workflow/sync.ts", ...process.argv.slice(2)], {
+const child = spawn("tsx", ["/home/dharmax/work/ai-workflow/runtime/scripts/ai-workflow/sync.ts", ...process.argv.slice(2)], {
   cwd: process.cwd(),
   env: process.env,
   stdio: "inherit"

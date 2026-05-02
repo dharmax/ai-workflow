@@ -1,5 +1,9 @@
-export function parseArgs(argv) {
-  const args = { _: [] };
+export interface ParsedArgs extends Record<string, any> {
+  _: string[];
+}
+
+export function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = { _: [] };
 
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
@@ -33,7 +37,7 @@ export function parseArgs(argv) {
   return args;
 }
 
-export function asArray(value) {
+export function asArray(value: any): any[] {
   if (value === undefined) {
     return [];
   }
@@ -41,20 +45,20 @@ export function asArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-export function splitCsv(values) {
+export function splitCsv(values: any): string[] {
   return asArray(values)
     .flatMap((value) => String(value).split(","))
     .map((value) => value.trim())
     .filter(Boolean);
 }
 
-export function printAndExit(message, code = 0) {
+export function printAndExit(message: string, code: number = 0): never {
   const stream = code === 0 ? process.stdout : process.stderr;
   stream.write(`${message}\n`);
   process.exit(code);
 }
 
-export function requireArg(args, key, helpText) {
+export function requireArg(args: ParsedArgs, key: string, helpText: string): any {
   if (!args[key]) {
     printAndExit(helpText, 1);
   }
@@ -62,7 +66,7 @@ export function requireArg(args, key, helpText) {
   return args[key];
 }
 
-function assignArg(args, key, value) {
+function assignArg(args: ParsedArgs, key: string, value: any): void {
   if (Object.hasOwn(args, key)) {
     const current = args[key];
     args[key] = Array.isArray(current) ? [...current, value] : [current, value];
@@ -71,4 +75,3 @@ function assignArg(args, key, value) {
 
   args[key] = value;
 }
-

@@ -71,7 +71,7 @@ async function runNodeScriptCaptured(scriptPath, args, { cwd, env }) {
 
 async function runNodeScriptStreamed(scriptPath, args, { cwd, env }) {
   return new Promise((resolve) => {
-    const child = TaskExecutor.spawn("npx", ["tsx", ...[scriptPath, ...args]], {
+    const child = TaskExecutor.spawn("tsx", [scriptPath, ...args], {
       cwd,
       env,
       onStdout: (data) => process.stdout.write(data),

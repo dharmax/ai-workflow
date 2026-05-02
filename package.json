@@ -13,6 +13,7 @@
     "install:gemini-skill": "tsx scripts/install-ai-workflow-skill.ts --project . --force",
     "install:tools": "npm install -g .",
     "lint": "eslint .",
+    "postinstall": "node scripts/build-github-deps.mjs",
     "perfection-marathon": "tsx tests/perfection-marathon.ts",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "test:fast": "tsx --test tests/*.test.ts",
@@ -30,14 +31,16 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@dharmax/codebase-parser": "github:dharmax/codebase-parser",
-    "@dharmax/block-patcher": "github:dharmax/block-patcher",
-    "@dharmax/text-compiler": "github:dharmax/text-compiler",
-    "@dharmax/context-manager": "github:dharmax/context-manager",
-    "@dharmax/llm-utils": "github:dharmax/llm-utils",
-    "@dharmax/shell-proc-utils": "github:dharmax/shell-proc-utils"
+    "@dharmax/codebase-parser": "git+https://github.com/dharmax/codebase-parser.git",
+    "@dharmax/block-patcher": "git+https://github.com/dharmax/block-patcher.git",
+    "@dharmax/text-compiler": "git+https://github.com/dharmax/text-compiler.git",
+    "@dharmax/context-manager": "git+https://github.com/dharmax/context-manager.git",
+    "@dharmax/llm-utils": "git+https://github.com/dharmax/llm-utils.git",
+    "@dharmax/shell-proc-utils": "git+https://github.com/dharmax/shell-proc-utils.git"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.3",
     "tsx": "^4.21.0"
   }

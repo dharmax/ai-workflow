@@ -22,7 +22,7 @@ Options:
   --json              Emit JSON.
 `;
 
-const args = parseArgs(process.argv.slice(2));
+const args: any = parseArgs(process.argv.slice(2));
 if (args.help || !args.ticket) {
   printAndExit(HELP, args.help ? 0 : 1);
 }

@@ -24,7 +24,7 @@ const AUTO_ASSESSMENT_STALE_MS = 20 * 60 * 1000;
 const ACTIVE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
 
 export async function syncProject({ projectRoot = process.cwd(), writeProjections = false } = {}) {
-  const startedAt = new Date().toISOString();
+  const startedAt: string = new Date().toISOString();
 
   return withWorkspaceMutationGuardDisabled(async () => {
     // LAY-003: Dynamic Artifact Detection

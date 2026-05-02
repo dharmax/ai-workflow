@@ -10,7 +10,7 @@ import { listToolkitCodelets } from "../../../core/services/codelets.ts";
 import { buildSmartCodeletRunContext } from "../../../core/services/codelet-runtime.ts";
 
 export async function runSmartCodelet(argv = process.argv.slice(2), env = process.env) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const codeletId = String(env.AIWF_CODELET_ID ?? args.codelet ?? "codelet-observer").trim();
 

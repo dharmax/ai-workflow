@@ -13,7 +13,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args, options = {}) {
   return await new Promise((resolve) => {
-    execFile( "npx", "tsx", args, {
+    execFile("npx", ["tsx", ...args], {
       cwd: options.cwd ?? repoRoot,
       env: { ...process.env, ...(options.env ?? {}) },
       timeout: options.timeout ?? 180000,

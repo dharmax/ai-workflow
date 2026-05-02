@@ -7,7 +7,7 @@ const [taskClass, ...rest] = process.argv.slice(2);
 if (!taskClass) {
   printAndExit("Usage: route-task.mjs <task-class> [--json]", 1);
 }
-const args = parseArgs(rest);
+const args: any = parseArgs(rest);
 const route = await routeTask({
   root: process.cwd(),
   taskClass,

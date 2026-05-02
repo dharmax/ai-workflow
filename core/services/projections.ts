@@ -586,7 +586,7 @@ export async function importLegacyProjections(store, { projectRoot }) {
   };
 }
 
-export function inferTicketLane({ id, title, lane = null }) {
+export function inferTicketLane({ id, title, lane = null }: { id: string; title: string; lane?: string | null }): string {
   if (lane != null && String(lane).trim()) {
     return String(lane).trim();
   }
@@ -597,7 +597,9 @@ export function inferTicketLane({ id, title, lane = null }) {
   return "Todo";
 }
 
-export function buildTicketEntity({ id, title, lane = null, state = "open", epicId = null, summary = "", userStory = null }) {
+import type { Entity } from "../db/types.ts";
+
+export function buildTicketEntity({ id, title, lane = null, state = "open", epicId = null, summary = "", userStory = null }: { id: string; title: string; lane?: string | null; state?: string; epicId?: string | null; summary?: string; userStory?: string | null }): Entity {
   return {
     id,
     entityType: "ticket",

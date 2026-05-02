@@ -23,7 +23,7 @@ export async function runDogfood({
   const normalizedRoot = path.resolve(root);
   const requestedSurfaces = dedupeSurfaceIds(surfaces);
   const cliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.ts");
-  const startedAt = new Date().toISOString();
+  const startedAt: string = new Date().toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
   const report = {
     version: 2,
@@ -617,7 +617,7 @@ function shellQuote(value) {
 async function runNodeProcess({ cwd, args, timeoutMs }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn("npx", ["tsx", ...args], {
+    const child = spawn("tsx", [...args], {
       cwd,
       env: {
         ...process.env,

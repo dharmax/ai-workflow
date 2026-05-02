@@ -300,7 +300,7 @@ test("top-level --version reports the installed package version and toolkit root
 });
 
 test("web tutorial server serves tutorial html and mode-aware tutorial api", async () => {
-  const child = spawn("npx", ["tsx", 
+  const child = spawn("tsx", [
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -367,7 +367,7 @@ test("web tutorial readiness api exposes the shared readiness evaluator in tool-
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn("npx", ["tsx", 
+  const child = spawn("tsx", [
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -429,7 +429,7 @@ test("web tutorial host ask api routes natural-language readiness requests throu
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn("npx", ["tsx", 
+  const child = spawn("tsx", [
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -492,7 +492,7 @@ test("web tutorial host ask api routes current-work questions without shell-only
   const sync = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn("npx", ["tsx", 
+  const child = spawn("tsx", [
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -1383,7 +1383,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
       }
     }, null, 2), "utf8");
 
-    const child = spawn("npx", ["tsx", 
+    const child = spawn("tsx", [
       path.join(repoRoot, "cli", "ai-workflow.ts"),
       "shell",
       "--no-ai"
@@ -1426,7 +1426,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
 });
 
 test("non-interactive shell handles version directly", async () => {
-  const child = spawn("npx", ["tsx", 
+  const child = spawn("tsx", [
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "shell",
     "--no-ai"

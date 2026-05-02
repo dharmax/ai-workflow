@@ -70,7 +70,8 @@ export async function routeTask({
       const configTrustBonus = provider.local ? 1 : provider.configured ? 2 : -3;
       
       // Item 35: Historical Success Bias
-      const modelMetrics = routedState.metricsSummary?.byModel?.find(m => m.model_id === model.id);
+      const byModel = Array.isArray(routedState.metricsSummary?.byModel) ? routedState.metricsSummary.byModel : [];
+      const modelMetrics = byModel.find(m => m.model_id === model.id);
       const reliabilityBonus = modelMetrics ? (modelMetrics.success_rate / 20) : 2; // 0-5 bonus based on success rate
       const latencyBonus = scoreLatency(modelMetrics?.avg_latency, { taskClass, local: provider.local });
       const interactiveShellBonus = scoreInteractiveShellPlanner(model, taskClass);

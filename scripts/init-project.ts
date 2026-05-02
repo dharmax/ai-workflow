@@ -10,9 +10,10 @@ import { onboardProjectBrief } from "../core/services/orchestrator.ts";
 import { assertDirectCommandChannel } from "../core/lib/command-channel.ts";
 import { withWorkspaceMutation } from "../core/lib/workspace-mutation.ts";
 import { runDogfood } from "../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
+import { parseArgs, printAndExit, type ParsedArgs } from "../runtime/scripts/ai-workflow/lib/cli.ts";
 
 const HELP = `Usage:
-  tsx scripts/init-project.js --target /path/to/project [options]
+  tsx scripts/init-project.ts --target /path/to/project [options]
 
 Options:
   --target <path>    Target project root. Defaults to current directory.
@@ -27,6 +28,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const templatesRoot = path.resolve(repoRoot, "templates");
 const runtimeRoot = path.resolve(repoRoot, "runtime", "scripts", "ai-workflow");
+
 const WORKFLOW_PACKAGE_SCRIPTS = {
   "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
   "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
@@ -38,7 +40,7 @@ const WORKFLOW_PACKAGE_SCRIPTS = {
   "workflow:audit": "tsx scripts/ai-workflow/workflow-audit.ts"
 };
 
-const args = parseArgs(process.argv.slice(2));
+const args: ParsedArgs = parseArgs(process.argv.slice(2));
 
 if (args.help) {
   printAndExit(HELP);
@@ -55,7 +57,14 @@ if (!dryRun) {
   assertDirectCommandChannel("ai-workflow init");
 }
 
-const plan = [
+interface PlanEntry {
+  source?: string;
+  target: string;
+  content?: string;
+  essential?: boolean;
+}
+
+const plan: PlanEntry[] = [
   {
     source: path.resolve(templatesRoot, "kanban.md"),
     target: path.resolve(targetRoot, "kanban.md"),
@@ -117,9 +126,11 @@ const plan = [
     essential: true
   }
 ];
+
 const runtimeFiles = (await walkFiles(runtimeRoot))
   .map((filePath) => path.relative(runtimeRoot, filePath))
   .sort();
+
 for (const relativeRuntimePath of runtimeFiles) {
   plan.push({
     target: path.resolve(targetRoot, "scripts", "ai-workflow", relativeRuntimePath),
@@ -130,7 +141,21 @@ for (const relativeRuntimePath of runtimeFiles) {
   });
 }
 
-const summary = {
+interface SummaryResult {
+    installed: string[];
+    overwritten: string[];
+    skipped: string[];
+    identical: string[];
+    packageScripts: {
+        installed: string[];
+        overwritten: string[];
+        skipped: string[];
+        identical: string[];
+        error: string | null;
+    };
+}
+
+const summary: SummaryResult = {
   installed: [],
   overwritten: [],
   skipped: [],
@@ -147,8 +172,8 @@ const summary = {
 await mkdir(targetRoot, { recursive: true });
 
 const looksLikeJsProject = await fileExists(path.resolve(targetRoot, "package.json"));
-let syncResult = null;
-let briefResult = null;
+let syncResult: any = null;
+let briefResult: any = null;
 
 const activePlan = plan.filter(entry => installAll || entry.essential);
 
@@ -190,7 +215,7 @@ if (dryRun) {
     await mkdir(path.dirname(entry.target), { recursive: true });
     if (entry.content !== undefined) {
       await writeFile(entry.target, entry.content, "utf8");
-    } else {
+    } else if (entry.source) {
       await copyFile(entry.source, entry.target);
     }
     if (entry.target.endsWith(".ts")) {
@@ -235,7 +260,7 @@ if (dryRun) {
       await mkdir(path.dirname(entry.target), { recursive: true });
       if (entry.content !== undefined) {
         await writeFile(entry.target, entry.content, "utf8");
-      } else {
+      } else if (entry.source) {
         await copyFile(entry.source, entry.target);
       }
       if (entry.target.endsWith(".ts")) {
@@ -278,8 +303,8 @@ if (dryRun) {
     return { syncResult, briefResult };
   }, { syncAfter: false, syncBefore: false });
 
-  syncResult = mutationResult.syncResult;
-  briefResult = mutationResult.briefResult;
+  syncResult = (mutationResult as any).syncResult;
+  briefResult = (mutationResult as any).briefResult;
 }
 
 const lines = [];
@@ -357,46 +382,9 @@ if (briefResult) {
 
 process.stdout.write(`${lines.join("\n")}\n`);
 
-function parseArgs(argv) {
-  const parsed = {};
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-
-    if (!value.startsWith("--")) {
-      continue;
-    }
-
-    const trimmed = value.slice(2);
-    const equalIndex = trimmed.indexOf("=");
-
-    if (equalIndex >= 0) {
-      parsed[trimmed.slice(0, equalIndex)] = trimmed.slice(equalIndex + 1);
-      continue;
-    }
-
-    const nextValue = argv[index + 1];
-    if (nextValue && !nextValue.startsWith("--")) {
-      parsed[trimmed] = nextValue;
-      index += 1;
-      continue;
-    }
-
-    parsed[trimmed] = true;
-  }
-
-  return parsed;
-}
-
-function printAndExit(message, code = 0) {
-  const stream = code === 0 ? process.stdout : process.stderr;
-  stream.write(`${message}\n`);
-  process.exit(code);
-}
-
-async function walkFiles(rootPath) {
+async function walkFiles(rootPath: string): Promise<string[]> {
   const entries = await readdir(rootPath, { withFileTypes: true });
-  const files = [];
+  const files: string[] = [];
 
   for (const entry of entries) {
     const fullPath = path.resolve(rootPath, entry.name);
@@ -414,12 +402,12 @@ async function walkFiles(rootPath) {
   return files;
 }
 
-function buildRuntimeWrapper(relativeRuntimePath) {
+function buildRuntimeWrapper(relativeRuntimePath: string): string {
   const runtimeScriptPath = path.resolve(runtimeRoot, relativeRuntimePath);
   return `#!/usr/bin/env node
 import { spawn } from "node:child_process";
 
-const child = spawn("npx", ["tsx", ${JSON.stringify(runtimeScriptPath)}, ...process.argv.slice(2)], {
+const child = spawn("tsx", [${JSON.stringify(runtimeScriptPath)}, ...process.argv.slice(2)], {
   cwd: process.cwd(),
   env: process.env,
   stdio: "inherit"
@@ -435,8 +423,8 @@ child.on("exit", (code, signal) => {
 `;
 }
 
-async function classifyAction(entry, forceOverwrite) {
-  const sourceContent = entry.content ?? await readFile(entry.source, "utf8");
+async function classifyAction(entry: PlanEntry, forceOverwrite: boolean): Promise<{ type: string }> {
+  const sourceContent = entry.content ?? (entry.source ? await readFile(entry.source, "utf8") : "");
   const targetPath = entry.target;
   const targetRelative = relativeTarget(targetRoot, targetPath);
 
@@ -465,11 +453,11 @@ async function classifyAction(entry, forceOverwrite) {
   return { type: "skip" };
 }
 
-function isManagedProjection(content) {
+function isManagedProjection(content: string): boolean {
   return /Generated from the workflow DB/.test(content) || /_Generated from the workflow DB/.test(content);
 }
 
-async function fileExists(filePath) {
+async function fileExists(filePath: string): Promise<boolean> {
   try {
     const fileStat = await stat(filePath);
     return fileStat.isFile();
@@ -478,17 +466,17 @@ async function fileExists(filePath) {
   }
 }
 
-function relativeTarget(rootPath, targetPath) {
+function relativeTarget(rootPath: string, targetPath: string): string {
   return path.relative(rootPath, targetPath) || ".";
 }
 
-async function reconcilePackageScripts(targetRootPath, packageSummary, options) {
+async function reconcilePackageScripts(targetRootPath: string, packageSummary: SummaryResult['packageScripts'], options: { force: boolean, dryRun: boolean }) {
   const packageJsonPath = path.resolve(targetRootPath, "package.json");
-  let packageJson;
+  let packageJson: any;
 
   try {
     packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
-  } catch (error) {
+  } catch (error: any) {
     packageSummary.error = `Could not parse package.json (${error.message})`;
     return;
   }
@@ -529,8 +517,8 @@ async function reconcilePackageScripts(targetRootPath, packageSummary, options) 
   await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 }
 
-function sortObjectKeys(value) {
+function sortObjectKeys(value: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
-    Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+    Object.entries(value).sort(([left], [right]) => left.compare(right))
   );
 }

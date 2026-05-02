@@ -41,7 +41,7 @@ async function runCommand(command, args, cwd, options = {}) {
 }
 
 export async function runSmartDogfood(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const targetRoot = path.resolve(String(args.target ?? DEFAULT_TARGET));
   const force = Boolean(args.force);
   const trace = [];
@@ -60,7 +60,7 @@ export async function runSmartDogfood(argv = process.argv.slice(2)) {
     }
     await mkdir(targetRoot, { recursive: true });
 
-    const syncResult = await runCommand("npx", ["tsx", CLI_PATH, "sync", "--json"], targetRoot);
+    const syncResult = await runCommand("tsx", [CLI_PATH, "sync", "--json"], targetRoot);
     if (!syncResult.ok) {
       throw new Error(`Initialization failed during sync: ${syncResult.stderr}`);
     }
@@ -69,7 +69,7 @@ export async function runSmartDogfood(argv = process.argv.slice(2)) {
     trace.push({ step: "BUILD", startedAt: Date.now() });
     const prompt = `Build a modular, expandable 3d canvas Space Invaders-style game using emoji ships in "${targetRoot}". Use the normal shell workflow. Include epics, features, modules, planning notes, tests, and a browser app.`;
     console.log(`[smart-dogfood] Building game with prompt: ${prompt}`);
-    const buildResult = await runCommand("npx", ["tsx", CLI_PATH, "shell", "--json", "--yes", "mutate", prompt], targetRoot, { timeout: 300_000 });
+    const buildResult = await runCommand("tsx", [CLI_PATH, "shell", "--json", "--yes", "mutate", prompt], targetRoot, { timeout: 300_000 });
     if (!buildResult.ok) {
       throw new Error(`Build failed: ${buildResult.stderr}`);
     }

@@ -60,7 +60,7 @@ switch (subcommand) {
 
 async function runNew(argv) {
   assertDirectCommandChannel("ai-workflow kanban new");
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const kanbanPath = path.resolve(root, String(args.file ?? "kanban.md"));
   const markdown = await readText(kanbanPath);
@@ -99,7 +99,7 @@ async function runNew(argv) {
 
 async function runMove(argv) {
   assertDirectCommandChannel("ai-workflow kanban move");
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const kanbanPath = path.resolve(root, String(args.file ?? "kanban.md"));
   const ticketId = requireArg(args, "id", HELP);
@@ -131,7 +131,7 @@ async function runMove(argv) {
 }
 
 async function runNext(argv) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const kanbanPath = path.resolve(root, String(args.file ?? "kanban.md"));
   const markdown = await readText(kanbanPath);
@@ -160,7 +160,7 @@ async function runNext(argv) {
 
 async function runArchive(argv) {
   assertDirectCommandChannel("ai-workflow kanban archive");
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const kanbanPath = path.resolve(root, String(args.file ?? "kanban.md"));
   const archivePath = path.resolve(root, String(args.archive ?? "kanban-archive.md"));
@@ -202,7 +202,7 @@ async function runArchive(argv) {
 
 async function runMigrate(argv) {
   assertDirectCommandChannel("ai-workflow kanban migrate");
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
   const kanbanPath = path.resolve(root, String(args.file ?? "kanban.md"));
   const markdown = await readText(kanbanPath);

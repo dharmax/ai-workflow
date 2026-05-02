@@ -1006,7 +1006,7 @@ ${(testResult.stdout || testResult.stderr || "No output").trim()}
 }
 
 export async function runProgrammingDogfood(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
   const targetRoot = path.resolve(String(args.target ?? DEFAULT_TARGET));
   const force = Boolean(args.force);
   const json = Boolean(args.json);

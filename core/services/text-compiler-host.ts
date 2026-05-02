@@ -168,16 +168,25 @@ export async function executeJsOrchestrator(code: string, {
 }: any = {}) {
   const finalRunId = runId ?? stableId("run", prompt, Date.now());
   const actualInitialState = { ...initialState, ...(workflowStore.getWorkflowStateMap?.(finalRunId) ?? {}) };
+  const hookConfig = await loadHookConfig(root);
+  const runtimeServices = await buildLegacyRuntimeServices({ services, workflowStore, root, config: hookConfig });
+  const executableCode = normalizeRawOrchestratorCode(code);
   
   const compiler = new TextCompiler({
     toolkit: new CompilerToolkit(new AiWorkflowPromptExecutor(root))
   });
-  compiler.serviceRegistry.registerBag("shell", services);
+  
+  // Register each service group individually to maintain nested structure
+  for (const [groupName, bag] of Object.entries(services)) {
+    if (bag && typeof bag === "object") {
+        compiler.serviceRegistry.registerBag(groupName, bag as Record<string, any>);
+    }
+  }
 
   workflowStore.upsertWorkflowRun({ id: finalRunId, prompt, code, status: "running", result: null });
 
   const result = await compiler.executeRaw(
-    code,
+    executableCode,
     {
       sessionId: finalRunId,
       sessionState: actualInitialState,
@@ -188,7 +197,7 @@ export async function executeJsOrchestrator(code: string, {
     },
     {
       ...buildRuntimeToolkitOverrides({ workflowStore, runId: finalRunId, traceWorkflow, workflowLogger }),
-      services: { ...services, db: workflowStore }
+      services: runtimeServices
     }
   );
 
@@ -196,6 +205,83 @@ export async function executeJsOrchestrator(code: string, {
 
   if (!result.success) throw new Error(result.errorReport);
   return { runId: finalRunId, ok: true, result: result.output };
+}
+
+async function loadHookConfig(root: string) {
+  const [{ config: projectConfig }, { config: globalConfig }] = await Promise.all([
+    readConfigSafe(getProjectConfigPath(root)),
+    readConfigSafe(getGlobalConfigPath())
+  ]);
+
+  return {
+    ...globalConfig,
+    ...projectConfig,
+    hooks: {
+      ...(globalConfig?.hooks ?? {}),
+      ...(projectConfig?.hooks ?? {})
+    }
+  };
+}
+
+async function buildLegacyRuntimeServices({
+  services,
+  workflowStore,
+  root,
+  config
+}: {
+  services: Record<string, any>;
+  workflowStore: any;
+  root: string;
+  config: Record<string, any>;
+}) {
+  const runtimeServices: Record<string, any> = { db: workflowStore };
+
+  for (const [groupName, bag] of Object.entries(services)) {
+    if (bag && typeof bag.execute === "function") {
+      runtimeServices[groupName] = async (...args: any[]) => {
+        if (groupName !== "shell" || typeof args[0] !== "string") {
+          return bag.execute(...args);
+        }
+
+        const hookContext = await runHooks("BeforeAction", {
+          root,
+          config,
+          context: {
+            actionType: "shell",
+            prompt: args[0]
+          }
+        });
+        const nextPrompt = typeof hookContext?.prompt === "string" ? hookContext.prompt : args[0];
+        return bag.execute(nextPrompt, ...args.slice(1));
+      };
+      continue;
+    }
+
+    runtimeServices[groupName] = bag;
+  }
+
+  return runtimeServices;
+}
+
+function normalizeRawOrchestratorCode(code: string) {
+  const trimmed = String(code ?? "").trim();
+  const invokeUserCode = trimmed.startsWith("async") || trimmed.startsWith("function")
+    ? `const __result = await (${trimmed}).call(this);`
+    : [
+        "const __result = await (async () => {",
+        code,
+        "}).call(this);"
+      ].join("\n");
+
+  return [
+    "async function __aiWorkflowCompatWrapper() {",
+    `  ${invokeUserCode}`,
+    "  if (__result && typeof __result === 'object' && ('status' in __result || 'data' in __result || 'snapshot' in __result)) {",
+    "    return __result;",
+    "  }",
+    "  return { status: 'completed', data: __result };",
+    "}"
+  ].join("\n");
 }
 
 function buildRuntimeToolkitOverrides({

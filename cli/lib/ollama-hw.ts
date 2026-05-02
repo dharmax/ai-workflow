@@ -22,7 +22,7 @@ const HARDWARE_CLASS_TO_SIZE = {
 const HARDWARE_ORDER = ["tiny", "small", "medium", "large"];
 
 export async function handleSetOllamaHw(rest, { root = process.cwd() } = {}) {
-  const args = parseArgs(rest);
+  const args: any = parseArgs(rest);
   if (args.help) {
     printAndExit(SET_OLLAMA_HW_HELP.trim());
   }

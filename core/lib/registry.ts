@@ -24,7 +24,7 @@ export const SEMANTICS = {
     TEMPLATES: ["templates", "blueprints", "scaffolding"]
   },
   EXTENSIONS: {
-    CODE: [".js", ".mjs", ".ts", ".mts", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp"],
+    CODE: [".ts", ".ts", ".ts", ".mts", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp"],
     STYLE: [".css", ".scss", ".less", ".styl"],
     MARKUP: [".html", ".riot", ".vue", ".svelte", ".xml"],
     DATA: [".json", ".yaml", ".yml", ".toml"],

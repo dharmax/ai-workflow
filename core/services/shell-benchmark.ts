@@ -392,7 +392,7 @@ function shellQuote(value) {
 async function runNodeProcess({ cwd, args, timeoutMs }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn("npx", ["tsx", ...args], {
+    const child = spawn("tsx", [...args], {
       cwd,
       env: {
         ...process.env,

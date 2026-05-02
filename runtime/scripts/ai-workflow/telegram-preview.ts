@@ -3,7 +3,7 @@
 import { parseArgs } from "./lib/cli.ts";
 import { buildTelegramPreview } from "../../../core/services/telegram.ts";
 
-const args = parseArgs(process.argv.slice(2));
+const args: any = parseArgs(process.argv.slice(2));
 const preview = await buildTelegramPreview({ projectRoot: process.cwd() });
 
 if (args.json) {

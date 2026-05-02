@@ -32,7 +32,7 @@ Options:
 `;
 
 export async function runVerificationSummary(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
+  const args: any = parseArgs(argv);
 
   if (args.help) {
     return outputAndExit(HELP);

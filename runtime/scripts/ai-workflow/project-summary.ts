@@ -3,7 +3,7 @@
 import { parseArgs } from "./lib/cli.ts";
 import { getProjectSummary } from "../../../core/services/sync.ts";
 
-const args = parseArgs(process.argv.slice(2));
+const args: any = parseArgs(process.argv.slice(2));
 const summary = await getProjectSummary({ projectRoot: process.cwd() });
 
 if (args.json) {

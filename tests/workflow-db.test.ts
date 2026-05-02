@@ -78,15 +78,15 @@ test("syncProject repairs malformed epic placeholders even when the file snapsho
       store.upsertEntity(buildTicketEntity({
         id: "EPIC-SETTINGS-001",
         title: "AI Provider Settings & Configuration Flow",
-        lane: "Todo",
-        epicId: "true",
+        lane: "Todo" as any,
+        epicId: "true" as any,
         summary: ""
       }));
       store.upsertEntity(buildTicketEntity({
         id: "TKT-SETTINGS-001",
         title: "Add separate tabs for local and paid providers in AI settings",
-        lane: "Todo",
-        epicId: "EPIC-SETTINGS-001",
+        lane: "Todo" as any,
+        epicId: "EPIC-SETTINGS-001" as any,
         summary: "Keep provider settings grouped by capability."
       }));
     });
@@ -99,7 +99,7 @@ test("syncProject repairs malformed epic placeholders even when the file snapsho
     assert.equal(epics.some((item) => item.id === "true"), false);
     assert.equal(epics.some((item) => item.id === "EPIC-SETTINGS-001"), true);
 
-    const repairedEpic = await getEpic({ projectRoot: targetRoot, epicId: "EPIC-SETTINGS-001" });
+    const repairedEpic = await getEpic({ projectRoot: targetRoot, epicId: "EPIC-SETTINGS-001" as any });
     assert.equal(repairedEpic?.title, "AI Provider Settings & Configuration Flow");
     assert.equal(repairedEpic?.linkedTickets.some((ticket) => ticket.id === "TKT-SETTINGS-001"), true);
 
@@ -176,7 +176,7 @@ test("syncProject archives low-signal opaque synthetic tickets so they do not po
       store.upsertEntity(buildTicketEntity({
         id: "2a5f10962269f7154a11336ae784527a4518f7ab",
         title: "Leaderboards Feature",
-        lane: "Todo",
+        lane: "Todo" as any,
         summary: ""
       }));
     });
@@ -666,7 +666,7 @@ test("epic projections stay narrative-first and epic/story queries resolve throu
       store.upsertEntity(buildTicketEntity({
         id: "TKT-200",
         title: "Wire direct-edit reconciliation",
-        lane: "Todo",
+        lane: "Todo" as any,
         epicId: "EPC-200",
         summary: "Keep the drift flow tied to the epic.",
         userStory: "As a user, I can edit epics.md or kanban.md directly and have ai-workflow detect drift before it overwrites my change."
@@ -744,7 +744,7 @@ test("shadow sync does not promote tickets on loose keyword overlap alone", asyn
       store.upsertEntity(buildTicketEntity({
         id: "TKT-555",
         title: "Shared router workflow provider migration",
-        lane: "Todo",
+        lane: "Todo" as any,
         summary: "Should stay Todo without explicit evidence."
       }));
     });

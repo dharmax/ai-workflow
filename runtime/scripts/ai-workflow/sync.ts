@@ -3,7 +3,7 @@
 import { parseArgs } from "./lib/cli.ts";
 import { syncProject } from "../../../core/services/sync.ts";
 
-const args = parseArgs(process.argv.slice(2));
+const args: any = parseArgs(process.argv.slice(2));
 const result = await syncProject({
   projectRoot: process.cwd(),
   writeProjections: Boolean(args["write-projections"])

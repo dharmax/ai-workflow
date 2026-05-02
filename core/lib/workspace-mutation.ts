@@ -34,7 +34,7 @@ export async function withWorkspaceMutation(root, operation, callback, { writePr
 
   guardDepth += 1;
   try {
-    const startedAt = new Date().toISOString();
+    const startedAt: string = new Date().toISOString();
     const before = await probeWorkspaceState(root).catch(() => ({
       gitRepo: false,
       dirty: true,
