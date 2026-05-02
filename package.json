@@ -30,12 +30,12 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@dharmax/codebase-parser": "file:../codebase-parser",
-    "@dharmax/block-patcher": "file:../block-patcher",
-    "@dharmax/text-compiler": "file:../text-compiler",
-    "@dharmax/context-manager": "file:../context-manager",
-    "@dharmax/llm-utils": "file:../llm-utils",
-    "@dharmax/shell-proc-utils": "file:../shell-proc-utils"
+    "@dharmax/codebase-parser": "github:dharmax/codebase-parser",
+    "@dharmax/block-patcher": "github:dharmax/block-patcher",
+    "@dharmax/text-compiler": "github:dharmax/text-compiler",
+    "@dharmax/context-manager": "github:dharmax/context-manager",
+    "@dharmax/llm-utils": "github:dharmax/llm-utils",
+    "@dharmax/shell-proc-utils": "github:dharmax/shell-proc-utils"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
