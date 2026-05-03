@@ -198,6 +198,40 @@ test("syncProject archives low-signal opaque synthetic tickets so they do not po
   }
 });
 
+test("syncProject archives malformed synthetic [object Object] tickets before shell surfaces can retrieve them", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-malformed-ticket-repair-"));
+
+  try {
+    await mkdir(targetRoot, { recursive: true });
+    await writeFile(path.join(targetRoot, "package.json"), JSON.stringify({ name: "malformed-ticket-repair", type: "module" }, null, 2), "utf8");
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity(buildTicketEntity({
+        id: "TKT-AUTO-OBJECT-OBJECT-001",
+        title: "[object Object]",
+        lane: "Todo" as any,
+        summary: ""
+      }));
+    });
+
+    const result = await syncProject({ projectRoot: targetRoot, writeProjections: true });
+    assert.equal(result.integrityRepair.archivedOpaqueSyntheticTickets, 1);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const ticket = store.getEntity("TKT-AUTO-OBJECT-OBJECT-001");
+      assert.equal(ticket?.state, "archived");
+      assert.equal(ticket?.lane, "Archived");
+      assert.equal(ticket?.data?.archivedReason, "malformed synthetic ticket with no supporting workflow context");
+    });
+
+    const kanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    assert.doesNotMatch(kanban, /\[object Object\]/);
+
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("syncProject retires stale auto-assessments and limits kanban assessment noise", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-assessment-hygiene-"));
 

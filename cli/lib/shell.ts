@@ -62,7 +62,8 @@ const SHELL_REFERENTIAL_TOKENS = new Set([
   "first"
 ]);
 
-const MUTATING_ACTIONS = new Set(["sync", "add_note", "create_ticket", "set_ollama_hw", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix"]);
+const MUTATING_ACTIONS = new Set(["sync", "add_note", "create_ticket", "set_ollama_hw", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix", "provider_connect", "set_provider_key", "config"]);
+const WORKFLOW_GATED_MUTATIONS = new Set(["add_note", "create_ticket", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix", "run_codelet"]);
 const FAST_DIRECT_ACTIONS = new Set([
   "project_summary",
   "list_tickets",
@@ -353,15 +354,18 @@ async function tryRunShellFastPath(inputText, options) {
   if (options.trace) {
     return null;
   }
-  const normalized = normalizeConversationText(inputText);
-  const allowNoAiFastReply = /^(doctor|doctor help|help doctor|epic|epics|can you write an epic|could you write an epic|would you write an epic|please write an epic)$/.test(normalized);
-  if (options.noAi && !allowNoAiFastReply) {
+  const plannerContext = await buildFastShellContext(options.root);
+  const plan = options.noAi
+    ? buildStrictNoAiShellPlan(inputText, plannerContext, {
+      activeGraphState: options.activeGraphState ?? null
+    })
+    : planShellRequestHeuristically(inputText, plannerContext, {
+      activeGraphState: options.activeGraphState ?? null
+    });
+
+  if (!plan) {
     return null;
   }
-  const plannerContext = await buildFastShellContext(options.root);
-  const plan = planShellRequestHeuristically(inputText, plannerContext, {
-    activeGraphState: options.activeGraphState ?? null
-  });
 
   if (isFastShellReplyPlan(plan)) {
     return {
@@ -918,25 +922,11 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
   const planners = [];
   const providers = route.providers ?? {};
   const ollamaProvider = providers.ollama;
+  const localUnavailableWarning = ollamaProvider?.configured && !ollamaProvider.available
+    ? `Local Ollama planner is configured at ${ollamaProvider.host ?? "the configured host"} but unavailable. Falling back to a routeable remote planner.`
+    : null;
 
-  if (ollamaProvider?.configured && !ollamaProvider.available) {
-    return {
-      planners: [],
-      heuristic: {
-        mode: "local-unavailable",
-        reason: `Local Ollama planner is configured at ${ollamaProvider.host ?? "the configured host"} but unavailable. Restore local access before remote escalation.`
-      }
-    };
-  }
-
-  if (route.recommended) {
-    const mapped = mapRouteCandidateToPlanner(route.recommended, providers);
-    if (isEligibleShellPlanner(mapped, providers)) {
-      planners.push(mapped);
-    }
-  }
-
-  if (!planners.length && ollamaProvider?.available) {
+  if (ollamaProvider?.available) {
     try {
       const localShellModel = chooseShellPlannerModel(ollamaProvider);
       planners.push({
@@ -949,6 +939,13 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
       });
     } catch {
       // keep route-derived planners only
+    }
+  }
+
+  if (route.recommended) {
+    const mapped = mapRouteCandidateToPlanner(route.recommended, providers);
+    if (isEligibleShellPlanner(mapped, providers)) {
+      planners.push(mapped);
     }
   }
 
@@ -968,6 +965,13 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
     }
     seen.add(key);
     deduped.push(planner);
+  }
+
+  if (localUnavailableWarning && deduped.length) {
+    deduped[0] = {
+      ...deduped[0],
+      configWarnings: [...(deduped[0].configWarnings ?? []), localUnavailableWarning]
+    };
   }
 
   // Ensure at least one remote model is in the chain as a final safety net
@@ -992,8 +996,8 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
   return {
     planners: deduped,
     heuristic: {
-      mode: "heuristic",
-      reason: "No available AI models for shell planning."
+      mode: localUnavailableWarning ? "local-unavailable" : "heuristic",
+      reason: localUnavailableWarning ?? "No available AI models for shell planning."
     }
   };
 }
@@ -1076,6 +1080,21 @@ export async function planShellRequest(inputText, options) {
 }
 
 async function planSingleRequest(inputText, options) {
+  if (options.noAi) {
+    const strictNoAiPlan = buildStrictNoAiShellPlan(inputText, options.plannerContext, {
+      activeGraphState: options.activeGraphState ?? null
+    });
+    if (strictNoAiPlan) {
+      return normalizeShellPlanEnvelope({
+        ...strictNoAiPlan,
+        planner: {
+          mode: "heuristic-forced",
+          reason: strictNoAiPlan.reason
+        }
+      }, inputText, options.plannerContext);
+    }
+  }
+
   const intent = analyzeShellIntent(inputText, options.plannerContext);
   const routing = routeShellIntent(intent);
   const heuristic = planShellRequestHeuristically(inputText, options.plannerContext, {
@@ -1821,6 +1840,9 @@ function inferShellFollowUpMode({ inputText = "", activeGraphState = null, plann
   if (strongStandaloneIntent && !shortElliptical) {
     return "new-request";
   }
+  if (standaloneTarget && !asksRevision && !asksResultQuestion && !referential) {
+    return "new-request";
+  }
 
   if (asksRevision) {
     return "revise-prior-answer";
@@ -1989,6 +2011,78 @@ function buildHeuristicSemanticFallbackPlan(inputText, plannerContext = {}) {
     "I can still inspect project status, search the repo, explain shell surfaces, or extract ticket context.",
     "Examples: `what's the status of this project?`, `tell me about the shell`, `search router`, `ticket TKT-001`, `route shell-planning`."
   ].join("\n"), 0.42, "Semantic fallback could not resolve a concrete target.");
+}
+
+function buildStrictNoAiShellPlan(inputText, plannerContext = {}, options = {}) {
+  const text = String(inputText ?? "").trim();
+  if (!text) {
+    return replyPlan(renderStrictNoAiReply(), 0.98, "No-AI mode requires an explicit shell primitive.");
+  }
+
+  const normalized = normalizeConversationText(text);
+  if (["help", "/help", "doctor help", "help doctor"].includes(normalized)) {
+    return replyPlan(renderShellHelp(plannerContext), 0.99, "Explicit help request in strict no-AI mode.");
+  }
+
+  const explicitPlan = buildExplicitShellCommandPlan(text, text.toLowerCase(), plannerContext, {
+    activeGraphState: options.activeGraphState ?? null
+  });
+  if (explicitPlan) {
+    return explicitPlan;
+  }
+
+  if (normalized === "doctor") {
+    return actionPlan([{ type: "doctor" }], 1, "Explicit doctor request.");
+  }
+  if (normalized === "provider status") {
+    return actionPlan([{ type: "provider_status" }], 1, "Explicit provider status request.");
+  }
+  if (normalized === "version") {
+    return actionPlan([{ type: "version" }], 1, "Explicit version request.");
+  }
+  if (normalized === "project summary" || normalized === "summary" || normalized === "status") {
+    return actionPlan([{ type: "project_summary" }], 1, "Explicit project summary request.");
+  }
+  if (normalized === "list tickets") {
+    return actionPlan([{ type: "list_tickets" }], 1, "Explicit ticket listing request.");
+  }
+  if (normalized === "sync") {
+    return actionPlan([{ type: "sync" }], 1, "Explicit sync request.");
+  }
+  if (/^set-ollama-hw\b/i.test(text)) {
+    return actionPlan([{
+      type: "set_ollama_hw",
+      global: /\s--global\b/.test(text)
+    }], 1, "Explicit Ollama hardware setup request.");
+  }
+  if (/^set-provider-key\s+([a-z0-9_-]+)(.*)$/i.test(text)) {
+    const match = text.match(/^set-provider-key\s+([a-z0-9_-]+)(.*)$/i);
+    return actionPlan([{
+      type: "set_provider_key",
+      providerId: match[1].toLowerCase(),
+      global: /\s--global\b/.test(match[2])
+    }], 1, "Explicit provider key setup request.");
+  }
+  if (/^config\s+(get|set|unset|clear)\b(.*)$/i.test(text)) {
+    const match = text.match(/^config\s+(get|set|unset|clear)\b(.*)$/i);
+    const args = match[2].trim().split(/\s+/).filter(Boolean);
+    return actionPlan([{
+      type: "config",
+      action: match[1].toLowerCase(),
+      key: args[0] ?? null,
+      value: args[1] ?? null,
+      global: match[2].includes("--global")
+    }], 1, "Explicit config request.");
+  }
+
+  return replyPlan(renderStrictNoAiReply(), 0.98, "No-AI mode rejected a non-primitive request.");
+}
+
+function renderStrictNoAiReply() {
+  return [
+    "AI planning is unavailable in `--no-ai` mode for broad natural-language requests.",
+    "Use an explicit shell primitive instead: `doctor`, `provider status`, `version`, `help`, `project summary`, `list tickets`, `search <text>`, `extract ticket <id>`, `route <task-class>`, `sync`, `set-ollama-hw`, `set-provider-key <provider>`, or `config <get|set|unset|clear> ...`."
+  ].join("\n");
 }
 
 function buildCapabilityRoutingPlan(inputText, plannerContext = {}) {
@@ -4521,13 +4615,13 @@ export async function runShellTurn(inputText, options) {
     };
   }
 
-  const mutationActions = Array.isArray(plan.actions) ? plan.actions.filter((action) => isMutatingAction(action)) : [];
-  if (mutationActions.length) {
+  const workflowGatedActions = Array.isArray(plan.actions) ? plan.actions.filter((action) => requiresWorkflowTicketGate(action)) : [];
+  if (workflowGatedActions.length) {
     const inProgress = (runtimeOptions.plannerContext?.summary?.activeTickets ?? []).filter((ticket) => ticket.lane === "In Progress");
     if (inProgress.length !== 1) {
       const reply = [
         "Mutating shell work requires exactly one ticket in In Progress.",
-        mutationActions.map((action) => `- planned: ${action.type}`).join("\n"),
+        workflowGatedActions.map((action) => `- planned: ${action.type}`).join("\n"),
         "Move the target ticket to In Progress first.",
         ...(runtimeOptions.plannerContext?.summary?.activeTickets ?? []).map((ticket) => `- ${ticket.id}: ${ticket.lane}`)
       ].join("\n");
@@ -6700,6 +6794,13 @@ function isMutatingAction(action) {
   return MUTATING_ACTIONS.has(action.type);
 }
 
+function requiresWorkflowTicketGate(action) {
+  if (action?.type === "run_codelet") {
+    return true;
+  }
+  return WORKFLOW_GATED_MUTATIONS.has(action?.type);
+}
+
 async function ensureMutatingModeForPlan(plan, options) {
   const mutationActions = Array.isArray(plan?.actions) ? plan.actions.filter((action) => isMutatingAction(action)) : [];
   if (!mutationActions.length || options.shellMode === "mutate") {
@@ -8128,7 +8229,7 @@ function inferStatusEntityType(inputText) {
   if (/\bmodule\b/.test(normalized)) return "module";
   if (/\bfeature|flow\b/.test(normalized)) return "feature";
   if (/\bfile\b/.test(normalized)) return "file";
-  if (/\b(symbol|class|function|method|interface|type)\b/.test(normalized)) return "symbol";
+  if (/\b(symbol|function|method|interface|type)\b/.test(normalized)) return "symbol";
   if (/\btest\b/.test(normalized)) return "test";
   if (/\bticket\b/.test(normalized)) return "ticket";
   if (/\bepic\b/.test(normalized)) return "epic";

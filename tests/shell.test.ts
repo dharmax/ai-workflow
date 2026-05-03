@@ -155,7 +155,7 @@ test("resolveShellPlanners keeps local Ollama first even when a remote provider 
   }
 });
 
-test("resolveShellPlanners refuses silent remote fallback when local Ollama is configured but unreachable", async () => {
+test("resolveShellPlanners falls back to a remote planner when local Ollama is configured but unreachable", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-local-unreachable-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -182,8 +182,9 @@ test("resolveShellPlanners refuses silent remote fallback when local Ollama is c
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.deepEqual(planners.planners, []);
-    assert.match(planners.heuristic.reason, /Restore local access before remote escalation/i);
+    assert.notEqual(planners.planners[0]?.providerId, "ollama");
+    assert.match(planners.planners[0]?.configWarnings?.[0] ?? "", /configured .* unavailable/i);
+    assert.doesNotMatch(planners.heuristic.reason, /Restore local access before remote escalation/i);
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -1263,8 +1264,8 @@ test("shell planner can answer compound project-grounded questions", async () =>
     planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
   });
   assert.equal(plan.kind, "reply");
-  assert.match(plan.reply, /example-project/);
-  assert.match(plan.reply, /TKT-001/);
+  assert.match(plan.reply, /AI planning is unavailable/i);
+  assert.match(plan.reply, /project summary|list tickets/i);
 });
 
 test("heuristic shell planner can answer setup and troubleshooting questions", () => {
@@ -2126,6 +2127,109 @@ test("runShellTurn executes mutating shell actions in mutating mode", async () =
   }
 });
 
+test("runShellTurn lets sync bypass workflow ticket gating while still respecting mutating mode", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-sync-no-gate-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "shell-sync-no-gate", type: "module" }, null, 2));
+
+  try {
+    const result = await runShellTurn("sync", {
+      root,
+      json: false,
+      yes: true,
+      noAi: true,
+      planOnly: false,
+      shellMode: "mutate",
+      plannerContext: {
+        ...plannerContext,
+        summary: {
+          ...plannerContext.summary,
+          activeTickets: []
+        }
+      },
+      planners: {
+        planners: [],
+        heuristic: { mode: "heuristic", reason: "fallback" }
+      },
+      history: []
+    });
+
+    assert.equal(result.plan.kind, "plan");
+    assert.equal(result.executed.some((item) => item.action.type === "sync" && item.ok), true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runShellTurn rejects broad no-ai prompts instead of inventing a shell target", async () => {
+  const result = await runShellTurn("so...what's up?", {
+    root: repoRoot,
+    json: false,
+    yes: false,
+    noAi: true,
+    planOnly: false,
+    shellMode: "plan",
+    plannerContext,
+    planners: {
+      planners: [],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    },
+    history: []
+  });
+
+  assert.equal(result.plan.kind, "reply");
+  assert.match(result.plan.reply, /AI planning is unavailable/i);
+  assert.match(result.plan.reply, /project summary|list tickets|search <text>/i);
+  assert.doesNotMatch(result.plan.reply, /import-cleanup|status target|continuation/i);
+});
+
+test("runShellTurn treats standalone no-ai prompts as fresh requests instead of stale continuation", async () => {
+  const result = await runShellTurn("which classes do we have in the project?", {
+    root: repoRoot,
+    json: false,
+    yes: false,
+    noAi: true,
+    planOnly: false,
+    shellMode: "plan",
+    plannerContext,
+    planners: {
+      planners: [],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    },
+    history: [],
+    activeGraphState: {
+      request: "inspect old shell work",
+      active: false,
+      focus: {
+        taskClass: "code-generation",
+        subject: "shell continuation work",
+        searchQuery: "cli/lib/shell"
+      },
+      references: {
+        files: ["cli/lib/shell.ts"],
+        modules: ["cli/lib/shell"],
+        graphNodeIds: ["n1"],
+        evidence: ["previous shell search"]
+      },
+      graph: {
+        nodes: [
+          { id: "n1", kind: "action", type: "search", status: "completed", result: { summary: "previous shell search" } }
+        ],
+        branchPath: []
+      },
+      outcome: {
+        planKind: "plan",
+        failed: [],
+        pending: []
+      }
+    }
+  });
+
+  assert.equal(result.plan.kind, "reply");
+  assert.match(result.plan.reply, /AI planning is unavailable/i);
+  assert.doesNotMatch(result.plan.reply, /last graph has already been executed/i);
+});
+
 test("runShellTurn finalizes a verified fix and resolves the current ticket after workflow checks pass", { concurrency: false }, async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-finalize-" + Math.random().toString(36).slice(2));
 
@@ -2183,7 +2287,7 @@ test("runShellTurn finalizes a verified fix and resolves the current ticket afte
   }
 });
 
-test("runShellTurn can set up Ollama without hitting the missing provider_connect handler", async () => {
+test("runShellTurn does not apply workflow ticket gating to explicit config admin primitives", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-ollama-setup-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -2216,20 +2320,18 @@ test("runShellTurn can set up Ollama without hitting the missing provider_connec
   );
 
   try {
-    const result = await runShellTurn("setup ollama", {
+    const result = await runShellTurn("config set providers.ollama.host http://127.0.0.1:11434", {
       root,
       json: false,
-      yes: true,
+      yes: false,
       noAi: true,
       planOnly: false,
-      shellMode: "mutate",
+      shellMode: "plan",
       plannerContext: {
         ...plannerContext,
         summary: {
           ...plannerContext.summary,
-          activeTickets: [
-            { id: "BUG-OVERLAY-01", title: "Restore global overlay handling", lane: "In Progress" }
-          ]
+          activeTickets: []
         }
       },
       planners: {
@@ -2239,10 +2341,9 @@ test("runShellTurn can set up Ollama without hitting the missing provider_connec
       history: []
     });
 
-    assert.equal(result.plan.kind, "plan");
-    assert.equal(result.executed.length, 1);
-    assert.equal(result.executed[0].ok, true);
-    assert.match(result.executed[0].stdout, /Ollama/i);
+    assert.equal(result.plan.kind, "reply");
+    assert.match(result.plan.reply, /mutating mode/i);
+    assert.doesNotMatch(result.plan.reply, /exactly one ticket in In Progress/i);
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -2414,8 +2515,8 @@ test("heuristic continuation replies can reference prior graph state", () => {
   });
 
   assert.equal(plan.kind, "reply");
-  assert.match(plan.reply, /last graph has already been executed/i);
-  assert.match(plan.reply, /Branch path: branch:ifTrue/);
+  assert.match(plan.reply, /could not resolve a concrete project target/i);
+  assert.doesNotMatch(plan.reply, /last graph has already been executed/i);
 });
 
 test("heuristic continuation planning can keep the previous coding focus", () => {

@@ -1464,7 +1464,7 @@ test("non-interactive shell handles version directly", async () => {
   assert.match(stdout, new RegExp(repoRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("one-shot shell request still works when boolean flags come before natural language", async () => {
+test("one-shot shell request with --no-ai rejects broad natural language even when flags come first", async () => {
   const result = await runNode([
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "shell",
@@ -1473,10 +1473,11 @@ test("one-shot shell request still works when boolean flags come before natural 
   ], { cwd: repoRoot });
 
   assert.equal(result.code, 0);
-  assert.match(result.stdout, /inspect project state/i);
+  assert.match(result.stdout, /AI planning is unavailable/i);
+  assert.match(result.stdout, /Use an explicit shell primitive/i);
 });
 
-test("one-shot shell in no-ai mode reports heuristic planning for workplan prompts", async () => {
+test("one-shot shell in no-ai mode rejects workplan prompts unless the operator uses an explicit primitive", async () => {
   const targetRoot = await createShellFixtureProject();
 
   try {
@@ -1488,7 +1489,8 @@ test("one-shot shell in no-ai mode reports heuristic planning for workplan promp
     ], { cwd: targetRoot });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /Start with REF-APP-SHELL-01/i);
+    assert.match(result.stdout, /AI planning is unavailable/i);
+    assert.match(result.stdout, /project summary|list tickets/i);
     assert.match(result.stderr, /\[progress\] planning and running -> heuristic-forced/i);
     assert.doesNotMatch(result.stderr, /\[progress\] planning and running -> (google|openai|ollama):/i);
   } finally {
@@ -1496,7 +1498,7 @@ test("one-shot shell in no-ai mode reports heuristic planning for workplan promp
   }
 });
 
-test("one-shot shell in no-ai mode keeps Telegram kickoff prompts on safe discovery", async () => {
+test("one-shot shell in no-ai mode rejects Telegram kickoff prose and points back to explicit primitives", async () => {
   const result = await runNode([
     path.join(repoRoot, "cli", "ai-workflow.ts"),
     "shell",
@@ -1505,14 +1507,13 @@ test("one-shot shell in no-ai mode keeps Telegram kickoff prompts on safe discov
   ], { cwd: repoRoot });
 
   assert.equal(result.code, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /First inspect the telegram surface/i);
-  assert.match(result.stdout, /Suggested ticket order:/i);
-  assert.doesNotMatch(result.stdout, /No status target matched/i);
+  assert.match(result.stdout, /AI planning is unavailable/i);
+  assert.match(result.stdout, /search <text>|list tickets|route <task-class>/i);
   assert.match(result.stderr, /\[progress\] planning and running -> heuristic-forced/i);
   assert.doesNotMatch(result.stderr, /\[progress\] planning and running -> (google|openai|ollama):/i);
 });
 
-test("one-shot shell can answer current-work questions with related artifacts", async () => {
+test("one-shot shell in no-ai mode rejects broad current-work questions", async () => {
   const targetRoot = await createShellFixtureProject();
 
   try {
@@ -1524,16 +1525,13 @@ test("one-shot shell can answer current-work questions with related artifacts", 
     ], { cwd: targetRoot });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /REF-APP-SHELL-01/);
-    assert.match(result.stdout, /Files: .*modal\.riot.*modal\.e2e\.spec\.ts/i);
-    assert.match(result.stdout, /Review focus/i);
-    assert.doesNotMatch(result.stdout, /Action failed|AI recovery|couldn't map it to CLI actions/i);
+    assert.match(result.stdout, /AI planning is unavailable/i);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });
 
-test("one-shot shell can answer in-progress questions from docs kanban without failure chatter", async () => {
+test("one-shot shell in no-ai mode rejects non-primitive in-progress questions", async () => {
   const targetRoot = await createShellFixtureProject();
 
   try {
@@ -1545,14 +1543,13 @@ test("one-shot shell can answer in-progress questions from docs kanban without f
     ], { cwd: targetRoot });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /REF-APP-SHELL-01/);
-    assert.doesNotMatch(result.stdout, /Action failed|AI recovery|couldn't map it to CLI actions/i);
+    assert.match(result.stdout, /AI planning is unavailable/i);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });
 
-test("one-shot shell can explain the current ticket with artifacts instead of emitting a strategy error", async () => {
+test("one-shot shell in no-ai mode rejects broad ticket explainer prose", async () => {
   const targetRoot = await createShellFixtureProject();
 
   try {
@@ -1564,16 +1561,13 @@ test("one-shot shell can explain the current ticket with artifacts instead of em
     ], { cwd: targetRoot });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /Ticket: REF-APP-SHELL-01/i);
-    assert.match(result.stdout, /Files: .*modal\.riot.*modal\.e2e\.spec\.ts/i);
-    assert.match(result.stdout, /Resume prompt/i);
-    assert.doesNotMatch(result.stdout, /Action failed|AI recovery|couldn't map it to CLI actions/i);
+    assert.match(result.stdout, /AI planning is unavailable/i);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });
 
-test("one-shot shell handles complex goal-driven ticket requests as staged planning instead of shallow status", async () => {
+test("one-shot shell in no-ai mode rejects complex goal-driven ticket prose", async () => {
   const targetRoot = await createShellFixtureProject();
 
   try {
@@ -1600,12 +1594,7 @@ test("one-shot shell handles complex goal-driven ticket requests as staged plann
     ], { cwd: targetRoot });
 
     assert.equal(result.code, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /I treated this as a staged request/i);
-    assert.match(result.stdout, /Ticket: REF-APP-SHELL-01/i);
-    assert.match(result.stdout, /Apply: no/i);
-    assert.match(result.stdout, /Suggested remaining priorities: BETA-STAB-01/i);
-    assert.doesNotMatch(result.stdout, /^Tickets currently in progress:/m);
-    assert.doesNotMatch(result.stdout, /Action failed|AI recovery|couldn't map it to CLI actions/i);
+    assert.match(result.stdout, /AI planning is unavailable/i);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

@@ -381,7 +381,10 @@ function repairWorkflowEntityIntegrity(store) {
       sanitizedTicketTitles += 1;
     }
 
-    if (shouldArchiveLowSignalSyntheticTicket(normalizedTicket, tickets)) {
+    if (shouldArchiveLowSignalSyntheticTicket(normalizedTicket, tickets) || shouldArchiveMalformedSyntheticTicket(normalizedTicket, tickets)) {
+      const archivedReason = shouldArchiveMalformedSyntheticTicket(normalizedTicket, tickets)
+        ? "malformed synthetic ticket with no supporting workflow context"
+        : "opaque synthetic ticket with no supporting workflow context";
       store.upsertEntity({
         ...normalizedTicket,
         lane: "Archived",
@@ -390,7 +393,7 @@ function repairWorkflowEntityIntegrity(store) {
         data: {
           ...nextData,
           previousLane: normalizedTicket.lane ?? "Todo",
-          archivedReason: "opaque synthetic ticket with no supporting workflow context"
+          archivedReason
         }
       });
       archivedOpaqueSyntheticTickets += 1;
@@ -514,6 +517,31 @@ function shouldArchiveLowSignalSyntheticTicket(ticket, tickets) {
     return false;
   }
   if (!/\b(?:Feature|Epic)\b/.test(String(ticket?.title ?? ""))) {
+    return false;
+  }
+  return !tickets.some((candidate) =>
+    candidate.id !== ticket.id
+    && (candidate.parentId === ticket.id || candidate.data?.epic === ticket.id || candidate.data?.parent === ticket.id)
+  );
+}
+
+function shouldArchiveMalformedSyntheticTicket(ticket, tickets) {
+  const title = String(ticket?.title ?? "").trim();
+  if (title !== "[object Object]") {
+    return false;
+  }
+  if (String(ticket?.state ?? "").trim().toLowerCase() !== "open") {
+    return false;
+  }
+  const lane = String(ticket?.lane ?? "").trim().toLowerCase();
+  if (!["todo", "to-do", "todoo"].includes(lane)) {
+    return false;
+  }
+  if (ticket?.parentId || ticket?.data?.epic || ticket?.data?.parent) {
+    return false;
+  }
+  const id = String(ticket?.id ?? "").trim();
+  if (!/^TKT-AUTO-OBJECT-OBJECT-/i.test(id) && String(ticket?.provenance ?? "").trim() !== "manual") {
     return false;
   }
   return !tickets.some((candidate) =>
