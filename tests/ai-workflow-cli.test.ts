@@ -147,6 +147,13 @@ test("ai-workflow doctor reports local diagnostics and ollama absence cleanly", 
   assert.equal(payload.leanCtx.installed, true);
 });
 
+test("ai-workflow doctor text tells the operator the expected lotus Ollama host and setup command", { concurrency: false }, async () => {
+  const result = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "doctor"]);
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /ollama expected shell host: http:\/\/lotus:11434/);
+  assert.match(result.stdout, /set-ollama-hw --global --host http:\/\/lotus:11434/);
+});
+
 test("workflow-audit shared report builder and CLI JSON stay aligned", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-audit-json-"));
 

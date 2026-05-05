@@ -142,6 +142,16 @@ export function renderDoctorReport(report) {
   if (report.ollama.host) {
     lines.push(`ollama host: ${report.ollama.host}`);
   }
+  lines.push("ollama expected shell host: http://lotus:11434");
+  if (report.ollama.host !== "http://lotus:11434") {
+    lines.push("ollama setup hint: run `ai-workflow set-ollama-hw --global --host http://lotus:11434` if `lotus` is the intended local planner host");
+  }
+  if (report.ollama.status === "configured-unreachable") {
+    lines.push("ollama reachability hint: the host is configured but not responding; verify network reachability to `http://lotus:11434` and rerun `ai-workflow doctor`");
+  }
+  if (report.ollama.status === "missing") {
+    lines.push("ollama setup hint: local shell planning is expected on `http://lotus:11434`; configure it with `ai-workflow set-ollama-hw --global --host http://lotus:11434`");
+  }
 
   if (report.ollama.models.length) {
     lines.push("ollama models:");

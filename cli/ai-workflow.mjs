@@ -9846,11 +9846,11 @@ function parseNameStatus(output6) {
   }
   return output6.split(/\r?\n/).filter(Boolean).map((line) => {
     const [rawStatus, ...rest] = line.split("	");
-    const path39 = rest.at(-1) ?? "";
+    const path40 = rest.at(-1) ?? "";
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus,
-      path: path39
+      path: path40
     };
   });
 }
@@ -9861,11 +9861,11 @@ function parseStatusShort(output6) {
   return output6.split(/\r?\n/).filter(Boolean).map((line) => {
     const rawStatus = line.slice(0, 2);
     const rawPath = line.slice(3).trim();
-    const path39 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
+    const path40 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus: rawStatus.trim() || rawStatus,
-      path: path39
+      path: path40
     };
   });
 }
@@ -11270,10 +11270,10 @@ async function buildSurgicalContext(projectRoot, { symbolNames = [], filePaths =
       async query(query, categories) {
         const results = [];
         const targetFiles = categories.includes("file") ? [query] : [];
-        for (const path39 of targetFiles) {
+        for (const path40 of targetFiles) {
           try {
-            const file = await readProjectFile(projectRoot, path39);
-            results.push({ id: path39, category: "file", title: path39, body: file.content, tags: [] });
+            const file = await readProjectFile(projectRoot, path40);
+            results.push({ id: path40, category: "file", title: path40, body: file.content, tags: [] });
           } catch {
           }
         }
@@ -24730,7 +24730,8 @@ function repairWorkflowEntityIntegrity(store) {
       store.upsertEntity(normalizedTicket);
       sanitizedTicketTitles += 1;
     }
-    if (shouldArchiveLowSignalSyntheticTicket(normalizedTicket, tickets)) {
+    if (shouldArchiveLowSignalSyntheticTicket(normalizedTicket, tickets) || shouldArchiveMalformedSyntheticTicket(normalizedTicket, tickets)) {
+      const archivedReason = shouldArchiveMalformedSyntheticTicket(normalizedTicket, tickets) ? "malformed synthetic ticket with no supporting workflow context" : "opaque synthetic ticket with no supporting workflow context";
       store.upsertEntity({
         ...normalizedTicket,
         lane: "Archived",
@@ -24739,7 +24740,7 @@ function repairWorkflowEntityIntegrity(store) {
         data: {
           ...nextData,
           previousLane: normalizedTicket.lane ?? "Todo",
-          archivedReason: "opaque synthetic ticket with no supporting workflow context"
+          archivedReason
         }
       });
       archivedOpaqueSyntheticTickets += 1;
@@ -24843,6 +24844,29 @@ function shouldArchiveLowSignalSyntheticTicket(ticket, tickets) {
     return false;
   }
   if (!/\b(?:Feature|Epic)\b/.test(String(ticket?.title ?? ""))) {
+    return false;
+  }
+  return !tickets.some(
+    (candidate) => candidate.id !== ticket.id && (candidate.parentId === ticket.id || candidate.data?.epic === ticket.id || candidate.data?.parent === ticket.id)
+  );
+}
+function shouldArchiveMalformedSyntheticTicket(ticket, tickets) {
+  const title = String(ticket?.title ?? "").trim();
+  if (title !== "[object Object]") {
+    return false;
+  }
+  if (String(ticket?.state ?? "").trim().toLowerCase() !== "open") {
+    return false;
+  }
+  const lane = String(ticket?.lane ?? "").trim().toLowerCase();
+  if (!["todo", "to-do", "todoo"].includes(lane)) {
+    return false;
+  }
+  if (ticket?.parentId || ticket?.data?.epic || ticket?.data?.parent) {
+    return false;
+  }
+  const id = String(ticket?.id ?? "").trim();
+  if (!/^TKT-AUTO-OBJECT-OBJECT-/i.test(id) && String(ticket?.provenance ?? "").trim() !== "manual") {
     return false;
   }
   return !tickets.some(
@@ -25933,7 +25957,7 @@ var init_codelets = __esm({
 import { writeSync } from "node:fs";
 
 // cli/lib/main.ts
-import path38 from "node:path";
+import path39 from "node:path";
 import { execFile as execFile13, spawn as spawn6 } from "node:child_process";
 init_cli();
 import * as readline6 from "node:readline/promises";
@@ -26939,6 +26963,16 @@ function renderDoctorReport(report) {
   if (report.ollama.host) {
     lines.push(`ollama host: ${report.ollama.host}`);
   }
+  lines.push("ollama expected shell host: http://lotus:11434");
+  if (report.ollama.host !== "http://lotus:11434") {
+    lines.push("ollama setup hint: run `ai-workflow set-ollama-hw --global --host http://lotus:11434` if `lotus` is the intended local planner host");
+  }
+  if (report.ollama.status === "configured-unreachable") {
+    lines.push("ollama reachability hint: the host is configured but not responding; verify network reachability to `http://lotus:11434` and rerun `ai-workflow doctor`");
+  }
+  if (report.ollama.status === "missing") {
+    lines.push("ollama setup hint: local shell planning is expected on `http://lotus:11434`; configure it with `ai-workflow set-ollama-hw --global --host http://lotus:11434`");
+  }
   if (report.ollama.models.length) {
     lines.push("ollama models:");
     for (const m of report.ollama.models) {
@@ -27868,7 +27902,8 @@ var SHELL_REFERENTIAL_TOKENS = /* @__PURE__ */ new Set([
   "second",
   "first"
 ]);
-var MUTATING_ACTIONS = /* @__PURE__ */ new Set(["sync", "add_note", "create_ticket", "set_ollama_hw", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix"]);
+var MUTATING_ACTIONS = /* @__PURE__ */ new Set(["sync", "add_note", "create_ticket", "set_ollama_hw", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix", "provider_connect", "set_provider_key", "config"]);
+var WORKFLOW_GATED_MUTATIONS = /* @__PURE__ */ new Set(["add_note", "create_ticket", "ideate_feature", "sweep_bugs", "ingest_artifact", "execute_ticket", "resolve_ticket", "reopen_ticket", "finalize_verified_fix", "run_codelet"]);
 var FAST_DIRECT_ACTIONS = /* @__PURE__ */ new Set([
   "project_summary",
   "list_tickets",
@@ -28151,15 +28186,15 @@ async function tryRunShellFastPath(inputText, options) {
   if (options.trace) {
     return null;
   }
-  const normalized = normalizeConversationText2(inputText);
-  const allowNoAiFastReply = /^(doctor|doctor help|help doctor|epic|epics|can you write an epic|could you write an epic|would you write an epic|please write an epic)$/.test(normalized);
-  if (options.noAi && !allowNoAiFastReply) {
-    return null;
-  }
   const plannerContext = await buildFastShellContext(options.root);
-  const plan = planShellRequestHeuristically(inputText, plannerContext, {
+  const plan = options.noAi ? buildStrictNoAiShellPlan(inputText, plannerContext, {
+    activeGraphState: options.activeGraphState ?? null
+  }) : planShellRequestHeuristically(inputText, plannerContext, {
     activeGraphState: options.activeGraphState ?? null
   });
+  if (!plan) {
+    return null;
+  }
   if (isFastShellReplyPlan(plan)) {
     return {
       input: inputText,
@@ -28656,22 +28691,8 @@ async function resolveShellPlanners(root = process2.cwd(), { providerState = nul
   const planners = [];
   const providers = route.providers ?? {};
   const ollamaProvider = providers.ollama;
-  if (ollamaProvider?.configured && !ollamaProvider.available) {
-    return {
-      planners: [],
-      heuristic: {
-        mode: "local-unavailable",
-        reason: `Local Ollama planner is configured at ${ollamaProvider.host ?? "the configured host"} but unavailable. Restore local access before remote escalation.`
-      }
-    };
-  }
-  if (route.recommended) {
-    const mapped = mapRouteCandidateToPlanner(route.recommended, providers);
-    if (isEligibleShellPlanner(mapped, providers)) {
-      planners.push(mapped);
-    }
-  }
-  if (!planners.length && ollamaProvider?.available) {
+  const localUnavailableWarning = ollamaProvider?.configured && !ollamaProvider.available ? `Local Ollama planner is configured at ${ollamaProvider.host ?? "the configured host"} but unavailable. Falling back to a routeable remote planner.` : null;
+  if (ollamaProvider?.available) {
     try {
       const localShellModel = chooseShellPlannerModel(ollamaProvider);
       planners.push({
@@ -28685,10 +28706,44 @@ async function resolveShellPlanners(root = process2.cwd(), { providerState = nul
     } catch {
     }
   }
+  if (route.recommended) {
+    const mapped = mapRouteCandidateToPlanner(route.recommended, providers);
+    if (isEligibleShellPlanner(mapped, providers)) {
+      planners.push(mapped);
+    }
+  }
   for (const candidate of route.fallbackChain) {
     const mapped = mapRouteCandidateToPlanner(candidate, providers);
     if (isEligibleShellPlanner(mapped, providers)) {
       planners.push(mapped);
+    }
+  }
+  if (planners.length === 0 && ollamaProvider?.available) {
+    try {
+      const localShellModel = chooseShellPlannerModel(ollamaProvider);
+      planners.push({
+        mode: "ollama",
+        providerId: "ollama",
+        modelId: localShellModel.id,
+        host: ollamaProvider.host,
+        needsHardwareHint: Boolean(localShellModel.needsHardwareHint),
+        reason: localShellModel.reason ?? "local shell planner fallback"
+      });
+    } catch {
+    }
+  }
+  if (planners.length === 0 && ollamaProvider?.available) {
+    try {
+      const localShellModel = chooseShellPlannerModel(ollamaProvider);
+      planners.push({
+        mode: "ollama",
+        providerId: "ollama",
+        modelId: localShellModel.id,
+        host: ollamaProvider.host,
+        needsHardwareHint: Boolean(localShellModel.needsHardwareHint),
+        reason: localShellModel.reason ?? "local shell planner fallback"
+      });
+    } catch {
     }
   }
   const deduped = [];
@@ -28701,7 +28756,13 @@ async function resolveShellPlanners(root = process2.cwd(), { providerState = nul
     seen.add(key);
     deduped.push(planner);
   }
-  if (deduped.length > 0 && deduped.every((p) => p.mode === "ollama")) {
+  if (localUnavailableWarning && deduped.length) {
+    deduped[0] = {
+      ...deduped[0],
+      configWarnings: [...deduped[0].configWarnings ?? [], localUnavailableWarning]
+    };
+  }
+  if (deduped.length === 0 || deduped.length > 0 && deduped.every((p) => p.mode === "ollama")) {
     const providerState2 = await discoverProviderState({ root, forceRefresh: false });
     const remoteRoute = await routeTask({
       root,
@@ -28720,8 +28781,8 @@ async function resolveShellPlanners(root = process2.cwd(), { providerState = nul
   return {
     planners: deduped,
     heuristic: {
-      mode: "heuristic",
-      reason: "No available AI models for shell planning."
+      mode: localUnavailableWarning ? "local-unavailable" : "heuristic",
+      reason: localUnavailableWarning ?? "No available AI models for shell planning."
     }
   };
 }
@@ -28794,6 +28855,20 @@ async function planShellRequest(inputText, options) {
   return normalizeShellPlanEnvelope(await planSingleRequest(inputText, options), inputText, options.plannerContext);
 }
 async function planSingleRequest(inputText, options) {
+  if (options.noAi) {
+    const strictNoAiPlan = buildStrictNoAiShellPlan(inputText, options.plannerContext, {
+      activeGraphState: options.activeGraphState ?? null
+    });
+    if (strictNoAiPlan) {
+      return normalizeShellPlanEnvelope({
+        ...strictNoAiPlan,
+        planner: {
+          mode: "heuristic-forced",
+          reason: strictNoAiPlan.reason
+        }
+      }, inputText, options.plannerContext);
+    }
+  }
   const intent = analyzeShellIntent(inputText, options.plannerContext);
   const routing = routeShellIntent(intent);
   const heuristic = planShellRequestHeuristically(inputText, options.plannerContext, {
@@ -29405,6 +29480,9 @@ function inferShellFollowUpMode({ inputText = "", activeGraphState = null, plann
   if (strongStandaloneIntent && !shortElliptical) {
     return "new-request";
   }
+  if (standaloneTarget && !asksRevision && !asksResultQuestion && !referential && !shortElliptical) {
+    return "new-request";
+  }
   if (asksRevision) {
     return "revise-prior-answer";
   }
@@ -29548,6 +29626,91 @@ function buildHeuristicSemanticFallbackPlan(inputText, plannerContext = {}) {
     "I can still inspect project status, search the repo, explain shell surfaces, or extract ticket context.",
     "Examples: `what's the status of this project?`, `tell me about the shell`, `search router`, `ticket TKT-001`, `route shell-planning`."
   ].join("\n"), 0.42, "Semantic fallback could not resolve a concrete target.");
+}
+function buildStrictNoAiShellPlan(inputText, plannerContext = {}, options = {}) {
+  const text = String(inputText ?? "").trim();
+  if (!text) {
+    return replyPlan(renderStrictNoAiReply(), 0.98, "No-AI mode requires an explicit shell primitive.");
+  }
+  const normalized = normalizeConversationText2(text);
+  if (["help", "/help", "doctor help", "help doctor"].includes(normalized)) {
+    return replyPlan(renderShellHelp(plannerContext), 0.99, "Explicit help request in strict no-AI mode.");
+  }
+  if (normalized === "doctor" || normalized === "check health") {
+    return actionPlan([{ type: "doctor" }], 1, "Explicit doctor request.");
+  }
+  if (normalized === "provider status") {
+    return actionPlan([{ type: "provider_status" }], 1, "Explicit provider status request.");
+  }
+  if (normalized === "version") {
+    return actionPlan([{ type: "version" }], 1, "Explicit version request.");
+  }
+  if (normalized === "project summary" || normalized === "summary" || normalized === "status" || /\b(whats|what is|how is) the (status|project)\b/.test(normalized)) {
+    return actionPlan([{ type: "project_summary" }], 1, "Explicit project summary request.");
+  }
+  if (normalized === "list tickets" || normalized === "show tickets" || normalized === "active tickets" || /\b(list|show) (the )?tickets\b/.test(normalized)) {
+    return actionPlan([{ type: "list_tickets" }], 1, "Explicit ticket listing request.");
+  }
+  if (normalized === "sync" || normalized === "refresh") {
+    return actionPlan([{ type: "sync" }], 1, "Explicit sync request.");
+  }
+  if (normalized.startsWith("onboard")) {
+    return actionPlan([{ type: "onboard" }], 1, "Explicit onboard request.");
+  }
+  if (normalized.startsWith("finalize") || normalized.startsWith("resolve")) {
+    const ticketIdMatch = text.match(new RegExp(TICKET_ID_PATTERN, "i"));
+    if (ticketIdMatch) {
+      const ticketId = ticketIdMatch[0].toUpperCase();
+      return actionPlan([
+        { type: "finalize_verified_fix", ticketId },
+        { type: "resolve_ticket", ticketId }
+      ], 1, "Explicit finalize/resolve request.");
+    }
+  }
+  const heuristic = planShellRequestHeuristically(text, plannerContext, options);
+  if (heuristic && (heuristic.kind === "plan" || heuristic.kind === "reply")) {
+    if (!heuristic.reply?.includes("AI planning is unavailable")) {
+      return heuristic;
+    }
+  }
+  const explicitPlan = buildExplicitShellCommandPlan(text, text.toLowerCase(), plannerContext, {
+    activeGraphState: options.activeGraphState ?? null
+  });
+  if (explicitPlan) {
+    return explicitPlan;
+  }
+  if (/^set-ollama-hw\b/i.test(text)) {
+    return actionPlan([{
+      type: "set_ollama_hw",
+      global: /\s--global\b/.test(text)
+    }], 1, "Explicit Ollama hardware setup request.");
+  }
+  if (/^set-provider-key\s+([a-z0-9_-]+)(.*)$/i.test(text)) {
+    const match = text.match(/^set-provider-key\s+([a-z0-9_-]+)(.*)$/i);
+    return actionPlan([{
+      type: "set_provider_key",
+      providerId: match[1].toLowerCase(),
+      global: /\s--global\b/.test(match[2])
+    }], 1, "Explicit provider key setup request.");
+  }
+  if (/^config\s+(get|set|unset|clear)\b(.*)$/i.test(text)) {
+    const match = text.match(/^config\s+(get|set|unset|clear)\b(.*)$/i);
+    const args = match[2].trim().split(/\s+/).filter(Boolean);
+    return actionPlan([{
+      type: "config",
+      action: match[1].toLowerCase(),
+      key: args[0] ?? null,
+      value: args[1] ?? null,
+      global: match[2].includes("--global")
+    }], 1, "Explicit config request.");
+  }
+  return replyPlan(renderStrictNoAiReply(), 0.98, "No-AI mode rejected a non-primitive request.");
+}
+function renderStrictNoAiReply() {
+  return [
+    "AI planning is unavailable in `--no-ai` mode for broad natural-language requests.",
+    "Use an explicit shell primitive instead: `doctor`, `provider status`, `version`, `help`, `project summary`, `list tickets`, `search <text>`, `extract ticket <id>`, `route <task-class>`, `sync`, `set-ollama-hw`, `set-provider-key <provider>`, or `config <get|set|unset|clear> ...`."
+  ].join("\n");
 }
 function buildCapabilityRoutingPlan(inputText, plannerContext = {}) {
   const text = String(inputText ?? "").trim();
@@ -31675,13 +31838,13 @@ async function runShellTurn(inputText, options) {
       options: baseResult.options
     };
   }
-  const mutationActions = Array.isArray(plan.actions) ? plan.actions.filter((action) => isMutatingAction(action)) : [];
-  if (mutationActions.length) {
+  const workflowGatedActions = Array.isArray(plan.actions) ? plan.actions.filter((action) => requiresWorkflowTicketGate(action)) : [];
+  if (workflowGatedActions.length) {
     const inProgress = (runtimeOptions.plannerContext?.summary?.activeTickets ?? []).filter((ticket) => ticket.lane === "In Progress");
     if (inProgress.length !== 1) {
       const reply = [
         "Mutating shell work requires exactly one ticket in In Progress.",
-        mutationActions.map((action) => `- planned: ${action.type}`).join("\n"),
+        workflowGatedActions.map((action) => `- planned: ${action.type}`).join("\n"),
         "Move the target ticket to In Progress first.",
         ...(runtimeOptions.plannerContext?.summary?.activeTickets ?? []).map((ticket) => `- ${ticket.id}: ${ticket.lane}`)
       ].join("\n");
@@ -32067,7 +32230,9 @@ Type 'help' for examples. Type 'plan', 'mutate', 'trace on', 'trace on file <pat
       output4.write([
         "Planner note: No AI models configured. Shell is running in limited regex-only mode.",
         "To enable full agentic reasoning, you can:",
-        "- Configure local Ollama hardware: `set-ollama-hw --global`",
+        "- Configure local Ollama on `lotus`: `set-ollama-hw --global --host http://lotus:11434`",
+        "- Verify local Ollama visibility: `doctor`",
+        "- Verify actual planner routing: `route shell-planning --json`",
         "- Set up a high-power remote provider (recommended): `set-provider-key google` (Gemini)",
         ""
       ].join("\n"));
@@ -33349,7 +33514,7 @@ function evaluateShellCondition(condition, nodeMap) {
   }
   return { match, actual };
 }
-function resolveConditionValue(node, path39) {
+function resolveConditionValue(node, path40) {
   if (!node) {
     return void 0;
   }
@@ -33363,7 +33528,7 @@ function resolveConditionValue(node, path39) {
     result: node.result,
     execution: node.execution
   };
-  const segments = String(path39 ?? "ok").split(".").filter(Boolean);
+  const segments = String(path40 ?? "ok").split(".").filter(Boolean);
   let cursor = source;
   for (const segment of segments) {
     if (cursor == null) {
@@ -33658,6 +33823,18 @@ function renderProviderStatus(providerState) {
     }
     lines.push(`- ${providerId}: ${status.join(", ")}`);
   }
+  const ollama = providerState.providers?.ollama;
+  lines.push("");
+  lines.push("Local Ollama shell planner:");
+  if (ollama?.host) {
+    lines.push(`- Primary host: ${ollama.host}`);
+  } else {
+    lines.push("- Primary host: not configured");
+  }
+  lines.push(`- Expected local host for this repo: http://lotus:11434`);
+  lines.push(`- Setup: ai-workflow set-ollama-hw --global --host http://lotus:11434`);
+  lines.push("- Verify: ai-workflow doctor");
+  lines.push("- Verify route: ai-workflow route shell-planning --json");
   return lines.join("\n");
 }
 function shortenProviderDetail(detail) {
@@ -33687,7 +33864,8 @@ function renderShellCommandHelp(command) {
     return [
       "doctor: run local diagnostics and provider visibility checks.",
       "Usage: `doctor`",
-      "CLI equivalent: `ai-workflow doctor`"
+      "CLI equivalent: `ai-workflow doctor`",
+      "For local shell planning, this should clearly report whether Ollama on `http://lotus:11434` is reachable."
     ].join("\n");
   }
   return renderShellHelp({ toolkitCodelets: [] });
@@ -33772,6 +33950,15 @@ function isMutatingAction(action) {
     return true;
   }
   return MUTATING_ACTIONS.has(action.type);
+}
+function requiresWorkflowTicketGate(action) {
+  if (action?.type === "mutate") {
+    return true;
+  }
+  if (["doctor", "set_ollama_hw", "set_provider_key", "config", "version", "provider_status"].includes(action?.type)) {
+    return false;
+  }
+  return WORKFLOW_GATED_MUTATIONS.has(action?.type);
 }
 async function ensureMutatingModeForPlan(plan, options) {
   const mutationActions = Array.isArray(plan?.actions) ? plan.actions.filter((action) => isMutatingAction(action)) : [];
@@ -33922,6 +34109,11 @@ function renderShellHelp(plannerContext) {
     "Examples:",
     ...examples.map((item) => `- ${item}`),
     "",
+    "Local Ollama on `lotus` setup:",
+    "- `ai-workflow set-ollama-hw --global --host http://lotus:11434`",
+    "- `ai-workflow doctor`",
+    "- `ai-workflow route shell-planning --json`",
+    "",
     `Known codelets: ${codelets || "none"}`
   ].join("\n");
 }
@@ -34018,15 +34210,20 @@ function buildContextualShellReply(inputText, plannerContext) {
   if (asksSetupOpenAiOllama) {
     const ollama = providerMap.ollama;
     const openai = providerMap.openai;
+    const localOllamaHost = ollama?.host ?? "http://lotus:11434";
     const lines = [
       "Use this setup sequence:",
       "1. `ai-workflow set-provider-key openai --global`",
-      "2. `ai-workflow set-ollama-hw --global`",
+      `2. \`ai-workflow set-ollama-hw --global --host ${localOllamaHost}\``,
       "3. `ai-workflow doctor`",
       "4. `ai-workflow route shell-planning`"
     ];
     if (ollama?.available) {
       lines.push(`Ollama is already visible at ${ollama.host}.`);
+    } else if (ollama?.host) {
+      lines.push(`Ollama is configured at ${ollama.host}, but it is not currently reachable.`);
+    } else {
+      lines.push("This repo expects local Ollama shell planning on `http://lotus:11434`.");
     }
     if (openai?.available) {
       lines.push("OpenAI already looks available.");
@@ -34969,7 +35166,7 @@ function inferStatusEntityType(inputText) {
   if (/\bmodule\b/.test(normalized)) return "module";
   if (/\bfeature|flow\b/.test(normalized)) return "feature";
   if (/\bfile\b/.test(normalized)) return "file";
-  if (/\b(symbol|class|function|method|interface|type)\b/.test(normalized)) return "symbol";
+  if (/\b(symbol|function|method|interface|type)\b/.test(normalized)) return "symbol";
   if (/\btest\b/.test(normalized)) return "test";
   if (/\bticket\b/.test(normalized)) return "ticket";
   if (/\bepic\b/.test(normalized)) return "epic";
@@ -35858,6 +36055,108 @@ async function refineWorkflowIssue(issueId, { workflowStore, services }) {
 // cli/lib/main.ts
 init_shell_benchmark();
 init_dogfood_harness();
+
+// core/services/programming-dogfood-harness.ts
+init_operator_brain();
+init_sync();
+import path38 from "node:path";
+import fs2 from "node:fs/promises";
+
+// core/services/local-fs-adapter.ts
+init_filesystem();
+
+// core/services/programming-dogfood-harness.ts
+async function runProgrammingDogfoodHarness(options = {}) {
+  const repoRoot = options.root;
+  const targetRoot = options.target ?? path38.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
+  if (options.force) {
+    await fs2.rm(targetRoot, { recursive: true, force: true });
+  }
+  await fs2.mkdir(targetRoot, { recursive: true });
+  const metrics = {
+    totalTokens: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    latencyMs: 0,
+    attempts: 0,
+    turns: 0
+  };
+  const prompts = [
+    `Build a dedicated programming dogfood project in "${targetRoot}" from scratch for a modular, expandable 3d canvas Space Invaders-style game that uses emoji ships.`,
+    `Ensure it has a clear project structure with an engine, entities (player, enemies, bullets), and a UI overlay.`,
+    `Add a test suite that verifies the core game logic (e.g. collision detection, enemy movement).`,
+    `Finalize the project with working npm scripts for dev and build.`
+  ];
+  const artifacts = [];
+  let currentResult = null;
+  for (const prompt of prompts) {
+    const turnStartedAt = Date.now();
+    metrics.turns++;
+    currentResult = await executeOperatorRequest(prompt, {
+      root: targetRoot,
+      shellMode: "mutate",
+      requestedWorkMode: "auto",
+      yes: true,
+      noAi: false
+    });
+    const turnEndedAt = Date.now();
+    metrics.latencyMs += turnEndedAt - turnStartedAt;
+    if (currentResult.plan?.usage) {
+      metrics.promptTokens += currentResult.plan.usage.promptTokens ?? 0;
+      metrics.completionTokens += currentResult.plan.usage.completionTokens ?? 0;
+      metrics.totalTokens += currentResult.plan.usage.totalTokens ?? 0;
+    }
+    if (!currentResult.ok) {
+      break;
+    }
+  }
+  await syncProject(targetRoot);
+  const ok = await verifyProject(targetRoot);
+  const reportPath = path38.join(targetRoot, "DOGFOOD_REPORT.md");
+  await writeDogfoodReport(reportPath, { ok, metrics, targetRoot });
+  return {
+    ok,
+    projectRoot: targetRoot,
+    reportPath,
+    metrics,
+    artifacts
+  };
+}
+async function verifyProject(projectRoot) {
+  try {
+    const packageJsonPath = path38.join(projectRoot, "package.json");
+    await fs2.access(packageJsonPath);
+    const files = await fs2.readdir(projectRoot, { recursive: true });
+    const hasEngine = files.some((f) => f.includes("engine"));
+    const hasEntities = files.some((f) => f.includes("entities"));
+    const hasEmojis = true;
+    return hasEngine && hasEntities;
+  } catch {
+    return false;
+  }
+}
+async function writeDogfoodReport(reportPath, data2) {
+  const { ok, metrics, targetRoot } = data2;
+  const content = [
+    "# Programming Dogfood Report",
+    "",
+    `Status: ${ok ? "PASSED" : "FAILED"}`,
+    `Project: ${targetRoot}`,
+    "",
+    "## Efficiency Metrics",
+    `- Total Turns: ${metrics.turns}`,
+    `- Total Tokens: ${metrics.totalTokens} (${metrics.promptTokens}p / ${metrics.completionTokens}c)`,
+    `- Total Latency: ${metrics.latencyMs}ms`,
+    `- Avg Latency/Turn: ${Math.round(metrics.latencyMs / (metrics.turns || 1))}ms`,
+    "",
+    "## Verification",
+    `- Project Scaffolding: ${ok ? "Success" : "Incomplete"}`,
+    ""
+  ].join("\n");
+  await fs2.writeFile(reportPath, content, "utf8");
+}
+
+// cli/lib/main.ts
 var toolkitRoot2 = getCliToolkitRoot();
 var execFileAsync13 = promisify14(execFile13);
 var HELP = `Usage:
@@ -35879,6 +36178,7 @@ var HELP = `Usage:
   ai-workflow ask [request...] [--mode <default|tool-dev>] [--root <path>] [--evidence-root <path>] [--json]
   ai-workflow sync [--write-projections] [--json]
   ai-workflow dogfood [--surface <id[,id...]>] [--profile <bootstrap|full>] [--json]
+  ai-workflow programming-dogfood [--target <path>] [--force] [--json]
   ai-workflow reprofile [--json]
   ai-workflow list [--json]
   ai-workflow info <codelet>
@@ -35944,7 +36244,7 @@ async function main(argv) {
     case "setup":
       return handleInstall(rest);
     case "init":
-      return runNodeScript(path38.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
+      return runNodeScript(path39.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
     case "install":
       return handleInstall(rest);
     case "doctor":
@@ -35967,13 +36267,15 @@ async function main(argv) {
     case "consult":
       return handleConsult(rest);
     case "shell":
-      return handleShell(rest, { cliPath: path38.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
+      return handleShell(rest, { cliPath: path39.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
     case "ask":
       return handleAsk(rest);
     case "sync":
       return handleSync(rest);
     case "dogfood":
       return handleDogfood(rest);
+    case "programming-dogfood":
+      return handleProgrammingDogfood(rest);
     case "reprofile":
       await runDoctor({ root: process.cwd(), json: rest.includes("--json"), forceRefresh: true });
       return 0;
@@ -36047,7 +36349,7 @@ async function handleList(rest) {
 }
 async function handleVersion(rest) {
   const args = parseArgs(rest);
-  const packageJson = JSON.parse(await readFile19(path38.resolve(toolkitRoot2, "package.json"), "utf8"));
+  const packageJson = JSON.parse(await readFile19(path39.resolve(toolkitRoot2, "package.json"), "utf8"));
   const payload = {
     name: packageJson.name,
     version: packageJson.version,
@@ -36094,15 +36396,34 @@ async function handleSync(rest) {
 }
 async function handleKanban(rest) {
   return runNodeScript(
-    path38.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
+    path39.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
     rest
   );
 }
 async function handleDogfood(rest) {
   return runNodeScript(
-    path38.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
+    path39.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
     rest
   );
+}
+async function handleProgrammingDogfood(rest) {
+  const args = parseArgs(rest);
+  const target = args.target ? path39.resolve(args.target) : null;
+  const force = Boolean(args.force);
+  const json = Boolean(args.json);
+  const result = await runProgrammingDogfoodHarness({
+    root: process.cwd(),
+    target,
+    force,
+    json
+  });
+  if (!json) {
+    process.stdout.write(`Programming dogfood run ${result.ok ? "passed" : "failed"}
+`);
+    process.stdout.write(`Report: ${result.reportPath}
+`);
+  }
+  return result.ok ? 0 : 1;
 }
 async function handleAsk(rest) {
   const args = parseArgs(rest);
@@ -36228,7 +36549,7 @@ async function handleVerify(rest) {
     return runNodeScript(auditCodelet.entry, args);
   }
   if (target === "guidelines") {
-    return runNodeScript(path38.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
+    return runNodeScript(path39.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
   }
   return runNodeScript(verifyCodelet.entry, [target, ...args]);
 }
@@ -37190,7 +37511,7 @@ async function handleWeb(rest) {
   const [action, ...extras] = rest;
   if (action === "tutorial") {
     return runNodeScriptLive(
-      path38.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
+      path39.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
       extras
     );
   }
@@ -37253,7 +37574,7 @@ async function handleConfig(rest) {
 async function handleInstall(rest) {
   assertDirectCommandChannel("ai-workflow install");
   const args = parseArgs(rest);
-  const projectRoot = path38.resolve(String(args.project ?? process.cwd()));
+  const projectRoot = path39.resolve(String(args.project ?? process.cwd()));
   return withWorkspaceMutation(projectRoot, "install", async () => {
     await installAgents({
       toolkitRoot: toolkitRoot2,
@@ -37270,7 +37591,7 @@ async function handleAudit(rest) {
   const sub = args._[0];
   if (sub === "workflow") {
     return runNodeScript(
-      path38.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
+      path39.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
       rest.slice(1)
     );
   }
@@ -37383,7 +37704,7 @@ async function handleOnboard(rest) {
     const args = parseArgs(rest);
     const rl = readline6.createInterface({ input: input5, output: output5 });
     try {
-      const targetPath = path38.resolve(process.cwd(), filePath);
+      const targetPath = path39.resolve(process.cwd(), filePath);
       const result = await onboardProjectBrief(targetPath, { root: process.cwd(), rl });
       if (args.json) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}

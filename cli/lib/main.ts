@@ -44,6 +44,7 @@ import { STATUS_NODE_TYPES, formatStatusReport, resolveProjectStatus } from "../
 import { listWorkflowIssues, refineWorkflowIssue } from "../../core/services/workflow-refinement.ts";
 import { runShellBenchmark } from "../../core/services/shell-benchmark.ts";
 import { runDogfoodHarness } from "../../core/services/dogfood-harness.ts";
+import { runProgrammingDogfoodHarness } from "../../core/services/programming-dogfood-harness.ts";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
 
 const toolkitRoot = getCliToolkitRoot();
@@ -68,6 +69,7 @@ const HELP = `Usage:
   ai-workflow ask [request...] [--mode <default|tool-dev>] [--root <path>] [--evidence-root <path>] [--json]
   ai-workflow sync [--write-projections] [--json]
   ai-workflow dogfood [--surface <id[,id...]>] [--profile <bootstrap|full>] [--json]
+  ai-workflow programming-dogfood [--target <path>] [--force] [--json]
   ai-workflow reprofile [--json]
   ai-workflow list [--json]
   ai-workflow info <codelet>
@@ -167,6 +169,8 @@ export async function main(argv) {
       return handleSync(rest);
     case "dogfood":
       return handleDogfood(rest);
+    case "programming-dogfood":
+      return handleProgrammingDogfood(rest);
     case "reprofile":
       await runDoctor({ root: process.cwd(), json: rest.includes("--json"), forceRefresh: true });
       return 0;
@@ -299,6 +303,24 @@ async function handleDogfood(rest) {
     path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
     rest
   );
+}
+
+async function handleProgrammingDogfood(rest) {
+  const args: any = parseArgs(rest);
+  const target = args.target ? path.resolve(args.target) : null;
+  const force = Boolean(args.force);
+  const json = Boolean(args.json);
+  const result = await runProgrammingDogfoodHarness({
+    root: process.cwd(),
+    target,
+    force,
+    json
+  });
+  if (!json) {
+    process.stdout.write(`Programming dogfood run ${result.ok ? "passed" : "failed"}\n`);
+    process.stdout.write(`Report: ${result.reportPath}\n`);
+  }
+  return result.ok ? 0 : 1;
 }
 
 async function handleAsk(rest) {

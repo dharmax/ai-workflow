@@ -36,7 +36,10 @@ import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.ts";
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../../core/lib/filesystem.ts";
 import { formatStatusReport, resolveProjectStatus } from "../../core/services/status.ts";
 import { getRelevantGuidelineBlocks } from "../../core/services/guidelines.ts";
+import { ShellTier } from "../../core/services/shell-triage.types.ts";
+import { triageShellRequest } from "../../core/services/shell-triage.ts";
 import { executeJsOrchestrator } from "../../core/services/text-compiler-host.ts";
+import { executeCompilerShellPlan, promoteWorkflowToCodelet } from "../../core/services/shell-compiler.ts";
 import { executeOperatorRequest, updateManagedContext } from "../../core/services/operator-brain.ts";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
 
@@ -956,6 +959,40 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
     }
   }
 
+:  // Final local fallback if nothing from router was eligible but Ollama is up
+  if (planners.length === 0 && ollamaProvider?.available) {
+    try {
+      const localShellModel = chooseShellPlannerModel(ollamaProvider);
+      planners.push({
+        mode: "ollama",
+        providerId: "ollama",
+        modelId: localShellModel.id,
+        host: ollamaProvider.host,
+        needsHardwareHint: Boolean(localShellModel.needsHardwareHint),
+        reason: localShellModel.reason ?? "local shell planner fallback"
+      });
+    } catch {
+      // skip
+    }
+  }
+
+  // Final local fallback if nothing from router was eligible but Ollama is up
+  if (planners.length === 0 && ollamaProvider?.available) {
+    try {
+      const localShellModel = chooseShellPlannerModel(ollamaProvider);
+      planners.push({
+        mode: "ollama",
+        providerId: "ollama",
+        modelId: localShellModel.id,
+        host: ollamaProvider.host,
+        needsHardwareHint: Boolean(localShellModel.needsHardwareHint),
+        reason: localShellModel.reason ?? "local shell planner fallback"
+      });
+    } catch {
+      // skip
+    }
+  }
+
   const deduped = [];
   const seen = new Set();
   for (const planner of planners) {
@@ -975,8 +1012,8 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
   }
 
   // Ensure at least one remote model is in the chain as a final safety net
-  // if we only have local models so far.
-  if (deduped.length > 0 && deduped.every(p => p.mode === "ollama")) {
+  // if we only have local models (or no models) so far.
+  if (deduped.length === 0 || (deduped.length > 0 && deduped.every(p => p.mode === "ollama"))) {
     const providerState = await discoverProviderState({ root, forceRefresh: false });
     const remoteRoute = await routeTask({
       root,
@@ -1026,12 +1063,69 @@ function isEligibleShellPlanner(planner, providers) {
 }
 
 export async function planShellRequest(inputText, options) {
-  const intent = analyzeShellIntent(inputText, options.plannerContext);
-  const routing = routeShellIntent(intent);
-  if (routing.mode === "staged-core") {
-    return planSingleRequest(inputText, options);
+  const triage = await triageShellRequest(inputText, {
+    noAi: options.noAi,
+    plannerContext: options.plannerContext,
+    history: options.history
+  });
+
+  if (triage.intent.tier === ShellTier.Tier1) {
+    if (triage.intent.extracted?.primitive) {
+      // Execute explicit primitive directly if possible
+      const text = triage.intent.extracted.primitive;
+      const normalized = normalizeConversationText(text);
+      
+      if (normalized === "project summary" || normalized === "summary" || normalized === "status" || normalized === "project status") {
+        return actionPlan([{ type: "project_summary" }], 1, triage.intent.reason);
+      }
+      if (normalized === "list tickets" || normalized === "show tickets") {
+        return actionPlan([{ type: "list_tickets" }], 1, triage.intent.reason);
+      }
+      if (normalized === "sync") {
+        return actionPlan([{ type: "sync" }], 1, triage.intent.reason);
+      }
+      if (normalized === "doctor") {
+        return actionPlan([{ type: "doctor" }], 1, triage.intent.reason);
+      }
+      if (normalized === "version") {
+        return actionPlan([{ type: "version" }], 1, triage.intent.reason);
+      }
+      if (normalized === "provider status") {
+        return actionPlan([{ type: "provider_status" }], 1, triage.intent.reason);
+      }
+      if (normalized === "metrics") {
+        return actionPlan([{ type: "metrics" }], 1, triage.intent.reason);
+      }
+      if (normalized === "reprofile") {
+        return actionPlan([{ type: "reprofile" }], 1, triage.intent.reason);
+      }
+
+      // Handle parameterized primitives (search, ticket, run)
+      const explicitPlan = buildExplicitShellCommandPlan(text, text.toLowerCase(), options.plannerContext, {
+        activeGraphState: options.activeGraphState ?? null
+      });
+      if (explicitPlan) {
+        return normalizeShellPlanEnvelope({
+          ...explicitPlan,
+          planner: { mode: "heuristic-forced", reason: triage.intent.reason }
+        }, inputText, options.plannerContext);
+      }
+    }
+
+    const heuristicPlan = planShellRequestHeuristically(inputText, options.plannerContext, {
+      activeGraphState: options.activeGraphState ?? null
+    });
+    return normalizeShellPlanEnvelope({
+      ...heuristicPlan,
+      planner: { mode: "heuristic-forced", reason: triage.intent.reason }
+    }, inputText, options.plannerContext);
   }
 
+  if (triage.intent.tier === ShellTier.Tier3) {
+    return planShellRequestWithCompiler(inputText, options);
+  }
+
+  // Tier 2: Normal LLM-Driven
   const segments = splitShellRequestSegments(inputText);
   if (segments.length > 1) {
     const plans = await Promise.all(segments.map(s => planSingleRequest(s.trim(), options)));
@@ -1078,6 +1172,27 @@ export async function planShellRequest(inputText, options) {
 
   return normalizeShellPlanEnvelope(await planSingleRequest(inputText, options), inputText, options.plannerContext);
 }
+
+async function planShellRequestWithCompiler(inputText, options) {
+  // We delegate to executeOperatorRequest which already handles NL-to-JS compilation
+  // via executeTextCompilerWorkflow.
+  // However, the shell expects a 'plan' envelope.
+  // So we return a plan that has a special code block for Tier 3.
+  
+  return {
+    kind: "plan",
+    confidence: 0.95,
+    code: null, // Will be generated during execution
+    workflowPrompt: inputText,
+    reason: "Routed to Orchestrator/Compiler for complex multi-step logic.",
+    strategy: "Compile natural language request into a verifiable execution graph.",
+    intent: {
+      tier: ShellTier.Tier3,
+      capability: "orchestration"
+    }
+  };
+}
+
 
 async function planSingleRequest(inputText, options) {
   if (options.noAi) {
@@ -1840,7 +1955,7 @@ function inferShellFollowUpMode({ inputText = "", activeGraphState = null, plann
   if (strongStandaloneIntent && !shortElliptical) {
     return "new-request";
   }
-  if (standaloneTarget && !asksRevision && !asksResultQuestion && !referential) {
+  if (standaloneTarget && !asksRevision && !asksResultQuestion && !referential && !shortElliptical) {
     return "new-request";
   }
 
@@ -2024,14 +2139,8 @@ function buildStrictNoAiShellPlan(inputText, plannerContext = {}, options = {}) 
     return replyPlan(renderShellHelp(plannerContext), 0.99, "Explicit help request in strict no-AI mode.");
   }
 
-  const explicitPlan = buildExplicitShellCommandPlan(text, text.toLowerCase(), plannerContext, {
-    activeGraphState: options.activeGraphState ?? null
-  });
-  if (explicitPlan) {
-    return explicitPlan;
-  }
-
-  if (normalized === "doctor") {
+  // Handle explicit primitives first
+  if (normalized === "doctor" || normalized === "check health") {
     return actionPlan([{ type: "doctor" }], 1, "Explicit doctor request.");
   }
   if (normalized === "provider status") {
@@ -2040,15 +2149,45 @@ function buildStrictNoAiShellPlan(inputText, plannerContext = {}, options = {}) 
   if (normalized === "version") {
     return actionPlan([{ type: "version" }], 1, "Explicit version request.");
   }
-  if (normalized === "project summary" || normalized === "summary" || normalized === "status") {
+  if (normalized === "project summary" || normalized === "summary" || normalized === "status" || /\b(whats|what is|how is) the (status|project)\b/.test(normalized)) {
     return actionPlan([{ type: "project_summary" }], 1, "Explicit project summary request.");
   }
-  if (normalized === "list tickets") {
+  if (normalized === "list tickets" || normalized === "show tickets" || normalized === "active tickets" || /\b(list|show) (the )?tickets\b/.test(normalized)) {
     return actionPlan([{ type: "list_tickets" }], 1, "Explicit ticket listing request.");
   }
-  if (normalized === "sync") {
+  if (normalized === "sync" || normalized === "refresh") {
     return actionPlan([{ type: "sync" }], 1, "Explicit sync request.");
   }
+  if (normalized.startsWith("onboard")) {
+    return actionPlan([{ type: "onboard" }], 1, "Explicit onboard request.");
+  }
+  if (normalized.startsWith("finalize") || normalized.startsWith("resolve")) {
+    const ticketIdMatch = text.match(new RegExp(TICKET_ID_PATTERN, "i"));
+    if (ticketIdMatch) {
+      const ticketId = ticketIdMatch[0].toUpperCase();
+      return actionPlan([
+        { type: "finalize_verified_fix", ticketId },
+        { type: "resolve_ticket", ticketId }
+      ], 1, "Explicit finalize/resolve request.");
+    }
+  }
+
+  // Allow project-grounded heuristics in no-AI mode
+  const heuristic = planShellRequestHeuristically(text, plannerContext, options);
+  if (heuristic && (heuristic.kind === "plan" || heuristic.kind === "reply")) {
+    // Only block if it looks like a generic 'AI is unavailable' message
+    if (!heuristic.reply?.includes("AI planning is unavailable")) {
+      return heuristic;
+    }
+  }
+
+  const explicitPlan = buildExplicitShellCommandPlan(text, text.toLowerCase(), plannerContext, {
+    activeGraphState: options.activeGraphState ?? null
+  });
+  if (explicitPlan) {
+    return explicitPlan;
+  }
+
   if (/^set-ollama-hw\b/i.test(text)) {
     return actionPlan([{
       type: "set_ollama_hw",
@@ -4404,7 +4543,19 @@ function validateShellAction(action, plannerContext) {
       }
       return { type, providerId: String(action.providerId).trim() };
     case "set_ollama_hw":
-      return { type, global: Boolean(action.global) };
+      return {
+        type,
+        global: Boolean(action.global),
+        host: action.host ? String(action.host).trim() : null,
+        probe: action.probe ? String(action.probe).trim() : null,
+        gpu: action.gpu ? String(action.gpu).trim() : null,
+        cpu: action.cpu != null ? Number(action.cpu) : null,
+        vramGb: action.vramGb != null ? Number(action.vramGb) : null,
+        ramGb: action.ramGb != null ? Number(action.ramGb) : null,
+        hardwareClass: action.hardwareClass ? String(action.hardwareClass).trim().toLowerCase() : null,
+        plannerModel: action.plannerModel ? String(action.plannerModel).trim() : null,
+        maxModelSizeB: action.maxModelSizeB != null ? Number(action.maxModelSizeB) : null
+      };
     case "search":
       if (!String(action.query ?? "").trim()) {
         throw new Error("search action requires query");
@@ -4558,6 +4709,58 @@ export async function runShellTurn(inputText, options) {
       runId: runtimeOptions.runId ?? null
     }
   };
+
+  if (plan.intent?.tier === ShellTier.Tier3) {
+    const isMutation = plan.intent.extracted?.isMutation ?? true; // Default to true for Tier 3 safety
+    
+    if (isMutation && runtimeOptions.shellMode === "mutate") {
+       const inProgress = (runtimeOptions.plannerContext?.summary?.activeTickets ?? []).filter((ticket) => ticket.lane === "In Progress");
+       if (inProgress.length !== 1) {
+         const reply = [
+           "Mutating Orchestrator work requires exactly one ticket in In Progress.",
+           "Move the target ticket to In Progress first.",
+           ...(runtimeOptions.plannerContext?.summary?.activeTickets ?? []).map((ticket) => `- ${ticket.id}: ${ticket.lane}`)
+         ].join("\n");
+         const replyPlan = { kind: "reply", confidence: plan.confidence, reason: "mutation requires one in-progress ticket", reply, planner: plan.planner };
+         return {
+           ...baseResult,
+           plan: replyPlan,
+           assistantReply: reply,
+           continuationState: buildContinuationState({ inputText, plan: replyPlan, executedGraph: baseResult.executedGraph })
+         };
+       }
+    }
+
+    const services = {
+      ...buildJsOrchestratorServices(runtimeOptions),
+      shellAction: async (action) => executeShellAction(action, runtimeOptions)
+    };
+    
+    const traceWorkflow = buildShellWorkflowTraceEmitter(runtimeOptions);
+    const compilerResult = await executeCompilerShellPlan(inputText, {
+      ...runtimeOptions,
+      services,
+      traceWorkflow
+    });
+
+    const assistantReply = compilerResult.ok 
+      ? `Orchestrator completed successfully.${compilerResult.promotionAdvice ? `\n\n**Aha! Promotion Advice:** ${compilerResult.promotionAdvice}\nRun \`/promote ${compilerResult.recommendedCodeletName}\` to save this flow.` : ""}`
+      : `Orchestrator failed: ${compilerResult.error}`;
+
+    // Store the compiled source in the plan for promotion
+    const planWithSource = { ...plan, compiledSource: compilerResult.compiledSource, recommendedCodeletName: compilerResult.recommendedCodeletName };
+
+    return {
+      ...baseResult,
+      plan: planWithSource,
+      assistantReply,
+      workflowResult: compilerResult,
+      executed: compilerResult.trace ?? [],
+      executedGraph: { nodes: [], executions: compilerResult.trace ?? [], branchPath: [] },
+      workflowTraceEvents: compilerResult.trace ?? [],
+      continuationState: buildContinuationState({ inputText, plan: planWithSource, executedGraph: { nodes: [], executions: compilerResult.trace ?? [] } })
+    };
+  }
 
   if (plan.kind === "reply") {
     const planner = runtimeOptions.planners?.planners?.[0] ?? runtimeOptions.planner ?? null;
@@ -4917,7 +5120,14 @@ export function compileShellAction(action, { json = false } = {}) {
     case "telegram_preview":
       return cliCommand(["telegram", "preview", ...(json ? ["--json"] : [])], false);
     case "set_ollama_hw":
-      return cliCommand(["set-ollama-hw", ...(action.global ? ["--global"] : [])], true);
+      return cliCommand([
+        "set-ollama-hw",
+        ...(action.global ? ["--global"] : []),
+        ...(action.host ? ["--host", action.host] : []),
+        ...(action.plannerModel ? ["--planner-model", action.plannerModel] : []),
+        ...(action.hardwareClass ? ["--hardware-class", action.hardwareClass] : []),
+        ...(action.maxModelSizeB != null ? ["--max-model-size-b", String(action.maxModelSizeB)] : [])
+      ], true);
     case "set_provider_key":
       return cliCommand(["set-provider-key", action.providerId, "--global"], true);
     case "config":
@@ -5012,7 +5222,9 @@ export async function runInteractiveShell(options) {
       output.write([
         "Planner note: No AI models configured. Shell is running in limited regex-only mode.",
         "To enable full agentic reasoning, you can:",
-        "- Configure local Ollama hardware: \`set-ollama-hw --global\`",
+        "- Configure local Ollama on `lotus`: `set-ollama-hw --global --host http://lotus:11434`",
+        "- Verify local Ollama visibility: `doctor`",
+        "- Verify actual planner routing: `route shell-planning --json`",
         "- Set up a high-power remote provider (recommended): \`set-provider-key google\` (Gemini)",
         ""
       ].join("\n"));
@@ -5259,6 +5471,34 @@ export function handleShellCommand(line, options) {
       output.write(`${renderShellCommandHelp("doctor")}\n`);
     }
     return { handled: true, reply: renderShellCommandHelp("doctor") };
+  }
+
+  if (normalized.startsWith("/promote")) {
+    const parts = normalized.split(/\s+/);
+    const suggestedName = parts[1] ?? options.activeGraphState?.plan?.recommendedCodeletName;
+    const code = options.activeGraphState?.plan?.compiledSource;
+
+    if (!suggestedName) {
+      const error = "Usage: /promote <name> (or run a compiler workflow that recommends a name first)";
+      if (!options.json) output.write(`${error}\n`);
+      return { handled: true, reply: error };
+    }
+    if (!code) {
+      const error = "No compiled source found to promote. Run an Orchestrator/Compiler workflow first.";
+      if (!options.json) output.write(`${error}\n`);
+      return { handled: true, reply: error };
+    }
+
+    try {
+      await promoteWorkflowToCodelet(options.root, suggestedName, code);
+      const reply = `Successfully promoted flow to codelet: \`${suggestedName}\`.`;
+      if (!options.json) output.write(`${reply}\n`);
+      return { handled: true, stateChanged: true, reply };
+    } catch (e) {
+      const error = `Failed to promote codelet: ${e.message}`;
+      if (!options.json) output.write(`${error}\n`);
+      return { handled: true, reply: error };
+    }
   }
 
   if (normalized === "plan") {
@@ -5646,7 +5886,17 @@ async function runShellActionDirect(action, options) {
       const result = await withWorkspaceMutation(options.root, "shell set_ollama_hw", async () => configureOllamaHardware({
         root: options.root,
         global: Boolean(action.global),
-        interactive: true
+        host: action.host,
+        probe: action.probe,
+        gpu: action.gpu,
+        cpu: action.cpu,
+        vramGb: action.vramGb,
+        ramGb: action.ramGb,
+        hardwareClass: action.hardwareClass,
+        plannerModel: action.plannerModel,
+        maxModelSizeB: action.maxModelSizeB,
+        interactive: !action.host && !action.probe && !action.gpu && action.cpu == null && action.vramGb == null && action.ramGb == null && !action.hardwareClass && !action.plannerModel && action.maxModelSizeB == null,
+        rl: options.rl ?? null
       }));
       return options.json ? `${JSON.stringify(result, null, 2)}\n` : renderConfiguredOllamaHardware(result);
     }
@@ -6667,6 +6917,18 @@ function renderProviderStatus(providerState) {
     }
     lines.push(`- ${providerId}: ${status.join(", ")}`);
   }
+  const ollama = providerState.providers?.ollama;
+  lines.push("");
+  lines.push("Local Ollama shell planner:");
+  if (ollama?.host) {
+    lines.push(`- Primary host: ${ollama.host}`);
+  } else {
+    lines.push("- Primary host: not configured");
+  }
+  lines.push(`- Expected local host for this repo: http://lotus:11434`);
+  lines.push(`- Setup: ai-workflow set-ollama-hw --global --host http://lotus:11434`);
+  lines.push("- Verify: ai-workflow doctor");
+  lines.push("- Verify route: ai-workflow route shell-planning --json");
   return lines.join("\n");
 }
 
@@ -6699,7 +6961,8 @@ function renderShellCommandHelp(command) {
     return [
       "doctor: run local diagnostics and provider visibility checks.",
       "Usage: `doctor`",
-      "CLI equivalent: `ai-workflow doctor`"
+      "CLI equivalent: `ai-workflow doctor`",
+      "For local shell planning, this should clearly report whether Ollama on `http://lotus:11434` is reachable."
     ].join("\n");
   }
   return renderShellHelp({ toolkitCodelets: [] });
@@ -6795,8 +7058,12 @@ function isMutatingAction(action) {
 }
 
 function requiresWorkflowTicketGate(action) {
-  if (action?.type === "run_codelet") {
+  if (action?.type === "mutate") {
     return true;
+  }
+  // Admin and maintenance commands do not require a ticket gate
+  if (["doctor", "set_ollama_hw", "set_provider_key", "config", "version", "provider_status"].includes(action?.type)) {
+    return false;
   }
   return WORKFLOW_GATED_MUTATIONS.has(action?.type);
 }
@@ -6979,6 +7246,11 @@ function renderShellHelp(plannerContext) {
     "Examples:",
     ...examples.map((item) => `- ${item}`),
     "",
+    "Local Ollama on `lotus` setup:",
+    "- `ai-workflow set-ollama-hw --global --host http://lotus:11434`",
+    "- `ai-workflow doctor`",
+    "- `ai-workflow route shell-planning --json`",
+    "",
     `Known codelets: ${codelets || "none"}`
   ].join("\n");
 }
@@ -7096,15 +7368,20 @@ function buildContextualShellReply(inputText, plannerContext) {
   if (asksSetupOpenAiOllama) {
     const ollama = providerMap.ollama;
     const openai = providerMap.openai;
+    const localOllamaHost = ollama?.host ?? "http://lotus:11434";
     const lines = [
       "Use this setup sequence:",
       "1. `ai-workflow set-provider-key openai --global`",
-      "2. `ai-workflow set-ollama-hw --global`",
+      `2. \`ai-workflow set-ollama-hw --global --host ${localOllamaHost}\``,
       "3. `ai-workflow doctor`",
       "4. `ai-workflow route shell-planning`"
     ];
     if (ollama?.available) {
       lines.push(`Ollama is already visible at ${ollama.host}.`);
+    } else if (ollama?.host) {
+      lines.push(`Ollama is configured at ${ollama.host}, but it is not currently reachable.`);
+    } else {
+      lines.push("This repo expects local Ollama shell planning on `http://lotus:11434`.");
     }
     if (openai?.available) {
       lines.push("OpenAI already looks available.");

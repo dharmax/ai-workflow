@@ -1272,7 +1272,8 @@ test("heuristic shell planner can answer setup and troubleshooting questions", (
   const setup = planShellRequestHeuristically("help me set this up to use openai and ollama", plannerContext);
   assert.equal(setup.kind, "reply");
   assert.match(setup.reply, /set-provider-key openai --global/);
-  assert.match(setup.reply, /set-ollama-hw --global/);
+  assert.match(setup.reply, /set-ollama-hw --global --host http:\/\//);
+  assert.match(setup.reply, /route shell-planning/);
 
   const providerFailure = planShellRequestHeuristically("i think you did something wrong: gemini looks broken, investigate and tell me what to do", plannerContext);
   assert.equal(providerFailure.kind, "reply");
