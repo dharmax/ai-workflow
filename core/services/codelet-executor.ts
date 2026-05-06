@@ -1,3 +1,5 @@
+import { getBuiltinCodelet } from "./builtin-registry.ts";
+import { createServiceHub } from "./service-hub.ts";
 /**
  * @file codelet-executor.js
  * @brief Auto-generated header for codelet-executor.js. Needs detailed responsibility and scope.
@@ -9,6 +11,12 @@ import { pathToFileURL } from "node:url";
 import { TaskExecutor } from "@dharmax/shell-proc-utils";
 
 export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
+  const builtin = getBuiltinCodelet(codelet.id);
+  if (builtin) {
+    const hub = createServiceHub(cwd);
+    return builtin(args, hub);
+  }
+
   const entry = codelet.entryPath ?? (codelet.entry ? path.resolve(cwd, codelet.entry) : null);
   if (codelet.runner !== "node-script") {
     throw new Error(`Unsupported codelet runner: ${codelet.runner}`);
@@ -17,10 +25,10 @@ export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), 
     throw new Error(`Codelet ${codelet.id} is missing an executable entry.`);
   }
 
-  if (mode !== "capture" && isJsExecutionCodelet(codelet, entry)) {
-    const inProcess = await tryRunInProcess(entry, args, { env });
+  if (isJsExecutionCodelet(codelet, entry)) {
+    const inProcess = await tryRunInProcess(entry, args, { env, cwd });
     if (inProcess.used) {
-      return typeof inProcess.result === "number" ? inProcess.result : 0;
+      return inProcess.result;
     }
   }
 
@@ -35,14 +43,18 @@ function isJsExecutionCodelet(codelet, entry) {
     || String(entry ?? "").includes("smart-codelet-runner.ts");
 }
 
-async function tryRunInProcess(entry, args, { env }) {
+async function tryRunInProcess(entry, args, { env, cwd = process.cwd() }) {
+  // console.log(`[codelet] attempting in-process: ${entry}`);
   const module = await import(pathToFileURL(entry).href);
-  const runner = module.runSmartCodelet ?? module.runCodelet ?? module.main ?? module.default;
+  // console.log(`[codelet] imported module`);
+  const runner = module.runSmartCodelet ?? module.runCodelet ?? module.run ?? module.main ?? module.default;
   if (typeof runner !== "function") {
     return { used: false, result: null };
   }
 
-  const result = await runner(args, env);
+  // Provide the service hub to the codelet
+  const hub = createServiceHub(cwd);
+  const result = await runner(args, hub);
   return { used: true, result };
 }
 

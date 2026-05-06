@@ -4,6 +4,8 @@
  */
 
 import { detectExecutionMode } from "../../core/services/execution-context.ts";
+import { ShellPresenter } from "../../core/services/presenter.ts";
+import { getBuiltinCodelet } from "../../core/services/builtin-registry.ts";
 import { WorkflowFacade } from "../../core/services/workflow-facade.ts";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
@@ -279,20 +281,7 @@ async function handleSync(rest) {
     return 0;
   }
 
-  const lines = [
-    `DB: ${result.dbPath}`,
-    `Indexed files: ${result.indexedFiles}`,
-    `Symbols: ${result.indexedSymbols}`,
-    `Claims: ${result.indexedClaims}`,
-    `Notes: ${result.indexedNotes}`,
-    `Codelets: ${result.codeletRegistry?.codeletsIndexed ?? 0}`,
-    `Imported tickets: ${result.importSummary.importedTickets}`,
-    `Reviewed candidates: ${result.lifecycle.reviewed.length}`
-  ];
-  if (result.projections) {
-    lines.push(`Wrote projections: ${result.projections.kanbanPath}, ${result.projections.epicsPath}`);
-  }
-  process.stdout.write(`${lines.join("\n")}\n`);
+  process.stdout.write(ShellPresenter.formatSyncResult(result));
   return 0;
 }
 
@@ -398,6 +387,18 @@ async function handleRun(rest) {
     printAndExit("Usage: ai-workflow run <codelet> [args]", 1);
   }
 
+  const parsedArgs = parseArgs(args);
+  const builtin = getBuiltinCodelet(name);
+  if (builtin) {
+    const result = await runCodelet({ id: name } as any, parsedArgs);
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    } else {
+      process.stdout.write(ShellPresenter.formatCodeletResult(name, result));
+    }
+    return 0;
+  }
+
   const codelet = await withRefreshedCodeletRegistry(process.cwd(), async (store) => getCodeletFromStore(store, name));
   if (!codelet) {
     printAndExit(`Unknown codelet: ${name}`, 1);
@@ -408,7 +409,15 @@ async function handleRun(rest) {
     return 0;
   }
 
-  return runCodelet(codelet, args);
+  const result = await runCodelet(codelet, parsedArgs);
+  
+  if (parsedArgs.json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+  } else {
+    process.stdout.write(ShellPresenter.formatCodeletResult(codelet.id, result));
+  }
+  
+  return 0;
 }
 
 async function handleAdd(rest, mode) {
@@ -529,20 +538,7 @@ async function handleProject(rest) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
       return 0;
     }
-    const assessmentStatusBits = Object.entries(summary.assessmentSummary?.byStatus ?? {})
-      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
-      .map(([status, count]) => `${count} ${status}`);
-    const topAssessmentError = summary.assessmentSummary?.topErrors?.[0] ?? null;
-    process.stdout.write([
-      `Files indexed: ${summary.fileCount}`,
-      `Symbols indexed: ${summary.symbolCount}`,
-      `Notes tracked: ${summary.noteCount}`,
-      `Tickets: ${summary.activeTickets.length}`,
-      `Assessments: ${summary.assessmentCount}${assessmentStatusBits.length ? ` (${assessmentStatusBits.join(", ")})` : ""}`,
-      topAssessmentError ? `Top assessment failure: ${topAssessmentError.error} (${topAssessmentError.count})` : null,
-      `Codelets: ${summary.codeletCount ?? 0}`,
-      `Candidates: ${summary.candidates.length}`
-    ].filter(Boolean).join("\n") + "\n");
+    process.stdout.write(ShellPresenter.formatProjectSummary(summary));
     return 0;
   }
 
@@ -1760,10 +1756,10 @@ function shellQuote(value) {
   return JSON.stringify(String(value));
 }
 
-function runCodelet(codelet, args) {
+async function runCodelet(codelet, args) {
   return executeCodelet(codelet, args, {
     cwd: process.cwd(),
-    mode: "stream",
+    mode: "capture",
     env: {
       ...process.env,
       AIWF_CODELET_ID: codelet.id,

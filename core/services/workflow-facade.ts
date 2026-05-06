@@ -12,7 +12,7 @@ import {
   withWorkflowStore
 } from "./sync.ts";
 import { resolveProjectStatus } from "./status.ts";
-import { ExecutionContext, ExecutionMode } from "./execution-context.ts";
+import type { ExecutionContext, ExecutionMode } from "./execution-context.ts";
 
 export class WorkflowFacade {
   constructor(private context: ExecutionContext) {}
