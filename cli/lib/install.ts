@@ -30,6 +30,13 @@ export async function installAgents({ toolkitRoot, projectRoot = process.cwd() }
 
 async function ensureProjectConfig(projectRoot) {
   const configPath = getProjectConfigPath(projectRoot);
+  const globalConfigPath = getGlobalConfigPath();
+  
+  // NEVER overwrite global config with a project skeleton
+  if (path.resolve(configPath) === path.resolve(globalConfigPath)) {
+    return;
+  }
+
   const existing = await readConfig(configPath);
   const nextConfig = {
     ...existing,

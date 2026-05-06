@@ -90,6 +90,14 @@ const resolvedRoot = path.resolve(String(root ?? process.cwd()));
 const findings = [];
 const activeDocs = [];
 
+if (!(await fileExistsRelative(resolvedRoot, ".ai-workflow"))) {
+  findings.push({
+    category: "workflow",
+    file: ".ai-workflow",
+    message: "missing metadata directory (project not initialized?)"
+  });
+}
+
 for (const relativePath of REQUIRED_DOCS) {
   if (!(await fileExistsRelative(resolvedRoot, relativePath))) {
     findings.push(createFinding({

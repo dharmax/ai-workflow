@@ -13,6 +13,7 @@ import { runShellTrustBenchmark } from "../services/shell-benchmark.ts";
 export const DEFAULT_DOGFOOD_REPORT_PATH = ".ai-workflow/generated/dogfood-report.json";
 
 export async function runDogfood({
+  silent = false,
   root = process.cwd(),
   surfaces = listOperatorSurfaceIds(),
   profile = "full",
@@ -167,7 +168,7 @@ async function runSurfaceScenarios({ surfaceId, profile, root, toolkitRoot, cliP
 
 async function buildSmartProgrammingScenarios({ root, timeoutMs }) {
   const startedAt = Date.now();
-  console.log("[dogfood] Starting smart-programming dogfood (Space Invaders Game generation)...");
+  if (!silent) console.log("[dogfood] Starting smart-programming dogfood (Space Invaders Game generation)...");
   
   try {
     const report = await runDogfoodHarness({ root });

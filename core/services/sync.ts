@@ -86,11 +86,29 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     let claimCount = 0;
     let noteCount = 0;
 
+    let skippedCount = 0;
     for (const relativePath of files) {
+      const existing = store.getFile(relativePath);
+      const entry = snapshot.find((s: any) => s.relativePath === relativePath);
+      
+      // Heuristic: skip if size and mtime match (fast)
+      if (existing && entry && existing.sizeBytes === entry.size && existing.mtimeMs === entry.mtimeMs) {
+        skippedCount += 1;
+        continue;
+      }
+
       const file = await readProjectFile(projectRoot, relativePath);
       if (file.isBinary) {
         continue;
       }
+      
+      // Second check: skip if SHA1 matches (precise)
+      const currentSha1 = sha1(file.content);
+      if (existing && existing.sha1 === currentSha1) {
+        skippedCount += 1;
+        continue;
+      }
+
       const parsed = parseIndexedFile({ filePath: relativePath, content: file.content });
       const filteredNotes = filterIndexedNotes(relativePath, parsed.notes);
       const notes = filteredNotes.map((note) => ({
@@ -105,6 +123,8 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
         indexedAt: startedAt
       });
       symbolCount += parsed.symbols.length;
+      claimCount += parsed.facts.length;
+      noteCount += parsed.notes.length;
       claimCount += parsed.facts.length;
       noteCount += parsed.notes.length;
     }

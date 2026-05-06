@@ -82,13 +82,15 @@ const STATUS_TYPE_ALIASES = {
 };
 
 export async function readStatusEvidenceFingerprint(projectRoot = process.cwd()) {
-  const [dogfoodText, latestRunText] = await Promise.all([
+  const [dogfoodText, latestRunText, knowledgeText] = await Promise.all([
     readTextIfExists(path.resolve(projectRoot, DEFAULT_DOGFOOD_REPORT_PATH)),
-    readTextIfExists(path.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json"))
+    readTextIfExists(path.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json")),
+    readTextIfExists(path.resolve(projectRoot, "knowledge.md"))
   ]);
   return {
     dogfoodReportHash: dogfoodText ? sha1(dogfoodText) : null,
-    latestRunArtifactHash: latestRunText ? sha1(latestRunText) : null
+    latestRunArtifactHash: latestRunText ? sha1(latestRunText) : null,
+    knowledgeHash: knowledgeText ? sha1(knowledgeText) : null
   };
 }
 

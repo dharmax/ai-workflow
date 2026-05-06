@@ -1,3 +1,4 @@
+import { ServiceHub } from "../../core/services/service-hub.ts";
 /**
  * @file ollama-hw.js
  * @brief Auto-generated header for ollama-hw.js. Needs detailed responsibility and scope.
@@ -222,7 +223,7 @@ function hardwareFieldsToProbe(fields) {
 }
 
 async function promptForOllamaHardware({ host, probeCommand, rl = null }) {
-  const localRl = rl ?? readline.createInterface({ input, output });
+  const localRl = rl ?? ServiceHub.terminal.getInterface();
   try {
     output.write([
       "Configure remote Ollama hardware for shell planning.",

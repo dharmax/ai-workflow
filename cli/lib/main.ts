@@ -1534,7 +1534,7 @@ async function handleInstall(rest) {
     });
     process.stdout.write(`Installation complete in ${projectRoot}\n`);
     return 0;
-  });
+  }, { syncAfter: false, syncBefore: false });
 }
 
 async function handleAudit(rest) {

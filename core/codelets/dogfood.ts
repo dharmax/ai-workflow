@@ -24,6 +24,7 @@ export async function run(options: DogfoodOptions, hub: any) {
     surfaces: requestedSurfaces,
     profile,
     timeoutMs,
-    writeReport: true
+    writeReport: true,
+    silent: true
   });
 }

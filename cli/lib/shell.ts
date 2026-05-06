@@ -286,7 +286,7 @@ export async function handleShell(rest, { cliPath } = {}) {
       if (fastResult) {
         fastResult.traceEvents = [...(options.aiTraceEvents ?? [])];
         fastResult.workflowTraceEvents = [...(options.workflowTraceEvents ?? [])];
-        options.activeGraphState = fastResult.continuationState ?? options.activeGraphState ?? null;
+        options.activeGraphState = (prompt.split(/\\s+/).length < 5) ? (fastResult.continuationState ?? options.activeGraphState ?? null) : null;
         await recordShellTurnHistory(options, prompt, fastResult);
         await writeShellStateFile(stateFile, options);
         return emitShellResult(fastResult, options);
@@ -1113,6 +1113,17 @@ export async function planShellRequest(inputText, options) {
           planner: { mode: "heuristic-forced", reason: triage.intent.reason }
         }, inputText, options.plannerContext);
       }
+    }
+
+    if (options.noAi) {
+      return {
+        kind: "reply",
+        actions: [],
+        reply: "No-AI mode: only explicit primitives are supported. Use 'help doctor' for examples.",
+        confidence: 1,
+        reason: "Request did not match any explicit no-AI primitives.",
+        planner: { mode: "heuristic-forced", reason: "no-ai-strictness" }
+      };
     }
 
     const heuristicPlan = planShellRequestHeuristically(inputText, options.plannerContext, {
@@ -5198,7 +5209,7 @@ export function compileShellAction(action, { json = false } = {}) {
 }
 
 export async function runInteractiveShell(options) {
-  const rl = readline.createInterface({ input, output });
+  const rl = ServiceHub.terminal.getInterface();
   options.rl = rl;
   options.blacklist = new Set();
   options.history ??= [];
@@ -5211,6 +5222,8 @@ export async function runInteractiveShell(options) {
   const processingIndicator = createShellProcessingIndicator(options);
   try {
     if (!options.plannerContext || !options.planners) {
+      // Sync Hub context with current options
+      ServiceHub.setContext({ projectRoot: options.root, mode: options.mode });
       options.plannerContext = await buildShellContext(options.root);
       options.planners = await resolveShellPlanners(options.root, { providerState: options.plannerContext.providerState });
     }
@@ -5268,7 +5281,13 @@ export async function runInteractiveShell(options) {
         }
       }
     }
+    let lastRoot = options.root;
     while (true) {
+      if (options.root !== lastRoot) {
+        options.history = [];
+        options.activeGraphState = null;
+        lastRoot = options.root;
+      }
       try {
         const answer = await promptShellQuestion(rl, "ai-workflow> ");
         if (answer == null) {
@@ -5903,7 +5922,7 @@ async function runShellActionDirect(action, options) {
       return options.json ? `${JSON.stringify(result, null, 2)}\n` : renderConfiguredOllamaHardware(result);
     }
     case "set_provider_key": {
-      const rl = options.rl ?? readline.createInterface({ input, output });
+      const rl = options.rl ?? ServiceHub.terminal.getInterface();
       const prompt = action.providerId === "google"
         ? `Enter Gemini API key (from https://aistudio.google.com/): `
         : `Enter ${action.providerId} API key: `;
@@ -5993,7 +6012,7 @@ async function runShellActionDirect(action, options) {
     case "sweep_bugs":
       return withWorkspaceMutation(options.root, `shell sweep_bugs`, async () => sweepBugs(options));
     case "ingest_artifact": {
-      const rl = options.rl ?? readline.createInterface({ input, output });
+      const rl = options.rl ?? ServiceHub.terminal.getInterface();
       try {
         const result = await withWorkspaceMutation(options.root, `shell ingest_artifact ${action.filePath}`, async () => ingestArtifact(path.resolve(options.root, action.filePath), { root: options.root, rl }));
         return options.json ? `${JSON.stringify(result, null, 2)}\n` : `Ingested ${action.filePath}: Generated ${result.epic.id} and ${result.tickets.length} tickets.\n`;
@@ -6972,36 +6991,7 @@ function renderShellCommandHelp(command) {
 
 function buildActionCatalog(plannerContext) {
   const baseActions = [
-    "project_summary",
-    "list_tickets",
-    "status_query",
-    "doctor",
-    "provider_status",
-    "version",
-    "sync",
-    "run_review",
-    "evaluate_readiness",
-    "search",
-    "extract_ticket",
-    "next_ticket",
-    "decompose_ticket",
-    "execute_ticket",
-    "ideate_feature",
-    "sweep_bugs",
-    "ingest_artifact",
-    "extract_guidelines",
-    "route",
-    "run_dynamic_codelet",
-    "telegram_preview",
-    "add_note",
-    "create_ticket",
-    "resolve_ticket",
-    "reopen_ticket",
-    "finalize_verified_fix",
-    "run_codelet",
-    "provider_connect",
-    "reprofile",
-    "set_provider_key"
+    "summary", "status", "sync", "metrics", "search", "surface", "audit", "dogfood", "execute-ticket", "doctor", "version", "provider_status"
   ];
   const codeletIds = [...plannerContext.toolkitCodelets, ...plannerContext.projectCodelets]
     .map((codelet) => codelet.id)
@@ -7064,7 +7054,10 @@ function requiresWorkflowTicketGate(action) {
     return true;
   }
   // Admin and maintenance commands do not require a ticket gate
-  if (["doctor", "set_ollama_hw", "set_provider_key", "config", "version", "provider_status"].includes(action?.type)) {
+  if (["doctor", "set_ollama_hw", "set_provider_key", "config", "version", "provider_status", "sync"].includes(action?.type)) {
+    return false;
+  }
+    if (action?.type === "run_codelet" && ["sync", "summary", "metrics"].includes(action.codeletId)) {
     return false;
   }
   return WORKFLOW_GATED_MUTATIONS.has(action?.type);
@@ -7093,7 +7086,7 @@ async function ensureMutatingModeForPlan(plan, options) {
   }
 
   output.write(clearShellStatusLine());
-  const rl = options.rl ?? readline.createInterface({ input, output });
+  const rl = options.rl ?? ServiceHub.terminal.getInterface();
   try {
     output.write(`Planned actions:\n${renderActionList(mutationActions)}\n`);
     const answer = (await promptShellQuestion(rl, "Switch to mutating mode and run them? [y/N] ") ?? "").trim().toLowerCase();

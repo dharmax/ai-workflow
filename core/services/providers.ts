@@ -357,9 +357,7 @@ function normalizeConfiguredModels(providerId: string, config: any = {}, fallbac
     const capabilities = RouterHeuristics.inferCapabilities(model.id, sizeB, model.quality ?? inferredQuality as any);
 
     return {
-      quality: inferredQuality,
       costTier: providerId === "ollama" || mockProvider ? 1 : 3,
-      capabilities,
       ...model,
       quality: model.quality ?? (mockProvider ? "high" : inferredQuality),
       capabilities: model.capabilities ?? (mockProvider ? { logic: 5, strategy: 5, prose: 5, creative: 3, visual: 5, data: 5 } : capabilities),

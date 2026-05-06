@@ -32,6 +32,9 @@ export class ServiceHub {
    * Register a service or codelet implementation.
    */
   static register(id: string, implementation: any) {
+    if (this._registry.has(id)) {
+      console.warn(`[hub] warning: service ${id} is being overwritten.`);
+    }
     this._registry.set(id, implementation);
   }
 
@@ -58,13 +61,16 @@ export class ServiceHub {
    */
   static async execute(id: string, ...args: any[]): Promise<any> {
     const service = this.resolve(id);
-    if (typeof service === "function") {
-      return service(...args);
-    }
+    const options = args.length > 0 ? args[0] : {};
+    
     if (service && typeof (service as any).run === "function") {
-      const options = args.length > 0 ? args[0] : {};
       return (service as any).run(options, this);
     }
+    
+    if (typeof service === "function") {
+      return service(options, ...args.slice(1));
+    }
+    
     throw new Error(`Service ${id} is not executable.`);
   }
 

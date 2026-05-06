@@ -47,26 +47,27 @@ export async function routeTask({
     }
 
     for (const model of provider.models) {
-      const shellPlanningLocal = taskClass === "shell-planning" && provider.local;
+      const isInteractiveOrchestrator = ["shell-planning", "agent-orchestration"].includes(taskClass);
+      const isInteractiveOrchestratorLocal = isInteractiveOrchestrator && provider.local;
       const quality = model.quality ?? "medium";
       if (!allowWeak && QUALITY_ORDER[quality] < QUALITY_ORDER[minimumQuality]) {
         continue;
       }
 
       // Check hardware limits for local models
-      if (!shellPlanningLocal && provider.local && provider.maxModelSizeB && model.sizeB && model.sizeB > provider.maxModelSizeB) {
+      if (!isInteractiveOrchestratorLocal && provider.local && provider.maxModelSizeB && model.sizeB && model.sizeB > provider.maxModelSizeB) {
         continue;
       }
 
       // 0-5 competency score (Data-driven inference)
       const competency = model.capabilities?.[capability] ?? inferCompetency(model, capability, knowledge.inferenceHeuristics);
 
-      if (competency < 2 || (!allowWeak && !shellPlanningLocal && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
+      if (competency < 2 || (!allowWeak && !isInteractiveOrchestratorLocal && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
         continue;
       }
 
-      const localPreference = preferLocalForTask && provider.local ? (shellPlanningLocal ? 12 : 3) : 0;
-      const shellPlanningRemotePenalty = taskClass === "shell-planning" && preferLocalForTask && !provider.local ? -6 : 0;
+      const localPreference = preferLocalForTask && provider.local ? (isInteractiveOrchestratorLocal ? 12 : 3) : 0;
+      const shellPlanningRemotePenalty = isInteractiveOrchestrator && preferLocalForTask && !provider.local ? -6 : 0;
       const configTrustBonus = provider.local ? 1 : provider.configured ? 2 : -3;
       
       // Item 35: Historical Success Bias

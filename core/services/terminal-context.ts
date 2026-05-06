@@ -16,10 +16,25 @@ export class TerminalContext {
     return this.instance;
   }
 
+
   static async question(prompt: string): Promise<string> {
     const rl = this.getInterface();
-    return rl.question(prompt);
+    
+    // BUG-TERM-SIGINT-001: Ensure sub-prompts handle SIGINT gracefully
+    const handler = () => {
+      rl.write("\n");
+      rl.close();
+      process.exit(130);
+    };
+    process.once("SIGINT", handler);
+    
+    try {
+      return await rl.question(prompt);
+    } finally {
+      process.off("SIGINT", handler);
+    }
   }
+
 
   static close() {
     if (this.instance) {

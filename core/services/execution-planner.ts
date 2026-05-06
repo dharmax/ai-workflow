@@ -9,7 +9,7 @@ import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 
-const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
 export async function buildTicketExecutionPlan({
   root,
