@@ -1,41 +1,15 @@
-import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
-
+/**
+ * Responsibility: Execute workflow audit.
+ */
 import path from "node:path";
-import { parseArgs, printAndExit } from "../lib/cli.ts";
 import { buildWorkflowAuditSummary } from "../lib/workflow-audit-report.ts";
 
-const HELP = `Usage:
-  tsx scripts/ai-workflow/workflow-audit.mjs
 
-Options:
-  --root <path>      Project root. Defaults to current directory.
-  --json             Emit JSON.
-`;
-
-const args: any = parseArgs(process.argv.slice(2));
-
-if (args.help) {
-  printAndExit(HELP);
+export interface AuditOptions {
+  root?: string;
 }
 
-const root = path.resolve(String(args.root ?? process.cwd()));
-const summary = await buildWorkflowAuditSummary(root);
-
-if (args.json) {
-  console.log(JSON.stringify(summary, null, 2));
-  process.exitCode = summary.failures.length ? 1 : 0;
-} else if (summary.failures.length) {
-  console.error("workflow-audit: FAIL");
-  console.error("Findings");
-  for (const finding of summary.findings) {
-    const location = finding.file ? `${finding.file}${finding.line ? `:${finding.line}` : ""}` : "audit";
-    console.error(`- ${location}: ${finding.message}`);
-  }
-  process.exitCode = 1;
-} else {
-  console.log("workflow-audit: OK");
-  console.log(`- active docs checked: ${summary.activeDocs.length}`);
-  console.log(`- package scripts checked: ${summary.packageScripts.length}`);
-  console.log(`- audit extension blocks: ${summary.guidelineAudit.blockCount}`);
+export async function run(options: AuditOptions, hub: any) {
+  const root = path.resolve(String(options.root ?? hub.context.projectRoot));
+  return buildWorkflowAuditSummary(root);
 }
-\nexport async function run(args: any, hub: ServiceHub) {\n}

@@ -1,65 +1,29 @@
-import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
-
+/**
+ * Responsibility: Execute dogfooding scenarios for operator surfaces.
+ */
 import path from "node:path";
-import { parseArgs, printAndExit, splitCsv } from "../lib/cli.ts";
 import { listOperatorSurfaceIds } from "../lib/operator-surfaces.ts";
 import { runDogfood } from "../lib/dogfood-utils.ts";
 
-const HELP = `Usage:
-  tsx scripts/ai-workflow/dogfood.mjs [--surface <id[,id...]>] [--profile <bootstrap|full>] [--timeout-ms <n>] [--json]
 
-Options:
-  --root <path>         Project root. Defaults to current directory.
-  --surface <list>      Operator surfaces to exercise. Defaults to all.
-  --profile <name>      bootstrap or full. Defaults to bootstrap.
-  --timeout-ms <n>      Per-scenario timeout in milliseconds. Defaults to 45000.
-  --json                Emit JSON.
-
-Surfaces:
-  - shell
-  - provider
-  - workflow
-  - init
-`;
-
-const args: any = parseArgs(process.argv.slice(2));
-
-if (args.help) {
-  printAndExit(HELP);
+export interface DogfoodOptions {
+  root?: string;
+  surface?: string[];
+  profile?: string;
+  timeoutMs?: number;
 }
 
-const root = path.resolve(String(args.root ?? process.cwd()));
-const requestedSurfaces = args.surface ? splitCsv(args.surface) : listOperatorSurfaceIds();
-const profile = String(args.profile ?? "bootstrap");
-const timeoutMs = Number(args["timeout-ms"] ?? 45000);
+export async function run(options: DogfoodOptions, hub: any) {
+  const root = path.resolve(String(options.root ?? hub.context.projectRoot));
+  const requestedSurfaces = options.surface ?? listOperatorSurfaceIds();
+  const profile = options.profile ?? "bootstrap";
+  const timeoutMs = options.timeoutMs ?? 45000;
 
-const report = await runDogfood({
-  root,
-  surfaces: requestedSurfaces,
-  profile,
-  timeoutMs,
-  writeReport: true
-});
-
-if (args.json) {
-  console.log(JSON.stringify(report, null, 2));
-  process.exitCode = report.status === "fail" ? 1 : 0;
-} else {
-  const lines = [
-    `Dogfood report: ${path.resolve(root, ".ai-workflow", "generated", "dogfood-report.json")}`,
-    `Profile: ${report.profile}`,
-    `Status: ${report.status}`,
-    `Workspace honesty: ${report.workspaceHonesty?.status ?? "unknown"}`
-  ];
-
-  for (const [surfaceId, surface] of Object.entries(report.surfaces ?? {})) {
-    lines.push(`${surfaceId}: ${surface.status} (${surface.scenarioCount} scenarios, ${surface.fileCount} files)`);
-    for (const scenario of surface.scenarios ?? []) {
-      lines.push(`- ${scenario.ok ? "PASS" : "FAIL"} ${scenario.id}${scenario.model ? ` [${scenario.model}]` : ""}`);
-    }
-  }
-
-  console.log(lines.join("\nexport async function run(args: any, hub: ServiceHub) {\n  "));
-  process.exitCode = report.status === "fail" ? 1 : 0;
+  return runDogfood({
+    root,
+    surfaces: requestedSurfaces,
+    profile,
+    timeoutMs,
+    writeReport: true
+  });
 }
-\n}

@@ -11,8 +11,8 @@ import { pathToFileURL } from "node:url";
 import { TaskExecutor } from "@dharmax/shell-proc-utils";
 
 export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
-  if (ServiceHub.isBuiltinCodelet(codelet.id)) {
-    return ServiceHub.runBuiltinCodelet(codelet.id, args);
+  if (ServiceHub.has(codelet.id)) {
+    return ServiceHub.execute(codelet.id, args);
   }
 
   const entry = codelet.entryPath ?? (codelet.entry ? path.resolve(cwd, codelet.entry) : null);

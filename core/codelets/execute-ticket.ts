@@ -6,7 +6,7 @@
 import { executeTicket } from "../services/orchestrator.ts";
 import { assertSafeRepairTarget, resolveOperatingContext } from "../lib/operating-context.ts";
 import { recordRunArtifact } from "../lib/run-artifacts.ts";
-import type { ServiceHub } from "../services/service-hub.ts";
+
 
 export interface ExecuteTicketOptions {
   ticketId: string;
@@ -18,7 +18,7 @@ export interface ExecuteTicketOptions {
   allowExternalTarget?: boolean;
 }
 
-export async function run(options: ExecuteTicketOptions, hub: typeof ServiceHub) {
+export async function run(options: ExecuteTicketOptions, hub: any) {
   const context = await resolveOperatingContext({
     cwd: options.root || hub.context.projectRoot,
     mode: options.mode || null,

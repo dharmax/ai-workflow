@@ -43,6 +43,13 @@ export class ShellPresenter {
     if (result.projections) {
       lines.push(`Wrote projections: ${result.projections.kanbanPath}, ${result.projections.epicsPath}`);
     }
+    if (result.protocol) {
+      lines.push("");
+      lines.push(`Protocol: ${result.protocol.ok ? "✅ verified" : "🚨 unverified"}`);
+      for (const v of result.protocol.violations) {
+        lines.push(`- Violation: ${v}`);
+      }
+    }
     return lines.join("\n") + "\n";
   }
 
@@ -50,6 +57,7 @@ export class ShellPresenter {
     if (id === "sync") return this.formatSyncResult(result);
     if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
     if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
+    if (id === "extract-guidelines") return this.formatGuidanceResult(result);
     
     if (result && typeof result === "object") {
        return JSON.stringify(result, null, 2) + "\n";
@@ -80,6 +88,20 @@ export class ShellPresenter {
     }
     if (result.error) {
       lines.push(`Error: ${result.error}`);
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  static formatGuidanceResult(result: any): string {
+    const lines = [];
+    lines.push("Active Guardrails:");
+    for (const item of result.activeGuardrails) {
+      lines.push(`- [${item.severity}] ${item.summary} (${item.sourceLabel})`);
+    }
+    lines.push("\nGuidance Bundle:");
+    for (const [section, items] of Object.entries(result.guidance)) {
+      lines.push(`\n[${section.toUpperCase()}]`);
+      (items as any[]).forEach(item => lines.push(`- ${item}`));
     }
     return lines.join("\n") + "\n";
   }

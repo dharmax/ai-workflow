@@ -1,10 +1,9 @@
 /**
  * Responsibility: Provide project high-level summary.
- * Scope: Headless codelet for status overview.
  */
+import { getProjectSummary } from "../services/sync.ts";
 
-import type { ServiceHub } from "../services/service-hub.ts";
 
-export async function run(_args: any, hub: typeof ServiceHub) {
-  return hub.getProjectSummary();
+export async function run(_args: any, hub: any) {
+  return getProjectSummary({ projectRoot: hub.context.projectRoot });
 }

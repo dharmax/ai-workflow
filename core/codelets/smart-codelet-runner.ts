@@ -3,11 +3,9 @@
  * Scope: Handles prompting, multi-provider attempts, and metrics recording.
  */
 
-import { addManualNote } from "../services/sync.ts";
 import { routeTask } from "../services/router.ts";
-import { generateCompletion } from "../services/providers.ts";
 import { buildSmartCodeletRunContext } from "../services/codelet-runtime.ts";
-import type { ServiceHub } from "../services/service-hub.ts";
+
 
 export interface SmartCodeletOptions {
   codeletId?: string;
@@ -18,7 +16,7 @@ export interface SmartCodeletOptions {
   model?: string;
 }
 
-export async function run(options: SmartCodeletOptions, hub: typeof ServiceHub) {
+export async function run(options: SmartCodeletOptions, hub: any) {
   const root = hub.context.projectRoot;
   const codeletId = options.codeletId || "codelet-observer";
 
@@ -31,13 +29,7 @@ export async function run(options: SmartCodeletOptions, hub: typeof ServiceHub) 
   });
 
   const meta = runtimeContext.codelet;
-  const route = await routeTask({
-    root,
-    taskClass: meta.taskClass ?? "task-decomposition",
-    preferLocal: true,
-    allowWeak: true
-  });
-
+  
   // Simplified execution for Smart Codelet
   const prompt = buildPrompt({
     codeletId,
@@ -48,7 +40,8 @@ export async function run(options: SmartCodeletOptions, hub: typeof ServiceHub) 
     promptContext: runtimeContext.promptContext
   });
 
-  const completion = await hub.llm.generate(prompt, { taskClass: meta.taskClass });
+  const llm = hub.resolve("llm");
+  const completion = await llm.generate(prompt, { taskClass: meta.taskClass });
   const result = parseStructuredResponse(completion.response);
 
   return {

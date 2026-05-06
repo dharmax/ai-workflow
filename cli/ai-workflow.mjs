@@ -9,6 +9,87 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// core/services/execution-context.ts
+function detectExecutionMode() {
+  if (process.env.AI_WORKFLOW_CONTEXT === "skill" || process.argv.includes("--skill-mode")) {
+    return "skill" /* Skill */;
+  }
+  return "shell" /* Shell */;
+}
+var init_execution_context = __esm({
+  "core/services/execution-context.ts"() {
+    "use strict";
+  }
+});
+
+// core/services/service-hub.ts
+var ServiceHub;
+var init_service_hub = __esm({
+  "core/services/service-hub.ts"() {
+    "use strict";
+    init_execution_context();
+    ServiceHub = class {
+      static _context = null;
+      static _registry = /* @__PURE__ */ new Map();
+      static get context() {
+        if (!this._context) {
+          this._context = {
+            projectRoot: process.cwd(),
+            mode: detectExecutionMode()
+          };
+        }
+        return this._context;
+      }
+      static setContext(context) {
+        this._context = context;
+      }
+      // --- Dynamic Registry ---
+      /**
+       * Register a service or codelet implementation.
+       */
+      static register(id, implementation) {
+        this._registry.set(id, implementation);
+      }
+      /**
+       * Resolve a registered implementation by ID.
+       */
+      static resolve(id) {
+        const service = this._registry.get(id);
+        if (!service) {
+          throw new Error(`Service not registered: ${id}`);
+        }
+        return service;
+      }
+      /**
+       * Check if a service ID is registered.
+       */
+      static has(id) {
+        return this._registry.has(id);
+      }
+      /**
+       * Execute a registered service/codelet.
+       */
+      static async execute(id, ...args) {
+        const service = this.resolve(id);
+        if (typeof service === "function") {
+          return service(...args);
+        }
+        if (service && typeof service.run === "function") {
+          const options = args.length > 0 ? args[0] : {};
+          return service.run(options, this);
+        }
+        throw new Error(`Service ${id} is not executable.`);
+      }
+      /**
+       * List all registered service IDs.
+       */
+      static list() {
+        return Array.from(this._registry.keys());
+      }
+    };
+  }
+});
+
 // node_modules/.pnpm/@dharmax+llm-utils@https+++codeload.github.com+dharmax+llm-utils+tar.gz+7e2067dbfde8134b0bac163fe831920d7f515dd8/node_modules/@dharmax/llm-utils/dist/index.mjs
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -2575,8 +2656,8 @@ var init_sqlite_store = __esm({
           createdAt: row.created_at
         }));
       }
-      upsertTestRun(run4) {
-        const timestamp = String(run4.updatedAt ?? nowIso());
+      upsertTestRun(run13) {
+        const timestamp = String(run13.updatedAt ?? nowIso());
         this.db.prepare(`
       INSERT INTO test_runs (id, run_id, test_id, target_id, source, label, status, command, summary, artifact_ref, recorded_at, details_json, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2594,26 +2675,26 @@ var init_sqlite_store = __esm({
         details_json = excluded.details_json,
         updated_at = excluded.updated_at
     `).run(
-          String(run4.id),
-          String(run4.runId),
-          String(run4.testId),
-          String(run4.targetId),
-          String(run4.source),
-          run4.label != null ? String(run4.label) : null,
-          String(run4.status),
-          run4.command != null ? String(run4.command) : null,
-          run4.summary != null ? String(run4.summary) : null,
-          run4.artifactRef != null ? String(run4.artifactRef) : null,
-          String(run4.recordedAt ?? timestamp),
-          asJson(run4.details),
+          String(run13.id),
+          String(run13.runId),
+          String(run13.testId),
+          String(run13.targetId),
+          String(run13.source),
+          run13.label != null ? String(run13.label) : null,
+          String(run13.status),
+          run13.command != null ? String(run13.command) : null,
+          run13.summary != null ? String(run13.summary) : null,
+          run13.artifactRef != null ? String(run13.artifactRef) : null,
+          String(run13.recordedAt ?? timestamp),
+          asJson(run13.details),
           timestamp
         );
       }
       replaceTestRunsForSource(source, runs = []) {
         const finalSource = String(source);
         this.db.prepare("DELETE FROM test_runs WHERE source = ?").run(finalSource);
-        for (const run4 of runs) {
-          this.upsertTestRun(run4);
+        for (const run13 of runs) {
+          this.upsertTestRun(run13);
         }
       }
       listTestRuns(filters = {}) {
@@ -2653,13 +2734,13 @@ var init_sqlite_store = __esm({
           updatedAt: row.updated_at
         }));
       }
-      upsertWorkflowRun(run4) {
+      upsertWorkflowRun(run13) {
         const now = nowIso();
-        const finalId = String(run4.id);
+        const finalId = String(run13.id);
         const existing = this.getWorkflowRun(finalId);
-        const finalPrompt = String(run4.prompt ?? existing?.prompt ?? "unknown");
-        const finalCode = String(run4.code ?? existing?.code ?? "");
-        const finalCreatedAt = String(run4.createdAt ?? existing?.createdAt ?? now);
+        const finalPrompt = String(run13.prompt ?? existing?.prompt ?? "unknown");
+        const finalCode = String(run13.code ?? existing?.code ?? "");
+        const finalCreatedAt = String(run13.createdAt ?? existing?.createdAt ?? now);
         this.db.prepare(`
       INSERT INTO workflow_runs (id, prompt, code, status, current_state, result_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -2672,9 +2753,9 @@ var init_sqlite_store = __esm({
           finalId,
           finalPrompt,
           finalCode,
-          String(run4.status ?? existing?.status ?? "running"),
-          run4.currentState != null ? String(run4.currentState) : null,
-          asJson(run4.result),
+          String(run13.status ?? existing?.status ?? "running"),
+          run13.currentState != null ? String(run13.currentState) : null,
+          asJson(run13.result),
           finalCreatedAt,
           now
         );
@@ -3224,205 +3305,15 @@ var init_fs_utils = __esm({
   }
 });
 
-// core/lib/registry.ts
-function getAllSupportedExtensions() {
-  return Object.values(SEMANTICS.EXTENSIONS).flat();
-}
-var SEMANTICS;
-var init_registry = __esm({
-  "core/lib/registry.ts"() {
-    "use strict";
-    SEMANTICS = {
-      NOTES: {
-        markers: ["TODO", "FIXME", "BUG", "RISK", "HACK", "NOTE", "OPTIMIZE", "REVIEW", "DEBT", "PENDING", "FIXIT", "REVISIT"],
-        aliases: {
-          "TODO": ["to-do", "todo", "[ ]"],
-          "BUG": ["bug", "error", "fault", "fixit"],
-          "REVIEW": ["review", "revisit", "audit"]
-        },
-        imperatives: ["MUST", "SHOULD", "FIX", "CLEANUP", "REFACTOR", "REMOVE", "IMPLEMENT"]
-      },
-      BUDGET: {
-        MAX_TOKENS: 12e3,
-        MAX_FILES: 10,
-        MAX_SYMBOLS: 30
-      },
-      FOLDERS: {
-        STATE: [".ai-workflow", "workflow-state", ".state"],
-        CONFIG: [".gemini", "gemini-config", "config/gemini"],
-        TEMPLATES: ["templates", "blueprints", "scaffolding"]
-      },
-      EXTENSIONS: {
-        CODE: [".ts", ".ts", ".ts", ".mts", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp"],
-        STYLE: [".css", ".scss", ".less", ".styl"],
-        MARKUP: [".html", ".riot", ".vue", ".svelte", ".xml"],
-        DATA: [".json", ".yaml", ".yml", ".toml"],
-        DOCS: [".md", ".txt", ".adoc", ".org"]
-      },
-      LANES: {
-        ACTIVE: ["In Progress", "Doing", "Active", "Working"],
-        BACKLOG: ["Todo", "To-Do", "Backlog", "Queue", "Pending"],
-        DONE: ["Done", "Finished", "Complete", "Closed", "Archived"]
-      }
-    };
-  }
-});
-
-// core/lib/workspace-mutation.ts
-import path3 from "node:path";
-import { execFile as execFile3 } from "node:child_process";
-import { promisify as promisify3 } from "node:util";
-function isWorkspaceMutationGuardDisabled() {
-  return guardDepth > 0;
-}
-async function withWorkspaceMutationGuardDisabled(callback) {
-  guardDepth += 1;
-  try {
-    return await callback();
-  } finally {
-    guardDepth = Math.max(0, guardDepth - 1);
-  }
-}
-async function withWorkspaceMutation(root, operation, callback, { writeProjections = true, syncAfter = true, syncBefore = true } = {}) {
-  if (isWorkspaceMutationGuardDisabled()) {
-    return callback({
-      nested: true,
-      operation,
-      before: null
-    });
-  }
-  guardDepth += 1;
-  try {
-    const startedAt = (/* @__PURE__ */ new Date()).toISOString();
-    const before = await probeWorkspaceState(root).catch(() => ({
-      gitRepo: false,
-      dirty: true,
-      changedFiles: [],
-      source: "probe-error"
-    }));
-    if (syncBefore && before.dirty) {
-      const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
-      await syncProject2({ projectRoot: root, writeProjections: false }).catch(() => {
-      });
-    }
-    let result;
-    let failed = null;
-    try {
-      result = await callback({
-        before,
-        operation
-      });
-      return result;
-    } catch (error) {
-      failed = error;
-      throw error;
-    } finally {
-      const after = await probeWorkspaceState(root).catch(() => ({
-        gitRepo: false,
-        dirty: true,
-        changedFiles: [],
-        source: "probe-error"
-      }));
-      let finalAfter = after;
-      let syncTriggered = false;
-      if (syncAfter && (before.dirty || after.dirty || !before.gitRepo || !after.gitRepo || failed)) {
-        const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
-        syncTriggered = true;
-        await syncProject2({ projectRoot: root, writeProjections }).catch(() => {
-        });
-        finalAfter = await probeWorkspaceState(root).catch(() => after);
-      }
-      const { collectProjectFileSnapshot: collectProjectFileSnapshot2 } = await Promise.resolve().then(() => (init_filesystem(), filesystem_exports));
-      const finalSnapshot = await collectProjectFileSnapshot2(root).catch(() => []);
-      await recordWorkspaceMutation(root, {
-        operation,
-        status: failed ? "failed" : "completed",
-        beforeDirty: before.dirty,
-        afterDirty: finalAfter.dirty,
-        changedFiles: finalAfter.changedFiles,
-        details: {
-          before,
-          after: finalAfter,
-          snapshot: finalSnapshot,
-          syncTriggered,
-          error: failed ? String(failed?.message ?? failed) : null
-        },
-        startedAt,
-        completedAt: (/* @__PURE__ */ new Date()).toISOString()
-      }).catch(() => {
-      });
-    }
-  } finally {
-    guardDepth = Math.max(0, guardDepth - 1);
-  }
-}
-async function probeWorkspaceState(root) {
-  const gitRepo = await probeGitRepo(root);
-  if (!gitRepo) {
-    return {
-      gitRepo: false,
-      dirty: true,
-      changedFiles: [],
-      source: "snapshot-required"
-    };
-  }
-  const output7 = await runGit(root, ["status", "--porcelain", "--untracked-files=all"]);
-  const changedFiles = parseStatusShort(output7);
-  return {
-    gitRepo: true,
-    dirty: changedFiles.length > 0,
-    changedFiles,
-    source: "git"
-  };
-}
-async function probeGitRepo(root) {
-  try {
-    const output7 = await runGit(root, ["rev-parse", "--is-inside-work-tree"]);
-    return output7.trim() === "true";
-  } catch {
-    return false;
-  }
-}
-async function runGit(root, args) {
-  const { stdout } = await execFileAsync3("git", args, {
-    cwd: root,
-    maxBuffer: 8 * 1024 * 1024
-  });
-  return String(stdout ?? "").trimEnd();
-}
-function parseStatusShort(output7) {
-  return String(output7 ?? "").split(/\r?\n/).filter(Boolean).map((line) => line.slice(3).trim()).filter(Boolean);
-}
-async function recordWorkspaceMutation(root, mutation) {
-  const { openWorkflowStore: openWorkflowStore2 } = await Promise.resolve().then(() => (init_sqlite_store(), sqlite_store_exports));
-  const store = await openWorkflowStore2({ projectRoot: root });
-  try {
-    store.appendWorkspaceMutation({
-      ...mutation,
-      root: path3.resolve(root)
-    });
-  } finally {
-    store.close();
-  }
-}
-var execFileAsync3, guardDepth;
-var init_workspace_mutation = __esm({
-  "core/lib/workspace-mutation.ts"() {
-    "use strict";
-    execFileAsync3 = promisify3(execFile3);
-    guardDepth = 0;
-  }
-});
-
 // cli/lib/config-store.ts
 import os from "node:os";
-import path4 from "node:path";
+import path3 from "node:path";
 import { readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 function getProjectConfigPath(root = process.cwd()) {
-  return path4.resolve(root, ".ai-workflow", "config.json");
+  return path3.resolve(root, ".ai-workflow", "config.json");
 }
 function getGlobalConfigPath() {
-  return path4.resolve(os.homedir(), ".ai-workflow", "config.json");
+  return path3.resolve(os.homedir(), ".ai-workflow", "config.json");
 }
 async function readConfig(filePath) {
   try {
@@ -3501,7 +3392,7 @@ async function updateConfig(filePath, updater) {
   return nextConfig;
 }
 async function replaceConfig(filePath, config) {
-  await ensureDir(path4.dirname(filePath));
+  await ensureDir(path3.dirname(filePath));
   const payload = `${JSON.stringify(config, null, 2)}
 `;
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
@@ -3541,1914 +3432,10 @@ var init_config_store = __esm({
   }
 });
 
-// core/lib/operating-context.ts
-var operating_context_exports = {};
-__export(operating_context_exports, {
-  assertSafeRepairTarget: () => assertSafeRepairTarget,
-  getToolkitRoot: () => getToolkitRoot,
-  resolveOperatingContext: () => resolveOperatingContext
-});
-import path5 from "node:path";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-function getToolkitRoot() {
-  const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
-  if (fromEnv) {
-    return path5.resolve(fromEnv);
-  }
-  for (const candidate of candidateRoots(moduleDir)) {
-    if (isToolkitRoot(candidate)) {
-      return candidate;
-    }
-  }
-  throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
-}
-async function resolveOperatingContext({
-  cwd = process.cwd(),
-  mode = null,
-  root = null,
-  evidenceRoot = null,
-  allowExternalTarget = false
-} = {}) {
-  const toolkitRoot3 = getToolkitRoot();
-  const projectConfigPath = getProjectConfigPath(cwd);
-  const globalConfigPath = getGlobalConfigPath();
-  const [projectConfigResult, globalConfigResult] = await Promise.all([
-    readConfigSafe(projectConfigPath),
-    readConfigSafe(globalConfigPath)
-  ]);
-  const projectMode = projectConfigResult.config?.mode;
-  const globalMode = globalConfigResult.config?.mode;
-  const resolvedMode = normalizeMode(mode ?? projectMode ?? globalMode ?? "default");
-  const requestedRoot = root ? path5.resolve(String(root)) : null;
-  const resolvedEvidenceRoot = evidenceRoot ? path5.resolve(String(evidenceRoot)) : path5.resolve(cwd);
-  const repairTargetRoot = requestedRoot ?? (resolvedMode === "tool-dev" ? toolkitRoot3 : path5.resolve(cwd));
-  const externalTarget = path5.resolve(repairTargetRoot) !== path5.resolve(toolkitRoot3);
-  return {
-    mode: resolvedMode,
-    toolkitRoot: toolkitRoot3,
-    repairTargetRoot,
-    evidenceRoot: resolvedEvidenceRoot,
-    externalTarget,
-    externalTargetAllowed: Boolean(allowExternalTarget),
-    projectConfigPath,
-    globalConfigPath
-  };
-}
-function assertSafeRepairTarget(context, options = {}) {
-  if (!context) return;
-  if (context.mode !== "tool-dev") return;
-  if (!context.externalTarget) return;
-  if (context.externalTargetAllowed) return;
-  const action = options.action ? ` for ${options.action}` : "";
-  throw new Error(`tool-dev mode refuses external repair target${action}: ${context.repairTargetRoot}. Use --allow-external-target to override.`);
-}
-function normalizeMode(value) {
-  const normalized = String(value ?? "default").trim().toLowerCase();
-  return normalized === "tool-dev" ? "tool-dev" : "default";
-}
-function* candidateRoots(startDir) {
-  let current2 = path5.resolve(startDir);
-  while (true) {
-    yield current2;
-    const parent = path5.dirname(current2);
-    if (parent === current2) break;
-    current2 = parent;
-  }
-}
-function isToolkitRoot(candidate) {
-  return existsSync(path5.resolve(candidate, "package.json")) && existsSync(path5.resolve(candidate, "core", "services", "sync.ts")) && (existsSync(path5.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync(path5.resolve(candidate, "cli", "ai-workflow.mjs")));
-}
-var moduleDir;
-var init_operating_context = __esm({
-  "core/lib/operating-context.ts"() {
-    "use strict";
-    init_config_store();
-    moduleDir = path5.dirname(fileURLToPath(import.meta.url));
-  }
-});
-
-// core/lib/filesystem.ts
-var filesystem_exports = {};
-__export(filesystem_exports, {
-  collectProjectFileSnapshot: () => collectProjectFileSnapshot,
-  collectProjectFiles: () => collectProjectFiles,
-  loadPromptTemplate: () => loadPromptTemplate,
-  normalizePath: () => normalizePath2,
-  readProjectFile: () => readProjectFile,
-  renderTemplate: () => renderTemplate,
-  writeProjectFile: () => writeProjectFile
-});
-import path6 from "node:path";
-import { existsSync as existsSync2 } from "node:fs";
-import { readdir, readFile as readFile3, stat, writeFile as writeFile2 } from "node:fs/promises";
-function normalizePath2(filePath) {
-  return filePath.split(path6.sep).join("/");
-}
-async function collectProjectFiles(root, options = {}) {
-  const files = [];
-  const ignore = /* @__PURE__ */ new Set([...DEFAULT_IGNORES, ...options.ignore ?? []]);
-  const supported = new Set(getAllSupportedExtensions());
-  const projectIgnore = await loadProjectIgnore(root);
-  async function walk(currentDir) {
-    const entries = await readdir(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const absolutePath = path6.resolve(currentDir, entry.name);
-      const relativePath = normalizePath2(path6.relative(root, absolutePath));
-      if (entry.isDirectory()) {
-        if (ignore.has(entry.name)) {
-          continue;
-        }
-        if (relativePath.startsWith(".ai-workflow/cache") || relativePath.startsWith(".ai-workflow/generated")) {
-          continue;
-        }
-        if (shouldIgnorePath(relativePath, projectIgnore)) {
-          continue;
-        }
-        if (await isNestedProjectRoot(root, absolutePath, relativePath)) {
-          continue;
-        }
-        await walk(absolutePath);
-        continue;
-      }
-      if (!entry.isFile()) {
-        continue;
-      }
-      if (shouldIgnoreFile(entry.name, relativePath)) {
-        continue;
-      }
-      if (shouldIgnorePath(relativePath, projectIgnore)) {
-        continue;
-      }
-      if (!supported.has(path6.extname(entry.name).toLowerCase())) {
-        continue;
-      }
-      files.push(relativePath);
-    }
-  }
-  await walk(root);
-  return files.sort((left, right) => left.localeCompare(right));
-}
-async function collectProjectFileSnapshot(root, options = {}) {
-  const files = [];
-  const ignore = /* @__PURE__ */ new Set([...DEFAULT_IGNORES, ...options.ignore ?? []]);
-  const supported = new Set(getAllSupportedExtensions());
-  const projectIgnore = await loadProjectIgnore(root);
-  async function walk(currentDir) {
-    const entries = await readdir(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const absolutePath = path6.resolve(currentDir, entry.name);
-      const relativePath = normalizePath2(path6.relative(root, absolutePath));
-      if (entry.isDirectory()) {
-        if (ignore.has(entry.name)) {
-          continue;
-        }
-        if (relativePath.startsWith(".ai-workflow/cache") || relativePath.startsWith(".ai-workflow/generated")) {
-          continue;
-        }
-        if (shouldIgnorePath(relativePath, projectIgnore)) {
-          continue;
-        }
-        if (await isNestedProjectRoot(root, absolutePath, relativePath)) {
-          continue;
-        }
-        await walk(absolutePath);
-        continue;
-      }
-      if (!entry.isFile()) {
-        continue;
-      }
-      if (shouldIgnoreFile(entry.name, relativePath)) {
-        continue;
-      }
-      if (shouldIgnorePath(relativePath, projectIgnore)) {
-        continue;
-      }
-      if (!supported.has(path6.extname(entry.name).toLowerCase())) {
-        continue;
-      }
-      const stats = await stat(absolutePath);
-      files.push({
-        relativePath,
-        sizeBytes: stats.size,
-        mtimeMs: Number(stats.mtimeMs.toFixed(0))
-      });
-    }
-  }
-  await walk(root);
-  return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
-}
-function shouldIgnoreFile(name, relativePath) {
-  const normalizedPath = normalizePath2(relativePath);
-  if (normalizedPath.startsWith(".ai-workflow/")) {
-    return true;
-  }
-  return GENERATED_FILE_PATTERNS.some((pattern) => pattern.test(name));
-}
-async function loadProjectIgnore(root) {
-  const ignorePath = path6.resolve(root, ".ai-workflowignore");
-  let text = "";
-  try {
-    text = await readFile3(ignorePath, "utf8");
-  } catch {
-    return [];
-  }
-  return text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#")).map((line) => normalizeIgnorePattern(line));
-}
-function normalizeIgnorePattern(pattern) {
-  const normalized = normalizePath2(String(pattern).trim()).replace(/^\.?\//, "");
-  if (!normalized) return "";
-  return normalized.endsWith("/") ? normalized : normalized;
-}
-function shouldIgnorePath(relativePath, patterns) {
-  const normalized = normalizePath2(relativePath);
-  return patterns.some((pattern) => matchesIgnorePattern(normalized, pattern));
-}
-function matchesIgnorePattern(relativePath, pattern) {
-  if (!pattern) return false;
-  if (pattern.endsWith("/")) {
-    const prefix = pattern.replace(/\/+$/, "");
-    return relativePath === prefix || relativePath.startsWith(`${prefix}/`);
-  }
-  return relativePath === pattern || relativePath.startsWith(`${pattern}/`);
-}
-async function isNestedProjectRoot(root, absolutePath, relativePath) {
-  const normalized = normalizePath2(relativePath);
-  if (!normalized || normalized.startsWith(".git/") || normalized.startsWith(".ai-workflow/")) {
-    return false;
-  }
-  const packageJsonPath = path6.resolve(absolutePath, "package.json");
-  const workflowConfigPath = path6.resolve(absolutePath, ".ai-workflow", "config.json");
-  const docsKanbanPath = path6.resolve(absolutePath, "docs", "kanban.md");
-  const rootKanbanPath = path6.resolve(absolutePath, "kanban.md");
-  const nestedScriptPath = path6.resolve(absolutePath, "scripts", "ai-workflow");
-  if (!existsSync2(packageJsonPath)) {
-    return false;
-  }
-  const hasProjectMarkers = existsSync2(workflowConfigPath) || existsSync2(docsKanbanPath) || existsSync2(rootKanbanPath) || existsSync2(nestedScriptPath);
-  return hasProjectMarkers;
-}
-async function readProjectFile(root, relativePath) {
-  const absolutePath = path6.resolve(root, relativePath);
-  const stats = await stat(absolutePath);
-  if (stats.size > 2 * 1024 * 1024) {
-    return {
-      absolutePath,
-      relativePath: normalizePath2(relativePath),
-      content: "",
-      sizeBytes: stats.size,
-      mtimeMs: Number(stats.mtimeMs.toFixed(0)),
-      isBinary: true
-    };
-  }
-  const content = await readFile3(absolutePath, "utf8");
-  const isBinary = content.includes("\0");
-  return {
-    absolutePath,
-    relativePath: normalizePath2(relativePath),
-    content: isBinary ? "" : content,
-    sizeBytes: stats.size,
-    mtimeMs: Number(stats.mtimeMs.toFixed(0)),
-    isBinary
-  };
-}
-async function loadPromptTemplate(templateName) {
-  const { getToolkitRoot: getToolkitRoot3 } = await Promise.resolve().then(() => (init_operating_context(), operating_context_exports));
-  const toolkitRoot3 = getToolkitRoot3();
-  const templatePath = path6.resolve(toolkitRoot3, "shared", "prompts", `${templateName}.md`);
-  try {
-    let raw = await readFile3(templatePath, "utf8");
-    let manifest = {};
-    const frontmatterMatch = raw.match(/^---\s*json\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n/);
-    if (frontmatterMatch) {
-      try {
-        manifest = JSON.parse(frontmatterMatch[1]);
-      } catch (e) {
-        console.warn(`[prompt-engine] Failed to parse JSON frontmatter in ${templateName}.md`);
-      }
-      raw = raw.slice(frontmatterMatch[0].length);
-    }
-    const content = raw.replace(/<!--[\s\S]*?-->/g, "").trim();
-    return { content, manifest };
-  } catch {
-    return { content: null, manifest: {} };
-  }
-}
-function renderTemplate(content, variables = {}) {
-  if (!content) return null;
-  let rendered = content;
-  for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`\\{\\{[ \\t]*${key}[ \\t]*\\}\\}`, "g");
-    rendered = rendered.replace(regex, value ?? "");
-  }
-  return rendered;
-}
-async function writeProjectFile(root, relativePath, content) {
-  if (!isWorkspaceMutationGuardDisabled()) {
-    return withWorkspaceMutation(root, `write ${relativePath}`, async () => withWorkspaceMutationGuardDisabled(async () => writeProjectFileRaw(root, relativePath, content)));
-  }
-  return writeProjectFileRaw(root, relativePath, content);
-}
-async function writeProjectFileRaw(root, relativePath, content) {
-  const absolutePath = path6.resolve(root, relativePath);
-  const tempPath = `${absolutePath}.tmp-${Date.now()}`;
-  const { rename: rename2, unlink } = await import("node:fs/promises");
-  await ensureDir(path6.dirname(absolutePath));
-  try {
-    await writeFile2(tempPath, content, "utf8");
-    await rename2(tempPath, absolutePath);
-  } catch (error) {
-    await unlink(tempPath).catch(() => {
-    });
-    throw error;
-  }
-}
-var DEFAULT_IGNORES, GENERATED_FILE_PATTERNS;
-var init_filesystem = __esm({
-  "core/lib/filesystem.ts"() {
-    "use strict";
-    init_fs_utils();
-    init_registry();
-    init_workspace_mutation();
-    DEFAULT_IGNORES = /* @__PURE__ */ new Set([
-      ".git",
-      "node_modules",
-      ".turbo",
-      ".next",
-      "artifacts",
-      "dist",
-      "build",
-      "coverage",
-      "playwright-report",
-      "test-results",
-      "output",
-      ".idea",
-      ".vscode"
-    ]);
-    GENERATED_FILE_PATTERNS = [
-      /^e2e_.*\.(?:txt|json)$/i,
-      /(?:^|[-_])(debug|output|report)\.(?:txt|json|md)$/i,
-      /^playwright\..*\.json$/i,
-      /^actual-test\.js$/i,
-      /^test-.*\.js$/i
-    ];
-  }
-});
-
-// node_modules/.pnpm/@dharmax+codebase-parser@https+++codeload.github.com+dharmax+codebase-parser+tar.gz+176_6b7390c875f2195e46a390f5f75f6845/node_modules/@dharmax/codebase-parser/dist/index.mjs
-import path7 from "node:path";
-function getNoteRegex() {
-  const allMarkers = [
-    ...SEMANTICS2.NOTES.markers,
-    ...Object.values(SEMANTICS2.NOTES.aliases).flat()
-  ];
-  const escaped = allMarkers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(`^\\s*(?:(?:[-*]\\s+)?(?:\\[\\s*)?(${escaped.join("|")})(?:\\s*\\])?[:\\-]?|\\-\\s+\\[\\s\\])\\s+(.+)`, "i");
-}
-function findNotesFuzzily(text) {
-  const lines = text.split("\n");
-  const results = [];
-  const regex = getNoteRegex();
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(regex);
-    if (match) {
-      const typeText = match[1] || "TODO";
-      const body = match[2] || "";
-      const type = inferNoteType(typeText);
-      results.push({
-        type,
-        body: body.trim(),
-        line: i + 1,
-        rawLine: line
-      });
-    }
-  }
-  return results;
-}
-function inferNoteType(matchText) {
-  const lower = (matchText || "").toLowerCase();
-  for (const [canonical, aliases] of Object.entries(SEMANTICS2.NOTES.aliases)) {
-    if (aliases.some((a) => lower.includes(a.toLowerCase()))) return canonical;
-  }
-  for (const marker of SEMANTICS2.NOTES.markers) {
-    if (lower.includes(marker.toLowerCase())) return marker;
-  }
-  return "TODO";
-}
-function extractTaggedNotes(content, { commentPattern, filePath }) {
-  const results = [];
-  const noteRegex = getNoteRegex();
-  for (const match of content.matchAll(commentPattern)) {
-    const commentBody = match[1];
-    const offset2 = match.index;
-    const { line, column } = countLineColumn(content, offset2);
-    const innerLines = commentBody.split("\n");
-    for (let i = 0; i < innerLines.length; i++) {
-      const noteMatch = innerLines[i].match(noteRegex);
-      if (noteMatch) {
-        const typeText = noteMatch[1] || "TODO";
-        const body = noteMatch[2] || "";
-        const noteType = inferNoteType(typeText);
-        results.push({
-          noteType,
-          body: body.trim(),
-          filePath,
-          line: line + i,
-          column: i === 0 ? column : 1
-        });
-      }
-    }
-  }
-  return results;
-}
-function countLineColumn(source, offset2) {
-  const slice = source.slice(0, Math.max(0, offset2));
-  const lines = slice.split("\n");
-  return {
-    line: lines.length,
-    column: lines.at(-1).length + 1
-  };
-}
-function parseJsFamily({ filePath, content, language }) {
-  const imports = [];
-  const symbols = [];
-  const calls = /* @__PURE__ */ new Set();
-  const seenSymbols = /* @__PURE__ */ new Set();
-  for (const match of content.matchAll(/^\s*import\s+(?:.+?\s+from\s+)?["']([^"']+)["']/gm)) {
-    imports.push(match[1]);
-  }
-  for (const match of content.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)) {
-    imports.push(match[1]);
-  }
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g, "function");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?class\s+([A-Za-z_$][\w$]*)\b/g, "class");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?interface\s+([A-Za-z_$][\w$]*)\b/g, "interface");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/g, "type");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?enum\s+([A-Za-z_$][\w$]*)\b/g, "enum");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/g, "function-value");
-  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?!\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/g, "variable");
-  for (const match of content.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) {
-    const candidate = match[1];
-    if (!KEYWORDS.has(candidate)) {
-      calls.add(candidate);
-    }
-  }
-  const notes = extractJsNotes(content, filePath);
-  return {
-    language,
-    fileKind: "code",
-    symbols,
-    facts: [
-      ...imports.map((value) => ({ predicate: "imports", objectText: value, confidence: 1 })),
-      ...Array.from(calls).map((value) => ({ predicate: "calls", objectText: value, confidence: 0.52 }))
-    ],
-    notes,
-    metadata: {
-      importCount: imports.length,
-      symbolCount: symbols.length,
-      approximateCallCount: calls.size
-    },
-    searchText: [content, ...imports, ...symbols.map((symbol) => symbol.name)].join("\n")
-  };
-}
-function addSymbols(target, seenSymbols, content, regex, kind) {
-  for (const match of content.matchAll(regex)) {
-    const name = match[2];
-    const key = `${kind}:${name}`;
-    if (seenSymbols.has(key)) {
-      continue;
-    }
-    seenSymbols.add(key);
-    const location = countLineColumn(content, match.index ?? 0);
-    const lineText = extractLine(content, location.line);
-    target.push({
-      name,
-      kind,
-      exported: Boolean(match[1]),
-      line: location.line,
-      column: location.column,
-      metadata: {
-        signature: lineText.trim(),
-        declarationLine: location.line
-      }
-    });
-  }
-}
-function extractLine(content, lineNumber) {
-  return String(content).split("\n")[Math.max(0, lineNumber - 1)] ?? "";
-}
-function extractJsNotes(source, filePath) {
-  const comments = [];
-  let index = 0;
-  let mode = "code";
-  while (index < source.length) {
-    const current2 = source[index];
-    const next = source[index + 1];
-    if (mode === "code") {
-      if (current2 === "'" || current2 === '"' || current2 === "`") {
-        mode = current2;
-        index += 1;
-        continue;
-      }
-      if (current2 === "/" && next === "/") {
-        const start = index;
-        index += 2;
-        let body = "";
-        while (index < source.length && source[index] !== "\n") {
-          body += source[index];
-          index += 1;
-        }
-        comments.push({ body, index: start });
-        continue;
-      }
-      if (current2 === "/" && next === "*") {
-        const start = index;
-        index += 2;
-        let body = "";
-        while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
-          body += source[index];
-          index += 1;
-        }
-        index += 2;
-        comments.push({ body, index: start });
-        continue;
-      }
-      index += 1;
-      continue;
-    }
-    if (current2 === "\\") {
-      index += 2;
-      continue;
-    }
-    if (current2 === mode) {
-      mode = "code";
-    }
-    index += 1;
-  }
-  return comments.flatMap((comment) => {
-    const location = countLineColumn(source, comment.index);
-    return findNotesFuzzily(comment.body.replace(/^\*\s*/gm, "").trim()).map((found) => ({
-      noteType: found.type,
-      body: found.body,
-      filePath,
-      line: location.line + (found.line - 1),
-      column: location.column
-    }));
-  });
-}
-function parseStyles({ filePath, content, language }) {
-  const selectors = [];
-  for (const match of content.matchAll(/(^|})\s*([^@}{][^{]+)\{/gm)) {
-    const group = match[2].trim();
-    for (const selector of group.split(",")) {
-      const normalized = selector.trim();
-      if (normalized) {
-        selectors.push(normalized);
-      }
-    }
-  }
-  const notes = extractTaggedNotes(content, {
-    commentPattern: /\/\*([\s\S]*?)\*\//g,
-    filePath
-  });
-  return {
-    language,
-    fileKind: "style",
-    symbols: selectors.map((selector) => ({ name: selector, kind: "selector", exported: false })),
-    facts: selectors.map((selector) => ({ predicate: "defines-selector", objectText: selector, confidence: 1 })),
-    notes,
-    metadata: {
-      selectorCount: selectors.length
-    },
-    searchText: [content, ...selectors].join("\n")
-  };
-}
-function parseHtml({ filePath, content, language = "html" }) {
-  const ids = /* @__PURE__ */ new Set();
-  const classes = /* @__PURE__ */ new Set();
-  for (const match of content.matchAll(/\sid=["']([^"']+)["']/g)) {
-    ids.add(`#${match[1]}`);
-  }
-  for (const match of content.matchAll(/\sclass=["']([^"']+)["']/g)) {
-    for (const className of match[1].split(/\s+/)) {
-      if (className) {
-        classes.add(`.${className}`);
-      }
-    }
-  }
-  const selectors = [...ids, ...classes];
-  const notes = extractTaggedNotes(content, {
-    commentPattern: /<!--([\s\S]*?)-->/g,
-    filePath
-  });
-  return {
-    language,
-    fileKind: "markup",
-    symbols: selectors.map((selector) => ({ name: selector, kind: "selector", exported: false })),
-    facts: selectors.map((selector) => ({ predicate: "uses-selector", objectText: selector, confidence: 0.95 })),
-    notes,
-    metadata: {
-      selectorCount: selectors.length
-    },
-    searchText: [content, ...selectors].join("\n")
-  };
-}
-function parseRiot({ filePath, content }) {
-  const scriptContent = content.match(/<script[^>]*>([\s\S]*?)<\/script>/i)?.[1] ?? "";
-  const styleContent = content.match(/<style[^>]*>([\s\S]*?)<\/style>/i)?.[1] ?? "";
-  const templateContent = content.replace(/<script[\s\S]*?<\/script>/ig, "").replace(/<style[\s\S]*?<\/style>/ig, "");
-  const script = scriptContent ? parseJsFamily({ filePath, content: scriptContent, language: "riot-script" }) : emptyResult("riot-script");
-  const style = styleContent ? parseStyles({ filePath, content: styleContent, language: "riot-style" }) : emptyResult("riot-style");
-  const markup = parseHtml({ filePath, content: templateContent, language: "riot-template" });
-  return {
-    language: "riot",
-    fileKind: "component",
-    symbols: [...script.symbols, ...style.symbols, ...markup.symbols],
-    facts: [...script.facts, ...style.facts, ...markup.facts],
-    notes: [...script.notes, ...style.notes, ...markup.notes],
-    metadata: {
-      scriptSymbols: script.symbols.length,
-      styleSelectors: style.symbols.length,
-      templateSelectors: markup.symbols.length
-    },
-    searchText: [script.searchText, style.searchText, markup.searchText].filter(Boolean).join("\n")
-  };
-}
-function emptyResult(language) {
-  return {
-    language,
-    fileKind: "empty",
-    symbols: [],
-    facts: [],
-    notes: [],
-    metadata: {},
-    searchText: ""
-  };
-}
-function parseJsonFile({ filePath, content }) {
-  let value = null;
-  let error = null;
-  try {
-    value = JSON.parse(content);
-  } catch (caughtError) {
-    error = caughtError.message;
-  }
-  const topLevelKeys = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
-  return {
-    language: "json",
-    fileKind: "data",
-    symbols: topLevelKeys.map((key) => ({ name: key, kind: "json-key", exported: false })),
-    facts: topLevelKeys.map((key) => ({ predicate: "has-key", objectText: key, confidence: 1 })),
-    notes: [],
-    metadata: {
-      parseError: error,
-      topLevelKeyCount: topLevelKeys.length
-    },
-    searchText: [content, ...topLevelKeys].join("\n")
-  };
-}
-function parseYamlFile({ filePath, content, language }) {
-  const keys = [];
-  for (const match of content.matchAll(/^([A-Za-z0-9_.-]+):/gm)) {
-    keys.push(match[1]);
-  }
-  const notes = extractTaggedNotes(content, {
-    commentPattern: /#([^\n]+)/g,
-    filePath
-  });
-  return {
-    language,
-    fileKind: "data",
-    symbols: keys.map((key) => ({ name: key, kind: "yaml-key", exported: false })),
-    facts: keys.map((key) => ({ predicate: "has-key", objectText: key, confidence: 0.9 })),
-    notes,
-    metadata: {
-      topLevelKeyCount: keys.length
-    },
-    searchText: [content, ...keys].join("\n")
-  };
-}
-function parseMarkdownFile({ filePath, content }) {
-  const headings = [];
-  for (const match of content.matchAll(/^(#{1,6})\s+(.+)$/gm)) {
-    headings.push(match[2].trim());
-  }
-  const explicitLineNotes = extractExplicitMarkdownNotes(content, filePath);
-  const taggedNotes = extractTaggedNotes(content, {
-    commentPattern: /<!--([\s\S]*?)-->/gm,
-    filePath
-  });
-  const notes = [...explicitLineNotes, ...taggedNotes].filter(
-    (note, index, self) => index === self.findIndex((t) => t.line === note.line && t.body === note.body)
-  );
-  return {
-    language: "markdown",
-    fileKind: "doc",
-    symbols: headings.map((heading) => ({ name: heading, kind: "heading", exported: false })),
-    facts: headings.map((heading) => ({ predicate: "has-heading", objectText: heading, confidence: 1 })),
-    notes,
-    metadata: {
-      headingCount: headings.length
-    },
-    searchText: [content, ...headings].join("\n")
-  };
-}
-function extractExplicitMarkdownNotes(content, filePath) {
-  return findNotesFuzzily(content).filter((note) => isExplicitMarkdownNote(note.rawLine)).map((note) => ({
-    noteType: note.type,
-    body: note.body,
-    filePath,
-    line: note.line,
-    column: 1
-  }));
-}
-function isExplicitMarkdownNote(line) {
-  const trimmed = String(line ?? "").trim();
-  if (!trimmed) {
-    return false;
-  }
-  if (/^(?:[-*]\s+)?(?:\[\s*(?:TODO|FIXME|HACK|BUG|RISK|NOTE)\s*\]|(?:TODO|FIXME|HACK|BUG|RISK|NOTE))[:\-\s]/i.test(trimmed)) {
-    return true;
-  }
-  if (/^(?:[-*]\s+)?\[\s\]\s+(?:TODO|FIXME|HACK|BUG|RISK|NOTE)\b/i.test(trimmed)) {
-    return true;
-  }
-  return false;
-}
-function parseIndexedFile({ filePath, content }) {
-  const extension = path7.extname(filePath).toLowerCase();
-  if ([".js", ".mjs", ".jsx", ".ts", ".tsx"].includes(extension)) {
-    return parseJsFamily({ filePath, content, language: extension.slice(1) });
-  }
-  if ([".css", ".scss", ".less"].includes(extension)) {
-    return parseStyles({ filePath, content, language: extension.slice(1) });
-  }
-  if (extension === ".html") {
-    return parseHtml({ filePath, content, language: "html" });
-  }
-  if (extension === ".riot") {
-    return parseRiot({ filePath, content });
-  }
-  if (extension === ".json") {
-    return parseJsonFile({ filePath, content });
-  }
-  if (extension === ".yaml" || extension === ".yml") {
-    return parseYamlFile({ filePath, content, language: extension.slice(1) });
-  }
-  if (extension === ".md") {
-    return parseMarkdownFile({ filePath, content });
-  }
-  return {
-    language: "unknown",
-    fileKind: "unknown",
-    symbols: [],
-    facts: [],
-    notes: [],
-    metadata: {},
-    searchText: content
-  };
-}
-var SEMANTICS2, KEYWORDS;
-var init_dist2 = __esm({
-  "node_modules/.pnpm/@dharmax+codebase-parser@https+++codeload.github.com+dharmax+codebase-parser+tar.gz+176_6b7390c875f2195e46a390f5f75f6845/node_modules/@dharmax/codebase-parser/dist/index.mjs"() {
-    SEMANTICS2 = {
-      NOTES: {
-        markers: ["TODO", "FIXME", "BUG", "RISK", "HACK", "NOTE", "OPTIMIZE", "REVIEW", "DEBT", "PENDING", "FIXIT", "REVISIT"],
-        aliases: {
-          "TODO": ["to-do", "todo", "[ ]"],
-          "BUG": ["bug", "error", "fault", "fixit"],
-          "REVIEW": ["review", "revisit", "audit"]
-        }
-      }
-    };
-    KEYWORDS = /* @__PURE__ */ new Set(["if", "for", "while", "switch", "catch", "return", "new", "import", "function"]);
-  }
-});
-
-// core/parsers/shared.ts
-function buildCandidateTitle(note) {
-  const raw = String(note.body ?? "").replace(/[.]+$/, "").trim();
-  if (!raw) {
-    return `Follow up ${note.noteType.toLowerCase()}`;
-  }
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
-}
-function scoreNote(note) {
-  const typeWeights = {
-    BUG: 100,
-    FIXME: 80,
-    HACK: 50,
-    TODO: 20,
-    NOTE: 5
-  };
-  return typeWeights[note.noteType] || 0;
-}
-var init_shared = __esm({
-  "core/parsers/shared.ts"() {
-    "use strict";
-    init_registry();
-  }
-});
-
-// core/services/lifecycle.ts
-function deriveCandidateFromNote(note, options = {}) {
-  const scores = scoreNote(note);
-  const decisionKey = stableId("candidate-key", note.filePath ?? "manual", note.noteType, note.body.trim().toLowerCase());
-  const score = scores.candidateScore;
-  const title = buildCandidateTitle(note);
-  const status = note.status === "resolved" ? "ignored" : score >= 0.72 ? "ai-candidate" : score >= 0.5 ? "doubtful-relevancy" : "ignored";
-  return {
-    id: stableId("candidate", decisionKey),
-    noteId: note.id,
-    title,
-    status,
-    score,
-    decisionKey,
-    reason: note.status === "resolved" ? `${note.noteType} note is resolved` : `${note.noteType} note scored ${score}`,
-    data: {
-      noteType: note.noteType,
-      filePath: note.filePath ?? null
-    },
-    ...scores
-  };
-}
-function reviewCandidates(store, { reviewIntervalHours = DEFAULT_REVIEW_INTERVAL_HOURS, now = /* @__PURE__ */ new Date() } = {}) {
-  const dueAt = new Date(now);
-  const nextReviewAt = new Date(now.getTime() + reviewIntervalHours * 60 * 60 * 1e3).toISOString();
-  const candidates = store.listCandidates();
-  const reviewed = [];
-  for (const candidate of candidates) {
-    if (candidate.status === "rejected") {
-      continue;
-    }
-    const isDue = !candidate.nextReviewAt || new Date(candidate.nextReviewAt).getTime() <= dueAt.getTime();
-    if (!isDue) {
-      continue;
-    }
-    let nextStatus = candidate.status;
-    if (candidate.score >= 0.9) {
-      nextStatus = "promoted";
-    } else if (candidate.score < 0.35) {
-      nextStatus = "archived";
-    } else if (candidate.score < 0.6) {
-      nextStatus = "doubtful-relevancy";
-    } else {
-      nextStatus = "ai-candidate";
-    }
-    store.upsertCandidate({
-      ...candidate,
-      status: nextStatus,
-      lastReviewAt: dueAt.toISOString(),
-      nextReviewAt,
-      updatedAt: dueAt.toISOString()
-    });
-    if (nextStatus === "promoted") {
-      store.upsertEntity({
-        id: `ticket:${candidate.id}`,
-        entityType: "candidate-ticket",
-        title: candidate.title,
-        lane: "AI Candidates",
-        state: "open",
-        confidence: candidate.score,
-        provenance: candidate.reason,
-        sourceKind: "proposal",
-        reviewState: "pending",
-        parentId: candidate.noteId,
-        data: {
-          candidateId: candidate.id,
-          status: nextStatus
-        },
-        updatedAt: dueAt.toISOString()
-      });
-    }
-    reviewed.push({
-      id: candidate.id,
-      from: candidate.status,
-      to: nextStatus
-    });
-  }
-  return {
-    reviewed,
-    reviewIntervalHours
-  };
-}
-var DEFAULT_REVIEW_INTERVAL_HOURS;
-var init_lifecycle = __esm({
-  "core/services/lifecycle.ts"() {
-    "use strict";
-    init_hash();
-    init_shared();
-    DEFAULT_REVIEW_INTERVAL_HOURS = 36;
-  }
-});
-
-// core/lib/disambiguation.ts
-import * as readline from "node:readline/promises";
-var init_disambiguation = __esm({
-  "core/lib/disambiguation.ts"() {
-    "use strict";
-  }
-});
-
-// core/services/projections.ts
-import path8 from "node:path";
-async function readProjectOrTemplate(projectRoot, fileName, templateName = fileName) {
-  const projectPath = path8.resolve(projectRoot, fileName);
-  const text = await readText(projectPath, "");
-  if (text) {
-    return text;
-  }
-  return await readText(path8.resolve(templatesRoot, templateName), "");
-}
-function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
-  const counts = store.getSummary();
-  const tickets = store.listEntities({ entityType: "ticket" }).filter((t) => t.state !== "archived");
-  const epics = store.listEntities({ entityType: "epic" }).filter((e) => e.state !== "archived");
-  const assessments = store.listAssessments({ status: "pending" });
-  const metrics = store.listMetrics({ limit: 50 });
-  const activeEpic = epics.find((e) => e.state === "open") || epics[0];
-  const inProgress = tickets.filter((t) => t.lane === "In Progress");
-  const todo = tickets.filter((t) => t.lane === "Todo");
-  const others = tickets.filter((t) => t.lane !== "In Progress" && t.lane !== "Todo");
-  const failures = metrics.filter((m) => !m.success).slice(0, 5);
-  const auditSummary = auditFindings.reduce((acc, f) => {
-    acc[f.severity] = (acc[f.severity] || 0) + 1;
-    return acc;
-  }, {});
-  const status = [
-    `Environment: ${process.platform} | CWD: ${store.projectRoot}`,
-    `Project: ${path8.basename(store.projectRoot)}`,
-    `Epic: ${activeEpic ? `[${activeEpic.id}] ${activeEpic.title} (${activeEpic.state})` : "None"}`,
-    `Inventory: ${counts.files} files, ${tickets.length} active tickets, ${assessments.length} pending assessments, ${counts.candidates} candidates`,
-    "",
-    "### ACTIVE PRIORITY QUEUE",
-    inProgress.length ? inProgress.map((t) => `- [IN_PROGRESS] ${t.id}: ${t.title}`).join("\n") : "- No tickets currently in progress.",
-    todo.length ? todo.slice(0, 20).map((t) => `- [TODO] ${t.id}: ${t.title}`).join("\n") : "",
-    todo.length > 20 ? `... and ${todo.length - 20} more TODOs` : "",
-    assessments.length ? `
-### PENDING ASSESSMENTS
-${assessments.map((a) => `- [${a.scope}] ${a.targetType}:${a.targetId}`).join("\n")}` : "",
-    others.length ? `
-### BACKLOG / OTHER
-${others.slice(0, 20).map((t) => `- [${t.lane}] ${t.id}: ${t.title}`).join("\n")}` : "",
-    others.length > 20 ? `... and ${others.length - 20} more items in backlog` : "",
-    "",
-    "### RECENT FRICTION (SYSTEM HEALTH)",
-    failures.length ? failures.map((f) => `!! FAILURE in ${f.task_class} (${f.created_at}): ${f.error_message}`).join("\n") : "- System metrics indicate nominal operation (no recent failures).",
-    "",
-    "### ARCHITECTURAL HEALTH",
-    auditFindings.length ? `Audit Detects: ${auditSummary.high || 0} High, ${auditSummary.medium || 0} Medium issues.` : "- No architectural audit performed or wiring is clean."
-  ].filter(Boolean).join("\n");
-  return status;
-}
-function buildProjectSummary(store) {
-  const counts = store.getSummary();
-  const activeTickets = store.listEntities({ entityType: "ticket" }).filter((ticket) => ticket.state !== "archived" && ticket.lane !== "Done" && ticket.lane !== "Archived").map((t) => ({
-    id: t.id,
-    title: t.title,
-    lane: t.lane,
-    summary: t.data?.summary ?? "No description provided.",
-    domain: t.data?.domain ?? "unknown"
-  }));
-  const assessments = store.listAssessments();
-  const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
-  const notes = store.listNotes({ statuses: ["observed"] }).slice(0, 20);
-  const modules = store.listModules().map((m) => ({ name: m.name, responsibility: m.responsibility }));
-  const assessmentSummary = summarizeAssessments(assessments);
-  return {
-    fileCount: counts.files,
-    noteCount: counts.notes,
-    symbolCount: counts.symbols,
-    claimCount: counts.claims,
-    ticketCount: counts.tickets,
-    assessmentCount: assessments.length,
-    assessmentSummary,
-    codeletCount: counts.codelets,
-    candidateCount: counts.candidates,
-    activeTickets,
-    candidates,
-    notes,
-    modules
-  };
-}
-function renderKanbanProjection(store) {
-  const tickets = store.listEntities({ entityType: "ticket" });
-  const assessments = selectProjectedAssessments(store.listAssessments());
-  const candidateTickets = store.listEntities({ entityType: "candidate-ticket" });
-  const ideas = store.listEntities({ entityType: "idea" });
-  const risks = store.listEntities({ entityType: "risk" });
-  const coreLaneMap = new Map(CORE_TICKET_LANES.map((lane) => [lane, []]));
-  const optionalLaneMap = new Map(OPTIONAL_TICKET_LANES.map((lane) => [lane, []]));
-  for (const ticket of tickets) {
-    const lane = normalizeDisplayLaneName(ticket.lane ?? "ToDo");
-    if (coreLaneMap.has(lane)) {
-      coreLaneMap.get(lane)?.push(ticket);
-      continue;
-    }
-    if (optionalLaneMap.has(lane)) {
-      optionalLaneMap.get(lane)?.push(ticket);
-    }
-  }
-  for (const assessment of assessments) {
-    coreLaneMap.get("Assessments")?.push({
-      id: assessment.id,
-      title: `Assessment: ${assessment.scope} on ${assessment.targetType}:${assessment.targetId}`,
-      state: assessment.status,
-      data: { summary: `Status: ${assessment.status}. Plan: ${assessment.plan ? "Available" : "Pending"}` }
-    });
-  }
-  for (const ticket of candidateTickets) {
-    optionalLaneMap.get("AI Candidates")?.push(ticket);
-  }
-  for (const idea of ideas) {
-    optionalLaneMap.get("Ideas")?.push(idea);
-  }
-  for (const risk of risks) {
-    optionalLaneMap.get("Risk Watch")?.push(risk);
-  }
-  const lines = [
-    "---",
-    "kanban-plugin: board",
-    "---",
-    "",
-    "# Kanban",
-    "",
-    "_Generated from the workflow DB. Edit through `ai-workflow project ...` or `ai-workflow sync`._",
-    "_Core lanes are fixed. Rare lanes only render when they contain cards. `Archived` history lives in `kanban-archive.md`._",
-    ""
-  ];
-  for (const lane of CORE_TICKET_LANES) {
-    lines.push(`## ${lane}`);
-    if (lane === "ToDo") {
-      lines.push("<!-- canonical alias: ## Todo -->");
-    }
-    lines.push("");
-    const items = coreLaneMap.get(lane) ?? [];
-    if (!items.length) {
-      lines.push("- No items");
-      lines.push("");
-      continue;
-    }
-    for (const item of items) {
-      const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
-      const cleanTitle = sanitizeProjectionTicketTitle(item.title);
-      const doneSuffix = lane === "Done" ? ` \u2705 ${formatCompletionDate(item)}` : "";
-      lines.push(`- [ ] ${id} ${cleanTitle}${doneSuffix}`);
-      if (item.data?.summary) {
-        lines.push(`  - Summary: ${item.data.summary}`);
-      }
-      if (item.data?.userStory) {
-        lines.push(`  - Story: ${item.data.userStory}`);
-      }
-      if (item.parentId || item.data?.epic) {
-        lines.push(`  - Epic: ${item.data?.epic ?? item.parentId}`);
-      }
-      if (item.parentId) {
-        lines.push(`  - Parent: ${item.parentId}`);
-      }
-      lines.push(`  - State: ${item.state}`);
-    }
-    lines.push("");
-  }
-  for (const lane of OPTIONAL_TICKET_LANES) {
-    const items = optionalLaneMap.get(lane) ?? [];
-    if (!items.length) {
-      continue;
-    }
-    lines.push(`## ${lane}`);
-    lines.push("");
-    for (const item of items) {
-      const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
-      lines.push(`- [ ] ${id} ${sanitizeProjectionTicketTitle(item.title)}`);
-      if (item.data?.summary) {
-        lines.push(`  - Summary: ${item.data.summary}`);
-      }
-      if (item.data?.userStory) {
-        lines.push(`  - Story: ${item.data.userStory}`);
-      }
-      if (item.parentId || item.data?.epic) {
-        lines.push(`  - Epic: ${item.data?.epic ?? item.parentId}`);
-      }
-      if (item.parentId) {
-        lines.push(`  - Parent: ${item.parentId}`);
-      }
-      lines.push(`  - State: ${item.state}`);
-    }
-    lines.push("");
-  }
-  lines.push("%% kanban:settings");
-  lines.push("```");
-  lines.push('{"kanban-plugin":"board"}');
-  lines.push("```");
-  lines.push("%%");
-  return `${lines.join("\n").trimEnd()}
-`;
-}
-function selectProjectedAssessments(assessments = []) {
-  const ordered = [...assessments].sort(
-    (left, right) => (Date.parse(right.updatedAt ?? right.createdAt ?? 0) || 0) - (Date.parse(left.updatedAt ?? left.createdAt ?? 0) || 0)
-  );
-  const actionable = ordered.filter((item) => ACTIONABLE_ASSESSMENT_STATUSES.has(item.status));
-  const actionableKeys = new Set(actionable.map((item) => `${item.targetType}:${item.targetId}:${item.scope}`));
-  const recentFailures = [];
-  const seenFailureKeys = /* @__PURE__ */ new Set();
-  for (const assessment of ordered) {
-    if (assessment.status !== "failed") {
-      continue;
-    }
-    const key = `${assessment.targetType}:${assessment.targetId}:${assessment.scope}`;
-    if (seenFailureKeys.has(key)) {
-      continue;
-    }
-    if (actionableKeys.has(key)) {
-      continue;
-    }
-    seenFailureKeys.add(key);
-    recentFailures.push(assessment);
-    if (recentFailures.length >= 3) {
-      break;
-    }
-  }
-  return [...actionable, ...recentFailures].slice(0, 8);
-}
-function summarizeAssessments(assessments = []) {
-  const byStatus = {};
-  const byError = /* @__PURE__ */ new Map();
-  for (const assessment of assessments) {
-    const status = String(assessment.status ?? "unknown").trim() || "unknown";
-    byStatus[status] = (byStatus[status] ?? 0) + 1;
-    const error = String(assessment.result?.error ?? "").trim();
-    if (!error) {
-      continue;
-    }
-    byError.set(error, (byError.get(error) ?? 0) + 1);
-  }
-  const topErrors = [...byError.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0])).slice(0, 5).map(([error, count]) => ({ error, count }));
-  return {
-    total: assessments.length,
-    byStatus,
-    topErrors
-  };
-}
-function renderEpicsProjection(store) {
-  const epics = store.listEntities({ entityType: "epic" }).sort(compareEpicPriority);
-  const tickets = store.listEntities({ entityType: "ticket" });
-  const lines = ["# Epics", "", "_Generated from the workflow DB._", ""];
-  for (const epic of epics) {
-    const userStories = normalizeEpicStories(epic);
-    const ticketBatches = normalizeEpicTicketBatches(epic);
-    const linkedTickets = tickets.filter((ticket) => ticket.parentId === epic.id || ticket.data?.epic === epic.id);
-    const epicState = deriveEpicState(epic, linkedTickets);
-    lines.push(`## ${epic.id} ${epic.title}`);
-    lines.push("");
-    lines.push("### Goal");
-    lines.push("");
-    lines.push(normalizeEpicSummary(epic) || "Pending natural-language scope.");
-    lines.push("");
-    lines.push("### Status");
-    lines.push("");
-    lines.push(epicState === "archived" ? "- [x] Archived" : "- [ ] Active");
-    lines.push(`<!-- status: ${epicState === "archived" ? "archived" : "open"} -->`);
-    lines.push("");
-    lines.push("### User stories");
-    if (userStories.length) {
-      userStories.forEach((story, index) => {
-        lines.push(`#### Story ${index + 1}`);
-        lines.push("");
-        lines.push(formatEpicStoryText(story));
-        lines.push("");
-      });
-    } else {
-      lines.push("None captured yet.");
-      lines.push("");
-    }
-    lines.push("### Ticket batches");
-    if (ticketBatches.length) {
-      for (const batch of ticketBatches) {
-        lines.push(`- ${batch}`);
-      }
-    } else {
-      lines.push("- None captured yet.");
-    }
-    lines.push("");
-    lines.push("### Kanban tickets");
-    if (linkedTickets.length) {
-      for (const ticket of linkedTickets) {
-        const ticketStory = ticket.data?.userStory ? ` | Story: ${ticket.data.userStory}` : "";
-        lines.push(`- ${ticket.id} ${ticket.title} [${ticket.lane ?? "Todo"}]${ticketStory}`);
-      }
-    } else {
-      lines.push("- none linked yet");
-    }
-    lines.push("");
-  }
-  if (!epics.length) {
-    lines.push("## No epics yet");
-    lines.push("");
-    lines.push("- Add one with `ai-workflow project ticket create --epic EPC-001 ...` or by writing entities directly through the CLI.");
-    lines.push("- Each epic should describe the user outcome in natural language, then break into user stories, ticket batches, and kanban tickets.");
-    lines.push("");
-  }
-  return `${lines.join("\n").trimEnd()}
-`;
-}
-async function writeProjectProjections(store, { projectRoot, reconcileLegacy = true } = {}) {
-  const currentDigest = store.getMeta("lastProjectionDigest", null);
-  const { existsSync: existsSync8, readFileSync: readFileSync4 } = await import("node:fs");
-  const { createHash: createHash4 } = await import("node:crypto");
-  for (const file of ["kanban.md", "epics.md"]) {
-    const fullP = path8.resolve(projectRoot, file);
-    if (existsSync8(fullP)) {
-      const content = readFileSync4(fullP, "utf8");
-      const h = createHash4("sha1").update(content).digest("hex");
-      const oldH = currentDigest && currentDigest[file.replace(".md", "")];
-      if (oldH && h !== oldH) {
-        console.warn(`[projections] Drift detected in ${file}. Reconciling...`);
-        await importLegacyProjections(store, { projectRoot });
-        break;
-      }
-    }
-  }
-  if (reconcileLegacy) {
-    await importLegacyProjections(store, { projectRoot });
-  }
-  const kanban = renderKanbanProjection(store);
-  const epics = renderEpicsProjection(store);
-  const mission = store.getMeta("mission");
-  const gemini = store.getMeta("gemini");
-  const writtenAt = (/* @__PURE__ */ new Date()).toISOString();
-  const writes = [
-    writeProjectFile(projectRoot, "kanban.md", kanban),
-    writeProjectFile(projectRoot, "epics.md", epics)
-  ];
-  if (mission) {
-    writes.push(writeProjectFile(projectRoot, "MISSION.md", mission));
-  }
-  if (gemini) {
-    const geminiPath = (async () => {
-      const { existsSync: exists2 } = await import("node:fs");
-      if (exists2(path8.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
-      return "GEMINI.md";
-    })();
-    writes.push(writeProjectFile(projectRoot, await geminiPath, gemini));
-  }
-  await Promise.all(writes);
-  store.setMeta("lastProjectionDigest", {
-    writtenAt,
-    kanban: sha1(kanban),
-    epics: sha1(epics)
-  });
-  return {
-    kanbanPath: path8.resolve(projectRoot, "kanban.md"),
-    epicsPath: path8.resolve(projectRoot, "epics.md"),
-    writtenAt
-  };
-}
-async function importLegacyProjections(store, { projectRoot }) {
-  const lastProjectionDigest = store.getMeta("lastProjectionDigest");
-  const kanbanSource = await selectProjectionSource(projectRoot, ["docs/kanban.md", "kanban.md"], countKanbanTickets, { lastProjectionDigest });
-  const epicsSource = await selectProjectionSource(projectRoot, ["docs/epics.md", "epics.md"], countEpicEntries, { lastProjectionDigest });
-  const kanbanText = kanbanSource.text;
-  const epicsText = epicsSource.text;
-  const missionText = await readProjectOrTemplate(projectRoot, "MISSION.md");
-  const geminiText = await readText(path8.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
-  if (missionText) {
-    store.setMeta("mission", missionText);
-  }
-  if (geminiText) {
-    store.setMeta("gemini", geminiText);
-  }
-  if (!kanbanText.trim() && !epicsText.trim()) {
-    return { importedTickets: 0, importedEpics: 0, skipped: true };
-  }
-  let currentLane = "Todo";
-  let importedTickets = 0;
-  let importedEpics = 0;
-  let currentTicket = null;
-  const importedTicketIds = /* @__PURE__ */ new Set();
-  const importedEpicIds = /* @__PURE__ */ new Set();
-  for (const line of kanbanText.split(/\r?\n/)) {
-    const laneMatch = line.match(/^##\s+(.+)$/);
-    if (laneMatch) {
-      currentLane = normalizeLaneName(laneMatch[1].trim());
-      currentTicket = null;
-      continue;
-    }
-    const ticketMatch = parseKanbanTicketLine(line);
-    if (ticketMatch) {
-      const existing = store.getEntity(ticketMatch.ticketId);
-      const state = ticketMatch.checked || currentLane === "Done" || currentLane === "Archived" ? "archived" : "open";
-      const ticketData = {
-        ...existing?.data ?? {},
-        ticketId: ticketMatch.ticketId
-      };
-      if (ticketMatch.completedAt) {
-        ticketData.completedAt = ticketMatch.completedAt;
-      }
-      store.upsertEntity({
-        id: ticketMatch.ticketId,
-        entityType: "ticket",
-        title: ticketMatch.title,
-        lane: currentLane,
-        state,
-        confidence: 1,
-        provenance: `legacy-kanban-import:${kanbanSource.path}`,
-        sourceKind: "projection-import",
-        reviewState: "active",
-        createdAt: existing?.createdAt,
-        parentId: existing?.parentId ?? null,
-        data: ticketData
-      });
-      importedTicketIds.add(ticketMatch.ticketId);
-      currentTicket = ticketMatch.ticketId;
-      importedTickets += 1;
-      continue;
-    }
-    const fieldMatch = line.match(/^\s{2,}-\s+([A-Za-z][A-Za-z /]+):\s+(.+)$/);
-    if (currentTicket && fieldMatch) {
-      const existing = store.getEntity(currentTicket);
-      const fieldName = normalizeTicketFieldName(fieldMatch[1]);
-      const value = fieldMatch[2].trim();
-      const nextData = {
-        ...existing?.data ?? {},
-        ticketId: currentTicket,
-        [fieldName]: value
-      };
-      const nextParentId = fieldName === "epic" ? value : existing?.parentId ?? null;
-      store.upsertEntity({
-        ...existing,
-        id: currentTicket,
-        entityType: "ticket",
-        title: existing?.title ?? currentTicket,
-        lane: existing?.lane ?? currentLane,
-        state: existing?.state ?? "open",
-        confidence: existing?.confidence ?? 1,
-        provenance: existing?.provenance ?? `legacy-kanban-import:${kanbanSource.path}`,
-        sourceKind: existing?.sourceKind ?? "projection-import",
-        reviewState: existing?.reviewState ?? "active",
-        createdAt: existing?.createdAt,
-        parentId: nextParentId,
-        data: nextData
-      });
-    }
-  }
-  for (const epic of parseEpicEntries(epicsText)) {
-    const existing = store.getEntity(epic.id);
-    store.upsertEntity({
-      id: epic.id,
-      entityType: "epic",
-      title: epic.title,
-      lane: null,
-      state: epic.state,
-      confidence: 1,
-      provenance: `legacy-epics-import:${epicsSource.path}`,
-      sourceKind: "projection-import",
-      reviewState: "active",
-      createdAt: existing?.createdAt,
-      data: {
-        ...existing?.data ?? {},
-        summary: preferNonEmpty(epic.summary, existing?.data?.summary ?? ""),
-        userStories: epic.userStories?.length ? epic.userStories : existing?.data?.userStories ?? [],
-        ticketBatches: epic.ticketBatches?.length ? epic.ticketBatches : existing?.data?.ticketBatches ?? [],
-        graphNotes: epic.graphNotes?.length ? epic.graphNotes : existing?.data?.graphNotes ?? []
-      }
-    });
-    importedEpicIds.add(epic.id);
-    importedEpics += 1;
-  }
-  if (kanbanSource.score >= 0) {
-    pruneProjectionImportedEntities(store, {
-      entityType: "ticket",
-      keepIds: importedTicketIds
-    });
-  }
-  if (epicsSource.score >= 0) {
-    pruneProjectionImportedEntities(store, {
-      entityType: "epic",
-      keepIds: importedEpicIds
-    });
-  }
-  return {
-    importedTickets,
-    importedEpics,
-    skipped: false
-  };
-}
-function inferTicketLane({ id, title, lane = null }) {
-  if (lane != null && String(lane).trim()) {
-    return String(lane).trim();
-  }
-  const combined = `${id ?? ""} ${title ?? ""}`.toUpperCase();
-  if (/\bBUG\b/.test(combined) || String(id ?? "").toUpperCase().startsWith("BUG-")) {
-    return "Bugs P2/P3";
-  }
-  return "Todo";
-}
-function buildTicketEntity({ id, title, lane = null, state = "open", epicId = null, summary = "", userStory = null }) {
-  return {
-    id,
-    entityType: "ticket",
-    title,
-    lane: inferTicketLane({ id, title, lane }),
-    state,
-    confidence: 1,
-    provenance: "manual",
-    sourceKind: "manual",
-    reviewState: "active",
-    parentId: epicId,
-    data: {
-      ticketId: id,
-      summary,
-      userStory: userStory ?? null
-    }
-  };
-}
-function deriveEpicState(epic, linkedTickets = []) {
-  if (normalizeEpicState(epic?.state) === "archived") {
-    return "archived";
-  }
-  if (!Array.isArray(linkedTickets) || !linkedTickets.length) {
-    return "open";
-  }
-  return linkedTickets.every(isTicketEffectivelyDone) ? "archived" : "open";
-}
-function createSearchDocumentsForEntities(store) {
-  const entities = store.listEntities();
-  for (const entity of entities) {
-    store.db.prepare(`
-      INSERT INTO search_index (id, scope, ref_id, title, body, tags, updated_at)
-      VALUES (?, 'entity', ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        title = excluded.title,
-        body = excluded.body,
-        tags = excluded.tags,
-        updated_at = excluded.updated_at
-    `).run(
-      stableId("search", "entity", entity.id),
-      entity.id,
-      `${entity.id} ${entity.title}`,
-      JSON.stringify({
-        ...entity.data,
-        id: entity.id,
-        lane: entity.lane,
-        state: entity.state,
-        parentId: entity.parentId
-      }),
-      [entity.entityType, entity.id, entity.lane ?? "", entity.state, entity.parentId ?? ""].filter(Boolean).join(","),
-      entity.updatedAt
-    );
-  }
-}
-async function selectProjectionSource(projectRoot, candidates, scorer, { lastProjectionDigest = null } = {}) {
-  let best = { path: candidates[0], text: "", score: -1 };
-  let skippedGenerated = false;
-  for (const relativePath of candidates) {
-    const text = await readText(path8.resolve(projectRoot, relativePath), "");
-    if (lastProjectionDigest && shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest)) {
-      skippedGenerated = true;
-      continue;
-    }
-    const score = scorer(text);
-    if (score > best.score) {
-      best = { path: relativePath, text, score };
-    }
-  }
-  return {
-    ...best,
-    skippedGenerated
-  };
-}
-function shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest) {
-  const normalized = String(relativePath ?? "").replace(/\\/g, "/").toLowerCase();
-  const digestKey = normalized.endsWith("kanban.md") ? "kanban" : normalized.endsWith("epics.md") ? "epics" : null;
-  if (!digestKey || !lastProjectionDigest?.[digestKey]) {
-    return false;
-  }
-  return sha1(text) === String(lastProjectionDigest[digestKey]);
-}
-function countKanbanTickets(text) {
-  return text.split(/\r?\n/).filter((line) => Boolean(parseKanbanTicketLine(line))).length;
-}
-function countEpicEntries(text) {
-  return parseEpicEntries(text).length;
-}
-function parseKanbanTicketLine(line) {
-  const match = line.match(/^- \[([ xX])\]\s+(?:(?:\*\*)?(\d{4}-\d{2}-\d{2})\s+)?(?:\*\*)?([A-Z][A-Z0-9-]+)(?:\*\*)?:\s+(.+)$/) ?? line.match(/^- \[([ xX])\]\s+([A-Z][A-Z0-9-]+)\s+(.+)$/);
-  if (!match) {
-    return null;
-  }
-  if (match.length === 4) {
-    const rawTitle2 = match[3].trim();
-    return {
-      checked: /[xX]/.test(match[1]),
-      completedAt: extractTicketCompletionDate(rawTitle2),
-      ticketId: match[2],
-      title: sanitizeProjectionTicketTitle(rawTitle2)
-    };
-  }
-  const rawTitle = String(match[4] ?? "").trim();
-  return {
-    checked: /[xX]/.test(match[1]),
-    completedAt: match[2] ?? extractTicketCompletionDate(rawTitle),
-    ticketId: match[3],
-    title: sanitizeProjectionTicketTitle(rawTitle)
-  };
-}
-function normalizeLaneName(name) {
-  const key = String(name).trim().toLowerCase();
-  const aliases = /* @__PURE__ */ new Map([
-    ["todo", "Todo"],
-    ["to-do", "Todo"],
-    ["todoo", "Todo"],
-    ["backlog", "Backlog"],
-    ["deep backlog", "Deep Backlog"],
-    ["in progress", "In Progress"],
-    ["priority 1 bugs", "Bugs P1"],
-    ["bugs p1", "Bugs P1"],
-    ["priority 2/3 bugs", "Bugs P2/P3"],
-    ["bugs p2/p3", "Bugs P2/P3"],
-    ["human testing", "Human Inspection"],
-    ["human inspection", "Human Inspection"],
-    ["suggestions", "Suggestions"],
-    ["blocked", "Blocked"],
-    ["done", "Done"],
-    ["archived", "Archived"]
-  ]);
-  return aliases.get(key) ?? name;
-}
-function normalizeDisplayLaneName(name) {
-  const key = String(name).trim().toLowerCase();
-  const aliases = /* @__PURE__ */ new Map([
-    ["todo", "ToDo"],
-    ["to-do", "ToDo"],
-    ["todoo", "ToDo"],
-    ["backlog", "Backlog"],
-    ["deep backlog", "Deep Backlog"],
-    ["in progress", "In Progress"],
-    ["priority 1 bugs", "Bugs P1"],
-    ["bugs p1", "Bugs P1"],
-    ["priority 2/3 bugs", "Bugs P2/P3"],
-    ["bugs p2/p3", "Bugs P2/P3"],
-    ["human inspection", "Human Inspection"],
-    ["human testing", "Human Inspection"],
-    ["suggestions", "Suggestions"],
-    ["blocked", "Blocked"],
-    ["done", "Done"],
-    ["archived", "Archived"]
-  ]);
-  return aliases.get(key) ?? name;
-}
-function formatCompletionDate(item) {
-  const value = String(item?.data?.completedAt ?? extractTicketCompletionDate(item?.title) ?? item?.updatedAt ?? "").trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
-  }
-  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-}
-function sanitizeProjectionTicketTitle(value) {
-  return String(value ?? "").replace(/(?:\s*✅\s*\d{4}-\d{2}-\d{2})+\s*$/gu, "").trim();
-}
-function extractTicketCompletionDate(value) {
-  const matches = [...String(value ?? "").matchAll(/✅\s*(\d{4}-\d{2}-\d{2})/gu)];
-  return matches.length ? matches.at(-1)?.[1] ?? null : null;
-}
-function normalizeTicketFieldName(label) {
-  return String(label).trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
-}
-function parseEpicEntries(text) {
-  const entries = [];
-  let current2 = null;
-  let currentSection = null;
-  function flushCurrentStory() {
-    if (current2?.currentStory) {
-      current2.userStories.push(mergeEpicStory(current2.currentStory));
-      current2.currentStory = null;
-    }
-  }
-  for (const line of text.split(/\r?\n/)) {
-    const explicit = line.match(/^##\s+([A-Z][A-Z0-9-]+)\s+(.+)$/);
-    if (explicit) {
-      if (current2) entries.push(current2);
-      current2 = {
-        id: explicit[1],
-        title: explicit[2].trim(),
-        state: "open",
-        summary: "",
-        userStories: [],
-        ticketBatches: [],
-        graphNotes: []
-      };
-      currentSection = null;
-      continue;
-    }
-    const numbered = line.match(/^##\s+\d+\.\s+(.+?)(?:\s+\((ACTIVE|DONE|ARCHIVED)\))?$/i);
-    if (numbered) {
-      if (current2) entries.push(current2);
-      const title = numbered[1].trim();
-      current2 = {
-        id: `EPIC-${slugify(title).toUpperCase()}`,
-        title,
-        state: normalizeEpicState(numbered[2]),
-        summary: "",
-        userStories: [],
-        ticketBatches: [],
-        graphNotes: []
-      };
-      currentSection = null;
-      continue;
-    }
-    if (!current2) {
-      continue;
-    }
-    const statusComment = line.match(/^\s*<!--\s*status:\s*([a-z]+)\s*-->\s*$/i);
-    if (statusComment) {
-      current2.state = normalizeEpicState(statusComment[1]);
-      continue;
-    }
-    const field = line.match(/^\s*-\s+(Goal|Summary|State|User stories?|Stories|Ticket batches|Kanban tickets)\s*:\s*(.*)$/i);
-    if (field) {
-      currentSection = null;
-      const label = field[1].toLowerCase();
-      const value = field[2].trim();
-      if (label === "goal" || label === "summary") {
-        flushCurrentStory();
-        current2.summary = value || current2.summary;
-        continue;
-      }
-      if (label === "state") {
-        current2.state = normalizeEpicState(value);
-        continue;
-      }
-      if (label === "user stories" || label === "stories") {
-        flushCurrentStory();
-        currentSection = "userStories";
-        if (value) current2.userStories.push(value);
-        continue;
-      }
-      if (label === "ticket batches") {
-        flushCurrentStory();
-        currentSection = "ticketBatches";
-        if (value) current2.ticketBatches.push(value);
-        continue;
-      }
-      if (label === "kanban tickets") {
-        flushCurrentStory();
-        currentSection = "linkedTickets";
-        continue;
-      }
-    }
-    const subheading = line.match(/^\s{0,3}#{3,4}\s+(.+)$/);
-    if (subheading) {
-      const label = subheading[1].trim();
-      if (/^goal$/i.test(label)) {
-        flushCurrentStory();
-        currentSection = "goal";
-        continue;
-      }
-      if (/^user stories?$/i.test(label) || /^stories$/i.test(label)) {
-        flushCurrentStory();
-        currentSection = "userStories";
-        current2.currentStory = null;
-        continue;
-      }
-      if (/^ticket batches$/i.test(label)) {
-        flushCurrentStory();
-        currentSection = "ticketBatches";
-        current2.currentStory = null;
-        continue;
-      }
-      if (/^status$/i.test(label)) {
-        flushCurrentStory();
-        currentSection = "status";
-        current2.currentStory = null;
-        continue;
-      }
-      if (/^kanban tickets$/i.test(label)) {
-        flushCurrentStory();
-        currentSection = "linkedTickets";
-        current2.currentStory = null;
-        continue;
-      }
-      if (currentSection === "userStories") {
-        if (current2.currentStory) {
-          current2.userStories.push(mergeEpicStory(current2.currentStory));
-        }
-        current2.currentStory = {
-          heading: label,
-          bodyLines: []
-        };
-        continue;
-      }
-    }
-    const bullet = line.match(/^\s*-\s+(.+)$/);
-    if (bullet && currentSection) {
-      const value = bullet[1].trim();
-      if (!value) {
-        continue;
-      }
-      if (currentSection === "status") {
-        current2.state = /^\[x\]/i.test(value) || /^(done|archived)$/i.test(value) ? "archived" : "open";
-        continue;
-      }
-      if (currentSection === "userStories") {
-        if (current2.currentStory) {
-          current2.currentStory.bodyLines.push(value);
-        } else {
-          current2.currentStory = {
-            heading: null,
-            bodyLines: [value]
-          };
-        }
-        continue;
-      }
-      if (currentSection === "ticketBatches") {
-        current2.ticketBatches.push(value);
-        continue;
-      }
-      continue;
-    }
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (currentSection === "userStories" && current2.currentStory) {
-        current2.currentStory.bodyLines.push("");
-      } else if (currentSection === "goal") {
-        current2.goalLines = current2.goalLines ?? [];
-        current2.goalLines.push("");
-      }
-      continue;
-    }
-    if (/^###\s+/.test(trimmed) || /^####\s+/.test(trimmed)) {
-      continue;
-    }
-    if (currentSection === "goal") {
-      current2.goalLines = current2.goalLines ?? [];
-      current2.goalLines.push(trimmed);
-      continue;
-    }
-    if (currentSection === "userStories") {
-      if (!current2.currentStory) {
-        current2.currentStory = {
-          heading: null,
-          bodyLines: []
-        };
-      }
-      current2.currentStory.bodyLines.push(trimmed);
-      continue;
-    }
-    if (currentSection === "ticketBatches") {
-      current2.ticketBatches.push(trimmed);
-      continue;
-    }
-    if (current2.summary === "" && !trimmed.startsWith("-")) {
-      current2.summary = trimmed;
-    }
-  }
-  flushCurrentStory();
-  if (current2 && Array.isArray(current2.goalLines) && current2.goalLines.length) {
-    current2.summary = current2.goalLines.join("\n").trim() || current2.summary;
-  }
-  if (current2) {
-    entries.push(current2);
-  }
-  return entries;
-}
-function normalizeEpicSummary(epic) {
-  return String(epic.data?.summary ?? "").trim();
-}
-function preferNonEmpty(value, fallback = "") {
-  const normalized = String(value ?? "").trim();
-  if (!normalized) {
-    return fallback;
-  }
-  if (normalized.toLowerCase() === "pending natural-language scope.") {
-    return fallback;
-  }
-  return normalized;
-}
-function normalizeEpicStories(epic) {
-  const stories = Array.isArray(epic.data?.userStories) ? epic.data.userStories : Array.isArray(epic.data?.stories) ? epic.data.stories : [];
-  return stories.map((story) => String(story ?? "").trim()).filter(Boolean);
-}
-function normalizeEpicTicketBatches(epic) {
-  const batches = Array.isArray(epic.data?.ticketBatches) ? epic.data.ticketBatches : Array.isArray(epic.data?.batches) ? epic.data.batches : [];
-  return batches.map((batch) => String(batch ?? "").trim()).filter(Boolean);
-}
-function compareEpicPriority(a, b) {
-  const priorityA = a.data?.priority === "first" ? 0 : 1;
-  const priorityB = b.data?.priority === "first" ? 0 : 1;
-  if (priorityA !== priorityB) {
-    return priorityA - priorityB;
-  }
-  const numberA = extractEpicNumber(a.id);
-  const numberB = extractEpicNumber(b.id);
-  if (numberA !== numberB) {
-    return numberA - numberB;
-  }
-  return String(a.id).localeCompare(String(b.id));
-}
-function extractEpicNumber(id) {
-  const match = String(id).match(/(\d+)/);
-  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-}
-function normalizeEpicState(value) {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (normalized === "done" || normalized === "archived") {
-    return "archived";
-  }
-  return "open";
-}
-function isTicketEffectivelyDone(ticket) {
-  return ticket?.state === "archived" || ticket?.lane === "Done" || ticket?.lane === "Archived";
-}
-function slugify(value) {
-  return String(value).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "UNTITLED";
-}
-function mergeEpicStory(story) {
-  const body = story?.bodyLines?.join("\n").trim() ?? "";
-  return normalizeEpicStoryText(body);
-}
-function formatEpicStoryText(story) {
-  const normalized = normalizeEpicStoryText(story);
-  const match = normalized.match(/^(As\s+(?:a|an)\s+[^,]+)(,?)(\s+.*)?$/i);
-  if (!match) {
-    return normalized;
-  }
-  const actor = match[1].trim();
-  const separator = match[2] ?? "";
-  const remainder = match[3] ?? "";
-  return `**${actor}**${separator}${remainder}`;
-}
-function normalizeEpicStoryText(text) {
-  let normalized = String(text ?? "").trim();
-  normalized = normalized.replace(/^\*\*(As\s+(?:a|an)\s+[^*]+?)\*\*(?=,|\s|$)/i, "$1");
-  normalized = normalized.replace(/^(\*\*)?(As\s+(?:a|an)\s+[^,*]+?)(\*\*)/i, "$2");
-  return normalized.trim();
-}
-function pruneProjectionImportedEntities(store, { entityType, keepIds }) {
-  const ids = [...keepIds];
-  if (!ids.length) {
-    store.db.prepare("DELETE FROM search_index WHERE scope = 'entity' AND ref_id IN (SELECT id FROM entities WHERE entity_type = ? AND source_kind = 'projection-import')").run(entityType);
-    store.db.prepare("DELETE FROM entities WHERE entity_type = ? AND source_kind = 'projection-import'").run(entityType);
-    return;
-  }
-  const placeholders = ids.map(() => "?").join(", ");
-  store.db.prepare(`
-    DELETE FROM search_index
-    WHERE scope = 'entity'
-      AND ref_id IN (
-        SELECT id
-        FROM entities
-        WHERE entity_type = ?
-          AND source_kind = 'projection-import'
-          AND id NOT IN (${placeholders})
-      )
-  `).run(entityType, ...ids);
-  store.db.prepare(`
-    DELETE FROM entities
-    WHERE entity_type = ?
-      AND source_kind = 'projection-import'
-      AND id NOT IN (${placeholders})
-  `).run(entityType, ...ids);
-}
-var toolkitRoot, templatesRoot, CORE_TICKET_LANES, OPTIONAL_TICKET_LANES, ACTIONABLE_ASSESSMENT_STATUSES;
-var init_projections = __esm({
-  "core/services/projections.ts"() {
-    "use strict";
-    init_disambiguation();
-    init_fs_utils();
-    init_filesystem();
-    init_hash();
-    init_operating_context();
-    toolkitRoot = getToolkitRoot();
-    templatesRoot = path8.resolve(toolkitRoot, "templates");
-    CORE_TICKET_LANES = [
-      "Deep Backlog",
-      "Backlog",
-      "ToDo",
-      "Bugs P1",
-      "Bugs P2/P3",
-      "Assessments",
-      "In Progress",
-      "Human Inspection",
-      "Suggestions",
-      "Done"
-    ];
-    OPTIONAL_TICKET_LANES = [
-      "AI Candidates",
-      "Risk Watch",
-      "Doubtful Relevancy",
-      "Blocked",
-      "Ideas"
-    ];
-    ACTIONABLE_ASSESSMENT_STATUSES = /* @__PURE__ */ new Set(["pending", "planned", "criticized", "executing"]);
-  }
-});
-
 // core/services/knowledge.ts
-import path9 from "node:path";
-import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
+import path4 from "node:path";
+import { mkdir as mkdir3, writeFile as writeFile2 } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 async function loadKnowledge({ root = process.cwd(), projectConfig = {}, globalConfig = {} } = {}) {
   const [builtinText, referenceText, projectKnowledge] = await Promise.all([
     readText(BUILTIN_KNOWLEDGE_PATH, "{}"),
@@ -5529,8 +3516,8 @@ async function recordProjectKnowledge({
     lines.push(`  - Changed files: ${changedFiles.join(", ")}`);
   }
   lines.push("");
-  await mkdir3(path9.dirname(resolvedPath), { recursive: true });
-  await writeFile3(resolvedPath, `${lines.join("\n").trimEnd()}
+  await mkdir3(path4.dirname(resolvedPath), { recursive: true });
+  await writeFile2(resolvedPath, `${lines.join("\n").trimEnd()}
 `, "utf8");
   return { updated: true, path: resolvedPath };
 }
@@ -5602,8 +3589,8 @@ async function updateKnowledgeRemote({
       destinationPath
     };
   }
-  await mkdir3(path9.dirname(destinationPath), { recursive: true });
-  await writeFile3(destinationPath, `${JSON.stringify(normalized, null, 2)}
+  await mkdir3(path4.dirname(destinationPath), { recursive: true });
+  await writeFile2(destinationPath, `${JSON.stringify(normalized, null, 2)}
 `, "utf8");
   return {
     success: true,
@@ -5677,7 +3664,7 @@ async function loadProjectKnowledge(root) {
 }
 async function findExistingProjectKnowledgePath(root) {
   for (const relativePath of PROJECT_KNOWLEDGE_CANDIDATES) {
-    const absolutePath = path9.resolve(root, relativePath);
+    const absolutePath = path4.resolve(root, relativePath);
     const content = await readText(absolutePath, "");
     if (content) {
       return absolutePath;
@@ -5686,7 +3673,7 @@ async function findExistingProjectKnowledgePath(root) {
   return null;
 }
 async function resolveProjectKnowledgePath(root) {
-  return await findExistingProjectKnowledgePath(root) ?? path9.resolve(root, "knowledge.md");
+  return await findExistingProjectKnowledgePath(root) ?? path4.resolve(root, "knowledge.md");
 }
 function extractKnowledgeFacts(markdown) {
   return normalizeStringArray(
@@ -5732,12 +3719,12 @@ var init_knowledge = __esm({
     "use strict";
     init_config_store();
     init_fs_utils();
-    __dirname = path9.dirname(fileURLToPath2(import.meta.url));
-    BUILTIN_KNOWLEDGE_PATH = path9.resolve(__dirname, "../../shared/knowledge.json");
-    MODEL_REFERENCE_PATH = path9.resolve(__dirname, "../../shared/model-reference.json");
+    __dirname = path4.dirname(fileURLToPath(import.meta.url));
+    BUILTIN_KNOWLEDGE_PATH = path4.resolve(__dirname, "../../shared/knowledge.json");
+    MODEL_REFERENCE_PATH = path4.resolve(__dirname, "../../shared/model-reference.json");
     PROJECT_KNOWLEDGE_CANDIDATES = [
       "knowledge.md",
-      path9.join("docs", "knowledge.md")
+      path4.join("docs", "knowledge.md")
     ];
   }
 });
@@ -5772,8 +3759,8 @@ __export(providers_exports, {
   resolveOllamaConfig: () => resolveOllamaConfig,
   summarizeCompletionUsage: () => summarizeCompletionUsage
 });
-import { execFile as execFile4 } from "node:child_process";
-import { promisify as promisify4 } from "node:util";
+import { execFile as execFile3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
 function registerProvider(id, adapter) {
   const providerId = String(id ?? adapter?.id ?? "").trim();
   if (!providerId) {
@@ -5965,7 +3952,7 @@ async function probeOllama({ host } = {}) {
     }
   }
   try {
-    const { stdout, stderr } = await execFileAsync4("ollama", ["list"], {
+    const { stdout, stderr } = await execFileAsync3("ollama", ["list"], {
       maxBuffer: 8 * 1024 * 1024,
       env: { ...process.env, OLLAMA_HOST: resolvedHost }
     });
@@ -6193,7 +4180,7 @@ function normalizeUsage(usage = {}) {
     available: usage.available === true || promptTokens > 0 || completionTokens > 0 || totalTokens > 0
   };
 }
-var execFileAsync4, OLLAMA_DISCOVERY_CACHE_TTL_MS, ollamaDiscoveryCache, registeredAdapters;
+var execFileAsync3, OLLAMA_DISCOVERY_CACHE_TTL_MS, ollamaDiscoveryCache, registeredAdapters;
 var init_providers = __esm({
   "core/services/providers.ts"() {
     "use strict";
@@ -6203,7 +4190,7 @@ var init_providers = __esm({
     init_config_store();
     init_knowledge();
     init_lean_ctx();
-    execFileAsync4 = promisify4(execFile4);
+    execFileAsync3 = promisify3(execFile3);
     OLLAMA_DISCOVERY_CACHE_TTL_MS = 6 * 60 * 60 * 1e3;
     ollamaDiscoveryCache = /* @__PURE__ */ new Map();
     registeredAdapters = /* @__PURE__ */ new Map();
@@ -6215,8 +4202,8 @@ var init_providers = __esm({
 });
 
 // core/services/web-search.ts
-import path10 from "node:path";
-import { mkdir as mkdir4, readFile as readFile4, rm as rm2, writeFile as writeFile4 } from "node:fs/promises";
+import path5 from "node:path";
+import { mkdir as mkdir4, readFile as readFile3, rm as rm2, writeFile as writeFile3 } from "node:fs/promises";
 async function searchWebEvidence({
   root = process.cwd(),
   query,
@@ -6363,17 +4350,17 @@ function isFresh(generatedAt, ttlMs) {
 }
 async function readWebSearchCache(root) {
   const cachePath = getWebSearchCachePath(root);
-  const text = await readFile4(cachePath, "utf8");
+  const text = await readFile3(cachePath, "utf8");
   return JSON.parse(text);
 }
 async function writeWebSearchCache(root, payload) {
   const cachePath = getWebSearchCachePath(root);
-  await mkdir4(path10.dirname(cachePath), { recursive: true });
-  await writeFile4(cachePath, `${JSON.stringify(payload, null, 2)}
+  await mkdir4(path5.dirname(cachePath), { recursive: true });
+  await writeFile3(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getWebSearchCachePath(root) {
-  return path10.resolve(root, ".ai-workflow", "cache", "web-search.json");
+  return path5.resolve(root, ".ai-workflow", "cache", "web-search.json");
 }
 var DEFAULT_CACHE_TTL_MS, DEFAULT_MAX_RESULTS;
 var init_web_search = __esm({
@@ -6386,8 +4373,8 @@ var init_web_search = __esm({
 });
 
 // core/services/model-fit.ts
-import path11 from "node:path";
-import { mkdir as mkdir5, readFile as readFile5, rm as rm3, writeFile as writeFile5 } from "node:fs/promises";
+import path6 from "node:path";
+import { mkdir as mkdir5, readFile as readFile4, rm as rm3, writeFile as writeFile4 } from "node:fs/promises";
 async function buildModelFitMatrix({
   root = process.cwd(),
   providerState,
@@ -6528,8 +4515,8 @@ async function enrichMatrixWithRemoteEvaluator({ providerState, taskClass, evalu
     }
   };
   try {
-    const { generateCompletion: generateCompletion4 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
-    const response = await generateCompletion4({
+    const { generateCompletion: generateCompletion3 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
+    const response = await generateCompletion3({
       providerId: evaluator.providerId,
       modelId: evaluator.modelId,
       prompt: [
@@ -7010,17 +4997,17 @@ function isFresh2(generatedAt, ttlMs) {
 }
 async function readModelFitCache(root) {
   const cachePath = getModelFitCachePath(root);
-  const text = await readFile5(cachePath, "utf8");
+  const text = await readFile4(cachePath, "utf8");
   return JSON.parse(text);
 }
 async function writeModelFitCache(root, payload) {
   const cachePath = getModelFitCachePath(root);
-  await mkdir5(path11.dirname(cachePath), { recursive: true });
-  await writeFile5(cachePath, `${JSON.stringify(payload, null, 2)}
+  await mkdir5(path6.dirname(cachePath), { recursive: true });
+  await writeFile4(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getModelFitCachePath(root) {
-  return path11.resolve(root, ".ai-workflow", "cache", "model-fit-matrix.json");
+  return path6.resolve(root, ".ai-workflow", "cache", "model-fit-matrix.json");
 }
 var DEFAULT_CACHE_TTL_MS2;
 var init_model_fit = __esm({
@@ -7243,6 +5230,1954 @@ var init_router = __esm({
   }
 });
 
+// core/lib/registry.ts
+function getAllSupportedExtensions() {
+  return Object.values(SEMANTICS.EXTENSIONS).flat();
+}
+var SEMANTICS;
+var init_registry = __esm({
+  "core/lib/registry.ts"() {
+    "use strict";
+    SEMANTICS = {
+      NOTES: {
+        markers: ["TODO", "FIXME", "BUG", "RISK", "HACK", "NOTE", "OPTIMIZE", "REVIEW", "DEBT", "PENDING", "FIXIT", "REVISIT"],
+        aliases: {
+          "TODO": ["to-do", "todo", "[ ]"],
+          "BUG": ["bug", "error", "fault", "fixit"],
+          "REVIEW": ["review", "revisit", "audit"]
+        },
+        imperatives: ["MUST", "SHOULD", "FIX", "CLEANUP", "REFACTOR", "REMOVE", "IMPLEMENT"]
+      },
+      BUDGET: {
+        MAX_TOKENS: 12e3,
+        MAX_FILES: 10,
+        MAX_SYMBOLS: 30
+      },
+      FOLDERS: {
+        STATE: [".ai-workflow", "workflow-state", ".state"],
+        CONFIG: [".gemini", "gemini-config", "config/gemini"],
+        TEMPLATES: ["templates", "blueprints", "scaffolding"]
+      },
+      EXTENSIONS: {
+        CODE: [".ts", ".ts", ".ts", ".mts", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp"],
+        STYLE: [".css", ".scss", ".less", ".styl"],
+        MARKUP: [".html", ".riot", ".vue", ".svelte", ".xml"],
+        DATA: [".json", ".yaml", ".yml", ".toml"],
+        DOCS: [".md", ".txt", ".adoc", ".org"]
+      },
+      LANES: {
+        ACTIVE: ["In Progress", "Doing", "Active", "Working"],
+        BACKLOG: ["Todo", "To-Do", "Backlog", "Queue", "Pending"],
+        DONE: ["Done", "Finished", "Complete", "Closed", "Archived"]
+      }
+    };
+  }
+});
+
+// core/lib/operating-context.ts
+var operating_context_exports = {};
+__export(operating_context_exports, {
+  assertSafeRepairTarget: () => assertSafeRepairTarget,
+  getToolkitRoot: () => getToolkitRoot,
+  resolveOperatingContext: () => resolveOperatingContext
+});
+import path7 from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+function getToolkitRoot() {
+  const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
+  if (fromEnv) {
+    return path7.resolve(fromEnv);
+  }
+  for (const candidate of candidateRoots(moduleDir)) {
+    if (isToolkitRoot(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
+}
+async function resolveOperatingContext({
+  cwd = process.cwd(),
+  mode = null,
+  root = null,
+  evidenceRoot = null,
+  allowExternalTarget = false
+} = {}) {
+  const toolkitRoot3 = getToolkitRoot();
+  const projectConfigPath = getProjectConfigPath(cwd);
+  const globalConfigPath = getGlobalConfigPath();
+  const [projectConfigResult, globalConfigResult] = await Promise.all([
+    readConfigSafe(projectConfigPath),
+    readConfigSafe(globalConfigPath)
+  ]);
+  const projectMode = projectConfigResult.config?.mode;
+  const globalMode = globalConfigResult.config?.mode;
+  const resolvedMode = normalizeMode(mode ?? projectMode ?? globalMode ?? "default");
+  const requestedRoot = root ? path7.resolve(String(root)) : null;
+  const resolvedEvidenceRoot = evidenceRoot ? path7.resolve(String(evidenceRoot)) : path7.resolve(cwd);
+  const repairTargetRoot = requestedRoot ?? (resolvedMode === "tool-dev" ? toolkitRoot3 : path7.resolve(cwd));
+  const externalTarget = path7.resolve(repairTargetRoot) !== path7.resolve(toolkitRoot3);
+  return {
+    mode: resolvedMode,
+    toolkitRoot: toolkitRoot3,
+    repairTargetRoot,
+    evidenceRoot: resolvedEvidenceRoot,
+    externalTarget,
+    externalTargetAllowed: Boolean(allowExternalTarget),
+    projectConfigPath,
+    globalConfigPath
+  };
+}
+function assertSafeRepairTarget(context, options = {}) {
+  if (!context) return;
+  if (context.mode !== "tool-dev") return;
+  if (!context.externalTarget) return;
+  if (context.externalTargetAllowed) return;
+  const action = options.action ? ` for ${options.action}` : "";
+  throw new Error(`tool-dev mode refuses external repair target${action}: ${context.repairTargetRoot}. Use --allow-external-target to override.`);
+}
+function normalizeMode(value) {
+  const normalized = String(value ?? "default").trim().toLowerCase();
+  return normalized === "tool-dev" ? "tool-dev" : "default";
+}
+function* candidateRoots(startDir) {
+  let current2 = path7.resolve(startDir);
+  while (true) {
+    yield current2;
+    const parent = path7.dirname(current2);
+    if (parent === current2) break;
+    current2 = parent;
+  }
+}
+function isToolkitRoot(candidate) {
+  return existsSync(path7.resolve(candidate, "package.json")) && existsSync(path7.resolve(candidate, "core", "services", "sync.ts")) && (existsSync(path7.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync(path7.resolve(candidate, "cli", "ai-workflow.mjs")));
+}
+var moduleDir;
+var init_operating_context = __esm({
+  "core/lib/operating-context.ts"() {
+    "use strict";
+    init_config_store();
+    moduleDir = path7.dirname(fileURLToPath2(import.meta.url));
+  }
+});
+
+// core/lib/filesystem.ts
+var filesystem_exports = {};
+__export(filesystem_exports, {
+  collectProjectFileSnapshot: () => collectProjectFileSnapshot,
+  collectProjectFiles: () => collectProjectFiles,
+  loadPromptTemplate: () => loadPromptTemplate,
+  normalizePath: () => normalizePath2,
+  readProjectFile: () => readProjectFile,
+  renderTemplate: () => renderTemplate,
+  writeProjectFile: () => writeProjectFile
+});
+import path8 from "node:path";
+import { existsSync as existsSync2 } from "node:fs";
+import { readdir, readFile as readFile5, stat, writeFile as writeFile5 } from "node:fs/promises";
+function normalizePath2(filePath) {
+  return filePath.split(path8.sep).join("/");
+}
+async function collectProjectFiles(root, options = {}) {
+  const files = [];
+  const ignore = /* @__PURE__ */ new Set([...DEFAULT_IGNORES, ...options.ignore ?? []]);
+  const supported = new Set(getAllSupportedExtensions());
+  const projectIgnore = await loadProjectIgnore(root);
+  async function walk(currentDir) {
+    const entries = await readdir(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolutePath = path8.resolve(currentDir, entry.name);
+      const relativePath = normalizePath2(path8.relative(root, absolutePath));
+      if (entry.isDirectory()) {
+        if (ignore.has(entry.name)) {
+          continue;
+        }
+        if (relativePath.startsWith(".ai-workflow/cache") || relativePath.startsWith(".ai-workflow/generated")) {
+          continue;
+        }
+        if (shouldIgnorePath(relativePath, projectIgnore)) {
+          continue;
+        }
+        if (await isNestedProjectRoot(root, absolutePath, relativePath)) {
+          continue;
+        }
+        await walk(absolutePath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (shouldIgnoreFile(entry.name, relativePath)) {
+        continue;
+      }
+      if (shouldIgnorePath(relativePath, projectIgnore)) {
+        continue;
+      }
+      if (!supported.has(path8.extname(entry.name).toLowerCase())) {
+        continue;
+      }
+      files.push(relativePath);
+    }
+  }
+  await walk(root);
+  return files.sort((left, right) => left.localeCompare(right));
+}
+async function collectProjectFileSnapshot(root, options = {}) {
+  const files = [];
+  const ignore = /* @__PURE__ */ new Set([...DEFAULT_IGNORES, ...options.ignore ?? []]);
+  const supported = new Set(getAllSupportedExtensions());
+  const projectIgnore = await loadProjectIgnore(root);
+  async function walk(currentDir) {
+    const entries = await readdir(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolutePath = path8.resolve(currentDir, entry.name);
+      const relativePath = normalizePath2(path8.relative(root, absolutePath));
+      if (entry.isDirectory()) {
+        if (ignore.has(entry.name)) {
+          continue;
+        }
+        if (relativePath.startsWith(".ai-workflow/cache") || relativePath.startsWith(".ai-workflow/generated")) {
+          continue;
+        }
+        if (shouldIgnorePath(relativePath, projectIgnore)) {
+          continue;
+        }
+        if (await isNestedProjectRoot(root, absolutePath, relativePath)) {
+          continue;
+        }
+        await walk(absolutePath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (shouldIgnoreFile(entry.name, relativePath)) {
+        continue;
+      }
+      if (shouldIgnorePath(relativePath, projectIgnore)) {
+        continue;
+      }
+      if (!supported.has(path8.extname(entry.name).toLowerCase())) {
+        continue;
+      }
+      const stats = await stat(absolutePath);
+      files.push({
+        relativePath,
+        sizeBytes: stats.size,
+        mtimeMs: Number(stats.mtimeMs.toFixed(0))
+      });
+    }
+  }
+  await walk(root);
+  return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+function shouldIgnoreFile(name, relativePath) {
+  const normalizedPath = normalizePath2(relativePath);
+  if (normalizedPath.startsWith(".ai-workflow/")) {
+    return true;
+  }
+  return GENERATED_FILE_PATTERNS.some((pattern) => pattern.test(name));
+}
+async function loadProjectIgnore(root) {
+  const ignorePath = path8.resolve(root, ".ai-workflowignore");
+  let text = "";
+  try {
+    text = await readFile5(ignorePath, "utf8");
+  } catch {
+    return [];
+  }
+  return text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#")).map((line) => normalizeIgnorePattern(line));
+}
+function normalizeIgnorePattern(pattern) {
+  const normalized = normalizePath2(String(pattern).trim()).replace(/^\.?\//, "");
+  if (!normalized) return "";
+  return normalized.endsWith("/") ? normalized : normalized;
+}
+function shouldIgnorePath(relativePath, patterns) {
+  const normalized = normalizePath2(relativePath);
+  return patterns.some((pattern) => matchesIgnorePattern(normalized, pattern));
+}
+function matchesIgnorePattern(relativePath, pattern) {
+  if (!pattern) return false;
+  if (pattern.endsWith("/")) {
+    const prefix = pattern.replace(/\/+$/, "");
+    return relativePath === prefix || relativePath.startsWith(`${prefix}/`);
+  }
+  return relativePath === pattern || relativePath.startsWith(`${pattern}/`);
+}
+async function isNestedProjectRoot(root, absolutePath, relativePath) {
+  const normalized = normalizePath2(relativePath);
+  if (!normalized || normalized.startsWith(".git/") || normalized.startsWith(".ai-workflow/")) {
+    return false;
+  }
+  const packageJsonPath = path8.resolve(absolutePath, "package.json");
+  const workflowConfigPath = path8.resolve(absolutePath, ".ai-workflow", "config.json");
+  const docsKanbanPath = path8.resolve(absolutePath, "docs", "kanban.md");
+  const rootKanbanPath = path8.resolve(absolutePath, "kanban.md");
+  const nestedScriptPath = path8.resolve(absolutePath, "scripts", "ai-workflow");
+  if (!existsSync2(packageJsonPath)) {
+    return false;
+  }
+  const hasProjectMarkers = existsSync2(workflowConfigPath) || existsSync2(docsKanbanPath) || existsSync2(rootKanbanPath) || existsSync2(nestedScriptPath);
+  return hasProjectMarkers;
+}
+async function readProjectFile(root, relativePath) {
+  const absolutePath = path8.resolve(root, relativePath);
+  const stats = await stat(absolutePath);
+  if (stats.size > 2 * 1024 * 1024) {
+    return {
+      absolutePath,
+      relativePath: normalizePath2(relativePath),
+      content: "",
+      sizeBytes: stats.size,
+      mtimeMs: Number(stats.mtimeMs.toFixed(0)),
+      isBinary: true
+    };
+  }
+  const content = await readFile5(absolutePath, "utf8");
+  const isBinary = content.includes("\0");
+  return {
+    absolutePath,
+    relativePath: normalizePath2(relativePath),
+    content: isBinary ? "" : content,
+    sizeBytes: stats.size,
+    mtimeMs: Number(stats.mtimeMs.toFixed(0)),
+    isBinary
+  };
+}
+async function loadPromptTemplate(templateName) {
+  const { getToolkitRoot: getToolkitRoot3 } = await Promise.resolve().then(() => (init_operating_context(), operating_context_exports));
+  const toolkitRoot3 = getToolkitRoot3();
+  const templatePath = path8.resolve(toolkitRoot3, "shared", "prompts", `${templateName}.md`);
+  try {
+    let raw = await readFile5(templatePath, "utf8");
+    let manifest = {};
+    const frontmatterMatch = raw.match(/^---\s*json\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n/);
+    if (frontmatterMatch) {
+      try {
+        manifest = JSON.parse(frontmatterMatch[1]);
+      } catch (e) {
+        console.warn(`[prompt-engine] Failed to parse JSON frontmatter in ${templateName}.md`);
+      }
+      raw = raw.slice(frontmatterMatch[0].length);
+    }
+    const content = raw.replace(/<!--[\s\S]*?-->/g, "").trim();
+    return { content, manifest };
+  } catch {
+    return { content: null, manifest: {} };
+  }
+}
+function renderTemplate(content, variables = {}) {
+  if (!content) return null;
+  let rendered = content;
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\{[ \\t]*${key}[ \\t]*\\}\\}`, "g");
+    rendered = rendered.replace(regex, value ?? "");
+  }
+  return rendered;
+}
+async function writeProjectFile(root, relativePath, content) {
+  if (!isWorkspaceMutationGuardDisabled()) {
+    return withWorkspaceMutation(root, `write ${relativePath}`, async () => withWorkspaceMutationGuardDisabled(async () => writeProjectFileRaw(root, relativePath, content)));
+  }
+  return writeProjectFileRaw(root, relativePath, content);
+}
+async function writeProjectFileRaw(root, relativePath, content) {
+  const absolutePath = path8.resolve(root, relativePath);
+  const tempPath = `${absolutePath}.tmp-${Date.now()}`;
+  const { rename: rename2, unlink } = await import("node:fs/promises");
+  await ensureDir(path8.dirname(absolutePath));
+  try {
+    await writeFile5(tempPath, content, "utf8");
+    await rename2(tempPath, absolutePath);
+  } catch (error) {
+    await unlink(tempPath).catch(() => {
+    });
+    throw error;
+  }
+}
+var DEFAULT_IGNORES, GENERATED_FILE_PATTERNS;
+var init_filesystem = __esm({
+  "core/lib/filesystem.ts"() {
+    "use strict";
+    init_fs_utils();
+    init_registry();
+    init_workspace_mutation();
+    DEFAULT_IGNORES = /* @__PURE__ */ new Set([
+      ".git",
+      "node_modules",
+      ".turbo",
+      ".next",
+      "artifacts",
+      "dist",
+      "build",
+      "coverage",
+      "playwright-report",
+      "test-results",
+      "output",
+      ".idea",
+      ".vscode"
+    ]);
+    GENERATED_FILE_PATTERNS = [
+      /^e2e_.*\.(?:txt|json)$/i,
+      /(?:^|[-_])(debug|output|report)\.(?:txt|json|md)$/i,
+      /^playwright\..*\.json$/i,
+      /^actual-test\.js$/i,
+      /^test-.*\.js$/i
+    ];
+  }
+});
+
+// node_modules/.pnpm/@dharmax+codebase-parser@https+++codeload.github.com+dharmax+codebase-parser+tar.gz+176_6b7390c875f2195e46a390f5f75f6845/node_modules/@dharmax/codebase-parser/dist/index.mjs
+import path9 from "node:path";
+function getNoteRegex() {
+  const allMarkers = [
+    ...SEMANTICS2.NOTES.markers,
+    ...Object.values(SEMANTICS2.NOTES.aliases).flat()
+  ];
+  const escaped = allMarkers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^\\s*(?:(?:[-*]\\s+)?(?:\\[\\s*)?(${escaped.join("|")})(?:\\s*\\])?[:\\-]?|\\-\\s+\\[\\s\\])\\s+(.+)`, "i");
+}
+function findNotesFuzzily(text) {
+  const lines = text.split("\n");
+  const results = [];
+  const regex = getNoteRegex();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(regex);
+    if (match) {
+      const typeText = match[1] || "TODO";
+      const body = match[2] || "";
+      const type = inferNoteType(typeText);
+      results.push({
+        type,
+        body: body.trim(),
+        line: i + 1,
+        rawLine: line
+      });
+    }
+  }
+  return results;
+}
+function inferNoteType(matchText) {
+  const lower = (matchText || "").toLowerCase();
+  for (const [canonical, aliases] of Object.entries(SEMANTICS2.NOTES.aliases)) {
+    if (aliases.some((a) => lower.includes(a.toLowerCase()))) return canonical;
+  }
+  for (const marker of SEMANTICS2.NOTES.markers) {
+    if (lower.includes(marker.toLowerCase())) return marker;
+  }
+  return "TODO";
+}
+function extractTaggedNotes(content, { commentPattern, filePath }) {
+  const results = [];
+  const noteRegex = getNoteRegex();
+  for (const match of content.matchAll(commentPattern)) {
+    const commentBody = match[1];
+    const offset2 = match.index;
+    const { line, column } = countLineColumn(content, offset2);
+    const innerLines = commentBody.split("\n");
+    for (let i = 0; i < innerLines.length; i++) {
+      const noteMatch = innerLines[i].match(noteRegex);
+      if (noteMatch) {
+        const typeText = noteMatch[1] || "TODO";
+        const body = noteMatch[2] || "";
+        const noteType = inferNoteType(typeText);
+        results.push({
+          noteType,
+          body: body.trim(),
+          filePath,
+          line: line + i,
+          column: i === 0 ? column : 1
+        });
+      }
+    }
+  }
+  return results;
+}
+function countLineColumn(source, offset2) {
+  const slice = source.slice(0, Math.max(0, offset2));
+  const lines = slice.split("\n");
+  return {
+    line: lines.length,
+    column: lines.at(-1).length + 1
+  };
+}
+function parseJsFamily({ filePath, content, language }) {
+  const imports = [];
+  const symbols = [];
+  const calls = /* @__PURE__ */ new Set();
+  const seenSymbols = /* @__PURE__ */ new Set();
+  for (const match of content.matchAll(/^\s*import\s+(?:.+?\s+from\s+)?["']([^"']+)["']/gm)) {
+    imports.push(match[1]);
+  }
+  for (const match of content.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)) {
+    imports.push(match[1]);
+  }
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g, "function");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?class\s+([A-Za-z_$][\w$]*)\b/g, "class");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?interface\s+([A-Za-z_$][\w$]*)\b/g, "interface");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/g, "type");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?enum\s+([A-Za-z_$][\w$]*)\b/g, "enum");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/g, "function-value");
+  addSymbols(symbols, seenSymbols, content, /\b(export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?!\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/g, "variable");
+  for (const match of content.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) {
+    const candidate = match[1];
+    if (!KEYWORDS.has(candidate)) {
+      calls.add(candidate);
+    }
+  }
+  const notes = extractJsNotes(content, filePath);
+  return {
+    language,
+    fileKind: "code",
+    symbols,
+    facts: [
+      ...imports.map((value) => ({ predicate: "imports", objectText: value, confidence: 1 })),
+      ...Array.from(calls).map((value) => ({ predicate: "calls", objectText: value, confidence: 0.52 }))
+    ],
+    notes,
+    metadata: {
+      importCount: imports.length,
+      symbolCount: symbols.length,
+      approximateCallCount: calls.size
+    },
+    searchText: [content, ...imports, ...symbols.map((symbol) => symbol.name)].join("\n")
+  };
+}
+function addSymbols(target, seenSymbols, content, regex, kind) {
+  for (const match of content.matchAll(regex)) {
+    const name = match[2];
+    const key = `${kind}:${name}`;
+    if (seenSymbols.has(key)) {
+      continue;
+    }
+    seenSymbols.add(key);
+    const location = countLineColumn(content, match.index ?? 0);
+    const lineText = extractLine(content, location.line);
+    target.push({
+      name,
+      kind,
+      exported: Boolean(match[1]),
+      line: location.line,
+      column: location.column,
+      metadata: {
+        signature: lineText.trim(),
+        declarationLine: location.line
+      }
+    });
+  }
+}
+function extractLine(content, lineNumber) {
+  return String(content).split("\n")[Math.max(0, lineNumber - 1)] ?? "";
+}
+function extractJsNotes(source, filePath) {
+  const comments = [];
+  let index = 0;
+  let mode = "code";
+  while (index < source.length) {
+    const current2 = source[index];
+    const next = source[index + 1];
+    if (mode === "code") {
+      if (current2 === "'" || current2 === '"' || current2 === "`") {
+        mode = current2;
+        index += 1;
+        continue;
+      }
+      if (current2 === "/" && next === "/") {
+        const start = index;
+        index += 2;
+        let body = "";
+        while (index < source.length && source[index] !== "\n") {
+          body += source[index];
+          index += 1;
+        }
+        comments.push({ body, index: start });
+        continue;
+      }
+      if (current2 === "/" && next === "*") {
+        const start = index;
+        index += 2;
+        let body = "";
+        while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+          body += source[index];
+          index += 1;
+        }
+        index += 2;
+        comments.push({ body, index: start });
+        continue;
+      }
+      index += 1;
+      continue;
+    }
+    if (current2 === "\\") {
+      index += 2;
+      continue;
+    }
+    if (current2 === mode) {
+      mode = "code";
+    }
+    index += 1;
+  }
+  return comments.flatMap((comment) => {
+    const location = countLineColumn(source, comment.index);
+    return findNotesFuzzily(comment.body.replace(/^\*\s*/gm, "").trim()).map((found) => ({
+      noteType: found.type,
+      body: found.body,
+      filePath,
+      line: location.line + (found.line - 1),
+      column: location.column
+    }));
+  });
+}
+function parseStyles({ filePath, content, language }) {
+  const selectors = [];
+  for (const match of content.matchAll(/(^|})\s*([^@}{][^{]+)\{/gm)) {
+    const group = match[2].trim();
+    for (const selector of group.split(",")) {
+      const normalized = selector.trim();
+      if (normalized) {
+        selectors.push(normalized);
+      }
+    }
+  }
+  const notes = extractTaggedNotes(content, {
+    commentPattern: /\/\*([\s\S]*?)\*\//g,
+    filePath
+  });
+  return {
+    language,
+    fileKind: "style",
+    symbols: selectors.map((selector) => ({ name: selector, kind: "selector", exported: false })),
+    facts: selectors.map((selector) => ({ predicate: "defines-selector", objectText: selector, confidence: 1 })),
+    notes,
+    metadata: {
+      selectorCount: selectors.length
+    },
+    searchText: [content, ...selectors].join("\n")
+  };
+}
+function parseHtml({ filePath, content, language = "html" }) {
+  const ids = /* @__PURE__ */ new Set();
+  const classes = /* @__PURE__ */ new Set();
+  for (const match of content.matchAll(/\sid=["']([^"']+)["']/g)) {
+    ids.add(`#${match[1]}`);
+  }
+  for (const match of content.matchAll(/\sclass=["']([^"']+)["']/g)) {
+    for (const className of match[1].split(/\s+/)) {
+      if (className) {
+        classes.add(`.${className}`);
+      }
+    }
+  }
+  const selectors = [...ids, ...classes];
+  const notes = extractTaggedNotes(content, {
+    commentPattern: /<!--([\s\S]*?)-->/g,
+    filePath
+  });
+  return {
+    language,
+    fileKind: "markup",
+    symbols: selectors.map((selector) => ({ name: selector, kind: "selector", exported: false })),
+    facts: selectors.map((selector) => ({ predicate: "uses-selector", objectText: selector, confidence: 0.95 })),
+    notes,
+    metadata: {
+      selectorCount: selectors.length
+    },
+    searchText: [content, ...selectors].join("\n")
+  };
+}
+function parseRiot({ filePath, content }) {
+  const scriptContent = content.match(/<script[^>]*>([\s\S]*?)<\/script>/i)?.[1] ?? "";
+  const styleContent = content.match(/<style[^>]*>([\s\S]*?)<\/style>/i)?.[1] ?? "";
+  const templateContent = content.replace(/<script[\s\S]*?<\/script>/ig, "").replace(/<style[\s\S]*?<\/style>/ig, "");
+  const script = scriptContent ? parseJsFamily({ filePath, content: scriptContent, language: "riot-script" }) : emptyResult("riot-script");
+  const style = styleContent ? parseStyles({ filePath, content: styleContent, language: "riot-style" }) : emptyResult("riot-style");
+  const markup = parseHtml({ filePath, content: templateContent, language: "riot-template" });
+  return {
+    language: "riot",
+    fileKind: "component",
+    symbols: [...script.symbols, ...style.symbols, ...markup.symbols],
+    facts: [...script.facts, ...style.facts, ...markup.facts],
+    notes: [...script.notes, ...style.notes, ...markup.notes],
+    metadata: {
+      scriptSymbols: script.symbols.length,
+      styleSelectors: style.symbols.length,
+      templateSelectors: markup.symbols.length
+    },
+    searchText: [script.searchText, style.searchText, markup.searchText].filter(Boolean).join("\n")
+  };
+}
+function emptyResult(language) {
+  return {
+    language,
+    fileKind: "empty",
+    symbols: [],
+    facts: [],
+    notes: [],
+    metadata: {},
+    searchText: ""
+  };
+}
+function parseJsonFile({ filePath, content }) {
+  let value = null;
+  let error = null;
+  try {
+    value = JSON.parse(content);
+  } catch (caughtError) {
+    error = caughtError.message;
+  }
+  const topLevelKeys = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  return {
+    language: "json",
+    fileKind: "data",
+    symbols: topLevelKeys.map((key) => ({ name: key, kind: "json-key", exported: false })),
+    facts: topLevelKeys.map((key) => ({ predicate: "has-key", objectText: key, confidence: 1 })),
+    notes: [],
+    metadata: {
+      parseError: error,
+      topLevelKeyCount: topLevelKeys.length
+    },
+    searchText: [content, ...topLevelKeys].join("\n")
+  };
+}
+function parseYamlFile({ filePath, content, language }) {
+  const keys = [];
+  for (const match of content.matchAll(/^([A-Za-z0-9_.-]+):/gm)) {
+    keys.push(match[1]);
+  }
+  const notes = extractTaggedNotes(content, {
+    commentPattern: /#([^\n]+)/g,
+    filePath
+  });
+  return {
+    language,
+    fileKind: "data",
+    symbols: keys.map((key) => ({ name: key, kind: "yaml-key", exported: false })),
+    facts: keys.map((key) => ({ predicate: "has-key", objectText: key, confidence: 0.9 })),
+    notes,
+    metadata: {
+      topLevelKeyCount: keys.length
+    },
+    searchText: [content, ...keys].join("\n")
+  };
+}
+function parseMarkdownFile({ filePath, content }) {
+  const headings = [];
+  for (const match of content.matchAll(/^(#{1,6})\s+(.+)$/gm)) {
+    headings.push(match[2].trim());
+  }
+  const explicitLineNotes = extractExplicitMarkdownNotes(content, filePath);
+  const taggedNotes = extractTaggedNotes(content, {
+    commentPattern: /<!--([\s\S]*?)-->/gm,
+    filePath
+  });
+  const notes = [...explicitLineNotes, ...taggedNotes].filter(
+    (note, index, self) => index === self.findIndex((t) => t.line === note.line && t.body === note.body)
+  );
+  return {
+    language: "markdown",
+    fileKind: "doc",
+    symbols: headings.map((heading) => ({ name: heading, kind: "heading", exported: false })),
+    facts: headings.map((heading) => ({ predicate: "has-heading", objectText: heading, confidence: 1 })),
+    notes,
+    metadata: {
+      headingCount: headings.length
+    },
+    searchText: [content, ...headings].join("\n")
+  };
+}
+function extractExplicitMarkdownNotes(content, filePath) {
+  return findNotesFuzzily(content).filter((note) => isExplicitMarkdownNote(note.rawLine)).map((note) => ({
+    noteType: note.type,
+    body: note.body,
+    filePath,
+    line: note.line,
+    column: 1
+  }));
+}
+function isExplicitMarkdownNote(line) {
+  const trimmed = String(line ?? "").trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (/^(?:[-*]\s+)?(?:\[\s*(?:TODO|FIXME|HACK|BUG|RISK|NOTE)\s*\]|(?:TODO|FIXME|HACK|BUG|RISK|NOTE))[:\-\s]/i.test(trimmed)) {
+    return true;
+  }
+  if (/^(?:[-*]\s+)?\[\s\]\s+(?:TODO|FIXME|HACK|BUG|RISK|NOTE)\b/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+function parseIndexedFile({ filePath, content }) {
+  const extension = path9.extname(filePath).toLowerCase();
+  if ([".js", ".mjs", ".jsx", ".ts", ".tsx"].includes(extension)) {
+    return parseJsFamily({ filePath, content, language: extension.slice(1) });
+  }
+  if ([".css", ".scss", ".less"].includes(extension)) {
+    return parseStyles({ filePath, content, language: extension.slice(1) });
+  }
+  if (extension === ".html") {
+    return parseHtml({ filePath, content, language: "html" });
+  }
+  if (extension === ".riot") {
+    return parseRiot({ filePath, content });
+  }
+  if (extension === ".json") {
+    return parseJsonFile({ filePath, content });
+  }
+  if (extension === ".yaml" || extension === ".yml") {
+    return parseYamlFile({ filePath, content, language: extension.slice(1) });
+  }
+  if (extension === ".md") {
+    return parseMarkdownFile({ filePath, content });
+  }
+  return {
+    language: "unknown",
+    fileKind: "unknown",
+    symbols: [],
+    facts: [],
+    notes: [],
+    metadata: {},
+    searchText: content
+  };
+}
+var SEMANTICS2, KEYWORDS;
+var init_dist2 = __esm({
+  "node_modules/.pnpm/@dharmax+codebase-parser@https+++codeload.github.com+dharmax+codebase-parser+tar.gz+176_6b7390c875f2195e46a390f5f75f6845/node_modules/@dharmax/codebase-parser/dist/index.mjs"() {
+    SEMANTICS2 = {
+      NOTES: {
+        markers: ["TODO", "FIXME", "BUG", "RISK", "HACK", "NOTE", "OPTIMIZE", "REVIEW", "DEBT", "PENDING", "FIXIT", "REVISIT"],
+        aliases: {
+          "TODO": ["to-do", "todo", "[ ]"],
+          "BUG": ["bug", "error", "fault", "fixit"],
+          "REVIEW": ["review", "revisit", "audit"]
+        }
+      }
+    };
+    KEYWORDS = /* @__PURE__ */ new Set(["if", "for", "while", "switch", "catch", "return", "new", "import", "function"]);
+  }
+});
+
+// core/parsers/shared.ts
+function buildCandidateTitle(note) {
+  const raw = String(note.body ?? "").replace(/[.]+$/, "").trim();
+  if (!raw) {
+    return `Follow up ${note.noteType.toLowerCase()}`;
+  }
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+function scoreNote(note) {
+  const typeWeights = {
+    BUG: 100,
+    FIXME: 80,
+    HACK: 50,
+    TODO: 20,
+    NOTE: 5
+  };
+  return typeWeights[note.noteType] || 0;
+}
+var init_shared = __esm({
+  "core/parsers/shared.ts"() {
+    "use strict";
+    init_registry();
+  }
+});
+
+// core/services/lifecycle.ts
+function deriveCandidateFromNote(note, options = {}) {
+  const scores = scoreNote(note);
+  const decisionKey = stableId("candidate-key", note.filePath ?? "manual", note.noteType, note.body.trim().toLowerCase());
+  const score = scores.candidateScore;
+  const title = buildCandidateTitle(note);
+  const status = note.status === "resolved" ? "ignored" : score >= 0.72 ? "ai-candidate" : score >= 0.5 ? "doubtful-relevancy" : "ignored";
+  return {
+    id: stableId("candidate", decisionKey),
+    noteId: note.id,
+    title,
+    status,
+    score,
+    decisionKey,
+    reason: note.status === "resolved" ? `${note.noteType} note is resolved` : `${note.noteType} note scored ${score}`,
+    data: {
+      noteType: note.noteType,
+      filePath: note.filePath ?? null
+    },
+    ...scores
+  };
+}
+function reviewCandidates(store, { reviewIntervalHours = DEFAULT_REVIEW_INTERVAL_HOURS, now = /* @__PURE__ */ new Date() } = {}) {
+  const dueAt = new Date(now);
+  const nextReviewAt = new Date(now.getTime() + reviewIntervalHours * 60 * 60 * 1e3).toISOString();
+  const candidates = store.listCandidates();
+  const reviewed = [];
+  for (const candidate of candidates) {
+    if (candidate.status === "rejected") {
+      continue;
+    }
+    const isDue = !candidate.nextReviewAt || new Date(candidate.nextReviewAt).getTime() <= dueAt.getTime();
+    if (!isDue) {
+      continue;
+    }
+    let nextStatus = candidate.status;
+    if (candidate.score >= 0.9) {
+      nextStatus = "promoted";
+    } else if (candidate.score < 0.35) {
+      nextStatus = "archived";
+    } else if (candidate.score < 0.6) {
+      nextStatus = "doubtful-relevancy";
+    } else {
+      nextStatus = "ai-candidate";
+    }
+    store.upsertCandidate({
+      ...candidate,
+      status: nextStatus,
+      lastReviewAt: dueAt.toISOString(),
+      nextReviewAt,
+      updatedAt: dueAt.toISOString()
+    });
+    if (nextStatus === "promoted") {
+      store.upsertEntity({
+        id: `ticket:${candidate.id}`,
+        entityType: "candidate-ticket",
+        title: candidate.title,
+        lane: "AI Candidates",
+        state: "open",
+        confidence: candidate.score,
+        provenance: candidate.reason,
+        sourceKind: "proposal",
+        reviewState: "pending",
+        parentId: candidate.noteId,
+        data: {
+          candidateId: candidate.id,
+          status: nextStatus
+        },
+        updatedAt: dueAt.toISOString()
+      });
+    }
+    reviewed.push({
+      id: candidate.id,
+      from: candidate.status,
+      to: nextStatus
+    });
+  }
+  return {
+    reviewed,
+    reviewIntervalHours
+  };
+}
+var DEFAULT_REVIEW_INTERVAL_HOURS;
+var init_lifecycle = __esm({
+  "core/services/lifecycle.ts"() {
+    "use strict";
+    init_hash();
+    init_shared();
+    DEFAULT_REVIEW_INTERVAL_HOURS = 36;
+  }
+});
+
+// core/lib/disambiguation.ts
+import * as readline from "node:readline/promises";
+var init_disambiguation = __esm({
+  "core/lib/disambiguation.ts"() {
+    "use strict";
+  }
+});
+
+// core/services/projections.ts
+import path10 from "node:path";
+async function readProjectOrTemplate(projectRoot, fileName, templateName = fileName) {
+  const projectPath = path10.resolve(projectRoot, fileName);
+  const text = await readText(projectPath, "");
+  if (text) {
+    return text;
+  }
+  return await readText(path10.resolve(templatesRoot, templateName), "");
+}
+function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
+  const counts = store.getSummary();
+  const tickets = store.listEntities({ entityType: "ticket" }).filter((t) => t.state !== "archived");
+  const epics = store.listEntities({ entityType: "epic" }).filter((e) => e.state !== "archived");
+  const assessments = store.listAssessments({ status: "pending" });
+  const metrics = store.listMetrics({ limit: 50 });
+  const activeEpic = epics.find((e) => e.state === "open") || epics[0];
+  const inProgress = tickets.filter((t) => t.lane === "In Progress");
+  const todo = tickets.filter((t) => t.lane === "Todo");
+  const others = tickets.filter((t) => t.lane !== "In Progress" && t.lane !== "Todo");
+  const failures = metrics.filter((m) => !m.success).slice(0, 5);
+  const auditSummary = auditFindings.reduce((acc, f) => {
+    acc[f.severity] = (acc[f.severity] || 0) + 1;
+    return acc;
+  }, {});
+  const status = [
+    `Environment: ${process.platform} | CWD: ${store.projectRoot}`,
+    `Project: ${path10.basename(store.projectRoot)}`,
+    `Epic: ${activeEpic ? `[${activeEpic.id}] ${activeEpic.title} (${activeEpic.state})` : "None"}`,
+    `Inventory: ${counts.files} files, ${tickets.length} active tickets, ${assessments.length} pending assessments, ${counts.candidates} candidates`,
+    "",
+    "### ACTIVE PRIORITY QUEUE",
+    inProgress.length ? inProgress.map((t) => `- [IN_PROGRESS] ${t.id}: ${t.title}`).join("\n") : "- No tickets currently in progress.",
+    todo.length ? todo.slice(0, 20).map((t) => `- [TODO] ${t.id}: ${t.title}`).join("\n") : "",
+    todo.length > 20 ? `... and ${todo.length - 20} more TODOs` : "",
+    assessments.length ? `
+### PENDING ASSESSMENTS
+${assessments.map((a) => `- [${a.scope}] ${a.targetType}:${a.targetId}`).join("\n")}` : "",
+    others.length ? `
+### BACKLOG / OTHER
+${others.slice(0, 20).map((t) => `- [${t.lane}] ${t.id}: ${t.title}`).join("\n")}` : "",
+    others.length > 20 ? `... and ${others.length - 20} more items in backlog` : "",
+    "",
+    "### RECENT FRICTION (SYSTEM HEALTH)",
+    failures.length ? failures.map((f) => `!! FAILURE in ${f.task_class} (${f.created_at}): ${f.error_message}`).join("\n") : "- System metrics indicate nominal operation (no recent failures).",
+    "",
+    "### ARCHITECTURAL HEALTH",
+    auditFindings.length ? `Audit Detects: ${auditSummary.high || 0} High, ${auditSummary.medium || 0} Medium issues.` : "- No architectural audit performed or wiring is clean."
+  ].filter(Boolean).join("\n");
+  return status;
+}
+function buildProjectSummary(store) {
+  const counts = store.getSummary();
+  const activeTickets = store.listEntities({ entityType: "ticket" }).filter((ticket) => ticket.state !== "archived" && ticket.lane !== "Done" && ticket.lane !== "Archived").map((t) => ({
+    id: t.id,
+    title: t.title,
+    lane: t.lane,
+    summary: t.data?.summary ?? "No description provided.",
+    domain: t.data?.domain ?? "unknown"
+  }));
+  const assessments = store.listAssessments();
+  const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
+  const notes = store.listNotes({ statuses: ["observed"] }).slice(0, 20);
+  const modules = store.listModules().map((m) => ({ name: m.name, responsibility: m.responsibility }));
+  const assessmentSummary = summarizeAssessments(assessments);
+  return {
+    fileCount: counts.files,
+    noteCount: counts.notes,
+    symbolCount: counts.symbols,
+    claimCount: counts.claims,
+    ticketCount: counts.tickets,
+    assessmentCount: assessments.length,
+    assessmentSummary,
+    codeletCount: counts.codelets,
+    candidateCount: counts.candidates,
+    activeTickets,
+    candidates,
+    notes,
+    modules
+  };
+}
+function renderKanbanProjection(store) {
+  const tickets = store.listEntities({ entityType: "ticket" });
+  const assessments = selectProjectedAssessments(store.listAssessments());
+  const candidateTickets = store.listEntities({ entityType: "candidate-ticket" });
+  const ideas = store.listEntities({ entityType: "idea" });
+  const risks = store.listEntities({ entityType: "risk" });
+  const coreLaneMap = new Map(CORE_TICKET_LANES.map((lane) => [lane, []]));
+  const optionalLaneMap = new Map(OPTIONAL_TICKET_LANES.map((lane) => [lane, []]));
+  for (const ticket of tickets) {
+    const lane = normalizeDisplayLaneName(ticket.lane ?? "ToDo");
+    if (coreLaneMap.has(lane)) {
+      coreLaneMap.get(lane)?.push(ticket);
+      continue;
+    }
+    if (optionalLaneMap.has(lane)) {
+      optionalLaneMap.get(lane)?.push(ticket);
+    }
+  }
+  for (const assessment of assessments) {
+    coreLaneMap.get("Assessments")?.push({
+      id: assessment.id,
+      title: `Assessment: ${assessment.scope} on ${assessment.targetType}:${assessment.targetId}`,
+      state: assessment.status,
+      data: { summary: `Status: ${assessment.status}. Plan: ${assessment.plan ? "Available" : "Pending"}` }
+    });
+  }
+  for (const ticket of candidateTickets) {
+    optionalLaneMap.get("AI Candidates")?.push(ticket);
+  }
+  for (const idea of ideas) {
+    optionalLaneMap.get("Ideas")?.push(idea);
+  }
+  for (const risk of risks) {
+    optionalLaneMap.get("Risk Watch")?.push(risk);
+  }
+  const lines = [
+    "---",
+    "kanban-plugin: board",
+    "---",
+    "",
+    "# Kanban",
+    "",
+    "_Generated from the workflow DB. Edit through `ai-workflow project ...` or `ai-workflow sync`._",
+    "_Core lanes are fixed. Rare lanes only render when they contain cards. `Archived` history lives in `kanban-archive.md`._",
+    ""
+  ];
+  for (const lane of CORE_TICKET_LANES) {
+    lines.push(`## ${lane}`);
+    if (lane === "ToDo") {
+      lines.push("<!-- canonical alias: ## Todo -->");
+    }
+    lines.push("");
+    const items = coreLaneMap.get(lane) ?? [];
+    if (!items.length) {
+      lines.push("- No items");
+      lines.push("");
+      continue;
+    }
+    for (const item of items) {
+      const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
+      const cleanTitle = sanitizeProjectionTicketTitle(item.title);
+      const doneSuffix = lane === "Done" ? ` \u2705 ${formatCompletionDate(item)}` : "";
+      lines.push(`- [ ] ${id} ${cleanTitle}${doneSuffix}`);
+      if (item.data?.summary) {
+        lines.push(`  - Summary: ${item.data.summary}`);
+      }
+      if (item.data?.userStory) {
+        lines.push(`  - Story: ${item.data.userStory}`);
+      }
+      if (item.parentId || item.data?.epic) {
+        lines.push(`  - Epic: ${item.data?.epic ?? item.parentId}`);
+      }
+      if (item.parentId) {
+        lines.push(`  - Parent: ${item.parentId}`);
+      }
+      lines.push(`  - State: ${item.state}`);
+    }
+    lines.push("");
+  }
+  for (const lane of OPTIONAL_TICKET_LANES) {
+    const items = optionalLaneMap.get(lane) ?? [];
+    if (!items.length) {
+      continue;
+    }
+    lines.push(`## ${lane}`);
+    lines.push("");
+    for (const item of items) {
+      const id = item.data.ticketId ?? item.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
+      lines.push(`- [ ] ${id} ${sanitizeProjectionTicketTitle(item.title)}`);
+      if (item.data?.summary) {
+        lines.push(`  - Summary: ${item.data.summary}`);
+      }
+      if (item.data?.userStory) {
+        lines.push(`  - Story: ${item.data.userStory}`);
+      }
+      if (item.parentId || item.data?.epic) {
+        lines.push(`  - Epic: ${item.data?.epic ?? item.parentId}`);
+      }
+      if (item.parentId) {
+        lines.push(`  - Parent: ${item.parentId}`);
+      }
+      lines.push(`  - State: ${item.state}`);
+    }
+    lines.push("");
+  }
+  lines.push("%% kanban:settings");
+  lines.push("```");
+  lines.push('{"kanban-plugin":"board"}');
+  lines.push("```");
+  lines.push("%%");
+  return `${lines.join("\n").trimEnd()}
+`;
+}
+function selectProjectedAssessments(assessments = []) {
+  const ordered = [...assessments].sort(
+    (left, right) => (Date.parse(right.updatedAt ?? right.createdAt ?? 0) || 0) - (Date.parse(left.updatedAt ?? left.createdAt ?? 0) || 0)
+  );
+  const actionable = ordered.filter((item) => ACTIONABLE_ASSESSMENT_STATUSES.has(item.status));
+  const actionableKeys = new Set(actionable.map((item) => `${item.targetType}:${item.targetId}:${item.scope}`));
+  const recentFailures = [];
+  const seenFailureKeys = /* @__PURE__ */ new Set();
+  for (const assessment of ordered) {
+    if (assessment.status !== "failed") {
+      continue;
+    }
+    const key = `${assessment.targetType}:${assessment.targetId}:${assessment.scope}`;
+    if (seenFailureKeys.has(key)) {
+      continue;
+    }
+    if (actionableKeys.has(key)) {
+      continue;
+    }
+    seenFailureKeys.add(key);
+    recentFailures.push(assessment);
+    if (recentFailures.length >= 3) {
+      break;
+    }
+  }
+  return [...actionable, ...recentFailures].slice(0, 8);
+}
+function summarizeAssessments(assessments = []) {
+  const byStatus = {};
+  const byError = /* @__PURE__ */ new Map();
+  for (const assessment of assessments) {
+    const status = String(assessment.status ?? "unknown").trim() || "unknown";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    const error = String(assessment.result?.error ?? "").trim();
+    if (!error) {
+      continue;
+    }
+    byError.set(error, (byError.get(error) ?? 0) + 1);
+  }
+  const topErrors = [...byError.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0])).slice(0, 5).map(([error, count]) => ({ error, count }));
+  return {
+    total: assessments.length,
+    byStatus,
+    topErrors
+  };
+}
+function renderEpicsProjection(store) {
+  const epics = store.listEntities({ entityType: "epic" }).sort(compareEpicPriority);
+  const tickets = store.listEntities({ entityType: "ticket" });
+  const lines = ["# Epics", "", "_Generated from the workflow DB._", ""];
+  for (const epic of epics) {
+    const userStories = normalizeEpicStories(epic);
+    const ticketBatches = normalizeEpicTicketBatches(epic);
+    const linkedTickets = tickets.filter((ticket) => ticket.parentId === epic.id || ticket.data?.epic === epic.id);
+    const epicState = deriveEpicState(epic, linkedTickets);
+    lines.push(`## ${epic.id} ${epic.title}`);
+    lines.push("");
+    lines.push("### Goal");
+    lines.push("");
+    lines.push(normalizeEpicSummary(epic) || "Pending natural-language scope.");
+    lines.push("");
+    lines.push("### Status");
+    lines.push("");
+    lines.push(epicState === "archived" ? "- [x] Archived" : "- [ ] Active");
+    lines.push(`<!-- status: ${epicState === "archived" ? "archived" : "open"} -->`);
+    lines.push("");
+    lines.push("### User stories");
+    if (userStories.length) {
+      userStories.forEach((story, index) => {
+        lines.push(`#### Story ${index + 1}`);
+        lines.push("");
+        lines.push(formatEpicStoryText(story));
+        lines.push("");
+      });
+    } else {
+      lines.push("None captured yet.");
+      lines.push("");
+    }
+    lines.push("### Ticket batches");
+    if (ticketBatches.length) {
+      for (const batch of ticketBatches) {
+        lines.push(`- ${batch}`);
+      }
+    } else {
+      lines.push("- None captured yet.");
+    }
+    lines.push("");
+    lines.push("### Kanban tickets");
+    if (linkedTickets.length) {
+      for (const ticket of linkedTickets) {
+        const ticketStory = ticket.data?.userStory ? ` | Story: ${ticket.data.userStory}` : "";
+        lines.push(`- ${ticket.id} ${ticket.title} [${ticket.lane ?? "Todo"}]${ticketStory}`);
+      }
+    } else {
+      lines.push("- none linked yet");
+    }
+    lines.push("");
+  }
+  if (!epics.length) {
+    lines.push("## No epics yet");
+    lines.push("");
+    lines.push("- Add one with `ai-workflow project ticket create --epic EPC-001 ...` or by writing entities directly through the CLI.");
+    lines.push("- Each epic should describe the user outcome in natural language, then break into user stories, ticket batches, and kanban tickets.");
+    lines.push("");
+  }
+  return `${lines.join("\n").trimEnd()}
+`;
+}
+async function writeProjectProjections(store, { projectRoot, reconcileLegacy = true } = {}) {
+  const currentDigest = store.getMeta("lastProjectionDigest", null);
+  const { existsSync: existsSync8, readFileSync: readFileSync4 } = await import("node:fs");
+  const { createHash: createHash4 } = await import("node:crypto");
+  for (const file of ["kanban.md", "epics.md"]) {
+    const fullP = path10.resolve(projectRoot, file);
+    if (existsSync8(fullP)) {
+      const content = readFileSync4(fullP, "utf8");
+      const h = createHash4("sha1").update(content).digest("hex");
+      const oldH = currentDigest && currentDigest[file.replace(".md", "")];
+      if (oldH && h !== oldH) {
+        console.warn(`[projections] Drift detected in ${file}. Reconciling...`);
+        await importLegacyProjections(store, { projectRoot });
+        break;
+      }
+    }
+  }
+  if (reconcileLegacy) {
+    await importLegacyProjections(store, { projectRoot });
+  }
+  const kanban = renderKanbanProjection(store);
+  const epics = renderEpicsProjection(store);
+  const mission = store.getMeta("mission");
+  const gemini = store.getMeta("gemini");
+  const writtenAt = (/* @__PURE__ */ new Date()).toISOString();
+  const writes = [
+    writeProjectFile(projectRoot, "kanban.md", kanban),
+    writeProjectFile(projectRoot, "epics.md", epics)
+  ];
+  if (mission) {
+    writes.push(writeProjectFile(projectRoot, "MISSION.md", mission));
+  }
+  if (gemini) {
+    const geminiPath = (async () => {
+      const { existsSync: exists2 } = await import("node:fs");
+      if (exists2(path10.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
+      return "GEMINI.md";
+    })();
+    writes.push(writeProjectFile(projectRoot, await geminiPath, gemini));
+  }
+  await Promise.all(writes);
+  store.setMeta("lastProjectionDigest", {
+    writtenAt,
+    kanban: sha1(kanban),
+    epics: sha1(epics)
+  });
+  return {
+    kanbanPath: path10.resolve(projectRoot, "kanban.md"),
+    epicsPath: path10.resolve(projectRoot, "epics.md"),
+    writtenAt
+  };
+}
+async function importLegacyProjections(store, { projectRoot }) {
+  const lastProjectionDigest = store.getMeta("lastProjectionDigest");
+  const kanbanSource = await selectProjectionSource(projectRoot, ["docs/kanban.md", "kanban.md"], countKanbanTickets, { lastProjectionDigest });
+  const epicsSource = await selectProjectionSource(projectRoot, ["docs/epics.md", "epics.md"], countEpicEntries, { lastProjectionDigest });
+  const kanbanText = kanbanSource.text;
+  const epicsText = epicsSource.text;
+  const missionText = await readProjectOrTemplate(projectRoot, "MISSION.md");
+  const geminiText = await readText(path10.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
+  if (missionText) {
+    store.setMeta("mission", missionText);
+  }
+  if (geminiText) {
+    store.setMeta("gemini", geminiText);
+  }
+  if (!kanbanText.trim() && !epicsText.trim()) {
+    return { importedTickets: 0, importedEpics: 0, skipped: true };
+  }
+  let currentLane = "Todo";
+  let importedTickets = 0;
+  let importedEpics = 0;
+  let currentTicket = null;
+  const importedTicketIds = /* @__PURE__ */ new Set();
+  const importedEpicIds = /* @__PURE__ */ new Set();
+  for (const line of kanbanText.split(/\r?\n/)) {
+    const laneMatch = line.match(/^##\s+(.+)$/);
+    if (laneMatch) {
+      currentLane = normalizeLaneName(laneMatch[1].trim());
+      currentTicket = null;
+      continue;
+    }
+    const ticketMatch = parseKanbanTicketLine(line);
+    if (ticketMatch) {
+      const existing = store.getEntity(ticketMatch.ticketId);
+      const state = ticketMatch.checked || currentLane === "Done" || currentLane === "Archived" ? "archived" : "open";
+      const ticketData = {
+        ...existing?.data ?? {},
+        ticketId: ticketMatch.ticketId
+      };
+      if (ticketMatch.completedAt) {
+        ticketData.completedAt = ticketMatch.completedAt;
+      }
+      store.upsertEntity({
+        id: ticketMatch.ticketId,
+        entityType: "ticket",
+        title: ticketMatch.title,
+        lane: currentLane,
+        state,
+        confidence: 1,
+        provenance: `legacy-kanban-import:${kanbanSource.path}`,
+        sourceKind: "projection-import",
+        reviewState: "active",
+        createdAt: existing?.createdAt,
+        parentId: existing?.parentId ?? null,
+        data: ticketData
+      });
+      importedTicketIds.add(ticketMatch.ticketId);
+      currentTicket = ticketMatch.ticketId;
+      importedTickets += 1;
+      continue;
+    }
+    const fieldMatch = line.match(/^\s{2,}-\s+([A-Za-z][A-Za-z /]+):\s+(.+)$/);
+    if (currentTicket && fieldMatch) {
+      const existing = store.getEntity(currentTicket);
+      const fieldName = normalizeTicketFieldName(fieldMatch[1]);
+      const value = fieldMatch[2].trim();
+      const nextData = {
+        ...existing?.data ?? {},
+        ticketId: currentTicket,
+        [fieldName]: value
+      };
+      const nextParentId = fieldName === "epic" ? value : existing?.parentId ?? null;
+      store.upsertEntity({
+        ...existing,
+        id: currentTicket,
+        entityType: "ticket",
+        title: existing?.title ?? currentTicket,
+        lane: existing?.lane ?? currentLane,
+        state: existing?.state ?? "open",
+        confidence: existing?.confidence ?? 1,
+        provenance: existing?.provenance ?? `legacy-kanban-import:${kanbanSource.path}`,
+        sourceKind: existing?.sourceKind ?? "projection-import",
+        reviewState: existing?.reviewState ?? "active",
+        createdAt: existing?.createdAt,
+        parentId: nextParentId,
+        data: nextData
+      });
+    }
+  }
+  for (const epic of parseEpicEntries(epicsText)) {
+    const existing = store.getEntity(epic.id);
+    store.upsertEntity({
+      id: epic.id,
+      entityType: "epic",
+      title: epic.title,
+      lane: null,
+      state: epic.state,
+      confidence: 1,
+      provenance: `legacy-epics-import:${epicsSource.path}`,
+      sourceKind: "projection-import",
+      reviewState: "active",
+      createdAt: existing?.createdAt,
+      data: {
+        ...existing?.data ?? {},
+        summary: preferNonEmpty(epic.summary, existing?.data?.summary ?? ""),
+        userStories: epic.userStories?.length ? epic.userStories : existing?.data?.userStories ?? [],
+        ticketBatches: epic.ticketBatches?.length ? epic.ticketBatches : existing?.data?.ticketBatches ?? [],
+        graphNotes: epic.graphNotes?.length ? epic.graphNotes : existing?.data?.graphNotes ?? []
+      }
+    });
+    importedEpicIds.add(epic.id);
+    importedEpics += 1;
+  }
+  if (kanbanSource.score >= 0) {
+    pruneProjectionImportedEntities(store, {
+      entityType: "ticket",
+      keepIds: importedTicketIds
+    });
+  }
+  if (epicsSource.score >= 0) {
+    pruneProjectionImportedEntities(store, {
+      entityType: "epic",
+      keepIds: importedEpicIds
+    });
+  }
+  return {
+    importedTickets,
+    importedEpics,
+    skipped: false
+  };
+}
+function inferTicketLane({ id, title, lane = null }) {
+  if (lane != null && String(lane).trim()) {
+    return String(lane).trim();
+  }
+  const combined = `${id ?? ""} ${title ?? ""}`.toUpperCase();
+  if (/\bBUG\b/.test(combined) || String(id ?? "").toUpperCase().startsWith("BUG-")) {
+    return "Bugs P2/P3";
+  }
+  return "Todo";
+}
+function buildTicketEntity({ id, title, lane = null, state = "open", epicId = null, summary = "", userStory = null }) {
+  return {
+    id,
+    entityType: "ticket",
+    title,
+    lane: inferTicketLane({ id, title, lane }),
+    state,
+    confidence: 1,
+    provenance: "manual",
+    sourceKind: "manual",
+    reviewState: "active",
+    parentId: epicId,
+    data: {
+      ticketId: id,
+      summary,
+      userStory: userStory ?? null
+    }
+  };
+}
+function deriveEpicState(epic, linkedTickets = []) {
+  if (normalizeEpicState(epic?.state) === "archived") {
+    return "archived";
+  }
+  if (!Array.isArray(linkedTickets) || !linkedTickets.length) {
+    return "open";
+  }
+  return linkedTickets.every(isTicketEffectivelyDone) ? "archived" : "open";
+}
+function createSearchDocumentsForEntities(store) {
+  const entities = store.listEntities();
+  for (const entity of entities) {
+    store.db.prepare(`
+      INSERT INTO search_index (id, scope, ref_id, title, body, tags, updated_at)
+      VALUES (?, 'entity', ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title = excluded.title,
+        body = excluded.body,
+        tags = excluded.tags,
+        updated_at = excluded.updated_at
+    `).run(
+      stableId("search", "entity", entity.id),
+      entity.id,
+      `${entity.id} ${entity.title}`,
+      JSON.stringify({
+        ...entity.data,
+        id: entity.id,
+        lane: entity.lane,
+        state: entity.state,
+        parentId: entity.parentId
+      }),
+      [entity.entityType, entity.id, entity.lane ?? "", entity.state, entity.parentId ?? ""].filter(Boolean).join(","),
+      entity.updatedAt
+    );
+  }
+}
+async function selectProjectionSource(projectRoot, candidates, scorer, { lastProjectionDigest = null } = {}) {
+  let best = { path: candidates[0], text: "", score: -1 };
+  let skippedGenerated = false;
+  for (const relativePath of candidates) {
+    const text = await readText(path10.resolve(projectRoot, relativePath), "");
+    if (lastProjectionDigest && shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest)) {
+      skippedGenerated = true;
+      continue;
+    }
+    const score = scorer(text);
+    if (score > best.score) {
+      best = { path: relativePath, text, score };
+    }
+  }
+  return {
+    ...best,
+    skippedGenerated
+  };
+}
+function shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest) {
+  const normalized = String(relativePath ?? "").replace(/\\/g, "/").toLowerCase();
+  const digestKey = normalized.endsWith("kanban.md") ? "kanban" : normalized.endsWith("epics.md") ? "epics" : null;
+  if (!digestKey || !lastProjectionDigest?.[digestKey]) {
+    return false;
+  }
+  return sha1(text) === String(lastProjectionDigest[digestKey]);
+}
+function countKanbanTickets(text) {
+  return text.split(/\r?\n/).filter((line) => Boolean(parseKanbanTicketLine(line))).length;
+}
+function countEpicEntries(text) {
+  return parseEpicEntries(text).length;
+}
+function parseKanbanTicketLine(line) {
+  const match = line.match(/^- \[([ xX])\]\s+(?:(?:\*\*)?(\d{4}-\d{2}-\d{2})\s+)?(?:\*\*)?([A-Z][A-Z0-9-]+)(?:\*\*)?:\s+(.+)$/) ?? line.match(/^- \[([ xX])\]\s+([A-Z][A-Z0-9-]+)\s+(.+)$/);
+  if (!match) {
+    return null;
+  }
+  if (match.length === 4) {
+    const rawTitle2 = match[3].trim();
+    return {
+      checked: /[xX]/.test(match[1]),
+      completedAt: extractTicketCompletionDate(rawTitle2),
+      ticketId: match[2],
+      title: sanitizeProjectionTicketTitle(rawTitle2)
+    };
+  }
+  const rawTitle = String(match[4] ?? "").trim();
+  return {
+    checked: /[xX]/.test(match[1]),
+    completedAt: match[2] ?? extractTicketCompletionDate(rawTitle),
+    ticketId: match[3],
+    title: sanitizeProjectionTicketTitle(rawTitle)
+  };
+}
+function normalizeLaneName(name) {
+  const key = String(name).trim().toLowerCase();
+  const aliases = /* @__PURE__ */ new Map([
+    ["todo", "Todo"],
+    ["to-do", "Todo"],
+    ["todoo", "Todo"],
+    ["backlog", "Backlog"],
+    ["deep backlog", "Deep Backlog"],
+    ["in progress", "In Progress"],
+    ["priority 1 bugs", "Bugs P1"],
+    ["bugs p1", "Bugs P1"],
+    ["priority 2/3 bugs", "Bugs P2/P3"],
+    ["bugs p2/p3", "Bugs P2/P3"],
+    ["human testing", "Human Inspection"],
+    ["human inspection", "Human Inspection"],
+    ["suggestions", "Suggestions"],
+    ["blocked", "Blocked"],
+    ["done", "Done"],
+    ["archived", "Archived"]
+  ]);
+  return aliases.get(key) ?? name;
+}
+function normalizeDisplayLaneName(name) {
+  const key = String(name).trim().toLowerCase();
+  const aliases = /* @__PURE__ */ new Map([
+    ["todo", "ToDo"],
+    ["to-do", "ToDo"],
+    ["todoo", "ToDo"],
+    ["backlog", "Backlog"],
+    ["deep backlog", "Deep Backlog"],
+    ["in progress", "In Progress"],
+    ["priority 1 bugs", "Bugs P1"],
+    ["bugs p1", "Bugs P1"],
+    ["priority 2/3 bugs", "Bugs P2/P3"],
+    ["bugs p2/p3", "Bugs P2/P3"],
+    ["human inspection", "Human Inspection"],
+    ["human testing", "Human Inspection"],
+    ["suggestions", "Suggestions"],
+    ["blocked", "Blocked"],
+    ["done", "Done"],
+    ["archived", "Archived"]
+  ]);
+  return aliases.get(key) ?? name;
+}
+function formatCompletionDate(item) {
+  const value = String(item?.data?.completedAt ?? extractTicketCompletionDate(item?.title) ?? item?.updatedAt ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function sanitizeProjectionTicketTitle(value) {
+  return String(value ?? "").replace(/(?:\s*✅\s*\d{4}-\d{2}-\d{2})+\s*$/gu, "").trim();
+}
+function extractTicketCompletionDate(value) {
+  const matches = [...String(value ?? "").matchAll(/✅\s*(\d{4}-\d{2}-\d{2})/gu)];
+  return matches.length ? matches.at(-1)?.[1] ?? null : null;
+}
+function normalizeTicketFieldName(label) {
+  return String(label).trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+function parseEpicEntries(text) {
+  const entries = [];
+  let current2 = null;
+  let currentSection = null;
+  function flushCurrentStory() {
+    if (current2?.currentStory) {
+      current2.userStories.push(mergeEpicStory(current2.currentStory));
+      current2.currentStory = null;
+    }
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const explicit = line.match(/^##\s+([A-Z][A-Z0-9-]+)\s+(.+)$/);
+    if (explicit) {
+      if (current2) entries.push(current2);
+      current2 = {
+        id: explicit[1],
+        title: explicit[2].trim(),
+        state: "open",
+        summary: "",
+        userStories: [],
+        ticketBatches: [],
+        graphNotes: []
+      };
+      currentSection = null;
+      continue;
+    }
+    const numbered = line.match(/^##\s+\d+\.\s+(.+?)(?:\s+\((ACTIVE|DONE|ARCHIVED)\))?$/i);
+    if (numbered) {
+      if (current2) entries.push(current2);
+      const title = numbered[1].trim();
+      current2 = {
+        id: `EPIC-${slugify(title).toUpperCase()}`,
+        title,
+        state: normalizeEpicState(numbered[2]),
+        summary: "",
+        userStories: [],
+        ticketBatches: [],
+        graphNotes: []
+      };
+      currentSection = null;
+      continue;
+    }
+    if (!current2) {
+      continue;
+    }
+    const statusComment = line.match(/^\s*<!--\s*status:\s*([a-z]+)\s*-->\s*$/i);
+    if (statusComment) {
+      current2.state = normalizeEpicState(statusComment[1]);
+      continue;
+    }
+    const field = line.match(/^\s*-\s+(Goal|Summary|State|User stories?|Stories|Ticket batches|Kanban tickets)\s*:\s*(.*)$/i);
+    if (field) {
+      currentSection = null;
+      const label = field[1].toLowerCase();
+      const value = field[2].trim();
+      if (label === "goal" || label === "summary") {
+        flushCurrentStory();
+        current2.summary = value || current2.summary;
+        continue;
+      }
+      if (label === "state") {
+        current2.state = normalizeEpicState(value);
+        continue;
+      }
+      if (label === "user stories" || label === "stories") {
+        flushCurrentStory();
+        currentSection = "userStories";
+        if (value) current2.userStories.push(value);
+        continue;
+      }
+      if (label === "ticket batches") {
+        flushCurrentStory();
+        currentSection = "ticketBatches";
+        if (value) current2.ticketBatches.push(value);
+        continue;
+      }
+      if (label === "kanban tickets") {
+        flushCurrentStory();
+        currentSection = "linkedTickets";
+        continue;
+      }
+    }
+    const subheading = line.match(/^\s{0,3}#{3,4}\s+(.+)$/);
+    if (subheading) {
+      const label = subheading[1].trim();
+      if (/^goal$/i.test(label)) {
+        flushCurrentStory();
+        currentSection = "goal";
+        continue;
+      }
+      if (/^user stories?$/i.test(label) || /^stories$/i.test(label)) {
+        flushCurrentStory();
+        currentSection = "userStories";
+        current2.currentStory = null;
+        continue;
+      }
+      if (/^ticket batches$/i.test(label)) {
+        flushCurrentStory();
+        currentSection = "ticketBatches";
+        current2.currentStory = null;
+        continue;
+      }
+      if (/^status$/i.test(label)) {
+        flushCurrentStory();
+        currentSection = "status";
+        current2.currentStory = null;
+        continue;
+      }
+      if (/^kanban tickets$/i.test(label)) {
+        flushCurrentStory();
+        currentSection = "linkedTickets";
+        current2.currentStory = null;
+        continue;
+      }
+      if (currentSection === "userStories") {
+        if (current2.currentStory) {
+          current2.userStories.push(mergeEpicStory(current2.currentStory));
+        }
+        current2.currentStory = {
+          heading: label,
+          bodyLines: []
+        };
+        continue;
+      }
+    }
+    const bullet = line.match(/^\s*-\s+(.+)$/);
+    if (bullet && currentSection) {
+      const value = bullet[1].trim();
+      if (!value) {
+        continue;
+      }
+      if (currentSection === "status") {
+        current2.state = /^\[x\]/i.test(value) || /^(done|archived)$/i.test(value) ? "archived" : "open";
+        continue;
+      }
+      if (currentSection === "userStories") {
+        if (current2.currentStory) {
+          current2.currentStory.bodyLines.push(value);
+        } else {
+          current2.currentStory = {
+            heading: null,
+            bodyLines: [value]
+          };
+        }
+        continue;
+      }
+      if (currentSection === "ticketBatches") {
+        current2.ticketBatches.push(value);
+        continue;
+      }
+      continue;
+    }
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (currentSection === "userStories" && current2.currentStory) {
+        current2.currentStory.bodyLines.push("");
+      } else if (currentSection === "goal") {
+        current2.goalLines = current2.goalLines ?? [];
+        current2.goalLines.push("");
+      }
+      continue;
+    }
+    if (/^###\s+/.test(trimmed) || /^####\s+/.test(trimmed)) {
+      continue;
+    }
+    if (currentSection === "goal") {
+      current2.goalLines = current2.goalLines ?? [];
+      current2.goalLines.push(trimmed);
+      continue;
+    }
+    if (currentSection === "userStories") {
+      if (!current2.currentStory) {
+        current2.currentStory = {
+          heading: null,
+          bodyLines: []
+        };
+      }
+      current2.currentStory.bodyLines.push(trimmed);
+      continue;
+    }
+    if (currentSection === "ticketBatches") {
+      current2.ticketBatches.push(trimmed);
+      continue;
+    }
+    if (current2.summary === "" && !trimmed.startsWith("-")) {
+      current2.summary = trimmed;
+    }
+  }
+  flushCurrentStory();
+  if (current2 && Array.isArray(current2.goalLines) && current2.goalLines.length) {
+    current2.summary = current2.goalLines.join("\n").trim() || current2.summary;
+  }
+  if (current2) {
+    entries.push(current2);
+  }
+  return entries;
+}
+function normalizeEpicSummary(epic) {
+  return String(epic.data?.summary ?? "").trim();
+}
+function preferNonEmpty(value, fallback = "") {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return fallback;
+  }
+  if (normalized.toLowerCase() === "pending natural-language scope.") {
+    return fallback;
+  }
+  return normalized;
+}
+function normalizeEpicStories(epic) {
+  const stories = Array.isArray(epic.data?.userStories) ? epic.data.userStories : Array.isArray(epic.data?.stories) ? epic.data.stories : [];
+  return stories.map((story) => String(story ?? "").trim()).filter(Boolean);
+}
+function normalizeEpicTicketBatches(epic) {
+  const batches = Array.isArray(epic.data?.ticketBatches) ? epic.data.ticketBatches : Array.isArray(epic.data?.batches) ? epic.data.batches : [];
+  return batches.map((batch) => String(batch ?? "").trim()).filter(Boolean);
+}
+function compareEpicPriority(a, b) {
+  const priorityA = a.data?.priority === "first" ? 0 : 1;
+  const priorityB = b.data?.priority === "first" ? 0 : 1;
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+  const numberA = extractEpicNumber(a.id);
+  const numberB = extractEpicNumber(b.id);
+  if (numberA !== numberB) {
+    return numberA - numberB;
+  }
+  return String(a.id).localeCompare(String(b.id));
+}
+function extractEpicNumber(id) {
+  const match = String(id).match(/(\d+)/);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+function normalizeEpicState(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "done" || normalized === "archived") {
+    return "archived";
+  }
+  return "open";
+}
+function isTicketEffectivelyDone(ticket) {
+  return ticket?.state === "archived" || ticket?.lane === "Done" || ticket?.lane === "Archived";
+}
+function slugify(value) {
+  return String(value).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "UNTITLED";
+}
+function mergeEpicStory(story) {
+  const body = story?.bodyLines?.join("\n").trim() ?? "";
+  return normalizeEpicStoryText(body);
+}
+function formatEpicStoryText(story) {
+  const normalized = normalizeEpicStoryText(story);
+  const match = normalized.match(/^(As\s+(?:a|an)\s+[^,]+)(,?)(\s+.*)?$/i);
+  if (!match) {
+    return normalized;
+  }
+  const actor = match[1].trim();
+  const separator = match[2] ?? "";
+  const remainder = match[3] ?? "";
+  return `**${actor}**${separator}${remainder}`;
+}
+function normalizeEpicStoryText(text) {
+  let normalized = String(text ?? "").trim();
+  normalized = normalized.replace(/^\*\*(As\s+(?:a|an)\s+[^*]+?)\*\*(?=,|\s|$)/i, "$1");
+  normalized = normalized.replace(/^(\*\*)?(As\s+(?:a|an)\s+[^,*]+?)(\*\*)/i, "$2");
+  return normalized.trim();
+}
+function pruneProjectionImportedEntities(store, { entityType, keepIds }) {
+  const ids = [...keepIds];
+  if (!ids.length) {
+    store.db.prepare("DELETE FROM search_index WHERE scope = 'entity' AND ref_id IN (SELECT id FROM entities WHERE entity_type = ? AND source_kind = 'projection-import')").run(entityType);
+    store.db.prepare("DELETE FROM entities WHERE entity_type = ? AND source_kind = 'projection-import'").run(entityType);
+    return;
+  }
+  const placeholders = ids.map(() => "?").join(", ");
+  store.db.prepare(`
+    DELETE FROM search_index
+    WHERE scope = 'entity'
+      AND ref_id IN (
+        SELECT id
+        FROM entities
+        WHERE entity_type = ?
+          AND source_kind = 'projection-import'
+          AND id NOT IN (${placeholders})
+      )
+  `).run(entityType, ...ids);
+  store.db.prepare(`
+    DELETE FROM entities
+    WHERE entity_type = ?
+      AND source_kind = 'projection-import'
+      AND id NOT IN (${placeholders})
+  `).run(entityType, ...ids);
+}
+var toolkitRoot, templatesRoot, CORE_TICKET_LANES, OPTIONAL_TICKET_LANES, ACTIONABLE_ASSESSMENT_STATUSES;
+var init_projections = __esm({
+  "core/services/projections.ts"() {
+    "use strict";
+    init_disambiguation();
+    init_fs_utils();
+    init_filesystem();
+    init_hash();
+    init_operating_context();
+    toolkitRoot = getToolkitRoot();
+    templatesRoot = path10.resolve(toolkitRoot, "templates");
+    CORE_TICKET_LANES = [
+      "Deep Backlog",
+      "Backlog",
+      "ToDo",
+      "Bugs P1",
+      "Bugs P2/P3",
+      "Assessments",
+      "In Progress",
+      "Human Inspection",
+      "Suggestions",
+      "Done"
+    ];
+    OPTIONAL_TICKET_LANES = [
+      "AI Candidates",
+      "Risk Watch",
+      "Doubtful Relevancy",
+      "Blocked",
+      "Ideas"
+    ];
+    ACTIONABLE_ASSESSMENT_STATUSES = /* @__PURE__ */ new Set(["pending", "planned", "criticized", "executing"]);
+  }
+});
+
 // core/contracts/honesty-contract.ts
 function normalizeScore2(value, fallback = 0) {
   const numeric = Number(value);
@@ -7351,7 +7286,7 @@ var init_honesty_contract = __esm({
 });
 
 // core/services/shell-transcript-verification.ts
-import path12 from "node:path";
+import path11 from "node:path";
 import { readFile as readFile6, stat as stat2 } from "node:fs/promises";
 function getShellTranscriptJudgeTimeoutMs(candidate) {
   const envValue = Number(
@@ -7895,11 +7830,11 @@ function normalizeArtifactPaths(values) {
   return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))];
 }
 async function readArtifact(projectRoot, artifactPath) {
-  const absolutePath = path12.isAbsolute(artifactPath) ? artifactPath : path12.resolve(projectRoot, artifactPath);
+  const absolutePath = path11.isAbsolute(artifactPath) ? artifactPath : path11.resolve(projectRoot, artifactPath);
   const stats = await stat2(absolutePath);
   const kind = classifyArtifactKind(absolutePath);
   const mimeType = kind === "image" ? mimeTypeFromPath(absolutePath) : "text/plain";
-  const relativePath = path12.isAbsolute(artifactPath) ? artifactPath : path12.relative(projectRoot, absolutePath).split(path12.sep).join("/");
+  const relativePath = path11.isAbsolute(artifactPath) ? artifactPath : path11.relative(projectRoot, absolutePath).split(path11.sep).join("/");
   if (kind === "image") {
     const buffer = await readFile6(absolutePath);
     return {
@@ -7922,7 +7857,7 @@ async function readArtifact(projectRoot, artifactPath) {
   };
 }
 function classifyArtifactKind(filePath) {
-  const ext = path12.extname(filePath).toLowerCase();
+  const ext = path11.extname(filePath).toLowerCase();
   if (IMAGE_EXTENSIONS.has(ext)) {
     return "image";
   }
@@ -7932,7 +7867,7 @@ function classifyArtifactKind(filePath) {
   return "text";
 }
 function mimeTypeFromPath(filePath) {
-  switch (path12.extname(filePath).toLowerCase()) {
+  switch (path11.extname(filePath).toLowerCase()) {
     case ".png":
       return "image/png";
     case ".jpg":
@@ -8138,20 +8073,20 @@ var init_shell_transcript_verification = __esm({
 });
 
 // core/lib/toolkit-root.ts
-import path13 from "node:path";
+import path12 from "node:path";
 import { existsSync as existsSync3 } from "node:fs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 function getToolkitRoot2() {
   const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
   if (fromEnv) {
-    return path13.resolve(fromEnv);
+    return path12.resolve(fromEnv);
   }
-  const toolkitRootFile = path13.resolve(scriptDir, "../toolkit-root.txt");
+  const toolkitRootFile = path12.resolve(scriptDir, "../toolkit-root.txt");
   if (existsSync3(toolkitRootFile)) {
     const content = readFileSync(toolkitRootFile, "utf8").trim();
     if (content) {
-      return path13.resolve(content);
+      return path12.resolve(content);
     }
   }
   for (const candidate of candidateRoots2(scriptDir)) {
@@ -8162,22 +8097,22 @@ function getToolkitRoot2() {
   throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
 }
 function* candidateRoots2(startDir) {
-  let current2 = path13.resolve(startDir);
+  let current2 = path12.resolve(startDir);
   while (true) {
     yield current2;
-    const parent = path13.dirname(current2);
+    const parent = path12.dirname(current2);
     if (parent === current2) break;
     current2 = parent;
   }
 }
 function isToolkitRoot2(candidate) {
-  return existsSync3(path13.resolve(candidate, "package.json")) && existsSync3(path13.resolve(candidate, "core", "services", "sync.ts")) && (existsSync3(path13.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync3(path13.resolve(candidate, "cli", "ai-workflow.mjs")));
+  return existsSync3(path12.resolve(candidate, "package.json")) && existsSync3(path12.resolve(candidate, "core", "services", "sync.ts")) && (existsSync3(path12.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync3(path12.resolve(candidate, "cli", "ai-workflow.mjs")));
 }
 var scriptDir;
 var init_toolkit_root = __esm({
   "core/lib/toolkit-root.ts"() {
     "use strict";
-    scriptDir = path13.dirname(fileURLToPath3(import.meta.url));
+    scriptDir = path12.dirname(fileURLToPath3(import.meta.url));
   }
 });
 
@@ -8291,7 +8226,7 @@ var init_markdown_utils = __esm({
 
 // core/lib/audit-utils.ts
 import { readdir as readdir2 } from "node:fs/promises";
-import path14 from "node:path";
+import path13 from "node:path";
 async function listRepoFiles(root, options = {}) {
   const { extensions = null } = options;
   const files = [];
@@ -8303,7 +8238,7 @@ async function listRepoFiles(root, options = {}) {
       if (entry.isDirectory() && IGNORED_DIRS.has(entry.name)) {
         continue;
       }
-      const absolutePath = path14.resolve(current2, entry.name);
+      const absolutePath = path13.resolve(current2, entry.name);
       if (entry.isDirectory()) {
         stack.push(absolutePath);
         continue;
@@ -8311,7 +8246,7 @@ async function listRepoFiles(root, options = {}) {
       if (!entry.isFile()) {
         continue;
       }
-      const relativePath = normalizePath(path14.relative(root, absolutePath));
+      const relativePath = normalizePath(path13.relative(root, absolutePath));
       if (extensions && !extensions.some((extension) => relativePath.endsWith(extension))) {
         continue;
       }
@@ -8332,7 +8267,7 @@ async function collectAuditConfig(root) {
   const failures = [];
   let blockCount = 0;
   for (const relativePath of markdownFiles) {
-    const absolutePath = path14.resolve(root, relativePath);
+    const absolutePath = path13.resolve(root, relativePath);
     const markdown = await readText(absolutePath);
     const blocks = extractFencedBlocks(markdown, AI_WORKFLOW_AUDIT_FENCE);
     for (const block of blocks) {
@@ -8369,7 +8304,7 @@ async function runGuidelineAudit(root) {
   const findings = failures.map(configFailureToFinding);
   const readFileCached = async (relativePath) => {
     if (!texts.has(relativePath)) {
-      texts.set(relativePath, await readText(path14.resolve(root, relativePath)));
+      texts.set(relativePath, await readText(path13.resolve(root, relativePath)));
     }
     return texts.get(relativePath);
   };
@@ -8621,7 +8556,7 @@ function pathMatches(relativePath, pattern) {
   return relativePath === normalizedPattern || relativePath.startsWith(`${normalizedPattern}/`);
 }
 async function fileExistsRelative(root, relativePath) {
-  return await exists(path14.resolve(root, relativePath));
+  return await exists(path13.resolve(root, relativePath));
 }
 function findForbiddenImport(text, targets) {
   const importPattern = /\bimport\s+(?:[^"'()]+\s+from\s+)?["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
@@ -8714,7 +8649,7 @@ var init_audit_utils = __esm({
 });
 
 // core/lib/operator-surfaces.ts
-import path15 from "node:path";
+import path14 from "node:path";
 import { createHash } from "node:crypto";
 import { readFile as readFile7 } from "node:fs/promises";
 function listOperatorSurfaceIds() {
@@ -8731,7 +8666,7 @@ async function collectOperatorSurfaceState(root, requestedSurfaceIds = listOpera
     const files = repoFiles.filter((relativePath) => matchesSurfaceFile(relativePath, definition));
     const fileHashes = {};
     for (const relativePath of files) {
-      const absolutePath = path15.resolve(root, relativePath);
+      const absolutePath = path14.resolve(root, relativePath);
       try {
         const buffer = await readFile7(absolutePath);
         fileHashes[relativePath] = createHash("sha256").update(buffer).digest("hex");
@@ -8797,11 +8732,11 @@ var init_operator_surfaces = __esm({
 });
 
 // core/lib/workspace-honesty.ts
-import path16 from "node:path";
-import { execFile as execFile5 } from "node:child_process";
-import { promisify as promisify5 } from "node:util";
+import path15 from "node:path";
+import { execFile as execFile4 } from "node:child_process";
+import { promisify as promisify4 } from "node:util";
 async function inspectWorkspaceHonesty(root = process.cwd(), { graceMs = 2e3, fileLimit = 25 } = {}) {
-  const normalizedRoot = path16.resolve(String(root ?? process.cwd()));
+  const normalizedRoot = path15.resolve(String(root ?? process.cwd()));
   const snapshot = filterHonestySnapshot(await collectProjectFileSnapshot(normalizedRoot));
   const gitRepo = await isGitRepo(normalizedRoot);
   const store = await openWorkflowStore({ projectRoot: normalizedRoot });
@@ -8875,7 +8810,7 @@ function filterHonestySnapshot(snapshot) {
 }
 async function isGitRepo(root) {
   try {
-    const { stdout } = await execFileAsync5("git", ["rev-parse", "--is-inside-work-tree"], {
+    const { stdout } = await execFileAsync4("git", ["rev-parse", "--is-inside-work-tree"], {
       cwd: root,
       maxBuffer: 1024 * 1024
     });
@@ -8884,13 +8819,13 @@ async function isGitRepo(root) {
     return false;
   }
 }
-var execFileAsync5, HONESTY_IGNORE_PATHS;
+var execFileAsync4, HONESTY_IGNORE_PATHS;
 var init_workspace_honesty = __esm({
   "core/lib/workspace-honesty.ts"() {
     "use strict";
     init_sqlite_store();
     init_filesystem();
-    execFileAsync5 = promisify5(execFile5);
+    execFileAsync4 = promisify4(execFile4);
     HONESTY_IGNORE_PATHS = /* @__PURE__ */ new Set([
       ".obsidian/workspace.json",
       ".obsidian/workspace-mobile.json"
@@ -9228,7 +9163,7 @@ var init_kanban_utils = __esm({
 });
 
 // core/services/shell-retrieval.ts
-import path17 from "node:path";
+import path16 from "node:path";
 async function inferTicketRetrievalContext({
   projectRoot = process.cwd(),
   ticket = null,
@@ -9680,7 +9615,7 @@ function scoreSearchResult(row, query, profile, kind, filePath = "", { queryStat
 }
 function scoreFileHintMatch(filePath, tokens, profile, queryStats = /* @__PURE__ */ new Map()) {
   const normalized = String(filePath ?? "").toLowerCase();
-  const base = path17.basename(normalized);
+  const base = path16.basename(normalized);
   const stem = base.replace(/\.[^.]+$/, "");
   const matches = [];
   for (const token of tokens) {
@@ -9734,7 +9669,7 @@ function scorePathBias(filePath, query, profile) {
     if (isTestPath(normalized)) score += 16;
     if (isDocPath(normalized)) score += 10;
   }
-  const base = path17.basename(normalized);
+  const base = path16.basename(normalized);
   if (query && base.includes(query)) score += 22;
   if (query && stemMatchesQuery(base, query)) score += 12;
   if (/shell|workflow|router|status|ticket|telegram|retrieval|context/.test(query) && isImplementationPath(normalized) && /shell|workflow|router|status|ticket|telegram|retrieval|context/.test(normalized)) score += 18;
@@ -9793,10 +9728,10 @@ function totalReasonScore(reasons = []) {
 }
 function findRelatedTests(allFiles, filePath) {
   const normalized = String(filePath ?? "").toLowerCase();
-  const base = path17.basename(normalized).replace(/\.[^.]+$/, "");
+  const base = path16.basename(normalized).replace(/\.[^.]+$/, "");
   const stem = base.replace(/\.(spec|test)$/, "");
-  const dir = path17.dirname(normalized);
-  return allFiles.map((item) => String(item.path ?? item.relativePath ?? "")).filter((candidate) => candidate.startsWith("tests/")).filter((candidate) => candidate !== filePath).filter((candidate) => candidate.toLowerCase().includes(stem) || path17.dirname(candidate.toLowerCase()).includes(path17.basename(dir)));
+  const dir = path16.dirname(normalized);
+  return allFiles.map((item) => String(item.path ?? item.relativePath ?? "")).filter((candidate) => candidate.startsWith("tests/")).filter((candidate) => candidate !== filePath).filter((candidate) => candidate.toLowerCase().includes(stem) || path16.dirname(candidate.toLowerCase()).includes(path16.basename(dir)));
 }
 function renderSymbolLabel(symbol) {
   const linePart = Number.isFinite(symbol.line) ? `:${symbol.line}` : "";
@@ -9927,14 +9862,14 @@ function stemMatchesQuery(baseName, query) {
   const stem = String(baseName ?? "").replace(/\.[^.]+$/, "");
   return stem.includes(String(query ?? "")) || String(query ?? "").includes(stem);
 }
-function scoreQueryBreadthPenalty(stat4, kind) {
-  if (!stat4) {
+function scoreQueryBreadthPenalty(stat5, kind) {
+  if (!stat5) {
     return 0;
   }
-  if (stat4.generic) {
+  if (stat5.generic) {
     return kind === "symbol-file" ? 18 : 34;
   }
-  if (stat4.broad) {
+  if (stat5.broad) {
     return kind === "symbol-file" ? 8 : 14;
   }
   return 0;
@@ -10031,7 +9966,7 @@ var init_shell_retrieval = __esm({
 });
 
 // core/lib/workflow-store-utils.ts
-import path18 from "node:path";
+import path17 from "node:path";
 import { existsSync as existsSync4 } from "node:fs";
 import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
 async function selectKanbanSource(root, relativePath = null) {
@@ -10043,7 +9978,7 @@ async function selectKanbanSource(root, relativePath = null) {
   };
   for (const candidate of candidates) {
     const candidatePath = String(candidate);
-    const text = await readText(path18.resolve(root, candidatePath));
+    const text = await readText(path17.resolve(root, candidatePath));
     const score = countKanbanTickets2(text);
     if (score > best.score) {
       best = { path: candidatePath, text, score };
@@ -10110,7 +10045,7 @@ function normalizeWorkingSetEvidence(evidence = []) {
   });
 }
 async function loadTicketEntityFromStore(root, ticketId) {
-  const dbPath = path18.resolve(root, ".ai-workflow", "state", "workflow.db");
+  const dbPath = path17.resolve(root, ".ai-workflow", "state", "workflow.db");
   if (!existsSync4(dbPath)) return null;
   let db = null;
   try {
@@ -10153,7 +10088,7 @@ function runtimeTicketFromEntity(entity) {
   };
 }
 async function loadTicketFromKanbanSource(root, relativePath, ticketId) {
-  const text = await readText(path18.resolve(root, relativePath));
+  const text = await readText(path17.resolve(root, relativePath));
   if (!text.trim()) return null;
   const parsed = parseKanban(text);
   return findTicket(parsed, { id: ticketId });
@@ -10212,11 +10147,11 @@ var init_workflow_store_utils = __esm({
 });
 
 // core/lib/run-artifacts.ts
-import path19 from "node:path";
+import path18 from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFile as readFile8, writeFile as writeFile6 } from "node:fs/promises";
 async function recordRunArtifact(projectRoot, artifact) {
-  const stateDir = path19.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  const stateDir = path18.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
   await ensureDir(stateDir);
   const recordedAt = (/* @__PURE__ */ new Date()).toISOString();
   const id = artifact?.id ? String(artifact.id) : `run-${recordedAt.replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
@@ -10225,17 +10160,17 @@ async function recordRunArtifact(projectRoot, artifact) {
     recordedAt,
     ...artifact
   };
-  await writeFile6(path19.resolve(stateDir, `${id}.json`), `${JSON.stringify(payload, null, 2)}
+  await writeFile6(path18.resolve(stateDir, `${id}.json`), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
-  await writeFile6(path19.resolve(stateDir, "latest.json"), `${JSON.stringify({ id, recordedAt }, null, 2)}
+  await writeFile6(path18.resolve(stateDir, "latest.json"), `${JSON.stringify({ id, recordedAt }, null, 2)}
 `, "utf8");
   return payload;
 }
 async function readLatestRunArtifact(projectRoot) {
-  const stateDir = path19.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  const stateDir = path18.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
   try {
-    const latest = JSON.parse(await readFile8(path19.resolve(stateDir, "latest.json"), "utf8"));
-    const payload = JSON.parse(await readFile8(path19.resolve(stateDir, `${latest.id}.json`), "utf8"));
+    const latest = JSON.parse(await readFile8(path18.resolve(stateDir, "latest.json"), "utf8"));
+    const payload = JSON.parse(await readFile8(path18.resolve(stateDir, `${latest.id}.json`), "utf8"));
     return payload;
   } catch {
     return null;
@@ -10249,11 +10184,11 @@ var init_run_artifacts = __esm({
 });
 
 // core/lib/git-utils.ts
-import { execFile as execFile6 } from "node:child_process";
-import { promisify as promisify6 } from "node:util";
+import { execFile as execFile5 } from "node:child_process";
+import { promisify as promisify5 } from "node:util";
 async function isGitRepo2(root) {
   try {
-    await runGit2(root, ["rev-parse", "--show-toplevel"]);
+    await runGit(root, ["rev-parse", "--show-toplevel"]);
     return true;
   } catch {
     return false;
@@ -10261,14 +10196,14 @@ async function isGitRepo2(root) {
 }
 async function getChanges(root, base) {
   if (base) {
-    const output8 = await runGit2(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
+    const output8 = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
     return parseNameStatus(output8);
   }
-  const output7 = await runGit2(root, ["status", "--short", "--untracked-files=all"]);
-  return parseStatusShort2(output7);
+  const output7 = await runGit(root, ["status", "--short", "--untracked-files=all"]);
+  return parseStatusShort(output7);
 }
-async function runGit2(root, args) {
-  const { stdout } = await execFileAsync6("git", args, {
+async function runGit(root, args) {
+  const { stdout } = await execFileAsync5("git", args, {
     cwd: root,
     maxBuffer: 8 * 1024 * 1024
   });
@@ -10280,26 +10215,26 @@ function parseNameStatus(output7) {
   }
   return output7.split(/\r?\n/).filter(Boolean).map((line) => {
     const [rawStatus, ...rest] = line.split("	");
-    const path46 = rest.at(-1) ?? "";
+    const path49 = rest.at(-1) ?? "";
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus,
-      path: path46
+      path: path49
     };
   });
 }
-function parseStatusShort2(output7) {
+function parseStatusShort(output7) {
   if (!output7.trim()) {
     return [];
   }
   return output7.split(/\r?\n/).filter(Boolean).map((line) => {
     const rawStatus = line.slice(0, 2);
     const rawPath = line.slice(3).trim();
-    const path46 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
+    const path49 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus: rawStatus.trim() || rawStatus,
-      path: path46
+      path: path49
     };
   });
 }
@@ -10322,21 +10257,21 @@ function normalizeStatus3(rawStatus) {
   }
   return value || "unknown";
 }
-var execFileAsync6;
+var execFileAsync5;
 var init_git_utils = __esm({
   "core/lib/git-utils.ts"() {
     "use strict";
-    execFileAsync6 = promisify6(execFile6);
+    execFileAsync5 = promisify5(execFile5);
   }
 });
 
 // core/services/status.ts
-import path20 from "node:path";
+import path19 from "node:path";
 import { readFile as readFile9 } from "node:fs/promises";
 async function readStatusEvidenceFingerprint(projectRoot = process.cwd()) {
   const [dogfoodText, latestRunText] = await Promise.all([
-    readTextIfExists(path20.resolve(projectRoot, DEFAULT_DOGFOOD_REPORT_PATH)),
-    readTextIfExists(path20.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json"))
+    readTextIfExists(path19.resolve(projectRoot, DEFAULT_DOGFOOD_REPORT_PATH)),
+    readTextIfExists(path19.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json"))
   ]);
   return {
     dogfoodReportHash: dogfoodText ? sha1(dogfoodText) : null,
@@ -10882,8 +10817,8 @@ function resolveImportedProjectPath(importerPath, specifier, fileSet) {
   if (!value || !value.startsWith(".") && !value.startsWith("/")) {
     return null;
   }
-  const baseDir = path20.posix.dirname(importerPath);
-  const joined = value.startsWith("/") ? value.replace(/^\/+/, "") : path20.posix.normalize(path20.posix.join(baseDir, value));
+  const baseDir = path19.posix.dirname(importerPath);
+  const joined = value.startsWith("/") ? value.replace(/^\/+/, "") : path19.posix.normalize(path19.posix.join(baseDir, value));
   const candidates = [
     joined,
     `${joined}.js`,
@@ -10894,20 +10829,20 @@ function resolveImportedProjectPath(importerPath, specifier, fileSet) {
     `${joined}.cjs`,
     `${joined}.mts`,
     `${joined}.cts`,
-    path20.posix.join(joined, "index.ts"),
-    path20.posix.join(joined, "index.ts"),
-    path20.posix.join(joined, "index.ts"),
-    path20.posix.join(joined, "index.tsx")
+    path19.posix.join(joined, "index.ts"),
+    path19.posix.join(joined, "index.ts"),
+    path19.posix.join(joined, "index.ts"),
+    path19.posix.join(joined, "index.tsx")
   ];
   return candidates.find((candidate) => fileSet.has(candidate)) ?? null;
 }
 function guessTestTargetsFromName(testFilePath, fileSet) {
-  const basename = path20.posix.basename(testFilePath).replace(TEST_FILE_NAME_RE, "");
+  const basename = path19.posix.basename(testFilePath).replace(TEST_FILE_NAME_RE, "");
   const normalizedNames = /* @__PURE__ */ new Set([
     basename,
     basename.replace(/(?:[._-](?:e2e|integration|unit|browser|component|ui|dom))+$/i, "")
   ]);
-  const directMatches = [...fileSet].filter((candidate) => !isTestFile(candidate)).filter((candidate) => normalizedNames.has(path20.posix.basename(candidate).replace(/\.[^.]+$/, ""))).slice(0, 3);
+  const directMatches = [...fileSet].filter((candidate) => !isTestFile(candidate)).filter((candidate) => normalizedNames.has(path19.posix.basename(candidate).replace(/\.[^.]+$/, ""))).slice(0, 3);
   return directMatches;
 }
 function resolveStatusSelector(store, selector, { type = null, rawQuestion = false, projectRoot = process.cwd() } = {}) {
@@ -10981,7 +10916,7 @@ function collectSelectorCandidates(store, selector, { type = null, rawQuestion =
     addCandidate(mapFeatureNode(feature), scoreCandidate(query, tokens, [feature.id, feature.name, feature.description]));
   }
   for (const file of store.listFiles()) {
-    addCandidate(mapFileNode(file), scoreCandidate(query, tokens, [file.path, path20.posix.basename(file.path)]));
+    addCandidate(mapFileNode(file), scoreCandidate(query, tokens, [file.path, path19.posix.basename(file.path)]));
   }
   for (const [surfaceId, definition] of Object.entries(OPERATOR_SURFACES)) {
     addCandidate(getNodeById(store, canonicalSurfaceId(surfaceId), projectRoot), scoreCandidate(query, tokens, [surfaceId, definition.description]));
@@ -11018,7 +10953,7 @@ function scoreCandidate(query, tokens, haystacks) {
       } else if (haystack.includes(token)) {
         score += 25;
       }
-      if (haystack.endsWith(`/${token}`) || haystack === path20.posix.basename(haystack)) {
+      if (haystack.endsWith(`/${token}`) || haystack === path19.posix.basename(haystack)) {
         score += 20;
       }
     }
@@ -11067,7 +11002,7 @@ function buildProjectNode(projectRoot) {
   return {
     id: PROJECT_NODE_ID,
     type: "project",
-    title: path20.basename(projectRoot),
+    title: path19.basename(projectRoot),
     state: "open",
     data: {},
     provenance: "workspace"
@@ -11207,7 +11142,7 @@ function collectTestsForNode(store, graph, node, related) {
     }
     const runs = store.listTestRuns({ testId });
     const latest = runs[0] ?? null;
-    const targets = runs.filter((run4) => candidateTargetIds.has(run4.targetId));
+    const targets = runs.filter((run13) => candidateTargetIds.has(run13.targetId));
     tests.push({
       id: testId,
       title: testEntity.title,
@@ -11215,7 +11150,7 @@ function collectTestsForNode(store, graph, node, related) {
       recordedAt: latest?.recordedAt ?? null,
       source: latest?.source ?? null,
       summary: latest?.summary ?? null,
-      targets: targets.map((run4) => run4.targetId)
+      targets: targets.map((run13) => run13.targetId)
     });
   }
   tests.sort((left, right) => {
@@ -11526,8 +11461,8 @@ var init_dist3 = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+context-manager@https+++codeload.github.com+dharmax+context-manager+tar.gz+2e8_9c6998571be7e2b7bbbb90ee8d3a8e53/node_modules/@dharmax/context-manager/dist/index.mjs
-import { execFile as execFile7 } from "node:child_process";
-import { promisify as promisify7 } from "node:util";
+import { execFile as execFile6 } from "node:child_process";
+import { promisify as promisify6 } from "node:util";
 function renderItems(items, format) {
   if (format === "plain") {
     return items.map((item) => `${item.title}
@@ -11540,10 +11475,10 @@ function estimateTokenCost(title, content) {
   return Math.ceil(`${title}
 ${content}`.split(/\s+/).filter(Boolean).length * 1.3);
 }
-var execFileAsync7, LeanContextCompressor, HeuristicContextManager;
+var execFileAsync6, LeanContextCompressor, HeuristicContextManager;
 var init_dist4 = __esm({
   "node_modules/.pnpm/@dharmax+context-manager@https+++codeload.github.com+dharmax+context-manager+tar.gz+2e8_9c6998571be7e2b7bbbb90ee8d3a8e53/node_modules/@dharmax/context-manager/dist/index.mjs"() {
-    execFileAsync7 = promisify7(execFile7);
+    execFileAsync6 = promisify6(execFile6);
     LeanContextCompressor = class {
       static compress(text, maxWords = 300) {
         if (!text) return "";
@@ -11556,7 +11491,7 @@ var init_dist4 = __esm({
       static async patternCompress(text, maxWords = 300) {
         if (!text) return "";
         try {
-          const { stdout } = await execFileAsync7("lean-ctx", ["-c", text], {
+          const { stdout } = await execFileAsync6("lean-ctx", ["-c", text], {
             maxBuffer: 1024 * 1024
           });
           const compressed = stdout.trim();
@@ -11704,10 +11639,10 @@ async function buildSurgicalContext(projectRoot, { symbolNames = [], filePaths =
       async query(query, categories) {
         const results = [];
         const targetFiles = categories.includes("file") ? [query] : [];
-        for (const path46 of targetFiles) {
+        for (const path49 of targetFiles) {
           try {
-            const file = await readProjectFile(projectRoot, path46);
-            results.push({ id: path46, category: "file", title: path46, body: file.content, tags: [] });
+            const file = await readProjectFile(projectRoot, path49);
+            results.push({ id: path49, category: "file", title: path49, body: file.content, tags: [] });
           } catch {
           }
         }
@@ -11869,30 +11804,30 @@ var init_dist5 = __esm({
 });
 
 // core/services/supergit.ts
-async function runGit3(args, { root = process.cwd() } = {}) {
+async function runGit2(args, { root = process.cwd() } = {}) {
   const result = await TaskExecutor.spawn("git", args, { cwd: root });
   return result.ok ? { ok: true, stdout: result.stdout, stderr: result.stderr } : { ok: false, error: result.stderr || result.combined || "git command failed", stdout: result.stdout, stderr: result.stderr };
 }
 async function withSupergitTransaction(root, taskName, operation) {
-  const gitRepo = await runGit3(["rev-parse", "--is-inside-work-tree"], { root });
+  const gitRepo = await runGit2(["rev-parse", "--is-inside-work-tree"], { root });
   if (!gitRepo.ok || gitRepo.stdout.trim() !== "true") {
     return operation();
   }
-  const status = await runGit3(["status", "--porcelain"], { root });
+  const status = await runGit2(["status", "--porcelain"], { root });
   const isClean = status.ok && status.stdout.trim() === "";
   let stashed = false;
   if (!isClean) {
-    await runGit3(["stash", "push", "-u", "-m", `supergit-auto-stash-before-${taskName}`], { root });
+    await runGit2(["stash", "push", "-u", "-m", `supergit-auto-stash-before-${taskName}`], { root });
     stashed = true;
   }
-  const branchInfo = await runGit3(["branch", "--show-current"], { root });
+  const branchInfo = await runGit2(["branch", "--show-current"], { root });
   const originalBranch = branchInfo.ok ? branchInfo.stdout.trim() : "";
   if (!originalBranch) {
     return { success: false, error: "Unable to determine current git branch" };
   }
   const safeTaskName = taskName.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
   const tempBranch = `supergit-temp-${safeTaskName}-${Date.now()}`;
-  const createBranch = await runGit3(["checkout", "-b", tempBranch], { root });
+  const createBranch = await runGit2(["checkout", "-b", tempBranch], { root });
   if (!createBranch.ok) {
     return { success: false, error: `Failed to create temp branch: ${createBranch.error}` };
   }
@@ -11902,10 +11837,10 @@ async function withSupergitTransaction(root, taskName, operation) {
     operationResult = await operation();
     success = operationResult?.success === true;
     if (success) {
-      const diffStatus = await runGit3(["status", "--porcelain"], { root });
+      const diffStatus = await runGit2(["status", "--porcelain"], { root });
       if (diffStatus.ok && diffStatus.stdout.trim() !== "") {
-        await runGit3(["add", "."], { root });
-        await runGit3(["commit", "-m", `Auto-fix for ${taskName}`], { root });
+        await runGit2(["add", "."], { root });
+        await runGit2(["commit", "-m", `Auto-fix for ${taskName}`], { root });
       }
     }
   } catch (err) {
@@ -11913,25 +11848,25 @@ async function withSupergitTransaction(root, taskName, operation) {
     operationResult = { success: false, error: err.message };
   } finally {
     if (!success) {
-      await runGit3(["reset", "--hard", "HEAD"], { root });
-      await runGit3(["clean", "-fd"], { root });
+      await runGit2(["reset", "--hard", "HEAD"], { root });
+      await runGit2(["clean", "-fd"], { root });
     }
-    const checkoutOriginal = await runGit3(["checkout", originalBranch], { root });
+    const checkoutOriginal = await runGit2(["checkout", originalBranch], { root });
     if (!checkoutOriginal.ok) {
       success = false;
       operationResult = { success: false, error: `Failed to return to original branch: ${checkoutOriginal.error}` };
     }
     if (success) {
-      const merge = await runGit3(["merge", tempBranch, "--no-ff", "-m", `Auto-merge successful operation: ${taskName}`], { root });
+      const merge = await runGit2(["merge", tempBranch, "--no-ff", "-m", `Auto-merge successful operation: ${taskName}`], { root });
       if (!merge.ok) {
-        await runGit3(["merge", "--abort"], { root });
+        await runGit2(["merge", "--abort"], { root });
         success = false;
         operationResult = { success: false, error: "Failed to merge temp branch cleanly" };
       }
     }
-    await runGit3(["branch", "-D", tempBranch], { root });
+    await runGit2(["branch", "-D", tempBranch], { root });
     if (stashed) {
-      await runGit3(["stash", "pop"], { root });
+      await runGit2(["stash", "pop"], { root });
     }
   }
   return operationResult;
@@ -11944,7 +11879,7 @@ var init_supergit = __esm({
 });
 
 // core/services/execution-planner.ts
-import path21 from "node:path";
+import path20 from "node:path";
 import { existsSync as existsSync5 } from "node:fs";
 import { readFile as readFile10 } from "node:fs/promises";
 import { readFileSync as readFileSync2 } from "node:fs";
@@ -12009,7 +11944,7 @@ function normalizeTicket2(ticket, entity) {
   };
 }
 async function loadPackageMeta(root) {
-  const packageJsonPath = path21.resolve(root, "package.json");
+  const packageJsonPath = path20.resolve(root, "package.json");
   let packageJson = null;
   try {
     const text = await readFile10(packageJsonPath, "utf8");
@@ -12025,13 +11960,13 @@ async function loadPackageMeta(root) {
 }
 function detectPackageManager(root, packageManagerField = "") {
   const packageManager = String(packageManagerField ?? "").toLowerCase();
-  if (packageManager.startsWith("pnpm") || existsSync5(path21.resolve(root, "pnpm-lock.yaml"))) {
+  if (packageManager.startsWith("pnpm") || existsSync5(path20.resolve(root, "pnpm-lock.yaml"))) {
     return { id: "pnpm", command: "pnpm", runScript: (name) => `pnpm -s ${name}` };
   }
-  if (packageManager.startsWith("yarn") || existsSync5(path21.resolve(root, "yarn.lock"))) {
+  if (packageManager.startsWith("yarn") || existsSync5(path20.resolve(root, "yarn.lock"))) {
     return { id: "yarn", command: "yarn", runScript: (name) => `yarn ${name}` };
   }
-  if (packageManager.startsWith("bun") || existsSync5(path21.resolve(root, "bun.lockb"))) {
+  if (packageManager.startsWith("bun") || existsSync5(path20.resolve(root, "bun.lockb"))) {
     return { id: "bun", command: "bun", runScript: (name) => `bun run ${name}` };
   }
   return { id: "npm", command: "npm", runScript: (name) => `npm run --silent ${name}` };
@@ -12112,7 +12047,7 @@ async function expandWorkingSetHints(root, ticket, entity, workingSet) {
   const matches = text.match(/\b(?:src|tests|functions)\/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+\b/g) ?? [];
   for (const match of matches) {
     const normalized = String(match).replace(/^[./]+/, "");
-    if (existsSync5(path21.resolve(root, normalized))) {
+    if (existsSync5(path20.resolve(root, normalized))) {
       files.add(normalized);
     }
   }
@@ -12172,7 +12107,7 @@ function inferTargetedVerificationCommands({ root, workingSet, packageMeta }) {
 }
 function detectConfig(root, names) {
   for (const name of names) {
-    if (existsSync5(path21.resolve(root, name))) {
+    if (existsSync5(path20.resolve(root, name))) {
       return name;
     }
   }
@@ -12218,7 +12153,7 @@ function loadPlaywrightMatchers(root, names) {
   const config = detectConfig(root, names);
   if (!config) return [];
   try {
-    const text = readFileSync2(path21.resolve(root, config), "utf8");
+    const text = readFileSync2(path20.resolve(root, config), "utf8");
     return extractPlaywrightTestMatches(text);
   } catch {
     return [];
@@ -12247,7 +12182,7 @@ function matchesPlaywrightConfig(filePath, matchers) {
 function globLikeMatch(filePath, matcher) {
   const normalizedMatcher = String(matcher ?? "").replace(/\\/g, "/").trim();
   if (!normalizedMatcher) return false;
-  const basename = path21.posix.basename(filePath);
+  const basename = path20.posix.basename(filePath);
   const simple = normalizedMatcher.replace(/^\.\//, "").replace(/^\*\*\//, "");
   if (!/[*?[\]{}]/.test(simple)) {
     return filePath === simple || basename === simple || filePath.endsWith(`/${simple}`);
@@ -12356,7 +12291,7 @@ var init_execution_planner = __esm({
 });
 
 // core/services/orchestrator.ts
-import path22 from "node:path";
+import path21 from "node:path";
 import { readFile as readFile11 } from "node:fs/promises";
 async function sweepBugs(options) {
   const root = options.root;
@@ -13079,8 +13014,8 @@ async function attemptDecomposition(context, { root, quality }) {
 async function onboardProjectBrief(filePath, options) {
   const root = options.root;
   const rl = options.rl;
-  const workingBriefPath = path22.resolve(root, options.briefPath ?? "project-brief.md");
-  const workingBriefLabel = path22.relative(root, workingBriefPath) || path22.basename(workingBriefPath);
+  const workingBriefPath = path21.resolve(root, options.briefPath ?? "project-brief.md");
+  const workingBriefLabel = path21.relative(root, workingBriefPath) || path21.basename(workingBriefPath);
   const sourceContent = await readFile11(filePath, "utf8");
   const sourceExcerpt = sourceContent.slice(0, 12e3);
   const existingBrief = await readFile11(workingBriefPath, "utf8").catch(() => "");
@@ -13781,14 +13716,14 @@ var init_guidelines = __esm({
 });
 
 // core/services/codelet-executor.ts
-import path23 from "node:path";
+import path22 from "node:path";
 import { mkdtemp, readFile as readFile12, rm as rm4 } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
-  if (ServiceHub.isBuiltinCodelet(codelet.id)) {
-    return ServiceHub.runBuiltinCodelet(codelet.id, args);
+  if (ServiceHub.has(codelet.id)) {
+    return ServiceHub.execute(codelet.id, args);
   }
-  const entry = codelet.entryPath ?? (codelet.entry ? path23.resolve(cwd, codelet.entry) : null);
+  const entry = codelet.entryPath ?? (codelet.entry ? path22.resolve(cwd, codelet.entry) : null);
   if (codelet.runner !== "node-script") {
     throw new Error(`Unsupported codelet runner: ${codelet.runner}`);
   }
@@ -13817,9 +13752,9 @@ async function tryRunInProcess(entry, args, { env, cwd = process.cwd() }) {
   return { used: true, result };
 }
 async function runNodeScriptCaptured(scriptPath, args, { cwd, env }) {
-  return mkdtemp(path23.join(process.env.TMPDIR ?? "/tmp", "ai-workflow-codelet-")).then(async (captureDir) => {
-    const stdoutPath = path23.join(captureDir, "stdout.log");
-    const stderrPath = path23.join(captureDir, "stderr.log");
+  return mkdtemp(path22.join(process.env.TMPDIR ?? "/tmp", "ai-workflow-codelet-")).then(async (captureDir) => {
+    const stdoutPath = path22.join(captureDir, "stdout.log");
+    const stderrPath = path22.join(captureDir, "stderr.log");
     const command = `${shellQuote("npx", "tsx")} ${[scriptPath, ...args].map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`;
     try {
       const result = await TaskExecutor.spawn("/usr/bin/bash", ["-lc", command], {
@@ -13860,12 +13795,12 @@ var init_codelet_executor = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+context-manager@0.1.0/node_modules/@dharmax/context-manager/dist/index.mjs
-import { execFile as execFile8 } from "node:child_process";
-import { promisify as promisify8 } from "node:util";
-var execFileAsync8;
+import { execFile as execFile7 } from "node:child_process";
+import { promisify as promisify7 } from "node:util";
+var execFileAsync7;
 var init_dist6 = __esm({
   "node_modules/.pnpm/@dharmax+context-manager@0.1.0/node_modules/@dharmax/context-manager/dist/index.mjs"() {
-    execFileAsync8 = promisify8(execFile8);
+    execFileAsync7 = promisify7(execFile7);
   }
 });
 
@@ -19749,11 +19684,11 @@ var init_acorn = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+llm-utils@0.1.1/node_modules/@dharmax/llm-utils/dist/index.mjs
-import { execFile as execFile9 } from "node:child_process";
-import { promisify as promisify9 } from "node:util";
+import { execFile as execFile8 } from "node:child_process";
+import { promisify as promisify8 } from "node:util";
 import { execFile as execFile22 } from "node:child_process";
 import { promisify as promisify22 } from "node:util";
-var OllamaProvider2, OpenAIAdapter2, GoogleAdapter2, AnthropicAdapter2, CompletionEngine2, execFileAsync9, execFileAsync22, PubSubEvent2, PubSub2, pubsub_default2;
+var OllamaProvider2, OpenAIAdapter2, GoogleAdapter2, AnthropicAdapter2, CompletionEngine2, execFileAsync8, execFileAsync22, PubSubEvent2, PubSub2, pubsub_default2;
 var init_dist7 = __esm({
   "node_modules/.pnpm/@dharmax+llm-utils@0.1.1/node_modules/@dharmax/llm-utils/dist/index.mjs"() {
     OllamaProvider2 = class {
@@ -20023,7 +19958,7 @@ var init_dist7 = __esm({
         }
       }
     };
-    execFileAsync9 = promisify9(execFile9);
+    execFileAsync8 = promisify8(execFile8);
     execFileAsync22 = promisify22(execFile22);
     PubSubEvent2 = class {
       constructor(topic, verb, origin, data2) {
@@ -20902,7 +20837,7 @@ var init_dist8 = __esm({
 
 // core/services/hooks.ts
 import { exec } from "node:child_process";
-import { promisify as promisify10 } from "node:util";
+import { promisify as promisify9 } from "node:util";
 async function runHooks(hookType, { root = process.cwd(), config = {}, context = {} } = {}) {
   const hooks = config.hooks?.[hookType] ?? [];
   if (!Array.isArray(hooks) || hooks.length === 0) {
@@ -20953,7 +20888,7 @@ var execAsync;
 var init_hooks = __esm({
   "core/services/hooks.ts"() {
     "use strict";
-    execAsync = promisify10(exec);
+    execAsync = promisify9(exec);
   }
 });
 
@@ -21260,15 +21195,15 @@ var init_text_compiler_host = __esm({
 });
 
 // core/lib/active-guardrails.ts
-import path24 from "node:path";
+import path23 from "node:path";
 async function loadProjectActiveGuardrails(root, options = {}) {
-  const resolvedRoot = path24.resolve(String(root ?? process.cwd()));
+  const resolvedRoot = path23.resolve(String(root ?? process.cwd()));
   const toolkitRoot3 = getToolkitRoot2();
-  const manualFallback = await readText(path24.resolve(toolkitRoot3, "docs", "MANUAL.md"));
+  const manualFallback = await readText(path23.resolve(toolkitRoot3, "docs", "MANUAL.md"));
   const loadedEntries = await Promise.all(
     GUARDRAIL_SOURCE_ORDER.map(async (spec) => {
       const fallback = spec.key === "manual" ? manualFallback : "";
-      const content = await readText(path24.resolve(resolvedRoot, spec.path), fallback);
+      const content = await readText(path23.resolve(resolvedRoot, spec.path), fallback);
       return [spec.key, content];
     })
   );
@@ -21413,7 +21348,7 @@ var init_active_guardrails = __esm({
       { key: "executionProtocol", label: "Execution Protocol", path: "execution-protocol.md", weight: 4 },
       { key: "projectGuidelines", label: "Project Guidelines", path: "project-guidelines.md", weight: 4 },
       { key: "enforcement", label: "Enforcement", path: "enforcement.md", weight: 4 },
-      { key: "manual", label: "Manual", path: path24.join("docs", "MANUAL.md"), weight: 2 },
+      { key: "manual", label: "Manual", path: path23.join("docs", "MANUAL.md"), weight: 2 },
       { key: "knowledge", label: "Knowledge", path: "knowledge.md", weight: 2 },
       { key: "contributing", label: "Contributing", path: "CONTRIBUTING.md", weight: 1 }
     ];
@@ -21425,22 +21360,16 @@ var init_active_guardrails = __esm({
 });
 
 // core/services/codelets.ts
-import path25 from "node:path";
+import path24 from "node:path";
 import { readdir as readdir3, readFile as readFile13, rm as rm5, stat as stat3, writeFile as writeFile7 } from "node:fs/promises";
 function getSharedCodeletsDir(toolkitRoot3 = getToolkitRoot()) {
-  return path25.resolve(toolkitRoot3, "shared", "codelets");
+  return path24.resolve(toolkitRoot3, "shared", "codelets");
 }
 function getProjectCodeletsDir(root = process.cwd()) {
-  return path25.resolve(root, ".ai-workflow", "codelets");
+  return path24.resolve(root, ".ai-workflow", "codelets");
 }
 async function listToolkitCodelets({ toolkitRoot: toolkitRoot3 = getToolkitRoot() } = {}) {
   return listCodeletsInDir(getSharedCodeletsDir(toolkitRoot3), {
-    sourceKind: "toolkit",
-    sourceRoot: toolkitRoot3
-  });
-}
-async function getToolkitCodelet(name, { toolkitRoot: toolkitRoot3 = getToolkitRoot() } = {}) {
-  return getCodeletFromDir(getSharedCodeletsDir(toolkitRoot3), name, {
     sourceKind: "toolkit",
     sourceRoot: toolkitRoot3
   });
@@ -21460,8 +21389,8 @@ async function getProjectCodelet(root, name) {
 async function upsertProjectCodelet(root, name, filePath, mode) {
   return withWorkspaceMutation(root, `project codelet ${mode} ${name}`, async () => {
     const codeletsDir = getProjectCodeletsDir(root);
-    const manifestPath = path25.resolve(codeletsDir, `${name}.json`);
-    const relativeEntry = path25.relative(root, path25.resolve(root, filePath)).split(path25.sep).join("/");
+    const manifestPath = path24.resolve(codeletsDir, `${name}.json`);
+    const relativeEntry = path24.relative(root, path24.resolve(root, filePath)).split(path24.sep).join("/");
     const existing = await getProjectCodelet(root, name);
     const manifest = {
       id: name,
@@ -21479,14 +21408,14 @@ async function upsertProjectCodelet(root, name, filePath, mode) {
 }
 async function removeProjectCodelet(root, name) {
   return withWorkspaceMutation(root, `project codelet remove ${name}`, async () => {
-    const manifestPath = path25.resolve(getProjectCodeletsDir(root), `${name}.json`);
+    const manifestPath = path24.resolve(getProjectCodeletsDir(root), `${name}.json`);
     await rm5(manifestPath, { force: true });
   });
 }
 async function forgeProjectCodelet(root, name) {
   return withWorkspaceMutation(root, `forge project codelet ${name}`, async () => {
-    const stagedDir = path25.resolve(root, ".ai-workflow", "staged-codelets");
-    const entryPath = path25.resolve(stagedDir, `${name}.js`);
+    const stagedDir = path24.resolve(root, ".ai-workflow", "staged-codelets");
+    const entryPath = path24.resolve(stagedDir, `${name}.js`);
     const manifest = await upsertProjectCodelet(root, name, entryPath, "add");
     const source = [
       "/* Responsibility: Project-local staged codelet for bounded low-risk helper work.",
@@ -21621,7 +21550,7 @@ function sourceKindPriority(sourceKind) {
   return 2;
 }
 function getCodeletRegistryCacheKey(projectRoot, sourceKind) {
-  return `${path25.resolve(String(projectRoot ?? ""))}::${sourceKind ?? "all"}`;
+  return `${path24.resolve(String(projectRoot ?? ""))}::${sourceKind ?? "all"}`;
 }
 function materializeCodeletRecord(entity) {
   const data2 = entity.data ?? {};
@@ -21687,7 +21616,7 @@ function normalizeSearchQuery(query) {
 }
 async function buildCodeletEntity(manifest, { sourceKind, sourceRoot }) {
   const manifestPath = manifest.manifestPath ?? null;
-  const entryPath = manifest.entry ? path25.resolve(sourceRoot, manifest.entry) : null;
+  const entryPath = manifest.entry ? path24.resolve(sourceRoot, manifest.entry) : null;
   const entryExists = manifest.runner === "builtin" ? true : entryPath ? await awaitPathExists(entryPath) : false;
   const backing = manifest.runner === "builtin" ? {
     status: "builtin",
@@ -21743,7 +21672,7 @@ async function listCodeletsInDir(codeletsDir, { sourceKind, sourceRoot }) {
       if (!entry.isFile() || !entry.name.endsWith(".json")) {
         continue;
       }
-      const manifestPath = path25.resolve(codeletsDir, entry.name);
+      const manifestPath = path24.resolve(codeletsDir, entry.name);
       const manifest = JSON.parse(await readFile13(manifestPath, "utf8"));
       manifests.push(resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot }));
     }
@@ -21756,7 +21685,7 @@ async function listCodeletsInDir(codeletsDir, { sourceKind, sourceRoot }) {
   }
 }
 async function getCodeletFromDir(codeletsDir, name, { sourceKind, sourceRoot }) {
-  const manifestPath = path25.resolve(codeletsDir, `${name}.json`);
+  const manifestPath = path24.resolve(codeletsDir, `${name}.json`);
   try {
     const manifest = JSON.parse(await readFile13(manifestPath, "utf8"));
     return resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot });
@@ -21775,7 +21704,7 @@ function resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot }) {
     ...manifest
   };
   if (manifest.entry) {
-    resolved.entry = path25.resolve(sourceRoot, manifest.entry);
+    resolved.entry = path24.resolve(sourceRoot, manifest.entry);
   }
   return resolved;
 }
@@ -21804,7 +21733,7 @@ var init_codelets = __esm({
 });
 
 // core/services/host-resolver.ts
-import path26 from "node:path";
+import path25 from "node:path";
 import { readFile as readFile14 } from "node:fs/promises";
 async function resolveHostRequest({
   projectRoot = process.cwd(),
@@ -22043,10 +21972,10 @@ function buildCodeletEvidence(codelet) {
     evidence.push(`Category: ${codelet.category}`);
   }
   if (codelet.entryPath) {
-    evidence.push(`Entry: ${path26.relative(process.cwd(), codelet.entryPath)}`);
+    evidence.push(`Entry: ${path25.relative(process.cwd(), codelet.entryPath)}`);
   }
   if (codelet.manifestPath) {
-    evidence.push(`Manifest: ${path26.relative(process.cwd(), codelet.manifestPath)}`);
+    evidence.push(`Manifest: ${path25.relative(process.cwd(), codelet.manifestPath)}`);
   }
   if (codelet.id === "refactor-ticket") {
     evidence.push("Execution path: execute-ticket -> orchestrator executeTicket");
@@ -22066,7 +21995,7 @@ function formatGoalLabel(goalType) {
 async function discoverBoardCurrentWork(projectRoot) {
   for (const relativePath of ["docs/kanban.md", "kanban.md"]) {
     try {
-      const content = await readFile14(path26.resolve(projectRoot, relativePath), "utf8");
+      const content = await readFile14(path25.resolve(projectRoot, relativePath), "utf8");
       const section = extractKanbanSection(content, "In Progress");
       const tickets = parseKanbanTickets(section).map((ticket) => ({
         ...ticket,
@@ -23181,10 +23110,10 @@ var init_operator_brain = __esm({
 });
 
 // core/services/dogfood-harness.ts
-import path27 from "node:path";
+import path26 from "node:path";
 async function runDogfoodHarness(options = {}) {
   const root = options.root ?? process.cwd();
-  const dogfoodRoot = path27.join(root, "dogfood-projects", `space-invaders-${Date.now()}`);
+  const dogfoodRoot = path26.join(root, "dogfood-projects", `space-invaders-${Date.now()}`);
   console.log(`[dogfood] Initializing dogfood project at: ${dogfoodRoot}`);
   const initialFiles = {
     "package.json": JSON.stringify({
@@ -23437,7 +23366,7 @@ var init_shell_trust_benchmark = __esm({
 
 // core/services/shell-benchmark.ts
 import os2 from "node:os";
-import path28 from "node:path";
+import path27 from "node:path";
 import { spawn as spawn3 } from "node:child_process";
 import { mkdtemp as mkdtemp2, mkdir as mkdir6, readFile as readFile15, rm as rm6, writeFile as writeFile8 } from "node:fs/promises";
 async function runShellBenchmark(promptOrOptions = {}, options = {}) {
@@ -23459,7 +23388,7 @@ async function runShellBenchmark(promptOrOptions = {}, options = {}) {
   return runAdHocShellBenchmark(prompt, mergedOptions);
 }
 async function runShellTrustBenchmark(options = {}) {
-  const root = path28.resolve(String(options.root ?? process.cwd()));
+  const root = path27.resolve(String(options.root ?? process.cwd()));
   const cliPath = resolveCliPath(root, options);
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const cases = Array.isArray(options.cases) && options.cases.length ? options.cases : SHELL_TRUST_BENCHMARK_CASES;
@@ -23469,9 +23398,9 @@ async function runShellTrustBenchmark(options = {}) {
   const runCommand = options.runCommand ?? runNodeProcess;
   const judge = options.judge ?? judgeShellTranscripts;
   const keepArtifacts = options.keepArtifacts ?? true;
-  const requestedArtifactRoot = options.artifactRoot ? path28.resolve(String(options.artifactRoot)) : await mkdtemp2(path28.join(os2.tmpdir(), "ai-workflow-shell-benchmark-"));
+  const requestedArtifactRoot = options.artifactRoot ? path27.resolve(String(options.artifactRoot)) : await mkdtemp2(path27.join(os2.tmpdir(), "ai-workflow-shell-benchmark-"));
   const benchmarkRunId = options.runId ?? `shell-trust-${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-")}`;
-  const artifactRoot = options.artifactRoot ? path28.join(requestedArtifactRoot, benchmarkRunId) : requestedArtifactRoot;
+  const artifactRoot = options.artifactRoot ? path27.join(requestedArtifactRoot, benchmarkRunId) : requestedArtifactRoot;
   const startedAt = Date.now();
   await mkdir6(artifactRoot, { recursive: true });
   try {
@@ -23518,7 +23447,7 @@ async function runShellTrustBenchmark(options = {}) {
         failedCriticalCases
       })
     };
-    await writeFile8(path28.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
+    await writeFile8(path27.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
     return payload;
   } finally {
@@ -23528,12 +23457,12 @@ async function runShellTrustBenchmark(options = {}) {
   }
 }
 async function runAdHocShellBenchmark(prompt, options = {}) {
-  const root = path28.resolve(String(options.root ?? process.cwd()));
+  const root = path27.resolve(String(options.root ?? process.cwd()));
   const cliPath = resolveCliPath(root, options);
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const runCommand = options.runCommand ?? runNodeProcess;
   const judge = options.judge ?? judgeShellTranscripts;
-  const artifactRoot = options.artifactRoot ? path28.resolve(String(options.artifactRoot)) : await mkdtemp2(path28.join(os2.tmpdir(), "ai-workflow-shell-ad-hoc-"));
+  const artifactRoot = options.artifactRoot ? path27.resolve(String(options.artifactRoot)) : await mkdtemp2(path27.join(os2.tmpdir(), "ai-workflow-shell-ad-hoc-"));
   const benchmarkCase = {
     id: "ad-hoc-shell-prompt",
     title: "Ad hoc shell prompt benchmark",
@@ -23568,7 +23497,7 @@ async function runAdHocShellBenchmark(prompt, options = {}) {
       cases: [result],
       summary: result.ok ? "Ad hoc shell benchmark passed." : `Ad hoc shell benchmark failed: ${result.failures.join("; ")}`
     };
-    await writeFile8(path28.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
+    await writeFile8(path27.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
     return payload;
   } finally {
@@ -23598,7 +23527,7 @@ async function runBenchmarkedShellCase({
   const visibleText = extractVisibleText(result.stdout, result.stderr);
   const combinedText = `${visibleText}
 ${result.stderr ?? ""}`.trim();
-  const transcriptPath = path28.join(artifactRoot, `${benchmarkCase.id}.txt`);
+  const transcriptPath = path27.join(artifactRoot, `${benchmarkCase.id}.txt`);
   const transcript = [
     `Case: ${benchmarkCase.id}`,
     `Title: ${benchmarkCase.title}`,
@@ -23715,12 +23644,12 @@ function buildBenchmarkSummary({ ok, passedCount, caseCount, failedCriticalCases
 }
 function resolveCliPath(root, options) {
   if (options.cliPath) {
-    return path28.resolve(String(options.cliPath));
+    return path27.resolve(String(options.cliPath));
   }
   if (options.toolkitRoot) {
-    return path28.resolve(String(options.toolkitRoot), "cli", "ai-workflow.mjs");
+    return path27.resolve(String(options.toolkitRoot), "cli", "ai-workflow.mjs");
   }
-  return path28.resolve(root, "cli", "ai-workflow.mjs");
+  return path27.resolve(root, "cli", "ai-workflow.mjs");
 }
 function normalizeTimeout(timeoutMs) {
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS2;
@@ -23822,7 +23751,7 @@ var init_shell_benchmark = __esm({
 
 // core/lib/dogfood-utils.ts
 import os3 from "node:os";
-import path29 from "node:path";
+import path28 from "node:path";
 import { spawn as spawn4 } from "node:child_process";
 import { mkdtemp as mkdtemp3, rm as rm7, writeFile as writeFile9 } from "node:fs/promises";
 async function runDogfood({
@@ -23833,9 +23762,9 @@ async function runDogfood({
   timeoutMs = 45e3,
   writeReport = true
 } = {}) {
-  const normalizedRoot = path29.resolve(root);
+  const normalizedRoot = path28.resolve(root);
   const requestedSurfaces = dedupeSurfaceIds(surfaces);
-  const cliPath = path29.resolve(toolkitRoot3, "cli", "ai-workflow.mjs");
+  const cliPath = path28.resolve(toolkitRoot3, "cli", "ai-workflow.mjs");
   const startedAt = (/* @__PURE__ */ new Date()).toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
   const report = {
@@ -23894,15 +23823,15 @@ async function runDogfood({
   }
   report.status = Object.values(report.surfaces).every((surface) => surface.status === "pass") && workspaceHonesty.status !== "fail" ? "pass" : "fail";
   if (writeReport) {
-    const reportPath = path29.resolve(normalizedRoot, DEFAULT_DOGFOOD_REPORT_PATH);
-    await ensureDir(path29.dirname(reportPath));
+    const reportPath = path28.resolve(normalizedRoot, DEFAULT_DOGFOOD_REPORT_PATH);
+    await ensureDir(path28.dirname(reportPath));
     await writeFile9(reportPath, `${JSON.stringify(report, null, 2)}
 `, "utf8");
   }
   return report;
 }
 async function readDogfoodReport(root = process.cwd()) {
-  const reportPath = path29.resolve(root, DEFAULT_DOGFOOD_REPORT_PATH);
+  const reportPath = path28.resolve(root, DEFAULT_DOGFOOD_REPORT_PATH);
   const raw = await readText(reportPath, "");
   if (!raw.trim()) {
     return null;
@@ -24063,7 +23992,7 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
       cliPath,
       timeoutMs: Math.max(timeoutMs, 9e4),
       expectLocalModel: shellPlanningExpectation.expectLocalModel,
-      artifactRoot: path29.resolve(root, ".ai-workflow", "generated", "shell-benchmark")
+      artifactRoot: path28.resolve(root, ".ai-workflow", "generated", "shell-benchmark")
     });
     scenarios.push({
       id: "human-language-benchmark",
@@ -24160,9 +24089,9 @@ async function buildWorkflowScenarios({ cliPath, root, timeoutMs }) {
   ];
 }
 async function buildInitScenarios({ timeoutMs, toolkitRoot: toolkitRoot3 }) {
-  const fixtureRoot = await mkdtemp3(path29.join(os3.tmpdir(), "ai-workflow-dogfood-init-"));
-  const initScriptPath = path29.resolve(toolkitRoot3, "scripts", "init-project.ts");
-  const auditScriptPath = path29.resolve(fixtureRoot, "scripts", "ai-workflow", "workflow-audit.ts");
+  const fixtureRoot = await mkdtemp3(path28.join(os3.tmpdir(), "ai-workflow-dogfood-init-"));
+  const initScriptPath = path28.resolve(toolkitRoot3, "scripts", "init-project.ts");
+  const auditScriptPath = path28.resolve(fixtureRoot, "scripts", "ai-workflow", "workflow-audit.ts");
   const initTimeoutMs = Math.max(timeoutMs, 9e4);
   try {
     const initResult = await runNodeProcess2({
@@ -24300,8 +24229,8 @@ async function applyScenarioSemanticValidation({ cwd, scenario, validationHints 
   if (!validationHints.semanticRubric) {
     return scenario;
   }
-  const transcriptRoot = await mkdtemp3(path29.join(os3.tmpdir(), `ai-workflow-dogfood-${scenario.id}-`));
-  const transcriptPath = path29.join(transcriptRoot, `${scenario.id}.txt`);
+  const transcriptRoot = await mkdtemp3(path28.join(os3.tmpdir(), `ai-workflow-dogfood-${scenario.id}-`));
+  const transcriptPath = path28.join(transcriptRoot, `${scenario.id}.txt`);
   const transcript = [
     `Scenario: ${scenario.id}`,
     `Description: ${scenario.description}`,
@@ -24769,7 +24698,7 @@ var init_dual_surface_protocol = __esm({
 // core/services/readiness-evaluator.ts
 import { createHash as createHash2 } from "node:crypto";
 import { existsSync as existsSync6, readFileSync as readFileSync3 } from "node:fs";
-import path30 from "node:path";
+import path29 from "node:path";
 async function evaluateReadiness(store, request) {
   const startedAt = Date.now();
   const lastSync = store.getMeta("lastSync");
@@ -25135,13 +25064,13 @@ function resolveVerificationSignal({ latestRunArtifact, latestVerificationArtifa
 }
 function readLatestVerificationRunArtifact(projectRoot) {
   if (!projectRoot) return null;
-  const stateDir = path30.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
-  const latestPath = path30.resolve(stateDir, "latest.json");
+  const stateDir = path29.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  const latestPath = path29.resolve(stateDir, "latest.json");
   if (!existsSync6(latestPath)) return null;
   try {
     const latest = JSON.parse(readFileSync3(latestPath, "utf8"));
     if (!latest?.id) return null;
-    const artifactPath = path30.resolve(stateDir, `${latest.id}.json`);
+    const artifactPath = path29.resolve(stateDir, `${latest.id}.json`);
     if (!existsSync6(artifactPath)) return null;
     const artifact = JSON.parse(readFileSync3(artifactPath, "utf8"));
     if (!artifact || typeof artifact !== "object") return null;
@@ -25239,7 +25168,7 @@ __export(sync_exports, {
   updateTicketLifecycle: () => updateTicketLifecycle,
   withWorkflowStore: () => withWorkflowStore
 });
-import path31 from "node:path";
+import path30 from "node:path";
 async function syncProject({ projectRoot = process.cwd(), writeProjections = false } = {}) {
   const startedAt = (/* @__PURE__ */ new Date()).toISOString();
   return withWorkspaceMutationGuardDisabled(async () => {
@@ -25384,7 +25313,7 @@ async function syncProject({ projectRoot = process.cwd(), writeProjections = fal
   });
 }
 async function maybeRunAutoAssessment(store, { projectRoot, scope = "health" } = {}) {
-  const targetId = path31.basename(projectRoot);
+  const targetId = path30.basename(projectRoot);
   const assessments = store.listAssessments({ targetType: "project", targetId }).filter((item) => item.scope === scope);
   const now = Date.now();
   for (const assessment of assessments) {
@@ -25430,8 +25359,8 @@ function recordProjectionMutation(store, projectRoot, projections, snapshot = []
     beforeDirty: false,
     afterDirty: false,
     changedFiles: [
-      path31.relative(projectRoot, projections.kanbanPath),
-      path31.relative(projectRoot, projections.epicsPath)
+      path30.relative(projectRoot, projections.kanbanPath),
+      path30.relative(projectRoot, projections.epicsPath)
     ],
     details: {
       source: "syncProject",
@@ -26163,7 +26092,7 @@ function inferModuleResponsibility(moduleName, filePaths = []) {
   const normalized = String(moduleName ?? "").trim();
   const lower = normalized.toLowerCase();
   const basenames = [...new Set(
-    filePaths.map((filePath) => path31.basename(String(filePath), path31.extname(String(filePath)))).filter((name) => name && !["index", "main", "mod"].includes(name))
+    filePaths.map((filePath) => path30.basename(String(filePath), path30.extname(String(filePath)))).filter((name) => name && !["index", "main", "mod"].includes(name))
   )];
   if (lower === "cli" || lower.startsWith("cli/")) {
     return "CLI entrypoints, interactive shell behavior, and local operator tooling.";
@@ -26246,145 +26175,371 @@ var init_sync = __esm({
   }
 });
 
-// core/services/codelet-runtime.ts
-import path32 from "node:path";
-async function buildSmartCodeletRunContext({
-  projectRoot = process.cwd(),
-  codeletId,
-  ticketId = null,
-  filePath = null,
-  goal = null
-} = {}) {
-  const normalizedTicketId = ticketId ? String(ticketId).trim() : null;
-  const normalizedFilePath = filePath ? path32.normalize(String(filePath).trim()) : null;
-  const normalizedGoal = goal ? String(goal).trim() : null;
-  const [codelet, projectSummary] = await Promise.all([
-    getCodelet({ projectRoot, codeletId }),
-    getProjectSummary({ projectRoot })
-  ]);
-  if (!codelet) {
-    throw new Error(`Unknown smart codelet: ${codeletId}`);
+// core/lib/workspace-mutation.ts
+import path31 from "node:path";
+import { execFile as execFile9 } from "node:child_process";
+import { promisify as promisify10 } from "node:util";
+function isWorkspaceMutationGuardDisabled() {
+  return guardDepth > 0;
+}
+async function withWorkspaceMutationGuardDisabled(callback) {
+  guardDepth += 1;
+  try {
+    return await callback();
+  } finally {
+    guardDepth = Math.max(0, guardDepth - 1);
   }
-  const target = await resolveTarget(projectRoot, normalizedTicketId);
-  const surgicalContext = await buildSurgicalContext(projectRoot, {
-    ticketId: target.ticket?.id ?? normalizedTicketId,
-    filePaths: normalizedFilePath ? [normalizedFilePath] : [],
-    symbolNames: []
-  });
+}
+async function withWorkspaceMutation(root, operation, callback, { writeProjections = true, syncAfter = true, syncBefore = true } = {}) {
+  if (isWorkspaceMutationGuardDisabled()) {
+    return callback({
+      nested: true,
+      operation,
+      before: null
+    });
+  }
+  guardDepth += 1;
+  try {
+    const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const before = await probeWorkspaceState(root).catch(() => ({
+      gitRepo: false,
+      dirty: true,
+      changedFiles: [],
+      source: "probe-error"
+    }));
+    if (syncBefore && before.dirty) {
+      const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
+      await syncProject2({ projectRoot: root, writeProjections: false }).catch(() => {
+      });
+    }
+    let result;
+    let failed = null;
+    try {
+      result = await callback({
+        before,
+        operation
+      });
+      return result;
+    } catch (error) {
+      failed = error;
+      throw error;
+    } finally {
+      const after = await probeWorkspaceState(root).catch(() => ({
+        gitRepo: false,
+        dirty: true,
+        changedFiles: [],
+        source: "probe-error"
+      }));
+      let finalAfter = after;
+      let syncTriggered = false;
+      if (syncAfter && (before.dirty || after.dirty || !before.gitRepo || !after.gitRepo || failed)) {
+        const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
+        syncTriggered = true;
+        await syncProject2({ projectRoot: root, writeProjections }).catch(() => {
+        });
+        finalAfter = await probeWorkspaceState(root).catch(() => after);
+      }
+      const { collectProjectFileSnapshot: collectProjectFileSnapshot2 } = await Promise.resolve().then(() => (init_filesystem(), filesystem_exports));
+      const finalSnapshot = await collectProjectFileSnapshot2(root).catch(() => []);
+      await recordWorkspaceMutation(root, {
+        operation,
+        status: failed ? "failed" : "completed",
+        beforeDirty: before.dirty,
+        afterDirty: finalAfter.dirty,
+        changedFiles: finalAfter.changedFiles,
+        details: {
+          before,
+          after: finalAfter,
+          snapshot: finalSnapshot,
+          syncTriggered,
+          error: failed ? String(failed?.message ?? failed) : null
+        },
+        startedAt,
+        completedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }).catch(() => {
+      });
+    }
+  } finally {
+    guardDepth = Math.max(0, guardDepth - 1);
+  }
+}
+async function probeWorkspaceState(root) {
+  const gitRepo = await probeGitRepo(root);
+  if (!gitRepo) {
+    return {
+      gitRepo: false,
+      dirty: true,
+      changedFiles: [],
+      source: "snapshot-required"
+    };
+  }
+  const output7 = await runGit3(root, ["status", "--porcelain", "--untracked-files=all"]);
+  const changedFiles = parseStatusShort2(output7);
   return {
-    codelet: {
-      ...codelet,
-      summary: String(codelet.summary ?? codelet.title ?? codelet.id ?? codeletId).trim(),
-      taskClass: String(codelet.taskClass ?? "task-decomposition").trim(),
-      intent: String(codelet.focus ?? codelet.title ?? codelet.summary ?? codelet.id ?? codeletId).trim(),
-      observer: Boolean(codelet.observer)
-    },
-    projectSummary,
-    target: {
-      ticketId: normalizedTicketId,
-      filePath: normalizedFilePath,
-      goal: normalizedGoal,
-      ticket: target.ticket ?? null
-    },
-    surgicalContext,
-    promptContext: formatContextForPrompt(surgicalContext),
-    tooling: surgicalContext.tooling
+    gitRepo: true,
+    dirty: changedFiles.length > 0,
+    changedFiles,
+    source: "git"
   };
 }
-async function resolveTarget(projectRoot, ticketId) {
-  if (!ticketId) {
-    return { ticket: null };
+async function probeGitRepo(root) {
+  try {
+    const output7 = await runGit3(root, ["rev-parse", "--is-inside-work-tree"]);
+    return output7.trim() === "true";
+  } catch {
+    return false;
   }
-  return withWorkflowStore(projectRoot, async (store) => {
-    const entity = store.getEntity(ticketId);
-    if (!entity) {
-      return { ticket: null };
+}
+async function runGit3(root, args) {
+  const { stdout } = await execFileAsync9("git", args, {
+    cwd: root,
+    maxBuffer: 8 * 1024 * 1024
+  });
+  return String(stdout ?? "").trimEnd();
+}
+function parseStatusShort2(output7) {
+  return String(output7 ?? "").split(/\r?\n/).filter(Boolean).map((line) => line.slice(3).trim()).filter(Boolean);
+}
+async function recordWorkspaceMutation(root, mutation) {
+  const { openWorkflowStore: openWorkflowStore2 } = await Promise.resolve().then(() => (init_sqlite_store(), sqlite_store_exports));
+  const store = await openWorkflowStore2({ projectRoot: root });
+  try {
+    store.appendWorkspaceMutation({
+      ...mutation,
+      root: path31.resolve(root)
+    });
+  } finally {
+    store.close();
+  }
+}
+var execFileAsync9, guardDepth;
+var init_workspace_mutation = __esm({
+  "core/lib/workspace-mutation.ts"() {
+    "use strict";
+    execFileAsync9 = promisify10(execFile9);
+    guardDepth = 0;
+  }
+});
+
+// core/lib/cli.ts
+function parseArgs(argv) {
+  const args = { _: [] };
+  for (let index = 0; index < argv.length; index += 1) {
+    const value = argv[index];
+    if (!value.startsWith("--")) {
+      args._.push(value);
+      continue;
+    }
+    const trimmed = value.slice(2);
+    const equalIndex = trimmed.indexOf("=");
+    if (equalIndex >= 0) {
+      const key = trimmed.slice(0, equalIndex);
+      const parsedValue = trimmed.slice(equalIndex + 1);
+      assignArg(args, key, parsedValue);
+      continue;
+    }
+    const nextValue = argv[index + 1];
+    if (nextValue && !nextValue.startsWith("--")) {
+      assignArg(args, trimmed, nextValue);
+      index += 1;
+      continue;
+    }
+    assignArg(args, trimmed, true);
+  }
+  return args;
+}
+function printAndExit(message, code2 = 0) {
+  const stream = code2 === 0 ? process.stdout : process.stderr;
+  stream.write(`${message}
+`);
+  process.exit(code2);
+}
+function assignArg(args, key, value) {
+  if (Object.hasOwn(args, key)) {
+    const current2 = args[key];
+    args[key] = Array.isArray(current2) ? [...current2, value] : [current2, value];
+    return;
+  }
+  args[key] = value;
+}
+var init_cli = __esm({
+  "core/lib/cli.ts"() {
+    "use strict";
+  }
+});
+
+// cli/ai-workflow.ts
+import { writeSync } from "node:fs";
+
+// core/services/registry-init.ts
+init_service_hub();
+
+// core/services/core-llm.ts
+init_providers();
+init_router();
+var CoreLLM = class {
+  constructor(context) {
+    this.context = context;
+  }
+  context;
+  async generate(prompt, options = {}) {
+    const taskClass = options.taskClass ?? "logic";
+    const system = this.context.mode === ExecutionMode.Skill ? "You are working as a sub-task tool for a Parent AI Agent. Be concise and prioritize machine-readable output or direct action." : void 0;
+    const routed = await routeTask({
+      root: this.context.projectRoot,
+      taskClass,
+      domain: options.domain,
+      allowWeak: options.allowWeak
+    });
+    const recommendation = routed.recommended;
+    if (!recommendation) {
+      throw new Error(`No suitable LLM found for task class: ${taskClass}`);
+    }
+    return generateCompletion({
+      prompt,
+      system,
+      providerId: recommendation.providerId,
+      modelId: recommendation.modelId,
+      apiKey: recommendation.apiKey,
+      host: recommendation.host,
+      baseUrl: recommendation.baseUrl
+    });
+  }
+  async getProviderStatus() {
+    return discoverProviderState({ root: this.context.projectRoot });
+  }
+  async getUsageSummary() {
+    return summarizeCompletionUsage();
+  }
+};
+
+// core/services/kanban-manager.ts
+init_fs_utils();
+init_workspace_mutation();
+init_kanban_edit_utils();
+import path32 from "node:path";
+import { writeFile as writeFile10 } from "node:fs/promises";
+var KanbanManager = class {
+  constructor(context) {
+    this.context = context;
+  }
+  context;
+  async newTicket(options) {
+    const root = this.context.projectRoot;
+    const kanbanPath = path32.resolve(root, options.file ?? "kanban.md");
+    const markdown = await readText(kanbanPath);
+    const document = parseKanbanDocument(markdown);
+    const result = createTicket(document, options);
+    const nextMarkdown = renderKanbanDocument(document);
+    if (!options.dryRun) {
+      await withWorkspaceMutation(root, "kanban new", async () => {
+        await writeFile10(kanbanPath, nextMarkdown, "utf8");
+      });
+    }
+    return result;
+  }
+  async moveTicket(ticketId, targetSection, options = {}) {
+    const root = this.context.projectRoot;
+    const kanbanPath = path32.resolve(root, options.file ?? "kanban.md");
+    const markdown = await readText(kanbanPath);
+    const document = parseKanbanDocument(markdown);
+    const result = moveTicket(document, ticketId, targetSection, options);
+    const nextMarkdown = renderKanbanDocument(document);
+    if (!options.dryRun) {
+      await withWorkspaceMutation(root, "kanban move", async () => {
+        await writeFile10(kanbanPath, nextMarkdown, "utf8");
+      });
+    }
+    return result;
+  }
+  async getNext(options = {}) {
+    const root = this.context.projectRoot;
+    const kanbanPath = path32.resolve(root, options.file ?? "kanban.md");
+    const markdown = await readText(kanbanPath);
+    const document = parseKanbanDocument(markdown);
+    return getNextTicket(document, options);
+  }
+};
+
+// core/services/terminal-context.ts
+import * as readline2 from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+var TerminalContext = class {
+  static instance = null;
+  static getInterface() {
+    if (!this.instance) {
+      this.instance = readline2.createInterface({ input, output });
+    }
+    return this.instance;
+  }
+  static async question(prompt) {
+    const rl = this.getInterface();
+    return rl.question(prompt);
+  }
+  static close() {
+    if (this.instance) {
+      this.instance.close();
+      this.instance = null;
+    }
+  }
+  static pause() {
+    this.instance?.pause();
+  }
+  static resume() {
+    this.instance?.resume();
+  }
+};
+
+// core/services/protocol-enforcer.ts
+init_git_utils();
+init_execution_context();
+import { stat as stat4 } from "node:fs/promises";
+import { join } from "node:path";
+var ProtocolEnforcer = class {
+  constructor(context) {
+    this.context = context;
+  }
+  context;
+  async validateState() {
+    const violations = [];
+    const root = this.context.projectRoot;
+    const staged = await getChanges(root);
+    const operatorChanges = staged.filter((f) => /^(cli\/|core\/|runtime\/)/.test(f.path));
+    if (operatorChanges.length > 0) {
+      const dogfoodPath = join(root, ".ai-workflow", "generated", "dogfood", "report.json");
+      const dogfoodOk = await this.isReportFresh(dogfoodPath, operatorChanges);
+      if (!dogfoodOk) {
+        violations.push("Operator-surface changes detected but dogfood report is missing or stale.");
+      }
+      const auditPath = join(root, ".ai-workflow", "state", "workflow.db");
     }
     return {
-      ticket: {
-        id: entity.id,
-        title: entity.title,
-        lane: entity.lane,
-        state: entity.state,
-        summary: String(entity.data?.summary ?? "").trim()
-      }
+      ok: violations.length === 0,
+      violations
     };
-  });
-}
-var init_codelet_runtime = __esm({
-  "core/services/codelet-runtime.ts"() {
-    "use strict";
-    init_context_packer();
-    init_sync();
   }
-});
+  async isReportFresh(reportPath, changes) {
+    try {
+      const reportStat = await stat4(reportPath);
+      const latestChangeMs = Math.max(...changes.map((c) => 0));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
 
-// core/codelets/smart-codelet-runner.ts
-async function run(options, hub) {
-  const root = hub.context.projectRoot;
-  const codeletId = options.codeletId || "codelet-observer";
-  const runtimeContext = await buildSmartCodeletRunContext({
-    projectRoot: root,
-    codeletId,
-    ticketId: options.ticket,
-    filePath: options.file,
-    goal: options.goal
-  });
-  const meta = runtimeContext.codelet;
-  const route = await routeTask({
-    root,
-    taskClass: meta.taskClass ?? "task-decomposition",
-    preferLocal: true,
-    allowWeak: true
-  });
-  const prompt = buildPrompt({
-    codeletId,
-    meta,
-    root,
-    projectSummary: runtimeContext.projectSummary,
-    target: runtimeContext.target,
-    promptContext: runtimeContext.promptContext
-  });
-  const completion = await hub.llm.generate(prompt, { taskClass: meta.taskClass });
-  const result = parseStructuredResponse(completion.response);
-  return {
-    codelet: { id: codeletId, summary: meta.summary },
-    result
-  };
-}
-function buildPrompt({ codeletId, meta, root, projectSummary, target, promptContext }) {
-  return [
-    `Codelet id: ${codeletId}`,
-    `Focus: ${meta.intent}`,
-    `Purpose: ${meta.summary}`,
-    "",
-    "Context:",
-    promptContext,
-    "",
-    "Goal:",
-    target.goal || "none",
-    "",
-    "Return JSON only: { summary, observations[], suggested_actions[] }"
-  ].join("\n");
-}
-function parseStructuredResponse(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { summary: text };
-  }
-}
-var init_smart_codelet_runner = __esm({
-  "core/codelets/smart-codelet-runner.ts"() {
-    "use strict";
-    init_sync();
-    init_router();
-    init_providers();
-    init_codelet_runtime();
-  }
+// core/codelets/guidance-summary.ts
+var guidance_summary_exports = {};
+__export(guidance_summary_exports, {
+  run: () => run
 });
+init_active_guardrails();
+init_fs_utils();
+import path34 from "node:path";
 
 // core/lib/guidance-utils.ts
+init_markdown_utils();
 import path33 from "node:path";
 function deriveKeywords({ ticketText = "", files = [] }) {
   const fromFiles = files.flatMap((filePath) => {
@@ -26443,6 +26598,54 @@ function compactGuidanceItems(items, options = {}) {
   }
   return compact2;
 }
+function inferValidationPlan({ ticket = null, files = [] }) {
+  const normalizedFiles = files.map((filePath) => String(filePath).toLowerCase());
+  const ticketText = `${ticket?.heading ?? ""}
+${ticket?.body ?? ""}`.toLowerCase();
+  const touchesUi = normalizedFiles.some((filePath) => filePath.includes("/ui") || /\.(riot|tsx?|jsx?|css)$/.test(filePath)) || /\b(ui|visual|screen|modal|component|css|layout|card|browser)\b/.test(ticketText);
+  const touchesRuntime = normalizedFiles.some(
+    (filePath) => /(engine|persist|store|state|router|session|firebase|db|api|auth)/.test(filePath)
+  ) || /\b(persist|state|router|session|firebase|database|api|auth|engine)\b/.test(ticketText);
+  const touchesWorkflow = normalizedFiles.some(
+    (filePath) => /(kanban|execution-protocol|project-guidelines|knowledge|agents\.md|contributing\.md|enforcement|workflow)/.test(filePath)
+  ) || /\b(kanban|workflow|guidance|contributing|execution protocol|project guidelines|knowledge)\b/.test(ticketText);
+  const hintsBatch = /\b(batch|sweep|several|family|related tickets|larger ticket)\b/.test(ticketText);
+  const hintsSpecial = /\b(import|export|migration|payment|sync|forge|simulation|emulator|special flow|ai)\b/.test(ticketText);
+  const section = ticket?.section ?? null;
+  const notes = [];
+  let level = "small-ticket";
+  let recommendation = "Run quick but meaningful unit or module tests for the touched behavior.";
+  if (touchesWorkflow) {
+    notes.push("workflow/docs changed -> include workflow-audit");
+  }
+  if (section === "Bugs P1" || touchesRuntime) {
+    level = "large-or-risky";
+    recommendation = "Run targeted unit/module tests plus E2E for the affected system path.";
+  }
+  if (hintsBatch && level === "small-ticket") {
+    level = "batch-or-ui";
+    recommendation = "Run quick unit/module checks plus targeted E2E for the related batch.";
+  }
+  if (section === "Human Inspection") {
+    notes.push("leave residual eye/ear/product judgment in Human Inspection");
+  }
+  if (touchesUi) {
+    notes.push("UI changed -> include visual check in the E2E layer when the change is user-visible");
+    if (level === "small-ticket") {
+      level = "batch-or-ui";
+      recommendation = "Run quick unit/module checks plus a focused browser or visual E2E pass.";
+    }
+  }
+  if (hintsSpecial) {
+    notes.push("special flow detected -> add a special-purpose test for the exact mechanism");
+  }
+  return {
+    level,
+    recommendation,
+    checks: buildValidationChecks({ level, touchesUi, touchesRuntime, touchesWorkflow }),
+    notes
+  };
+}
 function mergeUnique(primary, secondary) {
   const seen = new Set(primary.map((item) => item.line));
   const merged = [...primary];
@@ -26454,6 +26657,26 @@ function mergeUnique(primary, secondary) {
     merged.push(item);
   }
   return merged;
+}
+function buildValidationChecks({ level, touchesUi, touchesRuntime, touchesWorkflow }) {
+  const checks = [];
+  if (touchesWorkflow) {
+    checks.push("workflow-audit");
+  }
+  checks.push("targeted unit/module tests");
+  if (level !== "small-ticket" || touchesUi || touchesRuntime) {
+    checks.push("targeted E2E/system-path check");
+  }
+  if (touchesUi) {
+    checks.push("visual check");
+  }
+  if (touchesRuntime) {
+    checks.push("typecheck");
+  }
+  if (level === "large-or-risky") {
+    checks.push("consider super-E2E/simulation/emulator run if this is part of an accumulated batch");
+  }
+  return checks;
 }
 function compactGuidanceCandidates(candidates) {
   const seen = /* @__PURE__ */ new Set();
@@ -26490,17 +26713,178 @@ function isLowSignalGuidanceText(value) {
 function compactText3(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
-var init_guidance_utils = __esm({
-  "core/lib/guidance-utils.ts"() {
-    "use strict";
-    init_markdown_utils();
+
+// core/codelets/guidance-summary.ts
+init_git_utils();
+init_toolkit_root();
+init_workflow_store_utils();
+async function run(options, hub) {
+  const root = path34.resolve(String(options.root ?? hub.context.projectRoot));
+  const toolkitRoot3 = getToolkitRoot2();
+  const fileInputs = options.files ? Array.isArray(options.files) ? options.files : String(options.files).split(",") : [];
+  const files = [...fileInputs];
+  let ticket = null;
+  if (options.ticket) {
+    const resolved = await loadTicketContext({ root, ticketId: options.ticket, kanbanPath: options.kanban ?? null });
+    ticket = resolved.ticket;
   }
+  if (options.changed) {
+    if (await isGitRepo2(root)) {
+      const changed = await getChanges(root);
+      for (const change of changed) {
+        files.push(change.path);
+      }
+    }
+  }
+  const uniqueFiles = [...new Set(files.filter(Boolean).map(normalizePath).filter((filePath) => !isWorkflowStatePath(filePath)))];
+  const ticketText = ticket ? `${ticket.heading}
+${ticket.body}` : "";
+  const keywords2 = deriveKeywords({ ticketText, files: uniqueFiles });
+  const [agents, contributing, executionProtocol, enforcement, guidelines, manual, knowledge] = await Promise.all([
+    readText(path34.resolve(root, "AGENTS.md")),
+    readText(path34.resolve(root, "CONTRIBUTING.md")),
+    readText(path34.resolve(root, "execution-protocol.md")),
+    readText(path34.resolve(root, "enforcement.md")),
+    readText(path34.resolve(root, "project-guidelines.md")),
+    readText(path34.resolve(root, "docs", "MANUAL.md"), await readText(path34.resolve(toolkitRoot3, "docs", "MANUAL.md"))),
+    readText(path34.resolve(root, "knowledge.md"))
+  ]);
+  const activeGuardrails = compileActiveGuardrails({
+    agents,
+    contributing,
+    executionProtocol,
+    enforcement,
+    projectGuidelines: guidelines,
+    manual,
+    knowledge
+  }, { keywords: keywords2, limit: 8 });
+  return {
+    activeGuardrails,
+    validationPlan: inferValidationPlan({ ticket, files: uniqueFiles }),
+    guidance: {
+      agents: compactGuidanceItems(summarizeGuidance(agents, keywords2, { alwaysIncludeTop: true, limit: 4 })),
+      contributing: compactGuidanceItems(summarizeGuidance(contributing, keywords2, { limit: 4 })),
+      executionProtocol: compactGuidanceItems(summarizeGuidance(executionProtocol, keywords2, { limit: 4 })),
+      enforcement: compactGuidanceItems(summarizeGuidance(enforcement, keywords2, { limit: 3 })),
+      projectGuidelines: compactGuidanceItems(summarizeGuidance(guidelines, keywords2, { limit: 4 })),
+      manual: compactGuidanceItems(summarizeGuidance(manual, keywords2, { limit: 4 })),
+      knowledge: compactGuidanceItems(summarizeGuidance(knowledge, keywords2, { limit: 3 }))
+    }
+  };
+}
+
+// core/codelets/sync.ts
+var sync_exports2 = {};
+__export(sync_exports2, {
+  run: () => run2
 });
+init_sync();
+async function run2(options, hub) {
+  const result = await syncProject({
+    projectRoot: hub.context.projectRoot,
+    writeProjections: Boolean(options.writeProjections || options["write-projections"])
+  });
+  const enforcer = hub.resolve("enforcer");
+  const protocol = await enforcer.validateState();
+  return {
+    ...result,
+    protocol
+  };
+}
+
+// core/codelets/project-summary.ts
+var project_summary_exports = {};
+__export(project_summary_exports, {
+  run: () => run3
+});
+init_sync();
+async function run3(_args, hub) {
+  return getProjectSummary({ projectRoot: hub.context.projectRoot });
+}
+
+// core/codelets/kanban.ts
+var kanban_exports = {};
+__export(kanban_exports, {
+  run: () => run4
+});
+async function run4(args, hub) {
+  const manager = new KanbanManager(hub.context);
+  const subcommand = args._[0];
+  switch (subcommand) {
+    case "new":
+      return manager.newTicket(args);
+    case "move":
+      return manager.moveTicket(args.id, args.to, args);
+    case "next":
+      return manager.getNext(args);
+    default:
+      throw new Error(`Unknown kanban subcommand: ${subcommand}`);
+  }
+}
+
+// core/codelets/metrics.ts
+var metrics_exports = {};
+__export(metrics_exports, {
+  run: () => run5
+});
+init_sync();
+async function run5(_args, hub) {
+  return getProjectMetrics({ projectRoot: hub.context.projectRoot });
+}
+
+// core/codelets/execute-ticket.ts
+var execute_ticket_exports = {};
+__export(execute_ticket_exports, {
+  run: () => run6
+});
+init_orchestrator();
+init_operating_context();
+init_run_artifacts();
+async function run6(options, hub) {
+  const context = await resolveOperatingContext({
+    cwd: options.root || hub.context.projectRoot,
+    mode: options.mode || null,
+    root: options.root || null,
+    evidenceRoot: options.evidenceRoot || null,
+    allowExternalTarget: Boolean(options.allowExternalTarget)
+  });
+  assertSafeRepairTarget(context, { action: options.apply ? "ticket execution" : "ticket planning" });
+  const payload = await executeTicket({
+    root: context.repairTargetRoot,
+    ticketId: options.ticketId,
+    apply: Boolean(options.apply),
+    verificationTimeoutMs: options.timeoutMs
+  });
+  payload.mode = context.mode;
+  payload.repairTargetRoot = context.repairTargetRoot;
+  payload.evidenceRoot = context.evidenceRoot;
+  const artifactPayload = { ...payload };
+  payload.runArtifact = await recordRunArtifact(context.repairTargetRoot, {
+    kind: "execute-ticket",
+    mode: context.mode,
+    repairTargetRoot: context.repairTargetRoot,
+    evidenceRoot: context.evidenceRoot,
+    operationalRoot: context.repairTargetRoot,
+    ticketId: options.ticketId,
+    ok: payload.success,
+    payload: artifactPayload
+  });
+  return payload;
+}
 
 // core/codelets/context-pack.ts
-import path34 from "node:path";
-async function run2(options, hub) {
-  const root = path34.resolve(String(options.root ?? hub.context.projectRoot));
+var context_pack_exports = {};
+__export(context_pack_exports, {
+  run: () => run7
+});
+init_active_guardrails();
+init_fs_utils();
+import path35 from "node:path";
+init_git_utils();
+init_toolkit_root();
+init_workflow_store_utils();
+async function run7(options, hub) {
+  const root = path35.resolve(String(options.root ?? hub.context.projectRoot));
   const toolkitRoot3 = getToolkitRoot2();
   const files = [...options.files ?? []];
   let ticket = null;
@@ -26527,13 +26911,13 @@ async function run2(options, hub) {
 ${ticket.body}` : "";
   const keywords2 = deriveKeywords({ ticketText, files: workingSetFiles });
   const [agents, contributing, executionProtocol, enforcement, guidelines, manual, knowledge] = await Promise.all([
-    readText(path34.resolve(root, "AGENTS.md")),
-    readText(path34.resolve(root, "CONTRIBUTING.md")),
-    readText(path34.resolve(root, "execution-protocol.md")),
-    readText(path34.resolve(root, "enforcement.md")),
-    readText(path34.resolve(root, "project-guidelines.md")),
-    readText(path34.resolve(root, "docs", "MANUAL.md"), await readText(path34.resolve(toolkitRoot3, "docs", "MANUAL.md"))),
-    readText(path34.resolve(root, "knowledge.md"))
+    readText(path35.resolve(root, "AGENTS.md")),
+    readText(path35.resolve(root, "CONTRIBUTING.md")),
+    readText(path35.resolve(root, "execution-protocol.md")),
+    readText(path35.resolve(root, "enforcement.md")),
+    readText(path35.resolve(root, "project-guidelines.md")),
+    readText(path35.resolve(root, "docs", "MANUAL.md"), await readText(path35.resolve(toolkitRoot3, "docs", "MANUAL.md"))),
+    readText(path35.resolve(root, "knowledge.md"))
   ]);
   const guidanceSlices = compactGuidanceItems([
     ...summarizeGuidance(agents, keywords2, { alwaysIncludeTop: true, limit: 3, fallbackLimit: 2 }),
@@ -26568,527 +26952,201 @@ function recommendSessionHygiene({ fileCount, guidanceCount, ticket }) {
   if (fileCount >= 10 || guidanceCount >= 8) return { recommendation: "/compact" };
   return { recommendation: "stay" };
 }
-var init_context_pack = __esm({
-  "core/codelets/context-pack.ts"() {
-    "use strict";
-    init_active_guardrails();
-    init_fs_utils();
-    init_guidance_utils();
-    init_git_utils();
-    init_toolkit_root();
-    init_workflow_store_utils();
-  }
-});
 
-// core/codelets/execute-ticket.ts
-async function run3(options, hub) {
-  const context = await resolveOperatingContext({
-    cwd: options.root || hub.context.projectRoot,
-    mode: options.mode || null,
-    root: options.root || null,
-    evidenceRoot: options.evidenceRoot || null,
-    allowExternalTarget: Boolean(options.allowExternalTarget)
+// core/codelets/smart-codelet-runner.ts
+var smart_codelet_runner_exports = {};
+__export(smart_codelet_runner_exports, {
+  run: () => run8
+});
+init_router();
+
+// core/services/codelet-runtime.ts
+init_context_packer();
+init_sync();
+import path36 from "node:path";
+async function buildSmartCodeletRunContext({
+  projectRoot = process.cwd(),
+  codeletId,
+  ticketId = null,
+  filePath = null,
+  goal = null
+} = {}) {
+  const normalizedTicketId = ticketId ? String(ticketId).trim() : null;
+  const normalizedFilePath = filePath ? path36.normalize(String(filePath).trim()) : null;
+  const normalizedGoal = goal ? String(goal).trim() : null;
+  const [codelet, projectSummary] = await Promise.all([
+    getCodelet({ projectRoot, codeletId }),
+    getProjectSummary({ projectRoot })
+  ]);
+  if (!codelet) {
+    throw new Error(`Unknown smart codelet: ${codeletId}`);
+  }
+  const target = await resolveTarget(projectRoot, normalizedTicketId);
+  const surgicalContext = await buildSurgicalContext(projectRoot, {
+    ticketId: target.ticket?.id ?? normalizedTicketId,
+    filePaths: normalizedFilePath ? [normalizedFilePath] : [],
+    symbolNames: []
   });
-  assertSafeRepairTarget(context, { action: options.apply ? "ticket execution" : "ticket planning" });
-  const payload = await executeTicket({
-    root: context.repairTargetRoot,
-    ticketId: options.ticketId,
-    apply: Boolean(options.apply),
-    verificationTimeoutMs: options.timeoutMs
+  return {
+    codelet: {
+      ...codelet,
+      summary: String(codelet.summary ?? codelet.title ?? codelet.id ?? codeletId).trim(),
+      taskClass: String(codelet.taskClass ?? "task-decomposition").trim(),
+      intent: String(codelet.focus ?? codelet.title ?? codelet.summary ?? codelet.id ?? codeletId).trim(),
+      observer: Boolean(codelet.observer)
+    },
+    projectSummary,
+    target: {
+      ticketId: normalizedTicketId,
+      filePath: normalizedFilePath,
+      goal: normalizedGoal,
+      ticket: target.ticket ?? null
+    },
+    surgicalContext,
+    promptContext: formatContextForPrompt(surgicalContext),
+    tooling: surgicalContext.tooling
+  };
+}
+async function resolveTarget(projectRoot, ticketId) {
+  if (!ticketId) {
+    return { ticket: null };
+  }
+  return withWorkflowStore(projectRoot, async (store) => {
+    const entity = store.getEntity(ticketId);
+    if (!entity) {
+      return { ticket: null };
+    }
+    return {
+      ticket: {
+        id: entity.id,
+        title: entity.title,
+        lane: entity.lane,
+        state: entity.state,
+        summary: String(entity.data?.summary ?? "").trim()
+      }
+    };
   });
-  payload.mode = context.mode;
-  payload.repairTargetRoot = context.repairTargetRoot;
-  payload.evidenceRoot = context.evidenceRoot;
-  const artifactPayload = { ...payload };
-  payload.runArtifact = await recordRunArtifact(context.repairTargetRoot, {
-    kind: "execute-ticket",
-    mode: context.mode,
-    repairTargetRoot: context.repairTargetRoot,
-    evidenceRoot: context.evidenceRoot,
-    operationalRoot: context.repairTargetRoot,
-    ticketId: options.ticketId,
-    ok: payload.success,
-    payload: artifactPayload
+}
+
+// core/codelets/smart-codelet-runner.ts
+async function run8(options, hub) {
+  const root = hub.context.projectRoot;
+  const codeletId = options.codeletId || "codelet-observer";
+  const runtimeContext = await buildSmartCodeletRunContext({
+    projectRoot: root,
+    codeletId,
+    ticketId: options.ticket,
+    filePath: options.file,
+    goal: options.goal
   });
-  return payload;
+  const meta = runtimeContext.codelet;
+  const prompt = buildPrompt({
+    codeletId,
+    meta,
+    root,
+    projectSummary: runtimeContext.projectSummary,
+    target: runtimeContext.target,
+    promptContext: runtimeContext.promptContext
+  });
+  const llm = hub.resolve("llm");
+  const completion = await llm.generate(prompt, { taskClass: meta.taskClass });
+  const result = parseStructuredResponse(completion.response);
+  return {
+    codelet: { id: codeletId, summary: meta.summary },
+    result
+  };
 }
-var init_execute_ticket = __esm({
-  "core/codelets/execute-ticket.ts"() {
-    "use strict";
-    init_orchestrator();
-    init_operating_context();
-    init_run_artifacts();
-  }
-});
-
-// core/services/core-llm.ts
-var CoreLLM;
-var init_core_llm = __esm({
-  "core/services/core-llm.ts"() {
-    "use strict";
-    init_providers();
-    init_router();
-    CoreLLM = class {
-      constructor(context) {
-        this.context = context;
-      }
-      context;
-      async generate(prompt, options = {}) {
-        const taskClass = options.taskClass ?? "logic";
-        const system = this.context.mode === ExecutionMode.Skill ? "You are working as a sub-task tool for a Parent AI Agent. Be concise and prioritize machine-readable output or direct action." : void 0;
-        const routed = await routeTask({
-          root: this.context.projectRoot,
-          taskClass,
-          domain: options.domain,
-          allowWeak: options.allowWeak
-        });
-        const recommendation = routed.recommended;
-        if (!recommendation) {
-          throw new Error(`No suitable LLM found for task class: ${taskClass}`);
-        }
-        return generateCompletion({
-          prompt,
-          system,
-          providerId: recommendation.providerId,
-          modelId: recommendation.modelId,
-          apiKey: recommendation.apiKey,
-          host: recommendation.host,
-          baseUrl: recommendation.baseUrl
-        });
-      }
-      async getProviderStatus() {
-        return discoverProviderState({ root: this.context.projectRoot });
-      }
-      async getUsageSummary() {
-        return summarizeCompletionUsage();
-      }
-    };
-  }
-});
-
-// core/services/terminal-context.ts
-import * as readline2 from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-var TerminalContext;
-var init_terminal_context = __esm({
-  "core/services/terminal-context.ts"() {
-    "use strict";
-    TerminalContext = class {
-      static instance = null;
-      static getInterface() {
-        if (!this.instance) {
-          this.instance = readline2.createInterface({ input, output });
-        }
-        return this.instance;
-      }
-      static async question(prompt) {
-        const rl = this.getInterface();
-        return rl.question(prompt);
-      }
-      static close() {
-        if (this.instance) {
-          this.instance.close();
-          this.instance = null;
-        }
-      }
-      static pause() {
-        this.instance?.pause();
-      }
-      static resume() {
-        this.instance?.resume();
-      }
-    };
-  }
-});
-
-// core/services/execution-context.ts
-function detectExecutionMode() {
-  if (process.env.AI_WORKFLOW_CONTEXT === "skill" || process.argv.includes("--skill-mode")) {
-    return "skill" /* Skill */;
-  }
-  return "shell" /* Shell */;
+function buildPrompt({ codeletId, meta, root, projectSummary, target, promptContext }) {
+  return [
+    `Codelet id: ${codeletId}`,
+    `Focus: ${meta.intent}`,
+    `Purpose: ${meta.summary}`,
+    "",
+    "Context:",
+    promptContext,
+    "",
+    "Goal:",
+    target.goal || "none",
+    "",
+    "Return JSON only: { summary, observations[], suggested_actions[] }"
+  ].join("\n");
 }
-var init_execution_context = __esm({
-  "core/services/execution-context.ts"() {
-    "use strict";
+function parseStructuredResponse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { summary: text };
   }
-});
-
-// core/services/kanban-manager.ts
-import path35 from "node:path";
-import { writeFile as writeFile10 } from "node:fs/promises";
-var KanbanManager;
-var init_kanban_manager = __esm({
-  "core/services/kanban-manager.ts"() {
-    "use strict";
-    init_fs_utils();
-    init_workspace_mutation();
-    init_kanban_edit_utils();
-    KanbanManager = class {
-      constructor(context) {
-        this.context = context;
-      }
-      context;
-      async newTicket(options) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        const result = createTicket(document, options);
-        const nextMarkdown = renderKanbanDocument(document);
-        if (!options.dryRun) {
-          await withWorkspaceMutation(root, "kanban new", async () => {
-            await writeFile10(kanbanPath, nextMarkdown, "utf8");
-          });
-        }
-        return result;
-      }
-      async moveTicket(ticketId, targetSection, options = {}) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        const result = moveTicket(document, ticketId, targetSection, options);
-        const nextMarkdown = renderKanbanDocument(document);
-        if (!options.dryRun) {
-          await withWorkspaceMutation(root, "kanban move", async () => {
-            await writeFile10(kanbanPath, nextMarkdown, "utf8");
-          });
-        }
-        return result;
-      }
-      async getNext(options = {}) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        return getNextTicket(document, options);
-      }
-    };
-  }
-});
-
-// core/services/service-hub.ts
-var ServiceHub;
-var init_service_hub = __esm({
-  "core/services/service-hub.ts"() {
-    "use strict";
-    init_smart_codelet_runner();
-    init_context_pack();
-    init_execute_ticket();
-    init_sync();
-    init_status();
-    init_core_llm();
-    init_terminal_context();
-    init_execution_context();
-    init_kanban_manager();
-    ServiceHub = class {
-      static _context = null;
-      static _llm = null;
-      static _kanban = null;
-      static get context() {
-        if (!this._context) {
-          this._context = {
-            projectRoot: process.cwd(),
-            mode: detectExecutionMode()
-          };
-        }
-        return this._context;
-      }
-      static setContext(context) {
-        this._context = context;
-        this._llm = null;
-        this._kanban = null;
-      }
-      // --- Services ---
-      static get llm() {
-        if (!this._llm) {
-          this._llm = new CoreLLM(this.context);
-        }
-        return this._llm;
-      }
-      static get kanban() {
-        if (!this._kanban) {
-          this._kanban = new KanbanManager(this.context);
-        }
-        return this._kanban;
-      }
-      static get terminal() {
-        return TerminalContext;
-      }
-      // --- High-Level Codelet APIs ---
-      /**
-       * Synchronize the project state and update projections.
-       */
-      static async sync(options = {}) {
-        return syncProject({
-          projectRoot: this.context.projectRoot,
-          writeProjections: options.writeProjections ?? false
-        });
-      }
-      /**
-       * Get a high-level summary of the project status.
-       */
-      static async getProjectSummary() {
-        return getProjectSummary({ projectRoot: this.context.projectRoot });
-      }
-      /**
-       * Resolve project status for a specific selector.
-       */
-      static async getStatus(selector, options = {}) {
-        return resolveProjectStatus({
-          projectRoot: this.context.projectRoot,
-          selector,
-          type: options.type ?? null,
-          includeRelated: options.includeRelated ?? false,
-          rawQuestion: false,
-          relatedLimit: options.includeRelated ? 24 : 12
-        });
-      }
-      /**
-       * Search project entities and claims.
-       */
-      static async search(query) {
-        return searchProject({ projectRoot: this.context.projectRoot, query });
-      }
-      /**
-       * Discover exported symbols matching a pattern.
-       */
-      static async discoverExports(pattern = null) {
-        return withWorkflowStore(this.context.projectRoot, async (store) => {
-          const symbols = store.listSymbols();
-          const filtered = symbols.filter(
-            (s) => s.exported && (!pattern || s.name.includes(pattern) || s.filePath.includes(pattern))
-          );
-          return filtered.map((s) => ({
-            id: s.id,
-            name: s.name,
-            kind: s.kind,
-            filePath: s.filePath,
-            line: s.line
-          }));
-        });
-      }
-      /**
-       * Get historical performance metrics.
-       */
-      static async getMetrics() {
-        return getProjectMetrics({ projectRoot: this.context.projectRoot });
-      }
-      /**
-       * Evaluate project readiness for a specific goal.
-       */
-      static async evaluateReadiness(goalType, question, options = {}) {
-        return evaluateProjectReadiness({
-          projectRoot: this.context.projectRoot,
-          request: {
-            protocol_version: "1.0",
-            operation: "evaluate_readiness",
-            goal: { type: goalType, target: "project", question },
-            ...options
-          }
-        });
-      }
-      // --- Codelet Discovery ---
-      static isBuiltinCodelet(id) {
-        const registry = {
-          "sync": true,
-          "project-summary": true,
-          "summary": true,
-          "metrics": true,
-          "search": true,
-          "surface": true,
-          "execute-ticket": true,
-          "context-pack": true,
-          "smart-run": true
-        };
-        return registry[id] === true;
-      }
-      static async runBuiltinCodelet(id, args) {
-        switch (id) {
-          case "sync":
-            return this.sync(args);
-          case "project-summary":
-          case "summary":
-            return this.getProjectSummary();
-          case "metrics":
-            return this.getMetrics();
-          case "search":
-            return this.search(args.query || args._[0]);
-          case "surface":
-            return this.discoverExports(args._[0]);
-          case "execute-ticket":
-            return this.executeTicket({ ticketId: args.ticket || args._[0], apply: Boolean(args.apply), timeoutMs: args["timeout-ms"] });
-          case "context-pack":
-            return this.contextPack({ ticket: args.ticket, changed: Boolean(args.changed), files: args.files ? String(args.files).split(",") : [] });
-          case "smart-run":
-            return this.smartRun(args);
-          default:
-            throw new Error(`Unknown builtin codelet: ${id}`);
-        }
-      }
-      /**
-       * Execute or plan a specific ticket.
-       */
-      static async executeTicket(options) {
-        return run3(options, this);
-      }
-      /**
-       * Bundle project context for agent consumption.
-       */
-      static async contextPack(options) {
-        return run2(options, this);
-      }
-      /**
-       * Execute an AI-driven smart codelet.
-       */
-      static async smartRun(options) {
-        return run(options, this);
-      }
-    };
-  }
-});
-
-// core/lib/cli.ts
-function parseArgs(argv) {
-  const args = { _: [] };
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (!value.startsWith("--")) {
-      args._.push(value);
-      continue;
-    }
-    const trimmed = value.slice(2);
-    const equalIndex = trimmed.indexOf("=");
-    if (equalIndex >= 0) {
-      const key = trimmed.slice(0, equalIndex);
-      const parsedValue = trimmed.slice(equalIndex + 1);
-      assignArg(args, key, parsedValue);
-      continue;
-    }
-    const nextValue = argv[index + 1];
-    if (nextValue && !nextValue.startsWith("--")) {
-      assignArg(args, trimmed, nextValue);
-      index += 1;
-      continue;
-    }
-    assignArg(args, trimmed, true);
-  }
-  return args;
 }
-function printAndExit(message, code2 = 0) {
-  const stream = code2 === 0 ? process.stdout : process.stderr;
-  stream.write(`${message}
-`);
-  process.exit(code2);
-}
-function assignArg(args, key, value) {
-  if (Object.hasOwn(args, key)) {
-    const current2 = args[key];
-    args[key] = Array.isArray(current2) ? [...current2, value] : [current2, value];
-    return;
-  }
-  args[key] = value;
-}
-var init_cli = __esm({
-  "core/lib/cli.ts"() {
-    "use strict";
-  }
+
+// core/codelets/status.ts
+var status_exports = {};
+__export(status_exports, {
+  run: () => run9
 });
+init_status();
+async function run9(selector, options, hub) {
+  return resolveProjectStatus({
+    projectRoot: hub.context.projectRoot,
+    selector,
+    type: options.type ?? null,
+    includeRelated: options.includeRelated ?? false,
+    rawQuestion: false,
+    relatedLimit: options.includeRelated ? 24 : 12
+  });
+}
 
-// cli/ai-workflow.ts
-import { writeSync } from "node:fs";
+// core/codelets/discovery.ts
+var discovery_exports = {};
+__export(discovery_exports, {
+  run: () => run10
+});
+init_sync();
+async function run10(options, hub) {
+  const pattern = options.pattern || null;
+  return withWorkflowStore(hub.context.projectRoot, async (store) => {
+    const symbols = store.listSymbols();
+    const filtered = symbols.filter(
+      (s) => s.exported && (!pattern || s.name.includes(pattern) || s.filePath.includes(pattern))
+    );
+    return filtered.map((s) => ({
+      id: s.id,
+      name: s.name,
+      kind: s.kind,
+      filePath: s.filePath,
+      line: s.line
+    }));
+  });
+}
 
-// cli/lib/main.ts
-init_service_hub();
-init_execution_context();
+// core/codelets/dogfood.ts
+var dogfood_exports = {};
+__export(dogfood_exports, {
+  run: () => run11
+});
+init_operator_surfaces();
+init_dogfood_utils();
+import path37 from "node:path";
+async function run11(options, hub) {
+  const root = path37.resolve(String(options.root ?? hub.context.projectRoot));
+  const requestedSurfaces = options.surface ?? listOperatorSurfaceIds();
+  const profile = options.profile ?? "bootstrap";
+  const timeoutMs = options.timeoutMs ?? 45e3;
+  return runDogfood({
+    root,
+    surfaces: requestedSurfaces,
+    profile,
+    timeoutMs,
+    writeReport: true
+  });
+}
 
-// core/services/presenter.ts
-var ShellPresenter = class {
-  static formatProjectSummary(summary) {
-    const assessmentStatusBits = Object.entries(summary.assessmentSummary?.byStatus ?? {}).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0])).map(([status, count]) => `${count} ${status}`);
-    const topAssessmentError = summary.assessmentSummary?.topErrors?.[0] ?? null;
-    const lines = [
-      `Files indexed: ${summary.fileCount}`,
-      `Symbols indexed: ${summary.symbolCount}`,
-      `Notes tracked: ${summary.noteCount}`,
-      `Tickets: ${summary.activeTickets.length}`,
-      `Assessments: ${summary.assessmentCount}${assessmentStatusBits.length ? ` (${assessmentStatusBits.join(", ")})` : ""}`,
-      topAssessmentError ? `Top assessment failure: ${topAssessmentError.error} (${topAssessmentError.count})` : null,
-      `Codelets: ${summary.codeletCount ?? 0}`,
-      `Candidates: ${summary.candidates.length}`
-    ].filter(Boolean);
-    if (summary.activeTickets.length) {
-      lines.push("\nActive Tickets:");
-      for (const t of summary.activeTickets) {
-        lines.push(`- [${t.lane}] ${t.id}: ${t.title}`);
-      }
-    }
-    return lines.join("\n") + "\n";
-  }
-  static formatSyncResult(result) {
-    const lines = [
-      `DB: ${result.dbPath}`,
-      `Indexed files: ${result.indexedFiles}`,
-      `Symbols: ${result.indexedSymbols}`,
-      `Claims: ${result.indexedClaims}`,
-      `Notes: ${result.indexedNotes}`,
-      `Codelets: ${result.codeletRegistry?.codeletsIndexed ?? 0}`,
-      `Imported tickets: ${result.importSummary.importedTickets}`,
-      `Reviewed candidates: ${result.lifecycle.reviewed.length}`
-    ];
-    if (result.projections) {
-      lines.push(`Wrote projections: ${result.projections.kanbanPath}, ${result.projections.epicsPath}`);
-    }
-    return lines.join("\n") + "\n";
-  }
-  static formatCodeletResult(id, result) {
-    if (id === "sync") return this.formatSyncResult(result);
-    if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
-    if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
-    if (result && typeof result === "object") {
-      return JSON.stringify(result, null, 2) + "\n";
-    }
-    return String(result) + "\n";
-  }
-  static formatExecuteTicketResult(result) {
-    const lines = [
-      `Mode: ${result.mode}`,
-      `Repair target: ${result.repairTargetRoot}`,
-      `Ticket: ${result.ticketId || result.id}`,
-      `Status: ${result.status ?? (result.success ? "ok" : "failed")}`,
-      `Ready: ${result.executionPlan?.ready ? "yes" : "no"}`
-    ].filter(Boolean);
-    if (result.executionPlan?.verificationCommands?.length) {
-      lines.push(`Verification: ${result.executionPlan.verificationCommands.map((item) => item.command).join(" | ")}`);
-    }
-    if (result.verification?.results?.length) {
-      lines.push(`Baseline: ${result.verification.ok ? "green" : "red"}`);
-      for (const res of result.verification.results) {
-        lines.push(`- ${res.exitCode === 0 ? "PASS" : "FAIL"} ${res.command} | ${res.snippet}`);
-      }
-    }
-    if (result.changedFiles?.length) {
-      lines.push(`Changed files: ${result.changedFiles.join(", ")}`);
-    }
-    if (result.error) {
-      lines.push(`Error: ${result.error}`);
-    }
-    return lines.join("\n") + "\n";
-  }
-};
-
-// cli/lib/main.ts
-import path45 from "node:path";
-import { execFile as execFile13, spawn as spawn6 } from "node:child_process";
-init_cli();
-import * as readline7 from "node:readline/promises";
-import { stdin as input6, stdout as output6 } from "node:process";
-import { promisify as promisify14 } from "node:util";
-import { readFile as readFile19 } from "node:fs/promises";
-
-// cli/lib/codelets.ts
-init_codelets();
+// core/codelets/workflow-audit.ts
+var workflow_audit_exports = {};
+__export(workflow_audit_exports, {
+  run: () => run12
+});
+import path40 from "node:path";
 
 // core/lib/workflow-audit-report.ts
 init_sqlite_store();
@@ -27098,11 +27156,11 @@ init_fs_utils();
 init_operator_surfaces();
 init_kanban_utils();
 init_workspace_honesty();
-import path37 from "node:path";
+import path39 from "node:path";
 import { execSync } from "node:child_process";
 
 // scripts/generate-manual-html.ts
-import path36 from "node:path";
+import path38 from "node:path";
 import { createHash as createHash3 } from "node:crypto";
 init_fs_utils();
 function renderManualHtml(markdown, { sourcePath = "docs/MANUAL.md" } = {}) {
@@ -27127,7 +27185,7 @@ function renderManualHtml(markdown, { sourcePath = "docs/MANUAL.md" } = {}) {
     "  <header>",
     `    <h1>${escapeHtml(title)}</h1>`,
     "    <p>This HTML manual is generated from the canonical Markdown manual.</p>",
-    `    <p><a href="${escapeHtml(path36.posix.basename(sourcePath))}">Canonical Markdown source</a></p>`,
+    `    <p><a href="${escapeHtml(path38.posix.basename(sourcePath))}">Canonical Markdown source</a></p>`,
     "  </header>",
     "  <main>",
     '    <nav aria-labelledby="manual-toc-heading">',
@@ -27359,7 +27417,7 @@ var DONE_DATE_PATTERN = /✅\s*(\d{4}-\d{2}-\d{2})/i;
 var EPIC_PATTERN = /(?:^|\n)-\s*Epic:\s*([A-Z][A-Z0-9]+-\d+)\s*(?:\n|$)/i;
 var MAX_LIVE_DONE_DAYS = 7;
 async function buildWorkflowAuditSummary(root = process.cwd()) {
-  const resolvedRoot = path37.resolve(String(root ?? process.cwd()));
+  const resolvedRoot = path39.resolve(String(root ?? process.cwd()));
   const findings = [];
   const activeDocs = [];
   for (const relativePath of REQUIRED_DOCS) {
@@ -27381,7 +27439,7 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
   let packageScripts = /* @__PURE__ */ new Set();
   if (await fileExistsRelative(resolvedRoot, "package.json")) {
     try {
-      const packageJson = JSON.parse(await readText(path37.resolve(resolvedRoot, "package.json")));
+      const packageJson = JSON.parse(await readText(path39.resolve(resolvedRoot, "package.json")));
       packageScripts = new Set(Object.keys(packageJson.scripts ?? {}));
     } catch (error) {
       findings.push(createFinding({
@@ -27392,8 +27450,8 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   if (activeDocs.includes("docs/MANUAL.md")) {
-    const manualMarkdown = await readText(path37.resolve(resolvedRoot, "docs", "MANUAL.md"));
-    const manualHtmlPath = path37.resolve(resolvedRoot, "docs", "manual.html");
+    const manualMarkdown = await readText(path39.resolve(resolvedRoot, "docs", "MANUAL.md"));
+    const manualHtmlPath = path39.resolve(resolvedRoot, "docs", "manual.html");
     const expectedHtml = renderManualHtml(manualMarkdown, { sourcePath: "docs/MANUAL.md" });
     if (!await fileExistsRelative(resolvedRoot, "docs/manual.html")) {
       findings.push(createFinding({
@@ -27413,7 +27471,7 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   for (const relativePath of activeDocs) {
-    const text = await readText(path37.resolve(resolvedRoot, relativePath));
+    const text = await readText(path39.resolve(resolvedRoot, relativePath));
     for (const snippet of DOC_SNIPPETS[relativePath] ?? []) {
       if (!text.includes(snippet)) {
         findings.push(createFinding({
@@ -27554,10 +27612,10 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   if (activeDocs.includes("kanban.md")) {
-    const kanban = await readText(path37.resolve(root, "kanban.md"));
+    const kanban = await readText(path39.resolve(root, "kanban.md"));
     const parsed = parseKanban(kanban);
     const sectionNames = new Set(parsed.sections.map((section) => section.name));
-    const epics = activeDocs.includes("epics.md") ? collectEpicIds(await readText(path37.resolve(resolvedRoot, "epics.md"))) : /* @__PURE__ */ new Set();
+    const epics = activeDocs.includes("epics.md") ? collectEpicIds(await readText(path39.resolve(resolvedRoot, "epics.md"))) : /* @__PURE__ */ new Set();
     if (!/^%%\s*kanban:settings\s*$/im.test(kanban) || !/"kanban-plugin"\s*:\s*"board"/.test(kanban)) {
       findings.push(createFinding({
         category: "kanban",
@@ -27756,13 +27814,13 @@ function normalizeRef(docPath, target) {
     return null;
   }
   if (clean.startsWith("./") || clean.startsWith("../")) {
-    const resolved = path37.posix.normalize(path37.posix.join(path37.posix.dirname(docPath), clean));
+    const resolved = path39.posix.normalize(path39.posix.join(path39.posix.dirname(docPath), clean));
     return resolved.startsWith("../") ? null : resolved;
   }
   if (clean.startsWith("/")) {
     return null;
   }
-  return path37.posix.normalize(clean);
+  return path39.posix.normalize(clean);
 }
 function createFinding({ category, file = null, line = null, message }) {
   return {
@@ -27809,6 +27867,146 @@ function diffDaysFromToday(dateValue) {
   return Math.floor(diffMs / 864e5);
 }
 
+// core/codelets/workflow-audit.ts
+async function run12(options, hub) {
+  const root = path40.resolve(String(options.root ?? hub.context.projectRoot));
+  return buildWorkflowAuditSummary(root);
+}
+
+// core/services/registry-init.ts
+function initializeRegistry() {
+  ServiceHub.register("llm", new CoreLLM(ServiceHub.context));
+  ServiceHub.register("kanban", new KanbanManager(ServiceHub.context));
+  ServiceHub.register("terminal", TerminalContext);
+  ServiceHub.register("enforcer", new ProtocolEnforcer(ServiceHub.context));
+  ServiceHub.register("extract-guidelines", guidance_summary_exports);
+  ServiceHub.register("sync", sync_exports2);
+  ServiceHub.register("project-summary", project_summary_exports);
+  ServiceHub.register("summary", project_summary_exports);
+  ServiceHub.register("kanban-ops", kanban_exports);
+  ServiceHub.register("metrics", metrics_exports);
+  ServiceHub.register("execute-ticket", execute_ticket_exports);
+  ServiceHub.register("context-pack", context_pack_exports);
+  ServiceHub.register("smart-run", smart_codelet_runner_exports);
+  ServiceHub.register("status", status_exports);
+  ServiceHub.register("surface", discovery_exports);
+  ServiceHub.register("dogfood", dogfood_exports);
+  ServiceHub.register("audit", workflow_audit_exports);
+}
+
+// cli/lib/main.ts
+init_service_hub();
+init_execution_context();
+
+// core/services/presenter.ts
+var ShellPresenter = class {
+  static formatProjectSummary(summary) {
+    const assessmentStatusBits = Object.entries(summary.assessmentSummary?.byStatus ?? {}).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0])).map(([status, count]) => `${count} ${status}`);
+    const topAssessmentError = summary.assessmentSummary?.topErrors?.[0] ?? null;
+    const lines = [
+      `Files indexed: ${summary.fileCount}`,
+      `Symbols indexed: ${summary.symbolCount}`,
+      `Notes tracked: ${summary.noteCount}`,
+      `Tickets: ${summary.activeTickets.length}`,
+      `Assessments: ${summary.assessmentCount}${assessmentStatusBits.length ? ` (${assessmentStatusBits.join(", ")})` : ""}`,
+      topAssessmentError ? `Top assessment failure: ${topAssessmentError.error} (${topAssessmentError.count})` : null,
+      `Codelets: ${summary.codeletCount ?? 0}`,
+      `Candidates: ${summary.candidates.length}`
+    ].filter(Boolean);
+    if (summary.activeTickets.length) {
+      lines.push("\nActive Tickets:");
+      for (const t of summary.activeTickets) {
+        lines.push(`- [${t.lane}] ${t.id}: ${t.title}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+  static formatSyncResult(result) {
+    const lines = [
+      `DB: ${result.dbPath}`,
+      `Indexed files: ${result.indexedFiles}`,
+      `Symbols: ${result.indexedSymbols}`,
+      `Claims: ${result.indexedClaims}`,
+      `Notes: ${result.indexedNotes}`,
+      `Codelets: ${result.codeletRegistry?.codeletsIndexed ?? 0}`,
+      `Imported tickets: ${result.importSummary.importedTickets}`,
+      `Reviewed candidates: ${result.lifecycle.reviewed.length}`
+    ];
+    if (result.projections) {
+      lines.push(`Wrote projections: ${result.projections.kanbanPath}, ${result.projections.epicsPath}`);
+    }
+    if (result.protocol) {
+      lines.push("");
+      lines.push(`Protocol: ${result.protocol.ok ? "\u2705 verified" : "\u{1F6A8} unverified"}`);
+      for (const v of result.protocol.violations) {
+        lines.push(`- Violation: ${v}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+  static formatCodeletResult(id, result) {
+    if (id === "sync") return this.formatSyncResult(result);
+    if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
+    if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
+    if (id === "extract-guidelines") return this.formatGuidanceResult(result);
+    if (result && typeof result === "object") {
+      return JSON.stringify(result, null, 2) + "\n";
+    }
+    return String(result) + "\n";
+  }
+  static formatExecuteTicketResult(result) {
+    const lines = [
+      `Mode: ${result.mode}`,
+      `Repair target: ${result.repairTargetRoot}`,
+      `Ticket: ${result.ticketId || result.id}`,
+      `Status: ${result.status ?? (result.success ? "ok" : "failed")}`,
+      `Ready: ${result.executionPlan?.ready ? "yes" : "no"}`
+    ].filter(Boolean);
+    if (result.executionPlan?.verificationCommands?.length) {
+      lines.push(`Verification: ${result.executionPlan.verificationCommands.map((item) => item.command).join(" | ")}`);
+    }
+    if (result.verification?.results?.length) {
+      lines.push(`Baseline: ${result.verification.ok ? "green" : "red"}`);
+      for (const res of result.verification.results) {
+        lines.push(`- ${res.exitCode === 0 ? "PASS" : "FAIL"} ${res.command} | ${res.snippet}`);
+      }
+    }
+    if (result.changedFiles?.length) {
+      lines.push(`Changed files: ${result.changedFiles.join(", ")}`);
+    }
+    if (result.error) {
+      lines.push(`Error: ${result.error}`);
+    }
+    return lines.join("\n") + "\n";
+  }
+  static formatGuidanceResult(result) {
+    const lines = [];
+    lines.push("Active Guardrails:");
+    for (const item of result.activeGuardrails) {
+      lines.push(`- [${item.severity}] ${item.summary} (${item.sourceLabel})`);
+    }
+    lines.push("\nGuidance Bundle:");
+    for (const [section, items] of Object.entries(result.guidance)) {
+      lines.push(`
+[${section.toUpperCase()}]`);
+      items.forEach((item) => lines.push(`- ${item}`));
+    }
+    return lines.join("\n") + "\n";
+  }
+};
+
+// cli/lib/main.ts
+import path48 from "node:path";
+import { execFile as execFile13, spawn as spawn6 } from "node:child_process";
+init_cli();
+import * as readline7 from "node:readline/promises";
+import { stdin as input6, stdout as output6 } from "node:process";
+import { promisify as promisify14 } from "node:util";
+import { readFile as readFile19 } from "node:fs/promises";
+
+// cli/lib/codelets.ts
+init_codelets();
+
 // cli/lib/main.ts
 init_config_store();
 
@@ -27823,7 +28021,7 @@ import { promisify as promisify12 } from "node:util";
 
 // core/services/package-updates.ts
 init_hash();
-import path38 from "node:path";
+import path41 from "node:path";
 import { mkdir as mkdir7, readFile as readFile16, rm as rm8, writeFile as writeFile11 } from "node:fs/promises";
 import { execFile as execFile10 } from "node:child_process";
 import { promisify as promisify11 } from "node:util";
@@ -27880,7 +28078,7 @@ async function buildPackageUpdateAdvisory({
   return payload;
 }
 async function readCurrentPackageVersions(root) {
-  const packageJsonPath = path38.resolve(root, "package.json");
+  const packageJsonPath = path41.resolve(root, "package.json");
   let aiWorkflow = null;
   try {
     const packageJson = JSON.parse(await readFile16(packageJsonPath, "utf8"));
@@ -27956,12 +28154,12 @@ async function readPackageUpdateCache(root) {
 }
 async function writePackageUpdateCache(root, payload) {
   const cachePath = getPackageUpdateCachePath(root);
-  await mkdir7(path38.dirname(cachePath), { recursive: true });
+  await mkdir7(path41.dirname(cachePath), { recursive: true });
   await writeFile11(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getPackageUpdateCachePath(root) {
-  return path38.resolve(root, ".ai-workflow", "cache", "package-updates.json");
+  return path41.resolve(root, ".ai-workflow", "cache", "package-updates.json");
 }
 function isFresh3(generatedAt, ttlMs) {
   const started = Date.parse(generatedAt ?? "");
@@ -28164,7 +28362,7 @@ init_config_store();
 init_cli();
 import * as readline3 from "node:readline/promises";
 import { stdin as input2, stdout as output2 } from "node:process";
-import path39 from "node:path";
+import path42 from "node:path";
 import { mkdir as mkdir8, writeFile as writeFile12 } from "node:fs/promises";
 
 // core/lib/command-channel.ts
@@ -28529,7 +28727,7 @@ async function writeOllamaHardwareConfig({ configPath, existing, configWarning, 
       }
     }
   };
-  await mkdir8(path39.dirname(configPath), { recursive: true });
+  await mkdir8(path42.dirname(configPath), { recursive: true });
   await writeFile12(configPath, `${JSON.stringify(nextConfig, null, 2)}
 `, "utf8");
 }
@@ -28537,7 +28735,7 @@ async function writeOllamaHardwareConfig({ configPath, existing, configWarning, 
 // cli/lib/shell.ts
 init_execution_context();
 init_service_hub();
-import path42 from "node:path";
+import path45 from "node:path";
 import process2 from "node:process";
 import { pathToFileURL as pathToFileURL2 } from "node:url";
 import { execFile as execFile12 } from "node:child_process";
@@ -28988,7 +29186,7 @@ init_hash();
 init_providers();
 init_router();
 init_codelets();
-import path40 from "node:path";
+import path43 from "node:path";
 import fs2 from "node:fs/promises";
 import { Script } from "node:vm";
 async function executeCompilerShellPlan(inputText, options) {
@@ -29086,8 +29284,8 @@ async function promoteWorkflowToCodelet(root, name, code2) {
   } catch (e) {
     throw new Error(`Invalid JavaScript syntax in compiled flow: ${e.message}`);
   }
-  const stagedDir = path40.resolve(root, ".ai-workflow", "staged-codelets");
-  const entryPath = path40.resolve(stagedDir, `${name}.js`);
+  const stagedDir = path43.resolve(root, ".ai-workflow", "staged-codelets");
+  const entryPath = path43.resolve(stagedDir, `${name}.js`);
   await fs2.mkdir(stagedDir, { recursive: true });
   await fs2.writeFile(entryPath, code2, "utf8");
   const manifest = await upsertProjectCodelet(root, name, entryPath, "add");
@@ -29101,14 +29299,14 @@ async function promoteWorkflowToCodelet(root, name, code2) {
 init_operator_brain();
 
 // cli/lib/toolkit-root.ts
-import path41 from "node:path";
+import path44 from "node:path";
 import { existsSync as existsSync7 } from "node:fs";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
-var moduleDir2 = path41.dirname(fileURLToPath4(import.meta.url));
+var moduleDir2 = path44.dirname(fileURLToPath4(import.meta.url));
 function getCliToolkitRoot() {
   const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
   if (fromEnv) {
-    return path41.resolve(fromEnv);
+    return path44.resolve(fromEnv);
   }
   for (const candidate of candidateRoots3(moduleDir2)) {
     if (isToolkitRoot3(candidate)) {
@@ -29118,16 +29316,16 @@ function getCliToolkitRoot() {
   throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
 }
 function* candidateRoots3(startDir) {
-  let current2 = path41.resolve(startDir);
+  let current2 = path44.resolve(startDir);
   while (true) {
     yield current2;
-    const parent = path41.dirname(current2);
+    const parent = path44.dirname(current2);
     if (parent === current2) break;
     current2 = parent;
   }
 }
 function isToolkitRoot3(candidate) {
-  return existsSync7(path41.resolve(candidate, "package.json")) && (existsSync7(path41.resolve(candidate, "cli", "ai-workflow.mjs")) || existsSync7(path41.resolve(candidate, "cli", "ai-workflow.ts"))) && (existsSync7(path41.resolve(candidate, "runtime", "scripts", "ai-workflow")) || existsSync7(path41.resolve(candidate, "shared", "codelets")));
+  return existsSync7(path44.resolve(candidate, "package.json")) && (existsSync7(path44.resolve(candidate, "cli", "ai-workflow.mjs")) || existsSync7(path44.resolve(candidate, "cli", "ai-workflow.ts"))) && (existsSync7(path44.resolve(candidate, "runtime", "scripts", "ai-workflow")) || existsSync7(path44.resolve(candidate, "shared", "codelets")));
 }
 
 // core/lib/self-correction.ts
@@ -29395,7 +29593,7 @@ async function handleShell(rest, { cliPath } = {}) {
   }
   const root = process2.cwd();
   const disableFastPath = process2.env.AI_WORKFLOW_DISABLE_FAST_SHELL_PATH === "1";
-  const stateFile = args["state-file"] ? path42.resolve(root, String(args["state-file"])) : null;
+  const stateFile = args["state-file"] ? path45.resolve(root, String(args["state-file"])) : null;
   const restoredState = stateFile ? await readShellStateFile(stateFile) : null;
   const options = {
     root,
@@ -29417,7 +29615,7 @@ async function handleShell(rest, { cliPath } = {}) {
     aiTraceEvents: [],
     workflowTraceEvents: [],
     history: Array.isArray(restoredState?.history) ? restoredState.history : [],
-    cliPath: cliPath ?? path42.resolve(root, "cli", "ai-workflow.mjs"),
+    cliPath: cliPath ?? path45.resolve(root, "cli", "ai-workflow.mjs"),
     plannerContext: null,
     planners: null
   };
@@ -29479,7 +29677,7 @@ async function handleShell(rest, { cliPath } = {}) {
       processingIndicator.update("refreshing providers");
       await runProviderSetupWizard({ root, scope: "global", interactive: false });
       processingIndicator.update("syncing project");
-      await ServiceHub.sync({ writeProjections: true });
+      await ServiceHub.execute("sync", { writeProjections: true });
       processingIndicator.update("refreshing context");
       options.plannerContext = await buildShellContext(root);
       options.planners = await resolveShellPlanners(root, { providerState: options.plannerContext.providerState });
@@ -29512,12 +29710,12 @@ async function buildFastShellContext(root = process2.cwd()) {
     listToolkitCodelets(),
     listProjectCodelets(root),
     readFirstExistingEntry([
-      path42.resolve(root, ".gemini", "KANBAN.md"),
-      path42.resolve(root, ".gemini", "kanban.md"),
-      path42.resolve(root, "docs", "KANBAN.md"),
-      path42.resolve(root, "docs", "kanban.md"),
-      path42.resolve(root, "KANBAN.md"),
-      path42.resolve(root, "kanban.md")
+      path45.resolve(root, ".gemini", "KANBAN.md"),
+      path45.resolve(root, ".gemini", "kanban.md"),
+      path45.resolve(root, "docs", "KANBAN.md"),
+      path45.resolve(root, "docs", "kanban.md"),
+      path45.resolve(root, "KANBAN.md"),
+      path45.resolve(root, "kanban.md")
     ])
   ]);
   return {
@@ -29529,7 +29727,7 @@ async function buildFastShellContext(root = process2.cwd()) {
     providerState: { providers: {} },
     knowledge: { tasks: [] },
     kanban: kanbanEntry?.content ?? null,
-    kanbanPath: kanbanEntry?.path ? path42.relative(root, kanbanEntry.path) : null
+    kanbanPath: kanbanEntry?.path ? path45.relative(root, kanbanEntry.path) : null
   };
 }
 async function tryRunShellFastPath(inputText, options) {
@@ -29964,28 +30162,28 @@ async function buildShellContext(root = process2.cwd()) {
     loadProjectActiveGuardrails(root, { limit: 10 }).catch(() => [])
   ]);
   const [mission, kanbanEntry, gemini, guidelines, manual] = await Promise.all([
-    readFileIfExists(path42.resolve(root, "MISSION.md")),
+    readFileIfExists(path45.resolve(root, "MISSION.md")),
     readFirstExistingEntry([
-      path42.resolve(root, ".gemini", "KANBAN.md"),
-      path42.resolve(root, ".gemini", "kanban.md"),
-      path42.resolve(root, "docs", "KANBAN.md"),
-      path42.resolve(root, "docs", "kanban.md"),
-      path42.resolve(root, "KANBAN.md"),
-      path42.resolve(root, "kanban.md")
+      path45.resolve(root, ".gemini", "KANBAN.md"),
+      path45.resolve(root, ".gemini", "kanban.md"),
+      path45.resolve(root, "docs", "KANBAN.md"),
+      path45.resolve(root, "docs", "kanban.md"),
+      path45.resolve(root, "KANBAN.md"),
+      path45.resolve(root, "kanban.md")
     ]),
     readFirstExisting([
-      path42.resolve(root, ".gemini", "GEMINI.md"),
-      path42.resolve(root, ".gemini", "gemini.md"),
-      path42.resolve(root, "GEMINI.md"),
-      path42.resolve(root, "gemini.md")
+      path45.resolve(root, ".gemini", "GEMINI.md"),
+      path45.resolve(root, ".gemini", "gemini.md"),
+      path45.resolve(root, "GEMINI.md"),
+      path45.resolve(root, "gemini.md")
     ]),
     readFirstExisting([
-      path42.resolve(root, "project-guidelines.md"),
-      path42.resolve(root, "templates", "project-guidelines.md")
+      path45.resolve(root, "project-guidelines.md"),
+      path45.resolve(root, "templates", "project-guidelines.md")
     ]),
     readFirstExisting([
-      path42.resolve(root, "docs", "MANUAL.md"),
-      path42.resolve(TOOLKIT_ROOT, "docs", "MANUAL.md")
+      path45.resolve(root, "docs", "MANUAL.md"),
+      path45.resolve(TOOLKIT_ROOT, "docs", "MANUAL.md")
     ])
   ]);
   return {
@@ -29998,7 +30196,7 @@ async function buildShellContext(root = process2.cwd()) {
     knowledge: providerState.knowledge,
     mission,
     kanban: kanbanEntry?.content ?? null,
-    kanbanPath: kanbanEntry?.path ? path42.relative(root, kanbanEntry.path) : null,
+    kanbanPath: kanbanEntry?.path ? path45.relative(root, kanbanEntry.path) : null,
     gemini,
     guidelines,
     manual,
@@ -30435,7 +30633,7 @@ async function buildGroundedShellFallbackPlan(inputText, options) {
   const selectors = extractShellGroundingSelectors(inputText, plannerContext);
   const projectRoot = options.root ?? plannerContext.root ?? process2.cwd();
   for (const selector of selectors.slice(0, 4)) {
-    const payload = await ServiceHub.getStatus(options.selector, {
+    const payload = await ServiceHub.execute("status", options.selector, {
       projectRoot,
       selector,
       includeRelated: true,
@@ -30513,7 +30711,7 @@ function planShellRequestHeuristically(inputText, plannerContext, options = {}) 
   }
   if (/\bproject\b.*\b(do next|next)\b/.test(normalizedQuestion)) {
     const summary = plannerContext?.summary ?? {};
-    const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
+    const projectName = path45.basename(plannerContext?.root ?? process2.cwd());
     const ticket = rankStatusTickets(summary.activeTickets ?? [])[0];
     return replyPlan([
       `${projectName} has ${summary.ticketCount ?? summary.activeTickets?.length ?? "some"} tracked ticket(s).`,
@@ -31652,7 +31850,7 @@ function buildShellPlannerRuntimeContext(plannerContext = {}, options = {}) {
   });
   const lines = [
     `cwd: ${options.root ?? plannerContext.root ?? process2.cwd()}`,
-    `project: ${path42.basename(plannerContext.root ?? options.root ?? process2.cwd())}`,
+    `project: ${path45.basename(plannerContext.root ?? options.root ?? process2.cwd())}`,
     `active-ticket-count: ${activeTickets.length}`
   ];
   if (providerSummary.length) {
@@ -31727,7 +31925,7 @@ async function buildShellPlannerGroundingContext(inputText, options = {}) {
     const projectRoot = options.root ?? plannerContext.root ?? process2.cwd();
     const selectors = extractShellGroundingSelectors(inputText, plannerContext);
     for (const selector of selectors.slice(0, 4)) {
-      const payload = await ServiceHub.getStatus(options.selector, {
+      const payload = await ServiceHub.execute("status", options.selector, {
         projectRoot,
         selector,
         includeRelated: true,
@@ -32901,24 +33099,24 @@ function collectShellFileTargets({ plannerContext, statusPayload, searchLines })
   const root = plannerContext?.root ?? process2.cwd();
   for (const related of statusPayload?.related ?? []) {
     if (related?.type === "file" && related?.title) {
-      targets.add(path42.resolve(root, String(related.title)));
+      targets.add(path45.resolve(root, String(related.title)));
     }
   }
   for (const item of statusPayload?.tests ?? []) {
     if (item?.title) {
-      targets.add(path42.resolve(root, String(item.title)));
+      targets.add(path45.resolve(root, String(item.title)));
     }
   }
   for (const line of searchLines ?? []) {
     const match = String(line).match(/(?:^-\s+\[[^\]]+\]\s+)([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/);
     if (match?.[1]) {
-      targets.add(path42.resolve(root, match[1]));
+      targets.add(path45.resolve(root, match[1]));
     }
   }
   if (!targets.size) {
-    targets.add(path42.resolve(root, "cli/lib/shell.ts"));
-    targets.add(path42.resolve(root, "tests/shell.test.ts"));
-    targets.add(path42.resolve(root, "tests/shell-human-language.test.ts"));
+    targets.add(path45.resolve(root, "cli/lib/shell.ts"));
+    targets.add(path45.resolve(root, "tests/shell.test.ts"));
+    targets.add(path45.resolve(root, "tests/shell-human-language.test.ts"));
   }
   return [...targets];
 }
@@ -33381,7 +33579,7 @@ async function executeShellAction(action, options) {
       });
     }
     if (action.type === "status_query") {
-      const payload = await ServiceHub.getStatus(options.selector, {
+      const payload = await ServiceHub.execute("status", options.selector, {
         projectRoot: options.root,
         selector: action.query,
         type: action.entityType,
@@ -33796,7 +33994,7 @@ Updated planner: ${renderPlannerLine(options.planners.planners[0] ?? options.pla
           continue;
         }
         processingIndicator.update("syncing project");
-        await ServiceHub.sync({ writeProjections: true });
+        await ServiceHub.execute("sync", { writeProjections: true });
         processingIndicator.update("refreshing context");
         options.plannerContext = await buildShellContext(options.root);
         options.planners = await resolveShellPlanners(options.root, { providerState: options.plannerContext.providerState });
@@ -33886,7 +34084,7 @@ function setShellMode(options, mode, { announce = false } = {}) {
   }
 }
 function resolveShellTracePath(inputPath, options = {}) {
-  return path42.resolve(options.root ?? process2.cwd(), String(inputPath ?? "").trim());
+  return path45.resolve(options.root ?? process2.cwd(), String(inputPath ?? "").trim());
 }
 function renderShellTraceState(options = {}) {
   if (!options.trace) {
@@ -33907,7 +34105,7 @@ function renderShellTraceMessage(options = {}) {
   return "Trace enabled.";
 }
 function initializeShellTraceFile(filePath) {
-  mkdirSync(path42.dirname(filePath), { recursive: true });
+  mkdirSync(path45.dirname(filePath), { recursive: true });
   writeFileSync(filePath, "", "utf8");
 }
 function emitShellTraceText(options, text) {
@@ -33919,7 +34117,7 @@ function emitShellTraceText(options, text) {
     return;
   }
   if (options.traceFilePath) {
-    mkdirSync(path42.dirname(options.traceFilePath), { recursive: true });
+    mkdirSync(path45.dirname(options.traceFilePath), { recursive: true });
     appendFileSync(options.traceFilePath, traceText, "utf8");
   }
   if (options.traceConsole !== false) {
@@ -34131,7 +34329,7 @@ function describeShellPlanner(planner) {
   return "unknown";
 }
 function renderPlanModeMutationReply(actions, plannerContext) {
-  const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
+  const projectName = path45.basename(plannerContext?.root ?? process2.cwd());
   return [
     "This request needs mutating mode.",
     "Planned actions:",
@@ -34175,7 +34373,7 @@ function renderVerifiedFixFinalization(result) {
 }
 async function finalizeVerifiedFix({ root, ticketId }) {
   try {
-    await ServiceHub.sync({ writeProjections: true });
+    await ServiceHub.execute("sync", { writeProjections: true });
     const dogfoodReport = await runDogfood({
       root,
       surfaces: ["shell", "provider", "workflow", "init"],
@@ -34237,9 +34435,9 @@ async function runShellActionDirect(action, options) {
     case "next_ticket":
       return runCodeletById("kanban-next", [], options);
     case "metrics":
-      return formatProjectMetrics(await ServiceHub.getMetrics(), options.json);
+      return formatProjectMetrics(await ServiceHub.execute("metrics"), options.json);
     case "version": {
-      const packageJson = JSON.parse(await readFileIfExists(path42.resolve(getCliToolkitRoot(), "package.json")));
+      const packageJson = JSON.parse(await readFileIfExists(path45.resolve(getCliToolkitRoot(), "package.json")));
       const payload = {
         name: packageJson.name,
         version: packageJson.version,
@@ -34459,7 +34657,7 @@ ${plan.map((t, i) => `${i + 1}. [${t.class}] ${t.summary}${t.file ? ` (${t.file}
     case "ingest_artifact": {
       const rl = options.rl ?? readline6.createInterface({ input: input5, output: output5 });
       try {
-        const result = await withWorkspaceMutation(options.root, `shell ingest_artifact ${action.filePath}`, async () => ingestArtifact(path42.resolve(options.root, action.filePath), { root: options.root, rl }));
+        const result = await withWorkspaceMutation(options.root, `shell ingest_artifact ${action.filePath}`, async () => ingestArtifact(path45.resolve(options.root, action.filePath), { root: options.root, rl }));
         return options.json ? `${JSON.stringify(result, null, 2)}
 ` : `Ingested ${action.filePath}: Generated ${result.epic.id} and ${result.tickets.length} tickets.
 `;
@@ -34481,11 +34679,11 @@ ${plan.map((t, i) => `${i + 1}. [${t.class}] ${t.summary}${t.file ? ` (${t.file}
         output5.write(`Side-Effect Analysis: ${formatSideEffects(effects)}
 `);
       }
-      const stagedDir = path42.resolve(options.root, ".ai-workflow", "staged-codelets");
-      const entryPath = path42.resolve(stagedDir, `dynamic-${Date.now()}.js`);
+      const stagedDir = path45.resolve(options.root, ".ai-workflow", "staged-codelets");
+      const entryPath = path45.resolve(stagedDir, `dynamic-${Date.now()}.js`);
       const toolkitRoot3 = getCliToolkitRoot();
-      const sqliteStoreUrl = pathToFileURL2(path42.resolve(toolkitRoot3, "core", "db", "sqlite-store.ts")).href;
-      const syncUrl = pathToFileURL2(path42.resolve(toolkitRoot3, "core", "services", "sync.ts")).href;
+      const sqliteStoreUrl = pathToFileURL2(path45.resolve(toolkitRoot3, "core", "db", "sqlite-store.ts")).href;
+      const syncUrl = pathToFileURL2(path45.resolve(toolkitRoot3, "core", "services", "sync.ts")).href;
       const source = [
         "/* Responsibility: Dynamic AI-forged codelet for on-the-fly execution.",
         "   Context: This script was forged to satisfy a specific user intent. */",
@@ -35031,7 +35229,7 @@ function evaluateShellCondition(condition, nodeMap) {
   }
   return { match, actual };
 }
-function resolveConditionValue(node, path46) {
+function resolveConditionValue(node, path49) {
   if (!node) {
     return void 0;
   }
@@ -35045,7 +35243,7 @@ function resolveConditionValue(node, path46) {
     result: node.result,
     execution: node.execution
   };
-  const segments = String(path46 ?? "ok").split(".").filter(Boolean);
+  const segments = String(path49 ?? "ok").split(".").filter(Boolean);
   let cursor = source;
   for (const segment of segments) {
     if (cursor == null) {
@@ -35668,7 +35866,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   const modules = Array.isArray(summary.modules) ? summary.modules : [];
   const providerState = plannerContext?.providerState ?? {};
   const providerMap = providerState.providers ?? {};
-  const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
+  const projectName = path45.basename(plannerContext?.root ?? process2.cwd());
   const hasProjectQuestion = /\b(project|projects|repo|repository|codebase)\b/.test(normalized);
   const asksWhere = /\b(where)\b/.test(normalized) || /\bwhich project\b/.test(normalized) || /\bwhat (?:project|repo|repository)\b/.test(normalized);
   const asksNext = /\b(work on|do next|focus on|start with|next task|next thing|next on the workplan|next on workplan|work plan|workplan|roadmap)\b/.test(normalized) || /what should i (work on|do) next/.test(normalized) || /what do you think we should do next/.test(normalized) || /what should we do next/.test(normalized) || /\bwhat is next\b/.test(normalized);
@@ -36494,7 +36692,7 @@ async function writeShellStateFile(filePath, options) {
     managedContext: options.managedContext ?? null,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  await mkdir9(path42.dirname(filePath), { recursive: true });
+  await mkdir9(path45.dirname(filePath), { recursive: true });
   payload.managedContext = options.managedContext || null;
   await writeFile13(filePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
@@ -36822,7 +37020,7 @@ function renderContinuationRevisionReply({ text, activeGraphState, plannerContex
 function collectContinuationReferenceLines(activeGraphState, plannerContext) {
   const root = plannerContext?.root ?? process2.cwd();
   const references = normalizeShellReferences(activeGraphState?.references);
-  const files = references.files.map((item) => path42.isAbsolute(item) ? item : path42.resolve(root, item));
+  const files = references.files.map((item) => path45.isAbsolute(item) ? item : path45.resolve(root, item));
   return [...files, ...references.modules, ...references.tickets].slice(0, 4);
 }
 function buildReadinessContinuationPlan({ text, plannerContext, activeGraphState }) {
@@ -37460,17 +37658,17 @@ async function resolveExecutableCodelet2(root, codeletOrId) {
 init_fs_utils();
 init_config_store();
 init_workspace_mutation();
-import path43 from "node:path";
+import path46 from "node:path";
 import { cp, readFile as readFile18, writeFile as writeFile14 } from "node:fs/promises";
 async function installAgents({ toolkitRoot: toolkitRoot3, projectRoot = process.cwd() }) {
   return withWorkspaceMutation(projectRoot, "install agents", async () => {
     const results = [];
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow"));
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "codelets"));
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "cache"));
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "generated"));
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "notes"));
-    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "state"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow", "codelets"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow", "cache"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow", "generated"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow", "notes"));
+    await ensureDir(path46.resolve(projectRoot, ".ai-workflow", "state"));
     results.push({ path: ".ai-workflow", status: "created" });
     await ensureProjectConfig(projectRoot, toolkitRoot3);
     await ensureGeminiBridge(projectRoot, toolkitRoot3);
@@ -37504,16 +37702,16 @@ async function ensureProjectConfig(projectRoot) {
 `, "utf8");
 }
 async function ensureGeminiBridge(projectRoot, toolkitRoot3) {
-  const geminiDir = path43.resolve(projectRoot, ".gemini");
-  const geminiSkillRoot = path43.resolve(geminiDir, "skills");
-  const geminiSkillDir = path43.resolve(geminiSkillRoot, "ai-workflow");
-  const sourceSkillDir = path43.resolve(toolkitRoot3, "skills", "ai-workflow");
-  const geminiGuidePath = path43.resolve(geminiDir, "GEMINI.md");
-  const templateGuidePath = path43.resolve(toolkitRoot3, "templates", "GEMINI.md");
+  const geminiDir = path46.resolve(projectRoot, ".gemini");
+  const geminiSkillRoot = path46.resolve(geminiDir, "skills");
+  const geminiSkillDir = path46.resolve(geminiSkillRoot, "ai-workflow");
+  const sourceSkillDir = path46.resolve(toolkitRoot3, "skills", "ai-workflow");
+  const geminiGuidePath = path46.resolve(geminiDir, "GEMINI.md");
+  const templateGuidePath = path46.resolve(toolkitRoot3, "templates", "GEMINI.md");
   await ensureDir(geminiDir);
   await ensureDir(geminiSkillRoot);
   await cp(sourceSkillDir, geminiSkillDir, { recursive: true, force: true });
-  await writeFile14(path43.resolve(geminiSkillDir, "toolkit-root.txt"), `${toolkitRoot3}
+  await writeFile14(path46.resolve(geminiSkillDir, "toolkit-root.txt"), `${toolkitRoot3}
 `, "utf8");
   try {
     await readFile18(geminiGuidePath, "utf8");
@@ -37576,7 +37774,7 @@ init_dogfood_harness();
 // core/services/programming-dogfood-harness.ts
 init_operator_brain();
 init_sync();
-import path44 from "node:path";
+import path47 from "node:path";
 import fs3 from "node:fs/promises";
 
 // core/services/local-fs-adapter.ts
@@ -37585,7 +37783,7 @@ init_filesystem();
 // core/services/programming-dogfood-harness.ts
 async function runProgrammingDogfoodHarness(options = {}) {
   const repoRoot = options.root;
-  const targetRoot = options.target ?? path44.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
+  const targetRoot = options.target ?? path47.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
   if (options.force) {
     await fs3.rm(targetRoot, { recursive: true, force: true });
   }
@@ -37629,7 +37827,7 @@ async function runProgrammingDogfoodHarness(options = {}) {
   }
   await syncProject(targetRoot);
   const ok = await verifyProject(targetRoot);
-  const reportPath = path44.join(targetRoot, "DOGFOOD_REPORT.md");
+  const reportPath = path47.join(targetRoot, "DOGFOOD_REPORT.md");
   await writeDogfoodReport(reportPath, { ok, metrics, targetRoot });
   return {
     ok,
@@ -37641,7 +37839,7 @@ async function runProgrammingDogfoodHarness(options = {}) {
 }
 async function verifyProject(projectRoot) {
   try {
-    const packageJsonPath = path44.join(projectRoot, "package.json");
+    const packageJsonPath = path47.join(projectRoot, "package.json");
     await fs3.access(packageJsonPath);
     const files = await fs3.readdir(projectRoot, { recursive: true });
     const hasEngine = files.some((f) => f.includes("engine"));
@@ -37750,6 +37948,7 @@ Notes:
   - Use \`run context-pack\` before recommending a fresh session.
 `;
 async function main(argv) {
+  initializeRegistry();
   if (!argv.length || argv[0] === "--help" || argv[0] === "-h") {
     printAndExit(HELP);
   }
@@ -37761,7 +37960,7 @@ async function main(argv) {
     case "setup":
       return handleInstall(rest);
     case "init":
-      return runNodeScript(path45.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
+      return runNodeScript(path48.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
     case "install":
       return handleInstall(rest);
     case "doctor":
@@ -37784,7 +37983,7 @@ async function main(argv) {
     case "consult":
       return handleConsult(rest);
     case "shell":
-      return handleShell(rest, { cliPath: path45.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
+      return handleShell(rest, { cliPath: path48.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
     case "ask":
       return handleAsk(rest);
     case "sync":
@@ -37866,7 +38065,7 @@ async function handleList(rest) {
 }
 async function handleVersion(rest) {
   const args = parseArgs(rest);
-  const packageJson = JSON.parse(await readFile19(path45.resolve(toolkitRoot2, "package.json"), "utf8"));
+  const packageJson = JSON.parse(await readFile19(path48.resolve(toolkitRoot2, "package.json"), "utf8"));
   const payload = {
     name: packageJson.name,
     version: packageJson.version,
@@ -37885,7 +38084,7 @@ ${payload.toolkitRoot}
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
   const args = parseArgs(rest);
-  const result = await ServiceHub.sync({ writeProjections: Boolean(args["write-projections"]) });
+  const result = await ServiceHub.execute("sync", { writeProjections: Boolean(args["write-projections"]) });
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}
 `);
@@ -37901,19 +38100,19 @@ async function handleSync(rest) {
 }
 async function handleKanban(rest) {
   return runNodeScript(
-    path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
+    path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
     rest
   );
 }
 async function handleDogfood(rest) {
   return runNodeScript(
-    path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
+    path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
     rest
   );
 }
 async function handleProgrammingDogfood(rest) {
   const args = parseArgs(rest);
-  const target = args.target ? path45.resolve(args.target) : null;
+  const target = args.target ? path48.resolve(args.target) : null;
   const force = Boolean(args.force);
   const json = Boolean(args.json);
   const result = await runProgrammingDogfoodHarness({
@@ -37994,8 +38193,8 @@ async function handleRun(rest) {
     printAndExit("Usage: ai-workflow run <codelet> [args]", 1);
   }
   const parsedArgs = parseArgs(args);
-  if (ServiceHub.isBuiltinCodelet(name)) {
-    const result2 = await ServiceHub.runBuiltinCodelet(name, parsedArgs);
+  if (ServiceHub.has(name)) {
+    const result2 = await ServiceHub.execute(name, parsedArgs);
     if (parsedArgs.json) {
       process.stdout.write(JSON.stringify(result2, null, 2) + "\n");
     } else {
@@ -38050,29 +38249,39 @@ async function handleExtract(rest) {
     if (!ticketId) {
       printAndExit("Usage: ai-workflow extract ticket <id> [options]", 1);
     }
-    const ticketCodelet = await getToolkitCodelet("ticket");
-    return runNodeScript(ticketCodelet.entry, ["--id", ticketId, ...args.slice(1)]);
+    return ServiceHub.execute("extract-ticket", { ticketId, ...parseArgs(args.slice(1)) });
   }
   if (kind === "guidelines") {
-    const guidelinesCodelet = await getToolkitCodelet("guidelines");
-    return runNodeScript(guidelinesCodelet.entry, args);
+    const parsedArgs = parseArgs(args);
+    const result = await ServiceHub.execute("extract-guidelines", parsedArgs);
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    } else {
+      process.stdout.write(ShellPresenter.formatCodeletResult("extract-guidelines", result));
+    }
+    return 0;
   }
   printAndExit("Usage: ai-workflow extract <ticket|guidelines> ...", 1);
 }
 async function handleVerify(rest) {
   const [target, ...args] = rest;
-  const verifyCodelet = await getToolkitCodelet("verify");
-  const auditCodelet = await getToolkitCodelet("audit");
-  if (!target) {
-    return runNodeScript(verifyCodelet.entry, args);
-  }
+  const parsedArgs = parseArgs(args);
   if (target === "workflow") {
-    return runNodeScript(auditCodelet.entry, args);
+    const result = await ServiceHub.execute("audit", parsedArgs);
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    } else {
+      process.stdout.write(ShellPresenter.formatCodeletResult("audit", result));
+    }
+    return 0;
   }
-  if (target === "guidelines") {
-    return runNodeScript(path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
+  const codeletName = target === "guidelines" ? "guideline-audit" : "verify";
+  if (ServiceHub.has(codeletName)) {
+    const result = await ServiceHub.execute(codeletName, parsedArgs);
+    process.stdout.write(ShellPresenter.formatCodeletResult(codeletName, result));
+    return 0;
   }
-  return runNodeScript(verifyCodelet.entry, [target, ...args]);
+  printAndExit("Usage: ai-workflow verify <workflow|guidelines> ...", 1);
 }
 async function handleForge(rest) {
   assertDirectCommandChannel("ai-workflow forge codelet");
@@ -38091,7 +38300,7 @@ async function handleProject(rest) {
   const args = parseArgs(extras);
   if (subcommand === "surface") {
     const pattern = args._[0] || null;
-    const symbols = await ServiceHub.discoverExports(pattern);
+    const symbols = await ServiceHub.execute("surface", { pattern });
     if (args.json) {
       process.stdout.write(`${JSON.stringify(symbols, null, 2)}
 `);
@@ -38107,15 +38316,15 @@ async function handleProject(rest) {
     return 0;
   }
   if (subcommand === "map-dependencies") {
-    const script = path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
+    const script = path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "locate-trapped-logic") {
-    const script = path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
+    const script = path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
-    const summary = await ServiceHub.getProjectSummary();
+    const summary = await ServiceHub.execute("summary");
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}
 `);
@@ -38142,7 +38351,7 @@ async function handleProject(rest) {
     if (!selector) {
       printAndExit("Usage: ai-workflow project status <selector> [--type <type>] [--json]\n       ai-workflow project status related <selector> [--type <type>] [--json]\n       ai-workflow project status types", 1);
     }
-    const report = await ServiceHub.getStatus(selector, { type: args.type ? String(args.type) : null, includeRelated });
+    const report = await ServiceHub.execute("status", selector, { type: args.type ? String(args.type) : null, includeRelated });
     if (!report.ok) {
       printAndExit(report.error ?? `No status target matched ${selector}`, 1);
     }
@@ -38993,8 +39202,8 @@ async function handleToolBenchmark(rest) {
 `);
       }
     } else if (Array.isArray(result.runs)) {
-      for (const run4 of result.runs) {
-        process.stdout.write(`- Tier: ${run4.tier} | Model: ${run4.model} | Latency: ${run4.latency}ms | Code: ${run4.hasCode ? "YES" : "NO"}
+      for (const run13 of result.runs) {
+        process.stdout.write(`- Tier: ${run13.tier} | Model: ${run13.model} | Latency: ${run13.latency}ms | Code: ${run13.hasCode ? "YES" : "NO"}
 `);
       }
     }
@@ -39039,7 +39248,7 @@ async function handleWeb(rest) {
   const [action, ...extras] = rest;
   if (action === "tutorial") {
     return runNodeScriptLive(
-      path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
+      path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
       extras
     );
   }
@@ -39102,7 +39311,7 @@ async function handleConfig(rest) {
 async function handleInstall(rest) {
   assertDirectCommandChannel("ai-workflow install");
   const args = parseArgs(rest);
-  const projectRoot = path45.resolve(String(args.project ?? process.cwd()));
+  const projectRoot = path48.resolve(String(args.project ?? process.cwd()));
   return withWorkspaceMutation(projectRoot, "install", async () => {
     await installAgents({
       toolkitRoot: toolkitRoot2,
@@ -39119,7 +39328,7 @@ async function handleAudit(rest) {
   const sub = args._[0];
   if (sub === "workflow") {
     return runNodeScript(
-      path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
+      path48.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
       rest.slice(1)
     );
   }
@@ -39171,7 +39380,7 @@ async function handleSetProviderKey(rest) {
 }
 async function handleMetrics(rest) {
   const args = parseArgs(rest);
-  const metrics = await ServiceHub.getMetrics();
+  const metrics = await ServiceHub.execute("metrics");
   if (args.json) {
     process.stdout.write(`${JSON.stringify(metrics, null, 2)}
 `);
@@ -39232,7 +39441,7 @@ async function handleOnboard(rest) {
     const args = parseArgs(rest);
     const rl = readline7.createInterface({ input: input6, output: output6 });
     try {
-      const targetPath = path45.resolve(process.cwd(), filePath);
+      const targetPath = path48.resolve(process.cwd(), filePath);
       const result = await onboardProjectBrief(targetPath, { root: process.cwd(), rl });
       if (args.json) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}

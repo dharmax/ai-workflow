@@ -1,30 +1,16 @@
-import * as smartRun from "../codelets/smart-codelet-runner.ts";
-import * as contextPack from "../codelets/context-pack.ts";
-import * as executeTicket from "../codelets/execute-ticket.ts";
 /**
- * Responsibility: Provide a unified, static hub for all core toolkit capabilities and codelets.
+ * Responsibility: Provide a unified, static registry for all core toolkit capabilities and codelets.
  * Scope: The single programmatic entry point for Shell, Skill, and internal orchestration.
  */
 
-import { 
-  syncProject, 
-  getProjectSummary as getSummary, 
-  getProjectMetrics,
-  evaluateProjectReadiness,
-  searchProject,
-  withWorkflowStore
-} from "./sync.ts";
-import { resolveProjectStatus } from "./status.ts";
-import { CoreLLM } from "./core-llm.ts";
-import { TerminalContext } from "./terminal-context.ts";
 import { detectExecutionMode } from "./execution-context.ts";
-import { KanbanManager } from "./kanban-manager.ts";
 import type { ExecutionContext } from "./execution-context.ts";
+
+export type ServiceImplementation = (...args: any[]) => Promise<any>;
 
 export class ServiceHub {
   private static _context: ExecutionContext | null = null;
-  private static _llm: CoreLLM | null = null;
-  private static _kanban: KanbanManager | null = null;
+  private static _registry = new Map<string, any>();
 
   static get context(): ExecutionContext {
     if (!this._context) {
@@ -38,161 +24,54 @@ export class ServiceHub {
 
   static setContext(context: ExecutionContext) {
     this._context = context;
-    this._llm = null; // Invalidate dependent services
-    this._kanban = null;
   }
 
-  // --- Services ---
+  // --- Dynamic Registry ---
 
-  static get llm(): CoreLLM {
-    if (!this._llm) {
-      this._llm = new CoreLLM(this.context);
+  /**
+   * Register a service or codelet implementation.
+   */
+  static register(id: string, implementation: any) {
+    this._registry.set(id, implementation);
+  }
+
+  /**
+   * Resolve a registered implementation by ID.
+   */
+  static resolve<T = any>(id: string): T {
+    const service = this._registry.get(id);
+    if (!service) {
+      throw new Error(`Service not registered: ${id}`);
     }
-    return this._llm;
+    return service as T;
   }
 
-  static get kanban(): KanbanManager {
-    if (!this._kanban) {
-      this._kanban = new KanbanManager(this.context);
+  /**
+   * Check if a service ID is registered.
+   */
+  static has(id: string): boolean {
+    return this._registry.has(id);
+  }
+
+  /**
+   * Execute a registered service/codelet.
+   */
+  static async execute(id: string, ...args: any[]): Promise<any> {
+    const service = this.resolve(id);
+    if (typeof service === "function") {
+      return service(...args);
     }
-    return this._kanban;
-  }
-
-  static get terminal() {
-    return TerminalContext;
-  }
-
-  // --- High-Level Codelet APIs ---
-
-  /**
-   * Synchronize the project state and update projections.
-   */
-  static async sync(options: { writeProjections?: boolean } = {}) {
-    return syncProject({
-      projectRoot: this.context.projectRoot,
-      writeProjections: options.writeProjections ?? false
-    });
-  }
-
-  /**
-   * Get a high-level summary of the project status.
-   */
-  static async getProjectSummary() {
-    return getSummary({ projectRoot: this.context.projectRoot });
-  }
-
-  /**
-   * Resolve project status for a specific selector.
-   */
-  static async getStatus(selector: string, options: { type?: string | null, includeRelated?: boolean } = {}) {
-    return resolveProjectStatus({
-      projectRoot: this.context.projectRoot,
-      selector,
-      type: options.type ?? null,
-      includeRelated: options.includeRelated ?? false,
-      rawQuestion: false,
-      relatedLimit: options.includeRelated ? 24 : 12
-    });
-  }
-
-  /**
-   * Search project entities and claims.
-   */
-  static async search(query: string) {
-    return searchProject({ projectRoot: this.context.projectRoot, query });
-  }
-
-  /**
-   * Discover exported symbols matching a pattern.
-   */
-  static async discoverExports(pattern: string | null = null) {
-    return withWorkflowStore(this.context.projectRoot, async (store) => {
-      const symbols = store.listSymbols();
-      const filtered = symbols.filter((s: any) => 
-        s.exported && (!pattern || s.name.includes(pattern) || s.filePath.includes(pattern))
-      );
-      return filtered.map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        kind: s.kind,
-        filePath: s.filePath,
-        line: s.line
-      }));
-    });
-  }
-
-  /**
-   * Get historical performance metrics.
-   */
-  static async getMetrics() {
-    return getProjectMetrics({ projectRoot: this.context.projectRoot });
-  }
-
-  /**
-   * Evaluate project readiness for a specific goal.
-   */
-  static async evaluateReadiness(goalType: string, question: string, options: any = {}) {
-    return evaluateProjectReadiness({
-      projectRoot: this.context.projectRoot,
-      request: {
-        protocol_version: "1.0",
-        operation: "evaluate_readiness",
-        goal: { type: goalType, target: "project", question },
-        ...options
-      }
-    });
-  }
-
-  // --- Codelet Discovery ---
-
-  static isBuiltinCodelet(id: string): boolean {
-    const registry: Record<string, boolean> = {
-      "sync": true,
-      "project-summary": true,
-      "summary": true,
-      "metrics": true,
-      "search": true,
-      "surface": true,
-      "execute-ticket": true,
-      "context-pack": true,
-      "smart-run": true
-    };
-    return registry[id] === true;
-  }
-
-  static async runBuiltinCodelet(id: string, args: any): Promise<any> {
-    switch (id) {
-      case "sync": return this.sync(args);
-      case "project-summary":
-      case "summary": return this.getProjectSummary();
-      case "metrics": return this.getMetrics();
-      case "search": return this.search(args.query || args._[0]);
-      case "surface": return this.discoverExports(args._[0]);
-      case "execute-ticket": return this.executeTicket({ ticketId: args.ticket || args._[0], apply: Boolean(args.apply), timeoutMs: args["timeout-ms"] });
-      case "context-pack": return this.contextPack({ ticket: args.ticket, changed: Boolean(args.changed), files: args.files ? String(args.files).split(",") : [] });
-      case "smart-run": return this.smartRun(args);
-      default: throw new Error(`Unknown builtin codelet: ${id}`);
+    if (service && typeof (service as any).run === "function") {
+      const options = args.length > 0 ? args[0] : {};
+      return (service as any).run(options, this);
     }
+    throw new Error(`Service ${id} is not executable.`);
   }
 
   /**
-   * Execute or plan a specific ticket.
+   * List all registered service IDs.
    */
-  static async executeTicket(options: executeTicket.ExecuteTicketOptions) {
-    return executeTicket.run(options, this);
-  }
-
-  /**
-   * Bundle project context for agent consumption.
-   */
-  static async contextPack(options: contextPack.ContextPackOptions) {
-    return contextPack.run(options, this);
-  }
-
-  /**
-   * Execute an AI-driven smart codelet.
-   */
-  static async smartRun(options: smartRun.SmartCodeletOptions) {
-    return smartRun.run(options, this);
+  static list(): string[] {
+    return Array.from(this._registry.keys());
   }
 }

@@ -10,7 +10,7 @@ import { compactGuidanceItems, deriveKeywords, inferValidationPlan, summarizeGui
 import { getChanges, isGitRepo } from "../lib/git-utils.ts";
 import { getToolkitRoot } from "../lib/toolkit-root.ts";
 import { inferTicketWorkingSet, loadTicketContext } from "../lib/workflow-store-utils.ts";
-import type { ServiceHub } from "../services/service-hub.ts";
+
 
 export interface ContextPackOptions {
   root?: string;
@@ -20,7 +20,7 @@ export interface ContextPackOptions {
   changed?: boolean;
 }
 
-export async function run(options: ContextPackOptions, hub: typeof ServiceHub) {
+export async function run(options: ContextPackOptions, hub: any) {
   const root = path.resolve(String(options.root ?? hub.context.projectRoot));
   const toolkitRoot = getToolkitRoot();
   const files = [...(options.files ?? [])];
@@ -49,7 +49,8 @@ export async function run(options: ContextPackOptions, hub: typeof ServiceHub) {
     ? { files: [], symbols: [], evidence: [] }
     : await inferTicketWorkingSet({ root, ticket, entity: ticketEntity });
   const workingSetFiles = [...new Set([...uniqueFiles, ...inferredWorkingSet.files].filter(Boolean).map(normalizePath))];
-  const ticketText = ticket ? `${ticket.heading}\n${ticket.body}` : "";
+  const ticketText = ticket ? `${ticket.heading}
+${ticket.body}` : "";
   const keywords = deriveKeywords({ ticketText, files: workingSetFiles });
   
   const [agents, contributing, executionProtocol, enforcement, guidelines, manual, knowledge] = await Promise.all([

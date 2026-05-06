@@ -18,14 +18,17 @@
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "test:fast": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "workflow:audit": "tsx scripts/ai-workflow/workflow-audit.ts",
-    "workflow:dogfood": "tsx scripts/ai-workflow/dogfood.ts",
+    "workflow:audit": "ai-workflow run audit",
+    "workflow:dogfood": "ai-workflow run dogfood",
     "workflow:guidance": "tsx scripts/ai-workflow/guidance-summary.ts",
     "workflow:guideline-audit": "tsx scripts/ai-workflow/guideline-audit.ts",
-    "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
+    "workflow:kanban": "ai-workflow run kanban-ops",
     "workflow:review": "tsx scripts/ai-workflow/review-summary.ts",
     "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
-    "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts"
+    "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts",
+    "workflow:summary": "ai-workflow run summary",
+    "workflow:sync": "ai-workflow run sync",
+    "workflow:metrics": "ai-workflow run metrics"
   },
   "engines": {
     "node": ">=22.0.0"

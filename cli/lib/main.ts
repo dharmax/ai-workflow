@@ -3,6 +3,7 @@
  * Scope: Handles argument parsing, subcommand routing, and high-level service orchestration.
  */
 
+import { initializeRegistry } from "../../core/services/registry-init.ts";
 import { ServiceHub } from "../../core/services/service-hub.ts";
 import { detectExecutionMode } from "../../core/services/execution-context.ts";
 import { ShellPresenter } from "../../core/services/presenter.ts";
@@ -130,6 +131,7 @@ Notes:
 `;
 
 export async function main(argv) {
+  initializeRegistry();
   if (!argv.length || argv[0] === "--help" || argv[0] === "-h") {
     printAndExit(HELP);
   }
@@ -269,7 +271,7 @@ async function handleVersion(rest) {
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
   const args: any = parseArgs(rest);
-  const result = await ServiceHub.sync({ writeProjections: Boolean(args["write-projections"]) });
+  const result = await ServiceHub.execute("sync", { writeProjections: Boolean(args["write-projections"]) });
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -390,8 +392,8 @@ async function handleRun(rest) {
 
   const parsedArgs = parseArgs(args);
 
-  if (ServiceHub.isBuiltinCodelet(name)) {
-    const result = await ServiceHub.runBuiltinCodelet(name, parsedArgs);
+  if (ServiceHub.has(name)) {
+    const result = await ServiceHub.execute(name, parsedArgs);
     if (parsedArgs.json) {
       process.stdout.write(JSON.stringify(result, null, 2) + "\n");
     } else {
@@ -455,13 +457,18 @@ async function handleExtract(rest) {
     if (!ticketId) {
       printAndExit("Usage: ai-workflow extract ticket <id> [options]", 1);
     }
-    const ticketCodelet = await getToolkitCodelet("ticket");
-    return runNodeScript(ticketCodelet.entry, ["--id", ticketId, ...args.slice(1)]);
+    return ServiceHub.execute("extract-ticket", { ticketId, ...parseArgs(args.slice(1)) });
   }
 
   if (kind === "guidelines") {
-    const guidelinesCodelet = await getToolkitCodelet("guidelines");
-    return runNodeScript(guidelinesCodelet.entry, args);
+    const parsedArgs = parseArgs(args);
+    const result = await ServiceHub.execute("extract-guidelines", parsedArgs);
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    } else {
+      process.stdout.write(ShellPresenter.formatCodeletResult("extract-guidelines", result));
+    }
+    return 0;
   }
 
   printAndExit("Usage: ai-workflow extract <ticket|guidelines> ...", 1);
@@ -469,22 +476,27 @@ async function handleExtract(rest) {
 
 async function handleVerify(rest) {
   const [target, ...args] = rest;
-  const verifyCodelet = await getToolkitCodelet("verify");
-  const auditCodelet = await getToolkitCodelet("audit");
-
-  if (!target) {
-    return runNodeScript(verifyCodelet.entry, args);
-  }
+  const parsedArgs = parseArgs(args);
 
   if (target === "workflow") {
-    return runNodeScript(auditCodelet.entry, args);
+    const result = await ServiceHub.execute("audit", parsedArgs);
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    } else {
+      process.stdout.write(ShellPresenter.formatCodeletResult("audit", result));
+    }
+    return 0;
   }
 
-  if (target === "guidelines") {
-    return runNodeScript(path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
+  // ... (keeping other verify targets simple for now or using ServiceHub if available)
+  const codeletName = target === "guidelines" ? "guideline-audit" : "verify";
+  if (ServiceHub.has(codeletName)) {
+     const result = await ServiceHub.execute(codeletName, parsedArgs);
+     process.stdout.write(ShellPresenter.formatCodeletResult(codeletName, result));
+     return 0;
   }
 
-  return runNodeScript(verifyCodelet.entry, [target, ...args]);
+  printAndExit("Usage: ai-workflow verify <workflow|guidelines> ...", 1);
 }
 
 async function handleForge(rest) {
@@ -507,7 +519,7 @@ async function handleProject(rest) {
 
   if (subcommand === "surface") {
     const pattern = args._[0] || null;
-    const symbols = await ServiceHub.discoverExports(pattern);
+    const symbols = await ServiceHub.execute("surface", { pattern });
     
     if (args.json) {
       process.stdout.write(`${JSON.stringify(symbols, null, 2)}\n`);
@@ -534,7 +546,7 @@ async function handleProject(rest) {
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
-    const summary = await ServiceHub.getProjectSummary();
+    const summary = await ServiceHub.execute("summary");
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
       return 0;
@@ -560,7 +572,7 @@ async function handleProject(rest) {
     if (!selector) {
       printAndExit("Usage: ai-workflow project status <selector> [--type <type>] [--json]\n       ai-workflow project status related <selector> [--type <type>] [--json]\n       ai-workflow project status types", 1);
     }
-    const report = await ServiceHub.getStatus(selector, { type: args.type ? String(args.type) : null, includeRelated });
+    const report = await ServiceHub.execute("status", selector, { type: args.type ? String(args.type) : null, includeRelated });
     if (!report.ok) {
       printAndExit(report.error ?? `No status target matched ${selector}`, 1);
     }
@@ -1594,7 +1606,7 @@ async function handleSetProviderKey(rest) {
 
 async function handleMetrics(rest) {
   const args: any = parseArgs(rest);
-  const metrics = await ServiceHub.getMetrics();
+  const metrics = await ServiceHub.execute("metrics");
   
   if (args.json) {
     process.stdout.write(`${JSON.stringify(metrics, null, 2)}\n`);

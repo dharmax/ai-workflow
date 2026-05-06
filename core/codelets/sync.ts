@@ -1,14 +1,21 @@
 /**
  * Responsibility: Execute project synchronization.
- * Scope: Headless codelet for re-indexing and projection updates.
  */
+import { syncProject } from "../services/sync.ts";
 
-import type { ServiceHub } from "../services/service-hub.ts";
 
-export interface SyncOptions {
-  writeProjections?: boolean;
-}
+export async function run(options: any, hub: any) {
+  const result = await syncProject({
+    projectRoot: hub.context.projectRoot,
+    writeProjections: Boolean(options.writeProjections || options["write-projections"])
+  });
 
-export async function run(options: SyncOptions, hub: typeof ServiceHub) {
-  return hub.sync(options);
+  // Enforce protocol check
+  const enforcer = hub.resolve("enforcer");
+  const protocol = await enforcer.validateState();
+  
+  return {
+    ...result,
+    protocol
+  };
 }

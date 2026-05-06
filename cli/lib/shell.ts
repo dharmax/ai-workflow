@@ -297,7 +297,7 @@ export async function handleShell(rest, { cliPath } = {}) {
       processingIndicator.update("refreshing providers");
       await runProviderSetupWizard({ root, scope: "global", interactive: false });
       processingIndicator.update("syncing project");
-      await ServiceHub.sync({ writeProjections: true });
+      await ServiceHub.execute("sync", { writeProjections: true });
       processingIndicator.update("refreshing context");
       options.plannerContext = await buildShellContext(root);
       options.planners = await resolveShellPlanners(root, { providerState: options.plannerContext.providerState });
@@ -1393,7 +1393,7 @@ async function buildGroundedShellFallbackPlan(inputText, options) {
   const projectRoot = options.root ?? plannerContext.root ?? process.cwd();
 
   for (const selector of selectors.slice(0, 4)) {
-    const payload = await ServiceHub.getStatus(options.selector, {
+    const payload = await ServiceHub.execute("status", options.selector, {
       projectRoot,
       selector,
       includeRelated: true,
@@ -3071,7 +3071,7 @@ async function buildShellPlannerGroundingContext(inputText, options = {}) {
     const projectRoot = options.root ?? plannerContext.root ?? process.cwd();
     const selectors = extractShellGroundingSelectors(inputText, plannerContext);
     for (const selector of selectors.slice(0, 4)) {
-      const payload = await ServiceHub.getStatus(options.selector, {
+      const payload = await ServiceHub.execute("status", options.selector, {
         projectRoot,
         selector,
         includeRelated: true,
@@ -4898,7 +4898,7 @@ export async function executeShellAction(action, options) {
       });
     }
     if (action.type === "status_query") {
-      const payload = await ServiceHub.getStatus(options.selector, {
+      const payload = await ServiceHub.execute("status", options.selector, {
         projectRoot: options.root,
         selector: action.query,
         type: action.entityType,
@@ -5310,7 +5310,7 @@ export async function runInteractiveShell(options) {
 
         // 0. Ensure bidirectional sync so manual edits are ingested and DB changes are projected
         processingIndicator.update("syncing project");
-        await ServiceHub.sync({ writeProjections: true });
+        await ServiceHub.execute("sync", { writeProjections: true });
 
         // 1. Refresh context before every turn so the Brain sees the latest state
         processingIndicator.update("refreshing context");
@@ -5722,7 +5722,7 @@ function renderVerifiedFixFinalization(result) {
 
 async function finalizeVerifiedFix({ root, ticketId }) {
   try {
-    await ServiceHub.sync({ writeProjections: true });
+    await ServiceHub.execute("sync", { writeProjections: true });
     const dogfoodReport = await runDogfood({
       root,
       surfaces: ["shell", "provider", "workflow", "init"],
@@ -5789,7 +5789,7 @@ async function runShellActionDirect(action, options) {
     case "next_ticket":
       return runCodeletById("kanban-next", [], options);
     case "metrics":
-      return formatProjectMetrics(await ServiceHub.getMetrics(), options.json);
+      return formatProjectMetrics(await ServiceHub.execute("metrics"), options.json);
     case "version": {
       const packageJson = JSON.parse(await readFileIfExists(path.resolve(getCliToolkitRoot(), "package.json")));
       const payload = {
