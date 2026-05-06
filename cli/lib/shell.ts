@@ -3,6 +3,7 @@
  * Scope: Handles prompt construction, AI planning, gated execution, and conversational feedback.
  */
 
+import { ExecutionMode, detectExecutionMode } from "../../core/services/execution-context.ts";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -959,7 +960,7 @@ export async function resolveShellPlanners(root = process.cwd(), { providerState
     }
   }
 
-:  // Final local fallback if nothing from router was eligible but Ollama is up
+  // Final local fallback if nothing from router was eligible but Ollama is up
   if (planners.length === 0 && ollamaProvider?.available) {
     try {
       const localShellModel = chooseShellPlannerModel(ollamaProvider);
@@ -1065,6 +1066,7 @@ function isEligibleShellPlanner(planner, providers) {
 export async function planShellRequest(inputText, options) {
   const triage = await triageShellRequest(inputText, {
     noAi: options.noAi,
+    mode: options.mode,
     plannerContext: options.plannerContext,
     history: options.history
   });
@@ -4533,7 +4535,6 @@ function validateShellAction(action, plannerContext) {
     case "version":
     case "sync":
     case "run_review":
-    case "run_dynamic_codelet":
     case "telegram_preview":
     case "reprofile":
       return { type };
@@ -5460,7 +5461,7 @@ function setShellTrace(options, enabled, { announce = false, traceFilePath = nul
   }
 }
 
-export function handleShellCommand(line, options) {
+export async function handleShellCommand(line, options) {
   const normalized = String(line ?? "").trim().toLowerCase().replace(/\s+/g, " ");
   if (!normalized) {
     return null;

@@ -15,6 +15,7 @@ export async function triageShellRequest(
   options: {
     root?: string;
     noAi?: boolean;
+    mode?: string;
     plannerContext?: any;
     providerState?: any;
     history?: { role: string, content: string }[];

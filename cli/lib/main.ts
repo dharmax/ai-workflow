@@ -3,6 +3,8 @@
  * Scope: Handles argument parsing, subcommand routing, and high-level service orchestration.
  */
 
+import { detectExecutionMode } from "../../core/services/execution-context.ts";
+import { WorkflowFacade } from "../../core/services/workflow-facade.ts";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
@@ -264,13 +266,16 @@ async function handleVersion(rest) {
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
   const args: any = parseArgs(rest);
-  const result = await syncProject({
-    projectRoot: process.cwd(),
-    writeProjections: Boolean(args["write-projections"])
-  });
+  const result = await getWorkflowFacade().sync(Boolean(args["write-projections"]));
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return 0;
+  }
+
+  const facade = getWorkflowFacade();
+  if (facade.mode === "skill" && !args.json) {
+    process.stdout.write(`sync complete: ${result.indexedFiles} files, ${result.indexedSymbols} symbols.\n`);
     return 0;
   }
 
@@ -489,8 +494,37 @@ async function handleProject(rest) {
   const [subcommand, ...extras] = rest;
   const args: any = parseArgs(extras);
 
+
+  if (subcommand === "surface") {
+    const pattern = args._[0] || null;
+    const symbols = await getWorkflowFacade().discoverExports(pattern);
+    
+    if (args.json) {
+      process.stdout.write(`${JSON.stringify(symbols, null, 2)}\n`);
+      return 0;
+    }
+
+    if (!symbols.length) {
+      process.stdout.write("No exported symbols found matching pattern.\n");
+      return 0;
+    }
+
+    const lines = symbols.map((s: any) => `- [${s.kind}] ${s.name} (${s.filePath}:${s.line})`);
+    process.stdout.write(`${lines.join("\n")}\n`);
+    return 0;
+  }
+
+  if (subcommand === "map-dependencies") {
+    const script = path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
+    return runNodeScript(script, args._);
+  }
+
+  if (subcommand === "locate-trapped-logic") {
+    const script = path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
+    return runNodeScript(script, args._);
+  }
   if (subcommand === "summary") {
-    const summary = await getProjectSummary({ projectRoot: process.cwd() });
+    const summary = await getWorkflowFacade().getSummary();
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
       return 0;
@@ -529,14 +563,7 @@ async function handleProject(rest) {
     if (!selector) {
       printAndExit("Usage: ai-workflow project status <selector> [--type <type>] [--json]\n       ai-workflow project status related <selector> [--type <type>] [--json]\n       ai-workflow project status types", 1);
     }
-    const report = await resolveProjectStatus({
-      projectRoot: process.cwd(),
-      selector,
-      type: args.type ? String(args.type) : null,
-      includeRelated: true,
-      rawQuestion: false,
-      relatedLimit: includeRelated ? 24 : 12
-    });
+    const report = await getWorkflowFacade().getStatus(selector, args.type ? String(args.type) : null, includeRelated);
     if (!report.ok) {
       printAndExit(report.error ?? `No status target matched ${selector}`, 1);
     }
@@ -1570,7 +1597,7 @@ async function handleSetProviderKey(rest) {
 
 async function handleMetrics(rest) {
   const args: any = parseArgs(rest);
-  const metrics = await getProjectMetrics({ projectRoot: process.cwd() });
+  const metrics = await getWorkflowFacade().getMetrics();
   
   if (args.json) {
     process.stdout.write(`${JSON.stringify(metrics, null, 2)}\n`);
@@ -2219,4 +2246,11 @@ function normalizeModeValue(value) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "default" || normalized === "tool-dev") return normalized;
   return null;
+}
+
+function getWorkflowFacade() {
+  return new WorkflowFacade({ 
+    projectRoot: process.cwd(),
+    mode: detectExecutionMode()
+  });
 }
