@@ -49,10 +49,38 @@ export class ShellPresenter {
   static formatCodeletResult(id: string, result: any): string {
     if (id === "sync") return this.formatSyncResult(result);
     if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
+    if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
     
     if (result && typeof result === "object") {
        return JSON.stringify(result, null, 2) + "\n";
     }
     return String(result) + "\n";
+  }
+
+  static formatExecuteTicketResult(result: any): string {
+    const lines = [
+      `Mode: ${result.mode}`,
+      `Repair target: ${result.repairTargetRoot}`,
+      `Ticket: ${result.ticketId || result.id}`,
+      `Status: ${result.status ?? (result.success ? "ok" : "failed")}`,
+      `Ready: ${result.executionPlan?.ready ? "yes" : "no"}`
+    ].filter(Boolean);
+
+    if (result.executionPlan?.verificationCommands?.length) {
+      lines.push(`Verification: ${result.executionPlan.verificationCommands.map((item: any) => item.command).join(" | ")}`);
+    }
+    if (result.verification?.results?.length) {
+      lines.push(`Baseline: ${result.verification.ok ? "green" : "red"}`);
+      for (const res of result.verification.results) {
+        lines.push(`- ${res.exitCode === 0 ? "PASS" : "FAIL"} ${res.command} | ${res.snippet}`);
+      }
+    }
+    if (result.changedFiles?.length) {
+      lines.push(`Changed files: ${result.changedFiles.join(", ")}`);
+    }
+    if (result.error) {
+      lines.push(`Error: ${result.error}`);
+    }
+    return lines.join("\n") + "\n";
   }
 }

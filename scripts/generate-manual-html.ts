@@ -3,7 +3,7 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { ensureDir } from "../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../core/lib/fs-utils.ts";
 
 export async function generateManualHtml({
   root = process.cwd(),

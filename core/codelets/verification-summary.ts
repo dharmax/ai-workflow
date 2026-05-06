@@ -4,13 +4,13 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { parseArgs, asArray, printAndExit } from "./lib/cli.ts";
-import { judgeArtifacts } from "../../../core/services/artifact-verification.ts";
-import { stableId } from "../../../core/lib/hash.ts";
-import { assessWorkflowGap } from "../../../core/services/gap-closure.ts";
-import { isHonestyContractPass } from "../../../core/contracts/honesty-contract.ts";
-import { judgeShellTranscripts } from "../../../core/services/shell-transcript-verification.ts";
-import { withWorkflowStore } from "../../../core/services/sync.ts";
+import { parseArgs, asArray, printAndExit } from "../lib/cli.ts";
+import { judgeArtifacts } from "../services/artifact-verification.ts";
+import { stableId } from "../lib/hash.ts";
+import { assessWorkflowGap } from "../services/gap-closure.ts";
+import { isHonestyContractPass } from "../contracts/honesty-contract.ts";
+import { judgeShellTranscripts } from "../services/shell-transcript-verification.ts";
+import { withWorkflowStore } from "../services/sync.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/verification-summary.mjs --cmd "pnpm test" --cmd "pnpm build"

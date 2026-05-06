@@ -5,6 +5,6 @@
 
 import type { ServiceHub } from "../services/service-hub.ts";
 
-export async function run(_args: any, hub: ServiceHub) {
-  return hub.facade.getSummary();
+export async function run(_args: any, hub: typeof ServiceHub) {
+  return hub.getProjectSummary();
 }

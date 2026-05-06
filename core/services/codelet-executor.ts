@@ -1,5 +1,5 @@
-import { getBuiltinCodelet } from "./builtin-registry.ts";
-import { createServiceHub } from "./service-hub.ts";
+
+import { ServiceHub } from "./service-hub.ts";
 /**
  * @file codelet-executor.js
  * @brief Auto-generated header for codelet-executor.js. Needs detailed responsibility and scope.
@@ -11,10 +11,8 @@ import { pathToFileURL } from "node:url";
 import { TaskExecutor } from "@dharmax/shell-proc-utils";
 
 export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
-  const builtin = getBuiltinCodelet(codelet.id);
-  if (builtin) {
-    const hub = createServiceHub(cwd);
-    return builtin(args, hub);
+  if (ServiceHub.isBuiltinCodelet(codelet.id)) {
+    return ServiceHub.runBuiltinCodelet(codelet.id, args);
   }
 
   const entry = codelet.entryPath ?? (codelet.entry ? path.resolve(cwd, codelet.entry) : null);
@@ -44,17 +42,17 @@ function isJsExecutionCodelet(codelet, entry) {
 }
 
 async function tryRunInProcess(entry, args, { env, cwd = process.cwd() }) {
-  // console.log(`[codelet] attempting in-process: ${entry}`);
   const module = await import(pathToFileURL(entry).href);
-  // console.log(`[codelet] imported module`);
   const runner = module.runSmartCodelet ?? module.runCodelet ?? module.run ?? module.main ?? module.default;
   if (typeof runner !== "function") {
     return { used: false, result: null };
   }
 
-  // Provide the service hub to the codelet
-  const hub = createServiceHub(cwd);
-  const result = await runner(args, hub);
+  // Ensure hub context is set for the current workspace
+  ServiceHub.setContext({ projectRoot: cwd, mode: ServiceHub.context.mode });
+  
+  // Provide the static ServiceHub to the codelet
+  const result = await runner(args, ServiceHub);
   return { used: true, result };
 }
 

@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createEvaluateReadinessResponse, PROTOCOL_VERSION, validateEvaluateReadinessRequest } from "../contracts/dual-surface-protocol.ts";
-import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runtime/scripts/ai-workflow/lib/active-guardrails.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
 
 const HIGH_BLOCKER_LANES = new Set(["Bugs P1", "Human Inspection"]);
 const MEDIUM_BLOCKER_LANES = new Set(["Bugs P2/P3", "In Progress"]);

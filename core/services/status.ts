@@ -8,11 +8,11 @@ import { readFile } from "node:fs/promises";
 import { openWorkflowStore } from "../db/sqlite-store.ts";
 import { sha1, stableId } from "../lib/hash.ts";
 import { buildProjectSummary } from "./projections.ts";
-import { inferTicketWorkingSet } from "../../runtime/scripts/ai-workflow/lib/workflow-store-utils.ts";
-import { OPERATOR_SURFACES, collectOperatorSurfaceState } from "../../runtime/scripts/ai-workflow/lib/operator-surfaces.ts";
-import { DEFAULT_DOGFOOD_REPORT_PATH, readDogfoodReport } from "../../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
+import { inferTicketWorkingSet } from "../lib/workflow-store-utils.ts";
+import { OPERATOR_SURFACES, collectOperatorSurfaceState } from "../lib/operator-surfaces.ts";
+import { DEFAULT_DOGFOOD_REPORT_PATH, readDogfoodReport } from "../lib/dogfood-utils.ts";
 import { readLatestRunArtifact } from "../lib/run-artifacts.ts";
-import { getChanges, isGitRepo } from "../../runtime/scripts/ai-workflow/lib/git-utils.ts";
+import { getChanges, isGitRepo } from "../lib/git-utils.ts";
 
 const PROJECT_NODE_ID = "project:root";
 const STATUS_DERIVED_SOURCE = "derived-status";

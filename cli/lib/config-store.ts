@@ -6,7 +6,7 @@
 import os from "node:os";
 import path from "node:path";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
-import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../../core/lib/fs-utils.ts";
 
 export function getProjectConfigPath(root = process.cwd()) {
   return path.resolve(root, ".ai-workflow", "config.json");

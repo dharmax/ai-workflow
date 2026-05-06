@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit, splitCsv } from "./lib/cli.ts";
-import { listOperatorSurfaceIds } from "./lib/operator-surfaces.ts";
-import { runDogfood } from "./lib/dogfood-utils.ts";
+import { parseArgs, printAndExit, splitCsv } from "../lib/cli.ts";
+import { listOperatorSurfaceIds } from "../lib/operator-surfaces.ts";
+import { runDogfood } from "../lib/dogfood-utils.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/dogfood.mjs [--surface <id[,id...]>] [--profile <bootstrap|full>] [--timeout-ms <n>] [--json]
@@ -59,6 +59,7 @@ if (args.json) {
     }
   }
 
-  console.log(lines.join("\n"));
+  console.log(lines.join("\nexport async function run(args: any, hub: ServiceHub) {\n  "));
   process.exitCode = report.status === "fail" ? 1 : 0;
 }
+\n}

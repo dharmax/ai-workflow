@@ -1,14 +1,14 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import http from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { parseArgs, printAndExit } from "./lib/cli.ts";
-import { loadProjectActiveGuardrails, selectActiveGuardrails } from "./lib/active-guardrails.ts";
-import { resolveOperatingContext } from "../../../core/lib/operating-context.ts";
-import { evaluateProjectReadiness } from "../../../core/services/sync.ts";
-import { resolveHostRequest } from "../../../core/services/host-resolver.ts";
+import { parseArgs, printAndExit } from "../lib/cli.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
+import { resolveOperatingContext } from "../lib/operating-context.ts";
+import { evaluateProjectReadiness } from "../services/sync.ts";
+import { resolveHostRequest } from "../services/host-resolver.ts";
 
 const HELP = `Usage:
   node runtime/scripts/ai-workflow/tutorial-web.mjs [--port 4310] [--host 127.0.0.1]
@@ -188,7 +188,7 @@ server.listen(port, host, () => {
   };
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\nexport async function run(args: any, hub: ServiceHub) {\n  `);
     return;
   }
 
@@ -197,7 +197,7 @@ server.listen(port, host, () => {
     `Mode: ${payload.mode}`,
     `Repair target: ${payload.repairTargetRoot}`,
     `Evidence root: ${payload.evidenceRoot}`
-  ].join("\n") + "\n");
+  ].join("\n  ") + "\n  ");
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
@@ -231,3 +231,4 @@ async function readHostRequest(req, url) {
     continuation_state: parsed.continuation_state ?? null
   };
 }
+\n}

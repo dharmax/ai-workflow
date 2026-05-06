@@ -5,7 +5,10 @@
 
 import type { ServiceHub } from "../services/service-hub.ts";
 
-export async function run(args: any, hub: ServiceHub) {
-  const writeProjections = Boolean(args["write-projections"] || args.writeProjections);
-  return hub.facade.sync(writeProjections);
+export interface SyncOptions {
+  writeProjections?: boolean;
+}
+
+export async function run(options: SyncOptions, hub: typeof ServiceHub) {
+  return hub.sync(options);
 }

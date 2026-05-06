@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit, splitCsv } from "./lib/cli.ts";
-import { normalizePath } from "./lib/fs-utils.ts";
-import { getChanges, isGitRepo } from "./lib/git-utils.ts";
+import { parseArgs, printAndExit, splitCsv } from "../lib/cli.ts";
+import { normalizePath } from "../lib/fs-utils.ts";
+import { getChanges, isGitRepo } from "../lib/git-utils.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/review-summary.mjs
@@ -99,7 +99,7 @@ const summary = {
 };
 
 if (args.json) {
-  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\nexport async function run(args: any, hub: ServiceHub) {\n  `);
   process.exit(0);
 }
 
@@ -120,7 +120,7 @@ for (const item of summary.focus.length ? summary.focus : ["no special review ho
   lines.push(`- ${item}`);
 }
 
-process.stdout.write(`${lines.join("\n")}\n`);
+process.stdout.write(`${lines.join("\n  ")}\n  `);
 
 function classify(filePath) {
   const normalized = normalizePath(filePath);
@@ -157,3 +157,4 @@ function classify(filePath) {
 
   return "other";
 }
+\n}

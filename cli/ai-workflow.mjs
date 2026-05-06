@@ -9,94 +9,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// core/services/execution-context.ts
-function detectExecutionMode() {
-  if (process.env.AI_WORKFLOW_CONTEXT === "skill" || process.argv.includes("--skill-mode")) {
-    return "skill" /* Skill */;
-  }
-  return "shell" /* Shell */;
-}
-var init_execution_context = __esm({
-  "core/services/execution-context.ts"() {
-    "use strict";
-  }
-});
-
-// core/codelets/sync.ts
-async function run(args, hub) {
-  const writeProjections = Boolean(args["write-projections"] || args.writeProjections);
-  return hub.facade.sync(writeProjections);
-}
-var init_sync = __esm({
-  "core/codelets/sync.ts"() {
-    "use strict";
-  }
-});
-
-// core/codelets/project-summary.ts
-async function run2(_args, hub) {
-  return hub.facade.getSummary();
-}
-var init_project_summary = __esm({
-  "core/codelets/project-summary.ts"() {
-    "use strict";
-  }
-});
-
-// core/codelets/kanban.ts
-async function run3(args, hub) {
-  const subcommand = args._[0];
-  switch (subcommand) {
-    case "new":
-      return hub.kanban.newTicket(args);
-    case "move":
-      return hub.kanban.moveTicket(args.id, args.to, args);
-    case "next":
-      return hub.kanban.getNext(args);
-    default:
-      throw new Error(`Unknown kanban subcommand: ${subcommand}`);
-  }
-}
-var init_kanban = __esm({
-  "core/codelets/kanban.ts"() {
-    "use strict";
-  }
-});
-
-// runtime/scripts/ai-workflow/lib/fs-utils.ts
-import { access, mkdir, readFile } from "node:fs/promises";
-import path from "node:path";
-import { constants } from "node:fs";
-async function exists(filePath) {
-  try {
-    await access(filePath, constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function readText(filePath, fallback = "") {
-  try {
-    return await readFile(filePath, "utf8");
-  } catch (error) {
-    if (error && error.code === "ENOENT") {
-      return fallback;
-    }
-    throw error;
-  }
-}
-async function ensureDir(dirPath) {
-  await mkdir(dirPath, { recursive: true });
-}
-function normalizePath(filePath) {
-  return filePath.split(path.sep).join("/");
-}
-var init_fs_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/fs-utils.ts"() {
-    "use strict";
-  }
-});
-
 // node_modules/.pnpm/@dharmax+llm-utils@https+++codeload.github.com+dharmax+llm-utils+tar.gz+7e2067dbfde8134b0bac163fe831920d7f515dd8/node_modules/@dharmax/llm-utils/dist/index.mjs
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -1264,9 +1176,9 @@ __export(sqlite_store_exports, {
   SqliteWorkflowStore: () => SqliteWorkflowStore,
   openWorkflowStore: () => openWorkflowStore
 });
-import path2 from "node:path";
+import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { mkdir as mkdir2 } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 function nowIso() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -1283,8 +1195,8 @@ function parseJson(value, fallback = {}) {
 async function openWorkflowStore(options = {}) {
   const projectRoot = options.projectRoot || (typeof options === "string" ? options : process.cwd());
   const dbPath = options.dbPath;
-  const resolvedDbPath = dbPath ?? path2.resolve(projectRoot, ".ai-workflow", "state", "workflow.db");
-  await mkdir2(path2.dirname(resolvedDbPath), { recursive: true });
+  const resolvedDbPath = dbPath ?? path.resolve(projectRoot, ".ai-workflow", "state", "workflow.db");
+  await mkdir(path.dirname(resolvedDbPath), { recursive: true });
   for (let attempt = 0; attempt < WORKFLOW_STORE_OPEN_RETRY_DELAYS_MS.length; attempt += 1) {
     let db = null;
     try {
@@ -2958,7 +2870,7 @@ var init_sqlite_store = __esm({
         updated_at = excluded.updated_at
     `).run(
           String(contract.runId),
-          path2.resolve(String(contract.root ?? this.projectRoot ?? ".")),
+          path.resolve(String(contract.root ?? this.projectRoot ?? ".")),
           String(contract.source ?? "unknown"),
           String(contract.userWish ?? ""),
           String(contract.successDefinition ?? ""),
@@ -2973,7 +2885,7 @@ var init_sqlite_store = __esm({
         );
       }
       getLatestWorkflowContract(root = null) {
-        const resolvedRoot = root ? path2.resolve(String(root)) : path2.resolve(String(this.projectRoot ?? "."));
+        const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
         const row = this.db.prepare(`
       SELECT *
       FROM workflow_contracts
@@ -3028,7 +2940,7 @@ var init_sqlite_store = __esm({
         updated_at = excluded.updated_at
     `).run(
           String(review.runId),
-          path2.resolve(String(review.root ?? this.projectRoot ?? ".")),
+          path.resolve(String(review.root ?? this.projectRoot ?? ".")),
           String(review.source ?? "unknown"),
           String(review.status ?? "open"),
           String(review.severity ?? "medium"),
@@ -3040,7 +2952,7 @@ var init_sqlite_store = __esm({
         );
       }
       getLatestWorkflowGapReview(root = null) {
-        const resolvedRoot = root ? path2.resolve(String(root)) : path2.resolve(String(this.projectRoot ?? "."));
+        const resolvedRoot = root ? path.resolve(String(root)) : path.resolve(String(this.projectRoot ?? "."));
         const row = this.db.prepare(`
       SELECT *
       FROM workflow_gap_reviews
@@ -3067,7 +2979,7 @@ var init_sqlite_store = __esm({
       appendWorkspaceMutation(mutation) {
         const startedAt = String(mutation.startedAt ?? nowIso());
         const completedAt = String(mutation.completedAt ?? startedAt);
-        const root = path2.resolve(String(mutation.root ?? this.projectRoot ?? "."));
+        const root = path.resolve(String(mutation.root ?? this.projectRoot ?? "."));
         const id = String(mutation.id ?? stableId("workspace-mutation", root, mutation.operation, completedAt, asJson(mutation.changedFiles ?? [])));
         this.db.prepare(`
       INSERT INTO workspace_mutations (
@@ -3110,7 +3022,7 @@ var init_sqlite_store = __esm({
         const values = [];
         if (root) {
           clauses.push("root = ?");
-          values.push(path2.resolve(String(root)));
+          values.push(path.resolve(String(root)));
         }
         const boundedLimit = Math.max(1, Number(limit ?? 50) || 50);
         const query = `
@@ -3274,6 +3186,44 @@ var init_sqlite_store = __esm({
   }
 });
 
+// core/lib/fs-utils.ts
+import { access, mkdir as mkdir2, readFile } from "node:fs/promises";
+import path2 from "node:path";
+import { constants } from "node:fs";
+async function exists(filePath) {
+  try {
+    await access(filePath, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function readText(filePath, fallback = "") {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return fallback;
+    }
+    throw error;
+  }
+}
+async function ensureDir(dirPath) {
+  await mkdir2(dirPath, { recursive: true });
+}
+function normalizePath(filePath) {
+  return filePath.split(path2.sep).join("/");
+}
+function isWorkflowStatePath(filePath) {
+  const normalized = normalizePath(String(filePath));
+  return /^\.ai-workflow\/state\//.test(normalized);
+}
+var init_fs_utils = __esm({
+  "core/lib/fs-utils.ts"() {
+    "use strict";
+  }
+});
+
 // core/lib/registry.ts
 function getAllSupportedExtensions() {
   return Object.values(SEMANTICS.EXTENSIONS).flat();
@@ -3318,15 +3268,161 @@ var init_registry = __esm({
   }
 });
 
+// core/lib/workspace-mutation.ts
+import path3 from "node:path";
+import { execFile as execFile3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
+function isWorkspaceMutationGuardDisabled() {
+  return guardDepth > 0;
+}
+async function withWorkspaceMutationGuardDisabled(callback) {
+  guardDepth += 1;
+  try {
+    return await callback();
+  } finally {
+    guardDepth = Math.max(0, guardDepth - 1);
+  }
+}
+async function withWorkspaceMutation(root, operation, callback, { writeProjections = true, syncAfter = true, syncBefore = true } = {}) {
+  if (isWorkspaceMutationGuardDisabled()) {
+    return callback({
+      nested: true,
+      operation,
+      before: null
+    });
+  }
+  guardDepth += 1;
+  try {
+    const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const before = await probeWorkspaceState(root).catch(() => ({
+      gitRepo: false,
+      dirty: true,
+      changedFiles: [],
+      source: "probe-error"
+    }));
+    if (syncBefore && before.dirty) {
+      const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
+      await syncProject2({ projectRoot: root, writeProjections: false }).catch(() => {
+      });
+    }
+    let result;
+    let failed = null;
+    try {
+      result = await callback({
+        before,
+        operation
+      });
+      return result;
+    } catch (error) {
+      failed = error;
+      throw error;
+    } finally {
+      const after = await probeWorkspaceState(root).catch(() => ({
+        gitRepo: false,
+        dirty: true,
+        changedFiles: [],
+        source: "probe-error"
+      }));
+      let finalAfter = after;
+      let syncTriggered = false;
+      if (syncAfter && (before.dirty || after.dirty || !before.gitRepo || !after.gitRepo || failed)) {
+        const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync(), sync_exports));
+        syncTriggered = true;
+        await syncProject2({ projectRoot: root, writeProjections }).catch(() => {
+        });
+        finalAfter = await probeWorkspaceState(root).catch(() => after);
+      }
+      const { collectProjectFileSnapshot: collectProjectFileSnapshot2 } = await Promise.resolve().then(() => (init_filesystem(), filesystem_exports));
+      const finalSnapshot = await collectProjectFileSnapshot2(root).catch(() => []);
+      await recordWorkspaceMutation(root, {
+        operation,
+        status: failed ? "failed" : "completed",
+        beforeDirty: before.dirty,
+        afterDirty: finalAfter.dirty,
+        changedFiles: finalAfter.changedFiles,
+        details: {
+          before,
+          after: finalAfter,
+          snapshot: finalSnapshot,
+          syncTriggered,
+          error: failed ? String(failed?.message ?? failed) : null
+        },
+        startedAt,
+        completedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }).catch(() => {
+      });
+    }
+  } finally {
+    guardDepth = Math.max(0, guardDepth - 1);
+  }
+}
+async function probeWorkspaceState(root) {
+  const gitRepo = await probeGitRepo(root);
+  if (!gitRepo) {
+    return {
+      gitRepo: false,
+      dirty: true,
+      changedFiles: [],
+      source: "snapshot-required"
+    };
+  }
+  const output7 = await runGit(root, ["status", "--porcelain", "--untracked-files=all"]);
+  const changedFiles = parseStatusShort(output7);
+  return {
+    gitRepo: true,
+    dirty: changedFiles.length > 0,
+    changedFiles,
+    source: "git"
+  };
+}
+async function probeGitRepo(root) {
+  try {
+    const output7 = await runGit(root, ["rev-parse", "--is-inside-work-tree"]);
+    return output7.trim() === "true";
+  } catch {
+    return false;
+  }
+}
+async function runGit(root, args) {
+  const { stdout } = await execFileAsync3("git", args, {
+    cwd: root,
+    maxBuffer: 8 * 1024 * 1024
+  });
+  return String(stdout ?? "").trimEnd();
+}
+function parseStatusShort(output7) {
+  return String(output7 ?? "").split(/\r?\n/).filter(Boolean).map((line) => line.slice(3).trim()).filter(Boolean);
+}
+async function recordWorkspaceMutation(root, mutation) {
+  const { openWorkflowStore: openWorkflowStore2 } = await Promise.resolve().then(() => (init_sqlite_store(), sqlite_store_exports));
+  const store = await openWorkflowStore2({ projectRoot: root });
+  try {
+    store.appendWorkspaceMutation({
+      ...mutation,
+      root: path3.resolve(root)
+    });
+  } finally {
+    store.close();
+  }
+}
+var execFileAsync3, guardDepth;
+var init_workspace_mutation = __esm({
+  "core/lib/workspace-mutation.ts"() {
+    "use strict";
+    execFileAsync3 = promisify3(execFile3);
+    guardDepth = 0;
+  }
+});
+
 // cli/lib/config-store.ts
 import os from "node:os";
-import path3 from "node:path";
+import path4 from "node:path";
 import { readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 function getProjectConfigPath(root = process.cwd()) {
-  return path3.resolve(root, ".ai-workflow", "config.json");
+  return path4.resolve(root, ".ai-workflow", "config.json");
 }
 function getGlobalConfigPath() {
-  return path3.resolve(os.homedir(), ".ai-workflow", "config.json");
+  return path4.resolve(os.homedir(), ".ai-workflow", "config.json");
 }
 async function readConfig(filePath) {
   try {
@@ -3405,7 +3501,7 @@ async function updateConfig(filePath, updater) {
   return nextConfig;
 }
 async function replaceConfig(filePath, config) {
-  await ensureDir(path3.dirname(filePath));
+  await ensureDir(path4.dirname(filePath));
   const payload = `${JSON.stringify(config, null, 2)}
 `;
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
@@ -3452,13 +3548,13 @@ __export(operating_context_exports, {
   getToolkitRoot: () => getToolkitRoot,
   resolveOperatingContext: () => resolveOperatingContext
 });
-import path4 from "node:path";
+import path5 from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 function getToolkitRoot() {
   const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
   if (fromEnv) {
-    return path4.resolve(fromEnv);
+    return path5.resolve(fromEnv);
   }
   for (const candidate of candidateRoots(moduleDir)) {
     if (isToolkitRoot(candidate)) {
@@ -3484,10 +3580,10 @@ async function resolveOperatingContext({
   const projectMode = projectConfigResult.config?.mode;
   const globalMode = globalConfigResult.config?.mode;
   const resolvedMode = normalizeMode(mode ?? projectMode ?? globalMode ?? "default");
-  const requestedRoot = root ? path4.resolve(String(root)) : null;
-  const resolvedEvidenceRoot = evidenceRoot ? path4.resolve(String(evidenceRoot)) : path4.resolve(cwd);
-  const repairTargetRoot = requestedRoot ?? (resolvedMode === "tool-dev" ? toolkitRoot3 : path4.resolve(cwd));
-  const externalTarget = path4.resolve(repairTargetRoot) !== path4.resolve(toolkitRoot3);
+  const requestedRoot = root ? path5.resolve(String(root)) : null;
+  const resolvedEvidenceRoot = evidenceRoot ? path5.resolve(String(evidenceRoot)) : path5.resolve(cwd);
+  const repairTargetRoot = requestedRoot ?? (resolvedMode === "tool-dev" ? toolkitRoot3 : path5.resolve(cwd));
+  const externalTarget = path5.resolve(repairTargetRoot) !== path5.resolve(toolkitRoot3);
   return {
     mode: resolvedMode,
     toolkitRoot: toolkitRoot3,
@@ -3512,23 +3608,23 @@ function normalizeMode(value) {
   return normalized === "tool-dev" ? "tool-dev" : "default";
 }
 function* candidateRoots(startDir) {
-  let current2 = path4.resolve(startDir);
+  let current2 = path5.resolve(startDir);
   while (true) {
     yield current2;
-    const parent = path4.dirname(current2);
+    const parent = path5.dirname(current2);
     if (parent === current2) break;
     current2 = parent;
   }
 }
 function isToolkitRoot(candidate) {
-  return existsSync(path4.resolve(candidate, "package.json")) && existsSync(path4.resolve(candidate, "core", "services", "sync.ts")) && (existsSync(path4.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync(path4.resolve(candidate, "cli", "ai-workflow.mjs")));
+  return existsSync(path5.resolve(candidate, "package.json")) && existsSync(path5.resolve(candidate, "core", "services", "sync.ts")) && (existsSync(path5.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync(path5.resolve(candidate, "cli", "ai-workflow.mjs")));
 }
 var moduleDir;
 var init_operating_context = __esm({
   "core/lib/operating-context.ts"() {
     "use strict";
     init_config_store();
-    moduleDir = path4.dirname(fileURLToPath(import.meta.url));
+    moduleDir = path5.dirname(fileURLToPath(import.meta.url));
   }
 });
 
@@ -3543,11 +3639,11 @@ __export(filesystem_exports, {
   renderTemplate: () => renderTemplate,
   writeProjectFile: () => writeProjectFile
 });
-import path5 from "node:path";
+import path6 from "node:path";
 import { existsSync as existsSync2 } from "node:fs";
 import { readdir, readFile as readFile3, stat, writeFile as writeFile2 } from "node:fs/promises";
 function normalizePath2(filePath) {
-  return filePath.split(path5.sep).join("/");
+  return filePath.split(path6.sep).join("/");
 }
 async function collectProjectFiles(root, options = {}) {
   const files = [];
@@ -3557,8 +3653,8 @@ async function collectProjectFiles(root, options = {}) {
   async function walk(currentDir) {
     const entries = await readdir(currentDir, { withFileTypes: true });
     for (const entry of entries) {
-      const absolutePath = path5.resolve(currentDir, entry.name);
-      const relativePath = normalizePath2(path5.relative(root, absolutePath));
+      const absolutePath = path6.resolve(currentDir, entry.name);
+      const relativePath = normalizePath2(path6.relative(root, absolutePath));
       if (entry.isDirectory()) {
         if (ignore.has(entry.name)) {
           continue;
@@ -3584,7 +3680,7 @@ async function collectProjectFiles(root, options = {}) {
       if (shouldIgnorePath(relativePath, projectIgnore)) {
         continue;
       }
-      if (!supported.has(path5.extname(entry.name).toLowerCase())) {
+      if (!supported.has(path6.extname(entry.name).toLowerCase())) {
         continue;
       }
       files.push(relativePath);
@@ -3601,8 +3697,8 @@ async function collectProjectFileSnapshot(root, options = {}) {
   async function walk(currentDir) {
     const entries = await readdir(currentDir, { withFileTypes: true });
     for (const entry of entries) {
-      const absolutePath = path5.resolve(currentDir, entry.name);
-      const relativePath = normalizePath2(path5.relative(root, absolutePath));
+      const absolutePath = path6.resolve(currentDir, entry.name);
+      const relativePath = normalizePath2(path6.relative(root, absolutePath));
       if (entry.isDirectory()) {
         if (ignore.has(entry.name)) {
           continue;
@@ -3628,7 +3724,7 @@ async function collectProjectFileSnapshot(root, options = {}) {
       if (shouldIgnorePath(relativePath, projectIgnore)) {
         continue;
       }
-      if (!supported.has(path5.extname(entry.name).toLowerCase())) {
+      if (!supported.has(path6.extname(entry.name).toLowerCase())) {
         continue;
       }
       const stats = await stat(absolutePath);
@@ -3650,7 +3746,7 @@ function shouldIgnoreFile(name, relativePath) {
   return GENERATED_FILE_PATTERNS.some((pattern) => pattern.test(name));
 }
 async function loadProjectIgnore(root) {
-  const ignorePath = path5.resolve(root, ".ai-workflowignore");
+  const ignorePath = path6.resolve(root, ".ai-workflowignore");
   let text = "";
   try {
     text = await readFile3(ignorePath, "utf8");
@@ -3681,11 +3777,11 @@ async function isNestedProjectRoot(root, absolutePath, relativePath) {
   if (!normalized || normalized.startsWith(".git/") || normalized.startsWith(".ai-workflow/")) {
     return false;
   }
-  const packageJsonPath = path5.resolve(absolutePath, "package.json");
-  const workflowConfigPath = path5.resolve(absolutePath, ".ai-workflow", "config.json");
-  const docsKanbanPath = path5.resolve(absolutePath, "docs", "kanban.md");
-  const rootKanbanPath = path5.resolve(absolutePath, "kanban.md");
-  const nestedScriptPath = path5.resolve(absolutePath, "scripts", "ai-workflow");
+  const packageJsonPath = path6.resolve(absolutePath, "package.json");
+  const workflowConfigPath = path6.resolve(absolutePath, ".ai-workflow", "config.json");
+  const docsKanbanPath = path6.resolve(absolutePath, "docs", "kanban.md");
+  const rootKanbanPath = path6.resolve(absolutePath, "kanban.md");
+  const nestedScriptPath = path6.resolve(absolutePath, "scripts", "ai-workflow");
   if (!existsSync2(packageJsonPath)) {
     return false;
   }
@@ -3693,7 +3789,7 @@ async function isNestedProjectRoot(root, absolutePath, relativePath) {
   return hasProjectMarkers;
 }
 async function readProjectFile(root, relativePath) {
-  const absolutePath = path5.resolve(root, relativePath);
+  const absolutePath = path6.resolve(root, relativePath);
   const stats = await stat(absolutePath);
   if (stats.size > 2 * 1024 * 1024) {
     return {
@@ -3719,7 +3815,7 @@ async function readProjectFile(root, relativePath) {
 async function loadPromptTemplate(templateName) {
   const { getToolkitRoot: getToolkitRoot3 } = await Promise.resolve().then(() => (init_operating_context(), operating_context_exports));
   const toolkitRoot3 = getToolkitRoot3();
-  const templatePath = path5.resolve(toolkitRoot3, "shared", "prompts", `${templateName}.md`);
+  const templatePath = path6.resolve(toolkitRoot3, "shared", "prompts", `${templateName}.md`);
   try {
     let raw = await readFile3(templatePath, "utf8");
     let manifest = {};
@@ -3754,10 +3850,10 @@ async function writeProjectFile(root, relativePath, content) {
   return writeProjectFileRaw(root, relativePath, content);
 }
 async function writeProjectFileRaw(root, relativePath, content) {
-  const absolutePath = path5.resolve(root, relativePath);
+  const absolutePath = path6.resolve(root, relativePath);
   const tempPath = `${absolutePath}.tmp-${Date.now()}`;
   const { rename: rename2, unlink } = await import("node:fs/promises");
-  await ensureDir(path5.dirname(absolutePath));
+  await ensureDir(path6.dirname(absolutePath));
   try {
     await writeFile2(tempPath, content, "utf8");
     await rename2(tempPath, absolutePath);
@@ -3800,7 +3896,7 @@ var init_filesystem = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+codebase-parser@https+++codeload.github.com+dharmax+codebase-parser+tar.gz+176_6b7390c875f2195e46a390f5f75f6845/node_modules/@dharmax/codebase-parser/dist/index.mjs
-import path6 from "node:path";
+import path7 from "node:path";
 function getNoteRegex() {
   const allMarkers = [
     ...SEMANTICS2.NOTES.markers,
@@ -4181,7 +4277,7 @@ function isExplicitMarkdownNote(line) {
   return false;
 }
 function parseIndexedFile({ filePath, content }) {
-  const extension = path6.extname(filePath).toLowerCase();
+  const extension = path7.extname(filePath).toLowerCase();
   if ([".js", ".mjs", ".jsx", ".ts", ".tsx"].includes(extension)) {
     return parseJsFamily({ filePath, content, language: extension.slice(1) });
   }
@@ -4356,14 +4452,14 @@ var init_disambiguation = __esm({
 });
 
 // core/services/projections.ts
-import path7 from "node:path";
+import path8 from "node:path";
 async function readProjectOrTemplate(projectRoot, fileName, templateName = fileName) {
-  const projectPath = path7.resolve(projectRoot, fileName);
+  const projectPath = path8.resolve(projectRoot, fileName);
   const text = await readText(projectPath, "");
   if (text) {
     return text;
   }
-  return await readText(path7.resolve(templatesRoot, templateName), "");
+  return await readText(path8.resolve(templatesRoot, templateName), "");
 }
 function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
   const counts = store.getSummary();
@@ -4382,7 +4478,7 @@ function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
   }, {});
   const status = [
     `Environment: ${process.platform} | CWD: ${store.projectRoot}`,
-    `Project: ${path7.basename(store.projectRoot)}`,
+    `Project: ${path8.basename(store.projectRoot)}`,
     `Epic: ${activeEpic ? `[${activeEpic.id}] ${activeEpic.title} (${activeEpic.state})` : "None"}`,
     `Inventory: ${counts.files} files, ${tickets.length} active tickets, ${assessments.length} pending assessments, ${counts.candidates} candidates`,
     "",
@@ -4659,11 +4755,11 @@ function renderEpicsProjection(store) {
 }
 async function writeProjectProjections(store, { projectRoot, reconcileLegacy = true } = {}) {
   const currentDigest = store.getMeta("lastProjectionDigest", null);
-  const { existsSync: existsSync7, readFileSync: readFileSync4 } = await import("node:fs");
+  const { existsSync: existsSync8, readFileSync: readFileSync4 } = await import("node:fs");
   const { createHash: createHash4 } = await import("node:crypto");
   for (const file of ["kanban.md", "epics.md"]) {
-    const fullP = path7.resolve(projectRoot, file);
-    if (existsSync7(fullP)) {
+    const fullP = path8.resolve(projectRoot, file);
+    if (existsSync8(fullP)) {
       const content = readFileSync4(fullP, "utf8");
       const h = createHash4("sha1").update(content).digest("hex");
       const oldH = currentDigest && currentDigest[file.replace(".md", "")];
@@ -4692,7 +4788,7 @@ async function writeProjectProjections(store, { projectRoot, reconcileLegacy = t
   if (gemini) {
     const geminiPath = (async () => {
       const { existsSync: exists2 } = await import("node:fs");
-      if (exists2(path7.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
+      if (exists2(path8.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
       return "GEMINI.md";
     })();
     writes.push(writeProjectFile(projectRoot, await geminiPath, gemini));
@@ -4704,8 +4800,8 @@ async function writeProjectProjections(store, { projectRoot, reconcileLegacy = t
     epics: sha1(epics)
   });
   return {
-    kanbanPath: path7.resolve(projectRoot, "kanban.md"),
-    epicsPath: path7.resolve(projectRoot, "epics.md"),
+    kanbanPath: path8.resolve(projectRoot, "kanban.md"),
+    epicsPath: path8.resolve(projectRoot, "epics.md"),
     writtenAt
   };
 }
@@ -4716,7 +4812,7 @@ async function importLegacyProjections(store, { projectRoot }) {
   const kanbanText = kanbanSource.text;
   const epicsText = epicsSource.text;
   const missionText = await readProjectOrTemplate(projectRoot, "MISSION.md");
-  const geminiText = await readText(path7.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
+  const geminiText = await readText(path8.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
   if (missionText) {
     store.setMeta("mission", missionText);
   }
@@ -4908,7 +5004,7 @@ async function selectProjectionSource(projectRoot, candidates, scorer, { lastPro
   let best = { path: candidates[0], text: "", score: -1 };
   let skippedGenerated = false;
   for (const relativePath of candidates) {
-    const text = await readText(path7.resolve(projectRoot, relativePath), "");
+    const text = await readText(path8.resolve(projectRoot, relativePath), "");
     if (lastProjectionDigest && shouldSkipGeneratedProjection(relativePath, text, lastProjectionDigest)) {
       skippedGenerated = true;
       continue;
@@ -5325,7 +5421,7 @@ var init_projections = __esm({
     init_hash();
     init_operating_context();
     toolkitRoot = getToolkitRoot();
-    templatesRoot = path7.resolve(toolkitRoot, "templates");
+    templatesRoot = path8.resolve(toolkitRoot, "templates");
     CORE_TICKET_LANES = [
       "Deep Backlog",
       "Backlog",
@@ -5350,7 +5446,7 @@ var init_projections = __esm({
 });
 
 // core/services/knowledge.ts
-import path8 from "node:path";
+import path9 from "node:path";
 import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 async function loadKnowledge({ root = process.cwd(), projectConfig = {}, globalConfig = {} } = {}) {
@@ -5433,7 +5529,7 @@ async function recordProjectKnowledge({
     lines.push(`  - Changed files: ${changedFiles.join(", ")}`);
   }
   lines.push("");
-  await mkdir3(path8.dirname(resolvedPath), { recursive: true });
+  await mkdir3(path9.dirname(resolvedPath), { recursive: true });
   await writeFile3(resolvedPath, `${lines.join("\n").trimEnd()}
 `, "utf8");
   return { updated: true, path: resolvedPath };
@@ -5506,7 +5602,7 @@ async function updateKnowledgeRemote({
       destinationPath
     };
   }
-  await mkdir3(path8.dirname(destinationPath), { recursive: true });
+  await mkdir3(path9.dirname(destinationPath), { recursive: true });
   await writeFile3(destinationPath, `${JSON.stringify(normalized, null, 2)}
 `, "utf8");
   return {
@@ -5581,7 +5677,7 @@ async function loadProjectKnowledge(root) {
 }
 async function findExistingProjectKnowledgePath(root) {
   for (const relativePath of PROJECT_KNOWLEDGE_CANDIDATES) {
-    const absolutePath = path8.resolve(root, relativePath);
+    const absolutePath = path9.resolve(root, relativePath);
     const content = await readText(absolutePath, "");
     if (content) {
       return absolutePath;
@@ -5590,7 +5686,7 @@ async function findExistingProjectKnowledgePath(root) {
   return null;
 }
 async function resolveProjectKnowledgePath(root) {
-  return await findExistingProjectKnowledgePath(root) ?? path8.resolve(root, "knowledge.md");
+  return await findExistingProjectKnowledgePath(root) ?? path9.resolve(root, "knowledge.md");
 }
 function extractKnowledgeFacts(markdown) {
   return normalizeStringArray(
@@ -5636,12 +5732,12 @@ var init_knowledge = __esm({
     "use strict";
     init_config_store();
     init_fs_utils();
-    __dirname = path8.dirname(fileURLToPath2(import.meta.url));
-    BUILTIN_KNOWLEDGE_PATH = path8.resolve(__dirname, "../../shared/knowledge.json");
-    MODEL_REFERENCE_PATH = path8.resolve(__dirname, "../../shared/model-reference.json");
+    __dirname = path9.dirname(fileURLToPath2(import.meta.url));
+    BUILTIN_KNOWLEDGE_PATH = path9.resolve(__dirname, "../../shared/knowledge.json");
+    MODEL_REFERENCE_PATH = path9.resolve(__dirname, "../../shared/model-reference.json");
     PROJECT_KNOWLEDGE_CANDIDATES = [
       "knowledge.md",
-      path8.join("docs", "knowledge.md")
+      path9.join("docs", "knowledge.md")
     ];
   }
 });
@@ -5676,8 +5772,8 @@ __export(providers_exports, {
   resolveOllamaConfig: () => resolveOllamaConfig,
   summarizeCompletionUsage: () => summarizeCompletionUsage
 });
-import { execFile as execFile3 } from "node:child_process";
-import { promisify as promisify3 } from "node:util";
+import { execFile as execFile4 } from "node:child_process";
+import { promisify as promisify4 } from "node:util";
 function registerProvider(id, adapter) {
   const providerId = String(id ?? adapter?.id ?? "").trim();
   if (!providerId) {
@@ -5869,7 +5965,7 @@ async function probeOllama({ host } = {}) {
     }
   }
   try {
-    const { stdout, stderr } = await execFileAsync3("ollama", ["list"], {
+    const { stdout, stderr } = await execFileAsync4("ollama", ["list"], {
       maxBuffer: 8 * 1024 * 1024,
       env: { ...process.env, OLLAMA_HOST: resolvedHost }
     });
@@ -6097,7 +6193,7 @@ function normalizeUsage(usage = {}) {
     available: usage.available === true || promptTokens > 0 || completionTokens > 0 || totalTokens > 0
   };
 }
-var execFileAsync3, OLLAMA_DISCOVERY_CACHE_TTL_MS, ollamaDiscoveryCache, registeredAdapters;
+var execFileAsync4, OLLAMA_DISCOVERY_CACHE_TTL_MS, ollamaDiscoveryCache, registeredAdapters;
 var init_providers = __esm({
   "core/services/providers.ts"() {
     "use strict";
@@ -6107,7 +6203,7 @@ var init_providers = __esm({
     init_config_store();
     init_knowledge();
     init_lean_ctx();
-    execFileAsync3 = promisify3(execFile3);
+    execFileAsync4 = promisify4(execFile4);
     OLLAMA_DISCOVERY_CACHE_TTL_MS = 6 * 60 * 60 * 1e3;
     ollamaDiscoveryCache = /* @__PURE__ */ new Map();
     registeredAdapters = /* @__PURE__ */ new Map();
@@ -6119,7 +6215,7 @@ var init_providers = __esm({
 });
 
 // core/services/web-search.ts
-import path9 from "node:path";
+import path10 from "node:path";
 import { mkdir as mkdir4, readFile as readFile4, rm as rm2, writeFile as writeFile4 } from "node:fs/promises";
 async function searchWebEvidence({
   root = process.cwd(),
@@ -6272,12 +6368,12 @@ async function readWebSearchCache(root) {
 }
 async function writeWebSearchCache(root, payload) {
   const cachePath = getWebSearchCachePath(root);
-  await mkdir4(path9.dirname(cachePath), { recursive: true });
+  await mkdir4(path10.dirname(cachePath), { recursive: true });
   await writeFile4(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getWebSearchCachePath(root) {
-  return path9.resolve(root, ".ai-workflow", "cache", "web-search.json");
+  return path10.resolve(root, ".ai-workflow", "cache", "web-search.json");
 }
 var DEFAULT_CACHE_TTL_MS, DEFAULT_MAX_RESULTS;
 var init_web_search = __esm({
@@ -6290,7 +6386,7 @@ var init_web_search = __esm({
 });
 
 // core/services/model-fit.ts
-import path10 from "node:path";
+import path11 from "node:path";
 import { mkdir as mkdir5, readFile as readFile5, rm as rm3, writeFile as writeFile5 } from "node:fs/promises";
 async function buildModelFitMatrix({
   root = process.cwd(),
@@ -6432,8 +6528,8 @@ async function enrichMatrixWithRemoteEvaluator({ providerState, taskClass, evalu
     }
   };
   try {
-    const { generateCompletion: generateCompletion3 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
-    const response = await generateCompletion3({
+    const { generateCompletion: generateCompletion4 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
+    const response = await generateCompletion4({
       providerId: evaluator.providerId,
       modelId: evaluator.modelId,
       prompt: [
@@ -6919,12 +7015,12 @@ async function readModelFitCache(root) {
 }
 async function writeModelFitCache(root, payload) {
   const cachePath = getModelFitCachePath(root);
-  await mkdir5(path10.dirname(cachePath), { recursive: true });
+  await mkdir5(path11.dirname(cachePath), { recursive: true });
   await writeFile5(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getModelFitCachePath(root) {
-  return path10.resolve(root, ".ai-workflow", "cache", "model-fit-matrix.json");
+  return path11.resolve(root, ".ai-workflow", "cache", "model-fit-matrix.json");
 }
 var DEFAULT_CACHE_TTL_MS2;
 var init_model_fit = __esm({
@@ -7255,7 +7351,7 @@ var init_honesty_contract = __esm({
 });
 
 // core/services/shell-transcript-verification.ts
-import path11 from "node:path";
+import path12 from "node:path";
 import { readFile as readFile6, stat as stat2 } from "node:fs/promises";
 function getShellTranscriptJudgeTimeoutMs(candidate) {
   const envValue = Number(
@@ -7799,11 +7895,11 @@ function normalizeArtifactPaths(values) {
   return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))];
 }
 async function readArtifact(projectRoot, artifactPath) {
-  const absolutePath = path11.isAbsolute(artifactPath) ? artifactPath : path11.resolve(projectRoot, artifactPath);
+  const absolutePath = path12.isAbsolute(artifactPath) ? artifactPath : path12.resolve(projectRoot, artifactPath);
   const stats = await stat2(absolutePath);
   const kind = classifyArtifactKind(absolutePath);
   const mimeType = kind === "image" ? mimeTypeFromPath(absolutePath) : "text/plain";
-  const relativePath = path11.isAbsolute(artifactPath) ? artifactPath : path11.relative(projectRoot, absolutePath).split(path11.sep).join("/");
+  const relativePath = path12.isAbsolute(artifactPath) ? artifactPath : path12.relative(projectRoot, absolutePath).split(path12.sep).join("/");
   if (kind === "image") {
     const buffer = await readFile6(absolutePath);
     return {
@@ -7826,7 +7922,7 @@ async function readArtifact(projectRoot, artifactPath) {
   };
 }
 function classifyArtifactKind(filePath) {
-  const ext = path11.extname(filePath).toLowerCase();
+  const ext = path12.extname(filePath).toLowerCase();
   if (IMAGE_EXTENSIONS.has(ext)) {
     return "image";
   }
@@ -7836,7 +7932,7 @@ function classifyArtifactKind(filePath) {
   return "text";
 }
 function mimeTypeFromPath(filePath) {
-  switch (path11.extname(filePath).toLowerCase()) {
+  switch (path12.extname(filePath).toLowerCase()) {
     case ".png":
       return "image/png";
     case ".jpg":
@@ -7997,7 +8093,7 @@ var init_shell_transcript_verification = __esm({
     init_router();
     init_providers();
     init_honesty_contract();
-    init_sync2();
+    init_sync();
     TEXT_EXTENSIONS = /* @__PURE__ */ new Set([
       ".md",
       ".mdx",
@@ -8041,21 +8137,21 @@ var init_shell_transcript_verification = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/toolkit-root.ts
-import path12 from "node:path";
+// core/lib/toolkit-root.ts
+import path13 from "node:path";
 import { existsSync as existsSync3 } from "node:fs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 function getToolkitRoot2() {
   const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
   if (fromEnv) {
-    return path12.resolve(fromEnv);
+    return path13.resolve(fromEnv);
   }
-  const toolkitRootFile = path12.resolve(scriptDir, "../toolkit-root.txt");
+  const toolkitRootFile = path13.resolve(scriptDir, "../toolkit-root.txt");
   if (existsSync3(toolkitRootFile)) {
     const content = readFileSync(toolkitRootFile, "utf8").trim();
     if (content) {
-      return path12.resolve(content);
+      return path13.resolve(content);
     }
   }
   for (const candidate of candidateRoots2(scriptDir)) {
@@ -8066,26 +8162,26 @@ function getToolkitRoot2() {
   throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
 }
 function* candidateRoots2(startDir) {
-  let current2 = path12.resolve(startDir);
+  let current2 = path13.resolve(startDir);
   while (true) {
     yield current2;
-    const parent = path12.dirname(current2);
+    const parent = path13.dirname(current2);
     if (parent === current2) break;
     current2 = parent;
   }
 }
 function isToolkitRoot2(candidate) {
-  return existsSync3(path12.resolve(candidate, "package.json")) && existsSync3(path12.resolve(candidate, "core", "services", "sync.ts")) && (existsSync3(path12.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync3(path12.resolve(candidate, "cli", "ai-workflow.mjs")));
+  return existsSync3(path13.resolve(candidate, "package.json")) && existsSync3(path13.resolve(candidate, "core", "services", "sync.ts")) && (existsSync3(path13.resolve(candidate, "cli", "ai-workflow.ts")) || existsSync3(path13.resolve(candidate, "cli", "ai-workflow.mjs")));
 }
 var scriptDir;
 var init_toolkit_root = __esm({
-  "runtime/scripts/ai-workflow/lib/toolkit-root.ts"() {
+  "core/lib/toolkit-root.ts"() {
     "use strict";
-    scriptDir = path12.dirname(fileURLToPath3(import.meta.url));
+    scriptDir = path13.dirname(fileURLToPath3(import.meta.url));
   }
 });
 
-// runtime/scripts/ai-workflow/lib/markdown-utils.ts
+// core/lib/markdown-utils.ts
 function compactWhitespace(value) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -8164,7 +8260,7 @@ function extractFencedBlocks(markdown, infoString) {
 }
 var STOP_WORDS;
 var init_markdown_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/markdown-utils.ts"() {
+  "core/lib/markdown-utils.ts"() {
     "use strict";
     STOP_WORDS = /* @__PURE__ */ new Set([
       "a",
@@ -8193,9 +8289,9 @@ var init_markdown_utils = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/audit-utils.ts
+// core/lib/audit-utils.ts
 import { readdir as readdir2 } from "node:fs/promises";
-import path13 from "node:path";
+import path14 from "node:path";
 async function listRepoFiles(root, options = {}) {
   const { extensions = null } = options;
   const files = [];
@@ -8207,7 +8303,7 @@ async function listRepoFiles(root, options = {}) {
       if (entry.isDirectory() && IGNORED_DIRS.has(entry.name)) {
         continue;
       }
-      const absolutePath = path13.resolve(current2, entry.name);
+      const absolutePath = path14.resolve(current2, entry.name);
       if (entry.isDirectory()) {
         stack.push(absolutePath);
         continue;
@@ -8215,7 +8311,7 @@ async function listRepoFiles(root, options = {}) {
       if (!entry.isFile()) {
         continue;
       }
-      const relativePath = normalizePath(path13.relative(root, absolutePath));
+      const relativePath = normalizePath(path14.relative(root, absolutePath));
       if (extensions && !extensions.some((extension) => relativePath.endsWith(extension))) {
         continue;
       }
@@ -8236,7 +8332,7 @@ async function collectAuditConfig(root) {
   const failures = [];
   let blockCount = 0;
   for (const relativePath of markdownFiles) {
-    const absolutePath = path13.resolve(root, relativePath);
+    const absolutePath = path14.resolve(root, relativePath);
     const markdown = await readText(absolutePath);
     const blocks = extractFencedBlocks(markdown, AI_WORKFLOW_AUDIT_FENCE);
     for (const block of blocks) {
@@ -8273,7 +8369,7 @@ async function runGuidelineAudit(root) {
   const findings = failures.map(configFailureToFinding);
   const readFileCached = async (relativePath) => {
     if (!texts.has(relativePath)) {
-      texts.set(relativePath, await readText(path13.resolve(root, relativePath)));
+      texts.set(relativePath, await readText(path14.resolve(root, relativePath)));
     }
     return texts.get(relativePath);
   };
@@ -8525,7 +8621,7 @@ function pathMatches(relativePath, pattern) {
   return relativePath === normalizedPattern || relativePath.startsWith(`${normalizedPattern}/`);
 }
 async function fileExistsRelative(root, relativePath) {
-  return await exists(path13.resolve(root, relativePath));
+  return await exists(path14.resolve(root, relativePath));
 }
 function findForbiddenImport(text, targets) {
   const importPattern = /\bimport\s+(?:[^"'()]+\s+from\s+)?["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
@@ -8598,7 +8694,7 @@ function formatAuditFinding(finding) {
 }
 var IGNORED_DIRS, AI_WORKFLOW_AUDIT_FENCE;
 var init_audit_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/audit-utils.ts"() {
+  "core/lib/audit-utils.ts"() {
     "use strict";
     init_fs_utils();
     init_markdown_utils();
@@ -8617,8 +8713,8 @@ var init_audit_utils = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/operator-surfaces.ts
-import path14 from "node:path";
+// core/lib/operator-surfaces.ts
+import path15 from "node:path";
 import { createHash } from "node:crypto";
 import { readFile as readFile7 } from "node:fs/promises";
 function listOperatorSurfaceIds() {
@@ -8635,7 +8731,7 @@ async function collectOperatorSurfaceState(root, requestedSurfaceIds = listOpera
     const files = repoFiles.filter((relativePath) => matchesSurfaceFile(relativePath, definition));
     const fileHashes = {};
     for (const relativePath of files) {
-      const absolutePath = path14.resolve(root, relativePath);
+      const absolutePath = path15.resolve(root, relativePath);
       try {
         const buffer = await readFile7(absolutePath);
         fileHashes[relativePath] = createHash("sha256").update(buffer).digest("hex");
@@ -8669,7 +8765,7 @@ function matchesSurfaceFile(relativePath, definition) {
 }
 var OPERATOR_SURFACES;
 var init_operator_surfaces = __esm({
-  "runtime/scripts/ai-workflow/lib/operator-surfaces.ts"() {
+  "core/lib/operator-surfaces.ts"() {
     "use strict";
     init_audit_utils();
     OPERATOR_SURFACES = {
@@ -8700,12 +8796,12 @@ var init_operator_surfaces = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/workspace-honesty.ts
-import path15 from "node:path";
-import { execFile as execFile4 } from "node:child_process";
-import { promisify as promisify4 } from "node:util";
+// core/lib/workspace-honesty.ts
+import path16 from "node:path";
+import { execFile as execFile5 } from "node:child_process";
+import { promisify as promisify5 } from "node:util";
 async function inspectWorkspaceHonesty(root = process.cwd(), { graceMs = 2e3, fileLimit = 25 } = {}) {
-  const normalizedRoot = path15.resolve(String(root ?? process.cwd()));
+  const normalizedRoot = path16.resolve(String(root ?? process.cwd()));
   const snapshot = filterHonestySnapshot(await collectProjectFileSnapshot(normalizedRoot));
   const gitRepo = await isGitRepo(normalizedRoot);
   const store = await openWorkflowStore({ projectRoot: normalizedRoot });
@@ -8779,7 +8875,7 @@ function filterHonestySnapshot(snapshot) {
 }
 async function isGitRepo(root) {
   try {
-    const { stdout } = await execFileAsync4("git", ["rev-parse", "--is-inside-work-tree"], {
+    const { stdout } = await execFileAsync5("git", ["rev-parse", "--is-inside-work-tree"], {
       cwd: root,
       maxBuffer: 1024 * 1024
     });
@@ -8788,13 +8884,13 @@ async function isGitRepo(root) {
     return false;
   }
 }
-var execFileAsync4, HONESTY_IGNORE_PATHS;
+var execFileAsync5, HONESTY_IGNORE_PATHS;
 var init_workspace_honesty = __esm({
-  "runtime/scripts/ai-workflow/lib/workspace-honesty.ts"() {
+  "core/lib/workspace-honesty.ts"() {
     "use strict";
     init_sqlite_store();
     init_filesystem();
-    execFileAsync4 = promisify4(execFile4);
+    execFileAsync5 = promisify5(execFile5);
     HONESTY_IGNORE_PATHS = /* @__PURE__ */ new Set([
       ".obsidian/workspace.json",
       ".obsidian/workspace-mobile.json"
@@ -8802,7 +8898,7 @@ var init_workspace_honesty = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/kanban-edit-utils.ts
+// core/lib/kanban-edit-utils.ts
 function parseKanbanDocument(markdown) {
   const lines = String(markdown).replace(/\r\n/g, "\n").split("\n");
   const settingsStart = lines.findIndex((line) => /^%%\s*kanban:settings\s*$/i.test(line.trim()));
@@ -9071,14 +9167,14 @@ function stripDoneMarker(value) {
 }
 var TICKET_ID_RE;
 var init_kanban_edit_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/kanban-edit-utils.ts"() {
+  "core/lib/kanban-edit-utils.ts"() {
     "use strict";
     init_markdown_utils();
     TICKET_ID_RE = /\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b/;
   }
 });
 
-// runtime/scripts/ai-workflow/lib/kanban-utils.ts
+// core/lib/kanban-utils.ts
 function parseKanban(markdown) {
   const document = parseKanbanDocument(markdown);
   const sections = document.sections.map((section) => ({
@@ -9103,6 +9199,15 @@ function parseKanban(markdown) {
   }
   return { sections, tickets };
 }
+function findTicket(parsed, { id, section }) {
+  if (id) {
+    return parsed.tickets.find((ticket) => ticket.id?.toLowerCase() === String(id).toLowerCase()) ?? null;
+  }
+  if (section) {
+    return parsed.tickets.find((ticket) => ticket.section.toLowerCase() === String(section).toLowerCase()) ?? null;
+  }
+  return null;
+}
 function trimTicketBody2(lines) {
   return lines.map((line) => line.replace(/^ {2}/, "")).join("\n").trimEnd();
 }
@@ -9114,7 +9219,7 @@ function parseTaskLead(line) {
 }
 var TICKET_ID_MARKUP_RE;
 var init_kanban_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/kanban-utils.ts"() {
+  "core/lib/kanban-utils.ts"() {
     "use strict";
     init_markdown_utils();
     init_kanban_edit_utils();
@@ -9123,7 +9228,7 @@ var init_kanban_utils = __esm({
 });
 
 // core/services/shell-retrieval.ts
-import path16 from "node:path";
+import path17 from "node:path";
 async function inferTicketRetrievalContext({
   projectRoot = process.cwd(),
   ticket = null,
@@ -9575,7 +9680,7 @@ function scoreSearchResult(row, query, profile, kind, filePath = "", { queryStat
 }
 function scoreFileHintMatch(filePath, tokens, profile, queryStats = /* @__PURE__ */ new Map()) {
   const normalized = String(filePath ?? "").toLowerCase();
-  const base = path16.basename(normalized);
+  const base = path17.basename(normalized);
   const stem = base.replace(/\.[^.]+$/, "");
   const matches = [];
   for (const token of tokens) {
@@ -9629,7 +9734,7 @@ function scorePathBias(filePath, query, profile) {
     if (isTestPath(normalized)) score += 16;
     if (isDocPath(normalized)) score += 10;
   }
-  const base = path16.basename(normalized);
+  const base = path17.basename(normalized);
   if (query && base.includes(query)) score += 22;
   if (query && stemMatchesQuery(base, query)) score += 12;
   if (/shell|workflow|router|status|ticket|telegram|retrieval|context/.test(query) && isImplementationPath(normalized) && /shell|workflow|router|status|ticket|telegram|retrieval|context/.test(normalized)) score += 18;
@@ -9688,10 +9793,10 @@ function totalReasonScore(reasons = []) {
 }
 function findRelatedTests(allFiles, filePath) {
   const normalized = String(filePath ?? "").toLowerCase();
-  const base = path16.basename(normalized).replace(/\.[^.]+$/, "");
+  const base = path17.basename(normalized).replace(/\.[^.]+$/, "");
   const stem = base.replace(/\.(spec|test)$/, "");
-  const dir = path16.dirname(normalized);
-  return allFiles.map((item) => String(item.path ?? item.relativePath ?? "")).filter((candidate) => candidate.startsWith("tests/")).filter((candidate) => candidate !== filePath).filter((candidate) => candidate.toLowerCase().includes(stem) || path16.dirname(candidate.toLowerCase()).includes(path16.basename(dir)));
+  const dir = path17.dirname(normalized);
+  return allFiles.map((item) => String(item.path ?? item.relativePath ?? "")).filter((candidate) => candidate.startsWith("tests/")).filter((candidate) => candidate !== filePath).filter((candidate) => candidate.toLowerCase().includes(stem) || path17.dirname(candidate.toLowerCase()).includes(path17.basename(dir)));
 }
 function renderSymbolLabel(symbol) {
   const linePart = Number.isFinite(symbol.line) ? `:${symbol.line}` : "";
@@ -9897,7 +10002,7 @@ var QUERY_STOP_WORDS, IMPLEMENTATION_FIRST_PROFILES, MAX_IMPLEMENTATION_FIRST_TE
 var init_shell_retrieval = __esm({
   "core/services/shell-retrieval.ts"() {
     "use strict";
-    init_sync2();
+    init_sync();
     QUERY_STOP_WORDS = /* @__PURE__ */ new Set([
       "about",
       "after",
@@ -9925,8 +10030,53 @@ var init_shell_retrieval = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/workflow-store-utils.ts
+// core/lib/workflow-store-utils.ts
+import path18 from "node:path";
+import { existsSync as existsSync4 } from "node:fs";
 import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
+async function selectKanbanSource(root, relativePath = null) {
+  const candidates = relativePath ? [String(relativePath)] : ["docs/kanban.md", "kanban.md"];
+  let best = {
+    path: candidates[0],
+    text: "",
+    score: -1
+  };
+  for (const candidate of candidates) {
+    const candidatePath = String(candidate);
+    const text = await readText(path18.resolve(root, candidatePath));
+    const score = countKanbanTickets2(text);
+    if (score > best.score) {
+      best = { path: candidatePath, text, score };
+    }
+  }
+  return best;
+}
+async function loadTicketContext({ root, ticketId, kanbanPath = null }) {
+  const entity = await loadTicketEntityFromStore(root, ticketId);
+  if (entity) {
+    const sourcePath = extractProjectionPath(entity.provenance) ?? "workflow-db";
+    const sourceTicket = sourcePath !== "workflow-db" ? await loadTicketFromKanbanSource(root, sourcePath, ticketId) : null;
+    return {
+      ticket: sourceTicket ? mergeEntityTicket(entity, sourceTicket) : runtimeTicketFromEntity(entity),
+      entity,
+      sourcePath
+    };
+  }
+  const source = await selectKanbanSource(root, kanbanPath);
+  if (!source.text.trim()) {
+    return {
+      ticket: null,
+      entity: null,
+      sourcePath: source.path
+    };
+  }
+  const parsed = parseKanban(source.text);
+  return {
+    ticket: findTicket(parsed, { id: ticketId }),
+    entity: null,
+    sourcePath: source.path
+  };
+}
 async function inferTicketWorkingSet({ root, ticket, entity = null, limit = 8 } = {}) {
   if (!ticket) {
     return { files: [], symbols: [], evidence: [] };
@@ -9959,13 +10109,101 @@ function normalizeWorkingSetEvidence(evidence = []) {
     return entry;
   });
 }
+async function loadTicketEntityFromStore(root, ticketId) {
+  const dbPath = path18.resolve(root, ".ai-workflow", "state", "workflow.db");
+  if (!existsSync4(dbPath)) return null;
+  let db = null;
+  try {
+    db = new DatabaseSync2(dbPath, { readOnly: true });
+    const row = db.prepare("SELECT * FROM entities WHERE id = ? AND entity_type = 'ticket'").get(ticketId);
+    if (!row) return null;
+    return {
+      id: row.id,
+      entityType: row.entity_type,
+      title: row.title,
+      lane: row.lane,
+      state: row.state,
+      confidence: row.confidence,
+      provenance: row.provenance,
+      sourceKind: row.source_kind,
+      reviewState: row.review_state,
+      parentId: row.parent_id,
+      relevantUntil: row.relevant_until,
+      consultationQuestion: row.consultation_question,
+      data: parseJson2(row.data_json),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  } catch {
+    return null;
+  } finally {
+    db?.close?.();
+  }
+}
+function runtimeTicketFromEntity(entity) {
+  const body = renderEntityBody(entity);
+  return {
+    id: entity.id,
+    title: entity.title,
+    heading: `${entity.id}: ${entity.title}`,
+    section: entity.lane ?? "Todo",
+    line: null,
+    doneDate: entity.data?.completedAt ?? null,
+    body
+  };
+}
+async function loadTicketFromKanbanSource(root, relativePath, ticketId) {
+  const text = await readText(path18.resolve(root, relativePath));
+  if (!text.trim()) return null;
+  const parsed = parseKanban(text);
+  return findTicket(parsed, { id: ticketId });
+}
+function mergeEntityTicket(entity, sourceTicket) {
+  return {
+    ...sourceTicket,
+    title: entity.title || sourceTicket.title,
+    section: entity.lane ?? sourceTicket.section,
+    body: sourceTicket.body?.trim() ? sourceTicket.body : renderEntityBody(entity)
+  };
+}
+function renderEntityBody(entity) {
+  const lines = [];
+  const summary = String(entity.data?.summary ?? "").trim();
+  if (summary) lines.push(summary);
+  const fieldLabels = /* @__PURE__ */ new Map([
+    ["outcome", "Outcome"],
+    ["verification", "Verification"],
+    ["epic", "Epic"],
+    ["completedAt", "Completed"]
+  ]);
+  for (const [key, label] of fieldLabels.entries()) {
+    const value = String(entity.data?.[key] ?? "").trim();
+    if (value) lines.push(`${label}: ${value}`);
+  }
+  return lines.join("\n");
+}
+function extractProjectionPath(provenance) {
+  const text = String(provenance ?? "");
+  const match = text.match(/legacy-kanban-import:(.+)$/);
+  return match ? match[1] : null;
+}
+function countKanbanTickets2(text) {
+  return parseKanban(text).tickets.length;
+}
+function parseJson2(value, fallback = {}) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 function renderSymbolLabel2(symbol) {
   const filePath = symbol.file_path ?? symbol.filePath ?? "";
   const linePart = Number.isFinite(symbol.line) ? `:${symbol.line}` : "";
   return `${symbol.name} (${filePath}${linePart})`;
 }
 var init_workflow_store_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/workflow-store-utils.ts"() {
+  "core/lib/workflow-store-utils.ts"() {
     "use strict";
     init_fs_utils();
     init_kanban_utils();
@@ -9974,13 +10212,30 @@ var init_workflow_store_utils = __esm({
 });
 
 // core/lib/run-artifacts.ts
-import path17 from "node:path";
+import path19 from "node:path";
+import { randomUUID } from "node:crypto";
 import { readFile as readFile8, writeFile as writeFile6 } from "node:fs/promises";
+async function recordRunArtifact(projectRoot, artifact) {
+  const stateDir = path19.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  await ensureDir(stateDir);
+  const recordedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const id = artifact?.id ? String(artifact.id) : `run-${recordedAt.replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  const payload = {
+    id,
+    recordedAt,
+    ...artifact
+  };
+  await writeFile6(path19.resolve(stateDir, `${id}.json`), `${JSON.stringify(payload, null, 2)}
+`, "utf8");
+  await writeFile6(path19.resolve(stateDir, "latest.json"), `${JSON.stringify({ id, recordedAt }, null, 2)}
+`, "utf8");
+  return payload;
+}
 async function readLatestRunArtifact(projectRoot) {
-  const stateDir = path17.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  const stateDir = path19.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
   try {
-    const latest = JSON.parse(await readFile8(path17.resolve(stateDir, "latest.json"), "utf8"));
-    const payload = JSON.parse(await readFile8(path17.resolve(stateDir, `${latest.id}.json`), "utf8"));
+    const latest = JSON.parse(await readFile8(path19.resolve(stateDir, "latest.json"), "utf8"));
+    const payload = JSON.parse(await readFile8(path19.resolve(stateDir, `${latest.id}.json`), "utf8"));
     return payload;
   } catch {
     return null;
@@ -9993,12 +10248,12 @@ var init_run_artifacts = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/git-utils.ts
-import { execFile as execFile5 } from "node:child_process";
-import { promisify as promisify5 } from "node:util";
+// core/lib/git-utils.ts
+import { execFile as execFile6 } from "node:child_process";
+import { promisify as promisify6 } from "node:util";
 async function isGitRepo2(root) {
   try {
-    await runGit(root, ["rev-parse", "--show-toplevel"]);
+    await runGit2(root, ["rev-parse", "--show-toplevel"]);
     return true;
   } catch {
     return false;
@@ -10006,14 +10261,14 @@ async function isGitRepo2(root) {
 }
 async function getChanges(root, base) {
   if (base) {
-    const output8 = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
+    const output8 = await runGit2(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
     return parseNameStatus(output8);
   }
-  const output7 = await runGit(root, ["status", "--short", "--untracked-files=all"]);
-  return parseStatusShort(output7);
+  const output7 = await runGit2(root, ["status", "--short", "--untracked-files=all"]);
+  return parseStatusShort2(output7);
 }
-async function runGit(root, args) {
-  const { stdout } = await execFileAsync5("git", args, {
+async function runGit2(root, args) {
+  const { stdout } = await execFileAsync6("git", args, {
     cwd: root,
     maxBuffer: 8 * 1024 * 1024
   });
@@ -10025,26 +10280,26 @@ function parseNameStatus(output7) {
   }
   return output7.split(/\r?\n/).filter(Boolean).map((line) => {
     const [rawStatus, ...rest] = line.split("	");
-    const path42 = rest.at(-1) ?? "";
+    const path46 = rest.at(-1) ?? "";
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus,
-      path: path42
+      path: path46
     };
   });
 }
-function parseStatusShort(output7) {
+function parseStatusShort2(output7) {
   if (!output7.trim()) {
     return [];
   }
   return output7.split(/\r?\n/).filter(Boolean).map((line) => {
     const rawStatus = line.slice(0, 2);
     const rawPath = line.slice(3).trim();
-    const path42 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
+    const path46 = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1) : rawPath;
     return {
       status: normalizeStatus3(rawStatus),
       rawStatus: rawStatus.trim() || rawStatus,
-      path: path42
+      path: path46
     };
   });
 }
@@ -10067,21 +10322,21 @@ function normalizeStatus3(rawStatus) {
   }
   return value || "unknown";
 }
-var execFileAsync5;
+var execFileAsync6;
 var init_git_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/git-utils.ts"() {
+  "core/lib/git-utils.ts"() {
     "use strict";
-    execFileAsync5 = promisify5(execFile5);
+    execFileAsync6 = promisify6(execFile6);
   }
 });
 
 // core/services/status.ts
-import path18 from "node:path";
+import path20 from "node:path";
 import { readFile as readFile9 } from "node:fs/promises";
 async function readStatusEvidenceFingerprint(projectRoot = process.cwd()) {
   const [dogfoodText, latestRunText] = await Promise.all([
-    readTextIfExists(path18.resolve(projectRoot, DEFAULT_DOGFOOD_REPORT_PATH)),
-    readTextIfExists(path18.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json"))
+    readTextIfExists(path20.resolve(projectRoot, DEFAULT_DOGFOOD_REPORT_PATH)),
+    readTextIfExists(path20.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts", "latest.json"))
   ]);
   return {
     dogfoodReportHash: dogfoodText ? sha1(dogfoodText) : null,
@@ -10228,7 +10483,7 @@ async function syncStatusGraph({ projectRoot = process.cwd(), store }) {
   for (const ticket of tickets) {
     const inferred = await inferTicketWorkingSet({
       root: projectRoot,
-      ticket: runtimeTicketFromEntity(ticket),
+      ticket: runtimeTicketFromEntity2(ticket),
       entity: ticket,
       limit: 6
     });
@@ -10588,7 +10843,7 @@ function isTestFile(filePath) {
 function normalizeStoryList(values = []) {
   return values.map((value) => String(value ?? "").trim()).filter(Boolean);
 }
-function runtimeTicketFromEntity(entity) {
+function runtimeTicketFromEntity2(entity) {
   return {
     id: entity.id,
     title: entity.title,
@@ -10627,8 +10882,8 @@ function resolveImportedProjectPath(importerPath, specifier, fileSet) {
   if (!value || !value.startsWith(".") && !value.startsWith("/")) {
     return null;
   }
-  const baseDir = path18.posix.dirname(importerPath);
-  const joined = value.startsWith("/") ? value.replace(/^\/+/, "") : path18.posix.normalize(path18.posix.join(baseDir, value));
+  const baseDir = path20.posix.dirname(importerPath);
+  const joined = value.startsWith("/") ? value.replace(/^\/+/, "") : path20.posix.normalize(path20.posix.join(baseDir, value));
   const candidates = [
     joined,
     `${joined}.js`,
@@ -10639,20 +10894,20 @@ function resolveImportedProjectPath(importerPath, specifier, fileSet) {
     `${joined}.cjs`,
     `${joined}.mts`,
     `${joined}.cts`,
-    path18.posix.join(joined, "index.ts"),
-    path18.posix.join(joined, "index.ts"),
-    path18.posix.join(joined, "index.ts"),
-    path18.posix.join(joined, "index.tsx")
+    path20.posix.join(joined, "index.ts"),
+    path20.posix.join(joined, "index.ts"),
+    path20.posix.join(joined, "index.ts"),
+    path20.posix.join(joined, "index.tsx")
   ];
   return candidates.find((candidate) => fileSet.has(candidate)) ?? null;
 }
 function guessTestTargetsFromName(testFilePath, fileSet) {
-  const basename = path18.posix.basename(testFilePath).replace(TEST_FILE_NAME_RE, "");
+  const basename = path20.posix.basename(testFilePath).replace(TEST_FILE_NAME_RE, "");
   const normalizedNames = /* @__PURE__ */ new Set([
     basename,
     basename.replace(/(?:[._-](?:e2e|integration|unit|browser|component|ui|dom))+$/i, "")
   ]);
-  const directMatches = [...fileSet].filter((candidate) => !isTestFile(candidate)).filter((candidate) => normalizedNames.has(path18.posix.basename(candidate).replace(/\.[^.]+$/, ""))).slice(0, 3);
+  const directMatches = [...fileSet].filter((candidate) => !isTestFile(candidate)).filter((candidate) => normalizedNames.has(path20.posix.basename(candidate).replace(/\.[^.]+$/, ""))).slice(0, 3);
   return directMatches;
 }
 function resolveStatusSelector(store, selector, { type = null, rawQuestion = false, projectRoot = process.cwd() } = {}) {
@@ -10726,7 +10981,7 @@ function collectSelectorCandidates(store, selector, { type = null, rawQuestion =
     addCandidate(mapFeatureNode(feature), scoreCandidate(query, tokens, [feature.id, feature.name, feature.description]));
   }
   for (const file of store.listFiles()) {
-    addCandidate(mapFileNode(file), scoreCandidate(query, tokens, [file.path, path18.posix.basename(file.path)]));
+    addCandidate(mapFileNode(file), scoreCandidate(query, tokens, [file.path, path20.posix.basename(file.path)]));
   }
   for (const [surfaceId, definition] of Object.entries(OPERATOR_SURFACES)) {
     addCandidate(getNodeById(store, canonicalSurfaceId(surfaceId), projectRoot), scoreCandidate(query, tokens, [surfaceId, definition.description]));
@@ -10763,7 +11018,7 @@ function scoreCandidate(query, tokens, haystacks) {
       } else if (haystack.includes(token)) {
         score += 25;
       }
-      if (haystack.endsWith(`/${token}`) || haystack === path18.posix.basename(haystack)) {
+      if (haystack.endsWith(`/${token}`) || haystack === path20.posix.basename(haystack)) {
         score += 20;
       }
     }
@@ -10812,7 +11067,7 @@ function buildProjectNode(projectRoot) {
   return {
     id: PROJECT_NODE_ID,
     type: "project",
-    title: path18.basename(projectRoot),
+    title: path20.basename(projectRoot),
     state: "open",
     data: {},
     provenance: "workspace"
@@ -11271,8 +11526,8 @@ var init_dist3 = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+context-manager@https+++codeload.github.com+dharmax+context-manager+tar.gz+2e8_9c6998571be7e2b7bbbb90ee8d3a8e53/node_modules/@dharmax/context-manager/dist/index.mjs
-import { execFile as execFile6 } from "node:child_process";
-import { promisify as promisify6 } from "node:util";
+import { execFile as execFile7 } from "node:child_process";
+import { promisify as promisify7 } from "node:util";
 function renderItems(items, format) {
   if (format === "plain") {
     return items.map((item) => `${item.title}
@@ -11285,10 +11540,10 @@ function estimateTokenCost(title, content) {
   return Math.ceil(`${title}
 ${content}`.split(/\s+/).filter(Boolean).length * 1.3);
 }
-var execFileAsync6, LeanContextCompressor, HeuristicContextManager;
+var execFileAsync7, LeanContextCompressor, HeuristicContextManager;
 var init_dist4 = __esm({
   "node_modules/.pnpm/@dharmax+context-manager@https+++codeload.github.com+dharmax+context-manager+tar.gz+2e8_9c6998571be7e2b7bbbb90ee8d3a8e53/node_modules/@dharmax/context-manager/dist/index.mjs"() {
-    execFileAsync6 = promisify6(execFile6);
+    execFileAsync7 = promisify7(execFile7);
     LeanContextCompressor = class {
       static compress(text, maxWords = 300) {
         if (!text) return "";
@@ -11301,7 +11556,7 @@ var init_dist4 = __esm({
       static async patternCompress(text, maxWords = 300) {
         if (!text) return "";
         try {
-          const { stdout } = await execFileAsync6("lean-ctx", ["-c", text], {
+          const { stdout } = await execFileAsync7("lean-ctx", ["-c", text], {
             maxBuffer: 1024 * 1024
           });
           const compressed = stdout.trim();
@@ -11449,10 +11704,10 @@ async function buildSurgicalContext(projectRoot, { symbolNames = [], filePaths =
       async query(query, categories) {
         const results = [];
         const targetFiles = categories.includes("file") ? [query] : [];
-        for (const path42 of targetFiles) {
+        for (const path46 of targetFiles) {
           try {
-            const file = await readProjectFile(projectRoot, path42);
-            results.push({ id: path42, category: "file", title: path42, body: file.content, tags: [] });
+            const file = await readProjectFile(projectRoot, path46);
+            results.push({ id: path46, category: "file", title: path46, body: file.content, tags: [] });
           } catch {
           }
         }
@@ -11532,7 +11787,7 @@ ${sym.snippet ?? sym.signature ?? ""}
 var init_context_packer = __esm({
   "core/services/context-packer.ts"() {
     "use strict";
-    init_sync2();
+    init_sync();
     init_filesystem();
     init_registry();
     init_lean_ctx();
@@ -11614,30 +11869,30 @@ var init_dist5 = __esm({
 });
 
 // core/services/supergit.ts
-async function runGit2(args, { root = process.cwd() } = {}) {
+async function runGit3(args, { root = process.cwd() } = {}) {
   const result = await TaskExecutor.spawn("git", args, { cwd: root });
   return result.ok ? { ok: true, stdout: result.stdout, stderr: result.stderr } : { ok: false, error: result.stderr || result.combined || "git command failed", stdout: result.stdout, stderr: result.stderr };
 }
 async function withSupergitTransaction(root, taskName, operation) {
-  const gitRepo = await runGit2(["rev-parse", "--is-inside-work-tree"], { root });
+  const gitRepo = await runGit3(["rev-parse", "--is-inside-work-tree"], { root });
   if (!gitRepo.ok || gitRepo.stdout.trim() !== "true") {
     return operation();
   }
-  const status = await runGit2(["status", "--porcelain"], { root });
+  const status = await runGit3(["status", "--porcelain"], { root });
   const isClean = status.ok && status.stdout.trim() === "";
   let stashed = false;
   if (!isClean) {
-    await runGit2(["stash", "push", "-u", "-m", `supergit-auto-stash-before-${taskName}`], { root });
+    await runGit3(["stash", "push", "-u", "-m", `supergit-auto-stash-before-${taskName}`], { root });
     stashed = true;
   }
-  const branchInfo = await runGit2(["branch", "--show-current"], { root });
+  const branchInfo = await runGit3(["branch", "--show-current"], { root });
   const originalBranch = branchInfo.ok ? branchInfo.stdout.trim() : "";
   if (!originalBranch) {
     return { success: false, error: "Unable to determine current git branch" };
   }
   const safeTaskName = taskName.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
   const tempBranch = `supergit-temp-${safeTaskName}-${Date.now()}`;
-  const createBranch = await runGit2(["checkout", "-b", tempBranch], { root });
+  const createBranch = await runGit3(["checkout", "-b", tempBranch], { root });
   if (!createBranch.ok) {
     return { success: false, error: `Failed to create temp branch: ${createBranch.error}` };
   }
@@ -11647,10 +11902,10 @@ async function withSupergitTransaction(root, taskName, operation) {
     operationResult = await operation();
     success = operationResult?.success === true;
     if (success) {
-      const diffStatus = await runGit2(["status", "--porcelain"], { root });
+      const diffStatus = await runGit3(["status", "--porcelain"], { root });
       if (diffStatus.ok && diffStatus.stdout.trim() !== "") {
-        await runGit2(["add", "."], { root });
-        await runGit2(["commit", "-m", `Auto-fix for ${taskName}`], { root });
+        await runGit3(["add", "."], { root });
+        await runGit3(["commit", "-m", `Auto-fix for ${taskName}`], { root });
       }
     }
   } catch (err) {
@@ -11658,25 +11913,25 @@ async function withSupergitTransaction(root, taskName, operation) {
     operationResult = { success: false, error: err.message };
   } finally {
     if (!success) {
-      await runGit2(["reset", "--hard", "HEAD"], { root });
-      await runGit2(["clean", "-fd"], { root });
+      await runGit3(["reset", "--hard", "HEAD"], { root });
+      await runGit3(["clean", "-fd"], { root });
     }
-    const checkoutOriginal = await runGit2(["checkout", originalBranch], { root });
+    const checkoutOriginal = await runGit3(["checkout", originalBranch], { root });
     if (!checkoutOriginal.ok) {
       success = false;
       operationResult = { success: false, error: `Failed to return to original branch: ${checkoutOriginal.error}` };
     }
     if (success) {
-      const merge = await runGit2(["merge", tempBranch, "--no-ff", "-m", `Auto-merge successful operation: ${taskName}`], { root });
+      const merge = await runGit3(["merge", tempBranch, "--no-ff", "-m", `Auto-merge successful operation: ${taskName}`], { root });
       if (!merge.ok) {
-        await runGit2(["merge", "--abort"], { root });
+        await runGit3(["merge", "--abort"], { root });
         success = false;
         operationResult = { success: false, error: "Failed to merge temp branch cleanly" };
       }
     }
-    await runGit2(["branch", "-D", tempBranch], { root });
+    await runGit3(["branch", "-D", tempBranch], { root });
     if (stashed) {
-      await runGit2(["stash", "pop"], { root });
+      await runGit3(["stash", "pop"], { root });
     }
   }
   return operationResult;
@@ -11689,8 +11944,8 @@ var init_supergit = __esm({
 });
 
 // core/services/execution-planner.ts
-import path19 from "node:path";
-import { existsSync as existsSync4 } from "node:fs";
+import path21 from "node:path";
+import { existsSync as existsSync5 } from "node:fs";
 import { readFile as readFile10 } from "node:fs/promises";
 import { readFileSync as readFileSync2 } from "node:fs";
 import { spawn as spawn2 } from "node:child_process";
@@ -11741,7 +11996,7 @@ function normalizeTicket2(ticket, entity) {
       id: ticket.id,
       title: ticket.title,
       heading: ticket.heading ?? `${ticket.id}: ${ticket.title ?? ""}`.trim(),
-      body: ticket.body ?? renderEntityBody(entity),
+      body: ticket.body ?? renderEntityBody2(entity),
       section: ticket.section ?? entity?.lane ?? "Todo"
     };
   }
@@ -11749,12 +12004,12 @@ function normalizeTicket2(ticket, entity) {
     id: entity?.id ?? "UNKNOWN",
     title: entity?.title ?? "",
     heading: `${entity?.id ?? "UNKNOWN"}: ${entity?.title ?? ""}`.trim(),
-    body: renderEntityBody(entity),
+    body: renderEntityBody2(entity),
     section: entity?.lane ?? "Todo"
   };
 }
 async function loadPackageMeta(root) {
-  const packageJsonPath = path19.resolve(root, "package.json");
+  const packageJsonPath = path21.resolve(root, "package.json");
   let packageJson = null;
   try {
     const text = await readFile10(packageJsonPath, "utf8");
@@ -11770,13 +12025,13 @@ async function loadPackageMeta(root) {
 }
 function detectPackageManager(root, packageManagerField = "") {
   const packageManager = String(packageManagerField ?? "").toLowerCase();
-  if (packageManager.startsWith("pnpm") || existsSync4(path19.resolve(root, "pnpm-lock.yaml"))) {
+  if (packageManager.startsWith("pnpm") || existsSync5(path21.resolve(root, "pnpm-lock.yaml"))) {
     return { id: "pnpm", command: "pnpm", runScript: (name) => `pnpm -s ${name}` };
   }
-  if (packageManager.startsWith("yarn") || existsSync4(path19.resolve(root, "yarn.lock"))) {
+  if (packageManager.startsWith("yarn") || existsSync5(path21.resolve(root, "yarn.lock"))) {
     return { id: "yarn", command: "yarn", runScript: (name) => `yarn ${name}` };
   }
-  if (packageManager.startsWith("bun") || existsSync4(path19.resolve(root, "bun.lockb"))) {
+  if (packageManager.startsWith("bun") || existsSync5(path21.resolve(root, "bun.lockb"))) {
     return { id: "bun", command: "bun", runScript: (name) => `bun run ${name}` };
   }
   return { id: "npm", command: "npm", runScript: (name) => `npm run --silent ${name}` };
@@ -11857,7 +12112,7 @@ async function expandWorkingSetHints(root, ticket, entity, workingSet) {
   const matches = text.match(/\b(?:src|tests|functions)\/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+\b/g) ?? [];
   for (const match of matches) {
     const normalized = String(match).replace(/^[./]+/, "");
-    if (existsSync4(path19.resolve(root, normalized))) {
+    if (existsSync5(path21.resolve(root, normalized))) {
       files.add(normalized);
     }
   }
@@ -11917,7 +12172,7 @@ function inferTargetedVerificationCommands({ root, workingSet, packageMeta }) {
 }
 function detectConfig(root, names) {
   for (const name of names) {
-    if (existsSync4(path19.resolve(root, name))) {
+    if (existsSync5(path21.resolve(root, name))) {
       return name;
     }
   }
@@ -11963,7 +12218,7 @@ function loadPlaywrightMatchers(root, names) {
   const config = detectConfig(root, names);
   if (!config) return [];
   try {
-    const text = readFileSync2(path19.resolve(root, config), "utf8");
+    const text = readFileSync2(path21.resolve(root, config), "utf8");
     return extractPlaywrightTestMatches(text);
   } catch {
     return [];
@@ -11992,7 +12247,7 @@ function matchesPlaywrightConfig(filePath, matchers) {
 function globLikeMatch(filePath, matcher) {
   const normalizedMatcher = String(matcher ?? "").replace(/\\/g, "/").trim();
   if (!normalizedMatcher) return false;
-  const basename = path19.posix.basename(filePath);
+  const basename = path21.posix.basename(filePath);
   const simple = normalizedMatcher.replace(/^\.\//, "").replace(/^\*\*\//, "");
   if (!/[*?[\]{}]/.test(simple)) {
     return filePath === simple || basename === simple || filePath.endsWith(`/${simple}`);
@@ -12027,7 +12282,7 @@ function globToRegexSource(value) {
   }
   return source;
 }
-function renderEntityBody(entity) {
+function renderEntityBody2(entity) {
   if (!entity) return "";
   const lines = [];
   if (entity.data?.summary) lines.push(String(entity.data.summary));
@@ -12101,7 +12356,7 @@ var init_execution_planner = __esm({
 });
 
 // core/services/orchestrator.ts
-import path20 from "node:path";
+import path22 from "node:path";
 import { readFile as readFile11 } from "node:fs/promises";
 async function sweepBugs(options) {
   const root = options.root;
@@ -12824,8 +13079,8 @@ async function attemptDecomposition(context, { root, quality }) {
 async function onboardProjectBrief(filePath, options) {
   const root = options.root;
   const rl = options.rl;
-  const workingBriefPath = path20.resolve(root, options.briefPath ?? "project-brief.md");
-  const workingBriefLabel = path20.relative(root, workingBriefPath) || path20.basename(workingBriefPath);
+  const workingBriefPath = path22.resolve(root, options.briefPath ?? "project-brief.md");
+  const workingBriefLabel = path22.relative(root, workingBriefPath) || path22.basename(workingBriefPath);
   const sourceContent = await readFile11(filePath, "utf8");
   const sourceExcerpt = sourceContent.slice(0, 12e3);
   const existingBrief = await readFile11(workingBriefPath, "utf8").catch(() => "");
@@ -13026,7 +13281,7 @@ var init_orchestrator = __esm({
     init_filesystem();
     init_router();
     init_providers();
-    init_sync2();
+    init_sync();
     init_projections();
     init_supergit();
     init_execution_planner();
@@ -13290,7 +13545,7 @@ function annotateAssessmentFallback(payload, reason) {
 var init_assessment = __esm({
   "core/services/assessment.ts"() {
     "use strict";
-    init_sync2();
+    init_sync();
     init_providers();
     init_router();
     init_hash();
@@ -13526,16 +13781,14 @@ var init_guidelines = __esm({
 });
 
 // core/services/codelet-executor.ts
-import path21 from "node:path";
+import path23 from "node:path";
 import { mkdtemp, readFile as readFile12, rm as rm4 } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
-  const builtin = getBuiltinCodelet(codelet.id);
-  if (builtin) {
-    const hub = createServiceHub(cwd);
-    return builtin(args, hub);
+  if (ServiceHub.isBuiltinCodelet(codelet.id)) {
+    return ServiceHub.runBuiltinCodelet(codelet.id, args);
   }
-  const entry = codelet.entryPath ?? (codelet.entry ? path21.resolve(cwd, codelet.entry) : null);
+  const entry = codelet.entryPath ?? (codelet.entry ? path23.resolve(cwd, codelet.entry) : null);
   if (codelet.runner !== "node-script") {
     throw new Error(`Unsupported codelet runner: ${codelet.runner}`);
   }
@@ -13559,14 +13812,14 @@ async function tryRunInProcess(entry, args, { env, cwd = process.cwd() }) {
   if (typeof runner !== "function") {
     return { used: false, result: null };
   }
-  const hub = createServiceHub(cwd);
-  const result = await runner(args, hub);
+  ServiceHub.setContext({ projectRoot: cwd, mode: ServiceHub.context.mode });
+  const result = await runner(args, ServiceHub);
   return { used: true, result };
 }
 async function runNodeScriptCaptured(scriptPath, args, { cwd, env }) {
-  return mkdtemp(path21.join(process.env.TMPDIR ?? "/tmp", "ai-workflow-codelet-")).then(async (captureDir) => {
-    const stdoutPath = path21.join(captureDir, "stdout.log");
-    const stderrPath = path21.join(captureDir, "stderr.log");
+  return mkdtemp(path23.join(process.env.TMPDIR ?? "/tmp", "ai-workflow-codelet-")).then(async (captureDir) => {
+    const stdoutPath = path23.join(captureDir, "stdout.log");
+    const stderrPath = path23.join(captureDir, "stderr.log");
     const command = `${shellQuote("npx", "tsx")} ${[scriptPath, ...args].map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`;
     try {
       const result = await TaskExecutor.spawn("/usr/bin/bash", ["-lc", command], {
@@ -13601,19 +13854,18 @@ function shellQuote(value) {
 var init_codelet_executor = __esm({
   "core/services/codelet-executor.ts"() {
     "use strict";
-    init_builtin_registry();
     init_service_hub();
     init_dist5();
   }
 });
 
 // node_modules/.pnpm/@dharmax+context-manager@0.1.0/node_modules/@dharmax/context-manager/dist/index.mjs
-import { execFile as execFile7 } from "node:child_process";
-import { promisify as promisify7 } from "node:util";
-var execFileAsync7;
+import { execFile as execFile8 } from "node:child_process";
+import { promisify as promisify8 } from "node:util";
+var execFileAsync8;
 var init_dist6 = __esm({
   "node_modules/.pnpm/@dharmax+context-manager@0.1.0/node_modules/@dharmax/context-manager/dist/index.mjs"() {
-    execFileAsync7 = promisify7(execFile7);
+    execFileAsync8 = promisify8(execFile8);
   }
 });
 
@@ -19497,11 +19749,11 @@ var init_acorn = __esm({
 });
 
 // node_modules/.pnpm/@dharmax+llm-utils@0.1.1/node_modules/@dharmax/llm-utils/dist/index.mjs
-import { execFile as execFile8 } from "node:child_process";
-import { promisify as promisify8 } from "node:util";
+import { execFile as execFile9 } from "node:child_process";
+import { promisify as promisify9 } from "node:util";
 import { execFile as execFile22 } from "node:child_process";
 import { promisify as promisify22 } from "node:util";
-var OllamaProvider2, OpenAIAdapter2, GoogleAdapter2, AnthropicAdapter2, CompletionEngine2, execFileAsync8, execFileAsync22, PubSubEvent2, PubSub2, pubsub_default2;
+var OllamaProvider2, OpenAIAdapter2, GoogleAdapter2, AnthropicAdapter2, CompletionEngine2, execFileAsync9, execFileAsync22, PubSubEvent2, PubSub2, pubsub_default2;
 var init_dist7 = __esm({
   "node_modules/.pnpm/@dharmax+llm-utils@0.1.1/node_modules/@dharmax/llm-utils/dist/index.mjs"() {
     OllamaProvider2 = class {
@@ -19771,7 +20023,7 @@ var init_dist7 = __esm({
         }
       }
     };
-    execFileAsync8 = promisify8(execFile8);
+    execFileAsync9 = promisify9(execFile9);
     execFileAsync22 = promisify22(execFile22);
     PubSubEvent2 = class {
       constructor(topic, verb, origin, data2) {
@@ -20650,7 +20902,7 @@ var init_dist8 = __esm({
 
 // core/services/hooks.ts
 import { exec } from "node:child_process";
-import { promisify as promisify9 } from "node:util";
+import { promisify as promisify10 } from "node:util";
 async function runHooks(hookType, { root = process.cwd(), config = {}, context = {} } = {}) {
   const hooks = config.hooks?.[hookType] ?? [];
   if (!Array.isArray(hooks) || hooks.length === 0) {
@@ -20701,7 +20953,7 @@ var execAsync;
 var init_hooks = __esm({
   "core/services/hooks.ts"() {
     "use strict";
-    execAsync = promisify9(exec);
+    execAsync = promisify10(exec);
   }
 });
 
@@ -21007,16 +21259,16 @@ var init_text_compiler_host = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/active-guardrails.ts
-import path22 from "node:path";
+// core/lib/active-guardrails.ts
+import path24 from "node:path";
 async function loadProjectActiveGuardrails(root, options = {}) {
-  const resolvedRoot = path22.resolve(String(root ?? process.cwd()));
+  const resolvedRoot = path24.resolve(String(root ?? process.cwd()));
   const toolkitRoot3 = getToolkitRoot2();
-  const manualFallback = await readText(path22.resolve(toolkitRoot3, "docs", "MANUAL.md"));
+  const manualFallback = await readText(path24.resolve(toolkitRoot3, "docs", "MANUAL.md"));
   const loadedEntries = await Promise.all(
     GUARDRAIL_SOURCE_ORDER.map(async (spec) => {
       const fallback = spec.key === "manual" ? manualFallback : "";
-      const content = await readText(path22.resolve(resolvedRoot, spec.path), fallback);
+      const content = await readText(path24.resolve(resolvedRoot, spec.path), fallback);
       return [spec.key, content];
     })
   );
@@ -21151,7 +21403,7 @@ function compactText2(value) {
 }
 var GUARDRAIL_SOURCE_ORDER, REQUIRED_GUARDRAIL_RE, STRONG_GUARDRAIL_RE, DIRECTIVE_RE, IMPORTANT_DECLARATION_RE;
 var init_active_guardrails = __esm({
-  "runtime/scripts/ai-workflow/lib/active-guardrails.ts"() {
+  "core/lib/active-guardrails.ts"() {
     "use strict";
     init_fs_utils();
     init_markdown_utils();
@@ -21161,7 +21413,7 @@ var init_active_guardrails = __esm({
       { key: "executionProtocol", label: "Execution Protocol", path: "execution-protocol.md", weight: 4 },
       { key: "projectGuidelines", label: "Project Guidelines", path: "project-guidelines.md", weight: 4 },
       { key: "enforcement", label: "Enforcement", path: "enforcement.md", weight: 4 },
-      { key: "manual", label: "Manual", path: path22.join("docs", "MANUAL.md"), weight: 2 },
+      { key: "manual", label: "Manual", path: path24.join("docs", "MANUAL.md"), weight: 2 },
       { key: "knowledge", label: "Knowledge", path: "knowledge.md", weight: 2 },
       { key: "contributing", label: "Contributing", path: "CONTRIBUTING.md", weight: 1 }
     ];
@@ -21173,13 +21425,13 @@ var init_active_guardrails = __esm({
 });
 
 // core/services/codelets.ts
-import path23 from "node:path";
+import path25 from "node:path";
 import { readdir as readdir3, readFile as readFile13, rm as rm5, stat as stat3, writeFile as writeFile7 } from "node:fs/promises";
 function getSharedCodeletsDir(toolkitRoot3 = getToolkitRoot()) {
-  return path23.resolve(toolkitRoot3, "shared", "codelets");
+  return path25.resolve(toolkitRoot3, "shared", "codelets");
 }
 function getProjectCodeletsDir(root = process.cwd()) {
-  return path23.resolve(root, ".ai-workflow", "codelets");
+  return path25.resolve(root, ".ai-workflow", "codelets");
 }
 async function listToolkitCodelets({ toolkitRoot: toolkitRoot3 = getToolkitRoot() } = {}) {
   return listCodeletsInDir(getSharedCodeletsDir(toolkitRoot3), {
@@ -21208,8 +21460,8 @@ async function getProjectCodelet(root, name) {
 async function upsertProjectCodelet(root, name, filePath, mode) {
   return withWorkspaceMutation(root, `project codelet ${mode} ${name}`, async () => {
     const codeletsDir = getProjectCodeletsDir(root);
-    const manifestPath = path23.resolve(codeletsDir, `${name}.json`);
-    const relativeEntry = path23.relative(root, path23.resolve(root, filePath)).split(path23.sep).join("/");
+    const manifestPath = path25.resolve(codeletsDir, `${name}.json`);
+    const relativeEntry = path25.relative(root, path25.resolve(root, filePath)).split(path25.sep).join("/");
     const existing = await getProjectCodelet(root, name);
     const manifest = {
       id: name,
@@ -21227,14 +21479,14 @@ async function upsertProjectCodelet(root, name, filePath, mode) {
 }
 async function removeProjectCodelet(root, name) {
   return withWorkspaceMutation(root, `project codelet remove ${name}`, async () => {
-    const manifestPath = path23.resolve(getProjectCodeletsDir(root), `${name}.json`);
+    const manifestPath = path25.resolve(getProjectCodeletsDir(root), `${name}.json`);
     await rm5(manifestPath, { force: true });
   });
 }
 async function forgeProjectCodelet(root, name) {
   return withWorkspaceMutation(root, `forge project codelet ${name}`, async () => {
-    const stagedDir = path23.resolve(root, ".ai-workflow", "staged-codelets");
-    const entryPath = path23.resolve(stagedDir, `${name}.js`);
+    const stagedDir = path25.resolve(root, ".ai-workflow", "staged-codelets");
+    const entryPath = path25.resolve(stagedDir, `${name}.js`);
     const manifest = await upsertProjectCodelet(root, name, entryPath, "add");
     const source = [
       "/* Responsibility: Project-local staged codelet for bounded low-risk helper work.",
@@ -21369,7 +21621,7 @@ function sourceKindPriority(sourceKind) {
   return 2;
 }
 function getCodeletRegistryCacheKey(projectRoot, sourceKind) {
-  return `${path23.resolve(String(projectRoot ?? ""))}::${sourceKind ?? "all"}`;
+  return `${path25.resolve(String(projectRoot ?? ""))}::${sourceKind ?? "all"}`;
 }
 function materializeCodeletRecord(entity) {
   const data2 = entity.data ?? {};
@@ -21435,7 +21687,7 @@ function normalizeSearchQuery(query) {
 }
 async function buildCodeletEntity(manifest, { sourceKind, sourceRoot }) {
   const manifestPath = manifest.manifestPath ?? null;
-  const entryPath = manifest.entry ? path23.resolve(sourceRoot, manifest.entry) : null;
+  const entryPath = manifest.entry ? path25.resolve(sourceRoot, manifest.entry) : null;
   const entryExists = manifest.runner === "builtin" ? true : entryPath ? await awaitPathExists(entryPath) : false;
   const backing = manifest.runner === "builtin" ? {
     status: "builtin",
@@ -21491,7 +21743,7 @@ async function listCodeletsInDir(codeletsDir, { sourceKind, sourceRoot }) {
       if (!entry.isFile() || !entry.name.endsWith(".json")) {
         continue;
       }
-      const manifestPath = path23.resolve(codeletsDir, entry.name);
+      const manifestPath = path25.resolve(codeletsDir, entry.name);
       const manifest = JSON.parse(await readFile13(manifestPath, "utf8"));
       manifests.push(resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot }));
     }
@@ -21504,7 +21756,7 @@ async function listCodeletsInDir(codeletsDir, { sourceKind, sourceRoot }) {
   }
 }
 async function getCodeletFromDir(codeletsDir, name, { sourceKind, sourceRoot }) {
-  const manifestPath = path23.resolve(codeletsDir, `${name}.json`);
+  const manifestPath = path25.resolve(codeletsDir, `${name}.json`);
   try {
     const manifest = JSON.parse(await readFile13(manifestPath, "utf8"));
     return resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot });
@@ -21523,7 +21775,7 @@ function resolveManifest(manifest, { manifestPath, sourceKind, sourceRoot }) {
     ...manifest
   };
   if (manifest.entry) {
-    resolved.entry = path23.resolve(sourceRoot, manifest.entry);
+    resolved.entry = path25.resolve(sourceRoot, manifest.entry);
   }
   return resolved;
 }
@@ -21552,7 +21804,7 @@ var init_codelets = __esm({
 });
 
 // core/services/host-resolver.ts
-import path24 from "node:path";
+import path26 from "node:path";
 import { readFile as readFile14 } from "node:fs/promises";
 async function resolveHostRequest({
   projectRoot = process.cwd(),
@@ -21791,10 +22043,10 @@ function buildCodeletEvidence(codelet) {
     evidence.push(`Category: ${codelet.category}`);
   }
   if (codelet.entryPath) {
-    evidence.push(`Entry: ${path24.relative(process.cwd(), codelet.entryPath)}`);
+    evidence.push(`Entry: ${path26.relative(process.cwd(), codelet.entryPath)}`);
   }
   if (codelet.manifestPath) {
-    evidence.push(`Manifest: ${path24.relative(process.cwd(), codelet.manifestPath)}`);
+    evidence.push(`Manifest: ${path26.relative(process.cwd(), codelet.manifestPath)}`);
   }
   if (codelet.id === "refactor-ticket") {
     evidence.push("Execution path: execute-ticket -> orchestrator executeTicket");
@@ -21814,7 +22066,7 @@ function formatGoalLabel(goalType) {
 async function discoverBoardCurrentWork(projectRoot) {
   for (const relativePath of ["docs/kanban.md", "kanban.md"]) {
     try {
-      const content = await readFile14(path24.resolve(projectRoot, relativePath), "utf8");
+      const content = await readFile14(path26.resolve(projectRoot, relativePath), "utf8");
       const section = extractKanbanSection(content, "In Progress");
       const tickets = parseKanbanTickets(section).map((ticket) => ({
         ...ticket,
@@ -21897,7 +22149,7 @@ var CURRENT_WORK_RE, READINESS_RE, STATUS_RE, CODELET_RE;
 var init_host_resolver = __esm({
   "core/services/host-resolver.ts"() {
     "use strict";
-    init_sync2();
+    init_sync();
     init_active_guardrails();
     init_codelets();
     CURRENT_WORK_RE = /\b(working on right now|working on now|what are we working on|what were working on|current work|current focus|in progress right now|currently in progress)\b/i;
@@ -22909,7 +23161,7 @@ var init_operator_brain = __esm({
   "core/services/operator-brain.ts"() {
     "use strict";
     init_disambiguation();
-    init_sync2();
+    init_sync();
     init_status();
     init_orchestrator();
     init_assessment();
@@ -22929,10 +23181,10 @@ var init_operator_brain = __esm({
 });
 
 // core/services/dogfood-harness.ts
-import path25 from "node:path";
+import path27 from "node:path";
 async function runDogfoodHarness(options = {}) {
   const root = options.root ?? process.cwd();
-  const dogfoodRoot = path25.join(root, "dogfood-projects", `space-invaders-${Date.now()}`);
+  const dogfoodRoot = path27.join(root, "dogfood-projects", `space-invaders-${Date.now()}`);
   console.log(`[dogfood] Initializing dogfood project at: ${dogfoodRoot}`);
   const initialFiles = {
     "package.json": JSON.stringify({
@@ -23048,7 +23300,7 @@ var init_dogfood_harness = __esm({
   "core/services/dogfood-harness.ts"() {
     "use strict";
     init_operator_brain();
-    init_sync2();
+    init_sync();
     init_filesystem();
   }
 });
@@ -23185,7 +23437,7 @@ var init_shell_trust_benchmark = __esm({
 
 // core/services/shell-benchmark.ts
 import os2 from "node:os";
-import path26 from "node:path";
+import path28 from "node:path";
 import { spawn as spawn3 } from "node:child_process";
 import { mkdtemp as mkdtemp2, mkdir as mkdir6, readFile as readFile15, rm as rm6, writeFile as writeFile8 } from "node:fs/promises";
 async function runShellBenchmark(promptOrOptions = {}, options = {}) {
@@ -23207,7 +23459,7 @@ async function runShellBenchmark(promptOrOptions = {}, options = {}) {
   return runAdHocShellBenchmark(prompt, mergedOptions);
 }
 async function runShellTrustBenchmark(options = {}) {
-  const root = path26.resolve(String(options.root ?? process.cwd()));
+  const root = path28.resolve(String(options.root ?? process.cwd()));
   const cliPath = resolveCliPath(root, options);
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const cases = Array.isArray(options.cases) && options.cases.length ? options.cases : SHELL_TRUST_BENCHMARK_CASES;
@@ -23217,9 +23469,9 @@ async function runShellTrustBenchmark(options = {}) {
   const runCommand = options.runCommand ?? runNodeProcess;
   const judge = options.judge ?? judgeShellTranscripts;
   const keepArtifacts = options.keepArtifacts ?? true;
-  const requestedArtifactRoot = options.artifactRoot ? path26.resolve(String(options.artifactRoot)) : await mkdtemp2(path26.join(os2.tmpdir(), "ai-workflow-shell-benchmark-"));
+  const requestedArtifactRoot = options.artifactRoot ? path28.resolve(String(options.artifactRoot)) : await mkdtemp2(path28.join(os2.tmpdir(), "ai-workflow-shell-benchmark-"));
   const benchmarkRunId = options.runId ?? `shell-trust-${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-")}`;
-  const artifactRoot = options.artifactRoot ? path26.join(requestedArtifactRoot, benchmarkRunId) : requestedArtifactRoot;
+  const artifactRoot = options.artifactRoot ? path28.join(requestedArtifactRoot, benchmarkRunId) : requestedArtifactRoot;
   const startedAt = Date.now();
   await mkdir6(artifactRoot, { recursive: true });
   try {
@@ -23266,7 +23518,7 @@ async function runShellTrustBenchmark(options = {}) {
         failedCriticalCases
       })
     };
-    await writeFile8(path26.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
+    await writeFile8(path28.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
     return payload;
   } finally {
@@ -23276,12 +23528,12 @@ async function runShellTrustBenchmark(options = {}) {
   }
 }
 async function runAdHocShellBenchmark(prompt, options = {}) {
-  const root = path26.resolve(String(options.root ?? process.cwd()));
+  const root = path28.resolve(String(options.root ?? process.cwd()));
   const cliPath = resolveCliPath(root, options);
   const timeoutMs = normalizeTimeout(options.timeoutMs);
   const runCommand = options.runCommand ?? runNodeProcess;
   const judge = options.judge ?? judgeShellTranscripts;
-  const artifactRoot = options.artifactRoot ? path26.resolve(String(options.artifactRoot)) : await mkdtemp2(path26.join(os2.tmpdir(), "ai-workflow-shell-ad-hoc-"));
+  const artifactRoot = options.artifactRoot ? path28.resolve(String(options.artifactRoot)) : await mkdtemp2(path28.join(os2.tmpdir(), "ai-workflow-shell-ad-hoc-"));
   const benchmarkCase = {
     id: "ad-hoc-shell-prompt",
     title: "Ad hoc shell prompt benchmark",
@@ -23316,7 +23568,7 @@ async function runAdHocShellBenchmark(prompt, options = {}) {
       cases: [result],
       summary: result.ok ? "Ad hoc shell benchmark passed." : `Ad hoc shell benchmark failed: ${result.failures.join("; ")}`
     };
-    await writeFile8(path26.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
+    await writeFile8(path28.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
     return payload;
   } finally {
@@ -23346,7 +23598,7 @@ async function runBenchmarkedShellCase({
   const visibleText = extractVisibleText(result.stdout, result.stderr);
   const combinedText = `${visibleText}
 ${result.stderr ?? ""}`.trim();
-  const transcriptPath = path26.join(artifactRoot, `${benchmarkCase.id}.txt`);
+  const transcriptPath = path28.join(artifactRoot, `${benchmarkCase.id}.txt`);
   const transcript = [
     `Case: ${benchmarkCase.id}`,
     `Title: ${benchmarkCase.title}`,
@@ -23463,12 +23715,12 @@ function buildBenchmarkSummary({ ok, passedCount, caseCount, failedCriticalCases
 }
 function resolveCliPath(root, options) {
   if (options.cliPath) {
-    return path26.resolve(String(options.cliPath));
+    return path28.resolve(String(options.cliPath));
   }
   if (options.toolkitRoot) {
-    return path26.resolve(String(options.toolkitRoot), "cli", "ai-workflow.mjs");
+    return path28.resolve(String(options.toolkitRoot), "cli", "ai-workflow.mjs");
   }
-  return path26.resolve(root, "cli", "ai-workflow.mjs");
+  return path28.resolve(root, "cli", "ai-workflow.mjs");
 }
 function normalizeTimeout(timeoutMs) {
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS2;
@@ -23568,9 +23820,9 @@ var init_shell_benchmark = __esm({
   }
 });
 
-// runtime/scripts/ai-workflow/lib/dogfood-utils.ts
+// core/lib/dogfood-utils.ts
 import os3 from "node:os";
-import path27 from "node:path";
+import path29 from "node:path";
 import { spawn as spawn4 } from "node:child_process";
 import { mkdtemp as mkdtemp3, rm as rm7, writeFile as writeFile9 } from "node:fs/promises";
 async function runDogfood({
@@ -23581,9 +23833,9 @@ async function runDogfood({
   timeoutMs = 45e3,
   writeReport = true
 } = {}) {
-  const normalizedRoot = path27.resolve(root);
+  const normalizedRoot = path29.resolve(root);
   const requestedSurfaces = dedupeSurfaceIds(surfaces);
-  const cliPath = path27.resolve(toolkitRoot3, "cli", "ai-workflow.mjs");
+  const cliPath = path29.resolve(toolkitRoot3, "cli", "ai-workflow.mjs");
   const startedAt = (/* @__PURE__ */ new Date()).toISOString();
   const surfaceSnapshots = await collectOperatorSurfaceState(normalizedRoot, requestedSurfaces);
   const report = {
@@ -23642,15 +23894,15 @@ async function runDogfood({
   }
   report.status = Object.values(report.surfaces).every((surface) => surface.status === "pass") && workspaceHonesty.status !== "fail" ? "pass" : "fail";
   if (writeReport) {
-    const reportPath = path27.resolve(normalizedRoot, DEFAULT_DOGFOOD_REPORT_PATH);
-    await ensureDir(path27.dirname(reportPath));
+    const reportPath = path29.resolve(normalizedRoot, DEFAULT_DOGFOOD_REPORT_PATH);
+    await ensureDir(path29.dirname(reportPath));
     await writeFile9(reportPath, `${JSON.stringify(report, null, 2)}
 `, "utf8");
   }
   return report;
 }
 async function readDogfoodReport(root = process.cwd()) {
-  const reportPath = path27.resolve(root, DEFAULT_DOGFOOD_REPORT_PATH);
+  const reportPath = path29.resolve(root, DEFAULT_DOGFOOD_REPORT_PATH);
   const raw = await readText(reportPath, "");
   if (!raw.trim()) {
     return null;
@@ -23811,7 +24063,7 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
       cliPath,
       timeoutMs: Math.max(timeoutMs, 9e4),
       expectLocalModel: shellPlanningExpectation.expectLocalModel,
-      artifactRoot: path27.resolve(root, ".ai-workflow", "generated", "shell-benchmark")
+      artifactRoot: path29.resolve(root, ".ai-workflow", "generated", "shell-benchmark")
     });
     scenarios.push({
       id: "human-language-benchmark",
@@ -23908,9 +24160,9 @@ async function buildWorkflowScenarios({ cliPath, root, timeoutMs }) {
   ];
 }
 async function buildInitScenarios({ timeoutMs, toolkitRoot: toolkitRoot3 }) {
-  const fixtureRoot = await mkdtemp3(path27.join(os3.tmpdir(), "ai-workflow-dogfood-init-"));
-  const initScriptPath = path27.resolve(toolkitRoot3, "scripts", "init-project.ts");
-  const auditScriptPath = path27.resolve(fixtureRoot, "scripts", "ai-workflow", "workflow-audit.ts");
+  const fixtureRoot = await mkdtemp3(path29.join(os3.tmpdir(), "ai-workflow-dogfood-init-"));
+  const initScriptPath = path29.resolve(toolkitRoot3, "scripts", "init-project.ts");
+  const auditScriptPath = path29.resolve(fixtureRoot, "scripts", "ai-workflow", "workflow-audit.ts");
   const initTimeoutMs = Math.max(timeoutMs, 9e4);
   try {
     const initResult = await runNodeProcess2({
@@ -24048,8 +24300,8 @@ async function applyScenarioSemanticValidation({ cwd, scenario, validationHints 
   if (!validationHints.semanticRubric) {
     return scenario;
   }
-  const transcriptRoot = await mkdtemp3(path27.join(os3.tmpdir(), `ai-workflow-dogfood-${scenario.id}-`));
-  const transcriptPath = path27.join(transcriptRoot, `${scenario.id}.txt`);
+  const transcriptRoot = await mkdtemp3(path29.join(os3.tmpdir(), `ai-workflow-dogfood-${scenario.id}-`));
+  const transcriptPath = path29.join(transcriptRoot, `${scenario.id}.txt`);
   const transcript = [
     `Scenario: ${scenario.id}`,
     `Description: ${scenario.description}`,
@@ -24184,7 +24436,7 @@ async function runNodeProcess2({ cwd, args, timeoutMs }) {
 }
 var DEFAULT_DOGFOOD_REPORT_PATH;
 var init_dogfood_utils = __esm({
-  "runtime/scripts/ai-workflow/lib/dogfood-utils.ts"() {
+  "core/lib/dogfood-utils.ts"() {
     "use strict";
     init_shell_transcript_verification();
     init_fs_utils();
@@ -24327,7 +24579,7 @@ var init_critic = __esm({
   "core/services/critic.ts"() {
     "use strict";
     init_dogfood_utils();
-    init_sync2();
+    init_sync();
   }
 });
 
@@ -24516,8 +24768,8 @@ var init_dual_surface_protocol = __esm({
 
 // core/services/readiness-evaluator.ts
 import { createHash as createHash2 } from "node:crypto";
-import { existsSync as existsSync5, readFileSync as readFileSync3 } from "node:fs";
-import path28 from "node:path";
+import { existsSync as existsSync6, readFileSync as readFileSync3 } from "node:fs";
+import path30 from "node:path";
 async function evaluateReadiness(store, request) {
   const startedAt = Date.now();
   const lastSync = store.getMeta("lastSync");
@@ -24883,14 +25135,14 @@ function resolveVerificationSignal({ latestRunArtifact, latestVerificationArtifa
 }
 function readLatestVerificationRunArtifact(projectRoot) {
   if (!projectRoot) return null;
-  const stateDir = path28.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
-  const latestPath = path28.resolve(stateDir, "latest.json");
-  if (!existsSync5(latestPath)) return null;
+  const stateDir = path30.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");
+  const latestPath = path30.resolve(stateDir, "latest.json");
+  if (!existsSync6(latestPath)) return null;
   try {
     const latest = JSON.parse(readFileSync3(latestPath, "utf8"));
     if (!latest?.id) return null;
-    const artifactPath = path28.resolve(stateDir, `${latest.id}.json`);
-    if (!existsSync5(artifactPath)) return null;
+    const artifactPath = path30.resolve(stateDir, `${latest.id}.json`);
+    if (!existsSync6(artifactPath)) return null;
     const artifact = JSON.parse(readFileSync3(artifactPath, "utf8"));
     if (!artifact || typeof artifact !== "object") return null;
     const kind = String(artifact.kind ?? "");
@@ -24987,7 +25239,7 @@ __export(sync_exports, {
   updateTicketLifecycle: () => updateTicketLifecycle,
   withWorkflowStore: () => withWorkflowStore
 });
-import path29 from "node:path";
+import path31 from "node:path";
 async function syncProject({ projectRoot = process.cwd(), writeProjections = false } = {}) {
   const startedAt = (/* @__PURE__ */ new Date()).toISOString();
   return withWorkspaceMutationGuardDisabled(async () => {
@@ -25132,7 +25384,7 @@ async function syncProject({ projectRoot = process.cwd(), writeProjections = fal
   });
 }
 async function maybeRunAutoAssessment(store, { projectRoot, scope = "health" } = {}) {
-  const targetId = path29.basename(projectRoot);
+  const targetId = path31.basename(projectRoot);
   const assessments = store.listAssessments({ targetType: "project", targetId }).filter((item) => item.scope === scope);
   const now = Date.now();
   for (const assessment of assessments) {
@@ -25178,8 +25430,8 @@ function recordProjectionMutation(store, projectRoot, projections, snapshot = []
     beforeDirty: false,
     afterDirty: false,
     changedFiles: [
-      path29.relative(projectRoot, projections.kanbanPath),
-      path29.relative(projectRoot, projections.epicsPath)
+      path31.relative(projectRoot, projections.kanbanPath),
+      path31.relative(projectRoot, projections.epicsPath)
     ],
     details: {
       source: "syncProject",
@@ -25911,7 +26163,7 @@ function inferModuleResponsibility(moduleName, filePaths = []) {
   const normalized = String(moduleName ?? "").trim();
   const lower = normalized.toLowerCase();
   const basenames = [...new Set(
-    filePaths.map((filePath) => path29.basename(String(filePath), path29.extname(String(filePath)))).filter((name) => name && !["index", "main", "mod"].includes(name))
+    filePaths.map((filePath) => path31.basename(String(filePath), path31.extname(String(filePath)))).filter((name) => name && !["index", "main", "mod"].includes(name))
   )];
   if (lower === "cli" || lower.startsWith("cli/")) {
     return "CLI entrypoints, interactive shell behavior, and local operator tooling.";
@@ -25968,7 +26220,7 @@ function deriveCandidateScores(note, filePath) {
   };
 }
 var AUTO_ASSESSMENT_COOLDOWN_MS, AUTO_ASSESSMENT_STALE_MS, ACTIVE_ASSESSMENT_STATUSES, EPIC_ID_PATTERN, PLACEHOLDER_ENTITY_IDS, OPAQUE_SYNTHETIC_TICKET_ID_PATTERN;
-var init_sync2 = __esm({
+var init_sync = __esm({
   "core/services/sync.ts"() {
     "use strict";
     init_sqlite_store();
@@ -25994,271 +26246,378 @@ var init_sync2 = __esm({
   }
 });
 
-// core/lib/workspace-mutation.ts
-import path30 from "node:path";
-import { execFile as execFile9 } from "node:child_process";
-import { promisify as promisify10 } from "node:util";
-function isWorkspaceMutationGuardDisabled() {
-  return guardDepth > 0;
-}
-async function withWorkspaceMutationGuardDisabled(callback) {
-  guardDepth += 1;
-  try {
-    return await callback();
-  } finally {
-    guardDepth = Math.max(0, guardDepth - 1);
+// core/services/codelet-runtime.ts
+import path32 from "node:path";
+async function buildSmartCodeletRunContext({
+  projectRoot = process.cwd(),
+  codeletId,
+  ticketId = null,
+  filePath = null,
+  goal = null
+} = {}) {
+  const normalizedTicketId = ticketId ? String(ticketId).trim() : null;
+  const normalizedFilePath = filePath ? path32.normalize(String(filePath).trim()) : null;
+  const normalizedGoal = goal ? String(goal).trim() : null;
+  const [codelet, projectSummary] = await Promise.all([
+    getCodelet({ projectRoot, codeletId }),
+    getProjectSummary({ projectRoot })
+  ]);
+  if (!codelet) {
+    throw new Error(`Unknown smart codelet: ${codeletId}`);
   }
-}
-async function withWorkspaceMutation(root, operation, callback, { writeProjections = true, syncAfter = true, syncBefore = true } = {}) {
-  if (isWorkspaceMutationGuardDisabled()) {
-    return callback({
-      nested: true,
-      operation,
-      before: null
-    });
-  }
-  guardDepth += 1;
-  try {
-    const startedAt = (/* @__PURE__ */ new Date()).toISOString();
-    const before = await probeWorkspaceState(root).catch(() => ({
-      gitRepo: false,
-      dirty: true,
-      changedFiles: [],
-      source: "probe-error"
-    }));
-    if (syncBefore && before.dirty) {
-      const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync2(), sync_exports));
-      await syncProject2({ projectRoot: root, writeProjections: false }).catch(() => {
-      });
-    }
-    let result;
-    let failed = null;
-    try {
-      result = await callback({
-        before,
-        operation
-      });
-      return result;
-    } catch (error) {
-      failed = error;
-      throw error;
-    } finally {
-      const after = await probeWorkspaceState(root).catch(() => ({
-        gitRepo: false,
-        dirty: true,
-        changedFiles: [],
-        source: "probe-error"
-      }));
-      let finalAfter = after;
-      let syncTriggered = false;
-      if (syncAfter && (before.dirty || after.dirty || !before.gitRepo || !after.gitRepo || failed)) {
-        const { syncProject: syncProject2 } = await Promise.resolve().then(() => (init_sync2(), sync_exports));
-        syncTriggered = true;
-        await syncProject2({ projectRoot: root, writeProjections }).catch(() => {
-        });
-        finalAfter = await probeWorkspaceState(root).catch(() => after);
-      }
-      const { collectProjectFileSnapshot: collectProjectFileSnapshot2 } = await Promise.resolve().then(() => (init_filesystem(), filesystem_exports));
-      const finalSnapshot = await collectProjectFileSnapshot2(root).catch(() => []);
-      await recordWorkspaceMutation(root, {
-        operation,
-        status: failed ? "failed" : "completed",
-        beforeDirty: before.dirty,
-        afterDirty: finalAfter.dirty,
-        changedFiles: finalAfter.changedFiles,
-        details: {
-          before,
-          after: finalAfter,
-          snapshot: finalSnapshot,
-          syncTriggered,
-          error: failed ? String(failed?.message ?? failed) : null
-        },
-        startedAt,
-        completedAt: (/* @__PURE__ */ new Date()).toISOString()
-      }).catch(() => {
-      });
-    }
-  } finally {
-    guardDepth = Math.max(0, guardDepth - 1);
-  }
-}
-async function probeWorkspaceState(root) {
-  const gitRepo = await probeGitRepo(root);
-  if (!gitRepo) {
-    return {
-      gitRepo: false,
-      dirty: true,
-      changedFiles: [],
-      source: "snapshot-required"
-    };
-  }
-  const output7 = await runGit3(root, ["status", "--porcelain", "--untracked-files=all"]);
-  const changedFiles = parseStatusShort2(output7);
+  const target = await resolveTarget(projectRoot, normalizedTicketId);
+  const surgicalContext = await buildSurgicalContext(projectRoot, {
+    ticketId: target.ticket?.id ?? normalizedTicketId,
+    filePaths: normalizedFilePath ? [normalizedFilePath] : [],
+    symbolNames: []
+  });
   return {
-    gitRepo: true,
-    dirty: changedFiles.length > 0,
-    changedFiles,
-    source: "git"
+    codelet: {
+      ...codelet,
+      summary: String(codelet.summary ?? codelet.title ?? codelet.id ?? codeletId).trim(),
+      taskClass: String(codelet.taskClass ?? "task-decomposition").trim(),
+      intent: String(codelet.focus ?? codelet.title ?? codelet.summary ?? codelet.id ?? codeletId).trim(),
+      observer: Boolean(codelet.observer)
+    },
+    projectSummary,
+    target: {
+      ticketId: normalizedTicketId,
+      filePath: normalizedFilePath,
+      goal: normalizedGoal,
+      ticket: target.ticket ?? null
+    },
+    surgicalContext,
+    promptContext: formatContextForPrompt(surgicalContext),
+    tooling: surgicalContext.tooling
   };
 }
-async function probeGitRepo(root) {
-  try {
-    const output7 = await runGit3(root, ["rev-parse", "--is-inside-work-tree"]);
-    return output7.trim() === "true";
-  } catch {
-    return false;
+async function resolveTarget(projectRoot, ticketId) {
+  if (!ticketId) {
+    return { ticket: null };
   }
-}
-async function runGit3(root, args) {
-  const { stdout } = await execFileAsync9("git", args, {
-    cwd: root,
-    maxBuffer: 8 * 1024 * 1024
+  return withWorkflowStore(projectRoot, async (store) => {
+    const entity = store.getEntity(ticketId);
+    if (!entity) {
+      return { ticket: null };
+    }
+    return {
+      ticket: {
+        id: entity.id,
+        title: entity.title,
+        lane: entity.lane,
+        state: entity.state,
+        summary: String(entity.data?.summary ?? "").trim()
+      }
+    };
   });
-  return String(stdout ?? "").trimEnd();
 }
-function parseStatusShort2(output7) {
-  return String(output7 ?? "").split(/\r?\n/).filter(Boolean).map((line) => line.slice(3).trim()).filter(Boolean);
+var init_codelet_runtime = __esm({
+  "core/services/codelet-runtime.ts"() {
+    "use strict";
+    init_context_packer();
+    init_sync();
+  }
+});
+
+// core/codelets/smart-codelet-runner.ts
+async function run(options, hub) {
+  const root = hub.context.projectRoot;
+  const codeletId = options.codeletId || "codelet-observer";
+  const runtimeContext = await buildSmartCodeletRunContext({
+    projectRoot: root,
+    codeletId,
+    ticketId: options.ticket,
+    filePath: options.file,
+    goal: options.goal
+  });
+  const meta = runtimeContext.codelet;
+  const route = await routeTask({
+    root,
+    taskClass: meta.taskClass ?? "task-decomposition",
+    preferLocal: true,
+    allowWeak: true
+  });
+  const prompt = buildPrompt({
+    codeletId,
+    meta,
+    root,
+    projectSummary: runtimeContext.projectSummary,
+    target: runtimeContext.target,
+    promptContext: runtimeContext.promptContext
+  });
+  const completion = await hub.llm.generate(prompt, { taskClass: meta.taskClass });
+  const result = parseStructuredResponse(completion.response);
+  return {
+    codelet: { id: codeletId, summary: meta.summary },
+    result
+  };
 }
-async function recordWorkspaceMutation(root, mutation) {
-  const { openWorkflowStore: openWorkflowStore2 } = await Promise.resolve().then(() => (init_sqlite_store(), sqlite_store_exports));
-  const store = await openWorkflowStore2({ projectRoot: root });
+function buildPrompt({ codeletId, meta, root, projectSummary, target, promptContext }) {
+  return [
+    `Codelet id: ${codeletId}`,
+    `Focus: ${meta.intent}`,
+    `Purpose: ${meta.summary}`,
+    "",
+    "Context:",
+    promptContext,
+    "",
+    "Goal:",
+    target.goal || "none",
+    "",
+    "Return JSON only: { summary, observations[], suggested_actions[] }"
+  ].join("\n");
+}
+function parseStructuredResponse(text) {
   try {
-    store.appendWorkspaceMutation({
-      ...mutation,
-      root: path30.resolve(root)
-    });
-  } finally {
-    store.close();
+    return JSON.parse(text);
+  } catch {
+    return { summary: text };
   }
 }
-var execFileAsync9, guardDepth;
-var init_workspace_mutation = __esm({
-  "core/lib/workspace-mutation.ts"() {
+var init_smart_codelet_runner = __esm({
+  "core/codelets/smart-codelet-runner.ts"() {
     "use strict";
-    execFileAsync9 = promisify10(execFile9);
-    guardDepth = 0;
+    init_sync();
+    init_router();
+    init_providers();
+    init_codelet_runtime();
   }
 });
 
-// core/services/kanban-manager.ts
-import path31 from "node:path";
-import { writeFile as writeFile10 } from "node:fs/promises";
-var KanbanManager;
-var init_kanban_manager = __esm({
-  "core/services/kanban-manager.ts"() {
+// core/lib/guidance-utils.ts
+import path33 from "node:path";
+function deriveKeywords({ ticketText = "", files = [] }) {
+  const fromFiles = files.flatMap((filePath) => {
+    const base = path33.basename(filePath);
+    return tokenize(`${filePath} ${base.replace(/\.[^.]+$/, "").replace(/[._-]/g, " ")}`);
+  });
+  return [.../* @__PURE__ */ new Set([...tokenize(ticketText), ...fromFiles])];
+}
+function summarizeGuidance(markdown, keywords2, options = {}) {
+  const {
+    limit = 6,
+    fallbackLimit = 4,
+    alwaysIncludeTop = false
+  } = options;
+  const rawCandidates = extractMarkdownCandidates(markdown).filter((candidate) => !isLowSignalGuidanceText(candidate.text));
+  const candidates = rawCandidates.some((candidate) => candidate.kind !== "heading") ? rawCandidates.filter((candidate) => candidate.kind !== "heading") : rawCandidates;
+  if (!candidates.length) {
+    return [];
+  }
+  const uniqueCandidates = compactGuidanceCandidates(candidates);
+  const scored = uniqueCandidates.map((candidate, index) => {
+    const candidateTokens = tokenize(candidate.text);
+    const overlap = candidateTokens.filter((token) => keywords2.includes(token)).length;
+    const score = overlap * 10 + candidate.weight - index * 1e-3;
+    return { ...candidate, overlap, score };
+  });
+  let chosen = scored.filter((candidate) => candidate.overlap > 0);
+  if (!chosen.length || alwaysIncludeTop) {
+    const rankedFallback = scored.slice().sort((left, right) => {
+      const leftPenalty = left.kind === "heading" ? 1 : 0;
+      const rightPenalty = right.kind === "heading" ? 1 : 0;
+      return leftPenalty - rightPenalty || right.weight - left.weight || left.line - right.line;
+    });
+    const fallback = rankedFallback.slice(0, fallbackLimit);
+    chosen = mergeUnique(chosen, fallback);
+  }
+  return chosen.slice().sort((left, right) => right.score - left.score || left.line - right.line).slice(0, limit).sort((left, right) => left.line - right.line).map((candidate) => candidate.text);
+}
+function compactGuidanceItems(items, options = {}) {
+  const {
+    limit = Number.POSITIVE_INFINITY,
+    seenNormalized = /* @__PURE__ */ new Set()
+  } = options;
+  const compact2 = [];
+  for (const item of items) {
+    const value = String(item ?? "").trim();
+    const normalized = normalizeGuidanceText(value);
+    if (!value || !normalized || seenNormalized.has(normalized)) {
+      continue;
+    }
+    seenNormalized.add(normalized);
+    compact2.push(value);
+    if (compact2.length >= limit) {
+      break;
+    }
+  }
+  return compact2;
+}
+function mergeUnique(primary, secondary) {
+  const seen = new Set(primary.map((item) => item.line));
+  const merged = [...primary];
+  for (const item of secondary) {
+    if (seen.has(item.line)) {
+      continue;
+    }
+    seen.add(item.line);
+    merged.push(item);
+  }
+  return merged;
+}
+function compactGuidanceCandidates(candidates) {
+  const seen = /* @__PURE__ */ new Set();
+  const compact2 = [];
+  for (const candidate of candidates) {
+    const normalized = normalizeGuidanceText(candidate.text);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    compact2.push(candidate);
+  }
+  return compact2;
+}
+function normalizeGuidanceText(value) {
+  return compactText3(value).toLowerCase().replace(/[*_`]/g, "").replace(/[.;:]+$/g, "");
+}
+function isLowSignalGuidanceText(value) {
+  const compact2 = compactText3(value);
+  if (!compact2) {
+    return true;
+  }
+  if (/^this file$/i.test(compact2)) {
+    return true;
+  }
+  if (/^`[^`]+`$/.test(compact2)) {
+    return true;
+  }
+  if (/^[a-z][a-z /-]{0,40}:$/i.test(compact2)) {
+    return true;
+  }
+  return false;
+}
+function compactText3(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+var init_guidance_utils = __esm({
+  "core/lib/guidance-utils.ts"() {
     "use strict";
+    init_markdown_utils();
+  }
+});
+
+// core/codelets/context-pack.ts
+import path34 from "node:path";
+async function run2(options, hub) {
+  const root = path34.resolve(String(options.root ?? hub.context.projectRoot));
+  const toolkitRoot3 = getToolkitRoot2();
+  const files = [...options.files ?? []];
+  let ticket = null;
+  let ticketEntity = null;
+  let ticketSourcePath = null;
+  if (options.ticket) {
+    const resolved = await loadTicketContext({ root, ticketId: options.ticket, kanbanPath: options.kanban ?? null });
+    ticket = resolved.ticket;
+    ticketEntity = resolved.entity;
+    ticketSourcePath = resolved.sourcePath;
+  }
+  if (options.changed) {
+    if (await isGitRepo2(root)) {
+      const changed = await getChanges(root);
+      for (const change of changed) {
+        files.push(change.path);
+      }
+    }
+  }
+  const uniqueFiles = [...new Set(files.filter(Boolean).map(normalizePath).filter((filePath) => !isWorkflowStatePath(filePath)))];
+  const inferredWorkingSet = uniqueFiles.length ? { files: [], symbols: [], evidence: [] } : await inferTicketWorkingSet({ root, ticket, entity: ticketEntity });
+  const workingSetFiles = [...new Set([...uniqueFiles, ...inferredWorkingSet.files].filter(Boolean).map(normalizePath))];
+  const ticketText = ticket ? `${ticket.heading}
+${ticket.body}` : "";
+  const keywords2 = deriveKeywords({ ticketText, files: workingSetFiles });
+  const [agents, contributing, executionProtocol, enforcement, guidelines, manual, knowledge] = await Promise.all([
+    readText(path34.resolve(root, "AGENTS.md")),
+    readText(path34.resolve(root, "CONTRIBUTING.md")),
+    readText(path34.resolve(root, "execution-protocol.md")),
+    readText(path34.resolve(root, "enforcement.md")),
+    readText(path34.resolve(root, "project-guidelines.md")),
+    readText(path34.resolve(root, "docs", "MANUAL.md"), await readText(path34.resolve(toolkitRoot3, "docs", "MANUAL.md"))),
+    readText(path34.resolve(root, "knowledge.md"))
+  ]);
+  const guidanceSlices = compactGuidanceItems([
+    ...summarizeGuidance(agents, keywords2, { alwaysIncludeTop: true, limit: 3, fallbackLimit: 2 }),
+    ...summarizeGuidance(contributing, keywords2, { limit: 2, fallbackLimit: 2 }),
+    ...summarizeGuidance(executionProtocol, keywords2, { limit: 3, fallbackLimit: 2 }),
+    ...summarizeGuidance(enforcement, keywords2, { limit: 2, fallbackLimit: 1 }),
+    ...summarizeGuidance(guidelines, keywords2, { limit: 3, fallbackLimit: 2 }),
+    ...summarizeGuidance(manual, keywords2, { limit: 4, fallbackLimit: 2 }),
+    ...summarizeGuidance(knowledge, keywords2, { limit: 2, fallbackLimit: 1 })
+  ], { limit: 10 });
+  const activeGuardrails = compileActiveGuardrails({
+    agents,
+    contributing,
+    executionProtocol,
+    enforcement,
+    projectGuidelines: guidelines,
+    manual,
+    knowledge
+  }, { keywords: keywords2, limit: 6 });
+  return {
+    root,
+    ticket: ticket ? { id: ticket.id, title: ticket.title, section: ticket.section } : null,
+    workingSet: workingSetFiles,
+    relevantSymbols: inferredWorkingSet.symbols,
+    guidanceSlices,
+    activeGuardrails,
+    sessionHygiene: recommendSessionHygiene({ fileCount: workingSetFiles.length, guidanceCount: guidanceSlices.length, ticket })
+  };
+}
+function recommendSessionHygiene({ fileCount, guidanceCount, ticket }) {
+  if (fileCount >= 16 || ticket && fileCount >= 12) return { recommendation: "/new" };
+  if (fileCount >= 10 || guidanceCount >= 8) return { recommendation: "/compact" };
+  return { recommendation: "stay" };
+}
+var init_context_pack = __esm({
+  "core/codelets/context-pack.ts"() {
+    "use strict";
+    init_active_guardrails();
     init_fs_utils();
-    init_workspace_mutation();
-    init_kanban_edit_utils();
-    KanbanManager = class {
-      constructor(context) {
-        this.context = context;
-      }
-      context;
-      async newTicket(options) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path31.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        const result = createTicket(document, options);
-        const nextMarkdown = renderKanbanDocument(document);
-        if (!options.dryRun) {
-          await withWorkspaceMutation(root, "kanban new", async () => {
-            await writeFile10(kanbanPath, nextMarkdown, "utf8");
-          });
-        }
-        return result;
-      }
-      async moveTicket(ticketId, targetSection, options = {}) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path31.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        const result = moveTicket(document, ticketId, targetSection, options);
-        const nextMarkdown = renderKanbanDocument(document);
-        if (!options.dryRun) {
-          await withWorkspaceMutation(root, "kanban move", async () => {
-            await writeFile10(kanbanPath, nextMarkdown, "utf8");
-          });
-        }
-        return result;
-      }
-      async getNext(options = {}) {
-        const root = this.context.projectRoot;
-        const kanbanPath = path31.resolve(root, options.file ?? "kanban.md");
-        const markdown = await readText(kanbanPath);
-        const document = parseKanbanDocument(markdown);
-        return getNextTicket(document, options);
-      }
-    };
+    init_guidance_utils();
+    init_git_utils();
+    init_toolkit_root();
+    init_workflow_store_utils();
   }
 });
 
-// core/services/workflow-facade.ts
-var WorkflowFacade;
-var init_workflow_facade = __esm({
-  "core/services/workflow-facade.ts"() {
+// core/codelets/execute-ticket.ts
+async function run3(options, hub) {
+  const context = await resolveOperatingContext({
+    cwd: options.root || hub.context.projectRoot,
+    mode: options.mode || null,
+    root: options.root || null,
+    evidenceRoot: options.evidenceRoot || null,
+    allowExternalTarget: Boolean(options.allowExternalTarget)
+  });
+  assertSafeRepairTarget(context, { action: options.apply ? "ticket execution" : "ticket planning" });
+  const payload = await executeTicket({
+    root: context.repairTargetRoot,
+    ticketId: options.ticketId,
+    apply: Boolean(options.apply),
+    verificationTimeoutMs: options.timeoutMs
+  });
+  payload.mode = context.mode;
+  payload.repairTargetRoot = context.repairTargetRoot;
+  payload.evidenceRoot = context.evidenceRoot;
+  const artifactPayload = { ...payload };
+  payload.runArtifact = await recordRunArtifact(context.repairTargetRoot, {
+    kind: "execute-ticket",
+    mode: context.mode,
+    repairTargetRoot: context.repairTargetRoot,
+    evidenceRoot: context.evidenceRoot,
+    operationalRoot: context.repairTargetRoot,
+    ticketId: options.ticketId,
+    ok: payload.success,
+    payload: artifactPayload
+  });
+  return payload;
+}
+var init_execute_ticket = __esm({
+  "core/codelets/execute-ticket.ts"() {
     "use strict";
-    init_sync2();
-    init_status();
-    WorkflowFacade = class {
-      constructor(context) {
-        this.context = context;
-      }
-      context;
-      get mode() {
-        return this.context.mode;
-      }
-      async getSummary() {
-        return getProjectSummary({ projectRoot: this.context.projectRoot });
-      }
-      async sync(writeProjections = false) {
-        return syncProject({
-          projectRoot: this.context.projectRoot,
-          writeProjections
-        });
-      }
-      async getStatus(selector, type = null, includeRelated = false) {
-        return resolveProjectStatus({
-          projectRoot: this.context.projectRoot,
-          selector,
-          type,
-          includeRelated,
-          rawQuestion: false,
-          relatedLimit: includeRelated ? 24 : 12
-        });
-      }
-      async getMetrics() {
-        return getProjectMetrics({ projectRoot: this.context.projectRoot });
-      }
-      async evaluateReadiness(goalType, question, options = {}) {
-        return evaluateProjectReadiness({
-          projectRoot: this.context.projectRoot,
-          request: {
-            protocol_version: "1.0",
-            operation: "evaluate_readiness",
-            goal: { type: goalType, target: "project", question },
-            ...options
-          }
-        });
-      }
-      async search(query) {
-        return searchProject({ projectRoot: this.context.projectRoot, query });
-      }
-      async discoverExports(pattern = null) {
-        return withWorkflowStore(this.context.projectRoot, async (store) => {
-          const symbols = store.listSymbols();
-          const filtered = symbols.filter((s) => s.exported && (!pattern || s.name.includes(pattern) || s.filePath.includes(pattern)));
-          return filtered.map((s) => ({
-            id: s.id,
-            name: s.name,
-            kind: s.kind,
-            filePath: s.filePath,
-            line: s.line
-          }));
-        });
-      }
-    };
+    init_orchestrator();
+    init_operating_context();
+    init_run_artifacts();
   }
 });
 
@@ -26342,51 +26701,255 @@ var init_terminal_context = __esm({
   }
 });
 
-// core/services/service-hub.ts
-function createServiceHub(projectRoot = process.cwd()) {
-  const mode = detectExecutionMode();
-  const context = { projectRoot, mode };
-  return {
-    facade: new WorkflowFacade(context),
-    kanban: new KanbanManager(context),
-    llm: new CoreLLM(context),
-    terminal: TerminalContext,
-    context
-  };
+// core/services/execution-context.ts
+function detectExecutionMode() {
+  if (process.env.AI_WORKFLOW_CONTEXT === "skill" || process.argv.includes("--skill-mode")) {
+    return "skill" /* Skill */;
+  }
+  return "shell" /* Shell */;
 }
-var init_service_hub = __esm({
-  "core/services/service-hub.ts"() {
+var init_execution_context = __esm({
+  "core/services/execution-context.ts"() {
     "use strict";
-    init_kanban_manager();
-    init_workflow_facade();
-    init_core_llm();
-    init_terminal_context();
-    init_execution_context();
   }
 });
 
-// core/services/builtin-registry.ts
-function getBuiltinCodelet(id) {
-  return REGISTRY[id] ?? null;
-}
-var REGISTRY;
-var init_builtin_registry = __esm({
-  "core/services/builtin-registry.ts"() {
+// core/services/kanban-manager.ts
+import path35 from "node:path";
+import { writeFile as writeFile10 } from "node:fs/promises";
+var KanbanManager;
+var init_kanban_manager = __esm({
+  "core/services/kanban-manager.ts"() {
     "use strict";
-    init_sync();
-    init_project_summary();
-    init_kanban();
-    init_service_hub();
-    REGISTRY = {
-      "sync": run,
-      "project-summary": run2,
-      "summary": run2,
-      "kanban": run3
+    init_fs_utils();
+    init_workspace_mutation();
+    init_kanban_edit_utils();
+    KanbanManager = class {
+      constructor(context) {
+        this.context = context;
+      }
+      context;
+      async newTicket(options) {
+        const root = this.context.projectRoot;
+        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
+        const markdown = await readText(kanbanPath);
+        const document = parseKanbanDocument(markdown);
+        const result = createTicket(document, options);
+        const nextMarkdown = renderKanbanDocument(document);
+        if (!options.dryRun) {
+          await withWorkspaceMutation(root, "kanban new", async () => {
+            await writeFile10(kanbanPath, nextMarkdown, "utf8");
+          });
+        }
+        return result;
+      }
+      async moveTicket(ticketId, targetSection, options = {}) {
+        const root = this.context.projectRoot;
+        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
+        const markdown = await readText(kanbanPath);
+        const document = parseKanbanDocument(markdown);
+        const result = moveTicket(document, ticketId, targetSection, options);
+        const nextMarkdown = renderKanbanDocument(document);
+        if (!options.dryRun) {
+          await withWorkspaceMutation(root, "kanban move", async () => {
+            await writeFile10(kanbanPath, nextMarkdown, "utf8");
+          });
+        }
+        return result;
+      }
+      async getNext(options = {}) {
+        const root = this.context.projectRoot;
+        const kanbanPath = path35.resolve(root, options.file ?? "kanban.md");
+        const markdown = await readText(kanbanPath);
+        const document = parseKanbanDocument(markdown);
+        return getNextTicket(document, options);
+      }
     };
   }
 });
 
-// runtime/scripts/ai-workflow/lib/cli.ts
+// core/services/service-hub.ts
+var ServiceHub;
+var init_service_hub = __esm({
+  "core/services/service-hub.ts"() {
+    "use strict";
+    init_smart_codelet_runner();
+    init_context_pack();
+    init_execute_ticket();
+    init_sync();
+    init_status();
+    init_core_llm();
+    init_terminal_context();
+    init_execution_context();
+    init_kanban_manager();
+    ServiceHub = class {
+      static _context = null;
+      static _llm = null;
+      static _kanban = null;
+      static get context() {
+        if (!this._context) {
+          this._context = {
+            projectRoot: process.cwd(),
+            mode: detectExecutionMode()
+          };
+        }
+        return this._context;
+      }
+      static setContext(context) {
+        this._context = context;
+        this._llm = null;
+        this._kanban = null;
+      }
+      // --- Services ---
+      static get llm() {
+        if (!this._llm) {
+          this._llm = new CoreLLM(this.context);
+        }
+        return this._llm;
+      }
+      static get kanban() {
+        if (!this._kanban) {
+          this._kanban = new KanbanManager(this.context);
+        }
+        return this._kanban;
+      }
+      static get terminal() {
+        return TerminalContext;
+      }
+      // --- High-Level Codelet APIs ---
+      /**
+       * Synchronize the project state and update projections.
+       */
+      static async sync(options = {}) {
+        return syncProject({
+          projectRoot: this.context.projectRoot,
+          writeProjections: options.writeProjections ?? false
+        });
+      }
+      /**
+       * Get a high-level summary of the project status.
+       */
+      static async getProjectSummary() {
+        return getProjectSummary({ projectRoot: this.context.projectRoot });
+      }
+      /**
+       * Resolve project status for a specific selector.
+       */
+      static async getStatus(selector, options = {}) {
+        return resolveProjectStatus({
+          projectRoot: this.context.projectRoot,
+          selector,
+          type: options.type ?? null,
+          includeRelated: options.includeRelated ?? false,
+          rawQuestion: false,
+          relatedLimit: options.includeRelated ? 24 : 12
+        });
+      }
+      /**
+       * Search project entities and claims.
+       */
+      static async search(query) {
+        return searchProject({ projectRoot: this.context.projectRoot, query });
+      }
+      /**
+       * Discover exported symbols matching a pattern.
+       */
+      static async discoverExports(pattern = null) {
+        return withWorkflowStore(this.context.projectRoot, async (store) => {
+          const symbols = store.listSymbols();
+          const filtered = symbols.filter(
+            (s) => s.exported && (!pattern || s.name.includes(pattern) || s.filePath.includes(pattern))
+          );
+          return filtered.map((s) => ({
+            id: s.id,
+            name: s.name,
+            kind: s.kind,
+            filePath: s.filePath,
+            line: s.line
+          }));
+        });
+      }
+      /**
+       * Get historical performance metrics.
+       */
+      static async getMetrics() {
+        return getProjectMetrics({ projectRoot: this.context.projectRoot });
+      }
+      /**
+       * Evaluate project readiness for a specific goal.
+       */
+      static async evaluateReadiness(goalType, question, options = {}) {
+        return evaluateProjectReadiness({
+          projectRoot: this.context.projectRoot,
+          request: {
+            protocol_version: "1.0",
+            operation: "evaluate_readiness",
+            goal: { type: goalType, target: "project", question },
+            ...options
+          }
+        });
+      }
+      // --- Codelet Discovery ---
+      static isBuiltinCodelet(id) {
+        const registry = {
+          "sync": true,
+          "project-summary": true,
+          "summary": true,
+          "metrics": true,
+          "search": true,
+          "surface": true,
+          "execute-ticket": true,
+          "context-pack": true,
+          "smart-run": true
+        };
+        return registry[id] === true;
+      }
+      static async runBuiltinCodelet(id, args) {
+        switch (id) {
+          case "sync":
+            return this.sync(args);
+          case "project-summary":
+          case "summary":
+            return this.getProjectSummary();
+          case "metrics":
+            return this.getMetrics();
+          case "search":
+            return this.search(args.query || args._[0]);
+          case "surface":
+            return this.discoverExports(args._[0]);
+          case "execute-ticket":
+            return this.executeTicket({ ticketId: args.ticket || args._[0], apply: Boolean(args.apply), timeoutMs: args["timeout-ms"] });
+          case "context-pack":
+            return this.contextPack({ ticket: args.ticket, changed: Boolean(args.changed), files: args.files ? String(args.files).split(",") : [] });
+          case "smart-run":
+            return this.smartRun(args);
+          default:
+            throw new Error(`Unknown builtin codelet: ${id}`);
+        }
+      }
+      /**
+       * Execute or plan a specific ticket.
+       */
+      static async executeTicket(options) {
+        return run3(options, this);
+      }
+      /**
+       * Bundle project context for agent consumption.
+       */
+      static async contextPack(options) {
+        return run2(options, this);
+      }
+      /**
+       * Execute an AI-driven smart codelet.
+       */
+      static async smartRun(options) {
+        return run(options, this);
+      }
+    };
+  }
+});
+
+// core/lib/cli.ts
 function parseArgs(argv) {
   const args = { _: [] };
   for (let index = 0; index < argv.length; index += 1) {
@@ -26428,7 +26991,7 @@ function assignArg(args, key, value) {
   args[key] = value;
 }
 var init_cli = __esm({
-  "runtime/scripts/ai-workflow/lib/cli.ts"() {
+  "core/lib/cli.ts"() {
     "use strict";
   }
 });
@@ -26437,6 +27000,7 @@ var init_cli = __esm({
 import { writeSync } from "node:fs";
 
 // cli/lib/main.ts
+init_service_hub();
 init_execution_context();
 
 // core/services/presenter.ts
@@ -26481,17 +27045,41 @@ var ShellPresenter = class {
   static formatCodeletResult(id, result) {
     if (id === "sync") return this.formatSyncResult(result);
     if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
+    if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
     if (result && typeof result === "object") {
       return JSON.stringify(result, null, 2) + "\n";
     }
     return String(result) + "\n";
   }
+  static formatExecuteTicketResult(result) {
+    const lines = [
+      `Mode: ${result.mode}`,
+      `Repair target: ${result.repairTargetRoot}`,
+      `Ticket: ${result.ticketId || result.id}`,
+      `Status: ${result.status ?? (result.success ? "ok" : "failed")}`,
+      `Ready: ${result.executionPlan?.ready ? "yes" : "no"}`
+    ].filter(Boolean);
+    if (result.executionPlan?.verificationCommands?.length) {
+      lines.push(`Verification: ${result.executionPlan.verificationCommands.map((item) => item.command).join(" | ")}`);
+    }
+    if (result.verification?.results?.length) {
+      lines.push(`Baseline: ${result.verification.ok ? "green" : "red"}`);
+      for (const res of result.verification.results) {
+        lines.push(`- ${res.exitCode === 0 ? "PASS" : "FAIL"} ${res.command} | ${res.snippet}`);
+      }
+    }
+    if (result.changedFiles?.length) {
+      lines.push(`Changed files: ${result.changedFiles.join(", ")}`);
+    }
+    if (result.error) {
+      lines.push(`Error: ${result.error}`);
+    }
+    return lines.join("\n") + "\n";
+  }
 };
 
 // cli/lib/main.ts
-init_builtin_registry();
-init_workflow_facade();
-import path41 from "node:path";
+import path45 from "node:path";
 import { execFile as execFile13, spawn as spawn6 } from "node:child_process";
 init_cli();
 import * as readline7 from "node:readline/promises";
@@ -26502,7 +27090,7 @@ import { readFile as readFile19 } from "node:fs/promises";
 // cli/lib/codelets.ts
 init_codelets();
 
-// runtime/scripts/ai-workflow/lib/workflow-audit-report.ts
+// core/lib/workflow-audit-report.ts
 init_sqlite_store();
 init_audit_utils();
 init_dogfood_utils();
@@ -26510,11 +27098,11 @@ init_fs_utils();
 init_operator_surfaces();
 init_kanban_utils();
 init_workspace_honesty();
-import path33 from "node:path";
+import path37 from "node:path";
 import { execSync } from "node:child_process";
 
 // scripts/generate-manual-html.ts
-import path32 from "node:path";
+import path36 from "node:path";
 import { createHash as createHash3 } from "node:crypto";
 init_fs_utils();
 function renderManualHtml(markdown, { sourcePath = "docs/MANUAL.md" } = {}) {
@@ -26539,7 +27127,7 @@ function renderManualHtml(markdown, { sourcePath = "docs/MANUAL.md" } = {}) {
     "  <header>",
     `    <h1>${escapeHtml(title)}</h1>`,
     "    <p>This HTML manual is generated from the canonical Markdown manual.</p>",
-    `    <p><a href="${escapeHtml(path32.posix.basename(sourcePath))}">Canonical Markdown source</a></p>`,
+    `    <p><a href="${escapeHtml(path36.posix.basename(sourcePath))}">Canonical Markdown source</a></p>`,
     "  </header>",
     "  <main>",
     '    <nav aria-labelledby="manual-toc-heading">',
@@ -26701,7 +27289,7 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// runtime/scripts/ai-workflow/lib/workflow-audit-report.ts
+// core/lib/workflow-audit-report.ts
 init_shell_trust_benchmark();
 var REQUIRED_DOCS = [
   "AGENTS.md",
@@ -26771,7 +27359,7 @@ var DONE_DATE_PATTERN = /✅\s*(\d{4}-\d{2}-\d{2})/i;
 var EPIC_PATTERN = /(?:^|\n)-\s*Epic:\s*([A-Z][A-Z0-9]+-\d+)\s*(?:\n|$)/i;
 var MAX_LIVE_DONE_DAYS = 7;
 async function buildWorkflowAuditSummary(root = process.cwd()) {
-  const resolvedRoot = path33.resolve(String(root ?? process.cwd()));
+  const resolvedRoot = path37.resolve(String(root ?? process.cwd()));
   const findings = [];
   const activeDocs = [];
   for (const relativePath of REQUIRED_DOCS) {
@@ -26793,7 +27381,7 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
   let packageScripts = /* @__PURE__ */ new Set();
   if (await fileExistsRelative(resolvedRoot, "package.json")) {
     try {
-      const packageJson = JSON.parse(await readText(path33.resolve(resolvedRoot, "package.json")));
+      const packageJson = JSON.parse(await readText(path37.resolve(resolvedRoot, "package.json")));
       packageScripts = new Set(Object.keys(packageJson.scripts ?? {}));
     } catch (error) {
       findings.push(createFinding({
@@ -26804,8 +27392,8 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   if (activeDocs.includes("docs/MANUAL.md")) {
-    const manualMarkdown = await readText(path33.resolve(resolvedRoot, "docs", "MANUAL.md"));
-    const manualHtmlPath = path33.resolve(resolvedRoot, "docs", "manual.html");
+    const manualMarkdown = await readText(path37.resolve(resolvedRoot, "docs", "MANUAL.md"));
+    const manualHtmlPath = path37.resolve(resolvedRoot, "docs", "manual.html");
     const expectedHtml = renderManualHtml(manualMarkdown, { sourcePath: "docs/MANUAL.md" });
     if (!await fileExistsRelative(resolvedRoot, "docs/manual.html")) {
       findings.push(createFinding({
@@ -26825,7 +27413,7 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   for (const relativePath of activeDocs) {
-    const text = await readText(path33.resolve(resolvedRoot, relativePath));
+    const text = await readText(path37.resolve(resolvedRoot, relativePath));
     for (const snippet of DOC_SNIPPETS[relativePath] ?? []) {
       if (!text.includes(snippet)) {
         findings.push(createFinding({
@@ -26966,10 +27554,10 @@ async function buildWorkflowAuditSummary(root = process.cwd()) {
     }
   }
   if (activeDocs.includes("kanban.md")) {
-    const kanban = await readText(path33.resolve(root, "kanban.md"));
+    const kanban = await readText(path37.resolve(root, "kanban.md"));
     const parsed = parseKanban(kanban);
     const sectionNames = new Set(parsed.sections.map((section) => section.name));
-    const epics = activeDocs.includes("epics.md") ? collectEpicIds(await readText(path33.resolve(resolvedRoot, "epics.md"))) : /* @__PURE__ */ new Set();
+    const epics = activeDocs.includes("epics.md") ? collectEpicIds(await readText(path37.resolve(resolvedRoot, "epics.md"))) : /* @__PURE__ */ new Set();
     if (!/^%%\s*kanban:settings\s*$/im.test(kanban) || !/"kanban-plugin"\s*:\s*"board"/.test(kanban)) {
       findings.push(createFinding({
         category: "kanban",
@@ -27168,13 +27756,13 @@ function normalizeRef(docPath, target) {
     return null;
   }
   if (clean.startsWith("./") || clean.startsWith("../")) {
-    const resolved = path33.posix.normalize(path33.posix.join(path33.posix.dirname(docPath), clean));
+    const resolved = path37.posix.normalize(path37.posix.join(path37.posix.dirname(docPath), clean));
     return resolved.startsWith("../") ? null : resolved;
   }
   if (clean.startsWith("/")) {
     return null;
   }
-  return path33.posix.normalize(clean);
+  return path37.posix.normalize(clean);
 }
 function createFinding({ category, file = null, line = null, message }) {
   return {
@@ -27235,7 +27823,7 @@ import { promisify as promisify12 } from "node:util";
 
 // core/services/package-updates.ts
 init_hash();
-import path34 from "node:path";
+import path38 from "node:path";
 import { mkdir as mkdir7, readFile as readFile16, rm as rm8, writeFile as writeFile11 } from "node:fs/promises";
 import { execFile as execFile10 } from "node:child_process";
 import { promisify as promisify11 } from "node:util";
@@ -27292,7 +27880,7 @@ async function buildPackageUpdateAdvisory({
   return payload;
 }
 async function readCurrentPackageVersions(root) {
-  const packageJsonPath = path34.resolve(root, "package.json");
+  const packageJsonPath = path38.resolve(root, "package.json");
   let aiWorkflow = null;
   try {
     const packageJson = JSON.parse(await readFile16(packageJsonPath, "utf8"));
@@ -27368,12 +27956,12 @@ async function readPackageUpdateCache(root) {
 }
 async function writePackageUpdateCache(root, payload) {
   const cachePath = getPackageUpdateCachePath(root);
-  await mkdir7(path34.dirname(cachePath), { recursive: true });
+  await mkdir7(path38.dirname(cachePath), { recursive: true });
   await writeFile11(cachePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
 }
 function getPackageUpdateCachePath(root) {
-  return path34.resolve(root, ".ai-workflow", "cache", "package-updates.json");
+  return path38.resolve(root, ".ai-workflow", "cache", "package-updates.json");
 }
 function isFresh3(generatedAt, ttlMs) {
   const started = Date.parse(generatedAt ?? "");
@@ -27576,7 +28164,7 @@ init_config_store();
 init_cli();
 import * as readline3 from "node:readline/promises";
 import { stdin as input2, stdout as output2 } from "node:process";
-import path35 from "node:path";
+import path39 from "node:path";
 import { mkdir as mkdir8, writeFile as writeFile12 } from "node:fs/promises";
 
 // core/lib/command-channel.ts
@@ -27941,14 +28529,15 @@ async function writeOllamaHardwareConfig({ configPath, existing, configWarning, 
       }
     }
   };
-  await mkdir8(path35.dirname(configPath), { recursive: true });
+  await mkdir8(path39.dirname(configPath), { recursive: true });
   await writeFile12(configPath, `${JSON.stringify(nextConfig, null, 2)}
 `, "utf8");
 }
 
 // cli/lib/shell.ts
 init_execution_context();
-import path38 from "node:path";
+init_service_hub();
+import path42 from "node:path";
 import process2 from "node:process";
 import { pathToFileURL as pathToFileURL2 } from "node:url";
 import { execFile as execFile12 } from "node:child_process";
@@ -27966,12 +28555,12 @@ init_router();
 init_providers();
 init_orchestrator();
 init_critic();
-init_sync2();
+init_sync();
 init_codelet_executor();
 init_projections();
 
 // core/services/telegram.ts
-init_sync2();
+init_sync();
 async function buildTelegramPreview({ projectRoot = process.cwd() } = {}) {
   const summary = await getProjectSummary({ projectRoot });
   const lines = [
@@ -28394,12 +28983,12 @@ init_text_compiler_host();
 
 // core/services/shell-compiler.ts
 init_text_compiler_host();
-init_sync2();
+init_sync();
 init_hash();
 init_providers();
 init_router();
 init_codelets();
-import path36 from "node:path";
+import path40 from "node:path";
 import fs2 from "node:fs/promises";
 import { Script } from "node:vm";
 async function executeCompilerShellPlan(inputText, options) {
@@ -28497,8 +29086,8 @@ async function promoteWorkflowToCodelet(root, name, code2) {
   } catch (e) {
     throw new Error(`Invalid JavaScript syntax in compiled flow: ${e.message}`);
   }
-  const stagedDir = path36.resolve(root, ".ai-workflow", "staged-codelets");
-  const entryPath = path36.resolve(stagedDir, `${name}.js`);
+  const stagedDir = path40.resolve(root, ".ai-workflow", "staged-codelets");
+  const entryPath = path40.resolve(stagedDir, `${name}.js`);
   await fs2.mkdir(stagedDir, { recursive: true });
   await fs2.writeFile(entryPath, code2, "utf8");
   const manifest = await upsertProjectCodelet(root, name, entryPath, "add");
@@ -28512,14 +29101,14 @@ async function promoteWorkflowToCodelet(root, name, code2) {
 init_operator_brain();
 
 // cli/lib/toolkit-root.ts
-import path37 from "node:path";
-import { existsSync as existsSync6 } from "node:fs";
+import path41 from "node:path";
+import { existsSync as existsSync7 } from "node:fs";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
-var moduleDir2 = path37.dirname(fileURLToPath4(import.meta.url));
+var moduleDir2 = path41.dirname(fileURLToPath4(import.meta.url));
 function getCliToolkitRoot() {
   const fromEnv = process.env.AI_WORKFLOW_TOOLKIT_ROOT;
   if (fromEnv) {
-    return path37.resolve(fromEnv);
+    return path41.resolve(fromEnv);
   }
   for (const candidate of candidateRoots3(moduleDir2)) {
     if (isToolkitRoot3(candidate)) {
@@ -28529,16 +29118,16 @@ function getCliToolkitRoot() {
   throw new Error("Unable to resolve ai-workflow toolkit root. Set AI_WORKFLOW_TOOLKIT_ROOT.");
 }
 function* candidateRoots3(startDir) {
-  let current2 = path37.resolve(startDir);
+  let current2 = path41.resolve(startDir);
   while (true) {
     yield current2;
-    const parent = path37.dirname(current2);
+    const parent = path41.dirname(current2);
     if (parent === current2) break;
     current2 = parent;
   }
 }
 function isToolkitRoot3(candidate) {
-  return existsSync6(path37.resolve(candidate, "package.json")) && (existsSync6(path37.resolve(candidate, "cli", "ai-workflow.mjs")) || existsSync6(path37.resolve(candidate, "cli", "ai-workflow.ts"))) && (existsSync6(path37.resolve(candidate, "runtime", "scripts", "ai-workflow")) || existsSync6(path37.resolve(candidate, "shared", "codelets")));
+  return existsSync7(path41.resolve(candidate, "package.json")) && (existsSync7(path41.resolve(candidate, "cli", "ai-workflow.mjs")) || existsSync7(path41.resolve(candidate, "cli", "ai-workflow.ts"))) && (existsSync7(path41.resolve(candidate, "runtime", "scripts", "ai-workflow")) || existsSync7(path41.resolve(candidate, "shared", "codelets")));
 }
 
 // core/lib/self-correction.ts
@@ -28806,7 +29395,7 @@ async function handleShell(rest, { cliPath } = {}) {
   }
   const root = process2.cwd();
   const disableFastPath = process2.env.AI_WORKFLOW_DISABLE_FAST_SHELL_PATH === "1";
-  const stateFile = args["state-file"] ? path38.resolve(root, String(args["state-file"])) : null;
+  const stateFile = args["state-file"] ? path42.resolve(root, String(args["state-file"])) : null;
   const restoredState = stateFile ? await readShellStateFile(stateFile) : null;
   const options = {
     root,
@@ -28828,7 +29417,7 @@ async function handleShell(rest, { cliPath } = {}) {
     aiTraceEvents: [],
     workflowTraceEvents: [],
     history: Array.isArray(restoredState?.history) ? restoredState.history : [],
-    cliPath: cliPath ?? path38.resolve(root, "cli", "ai-workflow.mjs"),
+    cliPath: cliPath ?? path42.resolve(root, "cli", "ai-workflow.mjs"),
     plannerContext: null,
     planners: null
   };
@@ -28890,7 +29479,7 @@ async function handleShell(rest, { cliPath } = {}) {
       processingIndicator.update("refreshing providers");
       await runProviderSetupWizard({ root, scope: "global", interactive: false });
       processingIndicator.update("syncing project");
-      await syncProject({ projectRoot: root, writeProjections: true });
+      await ServiceHub.sync({ writeProjections: true });
       processingIndicator.update("refreshing context");
       options.plannerContext = await buildShellContext(root);
       options.planners = await resolveShellPlanners(root, { providerState: options.plannerContext.providerState });
@@ -28923,12 +29512,12 @@ async function buildFastShellContext(root = process2.cwd()) {
     listToolkitCodelets(),
     listProjectCodelets(root),
     readFirstExistingEntry([
-      path38.resolve(root, ".gemini", "KANBAN.md"),
-      path38.resolve(root, ".gemini", "kanban.md"),
-      path38.resolve(root, "docs", "KANBAN.md"),
-      path38.resolve(root, "docs", "kanban.md"),
-      path38.resolve(root, "KANBAN.md"),
-      path38.resolve(root, "kanban.md")
+      path42.resolve(root, ".gemini", "KANBAN.md"),
+      path42.resolve(root, ".gemini", "kanban.md"),
+      path42.resolve(root, "docs", "KANBAN.md"),
+      path42.resolve(root, "docs", "kanban.md"),
+      path42.resolve(root, "KANBAN.md"),
+      path42.resolve(root, "kanban.md")
     ])
   ]);
   return {
@@ -28940,7 +29529,7 @@ async function buildFastShellContext(root = process2.cwd()) {
     providerState: { providers: {} },
     knowledge: { tasks: [] },
     kanban: kanbanEntry?.content ?? null,
-    kanbanPath: kanbanEntry?.path ? path38.relative(root, kanbanEntry.path) : null
+    kanbanPath: kanbanEntry?.path ? path42.relative(root, kanbanEntry.path) : null
   };
 }
 async function tryRunShellFastPath(inputText, options) {
@@ -29375,28 +29964,28 @@ async function buildShellContext(root = process2.cwd()) {
     loadProjectActiveGuardrails(root, { limit: 10 }).catch(() => [])
   ]);
   const [mission, kanbanEntry, gemini, guidelines, manual] = await Promise.all([
-    readFileIfExists(path38.resolve(root, "MISSION.md")),
+    readFileIfExists(path42.resolve(root, "MISSION.md")),
     readFirstExistingEntry([
-      path38.resolve(root, ".gemini", "KANBAN.md"),
-      path38.resolve(root, ".gemini", "kanban.md"),
-      path38.resolve(root, "docs", "KANBAN.md"),
-      path38.resolve(root, "docs", "kanban.md"),
-      path38.resolve(root, "KANBAN.md"),
-      path38.resolve(root, "kanban.md")
+      path42.resolve(root, ".gemini", "KANBAN.md"),
+      path42.resolve(root, ".gemini", "kanban.md"),
+      path42.resolve(root, "docs", "KANBAN.md"),
+      path42.resolve(root, "docs", "kanban.md"),
+      path42.resolve(root, "KANBAN.md"),
+      path42.resolve(root, "kanban.md")
     ]),
     readFirstExisting([
-      path38.resolve(root, ".gemini", "GEMINI.md"),
-      path38.resolve(root, ".gemini", "gemini.md"),
-      path38.resolve(root, "GEMINI.md"),
-      path38.resolve(root, "gemini.md")
+      path42.resolve(root, ".gemini", "GEMINI.md"),
+      path42.resolve(root, ".gemini", "gemini.md"),
+      path42.resolve(root, "GEMINI.md"),
+      path42.resolve(root, "gemini.md")
     ]),
     readFirstExisting([
-      path38.resolve(root, "project-guidelines.md"),
-      path38.resolve(root, "templates", "project-guidelines.md")
+      path42.resolve(root, "project-guidelines.md"),
+      path42.resolve(root, "templates", "project-guidelines.md")
     ]),
     readFirstExisting([
-      path38.resolve(root, "docs", "MANUAL.md"),
-      path38.resolve(TOOLKIT_ROOT, "docs", "MANUAL.md")
+      path42.resolve(root, "docs", "MANUAL.md"),
+      path42.resolve(TOOLKIT_ROOT, "docs", "MANUAL.md")
     ])
   ]);
   return {
@@ -29409,7 +29998,7 @@ async function buildShellContext(root = process2.cwd()) {
     knowledge: providerState.knowledge,
     mission,
     kanban: kanbanEntry?.content ?? null,
-    kanbanPath: kanbanEntry?.path ? path38.relative(root, kanbanEntry.path) : null,
+    kanbanPath: kanbanEntry?.path ? path42.relative(root, kanbanEntry.path) : null,
     gemini,
     guidelines,
     manual,
@@ -29846,7 +30435,7 @@ async function buildGroundedShellFallbackPlan(inputText, options) {
   const selectors = extractShellGroundingSelectors(inputText, plannerContext);
   const projectRoot = options.root ?? plannerContext.root ?? process2.cwd();
   for (const selector of selectors.slice(0, 4)) {
-    const payload = await resolveProjectStatus({
+    const payload = await ServiceHub.getStatus(options.selector, {
       projectRoot,
       selector,
       includeRelated: true,
@@ -29924,7 +30513,7 @@ function planShellRequestHeuristically(inputText, plannerContext, options = {}) 
   }
   if (/\bproject\b.*\b(do next|next)\b/.test(normalizedQuestion)) {
     const summary = plannerContext?.summary ?? {};
-    const projectName = path38.basename(plannerContext?.root ?? process2.cwd());
+    const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
     const ticket = rankStatusTickets(summary.activeTickets ?? [])[0];
     return replyPlan([
       `${projectName} has ${summary.ticketCount ?? summary.activeTickets?.length ?? "some"} tracked ticket(s).`,
@@ -31063,7 +31652,7 @@ function buildShellPlannerRuntimeContext(plannerContext = {}, options = {}) {
   });
   const lines = [
     `cwd: ${options.root ?? plannerContext.root ?? process2.cwd()}`,
-    `project: ${path38.basename(plannerContext.root ?? options.root ?? process2.cwd())}`,
+    `project: ${path42.basename(plannerContext.root ?? options.root ?? process2.cwd())}`,
     `active-ticket-count: ${activeTickets.length}`
   ];
   if (providerSummary.length) {
@@ -31138,7 +31727,7 @@ async function buildShellPlannerGroundingContext(inputText, options = {}) {
     const projectRoot = options.root ?? plannerContext.root ?? process2.cwd();
     const selectors = extractShellGroundingSelectors(inputText, plannerContext);
     for (const selector of selectors.slice(0, 4)) {
-      const payload = await resolveProjectStatus({
+      const payload = await ServiceHub.getStatus(options.selector, {
         projectRoot,
         selector,
         includeRelated: true,
@@ -32312,24 +32901,24 @@ function collectShellFileTargets({ plannerContext, statusPayload, searchLines })
   const root = plannerContext?.root ?? process2.cwd();
   for (const related of statusPayload?.related ?? []) {
     if (related?.type === "file" && related?.title) {
-      targets.add(path38.resolve(root, String(related.title)));
+      targets.add(path42.resolve(root, String(related.title)));
     }
   }
   for (const item of statusPayload?.tests ?? []) {
     if (item?.title) {
-      targets.add(path38.resolve(root, String(item.title)));
+      targets.add(path42.resolve(root, String(item.title)));
     }
   }
   for (const line of searchLines ?? []) {
     const match = String(line).match(/(?:^-\s+\[[^\]]+\]\s+)([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/);
     if (match?.[1]) {
-      targets.add(path38.resolve(root, match[1]));
+      targets.add(path42.resolve(root, match[1]));
     }
   }
   if (!targets.size) {
-    targets.add(path38.resolve(root, "cli/lib/shell.ts"));
-    targets.add(path38.resolve(root, "tests/shell.test.ts"));
-    targets.add(path38.resolve(root, "tests/shell-human-language.test.ts"));
+    targets.add(path42.resolve(root, "cli/lib/shell.ts"));
+    targets.add(path42.resolve(root, "tests/shell.test.ts"));
+    targets.add(path42.resolve(root, "tests/shell-human-language.test.ts"));
   }
   return [...targets];
 }
@@ -32792,7 +33381,7 @@ async function executeShellAction(action, options) {
       });
     }
     if (action.type === "status_query") {
-      const payload = await resolveProjectStatus({
+      const payload = await ServiceHub.getStatus(options.selector, {
         projectRoot: options.root,
         selector: action.query,
         type: action.entityType,
@@ -33207,7 +33796,7 @@ Updated planner: ${renderPlannerLine(options.planners.planners[0] ?? options.pla
           continue;
         }
         processingIndicator.update("syncing project");
-        await syncProject({ projectRoot: options.root, writeProjections: true });
+        await ServiceHub.sync({ writeProjections: true });
         processingIndicator.update("refreshing context");
         options.plannerContext = await buildShellContext(options.root);
         options.planners = await resolveShellPlanners(options.root, { providerState: options.plannerContext.providerState });
@@ -33297,7 +33886,7 @@ function setShellMode(options, mode, { announce = false } = {}) {
   }
 }
 function resolveShellTracePath(inputPath, options = {}) {
-  return path38.resolve(options.root ?? process2.cwd(), String(inputPath ?? "").trim());
+  return path42.resolve(options.root ?? process2.cwd(), String(inputPath ?? "").trim());
 }
 function renderShellTraceState(options = {}) {
   if (!options.trace) {
@@ -33318,7 +33907,7 @@ function renderShellTraceMessage(options = {}) {
   return "Trace enabled.";
 }
 function initializeShellTraceFile(filePath) {
-  mkdirSync(path38.dirname(filePath), { recursive: true });
+  mkdirSync(path42.dirname(filePath), { recursive: true });
   writeFileSync(filePath, "", "utf8");
 }
 function emitShellTraceText(options, text) {
@@ -33330,7 +33919,7 @@ function emitShellTraceText(options, text) {
     return;
   }
   if (options.traceFilePath) {
-    mkdirSync(path38.dirname(options.traceFilePath), { recursive: true });
+    mkdirSync(path42.dirname(options.traceFilePath), { recursive: true });
     appendFileSync(options.traceFilePath, traceText, "utf8");
   }
   if (options.traceConsole !== false) {
@@ -33542,7 +34131,7 @@ function describeShellPlanner(planner) {
   return "unknown";
 }
 function renderPlanModeMutationReply(actions, plannerContext) {
-  const projectName = path38.basename(plannerContext?.root ?? process2.cwd());
+  const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
   return [
     "This request needs mutating mode.",
     "Planned actions:",
@@ -33586,7 +34175,7 @@ function renderVerifiedFixFinalization(result) {
 }
 async function finalizeVerifiedFix({ root, ticketId }) {
   try {
-    await syncProject({ projectRoot: root, writeProjections: true });
+    await ServiceHub.sync({ writeProjections: true });
     const dogfoodReport = await runDogfood({
       root,
       surfaces: ["shell", "provider", "workflow", "init"],
@@ -33648,9 +34237,9 @@ async function runShellActionDirect(action, options) {
     case "next_ticket":
       return runCodeletById("kanban-next", [], options);
     case "metrics":
-      return formatProjectMetrics(await getProjectMetrics({ projectRoot: options.root }), options.json);
+      return formatProjectMetrics(await ServiceHub.getMetrics(), options.json);
     case "version": {
-      const packageJson = JSON.parse(await readFileIfExists(path38.resolve(getCliToolkitRoot(), "package.json")));
+      const packageJson = JSON.parse(await readFileIfExists(path42.resolve(getCliToolkitRoot(), "package.json")));
       const payload = {
         name: packageJson.name,
         version: packageJson.version,
@@ -33870,7 +34459,7 @@ ${plan.map((t, i) => `${i + 1}. [${t.class}] ${t.summary}${t.file ? ` (${t.file}
     case "ingest_artifact": {
       const rl = options.rl ?? readline6.createInterface({ input: input5, output: output5 });
       try {
-        const result = await withWorkspaceMutation(options.root, `shell ingest_artifact ${action.filePath}`, async () => ingestArtifact(path38.resolve(options.root, action.filePath), { root: options.root, rl }));
+        const result = await withWorkspaceMutation(options.root, `shell ingest_artifact ${action.filePath}`, async () => ingestArtifact(path42.resolve(options.root, action.filePath), { root: options.root, rl }));
         return options.json ? `${JSON.stringify(result, null, 2)}
 ` : `Ingested ${action.filePath}: Generated ${result.epic.id} and ${result.tickets.length} tickets.
 `;
@@ -33892,11 +34481,11 @@ ${plan.map((t, i) => `${i + 1}. [${t.class}] ${t.summary}${t.file ? ` (${t.file}
         output5.write(`Side-Effect Analysis: ${formatSideEffects(effects)}
 `);
       }
-      const stagedDir = path38.resolve(options.root, ".ai-workflow", "staged-codelets");
-      const entryPath = path38.resolve(stagedDir, `dynamic-${Date.now()}.js`);
+      const stagedDir = path42.resolve(options.root, ".ai-workflow", "staged-codelets");
+      const entryPath = path42.resolve(stagedDir, `dynamic-${Date.now()}.js`);
       const toolkitRoot3 = getCliToolkitRoot();
-      const sqliteStoreUrl = pathToFileURL2(path38.resolve(toolkitRoot3, "core", "db", "sqlite-store.ts")).href;
-      const syncUrl = pathToFileURL2(path38.resolve(toolkitRoot3, "core", "services", "sync.ts")).href;
+      const sqliteStoreUrl = pathToFileURL2(path42.resolve(toolkitRoot3, "core", "db", "sqlite-store.ts")).href;
+      const syncUrl = pathToFileURL2(path42.resolve(toolkitRoot3, "core", "services", "sync.ts")).href;
       const source = [
         "/* Responsibility: Dynamic AI-forged codelet for on-the-fly execution.",
         "   Context: This script was forged to satisfy a specific user intent. */",
@@ -34442,7 +35031,7 @@ function evaluateShellCondition(condition, nodeMap) {
   }
   return { match, actual };
 }
-function resolveConditionValue(node, path42) {
+function resolveConditionValue(node, path46) {
   if (!node) {
     return void 0;
   }
@@ -34456,7 +35045,7 @@ function resolveConditionValue(node, path42) {
     result: node.result,
     execution: node.execution
   };
-  const segments = String(path42 ?? "ok").split(".").filter(Boolean);
+  const segments = String(path46 ?? "ok").split(".").filter(Boolean);
   let cursor = source;
   for (const segment of segments) {
     if (cursor == null) {
@@ -35079,7 +35668,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   const modules = Array.isArray(summary.modules) ? summary.modules : [];
   const providerState = plannerContext?.providerState ?? {};
   const providerMap = providerState.providers ?? {};
-  const projectName = path38.basename(plannerContext?.root ?? process2.cwd());
+  const projectName = path42.basename(plannerContext?.root ?? process2.cwd());
   const hasProjectQuestion = /\b(project|projects|repo|repository|codebase)\b/.test(normalized);
   const asksWhere = /\b(where)\b/.test(normalized) || /\bwhich project\b/.test(normalized) || /\bwhat (?:project|repo|repository)\b/.test(normalized);
   const asksNext = /\b(work on|do next|focus on|start with|next task|next thing|next on the workplan|next on workplan|work plan|workplan|roadmap)\b/.test(normalized) || /what should i (work on|do) next/.test(normalized) || /what do you think we should do next/.test(normalized) || /what should we do next/.test(normalized) || /\bwhat is next\b/.test(normalized);
@@ -35905,7 +36494,7 @@ async function writeShellStateFile(filePath, options) {
     managedContext: options.managedContext ?? null,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  await mkdir9(path38.dirname(filePath), { recursive: true });
+  await mkdir9(path42.dirname(filePath), { recursive: true });
   payload.managedContext = options.managedContext || null;
   await writeFile13(filePath, `${JSON.stringify(payload, null, 2)}
 `, "utf8");
@@ -36233,7 +36822,7 @@ function renderContinuationRevisionReply({ text, activeGraphState, plannerContex
 function collectContinuationReferenceLines(activeGraphState, plannerContext) {
   const root = plannerContext?.root ?? process2.cwd();
   const references = normalizeShellReferences(activeGraphState?.references);
-  const files = references.files.map((item) => path38.isAbsolute(item) ? item : path38.resolve(root, item));
+  const files = references.files.map((item) => path42.isAbsolute(item) ? item : path42.resolve(root, item));
   return [...files, ...references.modules, ...references.tickets].slice(0, 4);
 }
 function buildReadinessContinuationPlan({ text, plannerContext, activeGraphState }) {
@@ -36871,17 +37460,17 @@ async function resolveExecutableCodelet2(root, codeletOrId) {
 init_fs_utils();
 init_config_store();
 init_workspace_mutation();
-import path39 from "node:path";
+import path43 from "node:path";
 import { cp, readFile as readFile18, writeFile as writeFile14 } from "node:fs/promises";
 async function installAgents({ toolkitRoot: toolkitRoot3, projectRoot = process.cwd() }) {
   return withWorkspaceMutation(projectRoot, "install agents", async () => {
     const results = [];
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow"));
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow", "codelets"));
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow", "cache"));
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow", "generated"));
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow", "notes"));
-    await ensureDir(path39.resolve(projectRoot, ".ai-workflow", "state"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "codelets"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "cache"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "generated"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "notes"));
+    await ensureDir(path43.resolve(projectRoot, ".ai-workflow", "state"));
     results.push({ path: ".ai-workflow", status: "created" });
     await ensureProjectConfig(projectRoot, toolkitRoot3);
     await ensureGeminiBridge(projectRoot, toolkitRoot3);
@@ -36915,16 +37504,16 @@ async function ensureProjectConfig(projectRoot) {
 `, "utf8");
 }
 async function ensureGeminiBridge(projectRoot, toolkitRoot3) {
-  const geminiDir = path39.resolve(projectRoot, ".gemini");
-  const geminiSkillRoot = path39.resolve(geminiDir, "skills");
-  const geminiSkillDir = path39.resolve(geminiSkillRoot, "ai-workflow");
-  const sourceSkillDir = path39.resolve(toolkitRoot3, "skills", "ai-workflow");
-  const geminiGuidePath = path39.resolve(geminiDir, "GEMINI.md");
-  const templateGuidePath = path39.resolve(toolkitRoot3, "templates", "GEMINI.md");
+  const geminiDir = path43.resolve(projectRoot, ".gemini");
+  const geminiSkillRoot = path43.resolve(geminiDir, "skills");
+  const geminiSkillDir = path43.resolve(geminiSkillRoot, "ai-workflow");
+  const sourceSkillDir = path43.resolve(toolkitRoot3, "skills", "ai-workflow");
+  const geminiGuidePath = path43.resolve(geminiDir, "GEMINI.md");
+  const templateGuidePath = path43.resolve(toolkitRoot3, "templates", "GEMINI.md");
   await ensureDir(geminiDir);
   await ensureDir(geminiSkillRoot);
   await cp(sourceSkillDir, geminiSkillDir, { recursive: true, force: true });
-  await writeFile14(path39.resolve(geminiSkillDir, "toolkit-root.txt"), `${toolkitRoot3}
+  await writeFile14(path43.resolve(geminiSkillDir, "toolkit-root.txt"), `${toolkitRoot3}
 `, "utf8");
   try {
     await readFile18(geminiGuidePath, "utf8");
@@ -36942,7 +37531,7 @@ init_providers();
 init_codelets();
 init_codelet_executor();
 init_projections();
-init_sync2();
+init_sync();
 init_orchestrator();
 init_knowledge();
 init_operating_context();
@@ -36986,8 +37575,8 @@ init_dogfood_harness();
 
 // core/services/programming-dogfood-harness.ts
 init_operator_brain();
-init_sync2();
-import path40 from "node:path";
+init_sync();
+import path44 from "node:path";
 import fs3 from "node:fs/promises";
 
 // core/services/local-fs-adapter.ts
@@ -36996,7 +37585,7 @@ init_filesystem();
 // core/services/programming-dogfood-harness.ts
 async function runProgrammingDogfoodHarness(options = {}) {
   const repoRoot = options.root;
-  const targetRoot = options.target ?? path40.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
+  const targetRoot = options.target ?? path44.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
   if (options.force) {
     await fs3.rm(targetRoot, { recursive: true, force: true });
   }
@@ -37040,7 +37629,7 @@ async function runProgrammingDogfoodHarness(options = {}) {
   }
   await syncProject(targetRoot);
   const ok = await verifyProject(targetRoot);
-  const reportPath = path40.join(targetRoot, "DOGFOOD_REPORT.md");
+  const reportPath = path44.join(targetRoot, "DOGFOOD_REPORT.md");
   await writeDogfoodReport(reportPath, { ok, metrics, targetRoot });
   return {
     ok,
@@ -37052,7 +37641,7 @@ async function runProgrammingDogfoodHarness(options = {}) {
 }
 async function verifyProject(projectRoot) {
   try {
-    const packageJsonPath = path40.join(projectRoot, "package.json");
+    const packageJsonPath = path44.join(projectRoot, "package.json");
     await fs3.access(packageJsonPath);
     const files = await fs3.readdir(projectRoot, { recursive: true });
     const hasEngine = files.some((f) => f.includes("engine"));
@@ -37172,7 +37761,7 @@ async function main(argv) {
     case "setup":
       return handleInstall(rest);
     case "init":
-      return runNodeScript(path41.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
+      return runNodeScript(path45.resolve(toolkitRoot2, "scripts", "init-project.ts"), rest);
     case "install":
       return handleInstall(rest);
     case "doctor":
@@ -37195,7 +37784,7 @@ async function main(argv) {
     case "consult":
       return handleConsult(rest);
     case "shell":
-      return handleShell(rest, { cliPath: path41.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
+      return handleShell(rest, { cliPath: path45.resolve(toolkitRoot2, "cli", "ai-workflow.mjs") });
     case "ask":
       return handleAsk(rest);
     case "sync":
@@ -37277,7 +37866,7 @@ async function handleList(rest) {
 }
 async function handleVersion(rest) {
   const args = parseArgs(rest);
-  const packageJson = JSON.parse(await readFile19(path41.resolve(toolkitRoot2, "package.json"), "utf8"));
+  const packageJson = JSON.parse(await readFile19(path45.resolve(toolkitRoot2, "package.json"), "utf8"));
   const payload = {
     name: packageJson.name,
     version: packageJson.version,
@@ -37296,14 +37885,13 @@ ${payload.toolkitRoot}
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
   const args = parseArgs(rest);
-  const result = await getWorkflowFacade().sync(Boolean(args["write-projections"]));
+  const result = await ServiceHub.sync({ writeProjections: Boolean(args["write-projections"]) });
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}
 `);
     return 0;
   }
-  const facade = getWorkflowFacade();
-  if (facade.mode === "skill" && !args.json) {
+  if (ServiceHub.context.mode === "skill" && !args.json) {
     process.stdout.write(`sync complete: ${result.indexedFiles} files, ${result.indexedSymbols} symbols.
 `);
     return 0;
@@ -37313,19 +37901,19 @@ async function handleSync(rest) {
 }
 async function handleKanban(rest) {
   return runNodeScript(
-    path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
+    path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "kanban.ts"),
     rest
   );
 }
 async function handleDogfood(rest) {
   return runNodeScript(
-    path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
+    path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "dogfood.ts"),
     rest
   );
 }
 async function handleProgrammingDogfood(rest) {
   const args = parseArgs(rest);
-  const target = args.target ? path41.resolve(args.target) : null;
+  const target = args.target ? path45.resolve(args.target) : null;
   const force = Boolean(args.force);
   const json = Boolean(args.json);
   const result = await runProgrammingDogfoodHarness({
@@ -37406,9 +37994,8 @@ async function handleRun(rest) {
     printAndExit("Usage: ai-workflow run <codelet> [args]", 1);
   }
   const parsedArgs = parseArgs(args);
-  const builtin = getBuiltinCodelet(name);
-  if (builtin) {
-    const result2 = await runCodelet({ id: name }, parsedArgs);
+  if (ServiceHub.isBuiltinCodelet(name)) {
+    const result2 = await ServiceHub.runBuiltinCodelet(name, parsedArgs);
     if (parsedArgs.json) {
       process.stdout.write(JSON.stringify(result2, null, 2) + "\n");
     } else {
@@ -37483,7 +38070,7 @@ async function handleVerify(rest) {
     return runNodeScript(auditCodelet.entry, args);
   }
   if (target === "guidelines") {
-    return runNodeScript(path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
+    return runNodeScript(path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "guideline-audit.ts"), args);
   }
   return runNodeScript(verifyCodelet.entry, [target, ...args]);
 }
@@ -37504,7 +38091,7 @@ async function handleProject(rest) {
   const args = parseArgs(extras);
   if (subcommand === "surface") {
     const pattern = args._[0] || null;
-    const symbols = await getWorkflowFacade().discoverExports(pattern);
+    const symbols = await ServiceHub.discoverExports(pattern);
     if (args.json) {
       process.stdout.write(`${JSON.stringify(symbols, null, 2)}
 `);
@@ -37520,15 +38107,15 @@ async function handleProject(rest) {
     return 0;
   }
   if (subcommand === "map-dependencies") {
-    const script = path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
+    const script = path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "locate-trapped-logic") {
-    const script = path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
+    const script = path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
-    const summary = await getWorkflowFacade().getSummary();
+    const summary = await ServiceHub.getProjectSummary();
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}
 `);
@@ -37555,7 +38142,7 @@ async function handleProject(rest) {
     if (!selector) {
       printAndExit("Usage: ai-workflow project status <selector> [--type <type>] [--json]\n       ai-workflow project status related <selector> [--type <type>] [--json]\n       ai-workflow project status types", 1);
     }
-    const report = await getWorkflowFacade().getStatus(selector, args.type ? String(args.type) : null, includeRelated);
+    const report = await ServiceHub.getStatus(selector, { type: args.type ? String(args.type) : null, includeRelated });
     if (!report.ok) {
       printAndExit(report.error ?? `No status target matched ${selector}`, 1);
     }
@@ -38452,7 +39039,7 @@ async function handleWeb(rest) {
   const [action, ...extras] = rest;
   if (action === "tutorial") {
     return runNodeScriptLive(
-      path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
+      path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
       extras
     );
   }
@@ -38515,7 +39102,7 @@ async function handleConfig(rest) {
 async function handleInstall(rest) {
   assertDirectCommandChannel("ai-workflow install");
   const args = parseArgs(rest);
-  const projectRoot = path41.resolve(String(args.project ?? process.cwd()));
+  const projectRoot = path45.resolve(String(args.project ?? process.cwd()));
   return withWorkspaceMutation(projectRoot, "install", async () => {
     await installAgents({
       toolkitRoot: toolkitRoot2,
@@ -38532,7 +39119,7 @@ async function handleAudit(rest) {
   const sub = args._[0];
   if (sub === "workflow") {
     return runNodeScript(
-      path41.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
+      path45.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
       rest.slice(1)
     );
   }
@@ -38584,7 +39171,7 @@ async function handleSetProviderKey(rest) {
 }
 async function handleMetrics(rest) {
   const args = parseArgs(rest);
-  const metrics = await getWorkflowFacade().getMetrics();
+  const metrics = await ServiceHub.getMetrics();
   if (args.json) {
     process.stdout.write(`${JSON.stringify(metrics, null, 2)}
 `);
@@ -38645,7 +39232,7 @@ async function handleOnboard(rest) {
     const args = parseArgs(rest);
     const rl = readline7.createInterface({ input: input6, output: output6 });
     try {
-      const targetPath = path41.resolve(process.cwd(), filePath);
+      const targetPath = path45.resolve(process.cwd(), filePath);
       const result = await onboardProjectBrief(targetPath, { root: process.cwd(), rl });
       if (args.json) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}
@@ -39171,12 +39758,6 @@ function normalizeModeValue(value) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "default" || normalized === "tool-dev") return normalized;
   return null;
-}
-function getWorkflowFacade() {
-  return new WorkflowFacade({
-    projectRoot: process.cwd(),
-    mode: detectExecutionMode()
-  });
 }
 
 // cli/ai-workflow.ts

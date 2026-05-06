@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
-import { parseArgs } from "./lib/cli.ts";
-import { openWorkflowStore } from "../../../core/db/sqlite-store.ts";
-import { judgeArtifacts } from "../../../core/services/artifact-verification.ts";
-import { judgeShellTranscripts } from "../../../core/services/shell-transcript-verification.ts";
+import { parseArgs } from "../lib/cli.ts";
+import { openWorkflowStore } from "../db/sqlite-store.ts";
+import { judgeArtifacts } from "../services/artifact-verification.ts";
+import { judgeShellTranscripts } from "../services/shell-transcript-verification.ts";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));

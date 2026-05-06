@@ -6,7 +6,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../../core/lib/fs-utils.ts";
 
 export async function recordRunArtifact(projectRoot, artifact) {
   const stateDir = path.resolve(projectRoot, ".ai-workflow", "state", "run-artifacts");

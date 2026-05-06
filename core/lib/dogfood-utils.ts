@@ -2,13 +2,13 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { judgeShellTranscripts } from "../../../../core/services/shell-transcript-verification.ts";
+import { judgeShellTranscripts } from "../services/shell-transcript-verification.ts";
 import { ensureDir, readText } from "./fs-utils.ts";
 import { getToolkitRoot } from "./toolkit-root.ts";
 import { collectOperatorSurfaceState, listOperatorSurfaceIds } from "./operator-surfaces.ts";
 import { inspectWorkspaceHonesty } from "./workspace-honesty.ts";
-import { runDogfoodHarness } from "../../../../core/services/dogfood-harness.ts";
-import { runShellTrustBenchmark } from "../../../../core/services/shell-benchmark.ts";
+import { runDogfoodHarness } from "../services/dogfood-harness.ts";
+import { runShellTrustBenchmark } from "../services/shell-benchmark.ts";
 
 export const DEFAULT_DOGFOOD_REPORT_PATH = ".ai-workflow/generated/dogfood-report.json";
 

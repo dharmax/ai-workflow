@@ -5,7 +5,7 @@
 
 import type { ServiceHub } from "../services/service-hub.ts";
 
-export async function run(args: any, hub: ServiceHub) {
+export async function run(args: any, hub: typeof ServiceHub) {
   const subcommand = args._[0];
 
   switch (subcommand) {

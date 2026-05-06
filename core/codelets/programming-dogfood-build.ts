@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { parseArgs, printAndExit } from "./lib/cli.ts";
-import { judgeArtifacts } from "../../../core/services/artifact-verification.ts";
-import { getProjectMetrics } from "../../../core/services/sync.ts";
+import { parseArgs, printAndExit } from "../lib/cli.ts";
+import { judgeArtifacts } from "../services/artifact-verification.ts";
+import { getProjectMetrics } from "../services/sync.ts";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));

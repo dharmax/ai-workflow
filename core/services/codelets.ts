@@ -5,7 +5,7 @@
 
 import path from "node:path";
 import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../lib/fs-utils.ts";
 import { getToolkitRoot } from "../lib/operating-context.ts";
 import { stableId } from "../lib/hash.ts";
 import { withWorkspaceMutation } from "../lib/workspace-mutation.ts";

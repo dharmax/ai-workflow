@@ -12,8 +12,8 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { CompletionEngine, LlmMetrics } from "@dharmax/llm-utils";
 import { LeanContextCompressor } from "@dharmax/context-manager";
-import { openWorkflowStore } from "../../../core/db/sqlite-store.ts";
-import { parseArgs } from "./lib/cli.ts";
+import { openWorkflowStore } from "../db/sqlite-store.ts";
+import { parseArgs } from "../lib/cli.ts";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));

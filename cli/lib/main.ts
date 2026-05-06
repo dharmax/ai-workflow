@@ -3,10 +3,11 @@
  * Scope: Handles argument parsing, subcommand routing, and high-level service orchestration.
  */
 
+import { ServiceHub } from "../../core/services/service-hub.ts";
 import { detectExecutionMode } from "../../core/services/execution-context.ts";
 import { ShellPresenter } from "../../core/services/presenter.ts";
-import { getBuiltinCodelet } from "../../core/services/builtin-registry.ts";
-import { WorkflowFacade } from "../../core/services/workflow-facade.ts";
+
+
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
@@ -14,9 +15,9 @@ import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { parseArgs, printAndExit } from "../../runtime/scripts/ai-workflow/lib/cli.ts";
+import { parseArgs, printAndExit } from "../../core/lib/cli.ts";
 import { getToolkitCodelet } from "./codelets.ts";
-import { buildWorkflowAuditSummary } from "../../runtime/scripts/ai-workflow/lib/workflow-audit-report.ts";
+import { buildWorkflowAuditSummary } from "../../core/lib/workflow-audit-report.ts";
 import { getConfigValue, getGlobalConfigPath, getProjectConfigPath, readConfig, removeConfigFile, removeConfigValue, writeConfigValue } from "./config-store.ts";
 import { runDoctor } from "./doctor.ts";
 import { handleSetOllamaHw } from "./ollama-hw.ts";
@@ -26,7 +27,7 @@ import { runProviderSetupWizard } from "./provider-setup.ts";
 import { installAgents } from "./install.ts";
 import { forgeProjectCodelet, removeProjectCodelet, upsertProjectCodelet } from "./project-codelets.ts";
 import { routeTask } from "../../core/services/router.ts";
-import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runtime/scripts/ai-workflow/lib/active-guardrails.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../core/lib/active-guardrails.ts";
 import { auditArchitecture } from "../../core/services/critic.ts";
 import { refreshProviderQuotaState } from "../../core/services/providers.ts";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore } from "../../core/services/codelets.ts";
@@ -268,15 +269,15 @@ async function handleVersion(rest) {
 async function handleSync(rest) {
   assertDirectCommandChannel("ai-workflow sync");
   const args: any = parseArgs(rest);
-  const result = await getWorkflowFacade().sync(Boolean(args["write-projections"]));
+  const result = await ServiceHub.sync({ writeProjections: Boolean(args["write-projections"]) });
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     return 0;
   }
 
-  const facade = getWorkflowFacade();
-  if (facade.mode === "skill" && !args.json) {
+  
+  if (ServiceHub.context.mode === "skill" && !args.json) {
     process.stdout.write(`sync complete: ${result.indexedFiles} files, ${result.indexedSymbols} symbols.\n`);
     return 0;
   }
@@ -388,9 +389,9 @@ async function handleRun(rest) {
   }
 
   const parsedArgs = parseArgs(args);
-  const builtin = getBuiltinCodelet(name);
-  if (builtin) {
-    const result = await runCodelet({ id: name } as any, parsedArgs);
+
+  if (ServiceHub.isBuiltinCodelet(name)) {
+    const result = await ServiceHub.runBuiltinCodelet(name, parsedArgs);
     if (parsedArgs.json) {
       process.stdout.write(JSON.stringify(result, null, 2) + "\n");
     } else {
@@ -506,7 +507,7 @@ async function handleProject(rest) {
 
   if (subcommand === "surface") {
     const pattern = args._[0] || null;
-    const symbols = await getWorkflowFacade().discoverExports(pattern);
+    const symbols = await ServiceHub.discoverExports(pattern);
     
     if (args.json) {
       process.stdout.write(`${JSON.stringify(symbols, null, 2)}\n`);
@@ -533,7 +534,7 @@ async function handleProject(rest) {
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
-    const summary = await getWorkflowFacade().getSummary();
+    const summary = await ServiceHub.getProjectSummary();
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
       return 0;
@@ -559,7 +560,7 @@ async function handleProject(rest) {
     if (!selector) {
       printAndExit("Usage: ai-workflow project status <selector> [--type <type>] [--json]\n       ai-workflow project status related <selector> [--type <type>] [--json]\n       ai-workflow project status types", 1);
     }
-    const report = await getWorkflowFacade().getStatus(selector, args.type ? String(args.type) : null, includeRelated);
+    const report = await ServiceHub.getStatus(selector, { type: args.type ? String(args.type) : null, includeRelated });
     if (!report.ok) {
       printAndExit(report.error ?? `No status target matched ${selector}`, 1);
     }
@@ -1593,7 +1594,7 @@ async function handleSetProviderKey(rest) {
 
 async function handleMetrics(rest) {
   const args: any = parseArgs(rest);
-  const metrics = await getWorkflowFacade().getMetrics();
+  const metrics = await ServiceHub.getMetrics();
   
   if (args.json) {
     process.stdout.write(`${JSON.stringify(metrics, null, 2)}\n`);
@@ -2242,11 +2243,4 @@ function normalizeModeValue(value) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "default" || normalized === "tool-dev") return normalized;
   return null;
-}
-
-function getWorkflowFacade() {
-  return new WorkflowFacade({ 
-    projectRoot: process.cwd(),
-    mode: detectExecutionMode()
-  });
 }

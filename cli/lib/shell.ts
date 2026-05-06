@@ -4,6 +4,7 @@
  */
 
 import { ExecutionMode, detectExecutionMode } from "../../core/services/execution-context.ts";
+import { ServiceHub } from "../../core/services/service-hub.ts";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -23,10 +24,10 @@ import { addManualNote, createTicket, evaluateProjectReadiness, getCodelet, getP
 import { executeCodelet } from "../../core/services/codelet-executor.ts";
 import { buildTicketEntity, inferTicketLane } from "../../core/services/projections.ts";
 import { buildTelegramPreview } from "../../core/services/telegram.ts";
-import { parseArgs, printAndExit } from "../../runtime/scripts/ai-workflow/lib/cli.ts";
-import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runtime/scripts/ai-workflow/lib/active-guardrails.ts";
-import { runDogfood } from "../../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
-import { buildWorkflowAuditSummary } from "../../runtime/scripts/ai-workflow/lib/workflow-audit-report.ts";
+import { parseArgs, printAndExit } from "../../core/lib/cli.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../core/lib/active-guardrails.ts";
+import { runDogfood } from "../../core/lib/dogfood-utils.ts";
+import { buildWorkflowAuditSummary } from "../../core/lib/workflow-audit-report.ts";
 import { getConfigValue, getGlobalConfigPath, getProjectConfigPath, readConfig, removeConfigFile, removeConfigValue, writeConfigValue } from "./config-store.ts";
 import { buildDoctorReport, renderDoctorReport, runDoctor } from "./doctor.ts";
 import { configureOllamaHardware } from "./ollama-hw.ts";
@@ -296,7 +297,7 @@ export async function handleShell(rest, { cliPath } = {}) {
       processingIndicator.update("refreshing providers");
       await runProviderSetupWizard({ root, scope: "global", interactive: false });
       processingIndicator.update("syncing project");
-      await syncProject({ projectRoot: root, writeProjections: true });
+      await ServiceHub.sync({ writeProjections: true });
       processingIndicator.update("refreshing context");
       options.plannerContext = await buildShellContext(root);
       options.planners = await resolveShellPlanners(root, { providerState: options.plannerContext.providerState });
@@ -1392,7 +1393,7 @@ async function buildGroundedShellFallbackPlan(inputText, options) {
   const projectRoot = options.root ?? plannerContext.root ?? process.cwd();
 
   for (const selector of selectors.slice(0, 4)) {
-    const payload = await resolveProjectStatus({
+    const payload = await ServiceHub.getStatus(options.selector, {
       projectRoot,
       selector,
       includeRelated: true,
@@ -3070,7 +3071,7 @@ async function buildShellPlannerGroundingContext(inputText, options = {}) {
     const projectRoot = options.root ?? plannerContext.root ?? process.cwd();
     const selectors = extractShellGroundingSelectors(inputText, plannerContext);
     for (const selector of selectors.slice(0, 4)) {
-      const payload = await resolveProjectStatus({
+      const payload = await ServiceHub.getStatus(options.selector, {
         projectRoot,
         selector,
         includeRelated: true,
@@ -4897,7 +4898,7 @@ export async function executeShellAction(action, options) {
       });
     }
     if (action.type === "status_query") {
-      const payload = await resolveProjectStatus({
+      const payload = await ServiceHub.getStatus(options.selector, {
         projectRoot: options.root,
         selector: action.query,
         type: action.entityType,
@@ -5309,7 +5310,7 @@ export async function runInteractiveShell(options) {
 
         // 0. Ensure bidirectional sync so manual edits are ingested and DB changes are projected
         processingIndicator.update("syncing project");
-        await syncProject({ projectRoot: options.root, writeProjections: true });
+        await ServiceHub.sync({ writeProjections: true });
 
         // 1. Refresh context before every turn so the Brain sees the latest state
         processingIndicator.update("refreshing context");
@@ -5721,7 +5722,7 @@ function renderVerifiedFixFinalization(result) {
 
 async function finalizeVerifiedFix({ root, ticketId }) {
   try {
-    await syncProject({ projectRoot: root, writeProjections: true });
+    await ServiceHub.sync({ writeProjections: true });
     const dogfoodReport = await runDogfood({
       root,
       surfaces: ["shell", "provider", "workflow", "init"],
@@ -5788,7 +5789,7 @@ async function runShellActionDirect(action, options) {
     case "next_ticket":
       return runCodeletById("kanban-next", [], options);
     case "metrics":
-      return formatProjectMetrics(await getProjectMetrics({ projectRoot: options.root }), options.json);
+      return formatProjectMetrics(await ServiceHub.getMetrics(), options.json);
     case "version": {
       const packageJson = JSON.parse(await readFileIfExists(path.resolve(getCliToolkitRoot(), "package.json")));
       const payload = {

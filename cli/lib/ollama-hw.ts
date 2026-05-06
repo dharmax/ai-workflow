@@ -8,7 +8,7 @@ import { stdin as input, stdout as output } from "node:process";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { getGlobalConfigPath, getProjectConfigPath, readConfig, writeConfigValue } from "./config-store.ts";
-import { parseArgs, printAndExit } from "../../runtime/scripts/ai-workflow/lib/cli.ts";
+import { parseArgs, printAndExit } from "../../core/lib/cli.ts";
 import { assertDirectCommandChannel } from "../../core/lib/command-channel.ts";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.ts";
 

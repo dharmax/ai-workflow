@@ -5,7 +5,7 @@
 
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { readText } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { readText } from "../lib/fs-utils.ts";
 import { withWorkspaceMutation } from "../lib/workspace-mutation.ts";
 import {
   archiveOldDoneTickets,
@@ -14,7 +14,7 @@ import {
   moveTicket,
   parseKanbanDocument,
   renderKanbanDocument
-} from "../../runtime/scripts/ai-workflow/lib/kanban-edit-utils.ts";
+} from "../lib/kanban-edit-utils.ts";
 import type { ExecutionContext } from "./execution-context.ts";
 
 export class KanbanManager {

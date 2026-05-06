@@ -6,7 +6,7 @@
 import { evaluateProjectReadiness, getProjectSummary, withWorkflowStore } from "./sync.ts";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../../runtime/scripts/ai-workflow/lib/active-guardrails.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
 import { listCodeletsFromStore, refreshCodeletRegistry } from "./codelets.ts";
 
 const CURRENT_WORK_RE = /\b(working on right now|working on now|what are we working on|what were working on|current work|current focus|in progress right now|currently in progress)\b/i;

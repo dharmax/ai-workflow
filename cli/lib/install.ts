@@ -5,7 +5,7 @@
 
 import path from "node:path";
 import { cp, readFile, writeFile } from "node:fs/promises";
-import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../../core/lib/fs-utils.ts";
 import { getProjectConfigPath, readConfig } from "./config-store.ts";
 import { withWorkspaceMutation } from "../../core/lib/workspace-mutation.ts";
 

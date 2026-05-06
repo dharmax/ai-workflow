@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import { pathToFileURL } from "node:url";
-import { runArtifactJudge } from "../../../core/services/artifact-verification.ts";
+import { runArtifactJudge } from "../services/artifact-verification.ts";
 
 export { runArtifactJudge };
 
@@ -11,3 +11,4 @@ if (process.env.AIWF_WRAPPED_RUNTIME === "1" || import.meta.url === entryUrl) {
   process.exitCode = exitCode && typeof exitCode === "number" ? exitCode : 0;
 }
 
+\nexport async function run(args: any, hub: ServiceHub) {\n}

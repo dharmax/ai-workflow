@@ -1,4 +1,4 @@
-import { readDogfoodReport } from "../../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
+import { readDogfoodReport } from "../lib/dogfood-utils.ts";
 import { withWorkflowStore } from "./sync.ts";
 
 /**

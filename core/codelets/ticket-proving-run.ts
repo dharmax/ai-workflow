@@ -1,15 +1,15 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { existsSync } from "node:fs";
-import { parseArgs, printAndExit } from "./lib/cli.ts";
-import { readText } from "./lib/fs-utils.ts";
-import { deriveKeywords, summarizeGuidance } from "./lib/guidance-utils.ts";
-import { inferTicketWorkingSet, loadTicketContext } from "./lib/workflow-store-utils.ts";
-import { buildTicketExecutionPlan, runVerificationPlan } from "../../../core/services/execution-planner.ts";
-import { resolveOperatingContext } from "../../../core/lib/operating-context.ts";
-import { recordRunArtifact } from "../../../core/lib/run-artifacts.ts";
+import { parseArgs, printAndExit } from "../lib/cli.ts";
+import { readText } from "../lib/fs-utils.ts";
+import { deriveKeywords, summarizeGuidance } from "../lib/guidance-utils.ts";
+import { inferTicketWorkingSet, loadTicketContext } from "../lib/workflow-store-utils.ts";
+import { buildTicketExecutionPlan, runVerificationPlan } from "../services/execution-planner.ts";
+import { resolveOperatingContext } from "../lib/operating-context.ts";
+import { recordRunArtifact } from "../lib/run-artifacts.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/ticket-proving-run.mjs --limit 25
@@ -90,7 +90,7 @@ summary.runArtifact = await recordRunArtifact(context.repairTargetRoot, {
 });
 
 if (args.json) {
-  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\nexport async function run(args: any, hub: ServiceHub) {\n  `);
   process.exit(summary.ok ? 0 : 1);
 }
 
@@ -111,7 +111,7 @@ if (summary.failures.length) {
   }
 }
 
-process.stdout.write(`${lines.join("\n")}\n`);
+process.stdout.write(`${lines.join("\n  ")}\n  `);
 process.exit(summary.ok ? 0 : 1);
 
 function selectTickets({ dbPath, ticketIds, limit }) {
@@ -285,7 +285,7 @@ async function buildGuidanceResult(root, ticketId) {
       "knowledge.md"
     ];
     const contents = await Promise.all(files.map((filePath) => readText(path.resolve(root, filePath))));
-    const keywords = deriveKeywords({ ticketText: `${resolved.ticket.heading}\n${resolved.ticket.body}`, files: [] });
+    const keywords = deriveKeywords({ ticketText: `${resolved.ticket.heading}\n  ${resolved.ticket.body}`, files: [] });
     const sections = contents.map((content) => summarizeGuidance(content, keywords, { limit: 2, fallbackLimit: 1 }));
     const count = sections.flat().filter(Boolean).length;
     return { ok: count > 0, payload: { sectionCount: count } };
@@ -316,3 +316,4 @@ async function buildContextResult(root, ticketId) {
     return { ok: false, payload: null, error: String(error?.message ?? error) };
   }
 }
+\n}

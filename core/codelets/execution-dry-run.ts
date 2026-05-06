@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit, splitCsv } from "./lib/cli.ts";
-import { inferTicketWorkingSet, loadTicketContext } from "./lib/workflow-store-utils.ts";
-import { buildTicketExecutionPlan, runVerificationPlan } from "../../../core/services/execution-planner.ts";
-import { assertSafeRepairTarget, resolveOperatingContext } from "../../../core/lib/operating-context.ts";
-import { recordRunArtifact } from "../../../core/lib/run-artifacts.ts";
+import { parseArgs, printAndExit, splitCsv } from "../lib/cli.ts";
+import { inferTicketWorkingSet, loadTicketContext } from "../lib/workflow-store-utils.ts";
+import { buildTicketExecutionPlan, runVerificationPlan } from "../services/execution-planner.ts";
+import { assertSafeRepairTarget, resolveOperatingContext } from "../lib/operating-context.ts";
+import { recordRunArtifact } from "../lib/run-artifacts.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/execution-dry-run.mjs --ticket TKT-001
@@ -93,7 +93,7 @@ try {
   });
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\nexport async function run(args: any, hub: ServiceHub) {\n  `);
     process.exit(verificationRun && !verificationRun.ok ? 1 : 0);
   }
 
@@ -118,8 +118,9 @@ try {
     }
   }
 
-  process.stdout.write(`${lines.join("\n")}\n`);
+  process.stdout.write(`${lines.join("\n  ")}\n  `);
   process.exit(verificationRun && !verificationRun.ok ? 1 : 0);
 } catch (error) {
   printAndExit(String(error?.message ?? error), 1);
 }
+\n}

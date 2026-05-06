@@ -1,13 +1,13 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit, splitCsv } from "./lib/cli.ts";
-import { compileActiveGuardrails } from "./lib/active-guardrails.ts";
-import { exists, isWorkflowStatePath, normalizePath, readText } from "./lib/fs-utils.ts";
-import { compactGuidanceItems, deriveKeywords, inferValidationPlan, summarizeGuidance } from "./lib/guidance-utils.ts";
-import { getChanges, isGitRepo } from "./lib/git-utils.ts";
-import { getToolkitRoot } from "./lib/toolkit-root.ts";
-import { loadTicketContext } from "./lib/workflow-store-utils.ts";
+import { parseArgs, printAndExit, splitCsv } from "../lib/cli.ts";
+import { compileActiveGuardrails } from "../lib/active-guardrails.ts";
+import { exists, isWorkflowStatePath, normalizePath, readText } from "../lib/fs-utils.ts";
+import { compactGuidanceItems, deriveKeywords, inferValidationPlan, summarizeGuidance } from "../lib/guidance-utils.ts";
+import { getChanges, isGitRepo } from "../lib/git-utils.ts";
+import { getToolkitRoot } from "../lib/toolkit-root.ts";
+import { loadTicketContext } from "../lib/workflow-store-utils.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/guidance-summary.mjs --ticket TKT-001
@@ -57,7 +57,7 @@ if (args.changed) {
 }
 
 const uniqueFiles = [...new Set(files.filter(Boolean).map(normalizePath).filter((filePath) => !isWorkflowStatePath(filePath)))];
-const ticketText = ticket ? `${ticket.heading}\n${ticket.body}` : "";
+const ticketText = ticket ? `${ticket.heading}\nexport async function run(args: any, hub: ServiceHub) {\n  ${ticket.body}` : "";
 const keywords = deriveKeywords({ ticketText, files: uniqueFiles });
 
 const agentsPath = path.resolve(root, "AGENTS.md");
@@ -108,7 +108,7 @@ const summary = {
 };
 
 if (args.json) {
-  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n  `);
   process.exit(0);
 }
 
@@ -192,4 +192,5 @@ for (const item of summary.sections.knowledge) {
   lines.push(`- ${item}`);
 }
 
-process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+process.stdout.write(`${lines.join("\n  ").trimEnd()}\n  `);
+\n}

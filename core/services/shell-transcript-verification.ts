@@ -261,7 +261,7 @@ export async function judgeShellTranscripts({
 }
 
 export async function runShellTranscriptJudge(argv = process.argv.slice(2)) {
-  const { parseArgs, asArray, printAndExit } = await import("../../runtime/scripts/ai-workflow/lib/cli.ts");
+  const { parseArgs, asArray, printAndExit } = await import("../lib/cli.ts");
   const args: any = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
 

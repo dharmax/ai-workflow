@@ -1,8 +1,8 @@
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { openWorkflowStore } from "../../../../core/db/sqlite-store.ts";
-import { collectProjectFileSnapshot } from "../../../../core/lib/filesystem.ts";
+import { openWorkflowStore } from "../db/sqlite-store.ts";
+import { collectProjectFileSnapshot } from "./filesystem.ts";
 
 const execFileAsync = promisify(execFile);
 

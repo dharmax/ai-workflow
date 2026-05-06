@@ -1,18 +1,18 @@
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { openWorkflowStore } from "../../../../core/db/sqlite-store.ts";
+import { openWorkflowStore } from "../db/sqlite-store.ts";
 import { fileExistsRelative, runGuidelineAudit } from "./audit-utils.ts";
 import { DEFAULT_DOGFOOD_REPORT_PATH, readDogfoodReport } from "./dogfood-utils.ts";
 import { readText } from "./fs-utils.ts";
 import { collectOperatorSurfaceState, compareSurfaceHashes } from "./operator-surfaces.ts";
 import { parseKanban } from "./kanban-utils.ts";
 import { inspectWorkspaceHonesty } from "./workspace-honesty.ts";
-import { renderManualHtml } from "../../../../scripts/generate-manual-html.ts";
+import { renderManualHtml } from "../../scripts/generate-manual-html.ts";
 import {
   SHELL_TRUST_BENCHMARK_MIN_CASES,
   SHELL_TRUST_BENCHMARK_SUITE_ID,
   SHELL_TRUST_BENCHMARK_THRESHOLD
-} from "../../../../shared/prompts/shell-trust-benchmark.ts";
+} from "../../shared/prompts/shell-trust-benchmark.ts";
 
 const REQUIRED_DOCS = [
   "AGENTS.md",

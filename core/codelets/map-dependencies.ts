@@ -1,4 +1,4 @@
-
+import type { ServiceHub } from "../services/service-hub.ts";\n\nexport async function run(args: any, hub: ServiceHub) {\n  
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -31,7 +31,7 @@ async function run() {
     const content = readFileSync(file, "utf8");
     const relativePath = relative(root, file);
     if (content.includes("process.stdout.write") || content.includes("console.log")) {
-      const lines = content.split("\n");
+      const lines = content.split("\n  ");
       if (lines.length > 500) {
         console.log("- [RISK] " + relativePath + " is logic-heavy (" + lines.length + " lines). Consider moving more to Core.");
       }
@@ -48,3 +48,4 @@ async function run() {
 }
 
 run().catch(console.error);
+\n}

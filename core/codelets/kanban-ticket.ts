@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit } from "./lib/cli.ts";
-import { readText } from "./lib/fs-utils.ts";
-import { findTicket, parseKanban, renderTicket } from "./lib/kanban-utils.ts";
-import { loadTicketContext, selectKanbanSource } from "./lib/workflow-store-utils.ts";
+import { parseArgs, printAndExit } from "../lib/cli.ts";
+import { readText } from "../lib/fs-utils.ts";
+import { findTicket, parseKanban, renderTicket } from "../lib/kanban-utils.ts";
+import { loadTicketContext, selectKanbanSource } from "../lib/workflow-store-utils.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/kanban-ticket.mjs --id TKT-001
@@ -53,8 +53,9 @@ if (!ticket) {
 }
 
 if (args.json) {
-  process.stdout.write(`${JSON.stringify(ticket, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(ticket, null, 2)}\nexport async function run(args: any, hub: ServiceHub) {\n  `);
   process.exit(0);
 }
 
-process.stdout.write(`${renderTicket(ticket)}\n`);
+process.stdout.write(`${renderTicket(ticket)}\n  `);
+\n}

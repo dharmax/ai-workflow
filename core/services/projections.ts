@@ -5,7 +5,7 @@
 
 import { promptMultiChoice } from "../lib/disambiguation.ts";
 import path from "node:path";
-import { readText } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { readText } from "../lib/fs-utils.ts";
 import { writeProjectFile } from "../lib/filesystem.ts";
 import { sha1, stableId } from "../lib/hash.ts";
 import { getToolkitRoot } from "../lib/operating-context.ts";

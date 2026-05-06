@@ -6,7 +6,7 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { ensureDir } from "../../runtime/scripts/ai-workflow/lib/fs-utils.ts";
+import { ensureDir } from "../../core/lib/fs-utils.ts";
 import { getAllSupportedExtensions } from "./registry.ts";
 import { isWorkspaceMutationGuardDisabled, withWorkspaceMutation, withWorkspaceMutationGuardDisabled } from "./workspace-mutation.ts";
 

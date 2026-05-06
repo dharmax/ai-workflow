@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import path from "node:path";
-import { parseArgs, printAndExit } from "./lib/cli.ts";
-import { buildWorkflowAuditSummary } from "./lib/workflow-audit-report.ts";
+import { parseArgs, printAndExit } from "../lib/cli.ts";
+import { buildWorkflowAuditSummary } from "../lib/workflow-audit-report.ts";
 
 const HELP = `Usage:
   tsx scripts/ai-workflow/workflow-audit.mjs
@@ -38,3 +38,4 @@ if (args.json) {
   console.log(`- package scripts checked: ${summary.packageScripts.length}`);
   console.log(`- audit extension blocks: ${summary.guidelineAudit.blockCount}`);
 }
+\nexport async function run(args: any, hub: ServiceHub) {\n}

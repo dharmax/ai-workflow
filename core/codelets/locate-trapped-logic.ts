@@ -1,4 +1,4 @@
-
+import type { ServiceHub } from "../services/service-hub.ts";\n\nexport async function run(args: any, hub: ServiceHub) {\n  
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -36,3 +36,4 @@ async function run() {
 }
 
 run().catch(console.error);
+\n}

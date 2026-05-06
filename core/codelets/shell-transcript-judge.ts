@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+import type { ServiceHub } from "../services/service-hub.ts";\n\n#!/usr/bin/env node
 
 import { pathToFileURL } from "node:url";
-import { runShellTranscriptJudge } from "../../../core/services/shell-transcript-verification.ts";
+import { runShellTranscriptJudge } from "../services/shell-transcript-verification.ts";
 
 export { runShellTranscriptJudge };
 
@@ -10,3 +10,4 @@ if (process.env.AIWF_WRAPPED_RUNTIME === "1" || import.meta.url === entryUrl) {
   const exitCode = await runShellTranscriptJudge();
   process.exitCode = exitCode && typeof exitCode === "number" ? exitCode : 0;
 }
+\nexport async function run(args: any, hub: ServiceHub) {\n}
