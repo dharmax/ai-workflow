@@ -10220,12 +10220,19 @@ async function isGitRepo2(root) {
   }
 }
 async function getChanges(root, base) {
-  if (base) {
-    const output8 = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
-    return parseNameStatus(output8);
+  try {
+    if (base) {
+      const output8 = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
+      return parseNameStatus(output8);
+    }
+    const output7 = await runGit(root, ["status", "--short", "--untracked-files=all"]);
+    return parseStatusShort(output7);
+  } catch (error) {
+    if (isNonRepoGitError(error)) {
+      return [];
+    }
+    throw error;
   }
-  const output7 = await runGit(root, ["status", "--short", "--untracked-files=all"]);
-  return parseStatusShort(output7);
 }
 async function runGit(root, args) {
   const { stdout } = await execFileAsync5("git", args, {
@@ -10281,6 +10288,11 @@ function normalizeStatus3(rawStatus) {
     return "modified";
   }
   return value || "unknown";
+}
+function isNonRepoGitError(error) {
+  const text = `${error?.message ?? ""}
+${error?.stderr ?? ""}`;
+  return /not a git repository/i.test(text);
 }
 var execFileAsync5;
 var init_git_utils = __esm({

@@ -13,13 +13,20 @@ export async function isGitRepo(root) {
 }
 
 export async function getChanges(root, base) {
-  if (base) {
-    const output = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
-    return parseNameStatus(output);
-  }
+  try {
+    if (base) {
+      const output = await runGit(root, ["diff", "--name-status", "--find-renames", `${base}...HEAD`]);
+      return parseNameStatus(output);
+    }
 
-  const output = await runGit(root, ["status", "--short", "--untracked-files=all"]);
-  return parseStatusShort(output);
+    const output = await runGit(root, ["status", "--short", "--untracked-files=all"]);
+    return parseStatusShort(output);
+  } catch (error) {
+    if (isNonRepoGitError(error)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 async function runGit(root, args) {
@@ -93,4 +100,9 @@ function normalizeStatus(rawStatus) {
   }
 
   return value || "unknown";
+}
+
+function isNonRepoGitError(error) {
+  const text = `${error?.message ?? ""}\n${error?.stderr ?? ""}`;
+  return /not a git repository/i.test(text);
 }
