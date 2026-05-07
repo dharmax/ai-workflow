@@ -1,16 +1,37 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const child = spawn("tsx", ["/home/dharmax/work/ai-workflow/runtime/scripts/ai-workflow/tutorial-web.ts", ...process.argv.slice(2)], {
-  cwd: process.cwd(),
-  env: process.env,
-  stdio: "inherit"
-});
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "..", "..");
+const tutorialPath = path.resolve(repoRoot, "runtime", "web", "tutorial", "index.html");
 
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
+export async function runTutorialWeb(argv = process.argv.slice(2)) {
+  const args = new Map();
+  for (let i = 0; i < argv.length; i += 1) {
+    const key = argv[i];
+    const value = argv[i + 1];
+    if (key?.startsWith("--")) args.set(key.slice(2), value);
   }
-  process.exit(code ?? 0);
-});
+  const host = args.get("host") || "127.0.0.1";
+  const port = Number(args.get("port") || 3210);
+  const html = await readFile(tutorialPath, "utf8");
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(html);
+  });
+  await new Promise((resolve) => server.listen(port, host, resolve));
+  const payload = { ok: true, host, port, url: `http://${host}:${port}/` };
+  if (argv.includes("--json")) {
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+  } else {
+    process.stdout.write(`Tutorial available at ${payload.url}\n`);
+  }
+  return payload;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await runTutorialWeb();
+}

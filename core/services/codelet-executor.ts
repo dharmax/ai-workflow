@@ -12,7 +12,7 @@ import { TaskExecutor } from "@dharmax/shell-proc-utils";
 
 export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
   if (ServiceHub.has(codelet.id)) {
-    return ServiceHub.execute(codelet.id, args);
+    return ServiceHub.execute(codelet.id, normalizeRegisteredCodeletArgs(args));
   }
 
   const entry = codelet.entryPath ?? (codelet.entry ? path.resolve(cwd, codelet.entry) : null);
@@ -93,4 +93,39 @@ async function runNodeScriptStreamed(scriptPath, args, { cwd, env }) {
 
 function shellQuote(value) {
   return JSON.stringify(String(value));
+}
+
+function normalizeRegisteredCodeletArgs(args) {
+  if (!Array.isArray(args)) {
+    return args ?? {};
+  }
+
+  const options: any = { _: [] };
+  for (let index = 0; index < args.length; index += 1) {
+    const raw = String(args[index] ?? "");
+    if (!raw.startsWith("--")) {
+      options._.push(raw);
+      continue;
+    }
+
+    const key = raw.slice(2);
+    const next = args[index + 1];
+    if (next != null && !String(next).startsWith("--")) {
+      options[key] = next;
+      index += 1;
+      continue;
+    }
+    options[key] = true;
+  }
+
+  if (options.id && !options.ticketId) {
+    options.ticketId = options.id;
+  }
+  if (options._[0] && !options.ticketId) {
+    options.ticketId = options._[0];
+  }
+  if (options._[0] && !options.query) {
+    options.query = options._.join(" ");
+  }
+  return options;
 }

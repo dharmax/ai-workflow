@@ -1,0 +1,11 @@
+{
+  "name": "@dharmax/ai-workflow-common",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Common non-CLI helpers for ai-workflow packaging splits.",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,16 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
 
-const child = spawn("tsx", ["/home/dharmax/work/ai-workflow/runtime/scripts/ai-workflow/ticket-proving-run.ts", ...process.argv.slice(2)], {
-  cwd: process.cwd(),
-  env: process.env,
-  stdio: "inherit"
-});
+import { runCli } from "./_run-cli.ts";
 
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 0);
-});
+runCli(["project", "summary", "--json"]);

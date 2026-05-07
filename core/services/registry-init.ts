@@ -20,6 +20,8 @@ import * as status from "../codelets/status.ts";
 import * as discovery from "../codelets/discovery.ts";
 import * as dogfood from "../codelets/dogfood.ts";
 import * as audit from "../codelets/workflow-audit.ts";
+import * as extractTicket from "../codelets/extract-ticket.ts";
+import * as search from "../codelets/search.ts";
 
 export function initializeRegistry() {
   // --- Infrastructure Services ---
@@ -42,4 +44,6 @@ export function initializeRegistry() {
   ServiceHub.register("surface", discovery);
   ServiceHub.register("dogfood", dogfood);
   ServiceHub.register("audit", audit);
+  ServiceHub.register("extract-ticket", extractTicket);
+  ServiceHub.register("search", search);
 }

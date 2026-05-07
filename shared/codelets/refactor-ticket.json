@@ -4,5 +4,5 @@
   "stability": "experimental",
   "category": "refactoring",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/execute-ticket.ts"
+  "entry": "scripts/ai-workflow/execute-ticket.ts"
 }

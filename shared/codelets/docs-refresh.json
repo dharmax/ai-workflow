@@ -4,7 +4,7 @@
   "category": "documentation",
   "summary": "Refresh docs to match the current workflow and project reality.",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/smart-codelet-runner.ts",
+  "entry": "scripts/ai-workflow/smart-codelet-runner.ts",
   "execution": "js",
   "focus": "docs-refresh",
   "taskClass": "summarization"

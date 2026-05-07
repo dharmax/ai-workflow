@@ -6,7 +6,7 @@
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.ts";
+import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../lib/config-store.ts";
 import { readText } from "../lib/fs-utils.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

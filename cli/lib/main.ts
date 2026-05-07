@@ -457,7 +457,33 @@ async function handleExtract(rest) {
     if (!ticketId) {
       printAndExit("Usage: ai-workflow extract ticket <id> [options]", 1);
     }
-    return ServiceHub.execute("extract-ticket", { ticketId, ...parseArgs(args.slice(1)) });
+    const parsedArgs = parseArgs(args.slice(1));
+    const result = await ServiceHub.execute("extract-ticket", { ticketId, ...parsedArgs });
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      return 0;
+    }
+    const lines = [
+      `${result.ticket.id} ${result.ticket.title}`,
+      `Lane: ${result.entity?.lane ?? result.ticket.section ?? "unknown"}`,
+      `Source: ${result.sourcePath}`
+    ];
+    if (result.ticket.body) {
+      lines.push("");
+      lines.push(result.ticket.body);
+    }
+    if (result.workingSet.files?.length) {
+      lines.push("");
+      lines.push("Files:");
+      lines.push(...result.workingSet.files.map((file: string) => `- ${file}`));
+    }
+    if (result.workingSet.symbols?.length) {
+      lines.push("");
+      lines.push("Symbols:");
+      lines.push(...result.workingSet.symbols.map((symbol: string) => `- ${symbol}`));
+    }
+    process.stdout.write(`${lines.join("\n")}\n`);
+    return 0;
   }
 
   if (kind === "guidelines") {
@@ -537,12 +563,12 @@ async function handleProject(rest) {
   }
 
   if (subcommand === "map-dependencies") {
-    const script = path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
+    const script = path.resolve(toolkitRoot, "scripts", "ai-workflow", "map-dependencies.ts");
     return runNodeScript(script, args._);
   }
 
   if (subcommand === "locate-trapped-logic") {
-    const script = path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
+    const script = path.resolve(toolkitRoot, "scripts", "ai-workflow", "locate-trapped-logic.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
@@ -1461,7 +1487,7 @@ async function handleWeb(rest) {
   const [action, ...extras] = rest;
   if (action === "tutorial") {
     return runNodeScriptLive(
-      path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
+      path.resolve(toolkitRoot, "scripts", "ai-workflow", "tutorial-web.ts"),
       extras
     );
   }

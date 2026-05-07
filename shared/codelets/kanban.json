@@ -4,5 +4,5 @@
   "category": "workflow",
   "summary": "Manage and visualize the project Kanban board.",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/kanban.ts"
+  "entry": "scripts/ai-workflow/kanban.ts"
 }

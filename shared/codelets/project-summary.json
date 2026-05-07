@@ -4,5 +4,5 @@
   "category": "projection",
   "summary": "Read a compact project summary from the workflow DB.",
   "runner": "node-script",
-  "entry": "runtime/scripts/ai-workflow/project-summary.ts"
+  "entry": "scripts/ai-workflow/project-summary.ts"
 }

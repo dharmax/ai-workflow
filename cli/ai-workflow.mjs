@@ -2659,8 +2659,8 @@ var init_sqlite_store = __esm({
           createdAt: row.created_at
         }));
       }
-      upsertTestRun(run13) {
-        const timestamp = String(run13.updatedAt ?? nowIso());
+      upsertTestRun(run15) {
+        const timestamp = String(run15.updatedAt ?? nowIso());
         this.db.prepare(`
       INSERT INTO test_runs (id, run_id, test_id, target_id, source, label, status, command, summary, artifact_ref, recorded_at, details_json, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2678,26 +2678,26 @@ var init_sqlite_store = __esm({
         details_json = excluded.details_json,
         updated_at = excluded.updated_at
     `).run(
-          String(run13.id),
-          String(run13.runId),
-          String(run13.testId),
-          String(run13.targetId),
-          String(run13.source),
-          run13.label != null ? String(run13.label) : null,
-          String(run13.status),
-          run13.command != null ? String(run13.command) : null,
-          run13.summary != null ? String(run13.summary) : null,
-          run13.artifactRef != null ? String(run13.artifactRef) : null,
-          String(run13.recordedAt ?? timestamp),
-          asJson(run13.details),
+          String(run15.id),
+          String(run15.runId),
+          String(run15.testId),
+          String(run15.targetId),
+          String(run15.source),
+          run15.label != null ? String(run15.label) : null,
+          String(run15.status),
+          run15.command != null ? String(run15.command) : null,
+          run15.summary != null ? String(run15.summary) : null,
+          run15.artifactRef != null ? String(run15.artifactRef) : null,
+          String(run15.recordedAt ?? timestamp),
+          asJson(run15.details),
           timestamp
         );
       }
       replaceTestRunsForSource(source, runs = []) {
         const finalSource = String(source);
         this.db.prepare("DELETE FROM test_runs WHERE source = ?").run(finalSource);
-        for (const run13 of runs) {
-          this.upsertTestRun(run13);
+        for (const run15 of runs) {
+          this.upsertTestRun(run15);
         }
       }
       listTestRuns(filters = {}) {
@@ -2737,13 +2737,13 @@ var init_sqlite_store = __esm({
           updatedAt: row.updated_at
         }));
       }
-      upsertWorkflowRun(run13) {
+      upsertWorkflowRun(run15) {
         const now = nowIso();
-        const finalId = String(run13.id);
+        const finalId = String(run15.id);
         const existing = this.getWorkflowRun(finalId);
-        const finalPrompt = String(run13.prompt ?? existing?.prompt ?? "unknown");
-        const finalCode = String(run13.code ?? existing?.code ?? "");
-        const finalCreatedAt = String(run13.createdAt ?? existing?.createdAt ?? now);
+        const finalPrompt = String(run15.prompt ?? existing?.prompt ?? "unknown");
+        const finalCode = String(run15.code ?? existing?.code ?? "");
+        const finalCreatedAt = String(run15.createdAt ?? existing?.createdAt ?? now);
         this.db.prepare(`
       INSERT INTO workflow_runs (id, prompt, code, status, current_state, result_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -2756,9 +2756,9 @@ var init_sqlite_store = __esm({
           finalId,
           finalPrompt,
           finalCode,
-          String(run13.status ?? existing?.status ?? "running"),
-          run13.currentState != null ? String(run13.currentState) : null,
-          asJson(run13.result),
+          String(run15.status ?? existing?.status ?? "running"),
+          run15.currentState != null ? String(run15.currentState) : null,
+          asJson(run15.result),
           finalCreatedAt,
           now
         );
@@ -3308,7 +3308,7 @@ var init_fs_utils = __esm({
   }
 });
 
-// cli/lib/config-store.ts
+// core/lib/config-store.ts
 import os from "node:os";
 import path3 from "node:path";
 import { readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
@@ -3429,7 +3429,7 @@ function parseValue(rawValue) {
   }
 }
 var init_config_store = __esm({
-  "cli/lib/config-store.ts"() {
+  "core/lib/config-store.ts"() {
     "use strict";
     init_fs_utils();
   }
@@ -3916,6 +3916,29 @@ async function generateCompletion(options = {}) {
   const modelId = String(options.modelId ?? options.model ?? "").trim();
   if (!providerId || !modelId) {
     throw new Error("providerId and modelId are required");
+  }
+  const adapter = registeredAdapters.get(providerId);
+  if (adapter && typeof adapter.generate === "function") {
+    const direct = await adapter.generate({
+      providerId,
+      modelId,
+      prompt: options.prompt,
+      system: options.system,
+      config: {
+        ...options.config ?? {},
+        apiKey: options.config?.apiKey ?? options.apiKey,
+        baseUrl: options.config?.baseUrl ?? options.baseUrl,
+        host: options.config?.host ?? options.host
+      },
+      apiKey: options.config?.apiKey ?? options.apiKey,
+      baseUrl: options.config?.baseUrl ?? options.baseUrl,
+      host: options.config?.host ?? options.host,
+      signal: options.signal,
+      contentParts: options.contentParts,
+      generationOptions: options.generationOptions,
+      format: options.format ?? options.config?.format
+    });
+    return normalizeCompletionResult(direct, { providerId, modelId });
   }
   const result = await CompletionEngine.generate(
     options.prompt,
@@ -11146,7 +11169,7 @@ function collectTestsForNode(store, graph, node, related) {
     }
     const runs = store.listTestRuns({ testId });
     const latest = runs[0] ?? null;
-    const targets = runs.filter((run13) => candidateTargetIds.has(run13.targetId));
+    const targets = runs.filter((run15) => candidateTargetIds.has(run15.targetId));
     tests.push({
       id: testId,
       title: testEntity.title,
@@ -11154,7 +11177,7 @@ function collectTestsForNode(store, graph, node, related) {
       recordedAt: latest?.recordedAt ?? null,
       source: latest?.source ?? null,
       summary: latest?.summary ?? null,
-      targets: targets.map((run13) => run13.targetId)
+      targets: targets.map((run15) => run15.targetId)
     });
   }
   tests.sort((left, right) => {
@@ -13725,7 +13748,7 @@ import { mkdtemp, readFile as readFile12, rm as rm4 } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 async function executeCodelet(codelet, args = [], { cwd = process.cwd(), env = process.env, mode = "stream" } = {}) {
   if (ServiceHub.has(codelet.id)) {
-    return ServiceHub.execute(codelet.id, args);
+    return ServiceHub.execute(codelet.id, normalizeRegisteredCodeletArgs(args));
   }
   const entry = codelet.entryPath ?? (codelet.entry ? path22.resolve(cwd, codelet.entry) : null);
   if (codelet.runner !== "node-script") {
@@ -13789,6 +13812,37 @@ async function runNodeScriptStreamed(scriptPath, args, { cwd, env }) {
 }
 function shellQuote(value) {
   return JSON.stringify(String(value));
+}
+function normalizeRegisteredCodeletArgs(args) {
+  if (!Array.isArray(args)) {
+    return args ?? {};
+  }
+  const options = { _: [] };
+  for (let index = 0; index < args.length; index += 1) {
+    const raw = String(args[index] ?? "");
+    if (!raw.startsWith("--")) {
+      options._.push(raw);
+      continue;
+    }
+    const key = raw.slice(2);
+    const next = args[index + 1];
+    if (next != null && !String(next).startsWith("--")) {
+      options[key] = next;
+      index += 1;
+      continue;
+    }
+    options[key] = true;
+  }
+  if (options.id && !options.ticketId) {
+    options.ticketId = options.id;
+  }
+  if (options._[0] && !options.ticketId) {
+    options.ticketId = options._[0];
+  }
+  if (options._[0] && !options.query) {
+    options.query = options._.join(" ");
+  }
+  return options;
 }
 var init_codelet_executor = __esm({
   "core/services/codelet-executor.ts"() {
@@ -25261,8 +25315,6 @@ async function syncProject({ projectRoot = process.cwd(), writeProjections = fal
         symbolCount += parsed.symbols.length;
         claimCount += parsed.facts.length;
         noteCount += parsed.notes.length;
-        claimCount += parsed.facts.length;
-        noteCount += parsed.notes.length;
       }
       const importSummary = await importLegacyProjections(store, { projectRoot });
       const postImportIntegrityRepair = repairWorkflowEntityIntegrity(store);
@@ -26521,7 +26573,7 @@ var TerminalContext = class {
 
 // core/services/protocol-enforcer.ts
 init_git_utils();
-init_execution_context();
+init_dogfood_utils();
 import { stat as stat4 } from "node:fs/promises";
 import { join } from "node:path";
 var ProtocolEnforcer = class {
@@ -26535,7 +26587,7 @@ var ProtocolEnforcer = class {
     const staged = await getChanges(root);
     const operatorChanges = staged.filter((f) => /^(cli\/|core\/|runtime\/)/.test(f.path));
     if (operatorChanges.length > 0) {
-      const dogfoodPath = join(root, ".ai-workflow", "generated", "dogfood", "report.json");
+      const dogfoodPath = join(root, DEFAULT_DOGFOOD_REPORT_PATH);
       const dogfoodOk = await this.isReportFresh(dogfoodPath, operatorChanges);
       if (!dogfoodOk) {
         violations.push("Operator-surface changes detected but dogfood report is missing or stale.");
@@ -26550,11 +26602,24 @@ var ProtocolEnforcer = class {
   async isReportFresh(reportPath, changes) {
     try {
       const reportStat = await stat4(reportPath);
-      const latestChangeMs = Math.max(...changes.map((c) => 0));
-      return true;
+      const latestChangeMs = await this.getLatestChangeMs(changes);
+      return reportStat.mtimeMs >= latestChangeMs;
     } catch {
       return false;
     }
+  }
+  async getLatestChangeMs(changes) {
+    const mtimes = await Promise.all(
+      changes.map(async (change) => {
+        try {
+          const fileStat = await stat4(join(this.context.projectRoot, String(change.path)));
+          return fileStat.mtimeMs;
+        } catch {
+          return 0;
+        }
+      })
+    );
+    return Math.max(0, ...mtimes);
   }
 };
 
@@ -27920,6 +27985,55 @@ async function run12(options, hub) {
   return buildWorkflowAuditSummary(root);
 }
 
+// core/codelets/extract-ticket.ts
+var extract_ticket_exports = {};
+__export(extract_ticket_exports, {
+  run: () => run13
+});
+init_workflow_store_utils();
+async function run13(options, hub) {
+  const root = hub.context.projectRoot;
+  const ticketId = String(options.ticketId ?? "").trim();
+  if (!ticketId) {
+    throw new Error("ticketId is required");
+  }
+  const context = await loadTicketContext({ root, ticketId });
+  if (!context.ticket) {
+    throw new Error(`Ticket ${ticketId} not found.`);
+  }
+  const workingSet = await inferTicketWorkingSet({
+    root,
+    ticket: context.ticket,
+    entity: context.entity,
+    limit: Number(options.limit ?? 8)
+  });
+  return {
+    ticketId,
+    sourcePath: context.sourcePath,
+    ticket: context.ticket,
+    entity: context.entity,
+    workingSet
+  };
+}
+
+// core/codelets/search.ts
+var search_exports = {};
+__export(search_exports, {
+  run: () => run14
+});
+init_sync();
+async function run14(options, hub) {
+  const query = String(options.query ?? "").trim();
+  if (!query) {
+    throw new Error("query is required");
+  }
+  return searchProject({
+    projectRoot: hub.context.projectRoot,
+    query,
+    limit: Number(options.limit ?? 20)
+  });
+}
+
 // core/services/registry-init.ts
 function initializeRegistry() {
   ServiceHub.register("llm", new CoreLLM(ServiceHub.context));
@@ -27939,6 +28053,8 @@ function initializeRegistry() {
   ServiceHub.register("surface", discovery_exports);
   ServiceHub.register("dogfood", dogfood_exports);
   ServiceHub.register("audit", workflow_audit_exports);
+  ServiceHub.register("extract-ticket", extract_ticket_exports);
+  ServiceHub.register("search", search_exports);
 }
 
 // cli/lib/main.ts
@@ -27995,7 +28111,10 @@ var ShellPresenter = class {
     if (id === "sync") return this.formatSyncResult(result);
     if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
     if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
+    if (id === "extract-ticket" || id === "ticket") return this.formatExtractTicketResult(result);
     if (id === "extract-guidelines") return this.formatGuidanceResult(result);
+    if (id === "audit") return this.formatAuditResult(result);
+    if (id === "dogfood") return this.formatDogfoodResult(result);
     if (result && typeof result === "object") {
       return JSON.stringify(result, null, 2) + "\n";
     }
@@ -28040,6 +28159,55 @@ var ShellPresenter = class {
     }
     return lines.join("\n") + "\n";
   }
+  static formatExtractTicketResult(result) {
+    const lines = [
+      `Ticket: ${result.ticket?.id ?? result.ticketId}`,
+      `Title: ${result.ticket?.title ?? "unknown"}`,
+      `Source: ${result.sourcePath ?? "unknown"}`
+    ];
+    if (result.entity?.lane) {
+      lines.push(`Lane: ${result.entity.lane}`);
+    }
+    if (result.ticket?.body) {
+      lines.push("");
+      lines.push(result.ticket.body);
+    }
+    if (Array.isArray(result.workingSet?.files) && result.workingSet.files.length) {
+      lines.push("");
+      lines.push("Working set files:");
+      for (const file of result.workingSet.files) {
+        lines.push(`- ${file}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+  static formatAuditResult(result) {
+    const lines = [
+      `Status: ${result.status ?? "unknown"}`
+    ];
+    const failures = Array.isArray(result.failures) ? result.failures : [];
+    if (failures.length) {
+      lines.push("Failures:");
+      for (const failure of failures) {
+        lines.push(`- ${failure}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+  static formatDogfoodResult(result) {
+    const lines = [
+      `Status: ${result.status ?? "unknown"}`,
+      `Profile: ${result.profile ?? "unknown"}`
+    ];
+    const surfaces = Object.entries(result.surfaces ?? {});
+    if (surfaces.length) {
+      lines.push("Surfaces:");
+      for (const [surfaceId, surface] of surfaces) {
+        lines.push(`- ${surfaceId}: ${surface.status ?? "unknown"} (${surface.scenarioCount ?? 0} scenarios)`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
 };
 
 // cli/lib/main.ts
@@ -28054,17 +28222,16 @@ import { readFile as readFile20 } from "node:fs/promises";
 // cli/lib/codelets.ts
 init_codelets();
 
-// cli/lib/main.ts
+// cli/lib/config-store.ts
 init_config_store();
 
 // cli/lib/doctor.ts
-init_config_store();
-init_providers();
-init_model_fit();
-init_lean_ctx();
 import os4 from "node:os";
 import { execFile as execFile11 } from "node:child_process";
 import { promisify as promisify12 } from "node:util";
+init_providers();
+init_model_fit();
+init_lean_ctx();
 
 // core/services/package-updates.ts
 init_hash();
@@ -28406,12 +28573,11 @@ async function probeBinary(command, args) {
 
 // cli/lib/ollama-hw.ts
 init_service_hub();
-init_config_store();
-init_cli();
 import "node:readline/promises";
 import { stdout as output2 } from "node:process";
 import path43 from "node:path";
 import { mkdir as mkdir8, writeFile as writeFile12 } from "node:fs/promises";
+init_cli();
 
 // core/lib/command-channel.ts
 var DIRECT_COMMAND_CHANNEL = "direct";
@@ -28842,19 +29008,16 @@ async function buildTelegramPreview({ projectRoot = process.cwd() } = {}) {
 init_cli();
 init_active_guardrails();
 init_dogfood_utils();
-init_config_store();
 
 // cli/lib/provider-setup.ts
-init_config_store();
-init_providers();
 import * as readline5 from "node:readline/promises";
 import { stdin as input4, stdout as output4 } from "node:process";
+init_providers();
 
 // cli/lib/provider-connect.ts
-init_config_store();
-init_workspace_mutation();
 import * as readline4 from "node:readline/promises";
 import { stdin as input3, stdout as output3 } from "node:process";
+init_workspace_mutation();
 import { spawn as spawn5 } from "node:child_process";
 async function handleProviderConnect(providerId, { rl: existingRl, root = process.cwd() } = {}) {
   if (!providerId) {
@@ -37706,10 +37869,9 @@ async function resolveExecutableCodelet2(root, codeletOrId) {
 
 // cli/lib/install.ts
 init_fs_utils();
-init_config_store();
-init_workspace_mutation();
 import path47 from "node:path";
 import { cp, readFile as readFile19, writeFile as writeFile14 } from "node:fs/promises";
+init_workspace_mutation();
 async function installAgents({ toolkitRoot: toolkitRoot3, projectRoot = process.cwd() }) {
   return withWorkspaceMutation(projectRoot, "install agents", async () => {
     const results = [];
@@ -37830,11 +37992,6 @@ init_operator_brain();
 init_sync();
 import path48 from "node:path";
 import fs3 from "node:fs/promises";
-
-// core/services/local-fs-adapter.ts
-init_filesystem();
-
-// core/services/programming-dogfood-harness.ts
 async function runProgrammingDogfoodHarness(options = {}) {
   const repoRoot = options.root;
   const targetRoot = options.target ?? path48.resolve(repoRoot, "dogfood-projects", "space-invaders-emoji-3d");
@@ -38303,7 +38460,34 @@ async function handleExtract(rest) {
     if (!ticketId) {
       printAndExit("Usage: ai-workflow extract ticket <id> [options]", 1);
     }
-    return ServiceHub.execute("extract-ticket", { ticketId, ...parseArgs(args.slice(1)) });
+    const parsedArgs = parseArgs(args.slice(1));
+    const result = await ServiceHub.execute("extract-ticket", { ticketId, ...parsedArgs });
+    if (parsedArgs.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+      return 0;
+    }
+    const lines = [
+      `${result.ticket.id} ${result.ticket.title}`,
+      `Lane: ${result.entity?.lane ?? result.ticket.section ?? "unknown"}`,
+      `Source: ${result.sourcePath}`
+    ];
+    if (result.ticket.body) {
+      lines.push("");
+      lines.push(result.ticket.body);
+    }
+    if (result.workingSet.files?.length) {
+      lines.push("");
+      lines.push("Files:");
+      lines.push(...result.workingSet.files.map((file) => `- ${file}`));
+    }
+    if (result.workingSet.symbols?.length) {
+      lines.push("");
+      lines.push("Symbols:");
+      lines.push(...result.workingSet.symbols.map((symbol) => `- ${symbol}`));
+    }
+    process.stdout.write(`${lines.join("\n")}
+`);
+    return 0;
   }
   if (kind === "guidelines") {
     const parsedArgs = parseArgs(args);
@@ -38370,11 +38554,11 @@ async function handleProject(rest) {
     return 0;
   }
   if (subcommand === "map-dependencies") {
-    const script = path49.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "map-dependencies.ts");
+    const script = path49.resolve(toolkitRoot2, "scripts", "ai-workflow", "map-dependencies.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "locate-trapped-logic") {
-    const script = path49.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "locate-trapped-logic.ts");
+    const script = path49.resolve(toolkitRoot2, "scripts", "ai-workflow", "locate-trapped-logic.ts");
     return runNodeScript(script, args._);
   }
   if (subcommand === "summary") {
@@ -39256,8 +39440,8 @@ async function handleToolBenchmark(rest) {
 `);
       }
     } else if (Array.isArray(result.runs)) {
-      for (const run13 of result.runs) {
-        process.stdout.write(`- Tier: ${run13.tier} | Model: ${run13.model} | Latency: ${run13.latency}ms | Code: ${run13.hasCode ? "YES" : "NO"}
+      for (const run15 of result.runs) {
+        process.stdout.write(`- Tier: ${run15.tier} | Model: ${run15.model} | Latency: ${run15.latency}ms | Code: ${run15.hasCode ? "YES" : "NO"}
 `);
       }
     }
@@ -39302,7 +39486,7 @@ async function handleWeb(rest) {
   const [action, ...extras] = rest;
   if (action === "tutorial") {
     return runNodeScriptLive(
-      path49.resolve(toolkitRoot2, "runtime", "scripts", "ai-workflow", "tutorial-web.ts"),
+      path49.resolve(toolkitRoot2, "scripts", "ai-workflow", "tutorial-web.ts"),
       extras
     );
   }

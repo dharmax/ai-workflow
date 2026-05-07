@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { runCodeletScript } from "./_run-codelet.ts";
 
-const child = spawn("tsx", ["/home/dharmax/work/ai-workflow/runtime/scripts/ai-workflow/dogfood.ts", ...process.argv.slice(2)], {
-  cwd: process.cwd(),
-  env: process.env,
-  stdio: "inherit"
-});
-
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 0);
-});
+await runCodeletScript({ codeletId: "dogfood" });

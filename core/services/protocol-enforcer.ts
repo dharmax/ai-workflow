@@ -6,7 +6,8 @@
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { getChanges } from "../lib/git-utils.ts";
-import { ExecutionContext } from "./execution-context.ts";
+import { DEFAULT_DOGFOOD_REPORT_PATH } from "../lib/dogfood-utils.ts";
+import type { ExecutionContext } from "./execution-context.ts";
 
 export interface ProtocolStatus {
   ok: boolean;
@@ -26,7 +27,7 @@ export class ProtocolEnforcer {
 
     if (operatorChanges.length > 0) {
       // 2. Check dogfood report freshness
-      const dogfoodPath = join(root, ".ai-workflow", "generated", "dogfood", "report.json");
+      const dogfoodPath = join(root, DEFAULT_DOGFOOD_REPORT_PATH);
       const dogfoodOk = await this.isReportFresh(dogfoodPath, operatorChanges);
       if (!dogfoodOk) {
         violations.push("Operator-surface changes detected but dogfood report is missing or stale.");
@@ -47,11 +48,24 @@ export class ProtocolEnforcer {
   private async isReportFresh(reportPath: string, changes: any[]): Promise<boolean> {
     try {
       const reportStat = await stat(reportPath);
-      const latestChangeMs = Math.max(...changes.map(c => 0)); // Placeholder: need real mtime of staged files
-      // Since staged files are in index, we compare against worktree mtime as a heuristic
-      return true; // Simplified for now
+      const latestChangeMs = await this.getLatestChangeMs(changes);
+      return reportStat.mtimeMs >= latestChangeMs;
     } catch {
       return false;
     }
+  }
+
+  private async getLatestChangeMs(changes: any[]): Promise<number> {
+    const mtimes = await Promise.all(
+      changes.map(async (change) => {
+        try {
+          const fileStat = await stat(join(this.context.projectRoot, String(change.path)));
+          return fileStat.mtimeMs;
+        } catch {
+          return 0;
+        }
+      })
+    );
+    return Math.max(0, ...mtimes);
   }
 }

@@ -7,7 +7,6 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { executeOperatorRequest } from "./operator-brain.ts";
 import { syncProject } from "./sync.ts";
-import { buildLocalFilesystemAdapter } from "./local-fs-adapter.ts";
 
 export interface DogfoodMetrics {
   totalTokens: number;

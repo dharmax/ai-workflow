@@ -1,0 +1,14 @@
+{
+  "name": "@dharmax/ai-workflow-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Core workflow services and codelets for ai-workflow packaging splits.",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@dharmax/ai-workflow-common": "0.1.0"
+  }
+}

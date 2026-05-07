@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "description": "Autonomous Engineering OS and ai-workflow CLI for token-efficient JS/TS repository work.",
   "bin": {
     "ai-workflow": "./cli/ai-workflow.mjs"

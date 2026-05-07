@@ -57,7 +57,10 @@ export class ShellPresenter {
     if (id === "sync") return this.formatSyncResult(result);
     if (id === "project-summary" || id === "summary") return this.formatProjectSummary(result);
     if (id === "execute-ticket") return this.formatExecuteTicketResult(result);
+    if (id === "extract-ticket" || id === "ticket") return this.formatExtractTicketResult(result);
     if (id === "extract-guidelines") return this.formatGuidanceResult(result);
+    if (id === "audit") return this.formatAuditResult(result);
+    if (id === "dogfood") return this.formatDogfoodResult(result);
     
     if (result && typeof result === "object") {
        return JSON.stringify(result, null, 2) + "\n";
@@ -102,6 +105,58 @@ export class ShellPresenter {
     for (const [section, items] of Object.entries(result.guidance)) {
       lines.push(`\n[${section.toUpperCase()}]`);
       (items as any[]).forEach(item => lines.push(`- ${item}`));
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  static formatExtractTicketResult(result: any): string {
+    const lines = [
+      `Ticket: ${result.ticket?.id ?? result.ticketId}`,
+      `Title: ${result.ticket?.title ?? "unknown"}`,
+      `Source: ${result.sourcePath ?? "unknown"}`
+    ];
+    if (result.entity?.lane) {
+      lines.push(`Lane: ${result.entity.lane}`);
+    }
+    if (result.ticket?.body) {
+      lines.push("");
+      lines.push(result.ticket.body);
+    }
+    if (Array.isArray(result.workingSet?.files) && result.workingSet.files.length) {
+      lines.push("");
+      lines.push("Working set files:");
+      for (const file of result.workingSet.files) {
+        lines.push(`- ${file}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  static formatAuditResult(result: any): string {
+    const lines = [
+      `Status: ${result.status ?? "unknown"}`
+    ];
+    const failures = Array.isArray(result.failures) ? result.failures : [];
+    if (failures.length) {
+      lines.push("Failures:");
+      for (const failure of failures) {
+        lines.push(`- ${failure}`);
+      }
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  static formatDogfoodResult(result: any): string {
+    const lines = [
+      `Status: ${result.status ?? "unknown"}`,
+      `Profile: ${result.profile ?? "unknown"}`
+    ];
+    const surfaces = Object.entries(result.surfaces ?? {});
+    if (surfaces.length) {
+      lines.push("Surfaces:");
+      for (const [surfaceId, surface] of surfaces) {
+        lines.push(`- ${surfaceId}: ${surface.status ?? "unknown"} (${surface.scenarioCount ?? 0} scenarios)`);
+      }
     }
     return lines.join("\n") + "\n";
   }

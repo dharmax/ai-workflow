@@ -6,7 +6,7 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.ts";
+import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "./config-store.ts";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 

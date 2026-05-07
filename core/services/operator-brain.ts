@@ -19,7 +19,7 @@ import { stableId } from "../lib/hash.ts";
 import { runHooks } from "./hooks.ts";
 import { buildTicketEntity } from "./projections.ts";
 import { LeanContextCompressor } from "@dharmax/context-manager";
-import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.ts";
+import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../lib/config-store.ts";
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.ts";
 import * as fs from "node:fs/promises";
 import * as pathMod from "node:path";

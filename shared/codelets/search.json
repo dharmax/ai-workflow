@@ -1,0 +1,8 @@
+{
+  "id": "search",
+  "stability": "stable",
+  "category": "retrieval",
+  "summary": "Search indexed workflow entities and project evidence by free-text query.",
+  "runner": "node-script",
+  "entry": "scripts/ai-workflow/search.ts"
+}

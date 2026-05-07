@@ -125,8 +125,6 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       symbolCount += parsed.symbols.length;
       claimCount += parsed.facts.length;
       noteCount += parsed.notes.length;
-      claimCount += parsed.facts.length;
-      noteCount += parsed.notes.length;
     }
 
     const importSummary = await importLegacyProjections(store, { projectRoot });

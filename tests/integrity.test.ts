@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import path from "node:path";
-import { buildWorkflowAuditSummary } from "../runtime/scripts/ai-workflow/lib/workflow-audit-report.ts";
+import { buildWorkflowAuditSummary } from "../core/lib/workflow-audit-report.ts";
 
 test("Workflow Integrity: No Zombie Work", async () => {
   const root = process.cwd();

@@ -8,9 +8,9 @@ import { stdin as input, stdout as output } from "node:process";
 import { syncProject } from "../core/services/sync.ts";
 import { onboardProjectBrief } from "../core/services/orchestrator.ts";
 import { assertDirectCommandChannel } from "../core/lib/command-channel.ts";
+import { parseArgs, printAndExit, type ParsedArgs } from "../core/lib/cli.ts";
+import { runDogfood } from "../core/lib/dogfood-utils.ts";
 import { withWorkspaceMutation } from "../core/lib/workspace-mutation.ts";
-import { runDogfood } from "../runtime/scripts/ai-workflow/lib/dogfood-utils.ts";
-import { parseArgs, printAndExit, type ParsedArgs } from "../runtime/scripts/ai-workflow/lib/cli.ts";
 
 const HELP = `Usage:
   tsx scripts/init-project.ts --target /path/to/project [options]
@@ -27,7 +27,7 @@ Options:
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const templatesRoot = path.resolve(repoRoot, "templates");
-const runtimeRoot = path.resolve(repoRoot, "runtime", "scripts", "ai-workflow");
+const runtimeRoot = path.resolve(repoRoot, "scripts", "ai-workflow");
 
 const WORKFLOW_PACKAGE_SCRIPTS = {
   "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
@@ -519,6 +519,6 @@ async function reconcilePackageScripts(targetRootPath: string, packageSummary: S
 
 function sortObjectKeys(value: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
-    Object.entries(value).sort(([left], [right]) => left.compare(right))
+    Object.entries(value).sort(([left], [right]) => String(left).localeCompare(String(right)))
   );
 }

@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { withWorkflowStore } from "../core/services/sync.ts";
 import { registerProvider } from "../core/services/providers.ts";
 import { runSmartCodelet } from "../runtime/scripts/ai-workflow/smart-codelet-runner.ts";
-import { buildWorkflowAuditSummary } from "../runtime/scripts/ai-workflow/lib/workflow-audit-report.ts";
+import { buildWorkflowAuditSummary } from "../core/lib/workflow-audit-report.ts";
 import { SHELL_TRUST_BENCHMARK_SUITE_ID } from "../shared/prompts/shell-trust-benchmark.ts";
 
 const execFileAsync = promisify(execFile);
@@ -84,6 +84,43 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
     assert.equal(searchResult.code, 0);
     const searchPayload = JSON.parse(searchResult.stdout);
     assert.equal(searchPayload.some((item) => item.id === "refactor-ticket"), true);
+
+    const showSearchResult = await runNode(
+      [path.join(repoRoot, "cli", "ai-workflow.ts"), "project", "codelet", "show", "search", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(showSearchResult.code, 0, showSearchResult.stderr || showSearchResult.stdout);
+    const showSearchPayload = JSON.parse(showSearchResult.stdout);
+    assert.equal(showSearchPayload.id, "search");
+    assert.equal(showSearchPayload.backing.exists, true);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ai-workflow extract ticket works through the source CLI entrypoint", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-extract-ticket-"));
+
+  try {
+    await runNode([path.join(repoRoot, "scripts", "init-project.ts"), "--target", targetRoot]);
+
+    const summaryResult = await runNode(
+      [path.join(repoRoot, "cli", "ai-workflow.ts"), "project", "summary", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(summaryResult.code, 0, summaryResult.stderr || summaryResult.stdout);
+    const summary = JSON.parse(summaryResult.stdout);
+    const ticketId = summary.activeTickets?.[0]?.id;
+    assert.equal(typeof ticketId, "string");
+
+    const extractResult = await runNode(
+      [path.join(repoRoot, "cli", "ai-workflow.ts"), "extract", "ticket", ticketId, "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(extractResult.code, 0, extractResult.stderr || extractResult.stdout);
+    const payload = JSON.parse(extractResult.stdout);
+    assert.equal(payload.ticketId, ticketId);
+    assert.equal(Array.isArray(payload.workingSet?.files), true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

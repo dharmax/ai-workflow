@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { CompletionEngine, GoogleAdapter, OpenAIAdapter, AnthropicAdapter, OllamaProvider, RouterHeuristics } from "@dharmax/llm-utils";
 import { openWorkflowStore } from "../db/sqlite-store.ts";
 import { sha1 } from "../lib/hash.ts";
-import { getGlobalConfigPath, getProjectConfigPath, isConfigWriteAccessError, readConfig, readConfigSafe, writeConfigValue } from "../../cli/lib/config-store.ts";
+import { getGlobalConfigPath, getProjectConfigPath, isConfigWriteAccessError, readConfig, readConfigSafe, writeConfigValue } from "../lib/config-store.ts";
 import { loadKnowledge } from "./knowledge.ts";
 import { leanCtxInstallHint, probeLeanCtx } from "./lean-ctx.ts";
 
@@ -190,6 +190,30 @@ export async function generateCompletion(options: any = {}) {
   const modelId = String(options.modelId ?? options.model ?? "").trim();
   if (!providerId || !modelId) {
     throw new Error("providerId and modelId are required");
+  }
+
+  const adapter = registeredAdapters.get(providerId);
+  if (adapter && typeof adapter.generate === "function") {
+    const direct = await adapter.generate({
+      providerId,
+      modelId,
+      prompt: options.prompt,
+      system: options.system,
+      config: {
+        ...(options.config ?? {}),
+        apiKey: options.config?.apiKey ?? options.apiKey,
+        baseUrl: options.config?.baseUrl ?? options.baseUrl,
+        host: options.config?.host ?? options.host
+      },
+      apiKey: options.config?.apiKey ?? options.apiKey,
+      baseUrl: options.config?.baseUrl ?? options.baseUrl,
+      host: options.config?.host ?? options.host,
+      signal: options.signal,
+      contentParts: options.contentParts,
+      generationOptions: options.generationOptions,
+      format: options.format ?? options.config?.format
+    });
+    return normalizeCompletionResult(direct, { providerId, modelId });
   }
 
   const result = await CompletionEngine.generate(

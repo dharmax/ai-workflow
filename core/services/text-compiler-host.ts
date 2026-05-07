@@ -16,7 +16,7 @@ import { stableId } from "../lib/hash.ts";
 import { generateCompletion } from "./providers.ts";
 import { routeTask } from "./router.ts";
 import { runHooks } from "./hooks.ts";
-import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../../cli/lib/config-store.ts";
+import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../lib/config-store.ts";
 
 type OperatorServices = Record<string, any>;
 
