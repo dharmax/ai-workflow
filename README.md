@@ -18,6 +18,11 @@ You do not need to install everything.
 
 The packages can live together, but they are intentionally separate installs.
 
+Best distribution channel:
+
+- npmjs for installing `aiwf-shell` or `aiwf-skill`
+- GitHub for source checkout and development
+
 Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 
 Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
@@ -78,3 +83,11 @@ npm run install:gemini-skill
 ```
 
 This keeps the Gemini-facing skill under `.gemini/skills/ai-workflow` instead of relying on accidental global state.
+
+## Release Check
+
+Before publishing packages, run:
+
+```bash
+npm run release:check
+```
