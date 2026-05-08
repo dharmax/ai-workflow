@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="b16ac40dd795ae69583bb6c3659d332e85af6bef">
+  <meta name="manual-source-sha1" content="8d7fd73bca051cb71ab83b603476aeffa07cf979">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:b16ac40dd795ae69583bb6c3659d332e85af6bef -->
+  <!-- generated from docs/MANUAL.md sha1:8d7fd73bca051cb71ab83b603476aeffa07cf979 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -59,6 +59,10 @@
         <li><a href="#refresh-provider-discovery">Refresh Provider Discovery</a></li>
         <li><a href="#configure-ollama-hardware">Configure Ollama Hardware</a></li>
         <li><a href="#run-verification">Run Verification</a></li>
+        <li><a href="#install-surfaces">Install Surfaces</a></li>
+        <li><a href="#shell-only">Shell Only</a></li>
+        <li><a href="#skill-only">Skill Only</a></li>
+        <li><a href="#both-together">Both Together</a></li>
         <li><a href="#troubleshooting-and-failure-modes">Troubleshooting And Failure Modes</a></li>
         <li><a href="#ai-workflow-sync-reports-zero-indexed-files">`ai-workflow sync` Reports Zero Indexed Files</a></li>
         <li><a href="#shell-answers-feel-weak">Shell Answers Feel Weak</a></li>
@@ -111,7 +115,7 @@ npm install -g @dharmax/ai-workflow</code></pre>
       <ul data-list-kind="unordered">
       <li>Refresh the repo-local Gemini skill bridge:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">node scripts/install-ai-workflow-skill.mjs --project . --force</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">npm run install:gemini-skill</code></pre>
       <ul data-list-kind="unordered">
       <li>Initialize from a brief:</li>
       </ul>
@@ -179,8 +183,8 @@ ai-workflow shell &quot;extract ticket TKT-001&quot;</code></pre>
       <ul data-list-kind="unordered">
       <li>Verify operator surfaces:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">ai-workflow dogfood --profile full --json
-node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">npm run workflow:dogfood -- --profile full --json
+npm run workflow:audit -- --json</code></pre>
       </section>
       </section>
       <section aria-labelledby="shell-mode" data-heading-level="2">
@@ -601,8 +605,33 @@ ai-workflow provider refresh models --json</code></pre>
       <section aria-labelledby="run-verification" data-heading-level="3">
       <h3 id="run-verification">Run Verification</h3>
       <pre data-block-kind="code"><code class="language-bash">node --test tests/*.test.mjs
-ai-workflow dogfood --profile full --json
-node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
+npm run workflow:dogfood -- --profile full --json
+npm run workflow:audit -- --json</code></pre>
+      </section>
+      </section>
+      <section aria-labelledby="install-surfaces" data-heading-level="2">
+      <h2 id="install-surfaces">Install Surfaces</h2>
+      <p>Choose one explicitly:</p>
+      <ul data-list-kind="unordered">
+      <li><code>aiwf-shell</code> for the CLI/operator surface</li>
+      <li><code>aiwf-skill</code> for the skill installer/asset surface</li>
+      <li>both only if you want both surfaces available together</li>
+      </ul>
+      <section aria-labelledby="shell-only" data-heading-level="3">
+      <h3 id="shell-only">Shell Only</h3>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell
+ai-workflow --help</code></pre>
+      </section>
+      <section aria-labelledby="skill-only" data-heading-level="3">
+      <h3 id="skill-only">Skill Only</h3>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-skill
+aiwf-skill --project /abs/path/to/project --force</code></pre>
+      </section>
+      <section aria-labelledby="both-together" data-heading-level="3">
+      <h3 id="both-together">Both Together</h3>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell aiwf-skill
+ai-workflow --help
+aiwf-skill --project /abs/path/to/project --force</code></pre>
       </section>
       </section>
       <section aria-labelledby="troubleshooting-and-failure-modes" data-heading-level="2">
@@ -637,8 +666,8 @@ node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
       <section aria-labelledby="dogfood-or-audit-fails" data-heading-level="3">
       <h3 id="dogfood-or-audit-fails">Dogfood Or Audit Fails</h3>
       <ul data-list-kind="unordered">
-      <li>Re-run <code>ai-workflow dogfood --profile full --json</code></li>
-      <li>Re-run <code>node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></li>
+      <li>Re-run <code>npm run workflow:dogfood -- --profile full --json</code></li>
+      <li>Re-run <code>npm run workflow:audit -- --json</code></li>
       <li>If dogfood is stale, regenerate it instead of editing the report manually</li>
       <li>If the manual HTML is stale, run the manual generator instead of editing HTML manually</li>
       </ul>
@@ -649,7 +678,7 @@ node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
       <ul data-list-kind="unordered">
       <li>Canonical source: <code>docs/MANUAL.md</code></li>
       <li>Generated output: <code>docs/manual.html</code></li>
-      <li>Generator script: <code>pnpm docs:manual</code> or <code>npm run docs:manual</code></li>
+      <li>Generator script: <code>npm run generate-docs</code></li>
       <li>Do not hand-edit <code>docs/manual.html</code></li>
       </ul>
       </section>

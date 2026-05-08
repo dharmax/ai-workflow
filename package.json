@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run build --workspace aiwf-common-core && npm run build --workspace aiwf-shell && npm run build --workspace aiwf-skill",
     "generate-docs": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/generate-manual-html-cli.ts",
-    "install:gemini-skill": "node ./node_modules/tsx/dist/cli.mjs aiwf-skill/install-ai-workflow-skill.ts --project . --force",
+    "install:gemini-skill": "node aiwf-skill/install-ai-workflow-skill.mjs --project . --force",
     "install:tools": "npm install -w aiwf-common-core -w aiwf-shell -w aiwf-skill",
     "lint": "eslint .",
     "postinstall": "node scripts/build-github-deps.mjs",

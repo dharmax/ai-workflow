@@ -10,7 +10,7 @@ Use `ai-workflow` first for project status, ticket lookup, projections, and guid
 - Refresh the local skill copy:
 
 ```bash
-node scripts/install-ai-workflow-skill.mjs --project . --force
+npm run install:gemini-skill
 ```
 
 ## Working Rules
@@ -18,7 +18,7 @@ node scripts/install-ai-workflow-skill.mjs --project . --force
 - Canonical workflow state lives in `.ai-workflow/state/workflow.db`.
 - `kanban.md` and `epics.md` are controlled projections; use workflow commands instead of inventing parallel status files.
 - Prefer `ai-workflow sync` before broad context extraction.
-- For operator-surface changes, run `ai-workflow dogfood --surface workflow,shell,provider,init --json` and `ai-workflow audit workflow --json` before closure.
+- For operator-surface changes, run `npm run workflow:dogfood -- --surface workflow,shell,provider,init --json` and `npm run workflow:audit -- --json` before closure.
 
 ## Useful Commands
 

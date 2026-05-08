@@ -41,7 +41,7 @@ Scope: Ticket-local implementation detail and project-specific technical constra
 
 ## Validation By Risk
 
-- Workflow or guidance changes: run `node aiwf-shell/scripts/ai-workflow/workflow-audit.mjs`.
+- Workflow or guidance changes: run `npm run workflow:audit`.
 - Docs-only: run the lightest workflow/doc checks that prove the change.
 - Small ticket: quick but meaningful unit or module tests.
 - Related batch or larger ticket: E2E, including visual checks when UI is involved.
@@ -55,7 +55,7 @@ Scope: Ticket-local implementation detail and project-specific technical constra
 ## Audit Extensions
 
 Add machine-readable project rules in fenced `ai-workflow-audit` JSON blocks inside markdown guidance docs.
-`workflow-audit.mjs` merges those blocks automatically, so durable project rules can become executable instead of remaining advisory text.
+The workflow audit command merges those blocks automatically, so durable project rules can become executable instead of remaining advisory text.
 
 ## Truthfulness Rules
 

@@ -298,8 +298,8 @@ This is the core promise of the feature and must be proved explicitly.
 
 Before declaring implementation complete, run:
 
-- `node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs`
-- `node cli/ai-workflow.mjs dogfood --surface shell,provider,workflow,init --profile bootstrap --json`
+- `npm run workflow:audit -- --json`
+- `npm run workflow:dogfood -- --surface shell,provider,workflow,init --profile bootstrap --json`
 
 If implementation changes shell or host structured output materially, add or extend dogfood scenarios for:
 

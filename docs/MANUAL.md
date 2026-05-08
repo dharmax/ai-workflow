@@ -49,7 +49,7 @@ ai-workflow install --project .
 - Refresh the repo-local Gemini skill bridge:
 
 ```bash
-node scripts/install-ai-workflow-skill.mjs --project . --force
+npm run install:gemini-skill
 ```
 
 - Initialize from a brief:
@@ -134,8 +134,8 @@ ai-workflow shell "extract ticket TKT-001"
 - Verify operator surfaces:
 
 ```bash
-ai-workflow dogfood --profile full --json
-node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
+npm run workflow:dogfood -- --profile full --json
+npm run workflow:audit -- --json
 ```
 
 ## Shell Mode
@@ -515,8 +515,38 @@ ai-workflow set-ollama-hw --hardware-class medium --max-model-size-b 14
 
 ```bash
 node --test tests/*.test.mjs
-ai-workflow dogfood --profile full --json
-node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
+npm run workflow:dogfood -- --profile full --json
+npm run workflow:audit -- --json
+```
+
+## Install Surfaces
+
+Choose one explicitly:
+
+- `aiwf-shell` for the CLI/operator surface
+- `aiwf-skill` for the skill installer/asset surface
+- both only if you want both surfaces available together
+
+### Shell Only
+
+```bash
+npm install -g aiwf-shell
+ai-workflow --help
+```
+
+### Skill Only
+
+```bash
+npm install -g aiwf-skill
+aiwf-skill --project /abs/path/to/project --force
+```
+
+### Both Together
+
+```bash
+npm install -g aiwf-shell aiwf-skill
+ai-workflow --help
+aiwf-skill --project /abs/path/to/project --force
 ```
 
 ## Troubleshooting And Failure Modes
@@ -544,8 +574,8 @@ node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
 
 ### Dogfood Or Audit Fails
 
-- Re-run `ai-workflow dogfood --profile full --json`
-- Re-run `node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs`
+- Re-run `npm run workflow:dogfood -- --profile full --json`
+- Re-run `npm run workflow:audit -- --json`
 - If dogfood is stale, regenerate it instead of editing the report manually
 - If the manual HTML is stale, run the manual generator instead of editing HTML manually
 
@@ -553,5 +583,5 @@ node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
 
 - Canonical source: `docs/MANUAL.md`
 - Generated output: `docs/manual.html`
-- Generator script: `pnpm docs:manual` or `npm run docs:manual`
+- Generator script: `npm run generate-docs`
 - Do not hand-edit `docs/manual.html`

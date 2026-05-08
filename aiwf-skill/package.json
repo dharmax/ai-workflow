@@ -4,14 +4,17 @@
   "private": false,
   "type": "module",
   "description": "Skill packaging, installation, and agent-facing assets for ai-workflow.",
-  "main": "./install-ai-workflow-skill.ts",
+  "main": "./install-ai-workflow-skill.mjs",
+  "bin": {
+    "aiwf-skill": "./install-ai-workflow-skill.mjs"
+  },
   "exports": {
-    ".": "./install-ai-workflow-skill.ts",
-    "./install": "./install-ai-workflow-skill.ts",
+    ".": "./install-ai-workflow-skill.mjs",
+    "./install": "./install-ai-workflow-skill.mjs",
     "./skills/*": "./skills/*"
   },
   "files": [
-    "install-ai-workflow-skill.ts",
+    "install-ai-workflow-skill.mjs",
     "skills",
     "README.md"
   ],
