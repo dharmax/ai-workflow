@@ -4,9 +4,9 @@ import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { syncProject, createTicket } from "../core/services/sync.ts";
-import { deriveTicketExecutionProfile, sweepBugs } from "../core/services/orchestrator.ts";
-import { withWorkflowStore } from "../core/services/sync.ts";
+import { syncProject, createTicket } from "aiwf-common-core/services/sync";
+import { deriveTicketExecutionProfile, sweepBugs } from "aiwf-common-core/services/orchestrator";
+import { withWorkflowStore } from "aiwf-common-core/services/sync";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");

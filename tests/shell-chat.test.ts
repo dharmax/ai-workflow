@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planShellRequestWithAgent } from "../cli/lib/shell.ts";
+import { planShellRequestWithAgent } from "aiwf-shell/cli/lib/shell";
 
 test("Agentic planner correctly uses DB definitions, active tickets, and history", async () => {
   let lastPrompt = "";

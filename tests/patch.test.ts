@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { parsePatch, applyPatch } from "../core/lib/patch.ts";
+import { parsePatch, applyPatch } from "@dharmax/block-patcher";
 
 test("parsePatch extracts blocks correctly with and without files", () => {
   const text = `
@@ -20,7 +20,7 @@ better stuff
 `;
   const blocks = parsePatch(text);
   assert.strictEqual(blocks.length, 2);
-  assert.strictEqual(blocks[0].file, "src/logic.ts");
+  assert.strictEqual(blocks[0].file, "src/logic.js");
   assert.strictEqual(blocks[0].search, "old logic");
   assert.strictEqual(blocks[0].replace, "new logic");
   

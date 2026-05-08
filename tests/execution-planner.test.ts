@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { buildTicketExecutionPlan } from "../core/services/execution-planner.ts";
+import { buildTicketExecutionPlan } from "aiwf-common-core/services/execution-planner";
 
 test("execution planner prefers targeted playwright commands when exact test files are known", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "execution-plan-"));

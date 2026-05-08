@@ -1,0 +1,25 @@
+{
+  "name": "aiwf-skill",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Skill packaging, installation, and agent-facing assets for ai-workflow.",
+  "main": "./install-ai-workflow-skill.ts",
+  "exports": {
+    ".": "./install-ai-workflow-skill.ts",
+    "./install": "./install-ai-workflow-skill.ts",
+    "./skills/*": "./skills/*"
+  },
+  "files": [
+    "install-ai-workflow-skill.ts",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../scripts/validate-package.mjs .",
+    "typecheck": "node ../scripts/validate-package.mjs ."
+  },
+  "dependencies": {
+    "aiwf-shell": "0.1.0"
+  }
+}

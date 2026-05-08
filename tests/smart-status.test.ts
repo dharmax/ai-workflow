@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildSmartProjectStatus } from "../core/services/projections.ts";
+import { buildSmartProjectStatus } from "aiwf-common-core/services/projections";
 
 test("buildSmartProjectStatus generates a dense, high-signal report", () => {
   const mockStore = {

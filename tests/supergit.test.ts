@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { withSupergitTransaction } from "../core/services/supergit.ts";
+import { withSupergitTransaction } from "aiwf-common-core/services/supergit";
 
 const execFileAsync = promisify(execFile);
 

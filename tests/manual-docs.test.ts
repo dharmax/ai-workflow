@@ -6,15 +6,18 @@ import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildShellContext, buildShellPlannerPrompt } from "../cli/lib/shell.ts";
-import { renderManualHtml } from "../scripts/generate-manual-html.ts";
+import { buildShellContext, buildShellPlannerPrompt } from "aiwf-shell/cli/lib/shell";
+import { renderManualHtml } from "../aiwf-common-core/core/lib/manual-html.ts";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function runNode(args, options = {}) {
   try {
-    const { stdout, stderr } = await execFileAsync( "npx", "tsx", args, {
+    const { stdout, stderr } = await execFileAsync(process.execPath, [
+      path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+      ...args
+    ], {
       ...options,
       maxBuffer: 8 * 1024 * 1024
     });
@@ -103,15 +106,15 @@ test("guidance-summary includes manual guidance from the toolkit fallback", asyn
 
   try {
     const result = await runNode([
-      path.join(repoRoot, "runtime", "scripts", "ai-workflow", "guidance-summary.ts"),
+      path.join(repoRoot, "aiwf-shell", "scripts", "ai-workflow", "guidance-summary.ts"),
       "--files",
-      "cli/lib/shell.ts",
+      "aiwf-shell/cli/lib/shell.ts",
       "--json"
     ], { cwd: targetRoot });
     assert.equal(result.code, 0, result.stderr || result.stdout);
     const payload = JSON.parse(result.stdout);
-    assert.equal(Array.isArray(payload.sections.manual), true);
-    assert.equal(payload.sections.manual.length > 0, true);
+    assert.equal(Array.isArray(payload.guidance?.manual), true);
+    assert.equal(payload.guidance.manual.length > 0, true);
     assert.equal(Array.isArray(payload.activeGuardrails), true);
     assert.equal(payload.activeGuardrails.length > 0, true);
   } finally {
@@ -124,7 +127,7 @@ test("workflow-audit fails when docs/manual.html is stale for an existing manual
 
   try {
     const initResult = await runNode([
-      path.join(repoRoot, "scripts", "init-project.ts"),
+      path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"),
       "--target",
       targetRoot
     ], { cwd: repoRoot });
@@ -135,7 +138,7 @@ test("workflow-audit fails when docs/manual.html is stale for an existing manual
     await writeFile(path.join(targetRoot, "docs", "manual.html"), "<!doctype html><html><body>stale</body></html>\n", "utf8");
 
     const auditResult = await runNode([
-      path.join(repoRoot, "runtime", "scripts", "ai-workflow", "workflow-audit.ts"),
+      path.join(repoRoot, "aiwf-shell", "scripts", "ai-workflow", "workflow-audit.ts"),
       "--json"
     ], { cwd: targetRoot });
     assert.equal(auditResult.code, 1);

@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { syncProject, withWorkflowStore } from "../core/services/sync.ts";
-import { buildTicketEntity } from "../core/services/projections.ts";
-import { inferTicketRetrievalContextFromStore } from "../core/services/shell-retrieval.ts";
-import { buildSurgicalContext, formatContextForPrompt } from "../core/services/context-packer.ts";
-import { inferTicketWorkingSet } from "../runtime/scripts/ai-workflow/lib/workflow-store-utils.ts";
+import { syncProject, withWorkflowStore } from "aiwf-common-core/services/sync";
+import { buildTicketEntity } from "aiwf-common-core/services/projections";
+import { inferTicketRetrievalContextFromStore } from "aiwf-common-core/services/shell-retrieval";
+import { buildSurgicalContext, formatContextForPrompt } from "aiwf-common-core/services/context-packer";
+import { inferTicketWorkingSet } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/workflow-store-utils.ts";
 
 test("retrieval prefers implementation files and caps tests for implementation-first profiles", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "shell-retrieval-impl-"));

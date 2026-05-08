@@ -1,0 +1,11 @@
+{
+  "id": "import-cleanup",
+  "stability": "stable",
+  "category": "refactoring",
+  "summary": "Remove unused, duplicated, or overly broad imports.",
+  "runner": "node-script",
+  "entry": "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+  "execution": "js",
+  "focus": "import-cleanup",
+  "taskClass": "refactoring"
+}

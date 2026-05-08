@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { runAssessment } from "../core/services/assessment.ts";
-import { registerProvider } from "../core/services/providers.ts";
+import { runAssessment } from "aiwf-common-core/services/assessment";
+import { registerProvider } from "aiwf-common-core/services/providers";
 
 test("runAssessment resolves with heuristic fallback when no provider candidate is available", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "assessment-no-provider-"));

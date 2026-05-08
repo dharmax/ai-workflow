@@ -1,0 +1,8 @@
+{
+  "id": "execution-dry-run",
+  "stability": "beta",
+  "category": "verification",
+  "summary": "Show the inferred execution plan and optional baseline checks for a ticket without mutating files.",
+  "runner": "node-script",
+  "entry": "aiwf-shell/scripts/ai-workflow/execution-dry-run.ts"
+}

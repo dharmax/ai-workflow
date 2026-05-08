@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { probeOllama, refreshProviderQuotaState, resolveOllamaConfig } from "../core/services/providers.ts";
-import { discoverProviderState, refreshProviderRegistry } from "../core/services/providers.ts";
-import { buildModelFitMatrix } from "../core/services/model-fit.ts";
-import { searchWebEvidence } from "../core/services/web-search.ts";
-import { runProviderSetupWizard } from "../cli/lib/provider-setup.ts";
+import { probeOllama, refreshProviderQuotaState, resolveOllamaConfig } from "aiwf-common-core/services/providers";
+import { discoverProviderState, refreshProviderRegistry } from "aiwf-common-core/services/providers";
+import { buildModelFitMatrix } from "aiwf-common-core/services/model-fit";
+import { searchWebEvidence } from "aiwf-common-core/services/web-search";
+import { runProviderSetupWizard } from "aiwf-shell/cli/lib/provider-setup";
 
 test("probeOllama reads models from a configured HTTP host", async () => {
   const originalFetch = globalThis.fetch;

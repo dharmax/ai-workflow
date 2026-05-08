@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { judgeArtifacts } from "../core/services/artifact-verification.ts";
-import { judgeShellTranscripts } from "../core/services/shell-transcript-verification.ts";
-import { runVerificationSummary } from "../runtime/scripts/ai-workflow/verification-summary.ts";
-import { registerProvider } from "../core/services/providers.ts";
+import { judgeArtifacts } from "aiwf-common-core/services/artifact-verification";
+import { judgeShellTranscripts } from "aiwf-common-core/services/shell-transcript-verification";
+import { runVerificationSummary } from "../aiwf-shell/runtime/scripts/ai-workflow/verification-summary.ts";
+import { registerProvider } from "aiwf-common-core/services/providers";
 
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP+9X6pNwAAAABJRU5ErkJggg==";
 

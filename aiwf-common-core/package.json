@@ -1,0 +1,35 @@
+{
+  "name": "aiwf-common-core",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Shared workflow core services, persistence, codelets, and utilities for ai-workflow.",
+  "main": "./core/index.ts",
+  "exports": {
+    ".": "./core/index.ts",
+    "./codelets/*": "./core/codelets/*.ts",
+    "./contracts/*": "./core/contracts/*.ts",
+    "./db/*": "./core/db/*.ts",
+    "./lib/*": "./core/lib/*.ts",
+    "./parsers/*": "./core/parsers/*.ts",
+    "./services/*": "./core/services/*.ts",
+    "./shared/*": "./shared/*"
+  },
+  "files": [
+    "core",
+    "shared",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../scripts/validate-package.mjs .",
+    "typecheck": "node ../scripts/validate-package.mjs ."
+  },
+  "dependencies": {
+    "@dharmax/block-patcher": "git+https://github.com/dharmax/block-patcher.git",
+    "@dharmax/codebase-parser": "git+https://github.com/dharmax/codebase-parser.git",
+    "@dharmax/context-manager": "git+https://github.com/dharmax/context-manager.git",
+    "@dharmax/llm-utils": "git+https://github.com/dharmax/llm-utils.git",
+    "@dharmax/shell-proc-utils": "git+https://github.com/dharmax/shell-proc-utils.git",
+    "@dharmax/text-compiler": "git+https://github.com/dharmax/text-compiler.git"
+  }
+}

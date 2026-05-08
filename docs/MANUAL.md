@@ -135,7 +135,7 @@ ai-workflow shell "extract ticket TKT-001"
 
 ```bash
 ai-workflow dogfood --profile full --json
-node runtime/scripts/ai-workflow/workflow-audit.mjs
+node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
 ```
 
 ## Shell Mode
@@ -516,7 +516,7 @@ ai-workflow set-ollama-hw --hardware-class medium --max-model-size-b 14
 ```bash
 node --test tests/*.test.mjs
 ai-workflow dogfood --profile full --json
-node runtime/scripts/ai-workflow/workflow-audit.mjs
+node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs
 ```
 
 ## Troubleshooting And Failure Modes
@@ -545,7 +545,7 @@ node runtime/scripts/ai-workflow/workflow-audit.mjs
 ### Dogfood Or Audit Fails
 
 - Re-run `ai-workflow dogfood --profile full --json`
-- Re-run `node runtime/scripts/ai-workflow/workflow-audit.mjs`
+- Re-run `node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs`
 - If dogfood is stale, regenerate it instead of editing the report manually
 - If the manual HTML is stale, run the manual generator instead of editing HTML manually
 

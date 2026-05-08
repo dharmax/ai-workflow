@@ -1,8 +1,0 @@
-{
-  "id": "review",
-  "stability": "stable",
-  "category": "review",
-  "summary": "Summarize changed files and review hotspots locally.",
-  "runner": "node-script",
-  "entry": "scripts/ai-workflow/review-summary.ts"
-}

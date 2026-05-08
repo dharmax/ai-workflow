@@ -1,8 +1,0 @@
-{
-  "id": "guidelines",
-  "stability": "stable",
-  "category": "extraction",
-  "summary": "Extract compact task-specific guidance from the workflow docs.",
-  "runner": "node-script",
-  "entry": "scripts/ai-workflow/guidance-summary.ts"
-}

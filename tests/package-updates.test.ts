@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { buildPackageUpdateAdvisory } from "../core/services/package-updates.ts";
+import { buildPackageUpdateAdvisory } from "aiwf-common-core/services/package-updates";
 
 test("buildPackageUpdateAdvisory reports current and latest versions for ai-workflow and lean-ctx", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-package-updates-"));

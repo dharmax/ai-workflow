@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { openWorkflowStore } from "../core/db/sqlite-store.ts";
-import { executeOperatorRequest, planOperatorRequest } from "../core/services/operator-brain.ts";
+import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
+import { executeOperatorRequest, planOperatorRequest } from "aiwf-common-core/services/operator-brain";
 
 test("planOperatorRequest falls back to another candidate if the first one fails", async () => {
   const originalFetch = globalThis.fetch;
@@ -113,7 +113,7 @@ test("planOperatorRequest answers repo explainer questions without invoking the 
         summary: {
           modules: [
             {
-              name: "core/services/projections",
+              name: "aiwf-common-core/core/services/projections",
               responsibility: "Builds project summaries and kanban projections."
             }
           ]
@@ -241,7 +241,7 @@ test("executeOperatorRequest preserves successful structured JS workflow results
                   kind: "plan",
                   confidence: 0.94,
                   reason: "Return a direct JS plan.",
-                  code: `async () => ({ summary: "List of modules in the project", changedFiles: [], verification: ["cli", "core/services"] })`
+                  code: `async () => ({ summary: "List of modules in the project", changedFiles: [], verification: ["cli", "aiwf-common-core/core/services"] })`
                 })
               }
             }],
@@ -274,7 +274,7 @@ test("executeOperatorRequest preserves successful structured JS workflow results
 
     assert.equal(result.ok, true, JSON.stringify(result, null, 2));
     assert.equal(result.workflowResult?.result?.summary, "List of modules in the project");
-    assert.deepEqual(Array.from(result.workflowResult?.result?.verification ?? []), ["cli", "core/services"]);
+    assert.deepEqual(Array.from(result.workflowResult?.result?.verification ?? []), ["cli", "aiwf-common-core/core/services"]);
   } finally {
     globalThis.fetch = originalFetch;
     await rm(targetRoot, { recursive: true, force: true });

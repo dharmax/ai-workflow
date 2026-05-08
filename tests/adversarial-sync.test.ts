@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert";
 import path from "node:path";
 import { mkdir, writeFile, rm } from "node:fs/promises";
-import { openWorkflowStore } from "../core/db/sqlite-store.ts";
-import { importLegacyProjections, renderKanbanProjection } from "../core/services/projections.ts";
+import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
+import { importLegacyProjections, renderKanbanProjection } from "aiwf-common-core/services/projections";
 
 test("Adversarial Sync: Recover from malformed Kanban", async () => {
   const projectRoot = path.resolve(process.cwd(), "tests/tmp/adversarial-sync");

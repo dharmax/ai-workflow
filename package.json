@@ -1,53 +1,44 @@
 {
-  "name": "@dharmax/ai-workflow",
+  "name": "ai-workflow-workspace",
   "version": "0.1.0",
-  "private": false,
+  "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "aiwf-common-core",
+    "aiwf-shell",
+    "aiwf-skill"
   ],
-  "description": "Autonomous Engineering OS and ai-workflow CLI for token-efficient JS/TS repository work.",
-  "bin": {
-    "ai-workflow": "./cli/ai-workflow.mjs"
-  },
+  "description": "Workspace root for the ai-workflow package split.",
   "scripts": {
-    "build": "node scripts/build-cli.mjs",
-    "generate-docs": "tsx scripts/generate-manual-html-cli.ts",
-    "install:gemini-skill": "tsx scripts/install-ai-workflow-skill.ts --project . --force",
-    "install:tools": "npm install -g .",
+    "build": "npm run build --workspace aiwf-common-core && npm run build --workspace aiwf-shell && npm run build --workspace aiwf-skill",
+    "generate-docs": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/generate-manual-html-cli.ts",
+    "install:gemini-skill": "node ./node_modules/tsx/dist/cli.mjs aiwf-skill/install-ai-workflow-skill.ts --project . --force",
+    "install:tools": "npm install -w aiwf-common-core -w aiwf-shell -w aiwf-skill",
     "lint": "eslint .",
     "postinstall": "node scripts/build-github-deps.mjs",
-    "perfection-marathon": "tsx tests/perfection-marathon.ts",
-    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
-    "test:fast": "tsx --test tests/*.test.ts",
+    "perfection-marathon": "node ./node_modules/tsx/dist/cli.mjs tests/perfection-marathon.ts",
+    "test": "node ./node_modules/tsx/dist/cli.mjs --test --test-concurrency=1 tests/*.test.ts",
+    "test:fast": "node ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "workflow:audit": "ai-workflow run audit",
-    "workflow:dogfood": "ai-workflow run dogfood",
-    "workflow:guidance": "tsx scripts/ai-workflow/guidance-summary.ts",
-    "workflow:guideline-audit": "tsx scripts/ai-workflow/guideline-audit.ts",
-    "workflow:kanban": "ai-workflow run kanban-ops",
-    "workflow:review": "tsx scripts/ai-workflow/review-summary.ts",
-    "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
-    "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts",
-    "workflow:summary": "ai-workflow run summary",
-    "workflow:sync": "ai-workflow run sync",
-    "workflow:metrics": "ai-workflow run metrics"
+    "workflow:audit": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run audit",
+    "workflow:dogfood": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run dogfood",
+    "workflow:guidance": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/ai-workflow/guidance-summary.ts",
+    "workflow:guideline-audit": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/ai-workflow/guideline-audit.ts",
+    "workflow:kanban": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run kanban-ops",
+    "workflow:review": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/ai-workflow/review-summary.ts",
+    "workflow:ticket": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/ai-workflow/kanban-ticket.ts",
+    "workflow:verify": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/ai-workflow/verification-summary.ts",
+    "workflow:summary": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run summary",
+    "workflow:sync": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run sync",
+    "workflow:metrics": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/cli/ai-workflow.ts run metrics"
   },
   "engines": {
     "node": ">=22.0.0"
   },
-  "dependencies": {
-    "@dharmax/codebase-parser": "git+https://github.com/dharmax/codebase-parser.git",
-    "@dharmax/block-patcher": "git+https://github.com/dharmax/block-patcher.git",
-    "@dharmax/text-compiler": "git+https://github.com/dharmax/text-compiler.git",
-    "@dharmax/context-manager": "git+https://github.com/dharmax/context-manager.git",
-    "@dharmax/llm-utils": "git+https://github.com/dharmax/llm-utils.git",
-    "@dharmax/shell-proc-utils": "git+https://github.com/dharmax/shell-proc-utils.git"
-  },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "esbuild": "^0.28.0",
-    "typescript": "^6.0.3",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,5 +1,5 @@
-import { withWorkflowStore } from "../core/services/sync.ts";
-import { executeJsOrchestrator } from "../core/services/text-compiler-host.ts";
+import { withWorkflowStore } from "aiwf-common-core/services/sync";
+import { executeJsOrchestrator } from "aiwf-common-core/services/text-compiler-host";
 import { writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 

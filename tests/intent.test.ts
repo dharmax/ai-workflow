@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planShellRequestHeuristically } from "../cli/lib/shell.ts";
+import { planShellRequestHeuristically } from "aiwf-shell/cli/lib/shell";
 
 const plannerContext = {
   toolkitCodelets: [{ id: "review", summary: "Review changed files" }],

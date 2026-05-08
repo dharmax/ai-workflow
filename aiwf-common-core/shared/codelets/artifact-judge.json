@@ -1,0 +1,11 @@
+{
+  "id": "artifact-judge",
+  "stability": "stable",
+  "category": "verification",
+  "summary": "Judge soft artifacts against a rubric and return a pass/fail report.",
+  "runner": "node-script",
+  "entry": "aiwf-shell/scripts/ai-workflow/artifact-judge.ts",
+  "execution": "js",
+  "focus": "artifact-evaluation",
+  "taskClass": "artifact-evaluation"
+}

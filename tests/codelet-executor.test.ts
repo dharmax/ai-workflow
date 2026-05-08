@@ -11,47 +11,41 @@ const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function runNode(args, options = {}) {
-  const captureDir = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-capture-"));
-  const stdoutPath = path.join(captureDir, "stdout.log");
-  const stderrPath = path.join(captureDir, "stderr.log");
   try {
-    const shellArgs = args.map(shellQuote).join(" ");
-    await execFileAsync("/usr/bin/bash", ["-lc", `${shellQuote( "npx", "tsx")} ${shellArgs} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], options);
+    const result = await execFileAsync(
+      process.execPath,
+      [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args],
+      { ...options, maxBuffer: 8 * 1024 * 1024 }
+    );
     return {
       code: 0,
-      stdout: await readFile(stdoutPath, "utf8").catch(() => ""),
-      stderr: await readFile(stderrPath, "utf8").catch(() => "")
+      stdout: String(result.stdout ?? ""),
+      stderr: String(result.stderr ?? "")
     };
   } catch (error) {
     return {
       code: error.code ?? 1,
-      stdout: await readFile(stdoutPath, "utf8").catch(() => error.stdout ?? ""),
-      stderr: await readFile(stderrPath, "utf8").catch(() => error.stderr ?? error.message)
+      stdout: String(error.stdout ?? ""),
+      stderr: String(error.stderr ?? error.message ?? "")
     };
-  } finally {
-    await rm(captureDir, { recursive: true, force: true });
   }
 }
 
-function shellQuote(value) {
-  return JSON.stringify(String(value));
-}
 
 test("ai-workflow run uses in-process JS codelet exports when available", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-executor-"));
 
   try {
-    await runNode([path.join(repoRoot, "scripts", "init-project.ts"), "--target", targetRoot]);
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
     await mkdir(path.join(targetRoot, ".ai-workflow", "codelets"), { recursive: true });
     await mkdir(path.join(targetRoot, "src"), { recursive: true });
     await writeFile(path.join(targetRoot, "src", "echo-codelet.ts"), [
-      "export async function runSmartCodelet(argv, env) {",
-      "  process.stdout.write(JSON.stringify({",
-      "    codeletId: env.AIWF_CODELET_ID,",
+      "export async function runSmartCodelet(argv) {",
+      "  return {",
+      "    codeletId: 'echo-codelet',",
       "    argv,",
       "    mode: 'in-process'",
-      "  }, null, 2) + '\\n');",
-      "  return 0;",
+      "  };",
       "}"
     ].join("\n"), "utf8");
     await writeFile(path.join(targetRoot, ".ai-workflow", "codelets", "echo-codelet.json"), JSON.stringify({
@@ -65,11 +59,11 @@ test("ai-workflow run uses in-process JS codelet exports when available", { conc
       status: "staged"
     }, null, 2), "utf8");
 
-    const syncResult = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+    const syncResult = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
     assert.equal(syncResult.code, 0, syncResult.stderr || syncResult.stdout);
 
     const runResult = await runNode([
-      path.join(repoRoot, "cli", "ai-workflow.ts"),
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
       "run",
       "echo-codelet",
       "--json"

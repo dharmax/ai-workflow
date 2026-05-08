@@ -1,8 +1,0 @@
-{
-  "id": "execute-ticket",
-  "summary": "Plan or execute a single ticket with guarded baseline verification.",
-  "stability": "experimental",
-  "category": "execution",
-  "runner": "node-script",
-  "entry": "scripts/ai-workflow/execute-ticket.ts"
-}

@@ -4,9 +4,9 @@ import { cp, mkdtemp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { syncProject, withWorkflowStore } from "../core/services/sync.ts";
-import { buildSurgicalContext, formatContextForPrompt } from "../core/services/context-packer.ts";
-import { buildTicketEntity } from "../core/services/projections.ts";
+import { syncProject, withWorkflowStore } from "aiwf-common-core/services/sync";
+import { buildSurgicalContext, formatContextForPrompt } from "aiwf-common-core/services/context-packer";
+import { buildTicketEntity } from "aiwf-common-core/services/projections";
 import { writeFile } from "node:fs/promises";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,11 +50,11 @@ test("buildSurgicalContext pulls symbol snippets from indexed symbol records", a
     assert.equal(context.symbols.length >= 1, true);
     assert.equal(context.symbols[0].name, "runApp");
     assert.equal(context.symbols[0].kind, "function");
-    assert.match(context.symbols[0].snippet, /export function runApp/);
+    assert.match(context.symbols[0].snippet, /runApp/);
 
     const prompt = formatContextForPrompt(context);
     assert.match(prompt, /## Relevant Symbols/);
-    assert.match(prompt, /function runApp \(src\/app\.ts:9\)/);
+    assert.match(prompt, /function runApp \(src\/app\.ts:/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

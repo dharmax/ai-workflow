@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { runShellTrustBenchmark } from "../core/services/shell-benchmark.ts";
+import { runShellTrustBenchmark } from "aiwf-common-core/services/shell-benchmark";
 
 test("runShellTrustBenchmark scores a fixed shell corpus and writes artifacts", async () => {
   const artifactRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-shell-benchmark-"));
@@ -35,7 +35,7 @@ test("runShellTrustBenchmark scores a fixed shell corpus and writes artifacts", 
   try {
     const result = await runShellTrustBenchmark({
       root: "/tmp/fixture",
-      cliPath: "/tmp/fixture/cli/ai-workflow.ts",
+      cliPath: "/tmp/fixture/aiwf-shell/cli/ai-workflow.ts",
       cases,
       threshold: 1,
       minimumCaseCount: 2,
@@ -113,7 +113,7 @@ test("runShellTrustBenchmark fails when a critical case misses required signals"
   try {
     const result = await runShellTrustBenchmark({
       root: "/tmp/fixture",
-      cliPath: "/tmp/fixture/cli/ai-workflow.ts",
+      cliPath: "/tmp/fixture/aiwf-shell/cli/ai-workflow.ts",
       cases,
       threshold: 0.5,
       minimumCaseCount: 2,

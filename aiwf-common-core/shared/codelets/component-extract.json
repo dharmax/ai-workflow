@@ -1,0 +1,11 @@
+{
+  "id": "component-extract",
+  "stability": "stable",
+  "category": "architecture",
+  "summary": "Extract a component or module boundary from a larger surface.",
+  "runner": "node-script",
+  "entry": "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+  "execution": "js",
+  "focus": "component-extract",
+  "taskClass": "task-decomposition"
+}

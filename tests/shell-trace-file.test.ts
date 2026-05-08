@@ -4,13 +4,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { handleShellCommand } from "../cli/lib/shell.ts";
+import { handleShellCommand } from "aiwf-shell/cli/lib/shell";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function runNode(args, options = {}) {
   return await new Promise((resolve) => {
-    execFile("npx", ["tsx", ...args], {
+    execFile(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
       cwd: options.cwd ?? repoRoot,
       env: { ...process.env, ...(options.env ?? {}) },
       timeout: options.timeout ?? 180000,
@@ -54,7 +54,7 @@ test("shell CLI writes workflow trace to a file without stderr noise", async () 
 
   try {
     const configureTrace = await runNode([
-      "cli/ai-workflow.ts",
+      "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--json",
       "--state-file",
@@ -69,7 +69,7 @@ test("shell CLI writes workflow trace to a file without stderr noise", async () 
     assert.equal(configuredState.traceFilePath, tracePath);
 
     const result = await runNode([
-      "cli/ai-workflow.ts",
+      "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--no-ai",
       "--state-file",

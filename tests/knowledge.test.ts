@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { loadKnowledge, recordProjectKnowledge, updateKnowledgeRemote } from "../core/services/knowledge.ts";
+import { loadKnowledge, recordProjectKnowledge, updateKnowledgeRemote } from "aiwf-common-core/services/knowledge";
 
 test("updateKnowledgeRemote writes a normalized builtin knowledge payload from a configured source", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "knowledge-remote-"));
@@ -158,7 +158,7 @@ test("recordProjectKnowledge appends durable learned fixes without duplicating t
     assert.match(written, /## Learned Fixes/);
     assert.match(written, /BUG-999 \[verified\] Fix shell regression/);
     assert.match(written, /Priority: 30 \(bug-ticket, operator-surface\)/);
-    assert.match(written, /Changed files: cli\/lib\/shell\.js/);
+    assert.match(written, /Changed files: cli\/lib\/shell\.ts/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

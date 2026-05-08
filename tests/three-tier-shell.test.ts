@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert";
-import { triageShellRequest } from "../core/services/shell-triage.ts";
-import { ShellTier } from "../core/services/shell-triage.types.ts";
-import { promoteWorkflowToCodelet } from "../core/services/shell-compiler.ts";
+import { triageShellRequest } from "aiwf-common-core/services/shell-triage";
+import { ShellTier } from "aiwf-common-core/services/shell-triage.types";
+import { promoteWorkflowToCodelet } from "aiwf-common-core/services/shell-compiler";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";

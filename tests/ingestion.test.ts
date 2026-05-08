@@ -4,9 +4,9 @@ import { cp, mkdtemp, rm, writeFile, mkdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { syncProject, getProjectSummary } from "../core/services/sync.ts";
-import { ingestArtifact, onboardProjectBrief } from "../core/services/orchestrator.ts";
-import { withSupergitTransaction } from "../core/services/supergit.ts";
+import { syncProject, getProjectSummary } from "aiwf-common-core/services/sync";
+import { ingestArtifact, onboardProjectBrief } from "aiwf-common-core/services/orchestrator";
+import { withSupergitTransaction } from "aiwf-common-core/services/supergit";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");

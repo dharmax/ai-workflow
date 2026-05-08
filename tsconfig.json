@@ -15,10 +15,12 @@
     "types": ["node"]
   },
   "include": [
-    "cli/**/*.ts",
-    "core/**/*.ts",
+    "aiwf-common-core/**/*.ts",
+    "aiwf-shell/**/*.ts",
+    "aiwf-shell/**/*.mjs",
+    "aiwf-skill/**/*.ts",
     "scripts/**/*.ts",
-    "runtime/**/*.ts",
+    "scripts/**/*.mjs",
     "tests/**/*.ts"
   ]
 }

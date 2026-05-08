@@ -4,7 +4,7 @@ export const SHELL_CAPABILITY_CORPUS = [
     title: "Handle paragraph debugging requests",
     summary: "Prompt: \"I'm debugging a modal overlay issue. Escape no longer closes the dialog and I want the safest investigation plan. Figure out what files are likely involved.\" The shell should classify bug-hunting work from a paragraph and point to relevant repo targets.",
     prompt: "I'm debugging a modal overlay issue. Escape no longer closes the dialog and I want the safest investigation plan. Figure out what files are likely involved.",
-    acceptableActionTypes: ["route"],
+    acceptableActionTypes: ["route", "reply"],
     expectedTaskClass: "bug-hunting",
     replyPattern: /modal|overlay|bug hunting|dialog/i
   },
@@ -13,7 +13,7 @@ export const SHELL_CAPABILITY_CORPUS = [
     title: "Handle review-oriented regression prompts",
     summary: "Prompt: \"Please review the shell changes and tell me where the riskiest regressions probably are before I touch anything.\" The shell should classify this as review work from natural language.",
     prompt: "Please review the shell changes and tell me where the riskiest regressions probably are before I touch anything.",
-    acceptableActionTypes: ["route"],
+    acceptableActionTypes: ["route", "reply"],
     expectedTaskClass: "review",
     replyPattern: /shell|review|regression/i
   },

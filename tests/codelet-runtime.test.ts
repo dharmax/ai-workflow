@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { buildSmartCodeletRunContext } from "../core/services/codelet-runtime.ts";
-import { syncProject } from "../core/services/sync.ts";
+import { buildSmartCodeletRunContext } from "aiwf-common-core/services/codelet-runtime";
+import { syncProject } from "aiwf-common-core/services/sync";
 
 test("buildSmartCodeletRunContext resolves a registered codelet and packs lean-ctx-aware context", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-codelet-runtime-"));
@@ -23,7 +23,7 @@ test("buildSmartCodeletRunContext resolves a registered codelet and packs lean-c
       category: "documentation",
       summary: "Generate a compact story summary from the current project state.",
       runner: "node-script",
-      entry: "runtime/scripts/ai-workflow/smart-codelet-runner.ts",
+      entry: "aiwf-shell/runtime/scripts/ai-workflow/smart-codelet-runner.ts",
       status: "staged"
     }, null, 2), "utf8");
 

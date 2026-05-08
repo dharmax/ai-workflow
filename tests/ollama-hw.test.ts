@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { buildOllamaHardwareProbeCommand, configureOllamaHardware, inferOllamaHardwareConfig, parseOllamaHardwareProbe } from "../cli/lib/ollama-hw.ts";
+import { buildOllamaHardwareProbeCommand, configureOllamaHardware, inferOllamaHardwareConfig, parseOllamaHardwareProbe } from "aiwf-shell/cli/lib/ollama-hw";
 
 test("parseOllamaHardwareProbe parses compact server output", () => {
   const parsed = parseOllamaHardwareProbe("cpu=16 ram_gb=64 gpu=RTX 4090:24GB;RTX 3080:10GB");

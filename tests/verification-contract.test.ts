@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { openWorkflowStore } from "../core/db/sqlite-store.ts";
-import { registerProvider } from "../core/services/providers.ts";
-import { runVerificationSummary } from "../runtime/scripts/ai-workflow/verification-summary.ts";
+import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
+import { registerProvider } from "aiwf-common-core/services/providers";
+import { runVerificationSummary } from "../aiwf-shell/runtime/scripts/ai-workflow/verification-summary.ts";
 
 test("verification summary persists a passing honesty contract to the workflow DB", { concurrency: false }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "verification-contract-pass-"));

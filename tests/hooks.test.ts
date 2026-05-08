@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { planOperatorRequest } from "../core/services/operator-brain.ts";
-import { executeJsOrchestrator } from "../core/services/text-compiler-host.ts";
+import { planOperatorRequest } from "aiwf-common-core/services/operator-brain";
+import { executeJsOrchestrator } from "aiwf-common-core/services/text-compiler-host";
 
 test("BeforePlan hook can modify inputText", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "hook-test-"));

@@ -5,10 +5,10 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { openWorkflowStore } from "../core/db/sqlite-store.ts";
-import { writeProjectFile } from "../core/lib/filesystem.ts";
-import { withWorkspaceMutation } from "../core/lib/workspace-mutation.ts";
-import { inspectWorkspaceHonesty } from "../runtime/scripts/ai-workflow/lib/workspace-honesty.ts";
+import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
+import { writeProjectFile } from "aiwf-common-core/lib/filesystem";
+import { withWorkspaceMutation } from "aiwf-common-core/lib/workspace-mutation";
+import { inspectWorkspaceHonesty } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/workspace-honesty.ts";
 
 const execFileAsync = promisify(execFile);
 

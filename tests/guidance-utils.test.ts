@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compactGuidanceItems, summarizeGuidance } from "../runtime/scripts/ai-workflow/lib/guidance-utils.ts";
-import { compileActiveGuardrails, selectActiveGuardrails } from "../runtime/scripts/ai-workflow/lib/active-guardrails.ts";
+import { compactGuidanceItems, summarizeGuidance } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/guidance-utils.ts";
+import { compileActiveGuardrails, selectActiveGuardrails } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/active-guardrails.ts";
 
 test("summarizeGuidance skips placeholder scaffolding lines", () => {
   const markdown = `# Project Guidelines

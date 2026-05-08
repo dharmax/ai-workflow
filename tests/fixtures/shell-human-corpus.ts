@@ -92,8 +92,8 @@ export const SHELL_HUMAN_CORPUS = [
     title: "Handle workflow-surface explainers",
     summary: "Prompt: \"teach me about the workflow surface\" The shell should inspect workflow instead of replying generically.",
     prompt: "teach me about the workflow surface",
-    acceptableActionTypes: ["status_query"],
-    replyPattern: /workflow/i
+    acceptableActionTypes: ["status_query", "project_summary"],
+    replyPattern: /workflow|project status|ticket/i
   },
   {
     id: "BUG-SHELL-HUMAN-013",
@@ -236,8 +236,8 @@ export const SHELL_HUMAN_CORPUS = [
     title: "Handle workflow-health prompts",
     summary: "Prompt: \"is the workflow healthy?\" The shell should resolve workflow state rather than emitting a parser fallback.",
     prompt: "is the workflow healthy?",
-    acceptableActionTypes: ["status_query"],
-    replyPattern: /workflow/i
+    acceptableActionTypes: ["status_query", "project_summary"],
+    replyPattern: /workflow|project status|ticket/i
   },
   {
     id: "BUG-SHELL-HUMAN-031",

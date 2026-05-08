@@ -59,7 +59,7 @@ const QUERIES = [
 
 async function runQuery(text) {
   return new Promise((resolve) => {
-    const cli = spawn("./cli/ai-workflow.ts", ["shell", text, "--plan-only", "--json"], {
+    const cli = spawn("./aiwf-shell/cli/ai-workflow.ts", ["shell", text, "--plan-only", "--json"], {
       env: { ...process.env, NO_COLOR: "1" }
     });
     let stdout = "";

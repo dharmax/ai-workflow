@@ -1,8 +1,0 @@
-{
-  "id": "verify",
-  "stability": "stable",
-  "category": "verification",
-  "summary": "Run deterministic verification commands and summarize the evidence.",
-  "runner": "node-script",
-  "entry": "scripts/ai-workflow/verification-summary.ts"
-}

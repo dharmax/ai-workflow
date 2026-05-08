@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assessWorkflowGap } from "../core/services/gap-closure.ts";
+import { assessWorkflowGap } from "aiwf-common-core/services/gap-closure";
 
 test("gap assessment recommends stronger recovery actions for misleading fulfillment gaps", () => {
   const review = assessWorkflowGap({

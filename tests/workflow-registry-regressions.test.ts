@@ -12,9 +12,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args: string[], options: { cwd?: string } = {}) {
   try {
-    const result = await execFileAsync("npx", ["tsx", ...args], {
+    const result = await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
       cwd: options.cwd ?? repoRoot,
-      env: process.env
+      env: process.env,
+      maxBuffer: 8 * 1024 * 1024
     });
     return {
       code: 0,
@@ -43,13 +44,13 @@ test("project codelet registry exposes the search codelet", { concurrency: false
 
   try {
     await runCommand("git init -q && git config user.email test@example.com && git config user.name 'AI Workflow Test'", targetRoot);
-    await runNode([path.join(repoRoot, "scripts", "init-project.ts"), "--target", targetRoot]);
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
 
-    const syncResult = await runNode([path.join(repoRoot, "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+    const syncResult = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
     assert.equal(syncResult.code, 0, syncResult.stderr || syncResult.stdout);
 
     const showResult = await runNode(
-      [path.join(repoRoot, "cli", "ai-workflow.ts"), "project", "codelet", "show", "search", "--json"],
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "show", "search", "--json"],
       { cwd: targetRoot }
     );
     assert.equal(showResult.code, 0, showResult.stderr || showResult.stdout);
@@ -66,11 +67,11 @@ test("extract ticket works via the source CLI entrypoint", { concurrency: false 
 
   try {
     await runCommand("git init -q && git config user.email test@example.com && git config user.name 'AI Workflow Test'", targetRoot);
-    await runNode([path.join(repoRoot, "scripts", "init-project.ts"), "--target", targetRoot]);
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
     const ticketId = "TEST-EXTRACT-001";
     const createResult = await runNode(
       [
-        path.join(repoRoot, "cli", "ai-workflow.ts"),
+        path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
         "project",
         "ticket",
         "create",
@@ -87,7 +88,7 @@ test("extract ticket works via the source CLI entrypoint", { concurrency: false 
     assert.equal(createResult.code, 0, createResult.stderr || createResult.stdout);
 
     const extractResult = await runNode(
-      [path.join(repoRoot, "cli", "ai-workflow.ts"), "extract", "ticket", ticketId, "--json"],
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "extract", "ticket", ticketId, "--json"],
       { cwd: targetRoot }
     );
     assert.equal(extractResult.code, 0, extractResult.stderr || extractResult.stdout);

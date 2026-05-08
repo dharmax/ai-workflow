@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="78f51398104d6c064923c8d550a8a6fba54ef547">
+  <meta name="manual-source-sha1" content="b16ac40dd795ae69583bb6c3659d332e85af6bef">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:78f51398104d6c064923c8d550a8a6fba54ef547 -->
+  <!-- generated from docs/MANUAL.md sha1:b16ac40dd795ae69583bb6c3659d332e85af6bef -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -180,7 +180,7 @@ ai-workflow shell &quot;extract ticket TKT-001&quot;</code></pre>
       <li>Verify operator surfaces:</li>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow dogfood --profile full --json
-node runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
+node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
       </section>
       </section>
       <section aria-labelledby="shell-mode" data-heading-level="2">
@@ -602,7 +602,7 @@ ai-workflow provider refresh models --json</code></pre>
       <h3 id="run-verification">Run Verification</h3>
       <pre data-block-kind="code"><code class="language-bash">node --test tests/*.test.mjs
 ai-workflow dogfood --profile full --json
-node runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
+node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
       </section>
       </section>
       <section aria-labelledby="troubleshooting-and-failure-modes" data-heading-level="2">
@@ -638,7 +638,7 @@ node runtime/scripts/ai-workflow/workflow-audit.mjs</code></pre>
       <h3 id="dogfood-or-audit-fails">Dogfood Or Audit Fails</h3>
       <ul data-list-kind="unordered">
       <li>Re-run <code>ai-workflow dogfood --profile full --json</code></li>
-      <li>Re-run <code>node runtime/scripts/ai-workflow/workflow-audit.mjs</code></li>
+      <li>Re-run <code>node aiwf-shell/runtime/scripts/ai-workflow/workflow-audit.mjs</code></li>
       <li>If dogfood is stale, regenerate it instead of editing the report manually</li>
       <li>If the manual HTML is stale, run the manual generator instead of editing HTML manually</li>
       </ul>
