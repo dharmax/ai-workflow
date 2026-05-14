@@ -1424,6 +1424,35 @@ test("heuristic shell planner handles broad project-next questions and implicit 
     { type: "execute_ticket", ticketId: "TKT-TODO-001", apply: true }
   ]);
 
+  const listTodo = planShellRequestHeuristically("what tickets are in Todo?", {
+    ...plannerContext,
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-TODO-001", title: "First todo item", lane: "Todo" },
+        { id: "TKT-TODO-002", title: "Second todo item", lane: "Todo" },
+        { id: "REF-APP-SHELL-01", title: "Continue app-shell hardening", lane: "In Progress" }
+      ]
+    }
+  });
+  assert.equal(listTodo.kind, "reply");
+  assert.match(listTodo.reply, /Todo tickets:/);
+  assert.match(listTodo.reply, /TKT-TODO-001: First todo item/);
+  assert.match(listTodo.reply, /TKT-TODO-002: Second todo item/);
+
+  const firstBacklog = planShellRequestHeuristically("what is the first ticket in backlog?", {
+    ...plannerContext,
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-BACKLOG-001", title: "Backlog item one", lane: "Backlog" },
+        { id: "TKT-BACKLOG-002", title: "Backlog item two", lane: "Backlog" }
+      ]
+    }
+  });
+  assert.equal(firstBacklog.kind, "reply");
+  assert.match(firstBacklog.reply, /TKT-BACKLOG-001: Backlog item one/);
+
   const finalize = planShellRequestHeuristically("finalize that verified fix and close it out.", {
     ...plannerContext,
     summary: {
@@ -1631,6 +1660,39 @@ test("planShellRequest treats ordered Todo execution as deterministic shell work
   assert.deepEqual(plan.actions, [
     { type: "execute_ticket", ticketId: "TKT-TODO-001", apply: true }
   ]);
+  assert.equal(plan.planner.mode, "heuristic");
+});
+
+test("planShellRequest treats lane ticket queries as deterministic shell work", async () => {
+  const providerId = `mock-shell-lane-query-${Date.now()}`;
+  registerProvider(providerId, {
+    local: false,
+    available: true,
+    models: [{ id: "brain-v1", quality: "high" }],
+    generate: async () => ({ text: "definitely not json" })
+  });
+
+  const plan = await planShellRequest("what tickets are in Todo?", {
+    root: plannerContext.root,
+    plannerContext: {
+      ...plannerContext,
+      summary: {
+        ...plannerContext.summary,
+        activeTickets: [
+          { id: "TKT-TODO-001", title: "First todo item", lane: "Todo" },
+          { id: "TKT-TODO-002", title: "Second todo item", lane: "Todo" }
+        ]
+      }
+    },
+    planners: {
+      planners: [{ providerId, modelId: "brain-v1" }],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    },
+    noAi: false
+  });
+
+  assert.equal(plan.kind, "reply");
+  assert.match(plan.reply ?? "", /Todo tickets:/);
   assert.equal(plan.planner.mode, "heuristic");
 });
 

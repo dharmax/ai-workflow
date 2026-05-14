@@ -1379,6 +1379,7 @@ function isDeterministicShellSurfaceRequest(inputText) {
   ].includes(normalized)
     || /^ticket\s+[A-Z0-9-]+$/i.test(trimmed)
     || /^(?:(?:please\s+)?|(?:can|could|would)\s+you\s+)?(?:fix|resolve|complete|finish|execute|handle|work\s+on|do)\s+(?:the\s+)?(?:first|next|top)\s+(?:ticket|issue|task|item)\s+(?:in\s+(?:the\s+)?)?(?:todo|to do|backlog|in progress|bugs p1|bugs p2\/p3)\b/i.test(trimmed)
+    || /^(?:(?:please\s+)?(?:what|which|show|list|get|tell me)\b.*\b(?:ticket|tickets|issue|issues|task|tasks|item|items)\b.*\b(?:todo|to do|backlog|in progress|bugs p1|bugs p2\/p3)\b)/i.test(trimmed)
     || /^search\s+\S+/i.test(trimmed)
     || /^route\s+\S+/i.test(trimmed)
     || /^summary$/i.test(trimmed)
@@ -1474,6 +1475,7 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
   const activeGraphState = options.activeGraphState ?? null;
   const providerMap = plannerContext?.providerState?.providers ?? {};
   const orderedLaneExecution = resolveOrderedLaneExecutionRequest(plannerContext, text);
+  const laneTicketQuery = resolveLaneTicketQueryRequest(plannerContext, text);
   const implicitTicketId = resolveImplicitTicketId(plannerContext, text);
   const intent = analyzeShellIntent(text, plannerContext);
   const routing = routeShellIntent(intent);
@@ -1502,6 +1504,22 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
       ticketId: orderedLaneExecution.ticket.id,
       apply: true
     }], 0.98, `Ordered ${orderedLaneExecution.lane} ticket execution request.`);
+  }
+
+  if (laneTicketQuery) {
+    if (laneTicketQuery.mode === "peek") {
+      if (!laneTicketQuery.ticket) {
+        return replyPlan(`No ${laneTicketQuery.lane} ticket is visible in the current workflow state.`, 0.9, `No visible ${laneTicketQuery.lane} ticket matched the ordered lane query.`);
+      }
+      return replyPlan(`${laneTicketQuery.ticket.id}: ${laneTicketQuery.ticket.title}`, 0.96, `Answered ordered ${laneTicketQuery.lane} ticket query from workflow state.`);
+    }
+    if (!laneTicketQuery.tickets.length) {
+      return replyPlan(`No ${laneTicketQuery.lane} tickets are visible in the current workflow state.`, 0.9, `No visible ${laneTicketQuery.lane} tickets matched the lane query.`);
+    }
+    return replyPlan([
+      `${laneTicketQuery.lane} tickets:`,
+      ...laneTicketQuery.tickets.map((ticket) => `- ${ticket.id}: ${ticket.title}`)
+    ].join("\n"), 0.94, `Answered ${laneTicketQuery.lane} ticket list from workflow state.`);
   }
 
   if (/\bproject\b.*\b(do next|next)\b/.test(normalizedQuestion)) {
@@ -2787,6 +2805,34 @@ function listVisibleTicketsInLane(plannerContext, selectedLane) {
       lane: String(ticket?.lane ?? selectedLane)
     }))
     .filter((ticket) => ticket.id);
+}
+
+function resolveLaneTicketQueryRequest(plannerContext, inputText) {
+  const text = String(inputText ?? "").trim();
+  const normalized = normalizeConversationText(text);
+  const lane = inferLifecycleLaneFromText(text);
+  if (!lane) {
+    return null;
+  }
+  if (/\b(first|next|top)\b/.test(normalized) && /\b(ticket|issue|task|item)\b/.test(normalized) && /\b(what|which|show|tell me)\b/.test(normalized)) {
+    const tickets = listVisibleTicketsInLane(plannerContext, lane);
+    return {
+      lane,
+      mode: "peek",
+      ticket: tickets[0] ?? null,
+      tickets
+    };
+  }
+  if ((/\bwhat tickets\b/.test(normalized) || /\b(list|show|get)\b/.test(normalized)) && /\b(ticket|tickets|issues|tasks|items)\b/.test(normalized)) {
+    const tickets = listVisibleTicketsInLane(plannerContext, lane);
+    return {
+      lane,
+      mode: "list",
+      ticket: tickets[0] ?? null,
+      tickets
+    };
+  }
+  return null;
 }
 
 function resolveOrderedLaneExecutionRequest(plannerContext, inputText) {
