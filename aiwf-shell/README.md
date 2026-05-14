@@ -14,7 +14,10 @@ ai-workflow --help
 - User-facing command: `ai-workflow`
 - Pulls in: `aiwf-common-core`
 - Does not require `aiwf-skill`
+- Pairs cleanly with `aiwf-mcp` when you also want a host-facing extension surface
 
 Use `aiwf-shell` by itself when you want workflow commands, shell mode, project init, audit, dogfood, and operator tooling.
 
-Use it together with `aiwf-skill` only if you also want the skill installer/assets on the same machine.
+Use it together with `aiwf-mcp` when you want the same core available to external MCP hosts.
+
+Use it together with `aiwf-skill` only when an instruction-only bridge is still useful for a specific host.

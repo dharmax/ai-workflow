@@ -13,7 +13,6 @@ installSynchronousWrites(process.stderr);
 
 const code = await main(process.argv.slice(2));
 process.exitCode = code;
-process.exit(code);
 
 function installSynchronousWrites(stream) {
   const originalWrite = stream.write.bind(stream);

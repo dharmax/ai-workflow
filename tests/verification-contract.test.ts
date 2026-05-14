@@ -67,6 +67,7 @@ test("verification summary persists a passing honesty contract to the workflow D
     ]);
 
     assert.equal(summary.conclusion, "verified");
+    assert(summary.honestyContract);
     assert.equal(summary.honestyContract.reportTruthfulness.status, "pass");
     assert.match(summary.honestyContract.summary, /pursued the user's real wish/i);
     assert.equal(summary.gapReview.status, "resolved");
@@ -147,11 +148,12 @@ test("verification summary refuses full verification when the report contract is
     ]);
 
     assert.equal(summary.conclusion, "not verified");
+    assert(summary.honestyContract);
     assert.equal(summary.honestyContract.reportTruthfulness.status, "fail");
     assert.equal(summary.honestyContract.misleadingRisk, "high");
     assert.equal(summary.gapReview.status, "open");
     assert.equal(summary.gapReview.severity, "high");
-    assert.equal(summary.gapReview.actions.some((action) => action.type === "revise-report"), true);
+    assert.equal(summary.gapReview.actions.some((action: any) => action.type === "revise-report"), true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

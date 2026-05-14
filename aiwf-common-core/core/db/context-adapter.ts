@@ -1,4 +1,4 @@
-import { withWorkflowStore } from '../services/sync.ts';
+import { createWorkflowCoreFacade } from "../services/workflow-facade.ts";
 
 /**
  * Superb bridge for SQLite context storage.
@@ -6,16 +6,17 @@ import { withWorkflowStore } from '../services/sync.ts';
 export class SqliteContextStore {
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
+    this.core = createWorkflowCoreFacade({ projectRoot });
   }
 
   async loadContext(id) {
-    return withWorkflowStore(this.projectRoot, async (store) => {
+    return this.core.withStore(async (store) => {
       return store.getContext(id);
     });
   }
 
   async storeContext(id, data) {
-    return withWorkflowStore(this.projectRoot, async (store) => {
+    return this.core.withStore(async (store) => {
       await store.upsertContext(id, data);
     });
   }

@@ -6,19 +6,21 @@
   "workspaces": [
     "aiwf-common-core",
     "aiwf-shell",
-    "aiwf-skill"
+    "aiwf-skill",
+    "aiwf-mcp"
   ],
   "description": "Workspace root for the ai-workflow package split.",
   "scripts": {
-    "build": "npm run build --workspace aiwf-common-core && npm run build --workspace aiwf-shell && npm run build --workspace aiwf-skill",
+    "build": "npm run build --workspace aiwf-common-core && npm run build --workspace aiwf-shell && npm run build --workspace aiwf-mcp && npm run build --workspace aiwf-skill",
     "generate-docs": "node ./node_modules/tsx/dist/cli.mjs aiwf-shell/scripts/generate-manual-html-cli.ts",
     "install:gemini-skill": "node aiwf-skill/install-ai-workflow-skill.mjs --project . --force",
-    "install:tools": "npm install -w aiwf-common-core -w aiwf-shell -w aiwf-skill",
+    "install:tools": "npm install -w aiwf-common-core -w aiwf-shell -w aiwf-mcp -w aiwf-skill",
     "lint": "eslint .",
     "pack:core": "npm pack --dry-run --workspace aiwf-common-core",
+    "pack:mcp": "npm pack --dry-run --workspace aiwf-mcp",
     "pack:shell": "npm pack --dry-run --workspace aiwf-shell",
     "pack:skill": "npm pack --dry-run --workspace aiwf-skill",
-    "release:check": "npm run build && npm run workflow:dogfood -- --json && npm run workflow:audit -- --json && npm run pack:core && npm run pack:shell && npm run pack:skill",
+    "release:check": "npm run build && npm run workflow:dogfood -- --json && npm run workflow:audit -- --json && npm run pack:core && npm run pack:shell && npm run pack:mcp && npm run pack:skill",
     "postinstall": "node scripts/build-github-deps.mjs",
     "perfection-marathon": "node ./node_modules/tsx/dist/cli.mjs tests/perfection-marathon.ts",
     "test": "node ./node_modules/tsx/dist/cli.mjs --test --test-concurrency=1 tests/*.test.ts",

@@ -1408,6 +1408,22 @@ test("heuristic shell planner handles broad project-next questions and implicit 
     { type: "execute_ticket", ticketId: "REF-APP-SHELL-01", apply: true }
   ]);
 
+  const executeFirstTodo = planShellRequestHeuristically("fix first ticket in the todo list", {
+    ...plannerContext,
+    summary: {
+      ...plannerContext.summary,
+      activeTickets: [
+        { id: "TKT-TODO-001", title: "First todo item", lane: "Todo" },
+        { id: "TKT-TODO-002", title: "Second todo item", lane: "Todo" },
+        { id: "REF-APP-SHELL-01", title: "Continue app-shell hardening", lane: "In Progress" }
+      ]
+    }
+  });
+  assert.equal(executeFirstTodo.kind, "plan");
+  assert.deepEqual(executeFirstTodo.actions, [
+    { type: "execute_ticket", ticketId: "TKT-TODO-001", apply: true }
+  ]);
+
   const finalize = planShellRequestHeuristically("finalize that verified fix and close it out.", {
     ...plannerContext,
     summary: {
@@ -1569,7 +1585,7 @@ test("heuristic shell planner routes complex goal-directed ticket requests throu
     assert.equal(plan.kind, "plan", input);
     assert.deepEqual(plan.actions, [
       { type: "status_query", query: "REF-APP-SHELL-01", entityType: "ticket" },
-      { type: "execute_ticket", ticketId: "REF-APP-SHELL-01", apply: false },
+      { type: "execute_ticket", ticketId: "REF-APP-SHELL-01", apply: true },
       { type: "list_tickets" }
     ], input);
     assert.match(plan.strategy, /goal|beta|stability/i, input);
@@ -1580,6 +1596,42 @@ test("heuristic shell planner routes complex goal-directed ticket requests throu
       { kind: "synthesize", type: "synthesize", dependsOn: ["n1", "n2", "n3"] }
     ], input);
   }
+});
+
+test("planShellRequest treats ordered Todo execution as deterministic shell work", async () => {
+  const providerId = `mock-shell-bad-json-${Date.now()}`;
+  registerProvider(providerId, {
+    local: false,
+    available: true,
+    models: [{ id: "brain-v1", quality: "high" }],
+    generate: async () => ({ text: "definitely not json" })
+  });
+
+  const plan = await planShellRequest("fix first ticket in the todo list", {
+    root: plannerContext.root,
+    plannerContext: {
+      ...plannerContext,
+      summary: {
+        ...plannerContext.summary,
+        activeTickets: [
+          { id: "TKT-TODO-001", title: "First todo item", lane: "Todo" },
+          { id: "TKT-TODO-002", title: "Second todo item", lane: "Todo" },
+          { id: "REF-APP-SHELL-01", title: "Continue app-shell hardening", lane: "In Progress" }
+        ]
+      }
+    },
+    planners: {
+      planners: [{ providerId, modelId: "brain-v1" }],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    },
+    noAi: false
+  });
+
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(plan.actions, [
+    { type: "execute_ticket", ticketId: "TKT-TODO-001", apply: true }
+  ]);
+  assert.equal(plan.planner.mode, "heuristic");
 });
 
 test("heuristic shell planner routes readiness questions to the shared readiness evaluator", () => {
@@ -1930,6 +1982,42 @@ test("runShellTurn narrates non-mutating tool results through the assistant laye
   }
 });
 
+test("runShellTurn narrates assistant text replies when the provider leaves response unset", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-text-reply-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+
+  registerProvider("mock-shell-text-reply", {
+    local: false,
+    available: true,
+    models: [{ id: "brain-v1", quality: "high" }],
+    generate: async ({ prompt }) => {
+      assert.match(prompt, /Node results:/);
+      return { text: "Connected providers are ready from text." };
+    }
+  });
+
+  try {
+    const result = await runShellTurn("what ai providers are you connected to right now?", {
+      root,
+      json: false,
+      yes: false,
+      noAi: false,
+      planOnly: false,
+      plannerContext,
+      planners: {
+        planners: [{ providerId: "mock-shell-text-reply", modelId: "brain-v1" }],
+        heuristic: { mode: "heuristic", reason: "fallback" }
+      },
+      history: []
+    });
+
+    assert.equal(result.plan.kind, "plan");
+    assert.equal(result.assistantReply, "Connected providers are ready from text.");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("runShellTurn surfaces successful operator JS workflow results instead of a generic success banner", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-operator-js-" + Math.random().toString(36).slice(2));
   await fs.mkdir(root, { recursive: true });
@@ -2232,6 +2320,58 @@ test("runShellTurn treats standalone no-ai prompts as fresh requests instead of 
   assert.doesNotMatch(result.plan.reply, /last graph has already been executed/i);
 });
 
+test("runShellTurn answers result follow-ups from fallback discovery turns without claiming a fix happened", async () => {
+  const result = await runShellTurn("did you fix it? which ticket was it?", {
+    root: repoRoot,
+    json: false,
+    yes: false,
+    noAi: true,
+    planOnly: false,
+    shellMode: "plan",
+    plannerContext,
+    planners: {
+      planners: [],
+      heuristic: { mode: "heuristic", reason: "fallback" }
+    },
+    history: [],
+    activeGraphState: {
+      request: "fix first ticket in the todo list",
+      active: false,
+      focus: {
+        taskClass: "project-planning",
+        subject: null,
+        searchQuery: "did you fix",
+        statusQuery: null
+      },
+      references: {
+        tickets: [],
+        files: [],
+        modules: [],
+        graphNodeIds: [],
+        evidence: []
+      },
+      graph: {
+        nodes: [
+          { id: "n1", kind: "action", type: "search", dependsOn: [], status: "ok", result: { summary: "search did you fix" } },
+          { id: "n2", kind: "action", type: "list_tickets", dependsOn: [], status: "ok", result: { summary: "list_tickets" } },
+          { id: "n3", kind: "synthesize", type: "synthesize", dependsOn: ["n1", "n2"], status: "ok", result: { summary: "Synthesized 2 successful prerequisite nodes." } }
+        ],
+        branchPath: []
+      },
+      outcome: {
+        planKind: "plan",
+        failed: [],
+        pending: []
+      }
+    }
+  });
+
+  assert.equal(result.plan.kind, "reply");
+  assert.match(result.plan.reply, /No\. The prior turn did not apply a fix\./);
+  assert.match(result.plan.reply, /search, list_tickets/);
+  assert.doesNotMatch(result.plan.reply, /last graph has already been executed/i);
+});
+
 test("runShellTurn finalizes a verified fix and resolves the current ticket after workflow checks pass", { concurrency: false }, async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-finalize-" + Math.random().toString(36).slice(2));
 
@@ -2277,7 +2417,7 @@ test("runShellTurn finalizes a verified fix and resolves the current ticket afte
     assert.equal(result.plan.kind, "plan");
     assert.equal(result.executed.some((item) => item.action.type === "finalize_verified_fix" && item.ok), true);
 
-    const summaryResult = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "summary", "--json"], { cwd: root });
+    const summaryResult: any = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "summary", "--json"], { cwd: root });
     assert.equal(summaryResult.code, 0, summaryResult.stderr || summaryResult.stdout);
     const summary = JSON.parse(summaryResult.stdout);
     assert.equal(summary.activeTickets.some((ticket) => ticket.id === "BUG-FINAL-001"), false);
@@ -2292,7 +2432,7 @@ test("runShellTurn finalizes a verified fix and resolves the current ticket afte
 test("runShellTurn does not apply workflow ticket gating to explicit config admin primitives", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-ollama-setup-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -2303,10 +2443,10 @@ test("runShellTurn does not apply workflow ticket gating to explicit config admi
             ]
           };
         }
-      };
+      } as any;
     }
     throw new Error(`Unexpected fetch URL in shell test: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(root, { recursive: true });
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
@@ -2315,7 +2455,7 @@ test("runShellTurn does not apply workflow ticket gating to explicit config admi
     JSON.stringify({
       providers: {
         ollama: {
-          host: "http://lotus:11434"
+          host: "http://127.0.0.1:11434"
         }
       }
     }, null, 2)
@@ -2695,8 +2835,8 @@ test("planShellRequest prefers the AI planner for conversational follow-ups with
   assert.equal(plan.kind, "plan");
   assert.equal(plan.planner.providerId, "mock-followup-shell-planner");
   assert.equal(plan.intent.followUpMode, "continue-prior-work");
-  assert.match(capturedPrompt, /Active Turn Memory/);
-  assert.match(capturedPrompt, /"files": \[/);
+  assert.match(capturedPrompt ?? "", /Active Turn Memory/);
+  assert.match(capturedPrompt ?? "", /"files": \[/);
 });
 
 test("compileShellAction produces a safe mutating note command", () => {
@@ -2842,7 +2982,7 @@ test("handleShellCommand updates operator work mode separately from mutation sta
     modeSource: "default"
   };
 
-  const modeResult = handleShellCommand("mode bug-hunting", options);
+  const modeResult: any = handleShellCommand("mode bug-hunting", options) as any;
   assert.equal(modeResult?.handled, true);
   assert.equal(modeResult?.stateChanged, true);
   assert.equal(options.requestedWorkMode, "bug-hunting");
@@ -2850,7 +2990,7 @@ test("handleShellCommand updates operator work mode separately from mutation sta
   assert.equal(options.modeSource, "explicit");
   assert.equal(options.shellMode, "plan");
 
-  const stanceResult = handleShellCommand("mutate", options);
+  const stanceResult: any = handleShellCommand("mutate", options) as any;
   assert.equal(stanceResult?.handled, true);
   assert.equal(stanceResult?.stateChanged, true);
   assert.equal(options.shellMode, "mutate");
@@ -2863,7 +3003,7 @@ test("shell one-shot invocations persist state when --state-file is provided", a
   await fs.mkdir(root, { recursive: true });
 
   try {
-    let result = await runNode([
+    let result: any = await runNode([
       "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--json",
@@ -2902,7 +3042,7 @@ test("shell one-shot invocations tolerate an empty pre-existing state file", asy
   await fs.writeFile(statePath, "", "utf8");
 
   try {
-    const result = await runNode([
+    const result: any = await runNode([
       "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--json",
@@ -2927,7 +3067,7 @@ test("shell one-shot trace can be redirected to a file without polluting stderr"
   await fs.mkdir(root, { recursive: true });
 
   try {
-    const configureTrace = await runNode([
+    const configureTrace: any = await runNode([
       "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--json",
@@ -2942,7 +3082,7 @@ test("shell one-shot trace can be redirected to a file without polluting stderr"
     assert.equal(configuredState.traceConsole, false);
     assert.equal(configuredState.traceFilePath, tracePath);
 
-    const result = await runNode([
+    const result: any = await runNode([
       "aiwf-shell/cli/ai-workflow.ts",
       "shell",
       "--no-ai",

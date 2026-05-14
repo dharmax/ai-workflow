@@ -33,6 +33,83 @@ async function runNode(args, options = {}) {
   }
 }
 
+async function wait(ms) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function assertConfiguredMcpCommandStarts(config) {
+  const child = spawn(config.command, config.args ?? [], {
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      ...(config.env ?? {})
+    }
+  });
+
+  try {
+    const initialize = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: {
+          name: "ai-workflow-test",
+          version: "0.1.0"
+        }
+      }
+    });
+    child.stdin.write(`${initialize}\n`);
+    const response = await readSingleMcpMessage(child, 1500);
+    assert.equal(child.exitCode, null, `configured MCP command exited early: ${child.exitCode}`);
+    assert.equal(response?.jsonrpc, "2.0");
+    assert.equal(response?.id, 1);
+    assert.ok(response?.result, `configured MCP command returned no initialize result: ${JSON.stringify(response)}`);
+  } finally {
+    child.kill("SIGTERM");
+    await wait(50);
+  }
+}
+
+async function readSingleMcpMessage(child, timeoutMs) {
+  return await new Promise((resolve, reject) => {
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      reject(new Error(`timed out waiting for MCP response\nstdout: ${stdout}\nstderr: ${stderr}`));
+    }, timeoutMs);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      child.stdout.off("data", onStdout);
+      child.stderr.off("data", onStderr);
+      child.off("exit", onExit);
+    };
+    const tryParse = () => {
+      const lineEnd = stdout.indexOf("\n");
+      if (lineEnd === -1) return null;
+      return JSON.parse(stdout.slice(0, lineEnd).trim());
+    };
+    const onStdout = (chunk) => {
+      stdout += chunk.toString();
+      const parsed = tryParse();
+      if (!parsed) return;
+      cleanup();
+      resolve(parsed);
+    };
+    const onStderr = (chunk) => {
+      stderr += chunk.toString();
+    };
+    const onExit = (code) => {
+      cleanup();
+      reject(new Error(`configured MCP command exited early with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
+    };
+    child.stdout.on("data", onStdout);
+    child.stderr.on("data", onStderr);
+    child.on("exit", onExit);
+  });
+}
+
 
 async function makeTempDir() {
   return mkdtemp(path.join(os.tmpdir(), "ai-workflow-test-"));
@@ -186,18 +263,46 @@ test("installer supports opting out of the default initial sync", async () => {
   }
 });
 
-test("setup is a top-level alias for install", async () => {
+test("setup installs codex, claude, and gemini bridges that point at a live MCP command", async () => {
   const targetRoot = await makeTempDir();
+  const hostRoot = await makeTempDir();
 
   try {
-    const result = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "setup", "--project", targetRoot], { cwd: repoRoot });
+    const codexHome = path.join(hostRoot, ".codex");
+    const result = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "setup", "--project", targetRoot],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          CODEX_HOME: codexHome
+        }
+      }
+    );
     assert.equal(result.code, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /Installation complete/);
     await access(path.join(targetRoot, ".ai-workflow"));
     await access(path.join(targetRoot, ".ai-workflow", "config.json"));
     await access(path.join(targetRoot, ".ai-workflow", "state"));
+    await access(path.join(targetRoot, ".gemini", "GEMINI.md"));
+    await access(path.join(targetRoot, "CLAUDE.md"));
+    await access(path.join(targetRoot, ".mcp.json"));
+    await access(path.join(codexHome, "skills", "ai-workflow", "SKILL.md"));
+
+    const codexConfig = await readFile(path.join(codexHome, "config.toml"), "utf8");
+    assert.match(codexConfig, /\[features\]/);
+    assert.match(codexConfig, /\bhooks = true\b/);
+    assert.doesNotMatch(codexConfig, /\bcodex_hooks\s*=/);
+    assert.match(codexConfig, /\[mcp_servers\.aiwf-mcp\]/);
+    assert.match(codexConfig, /"mcp", "serve"]/);
+
+    const claudeMcp = JSON.parse(await readFile(path.join(targetRoot, ".mcp.json"), "utf8"));
+    assert.ok(claudeMcp.mcpServers?.["ai-workflow"]);
+    assert.deepEqual(claudeMcp.mcpServers["ai-workflow"].args.slice(-2), ["mcp", "serve"]);
+    await assertConfiguredMcpCommandStarts(claudeMcp.mcpServers["ai-workflow"]);
   } finally {
     await cleanup(targetRoot);
+    await cleanup(hostRoot);
   }
 });
 

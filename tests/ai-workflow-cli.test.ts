@@ -121,6 +121,7 @@ test("ai-workflow extract ticket works through the source CLI entrypoint", { con
   }
 });
 
+
 test("ai-workflow project note resolve updates note status in the workflow DB", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-note-resolve-"));
 

@@ -594,7 +594,7 @@ test("runProviderSetupWizard explains configured Ollama models when the host doe
   const originalHome = process.env.HOME;
   const originalOllamaHost = process.env.OLLAMA_HOST;
   process.env.HOME = tempHome;
-  process.env.OLLAMA_HOST = "http://lotus:11434";
+  process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
   globalThis.fetch = async () => {
     throw new Error("network unavailable");
   };
@@ -604,7 +604,7 @@ test("runProviderSetupWizard explains configured Ollama models when the host doe
     await writeFile(path.join(root, ".ai-workflow", "config.json"), JSON.stringify({
       providers: {
         ollama: {
-          host: "http://lotus:11434",
+          host: "http://127.0.0.1:11434",
           models: [
             { id: "hermes3:8b" },
             { id: "qwen2.5-coder:7b" }
@@ -626,7 +626,7 @@ test("runProviderSetupWizard explains configured Ollama models when the host doe
     assert.doesNotMatch(text, /No Ollama endpoint is currently reachable\./);
 
     const ollama = result.providerState.providers.ollama;
-    assert.equal(ollama.host, "http://lotus:11434");
+    assert.equal(ollama.host, "http://127.0.0.1:11434");
     assert.equal(ollama.configured, true);
     assert.equal(ollama.installed, false);
     assert.equal(ollama.available, false);

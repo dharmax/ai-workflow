@@ -440,6 +440,13 @@ export async function resolveProjectStatus({
   includeRelated = true,
   rawQuestion = false,
   relatedLimit = 12
+}: {
+  projectRoot?: string;
+  selector?: string;
+  type?: string | null;
+  includeRelated?: boolean;
+  rawQuestion?: boolean;
+  relatedLimit?: number;
 } = {}) {
   const store = await openWorkflowStore({ projectRoot });
   try {
@@ -463,6 +470,13 @@ export async function resolveProjectStatusFromStore(store, {
   includeRelated = true,
   rawQuestion = false,
   relatedLimit = 12
+}: {
+  projectRoot?: string;
+  selector?: string;
+  type?: string | null;
+  includeRelated?: boolean;
+  rawQuestion?: boolean;
+  relatedLimit?: number;
 } = {}) {
   const normalizedType = normalizeStatusType(type);
   const graph = store.listArchitecturalPredicates();

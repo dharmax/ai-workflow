@@ -1,1 +1,1 @@
-/home/dharmax/work/ai-workflow
+/home/dharmax/work/ai-workflow/aiwf-shell

@@ -43,7 +43,7 @@ const OPTIONAL_TICKET_LANES = [
 ];
 const ACTIONABLE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
 
-export function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
+export function buildSmartProjectStatus(store, { auditFindings = [] }: { auditFindings?: any[] } = {}) {
   const counts = store.getSummary();
   const tickets = store.listEntities({ entityType: "ticket" }).filter(t => t.state !== "archived");
   const epics = store.listEntities({ entityType: "epic" }).filter(e => e.state !== "archived");
@@ -92,6 +92,8 @@ export function buildSmartProjectStatus(store, { auditFindings = [] } = {}) {
 
 export function buildProjectSummary(store) {
   const counts = store.getSummary();
+  const entities = store.listEntities();
+  const predicates = store.listArchitecturalPredicates();
   const activeTickets = store.listEntities({ entityType: "ticket" })
     .filter((ticket) => ticket.state !== "archived" && ticket.lane !== "Done" && ticket.lane !== "Archived")
     .map(t => ({
@@ -112,6 +114,12 @@ export function buildProjectSummary(store) {
     noteCount: counts.notes,
     symbolCount: counts.symbols,
     claimCount: counts.claims,
+    entityCount: entities.length,
+    predicateCount: predicates.length,
+    entityTypeCounts: entities.reduce((acc, entity) => {
+      acc[entity.entityType] = (acc[entity.entityType] ?? 0) + 1;
+      return acc;
+    }, {}),
     ticketCount: counts.tickets,
     assessmentCount: assessments.length,
     assessmentSummary,
@@ -414,6 +422,7 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
     const geminiPath = (async () => {
       const { existsSync: exists } = await import("node:fs");
       if (exists(path.resolve(projectRoot, ".gemini", "GEMINI.md"))) return ".gemini/GEMINI.md";
+      if (exists(path.resolve(projectRoot, "CLAUDE.md"))) return "CLAUDE.md";
       return "GEMINI.md";
     })();
     writes.push(writeProjectFile(projectRoot, await geminiPath, gemini));
@@ -444,7 +453,9 @@ export async function importLegacyProjections(store, { projectRoot }) {
   const epicsText = epicsSource.text;
 
   const missionText = await readProjectOrTemplate(projectRoot, "MISSION.md");
-  const geminiText = await readText(path.resolve(projectRoot, ".gemini", "GEMINI.md"), "") || await readProjectOrTemplate(projectRoot, "GEMINI.md");
+  const geminiText = await readText(path.resolve(projectRoot, ".gemini", "GEMINI.md"), "")
+    || await readText(path.resolve(projectRoot, "CLAUDE.md"), "")
+    || await readProjectOrTemplate(projectRoot, "GEMINI.md");
 
   if (missionText) {
     store.setMeta("mission", missionText);

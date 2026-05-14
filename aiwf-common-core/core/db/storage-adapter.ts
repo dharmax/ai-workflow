@@ -1,4 +1,4 @@
-import { withWorkflowStore } from '../services/sync.ts';
+import { createWorkflowCoreFacade } from "../services/workflow-facade.ts";
 
 /**
  * Superb bridge for SQLite storage.
@@ -6,10 +6,11 @@ import { withWorkflowStore } from '../services/sync.ts';
 export class SqliteStorageBackend {
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
+    this.core = createWorkflowCoreFacade({ projectRoot });
   }
 
   async load() {
-    return withWorkflowStore(this.projectRoot, async (store) => {
+    return this.core.withStore(async (store) => {
       const blocks = store.listGuidelineBlocks();
       return blocks.map(b => ({
         id: b.id,
@@ -19,7 +20,7 @@ export class SqliteStorageBackend {
   }
 
   async store(block) {
-    return withWorkflowStore(this.projectRoot, async (store) => {
+    return this.core.withStore(async (store) => {
       await store.upsertGuidelineBlock(block);
     });
   }

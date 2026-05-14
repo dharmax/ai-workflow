@@ -1,10 +1,10 @@
 # aiwf-skill
 
-Skill package for `ai-workflow`: install flow plus agent-facing skill assets.
+Optional instruction-only bridge package for `ai-workflow`.
 
 ## What You Install
 
-Install this package when you want the skill surface.
+Install this package only when a host still benefits from local instruction assets in addition to the coded shell or MCP surfaces.
 
 ```bash
 npm install -g aiwf-skill
@@ -13,8 +13,8 @@ aiwf-skill --project /abs/path/to/project --force
 
 - User-facing command: `aiwf-skill`
 - Pulls in: `aiwf-shell` and `aiwf-common-core`
-- Does not require a separate `aiwf-shell` install step
+- Does not replace `aiwf-mcp` as the primary host-extension surface
 
-Use `aiwf-skill` by itself when you only need the skill installer and agent-facing assets.
+Use `aiwf-skill` as a thin bridge when you want host-local instructions plus the real tooling surface behind them.
 
-Use it together with `aiwf-shell` only if you also want the standalone CLI/operator surface available directly on the machine.
+Prefer `aiwf-mcp` for coded host integrations.

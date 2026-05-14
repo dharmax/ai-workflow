@@ -365,10 +365,13 @@ test("resolveProjectStatus materializes surface links and test evidence", async 
     });
 
     assert.equal(report.ok, true);
+    if (!report.ok) {
+      assert.fail(report.error);
+    }
     assert.equal(report.id, "surface:shell");
     assert.equal(Array.isArray(report.related), true);
-    assert.equal(report.tests.some((item) => /tests\/shell\.test\.ts|dogfood shell/.test(item.title)), true);
-    assert.equal(report.tests.some((item) => /dogfood shell doctor-command/.test(item.title)), true);
+    assert.equal((report.tests as any[]).some((item: any) => /tests\/shell\.test\.ts|dogfood shell/.test(item.title)), true);
+    assert.equal((report.tests as any[]).some((item: any) => /dogfood shell doctor-command/.test(item.title)), true);
     assert.equal(report.latestTestResult.status, "pass");
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
@@ -814,7 +817,7 @@ test("openWorkflowStore retries transient locked initialization before succeedin
   DatabaseSync.prototype.exec = function patchedExec(sql) {
     if (!injected && String(sql).includes("PRAGMA journal_mode = WAL")) {
       injected = true;
-      const error = new Error("database is locked");
+      const error = new Error("database is locked") as Error & { code?: string };
       error.code = "ERR_SQLITE_ERROR";
       throw error;
     }

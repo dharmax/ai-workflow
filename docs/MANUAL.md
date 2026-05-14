@@ -2,13 +2,13 @@
 
 ## What It Is
 
-`ai-workflow` is the repo-local operating layer for workflow, tickets, kanban, epics, codelets, provider routing, guarded execution, and shell-based planning.
+`ai-workflow` is the repo-local operating layer for workflow, tickets, kanban, epics, codelets, provider routing, guarded execution, shell-based planning, and MCP-hosted extension tools.
 
-The canonical operational state lives in the workflow DB. Files such as `kanban.md` and `epics.md` are controlled projections of that DB, not the source of truth.
+The canonical operational state lives in the workflow DB inside the shared core. Files such as `kanban.md` and `epics.md` are controlled projections of that DB, not the source of truth.
 
 This Markdown file is the canonical manual. `docs/manual.html` is generated from this file by code and is committed for human browsing and static consumption.
 
-Shell guidance should treat this manual as a first-class operational reference for commands, patterns, and configuration, but it must still prioritize live workflow state, ticket state, `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, and `knowledge.md`.
+Shell, MCP, and host guidance should treat this manual as a first-class operational reference for commands, patterns, and configuration, but they must still prioritize live workflow state, ticket state, `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, and `knowledge.md`.
 
 ## Mental Model
 
@@ -46,7 +46,7 @@ npm install -g @dharmax/ai-workflow
 ai-workflow install --project .
 ```
 
-- Refresh the repo-local Gemini skill bridge:
+- Refresh the optional repo-local Gemini skill bridge:
 
 ```bash
 npm run install:gemini-skill
@@ -137,6 +137,15 @@ ai-workflow shell "extract ticket TKT-001"
 npm run workflow:dogfood -- --profile full --json
 npm run workflow:audit -- --json
 ```
+
+## Shell And Host Surfaces
+
+### Surface Model
+
+- `aiwf-common-core` owns workflow truth, graph state, projections, routing, and governance checks.
+- `aiwf-shell` is the interactive CLI/operator surface.
+- `aiwf-mcp` is the primary coded extension surface for external AI hosts.
+- `aiwf-skill` is optional instruction-only glue for hosts that still want local skill text.
 
 ## Shell Mode
 
@@ -524,7 +533,8 @@ npm run workflow:audit -- --json
 Choose one explicitly:
 
 - `aiwf-shell` for the CLI/operator surface
-- `aiwf-skill` for the skill installer/asset surface
+- `aiwf-mcp` for the primary coded host-extension surface
+- `aiwf-skill` for the optional instruction-only bridge surface
 - both only if you want both surfaces available together
 
 ### Shell Only
@@ -534,7 +544,16 @@ npm install -g aiwf-shell
 ai-workflow --help
 ```
 
-### Skill Only
+### MCP Extension
+
+```bash
+npm install -g aiwf-mcp
+aiwf-mcp
+```
+
+Use this when a host should call durable tools instead of relying on a skill alone.
+
+### Optional Skill Bridge
 
 ```bash
 npm install -g aiwf-skill
@@ -544,8 +563,9 @@ aiwf-skill --project /abs/path/to/project --force
 ### Both Together
 
 ```bash
-npm install -g aiwf-shell aiwf-skill
+npm install -g aiwf-shell aiwf-mcp aiwf-skill
 ai-workflow --help
+aiwf-mcp
 aiwf-skill --project /abs/path/to/project --force
 ```
 

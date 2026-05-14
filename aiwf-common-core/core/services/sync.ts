@@ -15,6 +15,7 @@ import { SEMANTICS } from "../lib/registry.ts";
 import { evaluateReadiness } from "./readiness-evaluator.ts";
 import { runAssessment } from "./assessment.ts";
 import { syncGuidelineBlocks } from "./guidelines.ts";
+import { syncKnowledgeGraphEntities } from "./knowledge-graph.ts";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore, listProjectCodelets } from "./codelets.ts";
 import { withWorkspaceMutationGuardDisabled } from "../lib/workspace-mutation.ts";
 import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.ts";
@@ -22,6 +23,25 @@ import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.ts";
 const AUTO_ASSESSMENT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const AUTO_ASSESSMENT_STALE_MS = 20 * 60 * 1000;
 const ACTIVE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
+
+type ReadinessOptions = {
+  projectRoot?: string;
+  request?: any;
+};
+
+type SearchOptions = {
+  projectRoot?: string;
+  query?: string;
+  limit?: number;
+};
+
+type SearchStoriesOptions = SearchOptions & {
+  epicId?: string | null;
+};
+
+type ProjectRootOptions = {
+  projectRoot?: string;
+};
 
 export async function syncProject({ projectRoot = process.cwd(), writeProjections = false } = {}) {
   const startedAt: string = new Date().toISOString();
@@ -154,6 +174,7 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
 
     await syncStatusGraph({ projectRoot, store });
     await syncGuidelineBlocks(store, { projectRoot });
+    await syncKnowledgeGraphEntities(store, { projectRoot });
     createSearchDocumentsForEntities(store);
 
     // RAG-003: Shadow Sync
@@ -294,12 +315,13 @@ async function computeProjectFingerprint({ projectRoot, store, snapshot }) {
 }
 
 async function readDerivedProjectionState(projectRoot, store) {
-  const [kanbanMd, epicsMd, missionMd, geminiMd, rootGeminiMd] = await Promise.all([
+  const [kanbanMd, epicsMd, missionMd, geminiMd, rootGeminiMd, claudeMd] = await Promise.all([
     readProjectFileOptional(projectRoot, "kanban.md"),
     readProjectFileOptional(projectRoot, "epics.md"),
     readProjectFileOptional(projectRoot, "MISSION.md"),
     readProjectFileOptional(projectRoot, ".gemini/GEMINI.md"),
-    readProjectFileOptional(projectRoot, "GEMINI.md")
+    readProjectFileOptional(projectRoot, "GEMINI.md"),
+    readProjectFileOptional(projectRoot, "CLAUDE.md")
   ]);
 
   const lastProjectionDigest = store.getMeta("lastProjectionDigest", null);
@@ -310,7 +332,7 @@ async function readDerivedProjectionState(projectRoot, store) {
     kanbanHash: kanbanMd ? sha1(kanbanMd.content) : null,
     epicsHash: epicsMd ? sha1(epicsMd.content) : null,
     missionHash: missionMd ? sha1(missionMd.content) : null,
-    geminiHash: geminiMd ? sha1(geminiMd.content) : (rootGeminiMd ? sha1(rootGeminiMd.content) : null),
+    geminiHash: geminiMd ? sha1(geminiMd.content) : (rootGeminiMd ? sha1(rootGeminiMd.content) : (claudeMd ? sha1(claudeMd.content) : null)),
     lastProjectionDigest,
     missionDigest: missionText ? sha1(missionText) : null,
     geminiDigest: geminiText ? sha1(geminiText) : null
@@ -328,7 +350,7 @@ function isDerivedProjectionSnapshot(relativePath, derivedState) {
   if (normalized === "MISSION.md") {
     return Boolean(derivedState.missionDigest && derivedState.missionHash === derivedState.missionDigest);
   }
-  if (normalized === ".gemini/GEMINI.md" || normalized === "GEMINI.md") {
+  if (normalized === ".gemini/GEMINI.md" || normalized === "GEMINI.md" || normalized === "CLAUDE.md") {
     return Boolean(derivedState.geminiDigest && derivedState.geminiHash === derivedState.geminiDigest);
   }
   return false;
@@ -648,7 +670,7 @@ export async function withWorkflowStore(projectRoot, callback) {
   }
 }
 
-export async function getActiveTickets({ projectRoot = process.cwd() } = {}) {
+export async function getActiveTickets({ projectRoot = process.cwd() }: ProjectRootOptions = {}) {
   return withWorkflowStore(projectRoot, async (store) => {
     return store.listEntities({ entityType: "ticket" })
       .filter((ticket) => !["Done", "Archived"].includes(ticket.lane ?? ""))
@@ -656,36 +678,36 @@ export async function getActiveTickets({ projectRoot = process.cwd() } = {}) {
   });
 }
 
-export async function getProjectSummary({ projectRoot = process.cwd() } = {}) {
+export async function getProjectSummary({ projectRoot = process.cwd() }: ProjectRootOptions = {}) {
   return withWorkflowStore(projectRoot, async (store) => buildProjectSummary(store));
 }
 
-export async function getSmartProjectStatus({ projectRoot = process.cwd() } = {}) {
+export async function getSmartProjectStatus({ projectRoot = process.cwd() }: ProjectRootOptions = {}) {
   const auditFindings = await auditArchitecture(projectRoot);
   return withWorkflowStore(projectRoot, async (store) => buildSmartProjectStatus(store, { auditFindings }));
 }
 
-export async function getProjectMetrics({ projectRoot = process.cwd() } = {}) {
+export async function getProjectMetrics({ projectRoot = process.cwd() }: ProjectRootOptions = {}) {
   return withWorkflowStore(projectRoot, async (store) => store.getMetricsSummary());
 }
 
-export async function evaluateProjectReadiness({ projectRoot = process.cwd(), request } = {}) {
+export async function evaluateProjectReadiness({ projectRoot = process.cwd(), request }: ReadinessOptions = {}) {
   return withWorkflowStore(projectRoot, async (store) => evaluateReadiness(store, request));
 }
 
-export async function recordMetric({ projectRoot = process.cwd(), metric }) {
+export async function recordMetric({ projectRoot = process.cwd(), metric }: { projectRoot?: string; metric?: any } = {}) {
   return withWorkflowStore(projectRoot, async (store) => store.appendMetric(metric));
 }
 
-export async function searchProject({ projectRoot = process.cwd(), query, limit = 20 } = {}) {
+export async function searchProject({ projectRoot = process.cwd(), query, limit = 20 }: SearchOptions = {}) {
   return withWorkflowStore(projectRoot, async (store) => store.search(query, { limit }));
 }
 
-export async function listCodelets({ projectRoot = process.cwd(), sourceKind = null } = {}) {
+export async function listCodelets({ projectRoot = process.cwd(), sourceKind = null }: { projectRoot?: string; sourceKind?: string | null } = {}) {
   return withWorkflowStore(projectRoot, async (store) => listCodeletsFromStore(store, { sourceKind }));
 }
 
-export async function getCodelet({ projectRoot = process.cwd(), codeletId } = {}) {
+export async function getCodelet({ projectRoot = process.cwd(), codeletId }: { projectRoot?: string; codeletId?: string } = {}) {
   if (!codeletId) {
     return null;
   }
@@ -693,11 +715,11 @@ export async function getCodelet({ projectRoot = process.cwd(), codeletId } = {}
   return withWorkflowStore(projectRoot, async (store) => getCodeletFromStore(store, codeletId));
 }
 
-export async function searchCodelets({ projectRoot = process.cwd(), query, limit = 20, sourceKind = null } = {}) {
+export async function searchCodelets({ projectRoot = process.cwd(), query, limit = 20, sourceKind = null }: SearchOptions & { sourceKind?: string | null } = {}) {
   return withWorkflowStore(projectRoot, async (store) => searchCodeletsFromStore(store, query, { limit, sourceKind }));
 }
 
-export async function listEpics({ projectRoot = process.cwd(), includeArchived = false } = {}) {
+export async function listEpics({ projectRoot = process.cwd(), includeArchived = false }: { projectRoot?: string; includeArchived?: boolean } = {}) {
   return withWorkflowStore(projectRoot, async (store) => {
     const epics = store.listEntities({ entityType: "epic" })
       .filter((epic) => includeArchived || epic.state !== "archived")
@@ -707,7 +729,7 @@ export async function listEpics({ projectRoot = process.cwd(), includeArchived =
   });
 }
 
-export async function getEpic({ projectRoot = process.cwd(), epicId } = {}) {
+export async function getEpic({ projectRoot = process.cwd(), epicId }: { projectRoot?: string; epicId?: string } = {}) {
   if (!epicId) {
     return null;
   }
@@ -718,7 +740,7 @@ export async function getEpic({ projectRoot = process.cwd(), epicId } = {}) {
   });
 }
 
-export async function searchEpics({ projectRoot = process.cwd(), query, limit = 20 } = {}) {
+export async function searchEpics({ projectRoot = process.cwd(), query, limit = 20 }: SearchOptions = {}) {
   const normalizedQuery = normalizeSearchQuery(query);
   if (!normalizedQuery) {
     return [];
@@ -740,7 +762,7 @@ export async function searchEpics({ projectRoot = process.cwd(), query, limit = 
   });
 }
 
-export async function listEpicUserStories({ projectRoot = process.cwd(), epicId, includeArchived = false } = {}) {
+export async function listEpicUserStories({ projectRoot = process.cwd(), epicId, includeArchived = false }: { projectRoot?: string; epicId?: string | null; includeArchived?: boolean } = {}) {
   return withWorkflowStore(projectRoot, async (store) => {
     const epic = epicId ? store.getEntity(epicId) : null;
     if (epicId && (!epic || epic.entityType !== "epic")) {
@@ -755,7 +777,7 @@ export async function listEpicUserStories({ projectRoot = process.cwd(), epicId,
   });
 }
 
-export async function searchEpicUserStories({ projectRoot = process.cwd(), query, epicId = null, limit = 20 } = {}) {
+export async function searchEpicUserStories({ projectRoot = process.cwd(), query, epicId = null, limit = 20 }: SearchStoriesOptions = {}) {
   const normalizedQuery = normalizeSearchQuery(query);
   if (!normalizedQuery) {
     return [];
@@ -891,7 +913,7 @@ export async function addManualNote({ projectRoot = process.cwd(), note }) {
   });
 }
 
-export async function resolveProjectNote({ projectRoot = process.cwd(), noteId, reason = null }) {
+export async function resolveProjectNote({ projectRoot = process.cwd(), noteId, reason = null }: { projectRoot?: string; noteId?: string; reason?: string | null } = {}) {
   return withWorkflowStore(projectRoot, async (store) => {
     const existing = store.getNoteById(noteId);
     if (!existing) {

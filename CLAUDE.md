@@ -1,18 +1,13 @@
-<!-- Responsibility: Provide Gemini CLI with the repo-local ai-workflow operating guide.
-Scope: This file points Gemini to the workflow surfaces and local skill bridge, not ticket-local implementation detail. -->
-# Gemini Workflow Guide
+<!-- Responsibility: Provide Claude Code with the repo-local ai-workflow operating guide.
+Scope: This file points Claude to the workflow surfaces and local MCP bridge, not ticket-local implementation detail. -->
+# Claude Workflow Guide
 
 Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 
 ## Local Bridge
 
-- Repo-local skill path: `.gemini/skills/ai-workflow`
-- Primary coded host surface: `aiwf-mcp`
-- Refresh the local skill copy:
-
-```bash
-npm run install:gemini-skill
-```
+- Project MCP config: `.mcp.json`
+- Primary coded host surface: `ai-workflow mcp serve`
 
 ## Working Rules
 

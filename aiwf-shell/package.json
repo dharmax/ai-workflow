@@ -29,7 +29,8 @@
     "typecheck": "node ../scripts/validate-package.mjs ."
   },
   "dependencies": {
-    "aiwf-common-core": "0.1.0"
+    "aiwf-common-core": "0.1.0",
+    "aiwf-mcp": "0.1.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.0"

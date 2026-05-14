@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "description": "Skill packaging, installation, and agent-facing assets for ai-workflow.",
+  "description": "Optional instruction-only bridge assets for ai-workflow.",
   "main": "./install-ai-workflow-skill.mjs",
   "bin": {
     "aiwf-skill": "./install-ai-workflow-skill.mjs"

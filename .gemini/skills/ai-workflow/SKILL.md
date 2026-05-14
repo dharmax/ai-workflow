@@ -5,7 +5,7 @@ description: "Use when the user wants project or game status, beta or release re
 
 # AI Workflow Skill
 
-Use this skill when you want the shared `ai-workflow` toolkit to guide repo work instead of reconstructing workflow logic in the prompt.
+Use this skill as a thin instruction layer over the coded `ai-workflow` surfaces. The real capability lives in `aiwf-shell`, `aiwf-mcp`, and `aiwf-common-core`, not in the skill text itself.
 
 Trigger this skill for:
 - game beta release preparation
@@ -20,6 +20,10 @@ This skill is designed for low-risk operation:
 - use `--mode tool-dev --evidence-root <project>` when operating from the toolkit repo against an external project
 - only use mutating shell flows when the user explicitly asks for them
 - treat readiness, status, and current-work checks as safe by default
+
+## Resolve The Surface
+
+Prefer the MCP surface when the host can use it. Use the local wrapper only when the host needs a shell-facing bridge.
 
 ## Resolve the CLI
 

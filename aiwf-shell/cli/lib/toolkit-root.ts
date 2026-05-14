@@ -34,6 +34,7 @@ function isToolkitRoot(candidate: string) {
     && (
       existsSync(path.resolve(candidate, "cli", "ai-workflow.mjs"))
       || existsSync(path.resolve(candidate, "cli", "ai-workflow.ts"))
+      || existsSync(path.resolve(candidate, "dist", "ai-workflow.mjs"))
     )
     && (
       existsSync(path.resolve(candidate, "runtime", "scripts", "ai-workflow"))

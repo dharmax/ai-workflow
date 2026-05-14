@@ -234,7 +234,7 @@ export async function handleShell(rest, { cliPath } = {}) {
     aiTraceEvents: [],
     workflowTraceEvents: [],
     history: Array.isArray(restoredState?.history) ? restoredState.history : [],
-    cliPath: cliPath ?? path.resolve(root, "cli", "ai-workflow.mjs"),
+    cliPath: cliPath ?? path.resolve(TOOLKIT_ROOT, "dist", "ai-workflow.mjs"),
     plannerContext: null,
     planners: null
   };
@@ -1378,6 +1378,7 @@ function isDeterministicShellSurfaceRequest(inputText) {
     "providers"
   ].includes(normalized)
     || /^ticket\s+[A-Z0-9-]+$/i.test(trimmed)
+    || /^(?:(?:please\s+)?|(?:can|could|would)\s+you\s+)?(?:fix|resolve|complete|finish|execute|handle|work\s+on|do)\s+(?:the\s+)?(?:first|next|top)\s+(?:ticket|issue|task|item)\s+(?:in\s+(?:the\s+)?)?(?:todo|to do|backlog|in progress|bugs p1|bugs p2\/p3)\b/i.test(trimmed)
     || /^search\s+\S+/i.test(trimmed)
     || /^route\s+\S+/i.test(trimmed)
     || /^summary$/i.test(trimmed)
@@ -1472,6 +1473,7 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
   const normalizedQuestion = normalizeConversationText(text);
   const activeGraphState = options.activeGraphState ?? null;
   const providerMap = plannerContext?.providerState?.providers ?? {};
+  const orderedLaneExecution = resolveOrderedLaneExecutionRequest(plannerContext, text);
   const implicitTicketId = resolveImplicitTicketId(plannerContext, text);
   const intent = analyzeShellIntent(text, plannerContext);
   const routing = routeShellIntent(intent);
@@ -1489,6 +1491,17 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
 
   if (!text) {
     return replyPlan("Tell me what you want to do. Example: `sync and show review hotspots`.");
+  }
+
+  if (orderedLaneExecution) {
+    if (!orderedLaneExecution.ticket) {
+      return replyPlan(`No ${orderedLaneExecution.lane} ticket is visible in the current workflow state.`, 0.9, `No visible ${orderedLaneExecution.lane} ticket matched the ordered execution request.`);
+    }
+    return actionPlan([{
+      type: "execute_ticket",
+      ticketId: orderedLaneExecution.ticket.id,
+      apply: true
+    }], 0.98, `Ordered ${orderedLaneExecution.lane} ticket execution request.`);
   }
 
   if (/\bproject\b.*\b(do next|next)\b/.test(normalizedQuestion)) {
@@ -1620,6 +1633,12 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
     });
     if (continuationPlan) {
       return continuationPlan;
+    }
+    if (followUpMode === "ask-about-prior-result") {
+      const priorResultReply = renderPriorResultAnswer(activeGraphState);
+      if (priorResultReply) {
+        return replyPlan(priorResultReply, 0.9, "Follow-up answered from the prior executed graph.");
+      }
     }
     const hasContinuationAnchor = Boolean(
       activeGraphState?.request
@@ -2716,6 +2735,83 @@ function inferLifecycleLaneFromText(inputText) {
   return null;
 }
 
+function laneMatchesSelector(ticketLane, selectedLane) {
+  const actual = normalizeConversationText(ticketLane);
+  const expected = normalizeConversationText(selectedLane);
+  if (!actual || !expected) {
+    return false;
+  }
+  if (actual === expected) {
+    return true;
+  }
+  if (expected === "todo" && /\b(todo|to do)\b/.test(actual)) {
+    return true;
+  }
+  if (expected === "in progress" && /\bin progress\b/.test(actual)) {
+    return true;
+  }
+  if (expected === "backlog" && /\bbacklog\b/.test(actual)) {
+    return true;
+  }
+  if (expected === "bugs p1" && /\bbugs p1\b/.test(actual)) {
+    return true;
+  }
+  if (expected === "bugs p2 p3" && /\bbugs p2 p3\b/.test(actual)) {
+    return true;
+  }
+  return false;
+}
+
+function listVisibleTicketsInLane(plannerContext, selectedLane) {
+  if (!selectedLane) {
+    return [];
+  }
+  const activeTickets = Array.isArray(plannerContext?.summary?.activeTickets) ? plannerContext.summary.activeTickets : [];
+  const activeTicketMap = new Map(activeTickets.map((ticket) => [String(ticket.id ?? "").toUpperCase(), ticket]));
+  const kanbanTickets = extractKanbanTicketsInSection(plannerContext?.kanban, selectedLane);
+  if (kanbanTickets.length) {
+    return kanbanTickets.map((ticket) => {
+      const active = activeTicketMap.get(String(ticket.id ?? "").toUpperCase());
+      return {
+        id: String(active?.id ?? ticket.id ?? "").toUpperCase(),
+        title: String(active?.title ?? ticket.title ?? ""),
+        lane: String(active?.lane ?? selectedLane)
+      };
+    }).filter((ticket) => ticket.id);
+  }
+  return activeTickets
+    .filter((ticket) => laneMatchesSelector(ticket?.lane, selectedLane))
+    .map((ticket) => ({
+      id: String(ticket?.id ?? "").toUpperCase(),
+      title: String(ticket?.title ?? ""),
+      lane: String(ticket?.lane ?? selectedLane)
+    }))
+    .filter((ticket) => ticket.id);
+}
+
+function resolveOrderedLaneExecutionRequest(plannerContext, inputText) {
+  const text = String(inputText ?? "").trim();
+  const normalized = normalizeConversationText(text);
+  if (!/^(?:(?:please\s+)?|(?:can|could|would)\s+you\s+)?(?:fix|resolve|complete|finish|execute|handle|work on|do)\b/i.test(text)) {
+    return null;
+  }
+  if (!/\b(first|next|top)\b/.test(normalized)) {
+    return null;
+  }
+  if (!/\b(ticket|issue|task|item)\b/.test(normalized)) {
+    return null;
+  }
+  const lane = inferLifecycleLaneFromText(text);
+  if (!lane) {
+    return null;
+  }
+  const tickets = listVisibleTicketsInLane(plannerContext, lane);
+  return {
+    lane,
+    ticket: tickets[0] ?? null
+  };
+}
+
 function buildWorkflowKickoffShellPlan(inputText, plannerContext = {}) {
   const text = String(inputText ?? "").trim();
   if (!looksLikeEpicKickoffRequest(text)) {
@@ -2836,7 +2932,7 @@ function buildGoalDirectedShellPlan(intent, plannerContext) {
     const currentTicketAction = { type: "status_query", query: ticketId, entityType: "ticket" };
     addActionNode(currentTicketAction);
     if (intent.requestedMutations.executeCurrent) {
-      addActionNode({ type: "execute_ticket", ticketId, apply: false });
+      addActionNode({ type: "execute_ticket", ticketId, apply: true });
     }
   }
 
@@ -2862,9 +2958,9 @@ function buildGoalDirectedShellPlan(intent, plannerContext) {
   });
   const topRanked = ranked.slice(0, 3).map((item) => `${item.id}${item.score > 0 ? ` (${item.score})` : ""}`);
   const strategyParts = [];
-  if (intent.requestedMutations.executeCurrent && ticketId) {
-    strategyParts.push(`First, inspect and dry-run ${ticketId} so execution is grounded before any mutation.`);
-  }
+    if (intent.requestedMutations.executeCurrent && ticketId) {
+      strategyParts.push(`First, execute ${ticketId} so the requested ticket work actually progresses before any follow-up ranking.`);
+    }
   if (intent.requestedMutations.prioritizeRemaining) {
     strategyParts.push("Then inspect the remaining active tickets and rank them against the stated goal.");
   }
@@ -3323,7 +3419,7 @@ export async function planShellRequestWithAgent(inputText, options) {
       options,
       contentParts: null
     });
-    const rawResponse = (completion.response ?? completion.text ?? "").trim();
+    const rawResponse = extractShellCompletionText(completion);
     // Extract JSON block even if there's conversational filler around it
     const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
     const cleanJson = jsonMatch ? jsonMatch[1].trim() : rawResponse;
@@ -3419,6 +3515,10 @@ function canAcceptPlainTextPlannerReply(inputText) {
   return looksLikeShellUsageQuestion(inputText) || looksLikeRepoExplainerQuestion(inputText);
 }
 
+function extractShellCompletionText(completion) {
+  return String(completion?.response ?? completion?.text ?? "").trim();
+}
+
 async function runShellCompletion({ stage, planner, system, prompt, config = {}, options, contentParts = null }) {
   const trace = typeof options?.traceAi === "function" ? options.traceAi : null;
   const timeoutMs = getShellPlannerTimeoutMs(options, planner);
@@ -3457,7 +3557,7 @@ async function runShellCompletion({ stage, planner, system, prompt, config = {},
       phase: "response",
       stage,
       planner,
-      response: completion.response,
+      response: completion.response ?? completion.text ?? null,
       usage: completion.usage ?? null,
       elapsedMs: Date.now() - start
     });
@@ -4167,7 +4267,7 @@ async function synthesizeShellExecutionReply({ inputText, plan, executed, option
       },
       options
     });
-    const text = String(completion.response ?? "").trim();
+    const text = extractShellCompletionText(completion);
     return text || renderFallbackAssistantReply({ inputText, plan, executed, plannerContext: options.plannerContext });
   } catch {
     return renderFallbackAssistantReply({ inputText, plan, executed, plannerContext: options.plannerContext });
@@ -5321,7 +5421,7 @@ export async function runInteractiveShell(options) {
       output.write([
         "Planner note: No AI models configured. Shell is running in limited regex-only mode.",
         "To enable full agentic reasoning, you can:",
-        "- Configure local Ollama on `lotus`: `set-ollama-hw --global --host http://lotus:11434`",
+        "- Configure local Ollama on `127.0.0.1`: `set-ollama-hw --global --host http://127.0.0.1:11434`",
         "- Verify local Ollama visibility: `doctor`",
         "- Verify actual planner routing: `route shell-planning --json`",
         "- Set up a high-power remote provider (recommended): \`set-provider-key google\` (Gemini)",
@@ -6872,6 +6972,46 @@ function renderContinuationState(state) {
   return lines.join("\n");
 }
 
+function renderPriorResultAnswer(state) {
+  const nodes = state?.graph?.nodes ?? [];
+  const actionNodes = nodes.filter((node) => node.kind === "action");
+  if (!actionNodes.length) {
+    return null;
+  }
+  const actionTypes = actionNodes
+    .map((node) => String(node.type ?? "").trim())
+    .filter(Boolean);
+  if (!actionTypes.length) {
+    return null;
+  }
+  const uniqueActionTypes = [...new Set(actionTypes)];
+  const mutating = uniqueActionTypes.some((type) => MUTATING_ACTIONS.has(type));
+  const references = normalizeShellReferences(state?.references);
+  const firstTicket = references.tickets.find(Boolean) ?? null;
+  if (!mutating) {
+    return [
+      "No. The prior turn did not apply a fix.",
+      firstTicket
+        ? `It referenced ${firstTicket}, but it only ran: ${uniqueActionTypes.join(", ")}.`
+        : `It only ran: ${uniqueActionTypes.join(", ")}.`
+    ].join("\n");
+  }
+  const executedTicket = actionNodes.find((node) => node.type === "execute_ticket");
+  if (executedTicket?.result?.ok === false) {
+    return [
+      "It attempted a fix, but the mutating step failed.",
+      `Last mutating action: ${executedTicket.type}.`
+    ].join("\n");
+  }
+  if (executedTicket) {
+    return [
+      "A mutating ticket step was executed in the prior turn.",
+      firstTicket ? `Ticket: ${firstTicket}.` : `Actions: ${uniqueActionTypes.join(", ")}.`
+    ].join("\n");
+  }
+  return `The prior turn executed mutating work: ${uniqueActionTypes.join(", ")}.`;
+}
+
 function renderPlannerActiveGraphState(state) {
   const payload = {
     priorRequest: state?.request ?? null,
@@ -7002,8 +7142,8 @@ function renderProviderStatus(providerState) {
   } else {
     lines.push("- Primary host: not configured");
   }
-  lines.push(`- Expected local host for this repo: http://lotus:11434`);
-  lines.push(`- Setup: ai-workflow set-ollama-hw --global --host http://lotus:11434`);
+  lines.push(`- Expected local host for this repo: http://127.0.0.1:11434`);
+  lines.push(`- Setup: ai-workflow set-ollama-hw --global --host http://127.0.0.1:11434`);
   lines.push("- Verify: ai-workflow doctor");
   lines.push("- Verify route: ai-workflow route shell-planning --json");
   return lines.join("\n");
@@ -7039,7 +7179,7 @@ function renderShellCommandHelp(command) {
       "doctor: run local diagnostics and provider visibility checks.",
       "Usage: `doctor`",
       "CLI equivalent: `ai-workflow doctor`",
-      "For local shell planning, this should clearly report whether Ollama on `http://lotus:11434` is reachable."
+      "For local shell planning, this should clearly report whether Ollama on `http://127.0.0.1:11434` is reachable."
     ].join("\n");
   }
   return renderShellHelp({ toolkitCodelets: [] });
@@ -7297,8 +7437,8 @@ function renderShellHelp(plannerContext) {
     "Examples:",
     ...examples.map((item) => `- ${item}`),
     "",
-    "Local Ollama on `lotus` setup:",
-    "- `ai-workflow set-ollama-hw --global --host http://lotus:11434`",
+    "Local Ollama on `127.0.0.1` setup:",
+    "- `ai-workflow set-ollama-hw --global --host http://127.0.0.1:11434`",
     "- `ai-workflow doctor`",
     "- `ai-workflow route shell-planning --json`",
     "",
@@ -7419,7 +7559,7 @@ function buildContextualShellReply(inputText, plannerContext) {
   if (asksSetupOpenAiOllama) {
     const ollama = providerMap.ollama;
     const openai = providerMap.openai;
-    const localOllamaHost = ollama?.host ?? "http://lotus:11434";
+    const localOllamaHost = ollama?.host ?? "http://127.0.0.1:11434";
     const lines = [
       "Use this setup sequence:",
       "1. `ai-workflow set-provider-key openai --global`",
@@ -7432,7 +7572,7 @@ function buildContextualShellReply(inputText, plannerContext) {
     } else if (ollama?.host) {
       lines.push(`Ollama is configured at ${ollama.host}, but it is not currently reachable.`);
     } else {
-      lines.push("This repo expects local Ollama shell planning on `http://lotus:11434`.");
+      lines.push("This repo expects local Ollama shell planning on `http://127.0.0.1:11434`.");
     }
     if (openai?.available) {
       lines.push("OpenAI already looks available.");

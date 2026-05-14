@@ -16,6 +16,7 @@
   },
   "include": [
     "aiwf-common-core/**/*.ts",
+    "aiwf-mcp/**/*.ts",
     "aiwf-shell/**/*.ts",
     "aiwf-shell/**/*.mjs",
     "aiwf-skill/**/*.ts",

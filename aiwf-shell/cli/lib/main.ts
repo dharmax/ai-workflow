@@ -53,14 +53,16 @@ import { runDogfoodHarness } from "aiwf-common-core/services/dogfood-harness";
 import { runProgrammingDogfoodHarness } from "aiwf-common-core/services/programming-dogfood-harness";
 import { getWorkspaceRoot } from "aiwf-common-core/lib/toolkit-root";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
+import { startServer as startMcpServer } from "aiwf-mcp";
 
 const toolkitRoot = getCliToolkitRoot();
+const shellCliPath = path.resolve(toolkitRoot, "dist", "ai-workflow.mjs");
 const execFileAsync = promisify(execFile);
 
 const HELP = `Usage:
-  ai-workflow setup [--project <path>]
+  ai-workflow setup [--project <path>] [--host <gemini|codex|claude|all>]
   ai-workflow init [--all] [--target <path>]
-  ai-workflow install [--project <path>]
+  ai-workflow install [--project <path>] [--host <gemini|codex|claude|all>]
   ai-workflow doctor [--json] [--refresh-models]
   ai-workflow version [--json]
   ai-workflow --version
@@ -121,6 +123,7 @@ const HELP = `Usage:
   ai-workflow tool benchmark --suite shell-trust [--json]
   ai-workflow tool dogfood-harness [--json]
   ai-workflow tool finalize [--json]  ai-workflow web tutorial [--port <n>] [--host <host>] [--json]
+  ai-workflow mcp serve
 
   ai-workflow config get [key]
   ai-workflow config set <key> <value>
@@ -170,7 +173,7 @@ export async function main(argv) {
     case "consult":
       return handleConsult(rest);
     case "shell":
-      return handleShell(rest, { cliPath: path.resolve(toolkitRoot, "cli", "ai-workflow.mjs") });
+      return handleShell(rest, { cliPath: shellCliPath });
     case "ask":
       return handleAsk(rest);
     case "sync":
@@ -208,6 +211,8 @@ export async function main(argv) {
       return handleRoute(rest);
     case "telegram":
       return handleTelegram(rest);
+    case "mcp":
+      return handleMcp(rest);
     case "provider":
       return handleProvider(rest);
     case "mode":
@@ -1569,14 +1574,25 @@ async function handleInstall(rest) {
   assertDirectCommandChannel("ai-workflow install");
   const args: any = parseArgs(rest);
   const projectRoot = path.resolve(String(args.project ?? process.cwd()));
+  const hosts = args.host;
   return withWorkspaceMutation(projectRoot, "install", async () => {
     await installAgents({
       toolkitRoot,
-      projectRoot
+      projectRoot,
+      hosts
     });
     process.stdout.write(`Installation complete in ${projectRoot}\n`);
     return 0;
   }, { syncAfter: false, syncBefore: false });
+}
+
+async function handleMcp(rest) {
+  const [subcommand] = rest;
+  if (subcommand === "serve") {
+    await startMcpServer();
+    return 0;
+  }
+  printAndExit("Usage: ai-workflow mcp serve", 1);
 }
 
 async function handleAudit(rest) {

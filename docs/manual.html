@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="8d7fd73bca051cb71ab83b603476aeffa07cf979">
+  <meta name="manual-source-sha1" content="74a91beccfa27d2c93f2787afe1ec6661c2a00c1">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:8d7fd73bca051cb71ab83b603476aeffa07cf979 -->
+  <!-- generated from docs/MANUAL.md sha1:74a91beccfa27d2c93f2787afe1ec6661c2a00c1 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -28,6 +28,8 @@
         <li><a href="#core-workflow">Core Workflow</a></li>
         <li><a href="#standard-operator-loop">Standard Operator Loop</a></li>
         <li><a href="#canonical-workflow-commands">Canonical Workflow Commands</a></li>
+        <li><a href="#shell-and-host-surfaces">Shell And Host Surfaces</a></li>
+        <li><a href="#surface-model">Surface Model</a></li>
         <li><a href="#shell-mode">Shell Mode</a></li>
         <li><a href="#what-shell-mode-does">What Shell Mode Does</a></li>
         <li><a href="#high-value-shell-patterns">High-Value Shell Patterns</a></li>
@@ -61,7 +63,8 @@
         <li><a href="#run-verification">Run Verification</a></li>
         <li><a href="#install-surfaces">Install Surfaces</a></li>
         <li><a href="#shell-only">Shell Only</a></li>
-        <li><a href="#skill-only">Skill Only</a></li>
+        <li><a href="#mcp-extension">MCP Extension</a></li>
+        <li><a href="#optional-skill-bridge">Optional Skill Bridge</a></li>
         <li><a href="#both-together">Both Together</a></li>
         <li><a href="#troubleshooting-and-failure-modes">Troubleshooting And Failure Modes</a></li>
         <li><a href="#ai-workflow-sync-reports-zero-indexed-files">`ai-workflow sync` Reports Zero Indexed Files</a></li>
@@ -74,10 +77,10 @@
     <article>
       <section aria-labelledby="what-it-is" data-heading-level="2">
       <h2 id="what-it-is">What It Is</h2>
-      <p><code>ai-workflow</code> is the repo-local operating layer for workflow, tickets, kanban, epics, codelets, provider routing, guarded execution, and shell-based planning.</p>
-      <p>The canonical operational state lives in the workflow DB. Files such as <code>kanban.md</code> and <code>epics.md</code> are controlled projections of that DB, not the source of truth.</p>
+      <p><code>ai-workflow</code> is the repo-local operating layer for workflow, tickets, kanban, epics, codelets, provider routing, guarded execution, shell-based planning, and MCP-hosted extension tools.</p>
+      <p>The canonical operational state lives in the workflow DB inside the shared core. Files such as <code>kanban.md</code> and <code>epics.md</code> are controlled projections of that DB, not the source of truth.</p>
       <p>This Markdown file is the canonical manual. <code>docs/manual.html</code> is generated from this file by code and is committed for human browsing and static consumption.</p>
-      <p>Shell guidance should treat this manual as a first-class operational reference for commands, patterns, and configuration, but it must still prioritize live workflow state, ticket state, <code>AGENTS.md</code>, <code>execution-protocol.md</code>, <code>project-guidelines.md</code>, and <code>knowledge.md</code>.</p>
+      <p>Shell, MCP, and host guidance should treat this manual as a first-class operational reference for commands, patterns, and configuration, but they must still prioritize live workflow state, ticket state, <code>AGENTS.md</code>, <code>execution-protocol.md</code>, <code>project-guidelines.md</code>, and <code>knowledge.md</code>.</p>
       </section>
       <section aria-labelledby="mental-model" data-heading-level="2">
       <h2 id="mental-model">Mental Model</h2>
@@ -113,7 +116,7 @@ npm install -g @dharmax/ai-workflow</code></pre>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow install --project .</code></pre>
       <ul data-list-kind="unordered">
-      <li>Refresh the repo-local Gemini skill bridge:</li>
+      <li>Refresh the optional repo-local Gemini skill bridge:</li>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">npm run install:gemini-skill</code></pre>
       <ul data-list-kind="unordered">
@@ -185,6 +188,18 @@ ai-workflow shell &quot;extract ticket TKT-001&quot;</code></pre>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">npm run workflow:dogfood -- --profile full --json
 npm run workflow:audit -- --json</code></pre>
+      </section>
+      </section>
+      <section aria-labelledby="shell-and-host-surfaces" data-heading-level="2">
+      <h2 id="shell-and-host-surfaces">Shell And Host Surfaces</h2>
+      <section aria-labelledby="surface-model" data-heading-level="3">
+      <h3 id="surface-model">Surface Model</h3>
+      <ul data-list-kind="unordered">
+      <li><code>aiwf-common-core</code> owns workflow truth, graph state, projections, routing, and governance checks.</li>
+      <li><code>aiwf-shell</code> is the interactive CLI/operator surface.</li>
+      <li><code>aiwf-mcp</code> is the primary coded extension surface for external AI hosts.</li>
+      <li><code>aiwf-skill</code> is optional instruction-only glue for hosts that still want local skill text.</li>
+      </ul>
       </section>
       </section>
       <section aria-labelledby="shell-mode" data-heading-level="2">
@@ -614,7 +629,8 @@ npm run workflow:audit -- --json</code></pre>
       <p>Choose one explicitly:</p>
       <ul data-list-kind="unordered">
       <li><code>aiwf-shell</code> for the CLI/operator surface</li>
-      <li><code>aiwf-skill</code> for the skill installer/asset surface</li>
+      <li><code>aiwf-mcp</code> for the primary coded host-extension surface</li>
+      <li><code>aiwf-skill</code> for the optional instruction-only bridge surface</li>
       <li>both only if you want both surfaces available together</li>
       </ul>
       <section aria-labelledby="shell-only" data-heading-level="3">
@@ -622,15 +638,22 @@ npm run workflow:audit -- --json</code></pre>
       <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell
 ai-workflow --help</code></pre>
       </section>
-      <section aria-labelledby="skill-only" data-heading-level="3">
-      <h3 id="skill-only">Skill Only</h3>
+      <section aria-labelledby="mcp-extension" data-heading-level="3">
+      <h3 id="mcp-extension">MCP Extension</h3>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-mcp
+aiwf-mcp</code></pre>
+      <p>Use this when a host should call durable tools instead of relying on a skill alone.</p>
+      </section>
+      <section aria-labelledby="optional-skill-bridge" data-heading-level="3">
+      <h3 id="optional-skill-bridge">Optional Skill Bridge</h3>
       <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force</code></pre>
       </section>
       <section aria-labelledby="both-together" data-heading-level="3">
       <h3 id="both-together">Both Together</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell aiwf-skill
+      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell aiwf-mcp aiwf-skill
 ai-workflow --help
+aiwf-mcp
 aiwf-skill --project /abs/path/to/project --force</code></pre>
       </section>
       </section>

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "ai-workflow": {
+      "command": "/usr/local/bin/node",
+      "args": [
+        "/home/dharmax/work/ai-workflow/node_modules/tsx/dist/cli.mjs",
+        "/home/dharmax/work/ai-workflow/aiwf-shell/cli/ai-workflow.ts",
+        "mcp",
+        "serve"
+      ],
+      "env": {
+        "AI_WORKFLOW_TOOLKIT_ROOT": "/home/dharmax/work/ai-workflow"
+      }
+    }
+  }
+}
