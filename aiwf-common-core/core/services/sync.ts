@@ -208,14 +208,20 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       projectRoot,
       dbPath: store.dbPath,
       indexedFiles: files.length,
-      indexedSymbols: symbolCount,
-      indexedClaims: claimCount,
-      indexedNotes: noteCount,
+      indexedSymbols: summary.symbolCount ?? 0,
+      indexedClaims: summary.claimCount ?? 0,
+      indexedNotes: summary.noteCount ?? 0,
       codeletRegistry,
       importSummary,
       lifecycle,
       projections,
       summary,
+      indexedDelta: {
+        files: files.length - skippedCount,
+        symbols: symbolCount,
+        claims: claimCount,
+        notes: noteCount
+      },
       integrityRepair: {
         promotedEpics: integrityRepair.promotedEpics + postImportIntegrityRepair.promotedEpics,
         removedPlaceholderEpics: integrityRepair.removedPlaceholderEpics + postImportIntegrityRepair.removedPlaceholderEpics,

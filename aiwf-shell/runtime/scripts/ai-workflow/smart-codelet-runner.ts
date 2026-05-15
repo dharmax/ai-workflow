@@ -28,7 +28,7 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
   const routed = applyRouteOverride(route, providerId, modelId);
   const attempts = [];
   const candidates = buildRouteCandidates(routed);
-  const prompt = [
+  const basePrompt = [
     `Codelet id: ${codeletId}`,
     `Focus: ${context.codelet.intent}`,
     `Purpose: ${context.codelet.summary}`,
@@ -39,25 +39,33 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     "Goal:",
     context.target.goal || "none",
     "",
+    `Context policy: ${context.codelet.contextPolicy ?? "default"}`,
+    `Tool policy: ${context.codelet.toolPolicy ?? "default"}`,
+    `Can mutate: ${context.codelet.canMutate ? "yes" : "no"}`,
+    context.codelet.outputSchema ? `Output schema: ${JSON.stringify(context.codelet.outputSchema)}` : null,
     "Return JSON only: { summary, observations[], candidate_codelets[], suggested_actions[], docs_to_update[], needs_human_review }"
-  ].join("\n");
+  ].filter(Boolean).join("\n");
+  validatePayload(context.target, context.codelet.inputSchema, "input");
+  const maxRetries = Math.max(1, Number(context.codelet.maxRetries ?? 1));
 
   for (const candidate of candidates) {
     try {
-      const completion = await generateCompletion({
-        providerId: candidate.providerId,
-        modelId: candidate.modelId,
+      const prompt = buildAttemptPrompt(basePrompt, null);
+      const attemptResult = await runValidatedAttempt({
         prompt,
-        config: routed.providers?.[candidate.providerId] ?? {}
+        candidate,
+        routed,
+        outputSchema: context.codelet.outputSchema,
+        maxRetries
       });
-      const result = safeJson(completion.response);
+      const result = attemptResult.result;
       const payload = {
         codelet: {
           id: codeletId,
           summary: context.codelet.summary
         },
         route: sanitizeRoute(routed),
-        diagnostics: summarizeAttempts(attempts, candidate.providerId),
+        diagnostics: summarizeAttempts(attempts, candidate.providerId, attemptResult),
         result
       };
       await persistSmartCodeletNotes(root, codeletId, result);
@@ -162,4 +170,67 @@ async function persistSmartCodeletNotes(root, codeletId, result) {
       provenance: `tool-dev-${codeletId}`
     }
   });
+}
+
+async function runValidatedAttempt({ prompt, candidate, routed, outputSchema, maxRetries }) {
+  let workingPrompt = prompt;
+  let lastError = null;
+  let completion = null;
+  let result = null;
+  const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+
+  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    const startedAt = Date.now();
+    completion = await generateCompletion({
+      providerId: candidate.providerId,
+      modelId: candidate.modelId,
+      prompt: workingPrompt,
+      config: routed.providers?.[candidate.providerId] ?? {}
+    });
+    result = safeJson(completion.response);
+    accumulateTokenUsage(tokenUsage, completion.usage);
+    const validationError = validatePayload(result, outputSchema, "output");
+    if (!validationError) {
+      return {
+        result,
+        usage: tokenUsage,
+        latencyMs: Date.now() - startedAt,
+        attemptCount: attempt + 1
+      };
+    }
+    lastError = validationError;
+    workingPrompt = buildAttemptPrompt(prompt, validationError);
+  }
+
+  throw new Error(lastError ?? "Smart codelet output validation failed.");
+}
+
+function buildAttemptPrompt(basePrompt, validationError) {
+  if (!validationError) {
+    return basePrompt;
+  }
+  return `${basePrompt}\n\nPrevious response was invalid: ${validationError}. Return corrected JSON only.`;
+}
+
+function validatePayload(payload, schema, phase) {
+  if (!schema || typeof schema !== "object") {
+    return null;
+  }
+  if (schema.type === "object" && payload && typeof payload === "object" && !Array.isArray(payload)) {
+    for (const key of schema.required ?? []) {
+      if (!(key in payload)) {
+        return `${phase} missing required field '${key}'`;
+      }
+    }
+  }
+  return null;
+}
+
+function accumulateTokenUsage(target, usage) {
+  if (!usage || typeof usage !== "object") {
+    return;
+  }
+  target.promptTokens += Number(usage.promptTokens ?? usage.prompt_tokens ?? 0);
+  target.completionTokens += Number(usage.completionTokens ?? usage.completion_tokens ?? 0);
+  target.totalTokens += Number(usage.totalTokens ?? usage.total_tokens ?? 0);
 }

@@ -230,9 +230,47 @@ test("routeTask can fall back to ollama when remote free quota is exhausted", as
       taskClass: "summarization"
     });
 
-    assert.equal(["ollama", "google"].includes(route.recommended?.providerId), true);
+    assert.equal(route.recommended?.providerId, "ollama");
+    assert.equal(route.candidates.every((candidate) => candidate.providerId !== "openai"), true);
   } finally {
     globalThis.fetch = originalFetch;
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("routeTask returns no remote recommendation when paid routes are disabled and free quota is exhausted", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-route-unpaid-exhausted-"));
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, ".ai-workflow", "config.json"),
+      JSON.stringify({
+        providers: {
+          google: {
+            apiKey: "g-key",
+            quota: { freeUsdRemaining: 0 },
+            paidAllowed: false
+          },
+          openai: {
+            apiKey: "o-key",
+            quota: { freeUsdRemaining: 0 },
+            paidAllowed: false
+          }
+        }
+      }, null, 2),
+      "utf8"
+    );
+
+    const route = await routeTask({
+      root: targetRoot,
+      taskClass: "strategy",
+      preferLocal: false
+    });
+
+    assert.equal(route.recommended, null);
+    assert.equal(route.candidates.length, 0);
+  } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });
@@ -278,6 +316,7 @@ test("routeTask prefers local shell planning over env-only remote providers", as
     });
 
     assert.equal(route.recommended?.providerId, "ollama");
+    assert.equal(route.candidates.every((candidate) => candidate.providerId === "ollama"), true);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalGoogleKey === undefined) {

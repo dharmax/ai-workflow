@@ -51,6 +51,7 @@ import { listWorkflowIssues, refineWorkflowIssue } from "aiwf-common-core/servic
 import { runShellBenchmark } from "aiwf-common-core/services/shell-benchmark";
 import { runDogfoodHarness } from "aiwf-common-core/services/dogfood-harness";
 import { runProgrammingDogfoodHarness } from "aiwf-common-core/services/programming-dogfood-harness";
+import { redactSensitiveObject } from "aiwf-common-core/services/operator-harness";
 import { getWorkspaceRoot } from "aiwf-common-core/lib/toolkit-root";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
 import { startServer as startMcpServer } from "aiwf-mcp";
@@ -296,7 +297,7 @@ async function handleSync(rest) {
 
 async function handleKanban(rest) {
   return runNodeScript(
-    path.resolve(toolkitRoot, "runtime", "scripts", "ai-workflow", "kanban.ts"),
+    path.resolve(toolkitRoot, "scripts", "ai-workflow", "kanban.ts"),
     rest
   );
 }
@@ -319,6 +320,10 @@ async function handleProgrammingDogfood(rest) {
     force,
     json
   });
+  if (json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return result.ok ? 0 : 1;
+  }
   if (!json) {
     process.stdout.write(`Programming dogfood run ${result.ok ? "passed" : "failed"}\n`);
     process.stdout.write(`Report: ${result.reportPath}\n`);
@@ -1157,7 +1162,7 @@ async function handleRoute(rest) {
       : args["prefer-local"] !== false && args["prefer-local"] !== "false"
   });
   if (args.json) {
-    process.stdout.write(`${JSON.stringify(route, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(redactSensitiveObject(route), null, 2)}\n`);
     return 0;
   }
   if (!route.recommended) {

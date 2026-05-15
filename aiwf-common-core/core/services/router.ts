@@ -102,7 +102,13 @@ export async function routeTask({
     }
   }
 
-  if (!remoteFreeQuotaAvailable && candidates.some((candidate) => candidate.local)) {
+  if (preferLocalForTask && candidates.some((candidate) => candidate.local)) {
+    const localOnly = candidates.filter((candidate) => candidate.local);
+    if (localOnly.length) {
+      candidates.length = 0;
+      candidates.push(...localOnly);
+    }
+  } else if (!remoteFreeQuotaAvailable && candidates.some((candidate) => candidate.local)) {
     const localOnly = candidates.filter((candidate) => candidate.local);
     if (localOnly.length) {
       candidates.length = 0;
@@ -208,6 +214,9 @@ function hasFreeQuota(provider) {
 
 function shouldBlockProviderForQuota(provider, { quotaStrategy, remoteFreeQuotaAvailable }) {
   if (provider.local) return false;
+  if (provider.paidAllowed === false && provider.quota?.freeUsdRemaining !== null && provider.quota.freeUsdRemaining <= 0) {
+    return true;
+  }
   if (quotaStrategy !== "prefer-free-remote") return false;
   if (!remoteFreeQuotaAvailable) return false;
   if (hasFreeQuota(provider)) return false;

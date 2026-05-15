@@ -23,11 +23,6 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
   - Epic: EPC-CAPABILITY-CORE-001
   - Parent: EPC-CAPABILITY-CORE-001
   - State: open
-- [ ] TKT-SHELL-002 Reground shell, MCP, and skill behavior on DB-backed capability truth
-  - Summary: Replace overlapping surface heuristics with core-backed capability state, richer degradation reporting, and honest execution/planning behavior across shell, MCP, and optional skill surfaces.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: open
 - [ ] TKT-DOCS-001 Rewrite README, manual, and tutorial for full operational truth
   - Summary: Make the human and AI guidance surfaces accurately describe the real architecture, core ownership, commands, workflows, routing policy, limits, and recommended operating loops so both humans and agents can use ai-workflow correctly.
   - Epic: EPC-CAPABILITY-CORE-001
@@ -51,7 +46,16 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Bugs P1
 
-- No items
+- [ ] BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest
+  - Summary: Replace silent null or timeout planner failures with explicit degraded-path reporting, operator-visible errors, and regression coverage across shell and host flows.
+  - Epic: EPC-CAPABILITY-CORE-001
+  - Parent: EPC-CAPABILITY-CORE-001
+  - State: open
+- [ ] BUG-SYNC-001 Investigate and prevent sync index corruption regressions
+  - Summary: Reproduce and fix the observed sync corruption case where symbol count collapsed unexpectedly, and add regression coverage before relying on sync as canonical workflow state.
+  - Epic: EPC-CAPABILITY-CORE-001
+  - Parent: EPC-CAPABILITY-CORE-001
+  - State: open
 
 ## Bugs P2/P3
 
@@ -63,7 +67,11 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## In Progress
 
-- No items
+- [ ] TKT-SHELL-002 Reground shell, MCP, and skill behavior on DB-backed capability truth
+  - Summary: Replace overlapping surface heuristics with core-backed capability state, richer degradation reporting, and honest execution/planning behavior across shell, MCP, and optional skill surfaces.
+  - Epic: EPC-CAPABILITY-CORE-001
+  - Parent: EPC-CAPABILITY-CORE-001
+  - State: open
 
 ## Human Inspection
 
@@ -75,6 +83,11 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] BUG-ROUTER-001 Honor local-provider and unpaid-route constraints in router decisions ✅ 2026-05-15
+  - Summary: Prevent router/model-fit output from recommending cloud-backed or unpaid routes when local-first or quota constraints should block them, and add regression coverage.
+  - Epic: EPC-CAPABILITY-CORE-001
+  - Parent: EPC-CAPABILITY-CORE-001
+  - State: archived
 - [ ] BUG-CODELET-BACKINGS-001 Restore missing runtime/script backings for toolkit codelets ✅ 2026-05-08
   - Summary: Fix codelet manifests and runtime entry wiring so audit, route, guideline-audit, map-dependencies, and locate-trapped-logic resolve to real executable backings.
   - Epic: EPC-PACKAGING-SPLIT-001

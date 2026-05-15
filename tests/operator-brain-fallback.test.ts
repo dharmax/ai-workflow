@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
-import { executeOperatorRequest, planOperatorRequest } from "aiwf-common-core/services/operator-brain";
+import { executeOperatorRequest, planOperatorRequest, resolveHostRequest } from "aiwf-common-core/services/operator-brain";
 
 test("planOperatorRequest falls back to another candidate if the first one fails", async () => {
   const originalFetch = globalThis.fetch;
@@ -369,6 +369,138 @@ test("executeOperatorRequest runs compiler-native workflowPrompt plans through t
     assert.match(result.assistantReply, /Workflow completed successfully/);
   } finally {
     globalThis.fetch = originalFetch;
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveHostRequest routes long planning prompts through the shared harness instead of the codelet registry", async () => {
+  const originalFetch = globalThis.fetch;
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-shared-harness-"));
+
+  globalThis.fetch = async (url, options = {}) => {
+    const urlStr = String(url);
+    if (urlStr.includes("/api/tags")) {
+      return {
+        ok: true,
+        async json() {
+          return { models: [] };
+        }
+      };
+    }
+    if (!urlStr.includes("/chat/completions")) {
+      return {
+        ok: true,
+        async json() {
+          return {};
+        }
+      };
+    }
+    const body = JSON.parse(options.body ?? "{}");
+    const promptText = body.messages?.map((msg) => msg.content).join("\n\n") ?? "";
+    let content = JSON.stringify({
+      kind: "reply",
+      assistantReply: "unexpected prompt"
+    });
+    if (promptText.includes("Your Response (JSON):")) {
+      content = JSON.stringify({
+        kind: "plan",
+        confidence: 0.96,
+        workflowPrompt: "Inspect the workflow state, map the gaps, and return a final object with current state, gap map, and implementation plan."
+      });
+    } else if (promptText.includes("Analyze the Task against the Available Services")) {
+      content = JSON.stringify({ missingServices: [] });
+    } else {
+      content = [
+        "tk.sm.state(\"finalize\", \"Return workflow summary\", async () => ({",
+        "  summary: \"shared harness answer\",",
+        "  changedFiles: [],",
+        "  verification: [\"text-compiler\"],",
+        "  evidence: [\"current state\", \"gap map\"],",
+        "  plan: [\"implementation plan\"]",
+        "}));",
+        "return await tk.sm.run(\"finalize\", {}, ctx, tk);"
+      ].join("\n");
+    }
+    return {
+      ok: true,
+      async json() {
+        return {
+          choices: [{ message: { content } }],
+          usage: {
+            prompt_tokens: 120,
+            completion_tokens: 30,
+            total_tokens: 150
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, ".ai-workflow", "config.json"),
+      JSON.stringify({
+        providers: {
+          openai: { apiKey: "o-key" },
+          ollama: { enabled: false }
+        }
+      }, null, 2),
+      "utf8"
+    );
+
+    const response = await resolveHostRequest({
+      projectRoot: targetRoot,
+      text: "Audit the current state of the shell and ask harnesses, inspect the relevant code and tests, map the gaps, and produce an implementation plan.",
+      continuationState: null,
+      host: {
+        surface: "cli-host",
+        capabilities: {
+          supports_json: true,
+          supports_streaming: false,
+          supports_followups: true
+        }
+      }
+    });
+
+    assert.equal(response.route.operation, "shared_operator_graph_reply");
+    assert.equal(response.route.intent, "analysis-plan");
+    assert.notEqual(response.route.intent, "codelet_registry_question");
+    assert.match(response.payload.answer, /Current state:/);
+    assert.match(response.payload.answer, /Implementation plan:/);
+    assert.equal(response.meta.programKind, "analysis-plan");
+  } finally {
+    globalThis.fetch = originalFetch;
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveHostRequest answers code review prompts through a graph-backed repo investigation reply", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-host-review-"));
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+
+    const response = await resolveHostRequest({
+      projectRoot: targetRoot,
+      text: "Review the projections service, inspect the relevant code and tests, and explain the top risks with evidence.",
+      continuationState: null,
+      host: {
+        surface: "cli-host",
+        capabilities: {
+          supports_json: true,
+          supports_streaming: false,
+          supports_followups: true
+        }
+      }
+    });
+
+    assert.equal(response.route.operation, "shared_operator_graph_reply");
+    assert.equal(response.route.intent, "repo-investigation");
+    assert.match(response.payload.answer, /Current state:/);
+    assert.match(response.payload.answer, /Findings:/);
+    assert.equal(response.meta.programKind, "repo-investigation");
+  } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
 });

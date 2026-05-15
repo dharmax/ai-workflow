@@ -11,6 +11,7 @@ import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
 import { PROTOCOL_VERSION, validateEvaluateReadinessResponse } from "aiwf-common-core/contracts/dual-surface-protocol";
 import { withWorkspaceMutation } from "aiwf-common-core/lib/workspace-mutation";
 import { writeProjectFile } from "aiwf-common-core/lib/filesystem";
+import { refreshCodeletRegistry } from "aiwf-common-core/services/codelets";
 import { resolveProjectStatus } from "aiwf-common-core/services/status";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -430,6 +431,28 @@ test("syncProject mirrors codelets into the DB registry", async () => {
   }
 });
 
+test("refreshCodeletRegistry resolves toolkit codelet entries from the workspace root when invoked from shell root", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-codelets-shell-root-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot, writeProjections: true });
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const result = await refreshCodeletRegistry(store, {
+        projectRoot: targetRoot,
+        toolkitRoot: path.join(repoRoot, "aiwf-shell")
+      });
+
+      assert.equal(result.backingIssues.some((issue) => String(issue.entryPath ?? "").includes("/aiwf-shell/aiwf-shell/")), false);
+      assert.equal(result.backingIssues.some((issue) => issue.codeletId === "execute-ticket"), false);
+      assert.equal(result.backingIssues.some((issue) => issue.codeletId === "artifact-judge"), false);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("manual notes, candidate review, and search operate against the DB-first store", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-note-"));
 
@@ -764,6 +787,8 @@ test("syncProject tolerates duplicate facts emitted from the same file", async (
     assert.equal(result.indexedClaims >= 3, true);
 
     const summary = await getProjectSummary({ projectRoot: targetRoot });
+    assert.equal(result.indexedClaims, summary.claimCount);
+    assert.equal(result.indexedSymbols, summary.symbolCount);
     assert.equal(summary.claimCount >= 3, true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });

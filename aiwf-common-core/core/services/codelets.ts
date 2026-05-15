@@ -6,7 +6,7 @@
 import path from "node:path";
 import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { ensureDir } from "../lib/fs-utils.ts";
-import { getCommonCoreRoot, getToolkitRoot } from "../lib/toolkit-root.ts";
+import { getCommonCoreRoot, getToolkitRoot, getWorkspaceRoot } from "../lib/toolkit-root.ts";
 import { stableId } from "../lib/hash.ts";
 import { withWorkspaceMutation } from "../lib/workspace-mutation.ts";
 
@@ -25,14 +25,14 @@ export function getProjectCodeletsDir(root = process.cwd()) {
 export async function listToolkitCodelets({ toolkitRoot = getToolkitRoot() } = {}) {
   return listCodeletsInDir(getSharedCodeletsDir(toolkitRoot), {
     sourceKind: "toolkit",
-    sourceRoot: toolkitRoot
+    sourceRoot: getWorkspaceRoot(toolkitRoot)
   });
 }
 
 export async function getToolkitCodelet(name, { toolkitRoot = getToolkitRoot() } = {}) {
   return getCodeletFromDir(getSharedCodeletsDir(toolkitRoot), name, {
     sourceKind: "toolkit",
-    sourceRoot: toolkitRoot
+    sourceRoot: getWorkspaceRoot(toolkitRoot)
   });
 }
 
@@ -369,6 +369,13 @@ async function buildCodeletEntity(manifest, { sourceKind, sourceRoot }) {
       focus: manifest.focus ?? null,
       taskClass: manifest.taskClass ?? null,
       execution: manifest.execution ?? null,
+      inputSchema: manifest.inputSchema ?? null,
+      outputSchema: manifest.outputSchema ?? null,
+      contextPolicy: manifest.contextPolicy ?? null,
+      toolPolicy: manifest.toolPolicy ?? null,
+      graderId: manifest.graderId ?? null,
+      maxRetries: Number.isFinite(Number(manifest.maxRetries)) ? Number(manifest.maxRetries) : 1,
+      canMutate: Boolean(manifest.canMutate),
       observer: Boolean(manifest.observer),
       backing
     },

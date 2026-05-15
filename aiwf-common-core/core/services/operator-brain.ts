@@ -23,6 +23,7 @@ import { getGlobalConfigPath, getProjectConfigPath, readConfigSafe } from "../li
 import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTemplate, renderTemplate } from "../lib/filesystem.ts";
 import * as fs from "node:fs/promises";
 import * as pathMod from "node:path";
+import { buildHarnessContextPack, normalizeOperatorRequest, planExecutionProgram, renderExecutionProgramReply, runExecutionProgram } from "./operator-harness.ts";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -175,6 +176,42 @@ export async function planOperatorRequest(inputText, options = {}) {
     context: { inputText, options } 
   });
   const effectiveInputText = prePlanContext.inputText ?? inputText;
+  const normalizedRequest = await normalizeOperatorRequest(effectiveInputText, {
+    surface: options.host?.surface ?? "operator",
+    plannerContext: options.plannerContext,
+    continuationState: options.continuationState ?? null
+  });
+
+  if (normalizedRequest.requestKind === "workflow-program") {
+    const contextPack = await buildHarnessContextPack(root, {
+      normalizedRequest,
+      plannerContext: options.plannerContext
+    });
+    const program = planExecutionProgram(normalizedRequest);
+    const harnessPlan = runExecutionProgram({
+      normalizedRequest,
+      program,
+      contextPack
+    });
+    const plan = normalizePlannerResponse({
+      ...harnessPlan,
+      __effectiveInputText: effectiveInputText,
+      __planner: {
+        mode: "shared-harness",
+        reason: harnessPlan.reason,
+        programKind: program.programKind,
+        harnessTrace: harnessPlan.harnessTrace
+      }
+    });
+    traceEvent?.({
+      stage: "planning",
+      phase: "shared-harness",
+      planner: plan.__planner,
+      prompt: effectiveInputText,
+      result: plan.workflowPrompt
+    });
+    return plan;
+  }
 
   const groundedBriefReply = await buildGroundedOperatorBriefReply(effectiveInputText, options);
   if (groundedBriefReply) {
@@ -1009,6 +1046,64 @@ function validateGeneratedPlan(plan, options = {}) {
  */
 export async function resolveHostRequest(options) {
   const { projectRoot, text, host } = options;
+  const normalizedRequest = await normalizeOperatorRequest(text, {
+    surface: host?.surface ?? "cli-host",
+    continuationState: options.continuationState ?? null
+  });
+  const sharedProgram = planExecutionProgram(normalizedRequest);
+  if (sharedProgram.programKind !== "direct-primitive" && normalizedRequest.requestKind === "workflow-program") {
+    if (sharedProgram.programKind === "analysis-plan" || sharedProgram.programKind === "repo-investigation") {
+      const contextPack = await buildHarnessContextPack(projectRoot, {
+        normalizedRequest
+      });
+      const answer = renderExecutionProgramReply({
+        normalizedRequest,
+        program: sharedProgram,
+        contextPack
+      });
+      return {
+        status: "complete",
+        route: {
+          intent: sharedProgram.programKind,
+          operation: "shared_operator_graph_reply",
+          reason: "Handled by the shared graph-backed operator harness."
+        },
+        response_type: "reply",
+        payload: {
+          summary: answer,
+          answer
+        },
+        meta: {
+          normalizedRequest,
+          programKind: sharedProgram.programKind
+        }
+      };
+    }
+
+    const result = await executeOperatorRequest(text, {
+      root: projectRoot,
+      host,
+      continuationState: options.continuationState ?? null
+    });
+    return {
+      status: result.ok ? "complete" : "failed",
+      route: {
+        intent: result.plan?.intent?.capability ?? sharedProgram.programKind,
+        operation: "shared_operator_harness",
+        reason: result.plan?.reason ?? "Handled by the shared operator harness."
+      },
+      response_type: "reply",
+      payload: {
+        summary: result.assistantReply,
+        answer: result.assistantReply,
+        workflowResult: result.workflowResult
+      },
+      meta: {
+        normalizedRequest,
+        programKind: sharedProgram.programKind
+      }
+    };
+  }
   const deterministic = await resolveDeterministicHostRequest({
     projectRoot,
     text,
@@ -1094,7 +1189,7 @@ export async function resolveHostRequest(options) {
     status: result.ok ? "complete" : "failed",
     route: {
       intent: result.plan?.intent?.capability ?? "operator_request",
-      operation: "operator_brain",
+      operation: result.plan?.__planner?.mode === "shared-harness" ? "shared_operator_harness" : "operator_brain",
       reason: result.plan?.reason ?? "Handled by shared operator brain."
     },
     response_type: "reply",
@@ -1102,6 +1197,10 @@ export async function resolveHostRequest(options) {
       summary: result.assistantReply,
       answer: result.assistantReply,
       workflowResult: result.workflowResult
+    },
+    meta: {
+      normalizedRequest,
+      programKind: result.plan?.__planner?.programKind ?? sharedProgram.programKind
     }
   };
 }

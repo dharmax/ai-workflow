@@ -40,7 +40,16 @@ export async function buildSmartCodeletRunContext({
       summary: String(codelet.summary ?? codelet.title ?? codelet.id ?? codeletId).trim(),
       taskClass: String(codelet.taskClass ?? "task-decomposition").trim(),
       intent: String(codelet.focus ?? codelet.title ?? codelet.summary ?? codelet.id ?? codeletId).trim(),
-      observer: Boolean(codelet.observer)
+      observer: Boolean(codelet.observer),
+      inputSchema: codelet.inputSchema ?? codelet.data?.inputSchema ?? null,
+      outputSchema: codelet.outputSchema ?? codelet.data?.outputSchema ?? null,
+      contextPolicy: codelet.contextPolicy ?? codelet.data?.contextPolicy ?? null,
+      toolPolicy: codelet.toolPolicy ?? codelet.data?.toolPolicy ?? null,
+      graderId: codelet.graderId ?? codelet.data?.graderId ?? null,
+      maxRetries: Number.isFinite(Number(codelet.maxRetries ?? codelet.data?.maxRetries))
+        ? Number(codelet.maxRetries ?? codelet.data?.maxRetries)
+        : 1,
+      canMutate: Boolean(codelet.canMutate ?? codelet.data?.canMutate)
     },
     projectSummary,
     target: {

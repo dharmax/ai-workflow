@@ -1188,6 +1188,90 @@ test("workflow mutations refresh kanban and DB projections immediately", { concu
   }
 });
 
+test("ai-workflow kanban CLI dispatches to the working kanban script", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-kanban-cli-dispatch-"));
+
+  try {
+    const createResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "create",
+      "--id",
+      "EXE-901",
+      "--title",
+      "CLI kanban dispatch uses the stable script entrypoint",
+      "--lane",
+      "In Progress",
+      "--epic",
+      "EPC-901",
+      "--summary",
+      "Ensure ai-workflow kanban subcommands work from the main CLI.",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(createResult.code, 0, createResult.stderr || createResult.stdout);
+
+    const moveResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "kanban",
+      "move",
+      "--id",
+      "EXE-901",
+      "--to",
+      "Done"
+    ], { cwd: targetRoot });
+    assert.equal(moveResult.code, 0, moveResult.stderr || moveResult.stdout);
+
+    const kanbanAfterMove = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    assert.match(kanbanAfterMove, /## Done/);
+    assert.match(kanbanAfterMove, /EXE-901 CLI kanban dispatch uses the stable script entrypoint/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ai-workflow route --json redacts provider credentials", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-route-redaction-"));
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, ".ai-workflow", "config.json"),
+      JSON.stringify({
+        providers: {
+          google: {
+            apiKey: "g-key",
+            models: ["gemini-2.0-pro-exp"]
+          },
+          openai: {
+            apiKey: "o-key",
+            models: ["gpt-4o"]
+          }
+        }
+      }, null, 2),
+      "utf8"
+    );
+
+    const routeResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "route",
+      "shell-planning",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(routeResult.code, 0, routeResult.stderr || routeResult.stdout);
+    const payload = JSON.parse(routeResult.stdout);
+    assert.equal(payload.providers.google.apiKey, "[redacted]");
+    assert.equal(payload.providers.openai.apiKey, "[redacted]");
+    assert.equal(payload.recommended?.apiKey, "[redacted]");
+    assert.equal(
+      Array.isArray(payload.candidates) && payload.candidates.every((candidate) => candidate.apiKey === "[redacted]"),
+      true
+    );
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("ai-workflow ticket proving run evaluates multiple tickets against the real runtime helpers", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ticket-proving-"));
 

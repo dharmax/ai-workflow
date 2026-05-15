@@ -695,6 +695,9 @@ test("planShellRequest falls back to grounded repo evidence for explainer questi
     assert.match(result.reply, /core\/services\/projections is the relevant service/i);
     assert.match(result.reply, /Builds project summaries and kanban projections/i);
     assert.equal(result.planner.mode, "ai-fallback-to-grounded");
+    assert.equal(result.planner.degradedPath, true);
+    assert.equal(Array.isArray(result.planner.failureReasons), true);
+    assert.match(String(result.planner.failureReasons[0] ?? ""), /planner timed out after 25ms/i);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -3032,6 +3035,35 @@ test("planShellRequestHeuristically keeps dogfood follow-ups on the normal workf
   assert.equal(plan.kind, "plan");
   assert.doesNotMatch(JSON.stringify(plan), /programming-dogfood-build/);
   assert.notEqual(plan.actions?.[0]?.codeletId, "programming-dogfood-build");
+});
+
+test("planShellRequest routes long planning prompts to the compiler path even when planners are configured", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-shared-harness-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+
+  try {
+    const plan = await planShellRequest(
+      "Audit the current state of the shell and ask harnesses, inspect the relevant code and tests, map the gaps, and produce an implementation plan.",
+      {
+        root,
+        plannerContext,
+        history: [],
+        planners: {
+          planners: [{ providerId: "openai", modelId: "gpt-4.1" }],
+          heuristic: { mode: "heuristic", reason: "test" }
+        }
+      }
+    );
+
+    assert.equal(plan.kind, "plan");
+    assert.equal(plan.intent?.tier, "tier3");
+    assert.equal(plan.intent?.capability, "analysis-plan");
+    assert.match(String(plan.workflowPrompt ?? ""), /Program kind: analysis-plan/);
+    assert.match(String(plan.workflowPrompt ?? ""), /Current state:/);
+    assert.match(String(plan.workflowPrompt ?? ""), /Verification plan:/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test("handleShellCommand updates operator work mode separately from mutation stance", () => {

@@ -29,9 +29,9 @@ export async function run(options: SmartCodeletOptions, hub: any) {
   });
 
   const meta = runtimeContext.codelet;
-  
-  // Simplified execution for Smart Codelet
-  const prompt = buildPrompt({
+  const retries = Math.max(1, Number(meta.maxRetries ?? 1));
+  validateInput(runtimeContext.target, meta.inputSchema);
+  let prompt = buildPrompt({
     codeletId,
     meta,
     root,
@@ -39,13 +39,31 @@ export async function run(options: SmartCodeletOptions, hub: any) {
     target: runtimeContext.target,
     promptContext: runtimeContext.promptContext
   });
-
   const llm = hub.resolve("llm");
-  const completion = await llm.generate(prompt, { taskClass: meta.taskClass });
-  const result = parseStructuredResponse(completion.response);
+  let result = null;
+  let lastError = null;
+  let completion = null;
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    completion = await llm.generate(prompt, { taskClass: meta.taskClass });
+    result = parseStructuredResponse(completion.response);
+    const validationError = validateOutput(result, meta.outputSchema);
+    if (!validationError) {
+      break;
+    }
+    lastError = validationError;
+    prompt = `${prompt}\n\nPrevious response was invalid: ${validationError}. Return corrected JSON only.`;
+  }
+  if (lastError && validateOutput(result, meta.outputSchema)) {
+    throw new Error(`smart codelet output validation failed: ${lastError}`);
+  }
 
   return {
     codelet: { id: codeletId, summary: meta.summary },
+    diagnostics: {
+      attempts: retries,
+      providerId: completion?.providerId ?? null,
+      modelId: completion?.modelId ?? null
+    },
     result
   };
 }
@@ -72,4 +90,29 @@ function parseStructuredResponse(text: string) {
   } catch {
     return { summary: text };
   }
+}
+
+function validateInput(target: any, schema: any) {
+  const error = validateAgainstSchema(target, schema);
+  if (error) {
+    throw new Error(`smart codelet input validation failed: ${error}`);
+  }
+}
+
+function validateOutput(payload: any, schema: any) {
+  return validateAgainstSchema(payload, schema);
+}
+
+function validateAgainstSchema(payload: any, schema: any) {
+  if (!schema || typeof schema !== "object") {
+    return null;
+  }
+  if (schema.type === "object" && payload && typeof payload === "object" && !Array.isArray(payload)) {
+    for (const key of schema.required ?? []) {
+      if (!(key in payload)) {
+        return `missing required field '${key}'`;
+      }
+    }
+  }
+  return null;
 }

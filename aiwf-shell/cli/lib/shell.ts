@@ -42,6 +42,7 @@ import { triageShellRequest } from "aiwf-common-core/services/shell-triage";
 import { executeJsOrchestrator } from "aiwf-common-core/services/text-compiler-host";
 import { executeCompilerShellPlan, promoteWorkflowToCodelet } from "aiwf-common-core/services/shell-compiler";
 import { executeOperatorRequest, updateManagedContext } from "aiwf-common-core/services/operator-brain";
+import { buildHarnessContextPack, normalizeOperatorRequest, planExecutionProgram, runExecutionProgram } from "aiwf-common-core/services/operator-harness";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
 import { initializeRegistry } from "aiwf-common-core/services/registry-init";
 
@@ -1133,6 +1134,17 @@ export async function planShellRequest(inputText, options) {
     }, inputText, options.plannerContext);
   }
 
+  const normalizedRequest = await normalizeOperatorRequest(inputText, {
+    surface: "shell",
+    plannerContext: options.plannerContext,
+    continuationState: options.activeGraphState ?? null
+  });
+  const sharedProgram = planExecutionProgram(normalizedRequest);
+
+  if (normalizedRequest.requestKind === "workflow-program") {
+    return planShellRequestWithCompiler(inputText, options);
+  }
+
   if (triage.intent.tier === ShellTier.Tier3 && !options.planners?.planners?.length) {
     return planShellRequestWithCompiler(inputText, options);
   }
@@ -1186,22 +1198,42 @@ export async function planShellRequest(inputText, options) {
 }
 
 async function planShellRequestWithCompiler(inputText, options) {
-  // We delegate to executeOperatorRequest which already handles NL-to-JS compilation
-  // via executeTextCompilerWorkflow.
-  // However, the shell expects a 'plan' envelope.
-  // So we return a plan that has a special code block for Tier 3.
-  
+  const normalizedRequest = await normalizeOperatorRequest(inputText, {
+    surface: "shell",
+    plannerContext: options.plannerContext,
+    continuationState: options.activeGraphState ?? null
+  });
+  const program = planExecutionProgram(normalizedRequest);
+  const contextPack = await buildHarnessContextPack(options.root ?? process.cwd(), {
+    normalizedRequest,
+    plannerContext: options.plannerContext
+  });
+  const harnessPlan = runExecutionProgram({
+    normalizedRequest,
+    program,
+    contextPack
+  });
+
   return {
     kind: "plan",
-    confidence: 0.95,
+    confidence: harnessPlan.confidence,
     code: null, // Will be generated during execution
-    workflowPrompt: inputText,
-    reason: "Routed to Orchestrator/Compiler for complex multi-step logic.",
-    strategy: "Compile natural language request into a verifiable execution graph.",
+    workflowPrompt: harnessPlan.workflowPrompt ?? inputText,
+    reason: harnessPlan.reason,
+    strategy: harnessPlan.strategy,
     intent: {
       tier: ShellTier.Tier3,
-      capability: "orchestration"
-    }
+      capability: program.programKind,
+      extracted: {
+        isMutation: normalizedRequest.mutationIntent !== "read-only"
+      }
+    },
+    planner: {
+      mode: "shared-harness",
+      reason: harnessPlan.reason,
+      programKind: program.programKind
+    },
+    harnessTrace: harnessPlan.harnessTrace
   };
 }
 
@@ -1227,6 +1259,15 @@ async function planSingleRequest(inputText, options) {
   const heuristic = planShellRequestHeuristically(inputText, options.plannerContext, {
     activeGraphState: options.activeGraphState ?? null
   });
+  const normalizedRequest = await normalizeOperatorRequest(inputText, {
+    surface: "shell",
+    plannerContext: options.plannerContext,
+    continuationState: options.activeGraphState ?? null
+  });
+  const sharedProgram = planExecutionProgram(normalizedRequest);
+  if (sharedProgram.programKind !== "direct-primitive" && normalizedRequest.requestKind === "workflow-program") {
+    return planShellRequestWithCompiler(inputText, options);
+  }
   const forceHeuristic = shouldForceHeuristicShellTurn(inputText);
   const traceAwareForceHeuristic = forceHeuristic && !options.trace;
   const useHeuristicOnly = options.noAi || !options.planners.planners.length;
@@ -1293,7 +1334,9 @@ async function planSingleRequest(inputText, options) {
       ...groundedFallback,
       planner: {
         mode: errors.length ? "ai-fallback-to-grounded" : "grounded-fallback",
-        reason: errors.join("; ") || groundedFallback.reason
+        reason: errors.join("; ") || groundedFallback.reason,
+        degradedPath: errors.length > 0,
+        failureReasons: [...errors]
       }
     }, inputText, options.plannerContext);
   }
@@ -1302,7 +1345,9 @@ async function planSingleRequest(inputText, options) {
     ...heuristic,
     planner: {
       mode: preferAiPlanner ? "ai-fallback-to-heuristic" : "heuristic-fallback",
-      reason: errors.join("; ")
+      reason: errors.join("; "),
+      degradedPath: errors.length > 0,
+      failureReasons: [...errors]
     }
   }, inputText, options.plannerContext);
 }
@@ -1325,6 +1370,10 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
   }
 
   if (looksLikeDirectAnswerOnlyPrompt(inputText)) {
+    return false;
+  }
+
+  if (looksLikeOperatorBriefQuestion(inputText)) {
     return false;
   }
 
@@ -4977,7 +5026,7 @@ export async function runShellTurn(inputText, options) {
     };
     
     const traceWorkflow = buildShellWorkflowTraceEmitter(runtimeOptions);
-    const compilerResult = await executeCompilerShellPlan(inputText, {
+    const compilerResult = await executeCompilerShellPlan(typeof plan.workflowPrompt === "string" && plan.workflowPrompt.trim() ? plan.workflowPrompt : inputText, {
       ...runtimeOptions,
       services,
       traceWorkflow
