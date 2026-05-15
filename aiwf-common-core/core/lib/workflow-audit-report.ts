@@ -367,7 +367,7 @@ if (activeDocs.includes("kanban.md")) {
       continue;
     }
 
-    if (OPTIONAL_KANBAN_SECTIONS.includes(section.name) && !section.tickets.length) {
+    if (OPTIONAL_KANBAN_SECTIONS.includes(section.name) && !(section.tickets ?? []).length) {
       findings.push(createFinding({
         category: "kanban",
         file: "kanban.md",

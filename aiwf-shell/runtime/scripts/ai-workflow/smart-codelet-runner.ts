@@ -19,6 +19,7 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     goal: args.goal ? String(args.goal) : null
   });
   const metadata = await getCodelet({ projectRoot: root, codeletId });
+  const metadataMaxRetries = Number(metadata?.data?.maxRetries ?? metadata?.maxRetries);
   const route = await routeTask({
     root,
     taskClass: context.codelet.taskClass || "task-decomposition",
@@ -28,6 +29,9 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
   const routed = applyRouteOverride(route, providerId, modelId);
   const attempts = [];
   const candidates = buildRouteCandidates(routed);
+  if (!candidates.length) {
+    throw new Error("Smart codelet execution failed: no viable routed provider/model candidates.");
+  }
   const basePrompt = [
     `Codelet id: ${codeletId}`,
     `Focus: ${context.codelet.intent}`,
@@ -39,14 +43,18 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     "Goal:",
     context.target.goal || "none",
     "",
-    `Context policy: ${context.codelet.contextPolicy ?? "default"}`,
-    `Tool policy: ${context.codelet.toolPolicy ?? "default"}`,
+    `Context policy: ${formatPolicy(context.codelet.contextPolicy)}`,
+    `Tool policy: ${formatPolicy(context.codelet.toolPolicy)}`,
     `Can mutate: ${context.codelet.canMutate ? "yes" : "no"}`,
+    context.codelet.graderId ? `Grader: ${context.codelet.graderId}` : null,
     context.codelet.outputSchema ? `Output schema: ${JSON.stringify(context.codelet.outputSchema)}` : null,
     "Return JSON only: { summary, observations[], candidate_codelets[], suggested_actions[], docs_to_update[], needs_human_review }"
   ].filter(Boolean).join("\n");
   validatePayload(context.target, context.codelet.inputSchema, "input");
-  const maxRetries = Math.max(1, Number(context.codelet.maxRetries ?? 1));
+  const maxRetries = Math.max(
+    1,
+    Number.isFinite(metadataMaxRetries) ? metadataMaxRetries : Number(context.codelet.maxRetries ?? 1)
+  );
 
   for (const candidate of candidates) {
     try {
@@ -94,27 +102,47 @@ function applyRouteOverride(route, providerId, modelId) {
       providerId,
       modelId,
       reason: `operator override ${providerId}/${modelId}`
-    }
+    },
+    fallbackChain: []
   };
 }
 
 function buildRouteCandidates(route) {
   const items = [];
+  const seen = new Set();
+  const pushCandidate = (candidate) => {
+    const providerId = String(candidate?.providerId ?? "").trim();
+    const modelId = String(candidate?.modelId ?? "").trim();
+    if (!providerId || !modelId) {
+      return;
+    }
+    const key = `${providerId}\u0000${modelId}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    items.push({ providerId, modelId });
+  };
   if (route.recommended?.providerId && route.recommended?.modelId) {
-    items.push({
+    pushCandidate({
       providerId: route.recommended.providerId,
       modelId: route.recommended.modelId
     });
   }
   for (const item of route.fallbackChain ?? []) {
-    if (!items.some((existing) => existing.providerId === item.providerId && existing.modelId === item.modelId)) {
-      items.push({
-        providerId: item.providerId,
-        modelId: item.modelId
-      });
-    }
+    pushCandidate(item);
   }
   return items;
+}
+
+function formatPolicy(policy) {
+  if (!policy) {
+    return "default";
+  }
+  if (typeof policy === "string") {
+    return policy;
+  }
+  return JSON.stringify(policy);
 }
 
 function sanitizeRoute(route) {
@@ -131,10 +159,15 @@ function sanitizeRoute(route) {
   };
 }
 
-function summarizeAttempts(attempts, successfulProviderId) {
+function summarizeAttempts(attempts, successfulProviderId, attemptResult = {}) {
   return {
     failedAttempts: attempts.length,
-    successfulProviderId
+    successfulProviderId,
+    attemptCount: attemptResult.attemptCount ?? 1,
+    validationRetries: Math.max(0, Number(attemptResult.attemptCount ?? 1) - 1),
+    usage: attemptResult.usage ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    latencyMs: Number(attemptResult.latencyMs ?? 0),
+    validationErrors: attemptResult.validationErrors ?? []
   };
 }
 
@@ -178,9 +211,10 @@ async function runValidatedAttempt({ prompt, candidate, routed, outputSchema, ma
   let completion = null;
   let result = null;
   const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const validationErrors = [];
+  const startedAt = Date.now();
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
-    const startedAt = Date.now();
     completion = await generateCompletion({
       providerId: candidate.providerId,
       modelId: candidate.modelId,
@@ -195,10 +229,12 @@ async function runValidatedAttempt({ prompt, candidate, routed, outputSchema, ma
         result,
         usage: tokenUsage,
         latencyMs: Date.now() - startedAt,
-        attemptCount: attempt + 1
+        attemptCount: attempt + 1,
+        validationErrors
       };
     }
     lastError = validationError;
+    validationErrors.push(validationError);
     workingPrompt = buildAttemptPrompt(prompt, validationError);
   }
 

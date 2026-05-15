@@ -494,7 +494,7 @@ async function collectRelevantTargets(root: string, request: NormalizedOperatorR
     }
   }
 
-  return dedupeTargetReports(results);
+  return rankTargetReports(dedupeTargetReports(results), request);
 }
 
 function collectRequestSelectors(request: NormalizedOperatorRequest, plannerContext: any) {
@@ -537,6 +537,30 @@ function dedupeTargetReports(reports: any[]) {
     seen.add(key);
     return true;
   });
+}
+
+function rankTargetReports(reports: any[], request: NormalizedOperatorRequest) {
+  const codeFocused = request.taskClassHint === "repo-investigation"
+    || /\b(code|file|symbol|review|inspect|debug|fix|trace|implementation)\b/i.test(request.subject);
+  return [...reports]
+    .filter((report) => !(codeFocused && report?.type === "symbol" && /^(code|data|value|result|item)$/i.test(String(report?.title ?? ""))))
+    .sort((left, right) => {
+    const leftScore = scoreTargetReport(left, { codeFocused });
+    const rightScore = scoreTargetReport(right, { codeFocused });
+    return rightScore - leftScore || String(left.title ?? "").localeCompare(String(right.title ?? ""));
+    });
+}
+
+function scoreTargetReport(report: any, { codeFocused }: { codeFocused: boolean }) {
+  let score = 0;
+  if (report?.type === "ticket") score += 80;
+  if (report?.type === "file") score += codeFocused ? 120 : 40;
+  if (report?.type === "symbol") score += codeFocused ? 130 : 30;
+  if (report?.type === "surface") score += codeFocused ? -20 : 30;
+  if (/^(code|data|value|result|item)$/i.test(String(report?.title ?? ""))) score -= 80;
+  if (Array.isArray(report?.related) && report.related.some((item: any) => item?.type === "file")) score += 20;
+  if (Array.isArray(report?.tests) && report.tests.length) score += 10;
+  return score;
 }
 
 function formatWorkflowTargets(targets: any[], root: string | undefined) {

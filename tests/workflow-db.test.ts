@@ -374,6 +374,49 @@ test("resolveProjectStatus materializes surface links and test evidence", async 
     assert.equal((report.tests as any[]).some((item: any) => /tests\/shell\.test\.ts|dogfood shell/.test(item.title)), true);
     assert.equal((report.tests as any[]).some((item: any) => /dogfood shell doctor-command/.test(item.title)), true);
     assert.equal(report.latestTestResult.status, "pass");
+    const projectReport = await resolveProjectStatus({
+      projectRoot: targetRoot,
+      selector: ".",
+      includeRelated: true,
+      rawQuestion: true
+    });
+    assert.equal(projectReport.ok, true);
+    assert.equal(projectReport.id, "project:root");
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveProjectStatus ranks camelCase code identifiers over broad surfaces", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-status-identifiers-"));
+
+  try {
+    await mkdir(path.join(targetRoot, "core", "services"), { recursive: true });
+    await mkdir(path.join(targetRoot, "tests"), { recursive: true });
+    await writeFile(path.join(targetRoot, "package.json"), JSON.stringify({ name: "status-identifiers-test", type: "module" }, null, 2), "utf8");
+    await writeFile(path.join(targetRoot, "core", "services", "codelets.ts"), [
+      "export function refreshCodeletRegistry() {",
+      "  const backingIssues = [];",
+      "  return { codeletRegistry: { backingIssues } };",
+      "}",
+      ""
+    ].join("\n"), "utf8");
+    await writeFile(path.join(targetRoot, "tests", "codelets.test.ts"), "import '../core/services/codelets.ts';\n", "utf8");
+
+    await syncProject({ projectRoot: targetRoot, writeProjections: false });
+    const report = await resolveProjectStatus({
+      projectRoot: targetRoot,
+      selector: "Review the codeletRegistry backingIssues output and identify the relevant code.",
+      includeRelated: true,
+      rawQuestion: true
+    });
+
+    assert.equal(report.ok, true);
+    if (!report.ok) {
+      assert.fail(report.error);
+    }
+    assert.match(`${report.title} ${report.summary} ${JSON.stringify(report.related)}`, /codelets\.ts|refreshCodeletRegistry|backingIssues/);
+    assert.notEqual(report.id, "surface:shell");
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -423,6 +466,10 @@ test("syncProject mirrors codelets into the DB registry", async () => {
       assert.equal(doctor?.data?.backing?.status, "builtin");
       assert.equal(Boolean(executeTicket), true);
       assert.equal(executeTicket?.data?.backing?.exists, true);
+      assert.equal(executeTicket?.data?.canMutate, true);
+      assert.equal(executeTicket?.data?.inputSchema?.required?.includes("ticketId"), true);
+      assert.equal(executeTicket?.data?.toolPolicy?.requiresApplyFlag, true);
+      assert.equal(executeTicket?.data?.graderId, "ticket-execution-v1");
       assert.equal(Boolean(artifactJudge), true);
       assert.equal(artifactJudge?.data?.backing?.exists, true);
     });

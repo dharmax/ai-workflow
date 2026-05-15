@@ -53,7 +53,7 @@ test("installAgents creates the DB-first project workspace directories and confi
       target: "session"
     });
 
-    assert.equal(results.length, 1);
+    assert.equal(results.some((result) => result.path === ".ai-workflow"), true);
     const config = JSON.parse(await readFile(path.join(targetRoot, ".ai-workflow", "config.json"), "utf8"));
     assert.equal(config.storage.dbPath, ".ai-workflow/state/workflow.db");
     assert.equal(config.lifecycle.candidateReviewIntervalHours, 36);
@@ -184,6 +184,41 @@ test("routeTask prefers the remote provider with remaining free quota", async ()
   }
 });
 
+test("routeTask reports explicit local requirement failure instead of widening to remote", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-route-require-local-"));
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, ".ai-workflow", "config.json"),
+      JSON.stringify({
+        providers: {
+          ollama: { enabled: false },
+          google: {
+            apiKey: "g-key",
+            quota: { freeUsdRemaining: 10 },
+            paidAllowed: false
+          }
+        }
+      }, null, 2),
+      "utf8"
+    );
+
+    const route = await routeTask({
+      root: targetRoot,
+      taskClass: "shell-planning",
+      preferLocal: true,
+      requireLocal: true
+    });
+
+    assert.equal(route.recommended, null);
+    assert.equal(route.degradedPath, true);
+    assert.match(route.failureReasons.join("\n"), /local provider was explicitly requested/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("routeTask can fall back to ollama when remote free quota is exhausted", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-route-quota-local-"));
   const originalFetch = globalThis.fetch;
@@ -193,7 +228,7 @@ test("routeTask can fall back to ollama when remote free quota is exhausted", as
         ok: true,
         async json() {
           return {
-            models: [{ name: "qwen2.5:14b", size: 14 * 1024 ** 3 }]
+            models: [{ name: "hermes3:8b", size: 4 * 1024 ** 3 }]
           };
         }
       };
@@ -218,7 +253,8 @@ test("routeTask can fall back to ollama when remote free quota is exhausted", as
             paidAllowed: false
           },
           ollama: {
-            host: "http://127.0.0.1:11434"
+            host: "http://127.0.0.1:11434",
+            maxModelSizeB: 16
           }
         }
       }, null, 2),

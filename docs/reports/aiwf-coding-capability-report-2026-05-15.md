@@ -157,3 +157,64 @@ File: `tests/workflow-db.test.ts`
 2. Fix `BUG-SYNC-001` before trusting the graph DB as canonical for all coding flows.
 3. Improve target resolution/ranking for review/debug/fix prompts so `ask` lands on the right files/modules more reliably.
 4. Extend the graph-backed harness so feature-implementation / code-fixing flows consume the same resolved working set before mutation.
+
+## Additional Pass: Typed Execution Codelet Contract
+
+The next live pass focused on the product gap that `ai-workflow project codelet show execute-ticket --json` advertised the main implementation codelet as effectively opaque:
+
+- `inputSchema`, `outputSchema`, `contextPolicy`, `toolPolicy`, and `graderId` were not exposed at the top level.
+- `canMutate` was false for a codelet whose purpose is guarded ticket execution.
+- Smart codelet retries and metrics were under-reported.
+
+### Product Changes
+
+Files:
+
+- `aiwf-common-core/shared/codelets/execute-ticket.json`
+- `aiwf-common-core/shared/codelets/refactor-ticket.json`
+- `aiwf-common-core/core/services/codelets.ts`
+- `aiwf-common-core/core/services/codelet-runtime.ts`
+- `aiwf-shell/runtime/scripts/ai-workflow/smart-codelet-runner.ts`
+- `aiwf-shell/cli/lib/main.ts`
+
+Changes:
+
+- Added typed input/output schemas, graph-backed context policy, guarded mutation tool policy, grader id, and `canMutate: true` to `execute-ticket` and `refactor-ticket`.
+- Lifted codelet contract fields into DB-backed `project codelet show --json` output instead of hiding them inside `data`.
+- Added smart-runner diagnostics for validation retries, validation errors, token usage, and latency.
+- Made explicit provider/model overrides deterministic by clearing unrelated fallback candidates.
+- Preserved Ollama honesty: explicit `--prefer-local` still refuses to widen when no available local model satisfies the route.
+
+### Tests
+
+Focused passing tests:
+
+- `node ./node_modules/tsx/dist/cli.mjs --test --test-name-pattern "doctor text|codelet queries|mirrors codelets|smart codelet runner validates typed outputs" tests/ai-workflow-cli.test.ts tests/workflow-db.test.ts`
+
+This covers:
+
+- registry exposure for typed mutating execution codelets
+- local Ollama diagnostic text
+- smart codelet typed-output retry with critic feedback
+- usage/latency/validation diagnostics
+
+### Live AIWF Evidence
+
+Commands run through the installed `ai-workflow` surface after rebuilding:
+
+- `ai-workflow project codelet show execute-ticket --json`
+- `ai-workflow doctor --json`
+- `ai-workflow route shell-planning --json --prefer-local`
+- `timeout 45s ai-workflow run execute-ticket --ticketId TKT-SHELL-002 --timeoutMs 30000 --json`
+
+Observed gains:
+
+- `execute-ticket` now reports `canMutate: true`, `inputSchema.required: ["ticketId"]`, guarded `toolPolicy.requiresApplyFlag: true`, and `graderId: ticket-execution-v1`.
+- Local-first routing remains honest when Ollama is configured but unreachable: `recommended: null`, `degradedPath: true`, and explicit failure reasons.
+- `ai-workflow run execute-ticket` produced a graph-backed dry-run artifact with ticket metadata, working-set evidence, verification result, and no mutation.
+
+Observed faults:
+
+- The execution dry-run selected the fallback verification command `npm run --silent test`, which timed out at 30s before mutation. That is safe and honest, but too broad for efficient ticket execution.
+- The working set still contains some broad shell/sync evidence. Target ranking is improved, but not yet at the level needed for fully autonomous complex implementation.
+- Full DOD still requires a ticket-specific verifier plan so `execute-ticket` can prove narrow changes without timing out on the entire suite.

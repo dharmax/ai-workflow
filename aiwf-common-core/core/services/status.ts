@@ -28,9 +28,9 @@ const IMPL_PLAN_ID_PREFIX = "implementation-plan:";
 const TEST_PLAN_ID_PREFIX = "test-plan:";
 const STATUS_STOP_WORDS = new Set([
   "a", "about", "aggregate", "an", "and", "are", "be", "cover", "covered", "did", "do",
-  "for", "friendly", "give", "how", "human", "i", "information", "is", "it", "its",
+  "for", "friendly", "give", "how", "human", "i", "identify", "information", "inspect", "is", "it", "its",
   "me", "of", "on", "related", "response", "right", "show", "state", "status", "tell",
-  "tests", "that", "the", "this", "to", "translate", "usable", "what", "which"
+  "tests", "that", "the", "this", "to", "translate", "usable", "what", "which", "with"
 ]);
 
 export const STATUS_NODE_TYPES = [
@@ -724,7 +724,7 @@ function guessTestTargetsFromName(testFilePath, fileSet) {
 function resolveStatusSelector(store, selector, { type = null, rawQuestion = false, projectRoot = process.cwd() } = {}) {
   const text = String(selector ?? "").trim();
   const normalized = text.toLowerCase();
-  if (!text) {
+  if (!text || text === ".") {
     return buildProjectNode(projectRoot);
   }
   if (!type && /\b(project|repo|repository|codebase)\b/.test(normalized)) {
@@ -743,7 +743,7 @@ function resolveStatusSelector(store, selector, { type = null, rawQuestion = fal
   }
 
   for (const surfaceId of Object.keys(OPERATOR_SURFACES)) {
-    if ((rawQuestion && normalized.includes(surfaceId)) || normalized === surfaceId) {
+    if ((rawQuestion && new RegExp(`\\b${escapeRegExp(surfaceId)}\\b`).test(normalized)) || normalized === surfaceId) {
       if (!type || type === "surface") {
         return getNodeById(store, canonicalSurfaceId(surfaceId), projectRoot);
       }
@@ -773,10 +773,15 @@ function resolveStatusSelector(store, selector, { type = null, rawQuestion = fal
   return candidates[0].node;
 }
 
+function escapeRegExp(value) {
+  return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function collectSelectorCandidates(store, selector, { type = null, rawQuestion = false, projectRoot = process.cwd() } = {}) {
   const query = String(selector ?? "").trim().toLowerCase();
   const stripped = rawQuestion ? stripStatusQuestion(selector) : String(selector ?? "");
   const tokens = tokenizeStatusQuery(stripped || query);
+  const codeFocused = /\b(code|file|files|symbol|symbols|implementation|bug|review|inspect|debug|fix|trace)\b/.test(query);
   const candidates = [];
   const seen = new Set();
   const addCandidate = (node, score, aliases = []) => {
@@ -803,7 +808,12 @@ function collectSelectorCandidates(store, selector, { type = null, rawQuestion =
     addCandidate(mapFeatureNode(feature), scoreCandidate(query, tokens, [feature.id, feature.name, feature.description]));
   }
   for (const file of store.listFiles()) {
-    addCandidate(mapFileNode(file), scoreCandidate(query, tokens, [file.path, path.posix.basename(file.path)]));
+    const score = scoreCandidate(query, tokens, [file.path, path.posix.basename(file.path)]);
+    addCandidate(mapFileNode(file), score > 0 && codeFocused ? score + 160 : score);
+  }
+  for (const symbol of store.listSymbols()) {
+    const score = scoreCandidate(query, tokens, [symbol.name, symbol.filePath, symbol.kind]);
+    addCandidate(mapSymbolNode(symbol), score > 0 && codeFocused ? score + 180 : score);
   }
   for (const [surfaceId, definition] of Object.entries(OPERATOR_SURFACES)) {
     addCandidate(getNodeById(store, canonicalSurfaceId(surfaceId), projectRoot), scoreCandidate(query, tokens, [surfaceId, definition.description]));
@@ -817,6 +827,20 @@ function collectSelectorCandidates(store, selector, { type = null, rawQuestion =
       addCandidate(getNodeById(store, canonicalFileId(item.refId), projectRoot), 135);
     } else if (item.scope === "symbol") {
       addCandidate(getNodeById(store, canonicalSymbolId(item.refId), projectRoot), 130);
+    }
+  }
+  const codeSearchTokens = tokens
+    .filter((token) => token.length >= 5)
+    .filter((token) => /[a-z]/.test(token))
+    .filter((token) => !["review", "output", "relevant"].includes(token))
+    .slice(0, 6);
+  for (const token of codeSearchTokens) {
+    for (const item of store.search(token, { limit: 4, scopes: ["file", "symbol"] })) {
+      if (item.scope === "file") {
+        addCandidate(getNodeById(store, canonicalFileId(item.refId), projectRoot), 165);
+      } else if (item.scope === "symbol") {
+        addCandidate(getNodeById(store, canonicalSymbolId(item.refId), projectRoot), 170);
+      }
     }
   }
 
@@ -841,12 +865,23 @@ function stripStatusQuestion(value) {
 }
 
 function tokenizeStatusQuery(value) {
-  return String(value ?? "")
-    .toLowerCase()
+  const rawTokens = String(value ?? "")
     .split(/[^a-z0-9_./:-]+/)
     .map((token) => token.trim())
-    .filter(Boolean)
+    .filter(Boolean);
+  const expanded = rawTokens.flatMap((token) => [token.toLowerCase(), ...splitIdentifierToken(token)]);
+  return [...new Set(expanded)]
     .filter((token) => !STATUS_STOP_WORDS.has(token));
+}
+
+function splitIdentifierToken(token) {
+  return String(token ?? "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_./:-]+/g, " ")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 3);
 }
 
 function scoreCandidate(query, tokens, haystacks) {
@@ -863,7 +898,7 @@ function scoreCandidate(query, tokens, haystacks) {
       } else if (haystack.includes(token)) {
         score += 25;
       }
-      if (haystack.endsWith(`/${token}`) || haystack === path.posix.basename(haystack)) {
+      if (haystack.endsWith(`/${token}`) || path.posix.basename(haystack) === token) {
         score += 20;
       }
     }

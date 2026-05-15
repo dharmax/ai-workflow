@@ -27,6 +27,7 @@ export async function buildSmartCodeletRunContext({
     throw new Error(`Unknown smart codelet: ${codeletId}`);
   }
 
+  const maxRetries = Number(codelet.data?.maxRetries ?? codelet.maxRetries);
   const target = await resolveTarget(projectRoot, normalizedTicketId);
   const surgicalContext = await buildSurgicalContext(projectRoot, {
     ticketId: target.ticket?.id ?? normalizedTicketId,
@@ -46,9 +47,7 @@ export async function buildSmartCodeletRunContext({
       contextPolicy: codelet.contextPolicy ?? codelet.data?.contextPolicy ?? null,
       toolPolicy: codelet.toolPolicy ?? codelet.data?.toolPolicy ?? null,
       graderId: codelet.graderId ?? codelet.data?.graderId ?? null,
-      maxRetries: Number.isFinite(Number(codelet.maxRetries ?? codelet.data?.maxRetries))
-        ? Number(codelet.maxRetries ?? codelet.data?.maxRetries)
-        : 1,
+      maxRetries: Number.isFinite(maxRetries) ? maxRetries : 1,
       canMutate: Boolean(codelet.canMutate ?? codelet.data?.canMutate)
     },
     projectSummary,

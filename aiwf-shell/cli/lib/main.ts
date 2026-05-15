@@ -1159,7 +1159,10 @@ async function handleRoute(rest) {
     taskClass,
     preferLocal: args["prefer-local"] === undefined
       ? undefined
-      : args["prefer-local"] !== false && args["prefer-local"] !== "false"
+      : args["prefer-local"] !== false && args["prefer-local"] !== "false",
+    requireLocal: args["prefer-local"] !== undefined
+      && args["prefer-local"] !== false
+      && args["prefer-local"] !== "false"
   });
   if (args.json) {
     process.stdout.write(`${JSON.stringify(redactSensitiveObject(route), null, 2)}\n`);
@@ -1864,8 +1867,17 @@ function formatCodeletOutput(codelet) {
     `Category: ${codelet.category ?? "n/a"}`,
     `Stability: ${codelet.stability ?? "n/a"}`,
     `Runner: ${codelet.runner}`,
+    `Can mutate: ${codelet.canMutate ? "yes" : "no"}`,
+    `Max retries: ${codelet.maxRetries ?? 1}`,
+    `Grader: ${codelet.graderId ?? "n/a"}`,
     `Backing: ${codelet.backing?.status ?? "unknown"}`
   ];
+  if (codelet.contextPolicy) {
+    lines.push(`Context policy: ${JSON.stringify(codelet.contextPolicy)}`);
+  }
+  if (codelet.toolPolicy) {
+    lines.push(`Tool policy: ${JSON.stringify(codelet.toolPolicy)}`);
+  }
   if (codelet.entryPath) {
     lines.push(`Entry: ${codelet.entryPath}`);
   }

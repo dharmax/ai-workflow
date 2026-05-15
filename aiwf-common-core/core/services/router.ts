@@ -17,6 +17,7 @@ export async function routeTask({
   taskClass,
   domain = null,
   preferLocal = true,
+  requireLocal = false,
   allowWeak = false,
   forceRefresh = false,
   providerState = null
@@ -64,8 +65,9 @@ export async function routeTask({
 
       // 0-5 competency score (Data-driven inference)
       const competency = model.capabilities?.[capability] ?? inferCompetency(model, capability, knowledge.inferenceHeuristics);
+      const localNoRemoteFallback = provider.local && !remoteFreeQuotaAvailable;
 
-      if (competency < 2 || (!allowWeak && !isInteractiveOrchestratorLocal && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
+      if (competency < 2 || (!allowWeak && !isInteractiveOrchestratorLocal && !localNoRemoteFallback && competency < 3 && QUALITY_ORDER[minimumQuality] > QUALITY_ORDER.low)) {
         continue;
       }
 
@@ -117,6 +119,26 @@ export async function routeTask({
   }
 
   candidates.sort((left, right) => right.score - left.score || left.costTier - right.costTier || left.modelId.localeCompare(right.modelId));
+  if (requireLocal && !candidates.some((candidate) => candidate.local)) {
+    return {
+      taskClass,
+      capability,
+      minimumQuality,
+      recommended: null,
+      fallbackChain: [],
+      candidates: [],
+      providers: routedState.providers,
+      modelFitMatrix,
+      degradedPath: true,
+      failureReasons: [
+        "local provider was explicitly requested, but no available local model satisfied the task route"
+      ],
+      tooling: {
+        leanCtx: routedState.leanCtx,
+        contextCompression: routedState.routingPolicy.contextCompression
+      }
+    };
+  }
   const primary = candidates[0] ?? null;
 
   return {
@@ -134,6 +156,8 @@ export async function routeTask({
     candidates,
     providers: routedState.providers,
     modelFitMatrix,
+    degradedPath: false,
+    failureReasons: [],
     tooling: {
       leanCtx: routedState.leanCtx,
       contextCompression: routedState.routingPolicy.contextCompression

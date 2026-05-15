@@ -88,6 +88,17 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
     const showSearchPayload = JSON.parse(showSearchResult.stdout);
     assert.equal(showSearchPayload.id, "search");
     assert.equal(showSearchPayload.backing.exists, true);
+
+    const showExecuteResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "show", "execute-ticket", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(showExecuteResult.code, 0, showExecuteResult.stderr || showExecuteResult.stdout);
+    const showExecutePayload = JSON.parse(showExecuteResult.stdout);
+    assert.equal(showExecutePayload.canMutate, true);
+    assert.equal(showExecutePayload.inputSchema.required.includes("ticketId"), true);
+    assert.equal(showExecutePayload.toolPolicy.requiresApplyFlag, true);
+    assert.equal(showExecutePayload.graderId, "ticket-execution-v1");
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -180,11 +191,11 @@ test("ai-workflow doctor reports local diagnostics and ollama absence cleanly", 
   assert.equal(payload.leanCtx.installed, true);
 });
 
-test("ai-workflow doctor text tells the operator the expected lotus Ollama host and setup command", { concurrency: false }, async () => {
+test("ai-workflow doctor text tells the operator the expected local Ollama host and setup command", { concurrency: false }, async () => {
   const result = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "doctor"]);
   assert.equal(result.code, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /ollama expected shell host: http:\/\/lotus:11434/);
-  assert.match(result.stdout, /set-ollama-hw --global --host http:\/\/lotus:11434/);
+  assert.match(result.stdout, /ollama expected shell host: http:\/\/127\.0\.0\.1:11434/);
+  assert.match(result.stdout, /ollama (setup|reachability) hint:/);
 });
 
 test("workflow-audit shared report builder and CLI JSON stay aligned", { concurrency: false }, async () => {
@@ -1129,6 +1140,104 @@ test("smart codelet runner falls back when the first routed provider fails", { c
     assert.equal(payload.diagnostics.failedAttempts, 1);
     assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
     assert.equal(payload.route.providers[primaryProviderId].apiKey, "[redacted]");
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("smart codelet runner validates typed outputs, retries with critic feedback, and reports metrics", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-smart-codelet-contract-"));
+  const providerId = `mock-smart-contract-${Date.now()}`;
+  let callCount = 0;
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, ".ai-workflow", "codelets"), { recursive: true });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "codelets", "contract-review.json"), JSON.stringify({
+      id: "contract-review",
+      stability: "staged",
+      category: "review",
+      summary: "Review code with a typed contract.",
+      runner: "node-script",
+      entry: "aiwf-shell/runtime/scripts/ai-workflow/smart-codelet-runner.ts",
+      status: "staged",
+      focus: "typed code review",
+      taskClass: "review",
+      inputSchema: {
+        type: "object",
+        required: ["goal"]
+      },
+      outputSchema: {
+        type: "object",
+        required: ["summary", "observations", "suggested_actions"]
+      },
+      contextPolicy: {
+        mode: "graph-backed-surgical"
+      },
+      toolPolicy: {
+        canWriteFiles: false
+      },
+      graderId: "review-contract-v1",
+      maxRetries: 2,
+      canMutate: false
+    }, null, 2), "utf8");
+
+    await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        [providerId]: {
+          apiKey: "contract-key",
+          models: ["smart-v1"]
+        },
+        openai: { enabled: false },
+        anthropic: { enabled: false },
+        google: { enabled: false },
+        ollama: { enabled: false }
+      }
+    }, null, 2), "utf8");
+
+    registerProvider(providerId, {
+      generate: async ({ modelId, prompt }) => {
+        callCount += 1;
+        assert.equal(modelId, "smart-v1");
+        assert.match(prompt, /Context policy: \{"mode":"graph-backed-surgical"\}/);
+        assert.match(prompt, /Tool policy:/);
+        assert.match(prompt, /Grader: review-contract-v1/);
+        if (!/Previous response was invalid: output missing required field 'observations'/.test(prompt)) {
+          return {
+            providerId,
+            modelId,
+            response: JSON.stringify({ summary: "Missing required arrays." }),
+            usage: { promptTokens: 11, completionTokens: 3, totalTokens: 14 }
+          };
+        }
+        return {
+          providerId,
+          modelId,
+          response: JSON.stringify({
+            summary: "Typed retry succeeded.",
+            observations: ["The runner enforced the output contract."],
+            suggested_actions: ["Keep schema validation enabled."],
+            candidate_codelets: [],
+            docs_to_update: [],
+            needs_human_review: false
+          }),
+          usage: { promptTokens: 13, completionTokens: 5, totalTokens: 18 }
+        };
+      }
+    });
+
+    const payload = await runSmartCodelet(
+      ["--root", targetRoot, "--provider", providerId, "--model", "smart-v1", "--goal", "review typed runner", "--json"],
+      { AIWF_CODELET_ID: "contract-review" }
+    );
+
+    assert.equal(payload.result.summary, "Typed retry succeeded.");
+    assert.equal(payload.diagnostics.validationRetries, 1);
+    assert.equal(payload.diagnostics.attemptCount, 2);
+    assert.equal(payload.diagnostics.usage.totalTokens, 32);
+    assert.equal(payload.diagnostics.validationErrors[0], "output missing required field 'observations'");
+    assert.equal(payload.route.providers[providerId].apiKey, "[redacted]");
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
