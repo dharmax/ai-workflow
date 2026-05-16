@@ -12,6 +12,7 @@ export async function run(args: any, hub: any) {
     case "new": return manager.newTicket(args);
     case "move": return manager.moveTicket(args.id, args.to, args);
     case "next": return manager.getNext(args);
+    case "archive": return manager.archiveDoneTickets(args);
     default: throw new Error(`Unknown kanban subcommand: ${subcommand}`);
   }
 }

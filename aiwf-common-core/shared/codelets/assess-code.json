@@ -1,0 +1,44 @@
+{
+  "id": "assess-code",
+  "summary": "Assess code quality, graph fit, GoE compliance, and readiness with evidence-backed findings.",
+  "stability": "experimental",
+  "category": "assessment",
+  "runner": "node-script",
+  "entry": "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+  "exec": "js",
+  "focus": "code assessment, review, graph coverage, GoE compliance, and readiness scoring",
+  "taskClass": "review",
+  "inputSchema": {
+    "type": "object",
+    "required": ["goal"],
+    "properties": {
+      "ticketId": { "type": "string" },
+      "filePath": { "type": "string" },
+      "goal": { "type": "string" }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["summary", "findings", "goe_gaps", "graph_gaps", "suggested_actions", "verification_steps"],
+    "properties": {
+      "summary": { "type": "string" },
+      "findings": { "type": "array" },
+      "goe_gaps": { "type": "array" },
+      "graph_gaps": { "type": "array" },
+      "suggested_actions": { "type": "array" },
+      "verification_steps": { "type": "array" }
+    }
+  },
+  "contextPolicy": {
+    "mode": "graph-backed-surgical",
+    "include": ["ticket", "file", "symbols", "linkedTests", "guidelines", "activeGuardrails", "recentNotes"]
+  },
+  "toolPolicy": {
+    "canWriteFiles": false,
+    "canRunTests": false,
+    "requiresEvidence": true
+  },
+  "graderId": "assess-code-v1",
+  "maxRetries": 2,
+  "canMutate": false
+}

@@ -51,6 +51,9 @@ export async function routeTask({
       const isInteractiveOrchestrator = ["shell-planning", "agent-orchestration"].includes(taskClass);
       const isInteractiveOrchestratorLocal = isInteractiveOrchestrator && provider.local;
       const quality = model.quality ?? "medium";
+      if (isNonGenerativeModel(model, taskClass)) {
+        continue;
+      }
       if (taskClass === "shell-planning" && isVisionOnlyModel(model)) {
         continue;
       }
@@ -81,9 +84,10 @@ export async function routeTask({
       const reliabilityBonus = modelMetrics ? (modelMetrics.success_rate / 20) : 2; // 0-5 bonus based on success rate
       const latencyBonus = scoreLatency(modelMetrics?.avg_latency, { taskClass, local: provider.local });
       const interactiveShellBonus = scoreInteractiveShellPlanner(model, taskClass);
+      const configuredPlannerBonus = provider.local && provider.plannerModel === model.id ? scoreConfiguredPlannerModel(taskClass) : 0;
       const quotaBonus = scoreQuota(provider, { quotaStrategy, remoteFreeQuotaAvailable });
       const fitBonus = typeof model.fitScore === "number" ? (model.fitScore / 10) : 0;
-      const score = (10 - (model.costTier ?? 5)) + (competency * 2) + localPreference + shellPlanningRemotePenalty + reliabilityBonus + latencyBonus + interactiveShellBonus + quotaBonus + configTrustBonus + fitBonus;
+      const score = (10 - (model.costTier ?? 5)) + (competency * 2) + localPreference + shellPlanningRemotePenalty + reliabilityBonus + latencyBonus + interactiveShellBonus + configuredPlannerBonus + quotaBonus + configTrustBonus + fitBonus;
       
       candidates.push({
         providerId,
@@ -216,6 +220,12 @@ function scoreInteractiveShellPlanner(model, taskClass) {
   return score;
 }
 
+function scoreConfiguredPlannerModel(taskClass) {
+  return ["shell-planning", "agent-orchestration", "review", "bug-hunting", "feature-implementation"].includes(taskClass)
+    ? 8
+    : 3;
+}
+
 function buildReason(candidate, taskClass, minimumQuality, capability) {
   const parts = [];
   parts.push(`competency ${candidate.competency}/5 for ${capability}`);
@@ -269,6 +279,16 @@ function isVisionOnlyModel(model) {
   const strategy = Number(capabilities.strategy ?? 0);
   const visual = Number(capabilities.visual ?? 0);
   return visual >= 4 && prose < 2.5 && strategy < 2.5;
+}
+
+function isNonGenerativeModel(model, taskClass) {
+  const lower = String(model?.id ?? "").toLowerCase();
+  const embeddingTask = /\b(embed|embedding|semantic-search|vector)\b/.test(String(taskClass ?? "").toLowerCase());
+  if (embeddingTask) {
+    return false;
+  }
+  return /(?:^|[-_/:])(?:embed|embedding|nomic-embed|bge-|e5-|text-embedding)(?:[-_/:]|$)/.test(lower)
+    || lower.includes("nomic-embed");
 }
 
 function inferCompetency(model, capability, heuristics) {

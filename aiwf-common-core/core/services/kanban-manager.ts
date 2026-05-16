@@ -64,4 +64,32 @@ export class KanbanManager {
     
     return getNextTicket(document, options);
   }
+
+  async archiveDoneTickets(options: any = {}) {
+    const root = this.context.projectRoot;
+    const kanbanPath = path.resolve(root, options.file ?? "kanban.md");
+    const archivePath = path.resolve(root, options.archiveFile ?? options.archive ?? "kanban-archive.md");
+    const markdown = await readText(kanbanPath);
+    const archiveMarkdown = await readText(archivePath, "# Kanban Archive\n");
+    const document = parseKanbanDocument(markdown);
+    const result = archiveOldDoneTickets(document, archiveMarkdown, {
+      olderThanDays: options.olderThanDays ?? options.days,
+      today: options.today ? new Date(String(options.today)) : undefined
+    });
+
+    if (!options.dryRun) {
+      await withWorkspaceMutation(root, "kanban archive", async () => {
+        await writeFile(kanbanPath, result.kanbanMarkdown, "utf8");
+        await writeFile(archivePath, result.archiveMarkdown, "utf8");
+      });
+    }
+
+    return {
+      archived: result.archived,
+      archivedCount: result.archived.length,
+      kanbanPath,
+      archivePath,
+      dryRun: Boolean(options.dryRun)
+    };
+  }
 }

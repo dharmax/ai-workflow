@@ -48,7 +48,7 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     `Can mutate: ${context.codelet.canMutate ? "yes" : "no"}`,
     context.codelet.graderId ? `Grader: ${context.codelet.graderId}` : null,
     context.codelet.outputSchema ? `Output schema: ${JSON.stringify(context.codelet.outputSchema)}` : null,
-    "Return JSON only: { summary, observations[], candidate_codelets[], suggested_actions[], docs_to_update[], needs_human_review }"
+    buildReturnInstruction(context.codelet.outputSchema)
   ].filter(Boolean).join("\n");
   validatePayload(context.target, context.codelet.inputSchema, "input");
   const maxRetries = Math.max(
@@ -172,11 +172,26 @@ function summarizeAttempts(attempts, successfulProviderId, attemptResult = {}) {
 }
 
 function safeJson(text) {
+  const candidate = extractJsonCandidate(text);
   try {
-    return JSON.parse(String(text ?? ""));
+    return JSON.parse(candidate);
   } catch {
     return { summary: String(text ?? "") };
   }
+}
+
+function extractJsonCandidate(text) {
+  const value = String(text ?? "").trim();
+  const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    return fenced[1].trim();
+  }
+  const objectStart = value.indexOf("{");
+  const objectEnd = value.lastIndexOf("}");
+  if (objectStart >= 0 && objectEnd > objectStart) {
+    return value.slice(objectStart, objectEnd + 1);
+  }
+  return value;
 }
 
 async function persistSmartCodeletNotes(root, codeletId, result) {
@@ -235,17 +250,44 @@ async function runValidatedAttempt({ prompt, candidate, routed, outputSchema, ma
     }
     lastError = validationError;
     validationErrors.push(validationError);
-    workingPrompt = buildAttemptPrompt(prompt, validationError);
+    workingPrompt = buildAttemptPrompt(prompt, validationError, outputSchema);
   }
 
   throw new Error(lastError ?? "Smart codelet output validation failed.");
 }
 
-function buildAttemptPrompt(basePrompt, validationError) {
+function buildAttemptPrompt(basePrompt, validationError, outputSchema = null) {
   if (!validationError) {
     return basePrompt;
   }
-  return `${basePrompt}\n\nPrevious response was invalid: ${validationError}. Return corrected JSON only.`;
+  return `${basePrompt}\n\nPrevious response was invalid: ${validationError}. ${buildReturnInstruction(outputSchema)}`;
+}
+
+function buildReturnInstruction(outputSchema) {
+  if (!outputSchema || typeof outputSchema !== "object") {
+    return "Return JSON only: { summary, observations[], candidate_codelets[], suggested_actions[], docs_to_update[], needs_human_review }";
+  }
+  const required = Array.isArray(outputSchema.required) ? outputSchema.required : [];
+  const properties = outputSchema.properties && typeof outputSchema.properties === "object" ? outputSchema.properties : {};
+  const fields = required.length ? required : Object.keys(properties);
+  const fieldHints = fields.map((field) => `${field}:${schemaTypeHint(properties[field])}`);
+  return [
+    "Return JSON only.",
+    fields.length ? `Required fields: ${fields.join(", ")}.` : null,
+    fieldHints.length ? `Field types: ${fieldHints.join(", ")}.` : null,
+    "Do not include markdown fences or explanatory text outside the JSON object."
+  ].filter(Boolean).join(" ");
+}
+
+function schemaTypeHint(schema) {
+  if (!schema || typeof schema !== "object") {
+    return "any";
+  }
+  if (schema.type === "array") {
+    const itemType = schema.items && typeof schema.items === "object" ? schema.items.type : null;
+    return itemType ? `${itemType}[]` : "array";
+  }
+  return schema.type ?? "any";
 }
 
 function validatePayload(payload, schema, phase) {

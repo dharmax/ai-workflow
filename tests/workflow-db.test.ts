@@ -460,6 +460,8 @@ test("syncProject mirrors codelets into the DB registry", async () => {
       const codelets = store.listEntities({ entityType: "codelet" });
       const doctor = codelets.find((item) => item.data?.codeletId === "doctor");
       const executeTicket = codelets.find((item) => item.data?.codeletId === "execute-ticket");
+      const debugCode = codelets.find((item) => item.data?.codeletId === "debug-code");
+      const assessCode = codelets.find((item) => item.data?.codeletId === "assess-code");
       const artifactJudge = codelets.find((item) => item.data?.codeletId === "artifact-judge");
 
       assert.equal(Boolean(doctor), true);
@@ -470,6 +472,12 @@ test("syncProject mirrors codelets into the DB registry", async () => {
       assert.equal(executeTicket?.data?.inputSchema?.required?.includes("ticketId"), true);
       assert.equal(executeTicket?.data?.toolPolicy?.requiresApplyFlag, true);
       assert.equal(executeTicket?.data?.graderId, "ticket-execution-v1");
+      assert.equal(Boolean(debugCode), true);
+      assert.equal(debugCode?.data?.outputSchema?.required?.includes("suspected_root_causes"), true);
+      assert.equal(debugCode?.data?.toolPolicy?.requiresEvidence, true);
+      assert.equal(Boolean(assessCode), true);
+      assert.equal(assessCode?.data?.outputSchema?.required?.includes("goe_gaps"), true);
+      assert.equal(assessCode?.data?.outputSchema?.required?.includes("graph_gaps"), true);
       assert.equal(Boolean(artifactJudge), true);
       assert.equal(artifactJudge?.data?.backing?.exists, true);
     });

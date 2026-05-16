@@ -1836,7 +1836,12 @@ function shellQuote(value) {
 }
 
 async function runCodelet(codelet, args) {
-  return executeCodelet(codelet, args, {
+  const runArgs = {
+    ...args,
+    codelet: codelet.id,
+    codeletId: codelet.id
+  };
+  return executeCodelet(codelet, runArgs, {
     cwd: process.cwd(),
     mode: "capture",
     env: {

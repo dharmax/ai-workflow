@@ -5,7 +5,8 @@
 
 import { generateCompletion, discoverProviderState, summarizeCompletionUsage } from "./providers.ts";
 import { routeTask } from "./router.ts";
-import type { ExecutionContext, ExecutionMode } from "./execution-context.ts";
+import { ExecutionMode } from "./execution-context.ts";
+import type { ExecutionContext } from "./execution-context.ts";
 
 export interface LLMOptions {
   taskClass?: string;

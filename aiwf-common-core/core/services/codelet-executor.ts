@@ -24,7 +24,7 @@ export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), 
     throw new Error(`Codelet ${codelet.id} is missing an executable entry.`);
   }
 
-  if (isJsExecutionCodelet(codelet, entry)) {
+  if (mode !== "capture" && isJsExecutionCodelet(codelet, entry) && !isCliScriptWrapper(entry)) {
     const inProcess = await tryRunInProcess(entry, args, { env, cwd });
     if (inProcess.used) {
       return inProcess.result;
@@ -40,6 +40,10 @@ function isJsExecutionCodelet(codelet, entry) {
   return codelet.execution === "js"
     || codelet.runtime === "js"
     || String(entry ?? "").includes("smart-codelet-runner.ts");
+}
+
+function isCliScriptWrapper(entry) {
+  return String(entry ?? "").includes(`${path.sep}aiwf-shell${path.sep}scripts${path.sep}ai-workflow${path.sep}`);
 }
 
 async function tryRunInProcess(entry, args, { env, cwd = process.cwd() }) {

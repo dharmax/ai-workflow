@@ -8,6 +8,10 @@ import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { withWorkflowStore } from "aiwf-common-core/services/sync";
 import { registerProvider } from "aiwf-common-core/services/providers";
+import { executeCodelet } from "aiwf-common-core/services/codelet-executor";
+import { CoreLLM } from "aiwf-common-core/services/core-llm";
+import { ExecutionMode } from "aiwf-common-core/services/execution-context";
+import { run as runCoreSmartCodelet } from "aiwf-common-core/codelets/smart-codelet-runner";
 import { runSmartCodelet } from "../aiwf-shell/runtime/scripts/ai-workflow/smart-codelet-runner.ts";
 import { buildWorkflowAuditSummary } from "aiwf-common-core/lib/workflow-audit-report";
 import { SHELL_TRUST_BENCHMARK_SUITE_ID } from "aiwf-common-core/shared/prompts/shell-trust-benchmark.ts";
@@ -79,6 +83,22 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
     assert.equal(searchResult.code, 0);
     const searchPayload = JSON.parse(searchResult.stdout);
     assert.equal(searchPayload.some((item) => item.id === "refactor-ticket"), true);
+
+    const debugSearchResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "search", "debug", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(debugSearchResult.code, 0, debugSearchResult.stderr || debugSearchResult.stdout);
+    const debugSearchPayload = JSON.parse(debugSearchResult.stdout);
+    assert.equal(debugSearchPayload.some((item) => item.id === "debug-code"), true);
+
+    const assessSearchResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "search", "assess", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(assessSearchResult.code, 0, assessSearchResult.stderr || assessSearchResult.stdout);
+    const assessSearchPayload = JSON.parse(assessSearchResult.stdout);
+    assert.equal(assessSearchPayload.some((item) => item.id === "assess-code"), true);
 
     const showSearchResult = await runNode(
       [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "show", "search", "--json"],
@@ -1203,6 +1223,8 @@ test("smart codelet runner validates typed outputs, retries with critic feedback
         assert.match(prompt, /Context policy: \{"mode":"graph-backed-surgical"\}/);
         assert.match(prompt, /Tool policy:/);
         assert.match(prompt, /Grader: review-contract-v1/);
+        assert.match(prompt, /Required fields: summary, observations, suggested_actions\./);
+        assert.match(prompt, /Field types: summary:any, observations:any, suggested_actions:any\./);
         if (!/Previous response was invalid: output missing required field 'observations'/.test(prompt)) {
           return {
             providerId,
@@ -1211,17 +1233,18 @@ test("smart codelet runner validates typed outputs, retries with critic feedback
             usage: { promptTokens: 11, completionTokens: 3, totalTokens: 14 }
           };
         }
+        const fencedResponse = JSON.stringify({
+          summary: "Typed retry succeeded.",
+          observations: ["The runner enforced the output contract."],
+          suggested_actions: ["Keep schema validation enabled."],
+          candidate_codelets: [],
+          docs_to_update: [],
+          needs_human_review: false
+        });
         return {
           providerId,
           modelId,
-          response: JSON.stringify({
-            summary: "Typed retry succeeded.",
-            observations: ["The runner enforced the output contract."],
-            suggested_actions: ["Keep schema validation enabled."],
-            candidate_codelets: [],
-            docs_to_update: [],
-            needs_human_review: false
-          }),
+          response: `\`\`\`json\n${fencedResponse}\n\`\`\``,
           usage: { promptTokens: 13, completionTokens: 5, totalTokens: 18 }
         };
       }
@@ -1238,6 +1261,128 @@ test("smart codelet runner validates typed outputs, retries with critic feedback
     assert.equal(payload.diagnostics.usage.totalTokens, 32);
     assert.equal(payload.diagnostics.validationErrors[0], "output missing required field 'observations'");
     assert.equal(payload.route.providers[providerId].apiKey, "[redacted]");
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("capture-mode TS codelet execution uses tsx instead of native strip-only import", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-codelet-capture-"));
+  const scriptPath = path.join(targetRoot, "strip-only-probe.ts");
+
+  try {
+    await writeFile(scriptPath, [
+      "enum ProbeMode { Ok = \"ok\" }",
+      "process.stdout.write(JSON.stringify({ mode: ProbeMode.Ok, args: process.argv.slice(2) }) + \"\\n\");"
+    ].join("\n"), "utf8");
+
+    const output = await executeCodelet({
+      id: "strip-only-probe",
+      runner: "node-script",
+      execution: "js",
+      entryPath: scriptPath
+    }, ["--flag", "value"], { cwd: targetRoot, mode: "capture" });
+    const payload = JSON.parse(String(output).trim());
+
+    assert.equal(payload.mode, "ok");
+    assert.deepEqual(payload.args, ["--flag", "value"]);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("CoreLLM uses ExecutionMode as a runtime value for skill prompts", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-core-llm-"));
+  const providerId = `mock-core-llm-${Date.now()}`;
+  let receivedSystem = null;
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await writeFile(path.join(targetRoot, ".ai-workflow", "config.json"), JSON.stringify({
+      providers: {
+        [providerId]: {
+          apiKey: "core-key",
+          models: ["core-v1"]
+        },
+        openai: { enabled: false },
+        anthropic: { enabled: false },
+        google: { enabled: false },
+        ollama: { enabled: false }
+      }
+    }, null, 2), "utf8");
+    registerProvider(providerId, {
+      generate: async ({ modelId, system }) => {
+        receivedSystem = system;
+        return { providerId, modelId, response: JSON.stringify({ ok: true }) };
+      }
+    });
+
+    const llm = new CoreLLM({ projectRoot: targetRoot, mode: ExecutionMode.Skill });
+    const result = await llm.generate("return json", { taskClass: "logic" });
+
+    assert.equal(result.providerId, providerId);
+    assert.match(String(receivedSystem), /Parent AI Agent/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ServiceHub smart runner honors the requested codelet id", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-smart-codelet-id-"));
+  let receivedPrompt = "";
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, ".ai-workflow", "codelets"), { recursive: true });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "codelets", "target-debug.json"), JSON.stringify({
+      id: "target-debug",
+      stability: "staged",
+      category: "debugging",
+      summary: "Target-specific debug codelet.",
+      runner: "node-script",
+      entry: "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+      status: "staged",
+      taskClass: "bug-hunting",
+      inputSchema: {
+        type: "object",
+        required: ["goal"]
+      },
+      outputSchema: {
+        type: "object",
+        required: ["summary", "observations", "suggested_actions"]
+      }
+    }, null, 2), "utf8");
+    await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+
+    const payload = await runCoreSmartCodelet({
+      codelet: "target-debug",
+      goal: "debug target id propagation"
+    }, {
+      context: { projectRoot: targetRoot },
+      resolve: () => ({
+        generate: async (prompt) => {
+          receivedPrompt = prompt;
+          const response = JSON.stringify({
+            summary: "Target id preserved.",
+            observations: ["The runner used the requested codelet id."],
+            suggested_actions: []
+          });
+          return {
+            response: `\`\`\`json\n${response}\n\`\`\``,
+            providerId: "mock",
+            modelId: "mock",
+            usage: { promptTokens: 7, completionTokens: 3, totalTokens: 10 }
+          };
+        }
+      })
+    });
+
+    assert.equal(payload.codelet.id, "target-debug");
+    assert.equal(payload.diagnostics.attempts, 1);
+    assert.equal(payload.diagnostics.usage.totalTokens, 10);
+    assert.equal(payload.diagnostics.validationRetries, 0);
+    assert.equal(Number.isFinite(payload.diagnostics.latencyMs), true);
+    assert.match(receivedPrompt, /Codelet id: target-debug/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -1334,6 +1479,51 @@ test("ai-workflow kanban CLI dispatches to the working kanban script", { concurr
     const kanbanAfterMove = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
     assert.match(kanbanAfterMove, /## Done/);
     assert.match(kanbanAfterMove, /EXE-901 CLI kanban dispatch uses the stable script entrypoint/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ai-workflow kanban archive dispatches through the documented CLI command", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-kanban-archive-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await writeFile(path.join(targetRoot, "kanban.md"), [
+      "# Kanban",
+      "",
+      "## Todo",
+      "",
+      "## Done",
+      "",
+      "- [ ] OLD-001 Old completed ticket ✅ 2026-05-01",
+      "  - Summary: Archive me.",
+      "  - State: archived",
+      "",
+      "- [ ] NEW-001 Recently completed ticket ✅ 2026-05-15",
+      "  - Summary: Keep me.",
+      "  - State: archived",
+      ""
+    ].join("\n"), "utf8");
+
+    const archiveResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "kanban",
+      "archive",
+      "--today",
+      "2026-05-16",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(archiveResult.code, 0, archiveResult.stderr || archiveResult.stdout);
+    const payload = JSON.parse(archiveResult.stdout);
+    assert.equal(payload.archivedCount, 1);
+    assert.equal(payload.archived[0].id, "OLD-001");
+
+    const kanbanAfterArchive = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    const archiveAfterArchive = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    assert.doesNotMatch(kanbanAfterArchive, /OLD-001 Old completed ticket/);
+    assert.match(kanbanAfterArchive, /NEW-001 Recently completed ticket/);
+    assert.match(archiveAfterArchive, /OLD-001 Old completed ticket/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
