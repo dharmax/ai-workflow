@@ -41,6 +41,7 @@ test("buildSmartCodeletRunContext resolves a registered codelet and packs lean-c
     assert.equal(context.tooling.leanCtx.installed, true);
     assert.match(context.promptContext, /## Files/);
     assert.match(context.promptContext, /File: src\/app\.ts/);
+    assert.match(context.promptContext, /## Active Guardrails/);
     assert.doesNotMatch(context.promptContext, /lean-ctx is missing/i);
     assert.equal(context.surgicalContext.files[0].path, "src/app.ts");
   } finally {

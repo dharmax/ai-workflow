@@ -1,13 +1,12 @@
 {
-  "id": "debug-code",
-  "summary": "Debug code with graph-backed context, evidence, suspected root causes, and verification steps.",
+  "id": "generate-code",
+  "summary": "Generate a concrete graph-backed coding plan with target files, patch intent, guardrail checks, and verification steps.",
   "stability": "experimental",
-  "category": "debugging",
+  "category": "coding",
   "runner": "node-script",
   "entry": "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
-  "exec": "js",
-  "focus": "code debugging, bug hunting, root-cause analysis, and verification planning",
-  "taskClass": "bug-hunting",
+  "focus": "code generation, implementation planning, patch design, verification, and guardrail-aware coding",
+  "taskClass": "feature-implementation",
   "inputSchema": {
     "type": "object",
     "required": ["goal"],
@@ -19,12 +18,12 @@
   },
   "outputSchema": {
     "type": "object",
-    "required": ["summary", "observations", "suspected_root_causes", "suggested_actions", "verification_steps"],
+    "required": ["summary", "files_to_change", "patch_plan", "guardrail_checks", "verification_steps"],
     "properties": {
       "summary": { "type": "string" },
-      "observations": { "type": "array" },
-      "suspected_root_causes": { "type": "array" },
-      "suggested_actions": { "type": "array" },
+      "files_to_change": { "type": "array" },
+      "patch_plan": { "type": "array" },
+      "guardrail_checks": { "type": "array" },
       "verification_steps": { "type": "array" }
     }
   },
@@ -35,9 +34,11 @@
   "toolPolicy": {
     "canWriteFiles": false,
     "canRunTests": false,
-    "requiresEvidence": true
+    "requiresEvidence": true,
+    "requiresGuardrailChecks": true,
+    "mutationRequiresExecuteTicket": true
   },
-  "graderId": "debug-code-v1",
+  "graderId": "code-generation-v1",
   "maxRetries": 2,
   "canMutate": false
 }

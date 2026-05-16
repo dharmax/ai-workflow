@@ -462,6 +462,8 @@ test("syncProject mirrors codelets into the DB registry", async () => {
       const executeTicket = codelets.find((item) => item.data?.codeletId === "execute-ticket");
       const debugCode = codelets.find((item) => item.data?.codeletId === "debug-code");
       const assessCode = codelets.find((item) => item.data?.codeletId === "assess-code");
+      const generateCode = codelets.find((item) => item.data?.codeletId === "generate-code");
+      const guidelineEnforcer = codelets.find((item) => item.data?.codeletId === "guideline-enforcer");
       const artifactJudge = codelets.find((item) => item.data?.codeletId === "artifact-judge");
 
       assert.equal(Boolean(doctor), true);
@@ -478,6 +480,12 @@ test("syncProject mirrors codelets into the DB registry", async () => {
       assert.equal(Boolean(assessCode), true);
       assert.equal(assessCode?.data?.outputSchema?.required?.includes("goe_gaps"), true);
       assert.equal(assessCode?.data?.outputSchema?.required?.includes("graph_gaps"), true);
+      assert.equal(Boolean(generateCode), true);
+      assert.equal(generateCode?.data?.outputSchema?.required?.includes("guardrail_checks"), true);
+      assert.equal(generateCode?.data?.toolPolicy?.mutationRequiresExecuteTicket, true);
+      assert.equal(Boolean(guidelineEnforcer), true);
+      assert.equal(guidelineEnforcer?.data?.outputSchema?.required?.includes("enforced_guardrails"), true);
+      assert.equal(guidelineEnforcer?.data?.toolPolicy?.requiresGuardrailChecks, true);
       assert.equal(Boolean(artifactJudge), true);
       assert.equal(artifactJudge?.data?.backing?.exists, true);
     });

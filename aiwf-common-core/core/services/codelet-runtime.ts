@@ -29,10 +29,18 @@ export async function buildSmartCodeletRunContext({
 
   const maxRetries = Number(codelet.data?.maxRetries ?? codelet.maxRetries);
   const target = await resolveTarget(projectRoot, normalizedTicketId);
+  const contextQuery = [
+    normalizedGoal,
+    normalizedTicketId,
+    normalizedFilePath,
+    codelet.data?.focus ?? codelet.focus,
+    codelet.data?.category ?? codelet.category
+  ].filter(Boolean).join(" ");
   const surgicalContext = await buildSurgicalContext(projectRoot, {
     ticketId: target.ticket?.id ?? normalizedTicketId,
     filePaths: normalizedFilePath ? [normalizedFilePath] : [],
-    symbolNames: []
+    symbolNames: [],
+    query: contextQuery
   });
 
   return {

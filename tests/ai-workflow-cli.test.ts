@@ -100,6 +100,22 @@ test("ai-workflow project codelet queries read from the DB registry", { concurre
     const assessSearchPayload = JSON.parse(assessSearchResult.stdout);
     assert.equal(assessSearchPayload.some((item) => item.id === "assess-code"), true);
 
+    const generateSearchResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "search", "generate code", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(generateSearchResult.code, 0, generateSearchResult.stderr || generateSearchResult.stdout);
+    const generateSearchPayload = JSON.parse(generateSearchResult.stdout);
+    assert.equal(generateSearchPayload.some((item) => item.id === "generate-code"), true);
+
+    const enforceSearchResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "search", "enforce", "--json"],
+      { cwd: targetRoot }
+    );
+    assert.equal(enforceSearchResult.code, 0, enforceSearchResult.stderr || enforceSearchResult.stdout);
+    const enforceSearchPayload = JSON.parse(enforceSearchResult.stdout);
+    assert.equal(enforceSearchPayload.some((item) => item.id === "guideline-enforcer"), true);
+
     const showSearchResult = await runNode(
       [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "project", "codelet", "show", "search", "--json"],
       { cwd: targetRoot }
@@ -1383,6 +1399,131 @@ test("ServiceHub smart runner honors the requested codelet id", { concurrency: f
     assert.equal(payload.diagnostics.validationRetries, 0);
     assert.equal(Number.isFinite(payload.diagnostics.latencyMs), true);
     assert.match(receivedPrompt, /Codelet id: target-debug/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ServiceHub smart runner rejects shallow guideline enforcement output", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-smart-codelet-enforce-"));
+  let callCount = 0;
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, ".ai-workflow", "codelets"), { recursive: true });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "codelets", "enforce-contract.json"), JSON.stringify({
+      id: "enforce-contract",
+      stability: "staged",
+      category: "governance",
+      summary: "Enforce guideline contract.",
+      runner: "node-script",
+      entry: "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+      status: "staged",
+      taskClass: "review",
+      inputSchema: { type: "object", required: ["goal"] },
+      outputSchema: {
+        type: "object",
+        required: ["summary", "enforced_guardrails", "violations", "required_actions", "verification_steps"]
+      },
+      graderId: "guideline-enforcement-v1",
+      maxRetries: 2
+    }, null, 2), "utf8");
+    await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+
+    const payload = await runCoreSmartCodelet({
+      codelet: "enforce-contract",
+      goal: "enforce architecture rules"
+    }, {
+      context: { projectRoot: targetRoot },
+      resolve: () => ({
+        generate: async () => {
+          callCount += 1;
+          if (callCount === 1) {
+            return {
+              response: JSON.stringify({
+                summary: "Too shallow.",
+                enforced_guardrails: ["required"],
+                violations: [],
+                required_actions: [],
+                verification_steps: []
+              }),
+              providerId: "mock",
+              modelId: "mock"
+            };
+          }
+          return {
+            response: JSON.stringify({
+              summary: "Contract enforced.",
+              enforced_guardrails: [
+                { guardrail: "core owns workflow truth", status: "pass", evidence: "project-guidelines.md and active guardrails context" }
+              ],
+              violations: [],
+              required_actions: [],
+              verification_steps: ["Run ai-workflow audit workflow and focused tests."]
+            }),
+            providerId: "mock",
+            modelId: "mock"
+          };
+        }
+      })
+    });
+
+    assert.equal(payload.result.summary, "Contract enforced.");
+    assert.equal(payload.diagnostics.validationRetries, 1);
+    assert.match(payload.diagnostics.validationErrors[0], /enforced_guardrails/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ServiceHub smart runner rejects hallucinated code-generation file targets", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-smart-codelet-codegen-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, ".ai-workflow", "codelets"), { recursive: true });
+    await writeFile(path.join(targetRoot, ".ai-workflow", "codelets", "codegen-contract.json"), JSON.stringify({
+      id: "codegen-contract",
+      stability: "staged",
+      category: "coding",
+      summary: "Generate code with a typed contract.",
+      runner: "node-script",
+      entry: "aiwf-shell/scripts/ai-workflow/smart-codelet-runner.ts",
+      status: "staged",
+      taskClass: "feature-implementation",
+      inputSchema: { type: "object", required: ["goal"] },
+      outputSchema: {
+        type: "object",
+        required: ["summary", "files_to_change", "patch_plan", "guardrail_checks", "verification_steps"]
+      },
+      graderId: "code-generation-v1",
+      maxRetries: 1
+    }, null, 2), "utf8");
+    await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: targetRoot });
+
+    const payload = await runCoreSmartCodelet({
+      codelet: "codegen-contract",
+      goal: "write router tests"
+    }, {
+      context: { projectRoot: targetRoot },
+      resolve: () => ({
+        generate: async () => ({
+          response: JSON.stringify({
+            summary: "Hallucinated plan.",
+            files_to_change: ["tests/shell_router_test.py"],
+            patch_plan: ["Patch missing test file."],
+            guardrail_checks: ["Run guidelines."],
+            verification_steps: ["Run tests."]
+          }),
+          providerId: "mock",
+          modelId: "mock"
+        })
+      })
+    });
+
+    assert.equal(payload.result.degraded, true);
+    assert.match(payload.diagnostics.validationErrors[0], /files_to_change/);
+    assert.equal(payload.result.files_to_change[0].startsWith("unknown:"), true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

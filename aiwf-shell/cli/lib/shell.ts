@@ -133,7 +133,11 @@ const SAFE_AUTO_EXECUTE_CODELETS = new Set([
   "import-cleanup",
   "dependency-prune",
   "css-refactor",
-  "test-heal"
+  "test-heal",
+  "debug-code",
+  "assess-code",
+  "generate-code",
+  "guideline-enforcer"
 ]);
 const SHELL_TICKET_KEYWORD_STOPWORDS = new Set([
   "the",
@@ -403,6 +407,19 @@ async function tryRunShellFastPath(inputText, options) {
         }
       }
     };
+    if (fastOptions.planOnly) {
+      const executedGraph = { nodes: [], executions: [], branchPath: [] };
+      return {
+        input: inputText,
+        plan,
+        executed: [],
+        executedGraph,
+        continuationState: buildContinuationState({ inputText, plan, executedGraph }),
+        preRendered: false,
+        recovery: null,
+        assistantReply: renderPlanOnlyReply(plan, plannerContext)
+      };
+    }
     const mutatingModeReply = await ensureMutatingModeForPlan(plan, fastOptions);
     if (mutatingModeReply) {
       return {
@@ -2431,6 +2448,14 @@ function buildCapabilityRoutingPlan(inputText, plannerContext = {}) {
   if (searchQuery) {
     actions.push({ type: "search", query: searchQuery });
   }
+  const capabilityCodelet = selectCapabilityCodelet(taskClass, text, plannerContext);
+  if (capabilityCodelet) {
+    actions.push({
+      type: "run_codelet",
+      codeletId: capabilityCodelet,
+      args: ["--goal", text]
+    });
+  }
 
   return {
     ...actionPlan(actions, 0.76, `Semantic capability routing classified the request as ${taskClass}.`),
@@ -2438,6 +2463,27 @@ function buildCapabilityRoutingPlan(inputText, plannerContext = {}) {
     focusTaskClass: taskClass,
     strategy: `Treat this as ${taskClass}${searchQuery ? ` and inspect ${searchQuery} in the repo first` : ""}.`
   };
+}
+
+function selectCapabilityCodelet(taskClass, inputText, plannerContext = {}) {
+  const normalized = normalizeConversationText(inputText);
+  const pick = (codeletId) => hasKnownCodelet(plannerContext, codeletId) ? codeletId : null;
+  if (/\b(guideline|guardrail|goe|architecture rule|coding standard|plugin|extension)\b/.test(normalized)) {
+    return pick("guideline-enforcer");
+  }
+  switch (taskClass) {
+    case "bug-hunting":
+      return pick("debug-code");
+    case "review":
+    case "architectural-design":
+      return pick("assess-code");
+    case "code-generation":
+    case "feature-implementation":
+    case "refactoring":
+      return pick("generate-code");
+    default:
+      return null;
+  }
 }
 
 function inferShellTaskClassFromPrompt(inputText) {
@@ -4999,6 +5045,18 @@ export async function runShellTurn(inputText, options) {
     }
   };
 
+  if (runtimeOptions.planOnly) {
+    const reply = firstNonEmptyString(
+      baseResult.assistantReply,
+      renderPlanOnlyReply(plan, runtimeOptions.plannerContext)
+    );
+    return {
+      ...baseResult,
+      assistantReply: reply,
+      continuationState: buildContinuationState({ inputText, plan, executedGraph: baseResult.executedGraph })
+    };
+  }
+
   if (plan.intent?.tier === ShellTier.Tier3) {
     const isMutation = plan.intent.extracted?.isMutation ?? true; // Default to true for Tier 3 safety
     
@@ -5981,6 +6039,22 @@ function renderPlanModeMutationReply(actions, plannerContext) {
     "Type `mutate` to switch into mutating mode and run it, or `plan` to stay read-only.",
     `Current project: ${projectName}.`
   ].join("\n");
+}
+
+function renderPlanOnlyReply(plan, plannerContext) {
+  const actions = Array.isArray(plan?.actions) ? plan.actions : [];
+  if (actions.length) {
+    return [
+      "Plan-only mode: no actions were executed.",
+      "Planned actions:",
+      renderActionList(actions),
+      `Current project: ${path.basename(plannerContext?.root ?? process.cwd())}.`
+    ].join("\n");
+  }
+  if (plan?.kind === "reply" && typeof plan.reply === "string" && plan.reply.trim()) {
+    return plan.reply;
+  }
+  return "Plan-only mode: no actions were executed.";
 }
 
 async function promptShellQuestion(rl, prompt) {
@@ -8369,6 +8443,15 @@ function buildExplicitShellCommandPlan(text, lower, plannerContext, { activeGrap
         args: splitShellWords(runCodeletMatch[2] ?? "")
       }], 0.99, "Explicit codelet run request.");
     }
+  }
+
+  if (/\b(enforce|audit|check)\b.*\b(guideline|guardrail|goe|architecture|coding standard|plugin|extension|shell)\b/i.test(text)
+    && hasKnownCodelet(plannerContext, "guideline-enforcer")) {
+    return actionPlan([{
+      type: "run_codelet",
+      codeletId: "guideline-enforcer",
+      args: ["--goal", text]
+    }], 0.94, "Explicit guideline enforcement request.");
   }
 
   const featureMatch = text.match(/^(?:(?:please\s+)?(?:add|create|new)|(?:can|could|would)\s+you\s+(?:add|create))\s+(?:new\s+)?(?:feature|epic|big task)\b\s*(?:for\s+)?(.*?)[?.!]*$/i);

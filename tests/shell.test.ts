@@ -429,6 +429,29 @@ test("planShellRequestHeuristically maps follow-up handling review prompts onto 
   assert.equal(plan.actions[1]?.query, "TKT-SHELL-NL-007");
 });
 
+test("planShellRequestHeuristically routes coding and enforcement prompts to typed codelets", () => {
+  const plannerContext = {
+    toolkitCodelets: [
+      { id: "generate-code" },
+      { id: "guideline-enforcer" },
+      { id: "debug-code" },
+      { id: "assess-code" }
+    ],
+    projectCodelets: [],
+    summary: {},
+    providerState: {}
+  };
+
+  const codePlan = planShellRequestHeuristically("write code for a bounded patch that updates the router tests", plannerContext);
+  assert.equal(codePlan.kind, "plan");
+  assert.equal(codePlan.intent.taskClass, "code-generation");
+  assert.equal(codePlan.actions.some((action) => action.type === "run_codelet" && action.codeletId === "generate-code"), true);
+
+  const enforcementPlan = planShellRequestHeuristically("enforce the coding and architecture guidelines for shell and plugin surfaces", plannerContext);
+  assert.equal(enforcementPlan.kind, "plan");
+  assert.equal(enforcementPlan.actions.some((action) => action.type === "run_codelet" && action.codeletId === "guideline-enforcer"), true);
+});
+
 test("planShellRequestHeuristically treats response-format redesign as design-direction work", () => {
   const plan = planShellRequestHeuristically("design a better shell response format for terse operator briefs versus deep investigations.", {
     toolkitCodelets: [],
@@ -2240,6 +2263,42 @@ test("runShellTurn asks to switch modes before mutating in plan mode", async () 
     assert.match(result.plan.reply, /plan/i);
     assert.equal(result.executed.length, 0);
     assert.equal(result.executedGraph.nodes.length, 0);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runShellTurn plan-only does not execute safe capability codelets", async () => {
+  const root = path.resolve("/tmp/ai-workflow-shell-plan-only-codelet-" + Math.random().toString(36).slice(2));
+  await fs.mkdir(root, { recursive: true });
+
+  try {
+    const result = await runShellTurn("enforce the coding and architecture guidelines for shell and plugin surfaces", {
+      root,
+      json: true,
+      yes: false,
+      noAi: true,
+      planOnly: true,
+      shellMode: "plan",
+      plannerContext: {
+        ...plannerContext,
+        toolkitCodelets: [
+          ...plannerContext.toolkitCodelets,
+          { id: "guideline-enforcer", summary: "Enforce project guardrails." }
+        ]
+      },
+      planners: {
+        planners: [],
+        heuristic: { mode: "heuristic", reason: "fallback" }
+      },
+      history: []
+    });
+
+    assert.equal(result.plan.kind, "plan");
+    assert.equal(result.plan.actions.some((action) => action.type === "run_codelet" && action.codeletId === "guideline-enforcer"), true);
+    assert.equal(result.executed.length, 0);
+    assert.equal(result.executedGraph.executions.length, 0);
+    assert.match(result.assistantReply, /Plan-only mode/i);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

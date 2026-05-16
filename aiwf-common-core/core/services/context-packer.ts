@@ -8,6 +8,7 @@ import { readProjectFile } from "../lib/filesystem.ts";
 import { SEMANTICS } from "../lib/registry.ts";
 import { probeLeanCtx } from "./lean-ctx.ts";
 import { inferTicketRetrievalContextFromStore } from "./shell-retrieval.ts";
+import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
 import { HeuristicContextManager, LeanContextCompressor } from "@dharmax/context-manager";
 
 /**
@@ -15,15 +16,23 @@ import { HeuristicContextManager, LeanContextCompressor } from "@dharmax/context
  * Builds surgical, minimal context for AI tasks.
  * Delegates gathering and compression to @dharmax/context-manager.
  */
-export async function buildSurgicalContext(projectRoot, { symbolNames = [], filePaths = [], ticketId = null } = {}) {
+export async function buildSurgicalContext(projectRoot, { symbolNames = [], filePaths = [], ticketId = null, query = "" } = {}) {
   const budget = SEMANTICS.BUDGET;
   const leanCtx = await probeLeanCtx();
+  const allGuardrails = await loadProjectActiveGuardrails(projectRoot, {
+    keywords: [ticketId, ...filePaths, ...symbolNames].filter(Boolean),
+    limit: 12
+  }).catch(() => []);
 
   return withWorkflowStore(projectRoot, async (store) => {
     const context: any = {
       files: [],
       symbols: [],
       guidelines: [],
+      activeGuardrails: selectActiveGuardrails(allGuardrails, [query, ticketId, ...filePaths, ...symbolNames].filter(Boolean).join(" "), {
+        limit: 8,
+        fallbackLimit: 4
+      }),
       ticket: null,
       budgetReached: false,
       tooling: {
@@ -131,6 +140,13 @@ export function formatContextForPrompt(context) {
     for (const item of context.retrieval.evidence.slice(0, 4)) {
       const reasons = Array.isArray(item.reasons) ? item.reasons.map((reason) => reason.title || reason.via).filter(Boolean) : [];
       parts.push(`- ${item.kind}: ${item.target}${reasons.length ? ` (${reasons.join("; ")})` : ""}`);
+    }
+  }
+
+  if (context.activeGuardrails?.length) {
+    parts.push("## Active Guardrails");
+    for (const guardrail of context.activeGuardrails.slice(0, 8)) {
+      parts.push(`- [${guardrail.severity ?? "advisory"}] ${guardrail.summary} (${guardrail.sourceLabel ?? guardrail.source ?? "guidance"})`);
     }
   }
 
