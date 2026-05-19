@@ -13,9 +13,134 @@ import { withWorkspaceMutation } from "aiwf-common-core/lib/workspace-mutation";
 import { writeProjectFile } from "aiwf-common-core/lib/filesystem";
 import { refreshCodeletRegistry } from "aiwf-common-core/services/codelets";
 import { resolveProjectStatus } from "aiwf-common-core/services/status";
+import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
+import { planCodingWorkflow } from "aiwf-common-core/services/coding-workflow";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");
+
+test("planWorkTickets returns stable dry-run tickets without mutating workflow state", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-plan-dry-run-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot, writeProjections: true });
+
+    const first = await planWorkTickets({
+      projectRoot: targetRoot,
+      goal: "final AIWF shell-exclusive readiness slice",
+      parentTicketId: "TKT-SHELL-002",
+      artifacts: ["kanban.md"],
+      files: ["aiwf-shell/cli/lib/main.ts"]
+    });
+    const second = await planWorkTickets({
+      projectRoot: targetRoot,
+      goal: "final AIWF shell-exclusive readiness slice",
+      parentTicketId: "TKT-SHELL-002",
+      artifacts: ["kanban.md"],
+      files: ["aiwf-shell/cli/lib/main.ts"]
+    });
+
+    assert.equal(first.applied, false);
+    assert.deepEqual(first.tickets.map((ticket) => ticket.id), second.tickets.map((ticket) => ticket.id));
+    assert.equal(first.tickets[0].id, "TKT-AIWF-DOD-001");
+    assert.equal(first.tickets[0].parent, "TKT-SHELL-002");
+    assert.equal(first.tickets[0].linkedArtifacts.includes("kanban.md"), true);
+    assert.equal(first.tickets[0].linkedFiles.includes("aiwf-shell/cli/lib/main.ts"), true);
+    assert.equal(first.tickets[0].graphPredicates.some((edge) => edge.predicate === "planned_under" && edge.objectId === "TKT-SHELL-002"), true);
+    assert.equal(first.tickets[0].recommendedCodelets.includes("assess-code"), true);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      assert.equal(store.getEntity("TKT-AIWF-DOD-001"), null);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("planCodingWorkflow returns shared guardrails, ticket recommendations, and mutation gate", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-coding-plan-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot, writeProjections: true });
+
+    const result = await planCodingWorkflow({
+      projectRoot: targetRoot,
+      text: "fix first todo in the shell planner",
+      parentTicketId: "TKT-SHELL-002",
+      surface: "test"
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.surface, "test");
+    assert.equal(result.normalizedRequest.taskClass, "code-generation");
+    assert.equal(result.selectedProgram.allowedMutations, "required");
+    assert.equal(result.workflow.steps.includes("execute-ticket"), true);
+    assert.equal(result.workflow.typedCodelets.includes("generate-code"), true);
+    assert.equal(result.workTicketPlan.applied, false);
+    assert.equal(result.workTicketPlan.tickets.length, 3);
+    assert.equal(result.mutationGate.canMutate, true);
+    assert.equal(result.mutationGate.requiresExecuteTicketApply, true);
+    assert.equal(result.verificationPlan.length > 0, true);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("planWorkTickets apply persists tickets and graph predicates", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-plan-apply-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot, writeProjections: true });
+
+    const result = await planWorkTickets({
+      projectRoot: targetRoot,
+      goal: "final AIWF shell-exclusive readiness slice",
+      parentTicketId: "TKT-SHELL-002",
+      artifacts: ["kanban.md"],
+      apply: true
+    });
+
+    assert.equal(result.applied, true);
+    await withWorkflowStore(targetRoot, async (store) => {
+      const ticket = store.getEntity("TKT-AIWF-DOD-001");
+      assert.equal(ticket?.entityType, "ticket");
+      assert.equal(ticket?.parentId, "TKT-SHELL-002");
+      assert.equal(ticket?.data?.acceptanceCriteria?.length > 0, true);
+      assert.equal(ticket?.data?.verificationCommands?.some((command) => command.includes("sync --json")), true);
+      const edges = store.listArchitecturalPredicates({ subjectId: "TKT-AIWF-DOD-001" });
+      assert.equal(edges.some((edge) => edge.predicate === "uses_artifact" && edge.objectId === "artifact:kanban.md"), true);
+      assert.equal(edges.some((edge) => edge.predicate === "guarded_by"), true);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("planWorkTickets rejects invalid artifacts before applying", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-plan-invalid-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await assert.rejects(
+      () => planWorkTickets({
+        projectRoot: targetRoot,
+        goal: "final AIWF shell-exclusive readiness slice",
+        parentTicketId: "TKT-SHELL-002",
+        artifacts: ["missing-report.md"],
+        apply: true
+      }),
+      /Invalid artifact path/
+    );
+    await withWorkflowStore(targetRoot, async (store) => {
+      assert.equal(store.getEntity("TKT-AIWF-DOD-001"), null);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
 
 test("syncProject indexes a realistic fixture repo and imports legacy projections once", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-"));

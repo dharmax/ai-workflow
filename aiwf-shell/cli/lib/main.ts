@@ -16,7 +16,7 @@ import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { parseArgs, printAndExit } from "aiwf-common-core/lib/cli";
+import { asArray, parseArgs, printAndExit } from "aiwf-common-core/lib/cli";
 import { getToolkitCodelet } from "./codelets.ts";
 import { buildWorkflowAuditSummary } from "aiwf-common-core/lib/workflow-audit-report";
 import { getConfigValue, getGlobalConfigPath, getProjectConfigPath, readConfig, removeConfigFile, removeConfigValue, writeConfigValue } from "./config-store.ts";
@@ -51,6 +51,7 @@ import { listWorkflowIssues, refineWorkflowIssue } from "aiwf-common-core/servic
 import { runShellBenchmark } from "aiwf-common-core/services/shell-benchmark";
 import { runDogfoodHarness } from "aiwf-common-core/services/dogfood-harness";
 import { runProgrammingDogfoodHarness } from "aiwf-common-core/services/programming-dogfood-harness";
+import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
 import { redactSensitiveObject } from "aiwf-common-core/services/operator-harness";
 import { getWorkspaceRoot } from "aiwf-common-core/lib/toolkit-root";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
@@ -96,6 +97,7 @@ const HELP = `Usage:
   ai-workflow project epic <list|show|search> [...]
   ai-workflow project story <list|search> [...]
   ai-workflow project codelet <list|show|search> [...]
+  ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]
   ai-workflow project ticket create --id <id> --title <title> [--lane <lane>] [--epic <epic-id>] [--summary <text>] [--json]
   ai-workflow project ticket resolve <ticket-id> [--json]
   ai-workflow project ticket close <ticket-id> [--json]
@@ -800,6 +802,34 @@ async function handleProject(rest) {
 
   if (subcommand === "codelet") {
     return handleProjectCodelet(args);
+  }
+
+  if (subcommand === "ticket" && args._[0] === "plan") {
+    const goal = String(args.goal ?? args._.slice(1).join(" ") ?? "").trim();
+    if (!goal) {
+      printAndExit("Usage: ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]", 1);
+    }
+    const runPlan = async () => planWorkTickets({
+      projectRoot: process.cwd(),
+      goal,
+      parentTicketId: args.parent ? String(args.parent) : null,
+      artifacts: asArray(args.artifact),
+      files: asArray(args.file),
+      mode: args.mode ? String(args.mode) : "implementation",
+      apply: Boolean(args.apply)
+    });
+    const result = args.apply
+      ? await withWorkspaceMutation(process.cwd(), "project ticket plan", runPlan)
+      : await runPlan();
+    if (args.json) {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return 0;
+    }
+    process.stdout.write(`${result.applied ? "Planned and applied" : "Planned"} ${result.tickets.length} work tickets for ${result.parentTicketId ?? "no parent"}:\n`);
+    for (const ticket of result.tickets) {
+      process.stdout.write(`- ${ticket.id} ${ticket.title}\n`);
+    }
+    return 0;
   }
 
   if (subcommand === "ticket" && args._[0] === "create") {

@@ -8,6 +8,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
 import { listCodeletsFromStore, refreshCodeletRegistry } from "./codelets.ts";
+import { isCodingWorkflowRequest, planCodingWorkflow } from "./coding-workflow.ts";
 
 const CURRENT_WORK_RE = /\b(working on right now|working on now|what are we working on|what were working on|current work|current focus|in progress right now|currently in progress)\b/i;
 const READINESS_RE = /\b(ready|readiness|before beta|before release|for beta|for release|for handoff)\b/i;
@@ -108,6 +109,26 @@ export async function resolveHostRequest({
         reason: "Natural-language readiness question routed to the shared readiness evaluator."
       },
       response_type: "protocol",
+      payload
+    };
+  }
+
+  if (isCodingWorkflowRequest(normalizedText)) {
+    const payload = await planCodingWorkflow({
+      projectRoot,
+      text: normalizedText,
+      surface: String(host.surface ?? "host"),
+      apply: false,
+      continuationState
+    });
+    return {
+      status: "complete",
+      route: {
+        intent: "coding_workflow",
+        operation: "plan_coding_workflow",
+        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
+      },
+      response_type: "workflow_plan",
       payload
     };
   }

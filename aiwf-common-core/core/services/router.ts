@@ -20,14 +20,16 @@ export async function routeTask({
   requireLocal = false,
   allowWeak = false,
   forceRefresh = false,
-  providerState = null
+  providerState = null,
+  allowRemoteEnrichment = true,
+  allowWebEnrichment = true
 } = {}) {
   if (!taskClass) {
     throw new Error("taskClass is required");
   }
 
   const discoveredProviderState = providerState ?? await discoverProviderState({ root: root || process.cwd(), forceRefresh });
-  const modelFitMatrix = await buildModelFitMatrix({ root, providerState: discoveredProviderState, taskClass });
+  const modelFitMatrix = await buildModelFitMatrix({ root, providerState: discoveredProviderState, taskClass, allowRemoteEnrichment, allowWebEnrichment });
   const routedState = applyModelFitMatrix(discoveredProviderState, modelFitMatrix);
   const knowledge = routedState.knowledge || { capabilityMapping: {}, minimumQuality: {} };
   const capability = knowledge.capabilityMapping[taskClass] ?? domain ?? "logic";

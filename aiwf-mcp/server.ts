@@ -73,6 +73,57 @@ export function registerAiWorkflowMcpTools(server: McpServer) {
   );
 
   server.tool(
+    "plan_work_tickets",
+    "Plan deterministic linked work tickets for a coding/review/debug goal. Dry-run by default; set apply true to persist tickets and graph links.",
+    {
+      projectRoot: z.string().optional(),
+      goal: z.string(),
+      parentTicketId: z.string().optional(),
+      artifacts: z.array(z.string()).optional(),
+      files: z.array(z.string()).optional(),
+      mode: z.string().optional(),
+      apply: z.boolean().optional()
+    },
+    async ({ projectRoot, goal, parentTicketId, artifacts, files, mode, apply }) => {
+      const result = await makeFacade(projectRoot).planWorkTickets({
+        goal,
+        parentTicketId: parentTicketId ?? null,
+        artifacts: artifacts ?? [],
+        files: files ?? [],
+        mode: mode ?? "implementation",
+        apply: Boolean(apply)
+      });
+      return jsonResult(result);
+    }
+  );
+
+  server.tool(
+    "plan_coding_workflow",
+    "Return the shared normalized coding/review/debug workflow plan with selected program, guardrails, work-ticket recommendations, route diagnostics, mutation gate, and verification plan. Dry-run by default.",
+    {
+      projectRoot: z.string().optional(),
+      text: z.string(),
+      parentTicketId: z.string().optional(),
+      artifacts: z.array(z.string()).optional(),
+      files: z.array(z.string()).optional(),
+      mode: z.string().optional(),
+      apply: z.boolean().optional()
+    },
+    async ({ projectRoot, text, parentTicketId, artifacts, files, mode, apply }) => {
+      const result = await makeFacade(projectRoot).planCodingWorkflow({
+        text,
+        parentTicketId: parentTicketId ?? null,
+        artifacts: artifacts ?? [],
+        files: files ?? [],
+        mode: mode ?? "implementation",
+        apply: Boolean(apply),
+        surface: "mcp"
+      });
+      return jsonResult(result);
+    }
+  );
+
+  server.tool(
     "project_status",
     "Resolve workflow-backed status for a project, ticket, epic, file, symbol, or related selector.",
     {

@@ -22,6 +22,8 @@ import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.ts";
 
 const AUTO_ASSESSMENT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const AUTO_ASSESSMENT_STALE_MS = 20 * 60 * 1000;
+const AUTO_ASSESSMENT_TIMEOUT_MS = Number(process.env.AI_WORKFLOW_AUTO_ASSESSMENT_TIMEOUT_MS ?? 15000);
+const AUTO_ASSESSMENT_TOTAL_TIMEOUT_MS = Number(process.env.AI_WORKFLOW_AUTO_ASSESSMENT_TOTAL_TIMEOUT_MS ?? 25000);
 const ACTIVE_ASSESSMENT_STATUSES = new Set(["pending", "planned", "criticized", "executing"]);
 
 type ReadinessOptions = {
@@ -268,9 +270,10 @@ async function maybeRunAutoAssessment(store, { projectRoot, scope = "health" } =
   }
 
   try {
+    console.error(`[sync] Auto-assessment starting for project:${targetId} with ${AUTO_ASSESSMENT_TIMEOUT_MS}ms per-stage timeout and ${AUTO_ASSESSMENT_TOTAL_TIMEOUT_MS}ms total budget.`);
     return await runAssessment(
       { type: "project", id: targetId },
-      { root: projectRoot, scope }
+      { root: projectRoot, scope, timeoutMs: AUTO_ASSESSMENT_TIMEOUT_MS, totalTimeoutMs: AUTO_ASSESSMENT_TOTAL_TIMEOUT_MS }
     );
   } catch (error) {
     console.error(`[sync] Auto-assessment failed: ${error.message}`);

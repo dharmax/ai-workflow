@@ -46,11 +46,6 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Bugs P1
 
-- [ ] BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest
-  - Summary: Replace silent null or timeout planner failures with explicit degraded-path reporting, operator-visible errors, and regression coverage across shell and host flows.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: open
 - [ ] BUG-SYNC-001 Investigate and prevent sync index corruption regressions
   - Summary: Reproduce and fix the observed sync corruption case where symbol count collapsed unexpectedly, and add regression coverage before relying on sync as canonical workflow state.
   - Epic: EPC-CAPABILITY-CORE-001
@@ -63,9 +58,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Assessments
 
-- [ ] 2742bd153ad22dcebaad669f6c5eacf71bda74a7 Assessment: health on project:ai-workflow
-  - Summary: Status: pending. Plan: Available
-  - State: pending
+- [ ] b84a1358e9c518bfccd2c98011d47dc8bc583767 Assessment: health on project:ai-workflow
+  - Summary: Status: failed. Plan: Available
+  - State: failed
 
 ## In Progress
 
@@ -85,6 +80,36 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
+- [ ] BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest ✅ 2026-05-19
+  - Summary: Replace silent null or timeout planner failures with explicit degraded-path reporting, operator-visible errors, and regression coverage across shell and host flows.
+  - Epic: EPC-CAPABILITY-CORE-001
+  - Parent: EPC-CAPABILITY-CORE-001
+  - State: archived
+- [ ] TKT-AIWF-DOD-005 Live dogfood benchmark and exclusive-use readiness report ✅ 2026-05-19
+  - Summary: Run the final shell/workflow/provider dogfood, workflow audit, workspace honesty checks, and publish an evidence-backed readiness report with explicit fallback gaps.
+  - Epic: TKT-SHELL-002
+  - Parent: TKT-SHELL-002
+  - State: archived
+- [ ] TKT-AIWF-DOD-004 Planner and codelet timeout progress and degraded-path reliability ✅ 2026-05-19
+  - Summary: Make slow local provider and planner paths emit progress events, finite timeout diagnostics, retry metadata, and explicit degraded-path reasons.
+  - Epic: TKT-SHELL-002
+  - Parent: TKT-SHELL-002
+  - State: archived
+- [ ] TKT-AIWF-DOD-003 Best-use enforcement across shell, ask, MCP, and codelets ✅ 2026-05-19
+  - Summary: Normalize coding/review/debug requests across surfaces so they share context extraction, selected programs, guardrails, work-ticket recommendations, and mutation gates.
+  - Epic: TKT-SHELL-002
+  - Parent: TKT-SHELL-002
+  - State: archived
+- [ ] TKT-AIWF-DOD-002 Shell-exclusive coding workflow from natural language to ticket-gated execution ✅ 2026-05-19
+  - Summary: Route broad coding prompts through sync, ticket extraction, guideline extraction, codelet planning, execute-ticket apply gates, verification, and reporting.
+  - Epic: TKT-SHELL-002
+  - Parent: TKT-SHELL-002
+  - State: archived
+- [ ] TKT-AIWF-DOD-001 Shared work-ticket planner and graph links ✅ 2026-05-19
+  - Summary: Add the deterministic planner API, CLI/MCP entry points, and DB graph links that connect generated work tickets to files, artifacts, codelets, guardrails, and parent work.
+  - Epic: TKT-SHELL-002
+  - Parent: TKT-SHELL-002
+  - State: archived
 - [ ] BUG-ROUTER-001 Honor local-provider and unpaid-route constraints in router decisions ✅ 2026-05-15
   - Summary: Prevent router/model-fit output from recommending cloud-backed or unpaid routes when local-first or quota constraints should block them, and add regression coverage.
   - Epic: EPC-CAPABILITY-CORE-001

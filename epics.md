@@ -20,8 +20,8 @@ None captured yet.
 - None captured yet.
 
 ### Kanban tickets
-- BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest [Bugs P1]
 - BUG-SYNC-001 Investigate and prevent sync index corruption regressions [Bugs P1]
+- BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest [Done]
 - BUG-ROUTER-001 Honor local-provider and unpaid-route constraints in router decisions [Done]
 - TKT-SHELL-002 Reground shell, MCP, and skill behavior on DB-backed capability truth [In Progress]
 - TKT-CORE-004 Introduce an abstractized core workflow facade for consumers [Todo]

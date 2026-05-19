@@ -13,6 +13,8 @@ import { buildKnowledgeGraphSnapshot } from "./knowledge-graph.ts";
 import { resolveProjectStatus } from "./status.ts";
 import { run as runExtractTicket } from "../codelets/extract-ticket.ts";
 import { run as runExtractGuidelines } from "../codelets/guidance-summary.ts";
+import { planWorkTickets } from "./work-ticket-planner.ts";
+import { planCodingWorkflow } from "./coding-workflow.ts";
 
 export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers = {} } = {}) {
   const root = path.resolve(String(projectRoot));
@@ -29,6 +31,8 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
     importLegacyProjections,
     extractTicket: runExtractTicket,
     extractGuidelines: runExtractGuidelines,
+    planWorkTickets,
+    planCodingWorkflow,
     ...handlers
   };
 
@@ -124,6 +128,14 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
         { root, ...options },
         { context: { projectRoot: root } }
       );
+    },
+
+    async planWorkTickets(options = {}) {
+      return api.planWorkTickets({ projectRoot: root, ...options });
+    },
+
+    async planCodingWorkflow(options = {}) {
+      return api.planCodingWorkflow({ projectRoot: root, ...options });
     }
   };
 }

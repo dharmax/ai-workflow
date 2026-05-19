@@ -24,6 +24,7 @@ import { collectProjectFiles, readProjectFile, writeProjectFile, loadPromptTempl
 import * as fs from "node:fs/promises";
 import * as pathMod from "node:path";
 import { buildHarnessContextPack, normalizeOperatorRequest, planExecutionProgram, renderExecutionProgramReply, runExecutionProgram } from "./operator-harness.ts";
+import { isCodingWorkflowRequest, planCodingWorkflow } from "./coding-workflow.ts";
 
 /**
  * Executes a natural language request through the operator brain.
@@ -1046,6 +1047,29 @@ function validateGeneratedPlan(plan, options = {}) {
  */
 export async function resolveHostRequest(options) {
   const { projectRoot, text, host } = options;
+  if (isCodingWorkflowRequest(text)) {
+    const payload = await planCodingWorkflow({
+      projectRoot,
+      text,
+      surface: host?.surface ?? "cli-host",
+      apply: false,
+      continuationState: options.continuationState ?? null
+    });
+    return {
+      status: "complete",
+      route: {
+        intent: "coding_workflow",
+        operation: "plan_coding_workflow",
+        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
+      },
+      response_type: "workflow_plan",
+      payload,
+      meta: {
+        normalizedRequest: payload.normalizedRequest,
+        programKind: payload.selectedProgram?.programKind ?? null
+      }
+    };
+  }
   const normalizedRequest = await normalizeOperatorRequest(text, {
     surface: host?.surface ?? "cli-host",
     continuationState: options.continuationState ?? null
@@ -1115,6 +1139,42 @@ export async function resolveHostRequest(options) {
   }
 
   const normalized = String(text ?? "").toLowerCase();
+  const ticketStatusRequest = extractTicketStatusRequest(text);
+  if (ticketStatusRequest) {
+    const status = await resolveProjectStatus({
+      projectRoot,
+      selector: ticketStatusRequest.ticketId,
+      type: "ticket",
+      includeRelated: true,
+      rawQuestion: true
+    });
+    const evidence = Array.isArray(status.evidence) ? status.evidence : [];
+    const answer = [
+      `${status.title ?? ticketStatusRequest.ticketId}: ${status.summary ?? "No summary available."}`,
+      `Status: ${status.status ?? "unknown"}.`,
+      evidence.length ? `Evidence: ${evidence.slice(0, 3).join(" ")}` : "Evidence: workflow DB has no recorded test or closure evidence for this ticket.",
+      ticketStatusRequest.closure
+        ? "Closure gate: close only after the relevant regression and workflow audit evidence are recorded."
+        : null
+    ].filter(Boolean).join("\n");
+    return {
+      status: "complete",
+      route: {
+        intent: "ticket_status",
+        operation: "resolve_project_status",
+        reason: "Ticket status/gap request routed deterministically to workflow DB status."
+      },
+      response_type: "summary",
+      payload: {
+        summary: status.summary ?? answer,
+        answer,
+        ticket_status: status,
+        recommended_next_actions: ticketStatusRequest.closure
+          ? ["Run the targeted regression for the ticket.", "Run ai-workflow audit workflow --json before resolving the ticket."]
+          : ["Inspect the ticket working set before mutating."]
+      }
+    };
+  }
 
   if (/\b(beta|readiness|ready for beta|beta testing)\b/.test(normalized)) {
     const readiness = await evaluateProjectReadiness({
@@ -1202,6 +1262,22 @@ export async function resolveHostRequest(options) {
       normalizedRequest,
       programKind: result.plan?.__planner?.programKind ?? sharedProgram.programKind
     }
+  };
+}
+
+function extractTicketStatusRequest(text) {
+  const source = String(text ?? "");
+  const match = source.match(/\b(?:BUG|TKT|EPC|EPIC|REL|REF|MOD|FEAT)-[A-Z0-9-]+\b/i);
+  if (!match) {
+    return null;
+  }
+  const normalized = source.toLowerCase();
+  if (!/\b(status|state|gap|gaps|block|blocks|blocker|blockers|closure|close|remaining|done|ready|resolve)\b/.test(normalized)) {
+    return null;
+  }
+  return {
+    ticketId: match[0].toUpperCase(),
+    closure: /\b(gap|gaps|block|blocks|blocker|blockers|closure|close|remaining|done|ready|resolve)\b/.test(normalized)
   };
 }
 

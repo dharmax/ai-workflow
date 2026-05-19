@@ -138,16 +138,24 @@ export async function normalizeOperatorRequest(inputText: string, options: {
 export async function buildHarnessContextPack(root: string, options: {
   normalizedRequest: NormalizedOperatorRequest;
   plannerContext?: any;
+  includeProviderAvailability?: boolean;
+  includeStatus?: boolean;
+  includeRelevantTargets?: boolean;
 }): Promise<any> {
   const { normalizedRequest, plannerContext = {} } = options;
+  const includeProviderAvailability = options.includeProviderAvailability !== false;
+  const includeStatus = options.includeStatus !== false;
+  const includeRelevantTargets = options.includeRelevantTargets !== false;
   const [summary, metrics, providerState, status] = await Promise.all([
     getProjectSummary({ projectRoot: root }).catch(() => null),
     getProjectMetrics({ projectRoot: root }).catch(() => null),
-    discoverProviderState({ root, forceRefresh: false }).catch(() => null),
-    resolveProjectStatus({ projectRoot: root, selector: ".", includeRelated: true, rawQuestion: true, relatedLimit: 8 }).catch(() => null)
+    includeProviderAvailability ? discoverProviderState({ root, forceRefresh: false }).catch(() => null) : Promise.resolve(null),
+    includeStatus ? resolveProjectStatus({ projectRoot: root, selector: ".", includeRelated: true, rawQuestion: true, relatedLimit: 8 }).catch(() => null) : Promise.resolve(null)
   ]);
 
-  const relevantTargets = await collectRelevantTargets(root, normalizedRequest, plannerContext);
+  const relevantTargets = includeRelevantTargets
+    ? await collectRelevantTargets(root, normalizedRequest, plannerContext)
+    : [];
 
   return withWorkflowStore(root, async (store) => {
     const [guidelineBlocks, codelets] = await Promise.all([
@@ -413,7 +421,7 @@ export function redactSensitiveObject(input: any): any {
   const output: Record<string, any> = {};
   for (const [key, value] of Object.entries(input)) {
     if (/(api.?key|token|secret|password|authorization)/i.test(key)) {
-      output[key] = value ? "[redacted]" : null;
+      output[key] = "[redacted]";
       continue;
     }
     output[key] = redactSensitiveObject(value);
@@ -679,6 +687,9 @@ function inferProgramKind(text: string, goals: string[]): ExecutionProgram["prog
   if (/\b(build|implement|scaffold|create|dogfood|feature|project|from scratch)\b/.test(lower) && /\b(verify|test|artifact|checklist|from scratch|modular|canvas)\b/.test(lower)) {
     return "feature-implementation";
   }
+  if (/\b(fix|write|implement|refactor|patch|change|modify|generate)\b/.test(lower) && /\b(code|todo|test|bug|planner|shell|module|file|repo)\b/.test(lower)) {
+    return "feature-implementation";
+  }
   return null;
 }
 
@@ -692,6 +703,9 @@ function looksLikeWorkflowProgram(text: string): boolean {
     return true;
   }
   if (/\b(build|implement|create|scaffold|dogfood|from scratch)\b/.test(lower) && /\b(verify|test|artifact|checklist|canvas|modular)\b/.test(lower)) {
+    return true;
+  }
+  if (/\b(fix|write|implement|refactor|patch|change|modify|generate)\b/.test(lower) && /\b(code|todo|test|bug|planner|shell|module|file|repo)\b/.test(lower)) {
     return true;
   }
   if (/\b(investigate|inspect|review)\b/.test(lower) && /\b(repo|code|files|modules|tests)\b/.test(lower)) {

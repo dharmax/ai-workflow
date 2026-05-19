@@ -43,6 +43,8 @@ import { executeJsOrchestrator } from "aiwf-common-core/services/text-compiler-h
 import { executeCompilerShellPlan, promoteWorkflowToCodelet } from "aiwf-common-core/services/shell-compiler";
 import { executeOperatorRequest, updateManagedContext } from "aiwf-common-core/services/operator-brain";
 import { buildHarnessContextPack, normalizeOperatorRequest, planExecutionProgram, runExecutionProgram } from "aiwf-common-core/services/operator-harness";
+import { isCodingWorkflowRequest, planCodingWorkflow } from "aiwf-common-core/services/coding-workflow";
+import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
 import { initializeRegistry } from "aiwf-common-core/services/registry-init";
 
@@ -365,6 +367,39 @@ async function tryRunShellFastPath(inputText, options) {
     return null;
   }
   const plannerContext = await buildFastShellContext(options.root);
+  if (isCodingWorkflowRequest(inputText)) {
+    const codingWorkflow = await planCodingWorkflow({
+      projectRoot: options.root,
+      text: inputText,
+      surface: "shell",
+      plannerContext,
+      continuationState: options.activeGraphState ?? null,
+      apply: false
+    });
+    const actions = buildCodingWorkflowShellActions(codingWorkflow);
+    const plan = normalizeShellPlanEnvelope({
+      ...actionPlan(actions, 0.93, "Shared coding workflow planner selected ticket-gated execution."),
+      presentation: "assistant-first",
+      strategy: "sync -> ticket/guideline extraction -> work-ticket plan -> read-only codelet plan -> execute-ticket apply gate -> verification -> report",
+      focusTaskClass: codingWorkflow.normalizedRequest.taskClass,
+      codingWorkflow,
+      assistantReply: renderCodingWorkflowReply(codingWorkflow)
+    }, inputText, plannerContext);
+    return {
+      input: inputText,
+      plan,
+      executed: [],
+      executedGraph: { nodes: [], executions: [], branchPath: [] },
+      continuationState: buildContinuationState({
+        inputText,
+        plan,
+        executedGraph: { nodes: [], executions: [], branchPath: [] }
+      }),
+      preRendered: false,
+      recovery: null,
+      assistantReply: renderCodingWorkflowReply(codingWorkflow)
+    };
+  }
   const plan = options.noAi
     ? buildStrictNoAiShellPlan(inputText, plannerContext, {
       activeGraphState: options.activeGraphState ?? null
@@ -463,6 +498,8 @@ function describeShellActionForStep(action, index) {
       return `${prefix}: status ${compact(action.query)}`;
     case "route":
       return `${prefix}: route ${String(action.taskClass ?? "task")}`;
+    case "plan_work_tickets":
+      return `${prefix}: plan work tickets for ${compact(action.goal ?? "goal")}`;
     default:
       return `${prefix}: ${String(action?.type ?? "action")}`;
   }
@@ -4952,6 +4989,19 @@ function validateShellAction(action, plannerContext) {
       return { type, code: String(action.code).trim() };
     case "route":
       return { type, taskClass: normalizeTaskClass(action.taskClass, plannerContext) };
+    case "plan_work_tickets":
+      if (!String(action.goal ?? "").trim()) {
+        throw new Error("plan_work_tickets action requires goal");
+      }
+      return {
+        type,
+        goal: String(action.goal).trim(),
+        parentTicketId: action.parentTicketId ? requireTicketId(action.parentTicketId) : null,
+        artifacts: Array.isArray(action.artifacts) ? action.artifacts.map((item) => String(item)) : [],
+        files: Array.isArray(action.files) ? action.files.map((item) => String(item)) : [],
+        mode: action.mode ? String(action.mode) : "implementation",
+        apply: Boolean(action.apply)
+      };
     case "add_note":
       if (!String(action.body ?? "").trim()) {
         throw new Error("add_note action requires body");
@@ -5467,6 +5517,21 @@ export function compileShellAction(action, { json = false } = {}) {
       return cliCommand(["provider", "connect", action.providerId], true);
     case "route":
       return cliCommand(["route", action.taskClass, ...(json ? ["--json"] : [])], false);
+    case "plan_work_tickets":
+      return cliCommand([
+        "project",
+        "ticket",
+        "plan",
+        "--goal",
+        action.goal,
+        ...(action.parentTicketId ? ["--parent", action.parentTicketId] : []),
+        ...action.artifacts.flatMap((artifact) => ["--artifact", artifact]),
+        ...action.files.flatMap((file) => ["--file", file]),
+        "--mode",
+        action.mode,
+        ...(action.apply ? ["--apply"] : []),
+        ...(json ? ["--json"] : [])
+      ], Boolean(action.apply));
     case "telegram_preview":
       return cliCommand(["telegram", "preview", ...(json ? ["--json"] : [])], false);
     case "set_ollama_hw":
@@ -6057,6 +6122,53 @@ function renderPlanOnlyReply(plan, plannerContext) {
   return "Plan-only mode: no actions were executed.";
 }
 
+function buildCodingWorkflowShellActions(codingWorkflow) {
+  const goal = codingWorkflow?.normalizedRequest?.subject ?? codingWorkflow?.workTicketPlan?.goal ?? "";
+  const ticketId = codingWorkflow?.mutationGate?.canMutate ? codingWorkflow.mutationGate.ticketId ?? codingWorkflow.diagnostics?.ticketId : null;
+  const actions = [
+    { type: "sync" },
+    {
+      type: "extract_guidelines",
+      ticketId: codingWorkflow?.diagnostics?.ticketId ?? null,
+      changed: false
+    },
+    {
+      type: "plan_work_tickets",
+      goal,
+      parentTicketId: codingWorkflow?.diagnostics?.ticketId ?? null,
+      artifacts: [],
+      files: [],
+      mode: "implementation",
+      apply: false
+    },
+    ...((codingWorkflow?.workflow?.typedCodelets ?? []).slice(0, 3).map((codeletId) => ({
+      type: "run_codelet",
+      codeletId,
+      args: ["--goal", goal]
+    })))
+  ];
+  if (ticketId) {
+    actions.push({ type: "execute_ticket", ticketId, apply: true });
+  }
+  return actions;
+}
+
+function renderCodingWorkflowReply(codingWorkflow) {
+  const ticketPlan = codingWorkflow?.workTicketPlan;
+  const tickets = Array.isArray(ticketPlan?.tickets) ? ticketPlan.tickets : [];
+  const gate = codingWorkflow?.mutationGate ?? {};
+  const lines = [
+    "Shared coding workflow plan:",
+    `- Program: ${codingWorkflow?.selectedProgram?.programKind ?? "unknown"}`,
+    `- Request: ${codingWorkflow?.normalizedRequest?.requestKind ?? "unknown"} / ${codingWorkflow?.normalizedRequest?.taskClass ?? "unknown"}`,
+    `- Codelets: ${(codingWorkflow?.workflow?.typedCodelets ?? []).join(", ") || "none"}`,
+    `- Work tickets: ${tickets.map((ticket) => ticket.id).join(", ") || "none"}`,
+    `- Mutation gate: ${gate.canMutate ? "ready for execute-ticket --apply" : gate.refusalReason ?? "read-only"}`,
+    `- Verification: ${(codingWorkflow?.verificationPlan ?? []).slice(0, 3).join("; ") || "none"}`
+  ];
+  return lines.join("\n");
+}
+
 async function promptShellQuestion(rl, prompt) {
   if (rl.closed) {
     return null;
@@ -6350,6 +6462,20 @@ async function runShellActionDirect(action, options) {
         ...(action.ticketId ? ["--ticket", action.ticketId] : []),
         ...(action.changed ? ["--changed"] : [])
       ], options);
+    case "plan_work_tickets": {
+      const result = await planWorkTickets({
+        projectRoot: options.root,
+        goal: action.goal,
+        parentTicketId: action.parentTicketId ?? null,
+        artifacts: action.artifacts,
+        files: action.files,
+        mode: action.mode,
+        apply: Boolean(action.apply)
+      });
+      return options.json
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : `${result.applied ? "Applied" : "Planned"} ${result.tickets.length} work tickets.\n${result.tickets.map((ticket) => `- ${ticket.id} ${ticket.title}`).join("\n")}\n`;
+    }
     case "run_dynamic_codelet": {
       const effects = analyzeCodeletSideEffects(action.code);
       if (effects.isMalicious) {

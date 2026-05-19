@@ -15,6 +15,15 @@ import { loadPromptTemplate } from "../lib/filesystem.ts";
 export async function runAssessment(target, options = {}) {
   const root = options.root ?? process.cwd();
   const assessmentId = stableId("assessment", target.type, target.id, Date.now());
+  const totalTimeoutMs = normalizePositiveNumber(options.totalTimeoutMs ?? process.env.AI_WORKFLOW_ASSESSMENT_TOTAL_TIMEOUT_MS ?? 25000, 25000);
+  const assessmentStartedAt = Date.now();
+  const stageOptions = () => ({
+    ...options,
+    timeoutMs: Math.min(
+      normalizePositiveNumber(options.timeoutMs ?? process.env.AI_WORKFLOW_ASSESSMENT_STAGE_TIMEOUT_MS ?? 15000, 15000),
+      Math.max(500, totalTimeoutMs - (Date.now() - assessmentStartedAt))
+    )
+  });
 
   return withWorkflowStore(root, async (store) => {
     // 1. Initialize Assessment
@@ -35,18 +44,36 @@ export async function runAssessment(target, options = {}) {
       // 2. Stage: Plan
       console.log(`[assessment] Planning assessment for ${target.type}:${target.id}...`);
       assessment.status = "planned";
-      assessment.plan = await generateAssessmentPlan(target, options);
+      assessment.plan = await generateAssessmentPlan(target, stageOptions());
       store.upsertAssessment(assessment);
 
       // 3. Stage: Criticize
       console.log(`[assessment] Criticizing plan...`);
       assessment.status = "criticized";
-      assessment.criticism = await criticizeAssessmentPlan(assessment.plan, target, options);
+      if (Date.now() - assessmentStartedAt >= totalTimeoutMs) {
+        assessment.criticism = annotateAssessmentFallback(buildFallbackAssessmentCriticism(assessment.plan, target, options), `criticism:total-timeout:${totalTimeoutMs}ms`, {
+          timeoutMs: totalTimeoutMs,
+          latencyMs: Date.now() - assessmentStartedAt,
+          attempts: 0,
+          fallbackReason: `criticism:total-timeout:${totalTimeoutMs}ms`
+        });
+      } else {
+        assessment.criticism = await criticizeAssessmentPlan(assessment.plan, target, stageOptions());
+      }
       store.upsertAssessment(assessment);
 
       // 4. Stage: Revisit Plan
       console.log(`[assessment] Refining plan based on criticism...`);
-      assessment.plan = await refineAssessmentPlan(assessment.plan, assessment.criticism, target, options);
+      if (Date.now() - assessmentStartedAt >= totalTimeoutMs) {
+        assessment.plan = annotateAssessmentFallback(buildFallbackRefinedAssessmentPlan(assessment.plan, assessment.criticism, target, options), `refinement:total-timeout:${totalTimeoutMs}ms`, {
+          timeoutMs: totalTimeoutMs,
+          latencyMs: Date.now() - assessmentStartedAt,
+          attempts: 0,
+          fallbackReason: `refinement:total-timeout:${totalTimeoutMs}ms`
+        });
+      } else {
+        assessment.plan = await refineAssessmentPlan(assessment.plan, assessment.criticism, target, stageOptions());
+      }
       store.upsertAssessment(assessment);
 
       // 5. Stage: Execute
@@ -57,7 +84,7 @@ export async function runAssessment(target, options = {}) {
       // 6. Finalize
       assessment.status = "resolved";
       store.upsertAssessment(assessment);
-      console.log(`[assessment] Assessment ${assessmentId} completed.`);
+      console.log(`[assessment] Assessment ${assessmentId} completed in ${Date.now() - assessmentStartedAt}ms.`);
 
       return assessment;
     } catch (error) {
@@ -80,7 +107,8 @@ async function generateAssessmentPlan(target, options) {
     planner: options.planner,
     system,
     prompt,
-    fallback
+    fallback,
+    timeoutMs: options.timeoutMs
   });
 }
 
@@ -95,6 +123,7 @@ async function criticizeAssessmentPlan(plan, target, options) {
     system,
     prompt,
     fallback,
+    timeoutMs: options.timeoutMs,
     chooseCandidate: (route) => route.candidates?.find((candidate) => candidate.score >= 90) ?? route.recommended ?? route.candidates?.[0] ?? null
   });
 }
@@ -109,7 +138,8 @@ async function refineAssessmentPlan(plan, criticism, target, options) {
     planner: options.planner,
     system,
     prompt,
-    fallback
+    fallback,
+    timeoutMs: options.timeoutMs
   });
 }
 
@@ -155,6 +185,7 @@ async function runAssessmentStage({
   system,
   prompt,
   fallback,
+  timeoutMs = null,
   chooseCandidate = null
 }) {
   const candidate = planner ?? await resolveAssessmentCandidate({
@@ -167,7 +198,13 @@ async function runAssessmentStage({
     return annotateAssessmentFallback(fallback, `${stage}:no-candidate`);
   }
 
+  const stageTimeoutMs = normalizePositiveNumber(timeoutMs ?? process.env.AI_WORKFLOW_ASSESSMENT_STAGE_TIMEOUT_MS ?? 15000, 15000);
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), stageTimeoutMs);
+
   try {
+    console.error(`[assessment] ${stage} using ${candidate.providerId}/${candidate.modelId} with ${stageTimeoutMs}ms timeout...`);
     const completion = await generateCompletion({
       providerId: candidate.providerId,
       modelId: candidate.modelId,
@@ -178,11 +215,22 @@ async function runAssessmentStage({
         apiKey: candidate.apiKey,
         baseUrl: candidate.baseUrl,
         format: "json"
-      }
+      },
+      signal: controller.signal
     });
     return parseAssessmentJson(completion?.text, { stage, fallback });
   } catch (error) {
-    return annotateAssessmentFallback(fallback, `${stage}:fallback:${error?.message ?? error}`);
+    const reason = controller.signal.aborted ? `${stage}:timeout:${stageTimeoutMs}ms` : `${stage}:fallback:${error?.message ?? error}`;
+    return annotateAssessmentFallback(fallback, reason, {
+      providerId: candidate.providerId,
+      modelId: candidate.modelId,
+      latencyMs: Date.now() - startedAt,
+      attempts: 1,
+      timeoutMs: stageTimeoutMs,
+      fallbackReason: reason
+    });
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -286,12 +334,18 @@ function buildFallbackRefinedAssessmentPlan(plan, criticism, target, options) {
   };
 }
 
-function annotateAssessmentFallback(payload, reason) {
+function annotateAssessmentFallback(payload, reason, diagnostics = {}) {
   return {
     ...payload,
     fallback: {
       used: true,
-      reason: String(reason ?? "fallback").trim()
+      reason: String(reason ?? "fallback").trim(),
+      ...diagnostics
     }
   };
+}
+
+function normalizePositiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
 }

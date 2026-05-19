@@ -100,6 +100,17 @@ function applyRouteOverride(route, providerId, modelId) {
     return route;
   }
 
+  const fallbackChain = [
+    route.recommended,
+    ...(route.fallbackChain ?? []),
+    ...(route.candidates ?? [])
+  ].filter((candidate) => {
+    if (!candidate?.providerId || !candidate?.modelId) {
+      return false;
+    }
+    return candidate.providerId !== providerId || candidate.modelId !== modelId;
+  });
+
   return {
     ...route,
     recommended: {
@@ -108,7 +119,7 @@ function applyRouteOverride(route, providerId, modelId) {
       modelId,
       reason: `operator override ${providerId}/${modelId}`
     },
-    fallbackChain: []
+    fallbackChain
   };
 }
 

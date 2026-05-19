@@ -168,6 +168,142 @@ test("ai-workflow extract ticket works through the source CLI entrypoint", { con
   }
 });
 
+test("ai-workflow project ticket plan exposes work-ticket planner JSON", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ticket-plan-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+
+    const dryRun = await runNode(
+      [
+        path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+        "project",
+        "ticket",
+        "plan",
+        "--goal",
+        "final AIWF shell-exclusive readiness slice",
+        "--parent",
+        "TKT-SHELL-002",
+        "--artifact",
+        "kanban.md",
+        "--file",
+        "aiwf-shell/cli/lib/main.ts",
+        "--json"
+      ],
+      { cwd: targetRoot }
+    );
+    assert.equal(dryRun.code, 0, dryRun.stderr || dryRun.stdout);
+    const payload = JSON.parse(dryRun.stdout);
+    assert.equal(payload.applied, false);
+    assert.equal(payload.tickets[0].id, "TKT-AIWF-DOD-001");
+    assert.equal(payload.tickets[0].parent, "TKT-SHELL-002");
+    assert.equal(payload.tickets[0].graphPredicates.some((edge) => edge.predicate === "planned_under"), true);
+
+    const applied = await runNode(
+      [
+        path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+        "project",
+        "ticket",
+        "plan",
+        "--goal",
+        "final AIWF shell-exclusive readiness slice",
+        "--parent",
+        "TKT-SHELL-002",
+        "--artifact",
+        "kanban.md",
+        "--apply",
+        "--json"
+      ],
+      { cwd: targetRoot }
+    );
+    assert.equal(applied.code, 0, applied.stderr || applied.stdout);
+    const appliedPayload = JSON.parse(applied.stdout);
+    assert.equal(appliedPayload.applied, true);
+    assert.equal(appliedPayload.tickets.length, 5);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("shell and ask coding prompts expose the shared workflow plan without mutation", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-coding-workflow-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+
+    const shellResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "shell",
+      "fix first todo in the shell planner",
+      "--plan-only",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(shellResult.code, 0, shellResult.stderr || shellResult.stdout);
+    const shellPayload = JSON.parse(shellResult.stdout);
+    assert.equal(shellPayload.executed.length, 0);
+    assert.equal(shellPayload.plan.codingWorkflow.normalizedRequest.taskClass, "code-generation");
+    assert.equal(shellPayload.plan.codingWorkflow.workflow.steps.includes("execute-ticket"), true);
+    assert.equal(shellPayload.plan.codingWorkflow.mutationGate.requiresExecuteTicketApply, true);
+
+    const askResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "ask",
+      "fix first todo in the shell planner",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(askResult.code, 0, askResult.stderr || askResult.stdout);
+    const askPayload = JSON.parse(askResult.stdout);
+    assert.equal(askPayload.route.operation, "plan_coding_workflow");
+    assert.equal(askPayload.payload.normalizedRequest.taskClass, shellPayload.plan.codingWorkflow.normalizedRequest.taskClass);
+    assert.deepEqual(
+      askPayload.payload.workflow.typedCodelets,
+      shellPayload.plan.codingWorkflow.workflow.typedCodelets
+    );
+    assert.equal(askPayload.payload.mutationGate.requiresExecuteTicketApply, true);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("ai-workflow ask routes ticket closure gap questions to deterministic status", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ask-ticket-status-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    const createResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "create",
+      "--id",
+      "BUG-ASK-001",
+      "--title",
+      "Make ask ticket status deterministic",
+      "--lane",
+      "Bugs P1",
+      "--summary",
+      "Regression ticket for ask gap status routing.",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(createResult.code, 0, createResult.stderr || createResult.stdout);
+
+    const askResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "ask",
+      "For BUG-ASK-001, what exact remaining gaps block closure? Return concise JSON.",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(askResult.code, 0, askResult.stderr || askResult.stdout);
+    const payload = JSON.parse(askResult.stdout);
+    assert.equal(payload.route.operation, "resolve_project_status");
+    assert.equal(payload.route.intent, "ticket_status");
+    assert.equal(payload.payload.ticket_status.id, "BUG-ASK-001");
+    assert.match(payload.payload.answer, /Closure gate:/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 
 test("ai-workflow project note resolve updates note status in the workflow DB", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-note-resolve-"));
