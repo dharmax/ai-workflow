@@ -67,3 +67,22 @@ AIWF is ready as the primary coding surface for this repo when the operator stay
 sync, ticket/guideline extraction, work-ticket planning, read-only codelet planning, `execute-ticket --apply`, verification, dogfood, audit, and final sync.
 
 Fallback is still appropriate for unrelated repo-wide TypeScript cleanup until that separate debt is ticketed and closed.
+
+## Final Closure Pass - 2026-05-21
+
+- DOD demand: no stale active kanban tickets or assessment cards may remain after verified closure.
+- AIWF-driven state loop used: `sync --json`, `extract ticket`, `extract guidelines`, `project ticket plan`, targeted regression, `project ticket resolve`, final dogfood/audit/sync gates.
+- Fixed the visible kanban drift where an old failed health assessment remained projected after newer resolved health assessments for the same project/scope.
+- Added regression coverage in `tests/workflow-db.test.ts` requiring resolved current assessment state to suppress older stale failure cards.
+- Resolved the three manual bug observations for sync index collapse, silent planner timeout/null output, and invalid local cloud-backed routing after their implementation and regressions were already present.
+- Resolved `BUG-SYNC-001` through the AIWF ticket lifecycle after the sync count consistency path, assessment hygiene regression, and sync projection pass completed.
+
+Closure evidence required for the remaining umbrella tickets:
+- `npm run build --workspace aiwf-common-core`
+- `npm run build --workspace aiwf-shell`
+- `npm run build --workspace aiwf-mcp`
+- `node ./node_modules/tsx/dist/cli.mjs --test tests/workflow-db.test.ts`
+- `node ./node_modules/tsx/dist/cli.mjs --test tests/ai-workflow-cli.test.ts`
+- `ai-workflow dogfood --surface shell,workflow,provider,init --profile bootstrap --json`
+- `ai-workflow audit workflow --json`
+- `AI_WORKFLOW_SKIP_AUTO_ASSESSMENT=1 ai-workflow sync --write-projections --json`

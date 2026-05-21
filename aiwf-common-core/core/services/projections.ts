@@ -258,6 +258,13 @@ function selectProjectedAssessments(assessments = []) {
   const ordered = [...assessments].sort((left, right) =>
     (Date.parse(right.updatedAt ?? right.createdAt ?? 0) || 0) - (Date.parse(left.updatedAt ?? left.createdAt ?? 0) || 0)
   );
+  const latestByKey = new Map();
+  for (const assessment of ordered) {
+    const key = `${assessment.targetType}:${assessment.targetId}:${assessment.scope}`;
+    if (!latestByKey.has(key)) {
+      latestByKey.set(key, assessment);
+    }
+  }
   const actionable = ordered.filter((item) => ACTIONABLE_ASSESSMENT_STATUSES.has(item.status));
   const actionableKeys = new Set(actionable.map((item) => `${item.targetType}:${item.targetId}:${item.scope}`));
   const recentFailures = [];
@@ -272,6 +279,9 @@ function selectProjectedAssessments(assessments = []) {
       continue;
     }
     if (actionableKeys.has(key)) {
+      continue;
+    }
+    if (latestByKey.get(key)?.status === "resolved") {
       continue;
     }
     seenFailureKeys.add(key);

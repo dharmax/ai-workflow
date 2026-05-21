@@ -304,6 +304,29 @@ test("ai-workflow ask routes ticket closure gap questions to deterministic statu
   }
 });
 
+test("ai-workflow ask routes DOD closure assessment to deterministic project status", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ask-dod-status-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+
+    const askResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "ask",
+      "Assess DOD after closing all remaining kanban tickets. State whether activeTickets is empty and any residual blockers.",
+      "--json"
+    ], { cwd: targetRoot, timeout: 15000, env: { ...process.env, AI_WORKFLOW_SKIP_AUTO_ASSESSMENT: "1" } });
+    assert.equal(askResult.code, 0, askResult.stderr || askResult.stdout);
+    const payload = JSON.parse(askResult.stdout);
+    assert.equal(payload.route.operation, "project_summary");
+    assert.equal(payload.route.intent, "dod_closure_status");
+    assert.equal(Array.isArray(payload.payload.activeTickets), true);
+    assert.match(payload.payload.answer, /DOD status:/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 
 test("ai-workflow project note resolve updates note status in the workflow DB", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-note-resolve-"));

@@ -436,7 +436,7 @@ test("syncProject retires stale auto-assessments and limits kanban assessment no
 
     const kanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
     const assessmentLines = kanban.split(/\r?\n/).filter((line) => line.includes("Assessment: health on project:"));
-    assert.equal(assessmentLines.length <= 3, true);
+    assert.equal(assessmentLines.length, 0);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

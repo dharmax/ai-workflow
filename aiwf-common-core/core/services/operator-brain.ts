@@ -1047,6 +1047,32 @@ function validateGeneratedPlan(plan, options = {}) {
  */
 export async function resolveHostRequest(options) {
   const { projectRoot, text, host } = options;
+  if (isDodClosureStatusRequest(text)) {
+    const summary = await getProjectSummary({ projectRoot });
+    const activeTickets = Array.isArray(summary.activeTickets) ? summary.activeTickets : [];
+    const answer = [
+      activeTickets.length
+        ? `DOD status: ${activeTickets.length} active ticket(s) remain.`
+        : "DOD status: no active tickets remain in workflow state.",
+      `Inventory: ${summary.ticketCount ?? 0} tickets, ${summary.assessmentCount ?? 0} assessments, ${summary.candidateCount ?? 0} candidates.`,
+      "Gate reminder: dogfood, workflow audit, and final sync must pass after the last mutation."
+    ].join("\n");
+    return {
+      status: "complete",
+      route: {
+        intent: "dod_closure_status",
+        operation: "project_summary",
+        reason: "DOD/closure assessment routed deterministically to workflow state."
+      },
+      response_type: "summary",
+      payload: {
+        summary: answer,
+        answer,
+        activeTickets,
+        assessmentSummary: summary.assessmentSummary ?? null
+      }
+    };
+  }
   if (isCodingWorkflowRequest(text)) {
     const payload = await planCodingWorkflow({
       projectRoot,
@@ -1279,6 +1305,17 @@ function extractTicketStatusRequest(text) {
     ticketId: match[0].toUpperCase(),
     closure: /\b(gap|gaps|block|blocks|blocker|blockers|closure|close|remaining|done|ready|resolve)\b/.test(normalized)
   };
+}
+
+function isDodClosureStatusRequest(text) {
+  const normalized = String(text ?? "").toLowerCase();
+  if (/\b(?:BUG|TKT|EPC|EPIC|REL|REF|MOD|FEAT)-[A-Z0-9-]+\b/i.test(String(text ?? ""))) {
+    return false;
+  }
+  if (!/\b(dod|definition of done|closed board|all remaining|active tickets?|kanban)\b/.test(normalized)) {
+    return false;
+  }
+  return /\b(assess|status|state|ready|done|resolved|blocker|blockers|gap|gaps)\b/.test(normalized);
 }
 
 function buildOperatorServices(root, options) {
