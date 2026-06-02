@@ -52,6 +52,7 @@ import { runShellBenchmark } from "aiwf-common-core/services/shell-benchmark";
 import { runDogfoodHarness } from "aiwf-common-core/services/dogfood-harness";
 import { runProgrammingDogfoodHarness } from "aiwf-common-core/services/programming-dogfood-harness";
 import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
+import { approveTicketPlanningPacket, buildPlanningMatrix, validateTicketPlanningPacket } from "aiwf-common-core/services/planning-packets";
 import { redactSensitiveObject } from "aiwf-common-core/services/operator-harness";
 import { getWorkspaceRoot } from "aiwf-common-core/lib/toolkit-root";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
@@ -98,6 +99,9 @@ const HELP = `Usage:
   ai-workflow project story <list|search> [...]
   ai-workflow project codelet <list|show|search> [...]
   ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]
+  ai-workflow project ticket plan validate <ticket-id> [--json]
+  ai-workflow project ticket plan matrix --epic <epic-id> [--json]
+  ai-workflow project ticket plan approve <ticket-id> [--json]
   ai-workflow project ticket create --id <id> --title <title> [--lane <lane>] [--epic <epic-id>] [--summary <text>] [--json]
   ai-workflow project ticket resolve <ticket-id> [--json]
   ai-workflow project ticket close <ticket-id> [--json]
@@ -805,9 +809,54 @@ async function handleProject(rest) {
   }
 
   if (subcommand === "ticket" && args._[0] === "plan") {
+    const planAction = String(args._[1] ?? "").trim().toLowerCase();
+    if (planAction === "validate") {
+      const ticketId = String(args._[2] ?? args.id ?? "").trim();
+      if (!ticketId) {
+        printAndExit("Usage: ai-workflow project ticket plan validate <ticket-id> [--json]", 1);
+      }
+      const result = await validateTicketPlanningPacket({ projectRoot: process.cwd(), ticketId });
+      if (args.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return result.ok ? 0 : 1;
+      }
+      process.stdout.write(`${ticketId} planning ${result.ok ? "valid" : `invalid: ${result.errors.join("; ")}`}\n`);
+      return result.ok ? 0 : 1;
+    }
+
+    if (planAction === "matrix") {
+      const result = await buildPlanningMatrix({ projectRoot: process.cwd(), epicId: args.epic ? String(args.epic) : null });
+      if (args.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return result.ok ? 0 : 1;
+      }
+      process.stdout.write(`planning matrix ${result.ok ? "ok" : "blocked"} for ${result.epicId ?? "all tickets"}\n`);
+      for (const row of result.rows) {
+        process.stdout.write(`- ${row.ticketId}: ${row.planningStatus}/${row.verdict}${row.ok ? "" : ` (${row.errors.join("; ")})`}\n`);
+      }
+      return result.ok ? 0 : 1;
+    }
+
+    if (planAction === "approve") {
+      const ticketId = String(args._[2] ?? args.id ?? "").trim();
+      if (!ticketId) {
+        printAndExit("Usage: ai-workflow project ticket plan approve <ticket-id> [--json]", 1);
+      }
+      const result = await withWorkspaceMutation(process.cwd(), "project ticket plan approve", () => approveTicketPlanningPacket({
+        projectRoot: process.cwd(),
+        ticketId
+      }));
+      if (args.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return result.ok ? 0 : 1;
+      }
+      process.stdout.write(`${ticketId} planning ${result.ok ? "approved" : `rejected: ${result.errors.join("; ")}`}\n`);
+      return result.ok ? 0 : 1;
+    }
+
     const goal = String(args.goal ?? args._.slice(1).join(" ") ?? "").trim();
     if (!goal) {
-      printAndExit("Usage: ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]", 1);
+      printAndExit("Usage: ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]\n       ai-workflow project ticket plan <validate|matrix|approve> ...", 1);
     }
     const runPlan = async () => planWorkTickets({
       projectRoot: process.cwd(),

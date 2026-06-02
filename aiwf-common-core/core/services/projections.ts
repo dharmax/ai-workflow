@@ -101,7 +101,8 @@ export function buildProjectSummary(store) {
       title: t.title,
       lane: t.lane,
       summary: t.data?.summary ?? "No description provided.",
-      domain: t.data?.domain ?? "unknown"
+      domain: t.data?.domain ?? "unknown",
+      planning: formatPlanningSummary(t)
     }));
   const assessments = store.listAssessments();
   const candidates = store.listCandidates({ statuses: ["ai-candidate", "doubtful-relevancy", "promoted"] }).slice(0, 10);
@@ -132,6 +133,17 @@ export function buildProjectSummary(store) {
   };
 }
 
+function formatPlanningSummary(ticket) {
+  const packet = ticket?.data?.planningPacket ?? null;
+  const rows = Array.isArray(packet?.acceptanceMatrix) ? packet.acceptanceMatrix : [];
+  return {
+    status: ticket?.data?.planningStatus ?? packet?.status ?? "missing",
+    verdict: ticket?.data?.planningVerdict ?? packet?.verdict ?? "missing",
+    acceptanceRows: rows.length,
+    verifiedRows: rows.filter((row) => row?.verified && normalizeProjectionList(row?.evidenceRefs).length).length
+  };
+}
+
 export function renderKanbanProjection(store) {
   const tickets = store.listEntities({ entityType: "ticket" });
   const assessments = selectProjectedAssessments(store.listAssessments());
@@ -143,6 +155,9 @@ export function renderKanbanProjection(store) {
   const optionalLaneMap = new Map(OPTIONAL_TICKET_LANES.map((lane) => [lane, []]));
 
   for (const ticket of tickets) {
+    if (ticket.state === "archived" || ticket.lane === "Archived") {
+      continue;
+    }
     const lane = normalizeDisplayLaneName(ticket.lane ?? "ToDo");
     if (coreLaneMap.has(lane)) {
       coreLaneMap.get(lane)?.push(ticket);
@@ -213,6 +228,10 @@ export function renderKanbanProjection(store) {
       if (item.parentId) {
         lines.push(`  - Parent: ${item.parentId}`);
       }
+      const planningState = formatPlanningProjectionState(item);
+      if (planningState) {
+        lines.push(`  - Planning: ${planningState}`);
+      }
       lines.push(`  - State: ${item.state}`);
     }
     lines.push("");
@@ -240,6 +259,10 @@ export function renderKanbanProjection(store) {
       if (item.parentId) {
         lines.push(`  - Parent: ${item.parentId}`);
       }
+      const planningState = formatPlanningProjectionState(item);
+      if (planningState) {
+        lines.push(`  - Planning: ${planningState}`);
+      }
       lines.push(`  - State: ${item.state}`);
     }
     lines.push("");
@@ -252,6 +275,93 @@ export function renderKanbanProjection(store) {
   lines.push("%%");
 
   return `${lines.join("\n").trimEnd()}\n`;
+}
+
+export function renderKanbanArchiveProjection(store, existingArchive = "") {
+  const existing = String(existingArchive ?? "").trimEnd();
+  let archive = existing || [
+    "# Responsibility: Preserve completed kanban history once work leaves the live board.",
+    "# Scope: Archive-only history belongs here; live ticket state stays in kanban.md.",
+    "# Kanban Archive",
+    "",
+    "Move completed tickets here once they no longer belong on the live `Done` lane.",
+    "Keep the original checked task card and its `✅ YYYY-MM-DD` date."
+  ].join("\n");
+
+  const archivedTickets = store.listEntities({ entityType: "ticket" })
+    .filter((ticket) => ticket.state === "archived" || ticket.lane === "Archived")
+    .filter((ticket) => ticket.data?.completedAt || extractTicketCompletionDate(ticket.title) || ticket.lane === "Done")
+    .sort((left, right) => String(formatCompletionDate(left)).localeCompare(String(formatCompletionDate(right))) || String(left.id).localeCompare(String(right.id)));
+
+  for (const ticket of archivedTickets) {
+    if (new RegExp(`\\b${escapeRegExp(ticket.id)}\\b`).test(archive)) {
+      continue;
+    }
+    const completedAt = formatCompletionDate(ticket);
+    const monthHeading = `## ${completedAt.slice(0, 7)}`;
+    const block = formatArchivedTicket(ticket, completedAt);
+    if (!archive.includes(monthHeading)) {
+      archive = `${archive.trimEnd()}\n\n${monthHeading}\n\n${block}`;
+      continue;
+    }
+    const lines = archive.split(/\r?\n/);
+    const headingIndex = lines.findIndex((line) => line.trim() === monthHeading);
+    let insertIndex = lines.length;
+    for (let index = headingIndex + 1; index < lines.length; index += 1) {
+      if (/^##\s+/.test(lines[index])) {
+        insertIndex = index;
+        break;
+      }
+    }
+    lines.splice(insertIndex, 0, "", ...block.split("\n"));
+    archive = lines.join("\n").trimEnd();
+  }
+
+  return `${archive.trimEnd()}\n`;
+}
+
+function hasArchivedTicketHistory(store) {
+  return store.listEntities({ entityType: "ticket" }).some((ticket) =>
+    (ticket.state === "archived" || ticket.lane === "Archived")
+    && (ticket.data?.completedAt || extractTicketCompletionDate(ticket.title) || ticket.lane === "Done")
+  );
+}
+
+function formatArchivedTicket(ticket, completedAt) {
+  const id = ticket.data?.ticketId ?? ticket.id.replace(/^ticket:/, "").replace(/^candidate:/, "");
+  const lines = [`- [ ] ${id} ${sanitizeProjectionTicketTitle(ticket.title)} ✅ ${completedAt}`];
+  if (ticket.data?.summary) {
+    lines.push(`  - Summary: ${ticket.data.summary}`);
+  }
+  if (ticket.parentId || ticket.data?.epic) {
+    lines.push(`  - Epic: ${ticket.data?.epic ?? ticket.parentId}`);
+  }
+  if (ticket.parentId) {
+    lines.push(`  - Parent: ${ticket.parentId}`);
+  }
+  lines.push("  - State: archived");
+  return lines.join("\n");
+}
+
+function formatPlanningProjectionState(item) {
+  const packet = item?.data?.planningPacket ?? null;
+  const status = item?.data?.planningStatus ?? packet?.status ?? null;
+  const verdict = item?.data?.planningVerdict ?? packet?.verdict ?? null;
+  if (!status && !verdict) {
+    return null;
+  }
+  const rows = Array.isArray(packet?.acceptanceMatrix) ? packet.acceptanceMatrix : [];
+  const verified = rows.filter((row) => row?.verified && normalizeProjectionList(row?.evidenceRefs).length).length;
+  const suffix = rows.length ? `, acceptance ${verified}/${rows.length} verified` : "";
+  return `${status ?? "missing"}${verdict ? ` (${verdict})` : ""}${suffix}`;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeProjectionList(value) {
+  return (Array.isArray(value) ? value : [value]).map((item) => String(item ?? "").trim()).filter(Boolean);
 }
 
 function selectProjectedAssessments(assessments = []) {
@@ -415,6 +525,9 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
 
   const kanban = renderKanbanProjection(store);
   const epics = renderEpicsProjection(store);
+  const existingArchive = await readText(path.resolve(projectRoot, "kanban-archive.md"), "");
+  const shouldWriteArchive = existingArchive.trim() || hasArchivedTicketHistory(store);
+  const archive = shouldWriteArchive ? renderKanbanArchiveProjection(store, existingArchive) : null;
   const mission = store.getMeta("mission");
   const gemini = store.getMeta("gemini");
   const writtenAt = new Date().toISOString();
@@ -423,6 +536,10 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
     writeProjectFile(projectRoot, "kanban.md", kanban),
     writeProjectFile(projectRoot, "epics.md", epics)
   ];
+
+  if (archive) {
+    writes.push(writeProjectFile(projectRoot, "kanban-archive.md", archive));
+  }
 
   if (mission) {
     writes.push(writeProjectFile(projectRoot, "MISSION.md", mission));
@@ -443,12 +560,14 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
   store.setMeta("lastProjectionDigest", {
     writtenAt,
     kanban: sha1(kanban),
-    epics: sha1(epics)
+    epics: sha1(epics),
+    ...(archive ? { archive: sha1(archive) } : {})
   });
 
   return {
     kanbanPath: path.resolve(projectRoot, "kanban.md"),
     epicsPath: path.resolve(projectRoot, "epics.md"),
+    ...(archive ? { archivePath: path.resolve(projectRoot, "kanban-archive.md") } : {}),
     writtenAt
   };
 }

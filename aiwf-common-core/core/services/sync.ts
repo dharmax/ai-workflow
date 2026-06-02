@@ -19,6 +19,7 @@ import { syncKnowledgeGraphEntities } from "./knowledge-graph.ts";
 import { refreshCodeletRegistry, listCodeletsFromStore, getCodeletFromStore, searchCodeletsFromStore, listProjectCodelets } from "./codelets.ts";
 import { withWorkspaceMutationGuardDisabled } from "../lib/workspace-mutation.ts";
 import { readStatusEvidenceFingerprint, syncStatusGraph } from "./status.ts";
+import { assertPlanningVerifiedForClosure } from "./planning-packets.ts";
 
 const AUTO_ASSESSMENT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const AUTO_ASSESSMENT_STALE_MS = 20 * 60 * 1000;
@@ -183,13 +184,15 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
     await performShadowSync(store, projectRoot);
 
 	    let projections = null;
+      let postProjectionSnapshot = snapshot;
 	    if (writeProjections) {
 	      projections = await writeProjectProjections(store, { projectRoot, reconcileLegacy: false });
 	      const projectionSnapshot = await collectProjectFileSnapshot(projectRoot, { ignore: dynamicIgnores });
+        postProjectionSnapshot = projectionSnapshot;
 	      recordProjectionMutation(store, projectRoot, projections, projectionSnapshot);
 	    }
 
-    const finalFingerprint = await computeProjectFingerprint({ projectRoot, store, snapshot });
+    const finalFingerprint = await computeProjectFingerprint({ projectRoot, store, snapshot: postProjectionSnapshot });
 
     store.setMeta("lastSync", {
       startedAt,
@@ -290,7 +293,8 @@ function recordProjectionMutation(store, projectRoot, projections, snapshot = []
     afterDirty: false,
     changedFiles: [
       path.relative(projectRoot, projections.kanbanPath),
-      path.relative(projectRoot, projections.epicsPath)
+      path.relative(projectRoot, projections.epicsPath),
+      ...(projections.archivePath ? [path.relative(projectRoot, projections.archivePath)] : [])
     ],
     details: {
       source: "syncProject",
@@ -846,6 +850,7 @@ export async function updateTicketLifecycle({
 
     let nextTicket;
     if (normalizedAction === "resolve") {
+      assertPlanningVerifiedForClosure(ticket);
       const previousLane = !["Done", "Archived"].includes(String(ticket.lane ?? ""))
         ? (ticket.lane ?? inferTicketLane({ id: ticket.id, title: ticket.title }))
         : (preservedPreviousLane ?? inferTicketLane({ id: ticket.id, title: ticket.title }));

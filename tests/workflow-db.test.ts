@@ -6,7 +6,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { addManualNote, evaluateProjectReadiness, getEpic, getProjectSummary, listEpicUserStories, listEpics, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, withWorkflowStore } from "aiwf-common-core/services/sync";
-import { buildTicketEntity, inferTicketLane, renderEpicsProjection, renderKanbanProjection } from "aiwf-common-core/services/projections";
+import { buildTicketEntity, inferTicketLane, renderEpicsProjection, renderKanbanArchiveProjection, renderKanbanProjection } from "aiwf-common-core/services/projections";
 import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
 import { PROTOCOL_VERSION, validateEvaluateReadinessResponse } from "aiwf-common-core/contracts/dual-surface-protocol";
 import { withWorkspaceMutation } from "aiwf-common-core/lib/workspace-mutation";
@@ -15,6 +15,7 @@ import { refreshCodeletRegistry } from "aiwf-common-core/services/codelets";
 import { resolveProjectStatus } from "aiwf-common-core/services/status";
 import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
 import { planCodingWorkflow } from "aiwf-common-core/services/coding-workflow";
+import { approveTicketPlanningPacket, assertPlanningApprovedForMutation, assertPlanningVerifiedForClosure, buildPlanningMatrix, validatePlanningPacketOnTicket } from "aiwf-common-core/services/planning-packets";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");
@@ -52,6 +53,56 @@ test("planWorkTickets returns stable dry-run tickets without mutating workflow s
 
     await withWorkflowStore(targetRoot, async (store) => {
       assert.equal(store.getEntity("TKT-AIWF-DOD-001"), null);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("planning packet validation and matrix expose reliability ticket coverage", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-planning-packet-"));
+
+  try {
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity({
+        id: "EPC-AIWF-RELIABILITY-001",
+        entityType: "epic",
+        title: "AIWF reliability",
+        lane: null,
+        state: "open",
+        confidence: 1,
+        provenance: "test",
+        sourceKind: "test",
+        reviewState: "active",
+        parentId: null,
+        data: {}
+      });
+      store.upsertEntity(buildTicketEntity({
+        id: "TKT-REL-001",
+        title: "Restore workflow truth and projection hygiene",
+        lane: "In Progress",
+        epicId: "EPC-AIWF-RELIABILITY-001",
+        summary: "Make workflow state honest."
+      }));
+      const missing = validatePlanningPacketOnTicket(store.getEntity("TKT-REL-001"));
+      assert.equal(missing.ok, false);
+      assert.match(missing.errors.join("\n"), /planning packet is missing/);
+      assert.throws(() => assertPlanningApprovedForMutation(store.getEntity("TKT-REL-001")), /Planning packet is required/);
+    });
+
+    const approved = await approveTicketPlanningPacket({ projectRoot: targetRoot, ticketId: "TKT-REL-001", writeProjections: false });
+    assert.equal(approved.ok, true);
+
+    const matrix = await buildPlanningMatrix({ projectRoot: targetRoot, epicId: "EPC-AIWF-RELIABILITY-001" });
+    const row = matrix.rows.find((item) => item.ticketId === "TKT-REL-001");
+    assert.equal(row?.planningStatus, "approved");
+    assert.equal(row?.weaknesses.includes("REL-WEAK-TRUTH"), true);
+    assert.equal(matrix.coverage.find((item) => item.id === "REL-WEAK-TRUTH")?.covered, true);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      const ticket = store.getEntity("TKT-REL-001");
+      assert.doesNotThrow(() => assertPlanningApprovedForMutation(ticket));
+      assert.throws(() => assertPlanningVerifiedForClosure(ticket), /unverified acceptance rows/);
     });
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
@@ -276,15 +327,17 @@ test("syncProject repairs repeated done suffixes without re-polluting kanban tit
     });
 
     const firstKanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    const firstLine = firstKanban.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
+    assert.doesNotMatch(firstKanban, /TKT-101 Fix projection pollution/);
+    const firstArchive = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    const firstLine = firstArchive.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
     assert.match(firstLine, /TKT-101 Fix projection pollution ✅ 2026-04-20$/);
     assert.equal((firstLine.match(/✅/g) ?? []).length, 1);
 
     const second = await syncProject({ projectRoot: targetRoot, writeProjections: true });
     assert.equal(second.skipped, true);
 
-    const secondKanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    const secondLine = secondKanban.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
+    const secondArchive = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    const secondLine = secondArchive.split(/\r?\n/).find((line) => line.includes("TKT-101")) ?? "";
     assert.equal((secondLine.match(/✅/g) ?? []).length, 1);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
@@ -875,6 +928,41 @@ test("kanban projection renders done tickets with a completion date", async () =
       const projection = renderKanbanProjection(store);
       assert.match(projection, /## Done/);
       assert.match(projection, /TKT-444 Close the loop ✅ 2026-04-04/);
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("kanban projection removes archived Done tickets from live board and preserves archive", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-archived-done-"));
+
+  try {
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity({
+        id: "TKT-OLD-DONE",
+        entityType: "ticket",
+        title: "Archive old done work",
+        lane: "Done",
+        state: "archived",
+        confidence: 1,
+        provenance: "test",
+        sourceKind: "test",
+        reviewState: "active",
+        parentId: "EPC-OLD",
+        data: {
+          ticketId: "TKT-OLD-DONE",
+          summary: "Completed work no longer belongs on the live board.",
+          completedAt: "2026-05-01"
+        }
+      });
+
+      const liveProjection = renderKanbanProjection(store);
+      assert.doesNotMatch(liveProjection, /TKT-OLD-DONE Archive old done work/);
+
+      const archiveProjection = renderKanbanArchiveProjection(store, "# Kanban Archive\n");
+      assert.match(archiveProjection, /## 2026-05/);
+      assert.match(archiveProjection, /TKT-OLD-DONE Archive old done work ✅ 2026-05-01/);
     });
   } finally {
     await rm(targetRoot, { recursive: true, force: true });

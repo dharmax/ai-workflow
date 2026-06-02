@@ -15,6 +15,7 @@ import { buildTicketEntity, writeProjectProjections } from "./projections.ts";
 import { withSupergitTransaction } from "./supergit.ts";
 import { buildTicketExecutionPlan, runVerificationPlan } from "./execution-planner.ts";
 import { recordProjectKnowledge } from "./knowledge.ts";
+import { assertPlanningApprovedForMutation } from "./planning-packets.ts";
 
 export async function sweepBugs(options) {
   const root = options.root;
@@ -69,6 +70,10 @@ export async function executeTicket(options) {
       error: `Ticket not found: ${ticketId}`,
       status: "missing-ticket"
     };
+  }
+
+  if (apply) {
+    assertPlanningApprovedForMutation(ticket);
   }
 
   const context = await buildSurgicalContext(root, { ticketId: ticket.id });

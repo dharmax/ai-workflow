@@ -1081,6 +1081,76 @@ test("ai-workflow project ticket create defaults BUG tickets into Bugs P2/P3", {
   }
 });
 
+test("ai-workflow project ticket plan approve validate and matrix expose planning packet state", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ticket-plan-packet-"));
+
+  try {
+    await writeFile(path.join(targetRoot, "kanban.md"), "# Kanban\n\n## ToDo\n\n- No items\n", "utf8");
+    const syncResult = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--write-projections", "--json"], { cwd: targetRoot });
+    assert.equal(syncResult.code, 0, syncResult.stderr || syncResult.stdout);
+
+    const createResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "create",
+      "--id",
+      "TKT-REL-001",
+      "--title",
+      "Restore workflow truth and projection hygiene",
+      "--lane",
+      "In Progress",
+      "--epic",
+      "EPC-AIWF-RELIABILITY-001",
+      "--summary",
+      "Make workflow state honest.",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(createResult.code, 0, createResult.stderr || createResult.stdout);
+
+    const approveResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "plan",
+      "approve",
+      "TKT-REL-001",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(approveResult.code, 0, approveResult.stderr || approveResult.stdout);
+    assert.equal(JSON.parse(approveResult.stdout).planningStatus, "approved");
+
+    const validateResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "plan",
+      "validate",
+      "TKT-REL-001",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(validateResult.code, 0, validateResult.stderr || validateResult.stdout);
+    assert.equal(JSON.parse(validateResult.stdout).ok, true);
+
+    const matrixResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "plan",
+      "matrix",
+      "--epic",
+      "EPC-AIWF-RELIABILITY-001",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(matrixResult.code, 1);
+    const matrix = JSON.parse(matrixResult.stdout);
+    assert.equal(matrix.coverage.find((item) => item.id === "REL-WEAK-TRUTH")?.covered, true);
+    assert.equal(matrix.rows.find((item) => item.ticketId === "TKT-REL-001")?.planningStatus, "approved");
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("ai-workflow project ticket resolve and reopen reconcile projections and summaries", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-ticket-lifecycle-"));
 

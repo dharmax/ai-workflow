@@ -212,6 +212,15 @@ function buildPlannedTicket({ template, index, goal, parentTicketId, artifacts, 
   const verificationCommands = uniqueStrings([...(template.verification ?? []), "AI_WORKFLOW_SKIP_AUTO_ASSESSMENT=1 ai-workflow sync --json"]);
   const recommendedCodelets = uniqueStrings(template.codelets ?? []);
   const acceptanceCriteria = uniqueStrings(template.acceptance ?? []);
+  const acceptanceMatrix = acceptanceCriteria.map((criterion, index) => ({
+    id: `${id}-AC-${index + 1}`,
+    criterion,
+    weaknessIds: ["work-ticket-planning"],
+    verificationCommands,
+    evidenceRefs: [],
+    status: "pending",
+    verified: false
+  }));
   const entity = buildTicketEntity({
     id,
     title: template.title,
@@ -233,6 +242,25 @@ function buildPlannedTicket({ template, index, goal, parentTicketId, artifacts, 
     acceptanceCriteria,
     verificationCommands,
     recommendedCodelets,
+    planningStatus: "draft",
+    planningVerdict: "pending",
+    planningPacket: {
+      ticketId: id,
+      status: "draft",
+      verdict: "pending",
+      problemStatement: template.summary,
+      sourceEvidence: uniqueStrings([goal, parentTicketId, ...artifacts]),
+      affectedSurfaces: uniqueStrings([mode, ...recommendedCodelets]),
+      linkedFiles: files,
+      linkedArtifacts: artifacts,
+      linkedPackages: [],
+      acceptanceCriteria,
+      acceptanceMatrix,
+      verificationCommands,
+      nonGoals: ["Do not mutate files outside the planned working set."],
+      riskFallbackPlan: ["Stop before mutation and report the missing planning or verification evidence."],
+      weaknesses: ["work-ticket-planning"]
+    },
     graphPredicates: []
   };
 

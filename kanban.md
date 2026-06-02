@@ -18,7 +18,46 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 ## ToDo
 <!-- canonical alias: ## Todo -->
 
-- No items
+- [ ] TKT-REL-002 Implement real GoE runtime and mutation gates
+  - Summary: Turn GoE policy into persisted runtime: suggester, critic, auditor/escalator, terminal verdict records, evidence refs, protected-work blocking, and visible problem/ticket handoff for unresolved governance outcomes.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-003 Add hook-based guardrail enforcement for shell and plugin modes
+  - Summary: Create shared hook points before plan, before codelet, before mutation, after verification, and before closure; route shell, ask, MCP/plugin, and codelets through them so guardrails can block or alter execution instead of remaining passive prompt text.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-004 Upgrade DB graph retrieval with Semantika adapter
+  - Summary: Keep SQLite as canonical mutable truth and add or improve a Semantika SQLite adapter for derived semantic graph query, provenance-preserving sync, hybrid lexical/graph/semantic retrieval, and measurable retrieval-quality tests.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-005 Make Ollama and LLM economy reliable under flaky local hardware
+  - Summary: Classify provider health, tune local retries and timeouts, emit progress, avoid repeated known-bad routes, preserve cheapest-capable routing, and escalate only when diagnosed; metrics must include attempts, latency, tokens, failure class, and fallback reason.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-006 Raise code generation and ticket execution quality
+  - Summary: Keep generate-code read-only but improve patch intent; upgrade execute-ticket beyond brittle search/replace with structured or AST-aware patches, file creation, external-agent adapters, working-set validation, and end-to-end project-building dogfood.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-007 Guarantee shell ask and MCP plugin parity
+  - Summary: Define one normalized request contract and prove equivalent selected program, GoE state, guardrails, context, mutation gate, route, and verification plan for shell, ask, and MCP/plugin prompts.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-008 Benchmark AIWF against Gemini CLI and external agents
+  - Summary: Create a repeatable task corpus comparing AIWF direct, AIWF-governed external-agent execution, and Gemini CLI direct on correctness, scope control, verification, speed, token/cost, recovery, and state honesty.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
+- [ ] TKT-REL-009 Publish final reliability readiness report and gates
+  - Summary: Close only after every reported weakness has proof: clean sync, dogfood for shell/workflow/provider/init/MCP/GoE, workflow audit, package builds, targeted and parity tests, benchmark report, and zero unresolved limitations from the honest report.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: open
 
 ## Bugs P1
 
@@ -34,7 +73,12 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## In Progress
 
-- No items
+- [ ] TKT-REL-001 Restore workflow truth and projection hygiene
+  - Summary: Make sync, mutation provenance, kanban archive state, assessments, candidates, and projections agree before any new readiness claim. Acceptance: sync protocol is clean or all remaining violations are active tickets; old Done cards leave live kanban; stale failed assessments cannot masquerade as active work.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - Planning: approved (approved), acceptance 0/4 verified
+  - State: open
 
 ## Human Inspection
 
@@ -46,76 +90,7 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## Done
 
-- [ ] TKT-SHELL-002 Reground shell, MCP, and skill behavior on DB-backed capability truth ✅ 2026-05-21
-  - Summary: Replace overlapping surface heuristics with core-backed capability state, richer degradation reporting, and honest execution/planning behavior across shell, MCP, and optional skill surfaces.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-GRAPH-001 Expand the canonical capability graph and entity density ✅ 2026-05-21
-  - Summary: Add capability-native graph coverage in the DB, increase entity/predicate ingestion and backfill from existing artifacts, and evaluate or adopt @dharmax/semantika where it materially improves graph authoring, traversal, and query power.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-DOCS-001 Rewrite README, manual, and tutorial for full operational truth ✅ 2026-05-21
-  - Summary: Make the human and AI guidance surfaces accurately describe the real architecture, core ownership, commands, workflows, routing policy, limits, and recommended operating loops so both humans and agents can use ai-workflow correctly.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-PROJECTIONS-001 Put bidirectional textual projections fully under core control ✅ 2026-05-21
-  - Summary: Make aiwf-common-core own forward and reverse handling of kanban, epics, and related textual projections so DB state, projections, reconciliation, and search/index coherence live behind one core boundary.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-GOE-001 Operationalize GoE and close enforcement gaps ✅ 2026-05-21
-  - Summary: Turn the current GoE policy notes into runtime behavior with durable plan/problem/governance state, and close the gap between selected guardrails and hard enforcement where quality or risk requires it.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-CORE-004 Introduce an abstractized core workflow facade for consumers ✅ 2026-05-21
-  - Summary: Expose stable core handlers for DB control, projections, routing, status, governance, codelets, documentation retrieval, and graph export so shell, MCP, skill, and future consumers depend on one truth-preserving facade instead of scattered internals.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] BUG-SYNC-001 Investigate and prevent sync index corruption regressions ✅ 2026-05-21
-  - Summary: Reproduce and fix the observed sync corruption case where symbol count collapsed unexpectedly, and add regression coverage before relying on sync as canonical workflow state.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] BUG-PLANNER-001 Make planner timeout and null-failure paths explicit and honest ✅ 2026-05-19
-  - Summary: Replace silent null or timeout planner failures with explicit degraded-path reporting, operator-visible errors, and regression coverage across shell and host flows.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
-- [ ] TKT-AIWF-DOD-005 Live dogfood benchmark and exclusive-use readiness report ✅ 2026-05-19
-  - Summary: Run the final shell/workflow/provider dogfood, workflow audit, workspace honesty checks, and publish an evidence-backed readiness report with explicit fallback gaps.
-  - Epic: TKT-SHELL-002
-  - Parent: TKT-SHELL-002
-  - State: archived
-- [ ] TKT-AIWF-DOD-004 Planner and codelet timeout progress and degraded-path reliability ✅ 2026-05-19
-  - Summary: Make slow local provider and planner paths emit progress events, finite timeout diagnostics, retry metadata, and explicit degraded-path reasons.
-  - Epic: TKT-SHELL-002
-  - Parent: TKT-SHELL-002
-  - State: archived
-- [ ] TKT-AIWF-DOD-003 Best-use enforcement across shell, ask, MCP, and codelets ✅ 2026-05-19
-  - Summary: Normalize coding/review/debug requests across surfaces so they share context extraction, selected programs, guardrails, work-ticket recommendations, and mutation gates.
-  - Epic: TKT-SHELL-002
-  - Parent: TKT-SHELL-002
-  - State: archived
-- [ ] TKT-AIWF-DOD-002 Shell-exclusive coding workflow from natural language to ticket-gated execution ✅ 2026-05-19
-  - Summary: Route broad coding prompts through sync, ticket extraction, guideline extraction, codelet planning, execute-ticket apply gates, verification, and reporting.
-  - Epic: TKT-SHELL-002
-  - Parent: TKT-SHELL-002
-  - State: archived
-- [ ] TKT-AIWF-DOD-001 Shared work-ticket planner and graph links ✅ 2026-05-19
-  - Summary: Add the deterministic planner API, CLI/MCP entry points, and DB graph links that connect generated work tickets to files, artifacts, codelets, guardrails, and parent work.
-  - Epic: TKT-SHELL-002
-  - Parent: TKT-SHELL-002
-  - State: archived
-- [ ] BUG-ROUTER-001 Honor local-provider and unpaid-route constraints in router decisions ✅ 2026-05-15
-  - Summary: Prevent router/model-fit output from recommending cloud-backed or unpaid routes when local-first or quota constraints should block them, and add regression coverage.
-  - Epic: EPC-CAPABILITY-CORE-001
-  - Parent: EPC-CAPABILITY-CORE-001
-  - State: archived
+- No items
 
 %% kanban:settings
 ```
