@@ -52,7 +52,7 @@
     "pack:root": "npm pack --dry-run",
     "pack:shell": "npm pack --dry-run --workspace aiwf-shell",
     "pack:skill": "npm pack --dry-run --workspace aiwf-skill",
-    "prepare": "npm run build",
+    "prepack": "npm run build",
     "release:check": "npm run build && npm run workflow:dogfood -- --json && npm run workflow:audit -- --json && npm run pack:root && npm run pack:core && npm run pack:shell && npm run pack:mcp && npm run pack:skill",
     "perfection-marathon": "node ./node_modules/tsx/dist/cli.mjs tests/perfection-marathon.ts",
     "test": "node ./node_modules/tsx/dist/cli.mjs --test --test-concurrency=1 tests/*.test.ts",
