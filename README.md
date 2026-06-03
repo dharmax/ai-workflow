@@ -1,6 +1,6 @@
 # AI Workflow
 
-This repository is the private workspace root for the `ai-workflow` package split. It coordinates four publishable packages:
+This repository is the composite GitHub install surface and workspace root for the `ai-workflow` package split. It coordinates four publishable packages:
 
 - `aiwf-common-core`: shared workflow services, DB, codelets, routing, projections, and reusable runtime logic
 - `aiwf-shell`: CLI entrypoints, runtime wrappers, init/install scripts, and terminal-facing tooling
@@ -20,10 +20,11 @@ You do not need to install everything.
 
 The packages can live together, but they are intentionally separate installs.
 
-Best distribution channel:
+Distribution channels:
 
-- npmjs for installing `aiwf-shell`, `aiwf-mcp`, or `aiwf-skill`
-- GitHub for source checkout and development
+- GitHub root package for a single install that exposes `ai-workflow`, `aiwf-mcp`, and `aiwf-skill`
+- npmjs for installing split packages such as `aiwf-shell`, `aiwf-mcp`, or `aiwf-skill` when those are published independently
+- GitHub source checkout for development
 
 Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 
@@ -31,7 +32,7 @@ Prefer the cheapest capable model route when the tool can use it; if it is unava
 
 ## Operating Surface
 
-- Workspace role: private npm workspace coordinator, not a published package
+- Workspace role: composite GitHub package plus split-package coordinator
 - Canonical state: `.ai-workflow/state/workflow.db`
 - Human-readable projections: `kanban.md`, `epics.md`, `MISSION.md`
 - Core operator docs: `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, `knowledge.md`
@@ -50,6 +51,16 @@ npm run workflow:audit -- --json
 ```
 
 ## Package Install Matrix
+
+### GitHub Composite Package
+
+```bash
+pnpm add github:dharmax/ai-workflow
+pnpm ai-workflow init --target /abs/path/to/project
+pnpm aiwf-skill --project /abs/path/to/project --force
+```
+
+This installs one root package with the shell CLI, MCP launcher, and optional skill installer. The root package ships built CLI/MCP artifacts, so consumers do not need to approve install-time build scripts.
 
 ### Shell Only
 

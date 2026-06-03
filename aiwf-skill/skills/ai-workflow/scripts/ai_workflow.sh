@@ -9,25 +9,48 @@ if command -v ai-workflow >/dev/null 2>&1; then
   exec ai-workflow "$@"
 fi
 
+find_node() {
+  local candidate
+  for candidate in "${AI_WORKFLOW_NODE:-}" "$(command -v node 2>/dev/null || true)" /usr/local/bin/node /opt/homebrew/bin/node /usr/bin/node; do
+    if [[ -n "$candidate" && -x "$candidate" ]] && "$candidate" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)' >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 run_from_root() {
   local root="$1"
+  shift
+  local tsx_cli=""
+  local node_bin
+  node_bin="$(find_node)" || {
+    echo "ai-workflow requires Node.js >=22. Set AI_WORKFLOW_NODE to a compatible node binary." >&2
+    exit 1
+  }
+  if [[ -f "${root}/node_modules/tsx/dist/cli.mjs" ]]; then
+    tsx_cli="${root}/node_modules/tsx/dist/cli.mjs"
+  elif [[ -f "${root}/../node_modules/tsx/dist/cli.mjs" ]]; then
+    tsx_cli="${root}/../node_modules/tsx/dist/cli.mjs"
+  fi
   if [[ -f "${root}/dist/ai-workflow.mjs" ]]; then
-    exec "${root}/dist/ai-workflow.mjs" "$@"
+    exec "$node_bin" "${root}/dist/ai-workflow.mjs" "$@"
   fi
   if [[ -f "${root}/cli/ai-workflow.mjs" ]]; then
-    exec node "${root}/cli/ai-workflow.mjs" "$@"
+    exec "$node_bin" "${root}/cli/ai-workflow.mjs" "$@"
   fi
-  if [[ -f "${root}/cli/ai-workflow.ts" ]]; then
-    exec node "${root}/cli/ai-workflow.ts" "$@"
+  if [[ -n "$tsx_cli" && -f "${root}/cli/ai-workflow.ts" ]]; then
+    exec "$node_bin" "$tsx_cli" "${root}/cli/ai-workflow.ts" "$@"
   fi
   if [[ -f "${root}/aiwf-shell/dist/ai-workflow.mjs" ]]; then
-    exec "${root}/aiwf-shell/dist/ai-workflow.mjs" "$@"
+    exec "$node_bin" "${root}/aiwf-shell/dist/ai-workflow.mjs" "$@"
   fi
   if [[ -f "${root}/aiwf-shell/cli/ai-workflow.mjs" ]]; then
-    exec node "${root}/aiwf-shell/cli/ai-workflow.mjs" "$@"
+    exec "$node_bin" "${root}/aiwf-shell/cli/ai-workflow.mjs" "$@"
   fi
-  if [[ -f "${root}/aiwf-shell/cli/ai-workflow.ts" ]]; then
-    exec node "${root}/aiwf-shell/cli/ai-workflow.ts" "$@"
+  if [[ -n "$tsx_cli" && -f "${root}/aiwf-shell/cli/ai-workflow.ts" ]]; then
+    exec "$node_bin" "$tsx_cli" "${root}/aiwf-shell/cli/ai-workflow.ts" "$@"
   fi
 }
 

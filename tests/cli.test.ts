@@ -33,6 +33,42 @@ async function runNode(args, options = {}) {
   }
 }
 
+async function runBoundedCommand(command, args, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 10000;
+  return await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+      reject(new Error(`command timed out: ${command} ${args.join(" ")}\nstdout: ${stdout}\nstderr: ${stderr}`));
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.on("exit", (code) => {
+      clearTimeout(timeout);
+      resolve({ code: code ?? 0, stdout, stderr });
+    });
+  });
+}
+
 async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -257,6 +293,9 @@ test("installer supports opting out of the default initial sync", async () => {
     const result = await runNode(["aiwf-shell/scripts/init-project.ts", "--target", targetRoot, "--no-sync"]);
     assert.equal(result.code, 0);
     assert.match(result.stdout, /Initial sync: disabled/);
+    const kanban = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
+    assert.match(kanban, /^# Kanban/m);
+    assert.doesNotMatch(kanban, /AI Agent Protocol: Autonomous Engineering OS/);
     await assert.rejects(access(path.join(targetRoot, ".ai-workflow", "state", "workflow.db")));
   } finally {
     await cleanup(targetRoot);
@@ -313,6 +352,43 @@ test("version reports the installed package version and toolkit root", async () 
   assert.equal(payload.name, "aiwf-shell");
   assert.equal(payload.version, "0.1.0");
   assert.equal(payload.toolkitRoot, path.join(repoRoot, "aiwf-shell"));
+});
+
+test("root GitHub package exposes shell, MCP, and skill install bins", async () => {
+  const packageJson = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
+  assert.equal(packageJson.name, "ai-workflow");
+  assert.equal(packageJson.private, false);
+  assert.equal(packageJson.bin["ai-workflow"], "./cli/ai-workflow.mjs");
+  assert.equal(packageJson.bin["aiwf-mcp"], "./cli/aiwf-mcp.mjs");
+  assert.equal(packageJson.bin["aiwf-skill"], "./aiwf-skill/install-ai-workflow-skill.mjs");
+
+  const result = await runBoundedCommand(process.execPath, [path.join(repoRoot, "cli", "ai-workflow.mjs"), "version", "--json"], {
+    cwd: repoRoot,
+    env: process.env
+  });
+  assert.equal(result.code, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.name, "aiwf-shell");
+  assert.equal(payload.version, "0.1.0");
+});
+
+test("skill wrapper resolves the toolkit CLI without invoking raw TypeScript through node", async () => {
+  const result = await runBoundedCommand(
+    "bash",
+    [path.join(repoRoot, "aiwf-skill", "skills", "ai-workflow", "scripts", "ai_workflow.sh"), "version", "--json"],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        AI_WORKFLOW_TOOLKIT_ROOT: repoRoot,
+        PATH: "/usr/bin:/bin"
+      }
+    }
+  );
+  assert.equal(result.code, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.name, "ai-workflow");
+  assert.equal(payload.version, "0.1.0");
 });
 
 test("metrics command reports session, last active work hours, and trailing week slices", async () => {

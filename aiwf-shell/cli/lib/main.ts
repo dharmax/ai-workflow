@@ -12,6 +12,7 @@ import { ShellPresenter } from "aiwf-common-core/services/presenter";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
+import { existsSync } from "node:fs";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { promisify } from "node:util";
@@ -157,7 +158,7 @@ export async function main(argv) {
     case "setup":
       return handleInstall(rest);
     case "init":
-      return runNodeScript(path.resolve(toolkitRoot, "scripts", "init-project.ts"), rest);
+      return runNodeScript(resolveToolkitScript("init-project", path.resolve(toolkitRoot, "scripts", "init-project.ts")), rest);
     case "install":
       return handleInstall(rest);
     case "doctor":
@@ -2009,11 +2010,19 @@ function runNodeScriptLive(scriptPath, args) {
 }
 
 function buildTsxCommand(scriptPath, args = []) {
+  if (/\.m?js$/i.test(scriptPath)) {
+    return [scriptPath, ...args];
+  }
   return [
     path.resolve(getWorkspaceRoot(getCliToolkitRoot()), "node_modules", "tsx", "dist", "cli.mjs"),
     scriptPath,
     ...args
   ];
+}
+
+function resolveToolkitScript(name, sourcePath) {
+  const bundledPath = path.resolve(toolkitRoot, "dist", `${name}.mjs`);
+  return existsSync(bundledPath) ? bundledPath : sourcePath;
 }
 
 async function handleToolObserve(rest) {

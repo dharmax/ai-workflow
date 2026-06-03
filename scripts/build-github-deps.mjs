@@ -78,7 +78,7 @@ async function buildFromGitHub(packageName, packageDir, commit) {
   }
 }
 
-const packageLock = JSON.parse(await readFile(packageLockPath, "utf8"));
+const packageLock = await readPackageLock(packageLockPath);
 
 for (const packageName of packages) {
   const packageJsonPath = path.join(repoRoot, "node_modules", ...packageName.split("/"), "package.json");
@@ -103,5 +103,16 @@ for (const packageName of packages) {
 
   if (!(await fileExists(compiledEntryPath))) {
     throw new Error(`Build for ${packageName} completed without producing ${exportTarget}.`);
+  }
+}
+
+async function readPackageLock(lockPath) {
+  try {
+    return JSON.parse(await readFile(lockPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {};
+    }
+    throw error;
   }
 }

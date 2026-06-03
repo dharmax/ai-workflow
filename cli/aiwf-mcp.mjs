@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(realpathSync(fileURLToPath(import.meta.url)));
 const repoRoot = path.resolve(__dirname, "..");
-const distEntry = path.resolve(repoRoot, "aiwf-shell", "dist", "ai-workflow.mjs");
-const sourceEntry = path.resolve(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts");
+const distEntry = path.resolve(repoRoot, "aiwf-mcp", "dist", "aiwf-mcp.mjs");
+const sourceEntry = path.resolve(repoRoot, "aiwf-mcp", "server.ts");
 const tsxCli = path.resolve(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
 const args = existsSync(distEntry)
   ? [distEntry, ...process.argv.slice(2)]
