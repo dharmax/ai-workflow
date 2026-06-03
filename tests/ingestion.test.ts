@@ -16,7 +16,7 @@ test("ingestArtifact assesses and generates correct epics and tickets with mock 
   
   let callCount = 0;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -68,7 +68,7 @@ test("ingestArtifact assesses and generates correct epics and tickets with mock 
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as any;
   process.env.OLLAMA_HOST = "http://mock-ollama.local";
 
   try {
@@ -102,7 +102,7 @@ test("onboardProjectBrief normalizes a messy brief before generating epics", asy
 
   let callCount = 0;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -181,7 +181,7 @@ test("onboardProjectBrief normalizes a messy brief before generating epics", asy
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as any;
   process.env.OLLAMA_HOST = "http://mock-ollama.local";
 
   try {

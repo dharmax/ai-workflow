@@ -19,9 +19,9 @@ function isRelevantChangedFile(file) {
   return !file.startsWith(".ai-workflow/state/");
 }
 
-const lines = [];
+const lines: string[] = [];
 const changedFiles = args.changed && await isGitRepo(process.cwd())
-  ? (await getChanges(process.cwd())).map((item) => item.path).filter(isRelevantChangedFile)
+  ? (await getChanges(process.cwd(), process.env)).map((item) => item.path).filter(isRelevantChangedFile)
   : [];
 const validationFiles = Array.isArray(result.validationPlan?.files) ? result.validationPlan.files : [];
 const files = [...new Set([...changedFiles, ...validationFiles])];

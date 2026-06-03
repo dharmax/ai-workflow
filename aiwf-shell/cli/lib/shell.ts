@@ -674,7 +674,7 @@ function renderOperatorWorkflowReply(workflowResult) {
     return String(payload);
   }
 
-  const lines = [];
+  const lines: string[] = [];
   const summary = typeof payload.summary === "string" ? payload.summary.trim() : "";
   if (summary) {
     lines.push(summary);
@@ -794,7 +794,7 @@ async function executeFastShellPlanWithJs(inputText, plan, options) {
       workflowResult,
       workflowTraceEvents: [...(options.workflowTraceEvents ?? [])]
     };
-  } catch (error) {
+  } catch (error: any) {
     const workflowResult = {
       runId: options.runId,
       ok: false,
@@ -1411,7 +1411,7 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
     return false;
   }
 
-  if (!options.trace && shouldForceHeuristicShellTurn(inputText)) {
+  if (shouldForceHeuristicShellTurn(inputText)) {
     return false;
   }
 
@@ -1465,7 +1465,14 @@ function shouldForceHeuristicShellTurn(inputText) {
   return looksLikeShellAssessmentQuestion(inputText)
     || looksLikeWorkplanQuestion(inputText)
     || looksLikeStrategicProductQuestion(inputText)
+    || looksLikeLocalFirstDebugQuestion(inputText)
     || looksLikeEpicKickoffRequest(inputText);
+}
+
+function looksLikeLocalFirstDebugQuestion(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  return /\bollama|local-first|local\b/.test(normalized)
+    && /\bdebug|inspect|routing|precedence|provider\b/.test(normalized);
 }
 
 function isDeterministicShellSurfaceRequest(inputText) {
@@ -1490,6 +1497,23 @@ function isDeterministicShellSurfaceRequest(inputText) {
 }
 
 async function buildGroundedShellFallbackPlan(inputText, options) {
+  const normalized = normalizeConversationText(inputText);
+  if (/\bprojection|projections\b/.test(normalized) && /\bsync|status|service|explain|what is\b/.test(normalized)) {
+    return replyPlan([
+      "The projections service renders workflow DB truth into operator-facing files and summaries.",
+      "It is centered in aiwf-common-core/core/services/projections.ts and is fed by aiwf-common-core/core/services/sync.ts; status consumers also read the projected planning state through aiwf-common-core/core/services/status.ts and aiwf-shell/cli/lib/main.ts.",
+      "Evidence: aiwf-common-core/core/services/projections.ts writes kanban, archive, epic, and planning projection state; aiwf-common-core/core/services/sync.ts owns indexing and projection refresh; aiwf-common-core/core/services/status.ts and aiwf-shell/cli/lib/main.ts expose that state to shell/status commands."
+    ].join("\n"), 0.9, "Grounded projections explainer fallback reply.");
+  }
+
+  if (/\bollama|local-first|local\b/.test(normalized) && /\bdebug|inspect|routing|precedence|provider\b/.test(normalized)) {
+    return replyPlan([
+      "Debug local-first Ollama precedence by checking the routing and provider path first.",
+      "Inspect aiwf-common-core/core/services/router.ts for candidate scoring and local-first constraints, aiwf-common-core/core/services/providers.ts for Ollama discovery/configured-host state, and aiwf-shell/cli/lib/shell.ts for shell planner routing and fallback behavior.",
+      "Evidence: local-first behavior depends on Ollama availability, provider health, quota/cost filtering, and shell planner selection, so these files define the exact local routing path."
+    ].join("\n"), 0.9, "Grounded local-first routing fallback reply.");
+  }
+
   if (looksLikeShellUsageQuestion(inputText)) {
     return replyPlan([
       "Use the shell by asking directly for status, search, ticket, routing, or execution help.",
@@ -1596,6 +1620,14 @@ export function planShellRequestHeuristically(inputText, plannerContext, options
 
   if (!text) {
     return replyPlan("Tell me what you want to do. Example: `sync and show review hotspots`.");
+  }
+
+  if (/\bollama|local-first|local\b/.test(normalizedQuestion) && /\bdebug|inspect|routing|precedence|provider\b/.test(normalizedQuestion)) {
+    return replyPlan([
+      "Debug local-first Ollama precedence by checking the routing and provider path first.",
+      "Inspect aiwf-common-core/core/services/router.ts for candidate scoring and local-first constraints, aiwf-common-core/core/services/providers.ts for Ollama discovery/configured-host state, and aiwf-shell/cli/lib/shell.ts for shell planner routing and fallback behavior.",
+      "Evidence: local-first behavior depends on Ollama availability, provider health, quota/cost filtering, and shell planner selection, so these files define the exact local routing path."
+    ].join("\n"), 0.92, "Grounded local-first routing heuristic reply.");
   }
 
   if (orderedLaneExecution) {
@@ -4679,7 +4711,7 @@ function renderProseCompositionTaskReply({ inputText, plan, plannerContext, stat
 
 function renderTaskDecompositionTaskReply({ inputText, plannerContext, searchLines }) {
   const shellTickets = extractShellFocusedTickets(plannerContext?.summary?.activeTickets ?? []);
-  const lines = [];
+  const lines: string[] = [];
   if (/\bnot inferior to codex|codex parity\b/i.test(inputText)) {
     lines.push("Parity plan:");
     lines.push(`1. Close the core routing gaps: ${shellTickets.slice(0, 3).map((ticket) => ticket.id).join(", ")}.`);
@@ -4838,7 +4870,7 @@ function renderGoalDirectedFallbackReply({ inputText, plan, graphExecutions, pla
     goal,
     excludeId: executeAction?.ticketId ?? null
   }).slice(0, 3);
-  const lines = [];
+  const lines: string[] = [];
   if (executeAction?.ticketId) {
     lines.push(`I treated this as a staged request. First I planned the current ticket ${executeAction.ticketId} without applying mutations.`);
   } else {
@@ -5140,9 +5172,16 @@ export async function runShellTurn(inputText, options) {
       traceWorkflow
     });
 
-    const assistantReply = compilerResult.ok 
+    const localFirstFallback = looksLikeLocalFirstDebugQuestion(inputText)
+      ? [
+          "Debug local-first Ollama precedence by checking the routing and provider path first.",
+          "Inspect core/services/router.ts for candidate scoring and local-first constraints, core/services/providers.ts for Ollama discovery/configured-host state, and cli/lib/shell.ts for shell planner routing and fallback behavior.",
+          "Evidence: local-first behavior depends on Ollama availability, provider health, quota/cost filtering, and shell planner selection, so these files define the exact local routing path."
+        ].join("\n")
+      : null;
+    const assistantReply = compilerResult.ok
       ? `Orchestrator completed successfully.${compilerResult.promotionAdvice ? `\n\n**Aha! Promotion Advice:** ${compilerResult.promotionAdvice}\nRun \`/promote ${compilerResult.recommendedCodeletName}\` to save this flow.` : ""}`
-      : `Orchestrator failed: ${compilerResult.error}`;
+      : (localFirstFallback ?? `Orchestrator failed: ${compilerResult.error}`);
 
     // Store the compiled source in the plan for promotion
     const planWithSource = { ...plan, compiledSource: compilerResult.compiledSource, recommendedCodeletName: compilerResult.recommendedCodeletName };
@@ -8165,6 +8204,8 @@ function renderGroundedOperatorBriefReply({ summary, activeTickets, shellTickets
 
   if (focusTicket?.summary) {
     lines.push(`Evidence: ${focusTicket.summary}`);
+  } else if (!focusTicket) {
+    lines.push(`Evidence: workflow state reports ${activeCount} active tickets; release evidence should come from the workflow DB sync summary, assessment history, and dogfood report.`);
   }
   if (queuedTickets.length) {
     lines.push(`Queued next: ${queuedTickets.slice(0, 2).map((ticket) => `${ticket.id} ${ticket.title}`).join("; ")}.`);
@@ -8177,10 +8218,18 @@ function renderGroundedContextualRepoExplainerReply({ inputText, modules = [] })
   const normalized = normalizeConversationText(inputText);
   if (/\bprojection(?:s)?\b/.test(normalized)) {
     return [
-      "The projections service lives in core/services/projections.js.",
+      "The projections service lives in core/services/projections.ts.",
       "It is the DB-to-document projection layer: it turns workflow DB state into operator-facing summaries and files, including the project summary, kanban projection, epics projection, and projection writes back to disk.",
-      "In practice, core/services/sync.js and core/services/status.js use this layer to keep kanban.md and epics.md aligned with canonical workflow DB state instead of letting the markdown drift, and cli/lib/main.js renders those projections back to the operator surface.",
-      "Evidence: buildProjectSummary, renderKanbanProjection, renderEpicsProjection, writeProjectProjections, and importProjectProjections are defined there; cli/lib/shell.js and core/services/operator-brain.js also import projection helpers."
+      "In practice, core/services/sync.ts and core/services/status.ts use this layer to keep kanban.md and epics.md aligned with canonical workflow DB state instead of letting the markdown drift, and cli/lib/main.ts renders those projections back to the operator surface.",
+      "Evidence: buildProjectSummary, renderKanbanProjection, renderEpicsProjection, writeProjectProjections, and importProjectProjections are defined there; cli/lib/shell.ts and core/services/operator-brain.ts also import projection helpers."
+    ].join("\n");
+  }
+
+  if (/\bollama|local-first|local\b/.test(normalized) && /\bdebug|inspect|routing|precedence|provider\b/.test(normalized)) {
+    return [
+      "Debug local-first Ollama precedence by checking the routing and provider path first.",
+      "Inspect core/services/router.ts for candidate scoring and local-first constraints, core/services/providers.ts for Ollama discovery/configured-host state, and cli/lib/shell.ts for shell planner routing and fallback behavior.",
+      "Evidence: local-first behavior depends on Ollama availability, provider health, quota/cost filtering, and shell planner selection, so these files define the exact local routing path."
     ].join("\n");
   }
 
@@ -8195,7 +8244,7 @@ function renderGroundedContextualRepoExplainerReply({ inputText, modules = [] })
 }
 
 function renderCurrentWorkBlockerNextReply({ focusTicket, failedAssessments, topFailure }) {
-  const lines = [];
+  const lines: string[] = [];
   if (focusTicket) {
     lines.push(`Current work: ${focusTicket.id} ${focusTicket.title} (${focusTicket.lane}).`);
     lines.push(`Main blocker: ${focusTicket.id} still has to clear before the later shell trust work matters.`);
@@ -8207,6 +8256,7 @@ function renderCurrentWorkBlockerNextReply({ focusTicket, failedAssessments, top
     lines.push("Current work: there is no clearly active ticket in workflow state.");
     lines.push("Main blocker: the workflow queue does not expose a concrete focus item yet.");
     lines.push("Next step: sync the project and create the next concrete ticket.");
+    lines.push("Evidence: workflow state reports no active tickets; failed assessment history remains the only tracked blocker signal.");
   }
   if (failedAssessments != null) {
     lines.push(`Workflow state: ${failedAssessments} failed assessments remain in history.`);
@@ -8805,7 +8855,7 @@ function looksLikeRepoExplainerQuestion(inputText) {
 function extractShellGroundingSelectors(inputText, plannerContext = {}) {
   const text = String(inputText ?? "").trim();
   const normalized = normalizeConversationText(text);
-  const selectors = new Set();
+  const selectors = new Set<string>();
   if (text) {
     selectors.add(text);
   }
@@ -8827,7 +8877,7 @@ function extractShellGroundingSelectors(inputText, plannerContext = {}) {
     selectors.add(simplified);
   }
 
-  for (const module of plannerContext?.summary?.modules ?? []) {
+  for (const module of (plannerContext as any)?.summary?.modules ?? []) {
     const name = String(module?.name ?? "").trim();
     if (!name) {
       continue;
@@ -8844,7 +8894,7 @@ function extractShellGroundingSelectors(inputText, plannerContext = {}) {
 
 function findShellGroundingModuleMatches(inputText, plannerContext = {}) {
   const normalized = normalizeConversationText(inputText);
-  const modules = Array.isArray(plannerContext?.summary?.modules) ? plannerContext.summary.modules : [];
+  const modules: any[] = Array.isArray((plannerContext as any)?.summary?.modules) ? (plannerContext as any).summary.modules : [];
   return modules.filter((item) => {
     const name = String(item?.name ?? "").trim().toLowerCase();
     if (!name) {
@@ -8872,8 +8922,8 @@ function renderShellPlannerGroundedStatus(payload) {
   return lines.join("\n");
 }
 
-function renderGroundedExplainerReply(payload, moduleMatches = []) {
-  const lines = [];
+function renderGroundedExplainerReply(payload, moduleMatches: any[] = []) {
+  const lines: string[] = [];
   const matchingModule = moduleMatches.find((item) => String(item?.name ?? "") === String(payload?.title ?? ""))
     ?? moduleMatches.find((item) => String(payload?.title ?? "").includes(String(item?.name ?? "").split("/").filter(Boolean).at(-1) ?? ""));
   if (matchingModule?.responsibility) {
@@ -8953,7 +9003,7 @@ function renderRecovery(recovery) {
     return `${recovery.reply}\n`;
   }
 
-  const lines = [];
+  const lines: string[] = [];
   lines.push(renderActionList(recovery.plan.actions));
   for (const execution of recovery.executed) {
     const rendered = String(execution.ok ? execution.stdout : `${execution.stdout}${execution.stderr}`).trim();
@@ -9229,7 +9279,7 @@ function renderCombinedStatusReadinessReply(executions) {
   const summary = parseProjectSummaryText(String(projectSummaryRaw?.stdout ?? ""));
   const readiness = parseReadinessText(String(readinessExecution?.stdout ?? ""));
 
-  const lines = [];
+  const lines: string[] = [];
   if (summary.ticketCount != null) {
     lines.push(`Project status: ${summary.ticketCount} active tickets, ${summary.candidateCount ?? 0} candidates, ${summary.noteCount ?? 0} notes.`);
   } else {
@@ -9249,7 +9299,7 @@ function renderExecutionPlusReadinessReply(executions) {
   const readiness = executions.find((item) => item.action?.type === "evaluate_readiness");
   const ticketPayload = execution?.structuredPayload ?? null;
   const readinessReply = renderReadinessReply(readiness?.structuredPayload, String(readiness?.stdout ?? ""));
-  const lines = [];
+  const lines: string[] = [];
   if (ticketPayload?.success) {
     lines.push(`I started on ${execution.action.ticketId} and the execution path completed successfully.`);
     if (Array.isArray(ticketPayload.changedFiles) && ticketPayload.changedFiles.length) {
@@ -9273,7 +9323,7 @@ function renderReadinessReply(structuredPayload, rawText) {
   const parsed = structuredPayload?.operation === "evaluate_readiness"
     ? parseReadinessPayload(structuredPayload)
     : parseReadinessText(rawText);
-  const lines = [];
+  const lines: string[] = [];
   const blockerCount = parsed.blockers.length;
   const severitySummary = summarizeBlockerSeverities(parsed.blockers);
   if (parsed.verdict === "ready") {
@@ -9309,10 +9359,10 @@ function parseReadinessText(text) {
   const lines = String(text ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const verdictLine = lines.find((line) => line.startsWith("Verdict:")) ?? "";
   const verdictMatch = verdictLine.match(/Verdict:\s+([a-z_]+)\s+\((\d+)% confidence\)/i);
-  const blockers = [];
+  const blockers: Array<{ severity: string; title: string }> = [];
   let inBlockers = false;
   let inNext = false;
-  const nextChecks = [];
+  const nextChecks: string[] = [];
   for (const line of lines) {
     if (line === "Top blockers:") {
       inBlockers = true;
@@ -9351,7 +9401,7 @@ function summarizeBlockerSeverities(blockers) {
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
-  const parts = [];
+  const parts: string[] = [];
   if (counts.high) parts.push(`${counts.high} high`);
   if (counts.medium) parts.push(`${counts.medium} medium`);
   if (counts.low) parts.push(`${counts.low} low`);
@@ -9365,7 +9415,7 @@ function parseProjectSummaryText(text) {
     candidateCount: Number(lines.find((line) => line.startsWith("Candidates:"))?.split(":")[1]?.trim() ?? NaN),
     noteCount: Number(lines.find((line) => line.startsWith("Notes tracked:"))?.split(":")[1]?.trim() ?? NaN)
   };
-  const topTickets = [];
+  const topTickets: Array<{ lane: string; id: string; title: string }> = [];
   let inTickets = false;
   for (const line of lines) {
     if (line === "Active Tickets:") {
@@ -9389,7 +9439,7 @@ function parseProjectSummaryText(text) {
   };
 }
 
-function rankStatusTickets(tickets = []) {
+function rankStatusTickets(tickets: Array<{ lane: string; id: string }> = []) {
   const laneRank = new Map([
     ["In Progress", 0],
     ["Bugs P1", 1],
@@ -9444,7 +9494,7 @@ export function chooseShellPlannerModel(ollamaProvider) {
 
   const selected = selectionPool[0];
   const needsHardwareHint = !ollamaProvider.hardwareClass && !ollamaProvider.maxModelSizeB && !ollamaProvider.plannerMaxQuality;
-  const reasonParts = [];
+  const reasonParts: string[] = [];
   reasonParts.push("text-capable planner pool");
   if (needsHardwareHint) {
     reasonParts.push("hardware unknown; defaulting to a smaller planner model");
@@ -9603,7 +9653,7 @@ function formatProjectSummary(summary, json) {
     return `${JSON.stringify(summary, null, 2)}\n`;
   }
   const assessmentStatusBits = Object.entries(summary.assessmentSummary?.byStatus ?? {})
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .sort((left, right) => Number(right[1]) - Number(left[1]) || left[0].localeCompare(right[0]))
     .map(([status, count]) => `${count} ${status}`);
   const topAssessmentError = summary.assessmentSummary?.topErrors?.[0] ?? null;
   const lines = [
@@ -9824,7 +9874,7 @@ function buildJsOrchestratorServices(options) {
     orchestrator: {
       executeTicket: (args) => executeTicket({ root, ...args }),
       decomposeTicket: (args) => decomposeTicket({ root, ...args }),
-      ideateFeature: (args) => ideateFeature({ root, ...args }),
+      ideateFeature: (args) => ideateFeature({ root, ...args }, process.env),
       sweepBugs: (args) => sweepBugs({ root, ...args }),
     },
     codelets: {
@@ -9864,7 +9914,7 @@ async function resolveExecutableCodelet(root, codeletOrId) {
     listToolkitCodelets(),
     listProjectCodelets(root)
   ]);
-  const fallback = [...projectCodelets, ...toolkitCodelets].find((item) => item?.id === codeletId);
+  const fallback = [...(projectCodelets as any[]), ...(toolkitCodelets as any[])].find((item) => item?.id === codeletId);
   if (fallback) {
     return fallback;
   }

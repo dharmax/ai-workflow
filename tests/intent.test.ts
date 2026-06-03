@@ -91,9 +91,9 @@ const TEST_CASES = [
 ];
 
 test("Heuristic Planner 50-Case Coverage", () => {
-  let failures = [];
+  let failures: string[] = [];
   for (const { input, expected } of TEST_CASES) {
-    const plan = planShellRequestHeuristically(input, plannerContext);
+    const plan = planShellRequestHeuristically(input, plannerContext as any);
     if (plan.kind !== "plan" || !plan.actions || plan.actions[0].type !== expected) {
       failures.push(`Failed on "${input}": Expected ${expected}, got ${plan.kind === 'plan' ? plan.actions[0].type : plan.kind}`);
     }
@@ -111,9 +111,9 @@ const CHAT_TEST_CASES = [
 ];
 
 test("Heuristic Planner gracefully falls back for conversational input", () => {
-  let failures = [];
+  let failures: string[] = [];
   for (const input of CHAT_TEST_CASES) {
-    const plan = planShellRequestHeuristically(input, plannerContext);
+    const plan = planShellRequestHeuristically(input, plannerContext as any);
     if (plan.confidence > 0.5) {
       failures.push(`False positive on conversational input "${input}" (Confidence: ${plan.confidence})`);
     }

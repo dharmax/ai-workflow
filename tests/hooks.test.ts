@@ -10,8 +10,8 @@ test("BeforePlan hook can modify inputText", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "hook-test-"));
   const originalFetch = globalThis.fetch;
   
-  let capturedPrompt = null;
-  globalThis.fetch = async (url, options) => {
+  let capturedPrompt: string | null = null;
+  globalThis.fetch = (async (url, options: any) => {
     const urlStr = String(url);
     if (urlStr.includes("generativelanguage.googleapis.com") || urlStr.includes("/api/generate") || urlStr.includes("openai.com")) {
       const parsed = JSON.parse(options.body);
@@ -28,7 +28,7 @@ test("BeforePlan hook can modify inputText", async () => {
       };
     }
     return { ok: true, async json() { return { models: [{ id: "mock-model" }] }; } };
-  };
+  }) as any;
 
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
@@ -48,7 +48,7 @@ test("BeforePlan hook can modify inputText", async () => {
     await planOperatorRequest("original prompt", { root: targetRoot });
 
     assert.ok(capturedPrompt, "Should have captured a prompt");
-    assert.ok(capturedPrompt.includes("original prompt [HOOKED]"), `Prompt should contain [HOOKED], got: ${capturedPrompt}`);
+    assert.ok(String(capturedPrompt).includes("original prompt [HOOKED]"), `Prompt should contain [HOOKED], got: ${capturedPrompt}`);
 
   } finally {
     globalThis.fetch = originalFetch;
@@ -60,7 +60,7 @@ test("JS Orchestrator shell helper stays callable when services.shell is injecte
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "hook-action-test-"));
   const originalFetch = globalThis.fetch;
   
-  let capturedShellPrompt = null;
+  let capturedShellPrompt: string | null = null;
   const mockShell = {
     execute: async (prompt) => {
       capturedShellPrompt = prompt;
@@ -102,7 +102,7 @@ test("JS Orchestrator shell helper stays callable when services.shell is injecte
     });
 
     assert.ok(capturedShellPrompt, "Should have captured a shell prompt");
-    assert.ok(capturedShellPrompt.includes("test shell prompt [SHELL-HOOKED]"), `Prompt should contain [SHELL-HOOKED], got: ${capturedShellPrompt}`);
+    assert.ok(String(capturedShellPrompt).includes("test shell prompt [SHELL-HOOKED]"), `Prompt should contain [SHELL-HOOKED], got: ${capturedShellPrompt}`);
     assert.equal(result.ok, true);
     assert.deepEqual(result.result, { ok: true });
 

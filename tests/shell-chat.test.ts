@@ -6,34 +6,30 @@ test("Agentic planner correctly uses DB definitions, active tickets, and history
   let lastPrompt = "";
   let lastSystem = "";
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (_url, init) => {
-    const payload = JSON.parse(init.body);
+
+  globalThis.fetch = async (_url, init): Promise<Response> => {
+    const payload = JSON.parse(String(init?.body ?? "{}"));
     lastPrompt = payload.prompt;
     lastSystem = payload.system;
 
-        let replyText = "Generic reply.";
-        if (payload.system.includes("## Available Actions")) {
-          replyText = "Actions are available.";
-        }
-        if (payload.prompt.includes("You have TKT-001")) {
-          replyText += " You mentioned TKT-001.";
-        }
+    let replyText = "Generic reply.";
+    if (payload.system.includes("## Available Actions")) {
+      replyText = "Actions are available.";
+    }
+    if (payload.prompt.includes("You have TKT-001")) {
+      replyText += " You mentioned TKT-001.";
+    }
 
-    return {
-      ok: true,
-      async json() {
-        return { response: `{"kind": "reply", "reply": "${replyText}"}` };
-      }
-    };
+    return new Response(JSON.stringify({ response: JSON.stringify({ kind: "reply", reply: replyText }) }));
   };
 
   const options = {
-    plannerContext: { 
+    plannerContext: {
       toolkitCodelets: [],
       projectCodelets: [],
       summary: {
-        activeTickets: [] // Empty to test the "No active tickets" fallback
-      } 
+        activeTickets: []
+      }
     },
     planner: { providerId: "ollama", modelId: "mock-model", host: "http://mock-ollama.local" },
     history: [
@@ -43,24 +39,17 @@ test("Agentic planner correctly uses DB definitions, active tickets, and history
   };
 
   try {
-    const plan = await planShellRequestWithAgent("what is it about?", options);
-    
-    assert.equal(plan.kind, "reply");
-    
-    // Check that the system prompt includes the planner contract and action catalog, not the old status dump.
+    const plan: any = await planShellRequestWithAgent("what is it about?", options as any);
+
+    assert.equal(plan?.kind, "reply");
     assert.match(lastSystem, /## Available Actions \(Your Capabilities\):/);
     assert.match(lastSystem, /## Operating Contract/);
     assert.match(lastSystem, /## Graph Contract/);
     assert.doesNotMatch(lastSystem, /## Project Current Status \(Smart Summary\)/);
-
-    // Check that the prompt includes runtime context and history-derived notes
     assert.match(lastPrompt, /## Runtime Context/);
     assert.match(lastPrompt, /### Notes \/ Lore \/ Extra: Recent Interaction/);
     assert.match(lastPrompt, /You have TKT-001 in Todo\./);
-
-    // Verify the mock server received enough context to formulate the correct reply
-    assert.match(plan.reply, /Actions are available\. You mentioned TKT-001\./);
-
+    assert.match(plan?.reply ?? "", /Actions are available\. You mentioned TKT-001\./);
   } finally {
     globalThis.fetch = originalFetch;
   }

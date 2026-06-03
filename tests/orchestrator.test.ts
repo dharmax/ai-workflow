@@ -14,7 +14,7 @@ const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");
 test("sweepBugs marks a bug done only after verification passes", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "orch-test-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -54,7 +54,7 @@ test("sweepBugs marks a bug done only after verification passes", async () => {
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as any;
   process.env.OLLAMA_HOST = "http://mock-ollama.local";
 
   try {
@@ -106,7 +106,7 @@ test("sweepBugs marks a bug done only after verification passes", async () => {
 test("sweepBugs blocks a bug when the verification baseline is already red", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "orch-test-fail-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -146,7 +146,7 @@ test("sweepBugs blocks a bug when the verification baseline is already red", asy
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as any;
   process.env.OLLAMA_HOST = "http://mock-ollama.local";
 
   try {

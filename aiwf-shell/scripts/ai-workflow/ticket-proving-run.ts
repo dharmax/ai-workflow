@@ -25,17 +25,17 @@ const context = await resolveOperatingContext({
   root: null,
   evidenceRoot: requestedEvidenceRoot ? path.resolve(String(requestedEvidenceRoot)) : null,
   allowExternalTarget: Boolean(args["allow-external-target"] || args.allowExternalTarget)
-});
+} as any);
 
 const projectRoot = context.evidenceRoot;
-const tickets = [];
+const tickets: any[] = [];
 for (const ticketId of ticketIds) {
   const result = await planTicket({
     root: projectRoot,
     ticketId,
     apply: false
   });
-  const surgicalContext = await buildSurgicalContext(projectRoot, { ticketId });
+  const surgicalContext = await buildSurgicalContext(projectRoot, { ticketId } as any);
   tickets.push({
     ...result,
     ticket: surgicalContext.ticket
@@ -51,7 +51,7 @@ for (const ticketId of ticketIds) {
   });
 }
 
-const payload = {
+const payload: any = {
   mode: context.mode,
   root: projectRoot,
   repairTargetRoot: context.repairTargetRoot,

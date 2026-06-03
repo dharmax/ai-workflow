@@ -31,10 +31,10 @@ test("routeTask falls back cleanly when only unavailable local providers exist",
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "summarization"
-    });
+    } as any);
 
     assert.equal(route.recommended, null);
     assert.equal(route.providers.ollama.available, false);
@@ -51,7 +51,7 @@ test("installAgents creates the DB-first project workspace directories and confi
       toolkitRoot: repoRoot,
       projectRoot: targetRoot,
       target: "session"
-    });
+    } as any);
 
     assert.equal(results.some((result) => result.path === ".ai-workflow"), true);
     const config = JSON.parse(await readFile(path.join(targetRoot, ".ai-workflow", "config.json"), "utf8"));
@@ -79,10 +79,10 @@ test("routeTask picks up a configured remote Ollama host", async () => {
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "summarization"
-    });
+    } as any);
 
     assert.equal(route.providers.ollama.host, "http://192.168.1.50:11434");
   } finally {
@@ -93,27 +93,17 @@ test("routeTask picks up a configured remote Ollama host", async () => {
 test("routeTask keeps shell planning on a text-capable Ollama model instead of a vision-only model", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-shell-planner-route-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (String(url).endsWith("/api/tags")) {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "moondream:latest", size: 2 * 1024 ** 3 },
-              { name: "qwen2.5-coder:7b", size: 7 * 1024 ** 3 }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "moondream:latest", size: 2 * 1024 ** 3 },
+          { name: "qwen2.5-coder:7b", size: 7 * 1024 ** 3 }
+        ]
+      }));
     }
     if (String(url).includes("duckduckgo")) {
-      return {
-        ok: true,
-        async text() {
-          return "<html><body></body></html>";
-        }
-      };
+      return new Response("<html><body></body></html>");
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -133,10 +123,10 @@ test("routeTask keeps shell planning on a text-capable Ollama model instead of a
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "shell-planning"
-    });
+    } as any);
 
     assert.equal(["ollama", "google"].includes(route.recommended?.providerId), true);
     assert.notEqual(route.recommended?.modelId, "moondream:latest");
@@ -149,28 +139,18 @@ test("routeTask keeps shell planning on a text-capable Ollama model instead of a
 test("routeTask excludes embedding-only models and honors configured Ollama planner model", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-shell-planner-embed-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (String(url).endsWith("/api/tags")) {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "nomic-embed-text:latest", size: 300 * 1024 ** 2 },
-              { name: "hermes3:8b", size: 4 * 1024 ** 3 },
-              { name: "qwen2.5-coder:7b-instruct-q4_K_M", size: 5 * 1024 ** 3 }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "nomic-embed-text:latest", size: 300 * 1024 ** 2 },
+          { name: "hermes3:8b", size: 4 * 1024 ** 3 },
+          { name: "qwen2.5-coder:7b-instruct-q4_K_M", size: 5 * 1024 ** 3 }
+        ]
+      }));
     }
     if (String(url).includes("duckduckgo")) {
-      return {
-        ok: true,
-        async text() {
-          return "<html><body></body></html>";
-        }
-      };
+      return new Response("<html><body></body></html>");
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -191,15 +171,15 @@ test("routeTask excludes embedding-only models and honors configured Ollama plan
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "shell-planning",
       preferLocal: true
-    });
+    } as any);
 
     assert.equal(route.recommended?.providerId, "ollama");
     assert.equal(route.recommended?.modelId, "qwen2.5-coder:7b-instruct-q4_K_M");
-    assert.equal(route.candidates.some((candidate) => candidate.modelId === "nomic-embed-text:latest"), false);
+    assert.equal(route.candidates.some((candidate: any) => candidate.modelId === "nomic-embed-text:latest"), false);
   } finally {
     globalThis.fetch = originalFetch;
     await rm(targetRoot, { recursive: true, force: true });
@@ -231,11 +211,11 @@ test("routeTask prefers the remote provider with remaining free quota", async ()
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "strategy",
       preferLocal: false
-    });
+    } as any);
 
     assert.equal(route.recommended?.providerId, "openai");
     assert.equal(route.recommended?.reason.includes("free quota $7.50 remaining"), true);
@@ -264,12 +244,12 @@ test("routeTask reports explicit local requirement failure instead of widening t
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "shell-planning",
       preferLocal: true,
       requireLocal: true
-    });
+    } as any);
 
     assert.equal(route.recommended, null);
     assert.equal(route.degradedPath, true);
@@ -282,16 +262,11 @@ test("routeTask reports explicit local requirement failure instead of widening t
 test("routeTask can fall back to ollama when remote free quota is exhausted", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-route-quota-local-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (String(url).endsWith("/api/tags")) {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [{ name: "hermes3:8b", size: 4 * 1024 ** 3 }]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [{ name: "hermes3:8b", size: 4 * 1024 ** 3 }]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -321,13 +296,13 @@ test("routeTask can fall back to ollama when remote free quota is exhausted", as
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "summarization"
-    });
+    } as any);
 
     assert.equal(route.recommended?.providerId, "ollama");
-    assert.equal(route.candidates.every((candidate) => candidate.providerId !== "openai"), true);
+    assert.equal(route.candidates.every((candidate: any) => candidate.providerId !== "openai"), true);
   } finally {
     globalThis.fetch = originalFetch;
     await rm(targetRoot, { recursive: true, force: true });
@@ -358,11 +333,11 @@ test("routeTask returns no remote recommendation when paid routes are disabled a
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "strategy",
       preferLocal: false
-    });
+    } as any);
 
     assert.equal(route.recommended, null);
     assert.equal(route.candidates.length, 0);
@@ -376,16 +351,11 @@ test("routeTask prefers local shell planning over env-only remote providers", as
   const originalGoogleKey = process.env.GOOGLE_API_KEY;
   const originalFetch = globalThis.fetch;
   process.env.GOOGLE_API_KEY = "env-only-google-key";
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (String(url).endsWith("/api/tags")) {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [{ name: "deepseek-r1:8b", size: 5 * 1024 ** 3 }]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [{ name: "deepseek-r1:8b", size: 5 * 1024 ** 3 }]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -406,13 +376,13 @@ test("routeTask prefers local shell planning over env-only remote providers", as
       "utf8"
     );
 
-    const route = await routeTask({
+    const route: any = await routeTask({
       root: targetRoot,
       taskClass: "shell-planning"
-    });
+    } as any);
 
     assert.equal(route.recommended?.providerId, "ollama");
-    assert.equal(route.candidates.every((candidate) => candidate.providerId === "ollama"), true);
+    assert.equal(route.candidates.every((candidate: any) => candidate.providerId === "ollama"), true);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalGoogleKey === undefined) {
@@ -587,7 +557,7 @@ test("telegram command parser remains thin and deterministic", () => {
   assert.deepEqual(parseTelegramCommand("status now"), { command: "unknown", args: [] });
 });
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   const captureDir = await mkdtemp(path.join(os.tmpdir(), "workflow-cli-capture-"));
   const stdoutPath = path.join(captureDir, "stdout.log");
   const stderrPath = path.join(captureDir, "stderr.log");
@@ -601,7 +571,7 @@ async function runNode(args, options = {}) {
       stdout: await readFile(stdoutPath, "utf8").catch(() => ""),
       stderr: await readFile(stderrPath, "utf8").catch(() => "")
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: await readFile(stdoutPath, "utf8").catch(() => error.stdout ?? ""),

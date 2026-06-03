@@ -15,7 +15,7 @@ import { refreshCodeletRegistry } from "aiwf-common-core/services/codelets";
 import { resolveProjectStatus } from "aiwf-common-core/services/status";
 import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
 import { planCodingWorkflow } from "aiwf-common-core/services/coding-workflow";
-import { approveTicketPlanningPacket, assertPlanningApprovedForMutation, assertPlanningVerifiedForClosure, buildPlanningMatrix, validatePlanningPacketOnTicket } from "aiwf-common-core/services/planning-packets";
+import { approveTicketPlanningPacket, assertPlanningApprovedForMutation, assertPlanningVerifiedForClosure, buildPlanningMatrix, validatePlanningPacketOnTicket, verifyTicketPlanningAcceptance } from "aiwf-common-core/services/planning-packets";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(repoRoot, "tests", "fixtures", "workflow-repo");
@@ -103,6 +103,20 @@ test("planning packet validation and matrix expose reliability ticket coverage",
       const ticket = store.getEntity("TKT-REL-001");
       assert.doesNotThrow(() => assertPlanningApprovedForMutation(ticket));
       assert.throws(() => assertPlanningVerifiedForClosure(ticket), /unverified acceptance rows/);
+    });
+
+    const verified = await verifyTicketPlanningAcceptance({
+      projectRoot: targetRoot,
+      ticketId: "TKT-REL-001",
+      acceptanceId: "all",
+      evidenceRefs: ["ai-workflow sync --json", "ai-workflow audit workflow --json"],
+      writeProjections: false
+    });
+    assert.equal(verified.ok, true);
+    assert.equal(verified.verifiedRows, 4);
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      assert.doesNotThrow(() => assertPlanningVerifiedForClosure(store.getEntity("TKT-REL-001")));
     });
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
@@ -685,9 +699,10 @@ test("refreshCodeletRegistry resolves toolkit codelet entries from the workspace
         toolkitRoot: path.join(repoRoot, "aiwf-shell")
       });
 
-      assert.equal(result.backingIssues.some((issue) => String(issue.entryPath ?? "").includes("/aiwf-shell/aiwf-shell/")), false);
-      assert.equal(result.backingIssues.some((issue) => issue.codeletId === "execute-ticket"), false);
-      assert.equal(result.backingIssues.some((issue) => issue.codeletId === "artifact-judge"), false);
+      const backingIssues = result.backingIssues as Array<{ entryPath?: string; codeletId?: string }>;
+      assert.equal(backingIssues.some((issue) => String(issue.entryPath ?? "").includes("/aiwf-shell/aiwf-shell/")), false);
+      assert.equal(backingIssues.some((issue) => issue.codeletId === "execute-ticket"), false);
+      assert.equal(backingIssues.some((issue) => issue.codeletId === "artifact-judge"), false);
     });
   } finally {
     await rm(targetRoot, { recursive: true, force: true });

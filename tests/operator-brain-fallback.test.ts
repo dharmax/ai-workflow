@@ -12,7 +12,7 @@ test("planOperatorRequest falls back to another candidate if the first one fails
   
   // Mock fetch to fail for the first (Gemini) request and succeed for the second (Ollama-like)
   let callCount = 0;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     callCount++;
     const urlStr = String(url);
     if (urlStr.includes("generativelanguage.googleapis.com")) {
@@ -51,7 +51,7 @@ test("planOperatorRequest falls back to another candidate if the first one fails
         return { models: [{ name: "fallback-model", size: 1000 }] };
       }
     };
-  };
+  }) as any;
 
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
@@ -228,7 +228,7 @@ test("executeOperatorRequest preserves successful structured JS workflow results
   const originalFetch = globalThis.fetch;
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-js-result-"));
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     const urlStr = String(url);
     if (urlStr.includes("/chat/completions")) {
       return {
@@ -255,7 +255,7 @@ test("executeOperatorRequest preserves successful structured JS workflow results
       };
     }
     throw new Error(`Unexpected fetch URL: ${urlStr}`);
-  };
+  }) as any;
 
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
@@ -285,7 +285,7 @@ test("executeOperatorRequest runs compiler-native workflowPrompt plans through t
   const originalFetch = globalThis.fetch;
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-text-compiler-"));
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = (async (url, options: any = {}) => {
     const urlStr = String(url);
     if (urlStr.includes("/api/tags")) {
       return {
@@ -346,7 +346,7 @@ test("executeOperatorRequest runs compiler-native workflowPrompt plans through t
         };
       }
     };
-  };
+  }) as any;
 
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
@@ -377,7 +377,7 @@ test("resolveHostRequest routes long planning prompts through the shared harness
   const originalFetch = globalThis.fetch;
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "operator-brain-shared-harness-"));
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = (async (url, options: any = {}) => {
     const urlStr = String(url);
     if (urlStr.includes("/api/tags")) {
       return {
@@ -434,7 +434,7 @@ test("resolveHostRequest routes long planning prompts through the shared harness
         };
       }
     };
-  };
+  }) as any;
 
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
@@ -449,7 +449,7 @@ test("resolveHostRequest routes long planning prompts through the shared harness
       "utf8"
     );
 
-    const response = await resolveHostRequest({
+    const response: any = await resolveHostRequest({
       projectRoot: targetRoot,
       text: "Audit the current state of the shell and ask harnesses, inspect the relevant code and tests, map the gaps, and produce an implementation plan.",
       continuationState: null,
@@ -481,7 +481,7 @@ test("resolveHostRequest answers code review prompts through a graph-backed repo
   try {
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
 
-    const response = await resolveHostRequest({
+    const response: any = await resolveHostRequest({
       projectRoot: targetRoot,
       text: "Review the projections service, inspect the relevant code and tests, and explain the top risks with evidence.",
       continuationState: null,

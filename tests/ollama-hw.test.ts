@@ -42,11 +42,11 @@ test("configureOllamaHardware can infer from simple field inputs", async () => {
       cpu: 16,
       vramGb: 24,
       ramGb: 64
-    });
+    } as any);
 
-    assert.equal(result.fields.gpu, "RTX 4090");
-    assert.equal(result.fields.cpu, 16);
-    assert.equal(result.inferred.hardwareClass, "medium");
+    assert.equal(result.fields?.gpu, "RTX 4090");
+    assert.equal(result.fields?.cpu, 16);
+    assert.equal(result.inferred?.hardwareClass, "medium");
     assert.equal(result.applied.maxModelSizeB, 14);
   } finally {
     await rm(root, { recursive: true, force: true });

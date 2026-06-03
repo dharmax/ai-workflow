@@ -8,7 +8,7 @@ import { handleShellCommand } from "aiwf-shell/cli/lib/shell";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   return await new Promise((resolve) => {
     execFile(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
       cwd: options.cwd ?? repoRoot,
@@ -17,7 +17,7 @@ async function runNode(args, options = {}) {
       maxBuffer: 8 * 1024 * 1024
     }, (error, stdout, stderr) => {
       resolve({
-        code: error?.code ?? 0,
+        code: typeof error?.code === "number" ? error.code : 1,
         stdout: String(stdout ?? ""),
         stderr: String(stderr ?? "")
       });
@@ -27,7 +27,7 @@ async function runNode(args, options = {}) {
 
 test("handleShellCommand enables trace file mode", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-trace-command-" + Math.random().toString(36).slice(2));
-  const options = {
+  const options: any = {
     root,
     json: true,
     shellMode: "plan",
@@ -35,7 +35,7 @@ test("handleShellCommand enables trace file mode", async () => {
   };
 
   try {
-    const result = handleShellCommand("trace on file traces/session.log", options);
+    const result = await Promise.resolve(handleShellCommand("trace on file traces/session.log", options));
     assert.equal(result?.handled, true);
     assert.equal(result?.stateChanged, true);
     assert.equal(options.trace, true);

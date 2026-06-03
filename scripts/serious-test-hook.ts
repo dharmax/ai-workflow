@@ -15,7 +15,7 @@ try {
   }
 
   process.stdout.write(JSON.stringify(context));
-} catch (err) {
+} catch (err: any) {
   process.stderr.write(`Hook failed: ${err.message}\n`);
   process.exit(1);
 }

@@ -6,6 +6,7 @@ dist/
 /.ai-workflow/state/run-artifacts/
 /.ai-workflow/generated/
 .ai-workflow/state/workflow.db
+**/.ai-workflow/state/
 .ai-workflow/cache/
 .ai-workflow/config.json
 .codex

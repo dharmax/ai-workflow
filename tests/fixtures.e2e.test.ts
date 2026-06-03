@@ -134,15 +134,15 @@ async function copyFixture(sourceRoot, targetRoot) {
   await cp(sourceRoot, targetRoot, { recursive: true });
 }
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   return runCommand(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], { cwd: repoRoot, ...options });
 }
 
-async function runNodeInline(script, options = {}) {
+async function runNodeInline(script: string, options: any = {}) {
   return runCommand(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), "-e", script], { cwd: options.cwd });
 }
 
-async function runCommand(command, args = [], options = {}) {
+async function runCommand(command: string, args: string[] = [], options: any = {}) {
   const captureDir = await makeTempDir();
   const stdoutPath = path.join(captureDir, "stdout.log");
   const stderrPath = path.join(captureDir, "stderr.log");
@@ -160,7 +160,7 @@ async function runCommand(command, args = [], options = {}) {
       stdout: await readFile(stdoutPath, "utf8").catch(() => ""),
       stderr: await readFile(stderrPath, "utf8").catch(() => "")
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: await readFile(stdoutPath, "utf8").catch(() => error.stdout ?? ""),

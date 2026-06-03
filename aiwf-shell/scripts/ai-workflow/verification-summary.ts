@@ -24,39 +24,39 @@ export async function runVerificationSummary(argv = process.argv.slice(2), env =
   const runId = stableId("verification-summary", root, JSON.stringify({ artifactPaths, judge, goal, rubric, providerId, modelId, cmd: args.cmd ?? null }));
   const commands = asArray(args.cmd).map(String).filter(Boolean);
 
-  const commandResults = [];
+  const commandResults: any[] = [];
   for (const command of commands) {
     commandResults.push(await runVerificationCommand(command, root, env));
   }
 
   const artifactJudgment = judge === "shell-transcript"
-    ? await judgeShellTranscripts({
+      ? await judgeShellTranscripts({
         projectRoot: root,
         artifactPaths,
         rubric,
         goal,
         providerId,
         modelId
-      })
+      } as any)
     : artifactPaths.length || rubric
-      ? await judgeArtifacts({
+       ? await judgeArtifacts({
           projectRoot: root,
           artifactPaths,
           rubric,
           goal,
           providerId,
-          modelId
-        })
+           modelId
+         } as any)
       : null;
 
   const verdict = artifactJudgment?.result ?? null;
   const honestyContract = verdict?.contract
-    ? normalizeHonestyContract(verdict.contract, {
+      ? normalizeHonestyContract(verdict.contract, {
         goal,
         fallbackWish: goal ?? rubric,
         fallbackSuccessDefinition: rubric,
         fallbackScore: Number(verdict?.score ?? 0)
-      })
+      } as any)
     : buildFallbackHonestyContract({ goal, rubric, verdict });
   const commandsOk = commandResults.every((item) => item.exitCode === 0);
   const artifactOk = artifactJudgment ? verdict?.status === "pass" && verdict?.needs_human_review !== true : true;
@@ -85,7 +85,7 @@ export async function runVerificationSummary(argv = process.argv.slice(2), env =
   };
 }
 
-async function runVerificationCommand(command, cwd, env) {
+async function runVerificationCommand(command: string, cwd: string, env: NodeJS.ProcessEnv) {
   try {
     const result = await execFileAsync("/usr/bin/bash", ["-lc", command], {
       cwd,
@@ -108,7 +108,7 @@ async function runVerificationCommand(command, cwd, env) {
   }
 }
 
-function buildFallbackHonestyContract({ goal, rubric, verdict }) {
+function buildFallbackHonestyContract({ goal, rubric, verdict }: any) {
   if (!verdict) {
     return null;
   }
@@ -121,7 +121,7 @@ function buildFallbackHonestyContract({ goal, rubric, verdict }) {
   });
 }
 
-function buildGapReview({ conclusion, honestyContract, artifactJudgment, commandResults }) {
+function buildGapReview({ conclusion, honestyContract, artifactJudgment, commandResults }: any) {
   if (conclusion === "verified") {
     return {
       status: "resolved",
@@ -132,7 +132,7 @@ function buildGapReview({ conclusion, honestyContract, artifactJudgment, command
     };
   }
 
-  const actions = [];
+  const actions: any[] = [];
   if (honestyContract?.reportTruthfulness?.status === "fail" || honestyContract?.misleadingRisk === "high") {
     actions.push({ type: "revise-report", reason: honestyContract.reportTruthfulness.reason });
   }

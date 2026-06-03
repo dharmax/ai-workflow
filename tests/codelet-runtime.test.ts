@@ -34,7 +34,7 @@ test("buildSmartCodeletRunContext resolves a registered codelet and packs lean-c
       codeletId: "story-snap",
       filePath: "src/app.ts",
       goal: "summarize the current app"
-    });
+    } as any);
 
     assert.equal(context.codelet.id, "story-snap");
     assert.equal(context.codelet.summary, "Generate a compact story summary from the current project state.");

@@ -11,18 +11,15 @@ import { runProviderSetupWizard } from "aiwf-shell/cli/lib/provider-setup";
 
 test("probeOllama reads models from a configured HTTP host", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => ({
-    ok: true,
-    async json() {
-      assert.equal(url, "http://127.0.0.1:11434/api/tags");
-      return {
-        models: [
-          { name: "qwen2.5:14b" },
-          { name: "llama3.2:3b" }
-        ]
-      };
-    }
-  });
+  globalThis.fetch = async (url): Promise<Response> => {
+    assert.equal(url, "http://127.0.0.1:11434/api/tags");
+    return new Response(JSON.stringify({
+      models: [
+        { name: "qwen2.5:14b" },
+        { name: "llama3.2:3b" }
+      ]
+    }));
+  };
 
   try {
     const result = await probeOllama({ host: "127.0.0.1:11434" });
@@ -78,19 +75,14 @@ test("discoverProviderState caches Ollama discovery until explicitly refreshed",
   const root = await mkdtemp(path.join(os.tmpdir(), "providers-cache-"));
   let tagsRequests = 0;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (String(url).endsWith("/api/tags")) {
       tagsRequests += 1;
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "gemma4:9b", size: 9 * 1024 ** 3 }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "gemma4:9b", size: 9 * 1024 ** 3 }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -126,25 +118,20 @@ test("searchWebEvidence caches DuckDuckGo results until explicitly refreshed", a
   globalThis.fetch = async (url) => {
     requests += 1;
     assert.match(String(url), /duckduckgo/i);
-    return {
-      ok: true,
-      async text() {
-        return `
+    return new Response(`
           <html>
             <body>
               <a class="result__a" href="//example.com/models/gemma4">Gemma 4 local benchmark</a>
               <div class="result__snippet">Fast coding and reasoning model for local hardware.</div>
             </body>
           </html>
-        `;
-      }
-    };
+        `);
   };
 
   try {
-    const first = await searchWebEvidence({ root, query: "gemma4 benchmark" });
-    const second = await searchWebEvidence({ root, query: "gemma4 benchmark" });
-    const refreshed = await searchWebEvidence({ root, query: "gemma4 benchmark", forceRefresh: true });
+    const first = await searchWebEvidence({ root, query: "gemma4 benchmark" } as any);
+    const second = await searchWebEvidence({ root, query: "gemma4 benchmark" } as any);
+    const refreshed = await searchWebEvidence({ root, query: "gemma4 benchmark", forceRefresh: true } as any);
 
     assert.equal(requests, 2);
     assert.equal(first.results[0].title, "Gemma 4 local benchmark");
@@ -189,37 +176,27 @@ test("discoverProviderState surfaces configured remote-provider quota metadata",
 test("buildModelFitMatrix uses web evidence to improve live routing fit", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "web-fit-matrix-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     const query = decodeURIComponent(String(url).split("q=")[1] ?? "");
     if (query.includes("alpha")) {
-      return {
-        ok: true,
-        async text() {
-          return `
+      return new Response(`
             <html>
               <body>
                 <a class="result__a" href="//example.com/alpha">Alpha model coding benchmark</a>
                 <div class="result__snippet">Fast coding and software reasoning for local hardware.</div>
               </body>
             </html>
-          `;
-        }
-      };
+          `);
     }
     if (query.includes("beta")) {
-      return {
-        ok: true,
-        async text() {
-          return `
+      return new Response(`
             <html>
               <body>
                 <a class="result__a" href="//example.com/beta">Beta model overview</a>
                 <div class="result__snippet">General overview with no coding signal.</div>
               </body>
             </html>
-          `;
-        }
-      };
+          `);
     }
     throw new Error(`Unexpected search query: ${query}`);
   };
@@ -254,7 +231,7 @@ test("buildModelFitMatrix uses web evidence to improve live routing fit", async 
       providerState,
       taskClass: "code-generation",
       allowRemoteEnrichment: false
-    });
+    } as any);
 
     assert.equal(matrix.evidence?.profiles?.length >= 2, true);
     assert.equal(matrix.models[0].modelId, "alpha:7b");
@@ -268,30 +245,20 @@ test("buildModelFitMatrix uses web evidence to improve live routing fit", async 
 test("discoverProviderState merges models from multiple Ollama endpoints", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "providers-ollama-multi-"));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (url === "http://127.0.0.1:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "tinyllama:1.1b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "tinyllama:1.1b" }
+        ]
+      }));
     }
     if (url === "http://192.168.1.50:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "qwen2.5:14b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "qwen2.5:14b" }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -332,25 +299,20 @@ test("runProviderSetupWizard registers Ollama endpoints and remote provider conn
   const originalOpenAIKey = process.env.OPENAI_API_KEY;
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
   const originalGoogleKey = process.env.GOOGLE_API_KEY;
-  const prompts = [];
-  const connections = [];
+  const prompts: string[] = [];
+  const connections: string[] = [];
   process.env.HOME = tempHome;
   process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.GOOGLE_API_KEY;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (url === "http://127.0.0.1:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "llama3.2:3b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "llama3.2:3b" }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -380,7 +342,7 @@ test("runProviderSetupWizard registers Ollama endpoints and remote provider conn
         connections.push(providerId);
         return 0;
       }
-    });
+    } as any);
 
     assert.deepEqual(prompts, [
       "Other Ollama URLs (comma-separated, blank to skip): ",
@@ -438,25 +400,20 @@ test("runProviderSetupWizard accepts gemini as an alias for google", async () =>
   const originalOpenAIKey = process.env.OPENAI_API_KEY;
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
   const originalGoogleKey = process.env.GOOGLE_API_KEY;
-  const prompts = [];
-  const connections = [];
+  const prompts: string[] = [];
+  const connections: string[] = [];
   process.env.HOME = tempHome;
   process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.GOOGLE_API_KEY;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (url === "http://127.0.0.1:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "llama3.2:3b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "llama3.2:3b" }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -483,7 +440,7 @@ test("runProviderSetupWizard accepts gemini as an alias for google", async () =>
         connections.push(providerId);
         return 0;
       }
-    });
+    } as any);
 
     assert.deepEqual(connections, ["google"]);
     assert.deepEqual(result.connectedProviders, ["google"]);
@@ -531,18 +488,13 @@ test("runProviderSetupWizard reports Gemini availability when Google is already 
   process.env.HOME = tempHome;
   process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
   process.env.GOOGLE_API_KEY = "g-key";
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (url === "http://127.0.0.1:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "llama3.2:3b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "llama3.2:3b" }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -561,7 +513,7 @@ test("runProviderSetupWizard reports Gemini availability when Google is already 
       },
       promptRemoteProviders: true,
       connectProviderImpl: async () => 0
-    });
+    } as any);
 
     assert.match(result.messages.join("\n"), /Gemini \(Google\) is already available\./);
     assert.doesNotMatch(result.messages.join("\n"), /Gemini \(Google\) still needs a valid API key or config/);
@@ -621,7 +573,7 @@ test("runProviderSetupWizard explains configured Ollama models when the host doe
     });
 
     const text = result.messages.join("\n");
-    assert.match(text, /Ollama at http:\/\/lotus:11434 did not respond during discovery\./);
+    assert.match(text, /Ollama at http:\/\/127\.0\.0\.1:11434 did not respond during discovery\./);
     assert.match(text, /Using the configured model registry from config for routing\./);
     assert.doesNotMatch(text, /No Ollama endpoint is currently reachable\./);
 
@@ -660,18 +612,13 @@ test("refreshProviderRegistry tolerates read-only global config paths when write
   const originalOllamaHost = process.env.OLLAMA_HOST;
   process.env.HOME = tempHome;
   process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     if (url === "http://127.0.0.1:11434/api/tags") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            models: [
-              { name: "llama3.2:3b" }
-            ]
-          };
-        }
-      };
+      return new Response(JSON.stringify({
+        models: [
+          { name: "llama3.2:3b" }
+        ]
+      }));
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
@@ -680,15 +627,15 @@ test("refreshProviderRegistry tolerates read-only global config paths when write
     await mkdir(path.join(root, ".ai-workflow"), { recursive: true });
     await chmod(tempHome, 0o555);
 
-    const result = await refreshProviderRegistry({
+    const result: any = await refreshProviderRegistry({
       root,
       scope: "global",
       forceRefresh: true,
       ignoreWriteErrors: true
-    });
+    } as any);
 
     assert.equal(
-      result.refreshed.some((entry) => entry.providerId === "ollama" && entry.modelCount === 1),
+      result.refreshed.some((entry: any) => entry.providerId === "ollama" && entry.modelCount === 1),
       true
     );
     assert.match(result.warning ?? "", /Could not update/);
@@ -732,12 +679,12 @@ test("refreshProviderQuotaState restores monthly free quota after reset date", a
       }
     }, null, 2), "utf8");
 
-    const result = await refreshProviderQuotaState({
+    const result: any = await refreshProviderQuotaState({
       root,
       providerId: "openai",
       scope: "project",
       now: new Date("2026-03-26T12:00:00Z")
-    });
+    } as any);
     assert.equal(result.refreshed[0].changed, true);
     assert.equal(result.refreshed[0].quota.freeUsdRemaining, 5);
     assert.equal(result.refreshed[0].quota.resetAt, "2026-04-01");

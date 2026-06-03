@@ -166,6 +166,58 @@ export async function approveTicketPlanningPacket({ projectRoot = process.cwd(),
   });
 }
 
+export async function verifyTicketPlanningAcceptance({ projectRoot = process.cwd(), ticketId, acceptanceId = null, evidenceRefs = [], writeProjections = true }: any = {}) {
+  return withPlanningStore(projectRoot, async (store) => {
+    const ticket = requireTicket(store, ticketId);
+    const validation = validatePlanningPacketOnTicket(ticket);
+    if (!validation.ok || validation.packet?.verdict !== "approved") {
+      return { ok: false, ticketId: ticket.id, errors: validation.errors.length ? validation.errors : ["planning packet is not approved"], packet: validation.packet };
+    }
+    const refs = normalizeStringArray(evidenceRefs);
+    if (!refs.length) {
+      return { ok: false, ticketId: ticket.id, errors: ["at least one evidence ref is required"], packet: validation.packet };
+    }
+    const targetId = String(acceptanceId ?? "all").trim();
+    const verifyAll = !targetId || targetId === "all" || targetId === "*";
+    const verifiedAt = new Date().toISOString();
+    let matched = 0;
+    const acceptanceMatrix = validation.packet.acceptanceMatrix.map((entry: any) => {
+      if (!verifyAll && entry.id !== targetId) {
+        return entry;
+      }
+      matched += 1;
+      return {
+        ...entry,
+        status: "verified",
+        verified: true,
+        verifiedAt,
+        evidenceRefs: normalizeStringArray([...normalizeStringArray(entry.evidenceRefs), ...refs])
+      };
+    });
+    if (!matched) {
+      return { ok: false, ticketId: ticket.id, errors: [`acceptance row ${targetId} not found`], packet: validation.packet };
+    }
+    const packet = {
+      ...validation.packet,
+      acceptanceMatrix
+    };
+    store.upsertEntity({
+      ...ticket,
+      data: {
+        ...(ticket.data ?? {}),
+        planningStatus: "approved",
+        planningVerdict: "approved",
+        planningPacket: packet
+      }
+    });
+    createSearchDocumentsForEntities(store);
+    if (writeProjections) {
+      await writeProjectProjections(store, { projectRoot });
+    }
+    return { ok: true, ticketId: ticket.id, verifiedRows: matched, evidenceRefs: refs, packet };
+  });
+}
+
 export async function buildPlanningMatrix({ projectRoot = process.cwd(), epicId }: any = {}) {
   return withPlanningStore(projectRoot, (store) => {
     const tickets = store.listEntities({ entityType: "ticket" })

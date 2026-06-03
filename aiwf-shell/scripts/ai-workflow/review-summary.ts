@@ -7,10 +7,10 @@ import { parseArgs } from "aiwf-common-core/lib/cli";
 export async function runReviewSummary(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
-  const changes = await getChanges(root);
+  const changes = await getChanges(root, process.env);
   const sourceChanges = changes.filter((item) => /^(src\/|cli\/|core\/|runtime\/|shared\/|scripts\/)/.test(item.path));
   const testChanges = changes.filter((item) => /(^tests\/|\.test\.[a-z]+$)/.test(item.path));
-  const findings = [];
+  const findings: string[] = [];
 
   if (sourceChanges.length > 0 && testChanges.length === 0) {
     findings.push("source changed without matching test-file changes");
@@ -20,7 +20,7 @@ export async function runReviewSummary(argv = process.argv.slice(2)) {
 }
 
 function render(summary) {
-  const lines = [];
+  const lines: string[] = [];
   for (const change of summary.changes) {
     lines.push(`[${change.status}] ${change.path}`);
   }

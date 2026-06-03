@@ -119,3 +119,71 @@ Group archived work by month or release when that improves scanning.
   - Epic: EPC-CAPABILITY-CORE-001
   - Parent: EPC-CAPABILITY-CORE-001
   - State: archived
+
+## 2026-06
+
+- [ ] TKT-WORK-BEBEC146-001 Plan and guard the requested work ✅ 2026-06-03
+  - Summary: Extract the active ticket and guidelines, identify the bounded working set, and produce the verification plan before mutation.
+  - Epic: TKT-REL-002
+  - Parent: TKT-REL-002
+  - State: archived
+
+- [ ] TKT-WORK-BEBEC146-002 Execute the bounded implementation ✅ 2026-06-03
+  - Summary: Apply only the scoped change through ticket-gated execution and keep generated code grounded in linked files.
+  - Epic: TKT-REL-002
+  - Parent: TKT-REL-002
+  - State: archived
+
+- [ ] TKT-WORK-BEBEC146-003 Verify and report readiness ✅ 2026-06-03
+  - Summary: Run targeted verification, guideline enforcement, and final audit evidence before closure.
+  - Epic: TKT-REL-002
+  - Parent: TKT-REL-002
+  - State: archived
+
+- [ ] TKT-REL-001 Restore workflow truth and projection hygiene ✅ 2026-06-03
+  - Summary: Make sync, mutation provenance, kanban archive state, assessments, candidates, and projections agree before any new readiness claim. Acceptance: sync protocol is clean or all remaining violations are active tickets; old Done cards leave live kanban; stale failed assessments cannot masquerade as active work.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-003 Add hook-based guardrail enforcement for shell and plugin modes ✅ 2026-06-03
+  - Summary: Create shared hook points before plan, before codelet, before mutation, after verification, and before closure; route shell, ask, MCP/plugin, and codelets through them so guardrails can block or alter execution instead of remaining passive prompt text.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-004 Upgrade DB graph retrieval with Semantika adapter ✅ 2026-06-03
+  - Summary: Keep SQLite as canonical mutable truth and add or improve a Semantika SQLite adapter for derived semantic graph query, provenance-preserving sync, hybrid lexical/graph/semantic retrieval, and measurable retrieval-quality tests.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-005 Make Ollama and LLM economy reliable under flaky local hardware ✅ 2026-06-03
+  - Summary: Classify provider health, tune local retries and timeouts, emit progress, avoid repeated known-bad routes, preserve cheapest-capable routing, and escalate only when diagnosed; metrics must include attempts, latency, tokens, failure class, and fallback reason.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-006 Raise code generation and ticket execution quality ✅ 2026-06-03
+  - Summary: Keep generate-code read-only but improve patch intent; upgrade execute-ticket beyond brittle search/replace with structured or AST-aware patches, file creation, external-agent adapters, working-set validation, and end-to-end project-building dogfood.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-007 Guarantee shell ask and MCP plugin parity ✅ 2026-06-03
+  - Summary: Define one normalized request contract and prove equivalent selected program, GoE state, guardrails, context, mutation gate, route, and verification plan for shell, ask, and MCP/plugin prompts.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-008 Benchmark AIWF against Gemini CLI and external agents ✅ 2026-06-03
+  - Summary: Create a repeatable task corpus comparing AIWF direct, AIWF-governed external-agent execution, and Gemini CLI direct on correctness, scope control, verification, speed, token/cost, recovery, and state honesty.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived
+
+- [ ] TKT-REL-009 Publish final reliability readiness report and gates ✅ 2026-06-03
+  - Summary: Close only after every reported weakness has proof: clean sync, dogfood for shell/workflow/provider/init/MCP/GoE, workflow audit, package builds, targeted and parity tests, benchmark report, and zero unresolved limitations from the honest report.
+  - Epic: EPC-AIWF-RELIABILITY-001
+  - Parent: EPC-AIWF-RELIABILITY-001
+  - State: archived

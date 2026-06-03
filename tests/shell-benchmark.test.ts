@@ -73,7 +73,7 @@ test("runShellTrustBenchmark scores a fixed shell corpus and writes artifacts", 
     assert.equal(result.caseCount, 2);
     assert.equal(result.passedCount, 2);
     assert.equal(result.failedCriticalCases.length, 0);
-    assert.equal(result.cases.every((item) => item.ok), true);
+    assert.equal((result.cases as any[]).every((item) => item.ok), true);
 
     const benchmarkReport = JSON.parse(await readFile(path.join(result.artifactRoot, "benchmark.json"), "utf8"));
     assert.equal(benchmarkReport.caseCount, 2);
@@ -137,7 +137,7 @@ test("runShellTrustBenchmark fails when a critical case misses required signals"
 
     assert.equal(result.ok, false);
     assert.deepEqual(result.failedCriticalCases, ["critical-operator-brief"]);
-    assert.equal(result.cases.find((item) => item.id === "critical-operator-brief")?.ok, false);
+    assert.equal((result.cases as any[]).find((item) => item.id === "critical-operator-brief")?.ok, false);
   } finally {
     await rm(artifactRoot, { recursive: true, force: true });
   }

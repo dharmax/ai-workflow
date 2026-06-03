@@ -8,7 +8,7 @@ test("Workflow Integrity: No Zombie Work", async () => {
   const root = process.cwd();
   const summary = await buildWorkflowAuditSummary(root);
   
-  const zombieFindings = summary.findings.filter(f => f.category === "integrity" && f.message.includes("zombie work"));
+  const zombieFindings = (summary.findings as any[]).filter(f => f.category === "integrity" && f.message.includes("zombie work"));
   
   if (zombieFindings.length > 0) {
     console.error("Integrity Violation: Open tickets found in recent commit history!");

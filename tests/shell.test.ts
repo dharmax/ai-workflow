@@ -11,7 +11,7 @@ import { syncProject } from "aiwf-common-core/services/sync";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   return await new Promise((resolve) => {
     execFile(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
       cwd: options.cwd ?? repoRoot,
@@ -20,7 +20,7 @@ async function runNode(args, options = {}) {
       maxBuffer: 8 * 1024 * 1024
     }, (error, stdout, stderr) => {
       resolve({
-        code: error?.code ?? 0,
+        code: typeof error?.code === "number" ? error.code : 1,
         stdout: String(stdout ?? ""),
         stderr: String(stderr ?? "")
       });
@@ -28,7 +28,7 @@ async function runNode(args, options = {}) {
   });
 }
 
-const defaultShellTestFetch = async (url) => {
+const defaultShellTestFetch = (async (url) => {
   if (String(url).includes("duckduckgo")) {
     return {
       ok: true,
@@ -38,7 +38,7 @@ const defaultShellTestFetch = async (url) => {
     };
   }
   throw new Error(`Unexpected fetch URL in shell test: ${url}`);
-};
+}) as typeof fetch;
 
 globalThis.fetch = defaultShellTestFetch;
 
@@ -67,7 +67,7 @@ test("resolveShellPlanners prefers local shell planning when remote access is en
   const originalGoogleKey = process.env.GOOGLE_API_KEY;
   const originalFetch = globalThis.fetch;
   process.env.GOOGLE_API_KEY = "env-only-google-key";
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -81,7 +81,7 @@ test("resolveShellPlanners prefers local shell planning when remote access is en
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -99,7 +99,8 @@ test("resolveShellPlanners prefers local shell planning when remote access is en
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.equal(planners.planners[0]?.providerId, "ollama");
+    const firstPlanner = planners.planners[0] as any;
+    assert.equal(firstPlanner?.providerId, "ollama");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalGoogleKey === undefined) {
@@ -114,7 +115,7 @@ test("resolveShellPlanners prefers local shell planning when remote access is en
 test("resolveShellPlanners keeps local Ollama first even when a remote provider is configured", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-route-local-first-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -128,7 +129,7 @@ test("resolveShellPlanners keeps local Ollama first even when a remote provider 
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -147,8 +148,9 @@ test("resolveShellPlanners keeps local Ollama first even when a remote provider 
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.equal(planners.planners[0]?.providerId, "ollama");
-    assert.equal(planners.planners[0]?.modelId, "qwen2.5-coder:7b");
+    const firstPlanner = planners.planners[0] as any;
+    assert.equal(firstPlanner?.providerId, "ollama");
+    assert.equal(firstPlanner?.modelId, "qwen2.5-coder:7b");
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -158,12 +160,12 @@ test("resolveShellPlanners keeps local Ollama first even when a remote provider 
 test("resolveShellPlanners falls back to a remote planner when local Ollama is configured but unreachable", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-local-unreachable-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       throw new Error("connect ECONNREFUSED");
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -182,8 +184,9 @@ test("resolveShellPlanners falls back to a remote planner when local Ollama is c
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.notEqual(planners.planners[0]?.providerId, "ollama");
-    assert.match(planners.planners[0]?.configWarnings?.[0] ?? "", /configured .* unavailable/i);
+    const firstPlanner = planners.planners[0] as any;
+    assert.notEqual(firstPlanner?.providerId, "ollama");
+    assert.match(firstPlanner?.configWarnings?.[0] ?? "", /configured .* unavailable/i);
     assert.doesNotMatch(planners.heuristic.reason, /Restore local access before remote escalation/i);
   } finally {
     globalThis.fetch = originalFetch;
@@ -194,7 +197,7 @@ test("resolveShellPlanners falls back to a remote planner when local Ollama is c
 test("resolveShellPlanners prefers a text-capable Ollama model over a vision-only one", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-text-model-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -209,7 +212,7 @@ test("resolveShellPlanners prefers a text-capable Ollama model over a vision-onl
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -225,8 +228,9 @@ test("resolveShellPlanners prefers a text-capable Ollama model over a vision-onl
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.equal(planners.planners[0]?.providerId, "ollama");
-    assert.equal(planners.planners[0]?.modelId, "qwen2.5-coder:7b");
+    const firstPlanner = planners.planners[0] as any;
+    assert.equal(firstPlanner?.providerId, "ollama");
+    assert.equal(firstPlanner?.modelId, "qwen2.5-coder:7b");
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -236,7 +240,7 @@ test("resolveShellPlanners prefers a text-capable Ollama model over a vision-onl
 test("resolveShellPlanners trusts the routed interactive shell planner instead of a weaker capped tiny model or slow local reasoner", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-router-overrides-local-chooser-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -252,7 +256,7 @@ test("resolveShellPlanners trusts the routed interactive shell planner instead o
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -269,10 +273,11 @@ test("resolveShellPlanners trusts the routed interactive shell planner instead o
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.equal(planners.planners[0]?.providerId, "ollama");
-    assert.equal(planners.planners[0]?.modelId, "hermes3:8b");
-    assert.notEqual(planners.planners[0]?.modelId, "phi:latest");
-    assert.notEqual(planners.planners[0]?.modelId, "deepseek-r1:8b");
+    const firstPlanner = planners.planners[0] as any;
+    assert.equal(firstPlanner?.providerId, "ollama");
+    assert.equal(firstPlanner?.modelId, "hermes3:8b");
+    assert.notEqual(firstPlanner?.modelId, "phi:latest");
+    assert.notEqual(firstPlanner?.modelId, "deepseek-r1:8b");
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -282,7 +287,7 @@ test("resolveShellPlanners trusts the routed interactive shell planner instead o
 test("resolveShellPlanners drops vision-only local planners and falls back to remote candidates", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-remote-fallback-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -296,7 +301,7 @@ test("resolveShellPlanners drops vision-only local planners and falls back to re
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -315,8 +320,9 @@ test("resolveShellPlanners drops vision-only local planners and falls back to re
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.notEqual(planners.planners[0]?.providerId, "ollama");
-    assert.notEqual(planners.planners[0]?.modelId, "moondream:latest");
+    const firstPlanner = planners.planners[0] as any;
+    assert.notEqual(firstPlanner?.providerId, "ollama");
+    assert.notEqual(firstPlanner?.modelId, "moondream:latest");
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -326,7 +332,7 @@ test("resolveShellPlanners drops vision-only local planners and falls back to re
 test("resolveShellPlanners uses the live model-fit matrix instead of a hardcoded local fallback", async () => {
   const root = path.resolve("/tmp/ai-workflow-shell-gemma4-" + Math.random().toString(36).slice(2));
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url) => {
     if (String(url).endsWith("/api/tags")) {
       return {
         ok: true,
@@ -341,7 +347,7 @@ test("resolveShellPlanners uses the live model-fit matrix instead of a hardcoded
       };
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
-  };
+  }) as typeof fetch;
 
   await fs.mkdir(path.join(root, ".ai-workflow"), { recursive: true });
   await fs.writeFile(
@@ -359,8 +365,9 @@ test("resolveShellPlanners uses the live model-fit matrix instead of a hardcoded
 
   try {
     const planners = await resolveShellPlanners(root);
-    assert.equal(planners.planners[0]?.providerId, "ollama");
-    assert.equal(["qwen2.5-coder:7b", "gemma4:9b"].includes(planners.planners[0]?.modelId), true);
+    const firstPlanner = planners.planners[0] as any;
+    assert.equal(firstPlanner?.providerId, "ollama");
+    assert.equal(["qwen2.5-coder:7b", "gemma4:9b"].includes(firstPlanner?.modelId), true);
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(root, { recursive: true, force: true });
@@ -516,7 +523,7 @@ test("validateShellPlan accepts the typed intent envelope format", () => {
 
 test("planShellRequestWithAgent uses operator-first prompt design and interaction memory", async (t) => {
   // Mock provider
-  let capturedPrompt = null;
+  let capturedPrompt: { system: string; prompt: string } | null = null;
   registerProvider("mock-planner", {
     local: false,
     available: true,
@@ -546,28 +553,30 @@ test("planShellRequestWithAgent uses operator-first prompt design and interactio
     projectCodelets: []
   };
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     planner: { providerId: "mock-planner", modelId: "brain-v1" },
     plannerContext: mockContext,
     history: [{ role: "user", content: "Previous turn" }, { role: "ai", content: "Previous reply" }]
   };
 
-  const plan = await planShellRequestWithAgent("Ingest the PRD at docs/prd.md", options);
+  const plan: any = await planShellRequestWithAgent("Ingest the PRD at docs/prd.md", options);
+  assert.ok(plan);
 
   assert.equal(plan.kind, "plan");
   assert.equal(plan.actions[0].type, "ingest_artifact");
   assert.equal(plan.strategy, "Parse PRD and create tickets");
 
-  assert.match(capturedPrompt.system, /## Operating Contract/);
-  assert.match(capturedPrompt.system, /## Available Actions \(Your Capabilities\):/);
-  assert.match(capturedPrompt.system, /## Planning Rules/);
-  assert.match(capturedPrompt.system, /Prefer flat `actions`; only use `graph` if truly needed\./);
-  assert.doesNotMatch(capturedPrompt.system, /### MISSION\.md/);
-  assert.doesNotMatch(capturedPrompt.system, /## Project Current Status \(Smart Summary\)/);
-  assert.match(capturedPrompt.prompt, /## Runtime Context/);
-  assert.match(capturedPrompt.prompt, /### Notes \/ Lore \/ Extra: Recent Interaction/);
-  assert.match(capturedPrompt.prompt, /User: Previous turn\nBrain: Previous reply/);
+  const captured = capturedPrompt as unknown as { system: string; prompt: string };
+  assert.match(captured.system, /## Operating Contract/);
+  assert.match(captured.system, /## Available Actions \(Your Capabilities\):/);
+  assert.match(captured.system, /## Planning Rules/);
+  assert.match(captured.system, /Prefer flat `actions`; only use `graph` if truly needed\./);
+  assert.doesNotMatch(captured.system, /### MISSION\.md/);
+  assert.doesNotMatch(captured.system, /## Project Current Status \(Smart Summary\)/);
+  assert.match(captured.prompt, /## Runtime Context/);
+  assert.match(captured.prompt, /### Notes \/ Lore \/ Extra: Recent Interaction/);
+  assert.match(captured.prompt, /User: Previous turn\nBrain: Previous reply/);
 });
 
 test("buildShellPlannerPrompt keeps first-turn runtime context minimal by default", async () => {
@@ -656,7 +665,7 @@ test("planShellRequestWithAgent accepts a plain-text planner reply for explainer
     })
   });
 
-  const result = await planShellRequestWithAgent("what is the projections service?", {
+  const result: any = await planShellRequestWithAgent("what is the projections service?", {
     root: "/tmp",
     planner: { providerId: "mock-plain-explainer", modelId: "brain-v1" },
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
@@ -741,14 +750,14 @@ test("planShellRequestWithAgent handles vague requests by asking for clarificati
     })
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     planner: { providerId: "mock-vague", modelId: "brain-v1" },
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
     history: []
   };
 
-  const result = await planShellRequestWithAgent("fix it", options);
+  const result: any = await planShellRequestWithAgent("fix it", options);
   assert.equal(result.kind, "reply");
   assert.equal(result.reply, "Fix what exactly? I see 3 open tickets.");
 });
@@ -769,21 +778,22 @@ test("planShellRequestWithAgent handles multi-step strategy", async (t) => {
     })
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     planner: { providerId: "mock-multi", modelId: "brain-v1" },
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
     history: []
   };
 
-  const result = await planShellRequestWithAgent("start new auth feature", options);
+  const result: any = await planShellRequestWithAgent("start new auth feature", options);
+  assert.ok(result);
   assert.equal(result.kind, "plan");
   assert.equal(result.actions.length, 2);
   assert.equal(result.strategy, "First ideate, then sync, then show the new tickets");
 });
 
 test("planShellRequest prefers the AI graph planner for semantic paraphrases of complex requests", async () => {
-  const seen = [];
+  const seen: string[] = [];
   registerProvider("mock-complex-semantic", {
     local: false,
     available: true,
@@ -806,7 +816,7 @@ test("planShellRequest prefers the AI graph planner for semantic paraphrases of 
     }
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     planner: { providerId: "mock-complex-semantic", modelId: "brain-v1" },
     planners: {
@@ -869,7 +879,7 @@ test("planShellRequest bypasses AI planners for direct operator briefs even with
     }
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     trace: true,
     plannerContext,
@@ -905,7 +915,7 @@ test("planShellRequestWithAgent rejects malformed plan payloads", async (t) => {
     })
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     planner: { providerId: "mock-broken-plan", modelId: "brain-v1" },
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
@@ -953,7 +963,7 @@ test("planShellRequest falls back to the next AI planner when the first one retu
     })
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
     history: [],
@@ -973,7 +983,7 @@ test("planShellRequest falls back to the next AI planner when the first one retu
   assert.deepEqual(plan.actions, [
     { type: "provider_status" }
   ]);
-  assert.equal(options.plannerBlacklist?.has("mock-bad-shell-planner:brain-v1"), true);
+  assert.equal((options as any).plannerBlacklist?.has("mock-bad-shell-planner:brain-v1"), true);
 });
 
 test("planShellRequest does not split a single natural-language request on plain `and`", async () => {
@@ -996,7 +1006,7 @@ test("planShellRequest does not split a single natural-language request on plain
     }
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
     history: [],
@@ -1054,7 +1064,7 @@ test("planShellRequest times out a slow planner and falls back to the next one",
     })
   });
 
-  const options = {
+  const options: any = {
     root: "/tmp",
     plannerContext: { summary: {}, toolkitCodelets: [], projectCodelets: [] },
     history: [],
@@ -1071,11 +1081,11 @@ test("planShellRequest times out a slow planner and falls back to the next one",
   const plan = await planShellRequest("orchestrate the telemetry lattice", options);
   assert.equal(plan.kind, "plan");
   assert.equal(plan.planner.providerId, "mock-fast-shell-planner");
-  assert.equal(options.plannerBlacklist?.has("mock-slow-shell-planner:brain-v1"), true);
+  assert.equal((options as any).plannerBlacklist?.has("mock-slow-shell-planner:brain-v1"), true);
 });
 
 test("planShellRequestWithAgent multi-turn grounding scenario", async (t) => {
-  let capturedPrompt = null;
+  let capturedPrompt: string | null = null;
   registerProvider("mock-scenario", {
     local: false,
     available: true,
@@ -1113,13 +1123,14 @@ test("planShellRequestWithAgent multi-turn grounding scenario", async (t) => {
   await planShellRequestWithAgent("tell me about those two tickets", options);
 
   // Verify the AI "sees" the output of the previous command in its history
-  assert.match(capturedPrompt, /Action \[project_summary\] output:/);
-  assert.match(capturedPrompt, /\[TKT-42\] Fix login/);
-  assert.match(capturedPrompt, /\[TKT-99\] Add tests/);
+  const promptText = capturedPrompt ?? "";
+  assert.match(promptText, /Action \[project_summary\] output:/);
+  assert.match(promptText, /\[TKT-42\] Fix login/);
+  assert.match(promptText, /\[TKT-99\] Add tests/);
 });
 
 test("handleShellCommand toggles plan, mutate, and trace state", async () => {
-  const options = {
+  const options: any = {
     root: path.resolve("/tmp/ai-workflow-shell-command-test-" + Math.random().toString(36).slice(2)),
     shellMode: "plan",
     trace: false,
@@ -1127,24 +1138,24 @@ test("handleShellCommand toggles plan, mutate, and trace state", async () => {
   };
 
   try {
-    assert.equal(handleShellCommand("mutate", options)?.handled, true);
+    assert.equal((await Promise.resolve(handleShellCommand("mutate", options)))?.handled, true);
     assert.equal(options.shellMode, "mutate");
 
-    assert.equal(handleShellCommand("trace on", options)?.handled, true);
+    assert.equal((await Promise.resolve(handleShellCommand("trace on", options)))?.handled, true);
     assert.equal(options.trace, true);
     assert.equal(options.traceFilePath, null);
     assert.equal(options.traceConsole, true);
 
-    const traceFileCommand = handleShellCommand("trace on file traces/session.log", options);
+    const traceFileCommand = await Promise.resolve(handleShellCommand("trace on file traces/session.log", options));
     assert.equal(traceFileCommand?.handled, true);
     assert.equal(options.trace, true);
     assert.equal(options.traceConsole, false);
     assert.equal(options.traceFilePath, path.resolve(options.root, "traces/session.log"));
 
-    assert.equal(handleShellCommand("plan", options)?.handled, true);
+    assert.equal((await Promise.resolve(handleShellCommand("plan", options)))?.handled, true);
     assert.equal(options.shellMode, "plan");
 
-    assert.equal(handleShellCommand("trace off", options)?.handled, true);
+    assert.equal((await Promise.resolve(handleShellCommand("trace off", options)))?.handled, true);
     assert.equal(options.trace, false);
     assert.equal(options.traceFilePath, null);
   } finally {
@@ -1153,7 +1164,7 @@ test("handleShellCommand toggles plan, mutate, and trace state", async () => {
 });
 
 test("planShellRequestWithAgent traces the selected model and response", async () => {
-  const traceEvents = [];
+  const traceEvents: Array<{ phase?: string; stage?: string; planner?: { modelId?: string } }> = [];
   registerProvider("mock-trace", {
     local: false,
     available: true,
@@ -1176,15 +1187,17 @@ test("planShellRequestWithAgent traces the selected model and response", async (
     traceAi: (event) => traceEvents.push(event)
   };
 
-  const result = await planShellRequestWithAgent("explain trace", options);
+  const result: any = await planShellRequestWithAgent("explain trace", options);
 
+  assert.ok(result);
   assert.equal(result.kind, "reply");
   assert.equal(result.reply, "Tracing works.");
   assert.equal(traceEvents.length >= 2, true);
+  assert.ok(traceEvents[0]);
   assert.equal(traceEvents[0].phase, "request");
   assert.equal(traceEvents[0].stage, "planner");
-  assert.equal(traceEvents[0].planner.modelId, "brain-v1");
-  assert.equal(traceEvents.some((event) => event.phase === "response" && event.stage === "planner" && event.planner.modelId === "brain-v1"), true);
+  assert.equal(traceEvents[0].planner?.modelId, "brain-v1");
+  assert.equal(traceEvents.some((event) => event.phase === "response" && event.stage === "planner" && event.planner?.modelId === "brain-v1"), true);
 });
 
 const plannerContext = {
@@ -1375,9 +1388,10 @@ test("buildProactiveShellAdvice surfaces high-priority startup guidance", () => 
     }
   });
 
-  assert.match(advice, /Advice before you start:/);
-  assert.match(advice, /TKT-FIXER-LOOP-001/);
-  assert.match(advice, /active fixing path/i);
+  const text = advice ?? "";
+  assert.match(text, /Advice before you start:/);
+  assert.match(text, /TKT-FIXER-LOOP-001/);
+  assert.match(text, /active fixing path/i);
 });
 
 test("heuristic shell planner handles broad project-next questions and implicit in-progress ticket references", () => {
@@ -2144,9 +2158,10 @@ test("runShellTurn surfaces successful operator JS workflow results instead of a
     });
 
     assert.equal(result.plan.kind, "plan");
-    assert.match(result.assistantReply, /List of modules in the project/);
-    assert.match(result.assistantReply, /Verification:/);
-    assert.doesNotMatch(result.assistantReply, /Workflow completed successfully/);
+    const reply = result.assistantReply ?? "";
+    assert.match(reply, /List of modules in the project/);
+    assert.match(reply, /Verification:/);
+    assert.doesNotMatch(reply, /Workflow completed successfully/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -2184,8 +2199,9 @@ test("runShellTurn answers short provider follow-ups through the operator entryp
     });
 
     assert.equal(result.plan.kind, "reply");
-    assert.match(result.assistantReply, /Ollama status:/);
-    assert.match(result.assistantReply, /http:\/\/127\.0\.0\.1:11434/);
+    const reply = result.assistantReply ?? "";
+    assert.match(reply, /Ollama status:/);
+    assert.match(reply, /http:\/\/127\.0\.0\.1:11434/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -2298,7 +2314,7 @@ test("runShellTurn plan-only does not execute safe capability codelets", async (
     assert.equal(result.plan.actions.some((action) => action.type === "run_codelet" && action.codeletId === "guideline-enforcer"), true);
     assert.equal(result.executed.length, 0);
     assert.equal(result.executedGraph.executions.length, 0);
-    assert.match(result.assistantReply, /Plan-only mode/i);
+    assert.match(result.assistantReply ?? "", /Plan-only mode/i);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

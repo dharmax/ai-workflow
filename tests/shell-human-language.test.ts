@@ -14,17 +14,12 @@ import { SHELL_QUALITY_BUG_CORPUS } from "./fixtures/shell-quality-corpus.ts";
 const BANNED_FALLBACK_RE = /needs the AI planner or a more direct phrasing/i;
 const ORIGINAL_FETCH = globalThis.fetch;
 
-async function stubDuckDuckGoOnly(url) {
+async function stubDuckDuckGoOnly(url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> {
   if (String(url).includes("duckduckgo")) {
-    return {
-      ok: true,
-      async text() {
-        return "<html><body></body></html>";
-      }
-    };
+    return new Response("<html><body></body></html>");
   }
   if (typeof ORIGINAL_FETCH === "function") {
-    return ORIGINAL_FETCH(url);
+    return ORIGINAL_FETCH(url, init);
   }
   throw new Error(`Unexpected fetch URL in shell capability test: ${url}`);
 }
@@ -467,7 +462,7 @@ test("verification summary can AI-judge shell transcripts from representative hu
       "BUG-SHELL-HUMAN-028"
     ].includes(item.id));
 
-    const transcriptPaths = [];
+    const transcriptPaths: string[] = [];
     for (const item of transcriptCases) {
       const result = await runShellTurn(item.prompt, options);
       const visible = renderVisibleShellText(result);
@@ -545,8 +540,8 @@ test("verification summary can AI-judge shell transcripts from representative hu
     ]);
 
     assert.equal(summary.conclusion, "verified");
-    assert.equal(summary.artifactJudgment.result.status, "pass");
-    assert.equal(summary.artifactJudgment.result.dimensions.codexAcceptance.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.dimensions.codexAcceptance.status, "pass");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -746,7 +741,7 @@ test("verification summary can AI-judge shell quality bug transcripts", { concur
       "BUG-SHELL-HUMAN-060"
     ].includes(item.id));
 
-    const transcriptPaths = [];
+    const transcriptPaths: string[] = [];
     for (const item of transcriptCases) {
       const result = await runShellTurn(item.prompt, baseOptions);
       const visible = renderVisibleShellText(result);
@@ -823,8 +818,8 @@ test("verification summary can AI-judge shell quality bug transcripts", { concur
     ]);
 
     assert.equal(summary.conclusion, "verified");
-    assert.equal(summary.artifactJudgment.result.status, "pass");
-    assert.equal(summary.artifactJudgment.result.dimensions.synthesisQuality.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.dimensions.synthesisQuality.status, "pass");
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     await rm(root, { recursive: true, force: true });
@@ -847,7 +842,7 @@ test("verification summary can AI-judge semantic shell continuation bug transcri
       "BUG-SHELL-HUMAN-069"
     ].includes(item.id));
 
-    const transcriptPaths = [];
+    const transcriptPaths: string[] = [];
     for (const item of transcriptCases) {
       const options = applyStateFixture(baseOptions, item.stateFixture);
       const result = await runShellTurn(item.prompt, options);
@@ -921,8 +916,8 @@ test("verification summary can AI-judge semantic shell continuation bug transcri
     ]);
 
     assert.equal(summary.conclusion, "verified");
-    assert.equal(summary.artifactJudgment.result.status, "pass");
-    assert.equal(summary.artifactJudgment.result.dimensions.intentCorrectness.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.dimensions.intentCorrectness.status, "pass");
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     await rm(root, { recursive: true, force: true });
@@ -945,7 +940,7 @@ test("verification summary can AI-judge paragraph-style shell capability transcr
       "BUG-SHELL-HUMAN-042"
     ].includes(item.id));
 
-    const transcriptPaths = [];
+    const transcriptPaths: string[] = [];
     for (const item of transcriptCases) {
       const result = await runShellTurn(item.prompt, options);
       const visible = renderVisibleShellText(result);
@@ -1022,8 +1017,8 @@ test("verification summary can AI-judge paragraph-style shell capability transcr
     ]);
 
     assert.equal(summary.conclusion, "verified");
-    assert.equal(summary.artifactJudgment.result.status, "pass");
-    assert.equal(summary.artifactJudgment.result.dimensions.capabilityFit.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.dimensions.capabilityFit.status, "pass");
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     await rm(root, { recursive: true, force: true });

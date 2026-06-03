@@ -57,7 +57,9 @@ const QUERIES = [
   ["perfection audit", "find inconsistencies", "check project for perfection gaps"]
 ];
 
-async function runQuery(text) {
+type QueryResult = { text: string; code: number | null; stdout: string; stderr: string };
+
+async function runQuery(text: string): Promise<QueryResult> {
   return new Promise((resolve) => {
     const cli = spawn("./aiwf-shell/cli/ai-workflow.ts", ["shell", text, "--plan-only", "--json"], {
       env: { ...process.env, NO_COLOR: "1" }
@@ -74,7 +76,7 @@ async function runQuery(text) {
 
 async function main() {
   console.log("🚀 Starting Perfection Marathon...");
-  const results = [];
+  const results: Array<{ variant: string; ok: boolean; plan?: any; error?: string; raw?: string }> = [];
   
   for (const group of QUERIES) {
     for (const variant of group) {
@@ -85,7 +87,7 @@ async function main() {
         const ok = parsed.plan && (parsed.plan.actions?.length > 0 || parsed.plan.kind === "reply" || parsed.plan.kind === "exit");
         console.log(ok ? "✅" : "❌ (Empty Plan)");
         results.push({ variant, ok, plan: parsed.plan });
-      } catch (e) {
+      } catch (e: any) {
         console.log("❌ (JSON Error)");
         results.push({ variant, ok: false, error: e.message, raw: res.stdout });
       }

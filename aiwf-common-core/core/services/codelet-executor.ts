@@ -24,7 +24,7 @@ export async function executeCodelet(codelet, args = [], { cwd = process.cwd(), 
     throw new Error(`Codelet ${codelet.id} is missing an executable entry.`);
   }
 
-  if (mode !== "capture" && isJsExecutionCodelet(codelet, entry) && !isCliScriptWrapper(entry)) {
+  if (isJsExecutionCodelet(codelet, entry) && !isCliScriptWrapper(entry)) {
     const inProcess = await tryRunInProcess(entry, args, { env, cwd });
     if (inProcess.used) {
       return inProcess.result;

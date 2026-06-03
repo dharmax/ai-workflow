@@ -13,7 +13,7 @@ import { planShellRequestWithAgent } from "aiwf-shell/cli/lib/shell";
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   try {
     const result = await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
       ...options,
@@ -24,7 +24,7 @@ async function runNode(args, options = {}) {
       stdout: String(result.stdout ?? ""),
       stderr: String(result.stderr ?? "")
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: String(error.stdout ?? ""),
@@ -33,7 +33,7 @@ async function runNode(args, options = {}) {
   }
 }
 
-async function runBoundedCommand(command, args, options = {}) {
+async function runBoundedCommand(command: string, args: string[], options: any = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   const timeoutMs = options.timeoutMs ?? 10000;
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -46,7 +46,7 @@ async function runBoundedCommand(command, args, options = {}) {
     let stderr = "";
     const timeout = setTimeout(() => {
       try {
-        process.kill(-child.pid, "SIGKILL");
+        if (typeof child.pid === "number") process.kill(-child.pid, "SIGKILL");
       } catch {
         child.kill("SIGKILL");
       }
@@ -108,7 +108,7 @@ async function assertConfiguredMcpCommandStarts(config) {
   }
 }
 
-async function readSingleMcpMessage(child, timeoutMs) {
+async function readSingleMcpMessage(child: any, timeoutMs: number): Promise<any> {
   return await new Promise((resolve, reject) => {
     let stdout = "";
     let stderr = "";
@@ -162,10 +162,10 @@ async function countInstallableFiles() {
   return files.length + 12;
 }
 
-async function walkFiles(dir) {
+async function walkFiles(dir: string): Promise<string[]> {
   const { readdir, stat } = await import("node:fs/promises");
   const entries = await readdir(dir, { withFileTypes: true });
-  let files = [];
+  let files: string[] = [];
   for (const entry of entries) {
     const res = path.resolve(dir, entry.name);
     if (entry.isDirectory()) {
@@ -490,7 +490,7 @@ test("web tutorial server serves tutorial html and mode-aware tutorial api", asy
   });
 
   try {
-    const started = await new Promise((resolve, reject) => {
+    const started: any = await new Promise((resolve, reject) => {
       let stdout = "";
       let stderr = "";
       const timeout = setTimeout(() => reject(new Error(`tutorial server timeout\nstdout: ${stdout}\nstderr: ${stderr}`)), 5000);
@@ -557,7 +557,7 @@ test("web tutorial readiness api exposes the shared readiness evaluator in tool-
   });
 
   try {
-    const started = await new Promise((resolve, reject) => {
+    const started: any = await new Promise((resolve, reject) => {
       let stdout = "";
       let stderr = "";
       const timeout = setTimeout(() => reject(new Error(`tutorial readiness server timeout\nstdout: ${stdout}\nstderr: ${stderr}`)), 5000);
@@ -619,7 +619,7 @@ test("web tutorial host ask api routes natural-language readiness requests throu
   });
 
   try {
-    const started = await new Promise((resolve, reject) => {
+    const started: any = await new Promise((resolve, reject) => {
       let stdout = "";
       let stderr = "";
       const timeout = setTimeout(() => reject(new Error(`tutorial host server timeout\nstdout: ${stdout}\nstderr: ${stderr}`)), 5000);
@@ -682,7 +682,7 @@ test("web tutorial host ask api routes current-work questions without shell-only
   });
 
   try {
-    const started = await new Promise((resolve, reject) => {
+    const started: any = await new Promise((resolve, reject) => {
       let stdout = "";
       let stderr = "";
       const timeout = setTimeout(() => reject(new Error(`tutorial host server timeout\nstdout: ${stdout}\nstderr: ${stderr}`)), 5000);
@@ -1427,7 +1427,7 @@ test("shell planner records timeout diagnostics after a bounded Ollama timeout",
       "utf8"
     );
 
-    globalThis.fetch = async (url, init) => {
+    globalThis.fetch = (async (url, init) => {
       const text = String(url);
       if (text.includes("duckduckgo")) {
         return { ok: true, async text() { return "<html><body></body></html>"; } };
@@ -1465,7 +1465,7 @@ test("shell planner records timeout diagnostics after a bounded Ollama timeout",
         };
       }
       throw new Error(`Unexpected fetch URL: ${text}`);
-    };
+    }) as any;
 
     await assert.rejects(
       planShellRequestWithAgent("fix it", {

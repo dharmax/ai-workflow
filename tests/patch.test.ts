@@ -32,7 +32,7 @@ better stuff
 test("applyPatch handles exact match", () => {
   const content = "const x = 1;\nconst y = 2;";
   const blocks = [{ search: "const x = 1;", replace: "const x = 100;" }];
-  const result = applyPatch(content, blocks);
+  const result = applyPatch(content, blocks as any);
   assert.strictEqual(result.content, "const x = 100;\nconst y = 2;");
   assert.strictEqual(result.allApplied, true);
 });
@@ -40,7 +40,7 @@ test("applyPatch handles exact match", () => {
 test("applyPatch handles fuzzy whitespace match", () => {
   const content = "function foo()  {\n  return true\n}";
   const blocks = [{ search: "function foo() {\n return true\n}", replace: "function bar() { return false }" }];
-  const result = applyPatch(content, blocks);
+  const result = applyPatch(content, blocks as any);
   assert.strictEqual(result.content, "function bar() { return false }");
   assert.strictEqual(result.summary[0].method, "fuzzy");
 });
@@ -48,7 +48,7 @@ test("applyPatch handles fuzzy whitespace match", () => {
 test("applyPatch reports failure for missing block", () => {
   const content = "nothing matches";
   const blocks = [{ search: "missing", replace: "data" }];
-  const result = applyPatch(content, blocks);
+  const result = applyPatch(content, blocks as any);
   assert.strictEqual(result.allApplied, false);
   assert.strictEqual(result.summary[0].ok, false);
 });

@@ -15,10 +15,7 @@ test("updateKnowledgeRemote writes a normalized builtin knowledge payload from a
       destinationPath,
       fetchImpl: async (url) => {
         assert.equal(url, "https://example.com/knowledge.json");
-        return {
-          ok: true,
-          status: 200,
-          text: async () => JSON.stringify({
+        return new Response(JSON.stringify({
             version: "2026.04.04",
             tasks: ["summarization", "summarization", "routing"],
             capabilityMapping: { summarization: "data", routing: "strategy" },
@@ -30,10 +27,9 @@ test("updateKnowledgeRemote writes a normalized builtin knowledge payload from a
                 null
               ]
             }
-          })
-        };
+          }));
       }
-    });
+    } as any);
 
     assert.equal(result.success, true);
     assert.equal(result.destinationPath, destinationPath);
@@ -67,12 +63,12 @@ test("updateKnowledgeRemote skips cleanly when no remote source is configured", 
       projectConfig: {},
       globalConfig: {},
       sourceUrl: null
-    });
+    } as any);
 
     assert.equal(result.success, false);
     assert.equal(result.skipped, true);
     assert.match(result.reason, /No remote knowledge URL configured/i);
-    assert.match(result.hint, /knowledge\.remoteUrl/i);
+    assert.match(result.hint ?? "", /knowledge\.remoteUrl/i);
   } finally {
     if (previousUrl === undefined) {
       delete process.env.AIWF_BUILTIN_KNOWLEDGE_URL;
@@ -101,7 +97,7 @@ test("loadKnowledge merges project knowledge facts from markdown", async () => {
     assert.equal(Array.isArray(knowledge.facts), true);
     assert.equal(knowledge.facts.includes("Verification baseline was already red before changes."), true);
     assert.equal(knowledge.facts.includes("Changed files: cli/lib/shell.ts"), true);
-    assert.equal(knowledge.facts.some((fact) => /^Lane: /i.test(fact)), false);
+    assert.equal(knowledge.facts.some((fact: any) => /^Lane: /i.test(String(fact))), false);
     assert.equal(knowledge.projectKnowledgePath, path.join(targetRoot, "knowledge.md"));
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
@@ -139,7 +135,7 @@ test("recordProjectKnowledge appends durable learned fixes without duplicating t
       lessons: ["Verified fix against 1 command.", "Changed files: cli/lib/shell.ts"],
       changedFiles: ["cli/lib/shell.ts"],
       selection: { priorityScore: 30, reasons: ["bug-ticket", "operator-surface"] }
-    });
+    } as any);
     const second = await recordProjectKnowledge({
       root: targetRoot,
       ticketId: "BUG-999",
@@ -149,7 +145,7 @@ test("recordProjectKnowledge appends durable learned fixes without duplicating t
       lessons: ["Verified fix against 1 command."],
       changedFiles: ["cli/lib/shell.ts"],
       selection: { priorityScore: 30, reasons: ["bug-ticket", "operator-surface"] }
-    });
+    } as any);
 
     assert.equal(first.updated, true);
     assert.equal(second.updated, false);

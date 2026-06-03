@@ -307,7 +307,7 @@ if (dryRun) {
   briefResult = (mutationResult as any).briefResult;
 }
 
-const lines = [];
+const lines: string[] = [];
 lines.push(`Target: ${targetRoot}`);
 lines.push(`Mode: ${dryRun ? "dry-run" : "write"}`);
 lines.push(`JS/TS project hint: ${looksLikeJsProject ? "package.json found" : "package.json not found"}`);
@@ -377,7 +377,7 @@ if (syncResult) {
 if (briefResult) {
   lines.push("");
   lines.push(`Onboarded brief: ${briefResult.briefPath}`);
-  lines.push(`Generated epic: ${briefResult.epic.id} (${briefResult.tickets.length} tickets)`);
+  lines.push(`Generated epic: ${briefResult.epic.id} (${(briefResult.tickets as any[]).length} tickets)`);
 }
 
 process.stdout.write(`${lines.join("\n")}\n`);

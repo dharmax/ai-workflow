@@ -62,9 +62,9 @@ test("compileActiveGuardrails promotes directive guidance into shared guardrails
     ].join("\n")
   }, { keywords: ["goe", "workflow"], limit: 6 });
 
-  assert.equal(guardrails.some((item) => /Use `ai-workflow` first/i.test(item.summary)), true);
-  assert.equal(guardrails.some((item) => item.severity === "required"), true);
+  assert.equal((guardrails as any[]).some((item) => /Use `ai-workflow` first/i.test(item.summary)), true);
+  assert.equal((guardrails as any[]).some((item) => item.severity === "required"), true);
 
   const selected = selectActiveGuardrails(guardrails, "continue the GoE implementation", { limit: 2, fallbackLimit: 1 });
-  assert.equal(selected.some((item) => /GoE or model-governance/i.test(item.summary)), true);
+  assert.equal((selected as any[]).some((item) => /GoE or model-governance/i.test(item.summary)), true);
 });

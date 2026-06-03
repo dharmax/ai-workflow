@@ -10,7 +10,7 @@ import { execFile } from "node:child_process";
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   try {
     const result = await execFileAsync(
       process.execPath,
@@ -22,7 +22,7 @@ async function runNode(args, options = {}) {
       stdout: String(result.stdout ?? ""),
       stderr: String(result.stderr ?? "")
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: String(error.stdout ?? ""),

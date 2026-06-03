@@ -21,7 +21,7 @@ test("buildSurgicalContext pulls specific files and limits lines", async () => {
 
     const context = await buildSurgicalContext(targetRoot, {
       filePaths: ["src/app.ts"]
-    });
+    } as any);
 
     assert.equal(context.files.length, 1);
     assert.equal(context.files[0].path, "src/app.ts");
@@ -45,7 +45,7 @@ test("buildSurgicalContext pulls symbol snippets from indexed symbol records", a
 
     const context = await buildSurgicalContext(targetRoot, {
       symbolNames: ["runApp"]
-    });
+    } as any);
 
     assert.equal(context.symbols.length >= 1, true);
     assert.equal(context.symbols[0].name, "runApp");
@@ -101,7 +101,7 @@ test("buildSurgicalContext infers retrieval-backed files for a ticket", async ()
 
     const context = await buildSurgicalContext(targetRoot, {
       ticketId: "REF-APP-SHELL-01"
-    });
+    } as any);
 
     assert.equal(context.ticket.id, "REF-APP-SHELL-01");
     assert.equal(context.files.some((file) => file.path === "src/app-shell.ts"), true);

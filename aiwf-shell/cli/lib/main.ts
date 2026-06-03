@@ -53,7 +53,7 @@ import { runShellBenchmark } from "aiwf-common-core/services/shell-benchmark";
 import { runDogfoodHarness } from "aiwf-common-core/services/dogfood-harness";
 import { runProgrammingDogfoodHarness } from "aiwf-common-core/services/programming-dogfood-harness";
 import { planWorkTickets } from "aiwf-common-core/services/work-ticket-planner";
-import { approveTicketPlanningPacket, buildPlanningMatrix, validateTicketPlanningPacket } from "aiwf-common-core/services/planning-packets";
+import { approveTicketPlanningPacket, buildPlanningMatrix, validateTicketPlanningPacket, verifyTicketPlanningAcceptance } from "aiwf-common-core/services/planning-packets";
 import { redactSensitiveObject } from "aiwf-common-core/services/operator-harness";
 import { getWorkspaceRoot } from "aiwf-common-core/lib/toolkit-root";
 import { getCliToolkitRoot } from "./toolkit-root.ts";
@@ -103,6 +103,7 @@ const HELP = `Usage:
   ai-workflow project ticket plan validate <ticket-id> [--json]
   ai-workflow project ticket plan matrix --epic <epic-id> [--json]
   ai-workflow project ticket plan approve <ticket-id> [--json]
+  ai-workflow project ticket plan verify <ticket-id> [--acceptance <id|all>] --evidence <ref> [--json]
   ai-workflow project ticket create --id <id> --title <title> [--lane <lane>] [--epic <epic-id>] [--summary <text>] [--json]
   ai-workflow project ticket resolve <ticket-id> [--json]
   ai-workflow project ticket close <ticket-id> [--json]
@@ -852,6 +853,25 @@ async function handleProject(rest) {
         return result.ok ? 0 : 1;
       }
       process.stdout.write(`${ticketId} planning ${result.ok ? "approved" : `rejected: ${result.errors.join("; ")}`}\n`);
+      return result.ok ? 0 : 1;
+    }
+
+    if (planAction === "verify") {
+      const ticketId = String(args._[2] ?? args.id ?? "").trim();
+      if (!ticketId) {
+        printAndExit("Usage: ai-workflow project ticket plan verify <ticket-id> [--acceptance <id|all>] --evidence <ref> [--json]", 1);
+      }
+      const result = await withWorkspaceMutation(process.cwd(), "project ticket plan verify", () => verifyTicketPlanningAcceptance({
+        projectRoot: process.cwd(),
+        ticketId,
+        acceptanceId: args.acceptance ? String(args.acceptance) : "all",
+        evidenceRefs: asArray(args.evidence)
+      }));
+      if (args.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return result.ok ? 0 : 1;
+      }
+      process.stdout.write(`${ticketId} planning ${result.ok ? `verified ${result.verifiedRows} row(s)` : `unverified: ${result.errors.join("; ")}`}\n`);
       return result.ok ? 0 : 1;
     }
 

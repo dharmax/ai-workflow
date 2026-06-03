@@ -20,7 +20,7 @@ export async function runTutorialWeb(argv = process.argv.slice(2)) {
     root: args.root ? String(args.root) : null,
     evidenceRoot: args["evidence-root"] ? String(args["evidence-root"]) : null,
     allowExternalTarget: true
-  });
+  } as any);
   const projectRoot = context.mode === "tool-dev" ? context.evidenceRoot : context.repairTargetRoot;
   const host = String(args.host ?? "127.0.0.1");
   const requestedPort = Number(args.port ?? 3210);
@@ -82,7 +82,7 @@ export async function runTutorialWeb(argv = process.argv.slice(2)) {
     }
   });
 
-  await new Promise((resolve) => server.listen(requestedPort, host, resolve));
+  await new Promise<void>((resolve) => server.listen(requestedPort, host, () => resolve()));
   const closeServer = () => server.close(() => process.exit(0));
   process.on("SIGTERM", closeServer);
   process.on("SIGINT", closeServer);

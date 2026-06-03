@@ -39,14 +39,15 @@ test("execution planner prefers targeted playwright commands when exact test fil
         "src/ui/components/dialog/modal.riot"
       ],
       relevantSymbols: ["dialog (src/ui/components/dialog/modal.riot:1)"]
-    });
+    } as any);
 
-    assert.equal(plan.verificationCommands[0].source, "targeted-unit");
-    assert.match(plan.verificationCommands[0].command, /playwright\.unit\.config\.ts/);
-    assert.equal(plan.verificationCommands[1].source, "targeted-e2e");
-    assert.match(plan.verificationCommands[1].command, /playwright\.config\.ts/);
-    assert.doesNotMatch(plan.verificationCommands[0].command, /tests\/modal-smoke\/e2e\.spec\.ts/);
-    assert.match(plan.verificationCommands[1].command, /tests\/modal-smoke\/e2e\.spec\.ts/);
+    const commands = plan.verificationCommands as any[];
+    assert.equal(commands[0].source, "targeted-unit");
+    assert.match(commands[0].command, /playwright\.unit\.config\.ts/);
+    assert.equal(commands[1].source, "targeted-e2e");
+    assert.match(commands[1].command, /playwright\.config\.ts/);
+    assert.doesNotMatch(commands[0].command, /tests\/modal-smoke\/e2e\.spec\.ts/);
+    assert.match(commands[1].command, /tests\/modal-smoke\/e2e\.spec\.ts/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -87,16 +88,17 @@ test("execution planner classifies root e2e specs using playwright config testMa
         "src/session.ts"
       ],
       relevantSymbols: ["hasExplicitSignedInPath (src/session.ts:105)"]
-    });
+    } as any);
 
-    assert.equal(plan.verificationCommands[0].source, "targeted-unit");
-    assert.match(plan.verificationCommands[0].command, /playwright\.unit\.config\.ts/);
-    assert.match(plan.verificationCommands[0].command, /guidelines-enforcement\.unit\.spec\.ts/);
-    assert.equal(plan.verificationCommands[1].source, "targeted-e2e");
-    assert.match(plan.verificationCommands[1].command, /playwright\.config\.ts/);
-    assert.match(plan.verificationCommands[1].command, /tests\/e2e\.spec\.ts/);
-    assert.match(plan.verificationCommands[1].command, /tests\/first-experience\.spec\.ts/);
-    assert.doesNotMatch(plan.verificationCommands[0].command, /tests\/e2e\.spec\.ts/);
+    const commands = plan.verificationCommands as any[];
+    assert.equal(commands[0].source, "targeted-unit");
+    assert.match(commands[0].command, /playwright\.unit\.config\.ts/);
+    assert.match(commands[0].command, /guidelines-enforcement\.unit\.spec\.ts/);
+    assert.equal(commands[1].source, "targeted-e2e");
+    assert.match(commands[1].command, /playwright\.config\.ts/);
+    assert.match(commands[1].command, /tests\/e2e\.spec\.ts/);
+    assert.match(commands[1].command, /tests\/first-experience\.spec\.ts/);
+    assert.doesNotMatch(commands[0].command, /tests\/e2e\.spec\.ts/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

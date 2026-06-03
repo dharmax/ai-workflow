@@ -21,12 +21,13 @@ test("dogfood harness falls back to a verified modular emoji game", async () => 
 
     assert.equal(report.ok, true);
     assert.equal(report.generationSource, "deterministic-fallback");
-    assert.equal(report.verification.hasEngine, true);
-    assert.equal(report.verification.hasEntities, true);
-    assert.equal(report.verification.hasUI, true);
-    assert.equal(report.verification.hasMain, true);
-    assert.equal(report.verification.hasEmojis, true);
-    assert.equal(report.verification.hasCanvasTexture, true);
+    const verification = report.verification as any;
+    assert.equal(verification.hasEngine, true);
+    assert.equal(verification.hasEntities, true);
+    assert.equal(verification.hasUI, true);
+    assert.equal(verification.hasMain, true);
+    assert.equal(verification.hasEmojis, true);
+    assert.equal(verification.hasCanvasTexture, true);
 
     const entities = await fs.readFile(path.join(report.projectPath, "src", "entities.js"), "utf8");
     assert.match(entities, /CanvasTexture/);

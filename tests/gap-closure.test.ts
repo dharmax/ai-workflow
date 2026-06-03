@@ -56,16 +56,16 @@ test("gap assessment recommends stronger recovery actions for misleading fulfill
         summary: "The evidence is incomplete."
       }
     }
-  });
+  } as any);
 
   assert.equal(review.status, "open");
   assert.equal(review.severity, "high");
-  assert.equal(review.gapTypes.includes("wish-fulfillment"), true);
-  assert.equal(review.gapTypes.includes("misleading-report"), true);
-  assert.equal(review.actions.some((action) => action.type === "run-trial-and-error"), true);
-  assert.equal(review.actions.some((action) => action.type === "continue-implementation"), true);
-  assert.equal(review.actions.some((action) => action.type === "revise-report"), true);
-  assert.equal(review.actions.some((action) => action.type === "retry-with-stronger-model" && action.providerId === "openai"), true);
+  assert.equal((review.gapTypes as any[]).includes("wish-fulfillment"), true);
+  assert.equal((review.gapTypes as any[]).includes("misleading-report"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "run-trial-and-error"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "continue-implementation"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "revise-report"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "retry-with-stronger-model" && action.providerId === "openai"), true);
 });
 
 test("gap assessment suggests web search when the gap depends on current external facts", () => {
@@ -80,9 +80,9 @@ test("gap assessment suggests web search when the gap depends on current externa
       reportEnlightenment: { status: "pass", reason: "The report is clear." },
       misleadingRisk: "medium",
       missingEvidence: ["Latest official docs were not consulted."]
-    }
+    } as any
   });
 
-  assert.equal(review.actions.some((action) => action.type === "use-web-search"), true);
-  assert.equal(review.actions.some((action) => action.type === "ask-user"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "use-web-search"), true);
+  assert.equal((review.actions as any[]).some((action) => action.type === "ask-user"), true);
 });

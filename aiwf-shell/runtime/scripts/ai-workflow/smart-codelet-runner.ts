@@ -18,7 +18,7 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     ticketId: args.ticket ? String(args.ticket) : null,
     filePath: args.file ? String(args.file) : null,
     goal: args.goal ? String(args.goal) : null
-  });
+  } as any);
   const metadata = await getCodelet({ projectRoot: root, codeletId });
   const metadataMaxRetries = Number(metadata?.data?.maxRetries ?? metadata?.maxRetries);
   const route = await routeTask({
@@ -26,10 +26,10 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
     taskClass: context.codelet.taskClass || "task-decomposition",
     allowWeak: true,
     preferLocal: true
-  });
+  } as any);
   const routed = applyRouteOverride(route, providerId, modelId);
-  const attempts = [];
-  const candidates = buildRouteCandidates(routed);
+  const attempts: any[] = [];
+  const candidates: any[] = buildRouteCandidates(routed);
   if (!candidates.length) {
     throw new Error("Smart codelet execution failed: no viable routed provider/model candidates.");
   }
@@ -95,7 +95,7 @@ export async function runSmartCodelet(argv = process.argv.slice(2), env = proces
   throw new Error(attempts[0]?.error ?? "Smart codelet execution failed.");
 }
 
-function applyRouteOverride(route, providerId, modelId) {
+function applyRouteOverride(route: any, providerId: string | null, modelId: string | null) {
   if (!providerId || !modelId) {
     return route;
   }
@@ -123,10 +123,10 @@ function applyRouteOverride(route, providerId, modelId) {
   };
 }
 
-function buildRouteCandidates(route) {
-  const items = [];
+function buildRouteCandidates(route: any) {
+  const items: any[] = [];
   const seen = new Set();
-  const pushCandidate = (candidate) => {
+  const pushCandidate = (candidate: any) => {
     const providerId = String(candidate?.providerId ?? "").trim();
     const modelId = String(candidate?.modelId ?? "").trim();
     if (!providerId || !modelId) {
@@ -161,12 +161,13 @@ function formatPolicy(policy) {
   return JSON.stringify(policy);
 }
 
-function sanitizeRoute(route) {
-  const providers = {};
+function sanitizeRoute(route: any) {
+  const providers: Record<string, any> = {};
   for (const [providerId, provider] of Object.entries(route.providers ?? {})) {
+    const providerConfig = provider as any;
     providers[providerId] = {
-      ...provider,
-      apiKey: provider?.apiKey ? "[redacted]" : null
+      ...providerConfig,
+      apiKey: providerConfig.apiKey ? "[redacted]" : null
     };
   }
   return {
@@ -175,7 +176,7 @@ function sanitizeRoute(route) {
   };
 }
 
-function summarizeAttempts(attempts, successfulProviderId, attemptResult = {}) {
+function summarizeAttempts(attempts: any[], successfulProviderId: string | null, attemptResult: any = {}) {
   return {
     failedAttempts: attempts.length,
     successfulProviderId,
@@ -238,11 +239,11 @@ async function persistSmartCodeletNotes(root, codeletId, result) {
 
 async function runValidatedAttempt({ prompt, candidate, routed, outputSchema, graderId, maxRetries, context }) {
   let workingPrompt = prompt;
-  let lastError = null;
-  let completion = null;
-  let result = null;
+  let lastError: string | null = null;
+  let completion: any = null;
+  let result: any = null;
   const tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-  const validationErrors = [];
+  const validationErrors: string[] = [];
   const startedAt = Date.now();
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
@@ -372,7 +373,7 @@ function validatePayload(payload, schema, phase) {
   return null;
 }
 
-function validateGradedOutput(payload, graderId, options = {}) {
+function validateGradedOutput(payload: any, graderId: string | null, options: any = {}) {
   const id = String(graderId ?? "");
   if (!id || !payload || typeof payload !== "object") {
     return null;

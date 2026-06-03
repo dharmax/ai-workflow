@@ -12,7 +12,7 @@ import { renderManualHtml } from "../aiwf-common-core/core/lib/manual-html.ts";
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   try {
     const { stdout, stderr } = await execFileAsync(process.execPath, [
       path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
@@ -26,7 +26,7 @@ async function runNode(args, options = {}) {
       stdout,
       stderr
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: error.stdout ?? "",
@@ -77,9 +77,9 @@ test("buildShellContext loads the canonical manual and planner prompt surfaces m
       "- Operator-surface changes are not done until `ai-workflow dogfood` and `workflow-audit` both pass."
     ].join("\n"), "utf8");
     const context = await buildShellContext(root);
-    assert.match(context.manual, /providers\.ollama\.host/);
+    assert.match(context.manual ?? "", /providers\.ollama\.host/);
     assert.equal(Array.isArray(context.activeGuardrails), true);
-    assert.equal(context.activeGuardrails.some((item) => /workflow-audit/.test(item.summary)), true);
+    assert.equal((context.activeGuardrails as any[]).some((item) => /workflow-audit/.test(item.summary)), true);
 
     const prompt = await buildShellPlannerPrompt("how do i configure ollama host?", {
       root,

@@ -46,7 +46,7 @@ test("retrieval lowers confidence when only weak lexical evidence is available",
         entity,
         profile: "execute",
         limit: 5
-      });
+      } as any);
     });
 
     assert.equal(result.files.every((filePath) => !/^(core|cli|runtime|src|functions)\//.test(filePath)), true);
@@ -64,7 +64,7 @@ test("buildSurgicalContext surfaces a warning when retrieval evidence is weak", 
     await seedWeakEvidenceFixture(targetRoot);
     const context = await buildSurgicalContext(targetRoot, {
       ticketId: "TKT-WEAK-001"
-    });
+    } as any);
     const prompt = formatContextForPrompt(context);
 
     assert.equal((context.retrieval?.confidence ?? 1) < 0.55, true);
@@ -89,7 +89,7 @@ test("inferTicketWorkingSet keeps plan-profile working sets implementation-first
       },
       entity,
       limit: 6
-    });
+    } as any);
 
     assert.deepEqual(result.files.slice(0, 2), [
       "core/services/shell-retrieval.ts",

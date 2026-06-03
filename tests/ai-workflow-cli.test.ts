@@ -19,7 +19,7 @@ import { SHELL_TRUST_BENCHMARK_SUITE_ID } from "aiwf-common-core/shared/prompts/
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function runNode(args, options = {}) {
+async function runNode(args: string[], options: any = {}) {
   try {
     const result = await execFileAsync(
       process.execPath,
@@ -31,7 +31,7 @@ async function runNode(args, options = {}) {
       stdout: String(result.stdout ?? ""),
       stderr: String(result.stderr ?? "")
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       code: error.code ?? 1,
       stdout: String(error.stdout ?? ""),
@@ -1132,6 +1132,22 @@ test("ai-workflow project ticket plan approve validate and matrix expose plannin
     assert.equal(validateResult.code, 0, validateResult.stderr || validateResult.stdout);
     assert.equal(JSON.parse(validateResult.stdout).ok, true);
 
+    const verifyResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
+      "project",
+      "ticket",
+      "plan",
+      "verify",
+      "TKT-REL-001",
+      "--acceptance",
+      "all",
+      "--evidence",
+      "ai-workflow sync --json",
+      "--json"
+    ], { cwd: targetRoot });
+    assert.equal(verifyResult.code, 0, verifyResult.stderr || verifyResult.stdout);
+    assert.equal(JSON.parse(verifyResult.stdout).verifiedRows, 4);
+
     const matrixResult = await runNode([
       path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
       "project",
@@ -1146,6 +1162,7 @@ test("ai-workflow project ticket plan approve validate and matrix expose plannin
     const matrix = JSON.parse(matrixResult.stdout);
     assert.equal(matrix.coverage.find((item) => item.id === "REL-WEAK-TRUTH")?.covered, true);
     assert.equal(matrix.rows.find((item) => item.ticketId === "TKT-REL-001")?.planningStatus, "approved");
+    assert.equal(matrix.rows.find((item) => item.ticketId === "TKT-REL-001")?.acceptanceCriteria.every((item) => item.verified), true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -1279,7 +1296,7 @@ test("smart codelet observer routes through the provider and documents candidate
     );
     assert.equal(payload.codelet.id, "codelet-observer");
     assert.equal(payload.route.recommended.providerId, "mock-smart");
-    assert.equal(payload.result.summary, "Recurring refactor and docs work should become explicit codelets.");
+    assert.equal(payload.result?.summary, "Recurring refactor and docs work should become explicit codelets.");
 
     const notes = await withWorkflowStore(targetRoot, async (store) => store.listNotes({ noteTypes: ["NOTE"] }));
     assert.equal(notes.some((note) => note.provenance === "tool-dev-codelet-observer"), true);
@@ -1334,7 +1351,7 @@ test("smart codelet runner resolves a project-registered codelet from the workfl
     assert.equal(payload.codelet.id, "story-snap");
     assert.equal(payload.codelet.summary, "Generate a compact story summary from the current project state.");
     assert.equal(payload.route.recommended.providerId, "mock-smart-registry");
-    assert.equal(payload.result.summary, "Registry-backed smart codelets work without hard-coded runner branches.");
+    assert.equal(payload.result?.summary, "Registry-backed smart codelets work without hard-coded runner branches.");
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -1401,7 +1418,7 @@ test("smart codelet runner falls back when the first routed provider fails", { c
       { AIWF_CODELET_ID: "codelet-observer" }
     );
 
-    assert.equal(payload.result.summary, "Fallback smart codelet route succeeded.");
+    assert.equal(payload.result?.summary, "Fallback smart codelet route succeeded.");
     assert.equal(payload.diagnostics.failedAttempts, 1);
     assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
     assert.equal(payload.route.providers[primaryProviderId].apiKey, "[redacted]");
@@ -1500,7 +1517,7 @@ test("smart codelet runner validates typed outputs, retries with critic feedback
       { AIWF_CODELET_ID: "contract-review" }
     );
 
-    assert.equal(payload.result.summary, "Typed retry succeeded.");
+    assert.equal(payload.result?.summary, "Typed retry succeeded.");
     assert.equal(payload.diagnostics.validationRetries, 1);
     assert.equal(payload.diagnostics.attemptCount, 2);
     assert.equal(payload.diagnostics.usage.totalTokens, 32);
@@ -1526,7 +1543,7 @@ test("capture-mode TS codelet execution uses tsx instead of native strip-only im
       runner: "node-script",
       execution: "js",
       entryPath: scriptPath
-    }, ["--flag", "value"], { cwd: targetRoot, mode: "capture" });
+    } as any, ["--flag", "value"] as any, { cwd: targetRoot, mode: "capture" });
     const payload = JSON.parse(String(output).trim());
 
     assert.equal(payload.mode, "ok");
@@ -1602,7 +1619,7 @@ test("ServiceHub smart runner honors the requested codelet id", { concurrency: f
     const payload = await runCoreSmartCodelet({
       codelet: "target-debug",
       goal: "debug target id propagation"
-    }, {
+    } as any, {
       context: { projectRoot: targetRoot },
       resolve: () => ({
         generate: async (prompt) => {
@@ -1662,7 +1679,7 @@ test("ServiceHub smart runner rejects shallow guideline enforcement output", { c
     const payload = await runCoreSmartCodelet({
       codelet: "enforce-contract",
       goal: "enforce architecture rules"
-    }, {
+    } as any, {
       context: { projectRoot: targetRoot },
       resolve: () => ({
         generate: async () => {
@@ -1697,7 +1714,7 @@ test("ServiceHub smart runner rejects shallow guideline enforcement output", { c
       })
     });
 
-    assert.equal(payload.result.summary, "Contract enforced.");
+    assert.equal((payload.result as any)?.summary, "Contract enforced.");
     assert.equal(payload.diagnostics.validationRetries, 1);
     assert.match(payload.diagnostics.validationErrors[0], /enforced_guardrails/);
   } finally {
@@ -1733,7 +1750,7 @@ test("ServiceHub smart runner rejects hallucinated code-generation file targets"
     const payload = await runCoreSmartCodelet({
       codelet: "codegen-contract",
       goal: "write router tests"
-    }, {
+    } as any, {
       context: { projectRoot: targetRoot },
       resolve: () => ({
         generate: async () => ({
@@ -1750,9 +1767,9 @@ test("ServiceHub smart runner rejects hallucinated code-generation file targets"
       })
     });
 
-    assert.equal(payload.result.degraded, true);
+    assert.equal((payload.result as any)?.degraded, true);
     assert.match(payload.diagnostics.validationErrors[0], /files_to_change/);
-    assert.equal(payload.result.files_to_change[0].startsWith("unknown:"), true);
+    assert.equal((payload.result as any)?.files_to_change[0].startsWith("unknown:"), true);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

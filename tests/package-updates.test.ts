@@ -8,25 +8,15 @@ import { buildPackageUpdateAdvisory } from "aiwf-common-core/services/package-up
 test("buildPackageUpdateAdvisory reports current and latest versions for ai-workflow and lean-ctx", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-package-updates-"));
   const originalFetch = globalThis.fetch;
-  const requested = [];
+  const requested: string[] = [];
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url): Promise<Response> => {
     requested.push(String(url));
     if (String(url).includes("%40dharmax%2Fai-workflow")) {
-      return {
-        ok: true,
-        async json() {
-          return { version: "0.1.99" };
-        }
-      };
+      return new Response(JSON.stringify({ version: "0.1.99" }));
     }
     if (String(url).includes("lean-ctx")) {
-      return {
-        ok: true,
-        async json() {
-          return { version: "0.9.0" };
-        }
-      };
+      return new Response(JSON.stringify({ version: "0.9.0" }));
     }
     throw new Error(`Unexpected URL: ${url}`);
   };
@@ -41,7 +31,7 @@ test("buildPackageUpdateAdvisory reports current and latest versions for ai-work
       root,
       leanCtxVersion: "0.8.0",
       forceRefresh: true
-    });
+    } as any);
 
     assert.equal(report.packages.length, 2);
     assert.equal(report.packages[0].name, "@dharmax/ai-workflow");

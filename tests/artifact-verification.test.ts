@@ -72,7 +72,7 @@ test("artifact judge passes text and image evidence through structured content p
       rubric: "The design note must include a heading and the screenshot must be attached.",
       providerId,
       modelId: "judge-v1"
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
     assert.equal(payload.result.score, 94);
@@ -154,12 +154,12 @@ test("artifact judge falls back when the first provider returns unstructured out
       rubric: "The design note must include enough context to explain the generated project.",
       providerId: primaryProviderId,
       modelId: "judge-v1"
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
     assert.equal(payload.result.summary, "Fallback judge returned a valid structured verdict.");
-    assert.equal(payload.diagnostics.failedAttempts, 1);
-    assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
+    assert.equal(payload.diagnostics?.failedAttempts, 1);
+    assert.equal(payload.diagnostics?.successfulProviderId, fallbackProviderId);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -230,8 +230,8 @@ test("verification summary incorporates artifact judgments into the final conclu
     ]);
 
     assert.equal(summary.conclusion, "verified");
-    assert.equal(summary.artifactJudgment.result.status, "pass");
-    assert.equal(summary.artifactJudgment.result.artifacts.length, 2);
+    assert.equal(summary.artifactJudgment?.result.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.artifacts.length, 2);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -303,7 +303,7 @@ test("shell transcript judge returns dimensioned verdicts for transcript artifac
       rubric: "The shell transcript must answer directly, stay grounded, preserve the subject, and feel Codex-grade.",
       providerId,
       modelId: "judge-v1"
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
     assert.equal(payload.result.dimensions.codexAcceptance.status, "pass");
@@ -390,12 +390,12 @@ test("shell transcript judge falls back when the first provider returns unstruct
       rubric: "The shell transcript must answer directly, remain grounded, and feel Codex-grade.",
       providerId: primaryProviderId,
       modelId: "judge-v1"
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
     assert.equal(payload.result.structuredVerdict, true);
-    assert.equal(payload.diagnostics.failedAttempts, 1);
-    assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
+    assert.equal(payload.diagnostics?.failedAttempts, 1);
+    assert.equal(payload.diagnostics?.successfulProviderId, fallbackProviderId);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -440,7 +440,7 @@ test("shell transcript judge deterministically accepts operator briefs centered 
       projectRoot: root,
       artifactPaths: ["artifacts/operator-brief.txt"],
       rubric: "The shell output must directly answer the operator brief request, stay grounded in workflow/project state, avoid exposing internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing."
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
     assert.match(payload.result.summary, /operator brief rubric/i);
@@ -536,11 +536,11 @@ test("shell transcript judge falls back when the first provider times out", { co
       rubric: "The shell transcript must answer directly, remain grounded, and feel Codex-grade.",
       providerId: primaryProviderId,
       modelId: "judge-v1"
-    });
+    } as any);
 
     assert.equal(payload.result.status, "pass");
-    assert.equal(payload.diagnostics.failedAttempts, 1);
-    assert.equal(payload.diagnostics.successfulProviderId, fallbackProviderId);
+    assert.equal(payload.diagnostics?.failedAttempts, 1);
+    assert.equal(payload.diagnostics?.successfulProviderId, fallbackProviderId);
   } finally {
     if (originalTimeout == null) {
       delete process.env.AI_WORKFLOW_SHELL_TRANSCRIPT_JUDGE_TIMEOUT_MS;
@@ -623,7 +623,7 @@ test("verification summary supports shell-transcript judge mode", { concurrency:
 
     assert.equal(summary.conclusion, "verified");
     assert.equal(summary.judgeMode, "shell-transcript");
-    assert.equal(summary.artifactJudgment.result.dimensions.grounding.status, "pass");
+    assert.equal(summary.artifactJudgment?.result.dimensions.grounding.status, "pass");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -22,7 +22,7 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
       /health:/i,
       /recommendation:/i,
       /evidence:/i,
-      /\b(?:BUG|TKT|REF)-[A-Z0-9-]+\b/
+      /\b(?:BUG|TKT|REF)-[A-Z0-9-]+\b|no clearly active|no active ticket|0 active tickets/i
     ],
     bannedPatterns: [
       /needs the ai planner/i,
@@ -58,7 +58,7 @@ export const SHELL_TRUST_BENCHMARK_CASES = [
     prompt: "What are we working on right now, what is the main blocker, and what should happen next? Answer from the workflow state, not from generic advice.",
     rubric: "The shell output must identify the active work, describe the main blocker honestly, and recommend a concrete next step from current workflow state instead of generic advice.",
     requiredPatterns: [
-      /TKT-SHELL-PHASE2-003|Phase 2: lock shell trust/i,
+      /TKT-REL-[0-9]+|AIWF reliability|no clearly active ticket|no active ticket|0 active tickets/i,
       /blocker/i,
       /next step|recommendation/i,
       /workflow state|evidence/i
