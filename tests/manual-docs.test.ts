@@ -58,6 +58,43 @@ test("renderManualHtml emits semantic HTML with toc and source hash", () => {
   assert.match(html, /<pre data-block-kind="code"><code class="language-bash">/);
 });
 
+test("public docs expose install, usage, capability limits, and the managed-project freshness rule", async () => {
+  const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+  const manual = await readFile(path.join(repoRoot, "docs", "MANUAL.md"), "utf8");
+
+  assert.match(readme, /\[docs\/MANUAL\.md\]\(docs\/MANUAL\.md\)/);
+  assert.match(readme, /npm install -g github:dharmax\/ai-workflow/);
+  assert.match(readme, /How Smart Is The Shell/);
+  assert.match(readme, /How Strong Is Plugin Enforcement/);
+  assert.match(manual, /## Capability Status/);
+  assert.match(manual, /### Semi-Works/);
+  assert.match(manual, /### Does Not Work Yet, But Is Planned/);
+  assert.match(manual, /## Shell Intelligence And Enforcement/);
+  assert.match(manual, /## Plugin And Managed-Project Enforcement/);
+});
+
+test("initialized projects receive the public-documentation freshness rule and audit baseline", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-doc-freshness-"));
+  const rule = "Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.";
+
+  try {
+    const initResult = await runNode([
+      path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"),
+      "--target",
+      targetRoot,
+      "--no-sync"
+    ]);
+    assert.equal(initResult.code, 0, initResult.stderr || initResult.stdout);
+
+    for (const relativePath of ["AGENTS.md", "execution-protocol.md", "project-guidelines.md"]) {
+      assert.equal((await readFile(path.join(targetRoot, relativePath), "utf8")).includes(rule), true);
+    }
+    assert.match(await readFile(path.join(targetRoot, "enforcement.md"), "utf8"), /keep-public-docs-current/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("buildShellContext loads the canonical manual and planner prompt surfaces manual guidance", async () => {
   const root = path.resolve("/tmp/ai-workflow-manual-shell-" + Math.random().toString(36).slice(2));
   await mkdir(path.join(root, "docs"), { recursive: true });

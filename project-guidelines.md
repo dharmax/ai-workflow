@@ -145,6 +145,7 @@ These rules are HARD-CODED into the `operator-brain` and will cause any plan to 
 - Workflow state must stay honest before closure: sync, projections, ticket lane, and archived state should all agree with the implemented result.
 - Operator-surface work is not done until the required surface gates pass: `ai-workflow dogfood` when applicable, and `workflow-audit` whenever workflow docs or operator contracts changed.
 - Documentation is part of closure when the contract changed. Narrative docs must describe the real behavior, not the intended one.
+- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
 - Failure honesty is part of done: if the system lacks evidence, capability, or readiness, it must surface that clearly instead of bluffing.
 - GoE or model-governance work is not done just because the loop exists. It is done when weaker or cheaper routes show observable quality uplift under the governed flow.
 

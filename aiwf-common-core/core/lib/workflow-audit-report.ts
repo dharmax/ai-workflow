@@ -65,7 +65,7 @@ const DOC_SNIPPETS = {
 const KANBAN_SECTIONS = [
   "Deep Backlog",
   "Backlog",
-  "ToDo",
+  "Todo",
   "Bugs P1",
   "Bugs P2/P3",
   "Assessments",

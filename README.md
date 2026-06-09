@@ -1,117 +1,160 @@
+<!-- Responsibility: Explain what ai-workflow is, how to install it, and the shortest reliable path to useful operation.
+Scope: Detailed commands, configuration, capability limits, and maintenance policy belong in docs/MANUAL.md. -->
 # AI Workflow
 
-This repository is the composite GitHub install surface and workspace root for the `ai-workflow` package split. It coordinates four publishable packages:
+`ai-workflow` is a repo-local operating layer for AI-assisted engineering. It keeps workflow state in a SQLite database, projects readable kanban and epic files, gives agents ticket-scoped context and guidelines, routes model work, and exposes guarded shell and MCP surfaces.
 
-- `aiwf-common-core`: shared workflow services, DB, codelets, routing, projections, and reusable runtime logic
-- `aiwf-shell`: CLI entrypoints, runtime wrappers, init/install scripts, and terminal-facing tooling
-- `aiwf-mcp`: MCP extension surface for external AI hosts
-- `aiwf-skill`: optional instruction-only bridge assets
+The workspace publishes four install surfaces:
 
-The workspace keeps canonical state in the workflow DB, projects readable status into `kanban.md` and `epics.md`, routes work through explicit commands, and treats verification as part of delivery rather than a postscript.
+- `ai-workflow`: composite GitHub package containing the CLI, MCP launcher, and optional skill installer
+- `aiwf-shell`: CLI and operator tooling
+- `aiwf-mcp`: coded MCP host integration
+- `aiwf-skill`: optional instruction-only host bridge
 
-## Choose One Install Surface
+**Full documentation:** [docs/MANUAL.md](docs/MANUAL.md)
 
-You do not need to install everything.
+The manual includes the complete command reference, configuration, operating model, troubleshooting, and an honest capability-status table covering what works, what semi-works, and what is planned.
 
-- Install `aiwf-shell` when you want the CLI/operator surface only.
-- Install `aiwf-mcp` when you want the primary coded host-extension surface.
-- Install `aiwf-skill` only when you want optional host-specific instructions on top of the coded surfaces.
-- Install multiple surfaces together when you need both local CLI work and external host integration.
+## Requirements
 
-The packages can live together, but they are intentionally separate installs.
+- Node.js 22 or newer
+- Git
+- A Git repository for meaningful mutation tracking and workspace-honesty checks
+- Optional: provider credentials or a reachable Ollama instance for AI-planned operations
 
-Distribution channels:
+Deterministic status, sync, audit, projection, and many planning paths work without an AI provider.
 
-- GitHub root package for a single install that exposes `ai-workflow`, `aiwf-mcp`, and `aiwf-skill`
-- npmjs for installing split packages such as `aiwf-shell`, `aiwf-mcp`, or `aiwf-skill` when those are published independently
-- GitHub source checkout for development
+## Install
 
-Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
+### Recommended Complete Install
 
-Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
-
-## Operating Surface
-
-- Workspace role: composite GitHub package plus split-package coordinator
-- Canonical state: `.ai-workflow/state/workflow.db`
-- Human-readable projections: `kanban.md`, `epics.md`, `MISSION.md`
-- Core operator docs: `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, `knowledge.md`
-- Deep reference manual: `docs/MANUAL.md`
-- Gemini bridge: `.gemini/GEMINI.md` and `.gemini/skills/ai-workflow`
-- MCP host bridge: `aiwf-mcp`
-
-## High-Value Commands
+Install the composite package directly from GitHub:
 
 ```bash
-ai-workflow sync --write-projections --json
-ai-workflow project summary --json
-ai-workflow extract guidelines repo
-npm run workflow:dogfood -- --surface workflow,shell,provider,init --json
-npm run workflow:audit -- --json
+npm install -g github:dharmax/ai-workflow
+ai-workflow --help
 ```
 
-## Package Install Matrix
-
-### GitHub Composite Package
+Initialize workflow files in an existing project and install host bridges:
 
 ```bash
-pnpm add github:dharmax/ai-workflow
-pnpm ai-workflow init --target /abs/path/to/project
-pnpm aiwf-skill --project /abs/path/to/project --force
+cd /abs/path/to/project
+ai-workflow init --target .
+ai-workflow install --project . --host all
+ai-workflow doctor
+ai-workflow sync --write-projections
 ```
 
-This installs one root package with the shell CLI, MCP launcher, and optional skill installer. The root package ships built CLI/MCP artifacts, so consumers do not need to approve install-time build scripts.
+`init` installs the managed-project workflow files and runtime helpers. `install --host all` configures the supported Gemini, Codex, and Claude bridges, including the MCP launch configuration where applicable.
 
-### Shell Only
+### Split Packages
+
+Install only the surfaces you need when the corresponding packages are available in your configured npm registry:
 
 ```bash
 npm install -g aiwf-shell
-ai-workflow --help
-```
-
-This installs the interactive CLI and operator tooling. It pulls `aiwf-common-core` as a dependency.
-
-### MCP Extension
-
-```bash
 npm install -g aiwf-mcp
-aiwf-mcp
-```
-
-This is the primary coded host-integration surface. Use it when a host should call durable tools instead of relying on prompt-only skills.
-
-### Optional Skill Bridge
-
-```bash
 npm install -g aiwf-skill
-aiwf-skill --project /abs/path/to/project --force
 ```
 
-This installs instruction assets only. It is optional and should sit on top of `aiwf-shell` or `aiwf-mcp`, not replace them as the code-bearing surface.
+- Use `aiwf-shell` for `ai-workflow` CLI commands.
+- Use `aiwf-mcp` for a coded host integration backed by the shared workflow core.
+- Use `aiwf-skill` only as instruction glue on top of the coded tooling; it is not an enforcement boundary by itself.
 
-### Both Together
+### Source Checkout
 
 ```bash
-npm install -g aiwf-shell aiwf-mcp aiwf-skill
-ai-workflow --help
-aiwf-mcp
-aiwf-skill --project /abs/path/to/project --force
+git clone https://github.com/dharmax/ai-workflow.git
+cd ai-workflow
+npm install
+npm run build
+node cli/ai-workflow.mjs --help
 ```
 
-## Local Gemini Skill
-
-Install or refresh the repo-local Gemini skill with:
+## First Useful Run
 
 ```bash
-npm run install:gemini-skill
+ai-workflow doctor
+ai-workflow sync --write-projections
+ai-workflow project summary
+ai-workflow extract guidelines --changed
+ai-workflow shell "what are we working on right now?"
 ```
 
-This keeps the Gemini-facing skill under `.gemini/skills/ai-workflow` instead of relying on accidental global state.
-
-## Release Check
-
-Before publishing packages, run:
+For a specific ticket:
 
 ```bash
+ai-workflow project ticket start TKT-123
+ai-workflow extract ticket TKT-123
+ai-workflow extract guidelines --ticket TKT-123
+ai-workflow shell "plan the work for TKT-123" --plan-only
+```
+
+Before closing operator-surface work:
+
+```bash
+ai-workflow dogfood --surface shell,workflow,provider,init,mcp,goe --json
+ai-workflow audit workflow --json
+ai-workflow sync --write-projections --json
+```
+
+## How Smart Is The Shell?
+
+The shell is workflow-aware rather than a general replacement for a coding agent.
+
+It is strong at:
+
+- deterministic project status, ticket lookup, guideline extraction, and workflow-aware planning
+- selecting shared coding/review/debug plans across shell, `ask`, and MCP
+- exposing active guardrails, mutation gates, provider routes, and verification plans
+- refusing mutating shell work unless exactly one ticket is in `In Progress`
+- honest plan-only and degraded responses when a provider or model output is insufficient
+
+It semi-works at:
+
+- resolving the best files and symbols for arbitrary or underspecified coding requests
+- autonomous complex patch generation, especially through smaller local models
+- proving every selected guideline against every changed file before mutation
+
+Use `ai-workflow shell --no-ai` for deterministic or heuristic behavior, and use `--plan-only` to inspect a plan without execution. See [Shell Intelligence And Enforcement](docs/MANUAL.md#shell-intelligence-and-enforcement) for the full boundary.
+
+## How Strong Is Plugin Enforcement?
+
+The strongest host integration is `aiwf-mcp`, because it exposes DB-backed coded tools and shared planning contracts. Managed projects also receive machine-readable audit rules through `enforcement.md`.
+
+Enforcement is not absolute:
+
+- MCP tools can return guardrails, mutation gates, and verification requirements, but the host still decides whether to call them.
+- The optional skill bridge is instruction-only and cannot force a host to comply.
+- Audit rules enforce patterns and architecture constraints that are expressible by the audit engine; narrative guidance remains advisory unless promoted into a coded gate or `ai-workflow-audit` rule.
+
+See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-project-enforcement).
+
+## Core Operating Rules
+
+- Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
+- Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
+- Treat `.ai-workflow/state/workflow.db` as canonical workflow state; `kanban.md` and `epics.md` are controlled projections.
+- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
+
+## Workspace Layout
+
+- `aiwf-common-core`: shared workflow services, DB, codelets, routing, and projections
+- `aiwf-shell`: CLI, shell mode, runtime wrappers, init/install scripts, and templates
+- `aiwf-mcp`: MCP tools backed by the shared core
+- `aiwf-skill`: optional instruction-only bridge assets
+- `docs/MANUAL.md`: canonical full documentation
+- `docs/manual.html`: generated HTML manual
+
+## Development And Release Checks
+
+```bash
+npm test
+npm run build
+npm run generate-docs
+npm run workflow:dogfood -- --json
+npm run workflow:audit -- --json
 npm run release:check
 ```
+
+Do not hand-edit `docs/manual.html`; regenerate it from `docs/MANUAL.md`.

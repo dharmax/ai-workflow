@@ -16,6 +16,7 @@ import {
 import { judgeShellTranscripts } from "./shell-transcript-verification.ts";
 
 const DEFAULT_TIMEOUT_MS = 45000;
+const DEFAULT_TOTAL_TIMEOUT_MS = 120000;
 
 export async function runShellBenchmark(promptOrOptions = {}, options = {}) {
   const prompt = typeof promptOrOptions === "string" ? String(promptOrOptions).trim() : "";
@@ -45,6 +46,9 @@ export async function runShellTrustBenchmark(options = {}) {
   const root = path.resolve(String(options.root ?? process.cwd()));
   const cliPath = resolveCliPath(root, options);
   const timeoutMs = normalizeTimeout(options.timeoutMs);
+  const totalTimeoutMs = normalizeTotalTimeout(options.totalTimeoutMs);
+  const now = typeof options.now === "function" ? options.now : Date.now;
+  const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
   const cases = Array.isArray(options.cases) && options.cases.length
     ? options.cases
     : SHELL_TRUST_BENCHMARK_CASES;
@@ -63,42 +67,79 @@ export async function runShellTrustBenchmark(options = {}) {
   const artifactRoot = options.artifactRoot
     ? path.join(requestedArtifactRoot, benchmarkRunId)
     : requestedArtifactRoot;
-  const startedAt = Date.now();
+  const startedAt = now();
+  const deadlineAt = startedAt + totalTimeoutMs;
 
   await mkdir(artifactRoot, { recursive: true });
 
   try {
     const caseResults = [];
-    for (const benchmarkCase of cases) {
-      caseResults.push(await runBenchmarkedShellCase({
+    emitProgress(onProgress, {
+      type: "suite_start",
+      message: `shell-trust benchmark starting ${cases.length} cases with ${totalTimeoutMs}ms total timeout`,
+      caseCount: cases.length,
+      totalTimeoutMs
+    });
+    for (const [index, benchmarkCase] of cases.entries()) {
+      const remainingMs = deadlineAt - now();
+      if (remainingMs <= 0) {
+        break;
+      }
+      emitProgress(onProgress, {
+        type: "case_start",
+        message: `shell-trust case ${index + 1}/${cases.length} starting: ${benchmarkCase.id}`,
+        caseId: benchmarkCase.id,
+        caseIndex: index,
+        caseCount: cases.length,
+        remainingMs
+      });
+      const caseResult = await runBenchmarkedShellCase({
         root,
         cliPath,
-        timeoutMs,
+        timeoutMs: Math.min(timeoutMs, remainingMs),
         benchmarkCase,
         artifactRoot,
         expectLocalModel,
         runCommand,
         judge
-      }));
+      });
+      caseResults.push(caseResult);
+      emitProgress(onProgress, {
+        type: "case_complete",
+        message: `shell-trust case ${index + 1}/${cases.length} ${caseResult.ok ? "passed" : "failed"} in ${caseResult.durationMs}ms: ${benchmarkCase.id}`,
+        caseId: benchmarkCase.id,
+        caseIndex: index,
+        caseCount: cases.length,
+        ok: caseResult.ok,
+        durationMs: caseResult.durationMs,
+        remainingMs: Math.max(0, deadlineAt - now())
+      });
     }
 
+    const remainingCaseIds = cases.slice(caseResults.length).map((item) => item.id);
+    const incomplete = remainingCaseIds.length > 0;
+    const timedOut = incomplete && now() >= deadlineAt;
     const passedCount = caseResults.filter((item) => item.ok).length;
     const failedCases = caseResults.filter((item) => !item.ok);
     const failedCriticalCases = failedCases.filter((item) => item.critical).map((item) => item.id);
     const caseCount = caseResults.length;
     const passRate = caseCount ? passedCount / caseCount : 0;
-    const ok = caseCount >= minimumCaseCount
+    const ok = !incomplete
+      && caseCount >= minimumCaseCount
       && passRate >= threshold
       && failedCriticalCases.length === 0;
 
     const payload = {
       ok,
+      incomplete,
+      timedOut,
       suiteId: SHELL_TRUST_BENCHMARK_SUITE_ID,
       root,
       cliPath,
       startedAt: new Date(startedAt).toISOString(),
-      completedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
+      completedAt: new Date(now()).toISOString(),
+      durationMs: now() - startedAt,
+      totalTimeoutMs,
       threshold,
       caseCount,
       minimumCaseCount,
@@ -106,16 +147,29 @@ export async function runShellTrustBenchmark(options = {}) {
       passRate,
       failedCaseIds: failedCases.map((item) => item.id),
       failedCriticalCases,
+      remainingCaseIds,
       artifactRoot,
       cases: caseResults,
       summary: buildBenchmarkSummary({
         ok,
         passedCount,
         caseCount,
-        failedCriticalCases
+        totalCaseCount: cases.length,
+        failedCriticalCases,
+        incomplete,
+        remainingCaseIds
       })
     };
     await writeFile(path.join(artifactRoot, "benchmark.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    emitProgress(onProgress, {
+      type: incomplete ? "suite_incomplete" : "suite_complete",
+      message: payload.summary,
+      ok,
+      incomplete,
+      timedOut,
+      durationMs: payload.durationMs,
+      remainingCaseIds
+    });
     return payload;
   } finally {
     if (!options.artifactRoot && !keepArtifacts) {
@@ -319,9 +373,12 @@ function collectDeterministicFailures({
   return failures;
 }
 
-function buildBenchmarkSummary({ ok, passedCount, caseCount, failedCriticalCases }) {
+function buildBenchmarkSummary({ ok, passedCount, caseCount, totalCaseCount = caseCount, failedCriticalCases, incomplete = false, remainingCaseIds = [] }) {
   if (ok) {
     return `Shell trust benchmark passed ${passedCount}/${caseCount} cases.`;
+  }
+  if (incomplete) {
+    return `Shell trust benchmark incomplete after completing ${caseCount}/${totalCaseCount} cases (${passedCount} passed). Remaining cases: ${remainingCaseIds.join(", ")}.`;
   }
   const critical = failedCriticalCases.length
     ? ` Critical failures: ${failedCriticalCases.join(", ")}.`
@@ -341,6 +398,21 @@ function resolveCliPath(root, options) {
 
 function normalizeTimeout(timeoutMs) {
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS;
+}
+
+function normalizeTotalTimeout(timeoutMs) {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? Number(timeoutMs) : DEFAULT_TOTAL_TIMEOUT_MS;
+}
+
+function emitProgress(onProgress, event) {
+  if (!onProgress) {
+    return;
+  }
+  try {
+    onProgress(event);
+  } catch {
+    // Progress reporting must not break benchmark execution.
+  }
 }
 
 function extractModelTrace(stdout, stderr) {
@@ -394,6 +466,7 @@ async function runNodeProcess({ cwd, args, timeoutMs }) {
     const startedAt = Date.now();
     const child = spawn(process.execPath, [resolveTsxCliPath(), ...args], {
       cwd,
+      detached: process.platform !== "win32",
       env: {
         ...process.env,
         FORCE_COLOR: "0"
@@ -422,7 +495,7 @@ async function runNodeProcess({ cwd, args, timeoutMs }) {
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      killProcessTree(child);
     }, timeoutMs);
 
     child.stdout.on("data", (chunk) => {
@@ -439,6 +512,18 @@ async function runNodeProcess({ cwd, args, timeoutMs }) {
       finish(code);
     });
   });
+}
+
+function killProcessTree(child) {
+  if (process.platform !== "win32" && child.pid) {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+      return;
+    } catch {
+      // Fall through to killing only the direct child.
+    }
+  }
+  child.kill("SIGKILL");
 }
 
 export async function readShellBenchmarkArtifacts(artifactRoot) {

@@ -25,7 +25,7 @@ Lane order is intentional. Keep the board in this order.
   - Verification: List the commands or checks required for completion.
   - Notes: Capture blockers, assumptions, or handoff details.
 
-## ToDo
+## Todo
 
 ## Bugs P1
 ## Bugs P2/P3

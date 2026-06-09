@@ -20,6 +20,7 @@ Keep execution disciplined, test-backed, and easy to hand off.
 12. If the work adds or changes smart codelets or dev-mode observer behavior, document the candidate codelets and new recurring patterns in the workflow DB as part of the same burst.
 13. The shell must refuse mutating project work unless exactly one ticket is already in `In Progress`; if the board is not ready, stop and move the ticket first. State-changing actions that belong to a dedicated CLI command should be redirected to that command instead of being executed from shell chat.
 14. If the work begins from a messy project description, run the brief-onboarding flow first (`ai-workflow init --brief <file>` or `ai-workflow onboard <file>`), then generate epics from the stabilized brief.
+15. Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
 
 ## Workflow-First Context
 
@@ -42,7 +43,7 @@ Keep execution disciplined, test-backed, and easy to hand off.
 - Update `kanban.md` in real time as work moves.
 - When you start a ticket, move it to `In Progress` immediately.
 - Use the tool, AI router, and smart codelets as valid operational actors in epic narratives and workflow notes.
-- Keep the center working queue in `ToDo`.
+- Keep the center working queue in `Todo`.
 - Keep high-priority bug work explicit in `Bugs P1` and lower-priority bug work in `Bugs P2/P3`.
 - Keep larger later work in `Deep Backlog` and tie each such ticket to an epic in `epics.md`.
 - Keep human-only acceptance work in `Human Inspection`.

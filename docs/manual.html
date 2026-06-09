@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="74a91beccfa27d2c93f2787afe1ec6661c2a00c1">
+  <meta name="manual-source-sha1" content="f3196d406463e27e11b68821684444a3add03ce8">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:74a91beccfa27d2c93f2787afe1ec6661c2a00c1 -->
+  <!-- generated from docs/MANUAL.md sha1:f3196d406463e27e11b68821684444a3add03ce8 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -22,7 +22,9 @@
         <li><a href="#what-it-is">What It Is</a></li>
         <li><a href="#mental-model">Mental Model</a></li>
         <li><a href="#installation-and-setup">Installation And Setup</a></li>
-        <li><a href="#toolkit-install">Toolkit Install</a></li>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#recommended-complete-install">Recommended Complete Install</a></li>
+        <li><a href="#source-checkout">Source Checkout</a></li>
         <li><a href="#repo-bootstrap">Repo Bootstrap</a></li>
         <li><a href="#first-day-checks">First-Day Checks</a></li>
         <li><a href="#core-workflow">Core Workflow</a></li>
@@ -35,6 +37,17 @@
         <li><a href="#high-value-shell-patterns">High-Value Shell Patterns</a></li>
         <li><a href="#shell-operating-rules">Shell Operating Rules</a></li>
         <li><a href="#shell-examples">Shell Examples</a></li>
+        <li><a href="#capability-status">Capability Status</a></li>
+        <li><a href="#works-reliably">Works Reliably</a></li>
+        <li><a href="#semi-works">Semi-Works</a></li>
+        <li><a href="#does-not-work-yet-but-is-planned">Does Not Work Yet, But Is Planned</a></li>
+        <li><a href="#shell-intelligence-and-enforcement">Shell Intelligence And Enforcement</a></li>
+        <li><a href="#intelligence-model">Intelligence Model</a></li>
+        <li><a href="#mutation-enforcement">Mutation Enforcement</a></li>
+        <li><a href="#plugin-and-managed-project-enforcement">Plugin And Managed-Project Enforcement</a></li>
+        <li><a href="#mcp-integration">MCP Integration</a></li>
+        <li><a href="#optional-skill-bridge">Optional Skill Bridge</a></li>
+        <li><a href="#managed-project-rules">Managed-Project Rules</a></li>
         <li><a href="#command-reference">Command Reference</a></li>
         <li><a href="#setup-and-bootstrap">Setup And Bootstrap</a></li>
         <li><a href="#core-diagnostics-and-status">Core Diagnostics And Status</a></li>
@@ -62,6 +75,7 @@
         <li><a href="#configure-ollama-hardware">Configure Ollama Hardware</a></li>
         <li><a href="#run-verification">Run Verification</a></li>
         <li><a href="#install-surfaces">Install Surfaces</a></li>
+        <li><a href="#composite-github-package">Composite GitHub Package</a></li>
         <li><a href="#shell-only">Shell Only</a></li>
         <li><a href="#mcp-extension">MCP Extension</a></li>
         <li><a href="#optional-skill-bridge">Optional Skill Bridge</a></li>
@@ -69,12 +83,14 @@
         <li><a href="#troubleshooting-and-failure-modes">Troubleshooting And Failure Modes</a></li>
         <li><a href="#ai-workflow-sync-reports-zero-indexed-files">`ai-workflow sync` Reports Zero Indexed Files</a></li>
         <li><a href="#shell-answers-feel-weak">Shell Answers Feel Weak</a></li>
+        <li><a href="#shell-trust-benchmark-takes-too-long">Shell-Trust Benchmark Takes Too Long</a></li>
         <li><a href="#provider-looks-configured-but-unavailable">Provider Looks Configured But Unavailable</a></li>
         <li><a href="#dogfood-or-audit-fails">Dogfood Or Audit Fails</a></li>
         <li><a href="#manual-maintenance">Manual Maintenance</a></li>
       </ol>
     </nav>
     <article>
+      <p>&lt;!-- Responsibility: Provide the complete public installation, usage, configuration, capability-status, and troubleshooting reference. Scope: Live workflow state and ticket-local implementation detail belong in the workflow DB and projections, not in this manual. --&gt;</p>
       <section aria-labelledby="what-it-is" data-heading-level="2">
       <h2 id="what-it-is">What It Is</h2>
       <p><code>ai-workflow</code> is the repo-local operating layer for workflow, tickets, kanban, epics, codelets, provider routing, guarded execution, shell-based planning, and MCP-hosted extension tools.</p>
@@ -86,43 +102,56 @@
       <h2 id="mental-model">Mental Model</h2>
       <ul data-list-kind="unordered">
       <li>Use <code>ai-workflow</code> first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.</li>
-      <li>Use <code>ai-workflow</code> first for project status, ticket lookup, projections, and guideline extraction.</li>
       <li>Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.</li>
       <li>Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline.</li>
       <li>Treat the workflow DB as canonical state, and treat projections as readable outputs that must stay reconciled.</li>
+      <li>Treat <code>Todo</code> as the canonical projected kanban lane spelling; legacy <code>ToDo</code>, <code>TODO</code>, and <code>To-do</code> inputs normalize to it.</li>
       <li>Use <code>lean-ctx</code> whenever compact context matters.</li>
       <li>If <code>ai-workflow</code> fails, stop, identify root cause, and either fix it or report the blocker before continuing.</li>
       </ul>
       </section>
       <section aria-labelledby="installation-and-setup" data-heading-level="2">
       <h2 id="installation-and-setup">Installation And Setup</h2>
-      <section aria-labelledby="toolkit-install" data-heading-level="3">
-      <h3 id="toolkit-install">Toolkit Install</h3>
+      <section aria-labelledby="requirements" data-heading-level="3">
+      <h3 id="requirements">Requirements</h3>
       <ul data-list-kind="unordered">
-      <li>One-off setup into the current project:</li>
+      <li>Node.js 22 or newer</li>
+      <li>Git</li>
+      <li>A Git repository for meaningful mutation tracking and workspace-honesty checks</li>
+      <li>Optional provider credentials or a reachable Ollama instance for AI-planned operations</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">npx @dharmax/ai-workflow setup --project .</code></pre>
-      <ul data-list-kind="unordered">
-      <li>Global install:</li>
-      </ul>
-      <pre data-block-kind="code"><code class="language-bash">pnpm add -g @dharmax/ai-workflow
-# or
-npm install -g @dharmax/ai-workflow</code></pre>
+      <p>Deterministic sync, status, audit, projection, extraction, and many planning paths do not require an AI provider.</p>
+      </section>
+      <section aria-labelledby="recommended-complete-install" data-heading-level="3">
+      <h3 id="recommended-complete-install">Recommended Complete Install</h3>
+      <p>The complete GitHub install surface exposes <code>ai-workflow</code>, <code>aiwf-mcp</code>, and <code>aiwf-skill</code>:</p>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g github:dharmax/ai-workflow
+ai-workflow --help</code></pre>
+      <p>The split packages <code>aiwf-shell</code>, <code>aiwf-mcp</code>, <code>aiwf-skill</code>, and <code>aiwf-common-core</code> are configured as independent packages. Install them from npm only when they are available in your configured registry.</p>
+      </section>
+      <section aria-labelledby="source-checkout" data-heading-level="3">
+      <h3 id="source-checkout">Source Checkout</h3>
+      <pre data-block-kind="code"><code class="language-bash">git clone https://github.com/dharmax/ai-workflow.git
+cd ai-workflow
+npm install
+npm run build
+node cli/ai-workflow.mjs --help</code></pre>
       </section>
       <section aria-labelledby="repo-bootstrap" data-heading-level="3">
       <h3 id="repo-bootstrap">Repo Bootstrap</h3>
       <ul data-list-kind="unordered">
-      <li>Install workflow files into the current repo:</li>
+      <li>Initialize workflow files and runtime helpers in the current repo:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">ai-workflow install --project .</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">ai-workflow init --target .</code></pre>
       <ul data-list-kind="unordered">
-      <li>Refresh the optional repo-local Gemini skill bridge:</li>
+      <li>Install supported host bridges:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">npm run install:gemini-skill</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">ai-workflow install --project . --host all</code></pre>
+      <p>Supported host values are <code>gemini</code>, <code>codex</code>, <code>claude</code>, and <code>all</code>. The install command configures coded MCP launch settings where the host supports them and adds instruction bridges where applicable.</p>
       <ul data-list-kind="unordered">
-      <li>Initialize from a brief:</li>
+      <li>Initialize from a brief while installing:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">ai-workflow init --brief ./project-brief.md</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">ai-workflow init --target . --brief ./project-brief.md</code></pre>
       <ul data-list-kind="unordered">
       <li>Refresh the DB and projections:</li>
       </ul>
@@ -143,9 +172,10 @@ npm install -g @dharmax/ai-workflow</code></pre>
       </ul>
       <pre data-block-kind="code"><code class="language-bash">ai-workflow project summary --json</code></pre>
       <ul data-list-kind="unordered">
-      <li>Confirm the Gemini bridge exists:</li>
+      <li>Confirm the managed-project protocol and host bridges:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">ls .gemini/GEMINI.md .gemini/skills/ai-workflow</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">ai-workflow audit workflow --json
+ai-workflow dogfood --surface workflow,init,mcp --profile bootstrap --json</code></pre>
       </section>
       </section>
       <section aria-labelledby="core-workflow" data-heading-level="2">
@@ -269,14 +299,116 @@ ai-workflow shell &quot;make it ready&quot;</code></pre>
 ai-workflow shell &quot;show provider status&quot;</code></pre>
       </section>
       </section>
+      <section aria-labelledby="capability-status" data-heading-level="2">
+      <h2 id="capability-status">Capability Status</h2>
+      <p>This section is the public capability contract as of June 4, 2026. Treat live <code>doctor</code>, <code>dogfood</code>, audit, provider, and project-state output as more authoritative than this dated summary.</p>
+      <section aria-labelledby="works-reliably" data-heading-level="3">
+      <h3 id="works-reliably">Works Reliably</h3>
+      <ul data-list-kind="unordered">
+      <li>DB-backed sync, ticket lifecycle, project summary, status lookup, projections, and guideline extraction</li>
+      <li>deterministic and heuristic shell replies for workflow/status questions</li>
+      <li>shared coding/review/debug planning across shell, <code>ask</code>, and MCP</li>
+      <li>plan-only inspection, route diagnostics, mutation gates, and verification plans</li>
+      <li>ticket gating for mutating shell work</li>
+      <li>machine-readable project audit rules and workflow audit</li>
+      <li>MCP tools for summary, sync, ticket/guideline extraction, status, routing, planning, graph export, and projection writes</li>
+      <li>bootstrap/full dogfood surfaces and packed-install smoke paths</li>
+      </ul>
+      </section>
+      <section aria-labelledby="semi-works" data-heading-level="3">
+      <h3 id="semi-works">Semi-Works</h3>
+      <ul data-list-kind="unordered">
+      <li>Shell target resolution is useful but can rank broad or weak file/symbol targets for arbitrary or underspecified prompts.</li>
+      <li>Autonomous complex code generation depends heavily on provider/model quality. Weak model output is rejected or degraded honestly, but the resulting plan may still require a stronger coding host.</li>
+      <li>Local-model smart codelets work, but latency, timeout, and schema-retry behavior can make them slow.</li>
+      <li><code>ai-workflow tool benchmark --suite shell-trust</code> is provider-bound, but it emits per-case progress, has a 120-second default suite deadline, and reports incomplete/timed-out cases explicitly.</li>
+      <li>Full-profile dogfood can inherit provider-bound delay. Bootstrap-profile dogfood is the bounded deterministic gate when full provider exercise is not required.</li>
+      <li>Guideline enforcement selects active guardrails, injects them into shared planning/codelet contexts, validates typed outputs, and runs audit rules. It does not yet automatically prove every narrative guideline against every changed file.</li>
+      <li>Shell, <code>ask</code>, and MCP share core planning contracts, but each host controls how consistently it invokes the tools and follows returned constraints.</li>
+      <li>Workspace honesty is strongest in Git repositories. In non-Git workspaces freshness enforcement is advisory.</li>
+      </ul>
+      </section>
+      <section aria-labelledby="does-not-work-yet-but-is-planned" data-heading-level="3">
+      <h3 id="does-not-work-yet-but-is-planned">Does Not Work Yet, But Is Planned</h3>
+      <ul data-list-kind="unordered">
+      <li>Fully deterministic, high-quality autonomous implementation for arbitrary complex coding requests</li>
+      <li>Guaranteed compliance by third-party hosts that ignore MCP results or instruction-only skill guidance</li>
+      <li>Automatic semantic proof that README and full documentation describe every public behavior change; current enforcement requires the files and maintenance rule, while review/audit must still judge content quality</li>
+      <li>Universal changed-file pass/fail proof for every selected narrative guideline before mutation</li>
+      <li>Perfect graph target ranking for arbitrary natural-language code questions</li>
+      </ul>
+      </section>
+      </section>
+      <section aria-labelledby="shell-intelligence-and-enforcement" data-heading-level="2">
+      <h2 id="shell-intelligence-and-enforcement">Shell Intelligence And Enforcement</h2>
+      <section aria-labelledby="intelligence-model" data-heading-level="3">
+      <h3 id="intelligence-model">Intelligence Model</h3>
+      <p>The shell is a workflow-aware planner and operator surface, not a general unrestricted coding agent.</p>
+      <p>It combines:</p>
+      <ol data-list-kind="ordered">
+      <li>deterministic command and status handling for known workflow requests</li>
+      <li>heuristic planning for recognizable operator intents</li>
+      <li>routed AI planning when a suitable provider is available</li>
+      <li>shared DB-backed coding workflow plans for coding, review, and debugging requests</li>
+      <li>explicit degraded responses when provider/model output is unavailable or fails validation</li>
+      </ol>
+      <p>The shell reads live workflow state, active tickets, provider state, codelets, and selected guardrails before planning. <code>--no-ai</code> forces deterministic/heuristic behavior. <code>--plan-only</code> prevents execution and is the preferred way to inspect a proposed action graph.</p>
+      </section>
+      <section aria-labelledby="mutation-enforcement" data-heading-level="3">
+      <h3 id="mutation-enforcement">Mutation Enforcement</h3>
+      <ul data-list-kind="unordered">
+      <li>Mutating shell work requires exactly one ticket in <code>In Progress</code>.</li>
+      <li>Dedicated state-changing commands should be used instead of improvised shell actions.</li>
+      <li>Shared coding plans expose whether mutation is allowed and what ticket/verification contract applies.</li>
+      <li>Typed smart-codelet outputs are schema-checked and may be rejected or replaced by an explicitly degraded result.</li>
+      </ul>
+      <p>This is meaningful enforcement, but it is not a sandbox. Direct filesystem commands, a third-party host, or a human can still bypass the shell. Workflow audit and workspace-honesty checks detect some bypasses after the fact.</p>
+      </section>
+      </section>
+      <section aria-labelledby="plugin-and-managed-project-enforcement" data-heading-level="2">
+      <h2 id="plugin-and-managed-project-enforcement">Plugin And Managed-Project Enforcement</h2>
+      <section aria-labelledby="mcp-integration" data-heading-level="3">
+      <h3 id="mcp-integration">MCP Integration</h3>
+      <p><code>aiwf-mcp</code> is the strongest plugin-style surface because it exposes coded tools backed by the shared workflow core. Its planning tools return active guardrails, mutation gates, route diagnostics, recommended work tickets, and verification plans.</p>
+      <p>The MCP server currently exposes:</p>
+      <ul data-list-kind="unordered">
+      <li>project_summary</li>
+      <li>sync_project</li>
+      <li>extract_ticket</li>
+      <li>extract_guidelines</li>
+      <li>plan_work_tickets</li>
+      <li>plan_coding_workflow</li>
+      <li>project_status</li>
+      <li>route_task</li>
+      <li>knowledge_graph</li>
+      <li>write_projections</li>
+      </ul>
+      <p>MCP makes the constraints inspectable and reusable, but the host remains responsible for calling the tools and honoring their results.</p>
+      </section>
+      <section aria-labelledby="optional-skill-bridge" data-heading-level="3">
+      <h3 id="optional-skill-bridge">Optional Skill Bridge</h3>
+      <p><code>aiwf-skill</code> installs host-local instructions. It improves discovery and operating discipline but has no coded enforcement authority by itself. Use it on top of <code>aiwf-shell</code> or <code>aiwf-mcp</code>.</p>
+      </section>
+      <section aria-labelledby="managed-project-rules" data-heading-level="3">
+      <h3 id="managed-project-rules">Managed-Project Rules</h3>
+      <p><code>ai-workflow init</code> installs <code>AGENTS.md</code>, <code>execution-protocol.md</code>, <code>project-guidelines.md</code>, <code>enforcement.md</code>, workflow runtime helpers, and the audit workflow. The audit engine executes fenced <code>ai-workflow-audit</code> rules, including required patterns, forbidden patterns/imports, and responsibility-header rules.</p>
+      <p>Rules are strongest when they are:</p>
+      <ul data-list-kind="unordered">
+      <li>implemented as deterministic core gates</li>
+      <li>represented as narrow machine-readable audit rules</li>
+      <li>verified by entrypoint and degraded-path tests</li>
+      </ul>
+      <p>Narrative guidance that has not been promoted to a coded gate or audit rule remains advisory.</p>
+      </section>
+      </section>
       <section aria-labelledby="command-reference" data-heading-level="2">
       <h2 id="command-reference">Command Reference</h2>
       <section aria-labelledby="setup-and-bootstrap" data-heading-level="3">
       <h3 id="setup-and-bootstrap">Setup And Bootstrap</h3>
       <ul data-list-kind="unordered">
-      <li><code>ai-workflow setup [--project &lt;path&gt;]</code></li>
-      <li><code>ai-workflow install [--project &lt;path&gt;]</code></li>
-      <li><code>ai-workflow init [options]</code></li>
+      <li><code>ai-workflow setup [--project &lt;path&gt;] [--host &lt;gemini|codex|claude|all&gt;]</code></li>
+      <li><code>ai-workflow init [--target &lt;path&gt;] [--brief &lt;file&gt;] [--all] [--force] [--dry-run] [--no-sync]</code></li>
+      <li><code>ai-workflow install [--project &lt;path&gt;] [--host &lt;gemini|codex|claude|all&gt;]</code></li>
       <li><code>ai-workflow onboard &lt;brief-file&gt; [--json]</code></li>
       </ul>
       </section>
@@ -310,8 +442,14 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li><code>ai-workflow project epic &lt;list|show|search&gt; [...]</code></li>
       <li><code>ai-workflow project story &lt;list|search&gt; [...]</code></li>
       <li><code>ai-workflow project codelet &lt;list|show|search&gt; [...]</code></li>
+      <li><code>ai-workflow project ticket plan --goal &lt;text&gt; --parent &lt;ticket-id&gt; --artifact &lt;path&gt; [--file &lt;path&gt;] [--mode &lt;mode&gt;] [--apply] [--json]</code></li>
+      <li><code>ai-workflow project ticket plan &lt;validate|matrix|approve|verify&gt; [...]</code></li>
       <li><code>ai-workflow project ticket create --id &lt;id&gt; --title &lt;title&gt; [--lane &lt;lane&gt;] [--epic &lt;epic-id&gt;] [--summary &lt;text&gt;] [--json]</code></li>
+      <li><code>ai-workflow project ticket &lt;start|resolve|close|reopen&gt; &lt;ticket-id&gt; [...]</code></li>
+      <li><code>ai-workflow project assessment &lt;list|show|run&gt; [...]</code></li>
+      <li><code>ai-workflow project enrich-guidelines [--force] [--json]</code></li>
       <li><code>ai-workflow project note add --type &lt;NOTE|TODO|FIXME|HACK|BUG|RISK&gt; --body &lt;text&gt; [--file &lt;path&gt;] [--line &lt;n&gt;] [--symbol &lt;name&gt;] [--json]</code></li>
+      <li><code>ai-workflow project note resolve &lt;note-id&gt; [--reason &lt;text&gt;] [--json]</code></li>
       <li><code>ai-workflow project review-candidates [--json]</code></li>
       </ul>
       </section>
@@ -321,8 +459,9 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li><code>ai-workflow extract ticket &lt;id&gt; [options]</code></li>
       <li><code>ai-workflow extract guidelines [options]</code></li>
       <li><code>ai-workflow verify &lt;workflow|guidelines&gt; [options]</code></li>
-      <li><code>ai-workflow audit architecture [--json]</code></li>
+      <li><code>ai-workflow audit &lt;architecture|workflow&gt; [--json]</code></li>
       <li><code>ai-workflow dogfood [--surface &lt;id[,id...]&gt;] [--profile &lt;bootstrap|full&gt;] [--json]</code></li>
+      <li><code>ai-workflow programming-dogfood [--target &lt;path&gt;] [--force] [--json]</code></li>
       <li><code>ai-workflow reprofile [--json]</code></li>
       <li><code>ai-workflow route &lt;task-class&gt; [--json]</code></li>
       </ul>
@@ -361,6 +500,11 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li><code>ai-workflow config clear [--global]</code></li>
       <li><code>ai-workflow knowledge update-remote [--url &lt;remote-url&gt;] [--json]</code></li>
       <li><code>ai-workflow tool observe [--complaint &lt;text&gt;] [--json]</code></li>
+      <li><code>ai-workflow tool refine [issue-id] [--json]</code></li>
+      <li><code>ai-workflow tool benchmark &lt;prompt&gt; [--json]</code></li>
+      <li><code>ai-workflow tool benchmark --suite shell-trust [--timeout-ms &lt;n&gt;] [--total-timeout-ms &lt;n&gt;] [--json]</code></li>
+      <li><code>ai-workflow tool dogfood-harness [--json]</code></li>
+      <li><code>ai-workflow tool finalize [--json]</code></li>
       </ul>
       </section>
       <section aria-labelledby="special-surfaces" data-heading-level="3">
@@ -370,6 +514,7 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li><code>ai-workflow kanban &lt;new|move|next|archive|migrate&gt; [...]</code></li>
       <li><code>ai-workflow telegram preview [--json]</code></li>
       <li><code>ai-workflow web tutorial [--port &lt;n&gt;] [--host &lt;host&gt;] [--json]</code></li>
+      <li><code>ai-workflow mcp serve</code></li>
       </ul>
       </section>
       </section>
@@ -628,26 +773,35 @@ npm run workflow:audit -- --json</code></pre>
       <h2 id="install-surfaces">Install Surfaces</h2>
       <p>Choose one explicitly:</p>
       <ul data-list-kind="unordered">
+      <li>composite GitHub package for the complete CLI, MCP launcher, and skill installer</li>
       <li><code>aiwf-shell</code> for the CLI/operator surface</li>
       <li><code>aiwf-mcp</code> for the primary coded host-extension surface</li>
       <li><code>aiwf-skill</code> for the optional instruction-only bridge surface</li>
-      <li>both only if you want both surfaces available together</li>
+      <li>multiple split packages only when you need those surfaces together</li>
       </ul>
+      <section aria-labelledby="composite-github-package" data-heading-level="3">
+      <h3 id="composite-github-package">Composite GitHub Package</h3>
+      <pre data-block-kind="code"><code class="language-bash">npm install -g github:dharmax/ai-workflow
+ai-workflow --help</code></pre>
+      <p>This is the recommended complete install. It does not depend on the split packages being published in your configured npm registry.</p>
+      </section>
       <section aria-labelledby="shell-only" data-heading-level="3">
       <h3 id="shell-only">Shell Only</h3>
       <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell
 ai-workflow --help</code></pre>
+      <p>Use this only when <code>aiwf-shell</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="mcp-extension" data-heading-level="3">
       <h3 id="mcp-extension">MCP Extension</h3>
       <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-mcp
 aiwf-mcp</code></pre>
-      <p>Use this when a host should call durable tools instead of relying on a skill alone.</p>
+      <p>Use this when a host should call durable tools instead of relying on a skill alone. Use this only when <code>aiwf-mcp</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="optional-skill-bridge" data-heading-level="3">
       <h3 id="optional-skill-bridge">Optional Skill Bridge</h3>
       <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force</code></pre>
+      <p>Use this only when <code>aiwf-skill</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="both-together" data-heading-level="3">
       <h3 id="both-together">Both Together</h3>
@@ -677,6 +831,15 @@ aiwf-skill --project /abs/path/to/project --force</code></pre>
       <li>Re-run sync if the graph is stale</li>
       </ul>
       </section>
+      <section aria-labelledby="shell-trust-benchmark-takes-too-long" data-heading-level="3">
+      <h3 id="shell-trust-benchmark-takes-too-long">Shell-Trust Benchmark Takes Too Long</h3>
+      <ul data-list-kind="unordered">
+      <li>The benchmark is provider-bound, emits per-case progress to stderr, and stops at a 120-second suite deadline by default.</li>
+      <li>Check <code>ai-workflow doctor</code> and <code>ai-workflow route shell-planning --json</code> before retrying.</li>
+      <li>Use <code>--timeout-ms</code> to cap each shell case and <code>--total-timeout-ms</code> to override the suite deadline.</li>
+      <li>An incomplete or timed-out benchmark exits nonzero and reports the remaining case IDs; do not report it as passing.</li>
+      </ul>
+      </section>
       <section aria-labelledby="provider-looks-configured-but-unavailable" data-heading-level="3">
       <h3 id="provider-looks-configured-but-unavailable">Provider Looks Configured But Unavailable</h3>
       <ul data-list-kind="unordered">
@@ -691,6 +854,7 @@ aiwf-skill --project /abs/path/to/project --force</code></pre>
       <ul data-list-kind="unordered">
       <li>Re-run <code>npm run workflow:dogfood -- --profile full --json</code></li>
       <li>Re-run <code>npm run workflow:audit -- --json</code></li>
+      <li>If full-profile dogfood stalls on provider-bound checks, run bootstrap-profile dogfood for the deterministic gate and report the full profile as incomplete.</li>
       <li>If dogfood is stale, regenerate it instead of editing the report manually</li>
       <li>If the manual HTML is stale, run the manual generator instead of editing HTML manually</li>
       </ul>
@@ -703,6 +867,9 @@ aiwf-skill --project /abs/path/to/project --force</code></pre>
       <li>Generated output: <code>docs/manual.html</code></li>
       <li>Generator script: <code>npm run generate-docs</code></li>
       <li>Do not hand-edit <code>docs/manual.html</code></li>
+      <li>Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.</li>
+      <li>Update the dated capability-status section when a capability moves between planned, semi-working, and reliable.</li>
+      <li>Managed projects receive the same documentation-freshness rule through the installed guidance templates and machine-readable audit baseline.</li>
       </ul>
       </section>
     </article>

@@ -187,3 +187,15 @@ Group archived work by month or release when that improves scanning.
   - Epic: EPC-AIWF-RELIABILITY-001
   - Parent: EPC-AIWF-RELIABILITY-001
   - State: archived
+
+- [ ] TKT-DOCS-002 Publish installation, usage, capability limits, and documentation freshness rules ✅ 2026-06-04
+  - Summary: Refresh README and canonical full manual; document shell intelligence and plugin enforcement honestly; propagate documentation freshness rules to managed-project templates and audits.
+  - State: archived
+
+- [ ] BUG-KANBAN-TODO-001 Render Todo as a real kanban lane ✅ 2026-06-04
+  - Summary: Generated kanban renders an orphan canonical-alias comment and duplicate No items entry instead of a real Todo lane header.
+  - State: archived
+
+- [ ] BUG-SHELL-BENCHMARK-001 Bound shell-trust benchmark runtime and show progress ✅ 2026-06-04
+  - Summary: During TKT-DOCS-002 verification, ai-workflow tool benchmark --suite shell-trust emitted no progress and did not finish after 4m29s. Add bounded runtime, progress diagnostics, and an explicit incomplete/timeout result.
+  - State: archived

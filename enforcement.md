@@ -75,6 +75,12 @@ If a rule's failure text should be identical to the pattern text, omit `message`
       "include": ["AGENTS.md", "execution-protocol.md", "project-guidelines.md", "templates/AGENTS.md", "templates/execution-protocol.md", "templates/project-guidelines.md"],
       "extensions": [".md"],
       "pattern": "Operator-surface changes are not done until `ai-workflow dogfood` \\(or `node aiwf-shell/scripts/ai-workflow/dogfood\\.mjs`\\) and `workflow-audit` both pass\\."
+    },
+    {
+      "id": "keep-public-docs-current",
+      "include": ["AGENTS.md", "execution-protocol.md", "project-guidelines.md", "README.md", "docs/MANUAL.md", "aiwf-shell/templates/AGENTS.md", "aiwf-shell/templates/execution-protocol.md", "aiwf-shell/templates/project-guidelines.md"],
+      "extensions": [".md"],
+      "pattern": "Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes\\."
     }
   ],
   "forbiddenImports": [

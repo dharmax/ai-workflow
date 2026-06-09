@@ -25,7 +25,7 @@ async function readProjectOrTemplate(projectRoot, fileName, templateName = fileN
 const CORE_TICKET_LANES = [
   "Deep Backlog",
   "Backlog",
-  "ToDo",
+  "Todo",
   "Bugs P1",
   "Bugs P2/P3",
   "Assessments",
@@ -158,7 +158,7 @@ export function renderKanbanProjection(store) {
     if (ticket.state === "archived" || ticket.lane === "Archived") {
       continue;
     }
-    const lane = normalizeDisplayLaneName(ticket.lane ?? "ToDo");
+    const lane = normalizeDisplayLaneName(ticket.lane ?? "Todo");
     if (coreLaneMap.has(lane)) {
       coreLaneMap.get(lane)?.push(ticket);
       continue;
@@ -201,9 +201,6 @@ export function renderKanbanProjection(store) {
 
   for (const lane of CORE_TICKET_LANES) {
     lines.push(`## ${lane}`);
-    if (lane === "ToDo") {
-      lines.push("<!-- canonical alias: ## Todo -->");
-    }
     lines.push("");
     const items = coreLaneMap.get(lane) ?? [];
     if (!items.length) {
@@ -897,9 +894,9 @@ function normalizeLaneName(name) {
 function normalizeDisplayLaneName(name) {
   const key = String(name).trim().toLowerCase();
   const aliases = new Map([
-    ["todo", "ToDo"],
-    ["to-do", "ToDo"],
-    ["todoo", "ToDo"],
+    ["todo", "Todo"],
+    ["to-do", "Todo"],
+    ["todoo", "Todo"],
     ["backlog", "Backlog"],
     ["deep backlog", "Deep Backlog"],
     ["in progress", "In Progress"],

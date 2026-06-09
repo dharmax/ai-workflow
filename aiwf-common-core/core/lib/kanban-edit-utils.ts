@@ -144,7 +144,7 @@ export function createTicket(document, input) {
 export function getNextTicket(document, options = {}) {
   const priorities = options.priorities?.length
     ? options.priorities
-    : ["Bugs P1", "ToDo", "Bugs P2/P3", "In Progress", "Human Inspection", "Backlog", "Deep Backlog", "Suggestions", "Done"];
+    : ["Bugs P1", "Todo", "Bugs P2/P3", "In Progress", "Human Inspection", "Backlog", "Deep Backlog", "Suggestions", "Done"];
 
   for (const lane of priorities) {
     const section = findSection(document, lane);

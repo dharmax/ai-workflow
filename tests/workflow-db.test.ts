@@ -866,6 +866,9 @@ test("kanban projection keeps rare lanes hidden until they have cards", async ()
       }));
 
       const compactProjection = renderKanbanProjection(store);
+      assert.match(compactProjection, /^## Todo$/m);
+      assert.doesNotMatch(compactProjection, /^## ToDo$/m);
+      assert.doesNotMatch(compactProjection, /canonical alias/);
       assert.match(compactProjection, /## In Progress/);
       assert.doesNotMatch(compactProjection, /## AI Candidates/);
       assert.doesNotMatch(compactProjection, /## Risk Watch/);

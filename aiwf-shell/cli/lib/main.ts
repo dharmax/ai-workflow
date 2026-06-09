@@ -129,7 +129,7 @@ const HELP = `Usage:
   ai-workflow tool observe [--complaint <text>] [--json]
   ai-workflow tool refine [issue-id] [--json]
   ai-workflow tool benchmark <prompt> [--json]
-  ai-workflow tool benchmark --suite shell-trust [--json]
+  ai-workflow tool benchmark --suite shell-trust [--timeout-ms <n>] [--total-timeout-ms <n>] [--json]
   ai-workflow tool dogfood-harness [--json]
   ai-workflow tool finalize [--json]  ai-workflow web tutorial [--port <n>] [--host <host>] [--json]
   ai-workflow mcp serve
@@ -1554,10 +1554,21 @@ async function handleToolBenchmark(rest) {
   const prompt = args._.join(" ");
   const suite = args.suite ? String(args.suite) : "";
   if (!prompt && !suite) {
-    printAndExit("Usage: ai-workflow tool benchmark <prompt> [--json]\n       ai-workflow tool benchmark --suite shell-trust [--json]", 1);
+    printAndExit("Usage: ai-workflow tool benchmark <prompt> [--timeout-ms <n>] [--json]\n       ai-workflow tool benchmark --suite shell-trust [--timeout-ms <n>] [--total-timeout-ms <n>] [--json]", 1);
   }
 
-  const result = await runShellBenchmark(prompt || { suite, root: process.cwd() }, prompt ? { root: process.cwd() } : undefined);
+  const timeoutMs = Number(args["timeout-ms"]);
+  const totalTimeoutMs = Number(args["total-timeout-ms"]);
+  const benchmarkOptions = {
+    root: process.cwd(),
+    ...(Number.isFinite(timeoutMs) && timeoutMs > 0 ? { timeoutMs } : {}),
+    ...(Number.isFinite(totalTimeoutMs) && totalTimeoutMs > 0 ? { totalTimeoutMs } : {}),
+    onProgress: (event) => process.stderr.write(`[progress] ${event.message}\n`)
+  };
+  const result = await runShellBenchmark(
+    prompt || { suite, ...benchmarkOptions },
+    prompt ? benchmarkOptions : undefined
+  );
   if (args.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
@@ -1576,7 +1587,7 @@ async function handleToolBenchmark(rest) {
       }
     }
   }
-  return 0;
+  return result.ok ? 0 : 1;
 }
 
 async function handleToolRefine(rest) {

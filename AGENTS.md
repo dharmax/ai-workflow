@@ -18,4 +18,5 @@ If the ai-workflow tool is unavailable, follow the same process with `aiwf-shell
 - If `ai-workflow` fails, stop, identify root cause, and either fix it or report the blocker before continuing.
 - If you discover a bug while working on something else, stop and tell the operator unless they explicitly asked for full-batch triage.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
+- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
 - Strictly adhere to the project's Architectural Graph and Module boundaries.

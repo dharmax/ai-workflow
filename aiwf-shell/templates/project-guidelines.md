@@ -99,6 +99,7 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 
 - Config or dependency changes require explicit mention.
 - Production code without tests requires justification.
+- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
 - Guidance-file edits should be rare and intentional.
 - If a guidance file keeps growing with old notes, extract durable rules and move the rest into archives or ticket artifacts.
 - File boundaries should stay honest. If a responsibility header is hard to keep concise, the file boundary is probably wrong.

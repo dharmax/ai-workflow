@@ -34,7 +34,9 @@ test("Adversarial Sync: Recover from malformed Kanban", async () => {
   // Scenario 2: Format Correction on Projection
   // Now project back to file and see if it's clean
   const kanban = renderKanbanProjection(store);
-  assert.match(kanban, /## Todo/, "Should project canonical lanes");
+  assert.match(kanban, /^## Todo$/m, "Should project the canonical Todo lane");
+  assert.doesNotMatch(kanban, /^## ToDo$/m, "Should not project the legacy ToDo spelling");
+  assert.doesNotMatch(kanban, /canonical alias/, "Should not hide lane compatibility behind a comment");
   assert.match(kanban, /- \[ \] TKT-002/, "Should fix formatting for TKT-002");
 
   await rm(projectRoot, { recursive: true, force: true });

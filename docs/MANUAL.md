@@ -1,3 +1,5 @@
+<!-- Responsibility: Provide the complete public installation, usage, configuration, capability-status, and troubleshooting reference.
+Scope: Live workflow state and ticket-local implementation detail belong in the workflow DB and projections, not in this manual. -->
 # ai-workflow Manual
 
 ## What It Is
@@ -13,49 +15,65 @@ Shell, MCP, and host guidance should treat this manual as a first-class operatio
 ## Mental Model
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
-- Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 - Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline.
 - Treat the workflow DB as canonical state, and treat projections as readable outputs that must stay reconciled.
+- Treat `Todo` as the canonical projected kanban lane spelling; legacy `ToDo`, `TODO`, and `To-do` inputs normalize to it.
 - Use `lean-ctx` whenever compact context matters.
 - If `ai-workflow` fails, stop, identify root cause, and either fix it or report the blocker before continuing.
 
 ## Installation And Setup
 
-### Toolkit Install
+### Requirements
 
-- One-off setup into the current project:
+- Node.js 22 or newer
+- Git
+- A Git repository for meaningful mutation tracking and workspace-honesty checks
+- Optional provider credentials or a reachable Ollama instance for AI-planned operations
+
+Deterministic sync, status, audit, projection, extraction, and many planning paths do not require an AI provider.
+
+### Recommended Complete Install
+
+The complete GitHub install surface exposes `ai-workflow`, `aiwf-mcp`, and `aiwf-skill`:
 
 ```bash
-npx @dharmax/ai-workflow setup --project .
+npm install -g github:dharmax/ai-workflow
+ai-workflow --help
 ```
 
-- Global install:
+The split packages `aiwf-shell`, `aiwf-mcp`, `aiwf-skill`, and `aiwf-common-core` are configured as independent packages. Install them from npm only when they are available in your configured registry.
+
+### Source Checkout
 
 ```bash
-pnpm add -g @dharmax/ai-workflow
-# or
-npm install -g @dharmax/ai-workflow
+git clone https://github.com/dharmax/ai-workflow.git
+cd ai-workflow
+npm install
+npm run build
+node cli/ai-workflow.mjs --help
 ```
 
 ### Repo Bootstrap
 
-- Install workflow files into the current repo:
+- Initialize workflow files and runtime helpers in the current repo:
 
 ```bash
-ai-workflow install --project .
+ai-workflow init --target .
 ```
 
-- Refresh the optional repo-local Gemini skill bridge:
+- Install supported host bridges:
 
 ```bash
-npm run install:gemini-skill
+ai-workflow install --project . --host all
 ```
 
-- Initialize from a brief:
+Supported host values are `gemini`, `codex`, `claude`, and `all`. The install command configures coded MCP launch settings where the host supports them and adds instruction bridges where applicable.
+
+- Initialize from a brief while installing:
 
 ```bash
-ai-workflow init --brief ./project-brief.md
+ai-workflow init --target . --brief ./project-brief.md
 ```
 
 - Refresh the DB and projections:
@@ -84,10 +102,11 @@ ai-workflow mode status --json
 ai-workflow project summary --json
 ```
 
-- Confirm the Gemini bridge exists:
+- Confirm the managed-project protocol and host bridges:
 
 ```bash
-ls .gemini/GEMINI.md .gemini/skills/ai-workflow
+ai-workflow audit workflow --json
+ai-workflow dogfood --surface workflow,init,mcp --profile bootstrap --json
 ```
 
 ## Core Workflow
@@ -225,13 +244,109 @@ ai-workflow shell "doctor"
 ai-workflow shell "show provider status"
 ```
 
+## Capability Status
+
+This section is the public capability contract as of June 4, 2026. Treat live `doctor`, `dogfood`, audit, provider, and project-state output as more authoritative than this dated summary.
+
+### Works Reliably
+
+- DB-backed sync, ticket lifecycle, project summary, status lookup, projections, and guideline extraction
+- deterministic and heuristic shell replies for workflow/status questions
+- shared coding/review/debug planning across shell, `ask`, and MCP
+- plan-only inspection, route diagnostics, mutation gates, and verification plans
+- ticket gating for mutating shell work
+- machine-readable project audit rules and workflow audit
+- MCP tools for summary, sync, ticket/guideline extraction, status, routing, planning, graph export, and projection writes
+- bootstrap/full dogfood surfaces and packed-install smoke paths
+
+### Semi-Works
+
+- Shell target resolution is useful but can rank broad or weak file/symbol targets for arbitrary or underspecified prompts.
+- Autonomous complex code generation depends heavily on provider/model quality. Weak model output is rejected or degraded honestly, but the resulting plan may still require a stronger coding host.
+- Local-model smart codelets work, but latency, timeout, and schema-retry behavior can make them slow.
+- `ai-workflow tool benchmark --suite shell-trust` is provider-bound, but it emits per-case progress, has a 120-second default suite deadline, and reports incomplete/timed-out cases explicitly.
+- Full-profile dogfood can inherit provider-bound delay. Bootstrap-profile dogfood is the bounded deterministic gate when full provider exercise is not required.
+- Guideline enforcement selects active guardrails, injects them into shared planning/codelet contexts, validates typed outputs, and runs audit rules. It does not yet automatically prove every narrative guideline against every changed file.
+- Shell, `ask`, and MCP share core planning contracts, but each host controls how consistently it invokes the tools and follows returned constraints.
+- Workspace honesty is strongest in Git repositories. In non-Git workspaces freshness enforcement is advisory.
+
+### Does Not Work Yet, But Is Planned
+
+- Fully deterministic, high-quality autonomous implementation for arbitrary complex coding requests
+- Guaranteed compliance by third-party hosts that ignore MCP results or instruction-only skill guidance
+- Automatic semantic proof that README and full documentation describe every public behavior change; current enforcement requires the files and maintenance rule, while review/audit must still judge content quality
+- Universal changed-file pass/fail proof for every selected narrative guideline before mutation
+- Perfect graph target ranking for arbitrary natural-language code questions
+
+## Shell Intelligence And Enforcement
+
+### Intelligence Model
+
+The shell is a workflow-aware planner and operator surface, not a general unrestricted coding agent.
+
+It combines:
+
+1. deterministic command and status handling for known workflow requests
+2. heuristic planning for recognizable operator intents
+3. routed AI planning when a suitable provider is available
+4. shared DB-backed coding workflow plans for coding, review, and debugging requests
+5. explicit degraded responses when provider/model output is unavailable or fails validation
+
+The shell reads live workflow state, active tickets, provider state, codelets, and selected guardrails before planning. `--no-ai` forces deterministic/heuristic behavior. `--plan-only` prevents execution and is the preferred way to inspect a proposed action graph.
+
+### Mutation Enforcement
+
+- Mutating shell work requires exactly one ticket in `In Progress`.
+- Dedicated state-changing commands should be used instead of improvised shell actions.
+- Shared coding plans expose whether mutation is allowed and what ticket/verification contract applies.
+- Typed smart-codelet outputs are schema-checked and may be rejected or replaced by an explicitly degraded result.
+
+This is meaningful enforcement, but it is not a sandbox. Direct filesystem commands, a third-party host, or a human can still bypass the shell. Workflow audit and workspace-honesty checks detect some bypasses after the fact.
+
+## Plugin And Managed-Project Enforcement
+
+### MCP Integration
+
+`aiwf-mcp` is the strongest plugin-style surface because it exposes coded tools backed by the shared workflow core. Its planning tools return active guardrails, mutation gates, route diagnostics, recommended work tickets, and verification plans.
+
+The MCP server currently exposes:
+
+- project_summary
+- sync_project
+- extract_ticket
+- extract_guidelines
+- plan_work_tickets
+- plan_coding_workflow
+- project_status
+- route_task
+- knowledge_graph
+- write_projections
+
+MCP makes the constraints inspectable and reusable, but the host remains responsible for calling the tools and honoring their results.
+
+### Optional Skill Bridge
+
+`aiwf-skill` installs host-local instructions. It improves discovery and operating discipline but has no coded enforcement authority by itself. Use it on top of `aiwf-shell` or `aiwf-mcp`.
+
+### Managed-Project Rules
+
+`ai-workflow init` installs `AGENTS.md`, `execution-protocol.md`, `project-guidelines.md`, `enforcement.md`, workflow runtime helpers, and the audit workflow. The audit engine executes fenced `ai-workflow-audit` rules, including required patterns, forbidden patterns/imports, and responsibility-header rules.
+
+Rules are strongest when they are:
+
+- implemented as deterministic core gates
+- represented as narrow machine-readable audit rules
+- verified by entrypoint and degraded-path tests
+
+Narrative guidance that has not been promoted to a coded gate or audit rule remains advisory.
+
 ## Command Reference
 
 ### Setup And Bootstrap
 
-- `ai-workflow setup [--project <path>]`
-- `ai-workflow install [--project <path>]`
-- `ai-workflow init [options]`
+- `ai-workflow setup [--project <path>] [--host <gemini|codex|claude|all>]`
+- `ai-workflow init [--target <path>] [--brief <file>] [--all] [--force] [--dry-run] [--no-sync]`
+- `ai-workflow install [--project <path>] [--host <gemini|codex|claude|all>]`
 - `ai-workflow onboard <brief-file> [--json]`
 
 ### Core Diagnostics And Status
@@ -259,8 +374,14 @@ ai-workflow shell "show provider status"
 - `ai-workflow project epic <list|show|search> [...]`
 - `ai-workflow project story <list|search> [...]`
 - `ai-workflow project codelet <list|show|search> [...]`
+- `ai-workflow project ticket plan --goal <text> --parent <ticket-id> --artifact <path> [--file <path>] [--mode <mode>] [--apply] [--json]`
+- `ai-workflow project ticket plan <validate|matrix|approve|verify> [...]`
 - `ai-workflow project ticket create --id <id> --title <title> [--lane <lane>] [--epic <epic-id>] [--summary <text>] [--json]`
+- `ai-workflow project ticket <start|resolve|close|reopen> <ticket-id> [...]`
+- `ai-workflow project assessment <list|show|run> [...]`
+- `ai-workflow project enrich-guidelines [--force] [--json]`
 - `ai-workflow project note add --type <NOTE|TODO|FIXME|HACK|BUG|RISK> --body <text> [--file <path>] [--line <n>] [--symbol <name>] [--json]`
+- `ai-workflow project note resolve <note-id> [--reason <text>] [--json]`
 - `ai-workflow project review-candidates [--json]`
 
 ### Extraction And Verification
@@ -268,8 +389,9 @@ ai-workflow shell "show provider status"
 - `ai-workflow extract ticket <id> [options]`
 - `ai-workflow extract guidelines [options]`
 - `ai-workflow verify <workflow|guidelines> [options]`
-- `ai-workflow audit architecture [--json]`
+- `ai-workflow audit <architecture|workflow> [--json]`
 - `ai-workflow dogfood [--surface <id[,id...]>] [--profile <bootstrap|full>] [--json]`
+- `ai-workflow programming-dogfood [--target <path>] [--force] [--json]`
 - `ai-workflow reprofile [--json]`
 - `ai-workflow route <task-class> [--json]`
 
@@ -302,6 +424,11 @@ ai-workflow shell "show provider status"
 - `ai-workflow config clear [--global]`
 - `ai-workflow knowledge update-remote [--url <remote-url>] [--json]`
 - `ai-workflow tool observe [--complaint <text>] [--json]`
+- `ai-workflow tool refine [issue-id] [--json]`
+- `ai-workflow tool benchmark <prompt> [--json]`
+- `ai-workflow tool benchmark --suite shell-trust [--timeout-ms <n>] [--total-timeout-ms <n>] [--json]`
+- `ai-workflow tool dogfood-harness [--json]`
+- `ai-workflow tool finalize [--json]`
 
 ### Special Surfaces
 
@@ -309,6 +436,7 @@ ai-workflow shell "show provider status"
 - `ai-workflow kanban <new|move|next|archive|migrate> [...]`
 - `ai-workflow telegram preview [--json]`
 - `ai-workflow web tutorial [--port <n>] [--host <host>] [--json]`
+- `ai-workflow mcp serve`
 
 ## Configuration Reference
 
@@ -532,10 +660,20 @@ npm run workflow:audit -- --json
 
 Choose one explicitly:
 
+- composite GitHub package for the complete CLI, MCP launcher, and skill installer
 - `aiwf-shell` for the CLI/operator surface
 - `aiwf-mcp` for the primary coded host-extension surface
 - `aiwf-skill` for the optional instruction-only bridge surface
-- both only if you want both surfaces available together
+- multiple split packages only when you need those surfaces together
+
+### Composite GitHub Package
+
+```bash
+npm install -g github:dharmax/ai-workflow
+ai-workflow --help
+```
+
+This is the recommended complete install. It does not depend on the split packages being published in your configured npm registry.
 
 ### Shell Only
 
@@ -543,6 +681,8 @@ Choose one explicitly:
 npm install -g aiwf-shell
 ai-workflow --help
 ```
+
+Use this only when `aiwf-shell` is available in your configured npm registry.
 
 ### MCP Extension
 
@@ -552,6 +692,7 @@ aiwf-mcp
 ```
 
 Use this when a host should call durable tools instead of relying on a skill alone.
+Use this only when `aiwf-mcp` is available in your configured npm registry.
 
 ### Optional Skill Bridge
 
@@ -559,6 +700,8 @@ Use this when a host should call durable tools instead of relying on a skill alo
 npm install -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force
 ```
+
+Use this only when `aiwf-skill` is available in your configured npm registry.
 
 ### Both Together
 
@@ -585,6 +728,13 @@ aiwf-skill --project /abs/path/to/project --force
 - Check whether the active ticket and `kanban.md` are truthful
 - Re-run sync if the graph is stale
 
+### Shell-Trust Benchmark Takes Too Long
+
+- The benchmark is provider-bound, emits per-case progress to stderr, and stops at a 120-second suite deadline by default.
+- Check `ai-workflow doctor` and `ai-workflow route shell-planning --json` before retrying.
+- Use `--timeout-ms` to cap each shell case and `--total-timeout-ms` to override the suite deadline.
+- An incomplete or timed-out benchmark exits nonzero and reports the remaining case IDs; do not report it as passing.
+
 ### Provider Looks Configured But Unavailable
 
 - Run `ai-workflow doctor`
@@ -596,6 +746,7 @@ aiwf-skill --project /abs/path/to/project --force
 
 - Re-run `npm run workflow:dogfood -- --profile full --json`
 - Re-run `npm run workflow:audit -- --json`
+- If full-profile dogfood stalls on provider-bound checks, run bootstrap-profile dogfood for the deterministic gate and report the full profile as incomplete.
 - If dogfood is stale, regenerate it instead of editing the report manually
 - If the manual HTML is stale, run the manual generator instead of editing HTML manually
 
@@ -605,3 +756,6 @@ aiwf-skill --project /abs/path/to/project --force
 - Generated output: `docs/manual.html`
 - Generator script: `npm run generate-docs`
 - Do not hand-edit `docs/manual.html`
+- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
+- Update the dated capability-status section when a capability moves between planned, semi-working, and reliable.
+- Managed projects receive the same documentation-freshness rule through the installed guidance templates and machine-readable audit baseline.

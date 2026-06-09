@@ -15,7 +15,7 @@ Scope: Ticket-local implementation detail and project-specific technical constra
 - For epic-scale or multi-ticket work, start on a fresh branch, make a baseline commit, and push before substantive edits.
 - Plan and execute one epic at a time; do not interleave roadmap epics unless a real blocker forces the split.
 - Move exactly one ticket or one explicit batch ticket to `In Progress` before substantive edits.
-- Keep `ToDo` as the immediate next queue, not a parking lot.
+- Keep `Todo` as the immediate next queue, not a parking lot.
 - Batch by one owned problem family, not by convenience.
 - Keep unrelated cleanup out of the same slice unless it is required for the ticket.
 - If new issues are discovered, add tickets instead of silently expanding scope.
@@ -24,8 +24,8 @@ Scope: Ticket-local implementation detail and project-specific technical constra
 
 - `Deep Backlog`: larger later work tied to an epic in `epics.md`.
 - `Backlog`: real work worth tracking, but not next-up.
-- `ToDo`: the next actionable queue.
-- `Bugs P1`: urgent regressions that outrank normal `ToDo`.
+- `Todo`: the next actionable queue.
+- `Bugs P1`: urgent regressions that outrank normal `Todo`.
 - `Bugs P2/P3`: non-critical bugs still worth scheduling explicitly.
 - `In Progress`: the one live ticket being worked now.
 - `Human Inspection`: tickets waiting on human eyes, ears, or product judgment.
