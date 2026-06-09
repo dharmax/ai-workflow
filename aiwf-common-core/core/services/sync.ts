@@ -70,7 +70,8 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
 	        const projectionSnapshot = await collectProjectFileSnapshot(projectRoot, { ignore: dynamicIgnores });
 	        recordProjectionMutation(store, projectRoot, projections, projectionSnapshot);
 	      }
-		      return {
+          recordSyncBaselineMutation(store, projectRoot, snapshot, startedAt);
+	      return {
 		        projectRoot,
 		        dbPath: store.dbPath,
 	        indexedFiles: summary.fileCount ?? 0,
@@ -207,6 +208,7 @@ export async function syncProject({ projectRoot = process.cwd(), writeProjection
       fingerprint: finalFingerprint,
       fileCount: files.length
     });
+    recordSyncBaselineMutation(store, projectRoot, postProjectionSnapshot, startedAt);
 
     const summary = buildProjectSummary(store);
     return {
@@ -303,6 +305,23 @@ function recordProjectionMutation(store, projectRoot, projections, snapshot = []
     },
     startedAt: projections.writtenAt,
     completedAt: projections.writtenAt
+  });
+}
+
+function recordSyncBaselineMutation(store, projectRoot, snapshot = [], completedAt = new Date().toISOString()) {
+  store.appendWorkspaceMutation({
+    root: projectRoot,
+    operation: "sync baseline",
+    status: "completed",
+    beforeDirty: false,
+    afterDirty: false,
+    changedFiles: [],
+    details: {
+      source: "syncProject",
+      snapshot
+    },
+    startedAt: completedAt,
+    completedAt
   });
 }
 

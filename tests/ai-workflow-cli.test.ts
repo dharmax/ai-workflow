@@ -561,6 +561,38 @@ test("ai-workflow sync exits promptly when protocol checks are unverified", { co
   }
 });
 
+test("ai-workflow sync records manual edits as the latest workspace baseline", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-sync-manual-baseline-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await mkdir(path.join(targetRoot, "source"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, "README.md"),
+      [
+        "# Manual Project",
+        "",
+        "Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.",
+        "",
+        "Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(path.join(targetRoot, "source", "main.mts"), "export const value = 1;\n", "utf8");
+
+    const syncResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync"],
+      { cwd: targetRoot, timeout: 5000 }
+    );
+
+    assert.equal(syncResult.code, 0, syncResult.stderr || syncResult.stdout);
+    assert.match(syncResult.stdout, /Protocol: ✅ verified/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("ai-workflow config set rejects shell-channel execution", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-shell-channel-"));
 

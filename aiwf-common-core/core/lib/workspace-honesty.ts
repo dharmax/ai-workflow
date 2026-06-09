@@ -7,6 +7,7 @@ import { collectProjectFileSnapshot } from "./filesystem.ts";
 const execFileAsync = promisify(execFile);
 
 const HONESTY_IGNORE_PATHS = new Set([
+  ".ai-workflow/state/workflow.db",
   ".obsidian/workspace.json",
   ".obsidian/workspace-mobile.json"
 ]);
