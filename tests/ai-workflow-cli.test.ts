@@ -541,6 +541,26 @@ test("ai-workflow ticket helpers prefer the discovered real kanban source over s
   }
 });
 
+test("ai-workflow sync exits promptly when protocol checks are unverified", { concurrency: false }, async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-sync-unverified-"));
+
+  try {
+    await runNode([path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot]);
+    await writeFile(path.join(targetRoot, "README.md"), "# Temporary README\n", "utf8");
+
+    const syncResult = await runNode(
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync"],
+      { cwd: targetRoot, timeout: 5000 }
+    );
+
+    assert.equal(syncResult.code, 0, syncResult.stderr || syncResult.stdout);
+    assert.match(syncResult.stdout, /Protocol: 🚨 unverified/);
+    assert.match(syncResult.stdout, /README\.md: missing required pattern/);
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("ai-workflow config set rejects shell-channel execution", { concurrency: false }, async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-shell-channel-"));
 

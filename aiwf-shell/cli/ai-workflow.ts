@@ -11,8 +11,14 @@ import { main } from "./lib/main.ts";
 installSynchronousWrites(process.stdout);
 installSynchronousWrites(process.stderr);
 
-const code = await main(process.argv.slice(2));
-process.exitCode = code;
+try {
+  const code = await main(process.argv.slice(2));
+  process.exitCode = code;
+  process.exit(code);
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+  process.exit(1);
+}
 
 function installSynchronousWrites(stream) {
   const originalWrite = stream.write.bind(stream);
