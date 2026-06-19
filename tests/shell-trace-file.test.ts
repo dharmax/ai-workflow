@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -10,7 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args: string[], options: any = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   return await new Promise((resolve) => {
-    execFile(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
+    execFile("bun", args, {
       cwd: options.cwd ?? repoRoot,
       env: { ...process.env, ...(options.env ?? {}) },
       timeout: options.timeout ?? 180000,

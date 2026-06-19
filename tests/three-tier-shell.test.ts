@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert";
 import { triageShellRequest } from "aiwf-common-core/services/shell-triage";
 import { ShellTier } from "aiwf-common-core/services/shell-triage.types";

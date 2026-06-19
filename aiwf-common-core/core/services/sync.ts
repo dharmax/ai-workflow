@@ -916,8 +916,8 @@ export async function updateTicketLifecycle({
     store.upsertEntity(nextTicket);
     await reconcileEpicStates(store);
     createSearchDocumentsForEntities(store);
-    await writeProjectProjections(store, { projectRoot });
-    return store.getEntity(ticketId);
+    await writeProjectProjections(store, { projectRoot, reconcileLegacy: false });
+    return nextTicket;
   });
 }
 

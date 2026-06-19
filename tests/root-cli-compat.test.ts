@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -14,11 +14,7 @@ test("legacy root cli launcher forwards to the shell package build", async () =>
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "ai-workflow-root-cli-"));
 
   try {
-    await execFileAsync(
-      process.execPath,
-      [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot],
-      { maxBuffer: 8 * 1024 * 1024 }
-    );
+    await execFileAsync("bun", [path.join(repoRoot, "aiwf-shell", "scripts", "init-project.ts"), "--target", targetRoot], { maxBuffer: 8 * 1024 * 1024 });
 
     const result = await execFileAsync(
       process.execPath,

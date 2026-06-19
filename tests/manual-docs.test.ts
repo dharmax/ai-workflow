@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -14,10 +14,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args: string[], options: any = {}) {
   try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, [
-      path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
-      ...args
-    ], {
+    const { stdout, stderr } = await execFileAsync("bun", args, {
       ...options,
       maxBuffer: 8 * 1024 * 1024
     });
@@ -63,7 +60,7 @@ test("public docs expose install, usage, capability limits, and the managed-proj
   const manual = await readFile(path.join(repoRoot, "docs", "MANUAL.md"), "utf8");
 
   assert.match(readme, /\[docs\/MANUAL\.md\]\(docs\/MANUAL\.md\)/);
-  assert.match(readme, /npm install -g github:dharmax\/ai-workflow/);
+  assert.match(readme, /bun add -g github:dharmax\/ai-workflow/);
   assert.match(readme, /How Smart Is The Shell/);
   assert.match(readme, /How Strong Is Plugin Enforcement/);
   assert.match(manual, /## Capability Status/);
@@ -71,6 +68,9 @@ test("public docs expose install, usage, capability limits, and the managed-proj
   assert.match(manual, /### Does Not Work Yet, But Is Planned/);
   assert.match(manual, /## Shell Intelligence And Enforcement/);
   assert.match(manual, /## Plugin And Managed-Project Enforcement/);
+  assert.doesNotMatch(`${readme}\n${manual}`, /npm install|npm run|node cli\/ai-workflow|node \.\/node_modules\/tsx|tsx scripts\//);
+  assert.match(manual, /run_codelet/);
+  assert.match(manual, /apply: true/);
 });
 
 test("initialized projects receive the public-documentation freshness rule and audit baseline", async () => {

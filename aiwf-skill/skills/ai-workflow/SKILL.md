@@ -24,6 +24,7 @@ This skill is designed for low-risk operation:
 ## Resolve The Surface
 
 Prefer the MCP surface when the host can use it. Use the local wrapper only when the host needs a shell-facing bridge.
+Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.
 
 ## Resolve the CLI
 

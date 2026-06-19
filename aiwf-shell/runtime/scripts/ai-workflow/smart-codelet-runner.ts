@@ -453,7 +453,7 @@ function buildDeterministicFallback({ graderId, context, lastError }) {
       ],
       verification_steps: [
         "ai-workflow extract guidelines coding architecture enforcement --json",
-        "npm run build --workspace aiwf-shell",
+      "bun run build --filter aiwf-shell",
         "ai-workflow dogfood --surface shell,workflow,provider,init --profile bootstrap --json",
         "ai-workflow audit workflow --json"
       ],
@@ -479,8 +479,8 @@ function buildDeterministicFallback({ graderId, context, lastError }) {
         "Run targeted tests plus workflow dogfood/audit before declaring operator-surface work complete."
       ],
       verification_steps: [
-        "npm run build --workspace aiwf-shell",
-        "node ./node_modules/tsx/dist/cli.mjs --test tests/shell.test.ts",
+      "bun run build --filter aiwf-shell",
+      "bun test tests/shell.test.ts",
         "ai-workflow dogfood --surface shell,workflow,provider,init --profile bootstrap --json",
         "ai-workflow audit workflow --json"
       ],

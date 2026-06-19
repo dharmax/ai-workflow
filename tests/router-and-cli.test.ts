@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -562,7 +562,7 @@ async function runNode(args: string[], options: any = {}) {
   const stdoutPath = path.join(captureDir, "stdout.log");
   const stderrPath = path.join(captureDir, "stderr.log");
   try {
-    await execFileAsync("/usr/bin/bash", ["-lc", `${shellQuote(process.execPath)} ${[path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args].map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
+    await execFileAsync("/usr/bin/bash", ["-lc", `bun  > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
       cwd: options.cwd ?? repoRoot,
       maxBuffer: 8 * 1024 * 1024
     });

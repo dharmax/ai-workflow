@@ -33,7 +33,9 @@ _Core lanes are fixed. Rare lanes only render when they contain cards. `Archived
 
 ## In Progress
 
-- No items
+- [ ] TKT-PLUGIN-BUN-001 Expose full agent plugin surface and migrate ai-workflow to Bun
+  - Summary: Make Bun canonical and expose full MCP agent/plugin surface for project search, ticket lifecycle, codelets, and readiness status.
+  - State: open
 
 ## Human Inspection
 

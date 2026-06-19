@@ -1,10 +1,8 @@
-import path from "node:path";
 import { spawn } from "node:child_process";
-import { getToolkitRoot, getWorkspaceRoot } from "./toolkit-root.ts";
+import { getToolkitRoot } from "./toolkit-root.ts";
 
 export function resolveTsxCliPath(toolkitRoot = getToolkitRoot()) {
-  const workspaceRoot = getWorkspaceRoot(toolkitRoot);
-  return path.resolve(workspaceRoot, "node_modules", "tsx", "dist", "cli.mjs");
+  return resolveBunBin();
 }
 
 export function spawnTsx(args: string[], options: {
@@ -13,9 +11,15 @@ export function spawnTsx(args: string[], options: {
   stdio?: any;
   toolkitRoot?: string;
 }) {
-  return spawn(process.execPath, [resolveTsxCliPath(options.toolkitRoot), ...args], {
+  return spawn(resolveBunBin(), args, {
     cwd: options.cwd,
     env: options.env,
     stdio: options.stdio
   });
+}
+
+function resolveBunBin() {
+  return process.env.BUN_INSTALL
+    ? `${process.env.BUN_INSTALL}/bin/bun`
+    : "bun";
 }

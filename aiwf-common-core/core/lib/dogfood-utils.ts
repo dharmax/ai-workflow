@@ -103,10 +103,6 @@ export async function runDogfood({
 
 function resolveShellCliPath(toolkitRoot) {
   const shellRoot = getShellRoot(toolkitRoot);
-  const builtCliPath = path.resolve(shellRoot, "dist", "ai-workflow.mjs");
-  if (existsSync(builtCliPath)) {
-    return builtCliPath;
-  }
   return path.resolve(shellRoot, "cli", "ai-workflow.ts");
 }
 
@@ -296,7 +292,7 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
     scenarios.push({
       id: "human-language-benchmark",
       description: "shell survives a fixed corpus of messy operator prompts grounded in this repo",
-      command: `${ "npx", "tsx"} ${cliPath} tool benchmark --suite shell-trust --json`,
+      command: `bun ${cliPath} tool benchmark --suite shell-trust --json`,
       ok: benchmark.ok,
       code: benchmark.ok ? 0 : 1,
       timedOut: false,
@@ -424,13 +420,13 @@ async function buildInitScenarios({ timeoutMs, toolkitRoot }) {
       buildScenarioResult({
         id: "init-project",
         description: "init installs workflow scaffolding and bootstrap dogfood report",
-        command: `${ "npx", "tsx"} ${initScriptPath} --target ${fixtureRoot}`,
+        command: `bun ${initScriptPath} --target ${fixtureRoot}`,
         result: initResult
       }),
       buildScenarioResult({
         id: "init-audit",
         description: "initialized project passes workflow-audit immediately",
-        command: `${ "npx", "tsx"} ${auditScriptPath} --json`,
+        command: `bun ${auditScriptPath} --json`,
         result: auditResult
       })
     ];
@@ -448,7 +444,7 @@ async function runCliScenario({ id, description, cwd, timeoutMs, cliPath, args, 
   const scenario = buildScenarioResult({
     id,
     description,
-    command: `${ "npx", "tsx"} ${cliPath} ${args.map(shellQuote).join(" ")}`,
+    command: `bun ${cliPath} ${args.map(shellQuote).join(" ")}`,
     result,
     validationHints
   });
@@ -635,7 +631,7 @@ function shellQuote(value) {
 async function runNodeProcess({ cwd, args, timeoutMs }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn(process.execPath, [resolveTsxCliPath(), ...args], {
+    const child = spawn(resolveTsxCliPath(), args, {
       cwd,
       env: {
         ...process.env,

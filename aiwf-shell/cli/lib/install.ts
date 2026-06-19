@@ -167,27 +167,36 @@ async function ensureClaudeBridge(projectRoot, toolkitRoot, results) {
 }
 
 function resolveHostLaunchSpec(shellRoot) {
-  const sourceCli = path.resolve(shellRoot, "cli", "ai-workflow.ts");
-  const tsxCli = path.resolve(path.dirname(shellRoot), "node_modules", "tsx", "dist", "cli.mjs");
-  if (existsSync(sourceCli) && existsSync(tsxCli)) {
+  const toolkitRoot = path.dirname(shellRoot);
+  const mcpSourceCli = path.resolve(toolkitRoot, "aiwf-mcp", "server.ts");
+  if (existsSync(mcpSourceCli)) {
     return {
-      command: process.execPath,
-      args: [tsxCli, sourceCli, "mcp", "serve"],
+      command: resolveBunCommand(),
+      args: [mcpSourceCli],
       env: {
-        AI_WORKFLOW_TOOLKIT_ROOT: path.dirname(shellRoot)
+        AI_WORKFLOW_TOOLKIT_ROOT: toolkitRoot
       }
     };
   }
 
-  const distCli = path.resolve(shellRoot, "dist", "ai-workflow.mjs");
-  if (existsSync(distCli)) {
+  const mcpBridgeCli = path.resolve(toolkitRoot, "cli", "aiwf-mcp.mjs");
+  if (existsSync(mcpBridgeCli)) {
     return {
-      command: distCli,
-      args: ["mcp", "serve"]
+      command: resolveBunCommand(),
+      args: [mcpBridgeCli],
+      env: {
+        AI_WORKFLOW_TOOLKIT_ROOT: toolkitRoot
+      }
     };
   }
 
   throw new Error(`Unable to resolve an ai-workflow MCP launch command from ${shellRoot}`);
+}
+
+function resolveBunCommand() {
+  return process.env.BUN_INSTALL
+    ? path.resolve(process.env.BUN_INSTALL, "bin", "bun")
+    : "bun";
 }
 
 function getCodexHome() {

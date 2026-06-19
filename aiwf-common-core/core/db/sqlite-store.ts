@@ -4,7 +4,7 @@
  */
 
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "./sqlite-adapter.ts";
 import { mkdir } from "node:fs/promises";
 import { LlmMetrics } from "@dharmax/llm-utils";
 import { SQLITE_SCHEMA } from "./schema.ts";

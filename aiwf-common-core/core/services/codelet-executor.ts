@@ -65,7 +65,7 @@ async function runNodeScriptCaptured(scriptPath, args, { cwd, env }) {
   return mkdtemp(path.join(process.env.TMPDIR ?? "/tmp", "ai-workflow-codelet-")).then(async (captureDir) => {
     const stdoutPath = path.join(captureDir, "stdout.log");
     const stderrPath = path.join(captureDir, "stderr.log");
-    const command = `${shellQuote(process.execPath)} ${getTsxCliArgs(scriptPath, args).map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`;
+    const command = `${shellQuote(resolveBunBin())} ${getBunScriptArgs(scriptPath, args).map(shellQuote).join(" ")} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`;
 
     try {
       const result = await TaskExecutor.spawn("/usr/bin/bash", ["-lc", command], {
@@ -86,7 +86,7 @@ async function runNodeScriptCaptured(scriptPath, args, { cwd, env }) {
 
 async function runNodeScriptStreamed(scriptPath, args, { cwd, env }) {
   return new Promise((resolve) => {
-    const child = TaskExecutor.spawn(process.execPath, getTsxCliArgs(scriptPath, args), {
+    const child = TaskExecutor.spawn(resolveBunBin(), getBunScriptArgs(scriptPath, args), {
       cwd,
       env,
       onStdout: (data) => process.stdout.write(data),
@@ -100,13 +100,14 @@ function shellQuote(value) {
   return JSON.stringify(String(value));
 }
 
-function getTsxCliArgs(scriptPath, args = []) {
-  const workspaceRoot = getWorkspaceRoot();
-  return [
-    path.resolve(workspaceRoot, "node_modules", "tsx", "dist", "cli.mjs"),
-    scriptPath,
-    ...normalizeCliArgs(args)
-  ];
+function getBunScriptArgs(scriptPath, args = []) {
+  return [scriptPath, ...normalizeCliArgs(args)];
+}
+
+function resolveBunBin() {
+  return process.env.BUN_INSTALL
+    ? path.resolve(process.env.BUN_INSTALL, "bin", "bun")
+    : "bun";
 }
 
 function normalizeCliArgs(args) {

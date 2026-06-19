@@ -29,8 +29,8 @@ const DEFAULT_DOD_TICKETS = [
       "Invalid linked artifacts fail before any workflow DB mutation."
     ],
     verification: [
-      "npm exec -- tsx --test tests/workflow-db.test.ts --test-name-pattern planWorkTickets",
-      "npm exec -- tsx --test tests/ai-workflow-cli.test.ts --test-name-pattern \"project ticket plan\""
+      "bun test tests/workflow-db.test.ts --test-name-pattern planWorkTickets",
+      "bun test tests/ai-workflow-cli.test.ts --test-name-pattern \"project ticket plan\""
     ]
   },
   {
@@ -45,7 +45,7 @@ const DEFAULT_DOD_TICKETS = [
       "Bounded execution happens only through execute-ticket --apply."
     ],
     verification: [
-      "npm exec -- tsx --test tests/ai-workflow-cli.test.ts --test-name-pattern \"plan-only|execute-ticket\"",
+      "bun test tests/ai-workflow-cli.test.ts --test-name-pattern \"plan-only|execute-ticket\"",
       "ai-workflow shell \"fix first todo\" --plan-only --json"
     ]
   },
@@ -78,7 +78,7 @@ const DEFAULT_DOD_TICKETS = [
     ],
     verification: [
       "AI_WORKFLOW_AUTO_ASSESSMENT_TIMEOUT_MS=1000 ai-workflow sync --json",
-      "npm exec -- tsx --test tests/ai-workflow-cli.test.ts --test-name-pattern \"timeout|degraded\""
+      "bun test tests/ai-workflow-cli.test.ts --test-name-pattern \"timeout|degraded\""
     ]
   },
   {

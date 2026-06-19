@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import path from "node:path";
 import os from "node:os";
 import { chmod, cp, mkdir, rm, writeFile } from "node:fs/promises";

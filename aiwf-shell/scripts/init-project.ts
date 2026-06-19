@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ import { runDogfood } from "aiwf-common-core/lib/dogfood-utils";
 import { withWorkspaceMutation } from "aiwf-common-core/lib/workspace-mutation";
 
 const HELP = `Usage:
-  tsx scripts/init-project.ts --target /path/to/project [options]
+  bun scripts/init-project.ts --target /path/to/project [options]
 
 Options:
   --target <path>    Target project root. Defaults to current directory.
@@ -30,14 +30,14 @@ const templatesRoot = path.resolve(repoRoot, "templates");
 const runtimeRoot = path.resolve(repoRoot, "scripts", "ai-workflow");
 
 const WORKFLOW_PACKAGE_SCRIPTS = {
-  "workflow:kanban": "tsx scripts/ai-workflow/kanban.ts",
-  "workflow:ticket": "tsx scripts/ai-workflow/kanban-ticket.ts",
-  "workflow:guidance": "tsx scripts/ai-workflow/guidance-summary.ts",
-  "workflow:review": "tsx scripts/ai-workflow/review-summary.ts",
-  "workflow:verify": "tsx scripts/ai-workflow/verification-summary.ts",
-  "workflow:dogfood": "tsx scripts/ai-workflow/dogfood.ts",
-  "workflow:guideline-audit": "tsx scripts/ai-workflow/guideline-audit.ts",
-  "workflow:audit": "tsx scripts/ai-workflow/workflow-audit.ts"
+  "workflow:kanban": "bun scripts/ai-workflow/kanban.ts",
+  "workflow:ticket": "bun scripts/ai-workflow/kanban-ticket.ts",
+  "workflow:guidance": "bun scripts/ai-workflow/guidance-summary.ts",
+  "workflow:review": "bun scripts/ai-workflow/review-summary.ts",
+  "workflow:verify": "bun scripts/ai-workflow/verification-summary.ts",
+  "workflow:dogfood": "bun scripts/ai-workflow/dogfood.ts",
+  "workflow:guideline-audit": "bun scripts/ai-workflow/guideline-audit.ts",
+  "workflow:audit": "bun scripts/ai-workflow/workflow-audit.ts"
 };
 
 const args: ParsedArgs = parseArgs(process.argv.slice(2));
@@ -404,11 +404,10 @@ async function walkFiles(rootPath: string): Promise<string[]> {
 
 function buildRuntimeWrapper(relativeRuntimePath: string): string {
   const runtimeScriptPath = path.resolve(runtimeRoot, relativeRuntimePath);
-  const tsxCliPath = path.resolve(repoRoot, "..", "node_modules", "tsx", "dist", "cli.mjs");
-  return `#!/usr/bin/env node
+  return `#!/usr/bin/env bun
 import { spawn } from "node:child_process";
 
-const child = spawn(process.execPath, [${JSON.stringify(tsxCliPath)}, ${JSON.stringify(runtimeScriptPath)}, ...process.argv.slice(2)], {
+const child = spawn("bun", [${JSON.stringify(runtimeScriptPath)}, ...process.argv.slice(2)], {
   cwd: process.cwd(),
   env: process.env,
   stdio: "inherit"

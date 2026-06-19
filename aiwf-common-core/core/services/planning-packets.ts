@@ -49,8 +49,8 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
       row("REL-WEAK-TRUTH", "reliability tickets cannot close while acceptance rows are unverified")
     ],
     verificationCommands: [
-      "npm exec -- tsx --test tests/workflow-db.test.ts --test-name-pattern planning",
-      "npm exec -- tsx --test tests/ai-workflow-cli.test.ts --test-name-pattern \"ticket plan\"",
+      "bun test tests/workflow-db.test.ts --test-name-pattern planning",
+      "bun test tests/ai-workflow-cli.test.ts --test-name-pattern \"ticket plan\"",
       "AI_WORKFLOW_SKIP_AUTO_ASSESSMENT=1 ai-workflow sync --json"
     ]
   }),
@@ -60,7 +60,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["GoE runtime", "mutation gates", "workflow DB"],
     linkedFiles: ["aiwf-common-core/core/services", "docs/goe-triad-contract.md"],
     acceptanceCriteria: [row("REL-WEAK-GOE", "suggester, critic, and auditor verdicts persist with evidence refs")],
-    verificationCommands: ["npm exec -- tsx --test tests/hooks.test.ts --test-name-pattern GoE"]
+    verificationCommands: ["bun test tests/hooks.test.ts --test-name-pattern GoE"]
   }),
   "TKT-REL-003": blueprint("TKT-REL-003", ["REL-WEAK-HOOKS"], {
     problemStatement: "Create blocking hook points before plan, mutation, verification, and closure.",
@@ -68,7 +68,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["shell", "ask", "MCP/plugin", "codelets"],
     linkedFiles: ["aiwf-common-core/core/services/hooks.ts", "aiwf-common-core/core/lib/workspace-mutation.ts"],
     acceptanceCriteria: [row("REL-WEAK-HOOKS", "beforePlan, afterPlan, beforeMutation, and beforeClosure hooks can block weak work")],
-    verificationCommands: ["npm exec -- tsx --test tests/hooks.test.ts"]
+    verificationCommands: ["bun test tests/hooks.test.ts"]
   }),
   "TKT-REL-004": blueprint("TKT-REL-004", ["REL-WEAK-GRAPH"], {
     problemStatement: "Use Semantika or equivalent graph retrieval to select planning context with confidence.",
@@ -76,7 +76,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["retrieval", "planning context", "SQLite graph"],
     linkedFiles: ["aiwf-common-core/core/services/knowledge-graph.ts", "aiwf-common-core/core/services/context-packer.ts"],
     acceptanceCriteria: [row("REL-WEAK-GRAPH", "planning context uses lexical, graph, and semantic evidence with confidence diagnostics")],
-    verificationCommands: ["npm exec -- tsx --test tests/shell-retrieval.test.ts"]
+    verificationCommands: ["bun test tests/shell-retrieval.test.ts"]
   }),
   "TKT-REL-005": blueprint("TKT-REL-005", ["REL-WEAK-LLM"], {
     problemStatement: "Make flaky local providers visible, bounded, and economical.",
@@ -84,7 +84,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["providers", "router", "metrics", "planner"],
     linkedFiles: ["aiwf-common-core/core/services/providers.ts", "aiwf-common-core/core/services/router.ts"],
     acceptanceCriteria: [row("REL-WEAK-LLM", "provider attempts report latency, failure class, retry, cooldown, and fallback reason")],
-    verificationCommands: ["npm exec -- tsx --test tests/providers.test.ts --test-name-pattern ollama"]
+    verificationCommands: ["bun test tests/providers.test.ts --test-name-pattern ollama"]
   }),
   "TKT-REL-006": blueprint("TKT-REL-006", ["REL-WEAK-CODEGEN"], {
     problemStatement: "Raise execute-ticket and code generation from brittle search/replace to reliable scoped mutation.",
@@ -92,7 +92,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["generate-code", "execute-ticket", "verification"],
     linkedFiles: ["aiwf-common-core/core/codelets/execute-ticket.ts", "aiwf-common-core/core/services/orchestrator.ts"],
     acceptanceCriteria: [row("REL-WEAK-CODEGEN", "ticket execution validates working set, structured patch intent, file creation, and end-to-end build evidence")],
-    verificationCommands: ["npm exec -- tsx --test tests/codelet-executor.test.ts --test-name-pattern execute-ticket"]
+    verificationCommands: ["bun test tests/codelet-executor.test.ts --test-name-pattern execute-ticket"]
   }),
   "TKT-REL-007": blueprint("TKT-REL-007", ["REL-WEAK-PARITY"], {
     problemStatement: "Guarantee shell, ask, and MCP/plugin use the same planning contract.",
@@ -100,7 +100,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["shell", "ask", "MCP", "plugin"],
     linkedFiles: ["aiwf-shell/cli/lib/main.ts", "aiwf-mcp/server.ts", "aiwf-common-core/core/services/workflow-facade.ts"],
     acceptanceCriteria: [row("REL-WEAK-PARITY", "the same prompt exposes equivalent planning packet, guardrails, route, and verification plan across surfaces")],
-    verificationCommands: ["npm exec -- tsx --test tests/workflow-facade.test.ts tests/router-and-cli.test.ts"]
+    verificationCommands: ["bun test tests/workflow-facade.test.ts tests/router-and-cli.test.ts"]
   }),
   "TKT-REL-008": blueprint("TKT-REL-008", ["REL-WEAK-BENCH"], {
     problemStatement: "Benchmark AIWF against Gemini CLI and external agents on a repeatable task corpus.",
@@ -108,7 +108,7 @@ const RELIABILITY_BLUEPRINTS: Record<string, any> = {
     affectedSurfaces: ["benchmark harness", "reports", "metrics"],
     linkedFiles: ["aiwf-common-core/core/services/shell-benchmark.ts", "docs/gemini-cli-handout.md"],
     acceptanceCriteria: [row("REL-WEAK-BENCH", "benchmark records correctness, scope control, verification, speed, token/cost, recovery, and honesty")],
-    verificationCommands: ["npm exec -- tsx --test tests/shell-benchmark.test.ts"]
+    verificationCommands: ["bun test tests/shell-benchmark.test.ts"]
   }),
   "TKT-REL-009": blueprint("TKT-REL-009", ["REL-WEAK-READINESS"], {
     problemStatement: "Publish final readiness only after every weakness has proof and no unresolved reliability limitations remain hidden.",

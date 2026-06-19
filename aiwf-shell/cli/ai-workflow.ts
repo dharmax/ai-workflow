@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * @file ai-workflow.js
  * @brief Auto-generated header for ai-workflow.js. Needs detailed responsibility and scope.

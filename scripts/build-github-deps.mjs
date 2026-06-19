@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { mkdtemp, access, readFile, cp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const rootBin = path.join(repoRoot, "node_modules", ".bin");
-const packageLockPath = path.join(repoRoot, "package-lock.json");
+const bunLockPath = path.join(repoRoot, "bun.lock");
 
 const packages = [
   "@dharmax/context-manager",
@@ -55,13 +55,6 @@ function getExportTarget(packageJson) {
   return null;
 }
 
-function getResolvedCommit(packageLock, packageName) {
-  const resolved = packageLock?.packages?.[`node_modules/${packageName}`]?.resolved;
-  if (typeof resolved !== "string") return null;
-  const hashIndex = resolved.lastIndexOf("#");
-  return hashIndex >= 0 ? resolved.slice(hashIndex + 1) : null;
-}
-
 async function buildFromGitHub(packageName, packageDir, commit) {
   const repoName = packageName.split("/")[1];
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), `${repoName}-build-`));
@@ -70,15 +63,15 @@ async function buildFromGitHub(packageName, packageDir, commit) {
     if (commit) {
       await runCommand("git", ["checkout", commit], tempRoot);
     }
-    await runCommand("npm", ["install", "--ignore-scripts"], tempRoot);
-    await runCommand("npm", ["run", "build"], tempRoot);
+    await runCommand("bun", ["install"], tempRoot);
+    await runCommand("bun", ["run", "build"], tempRoot);
     await cp(path.join(tempRoot, "dist"), path.join(packageDir, "dist"), { recursive: true, force: true });
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 }
 
-const packageLock = await readPackageLock(packageLockPath);
+const bunLock = await readBunLock(bunLockPath);
 
 for (const packageName of packages) {
   const packageJsonPath = path.join(repoRoot, "node_modules", ...packageName.split("/"), "package.json");
@@ -99,20 +92,26 @@ for (const packageName of packages) {
   }
 
   console.log(`Building ${packageName} from GitHub source...`);
-  await buildFromGitHub(packageName, packageDir, getResolvedCommit(packageLock, packageName));
+  await buildFromGitHub(packageName, packageDir, getResolvedCommit(bunLock, packageName));
 
   if (!(await fileExists(compiledEntryPath))) {
     throw new Error(`Build for ${packageName} completed without producing ${exportTarget}.`);
   }
 }
 
-async function readPackageLock(lockPath) {
+async function readBunLock(lockPath) {
   try {
-    return JSON.parse(await readFile(lockPath, "utf8"));
+    return await readFile(lockPath, "utf8");
   } catch (error) {
     if (error?.code === "ENOENT") {
-      return {};
+      return "";
     }
     throw error;
   }
+}
+
+function getResolvedCommit(lockText, packageName) {
+  const escaped = packageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = String(lockText ?? "").match(new RegExp(`${escaped}@git\\+ssh://git@github\\.com/dharmax/[^#"]+#([0-9a-f]{40})`));
+  return match?.[1] ?? null;
 }

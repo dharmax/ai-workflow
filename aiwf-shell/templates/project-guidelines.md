@@ -81,7 +81,7 @@ Keep this file short and durable. If a point is ticket-local, keep it out.
 - No placeholder tests: every test should be capable of catching a real bug.
 - When fixing a bug, add the test that would have caught that bug.
 - Operator-surface changes should be dogfooded through `ai-workflow` itself before closure, not only through internal function tests.
-- Operator-surface changes are not done until `ai-workflow dogfood` (or `node aiwf-shell/scripts/ai-workflow/dogfood.mjs`) and `workflow-audit` both pass.
+- Operator-surface changes are not done until `ai-workflow dogfood` (or `bun aiwf-shell/scripts/ai-workflow/dogfood.ts`) and `workflow-audit` both pass.
 - For provider, shell, routing, setup, and fallback changes, add at least one test at the actual entrypoint and one test for the degraded path. Do not count helper-only or happy-path-only coverage as sufficient.
 - When asserting Ollama behavior, tests must keep `configured`, `installed`, and `available` separate so a broken probe cannot hide behind a passing registry fallback.
 - Keep verification layered:

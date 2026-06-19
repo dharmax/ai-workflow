@@ -60,7 +60,7 @@ import { getCliToolkitRoot } from "./toolkit-root.ts";
 import { startServer as startMcpServer } from "aiwf-mcp";
 
 const toolkitRoot = getCliToolkitRoot();
-const shellCliPath = path.resolve(toolkitRoot, "dist", "ai-workflow.mjs");
+const shellCliPath = path.resolve(toolkitRoot, "cli", "ai-workflow.ts");
 const execFileAsync = promisify(execFile);
 
 const HELP = `Usage:
@@ -1912,7 +1912,7 @@ async function handleConsult(rest) {
 
 function runNodeScript(scriptPath, args, options = {}) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, buildTsxCommand(scriptPath, args), {
+    const child = spawn(resolveBunCommand(), buildBunCommand(scriptPath, args), {
       cwd: process.cwd(),
       env: options.env ? { ...process.env, ...options.env } : process.env,
       stdio: ["ignore", "pipe", "pipe"]
@@ -2011,7 +2011,7 @@ function formatCodeletOutput(codelet) {
 
 function runNodeScriptLive(scriptPath, args) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, buildTsxCommand(scriptPath, args), {
+    const child = spawn(resolveBunCommand(), buildBunCommand(scriptPath, args), {
       cwd: process.cwd(),
       stdio: "inherit"
     });
@@ -2040,15 +2040,14 @@ function runNodeScriptLive(scriptPath, args) {
   });
 }
 
-function buildTsxCommand(scriptPath, args = []) {
-  if (/\.m?js$/i.test(scriptPath)) {
-    return [scriptPath, ...args];
-  }
-  return [
-    path.resolve(getWorkspaceRoot(getCliToolkitRoot()), "node_modules", "tsx", "dist", "cli.mjs"),
-    scriptPath,
-    ...args
-  ];
+function buildBunCommand(scriptPath, args = []) {
+  return [scriptPath, ...args];
+}
+
+function resolveBunCommand() {
+  return process.env.BUN_INSTALL
+    ? path.resolve(process.env.BUN_INSTALL, "bin", "bun")
+    : "bun";
 }
 
 function resolveToolkitScript(name, sourcePath) {

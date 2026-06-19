@@ -6,26 +6,22 @@
   "description": "MCP extension surface for ai-workflow built on the shared workflow core.",
   "main": "./server.ts",
   "bin": {
-    "aiwf-mcp": "./dist/aiwf-mcp.mjs"
+    "aiwf-mcp": "./server.ts"
   },
   "exports": {
     ".": "./server.ts"
   },
   "files": [
     "server.ts",
-    "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "node ./scripts/build-cli.mjs && node ../scripts/validate-package.mjs .",
-    "typecheck": "node ../scripts/validate-package.mjs ."
+    "build": "bun ../scripts/validate-package.mjs .",
+    "typecheck": "bun ../scripts/validate-package.mjs ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "aiwf-common-core": "0.1.0",
     "zod": "^4.1.12"
-  },
-  "devDependencies": {
-    "esbuild": "^0.28.0"
   }
 }

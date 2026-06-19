@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "bun:test";
 import { compactGuidanceItems, summarizeGuidance } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/guidance-utils.ts";
 import { compileActiveGuardrails, selectActiveGuardrails } from "../aiwf-shell/runtime/scripts/ai-workflow/lib/active-guardrails.ts";
 

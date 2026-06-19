@@ -500,9 +500,10 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
   const { createHash } = await import("node:crypto");
 
   // Item 1: Bidirectional Sync Drift Detection
-  for (const file of ["kanban.md", "epics.md"]) {
-    const fullP = path.resolve(projectRoot, file);
-    if (existsSync(fullP)) {
+  if (reconcileLegacy) {
+    for (const file of ["kanban.md", "epics.md"]) {
+      const fullP = path.resolve(projectRoot, file);
+      if (existsSync(fullP)) {
         const content = readFileSync(fullP, "utf8");
         const h = createHash("sha1").update(content).digest("hex");
         const oldH = currentDigest && currentDigest[file.replace(".md", "")];
@@ -513,6 +514,7 @@ export async function writeProjectProjections(store, { projectRoot, reconcileLeg
             // Re-fetch current digest if import updated it
             break; 
         }
+      }
     }
   }
 

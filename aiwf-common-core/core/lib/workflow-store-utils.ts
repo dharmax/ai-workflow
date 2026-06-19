@@ -1,6 +1,6 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "../db/sqlite-adapter.ts";
 import { readText } from "./fs-utils.ts";
 import { findTicket, parseKanban } from "./kanban-utils.ts";
 import { inferTicketRetrievalContext } from "../services/shell-retrieval.ts";

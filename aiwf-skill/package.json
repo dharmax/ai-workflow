@@ -19,8 +19,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../scripts/validate-package.mjs .",
-    "typecheck": "node ../scripts/validate-package.mjs ."
+    "build": "bun ../scripts/validate-package.mjs .",
+    "typecheck": "bun ../scripts/validate-package.mjs ."
   },
   "dependencies": {
     "aiwf-shell": "0.1.0"

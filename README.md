@@ -17,7 +17,7 @@ The manual includes the complete command reference, configuration, operating mod
 
 ## Requirements
 
-- Node.js 22 or newer
+- Bun 1.3.14 or newer
 - Git
 - A Git repository for meaningful mutation tracking and workspace-honesty checks
 - Optional: provider credentials or a reachable Ollama instance for AI-planned operations
@@ -31,7 +31,7 @@ Deterministic status, sync, audit, projection, and many planning paths work with
 Install the composite package directly from GitHub:
 
 ```bash
-npm install -g github:dharmax/ai-workflow
+bun add -g github:dharmax/ai-workflow
 ai-workflow --help
 ```
 
@@ -52,9 +52,9 @@ ai-workflow sync --write-projections
 Install only the surfaces you need when the corresponding packages are available in your configured npm registry:
 
 ```bash
-npm install -g aiwf-shell
-npm install -g aiwf-mcp
-npm install -g aiwf-skill
+bun add -g aiwf-shell
+bun add -g aiwf-mcp
+bun add -g aiwf-skill
 ```
 
 - Use `aiwf-shell` for `ai-workflow` CLI commands.
@@ -66,9 +66,9 @@ npm install -g aiwf-skill
 ```bash
 git clone https://github.com/dharmax/ai-workflow.git
 cd ai-workflow
-npm install
-npm run build
-node cli/ai-workflow.mjs --help
+bun install
+bun run build
+bun aiwf-shell/cli/ai-workflow.ts --help
 ```
 
 ## First Useful Run
@@ -124,6 +124,8 @@ The strongest host integration is `aiwf-mcp`, because it exposes DB-backed coded
 
 Enforcement is not absolute:
 
+- MCP exposes graph search, `plugin_status`, ticket lifecycle tools, codelet registry tools, and project-codelet management tools.
+- Mutating MCP tools dry-run unless `apply: true`; mutating codelets also require `allowMutation: true` and manifest-required flags such as `args.apply === true`.
 - MCP tools can return guardrails, mutation gates, and verification requirements, but the host still decides whether to call them.
 - The optional skill bridge is instruction-only and cannot force a host to comply.
 - Audit rules enforce patterns and architecture constraints that are expressible by the audit engine; narrative guidance remains advisory unless promoted into a coded gate or `ai-workflow-audit` rule.
@@ -133,6 +135,7 @@ See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-p
 ## Core Operating Rules
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
+- Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 - Treat `.ai-workflow/state/workflow.db` as canonical workflow state; `kanban.md` and `epics.md` are controlled projections.
 - Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
@@ -150,11 +153,11 @@ See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-p
 
 ```bash
 npm test
-npm run build
-npm run generate-docs
-npm run workflow:dogfood -- --json
-npm run workflow:audit -- --json
-npm run release:check
+bun run build
+bun run generate-docs
+bun run workflow:dogfood -- --json
+bun run workflow:audit -- --json
+bun run release:check
 ```
 
 Do not hand-edit `docs/manual.html`; regenerate it from `docs/MANUAL.md`.

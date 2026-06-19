@@ -21,15 +21,15 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../scripts/validate-package.mjs .",
-    "typecheck": "node ../scripts/validate-package.mjs ."
+    "build": "bun ../scripts/validate-package.mjs .",
+    "typecheck": "bun ../scripts/validate-package.mjs ."
   },
   "dependencies": {
-    "@dharmax/block-patcher": "git+https://github.com/dharmax/block-patcher.git",
-    "@dharmax/codebase-parser": "git+https://github.com/dharmax/codebase-parser.git",
-    "@dharmax/context-manager": "git+https://github.com/dharmax/context-manager.git",
-    "@dharmax/llm-utils": "git+https://github.com/dharmax/llm-utils.git",
-    "@dharmax/shell-proc-utils": "git+https://github.com/dharmax/shell-proc-utils.git",
-    "@dharmax/text-compiler": "git+https://github.com/dharmax/text-compiler.git"
+    "@dharmax/block-patcher": "git+ssh://git@github.com/dharmax/block-patcher.git#b5d2b6a1d9aa74f7e115251017761b5c3e5fd4fc",
+    "@dharmax/codebase-parser": "git+ssh://git@github.com/dharmax/codebase-parser.git#176d038e2e519f5898414060da88d055080adf36",
+    "@dharmax/context-manager": "git+ssh://git@github.com/dharmax/context-manager.git#2e8bca72110b8faa36805e3f376ae762eaa0136b",
+    "@dharmax/llm-utils": "git+ssh://git@github.com/dharmax/llm-utils.git#7e2067dbfde8134b0bac163fe831920d7f515dd8",
+    "@dharmax/shell-proc-utils": "git+ssh://git@github.com/dharmax/shell-proc-utils.git#1e83b782ed57989bea7a22bf1a05675691a45482",
+    "@dharmax/text-compiler": "git+ssh://git@github.com/dharmax/text-compiler.git#4e7d1f96141a4b8059be43ebe04c17cd8621fcc3"
   }
 }

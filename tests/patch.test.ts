@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { test } from "node:test";
+import { test } from "bun:test";
 import { parsePatch, applyPatch } from "@dharmax/block-patcher";
 
 test("parsePatch extracts blocks correctly with and without files", () => {

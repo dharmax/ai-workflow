@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="f3196d406463e27e11b68821684444a3add03ce8">
+  <meta name="manual-source-sha1" content="acf6921620fec5967a200e2cd6ae0ac9ca137967">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:f3196d406463e27e11b68821684444a3add03ce8 -->
+  <!-- generated from docs/MANUAL.md sha1:acf6921620fec5967a200e2cd6ae0ac9ca137967 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -102,6 +102,7 @@
       <h2 id="mental-model">Mental Model</h2>
       <ul data-list-kind="unordered">
       <li>Use <code>ai-workflow</code> first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.</li>
+      <li>Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.</li>
       <li>Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.</li>
       <li>Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline.</li>
       <li>Treat the workflow DB as canonical state, and treat projections as readable outputs that must stay reconciled.</li>
@@ -115,7 +116,7 @@
       <section aria-labelledby="requirements" data-heading-level="3">
       <h3 id="requirements">Requirements</h3>
       <ul data-list-kind="unordered">
-      <li>Node.js 22 or newer</li>
+      <li>Bun 1.3.14 or newer</li>
       <li>Git</li>
       <li>A Git repository for meaningful mutation tracking and workspace-honesty checks</li>
       <li>Optional provider credentials or a reachable Ollama instance for AI-planned operations</li>
@@ -125,7 +126,7 @@
       <section aria-labelledby="recommended-complete-install" data-heading-level="3">
       <h3 id="recommended-complete-install">Recommended Complete Install</h3>
       <p>The complete GitHub install surface exposes <code>ai-workflow</code>, <code>aiwf-mcp</code>, and <code>aiwf-skill</code>:</p>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g github:dharmax/ai-workflow
+      <pre data-block-kind="code"><code class="language-bash">bun add -g github:dharmax/ai-workflow
 ai-workflow --help</code></pre>
       <p>The split packages <code>aiwf-shell</code>, <code>aiwf-mcp</code>, <code>aiwf-skill</code>, and <code>aiwf-common-core</code> are configured as independent packages. Install them from npm only when they are available in your configured registry.</p>
       </section>
@@ -133,9 +134,9 @@ ai-workflow --help</code></pre>
       <h3 id="source-checkout">Source Checkout</h3>
       <pre data-block-kind="code"><code class="language-bash">git clone https://github.com/dharmax/ai-workflow.git
 cd ai-workflow
-npm install
-npm run build
-node cli/ai-workflow.mjs --help</code></pre>
+bun install
+bun run build
+bun aiwf-shell/cli/ai-workflow.ts --help</code></pre>
       </section>
       <section aria-labelledby="repo-bootstrap" data-heading-level="3">
       <h3 id="repo-bootstrap">Repo Bootstrap</h3>
@@ -216,8 +217,8 @@ ai-workflow shell &quot;extract ticket TKT-001&quot;</code></pre>
       <ul data-list-kind="unordered">
       <li>Verify operator surfaces:</li>
       </ul>
-      <pre data-block-kind="code"><code class="language-bash">npm run workflow:dogfood -- --profile full --json
-npm run workflow:audit -- --json</code></pre>
+      <pre data-block-kind="code"><code class="language-bash">bun run workflow:dogfood -- --profile full --json
+bun run workflow:audit -- --json</code></pre>
       </section>
       </section>
       <section aria-labelledby="shell-and-host-surfaces" data-heading-level="2">
@@ -311,7 +312,7 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li>plan-only inspection, route diagnostics, mutation gates, and verification plans</li>
       <li>ticket gating for mutating shell work</li>
       <li>machine-readable project audit rules and workflow audit</li>
-      <li>MCP tools for summary, sync, ticket/guideline extraction, status, routing, planning, graph export, and projection writes</li>
+      <li>MCP tools for summary, sync, graph search, plugin status, ticket lifecycle, ticket/guideline extraction, codelet registry/run, project-codelet management, status, routing, planning, graph export, and projection writes</li>
       <li>bootstrap/full dogfood surfaces and packed-install smoke paths</li>
       </ul>
       </section>
@@ -374,6 +375,11 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <ul data-list-kind="unordered">
       <li>project_summary</li>
       <li>sync_project</li>
+      <li>search_project</li>
+      <li>plugin_status</li>
+      <li>list_tickets</li>
+      <li>create_ticket</li>
+      <li>update_ticket_lifecycle</li>
       <li>extract_ticket</li>
       <li>extract_guidelines</li>
       <li>plan_work_tickets</li>
@@ -382,7 +388,15 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <li>route_task</li>
       <li>knowledge_graph</li>
       <li>write_projections</li>
+      <li>list_codelets</li>
+      <li>get_codelet</li>
+      <li>search_codelets</li>
+      <li>run_codelet</li>
+      <li>forge_project_codelet</li>
+      <li>upsert_project_codelet</li>
+      <li>remove_project_codelet</li>
       </ul>
+      <p>Mutating MCP tools dry-run unless <code>apply: true</code>. <code>run_codelet</code> refuses mutating codelets unless <code>allowMutation: true</code>, the manifest declares <code>canMutate: true</code>, and required flags such as <code>args.apply === true</code> are present.</p>
       <p>MCP makes the constraints inspectable and reusable, but the host remains responsible for calling the tools and honoring their results.</p>
       </section>
       <section aria-labelledby="optional-skill-bridge" data-heading-level="3">
@@ -765,8 +779,8 @@ ai-workflow provider refresh models --json</code></pre>
       <section aria-labelledby="run-verification" data-heading-level="3">
       <h3 id="run-verification">Run Verification</h3>
       <pre data-block-kind="code"><code class="language-bash">node --test tests/*.test.mjs
-npm run workflow:dogfood -- --profile full --json
-npm run workflow:audit -- --json</code></pre>
+bun run workflow:dogfood -- --profile full --json
+bun run workflow:audit -- --json</code></pre>
       </section>
       </section>
       <section aria-labelledby="install-surfaces" data-heading-level="2">
@@ -781,31 +795,31 @@ npm run workflow:audit -- --json</code></pre>
       </ul>
       <section aria-labelledby="composite-github-package" data-heading-level="3">
       <h3 id="composite-github-package">Composite GitHub Package</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g github:dharmax/ai-workflow
+      <pre data-block-kind="code"><code class="language-bash">bun add -g github:dharmax/ai-workflow
 ai-workflow --help</code></pre>
       <p>This is the recommended complete install. It does not depend on the split packages being published in your configured npm registry.</p>
       </section>
       <section aria-labelledby="shell-only" data-heading-level="3">
       <h3 id="shell-only">Shell Only</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell
+      <pre data-block-kind="code"><code class="language-bash">bun add -g aiwf-shell
 ai-workflow --help</code></pre>
       <p>Use this only when <code>aiwf-shell</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="mcp-extension" data-heading-level="3">
       <h3 id="mcp-extension">MCP Extension</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-mcp
+      <pre data-block-kind="code"><code class="language-bash">bun add -g aiwf-mcp
 aiwf-mcp</code></pre>
       <p>Use this when a host should call durable tools instead of relying on a skill alone. Use this only when <code>aiwf-mcp</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="optional-skill-bridge" data-heading-level="3">
       <h3 id="optional-skill-bridge">Optional Skill Bridge</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-skill
+      <pre data-block-kind="code"><code class="language-bash">bun add -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force</code></pre>
       <p>Use this only when <code>aiwf-skill</code> is available in your configured npm registry.</p>
       </section>
       <section aria-labelledby="both-together" data-heading-level="3">
       <h3 id="both-together">Both Together</h3>
-      <pre data-block-kind="code"><code class="language-bash">npm install -g aiwf-shell aiwf-mcp aiwf-skill
+      <pre data-block-kind="code"><code class="language-bash">bun add -g aiwf-shell aiwf-mcp aiwf-skill
 ai-workflow --help
 aiwf-mcp
 aiwf-skill --project /abs/path/to/project --force</code></pre>
@@ -852,8 +866,8 @@ aiwf-skill --project /abs/path/to/project --force</code></pre>
       <section aria-labelledby="dogfood-or-audit-fails" data-heading-level="3">
       <h3 id="dogfood-or-audit-fails">Dogfood Or Audit Fails</h3>
       <ul data-list-kind="unordered">
-      <li>Re-run <code>npm run workflow:dogfood -- --profile full --json</code></li>
-      <li>Re-run <code>npm run workflow:audit -- --json</code></li>
+      <li>Re-run <code>bun run workflow:dogfood -- --profile full --json</code></li>
+      <li>Re-run <code>bun run workflow:audit -- --json</code></li>
       <li>If full-profile dogfood stalls on provider-bound checks, run bootstrap-profile dogfood for the deterministic gate and report the full profile as incomplete.</li>
       <li>If dogfood is stale, regenerate it instead of editing the report manually</li>
       <li>If the manual HTML is stale, run the manual generator instead of editing HTML manually</li>
@@ -865,7 +879,7 @@ aiwf-skill --project /abs/path/to/project --force</code></pre>
       <ul data-list-kind="unordered">
       <li>Canonical source: <code>docs/MANUAL.md</code></li>
       <li>Generated output: <code>docs/manual.html</code></li>
-      <li>Generator script: <code>npm run generate-docs</code></li>
+      <li>Generator script: <code>bun run generate-docs</code></li>
       <li>Do not hand-edit <code>docs/manual.html</code></li>
       <li>Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.</li>
       <li>Update the dated capability-status section when a capability moves between planned, semi-working, and reliable.</li>

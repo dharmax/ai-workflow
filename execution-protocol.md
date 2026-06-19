@@ -18,7 +18,7 @@ Keep execution disciplined, test-backed, and easy to hand off.
 6. State the burst shape: target family, intended outcome, validation plan.
 7. Make the smallest coherent burst that solves the ticket honestly.
 8. Validate at the real risk level of the change.
-9. For shell, provider, workflow, or init changes, run `ai-workflow dogfood` (or `node aiwf-shell/scripts/ai-workflow/dogfood.mjs`) before closing the burst.
+9. For shell, provider, workflow, or init changes, run `ai-workflow dogfood` (or `bun aiwf-shell/scripts/ai-workflow/dogfood.ts`) before closing the burst.
 10. Update kanban and DB together in the same command burst, then guidance docs if durable contracts changed, and archive stale done cards when needed.
 11. If the thread is getting heavy, create a compact handoff artifact before continuing.
 12. If the work adds or changes smart codelets or dev-mode observer behavior, document the candidate codelets and new recurring patterns in the workflow DB as part of the same burst.
@@ -31,7 +31,7 @@ Keep execution disciplined, test-backed, and easy to hand off.
 <!-- tags: ai-workflow, workflow-first, dogfood, audit, sync -->
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
-- Operator-surface changes are not done until `ai-workflow dogfood` (or `node aiwf-shell/scripts/ai-workflow/dogfood.mjs`) and `workflow-audit` both pass.
+- Operator-surface changes are not done until `ai-workflow dogfood` (or `bun aiwf-shell/scripts/ai-workflow/dogfood.ts`) and `workflow-audit` both pass.
 - Keep `ai-workflow sync` as the first step before major context extraction so the DB and projections are current before deeper inspection.
 
 ## Ticket Ownership

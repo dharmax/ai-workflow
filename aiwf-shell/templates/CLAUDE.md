@@ -14,7 +14,7 @@ Use `ai-workflow` first for project status, ticket lookup, projections, and guid
 - Canonical workflow state lives in `.ai-workflow/state/workflow.db`.
 - `kanban.md` and `epics.md` are controlled projections; use workflow commands instead of inventing parallel status files.
 - Prefer `ai-workflow sync` before broad context extraction.
-- For operator-surface changes, run `npm run workflow:dogfood -- --surface workflow,shell,provider,init --json` and `npm run workflow:audit -- --json` before closure.
+- For operator-surface changes, run `bun run workflow:dogfood -- --surface workflow,shell,provider,init --json` and `bun run workflow:audit -- --json` before closure.
 
 ## Useful Commands
 

@@ -1,14 +1,22 @@
 import path from "node:path";
 import { routeTask } from "./router.ts";
 import {
+  createTicket,
   getProjectMetrics,
   getProjectSummary,
   getSmartProjectStatus,
+  listCodelets,
+  getCodelet,
+  searchCodelets,
   searchProject,
   syncProject,
+  updateTicketLifecycle,
   withWorkflowStore
 } from "./sync.ts";
+import { executeCodelet } from "./codelet-executor.ts";
+import { forgeProjectCodelet, removeProjectCodelet, upsertProjectCodelet } from "./codelets.ts";
 import { importLegacyProjections, writeProjectProjections } from "./projections.ts";
+import { buildTicketEntity, inferTicketLane } from "./projections.ts";
 import { buildKnowledgeGraphSnapshot } from "./knowledge-graph.ts";
 import { resolveProjectStatus } from "./status.ts";
 import { run as runExtractTicket } from "../codelets/extract-ticket.ts";
@@ -24,6 +32,15 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
     getSmartProjectStatus,
     getProjectMetrics,
     searchProject,
+    listCodelets,
+    getCodelet,
+    searchCodelets,
+    createTicket,
+    updateTicketLifecycle,
+    executeCodelet,
+    forgeProjectCodelet,
+    upsertProjectCodelet,
+    removeProjectCodelet,
     routeTask,
     resolveProjectStatus,
     withWorkflowStore,
@@ -64,6 +81,124 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
 
     async search(query, options = {}) {
       return api.searchProject({ projectRoot: root, query, ...options });
+    },
+
+    async listTickets(options = {}) {
+      return api.withWorkflowStore(root, async (store) => {
+        const includeArchived = Boolean((options as any).includeArchived);
+        return store.listEntities({ entityType: "ticket" })
+          .filter((ticket: any) => includeArchived || !["Done", "Archived"].includes(String(ticket.lane ?? "")))
+          .sort((left: any, right: any) => String(left.lane ?? "").localeCompare(String(right.lane ?? "")) || String(left.id).localeCompare(String(right.id)));
+      });
+    },
+
+    async createTicket(options: any = {}) {
+      if (!options.apply) {
+        return {
+          ok: true,
+          dryRun: true,
+          ticket: buildTicketEntity({
+            id: options.id,
+            title: options.title,
+            lane: inferTicketLane({ id: options.id, title: options.title, lane: options.lane ?? null }),
+            epicId: options.epicId ?? null,
+            summary: options.summary ?? ""
+          })
+        };
+      }
+      const entity = buildTicketEntity({
+        id: options.id,
+        title: options.title,
+        lane: inferTicketLane({ id: options.id, title: options.title, lane: options.lane ?? null }),
+        epicId: options.epicId ?? null,
+        summary: options.summary ?? ""
+      });
+      const ticket = await api.createTicket({ projectRoot: root, entity });
+      await this.writeTextualProjections();
+      return { ok: true, dryRun: false, ticket };
+    },
+
+    async updateTicketLifecycle(options: any = {}) {
+      if (!options.apply) {
+        return {
+          ok: true,
+          dryRun: true,
+          ticketId: options.ticketId,
+          action: options.action,
+          lane: options.lane ?? null
+        };
+      }
+      const ticket = await api.updateTicketLifecycle({
+        projectRoot: root,
+        ticketId: options.ticketId,
+        action: options.action,
+        lane: options.lane ?? null
+      });
+      return { ok: true, dryRun: false, ticket };
+    },
+
+    async listCodelets(options = {}) {
+      return api.listCodelets({ projectRoot: root, ...(options as any) });
+    },
+
+    async getCodelet(codeletId: string) {
+      return api.getCodelet({ projectRoot: root, codeletId });
+    },
+
+    async searchCodelets(query: string, options = {}) {
+      return api.searchCodelets({ projectRoot: root, query, ...(options as any) });
+    },
+
+    async runCodelet(options: any = {}) {
+      const codelet = await api.getCodelet({ projectRoot: root, codeletId: options.codeletId });
+      if (!codelet) {
+        return { ok: false, refusalReason: `Unknown codelet: ${options.codeletId}`, requiredFlags: [] };
+      }
+      const requiredFlags = getCodeletMutationRequiredFlags(codelet);
+      const canMutate = Boolean(codelet.canMutate ?? codelet.data?.canMutate);
+      if (canMutate) {
+        const missingFlags = requiredFlags.filter((flag) => !hasRequiredFlag(options.args ?? {}, flag));
+        if (!options.allowMutation || missingFlags.length) {
+          return {
+            ok: false,
+            refusalReason: "Mutating codelet requires allowMutation and manifest-required flags.",
+            requiredFlags
+          };
+        }
+      }
+      const result = await api.executeCodelet(codelet, options.args ?? {}, {
+        cwd: root,
+        env: process.env,
+        mode: options.mode ?? "capture"
+      });
+      return { ok: true, result };
+    },
+
+    async forgeProjectCodelet(options: any = {}) {
+      if (!options.apply) {
+        return { ok: true, dryRun: true, name: options.name, wouldWrite: [`.ai-workflow/staged-codelets/${options.name}.js`, `.ai-workflow/codelets/${options.name}.json`] };
+      }
+      const codelet = await api.forgeProjectCodelet(root, options.name);
+      await this.sync({ writeProjections: false });
+      return { ok: true, dryRun: false, codelet };
+    },
+
+    async upsertProjectCodelet(options: any = {}) {
+      if (!options.apply) {
+        return { ok: true, dryRun: true, name: options.name, entry: options.entry };
+      }
+      const codelet = await api.upsertProjectCodelet(root, options.name, options.entry, options.mode ?? "update");
+      await this.sync({ writeProjections: false });
+      return { ok: true, dryRun: false, codelet };
+    },
+
+    async removeProjectCodelet(options: any = {}) {
+      if (!options.apply) {
+        return { ok: true, dryRun: true, name: options.name };
+      }
+      await api.removeProjectCodelet(root, options.name);
+      await this.sync({ writeProjections: false });
+      return { ok: true, dryRun: false, name: options.name };
     },
 
     async resolveStatus(selector, options = {}) {
@@ -138,4 +273,23 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
       return api.planCodingWorkflow({ projectRoot: root, ...options });
     }
   };
+}
+
+function getCodeletMutationRequiredFlags(codelet: any) {
+  const required = codelet.requiredFlags ?? codelet.data?.requiredFlags;
+  if (Array.isArray(required) && required.length) {
+    return required;
+  }
+  return Boolean(codelet.canMutate ?? codelet.data?.canMutate)
+    ? [{ path: "args.apply", value: true }]
+    : [];
+}
+
+function hasRequiredFlag(args: any, flag: any): boolean {
+  const path = String(flag?.path ?? "").replace(/^args\./, "").split(".").filter(Boolean);
+  let current = args;
+  for (const key of path) {
+    current = current?.[key];
+  }
+  return current === (flag?.value ?? true);
 }

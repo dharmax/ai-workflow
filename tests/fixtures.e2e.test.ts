@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -102,14 +102,14 @@ async function assertWorkflowInstallFromRepo(cwd) {
     "const path = require('node:path');",
     "const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));",
     "const expected = {",
-    "  'workflow:kanban': 'tsx scripts/ai-workflow/kanban.ts',",
-    "  'workflow:ticket': 'tsx scripts/ai-workflow/kanban-ticket.ts',",
-    "  'workflow:guidance': 'tsx scripts/ai-workflow/guidance-summary.ts',",
-    "  'workflow:review': 'tsx scripts/ai-workflow/review-summary.ts',",
-    "  'workflow:verify': 'tsx scripts/ai-workflow/verification-summary.ts',",
-    "  'workflow:dogfood': 'tsx scripts/ai-workflow/dogfood.ts',",
-    "  'workflow:guideline-audit': 'tsx scripts/ai-workflow/guideline-audit.ts',",
-    "  'workflow:audit': 'tsx scripts/ai-workflow/workflow-audit.ts'",
+    "  'workflow:kanban': 'bun scripts/ai-workflow/kanban.ts',",
+    "  'workflow:ticket': 'bun scripts/ai-workflow/kanban-ticket.ts',",
+    "  'workflow:guidance': 'bun scripts/ai-workflow/guidance-summary.ts',",
+    "  'workflow:review': 'bun scripts/ai-workflow/review-summary.ts',",
+    "  'workflow:verify': 'bun scripts/ai-workflow/verification-summary.ts',",
+    "  'workflow:dogfood': 'bun scripts/ai-workflow/dogfood.ts',",
+    "  'workflow:guideline-audit': 'bun scripts/ai-workflow/guideline-audit.ts',",
+    "  'workflow:audit': 'bun scripts/ai-workflow/workflow-audit.ts'",
     "};",
     "if (!pkg.scripts) throw new Error('package.json scripts missing');",
     "for (const [key, value] of Object.entries(expected)) {",
@@ -120,7 +120,7 @@ async function assertWorkflowInstallFromRepo(cwd) {
     "const workflowPath = path.join('.github', 'workflows', 'ai-workflow-audit.yml');",
     "const workflow = fs.readFileSync(workflowPath, 'utf8');",
     "if (!workflow.includes('workflow-audit')) throw new Error('workflow audit job missing');",
-    "if (!workflow.includes('tsx scripts/ai-workflow/workflow-audit.ts')) {",
+    "if (!workflow.includes('bun scripts/ai-workflow/workflow-audit.ts')) {",
     "  throw new Error('workflow audit command missing');",
     "}",
     "console.log('ok');"
@@ -135,11 +135,11 @@ async function copyFixture(sourceRoot, targetRoot) {
 }
 
 async function runNode(args: string[], options: any = {}) {
-  return runCommand(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], { cwd: repoRoot, ...options });
+  return runCommand("bun", args, { cwd: repoRoot, ...options });
 }
 
 async function runNodeInline(script: string, options: any = {}) {
-  return runCommand(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), "-e", script], { cwd: options.cwd });
+  return runCommand("bun", [ "-e", script], { cwd: options.cwd });
 }
 
 async function runCommand(command: string, args: string[] = [], options: any = {}) {

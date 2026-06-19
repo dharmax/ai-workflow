@@ -464,7 +464,7 @@ function shellQuote(value) {
 async function runNodeProcess({ cwd, args, timeoutMs }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn(process.execPath, [resolveTsxCliPath(), ...args], {
+    const child = spawn(resolveTsxCliPath(), args, {
       cwd,
       detached: process.platform !== "win32",
       env: {

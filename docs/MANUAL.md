@@ -15,6 +15,7 @@ Shell, MCP, and host guidance should treat this manual as a first-class operatio
 ## Mental Model
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
+- Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 - Treat shell mode as a planning and orchestration surface, not as permission to skip workflow discipline.
 - Treat the workflow DB as canonical state, and treat projections as readable outputs that must stay reconciled.
@@ -26,7 +27,7 @@ Shell, MCP, and host guidance should treat this manual as a first-class operatio
 
 ### Requirements
 
-- Node.js 22 or newer
+- Bun 1.3.14 or newer
 - Git
 - A Git repository for meaningful mutation tracking and workspace-honesty checks
 - Optional provider credentials or a reachable Ollama instance for AI-planned operations
@@ -38,7 +39,7 @@ Deterministic sync, status, audit, projection, extraction, and many planning pat
 The complete GitHub install surface exposes `ai-workflow`, `aiwf-mcp`, and `aiwf-skill`:
 
 ```bash
-npm install -g github:dharmax/ai-workflow
+bun add -g github:dharmax/ai-workflow
 ai-workflow --help
 ```
 
@@ -49,9 +50,9 @@ The split packages `aiwf-shell`, `aiwf-mcp`, `aiwf-skill`, and `aiwf-common-core
 ```bash
 git clone https://github.com/dharmax/ai-workflow.git
 cd ai-workflow
-npm install
-npm run build
-node cli/ai-workflow.mjs --help
+bun install
+bun run build
+bun aiwf-shell/cli/ai-workflow.ts --help
 ```
 
 ### Repo Bootstrap
@@ -153,8 +154,8 @@ ai-workflow shell "extract ticket TKT-001"
 - Verify operator surfaces:
 
 ```bash
-npm run workflow:dogfood -- --profile full --json
-npm run workflow:audit -- --json
+bun run workflow:dogfood -- --profile full --json
+bun run workflow:audit -- --json
 ```
 
 ## Shell And Host Surfaces
@@ -256,7 +257,7 @@ This section is the public capability contract as of June 4, 2026. Treat live `d
 - plan-only inspection, route diagnostics, mutation gates, and verification plans
 - ticket gating for mutating shell work
 - machine-readable project audit rules and workflow audit
-- MCP tools for summary, sync, ticket/guideline extraction, status, routing, planning, graph export, and projection writes
+- MCP tools for summary, sync, graph search, plugin status, ticket lifecycle, ticket/guideline extraction, codelet registry/run, project-codelet management, status, routing, planning, graph export, and projection writes
 - bootstrap/full dogfood surfaces and packed-install smoke paths
 
 ### Semi-Works
@@ -313,6 +314,11 @@ The MCP server currently exposes:
 
 - project_summary
 - sync_project
+- search_project
+- plugin_status
+- list_tickets
+- create_ticket
+- update_ticket_lifecycle
 - extract_ticket
 - extract_guidelines
 - plan_work_tickets
@@ -321,6 +327,15 @@ The MCP server currently exposes:
 - route_task
 - knowledge_graph
 - write_projections
+- list_codelets
+- get_codelet
+- search_codelets
+- run_codelet
+- forge_project_codelet
+- upsert_project_codelet
+- remove_project_codelet
+
+Mutating MCP tools dry-run unless `apply: true`. `run_codelet` refuses mutating codelets unless `allowMutation: true`, the manifest declares `canMutate: true`, and required flags such as `args.apply === true` are present.
 
 MCP makes the constraints inspectable and reusable, but the host remains responsible for calling the tools and honoring their results.
 
@@ -652,8 +667,8 @@ ai-workflow set-ollama-hw --hardware-class medium --max-model-size-b 14
 
 ```bash
 node --test tests/*.test.mjs
-npm run workflow:dogfood -- --profile full --json
-npm run workflow:audit -- --json
+bun run workflow:dogfood -- --profile full --json
+bun run workflow:audit -- --json
 ```
 
 ## Install Surfaces
@@ -669,7 +684,7 @@ Choose one explicitly:
 ### Composite GitHub Package
 
 ```bash
-npm install -g github:dharmax/ai-workflow
+bun add -g github:dharmax/ai-workflow
 ai-workflow --help
 ```
 
@@ -678,7 +693,7 @@ This is the recommended complete install. It does not depend on the split packag
 ### Shell Only
 
 ```bash
-npm install -g aiwf-shell
+bun add -g aiwf-shell
 ai-workflow --help
 ```
 
@@ -687,7 +702,7 @@ Use this only when `aiwf-shell` is available in your configured npm registry.
 ### MCP Extension
 
 ```bash
-npm install -g aiwf-mcp
+bun add -g aiwf-mcp
 aiwf-mcp
 ```
 
@@ -697,7 +712,7 @@ Use this only when `aiwf-mcp` is available in your configured npm registry.
 ### Optional Skill Bridge
 
 ```bash
-npm install -g aiwf-skill
+bun add -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force
 ```
 
@@ -706,7 +721,7 @@ Use this only when `aiwf-skill` is available in your configured npm registry.
 ### Both Together
 
 ```bash
-npm install -g aiwf-shell aiwf-mcp aiwf-skill
+bun add -g aiwf-shell aiwf-mcp aiwf-skill
 ai-workflow --help
 aiwf-mcp
 aiwf-skill --project /abs/path/to/project --force
@@ -744,8 +759,8 @@ aiwf-skill --project /abs/path/to/project --force
 
 ### Dogfood Or Audit Fails
 
-- Re-run `npm run workflow:dogfood -- --profile full --json`
-- Re-run `npm run workflow:audit -- --json`
+- Re-run `bun run workflow:dogfood -- --profile full --json`
+- Re-run `bun run workflow:audit -- --json`
 - If full-profile dogfood stalls on provider-bound checks, run bootstrap-profile dogfood for the deterministic gate and report the full profile as incomplete.
 - If dogfood is stale, regenerate it instead of editing the report manually
 - If the manual HTML is stale, run the manual generator instead of editing HTML manually
@@ -754,7 +769,7 @@ aiwf-skill --project /abs/path/to/project --force
 
 - Canonical source: `docs/MANUAL.md`
 - Generated output: `docs/manual.html`
-- Generator script: `npm run generate-docs`
+- Generator script: `bun run generate-docs`
 - Do not hand-edit `docs/manual.html`
 - Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
 - Update the dated capability-status section when a capability moves between planned, semi-working, and reliable.

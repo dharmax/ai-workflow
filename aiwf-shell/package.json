@@ -6,7 +6,7 @@
   "description": "Interactive CLI, runtime wrappers, and operator tooling for ai-workflow.",
   "main": "./cli/index.ts",
   "bin": {
-    "ai-workflow": "./dist/ai-workflow.mjs"
+    "ai-workflow": "./cli/ai-workflow.ts"
   },
   "exports": {
     ".": "./cli/index.ts",
@@ -18,21 +18,17 @@
   },
   "files": [
     "cli",
-    "dist",
     "runtime",
     "scripts",
     "templates",
     "README.md"
   ],
   "scripts": {
-    "build": "node ./scripts/build-cli.mjs && node ../scripts/validate-package.mjs .",
-    "typecheck": "node ../scripts/validate-package.mjs ."
+    "build": "bun ../scripts/validate-package.mjs .",
+    "typecheck": "bun ../scripts/validate-package.mjs ."
   },
   "dependencies": {
     "aiwf-common-core": "0.1.0",
     "aiwf-mcp": "0.1.0"
-  },
-  "devDependencies": {
-    "esbuild": "^0.28.0"
   }
 }

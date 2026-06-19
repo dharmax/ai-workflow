@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -12,7 +12,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args: string[], options: { cwd?: string } = {}) {
   try {
-    const result = await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
+    const result = await execFileAsync("bun", args, {
       cwd: options.cwd ?? repoRoot,
       env: process.env,
       maxBuffer: 8 * 1024 * 1024

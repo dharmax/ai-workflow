@@ -74,7 +74,7 @@ If a rule's failure text should be identical to the pattern text, omit `message`
       "id": "require-dogfood-before-closure",
       "include": ["AGENTS.md", "execution-protocol.md", "project-guidelines.md", "templates/AGENTS.md", "templates/execution-protocol.md", "templates/project-guidelines.md"],
       "extensions": [".md"],
-      "pattern": "Operator-surface changes are not done until `ai-workflow dogfood` \\(or `node aiwf-shell/scripts/ai-workflow/dogfood\\.mjs`\\) and `workflow-audit` both pass\\."
+      "pattern": "Operator-surface changes are not done until `ai-workflow dogfood` \\(or `bun aiwf-shell/scripts/ai-workflow/dogfood\\.ts`\\) and `workflow-audit` both pass\\."
     },
     {
       "id": "keep-public-docs-current",

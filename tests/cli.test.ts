@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -15,7 +15,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 async function runNode(args: string[], options: any = {}) {
   try {
-    const result = await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), ...args], {
+    const result = await execFileAsync("bun", args, {
       ...options,
       maxBuffer: 8 * 1024 * 1024
     });
@@ -261,9 +261,9 @@ test("installer writes files, installs CI scaffold, makes scripts executable, an
     const protocolFile = await readFile(path.join(targetRoot, "execution-protocol.md"), "utf8");
     assert.match(protocolFile, /Required Order/);
     const packageJson = JSON.parse(await readFile(path.join(targetRoot, "package.json"), "utf8"));
-    assert.equal(packageJson.scripts["workflow:dogfood"], "tsx scripts/ai-workflow/dogfood.ts");
-    assert.equal(packageJson.scripts["workflow:audit"], "tsx scripts/ai-workflow/workflow-audit.ts");
-    assert.equal(packageJson.scripts["workflow:guideline-audit"], "tsx scripts/ai-workflow/guideline-audit.ts");
+    assert.equal(packageJson.scripts["workflow:dogfood"], "bun scripts/ai-workflow/dogfood.ts");
+    assert.equal(packageJson.scripts["workflow:audit"], "bun scripts/ai-workflow/workflow-audit.ts");
+    assert.equal(packageJson.scripts["workflow:guideline-audit"], "bun scripts/ai-workflow/guideline-audit.ts");
     await access(path.join(targetRoot, ".ai-workflow", "state", "workflow.db"));
     await access(path.join(targetRoot, ".ai-workflow", "generated", "dogfood-report.json"));
 
@@ -333,11 +333,11 @@ test("setup installs codex, claude, and gemini bridges that point at a live MCP 
     assert.match(codexConfig, /\bhooks = true\b/);
     assert.doesNotMatch(codexConfig, /\bcodex_hooks\s*=/);
     assert.match(codexConfig, /\[mcp_servers\.aiwf-mcp\]/);
-    assert.match(codexConfig, /"mcp", "serve"]/);
+    assert.match(codexConfig, /aiwf-mcp\/server\.ts/);
 
     const claudeMcp = JSON.parse(await readFile(path.join(targetRoot, ".mcp.json"), "utf8"));
     assert.ok(claudeMcp.mcpServers?.["ai-workflow"]);
-    assert.deepEqual(claudeMcp.mcpServers["ai-workflow"].args.slice(-2), ["mcp", "serve"]);
+    assert.equal(claudeMcp.mcpServers["ai-workflow"].args.at(-1).endsWith("aiwf-mcp/server.ts"), true);
     await assertConfiguredMcpCommandStarts(claudeMcp.mcpServers["ai-workflow"]);
   } finally {
     await cleanup(targetRoot);
@@ -358,8 +358,8 @@ test("root GitHub package exposes shell, MCP, and skill install bins", async () 
   const packageJson = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(packageJson.name, "ai-workflow");
   assert.equal(packageJson.private, false);
-  assert.equal(packageJson.bin["ai-workflow"], "./cli/ai-workflow.mjs");
-  assert.equal(packageJson.bin["aiwf-mcp"], "./cli/aiwf-mcp.mjs");
+  assert.equal(packageJson.bin["ai-workflow"], "./aiwf-shell/cli/ai-workflow.ts");
+  assert.equal(packageJson.bin["aiwf-mcp"], "./aiwf-mcp/server.ts");
   assert.equal(packageJson.bin["aiwf-skill"], "./aiwf-skill/install-ai-workflow-skill.mjs");
 
   const result = await runBoundedCommand(process.execPath, [path.join(repoRoot, "cli", "ai-workflow.mjs"), "version", "--json"], {
@@ -473,7 +473,7 @@ test("top-level --version reports the installed package version and toolkit root
 });
 
 test("web tutorial server serves tutorial html and mode-aware tutorial api", async () => {
-  const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+  const child = spawn("bun", [
     path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -540,7 +540,7 @@ test("web tutorial readiness api exposes the shared readiness evaluator in tool-
   const sync = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+  const child = spawn("bun", [
     path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -602,7 +602,7 @@ test("web tutorial host ask api routes natural-language readiness requests throu
   const sync = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+  const child = spawn("bun", [
     path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -665,7 +665,7 @@ test("web tutorial host ask api routes current-work questions without shell-only
   const sync = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "sync", "--json"], { cwd: evidenceRoot });
   assert.equal(sync.code, 0, sync.stderr || sync.stdout);
 
-  const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+  const child = spawn("bun", [
     path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
     "web",
     "tutorial",
@@ -1555,7 +1555,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
       }
     }, null, 2), "utf8");
 
-    const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+    const child = spawn("bun", [
       path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
       "shell",
       "--no-ai"
@@ -1598,7 +1598,7 @@ test("non-interactive shell reports configured Ollama registry without prompting
 });
 
 test("non-interactive shell handles version directly", async () => {
-  const child = spawn(process.execPath, [path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+  const child = spawn("bun", [
     path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
     "shell",
     "--no-ai"
@@ -1916,7 +1916,7 @@ test("installer does not overwrite conflicting workflow package scripts without 
     assert.match(resultForce.stdout, /Package scripts overwritten: 1/);
 
     const packageJsonOverwritten = JSON.parse(await readFile(path.join(targetRoot, "package.json"), "utf8"));
-    assert.equal(packageJsonOverwritten.scripts["workflow:audit"], "tsx scripts/ai-workflow/workflow-audit.ts");
+    assert.equal(packageJsonOverwritten.scripts["workflow:audit"], "bun scripts/ai-workflow/workflow-audit.ts");
   } finally {
     await cleanup(targetRoot);
   }

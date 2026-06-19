@@ -1,9 +1,9 @@
-import test from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "aiwf-common-core/db/sqlite-adapter";
 import { fileURLToPath } from "node:url";
 import { addManualNote, evaluateProjectReadiness, getEpic, getProjectSummary, listEpicUserStories, listEpics, resolveProjectNote, reviewProjectCandidates, searchEpicUserStories, searchEpics, searchProject, syncProject, withWorkflowStore } from "aiwf-common-core/services/sync";
 import { buildTicketEntity, inferTicketLane, renderEpicsProjection, renderKanbanArchiveProjection, renderKanbanProjection } from "aiwf-common-core/services/projections";
