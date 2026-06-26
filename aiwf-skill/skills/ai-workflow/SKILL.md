@@ -35,7 +35,7 @@ export AI_WORKFLOW_HOME="${AI_WORKFLOW_HOME:-$HOME/.ai-workflow}"
 export AIWF="$AI_WORKFLOW_HOME/skills/ai-workflow/scripts/ai_workflow.sh"
 ```
 
-The wrapper will use `ai-workflow` from `PATH` when available. If it is not on `PATH`, it will fall back to the toolkit root recorded at install time.
+The wrapper will use the toolkit root recorded at install time first. If that is unavailable, it can fall back to `ai-workflow` from `PATH`.
 
 ## Safe default workflow
 

@@ -1,6 +1,6 @@
 import { test } from "bun:test";
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -369,6 +369,43 @@ test("skill wrapper resolves the toolkit CLI without invoking raw TypeScript thr
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.name, "ai-workflow");
   assert.equal(payload.version, "0.1.0");
+});
+
+test("skill wrapper prefers the recorded toolkit root over PATH", async () => {
+  const hostRoot = await makeTempDir();
+  const fakeBinDir = path.join(hostRoot, "bin");
+  const skillDestRoot = path.join(hostRoot, "skills");
+  await mkdir(fakeBinDir, { recursive: true });
+
+  const fakeAiWorkflow = path.join(fakeBinDir, "ai-workflow");
+  await writeFile(fakeAiWorkflow, "#!/usr/bin/env bash\nexit 17\n", "utf8");
+  await chmod(fakeAiWorkflow, 0o755);
+
+  try {
+    const install = await runNode([path.join(repoRoot, "aiwf-skill", "install-ai-workflow-skill.mjs"), "--dest", skillDestRoot], {
+      cwd: repoRoot,
+      env: {
+        ...process.env
+      }
+    });
+    assert.equal(install.code, 0, install.stderr || install.stdout);
+
+    const wrapperPath = path.join(skillDestRoot, "ai-workflow", "scripts", "ai_workflow.sh");
+    const result = await runBoundedCommand("bash", [wrapperPath, "version", "--json"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${fakeBinDir}:${process.env.PATH}`
+      }
+    });
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.name, "aiwf-shell");
+    assert.equal(payload.version, "0.1.0");
+  } finally {
+    await cleanup(hostRoot);
+  }
 });
 
 test("metrics command reports session, last active work hours, and trailing week slices", async () => {
