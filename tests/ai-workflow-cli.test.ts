@@ -817,7 +817,9 @@ test("ai-workflow sync keeps unchanged generated projections stable on repeated 
     assert.equal(epic.state, "archived");
 
     const kanbanText = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    assert.match(kanbanText, /EXE-201 Close the graph backlog/);
+    const archiveText = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    assert.doesNotMatch(kanbanText, /EXE-201 Close the graph backlog/);
+    assert.match(archiveText, /EXE-201 Close the graph backlog/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -1267,8 +1269,9 @@ test("ai-workflow project ticket resolve and reopen reconcile projections and su
     assert.equal(resolvedSummary.activeTickets.some((ticket) => ticket.id === "BUG-LC-001"), false);
 
     const kanbanAfterResolve = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    assert.match(kanbanAfterResolve, /## Done/);
-    assert.match(kanbanAfterResolve, /BUG-LC-001 Resolve and reopen lifecycle ticket ✅ \d{4}-\d{2}-\d{2}/);
+    const archiveAfterResolve = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    assert.doesNotMatch(kanbanAfterResolve, /BUG-LC-001 Resolve and reopen lifecycle ticket/);
+    assert.match(archiveAfterResolve, /BUG-LC-001 Resolve and reopen lifecycle ticket ✅ \d{4}-\d{2}-\d{2}/);
 
     const reopenResult = await runNode([
       path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"),
@@ -1864,8 +1867,9 @@ test("workflow mutations refresh kanban and DB projections immediately", { concu
     assert.equal(moveResult.code, 0, moveResult.stderr || moveResult.stdout);
 
     const kanbanAfterMove = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    assert.match(kanbanAfterMove, /## Done/);
-    assert.match(kanbanAfterMove, /EXE-900 Refresh live projections after every workflow mutation/);
+    const archiveAfterMove = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    assert.doesNotMatch(kanbanAfterMove, /EXE-900 Refresh live projections after every workflow mutation/);
+    assert.match(archiveAfterMove, /EXE-900 Refresh live projections after every workflow mutation/);
 
     await withWorkflowStore(targetRoot, async (store) => {
       const ticket = store.getEntity("EXE-900");
@@ -1912,8 +1916,9 @@ test("ai-workflow kanban CLI dispatches to the working kanban script", { concurr
     assert.equal(moveResult.code, 0, moveResult.stderr || moveResult.stdout);
 
     const kanbanAfterMove = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
-    assert.match(kanbanAfterMove, /## Done/);
-    assert.match(kanbanAfterMove, /EXE-901 CLI kanban dispatch uses the stable script entrypoint/);
+    const archiveAfterMove = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
+    assert.doesNotMatch(kanbanAfterMove, /EXE-901 CLI kanban dispatch uses the stable script entrypoint/);
+    assert.match(archiveAfterMove, /EXE-901 CLI kanban dispatch uses the stable script entrypoint/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -1957,8 +1962,9 @@ test("ai-workflow kanban archive dispatches through the documented CLI command",
     const kanbanAfterArchive = await readFile(path.join(targetRoot, "kanban.md"), "utf8");
     const archiveAfterArchive = await readFile(path.join(targetRoot, "kanban-archive.md"), "utf8");
     assert.doesNotMatch(kanbanAfterArchive, /OLD-001 Old completed ticket/);
-    assert.match(kanbanAfterArchive, /NEW-001 Recently completed ticket/);
+    assert.doesNotMatch(kanbanAfterArchive, /NEW-001 Recently completed ticket/);
     assert.match(archiveAfterArchive, /OLD-001 Old completed ticket/);
+    assert.match(archiveAfterArchive, /NEW-001 Recently completed ticket/);
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }
@@ -2217,7 +2223,13 @@ test("ai-workflow install creates the core OS workspace and initializes project 
   try {
     const result = await runNode(
       [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "install", "--project", targetRoot],
-      { cwd: targetRoot }
+      {
+        cwd: targetRoot,
+        env: {
+          ...process.env,
+          CODEX_HOME: path.join(targetRoot, ".codex-home")
+        }
+      }
     );
     assert.equal(result.code, 0);
     

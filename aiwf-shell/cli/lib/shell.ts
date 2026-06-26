@@ -309,9 +309,14 @@ export async function handleShell(rest, { cliPath } = {}) {
       options.plannerContext = await buildShellContext(root);
       options.planners = await resolveShellPlanners(root, { providerState: options.plannerContext.providerState });
       if (process.env.AI_WORKFLOW_PLANNER_MODEL) {
-        const [p, m] = process.env.AI_WORKFLOW_PLANNER_MODEL.split(":");
+        const [p, ...modelParts] = process.env.AI_WORKFLOW_PLANNER_MODEL.split(":");
+        const m = modelParts.join(":");
         const provider = options.plannerContext.providerState.providers[p];
         options.planner = { providerId: p, modelId: m, host: provider?.host };
+        options.planners = {
+          ...(options.planners ?? {}),
+          planners: [options.planner]
+        };
       }
       options.aiTraceEvents = [];
       options.workflowTraceEvents = [];
@@ -367,6 +372,30 @@ async function tryRunShellFastPath(inputText, options) {
     return null;
   }
   const plannerContext = await buildFastShellContext(options.root);
+  if (isIncompleteEpicRequest(inputText)) {
+    const plan = normalizeShellPlanEnvelope({
+      ...replyPlan([
+        "Yes.",
+        "Give me the epic topic, or say `create epic for <topic>`.",
+        "Example: `create epic for Telegram remote-control`."
+      ].join("\n"), 0.98, "Epic ideation request is missing a topic."),
+      presentation: "assistant-first"
+    }, inputText, plannerContext);
+    return {
+      input: inputText,
+      plan,
+      executed: [],
+      executedGraph: { nodes: [], executions: [], branchPath: [] },
+      continuationState: buildContinuationState({
+        inputText,
+        plan,
+        executedGraph: { nodes: [], executions: [], branchPath: [] }
+      }),
+      preRendered: false,
+      recovery: null,
+      assistantReply: null
+    };
+  }
   if (isCodingWorkflowRequest(inputText)) {
     const codingWorkflow = await planCodingWorkflow({
       projectRoot: options.root,
@@ -481,6 +510,11 @@ async function tryRunShellFastPath(inputText, options) {
   }
 
   return null;
+}
+
+function isIncompleteEpicRequest(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  return /^(?:(?:can|could|would)\s+you\s+|please\s+)?(?:write|create|make|draft)\s+(?:me\s+)?(?:an\s+)?epic\??$/.test(normalized);
 }
 
 function describeShellActionForStep(action, index) {
@@ -1188,6 +1222,21 @@ export async function planShellRequest(inputText, options) {
     }, inputText, options.plannerContext);
   }
 
+  const deterministicExecutionPlan = planShellRequestHeuristically(inputText, options.plannerContext, {
+    activeGraphState: options.activeGraphState ?? null
+  });
+  if (
+    deterministicExecutionPlan?.kind === "plan"
+    && Array.isArray(deterministicExecutionPlan.actions)
+    && deterministicExecutionPlan.actions.some((action) => action?.type === "execute_ticket")
+    && /\b(ordered|lane|todo)\b/i.test(String(deterministicExecutionPlan.reason ?? deterministicExecutionPlan.planner?.reason ?? ""))
+  ) {
+    return normalizeShellPlanEnvelope({
+      ...deterministicExecutionPlan,
+      planner: deterministicExecutionPlan.planner ?? { mode: "heuristic", reason: deterministicExecutionPlan.reason ?? "Deterministic ticket execution request." }
+    }, inputText, options.plannerContext);
+  }
+
   const normalizedRequest = await normalizeOperatorRequest(inputText, {
     surface: "shell",
     plannerContext: options.plannerContext,
@@ -1195,7 +1244,15 @@ export async function planShellRequest(inputText, options) {
   });
   const sharedProgram = planExecutionProgram(normalizedRequest);
 
-  if (normalizedRequest.requestKind === "workflow-program") {
+  if (
+    normalizedRequest.requestKind === "workflow-program"
+    && (
+      !options.planners?.planners?.length
+      || normalizedRequest.taskClass === "analysis-plan"
+      || normalizedRequest.taskClass === "repo-investigation"
+      || looksLikeLongSharedHarnessPrompt(inputText)
+    )
+  ) {
     return planShellRequestWithCompiler(inputText, options);
   }
 
@@ -1319,7 +1376,16 @@ async function planSingleRequest(inputText, options) {
     continuationState: options.activeGraphState ?? null
   });
   const sharedProgram = planExecutionProgram(normalizedRequest);
-  if (sharedProgram.programKind !== "direct-primitive" && normalizedRequest.requestKind === "workflow-program") {
+  if (
+    sharedProgram.programKind !== "direct-primitive"
+    && normalizedRequest.requestKind === "workflow-program"
+    && (
+      !options.planners?.planners?.length
+      || normalizedRequest.taskClass === "analysis-plan"
+      || normalizedRequest.taskClass === "repo-investigation"
+      || looksLikeLongSharedHarnessPrompt(inputText)
+    )
+  ) {
     return planShellRequestWithCompiler(inputText, options);
   }
   const forceHeuristic = shouldForceHeuristicShellTurn(inputText);
@@ -1411,12 +1477,12 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
     return false;
   }
 
-  if (shouldForceHeuristicShellTurn(inputText)) {
-    return false;
-  }
-
   if (routing.mode === "staged-core") {
     return true;
+  }
+
+  if (shouldForceHeuristicShellTurn(inputText)) {
+    return false;
   }
 
   if (isDeterministicShellSurfaceRequest(inputText)) {
@@ -1461,6 +1527,14 @@ function shouldPreferAiPlannerForTurn(inputText, options, heuristic, routing) {
   return heuristic.confidence < 0.92;
 }
 
+function looksLikeLongSharedHarnessPrompt(inputText) {
+  const normalized = normalizeConversationText(inputText);
+  const tokenCount = normalized ? normalized.split(/\s+/).filter(Boolean).length : 0;
+  return tokenCount >= 14
+    && /\b(audit|inspect|map|gaps?|implementation plan|current state)\b/i.test(normalized)
+    && /\b(plan|implementation|harness|shell|tests?|code)\b/i.test(normalized);
+}
+
 function shouldForceHeuristicShellTurn(inputText) {
   return looksLikeShellAssessmentQuestion(inputText)
     || looksLikeWorkplanQuestion(inputText)
@@ -1499,7 +1573,11 @@ function isDeterministicShellSurfaceRequest(inputText) {
 async function buildGroundedShellFallbackPlan(inputText, options) {
   const normalized = normalizeConversationText(inputText);
   if (/\bprojection|projections\b/.test(normalized) && /\bsync|status|service|explain|what is\b/.test(normalized)) {
+    const moduleResponsibility = findShellGroundingModuleMatches(inputText, options.plannerContext ?? {})
+      .find((item) => /projections\b/i.test(String(item?.name ?? "")))?.responsibility;
     return replyPlan([
+      "core/services/projections is the relevant service here.",
+      ...(moduleResponsibility ? [moduleResponsibility] : []),
       "The projections service renders workflow DB truth into operator-facing files and summaries.",
       "It is centered in aiwf-common-core/core/services/projections.ts and is fed by aiwf-common-core/core/services/sync.ts; status consumers also read the projected planning state through aiwf-common-core/core/services/status.ts and aiwf-shell/cli/lib/main.ts.",
       "Evidence: aiwf-common-core/core/services/projections.ts writes kanban, archive, epic, and planning projection state; aiwf-common-core/core/services/sync.ts owns indexing and projection refresh; aiwf-common-core/core/services/status.ts and aiwf-shell/cli/lib/main.ts expose that state to shell/status commands."
@@ -1546,7 +1624,7 @@ async function buildGroundedShellFallbackPlan(inputText, options) {
 
   if (moduleMatches.length) {
     const top = moduleMatches[0];
-    return replyPlan(`${top.name} is the relevant service here. ${top.responsibility ?? "It is a tracked repo module."}`, 0.74, "Module-match explainer fallback reply.");
+    return replyPlan(`${top.name} is the relevant service here. ${top.responsibility ?? "It is a tracked repo module."}`, 0.8, "Grounded repo explainer fallback reply.");
   }
 
   return null;
@@ -8218,6 +8296,7 @@ function renderGroundedContextualRepoExplainerReply({ inputText, modules = [] })
   const normalized = normalizeConversationText(inputText);
   if (/\bprojection(?:s)?\b/.test(normalized)) {
     return [
+      "core/services/projections is the relevant service here.",
       "The projections service lives in core/services/projections.ts.",
       "It is the DB-to-document projection layer: it turns workflow DB state into operator-facing summaries and files, including the project summary, kanban projection, epics projection, and projection writes back to disk.",
       "In practice, core/services/sync.ts and core/services/status.ts use this layer to keep kanban.md and epics.md aligned with canonical workflow DB state instead of letting the markdown drift, and cli/lib/main.ts renders those projections back to the operator surface.",

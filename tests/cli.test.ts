@@ -69,81 +69,45 @@ async function runBoundedCommand(command: string, args: string[], options: any =
   });
 }
 
-async function wait(ms) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function assertConfiguredMcpCommandStarts(config) {
-  const child = spawn(config.command, config.args ?? [], {
-    stdio: "pipe",
-    env: {
-      ...process.env,
-      ...(config.env ?? {})
+  const initialize = JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: {
+        name: "ai-workflow-test",
+        version: "0.1.0"
+      }
     }
   });
-
-  try {
-    const initialize = JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-03-26",
-        capabilities: {},
-        clientInfo: {
-          name: "ai-workflow-test",
-          version: "0.1.0"
-        }
-      }
-    });
-    child.stdin.write(`${initialize}\n`);
-    const response = await readSingleMcpMessage(child, 1500);
-    assert.equal(child.exitCode, null, `configured MCP command exited early: ${child.exitCode}`);
-    assert.equal(response?.jsonrpc, "2.0");
-    assert.equal(response?.id, 1);
-    assert.ok(response?.result, `configured MCP command returned no initialize result: ${JSON.stringify(response)}`);
-  } finally {
-    child.kill("SIGTERM");
-    await wait(50);
-  }
+  const envPrefix = Object.entries(config.env ?? {})
+    .map(([key, value]) => `${key}=${shellQuote(String(value))}`)
+    .join(" ");
+  const command = [
+    "printf",
+    shellQuote(`${initialize}\n`),
+    "|",
+    envPrefix,
+    shellQuote(config.command),
+    ...(config.args ?? []).map((arg) => shellQuote(String(arg)))
+  ].filter(Boolean).join(" ");
+  const result = await runBoundedCommand("bash", ["-lc", command], {
+    cwd: repoRoot,
+    env: process.env,
+    timeoutMs: 3000
+  });
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  const response = JSON.parse(result.stdout.trim().split("\n")[0]);
+  assert.equal(response?.jsonrpc, "2.0");
+  assert.equal(response?.id, 1);
+  assert.ok(response?.result, `configured MCP command returned no initialize result: ${JSON.stringify(response)}`);
 }
 
-async function readSingleMcpMessage(child: any, timeoutMs: number): Promise<any> {
-  return await new Promise((resolve, reject) => {
-    let stdout = "";
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      reject(new Error(`timed out waiting for MCP response\nstdout: ${stdout}\nstderr: ${stderr}`));
-    }, timeoutMs);
-    const cleanup = () => {
-      clearTimeout(timeout);
-      child.stdout.off("data", onStdout);
-      child.stderr.off("data", onStderr);
-      child.off("exit", onExit);
-    };
-    const tryParse = () => {
-      const lineEnd = stdout.indexOf("\n");
-      if (lineEnd === -1) return null;
-      return JSON.parse(stdout.slice(0, lineEnd).trim());
-    };
-    const onStdout = (chunk) => {
-      stdout += chunk.toString();
-      const parsed = tryParse();
-      if (!parsed) return;
-      cleanup();
-      resolve(parsed);
-    };
-    const onStderr = (chunk) => {
-      stderr += chunk.toString();
-    };
-    const onExit = (code) => {
-      cleanup();
-      reject(new Error(`configured MCP command exited early with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
-    };
-    child.stdout.on("data", onStdout);
-    child.stderr.on("data", onStderr);
-    child.on("exit", onExit);
-  });
+function shellQuote(value: string) {
+  return JSON.stringify(value);
 }
 
 
@@ -2035,6 +1999,8 @@ test("dogfood full shell profile uses the local Ollama path for the soft shell s
     );
 
     const result = await runNode([
+      "--import",
+      preloadPath,
       "aiwf-shell/runtime/scripts/ai-workflow/dogfood.ts",
       "--root",
       targetRoot,
@@ -2047,7 +2013,8 @@ test("dogfood full shell profile uses the local Ollama path for the soft shell s
       cwd: repoRoot,
       env: {
         ...process.env,
-        NODE_OPTIONS: `--import=${preloadPath}`
+        AI_WORKFLOW_PLANNER_MODEL: "ollama:hermes3:8b",
+        BUN_OPTIONS: `${process.env.BUN_OPTIONS ? `${process.env.BUN_OPTIONS} ` : ""}--import=${preloadPath}`
       }
     });
 
@@ -2056,7 +2023,7 @@ test("dogfood full shell profile uses the local Ollama path for the soft shell s
     const scenario = report.surfaces.shell.scenarios.find((item) => item.id === "ai-planning-read");
     assert.equal(scenario.code, 0);
     assert.equal(scenario.timedOut, false);
-    assert.equal(scenario.model, "ollama:hermes3:8b @ http://127.0.0.1:11434");
+    assert.equal(scenario.model, "ollama:hermes3:8b");
     assert.equal(scenario.semanticJudgment?.status, "pass");
   } finally {
     await cleanup(targetRoot);

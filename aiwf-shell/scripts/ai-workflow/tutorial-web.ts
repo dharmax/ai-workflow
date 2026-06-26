@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +24,7 @@ export async function runTutorialWeb(argv = process.argv.slice(2)) {
   } as any);
   const projectRoot = context.mode === "tool-dev" ? context.evidenceRoot : context.repairTargetRoot;
   const host = String(args.host ?? "127.0.0.1");
-  const requestedPort = Number(args.port ?? 3210);
+  const requestedPort = await resolveRequestedPort(Number(args.port ?? 3210), host);
   const html = await readFile(tutorialPath, "utf8");
 
   const server = createServer(async (req, res) => {
@@ -130,6 +131,31 @@ function buildMeta(context: any, operationalRoot: string) {
 function writeJson(res: any, status: number, payload: any) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+async function resolveRequestedPort(port: number, host: string) {
+  if (port !== 0) {
+    return port;
+  }
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const candidate = 32_000 + Math.floor(Math.random() * 20_000);
+    if (await canBind(candidate, host)) {
+      return candidate;
+    }
+  }
+  throw new Error("Unable to find an available tutorial server port.");
+}
+
+async function canBind(port: number, host: string) {
+  return await new Promise<boolean>((resolve) => {
+    const probe = createNetServer();
+    const done = (ok: boolean) => {
+      probe.removeAllListeners();
+      probe.close(() => resolve(ok));
+    };
+    probe.once("error", () => done(false));
+    probe.listen(port, host, () => done(true));
+  });
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -7,7 +7,7 @@ import { parseArgs } from "aiwf-common-core/lib/cli";
 export async function runReviewSummary(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const root = path.resolve(String(args.root ?? process.cwd()));
-  const changes = await getChanges(root, process.env);
+  const changes = await getChanges(root);
   const sourceChanges = changes.filter((item) => /^(src\/|cli\/|core\/|runtime\/|shared\/|scripts\/)/.test(item.path));
   const testChanges = changes.filter((item) => /(^tests\/|\.test\.[a-z]+$)/.test(item.path));
   const findings: string[] = [];

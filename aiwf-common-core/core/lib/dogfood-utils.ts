@@ -265,6 +265,9 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
       timeoutMs,
       cliPath,
       args: ["shell", "Give me a concise operator brief grounded in the current workflow state, and justify the recommendation.", "--trace"],
+      env: shellPlanningExpectation.forcedPlannerModel
+        ? { AI_WORKFLOW_PLANNER_MODEL: shellPlanningExpectation.forcedPlannerModel }
+        : {},
       validationHints: {
         ...shellPlanningExpectation,
         semanticRubric: "The shell output must directly answer the operator brief request, stay grounded in workflow/project state, avoid exposing internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing."
@@ -277,6 +280,9 @@ async function buildShellScenarios({ profile, cliPath, root, timeoutMs }) {
       timeoutMs,
       cliPath,
       args: ["shell", "what is the projections service?", "--trace"],
+      env: shellPlanningExpectation.forcedPlannerModel
+        ? { AI_WORKFLOW_PLANNER_MODEL: shellPlanningExpectation.forcedPlannerModel }
+        : {},
       validationHints: {
         ...shellPlanningExpectation,
         semanticRubric: "The shell output must answer what the projections service is, mention projections directly, stay grounded in repo/project evidence, avoid internal planner/router chatter, and must not say it needs the AI planner or a clearer phrasing."
@@ -333,8 +339,14 @@ async function detectShellPlanningExpectation({ cliPath, root, timeoutMs }) {
 
   try {
     const payload = JSON.parse(result.stdout);
+    const localModel = payload?.recommended?.local && payload.recommended.providerId && payload.recommended.modelId
+      ? `${payload.recommended.providerId}:${payload.recommended.modelId}`
+      : payload?.providers?.ollama?.available && Array.isArray(payload?.providers?.ollama?.models) && payload.providers.ollama.models[0]?.id
+        ? `ollama:${payload.providers.ollama.models[0].id}`
+      : null;
     return {
-      expectLocalModel: Boolean(payload?.providers?.ollama?.available)
+      expectLocalModel: Boolean(payload?.providers?.ollama?.available),
+      forcedPlannerModel: localModel
     };
   } catch {
     return { expectLocalModel: false };
@@ -435,11 +447,12 @@ async function buildInitScenarios({ timeoutMs, toolkitRoot }) {
   }
 }
 
-async function runCliScenario({ id, description, cwd, timeoutMs, cliPath, args, validationHints = {} }) {
+async function runCliScenario({ id, description, cwd, timeoutMs, cliPath, args, validationHints = {}, env = {} }) {
   const result = await runNodeProcess({
     cwd,
     timeoutMs,
-    args: [cliPath, ...args]
+    args: [cliPath, ...args],
+    env
   });
   const scenario = buildScenarioResult({
     id,
@@ -628,13 +641,14 @@ function shellQuote(value) {
   return JSON.stringify(String(value));
 }
 
-async function runNodeProcess({ cwd, args, timeoutMs }) {
+async function runNodeProcess({ cwd, args, timeoutMs, env = {} }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
     const child = spawn(resolveTsxCliPath(), args, {
       cwd,
       env: {
         ...process.env,
+        ...env,
         FORCE_COLOR: "0"
       },
       stdio: ["ignore", "pipe", "pipe"]

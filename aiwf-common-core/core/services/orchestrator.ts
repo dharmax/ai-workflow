@@ -128,6 +128,21 @@ export async function executeTicket(options) {
     });
   }
 
+  if (!apply) {
+    return {
+      success: true,
+      status: "planned",
+      executionPlan,
+      verification: {
+        ok: true,
+        skipped: true,
+        reason: "Dry-run mode infers verification commands without executing them.",
+        timeoutMs: verificationTimeoutMs ?? null,
+        results: []
+      }
+    };
+  }
+
   const baselineVerification = await getBaselineVerification(root, executionPlan, baselineVerificationCache, verificationTimeoutMs);
   if (!baselineVerification.ok) {
     if (apply) {
@@ -160,15 +175,6 @@ export async function executeTicket(options) {
         verification: baselineVerification,
         selection
       })
-    };
-  }
-
-  if (!apply) {
-    return {
-      success: true,
-      status: "planned",
-      executionPlan,
-      verification: baselineVerification
     };
   }
 

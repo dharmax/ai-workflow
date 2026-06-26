@@ -20,7 +20,7 @@ async function runNode(args: string[], options: any = {}): Promise<{ code: numbe
       maxBuffer: 8 * 1024 * 1024
     }, (error, stdout, stderr) => {
       resolve({
-        code: typeof error?.code === "number" ? error.code : 1,
+        code: error ? (typeof error.code === "number" ? error.code : 1) : 0,
         stdout: String(stdout ?? ""),
         stderr: String(stderr ?? "")
       });
@@ -42,7 +42,7 @@ const defaultShellTestFetch = (async (url) => {
 
 globalThis.fetch = defaultShellTestFetch;
 
-test("buildShellContext reads foundational project files", async (t) => {
+test("buildShellContext reads foundational project files", async () => {
   const root = path.resolve("/tmp/ai-workflow-test-" + Math.random().toString(36).slice(2));
   await fs.mkdir(root, { recursive: true });
   await fs.mkdir(path.join(root, ".gemini"), { recursive: true });
@@ -521,7 +521,7 @@ test("validateShellPlan accepts the typed intent envelope format", () => {
   assert.equal(plan.finalAnswerPolicy.includeNextSteps, true);
 });
 
-test("planShellRequestWithAgent uses operator-first prompt design and interaction memory", async (t) => {
+test("planShellRequestWithAgent uses operator-first prompt design and interaction memory", async () => {
   // Mock provider
   let capturedPrompt: { system: string; prompt: string } | null = null;
   registerProvider("mock-planner", {
@@ -735,7 +735,7 @@ test("planShellRequest falls back to grounded repo evidence for explainer questi
   }
 });
 
-test("planShellRequestWithAgent handles vague requests by asking for clarification", async (t) => {
+test("planShellRequestWithAgent handles vague requests by asking for clarification", async () => {
   registerProvider("mock-vague", {
     local: false,
     available: true,
@@ -762,7 +762,7 @@ test("planShellRequestWithAgent handles vague requests by asking for clarificati
   assert.equal(result.reply, "Fix what exactly? I see 3 open tickets.");
 });
 
-test("planShellRequestWithAgent handles multi-step strategy", async (t) => {
+test("planShellRequestWithAgent handles multi-step strategy", async () => {
   registerProvider("mock-multi", {
     local: false,
     available: true,
@@ -899,7 +899,7 @@ test("planShellRequest bypasses AI planners for direct operator briefs even with
   assert.match(plan.reply ?? plan.assistantReply ?? "", /Recommendation:/);
 });
 
-test("planShellRequestWithAgent rejects malformed plan payloads", async (t) => {
+test("planShellRequestWithAgent rejects malformed plan payloads", async () => {
   registerProvider("mock-broken-plan", {
     local: false,
     available: true,
@@ -1084,7 +1084,7 @@ test("planShellRequest times out a slow planner and falls back to the next one",
   assert.equal((options as any).plannerBlacklist?.has("mock-slow-shell-planner:brain-v1"), true);
 });
 
-test("planShellRequestWithAgent multi-turn grounding scenario", async (t) => {
+test("planShellRequestWithAgent multi-turn grounding scenario", async () => {
   let capturedPrompt: string | null = null;
   registerProvider("mock-scenario", {
     local: false,
@@ -1576,7 +1576,7 @@ test("heuristic fallback returns a grounded projections explainer", async () => 
     planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
   });
   assert.equal(plan.kind, "reply");
-  assert.match(plan.reply ?? plan.assistantReply ?? "", /core\/services\/projections\.js/i);
+  assert.match(plan.reply ?? plan.assistantReply ?? "", /core\/services\/projections\.ts/i);
   assert.match(plan.reply ?? plan.assistantReply ?? "", /renderKanbanProjection|project summary|epics projection/i);
 });
 
@@ -1599,9 +1599,9 @@ test("heuristic fallback answers local-first debug prompts with grounded files",
     planners: { planners: [], heuristic: { mode: "heuristic", reason: "fallback" } }
   });
   assert.equal(plan.kind, "reply");
-  assert.match(plan.reply ?? "", /core\/services\/router\.js/i);
-  assert.match(plan.reply ?? "", /core\/services\/providers\.js/i);
-  assert.match(plan.reply ?? "", /cli\/lib\/shell\.js/i);
+  assert.match(plan.reply ?? "", /core\/services\/router\.ts/i);
+  assert.match(plan.reply ?? "", /core\/services\/providers\.ts/i);
+  assert.match(plan.reply ?? "", /cli\/lib\/shell\.ts/i);
 });
 
 test("heuristic fallback answers shell replacement readiness honestly", async () => {
@@ -2563,7 +2563,9 @@ test("runShellTurn finalizes a verified fix and resolves the current ticket afte
     assert.equal(summary.activeTickets.some((ticket) => ticket.id === "BUG-FINAL-001"), false);
 
     const kanban = await fs.readFile(path.join(root, "kanban.md"), "utf8");
-    assert.match(kanban, /BUG-FINAL-001 Finalize verified shell fix ✅ \d{4}-\d{2}-\d{2}/);
+    assert.doesNotMatch(kanban, /BUG-FINAL-001 Finalize verified shell fix/);
+    const archive = await fs.readFile(path.join(root, "kanban-archive.md"), "utf8");
+    assert.match(archive, /BUG-FINAL-001 Finalize verified shell fix ✅ \d{4}-\d{2}-\d{2}/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

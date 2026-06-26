@@ -277,6 +277,7 @@ test("routeTask can fall back to ollama when remote free quota is exhausted", as
       path.join(targetRoot, ".ai-workflow", "config.json"),
       JSON.stringify({
         providers: {
+          ollama: { enabled: false },
           google: {
             apiKey: "g-key",
             quota: { freeUsdRemaining: 0 },
@@ -318,6 +319,7 @@ test("routeTask returns no remote recommendation when paid routes are disabled a
       path.join(targetRoot, ".ai-workflow", "config.json"),
       JSON.stringify({
         providers: {
+          ollama: { enabled: false },
           google: {
             apiKey: "g-key",
             quota: { freeUsdRemaining: 0 },
@@ -561,8 +563,9 @@ async function runNode(args: string[], options: any = {}) {
   const captureDir = await mkdtemp(path.join(os.tmpdir(), "workflow-cli-capture-"));
   const stdoutPath = path.join(captureDir, "stdout.log");
   const stderrPath = path.join(captureDir, "stderr.log");
+  const command = ["bun", ...args.map((arg) => shellQuote(arg))].join(" ");
   try {
-    await execFileAsync("/usr/bin/bash", ["-lc", `bun  > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
+    await execFileAsync("/usr/bin/bash", ["-lc", `${command} > ${shellQuote(stdoutPath)} 2> ${shellQuote(stderrPath)}`], {
       cwd: options.cwd ?? repoRoot,
       maxBuffer: 8 * 1024 * 1024
     });
