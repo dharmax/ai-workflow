@@ -23,6 +23,9 @@ import { run as runExtractTicket } from "../codelets/extract-ticket.ts";
 import { run as runExtractGuidelines } from "../codelets/guidance-summary.ts";
 import { planWorkTickets } from "./work-ticket-planner.ts";
 import { planCodingWorkflow } from "./coding-workflow.ts";
+import { executeTicket as executeWorkflowTicket, sweepBugs } from "./orchestrator.ts";
+import { judgeArtifacts } from "./artifact-verification.ts";
+import { readLatestRunArtifact } from "../lib/run-artifacts.ts";
 
 export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers = {} } = {}) {
   const root = path.resolve(String(projectRoot));
@@ -50,6 +53,10 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
     extractGuidelines: runExtractGuidelines,
     planWorkTickets,
     planCodingWorkflow,
+    executeWorkflowTicket,
+    sweepBugs,
+    judgeArtifacts,
+    readLatestRunArtifact,
     ...handlers
   };
 
@@ -81,6 +88,75 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
 
     async search(query, options = {}) {
       return api.searchProject({ projectRoot: root, query, ...options });
+    },
+
+    async capabilityCatalog() {
+      const [summary, codelets, metrics] = await Promise.all([
+        this.getSummary().catch((error) => ({ error: error?.message ?? String(error) })),
+        this.listCodelets().catch(() => []),
+        this.getMetrics().catch(() => null)
+      ]);
+      return {
+        projectRoot: root,
+        surfaces: {
+          mcp: {
+            coding: ["analyze_code", "review_code", "debug_issue", "plan_code_change", "refactor_code"],
+            mutationGated: ["execute_ticket", "sweep_bugs", "run_codelet", "create_ticket", "update_ticket_lifecycle", "write_projections"],
+            graph: ["search_project", "find_dependencies", "project_status", "knowledge_graph"],
+            artifacts: ["search_artifacts", "judge_artifacts"],
+            codelets: ["list_codelets", "get_codelet", "search_codelets", "run_codelet", "forge_project_codelet", "upsert_project_codelet", "remove_project_codelet"]
+          }
+        },
+        indexed: {
+          files: (summary as any)?.fileCount ?? null,
+          symbols: (summary as any)?.symbolCount ?? null,
+          claims: (summary as any)?.claimCount ?? null,
+          codelets: Array.isArray(codelets) ? codelets.length : null
+        },
+        codelets,
+        metrics
+      };
+    },
+
+    async planCodeCapability(options: any = {}) {
+      const text = String(options.text ?? options.goal ?? "").trim();
+      const capability = String(options.capability ?? "plan_code_change");
+      const query = String(options.query ?? text).trim();
+      const [workflow, status, searchResults, codelets] = await Promise.all([
+        api.planCodingWorkflow({
+          projectRoot: root,
+          text,
+          parentTicketId: options.parentTicketId ?? null,
+          artifacts: options.artifacts ?? [],
+          files: options.files ?? [],
+          mode: options.mode ?? capability,
+          apply: false,
+          surface: "mcp"
+        }),
+        query ? api.resolveProjectStatus({
+          projectRoot: root,
+          selector: query,
+          type: options.type ?? null,
+          includeRelated: true,
+          rawQuestion: true,
+          relatedLimit: options.relatedLimit ?? 12
+        }).catch((error) => ({ ok: false, error: error?.message ?? String(error) })) : Promise.resolve(null),
+        query ? api.searchProject({ projectRoot: root, query, limit: options.limit ?? 12 }).catch(() => []) : Promise.resolve([]),
+        query ? api.searchCodelets({ projectRoot: root, query, limit: 8 }).catch(() => []) : Promise.resolve([])
+      ]);
+      return {
+        ok: true,
+        dryRun: true,
+        capability,
+        workflow,
+        status,
+        searchResults,
+        suggestedCodelets: codelets,
+        mutation: {
+          allowed: false,
+          reason: "Coding MCP analysis tools are dry-run. Use execute_ticket, sweep_bugs, or run_codelet with apply and allowMutation for writes."
+        }
+      };
     },
 
     async listTickets(options = {}) {
@@ -207,6 +283,108 @@ export function createWorkflowCoreFacade({ projectRoot = process.cwd(), handlers
 
     async route(taskClass, options = {}) {
       return api.routeTask({ root, taskClass, ...options });
+    },
+
+    async findDependencies(options: any = {}) {
+      const query = String(options.query ?? options.selector ?? "").trim();
+      const limit = Number(options.limit ?? 20);
+      const [status, searchResults, graph] = await Promise.all([
+        query ? this.resolveStatus(query, {
+          type: options.type ?? null,
+          includeRelated: true,
+          relatedLimit: limit
+        }).catch((error) => ({ ok: false, error: error?.message ?? String(error), query })) : Promise.resolve({ ok: false, error: "query is required", query }),
+        query ? this.search(query, { limit }).catch(() => []) : Promise.resolve([]),
+        this.exportKnowledgeGraph().catch(() => null)
+      ]);
+      return {
+        ok: Boolean((status as any)?.ok) || (Array.isArray(searchResults) && searchResults.length > 0),
+        query,
+        status,
+        searchResults,
+        graphSummary: graph ? {
+          nodes: (graph as any).nodes?.length ?? (graph as any).entities?.length ?? null,
+          edges: (graph as any).edges?.length ?? (graph as any).predicates?.length ?? null
+        } : null
+      };
+    },
+
+    async searchArtifacts(options: any = {}) {
+      const query = String(options.query ?? "artifact").trim();
+      const limit = Number(options.limit ?? 20);
+      return api.withWorkflowStore(root, async (store) => {
+        const latest = await api.readLatestRunArtifact(root).catch(() => null);
+        const testRuns = store.listTestRuns()
+          .filter((run: any) => {
+            if (!run.artifactRef) return false;
+            if (!query) return true;
+            const haystack = [run.id, run.runId, run.testId, run.targetId, run.label, run.summary, run.artifactRef, JSON.stringify(run.details ?? {})].join("\n").toLowerCase();
+            return haystack.includes(query.toLowerCase());
+          })
+          .slice(0, limit);
+        const searchResults = query ? store.search(query, { limit }) : [];
+        return {
+          ok: true,
+          query,
+          latestRunArtifact: latest,
+          testRunArtifacts: testRuns,
+          searchResults
+        };
+      });
+    },
+
+    async judgeArtifacts(options: any = {}) {
+      return api.judgeArtifacts({
+        projectRoot: root,
+        artifactPaths: options.artifactPaths ?? options.artifacts ?? [],
+        rubric: options.rubric,
+        goal: options.goal ?? null,
+        providerId: options.providerId ?? null,
+        modelId: options.modelId ?? null,
+        forceRouteRefresh: Boolean(options.forceRouteRefresh)
+      });
+    },
+
+    async executeTicket(options: any = {}) {
+      const apply = Boolean(options.apply);
+      const allowMutation = Boolean(options.allowMutation);
+      if (!apply || !allowMutation) {
+        const ticket = await this.extractTicket(options.ticketId, { limit: options.limit ?? 12 }).catch((error) => ({ error: error?.message ?? String(error) }));
+        return {
+          ok: false,
+          dryRun: true,
+          refusalReason: "execute_ticket requires apply: true and allowMutation: true.",
+          requiredFlags: [{ path: "apply", value: true }, { path: "allowMutation", value: true }],
+          ticket
+        };
+      }
+      const result = await api.executeWorkflowTicket({
+        root,
+        ticketId: options.ticketId,
+        apply: true,
+        verificationTimeoutMs: options.verificationTimeoutMs
+      });
+      return { ok: Boolean(result?.success), dryRun: false, result };
+    },
+
+    async sweepBugs(options: any = {}) {
+      const apply = Boolean(options.apply);
+      const allowMutation = Boolean(options.allowMutation);
+      if (!apply || !allowMutation) {
+        const tickets = await this.listTickets({ includeArchived: false });
+        return {
+          ok: false,
+          dryRun: true,
+          refusalReason: "sweep_bugs requires apply: true and allowMutation: true.",
+          requiredFlags: [{ path: "apply", value: true }, { path: "allowMutation", value: true }],
+          candidateBugs: tickets.filter((ticket: any) => ticket.lane === "Todo" && (/bug/i.test(ticket.title ?? "") || /^BUG/.test(ticket.id ?? "")))
+        };
+      }
+      const report = await api.sweepBugs({
+        root,
+        verificationTimeoutMs: options.verificationTimeoutMs
+      });
+      return { ok: true, dryRun: false, report };
     },
 
     async writeTextualProjections(options = {}) {

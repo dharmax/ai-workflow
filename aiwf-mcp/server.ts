@@ -12,6 +12,7 @@ export const AI_WORKFLOW_MCP_TOOL_NAMES = [
   "sync_project",
   "search_project",
   "plugin_status",
+  "capability_catalog",
   "list_tickets",
   "create_ticket",
   "update_ticket_lifecycle",
@@ -19,9 +20,19 @@ export const AI_WORKFLOW_MCP_TOOL_NAMES = [
   "extract_guidelines",
   "plan_work_tickets",
   "plan_coding_workflow",
+  "analyze_code",
+  "review_code",
+  "debug_issue",
+  "plan_code_change",
+  "refactor_code",
+  "execute_ticket",
+  "sweep_bugs",
   "project_status",
   "route_task",
   "knowledge_graph",
+  "find_dependencies",
+  "search_artifacts",
+  "judge_artifacts",
   "write_projections",
   "list_codelets",
   "get_codelet",
@@ -57,6 +68,13 @@ export function registerAiWorkflowMcpTools(server: McpServer) {
   server.tool("plugin_status", "Report MCP inventory, indexed codelets, Bun runtime, SQLite adapter, and readiness verdict.", {
     projectRoot: z.string().optional()
   }, async ({ projectRoot }) => jsonResult(await buildPluginStatus(projectRoot)));
+
+  server.tool("capability_catalog", "List the full ai-workflow MCP capability surface, including coding, graph, artifact, ticket, and codelet operations.", {
+    projectRoot: z.string().optional()
+  }, async ({ projectRoot }) => jsonResult({
+    exposedTools: getAiWorkflowMcpToolNames(),
+    ...(await makeFacade(projectRoot).capabilityCatalog())
+  }));
 
   server.tool("list_tickets", "List workflow tickets from the DB. Archived/Done tickets are omitted unless includeArchived is true.", {
     projectRoot: z.string().optional(),
@@ -145,6 +163,38 @@ export function registerAiWorkflowMcpTools(server: McpServer) {
     surface: "mcp"
   })));
 
+  registerCodingCapabilityTool(server, "analyze_code", "Analyze code with DB-backed graph/search context and return a dry-run investigation plan.", "analysis");
+  registerCodingCapabilityTool(server, "review_code", "Review code with graph-backed risks, related files, tests, and suggested codelets.", "review");
+  registerCodingCapabilityTool(server, "debug_issue", "Debug an issue with workflow search, dependency context, and a dry-run fix plan.", "debug");
+  registerCodingCapabilityTool(server, "plan_code_change", "Plan a code change or feature implementation with tickets, artifacts, and graph context.", "implementation");
+  registerCodingCapabilityTool(server, "refactor_code", "Plan a refactor with related symbols, files, tests, and mutation-gated follow-up actions.", "refactor");
+
+  server.tool("execute_ticket", "Execute an approved workflow ticket. Refuses unless apply and allowMutation are both true.", {
+    projectRoot: z.string().optional(),
+    ticketId: z.string(),
+    apply: z.boolean().optional(),
+    allowMutation: z.boolean().optional(),
+    verificationTimeoutMs: z.number().int().positive().optional(),
+    limit: z.number().int().positive().optional()
+  }, async ({ projectRoot, ticketId, apply, allowMutation, verificationTimeoutMs, limit }) => jsonResult(await makeFacade(projectRoot).executeTicket({
+    ticketId,
+    apply: Boolean(apply),
+    allowMutation: Boolean(allowMutation),
+    verificationTimeoutMs,
+    limit
+  })));
+
+  server.tool("sweep_bugs", "Sweep Todo bug tickets through the guarded orchestrator. Refuses unless apply and allowMutation are both true.", {
+    projectRoot: z.string().optional(),
+    apply: z.boolean().optional(),
+    allowMutation: z.boolean().optional(),
+    verificationTimeoutMs: z.number().int().positive().optional()
+  }, async ({ projectRoot, apply, allowMutation, verificationTimeoutMs }) => jsonResult(await makeFacade(projectRoot).sweepBugs({
+    apply: Boolean(apply),
+    allowMutation: Boolean(allowMutation),
+    verificationTimeoutMs
+  })));
+
   server.tool("project_status", "Resolve workflow-backed status for a project, ticket, epic, file, symbol, or related selector.", {
     projectRoot: z.string().optional(),
     selector: z.string(),
@@ -168,6 +218,45 @@ export function registerAiWorkflowMcpTools(server: McpServer) {
   server.tool("knowledge_graph", "Export the richer ai-workflow knowledge graph snapshot and semantika-shaped projection.", {
     projectRoot: z.string().optional()
   }, async ({ projectRoot }) => jsonResult(await makeFacade(projectRoot).exportKnowledgeGraph()));
+
+  server.tool("find_dependencies", "Find DB-backed dependency, symbol, file, status, and related graph context for a selector or natural-language query.", {
+    projectRoot: z.string().optional(),
+    query: z.string(),
+    selector: z.string().optional(),
+    type: z.string().optional(),
+    limit: z.number().int().positive().optional()
+  }, async ({ projectRoot, query, selector, type, limit }) => jsonResult(await makeFacade(projectRoot).findDependencies({
+    query: selector ?? query,
+    type,
+    limit
+  })));
+
+  server.tool("search_artifacts", "Search recorded workflow/test artifacts and latest run artifacts known to the workflow DB.", {
+    projectRoot: z.string().optional(),
+    query: z.string().optional(),
+    limit: z.number().int().positive().optional()
+  }, async ({ projectRoot, query, limit }) => jsonResult(await makeFacade(projectRoot).searchArtifacts({
+    query,
+    limit
+  })));
+
+  server.tool("judge_artifacts", "Judge supplied artifacts against a rubric using the existing artifact-verification route.", {
+    projectRoot: z.string().optional(),
+    artifacts: z.array(z.string()).optional(),
+    artifactPaths: z.array(z.string()).optional(),
+    rubric: z.string(),
+    goal: z.string().optional(),
+    providerId: z.string().optional(),
+    modelId: z.string().optional(),
+    forceRouteRefresh: z.boolean().optional()
+  }, async ({ projectRoot, artifacts, artifactPaths, rubric, goal, providerId, modelId, forceRouteRefresh }) => jsonResult(await makeFacade(projectRoot).judgeArtifacts({
+    artifactPaths: artifactPaths ?? artifacts ?? [],
+    rubric,
+    goal,
+    providerId,
+    modelId,
+    forceRouteRefresh: Boolean(forceRouteRefresh)
+  })));
 
   server.tool("write_projections", "Write the bidirectional textual projections controlled by the workflow core.", {
     projectRoot: z.string().optional(),
@@ -241,6 +330,31 @@ export function getAiWorkflowMcpToolNames() {
   return [...AI_WORKFLOW_MCP_TOOL_NAMES];
 }
 
+function registerCodingCapabilityTool(server: McpServer, name: string, description: string, mode: string) {
+  server.tool(name, description, {
+    projectRoot: z.string().optional(),
+    text: z.string(),
+    query: z.string().optional(),
+    parentTicketId: z.string().optional(),
+    artifacts: z.array(z.string()).optional(),
+    files: z.array(z.string()).optional(),
+    type: z.string().optional(),
+    relatedLimit: z.number().int().positive().optional(),
+    limit: z.number().int().positive().optional()
+  }, async ({ projectRoot, text, query, parentTicketId, artifacts, files, type, relatedLimit, limit }) => jsonResult(await makeFacade(projectRoot).planCodeCapability({
+    capability: name,
+    text,
+    query,
+    parentTicketId: parentTicketId ?? null,
+    artifacts: artifacts ?? [],
+    files: files ?? [],
+    mode,
+    type,
+    relatedLimit,
+    limit
+  })));
+}
+
 async function buildPluginStatus(projectRoot?: string) {
   const facade = makeFacade(projectRoot);
   const codelets = await facade.listCodelets().catch(() => []);
@@ -257,6 +371,13 @@ async function buildPluginStatus(projectRoot?: string) {
     expectedTools: getAiWorkflowMcpToolNames(),
     missingExpectedTools,
     indexedCodelets: codelets.length,
+    install: {
+      expectedCodexLaunch: {
+        command: "bun",
+        argsEndWith: "aiwf-mcp/server.ts"
+      },
+      staleConfigHint: "If /mcp shows fewer tools, run `ai-workflow install --project . --host codex` from the updated ai-workflow package, then restart Codex."
+    },
     runtime,
     dbAdapter: {
       name: "bun:sqlite",

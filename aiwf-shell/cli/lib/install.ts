@@ -207,8 +207,11 @@ function upsertCodexMcpServer(input, serverName, launchSpec) {
   const section = [
     `[mcp_servers.${serverName}]`,
     `command = ${tomlString(launchSpec.command)}`,
-    `args = ${tomlStringArray(launchSpec.args)}`
-  ].join("\n");
+    `args = ${tomlStringArray(launchSpec.args)}`,
+    launchSpec.env && Object.keys(launchSpec.env).length
+      ? `env = ${tomlInlineTable(launchSpec.env)}`
+      : null
+  ].filter(Boolean).join("\n");
 
   const header = `[mcp_servers.${serverName}]`;
   if (!input.trim()) {
@@ -277,6 +280,14 @@ function tomlString(value) {
 
 function tomlStringArray(values) {
   return `[${values.map((value) => tomlString(value)).join(", ")}]`;
+}
+
+function tomlInlineTable(values) {
+  return `{ ${Object.entries(values).map(([key, value]) => `${tomlBareKey(key)} = ${tomlString(value)}`).join(", ")} }`;
+}
+
+function tomlBareKey(value) {
+  return /^[A-Za-z0-9_-]+$/.test(String(value)) ? String(value) : tomlString(value);
 }
 
 function escapeRegExp(value) {

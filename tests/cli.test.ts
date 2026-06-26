@@ -308,6 +308,20 @@ test("setup installs codex, claude, and gemini bridges that point at a live MCP 
 
   try {
     const codexHome = path.join(hostRoot, ".codex");
+    await mkdir(codexHome, { recursive: true });
+    await writeFile(
+      path.join(codexHome, "config.toml"),
+      [
+        "[mcp_servers.aiwf-mcp]",
+        "command = \"/usr/local/bin/node\"",
+        `args = [${JSON.stringify(path.join(repoRoot, "aiwf-mcp", "dist", "aiwf-mcp.mjs"))}]`,
+        "",
+        "[features]",
+        "codex_hooks = true",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
     const result = await runNode(
       [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "setup", "--project", targetRoot],
       {
@@ -334,6 +348,8 @@ test("setup installs codex, claude, and gemini bridges that point at a live MCP 
     assert.doesNotMatch(codexConfig, /\bcodex_hooks\s*=/);
     assert.match(codexConfig, /\[mcp_servers\.aiwf-mcp\]/);
     assert.match(codexConfig, /aiwf-mcp\/server\.ts/);
+    assert.doesNotMatch(codexConfig, /dist\/aiwf-mcp\.mjs/);
+    assert.match(codexConfig, /\benv = \{ AI_WORKFLOW_TOOLKIT_ROOT = /);
 
     const claudeMcp = JSON.parse(await readFile(path.join(targetRoot, ".mcp.json"), "utf8"));
     assert.ok(claudeMcp.mcpServers?.["ai-workflow"]);
