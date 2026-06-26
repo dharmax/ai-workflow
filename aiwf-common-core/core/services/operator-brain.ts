@@ -177,13 +177,14 @@ export async function planOperatorRequest(inputText, options = {}) {
     context: { inputText, options } 
   });
   const effectiveInputText = prePlanContext.inputText ?? inputText;
+  const explicitPlannerRequested = Boolean(options.planner);
   const normalizedRequest = await normalizeOperatorRequest(effectiveInputText, {
     surface: options.host?.surface ?? "operator",
     plannerContext: options.plannerContext,
     continuationState: options.continuationState ?? null
   });
 
-  if (normalizedRequest.requestKind === "workflow-program") {
+  if (!explicitPlannerRequested && normalizedRequest.requestKind === "workflow-program") {
     const contextPack = await buildHarnessContextPack(root, {
       normalizedRequest,
       plannerContext: options.plannerContext
@@ -214,7 +215,7 @@ export async function planOperatorRequest(inputText, options = {}) {
     return plan;
   }
 
-  const groundedBriefReply = await buildGroundedOperatorBriefReply(effectiveInputText, options);
+  const groundedBriefReply = explicitPlannerRequested ? null : await buildGroundedOperatorBriefReply(effectiveInputText, options);
   if (groundedBriefReply) {
     groundedBriefReply.__effectiveInputText = effectiveInputText;
     groundedBriefReply.__planner = {
@@ -231,7 +232,7 @@ export async function planOperatorRequest(inputText, options = {}) {
     return groundedBriefReply;
   }
 
-  const groundedReply = await buildGroundedOperatorReply(effectiveInputText, options);
+  const groundedReply = explicitPlannerRequested ? null : await buildGroundedOperatorReply(effectiveInputText, options);
   if (groundedReply) {
     groundedReply.__effectiveInputText = effectiveInputText;
     groundedReply.__planner = {
@@ -1073,28 +1074,14 @@ export async function resolveHostRequest(options) {
       }
     };
   }
-  if (isCodingWorkflowRequest(text)) {
-    const payload = await planCodingWorkflow({
-      projectRoot,
-      text,
-      surface: host?.surface ?? "cli-host",
-      apply: false,
-      continuationState: options.continuationState ?? null
-    });
-    return {
-      status: "complete",
-      route: {
-        intent: "coding_workflow",
-        operation: "plan_coding_workflow",
-        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
-      },
-      response_type: "workflow_plan",
-      payload,
-      meta: {
-        normalizedRequest: payload.normalizedRequest,
-        programKind: payload.selectedProgram?.programKind ?? null
-      }
-    };
+  const deterministic = await resolveDeterministicHostRequest({
+    projectRoot,
+    text,
+    continuationState: options.continuationState ?? null,
+    host
+  });
+  if (deterministic?.route?.intent && deterministic.route.intent !== "broad_project_question") {
+    return deterministic;
   }
   const normalizedRequest = await normalizeOperatorRequest(text, {
     surface: host?.surface ?? "cli-host",
@@ -1154,16 +1141,29 @@ export async function resolveHostRequest(options) {
       }
     };
   }
-  const deterministic = await resolveDeterministicHostRequest({
-    projectRoot,
-    text,
-    continuationState: options.continuationState ?? null,
-    host
-  });
-  if (deterministic?.route?.intent && deterministic.route.intent !== "broad_project_question") {
-    return deterministic;
+  if (isCodingWorkflowRequest(text)) {
+    const payload = await planCodingWorkflow({
+      projectRoot,
+      text,
+      surface: host?.surface ?? "cli-host",
+      apply: false,
+      continuationState: options.continuationState ?? null
+    });
+    return {
+      status: "complete",
+      route: {
+        intent: "coding_workflow",
+        operation: "plan_coding_workflow",
+        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
+      },
+      response_type: "workflow_plan",
+      payload,
+      meta: {
+        normalizedRequest: payload.normalizedRequest,
+        programKind: payload.selectedProgram?.programKind ?? null
+      }
+    };
   }
-
   const normalized = String(text ?? "").toLowerCase();
   const ticketStatusRequest = extractTicketStatusRequest(text);
   if (ticketStatusRequest) {

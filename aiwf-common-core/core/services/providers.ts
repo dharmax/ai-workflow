@@ -33,10 +33,16 @@ export function registerProvider(id: string, adapter: any) {
   return true;
 }
 
-export async function discoverProviderState({ root = process.cwd(), forceRefresh = false, cacheTtlMs = OLLAMA_DISCOVERY_CACHE_TTL_MS } = {}) {
+export async function discoverProviderState({
+  root = process.cwd(),
+  forceRefresh = false,
+  cacheTtlMs = OLLAMA_DISCOVERY_CACHE_TTL_MS,
+  includeGlobalConfig = true,
+  globalConfigPath = getGlobalConfigPath()
+} = {}) {
   const [projectConfigState, globalConfigState] = await Promise.all([
     readConfigSafe(getProjectConfigPath(root)),
-    readConfigSafe(getGlobalConfigPath())
+    includeGlobalConfig ? readConfigSafe(globalConfigPath) : Promise.resolve({ config: {}, warning: null })
   ]);
   const projectConfig = projectConfigState.config;
   const globalConfig = globalConfigState.config;
@@ -142,9 +148,21 @@ export async function discoverProviderState({ root = process.cwd(), forceRefresh
   };
 }
 
-export async function refreshProviderRegistry({ root = process.cwd(), scope = "project", forceRefresh = true, ignoreWriteErrors = false } = {}) {
-  const providerState = await discoverProviderState({ root, forceRefresh });
-  const configPath = scope === "global" ? getGlobalConfigPath() : getProjectConfigPath(root);
+export async function refreshProviderRegistry({
+  root = process.cwd(),
+  scope = "project",
+  forceRefresh = true,
+  ignoreWriteErrors = false,
+  includeGlobalConfig = true,
+  globalConfigPath = getGlobalConfigPath()
+} = {}) {
+  const configPath = scope === "global" ? globalConfigPath : getProjectConfigPath(root);
+  const providerState = await discoverProviderState({
+    root,
+    forceRefresh,
+    includeGlobalConfig,
+    globalConfigPath: scope === "global" ? configPath : globalConfigPath
+  });
   const refreshed = [];
   let warning = null;
 
@@ -277,7 +295,7 @@ export function resolveOllamaConfig({ projectConfig = {}, globalConfig = {} }: a
   const globalOllama = globalConfig.providers?.ollama ?? {};
   const projectOllama = projectConfig.providers?.ollama ?? {};
   const merged = { ...globalOllama, ...projectOllama };
-  const host = normalizeOllamaHost(projectOllama.host ?? globalOllama.host ?? (process.env.OLLAMA_HOST || "http://127.0.0.1:11434"));
+  const host = normalizeOllamaHost(projectOllama.host ?? globalOllama.host ?? "http://127.0.0.1:11434");
   return {
     ...merged,
     host,
@@ -371,8 +389,13 @@ function mergeProviderConfig(globalProviders: any = {}, projectProviders: any = 
 
 function normalizeConfiguredModels(providerId: string, config: any = {}, fallback = []) {
   const source = Array.isArray(config.models) ? config.models : fallback;
+  const fallbackById = new Map((Array.isArray(fallback) ? fallback : [])
+    .map((entry: any) => [String(entry?.id ?? entry ?? "").trim(), typeof entry === "string" ? { id: entry } : { ...entry }])
+    .filter(([id]) => id));
   return source.map((entry: any) => {
-    const model = typeof entry === "string" ? { id: entry } : { ...entry };
+    const modelId = String(typeof entry === "string" ? entry : entry?.id ?? "").trim();
+    const fallbackModel = fallbackById.get(modelId) ?? {};
+    const model = typeof entry === "string" ? { ...fallbackModel, id: entry } : { ...fallbackModel, ...entry };
     const mockProvider = /^mock(?:[-_:]|$)/.test(providerId);
     
     // Utilize @dharmax/llm-utils heuristics for capability inference

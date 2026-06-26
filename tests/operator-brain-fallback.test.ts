@@ -5,6 +5,7 @@ import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { openWorkflowStore } from "aiwf-common-core/db/sqlite-store";
 import { executeOperatorRequest, planOperatorRequest, resolveHostRequest } from "aiwf-common-core/services/operator-brain";
+import { registerProvider } from "aiwf-common-core/services/providers";
 
 test("planOperatorRequest falls back to another candidate if the first one fails", async () => {
   const originalFetch = globalThis.fetch;
@@ -54,20 +55,43 @@ test("planOperatorRequest falls back to another candidate if the first one fails
   }) as any;
 
   try {
+    registerProvider("operator-fail-planner", {
+      local: false,
+      available: true,
+      models: [{ id: "bad", quality: "high", capabilities: { logic: 5 } }],
+      generate: async () => {
+        throw new Error("forced planner failure");
+      }
+    });
+    registerProvider("operator-ok-planner", {
+      local: false,
+      available: true,
+      models: [{ id: "good", quality: "high", capabilities: { logic: 5 } }],
+      generate: async () => ({
+        response: JSON.stringify({ kind: "plan", code: "console.log('fallback success')" }),
+        usage: { promptTokens: 123, completionTokens: 45, totalTokens: 168 }
+      })
+    });
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
     await writeFile(
       path.join(targetRoot, ".ai-workflow", "config.json"),
       JSON.stringify({
         providers: {
-          google: { apiKey: "g-key" },
-          openai: { apiKey: "o-key" },
+          google: { enabled: false },
+          openai: { enabled: false },
+          anthropic: { enabled: false },
+          "operator-fail-planner": { enabled: true, models: ["bad"] },
+          "operator-ok-planner": { enabled: true, models: ["good"] },
           ollama: { enabled: false }
         }
       }, null, 2),
       "utf8"
     );
 
-    const result = await planOperatorRequest("test prompt", { root: targetRoot });
+    const result = await planOperatorRequest("Generate a structured JavaScript execution plan for a custom project analysis task.", {
+      root: targetRoot,
+      planner: { providerId: "operator-fail-planner", modelId: "bad" }
+    });
 
     assert.ok(result);
     assert.equal(result.kind, "plan");
@@ -83,10 +107,10 @@ test("planOperatorRequest falls back to another candidate if the first one fails
     assert.equal(metrics.totalCompletionTokens, 45);
     assert.equal(metrics.windows.latestSession.diagnostics.fallbackRuns, 1);
     assert.equal(metrics.windows.latestSession.diagnostics.fallbackRecoveries, 1);
-    assert.equal(metrics.windows.latestSession.diagnostics.failedAttempts, 2);
+    assert.equal(metrics.windows.latestSession.diagnostics.failedAttempts, 1);
     assert.equal(metrics.windows.latestSession.tokenUsage.callsWithReportedUsage, 1);
     assert.equal(metrics.windows.latestSession.diagnostics.byStage[0].stage, "operator-planning");
-    assert.match(metrics.windows.latestSession.diagnostics.topFailures[0].label, /google:gemini-2.0-(pro-exp|flash)/i);
+    assert.match(metrics.windows.latestSession.diagnostics.topFailures[0].label, /operator-fail-planner:bad/i);
 
   } finally {
     globalThis.fetch = originalFetch;
@@ -258,19 +282,39 @@ test("executeOperatorRequest preserves successful structured JS workflow results
   }) as any;
 
   try {
+    registerProvider("operator-js-workflow", {
+      local: false,
+      available: true,
+      models: [{ id: "js", quality: "high", capabilities: { logic: 5 } }],
+      generate: async () => ({
+        response: JSON.stringify({
+          kind: "plan",
+          confidence: 0.94,
+          reason: "Return a direct JS plan.",
+          code: `async () => ({ summary: "List of modules in the project", changedFiles: [], verification: ["cli", "aiwf-common-core/core/services"] })`
+        }),
+        usage: { promptTokens: 100, completionTokens: 20, totalTokens: 120 }
+      })
+    });
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
     await writeFile(
       path.join(targetRoot, ".ai-workflow", "config.json"),
       JSON.stringify({
         providers: {
-          openai: { apiKey: "o-key" },
+          google: { enabled: false },
+          openai: { enabled: false },
+          anthropic: { enabled: false },
+          "operator-js-workflow": { enabled: true, models: ["js"] },
           ollama: { enabled: false }
         }
       }, null, 2),
       "utf8"
     );
 
-    const result = await executeOperatorRequest("list me the modules of this project", { root: targetRoot });
+    const result = await executeOperatorRequest("Run a structured JavaScript workflow that returns a module inventory result.", {
+      root: targetRoot,
+      planner: { providerId: "operator-js-workflow", modelId: "js" }
+    });
 
     assert.equal(result.ok, true, JSON.stringify(result, null, 2));
     assert.equal(result.workflowResult?.result?.summary, "List of modules in the project");
@@ -349,19 +393,56 @@ test("executeOperatorRequest runs compiler-native workflowPrompt plans through t
   }) as any;
 
   try {
+    registerProvider("operator-compiler-workflow", {
+      local: false,
+      available: true,
+      models: [{ id: "compiler", quality: "high", capabilities: { logic: 5 } }],
+      generate: async ({ prompt }) => {
+        const promptText = String(prompt ?? "");
+        if (promptText.includes("Your Response (JSON):")) {
+          return {
+            response: JSON.stringify({
+              kind: "plan",
+              confidence: 0.96,
+              workflowPrompt: "Create or update the necessary workflow state, then return a final object summarizing the modules request with no file changes and verification evidence."
+            }),
+            usage: { promptTokens: 120, completionTokens: 30, totalTokens: 150 }
+          };
+        }
+        if (promptText.includes("Analyze the Task against the Available Services")) {
+          return { response: JSON.stringify({ missingServices: [] }) };
+        }
+        return {
+          response: [
+            'tk.sm.state("finalize", "Return workflow summary", async () => ({',
+            '  summary: "compiler path result",',
+            '  changedFiles: [],',
+            '  verification: ["text-compiler"]',
+            '}), {});',
+            'return await tk.sm.run("finalize", {}, ctx, tk);'
+          ].join("\n")
+        };
+      }
+    });
     await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
     await writeFile(
       path.join(targetRoot, ".ai-workflow", "config.json"),
       JSON.stringify({
         providers: {
-          openai: { apiKey: "o-key" },
+          google: { enabled: false },
+          openai: { enabled: false },
+          anthropic: { enabled: false },
+          "operator-compiler-workflow": { enabled: true, models: ["compiler"] },
           ollama: { enabled: false }
         }
       }, null, 2),
       "utf8"
     );
 
-    const result = await executeOperatorRequest("list me the modules of this project", { root: targetRoot });
+    const result = await executeOperatorRequest("Run a compiler-native workflow that returns a module inventory result.", {
+      root: targetRoot,
+      planner: { providerId: "operator-compiler-workflow", modelId: "compiler" }
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.workflowResult?.result?.summary, "compiler path result");

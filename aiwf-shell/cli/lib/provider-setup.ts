@@ -31,7 +31,12 @@ export async function runProviderSetupWizard({
   const registeredEndpoints = [];
 
   try {
-    let providerState = await discoverProviderStateImpl({ root, forceRefresh: true });
+    let providerState = await discoverProviderStateImpl({
+      root,
+      forceRefresh: true,
+      includeGlobalConfig: scope !== "project",
+      globalConfigPath: scope === "global" ? configPath : undefined
+    });
 
     if (providerState.providers.ollama?.installed) {
       const ollama = providerState.providers.ollama;
@@ -112,12 +117,19 @@ export async function runProviderSetupWizard({
       }
     }
 
-    providerState = await discoverProviderStateImpl({ root, forceRefresh: true });
+    providerState = await discoverProviderStateImpl({
+      root,
+      forceRefresh: true,
+      includeGlobalConfig: scope !== "project",
+      globalConfigPath: scope === "global" ? configPath : undefined
+    });
     const refreshResult = await refreshProviderRegistryImpl({
       root,
       scope,
       forceRefresh: true,
-      ignoreWriteErrors: !interactive
+      ignoreWriteErrors: !interactive,
+      includeGlobalConfig: scope !== "project",
+      globalConfigPath: scope === "global" ? configPath : undefined
     });
     if (refreshResult?.warning) {
       messages.push(refreshResult.warning);

@@ -13,7 +13,10 @@ export function getProjectConfigPath(root = process.cwd()) {
 }
 
 export function getGlobalConfigPath() {
-  return path.resolve(os.homedir(), ".ai-workflow", "config.json");
+  const configuredHome = process.env.AI_WORKFLOW_HOME
+    ? path.resolve(process.env.AI_WORKFLOW_HOME)
+    : path.resolve(process.env.HOME || os.homedir(), ".ai-workflow");
+  return path.resolve(configuredHome, "config.json");
 }
 
 export async function readConfig(filePath) {

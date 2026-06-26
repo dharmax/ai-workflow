@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { loadProjectActiveGuardrails, selectActiveGuardrails } from "../lib/active-guardrails.ts";
 import { listCodeletsFromStore, refreshCodeletRegistry } from "./codelets.ts";
 import { isCodingWorkflowRequest, planCodingWorkflow } from "./coding-workflow.ts";
+import { buildHarnessContextPack, normalizeOperatorRequest, planExecutionProgram, renderExecutionProgramReply } from "./operator-harness.ts";
 
 const CURRENT_WORK_RE = /\b(working on right now|working on now|what are we working on|what were working on|current work|current focus|in progress right now|currently in progress)\b/i;
 const READINESS_RE = /\b(ready|readiness|before beta|before release|for beta|for release|for handoff)\b/i;
@@ -113,26 +114,6 @@ export async function resolveHostRequest({
     };
   }
 
-  if (isCodingWorkflowRequest(normalizedText)) {
-    const payload = await planCodingWorkflow({
-      projectRoot,
-      text: normalizedText,
-      surface: String(host.surface ?? "host"),
-      apply: false,
-      continuationState
-    });
-    return {
-      status: "complete",
-      route: {
-        intent: "coding_workflow",
-        operation: "plan_coding_workflow",
-        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
-      },
-      response_type: "workflow_plan",
-      payload
-    };
-  }
-
   if (CURRENT_WORK_RE.test(normalizedText)) {
     const summary = await getProjectSummary({ projectRoot });
     const boardTickets = await discoverBoardCurrentWork(projectRoot);
@@ -179,6 +160,62 @@ export async function resolveHostRequest({
         reason: "Natural-language codelet question routed to the synced codelet registry."
       },
       response_type: "summary",
+      payload
+    };
+  }
+
+  const normalizedRequest = await normalizeOperatorRequest(normalizedText, {
+    surface: String(host.surface ?? "host"),
+    continuationState
+  });
+  const sharedProgram = planExecutionProgram(normalizedRequest);
+  if (normalizedRequest.requestKind === "workflow-program" && (
+    sharedProgram.programKind === "analysis-plan" ||
+    sharedProgram.programKind === "repo-investigation"
+  )) {
+    const contextPack = await buildHarnessContextPack(projectRoot, {
+      normalizedRequest
+    });
+    const answer = renderExecutionProgramReply({
+      normalizedRequest,
+      program: sharedProgram,
+      contextPack
+    });
+    return {
+      status: "complete",
+      route: {
+        intent: sharedProgram.programKind,
+        operation: "shared_operator_graph_reply",
+        reason: "Handled by the shared graph-backed operator harness."
+      },
+      response_type: "reply",
+      payload: {
+        summary: answer,
+        answer
+      },
+      meta: {
+        normalizedRequest,
+        programKind: sharedProgram.programKind
+      }
+    };
+  }
+
+  if (isCodingWorkflowRequest(normalizedText)) {
+    const payload = await planCodingWorkflow({
+      projectRoot,
+      text: normalizedText,
+      surface: String(host.surface ?? "host"),
+      apply: false,
+      continuationState
+    });
+    return {
+      status: "complete",
+      route: {
+        intent: "coding_workflow",
+        operation: "plan_coding_workflow",
+        reason: "Coding/review/debug request routed to the shared normalized workflow planner."
+      },
+      response_type: "workflow_plan",
       payload
     };
   }
