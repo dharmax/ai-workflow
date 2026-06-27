@@ -1,6 +1,6 @@
 ---
 name: "ai-workflow"
-description: "Use when the user wants project or game status, beta or release readiness, shipping blockers, current work, or guarded execution against a repo. Prefer this for requests like 'is this ready for beta?', 'help me ship this game', 'what blockers remain?', and 'use the workflow tools safely'."
+description: "Use when the user wants project status, ticket context, graph-backed code review/debug/refactor, code-change planning, beta or release readiness, shipping blockers, current work, or token-efficient guarded aiwf use against a repo. Prefer this for requests like 'is this ready for beta?', 'what blockers remain?', 'review this with project context', 'plan this code change', and 'use the workflow tools safely'."
 ---
 
 # AI Workflow Skill
@@ -12,6 +12,10 @@ Trigger this skill for:
 - project or game status checks
 - beta, release, or handoff readiness questions
 - blocker discovery and blocker-driven execution planning
+- ticket context extraction before implementation
+- project code changes that need graph-backed guardrails
+- graph-backed code review, debugging, or refactoring
+- token-efficient aiwf use before broad file reads or model-backed planning
 - guarded use of the workflow toolkit against a real repo
 - requests to use workflow tools safely or with low risk
 
@@ -25,6 +29,18 @@ This skill is designed for low-risk operation:
 
 Prefer the MCP surface when the host can use it. Use the local wrapper only when the host needs a shell-facing bridge.
 
+Default context order: aiwf MCP/DB graph, targeted `ai-workflow` CLI extraction, host-native compressed search/read tools such as `lean-ctx` when available, then broad raw file reads only when the narrower surfaces cannot answer.
+
+| Situation | First aiwf surface | Fallback / constraint |
+| --- | --- | --- |
+| Capability or status check | MCP `plugin_status`, `project_summary`, or capability catalog | CLI `ai-workflow project summary --json`; report unavailable tools instead of guessing. |
+| Unknown target, file, feature, or symbol | MCP `search_project` and `knowledge_graph` | `ai-workflow project search`; only then use host search/read tools. |
+| Ticket work | MCP `extract_ticket` plus `extract_guidelines` | CLI `ai-workflow extract ticket <id>` and `ai-workflow extract guidelines ...`. |
+| Code change plan | MCP `plan_coding_workflow` with relevant files/artifacts | Edit files directly using returned guardrails unless a mutating aiwf tool is intentionally selected. |
+| Review, debug, or refactor | MCP `review_code`, debug/refactor tools, route diagnostics, and extracted guardrails | Run targeted tests and workflow audit gates before closure. |
+| Model spend | Route before spend: use deterministic DB/MCP/CLI answers before provider-backed shell planning | Prefer the cheapest capable model route; widen only when risk justifies it and report degraded routes. |
+| Mutation | Explicit gated path only: user intent, one active `In Progress` ticket when required, `apply: true`, and `allowMutation: true` for mutating codelets | Never treat narrative guidance or dry-run output as permission to mutate. |
+
 ## Resolve the CLI
 
 Use the wrapper script:
@@ -34,7 +50,7 @@ export AI_WORKFLOW_HOME="${AI_WORKFLOW_HOME:-$HOME/.ai-workflow}"
 export AIWF="$AI_WORKFLOW_HOME/skills/ai-workflow/scripts/ai_workflow.sh"
 ```
 
-The wrapper will use `ai-workflow` from `PATH` when available. If it is not on `PATH`, it will fall back to the toolkit root recorded at install time.
+The wrapper will use the toolkit root recorded at install time first. If that is unavailable, it can fall back to `ai-workflow` from `PATH`.
 
 ## Safe default workflow
 
@@ -78,3 +94,4 @@ fix BUG-OVERLAY-01
 - Prefer `--mode tool-dev --evidence-root <project>` when the toolkit lives outside the target repo.
 - Do not invent readiness logic in the prompt when the toolkit can answer it directly.
 - Do not run mutating actions without explicit user intent.
+- Treat mutating aiwf/codelet flows as gated: require explicit user intent, one active `In Progress` ticket when required, `apply: true` where applicable, and codelet mutation flags such as `allowMutation: true`.

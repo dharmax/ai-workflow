@@ -124,11 +124,13 @@ The strongest host integration is `aiwf-mcp`, because it exposes DB-backed coded
 
 Enforcement is not absolute:
 
-- MCP exposes graph search, `plugin_status`, ticket lifecycle tools, codelet registry tools, and project-codelet management tools.
+- MCP exposes `plugin_status`, `project_summary`, `search_project`, `knowledge_graph`, `extract_ticket`, `extract_guidelines`, `plan_coding_workflow`, `review_code`, ticket lifecycle tools, codelet registry tools, and project-codelet management tools.
 - Mutating MCP tools dry-run unless `apply: true`; mutating codelets also require `allowMutation: true` and manifest-required flags such as `args.apply === true`.
 - MCP tools can return guardrails, mutation gates, and verification requirements, but the host still decides whether to call them.
 - The optional skill bridge is instruction-only and cannot force a host to comply.
 - Audit rules enforce patterns and architecture constraints that are expressible by the audit engine; narrative guidance remains advisory unless promoted into a coded gate or `ai-workflow-audit` rule.
+
+Host agents should follow the MCP-first decision loop: use `plugin_status` or `project_summary` for capabilities/status, `search_project` or `knowledge_graph` for unknown targets, `extract_ticket` plus `extract_guidelines` for ticket work, `plan_coding_workflow` for code changes, and `review_code` or debug/refactor tools for inspection. Route before spend by preferring deterministic DB/MCP/CLI answers over provider-backed shell planning, then use explicit mutation gates (`apply: true`, `allowMutation: true`, and the required active ticket state) before any mutating aiwf path.
 
 See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-project-enforcement).
 
@@ -136,6 +138,7 @@ See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-p
 
 - Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
 - Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.
+- Route before spend: prefer deterministic DB/MCP/CLI answers over provider-backed shell planning for status, graph, ticket, guideline, capability, and readiness questions.
 - Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
 - Treat `.ai-workflow/state/workflow.db` as canonical workflow state; `kanban.md` and `epics.md` are controlled projections.
 - Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.

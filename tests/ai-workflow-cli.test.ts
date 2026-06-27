@@ -2222,7 +2222,7 @@ test("ai-workflow install creates the core OS workspace and initializes project 
 
   try {
     const result = await runNode(
-      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "install", "--project", targetRoot],
+      [path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "install", "--project", targetRoot, "--host", "all"],
       {
         cwd: targetRoot,
         env: {
@@ -2237,6 +2237,28 @@ test("ai-workflow install creates the core OS workspace and initializes project 
     const configPath = path.join(targetRoot, ".ai-workflow", "config.json");
     const config = JSON.parse(await readFile(configPath, "utf8"));
     assert.equal(config.storage.dbPath, ".ai-workflow/state/workflow.db");
+    const requiredProtocolAnchors = [
+      "plugin_status",
+      "search_project",
+      "knowledge_graph",
+      "extract_ticket",
+      "extract_guidelines",
+      "plan_coding_workflow",
+      "review_code",
+      "Route before spend",
+      "apply: true",
+      "allowMutation: true"
+    ];
+    for (const [label, relativePath] of [
+      ["GEMINI.md", path.join(".gemini", "GEMINI.md")],
+      ["CLAUDE.md", "CLAUDE.md"],
+      ["Codex SKILL.md", path.join(".codex-home", "skills", "ai-workflow", "SKILL.md")]
+    ] as const) {
+      const text = await readFile(path.join(targetRoot, relativePath), "utf8");
+      for (const anchor of requiredProtocolAnchors) {
+        assert.ok(text.includes(anchor), `${label} should include aiwf protocol anchor ${anchor}`);
+      }
+    }
   } finally {
     await rm(targetRoot, { recursive: true, force: true });
   }

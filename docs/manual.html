@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="acf6921620fec5967a200e2cd6ae0ac9ca137967">
+  <meta name="manual-source-sha1" content="44c717fa28654341a8c184ff2a448ece63d3f438">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:acf6921620fec5967a200e2cd6ae0ac9ca137967 -->
+  <!-- generated from docs/MANUAL.md sha1:44c717fa28654341a8c184ff2a448ece63d3f438 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -371,6 +371,8 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <section aria-labelledby="mcp-integration" data-heading-level="3">
       <h3 id="mcp-integration">MCP Integration</h3>
       <p><code>aiwf-mcp</code> is the strongest plugin-style surface because it exposes coded tools backed by the shared workflow core. Its planning tools return active guardrails, mutation gates, route diagnostics, recommended work tickets, and verification plans.</p>
+      <p>Host agents should use this MCP-first decision loop before broad file reads or model-backed planning:</p>
+      <p>| Situation | First aiwf surface | Fallback / constraint | | --- | --- | --- | | Capability or status check | MCP <code>plugin_status</code>, <code>project_summary</code>, or capability catalog | CLI <code>ai-workflow project summary --json</code>; report unavailable tools instead of guessing. | | Unknown target, file, feature, or symbol | MCP <code>search_project</code> and knowledge_graph | <code>ai-workflow project search</code>; only then use host search/read tools. | | Ticket work | MCP <code>extract_ticket</code> plus <code>extract_guidelines</code> | CLI <code>ai-workflow extract ticket &lt;id&gt;</code> and <code>ai-workflow extract guidelines ...</code>. | | Code change plan | MCP <code>plan_coding_workflow</code> with relevant files/artifacts | Edit files directly using returned guardrails unless a mutating aiwf tool is intentionally selected. | | Review, debug, or refactor | MCP <code>review_code</code>, debug/refactor tools, route diagnostics, and extracted guardrails | Run targeted tests and workflow audit gates before closure. | | Model spend | Route before spend: use deterministic DB/MCP/CLI answers before provider-backed shell planning | Prefer the cheapest capable model route; widen only when risk justifies it and report degraded routes. | | Mutation | Explicit gated path only: user intent, one active <code>In Progress</code> ticket when required, <code>apply: true</code>, and <code>allowMutation: true</code> for mutating codelets | Never treat narrative guidance or dry-run output as permission to mutate. |</p>
       <p>The MCP server currently exposes:</p>
       <ul data-list-kind="unordered">
       <li>project_summary</li>

@@ -12,6 +12,24 @@ import { planShellRequestWithAgent } from "aiwf-shell/cli/lib/shell";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const AIWF_PROTOCOL_ANCHORS = [
+  "plugin_status",
+  "search_project",
+  "knowledge_graph",
+  "extract_ticket",
+  "extract_guidelines",
+  "plan_coding_workflow",
+  "review_code",
+  "Route before spend",
+  "apply: true",
+  "allowMutation: true"
+];
+
+function assertAiWfProtocolAnchors(text: string, label: string) {
+  for (const anchor of AIWF_PROTOCOL_ANCHORS) {
+    assert.ok(text.includes(anchor), `${label} should include aiwf protocol anchor ${anchor}`);
+  }
+}
 
 async function runNode(args: string[], options: any = {}) {
   try {
@@ -206,7 +224,7 @@ test("installer dry-run reports files without writing them", async () => {
   }
 });
 
-test("installer writes files, installs CI scaffold, makes scripts executable, and reports identical on rerun", async () => {
+test("installer writes files, installs CI scaffold, makes scripts executable, and reports identical on rerun", { timeout: 10000 }, async () => {
   const targetRoot = await makeTempDir();
 
   try {
@@ -219,8 +237,10 @@ test("installer writes files, installs CI scaffold, makes scripts executable, an
 
     const agents = await readFile(path.join(targetRoot, "AGENTS.md"), "utf8");
     assert.match(agents, /AI Agent Protocol: Autonomous Engineering OS/);
+    assertAiWfProtocolAnchors(agents, "AGENTS.md");
     const geminiGuide = await readFile(path.join(targetRoot, ".gemini", "GEMINI.md"), "utf8");
     assert.match(geminiGuide, /ai-workflow/i);
+    assertAiWfProtocolAnchors(geminiGuide, "GEMINI.md");
 
     const protocolFile = await readFile(path.join(targetRoot, "execution-protocol.md"), "utf8");
     assert.match(protocolFile, /Required Order/);
@@ -305,6 +325,12 @@ test("setup installs codex, claude, and gemini bridges that point at a live MCP 
     await access(path.join(targetRoot, "CLAUDE.md"));
     await access(path.join(targetRoot, ".mcp.json"));
     await access(path.join(codexHome, "skills", "ai-workflow", "SKILL.md"));
+    const setupGeminiGuide = await readFile(path.join(targetRoot, ".gemini", "GEMINI.md"), "utf8");
+    const setupClaudeGuide = await readFile(path.join(targetRoot, "CLAUDE.md"), "utf8");
+    const setupCodexSkill = await readFile(path.join(codexHome, "skills", "ai-workflow", "SKILL.md"), "utf8");
+    assertAiWfProtocolAnchors(setupGeminiGuide, "setup GEMINI.md");
+    assertAiWfProtocolAnchors(setupClaudeGuide, "setup CLAUDE.md");
+    assertAiWfProtocolAnchors(setupCodexSkill, "setup Codex SKILL.md");
 
     const codexConfig = await readFile(path.join(codexHome, "config.toml"), "utf8");
     assert.match(codexConfig, /\[features\]/);

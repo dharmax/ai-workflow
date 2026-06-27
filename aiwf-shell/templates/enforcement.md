@@ -71,6 +71,48 @@ If a rule's failure text should be identical to the pattern text, omit `message`
       "pattern": "Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer."
     },
     {
+      "id": "aiwf-protocol-plugin-status",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`plugin_status`"
+    },
+    {
+      "id": "aiwf-protocol-search-project",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`search_project`"
+    },
+    {
+      "id": "aiwf-protocol-extract-ticket",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`extract_ticket`"
+    },
+    {
+      "id": "aiwf-protocol-plan-coding-workflow",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`plan_coding_workflow`"
+    },
+    {
+      "id": "aiwf-protocol-review-code",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`review_code`"
+    },
+    {
+      "id": "aiwf-protocol-route-before-spend",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "Route before spend"
+    },
+    {
+      "id": "aiwf-protocol-mutation-gates",
+      "include": ["AGENTS.md", "CLAUDE.md", ".gemini/GEMINI.md", ".gemini/skills/ai-workflow/SKILL.md"],
+      "extensions": [".md"],
+      "pattern": "`apply: true`.*`allowMutation: true`"
+    },
+    {
       "id": "require-dogfood-before-closure",
       "include": ["AGENTS.md", "execution-protocol.md", "project-guidelines.md", "templates/AGENTS.md", "templates/execution-protocol.md", "templates/project-guidelines.md"],
       "extensions": [".md"],
