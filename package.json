@@ -43,37 +43,20 @@
     "build": "bun scripts/build-github-deps.mjs && bun scripts/validate-package.mjs aiwf-common-core && bun scripts/validate-package.mjs aiwf-shell && bun scripts/validate-package.mjs aiwf-mcp && bun scripts/validate-package.mjs aiwf-skill && bun scripts/validate-package.mjs .",
     "generate-docs": "bun aiwf-shell/scripts/generate-manual-html-cli.ts",
     "install:gemini-skill": "bun aiwf-skill/install-ai-workflow-skill.mjs --project . --force",
-    "install:tools": "bun install",
     "lint": "eslint .",
-    "pack:core": "bun pm pack --dry-run --filter aiwf-common-core",
-    "pack:mcp": "bun pm pack --dry-run --filter aiwf-mcp",
-    "pack:root": "bun pm pack --dry-run",
-    "pack:shell": "bun pm pack --dry-run --filter aiwf-shell",
-    "pack:skill": "bun pm pack --dry-run --filter aiwf-skill",
     "prepack": "bun run build",
-    "release:check": "bun run build && bun run workflow:dogfood -- --json && bun run workflow:audit -- --json && bun run pack:root && bun run pack:core && bun run pack:shell && bun run pack:mcp && bun run pack:skill",
-    "perfection-marathon": "bun tests/perfection-marathon.ts",
+    "release:check": "bun run build && bun run workflow:dogfood -- --json && bun run workflow:audit -- --json && bun pm pack --dry-run && bun pm pack --dry-run --filter aiwf-common-core && bun pm pack --dry-run --filter aiwf-shell && bun pm pack --dry-run --filter aiwf-mcp && bun pm pack --dry-run --filter aiwf-skill",
     "test": "bun test --timeout=30000 --max-concurrency=1 tests/*.test.ts",
-    "test:fast": "bun test --timeout=30000 tests/*.test.ts",
     "typecheck": "bun scripts/validate-package.mjs .",
     "workflow:audit": "bun aiwf-shell/cli/ai-workflow.ts run audit",
-    "workflow:dogfood": "bun aiwf-shell/cli/ai-workflow.ts run dogfood",
-    "workflow:guidance": "bun aiwf-shell/scripts/ai-workflow/guidance-summary.ts",
-    "workflow:guideline-audit": "bun aiwf-shell/scripts/ai-workflow/guideline-audit.ts",
-    "workflow:kanban": "bun aiwf-shell/cli/ai-workflow.ts run kanban-ops",
-    "workflow:review": "bun aiwf-shell/scripts/ai-workflow/review-summary.ts",
-    "workflow:ticket": "bun aiwf-shell/scripts/ai-workflow/kanban-ticket.ts",
-    "workflow:verify": "bun aiwf-shell/scripts/ai-workflow/verification-summary.ts",
-    "workflow:summary": "bun aiwf-shell/cli/ai-workflow.ts run summary",
-    "workflow:sync": "bun aiwf-shell/cli/ai-workflow.ts run sync",
-    "workflow:metrics": "bun aiwf-shell/cli/ai-workflow.ts run metrics"
+    "workflow:dogfood": "bun aiwf-shell/cli/ai-workflow.ts run dogfood"
   },
   "engines": {
     "bun": ">=1.3.14"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.4",
-    "@types/node": "^25.6.0",
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.0.1",
     "typescript": "^6.0.3"
   }
 }

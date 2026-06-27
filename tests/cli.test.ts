@@ -325,6 +325,47 @@ test("setup installs codex, claude, and gemini bridges that point at a live MCP 
   }
 });
 
+test("setup rewrites an existing Codex MCP config from stale node/dist launch entries", async () => {
+  const targetRoot = await makeTempDir();
+  const codexHome = await makeTempDir();
+
+  try {
+    await mkdir(path.join(targetRoot, ".ai-workflow"), { recursive: true });
+    await mkdir(path.join(codexHome, "skills", "ai-workflow"), { recursive: true });
+    await writeFile(
+      path.join(codexHome, "config.toml"),
+      [
+        "[mcp_servers.aiwf-mcp]",
+        "command = \"/usr/local/bin/node\"",
+        "args = [\"/stale/dist/aiwf-mcp.mjs\"]",
+        "[mcp_servers.aiwf-mcp.tools.sync_project]",
+        "approval_mode = \"approve\"",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "setup", "--project", targetRoot, "--host", "codex"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        CODEX_HOME: codexHome
+      }
+    });
+    assert.equal(result.code, 0, result.stderr || result.stdout);
+
+    const codexConfig = await readFile(path.join(codexHome, "config.toml"), "utf8");
+    assert.match(codexConfig, /\[mcp_servers\.aiwf-mcp\]/);
+    assert.match(codexConfig, /command = "bun"/);
+    assert.match(codexConfig, /aiwf-mcp\/server\.ts/);
+    assert.doesNotMatch(codexConfig, /\/stale\/dist\/aiwf-mcp\.mjs/);
+    assert.doesNotMatch(codexConfig, /\/usr\/local\/bin\/node/);
+  } finally {
+    await cleanup(targetRoot);
+    await cleanup(codexHome);
+  }
+});
+
 test("version reports the installed package version and toolkit root", async () => {
   const result = await runNode([path.join(repoRoot, "aiwf-shell", "cli", "ai-workflow.ts"), "version", "--json"], { cwd: repoRoot });
   assert.equal(result.code, 0);

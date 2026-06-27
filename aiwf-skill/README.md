@@ -7,7 +7,7 @@ Optional instruction-only bridge package for `ai-workflow`.
 Install this package only when a host still benefits from local instruction assets in addition to the coded shell or MCP surfaces.
 
 ```bash
-npm install -g aiwf-skill
+bun add -g aiwf-skill
 aiwf-skill --project /abs/path/to/project --force
 ```
 

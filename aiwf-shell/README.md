@@ -7,7 +7,7 @@ Shell and operator package for `ai-workflow`: CLI entrypoints, runtime wrappers,
 Install this package when you want the CLI surface.
 
 ```bash
-npm install -g aiwf-shell
+bun add -g aiwf-shell
 ai-workflow --help
 ```
 
