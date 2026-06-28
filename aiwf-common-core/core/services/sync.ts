@@ -675,6 +675,8 @@ async function detectBuildArtifacts(root) {
 async function performShadowSync(store, root) {
   const tickets = store.listEntities({ entityType: "ticket", states: ["open"] });
   const claims = store.db.prepare("SELECT * FROM claims WHERE lifecycle_state = 'active'").all();
+  const inProgressTickets = tickets.filter((ticket) => ticket.lane === "In Progress");
+  let inferredActiveTicketId = inProgressTickets.length === 0 ? null : inProgressTickets[0]?.id ?? null;
   
   for (const ticket of tickets) {
     const ticketId = ticket.id.toLowerCase();
@@ -688,7 +690,11 @@ async function performShadowSync(store, root) {
       : [];
 
     if ((idMatches.length >= 1 || titleMatches.length >= 2) && ticket.lane === "Todo") {
+      if (inferredActiveTicketId && inferredActiveTicketId !== ticket.id) {
+        continue;
+      }
       store.upsertEntity({ ...ticket, lane: "In Progress", provenance: "shadow-sync-inference" });
+      inferredActiveTicketId = ticket.id;
     }
   }
 }

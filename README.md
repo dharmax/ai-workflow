@@ -15,6 +15,10 @@ The workspace publishes four install surfaces:
 
 The manual includes the complete command reference, configuration, operating model, troubleshooting, and an honest capability-status table covering what works, what semi-works, and what is planned.
 
+## Current Trust Status
+
+AIWF is in a trust-rebuild phase. Historical readiness reports are not current proof of reliability unless revalidated by live gates. The active repair plan is [docs/aiwf-trust-rebuild-plan.md](docs/aiwf-trust-rebuild-plan.md), and future readiness claims must be backed by structured evidence, live metrics, dogfood, workflow audit, and explicit unrun-gate reporting.
+
 ## Requirements
 
 - Bun 1.3.14 or newer

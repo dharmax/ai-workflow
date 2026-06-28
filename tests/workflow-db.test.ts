@@ -1113,6 +1113,53 @@ test("shadow sync does not promote tickets on loose keyword overlap alone", asyn
   }
 });
 
+test("shadow sync does not promote multiple Todo tickets when one ticket is already in progress", async () => {
+  const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-shadow-sync-active-"));
+
+  try {
+    await cp(fixtureRoot, targetRoot, { recursive: true });
+    await syncProject({ projectRoot: targetRoot });
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      store.upsertEntity(buildTicketEntity({
+        id: "TKT-ACTIVE",
+        title: "Current execution ticket",
+        lane: "In Progress" as any,
+        summary: "Only active ticket."
+      }));
+      for (const id of ["TKT-PLAN-001", "TKT-PLAN-002"]) {
+        store.upsertEntity(buildTicketEntity({
+          id,
+          title: `Planned follow-up ${id}`,
+          lane: "Todo" as any,
+          summary: "Must stay Todo while another ticket is active."
+        }));
+      }
+    });
+
+    await mkdir(path.join(targetRoot, "docs"), { recursive: true });
+    await writeFile(
+      path.join(targetRoot, "docs", "trust-plan.md"),
+      [
+        "# Trust Plan",
+        "",
+        "Implement TKT-PLAN-001 after the active ticket closes.",
+        "Implement TKT-PLAN-002 after the active ticket closes."
+      ].join("\n")
+    );
+
+    await syncProject({ projectRoot: targetRoot });
+
+    await withWorkflowStore(targetRoot, async (store) => {
+      assert.equal(store.getEntity("TKT-ACTIVE")?.lane, "In Progress");
+      assert.equal(store.getEntity("TKT-PLAN-001")?.lane, "Todo");
+      assert.equal(store.getEntity("TKT-PLAN-002")?.lane, "Todo");
+    });
+  } finally {
+    await rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
 test("openWorkflowStore tolerates legacy DBs that already contain guarded columns", async () => {
   const targetRoot = await mkdtemp(path.join(os.tmpdir(), "workflow-db-legacy-schema-"));
 

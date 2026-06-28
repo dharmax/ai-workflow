@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="44c717fa28654341a8c184ff2a448ece63d3f438">
+  <meta name="manual-source-sha1" content="cc1504c0aae68d18bdba76aafdf8a238499844c1">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:44c717fa28654341a8c184ff2a448ece63d3f438 -->
+  <!-- generated from docs/MANUAL.md sha1:cc1504c0aae68d18bdba76aafdf8a238499844c1 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -302,7 +302,8 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       </section>
       <section aria-labelledby="capability-status" data-heading-level="2">
       <h2 id="capability-status">Capability Status</h2>
-      <p>This section is the public capability contract as of June 4, 2026. Treat live <code>doctor</code>, <code>dogfood</code>, audit, provider, and project-state output as more authoritative than this dated summary.</p>
+      <p>This section is the public capability contract as of June 28, 2026. Treat live <code>doctor</code>, <code>dogfood</code>, audit, provider, metrics, readiness, and project-state output as more authoritative than historical reports.</p>
+      <p>AIWF is currently in a trust-rebuild phase. Historical readiness reports are not current proof of reliability unless revalidated by live gates. The active repair plan is <a href="docs/aiwf-trust-rebuild-plan.md">AIWF Trust Rebuild Plan</a>.</p>
       <section aria-labelledby="works-reliably" data-heading-level="3">
       <h3 id="works-reliably">Works Reliably</h3>
       <ul data-list-kind="unordered">
@@ -332,6 +333,9 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <section aria-labelledby="does-not-work-yet-but-is-planned" data-heading-level="3">
       <h3 id="does-not-work-yet-but-is-planned">Does Not Work Yet, But Is Planned</h3>
       <ul data-list-kind="unordered">
+      <li>Evidence-gated closure for all readiness, DOD, and verified claims</li>
+      <li>Metrics-backed readiness blockers that fail on degraded real traffic or mock-only proof</li>
+      <li>Structured claim/evidence reports that workflow audit can validate</li>
       <li>Fully deterministic, high-quality autonomous implementation for arbitrary complex coding requests</li>
       <li>Guaranteed compliance by third-party hosts that ignore MCP results or instruction-only skill guidance</li>
       <li>Automatic semantic proof that README and full documentation describe every public behavior change; current enforcement requires the files and maintenance rule, while review/audit must still judge content quality</li>

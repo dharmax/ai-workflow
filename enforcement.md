@@ -123,6 +123,24 @@ If a rule's failure text should be identical to the pattern text, omit `message`
       "include": ["AGENTS.md", "execution-protocol.md", "project-guidelines.md", "README.md", "docs/MANUAL.md", "aiwf-shell/templates/AGENTS.md", "aiwf-shell/templates/execution-protocol.md", "aiwf-shell/templates/project-guidelines.md"],
       "extensions": [".md"],
       "pattern": "Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes\\."
+    },
+    {
+      "id": "trust-rebuild-visible-readme",
+      "include": ["README.md"],
+      "extensions": [".md"],
+      "pattern": "AIWF is in a trust-rebuild phase"
+    },
+    {
+      "id": "trust-rebuild-visible-manual",
+      "include": ["docs/MANUAL.md"],
+      "extensions": [".md"],
+      "pattern": "AIWF is currently in a trust-rebuild phase"
+    },
+    {
+      "id": "trust-rebuild-plan-linked",
+      "include": ["README.md", "docs/MANUAL.md"],
+      "extensions": [".md"],
+      "pattern": "aiwf-trust-rebuild-plan\\.md"
     }
   ],
   "forbiddenImports": [

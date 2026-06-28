@@ -247,7 +247,9 @@ ai-workflow shell "show provider status"
 
 ## Capability Status
 
-This section is the public capability contract as of June 4, 2026. Treat live `doctor`, `dogfood`, audit, provider, and project-state output as more authoritative than this dated summary.
+This section is the public capability contract as of June 28, 2026. Treat live `doctor`, `dogfood`, audit, provider, metrics, readiness, and project-state output as more authoritative than historical reports.
+
+AIWF is currently in a trust-rebuild phase. Historical readiness reports are not current proof of reliability unless revalidated by live gates. The active repair plan is [AIWF Trust Rebuild Plan](docs/aiwf-trust-rebuild-plan.md).
 
 ### Works Reliably
 
@@ -273,6 +275,9 @@ This section is the public capability contract as of June 4, 2026. Treat live `d
 
 ### Does Not Work Yet, But Is Planned
 
+- Evidence-gated closure for all readiness, DOD, and verified claims
+- Metrics-backed readiness blockers that fail on degraded real traffic or mock-only proof
+- Structured claim/evidence reports that workflow audit can validate
 - Fully deterministic, high-quality autonomous implementation for arbitrary complex coding requests
 - Guaranteed compliance by third-party hosts that ignore MCP results or instruction-only skill guidance
 - Automatic semantic proof that README and full documentation describe every public behavior change; current enforcement requires the files and maintenance rule, while review/audit must still judge content quality
