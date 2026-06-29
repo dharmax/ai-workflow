@@ -6,10 +6,10 @@
   <title>ai-workflow Manual</title>
   <meta name="generator" content="ai-workflow docs:manual">
   <meta name="manual-source" content="docs/MANUAL.md">
-  <meta name="manual-source-sha1" content="cc1504c0aae68d18bdba76aafdf8a238499844c1">
+  <meta name="manual-source-sha1" content="7f8a6f456bdb979fc6eb891ddbee2a23f5594d86">
 </head>
 <body>
-  <!-- generated from docs/MANUAL.md sha1:cc1504c0aae68d18bdba76aafdf8a238499844c1 -->
+  <!-- generated from docs/MANUAL.md sha1:7f8a6f456bdb979fc6eb891ddbee2a23f5594d86 -->
   <header>
     <h1>ai-workflow Manual</h1>
     <p>This HTML manual is generated from the canonical Markdown manual.</p>
@@ -376,31 +376,55 @@ ai-workflow shell &quot;show provider status&quot;</code></pre>
       <h3 id="mcp-integration">MCP Integration</h3>
       <p><code>aiwf-mcp</code> is the strongest plugin-style surface because it exposes coded tools backed by the shared workflow core. Its planning tools return active guardrails, mutation gates, route diagnostics, recommended work tickets, and verification plans.</p>
       <p>Host agents should use this MCP-first decision loop before broad file reads or model-backed planning:</p>
-      <p>| Situation | First aiwf surface | Fallback / constraint | | --- | --- | --- | | Capability or status check | MCP <code>plugin_status</code>, <code>project_summary</code>, or capability catalog | CLI <code>ai-workflow project summary --json</code>; report unavailable tools instead of guessing. | | Unknown target, file, feature, or symbol | MCP <code>search_project</code> and knowledge_graph | <code>ai-workflow project search</code>; only then use host search/read tools. | | Ticket work | MCP <code>extract_ticket</code> plus <code>extract_guidelines</code> | CLI <code>ai-workflow extract ticket &lt;id&gt;</code> and <code>ai-workflow extract guidelines ...</code>. | | Code change plan | MCP <code>plan_coding_workflow</code> with relevant files/artifacts | Edit files directly using returned guardrails unless a mutating aiwf tool is intentionally selected. | | Review, debug, or refactor | MCP <code>review_code</code>, debug/refactor tools, route diagnostics, and extracted guardrails | Run targeted tests and workflow audit gates before closure. | | Model spend | Route before spend: use deterministic DB/MCP/CLI answers before provider-backed shell planning | Prefer the cheapest capable model route; widen only when risk justifies it and report degraded routes. | | Mutation | Explicit gated path only: user intent, one active <code>In Progress</code> ticket when required, <code>apply: true</code>, and <code>allowMutation: true</code> for mutating codelets | Never treat narrative guidance or dry-run output as permission to mutate. |</p>
+      <p>| Situation | First aiwf surface | Fallback / constraint | | --- | --- | --- | | Capability or status check | MCP <code>plugin_status</code>, <code>capability_catalog</code>, <code>project_summary</code>, or <code>project_status</code> | CLI <code>ai-workflow project summary --json</code>; report unavailable tools instead of guessing. | | Unknown target, file, feature, or symbol | MCP <code>search_project</code>, knowledge_graph, and <code>find_dependencies</code> | <code>ai-workflow project search</code>; only then use host search/read tools. | | Ticket work | MCP <code>list_tickets</code>, <code>extract_ticket</code>, <code>extract_guidelines</code>, and <code>plan_work_tickets</code> | CLI <code>ai-workflow extract ticket &lt;id&gt;</code> and <code>ai-workflow extract guidelines ...</code>; mutating ticket lifecycle calls require explicit intent. | | Code change plan | MCP <code>plan_coding_workflow</code> or <code>plan_code_change</code> with relevant files/artifacts | Edit files directly using returned guardrails unless a mutating aiwf tool is intentionally selected. | | Review, debug, or refactor | MCP <code>analyze_code</code>, <code>review_code</code>, <code>debug_issue</code>, <code>refactor_code</code>, route diagnostics, and extracted guardrails | Run targeted tests and workflow audit gates before closure. | | Evidence or reports | MCP <code>search_artifacts</code> and <code>judge_artifacts</code> | Use local artifact reads only after indexed evidence cannot answer. | | Codelets | MCP <code>list_codelets</code>, <code>search_codelets</code>, <code>get_codelet</code>, and gated <code>run_codelet</code> | Do not execute mutating codelets unless <code>allowMutation: true</code> and required apply flags are explicit. | | Model spend | Route before spend: use deterministic DB/MCP/CLI answers before provider-backed shell planning | Prefer the cheapest capable model route; widen only when risk justifies it and report degraded routes. | | Mutation | Explicit gated path only: user intent, one active <code>In Progress</code> ticket when required, <code>apply: true</code>, <code>allowMutation: true</code>, and coded tools such as <code>execute_ticket</code> or <code>sweep_bugs</code> | Never treat narrative guidance or dry-run output as permission to mutate. |</p>
+      <p>Required loop:</p>
+      <ol data-list-kind="ordered">
+      <li>Start with <code>plugin_status</code> or <code>capability_catalog</code> when MCP is available.</li>
+      <li>Use <code>project_summary</code> or <code>project_status</code> for project state.</li>
+      <li>Use <code>search_project</code>, knowledge_graph, and <code>find_dependencies</code> before raw host search/read.</li>
+      <li>Use <code>list_tickets</code>, <code>extract_ticket</code>, <code>extract_guidelines</code>, and <code>plan_work_tickets</code> for ticket work.</li>
+      <li>Use <code>plan_coding_workflow</code>, <code>plan_code_change</code>, <code>analyze_code</code>, <code>review_code</code>, <code>debug_issue</code>, and <code>refactor_code</code> for code work.</li>
+      <li>Use <code>route_task</code> before model-backed planning or broad shell orchestration when the route is unclear.</li>
+      <li>Use <code>search_artifacts</code> and <code>judge_artifacts</code> for evidence, reports, and readiness claims.</li>
+      <li>Use <code>list_codelets</code>, <code>search_codelets</code>, <code>get_codelet</code>, and gated <code>run_codelet</code> for codelet work.</li>
+      <li>Use <code>execute_ticket</code>, <code>sweep_bugs</code>, ticket lifecycle tools, <code>apply: true</code>, and <code>allowMutation: true</code> only through explicit mutation gates.</li>
+      <li>Report unavailable MCP or targeted CLI tools before falling back to host search/read.</li>
+      </ol>
       <p>The MCP server currently exposes:</p>
       <ul data-list-kind="unordered">
-      <li>project_summary</li>
-      <li>sync_project</li>
-      <li>search_project</li>
-      <li>plugin_status</li>
-      <li>list_tickets</li>
-      <li>create_ticket</li>
-      <li>update_ticket_lifecycle</li>
-      <li>extract_ticket</li>
-      <li>extract_guidelines</li>
-      <li>plan_work_tickets</li>
-      <li>plan_coding_workflow</li>
-      <li>project_status</li>
-      <li>route_task</li>
+      <li><code>project_summary</code></li>
+      <li><code>sync_project</code></li>
+      <li><code>search_project</code></li>
+      <li><code>plugin_status</code></li>
+      <li><code>capability_catalog</code></li>
+      <li><code>list_tickets</code></li>
+      <li><code>create_ticket</code></li>
+      <li><code>update_ticket_lifecycle</code></li>
+      <li><code>extract_ticket</code></li>
+      <li><code>extract_guidelines</code></li>
+      <li><code>plan_work_tickets</code></li>
+      <li><code>plan_coding_workflow</code></li>
+      <li><code>analyze_code</code></li>
+      <li><code>review_code</code></li>
+      <li><code>debug_issue</code></li>
+      <li><code>plan_code_change</code></li>
+      <li><code>refactor_code</code></li>
+      <li><code>execute_ticket</code></li>
+      <li><code>sweep_bugs</code></li>
+      <li><code>project_status</code></li>
+      <li><code>route_task</code></li>
       <li>knowledge_graph</li>
-      <li>write_projections</li>
-      <li>list_codelets</li>
-      <li>get_codelet</li>
-      <li>search_codelets</li>
-      <li>run_codelet</li>
-      <li>forge_project_codelet</li>
-      <li>upsert_project_codelet</li>
-      <li>remove_project_codelet</li>
+      <li><code>find_dependencies</code></li>
+      <li><code>search_artifacts</code></li>
+      <li><code>judge_artifacts</code></li>
+      <li><code>write_projections</code></li>
+      <li><code>list_codelets</code></li>
+      <li><code>get_codelet</code></li>
+      <li><code>search_codelets</code></li>
+      <li><code>run_codelet</code></li>
+      <li><code>forge_project_codelet</code></li>
+      <li><code>upsert_project_codelet</code></li>
+      <li><code>remove_project_codelet</code></li>
       </ul>
       <p>Mutating MCP tools dry-run unless <code>apply: true</code>. <code>run_codelet</code> refuses mutating codelets unless <code>allowMutation: true</code>, the manifest declares <code>canMutate: true</code>, and required flags such as <code>args.apply === true</code> are present.</p>
       <p>MCP makes the constraints inspectable and reusable, but the host remains responsible for calling the tools and honoring their results.</p>

@@ -32,7 +32,7 @@ This package exposes the shared workflow core through MCP tools such as:
 - `sweep_bugs`
 - `project_status`
 - `route_task`
-- `knowledge_graph`
+- knowledge_graph
 - `find_dependencies`
 - `search_artifacts`
 - `judge_artifacts`
