@@ -1,7 +1,0 @@
-{
-  "id": "doctor",
-  "stability": "stable",
-  "category": "diagnostics",
-  "summary": "Inspect local tooling, optional Ollama availability, and basic host capacity.",
-  "runner": "builtin"
-}

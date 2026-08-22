@@ -1,8 +1,0 @@
-{
-  "id": "ticket",
-  "stability": "stable",
-  "category": "extraction",
-  "summary": "Extract one active ticket instead of dragging the whole board into context.",
-  "runner": "node-script",
-  "entry": "aiwf-shell/scripts/ai-workflow/kanban-ticket.ts"
-}

@@ -1,8 +1,0 @@
-{
-  "id": "tutorial",
-  "stability": "stable",
-  "category": "learning",
-  "summary": "Launch the interactive web tutorial for ai-workflow.",
-  "runner": "node-script",
-  "entry": "aiwf-shell/scripts/ai-workflow/tutorial-web.ts"
-}

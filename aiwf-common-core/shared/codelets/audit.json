@@ -1,8 +1,0 @@
-{
-  "id": "audit",
-  "stability": "stable",
-  "category": "verification",
-  "summary": "Run the workflow and guideline audit rather than rereading policy docs manually.",
-  "runner": "node-script",
-  "entry": "aiwf-shell/scripts/ai-workflow/workflow-audit.ts"
-}

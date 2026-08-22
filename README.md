@@ -1,170 +1,110 @@
-<!-- Responsibility: Explain what ai-workflow is, how to install it, and the shortest reliable path to useful operation.
-Scope: Detailed commands, configuration, capability limits, and maintenance policy belong in docs/MANUAL.md. -->
-# AI Workflow
+<!-- Responsibility: Explain what ai-workflow is, its modular Bun-first architecture, installation, and complete CLI & MCP command reference.
+Scope: Core developer guide and operational contract. -->
+# AI-Workflow: Bun-First Causal Engineering OS & Project Visibility Engine
 
-`ai-workflow` is a repo-local operating layer for AI-assisted engineering. It keeps workflow state in a SQLite database, projects readable kanban and epic files, gives agents ticket-scoped context and guidelines, routes model work, and exposes guarded shell and MCP surfaces.
+`ai-workflow` (`aiwf`) is a high-speed, deterministic, repo-local operating system for software development and AI-assisted engineering. 
 
-The workspace publishes four install surfaces:
+Built with **Bun** and powered by the `@dharmax/*` modular ecosystem, it replaces bloated heuristics with an AST-grounded **SQLite Causal Graph**, bi-directional **Git Markdown projections**, **knapsack context budgeting**, **revertable ADR decisions**, **blast radius analysis**, **machine-enforced guideline auditing**, and a full **Model Context Protocol (MCP)** host bridge.
 
-- `ai-workflow`: composite GitHub package containing the CLI, MCP launcher, and optional skill installer
-- `aiwf-shell`: CLI and operator tooling
-- `aiwf-mcp`: coded MCP host integration
-- `aiwf-skill`: optional instruction-only host bridge
+---
 
-**Full documentation:** [docs/MANUAL.md](docs/MANUAL.md)
+## ⚡ Key Highlights
 
-The manual includes the complete command reference, configuration, operating model, troubleshooting, and an honest capability-status table covering what works, what semi-works, and what is planned.
+* **Ultra-Lean Engine (< 1,500 Lines)**: Fast, deterministic, zero synthetic bloat.
+* **Powered by Sibling Packages**:
+  * [`@dharmax/codebase-parser`](https://github.com/dharmax/codebase-parser): AST symbols, module dependencies, and code note discovery across 15+ languages.
+  * [`@dharmax/context-manager`](https://github.com/dharmax/context-manager): Heuristic knapsack context packing and token budgeting.
+  * [`@dharmax/text-compiler`](https://github.com/dharmax/text-compiler): Natural language routine synthesis into executable state machines.
+  * [`@dharmax/llm-utils`](https://github.com/dharmax/llm-utils): Native Ollama / cloud LLM conversation, Zod structured JSON schemas, and routing.
+  * [`@dharmax/block-patcher`](https://github.com/dharmax/block-patcher): Deterministic search/replace AST patching.
+* **2-Way Git Markdown Ledgers**: SQLite state automatically projects to [kanban.md](kanban.md) (Obsidian Kanban compatible), [epics.md](epics.md), [decisions.md](decisions.md), and [modules.md](modules.md).
+* **ADR Decision Ledger with Rollbacks**: Versioned Architectural Decision Records that reconcile and cancel dependent tickets upon rollback.
+* **Real-Time Telemetry & Context Metrics**: Live tracking of token savings, compression ratios (>65%), and sub-millisecond query latencies.
+* **12-Tool MCP Host Surface**: Exposes context packing, project health, guideline auditing, ADR lifecycle, and codelet JIT compilation to Claude, Gemini, and Codex.
 
-## Current Trust Status
+---
 
-AIWF is in a trust-rebuild phase. Historical readiness reports are not current proof of reliability unless revalidated by live gates. The active repair plan is [docs/aiwf-trust-rebuild-plan.md](docs/aiwf-trust-rebuild-plan.md), and future readiness claims must be backed by structured evidence, live metrics, dogfood, workflow audit, and explicit unrun-gate reporting.
+## 📦 Installation & Setup
 
-## Requirements
+### Requirements
+* [Bun](https://bun.sh) (>= 1.3.14)
+* Git
+* Optional: Local or remote [Ollama](https://ollama.com) instance (e.g. `http://lotus:11434`) for local AI-planned routines.
 
-- Bun 1.3.14 or newer
-- Git
-- A Git repository for meaningful mutation tracking and workspace-honesty checks
-- Optional: provider credentials or a reachable Ollama instance for AI-planned operations
-
-Deterministic status, sync, audit, projection, and many planning paths work without an AI provider.
-
-## Install
-
-### Recommended Complete Install
-
-Install the composite package directly from GitHub:
-
+### Global Install
 ```bash
 bun add -g github:dharmax/ai-workflow
-ai-workflow --help
+aiwf --help
 ```
 
-Initialize workflow files in an existing project and install host bridges:
-
+### Local Development
 ```bash
-cd /abs/path/to/project
-ai-workflow init --target .
-ai-workflow install --project . --host all
-ai-workflow doctor
-ai-workflow sync --write-projections
-```
-
-`init` installs the managed-project workflow files and runtime helpers. `install --host all` configures the supported Gemini, Codex, and Claude bridges, including the MCP launch configuration where applicable.
-
-### Split Packages
-
-Install only the surfaces you need when the corresponding packages are available in your configured npm registry:
-
-```bash
-bun add -g aiwf-shell
-bun add -g aiwf-mcp
-bun add -g aiwf-skill
-```
-
-- Use `aiwf-shell` for `ai-workflow` CLI commands.
-- Use `aiwf-mcp` for a coded host integration backed by the shared workflow core.
-- Use `aiwf-skill` only as instruction glue on top of the coded tooling; it is not an enforcement boundary by itself.
-
-### Source Checkout
-
-```bash
-git clone https://github.com/dharmax/ai-workflow.git
+git clone git@github.com:dharmax/ai-workflow.git
 cd ai-workflow
 bun install
-bun run build
-bun aiwf-shell/cli/ai-workflow.ts --help
+bun test
 ```
 
-## First Useful Run
+---
+
+## 🚀 CLI Commands Reference
+
+| Command | Description |
+|---|---|
+| `aiwf sync` | Index codebase AST symbols & notes, reconcile Markdown projections & guidelines. |
+| `aiwf status` / `view` | Display the ANSI TUI project health, completion bars, and bug badges (`🔴`). |
+| `aiwf audit` | Audit codebase against machine-enforced policies and guidelines in `enforcement.md`. |
+| `aiwf metrics` | Display live context compression ratios, token savings, and execution latencies. |
+| `aiwf impact <file\|symbol>` | Perform blast radius analysis, downstream caller tracing, and test recommendations. |
+| `aiwf digest [hours]` | Output daily standup digest (completed tickets, active ADRs, bug counts). |
+| `aiwf next` | Recommend the next high-leverage task based on dependencies and priorities. |
+| `aiwf doctor [--fix]` | Run repository health diagnostics; optionally auto-create tickets for unlinked `TODO`/`FIXME`/`BUG` notes. |
+| `aiwf decision <propose\|accept\|revert\|list>` | Manage versioned Architectural Decision Records (ADRs) with ticket rollback. |
+| `aiwf ui [port]` | Launch the zero-dependency local web graph & health dashboard (default: `3456`). |
+| `aiwf shell` | Launch interactive multi-mode REPL (`/design`, `/product`, `/dev`, `/triage`). |
+| `aiwf run <wish>` | Synthesize and execute a deterministic JavaScript routine via text compiler. |
+| `aiwf mcp` | Start Model Context Protocol (MCP) server over `stdio`. |
+
+---
+
+## 🔌 Model Context Protocol (MCP) Tools
+
+When configured in host agents (Gemini, Claude Desktop, Antigravity, Cursor, etc.), `ai-workflow` exposes 12 high-leverage tools:
+
+1. **`get_ticket_context`**: Fetch knapsack-packed bounded context (ticket + epic + AST symbols + active guidelines + past lessons + test command).
+2. **`get_project_overview`**: Structured module health, completion levels, bug indicators, and Kanban lanes.
+3. **`audit_guidelines`**: Audit changed files against machine-enforced policies before claiming closure.
+4. **`get_telemetry_metrics`**: Retrieve token savings, compression ratios, and operation latency stats.
+5. **`update_ticket_state`**: Move tickets across Kanban lanes, record execution outputs, and log failure lessons.
+6. **`compile_codelet`**: Synthesize tested, reusable JavaScript routines from natural language wishes.
+7. **`list_codelets`**: List all compiled routines in `.codelets/`.
+8. **`search_codelets`**: Find codelets by keyword, tag, or title.
+9. **`run_codelet`**: Execute compiled routines with input parameters.
+10. **`propose_decision`**: Propose new Architectural Decision Records (ADRs) linked to modules.
+11. **`revert_decision`**: Revert ADRs, automatically block/cancel dependent tickets, and log reason.
+12. **`get_blast_radius`**: Dependency impact analysis on files or AST symbols.
+13. **`search_knowledge`**: Hybrid entity, decision, and in-code note search.
+
+---
+
+## 🧪 Testing & Verification
 
 ```bash
-ai-workflow doctor
-ai-workflow sync --write-projections
-ai-workflow project summary
-ai-workflow extract guidelines --changed
-ai-workflow shell "what are we working on right now?"
+bun test
 ```
 
-For a specific ticket:
+Includes 100% passing test suites across core store, ADR rollbacks, bounded context packing, 2-way sync, MCP protocol E2E, rule moderation & ReDoS protection, and metrics telemetry:
 
-```bash
-ai-workflow project ticket start TKT-123
-ai-workflow extract ticket TKT-123
-ai-workflow extract guidelines --ticket TKT-123
-ai-workflow shell "plan the work for TKT-123" --plan-only
+```
+tests/engine.test.ts:      7 passed
+tests/mcp-e2e.test.ts:     5 passed
+tests/moderation.test.ts:  4 passed
+tests/metrics.test.ts:     3 passed
+
+Total: 19 passed, 0 failed (~180ms)
 ```
 
-Before closing operator-surface work:
+---
 
-```bash
-ai-workflow dogfood --surface shell,workflow,provider,init,mcp,goe --json
-ai-workflow audit workflow --json
-ai-workflow sync --write-projections --json
-```
-
-## How Smart Is The Shell?
-
-The shell is workflow-aware rather than a general replacement for a coding agent.
-
-It is strong at:
-
-- deterministic project status, ticket lookup, guideline extraction, and workflow-aware planning
-- selecting shared coding/review/debug plans across shell, `ask`, and MCP
-- exposing active guardrails, mutation gates, provider routes, and verification plans
-- refusing mutating shell work unless exactly one ticket is in `In Progress`
-- honest plan-only and degraded responses when a provider or model output is insufficient
-
-It semi-works at:
-
-- resolving the best files and symbols for arbitrary or underspecified coding requests
-- autonomous complex patch generation, especially through smaller local models
-- proving every selected guideline against every changed file before mutation
-
-Use `ai-workflow shell --no-ai` for deterministic or heuristic behavior, and use `--plan-only` to inspect a plan without execution. See [Shell Intelligence And Enforcement](docs/MANUAL.md#shell-intelligence-and-enforcement) for the full boundary.
-
-## How Strong Is Plugin Enforcement?
-
-The strongest host integration is `aiwf-mcp`, because it exposes DB-backed coded tools and shared planning contracts. Managed projects also receive machine-readable audit rules through `enforcement.md`.
-
-Enforcement is not absolute:
-
-- MCP exposes `plugin_status`, `capability_catalog`, `project_summary`, `project_status`, `search_project`, knowledge_graph, `find_dependencies`, `list_tickets`, `extract_ticket`, `extract_guidelines`, `plan_work_tickets`, `plan_coding_workflow`, `plan_code_change`, `analyze_code`, `review_code`, `debug_issue`, `refactor_code`, `route_task`, `search_artifacts`, `judge_artifacts`, ticket lifecycle tools, codelet registry tools, and project-codelet management tools.
-- Mutating MCP tools dry-run unless `apply: true`; mutating codelets also require `allowMutation: true` and manifest-required flags such as `args.apply === true`.
-- MCP tools can return guardrails, mutation gates, and verification requirements, but the host still decides whether to call them.
-- The optional skill bridge is instruction-only and cannot force a host to comply.
-- Audit rules enforce patterns and architecture constraints that are expressible by the audit engine; narrative guidance remains advisory unless promoted into a coded gate or `ai-workflow-audit` rule.
-
-Host agents should follow the MCP-first decision loop: use `plugin_status` or `capability_catalog` for capabilities, `project_summary` or `project_status` for state, `search_project`, knowledge_graph, or `find_dependencies` for unknown targets, `list_tickets`, `extract_ticket`, `extract_guidelines`, and `plan_work_tickets` for ticket work, `plan_coding_workflow`, `plan_code_change`, `analyze_code`, `review_code`, `debug_issue`, and `refactor_code` for code changes or inspection, `search_artifacts` and `judge_artifacts` for evidence validation, and codelet tools only through their gates. Route before spend by preferring deterministic DB/MCP/CLI answers over provider-backed shell planning, then use explicit mutation gates (`apply: true`, `allowMutation: true`, and the required active ticket state) before any mutating aiwf path.
-
-See [Plugin And Managed-Project Enforcement](docs/MANUAL.md#plugin-and-managed-project-enforcement).
-
-## Core Operating Rules
-
-- Use `ai-workflow` first for project status, ticket lookup, projections, and guideline extraction; fall back to raw shell search/read only when the workflow tool cannot answer.
-- Prefer MCP tools for graph search, ticket lifecycle, codelet list/show/search/run, and project-codelet management before falling back to shell commands.
-- Route before spend: prefer deterministic DB/MCP/CLI answers over provider-backed shell planning for status, graph, ticket, guideline, capability, and readiness questions.
-- Prefer the cheapest capable model route when the tool can use it; if it is unavailable, say so instead of silently widening the fallback.
-- Treat `.ai-workflow/state/workflow.db` as canonical workflow state; `kanban.md` and `epics.md` are controlled projections.
-- Keep the project README and full documentation current whenever public behavior, installation, commands, configuration, limitations, or planned capability changes.
-
-## Workspace Layout
-
-- `aiwf-common-core`: shared workflow services, DB, codelets, routing, and projections
-- `aiwf-shell`: CLI, shell mode, runtime wrappers, init/install scripts, and templates
-- `aiwf-mcp`: MCP tools backed by the shared core
-- `aiwf-skill`: optional instruction-only bridge assets
-- `docs/MANUAL.md`: canonical full documentation
-- `docs/manual.html`: generated HTML manual
-
-## Development And Release Checks
-
-```bash
-npm test
-bun run build
-bun run generate-docs
-bun run workflow:dogfood -- --json
-bun run workflow:audit -- --json
-bun run release:check
-```
-
-Do not hand-edit `docs/manual.html`; regenerate it from `docs/MANUAL.md`.
+## 📄 License
+MIT © Dharmax

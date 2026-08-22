@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "title": "routine-1787425035893",
+    "titleHash": "routine-1787425035893",
+    "doc": "summarize active project status",
+    "tags": [
+      "ai-workflow"
+    ]
+  },
+  "sourceCode": "tk.sm.state(\"firstStateName\", \"Summarize active project status\", async (ctx, tk, input) => {\n  try {\n    const projectStatus = await tk.services.dynamic_service_1({});\n    tk.sm.memory.projectStatus = projectStatus;\n    return \"finalStateName\";\n  } catch (error) {\n    tk.log(\"Failed to summarize project status\", \"error\");\n    return \"errorStateName\";\n  }\n}, {\n  \"finalStateName\": null,\n  \"errorStateName\": null\n});\n\nreturn await tk.sm.run(\"firstStateName\", {}, ctx, tk);",
+  "createdAt": "2026-08-22T18:57:15.893Z"
+}

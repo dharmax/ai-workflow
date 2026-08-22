@@ -32,8 +32,8 @@ If a rule's failure text should be identical to the pattern text, omit `message`
     {
       "id": "no-source-todo",
       "include": ["src"],
-      "extensions": [".ts", ".tsx", ".ts", ".jsx", ".ts", ".cjs", ".riot", ".css"],
-      "pattern": "\\b(?:TODO|FIXME)\\b",
+      "extensions": [".ts", ".tsx", ".jsx", ".cjs", ".riot", ".css"],
+      "pattern": "(?:\\/\\/|\\/\\*|#|<!--)\\s*(?:TODO|FIXME)\\b",
       "message": "Do not leave TODO/FIXME markers in production source; ticket the work or finish it."
     },
     {

@@ -1,8 +1,0 @@
-{
-  "id": "telegram-preview",
-  "stability": "stable",
-  "category": "integration",
-  "summary": "Render a Telegram-friendly status and candidate-triage preview from the workflow DB.",
-  "runner": "node-script",
-  "entry": "aiwf-shell/scripts/ai-workflow/telegram-preview.ts"
-}

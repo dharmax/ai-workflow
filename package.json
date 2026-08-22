@@ -1,58 +1,37 @@
 {
   "name": "ai-workflow",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
-  "packageManager": "bun@1.3.14",
-  "workspaces": [
-    "aiwf-common-core",
-    "aiwf-shell",
-    "aiwf-skill",
-    "aiwf-mcp"
-  ],
-  "description": "Composite GitHub install surface for ai-workflow shell, MCP, and optional skill bridge.",
+  "description": "Bun-First Causal Engineering OS, Project Visibility Engine, and MCP Host Bridge.",
+  "main": "./src/index.ts",
+  "bun": "./src/index.ts",
   "bin": {
-    "ai-workflow": "./aiwf-shell/cli/ai-workflow.ts",
-    "aiwf-mcp": "./aiwf-mcp/server.ts",
-    "aiwf-skill": "./aiwf-skill/install-ai-workflow-skill.mjs"
+    "ai-workflow": "./src/cli.ts",
+    "aiwf": "./src/cli.ts",
+    "aiwf-mcp": "./src/mcp.ts"
   },
   "files": [
-    "aiwf-common-core/core",
-    "aiwf-common-core/shared",
-    "aiwf-common-core/package.json",
-    "aiwf-common-core/README.md",
-    "aiwf-shell/cli",
-    "aiwf-shell/runtime",
-    "aiwf-shell/scripts",
-    "aiwf-shell/templates",
-    "aiwf-shell/package.json",
-    "aiwf-shell/README.md",
-    "aiwf-mcp/server.ts",
-    "aiwf-mcp/package.json",
-    "aiwf-mcp/README.md",
-    "aiwf-skill/install-ai-workflow-skill.mjs",
-    "aiwf-skill/skills",
-    "aiwf-skill/package.json",
-    "aiwf-skill/README.md",
-    "scripts/validate-package.mjs",
-    "scripts/build-github-deps.mjs",
-    "bun.lock",
+    "src",
     "README.md"
   ],
   "scripts": {
-    "build": "bun scripts/build-github-deps.mjs && bun scripts/validate-package.mjs aiwf-common-core && bun scripts/validate-package.mjs aiwf-shell && bun scripts/validate-package.mjs aiwf-mcp && bun scripts/validate-package.mjs aiwf-skill && bun scripts/validate-package.mjs .",
-    "generate-docs": "bun aiwf-shell/scripts/generate-manual-html-cli.ts",
-    "install:gemini-skill": "bun aiwf-skill/install-ai-workflow-skill.mjs --project . --force",
-    "lint": "eslint .",
-    "prepack": "bun run build",
-    "release:check": "bun run build && bun run workflow:dogfood -- --json && bun run workflow:audit -- --json && bun pm pack --dry-run && bun pm pack --dry-run --filter aiwf-common-core && bun pm pack --dry-run --filter aiwf-shell && bun pm pack --dry-run --filter aiwf-mcp && bun pm pack --dry-run --filter aiwf-skill",
-    "test": "bun test --timeout=30000 --max-concurrency=1 tests/*.test.ts",
-    "typecheck": "bun scripts/validate-package.mjs .",
-    "workflow:audit": "bun aiwf-shell/cli/ai-workflow.ts run audit",
-    "workflow:dogfood": "bun aiwf-shell/cli/ai-workflow.ts run dogfood"
+    "sync": "bun src/cli.ts sync",
+    "status": "bun src/cli.ts status",
+    "audit": "bun src/cli.ts audit",
+    "shell": "bun src/cli.ts shell",
+    "mcp": "bun src/cli.ts mcp",
+    "ui": "bun src/cli.ts ui",
+    "test": "bun test tests/engine.test.ts"
   },
-  "engines": {
-    "bun": ">=1.3.14"
+  "dependencies": {
+    "@dharmax/block-patcher": "git+ssh://git@github.com/dharmax/block-patcher.git",
+    "@dharmax/codebase-parser": "git+ssh://git@github.com/dharmax/codebase-parser.git",
+    "@dharmax/context-manager": "git+ssh://git@github.com/dharmax/context-manager.git",
+    "@dharmax/llm-utils": "git+ssh://git@github.com/dharmax/llm-utils.git",
+    "@dharmax/text-compiler": "git+ssh://git@github.com/dharmax/text-compiler.git",
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

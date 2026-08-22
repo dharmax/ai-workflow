@@ -3,15 +3,13 @@ node_modules
 dist/
 
 /.obsidian/
-/.ai-workflow/state/run-artifacts/
+/.ai-workflow/state/
 /.ai-workflow/generated/
-.ai-workflow/state/workflow.db
-**/.ai-workflow/state/
+.ai-workflow/state/workflow.db*
 .ai-workflow/cache/
 .ai-workflow/config.json
 .codex
-.idea/.name
-.idea/*.iml
-Untitled*.base
-design/
-dogfood-projects/
+.idea/
+tmp/
+coverage/
+.cache/
