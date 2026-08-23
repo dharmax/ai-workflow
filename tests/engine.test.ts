@@ -169,4 +169,21 @@ describe('ai-workflow Reborn Engine Tests', () => {
     const { server } = createAiWorkflowMcpServer(tempDir);
     expect(server).toBeDefined();
   });
+
+  test('CLI setup command returns valid JSON configuration', async () => {
+    const proc = Bun.spawn(['bun', 'src/cli.ts', 'setup', '--json'], {
+      cwd: path.resolve(__dirname, '..'),
+      stdout: 'pipe',
+      stderr: 'pipe'
+    });
+    const stdout = await new Response(proc.stdout).text();
+    const exitCode = await proc.exited;
+    expect(exitCode).toBe(0);
+
+    const json = JSON.parse(stdout);
+    expect(json.mcpConfig).toBeDefined();
+    expect(json.mcpConfig.mcpServers['ai-workflow']).toBeDefined();
+    expect(json.claudeCodeCommand).toContain('claude mcp add ai-workflow');
+    expect(json.binaries.length).toBeGreaterThan(0);
+  });
 });

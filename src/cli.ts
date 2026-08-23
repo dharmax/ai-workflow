@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { WorkflowStore } from './store.ts';
 import { indexCodebase } from './indexer.ts';
 import { exportMarkdown, importMarkdown } from './sync.ts';
@@ -11,6 +15,12 @@ import { CodeletEngine } from './compiler.ts';
 import { auditCodebase } from './guidelines.ts';
 import { MetricsCollector } from './metrics.ts';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, '..');
+const cliPath = path.resolve(__dirname, 'cli.ts');
+const mcpPath = path.resolve(__dirname, 'mcp.ts');
+
 const args = process.argv.slice(2);
 const command = args[0]?.toLowerCase() || 'status';
 
@@ -18,6 +28,128 @@ const store = new WorkflowStore();
 const decisions = new DecisionManager(store);
 const compiler = new CodeletEngine(store);
 const metrics = new MetricsCollector(store);
+
+function handleSetup(cliArgs: string[]) {
+  const isJson = cliArgs.includes('--json');
+  const isLinkOnly = cliArgs.includes('--link');
+  const isClaude = cliArgs.includes('--claude');
+  const isCursor = cliArgs.includes('--cursor');
+  const isGemini = cliArgs.includes('--gemini');
+  const isWindsurf = cliArgs.includes('--windsurf');
+
+  const binDirs = [
+    path.join(os.homedir(), '.local', 'bin'),
+    path.join(os.homedir(), '.bun', 'bin')
+  ];
+
+  const binaries = [
+    { name: 'aiwf', target: cliPath },
+    { name: 'ai-workflow', target: cliPath },
+    { name: 'aiwf-mcp', target: mcpPath }
+  ];
+
+  const linkedPaths: string[] = [];
+  for (const binDir of binDirs) {
+    if (!fs.existsSync(binDir)) {
+      try {
+        fs.mkdirSync(binDir, { recursive: true });
+      } catch {
+        continue;
+      }
+    }
+    for (const b of binaries) {
+      const linkPath = path.join(binDir, b.name);
+      try {
+        if (fs.existsSync(linkPath) || fs.lstatSync(linkPath).isSymbolicLink()) {
+          fs.unlinkSync(linkPath);
+        }
+      } catch {}
+      try {
+        fs.symlinkSync(b.target, linkPath);
+        fs.chmodSync(b.target, 0o755);
+        linkedPaths.push(linkPath);
+      } catch {}
+    }
+  }
+
+  const mcpConfig = {
+    mcpServers: {
+      "ai-workflow": {
+        command: "bun",
+        args: ["run", mcpPath]
+      }
+    }
+  };
+
+  const configs = {
+    binaries: linkedPaths,
+    mcpServerPath: mcpPath,
+    cliPath: cliPath,
+    claudeCodeCommand: `claude mcp add ai-workflow bun run ${mcpPath}`,
+    mcpConfig
+  };
+
+  if (isJson) {
+    console.log(JSON.stringify(configs, null, 2));
+    return;
+  }
+
+  if (isLinkOnly) {
+    console.log(`\x1b[32mSuccessfully linked binaries to PATH:\x1b[0m`);
+    for (const p of linkedPaths) console.log(`  - ${p}`);
+    return;
+  }
+
+  if (isClaude) {
+    console.log(`\x1b[1;36m=== Claude Code CLI Command ===\x1b[0m`);
+    console.log(`claude mcp add ai-workflow bun run ${mcpPath}\n`);
+    console.log(`\x1b[1;36m=== Claude Desktop Config ===\x1b[0m`);
+    console.log(JSON.stringify(mcpConfig, null, 2));
+    return;
+  }
+
+  if (isCursor) {
+    console.log(`\x1b[1;36m=== Cursor MCP Config (.cursor/mcp.json) ===\x1b[0m`);
+    console.log(JSON.stringify(mcpConfig, null, 2));
+    return;
+  }
+
+  if (isGemini) {
+    console.log(`\x1b[1;36m=== Gemini CLI Config (~/.gemini/settings.json) ===\x1b[0m`);
+    console.log(JSON.stringify(mcpConfig, null, 2));
+    return;
+  }
+
+  if (isWindsurf) {
+    console.log(`\x1b[1;36m=== Windsurf MCP Config (~/.codeium/windsurf/mcp_config.json) ===\x1b[0m`);
+    console.log(JSON.stringify(mcpConfig, null, 2));
+    return;
+  }
+
+  console.log(`\x1b[1;36m==================================================\x1b[0m`);
+  console.log(`\x1b[1;37m   AI-WORKFLOW CLIENT & MCP SETUP WIZARD\x1b[0m`);
+  console.log(`\x1b[1;36m==================================================\x1b[0m\n`);
+
+  console.log(`\x1b[1;32m1. Global CLI Binaries Linked:\x1b[0m`);
+  if (linkedPaths.length > 0) {
+    for (const p of linkedPaths) console.log(`   - \x1b[1m${p}\x1b[0m`);
+  } else {
+    console.log(`   (Run: bun link or check permissions on ~/.local/bin)`);
+  }
+  console.log(`\n   You can now run: \x1b[1;33maiwf --help\x1b[0m or \x1b[1;33mai-workflow status\x1b[0m anywhere.\n`);
+
+  console.log(`\x1b[1;32m2. Claude Code CLI Setup:\x1b[0m`);
+  console.log(`   \x1b[1mclaude mcp add ai-workflow bun run ${mcpPath}\x1b[0m\n`);
+
+  console.log(`\x1b[1;32m3. Claude Desktop / Cursor / Windsurf / Gemini CLI MCP Config:\x1b[0m`);
+  console.log(JSON.stringify(mcpConfig, null, 2));
+  console.log(`\n   Add to:`);
+  console.log(`   - Claude Desktop: ~/.config/Claude/claude_desktop_config.json`);
+  console.log(`   - Cursor: .cursor/mcp.json or Global Settings > Features > MCP`);
+  console.log(`   - Gemini CLI: ~/.gemini/settings.json (mcpServers)`);
+  console.log(`   - Windsurf: ~/.codeium/windsurf/mcp_config.json`);
+  console.log(`\n\x1b[1;32mSetup complete! ✅\x1b[0m`);
+}
 
 async function main() {
   switch (command) {
@@ -178,12 +310,19 @@ async function main() {
       break;
     }
 
+    case 'setup':
+    case 'install': {
+      handleSetup(args.slice(1));
+      break;
+    }
+
     case 'help':
     default: {
       console.log(`
 ai-workflow - Bun-First Causal Engineering OS & Project Visibility Engine
 
 Commands:
+  setup / install            Link global CLI binaries & print/export AI client MCP configurations
   sync                       Index codebase, parse symbols & notes, and reconcile Markdown
   status / view              Print ANSI TUI project health & module dependency matrix
   audit                      Validate codebase against enforcement policies & guidelines

@@ -2,6 +2,14 @@ import { Database, Statement } from 'bun:sqlite';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { Entity, Relation, CodeNote, RunArtifact, TicketContext, ProjectHealth, TicketLane } from './types.ts';
+import { 
+  SemanticPackage, 
+  SqliteStore, 
+  AbstractEntity, 
+  EntityDcr, 
+  PredicateDcr,
+  RawOntology
+} from '@dharmax/semantika';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS entities (
@@ -53,9 +61,29 @@ CREATE INDEX IF NOT EXISTS idx_notes_type ON code_notes(note_type);
 CREATE INDEX IF NOT EXISTS idx_artifacts_ticket ON run_artifacts(ticket_id);
 `;
 
+// Semantika Entity Classes for Workflow
+export class WorkflowNode extends AbstractEntity {
+  static template = {
+    title: { validate: (v: any) => ({ value: v }) },
+    type: { validate: (v: any) => ({ value: v }) }
+  };
+  static readonly dcr = new EntityDcr(WorkflowNode, WorkflowNode.template);
+}
+
+// Semantika Predicate Descriptors for Workflow
+export const workflowPredicates = {
+  implements: new PredicateDcr('implements', [], { target: ['title'] }),
+  governs: new PredicateDcr('governs', [], { target: ['title'] }),
+  modifies: new PredicateDcr('modifies', [], { target: ['title'] }),
+  contains: new PredicateDcr('contains', [], { target: ['title'] }),
+  addresses: new PredicateDcr('addresses', [], { target: ['title'] })
+};
+
 export class WorkflowStore {
   public db: Database;
   public root: string;
+  public semantikaStore: SqliteStore;
+  public semanticPackage: SemanticPackage;
   private stmtUpsertEntity: Statement;
   private stmtAddRelation: Statement;
 
@@ -63,11 +91,19 @@ export class WorkflowStore {
     this.root = path.resolve(projectRoot);
     const dbDir = path.join(this.root, '.ai-workflow', 'state');
     mkdirSync(dbDir, { recursive: true });
+    
     this.db = new Database(path.join(dbDir, 'workflow.db'));
     this.db.exec('PRAGMA journal_mode = WAL;');
     this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA busy_timeout = 5000;');
     this.db.exec(SCHEMA);
+
+    // Initialize Semantika integration on shared SQLite instance
+    this.semantikaStore = new SqliteStore(this.db);
+    this.semanticPackage = new SemanticPackage('aiwf', new RawOntology(
+      [WorkflowNode.dcr],
+      Object.values(workflowPredicates)
+    ), this.semantikaStore);
 
     this.stmtUpsertEntity = this.db.prepare(`
       INSERT INTO entities (id, type, title, lane, status, body, metadata, created_at, updated_at)

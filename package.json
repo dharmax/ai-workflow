@@ -1,7 +1,7 @@
 {
   "name": "ai-workflow",
   "version": "1.0.0",
-  "private": false,
+  "private": true,
   "type": "module",
   "description": "Bun-First Causal Engineering OS, Project Visibility Engine, and MCP Host Bridge.",
   "main": "./src/index.ts",
@@ -16,20 +16,24 @@
     "README.md"
   ],
   "scripts": {
+    "setup": "bun src/cli.ts setup",
+    "link:bin": "bun src/cli.ts setup --link",
     "sync": "bun src/cli.ts sync",
     "status": "bun src/cli.ts status",
     "audit": "bun src/cli.ts audit",
+    "metrics": "bun src/cli.ts metrics",
     "shell": "bun src/cli.ts shell",
     "mcp": "bun src/cli.ts mcp",
     "ui": "bun src/cli.ts ui",
-    "test": "bun test tests/engine.test.ts"
+    "test": "bun test"
   },
   "dependencies": {
-    "@dharmax/block-patcher": "git+ssh://git@github.com/dharmax/block-patcher.git",
-    "@dharmax/codebase-parser": "git+ssh://git@github.com/dharmax/codebase-parser.git",
-    "@dharmax/context-manager": "git+ssh://git@github.com/dharmax/context-manager.git",
-    "@dharmax/llm-utils": "git+ssh://git@github.com/dharmax/llm-utils.git",
-    "@dharmax/text-compiler": "git+ssh://git@github.com/dharmax/text-compiler.git",
+    "@dharmax/block-patcher": "file:../block-patcher",
+    "@dharmax/codebase-parser": "file:../codebase-parser",
+    "@dharmax/context-manager": "file:../context-manager",
+    "@dharmax/llm-utils": "file:../llm-utils",
+    "@dharmax/semantika": "file:../semantika",
+    "@dharmax/text-compiler": "file:../text-compiler",
     "@modelcontextprotocol/sdk": "^1.6.0",
     "zod": "^3.24.2"
   },

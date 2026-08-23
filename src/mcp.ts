@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -201,3 +202,11 @@ export async function runMcpStdio(projectRoot?: string) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
+
+if (import.meta.main) {
+  runMcpStdio().catch(err => {
+    console.error('MCP Server Error:', err);
+    process.exit(1);
+  });
+}
+

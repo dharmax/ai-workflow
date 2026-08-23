@@ -1,38 +1,7 @@
-import { HeuristicContextManager, LeanContextCompressor } from '@dharmax/context-manager';
+import { HeuristicContextManager, LeanContextCompressor, MemoryContextStore } from '@dharmax/context-manager';
 import { WorkflowStore } from './store.ts';
 import { MetricsCollector } from './metrics.ts';
 import type { TicketContext } from './types.ts';
-
-interface ContextBlock {
-  id: string;
-  title: string;
-  body: string;
-  category: string;
-  tags: string[];
-  priority?: string;
-}
-
-class InMemoryContextStore {
-  public blocks: ContextBlock[] = [];
-
-  add(block: { id: string; title: string; body: string; category: string; tags?: string[]; priority?: string }) {
-    this.blocks.push({
-      ...block,
-      tags: block.tags ?? [block.category]
-    });
-  }
-
-  async query(queryText: string, categories: string[] = []): Promise<ContextBlock[]> {
-    const tokens = (queryText || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
-
-    return this.blocks.filter(b => {
-      if (categories.length > 0 && categories.includes(b.category)) return true;
-      if (tokens.length === 0) return true;
-      const text = `${b.title} ${b.body}`.toLowerCase();
-      return tokens.some(t => text.includes(t));
-    });
-  }
-}
 
 export async function packTicketContext(
   store: WorkflowStore, 
@@ -45,10 +14,10 @@ export async function packTicketContext(
     return { rendered: '', context: null, tokenCount: 0, rawTokens: 0, compressionRatio: 0 };
   }
 
-  const inMemoryStore = new InMemoryContextStore();
+  const inMemoryStore = new MemoryContextStore();
 
   // 1. Pinned: Active Ticket & Verification Requirement
-  inMemoryStore.add({
+  await inMemoryStore.add({
     id: `ticket:${context.ticket.id}`,
     title: `Ticket ${context.ticket.id}: ${context.ticket.title}`,
     body: [
@@ -63,7 +32,7 @@ export async function packTicketContext(
 
   // 2. Pinned: Parent Epic
   if (context.epic) {
-    inMemoryStore.add({
+    await inMemoryStore.add({
       id: `epic:${context.epic.id}`,
       title: `Parent Epic ${context.epic.id}: ${context.epic.title}`,
       body: context.epic.body || 'No epic body specified.',
@@ -76,7 +45,7 @@ export async function packTicketContext(
   // 3. Working: Linked Source Files & AST Symbols
   if (context.linkedSymbols.length > 0) {
     const symbolLines = context.linkedSymbols.map(s => `- ${s.kind} ${s.name} (${s.file}:${s.line})`);
-    inMemoryStore.add({
+    await inMemoryStore.add({
       id: `symbols:${context.ticket.id}`,
       title: 'Target Codebase Symbols',
       body: symbolLines.join('\n'),
@@ -91,7 +60,7 @@ export async function packTicketContext(
     const lessonLines = context.pastLessons.map((l, idx) => 
       `Attempt ${idx + 1} (${l.action}): ${l.status.toUpperCase()} -> Lessons: ${JSON.stringify(l.lessons)}`
     );
-    inMemoryStore.add({
+    await inMemoryStore.add({
       id: `lessons:${context.ticket.id}`,
       title: 'Past Failure Lessons (DO NOT REPEAT)',
       body: lessonLines.join('\n'),
@@ -103,7 +72,7 @@ export async function packTicketContext(
 
   // 5. Retrieved: Active Guidelines & Decisions
   for (const dec of context.decisions) {
-    inMemoryStore.add({
+    await inMemoryStore.add({
       id: `decision:${dec.id}`,
       title: `ADR ${dec.id}: ${dec.title}`,
       body: dec.body || '',
@@ -114,7 +83,7 @@ export async function packTicketContext(
   }
 
   for (const g of context.guidelines) {
-    inMemoryStore.add({
+    await inMemoryStore.add({
       id: `guideline:${g.id}`,
       title: `Guideline: ${g.title}`,
       body: g.body || '',
@@ -124,9 +93,11 @@ export async function packTicketContext(
     });
   }
 
-  const rawTokens = Math.round(inMemoryStore.blocks.reduce((acc, b) => acc + (b.title.length + b.body.length) / 4, 0));
+  const allBlocks = await inMemoryStore.list();
+  const rawTokens = Math.round(allBlocks.reduce((acc, b) => acc + (b.title.length + b.body.length) / 4, 0));
 
-  const hcm = new HeuristicContextManager(inMemoryStore, {
+  const hcm = new HeuristicContextManager({
+    store: inMemoryStore,
     defaultMaxTokens: options.maxTokens ?? 1200
   });
 

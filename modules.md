@@ -4,9 +4,9 @@
 
 | Module | Completion | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `src` | **100%** | 269 | 0 | None |
+| `src` | **100%** | 289 | 0 | None |
 | `scripts` | **100%** | 45 | 0 | None |
-| `tests` | **100%** | 62 | 1 | None |
+| `tests` | **100%** | 66 | 1 | None |
 | `docs` | **100%** | 482 | 0 | None |
 | `design` | **100%** | 0 | 0 | None |
 
