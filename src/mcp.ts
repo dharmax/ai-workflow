@@ -198,6 +198,11 @@ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
 }
 
 export async function runMcpStdio(projectRoot?: string) {
+  if (process.stdin.isTTY) {
+    process.stderr.write('\x1b[1;36mai-workflow MCP server is running on stdio (listening for host JSON-RPC)...\x1b[0m\n');
+    process.stderr.write('\x1b[33mNote: This process is launched automatically by AI clients (Claude Desktop, Cursor, Gemini CLI, Claude Code).\x1b[0m\n');
+    process.stderr.write('Run \x1b[1;32maiwf setup\x1b[0m to see client configurations. Press \x1b[1mCtrl+C\x1b[0m to exit.\n\n');
+  }
   const { server } = createAiWorkflowMcpServer(projectRoot);
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -10,10 +10,10 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-TRUST-005**: Repair MCP ticket-context utility
 - [ ] **TKT-TRUST-004**: Require structured evidence reports
 - [ ] **TKT-TRUST-003**: Make readiness metrics block closure
 - [ ] **TKT-TRUST-002**: Add claim ledger and false-readiness audit
+- [ ] **TKT-TRUST-005**: Repair MCP ticket-context utility
 - [ ] **TKT-PLUGIN-BUN-001**: Expose full agent plugin surface and migrate ai-workflow to Bun
 
 ## In Progress

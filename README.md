@@ -25,35 +25,85 @@ Built with **Bun** and powered by the `@dharmax/*` modular ecosystem, it replace
 
 ---
 
-## 📦 Universal Installation & AI Client Setup
+## 🧭 How It Works: The 3-Step Lifecycle
+
+Think of `aiwf` like `git` or `docker`: you install the CLI once on your machine, then use it inside any project folder.
+
+```
+┌────────────────────────────────────────────────────────┐
+│ 1. ONE-TIME MACHINE INSTALL                            │
+│    Clone repo & link CLI to PATH (`~/.local/bin/aiwf`) │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ 2. DAILY PROJECT DEVELOPMENT                           │
+│    `cd ~/any-project`                                  │
+│    `aiwf sync`   ──► Indexes AST & creates kanban.md   │
+│    `aiwf status` ──► Displays ANSI project dashboard   │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ 3. AI AGENT MCP CONNECTION                             │
+│    Configure Claude / Cursor / Gemini to run `aiwf-mcp`│
+│    AI reads context, checks blast radius & audits rules │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📦 Step 1: One-Time Machine Installation
 
 ### Prerequisites
 * [Bun](https://bun.sh) (>= 1.3.14)
 * [Git](https://git-scm.com)
 
-### 1. Fast One-Step Setup
-Clone the repository and run the setup wizard:
+### Install the CLI Globally
+Clone the engine repository once onto your machine and run setup:
 ```bash
-git clone git@github.com:dharmax/ai-workflow.git
-cd ai-workflow
+git clone git@github.com:dharmax/ai-workflow.git ~/work/ai-workflow
+cd ~/work/ai-workflow
 bun install
 bun run setup
 ```
 
-The `bun run setup` (or `aiwf setup`) command automatically creates symlinks for `aiwf`, `ai-workflow`, and `aiwf-mcp` in `~/.local/bin` and `~/.bun/bin`, making the CLI and MCP binary available globally in your PATH.
+The `bun run setup` (or `aiwf setup`) command automatically links two executables into your `~/.local/bin` and `~/.bun/bin` paths:
+1. **`aiwf`** (or `ai-workflow`): The CLI you run in your terminal for daily work.
+2. **`aiwf-mcp`**: The background stdio server binary launched automatically by AI clients.
 
 ---
 
-### 2. Configure for Your AI CLI or Client
+## 🛠️ Step 2: Using `aiwf` in Any Project
+
+Once installed, you can navigate to **any project directory** on your machine and run:
+
+```bash
+# 1. Navigate to your project
+cd ~/my-project
+
+# 2. Initialize AST symbol indexing and Git markdown ledgers (kanban.md, epics.md)
+aiwf sync
+
+# 3. View the project health dashboard and Kanban state
+aiwf status
+
+# 4. Check recommended next high-priority task
+aiwf next
+
+# 5. Launch the local graph and web dashboard
+aiwf ui
+```
+
+---
+
+## 🤖 Step 3: Connect Your AI Clients (Claude, Cursor, Gemini)
+
+Configure your preferred AI editor to use the `aiwf-mcp` server. Your AI client will automatically launch `aiwf-mcp` in the background when inspecting projects.
 
 #### 🤖 Claude Code CLI (`claude`)
-Add `ai-workflow` to Claude Code with one command:
 ```bash
 claude mcp add ai-workflow aiwf-mcp
-```
-*Or directly via Bun:*
-```bash
-claude mcp add ai-workflow bun run /path/to/ai-workflow/src/mcp.ts
 ```
 
 ---
@@ -68,8 +118,7 @@ Add to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "ai-workflow": {
-      "command": "bun",
-      "args": ["run", "/path/to/ai-workflow/src/mcp.ts"]
+      "command": "aiwf-mcp"
     }
   }
 }
@@ -83,8 +132,7 @@ Add the MCP server to `~/.gemini/settings.json`:
 {
   "mcpServers": {
     "ai-workflow": {
-      "command": "bun",
-      "args": ["run", "/path/to/ai-workflow/src/mcp.ts"]
+      "command": "aiwf-mcp"
     }
   }
 }
@@ -99,8 +147,7 @@ Add to `.cursor/mcp.json` in your project root, or under **Cursor Settings > Fea
 {
   "mcpServers": {
     "ai-workflow": {
-      "command": "bun",
-      "args": ["run", "/path/to/ai-workflow/src/mcp.ts"]
+      "command": "aiwf-mcp"
     }
   }
 }
@@ -114,8 +161,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 {
   "mcpServers": {
     "ai-workflow": {
-      "command": "bun",
-      "args": ["run", "/path/to/ai-workflow/src/mcp.ts"]
+      "command": "aiwf-mcp"
     }
   }
 }
@@ -129,8 +175,7 @@ Add to your `cline_mcp_settings.json`:
 {
   "mcpServers": {
     "ai-workflow": {
-      "command": "bun",
-      "args": ["run", "/path/to/ai-workflow/src/mcp.ts"]
+      "command": "aiwf-mcp"
     }
   }
 }
@@ -138,19 +183,16 @@ Add to your `cline_mcp_settings.json`:
 
 ---
 
-#### 💻 Direct CLI / Agent Stdio
-Any AI agent or tool supporting standard MCP over stdio can spawn `aiwf-mcp` or `aiwf mcp` directly.
-
-To export the full configuration programmatically:
+#### 📋 Quick Config Exporter
+To view or export these configuration snippets directly from your terminal:
 ```bash
-aiwf setup --json
+aiwf setup          # Prints visual interactive configuration guide
+aiwf setup --json   # Outputs raw JSON dictionary for scripting
 ```
 
 ---
 
-## 🚀 CLI Commands Reference
-
-`ai-workflow` provides a clean, expressive CLI accessible via `aiwf` or `ai-workflow`:
+## 🚀 Complete CLI Reference (For Humans)
 
 ```bash
 aiwf <command> [arguments] [options]
@@ -159,7 +201,7 @@ aiwf <command> [arguments] [options]
 | Command | Arguments / Flags | Description |
 |---|---|---|
 | `aiwf setup` | `[--link \| --claude \| --cursor \| --gemini \| --windsurf \| --json]` | Link global CLI binaries & print/export AI client MCP configurations. |
-| `aiwf sync` | *(none)* | Index codebase AST symbols & notes, reconcile Markdown projections & guidelines. |
+| `aiwf sync` | *(none)* | Index current directory codebase AST symbols & notes, reconcile Markdown projections & guidelines. |
 | `aiwf status` / `view` | *(none)* | Render ANSI TUI project health, completion bars, and bug badges (`🔴`). |
 | `aiwf audit` | *(none)* | Validate codebase against machine-enforced policies and guidelines in `enforcement.md`. |
 | `aiwf metrics` | *(none)* | Display live context compression ratios, token savings, and execution latencies. |
@@ -175,9 +217,9 @@ aiwf <command> [arguments] [options]
 
 ---
 
-## 🔌 Model Context Protocol (MCP) Tools
+## 🔌 Model Context Protocol (MCP) Tools (For AI Agents)
 
-When configured in host agents (Claude, Gemini, Cursor, Antigravity, Windsurf), `ai-workflow` exposes 13 high-leverage tools:
+When configured in host agents, `ai-workflow` exposes 13 high-leverage tools:
 
 | # | Tool Name | Description & Parameters |
 |---|---|---|
@@ -199,7 +241,7 @@ When configured in host agents (Claude, Gemini, Cursor, Antigravity, Windsurf), 
 
 ## 🧠 AI Agent Operating Protocol
 
-When working inside a repository managed by `ai-workflow`, AI agents should follow the **MCP-First Execution Loop**:
+When working inside a repository managed by `ai-workflow`, AI agents follow the **MCP-First Execution Loop**:
 
 ```
 [Start Session / Ticket]
@@ -222,11 +264,6 @@ When working inside a repository managed by `ai-workflow`, AI agents should foll
         ▼
 6. Close Ticket        ───► MCP: update_ticket_state(ticketId, lane="Done", status="verified")
 ```
-
-### Key Guardrails for AI Agents
-1. **Never Invent Parallel State**: Canonical workflow state is stored in SQLite (`.ai-workflow/state/workflow.db`) and projected to `kanban.md`, `epics.md`, `decisions.md`. Use `aiwf sync` or MCP tools to update state.
-2. **Context Budgeting**: Rely on `get_ticket_context` rather than reading raw repository files indiscriminately to preserve token economy and avoid hallucination.
-3. **Verification Before Done**: Run `audit_guidelines` and test suites before marking any ticket as `Done`.
 
 ---
 

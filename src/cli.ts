@@ -24,10 +24,14 @@ const mcpPath = path.resolve(__dirname, 'mcp.ts');
 const args = process.argv.slice(2);
 const command = args[0]?.toLowerCase() || 'status';
 
-const store = new WorkflowStore();
-const decisions = new DecisionManager(store);
-const compiler = new CodeletEngine(store);
-const metrics = new MetricsCollector(store);
+let _store: WorkflowStore | null = null;
+function getStore() {
+  if (!_store) _store = new WorkflowStore();
+  return _store;
+}
+function getDecisions() { return new DecisionManager(getStore()); }
+function getCompiler() { return new CodeletEngine(getStore()); }
+function getMetrics() { return new MetricsCollector(getStore()); }
 
 function handleSetup(cliArgs: string[]) {
   const isJson = cliArgs.includes('--json');
@@ -155,6 +159,7 @@ async function main() {
   switch (command) {
     case 'sync': {
       console.log('\x1b[36mIndexing codebase...\x1b[0m');
+      const store = getStore();
       const idx = await indexCodebase(store);
       console.log(`Indexed ${idx.filesCount} files, ${idx.symbolsCount} AST symbols, ${idx.notesCount} code notes.`);
       console.log('\x1b[36mReconciling Markdown projections and guidelines...\x1b[0m');
@@ -166,7 +171,7 @@ async function main() {
 
     case 'audit': {
       console.log('\x1b[36mAuditing codebase against enforcement policies and guidelines...\x1b[0m');
-      const res = await auditCodebase(store);
+      const res = await auditCodebase(getStore());
       if (res.passed) {
         console.log('\x1b[32mAudit Passed! 0 guideline violations found. ✅\x1b[0m');
       } else {
@@ -182,7 +187,7 @@ async function main() {
     }
 
     case 'metrics': {
-      const summary = metrics.getSummary();
+      const summary = getMetrics().getSummary();
       console.log(`\x1b[1;36m=== Context & Performance Telemetry Metrics ===\x1b[0m`);
       console.log(`Total Context Packs: \x1b[1m${summary.totalContextPacks}\x1b[0m`);
       console.log(`Total Tokens Saved:  \x1b[1;32m${summary.totalTokensSaved.toLocaleString()} tokens\x1b[0m`);
@@ -199,13 +204,13 @@ async function main() {
 
     case 'status':
     case 'view': {
-      console.log(renderTuiDashboard(store));
+      console.log(renderTuiDashboard(getStore()));
       break;
     }
 
     case 'shell':
     case 'repl': {
-      const shell = new InteractiveShell(store);
+      const shell = new InteractiveShell(getStore());
       await shell.start();
       break;
     }
@@ -221,7 +226,7 @@ async function main() {
         console.log('Usage: ai-workflow impact <file-or-symbol>');
         process.exit(1);
       }
-      const res = getBlastRadius(store, target);
+      const res = getBlastRadius(getStore(), target);
       console.log(`\x1b[1;36mBlast Radius for "${target}":\x1b[0m ${res.affectedFilesCount} files affected.`);
       console.log(`Files: ${res.affectedFiles.join(', ')}`);
       console.log(`Affected Tickets: ${res.affectedTickets.map(t => t.id).join(', ') || 'None'}`);
@@ -232,7 +237,7 @@ async function main() {
     case 'digest':
     case 'standup': {
       const hours = parseInt(args[1] || '24', 10);
-      const dig = generateDigest(store, hours);
+      const dig = generateDigest(getStore(), hours);
       console.log(`\x1b[1;32m=== Daily Digest (Past ${hours}h) ===\x1b[0m`);
       console.log(`Completed Tickets: ${dig.completedTickets.map(t => t.id).join(', ') || 'None'}`);
       console.log(`In Progress: ${dig.inProgressTickets.map(t => t.id).join(', ') || 'None'}`);
@@ -242,7 +247,7 @@ async function main() {
     }
 
     case 'next': {
-      const next = recommendNextTask(store);
+      const next = recommendNextTask(getStore());
       console.log(`\x1b[1;33mRecommended Next Task:\x1b[0m ${next.ticket ? `${next.ticket.id}: ${next.ticket.title}` : 'None'}`);
       console.log(`Reason: ${next.reason}`);
       break;
@@ -250,7 +255,7 @@ async function main() {
 
     case 'doctor': {
       const fix = args.includes('--fix');
-      const doc = doctorCheck(store, { fix });
+      const doc = doctorCheck(getStore(), { fix });
       console.log(`\x1b[1;34m=== Repo Doctor Health Report ===\x1b[0m`);
       console.log(`Total Files: ${doc.totalFiles}`);
       console.log(`Unlinked Bug Notes (TODO/FIXME): ${doc.unlinkedBugNotes}`);
@@ -264,6 +269,8 @@ async function main() {
 
     case 'decision': {
       const sub = args[1]?.toLowerCase();
+      const decisions = getDecisions();
+      const store = getStore();
       if (sub === 'revert' && args[2]) {
         const reason = args.slice(3).join(' ') || 'Reverted by operator';
         const res = decisions.revertDecision(args[2], reason);
@@ -292,7 +299,7 @@ async function main() {
 
     case 'ui': {
       const port = parseInt(args[1] || '3456', 10);
-      startWebServer(store, port);
+      startWebServer(getStore(), port);
       break;
     }
 
@@ -303,7 +310,7 @@ async function main() {
         process.exit(1);
       }
       console.log(`\x1b[33mSynthesizing and running routine for: "${wish}"...\x1b[0m`);
-      const codelet = await compiler.compileWish(wish);
+      const codelet = await getCompiler().compileWish(wish);
       console.log(`Compiled codelet: ${codelet.meta.title}`);
       const res = await codelet.execute({});
       console.log('Result:', res);

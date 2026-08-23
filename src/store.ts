@@ -11,55 +11,82 @@ import {
   RawOntology
 } from '@dharmax/semantika';
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS entities (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL,
-  title TEXT NOT NULL,
-  lane TEXT,
-  status TEXT,
-  body TEXT,
-  metadata TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
+function initSchema(db: Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS entities (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      lane TEXT,
+      status TEXT,
+      body TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
 
-CREATE TABLE IF NOT EXISTS relations (
-  from_id TEXT NOT NULL,
-  to_id TEXT NOT NULL,
-  relation TEXT NOT NULL,
-  metadata TEXT,
-  PRIMARY KEY(from_id, to_id, relation)
-);
+    CREATE TABLE IF NOT EXISTS relations (
+      from_id TEXT NOT NULL,
+      to_id TEXT NOT NULL,
+      relation TEXT NOT NULL,
+      metadata TEXT,
+      PRIMARY KEY(from_id, to_id, relation)
+    );
 
-CREATE TABLE IF NOT EXISTS code_notes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  file_path TEXT NOT NULL,
-  line INTEGER NOT NULL,
-  col INTEGER DEFAULT 0,
-  note_type TEXT NOT NULL,
-  body TEXT NOT NULL,
-  ticket_id TEXT
-);
+    CREATE TABLE IF NOT EXISTS code_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_path TEXT NOT NULL,
+      line INTEGER NOT NULL,
+      col INTEGER DEFAULT 0,
+      note_type TEXT NOT NULL,
+      body TEXT NOT NULL,
+      ticket_id TEXT
+    );
 
-CREATE TABLE IF NOT EXISTS run_artifacts (
-  id TEXT PRIMARY KEY,
-  ticket_id TEXT,
-  action TEXT NOT NULL,
-  status TEXT NOT NULL,
-  output TEXT,
-  lessons TEXT,
-  created_at TEXT NOT NULL
-);
+    CREATE TABLE IF NOT EXISTS run_artifacts (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT,
+      action TEXT NOT NULL,
+      status TEXT NOT NULL,
+      output TEXT,
+      lessons TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
 
-CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
-CREATE INDEX IF NOT EXISTS idx_entities_lane ON entities(lane);
-CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_id);
-CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id);
-CREATE INDEX IF NOT EXISTS idx_notes_file ON code_notes(file_path);
-CREATE INDEX IF NOT EXISTS idx_notes_type ON code_notes(note_type);
-CREATE INDEX IF NOT EXISTS idx_artifacts_ticket ON run_artifacts(ticket_id);
-`;
+  // Migrate older tables if necessary
+  try {
+    const cols = (db.query("PRAGMA table_info(entities)").all() as any[]).map(c => c.name);
+    if (!cols.includes('type') && cols.includes('entity_type')) {
+      db.exec("ALTER TABLE entities ADD COLUMN type TEXT;");
+      db.exec("UPDATE entities SET type = entity_type WHERE type IS NULL;");
+    } else if (!cols.includes('type')) {
+      db.exec("ALTER TABLE entities ADD COLUMN type TEXT DEFAULT 'ticket';");
+    }
+    if (!cols.includes('body')) {
+      db.exec("ALTER TABLE entities ADD COLUMN body TEXT;");
+    }
+    if (!cols.includes('metadata')) {
+      db.exec("ALTER TABLE entities ADD COLUMN metadata TEXT;");
+    }
+    if (!cols.includes('lane')) {
+      db.exec("ALTER TABLE entities ADD COLUMN lane TEXT;");
+    }
+    if (!cols.includes('status')) {
+      db.exec("ALTER TABLE entities ADD COLUMN status TEXT;");
+    }
+  } catch {}
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
+    CREATE INDEX IF NOT EXISTS idx_entities_lane ON entities(lane);
+    CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_id);
+    CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_file ON code_notes(file_path);
+    CREATE INDEX IF NOT EXISTS idx_notes_type ON code_notes(note_type);
+    CREATE INDEX IF NOT EXISTS idx_artifacts_ticket ON run_artifacts(ticket_id);
+  `);
+}
 
 // Semantika Entity Classes for Workflow
 export class WorkflowNode extends AbstractEntity {
@@ -96,7 +123,7 @@ export class WorkflowStore {
     this.db.exec('PRAGMA journal_mode = WAL;');
     this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA busy_timeout = 5000;');
-    this.db.exec(SCHEMA);
+    initSchema(this.db);
 
     // Initialize Semantika integration on shared SQLite instance
     this.semantikaStore = new SqliteStore(this.db);
