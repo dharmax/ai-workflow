@@ -11,6 +11,7 @@ export async function exportMarkdown(store: WorkflowStore) {
   const root = store.root;
   const tickets = store.listEntities({ type: 'ticket' });
   const epics = store.listEntities({ type: 'epic' });
+  const userStories = store.listEntities({ type: 'user_story' });
   const decisions = store.listEntities({ type: 'decision' });
   const health = store.getProjectHealth();
 
@@ -41,9 +42,10 @@ export async function exportMarkdown(store: WorkflowStore) {
     epicsMd += `## ${epic.id}: ${epic.title}\n\n`;
     if (epic.body) epicsMd += `${epic.body}\n\n`;
     const children = store.getOutgoing(epic.id, 'implements').concat(store.getIncoming(epic.id, 'implements'));
-    if (children.length > 0) {
+    const linkedTickets = children.filter(c => c.type === 'ticket');
+    if (linkedTickets.length > 0) {
       epicsMd += `### Linked Tickets\n`;
-      for (const c of children) {
+      for (const c of linkedTickets) {
         epicsMd += `- **${c.id}** [${c.lane || 'Backlog'}]: ${c.title}\n`;
       }
       epicsMd += `\n`;
@@ -51,7 +53,46 @@ export async function exportMarkdown(store: WorkflowStore) {
   }
   await writeFile(path.join(root, 'epics.md'), epicsMd, 'utf8');
 
-  // 3. decisions.md (ADRs)
+  // 3. user-stories.md
+  const userStoriesPath = path.join(root, 'user-stories.md');
+  if (userStories.length > 0) {
+    let storiesMd = `# User Stories & Narrative Specifications\n\n`;
+    for (const epic of epics) {
+      const epicStories = userStories.filter(us => {
+        const parents = store.getOutgoing(us.id, 'implements').concat(store.getIncoming(us.id, 'implements'));
+        return parents.some(p => p.id === epic.id) || us.metadata?.epicId === epic.id;
+      });
+
+      if (epicStories.length > 0) {
+        storiesMd += `## ${epic.id}: ${epic.title}\n\n`;
+        for (const us of epicStories) {
+          storiesMd += `### \`${us.id}\`: ${us.title}\n`;
+          if (us.metadata?.actor && us.metadata?.story) {
+            storiesMd += `- **Actor & Story**: As a **${us.metadata.actor}**, I want to ${us.metadata.story}\n`;
+          } else if (us.body) {
+            storiesMd += `${us.body}\n\n`;
+          }
+          if (us.metadata?.context) {
+            storiesMd += `- **Context**: ${us.metadata.context}\n`;
+          }
+          if (Array.isArray(us.metadata?.acceptanceCriteria) && us.metadata.acceptanceCriteria.length > 0) {
+            storiesMd += `- **Acceptance Criteria**:\n`;
+            for (const ac of us.metadata.acceptanceCriteria) {
+              storiesMd += `  - [ ] ${ac}\n`;
+            }
+          }
+          if (us.metadata?.linkedTicket) {
+            storiesMd += `- **Linked Ticket**: \`${us.metadata.linkedTicket}\`\n\n`;
+          } else {
+            storiesMd += `\n`;
+          }
+        }
+      }
+    }
+    await writeFile(userStoriesPath, storiesMd, 'utf8');
+  }
+
+  // 4. decisions.md (ADRs)
   let decisionsMd = `# Architectural Decision Records (ADRs)\n\n`;
   for (const dec of decisions) {
     decisionsMd += `## ${dec.id}: ${dec.title}\n`;
@@ -62,7 +103,7 @@ export async function exportMarkdown(store: WorkflowStore) {
   }
   await writeFile(path.join(root, 'decisions.md'), decisionsMd, 'utf8');
 
-  // 4. modules.md
+  // 5. modules.md
   let modulesMd = `# Architecture & Modules\n\n`;
   modulesMd += `## Module Health\n\n`;
   modulesMd += `| Module | Completion | Symbols | Bugs 🔴 | Active Tickets |\n`;
@@ -89,10 +130,101 @@ export async function exportMarkdown(store: WorkflowStore) {
 export async function importMarkdown(store: WorkflowStore) {
   const root = store.root;
   const kanbanPath = path.join(root, 'kanban.md');
+  const epicsPath = path.join(root, 'epics.md');
+  const userStoriesPath = path.join(root, 'user-stories.md');
 
-  // Import Guidelines & Enforcement Policies
+  // 1. Import Guidelines & Enforcement Policies
   await parseAndStoreGuidelines(store);
 
+  // 2. Import Epics
+  if (existsSync(epicsPath)) {
+    const epicsContent = await readFile(epicsPath, 'utf8');
+    const epicBlocks = epicsContent.split(/\n##\s+/);
+    for (let i = 1; i < epicBlocks.length; i++) {
+      const block = epicBlocks[i];
+      const lines = block.split('\n');
+      const headerMatch = lines[0].match(/^([A-Z0-9_-]+):\s*(.+)$/);
+      if (headerMatch) {
+        const id = headerMatch[1].trim();
+        const title = headerMatch[2].trim();
+        const bodyLines = lines.slice(1).filter(l => !l.startsWith('### Linked Tickets') && !l.startsWith('- **TKT-'));
+        const body = bodyLines.join('\n').trim();
+        const existing = store.getEntity(id);
+        store.upsertEntity({
+          id,
+          type: 'epic',
+          title: title || existing?.title || id,
+          status: existing?.status || 'planned',
+          body: body || existing?.body || ''
+        });
+      }
+    }
+  }
+
+  // 3. Import User Stories
+  if (existsSync(userStoriesPath)) {
+    const storiesContent = await readFile(userStoriesPath, 'utf8');
+    const sections = storiesContent.split(/\n###\s+/);
+    let currentEpicId: string | null = null;
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const epicHeaderMatch = section.match(/##\s+([A-Z0-9_-]+):/);
+      if (epicHeaderMatch) {
+        currentEpicId = epicHeaderMatch[1].trim();
+      }
+
+      const headerMatch = section.match(/^`?([A-Z0-9_-]+)`?:\s*(.+)$/m);
+      if (headerMatch && headerMatch[1].startsWith('US-')) {
+        const id = headerMatch[1].trim();
+        const title = headerMatch[2].trim();
+        
+        const actorMatch = section.match(/-\s+\*\*Actor & Story\*\*:\s*As an?\s+\*\*([^*]+)\*\*,\s*I want to\s+([\s\S]*?)(?=\n-|\n\n|$)/i);
+        const contextMatch = section.match(/-\s+\*\*Context\*\*:\s*([\s\S]*?)(?=\n-|\n\n|$)/i);
+        const criteriaMatches = Array.from(section.matchAll(/-\s+\[.\]\s+(.+)$/gm)).map(m => m[1].trim());
+        const ticketMatch = section.match(/-\s+\*\*Linked Ticket\*\*:\s*`?([A-Z0-9_-]+)`?/i);
+
+        const actor = actorMatch ? actorMatch[1].trim() : undefined;
+        const story = actorMatch ? actorMatch[2].trim() : undefined;
+        const context = contextMatch ? contextMatch[1].trim() : undefined;
+        const linkedTicket = ticketMatch ? ticketMatch[1].trim() : undefined;
+
+        const existing = store.getEntity(id);
+        store.upsertEntity({
+          id,
+          type: 'user_story',
+          title: title || existing?.title || id,
+          status: existing?.status || 'planned',
+          body: section.trim(),
+          metadata: {
+            actor,
+            story,
+            context,
+            acceptanceCriteria: criteriaMatches,
+            linkedTicket,
+            epicId: currentEpicId
+          }
+        });
+
+        if (currentEpicId) {
+          store.addRelation({
+            fromId: id,
+            toId: currentEpicId,
+            relation: 'implements'
+          });
+        }
+        if (linkedTicket) {
+          store.addRelation({
+            fromId: linkedTicket,
+            toId: id,
+            relation: 'implements'
+          });
+        }
+      }
+    }
+  }
+
+  // 4. Import Kanban Tickets
   if (existsSync(kanbanPath)) {
     const content = await readFile(kanbanPath, 'utf8');
     let currentLane: TicketLane | null = null;

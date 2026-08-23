@@ -5,6 +5,7 @@
 export type EntityType = 
   | 'epic' 
   | 'feature' 
+  | 'user_story'
   | 'ticket' 
   | 'intent_block' 
   | 'decision' 
