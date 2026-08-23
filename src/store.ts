@@ -209,6 +209,14 @@ export class WorkflowStore {
     this.db.prepare(`DELETE FROM relations WHERE from_id = ? AND to_id = ? AND relation = ?`).run(fromId, toId, relation);
   }
 
+  clearRelations(fromId: string, relation?: string) {
+    if (relation) {
+      this.db.prepare(`DELETE FROM relations WHERE from_id = ? AND relation = ?`).run(fromId, relation);
+    } else {
+      this.db.prepare(`DELETE FROM relations WHERE from_id = ?`).run(fromId);
+    }
+  }
+
   getOutgoing(fromId: string, relation?: string): Entity[] {
     let sql = `SELECT e.* FROM entities e JOIN relations r ON e.id = r.to_id WHERE r.from_id = ?`;
     const params: any[] = [fromId];
