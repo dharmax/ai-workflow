@@ -1,0 +1,239 @@
+<ticket-inspector>
+  <div class={ 'drawer-overlay ' + (props.ticketData ? 'open' : '') } onclick={ handleOverlayClick }>
+    <div class="drawer-panel" if={ props.ticketData }>
+      <!-- DRAWER HEADER -->
+      <div class="drawer-header">
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <span class="pill" style="color:var(--accent); font-size:13px; font-weight:700;">{ props.ticketData.ticket.id }</span>
+            <span if={ props.ticketData.ticket.metadata && props.ticketData.ticket.metadata.claim } class="claim-badge" style="font-size:11px;">
+              🔒 Claimed by { props.ticketData.ticket.metadata.claim.claimedBy }
+            </span>
+            <span class="status-badge">{ state.editing ? state.form.status : props.ticketData.ticket.status }</span>
+          </div>
+
+          <div if={ !state.editing }>
+            <h2 style="font-size:18px; line-height:1.3; font-weight:700;">{ props.ticketData.ticket.title }</h2>
+          </div>
+          <div if={ state.editing } style="margin-top:6px;">
+            <input type="text" value={ state.form.title } oninput={ (e) => updateField('title', e.target.value) } style="width:100%; padding:6px 10px; background:#0b1120; border:1px solid var(--accent); color:#fff; border-radius:4px; font-size:14px;">
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button onclick={ toggleEdit }>{ state.editing ? 'Cancel' : '✏️ Edit' }</button>
+          <button onclick={ props.onClose } style="font-size:16px; padding:4px 10px;">✕</button>
+        </div>
+      </div>
+
+      <!-- COCKPIT ACTIONS -->
+      <div class="drawer-section">
+        <h4>⚡ Autonomous Cockpit Actions</h4>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+          <button class="primary" onclick={ handleExecute }>⚡ Auto-Execute & Dispatch</button>
+          <button class="success" onclick={ handleVerify }>🧪 Run Verification Command</button>
+          <button onclick={ handleAudit }>🛡️ Audit Rules</button>
+          <button if={ !(props.ticketData.ticket.metadata && props.ticketData.ticket.metadata.claim) } onclick={ handleClaim }>🔒 Lease Ticket (30m)</button>
+          <button if={ props.ticketData.ticket.metadata && props.ticketData.ticket.metadata.claim } class="danger" onclick={ handleRelease }>🔓 Release Lease</button>
+          <button if={ state.editing } class="primary" onclick={ saveTicketEdits }>💾 Save Changes</button>
+        </div>
+
+        <div if={ state.editing } style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;">
+          <div>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Lane</label>
+            <select onchange={ (e) => updateField('lane', e.target.value) } value={ state.form.lane } style="width:100%; padding:6px; background:#0b1120; border:1px solid var(--card-border); color:#fff; border-radius:4px;">
+              <option value="Backlog">Backlog</option>
+              <option value="Todo">Todo</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Done">Done</option>
+              <option value="Blocked">Blocked</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Status Lifecycle</label>
+            <select onchange={ (e) => updateField('status', e.target.value) } value={ state.form.status } style="width:100%; padding:6px; background:#0b1120; border:1px solid var(--card-border); color:#fff; border-radius:4px;">
+              <option value="planned">planned</option>
+              <option value="partial">partial</option>
+              <option value="implemented">implemented</option>
+              <option value="verified">verified</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE TERMINAL CONSOLE / ACTION OUTPUT -->
+      <div if={ state.terminalOutput } class="drawer-section" style="background:#040813; border-color:#38bdf8;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <h4 style="color:#38bdf8; margin:0;">🖥️ Live Execution & Test Console</h4>
+          <button onclick={ () => update({ terminalOutput: null }) } style="padding:2px 8px; font-size:11px;">Clear</button>
+        </div>
+        <pre style="font-family:monospace; font-size:12px; color:#a7f3d0; white-space:pre-wrap; max-height:200px; overflow-y:auto; background:#0b1120; padding:10px; border-radius:4px; border:1px solid #1e293b;">{ state.terminalOutput }</pre>
+      </div>
+
+      <!-- SOFT ARTIFACTS & REQUIREMENTS -->
+      <div class="drawer-section">
+        <h4>📄 Soft Design Artifacts & Requirements</h4>
+        <div if={ !state.editing }>
+          <p style="font-size:13px; color:var(--text); line-height:1.4;">{ props.ticketData.ticket.body || 'No narrative requirements provided.' }</p>
+        </div>
+        <div if={ state.editing }>
+          <textarea oninput={ (e) => updateField('body', e.target.value) } style="width:100%; height:80px; padding:8px; background:#0b1120; border:1px solid var(--accent); color:#fff; border-radius:4px; font-size:13px;">{ state.form.body }</textarea>
+        </div>
+        <div if={ props.ticketData.context && props.ticketData.context.epic } style="margin-top:10px; font-size:12px; border-top:1px solid #1e293b; padding-top:6px;">
+          <strong>Parent Epic:</strong> <span style="color:#60a5fa;">{ props.ticketData.context.epic.id }: { props.ticketData.context.epic.title }</span>
+        </div>
+      </div>
+
+      <!-- HARD CODEBASE COMPONENTS & AST SYMBOLS -->
+      <div class="drawer-section">
+        <h4>🧩 Hard Codebase Components & Linked AST Symbols</h4>
+        <div if={ props.ticketData.context && props.ticketData.context.linkedSymbols && props.ticketData.context.linkedSymbols.length }>
+          <div each={ s in props.ticketData.context.linkedSymbols } style="font-size:12px; margin-top:4px; display:flex; justify-content:space-between;">
+            <span>• <code>{ s.kind } { s.name }</code></span>
+            <span style="color:var(--text-muted); font-size:11px;">{ s.file }:{ s.line }</span>
+          </div>
+        </div>
+        <div if={ !(props.ticketData.context && props.ticketData.context.linkedSymbols && props.ticketData.context.linkedSymbols.length) } style="font-size:12px; color:var(--text-muted);">
+          No direct AST symbols attached to ticket.
+        </div>
+      </div>
+
+      <!-- PAST RUN ARTIFACTS & VERIFICATION LESSONS -->
+      <div class="drawer-section">
+        <h4>📜 Run Artifacts & Verification Lessons</h4>
+        <div if={ props.ticketData.artifacts && props.ticketData.artifacts.length }>
+          <div each={ a in props.ticketData.artifacts } style="font-size:12px; margin-top:8px; border-top:1px solid #1e293b; padding-top:6px;">
+            <div style="display:flex; justify-content:space-between;">
+              <strong style={ a.status === 'passed' ? 'color:#4ade80;' : 'color:#f87171;' }>[{ a.status.toUpperCase() }] { a.action }</strong>
+              <span style="color:var(--text-muted); font-size:11px;">{ a.createdAt }</span>
+            </div>
+            <pre if={ a.lessons } style="font-size:11px; background:#0b1120; padding:6px; border-radius:4px; margin-top:4px; border:1px solid #1e293b; color:#93c5fd;">{ JSON.stringify(a.lessons, null, 2) }</pre>
+          </div>
+        </div>
+        <div if={ !(props.ticketData.artifacts && props.ticketData.artifacts.length) } style="font-size:12px; color:var(--text-muted);">
+          No past failure artifacts or execution lessons recorded.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    export default {
+      state: {
+        editing: false,
+        terminalOutput: null,
+        form: { title: '', body: '', lane: 'Todo', status: 'planned' }
+      },
+      onBeforeUpdate() {
+        if (this.props.ticketData && !this.state.editing) {
+          this.state.form = {
+            title: this.props.ticketData.ticket.title || '',
+            body: this.props.ticketData.ticket.body || '',
+            lane: this.props.ticketData.ticket.lane || 'Todo',
+            status: this.props.ticketData.ticket.status || 'planned'
+          };
+        }
+      },
+      handleOverlayClick(e) {
+        if (e.target.classList.contains('drawer-overlay') && this.props.onClose) {
+          this.props.onClose();
+        }
+      },
+      toggleEdit() {
+        this.update({ editing: !this.state.editing });
+      },
+      updateField(field, value) {
+        this.state.form[field] = value;
+        this.update();
+      },
+      async saveTicketEdits() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        await fetch('/api/tickets/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId, ...this.state.form })
+        });
+        this.update({ editing: false, terminalOutput: 'Saved ticket updates successfully ✅' });
+        if (this.props.onAction) this.props.onAction('refresh', ticketId);
+      },
+      async handleExecute() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        this.update({ terminalOutput: 'Dispatching ticket to Autonomous Shell Engine...\n' });
+        try {
+          const res = await fetch('/api/tickets/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId })
+          }).then(r => r.json());
+          this.update({ terminalOutput: res.output || JSON.stringify(res, null, 2) });
+        } catch (err) {
+          this.update({ terminalOutput: 'Execution error: ' + err.message });
+        }
+        if (this.props.onAction) this.props.onAction('refresh', ticketId);
+      },
+      async handleVerify() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        this.update({ terminalOutput: 'Running automated verification command...\n' });
+        try {
+          const res = await fetch('/api/tickets/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId })
+          }).then(r => r.json());
+          const badge = res.passed ? 'PASSED ✅' : 'FAILED ❌';
+          this.update({ terminalOutput: `[${badge}] ${res.command}\nExit code: ${res.exitCode}\n\n${res.stdout || res.stderr}` });
+        } catch (err) {
+          this.update({ terminalOutput: 'Verification error: ' + err.message });
+        }
+        if (this.props.onAction) this.props.onAction('refresh', ticketId);
+      },
+      async handleAudit() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        this.update({ terminalOutput: 'Auditing guideline policies for ticket files...\n' });
+        try {
+          const res = await fetch('/api/tickets/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId })
+          }).then(r => r.json());
+          if (res.passed) {
+            this.update({ terminalOutput: 'Audit Passed! 0 violations found for linked files. ✅' });
+          } else {
+            let out = `Audit Failed! ${res.violationsCount} violation(s):\n`;
+            for (const f of res.findings) {
+              out += `  - ${f.file}:${f.line} [${f.ruleId}]: ${f.message}\n`;
+            }
+            this.update({ terminalOutput: out });
+          }
+        } catch (err) {
+          this.update({ terminalOutput: 'Audit error: ' + err.message });
+        }
+      },
+      async handleClaim() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        await fetch('/api/tickets/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId, agentId: 'human-ui', durationMinutes: 30 })
+        });
+        this.update({ terminalOutput: `Ticket ${ticketId} claimed for 30m lease. ✅` });
+        if (this.props.onAction) this.props.onAction('refresh', ticketId);
+      },
+      async handleRelease() {
+        if (!this.props.ticketData) return;
+        const ticketId = this.props.ticketData.ticket.id;
+        await fetch('/api/tickets/release', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId })
+        });
+        this.update({ terminalOutput: `Ticket ${ticketId} lease released. ✅` });
+        if (this.props.onAction) this.props.onAction('refresh', ticketId);
+      }
+    }
+  </script>
+</ticket-inspector>

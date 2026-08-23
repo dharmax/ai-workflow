@@ -11,6 +11,10 @@ export class LocalGitTransport implements SyncTransport {
   constructor(private store: WorkflowStore) {}
 
   async sync(): Promise<void> {
+    await exportMarkdown(this.store);
+  }
+
+  async fullReconcile(): Promise<void> {
     await importMarkdown(this.store);
     await exportMarkdown(this.store);
   }

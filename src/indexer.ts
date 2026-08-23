@@ -7,7 +7,7 @@ import type { CodeNote } from './types.ts';
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini', 
-  '.lean-ctx', '.obsidian', 'tmp', 'coverage', '.cache', 'output'
+  '.lean-ctx', '.obsidian', 'tmp', 'coverage', '.cache', 'output', 'fixtures', '__fixtures__'
 ]);
 
 const SUPPORTED_EXTS = new Set([
@@ -16,27 +16,23 @@ const SUPPORTED_EXTS = new Set([
   '.json', '.yaml', '.yml', '.toml', '.md', '.markdown'
 ]);
 
+export function resolveSubsystem(relPath: string): string {
+  const parts = relPath.split(path.sep);
+  if (parts.length === 1) return 'root';
+  if (parts[0] === 'src') {
+    if (parts.length >= 3) return `src/${parts[1]}`;
+    const baseName = path.basename(parts[1], path.extname(parts[1]));
+    return `src/${baseName}`;
+  }
+  return parts[0];
+}
+
 export async function indexCodebase(store: WorkflowStore, rootDir: string = store.root): Promise<{ filesCount: number; symbolsCount: number; notesCount: number }> {
   let filesCount = 0;
   let symbolsCount = 0;
   let notesCount = 0;
-
-  // Prune deleted file and module entities
-  const existingModules = store.listEntities({ type: 'module' });
-  for (const mod of existingModules) {
-    const modDir = path.join(rootDir, mod.title);
-    if (!existsSync(modDir)) {
-      store.deleteEntity(mod.id);
-    }
-  }
-
-  const existingFiles = store.listEntities({ type: 'file' });
-  for (const f of existingFiles) {
-    const fullPath = path.join(rootDir, f.id);
-    if (!existsSync(fullPath)) {
-      store.deleteEntity(f.id);
-    }
-  }
+  const walkedFiles = new Set<string>();
+  const discoveredModules = new Set<string>();
 
   async function walk(currentDir: string) {
     const entries = await readdir(currentDir, { withFileTypes: true });
@@ -49,13 +45,6 @@ export async function indexCodebase(store: WorkflowStore, rootDir: string = stor
       const relPath = path.relative(rootDir, fullPath);
 
       if (entry.isDirectory()) {
-        const moduleTitle = relPath.split(path.sep)[0];
-        store.upsertEntity({
-          id: `mod:${moduleTitle}`,
-          type: 'module',
-          title: moduleTitle,
-          status: 'implemented'
-        });
         await walk(fullPath);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
@@ -65,8 +54,19 @@ export async function indexCodebase(store: WorkflowStore, rootDir: string = stor
           const content = await readFile(fullPath, 'utf8');
           const parsed = parseIndexedFile({ filePath: relPath, content });
           filesCount++;
+          walkedFiles.add(relPath);
+
+          const parentMod = resolveSubsystem(relPath);
+          discoveredModules.add(parentMod);
 
           store.transaction(() => {
+            store.upsertEntity({
+              id: `mod:${parentMod}`,
+              type: 'module',
+              title: parentMod,
+              status: 'implemented'
+            });
+
             const fileEntity = store.upsertEntity({
               id: relPath,
               type: 'file',
@@ -80,7 +80,6 @@ export async function indexCodebase(store: WorkflowStore, rootDir: string = stor
               }
             });
 
-            const parentMod = relPath.includes(path.sep) ? relPath.split(path.sep)[0] : 'root';
             store.addRelation({
               fromId: `mod:${parentMod}`,
               toId: fileEntity.id,
@@ -141,5 +140,23 @@ export async function indexCodebase(store: WorkflowStore, rootDir: string = stor
   }
 
   await walk(rootDir);
+
+  // Prune any existing files and code notes that were not walked
+  const existingFiles = store.listEntities({ type: 'file' });
+  for (const f of existingFiles) {
+    if (!walkedFiles.has(f.id)) {
+      store.deleteEntity(f.id);
+      store.deleteFileNotes(f.id);
+    }
+  }
+
+  // Prune any existing modules that were not discovered
+  const existingModules = store.listEntities({ type: 'module' });
+  for (const m of existingModules) {
+    if (!discoveredModules.has(m.title)) {
+      store.deleteEntity(m.id);
+    }
+  }
+
   return { filesCount, symbolsCount, notesCount };
 }

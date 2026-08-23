@@ -1,0 +1,36 @@
+<page-kanban>
+  <div class="kanban-board">
+    <div class="kanban-col" each={ (lane, idx) in lanes }>
+      <div class="col-header">
+        <span>{ lane.toUpperCase() }</span>
+        <span>{ getTickets(lane).length }</span>
+      </div>
+      <div class="cards">
+        <div class="ticket-card" each={ t in getTickets(lane) } onclick={ () => selectTicket(t) }>
+          <div class="ticket-id">
+            <span>{ t.id }</span>
+            <span if={ t.metadata && t.metadata.claim } class="claim-badge">🔒 { t.metadata.claim.claimedBy }</span>
+          </div>
+          <div class="ticket-title">{ t.title }</div>
+          <div class="ticket-meta">
+            <span class="status-badge">{ t.status || 'planned' }</span>
+            <span style="font-size:10px; color:#64748b;">Click to inspect ↗</span>
+          </div>
+        </div>
+        <div if={ getTickets(lane).length === 0 } style="font-size:12px; color:#475569; padding:16px 0; text-align:center;">Empty</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    export default {
+      lanes: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
+      getTickets(lane) {
+        return (this.props.tickets || []).filter(t => (t.lane || 'Backlog') === lane);
+      },
+      selectTicket(t) {
+        if (this.props.onSelectTicket) this.props.onSelectTicket(t);
+      }
+    }
+  </script>
+</page-kanban>

@@ -8,8 +8,9 @@ import { CodeletEngine } from './compiler.ts';
 import { LocalGitTransport } from './transport.ts';
 import { auditCodebase } from './guidelines.ts';
 import { DecisionManager } from './decisions.ts';
-import { getBlastRadius, generateDigest } from './impact.ts';
+import { getBlastRadius, getFeatureBlastRadius, generateDigest, recommendNextTask, doctorCheck } from './impact.ts';
 import { MetricsCollector } from './metrics.ts';
+import { InteractiveShell } from './shell.ts';
 
 export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
   const store = new WorkflowStore(projectRoot);
@@ -73,7 +74,7 @@ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
       type: 'ticket',
       title: existing?.title || ticketId,
       lane,
-      status: status ?? (lane === 'Done' ? 'verified' : 'implemented')
+      status: status ?? (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'partial' : 'planned')
     });
 
     if (lesson) {
@@ -191,6 +192,97 @@ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
 
     return {
       content: [{ type: 'text', text: JSON.stringify({ matchedEntities: entities, matchedNotes: notes }, null, 2) }]
+    };
+  });
+
+  // 14. claim_ticket
+  server.tool('claim_ticket', 'Atomically claim/lease a ticket for an AI agent to prevent task collision', {
+    ticketId: z.string(),
+    agentId: z.string(),
+    durationMinutes: z.number().optional()
+  }, async ({ ticketId, agentId, durationMinutes }) => {
+    const durationMs = (durationMinutes ?? 30) * 60 * 1000;
+    const res = store.claimTicket(ticketId, agentId, durationMs);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+    };
+  });
+
+  // 15. release_ticket
+  server.tool('release_ticket', 'Release an active ticket claim/lease', {
+    ticketId: z.string(),
+    agentId: z.string().optional()
+  }, async ({ ticketId, agentId }) => {
+    const res = store.releaseTicket(ticketId, agentId);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+    };
+  });
+
+  // 16. execute_shell_wish
+  server.tool('execute_shell_wish', 'Execute an autonomous wish or command through the ai-workflow Shell Engine', {
+    wish: z.string()
+  }, async ({ wish }) => {
+    const shell = new InteractiveShell(store);
+    const output = await shell.executeCommand(wish);
+    return {
+      content: [{ type: 'text', text: output }]
+    };
+  });
+
+  // 17. recommend_next_task
+  server.tool('recommend_next_task', 'Get the highest leverage task from the dependency graph', {}, async () => {
+    const res = recommendNextTask(store);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+    };
+  });
+
+  // 18. analyze_feature_blast_radius
+  server.tool('analyze_feature_blast_radius', 'Analyze AI-driven semantic blast radius for a proposed feature or refactoring', {
+    featureWish: z.string()
+  }, async ({ featureWish }) => {
+    const res = await getFeatureBlastRadius(store, featureWish);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+    };
+  });
+
+  // 19. doctor_diagnose
+  server.tool('doctor_diagnose', 'Run repository health diagnostics and optionally auto-create tickets for unlinked notes', {
+    fix: z.boolean().optional()
+  }, async ({ fix }) => {
+    const res = doctorCheck(store, { fix });
+    if (fix) await transport.sync();
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+    };
+  });
+
+  // 20. get_ticket_deep_view
+  server.tool('get_ticket_deep_view', 'Get deep inspection payload for a ticket including AST symbols, callers, past run artifacts and lessons', {
+    ticketId: z.string()
+  }, async ({ ticketId }) => {
+    const ticket = store.getEntity(ticketId);
+    if (!ticket) return { content: [{ type: 'text', text: `Ticket ${ticketId} not found.` }] };
+    const context = await packTicketContext(store, ticketId);
+    const artifacts = store.getRunArtifacts(ticketId);
+    const outgoing = store.getOutgoing(ticketId);
+    const incoming = store.getIncoming(ticketId);
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ ticket, context, artifacts, outgoing, incoming }, null, 2) }]
+    };
+  });
+
+  // 21. get_ui_state
+  server.tool('get_ui_state', 'Fetch unified cockpit state (health, lanes, claims, ADRs, module matrix)', {}, async () => {
+    const health = store.getProjectHealth();
+    const tickets = store.listEntities({ type: 'ticket' });
+    const claims = store.getActiveClaims();
+    const decisions = store.listEntities({ type: 'decision' });
+    const epics = store.listEntities({ type: 'epic' });
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ health, tickets, claims, decisions, epics }, null, 2) }]
     };
   });
 

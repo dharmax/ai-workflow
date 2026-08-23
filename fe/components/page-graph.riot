@@ -1,0 +1,55 @@
+<page-graph>
+  <div class="stat-card" style="margin-bottom: 20px;">
+    <h3 style="color: var(--accent); font-size: 14px; margin-bottom: 8px;">🎯 AI-Driven Feature Blast Radius & Causal Impact</h3>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Type a proposed feature or refactoring wish to semantically analyze impacted modules, affected active tickets, and test requirements.</p>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="featureWishInput" placeholder="e.g. Migrate store to Postgres or Add OAuth2 auth flow" style="flex:1; padding: 10px 14px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 6px;">
+      <button class="primary" onclick={ runFeatureImpact }>Analyze Feature Impact</button>
+    </div>
+  </div>
+
+  <div if={ state.featureImpact } class="drawer-section" style="margin-bottom: 20px;">
+    <h4>Feature Impact Assessment: "{ state.featureImpact.featureWish }"</h4>
+    <p style="margin-top: 6px;"><strong>Risk Level:</strong> <span class="pill" style={ state.featureImpact.riskLevel === 'High' ? 'color:#f87171;' : state.featureImpact.riskLevel === 'Medium' ? 'color:#fbbf24;' : 'color:#4ade80;' }>{ state.featureImpact.riskLevel }</span></p>
+    <p style="margin-top: 6px;"><strong>Impacted Subsystems:</strong> { (state.featureImpact.impactedModules || []).join(', ') || 'None direct' }</p>
+    <p style="margin-top: 6px;"><strong>Affected Active Tickets:</strong> { (state.featureImpact.affectedActiveTickets || []).map(t => t.id).join(', ') || 'None' }</p>
+    <p style="margin-top: 6px;"><strong>Recommended Test Suites:</strong> { (state.featureImpact.recommendedTests || []).join(', ') }</p>
+    <p style="margin-top: 8px; font-style: italic; color:#93c5fd;">"{ state.featureImpact.architecturalSummary }"</p>
+  </div>
+
+  <div class="stat-card">
+    <h3>Static Target Blast Radius (File / Symbol)</h3>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <input type="text" id="targetInput" placeholder="e.g. src/store.ts" style="flex:1; padding: 8px 12px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 4px;">
+      <button onclick={ runStaticImpact }>Analyze Target</button>
+    </div>
+    <div if={ state.staticImpact } style="margin-top: 12px; font-size: 13px;">
+      <p><strong>Affected Files ({ state.staticImpact.affectedFilesCount }):</strong> { (state.staticImpact.affectedFiles || []).join(', ') }</p>
+      <p><strong>Recommended Tests:</strong> { (state.staticImpact.recommendedTests || []).join(', ') }</p>
+    </div>
+  </div>
+
+  <script>
+    export default {
+      state: { featureImpact: null, staticImpact: null },
+      async runFeatureImpact() {
+        const input = document.getElementById('featureWishInput');
+        const wish = input ? input.value.trim() : '';
+        if (!wish) return;
+        const res = await fetch('/api/impact/feature', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ wish })
+        }).then(r => r.json());
+        this.update({ featureImpact: res });
+      },
+      async runStaticImpact() {
+        const input = document.getElementById('targetInput');
+        const target = input ? input.value.trim() : '';
+        if (!target) return;
+        const res = await fetch('/api/impact?target=' + encodeURIComponent(target)).then(r => r.json());
+        this.update({ staticImpact: res });
+      }
+    }
+  </script>
+</page-graph>

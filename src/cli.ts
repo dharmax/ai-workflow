@@ -317,6 +317,39 @@ async function main() {
       break;
     }
 
+    case 'claim': {
+      const ticketId = args[1];
+      const agentId = args[2] || process.env.USER || 'agent-1';
+      const durationMin = parseInt(args[3] || '30', 10);
+      if (!ticketId) {
+        console.log('Usage: ai-workflow claim <ticketId> [agentId] [durationMinutes]');
+        process.exit(1);
+      }
+      const res = getStore().claimTicket(ticketId, agentId, durationMin * 60 * 1000);
+      if (res.success) {
+        console.log(`\x1b[32mTicket ${ticketId} claimed by ${agentId} until ${res.lease?.expiresAt} ✅\x1b[0m`);
+      } else {
+        console.log(`\x1b[31mFailed to claim ticket:\x1b[0m ${res.reason}`);
+      }
+      break;
+    }
+
+    case 'release': {
+      const ticketId = args[1];
+      const agentId = args[2];
+      if (!ticketId) {
+        console.log('Usage: ai-workflow release <ticketId> [agentId]');
+        process.exit(1);
+      }
+      const res = getStore().releaseTicket(ticketId, agentId);
+      if (res.success) {
+        console.log(`\x1b[32mTicket ${ticketId} released successfully ✅\x1b[0m`);
+      } else {
+        console.log(`\x1b[31mFailed to release ticket:\x1b[0m ${res.reason}`);
+      }
+      break;
+    }
+
     case 'setup':
     case 'install': {
       handleSetup(args.slice(1));

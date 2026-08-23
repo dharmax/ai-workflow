@@ -114,12 +114,13 @@ export async function importMarkdown(store: WorkflowStore) {
           const title = ticketMatch[2].trim();
           const existing = store.getEntity(id);
 
+          const defaultStatus = currentLane === 'Done' ? 'verified' : currentLane === 'In Progress' ? 'partial' : 'planned';
           store.upsertEntity({
             id,
             type: 'ticket',
             title: title || existing?.title || id,
             lane: currentLane,
-            status: currentLane === 'Done' ? 'verified' : 'implemented',
+            status: existing?.status || defaultStatus,
             body: existing?.body ?? ''
           });
         }

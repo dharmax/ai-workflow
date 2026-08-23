@@ -223,6 +223,103 @@ export class WorkflowStore {
     return this.db.prepare(sql).all(...params).map((row: any) => this.mapEntity(row));
   }
 
+  deleteFileNotes(filePath: string) {
+    this.db.prepare(`DELETE FROM code_notes WHERE file_path = ?`).run(filePath);
+  }
+
+  claimTicket(ticketId: string, agentId: string, durationMs: number = 30 * 60 * 1000): { success: boolean; lease?: { claimedBy: string; claimedAt: string; expiresAt: string }; reason?: string } {
+    const existing = this.getEntity(ticketId);
+    if (!existing) {
+      return { success: false, reason: `Ticket ${ticketId} not found.` };
+    }
+
+    const now = new Date();
+    const currentClaim = existing.metadata?.claim;
+    if (currentClaim && currentClaim.claimedBy && currentClaim.expiresAt) {
+      const expires = new Date(currentClaim.expiresAt);
+      if (expires > now && currentClaim.claimedBy !== agentId) {
+        return {
+          success: false,
+          lease: currentClaim,
+          reason: `Ticket ${ticketId} is actively leased by ${currentClaim.claimedBy} until ${currentClaim.expiresAt}`
+        };
+      }
+    }
+
+    const expiresAt = new Date(now.getTime() + durationMs).toISOString();
+    const lease = {
+      claimedBy: agentId,
+      claimedAt: now.toISOString(),
+      expiresAt
+    };
+
+    const updatedMetadata = {
+      ...(existing.metadata || {}),
+      claim: lease
+    };
+
+    this.upsertEntity({
+      ...existing,
+      metadata: updatedMetadata
+    });
+
+    return { success: true, lease };
+  }
+
+  releaseTicket(ticketId: string, agentId?: string): { success: boolean; reason?: string } {
+    const existing = this.getEntity(ticketId);
+    if (!existing) {
+      return { success: false, reason: `Ticket ${ticketId} not found.` };
+    }
+
+    const currentClaim = existing.metadata?.claim;
+    if (currentClaim && agentId && currentClaim.claimedBy !== agentId) {
+      const now = new Date();
+      const expires = new Date(currentClaim.expiresAt);
+      if (expires > now) {
+        return { success: false, reason: `Cannot release ticket claimed by ${currentClaim.claimedBy}.` };
+      }
+    }
+
+    const updatedMetadata = { ...(existing.metadata || {}) };
+    delete updatedMetadata.claim;
+
+    this.upsertEntity({
+      ...existing,
+      metadata: updatedMetadata
+    });
+
+    return { success: true };
+  }
+
+  isTicketClaimed(ticketId: string): boolean {
+    const existing = this.getEntity(ticketId);
+    if (!existing || !existing.metadata?.claim) return false;
+    const claim = existing.metadata.claim;
+    if (!claim.expiresAt) return false;
+    return new Date(claim.expiresAt) > new Date();
+  }
+
+  getActiveClaims(): Array<{ ticketId: string; title: string; claimedBy: string; claimedAt: string; expiresAt: string }> {
+    const tickets = this.listEntities({ type: 'ticket' });
+    const now = new Date();
+    const claims: Array<{ ticketId: string; title: string; claimedBy: string; claimedAt: string; expiresAt: string }> = [];
+
+    for (const t of tickets) {
+      const c = t.metadata?.claim;
+      if (c && c.claimedBy && c.expiresAt && new Date(c.expiresAt) > now) {
+        claims.push({
+          ticketId: t.id,
+          title: t.title,
+          claimedBy: c.claimedBy,
+          claimedAt: c.claimedAt,
+          expiresAt: c.expiresAt
+        });
+      }
+    }
+    return claims;
+  }
+
   saveCodeNotes(filePath: string, notes: CodeNote[]) {
     this.db.prepare(`DELETE FROM code_notes WHERE file_path = ?`).run(filePath);
     const insert = this.db.prepare(`INSERT INTO code_notes (file_path, line, col, note_type, body, ticket_id) VALUES (?, ?, ?, ?, ?, ?)`);

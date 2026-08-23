@@ -1,0 +1,18 @@
+<page-epics>
+  <div if={ !(props.epics && props.epics.length) } style="color:var(--text-muted); padding:16px;">No Epics configured in epics.md.</div>
+  <div class="tree-node" each={ e in (props.epics || []) }>
+    <h4>📌 { e.id }: { e.title }</h4>
+    <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">{ e.body || 'No epic description.' }</p>
+    <div class="tree-children">
+      <strong>Linked Tickets:</strong>
+      <div each={ c in (e.children || []) } style="font-size:12px; margin-top:4px;">
+        • <strong>{ c.id }</strong> [{ c.lane || 'Todo' }]: { c.title }
+      </div>
+      <div if={ !(e.children && e.children.length) } style="font-size:12px; color:#64748b;">No linked tickets</div>
+    </div>
+  </div>
+
+  <script>
+    export default {}
+  </script>
+</page-epics>

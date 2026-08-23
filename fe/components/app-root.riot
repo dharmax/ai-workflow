@@ -1,0 +1,160 @@
+<app-root>
+  <header>
+    <div class="logo-area">
+      <h1>⚡ AI-Workflow Causal Cockpit</h1>
+      <span class="pill">{ state.health.totalTickets } Tickets</span>
+      <span class="pill" style="color: #f87171;">{ state.health.openBugsCount } Bugs 🔴</span>
+      <span class="pill" style="color: #c084fc;">{ state.claims.length } Claims 🔒</span>
+    </div>
+    <div class="actions">
+      <button onclick={ () => triggerShell('sync') }>🔄 Sync</button>
+      <button onclick={ () => triggerShell('doctor --fix') }>🩺 Doctor Fix</button>
+      <button onclick={ () => triggerShell('audit') }>🛡️ Audit Rules</button>
+      <button onclick={ () => triggerShell('can you handle the next one?') } class="primary">🎯 Auto Dispatch</button>
+      <button onclick={ toggleShell } class="primary">⚡ Web Shell</button>
+    </div>
+  </header>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Total Work Tickets</h3>
+      <div class="val">{ state.health.totalTickets }</div>
+    </div>
+    <div class="stat-card">
+      <h3>Active In Progress</h3>
+      <div class="val" style="color: #38bdf8;">{ state.health.laneCounts['In Progress'] || 0 }</div>
+    </div>
+    <div class="stat-card">
+      <h3>Verified Done</h3>
+      <div class="val" style="color: #4ade80;">{ state.health.laneCounts['Done'] || 0 }</div>
+    </div>
+    <div class="stat-card">
+      <h3>Accepted ADRs</h3>
+      <div class="val" style="color: #60a5fa;">{ state.health.acceptedDecisionsCount || 0 }</div>
+    </div>
+  </div>
+
+  <nav class="nav-tabs">
+    <button class={ 'nav-btn ' + (state.currentPage === 'kanban' ? 'active' : '') } onclick={ () => navigate('kanban') }>📋 Kanban Board</button>
+    <button class={ 'nav-btn ' + (state.currentPage === 'epics' ? 'active' : '') } onclick={ () => navigate('epics') }>🌳 Epics & Stories</button>
+    <button class={ 'nav-btn ' + (state.currentPage === 'graph' ? 'active' : '') } onclick={ () => navigate('graph') }>🕸️ Blast Radius & Causal Graph</button>
+    <button class={ 'nav-btn ' + (state.currentPage === 'decisions' ? 'active' : '') } onclick={ () => navigate('decisions') }>📜 ADR Decisions</button>
+    <button class={ 'nav-btn ' + (state.currentPage === 'modules' ? 'active' : '') } onclick={ () => navigate('modules') }>📦 Subsystem Matrix</button>
+  </nav>
+
+  <!-- DYNAMIC PAGE DISPLAY -->
+  <div if={ state.currentPage === 'kanban' }>
+    <page-kanban tickets={ state.tickets }
+                 claims={ state.claims }
+                 on-select-ticket={ openInspector }></page-kanban>
+  </div>
+
+  <div if={ state.currentPage === 'epics' }>
+    <page-epics epics={ state.epics }></page-epics>
+  </div>
+
+  <div if={ state.currentPage === 'graph' }>
+    <page-graph></page-graph>
+  </div>
+
+  <div if={ state.currentPage === 'decisions' }>
+    <page-decisions decisions={ state.decisions }></page-decisions>
+  </div>
+
+  <div if={ state.currentPage === 'modules' }>
+    <page-modules health={ state.health }></page-modules>
+  </div>
+
+  <!-- ACTIONABLE TICKET INSPECTOR DRAWER -->
+  <ticket-inspector ticket-data={ state.inspectedTicket }
+                    on-close={ closeInspector }
+                    on-action={ executeTicketAction }></ticket-inspector>
+
+  <!-- SLIDE-UP WEB SHELL -->
+  <web-shell collapsed={ state.shellCollapsed }
+             log={ state.shellLog }
+             on-toggle={ toggleShell }
+             on-exec={ runShellCommand }></web-shell>
+
+  <script>
+    export default {
+      state: {
+        currentPage: 'kanban',
+        health: { totalTickets: 0, openBugsCount: 0, acceptedDecisionsCount: 0, laneCounts: {}, modules: [] },
+        tickets: [],
+        epics: [],
+        decisions: [],
+        claims: [],
+        inspectedTicket: null,
+        shellCollapsed: true,
+        shellLog: 'Welcome to AI-Workflow Live Cockpit. Type any command or natural wish (e.g. "can you handle the next one", "audit", "sync").\n'
+      },
+      onMounted() {
+        this.loadAll();
+        setInterval(() => this.loadAll(), 5000);
+      },
+      async loadAll() {
+        try {
+          const [h, t, e, d, c] = await Promise.all([
+            fetch('/api/health').then(r => r.json()),
+            fetch('/api/tickets').then(r => r.json()),
+            fetch('/api/epics').then(r => r.json()),
+            fetch('/api/decisions').then(r => r.json()),
+            fetch('/api/claims').then(r => r.json())
+          ]);
+          this.update({ health: h, tickets: t, epics: e, decisions: d, claims: c });
+        } catch (err) {
+          console.error('Failed to load dashboard data:', err);
+        }
+      },
+      navigate(page) {
+        this.update({ currentPage: page });
+      },
+      async openInspector(ticket) {
+        try {
+          const deep = await fetch('/api/tickets/' + ticket.id + '/deep').then(r => r.json());
+          this.update({ inspectedTicket: deep });
+        } catch (err) {
+          this.update({ inspectedTicket: { ticket, context: null, artifacts: [], outgoing: [], incoming: [] } });
+        }
+      },
+      closeInspector() {
+        this.update({ inspectedTicket: null });
+      },
+      async executeTicketAction(action, ticketId, payload) {
+        if (action === 'move') {
+          await fetch('/api/tickets/move', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ticketId, lane: payload }) });
+        } else if (action === 'claim') {
+          await fetch('/api/tickets/claim', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ticketId, agentId: payload || 'human-ui' }) });
+        } else if (action === 'release') {
+          await fetch('/api/tickets/release', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ticketId }) });
+        } else if (action === 'execute') {
+          await fetch('/api/tickets/execute', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ticketId }) });
+        }
+        await this.loadAll();
+        if (this.state.inspectedTicket) await this.openInspector({ id: ticketId });
+      },
+      toggleShell() {
+        this.update({ shellCollapsed: !this.state.shellCollapsed });
+      },
+      async triggerShell(cmd) {
+        this.update({ shellCollapsed: false });
+        await this.runShellCommand(cmd);
+      },
+      async runShellCommand(cmd) {
+        this.update({ shellLog: this.state.shellLog + '\n> ' + cmd + '\n' });
+        try {
+          const res = await fetch('/api/shell/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd })
+          }).then(r => r.json());
+          this.update({ shellLog: this.state.shellLog + (res.output || res.error || 'Done.') + '\n' });
+        } catch (err) {
+          this.update({ shellLog: this.state.shellLog + 'Execution error: ' + err.message + '\n' });
+        }
+        this.loadAll();
+      }
+    }
+  </script>
+</app-root>

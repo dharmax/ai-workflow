@@ -201,17 +201,19 @@ aiwf <command> [arguments] [options]
 | Command | Arguments / Flags | Description |
 |---|---|---|
 | `aiwf setup` | `[--link \| --claude \| --cursor \| --gemini \| --windsurf \| --json]` | Link global CLI binaries & print/export AI client MCP configurations. |
-| `aiwf sync` | *(none)* | Index current directory codebase AST symbols & notes, reconcile Markdown projections & guidelines. |
+| `aiwf sync` | *(none)* | Index codebase semantic subsystems & AST symbols, reconcile Markdown projections & guidelines. |
 | `aiwf status` / `view` | *(none)* | Render ANSI TUI project health, completion bars, and bug badges (`🔴`). |
 | `aiwf audit` | *(none)* | Validate codebase against machine-enforced policies and guidelines in `enforcement.md`. |
 | `aiwf metrics` | *(none)* | Display live context compression ratios, token savings, and execution latencies. |
-| `aiwf impact` | `<file \| symbol>` | Run blast radius analysis, downstream caller tracing, and test recommendations. |
+| `aiwf impact` | `<file \| symbol>` | Run static blast radius analysis, downstream caller tracing, and test recommendations. |
 | `aiwf next` | *(none)* | Recommend the next high-leverage task based on dependencies and priorities. |
+| `aiwf claim` | `<ticketId> [agent] [mins]` | Atomically lease a ticket for a subagent or developer. |
+| `aiwf release` | `<ticketId> [agent]` | Release an active ticket claim lease. |
 | `aiwf doctor` | `[--fix]` | Run repository health diagnostics; optionally auto-create tickets for unlinked `TODO`/`FIXME` notes. |
 | `aiwf digest` | `[hours]` *(default: 24)* | Output daily standup digest (completed tickets, active ADRs, bug counts). |
 | `aiwf decision` | `<list \| propose \| accept \| revert>` | Manage versioned Architectural Decision Records (ADRs) with ticket rollback. |
-| `aiwf ui` | `[port]` *(default: 3456)* | Launch the zero-dependency local web graph & health dashboard. |
-| `aiwf shell` | *(none)* | Launch interactive multi-mode REPL (`/design`, `/product`, `/dev`, `/triage`). |
+| `aiwf ui` | `[port]` *(default: 3456)* | Launch the Riot.js Web Cockpit (Kanban, Epics, Blast Radius, ADRs, Subsystems, Web Shell). |
+| `aiwf shell` | *(none)* | Launch Tool-Aware Autonomous Agent REPL (`/design`, `/product`, `/dev`, `/triage`). |
 | `aiwf run` | `<wish>` | Synthesize and execute a deterministic JavaScript routine via text compiler. |
 | `aiwf mcp` | *(none)* | Start Model Context Protocol (MCP) server over `stdio`. |
 
@@ -219,23 +221,31 @@ aiwf <command> [arguments] [options]
 
 ## 🔌 Model Context Protocol (MCP) Tools (For AI Agents)
 
-When configured in host agents, `ai-workflow` exposes 13 high-leverage tools:
+When configured in host agents, `ai-workflow` exposes 21 high-leverage tools:
 
 | # | Tool Name | Description & Parameters |
 |---|---|---|
-| 1 | **`get_ticket_context`** | Fetch knapsack-packed bounded context (ticket + epic + AST symbols + active guidelines + past lessons + test command).<br>• `ticketId` *(string)*: Target ticket ID (e.g. `TKT-UI-001`)<br>• `maxTokens` *(number, optional)*: Hard token limit<br>• `format` *(xml \| markdown \| json, optional)* |
+| 1 | **`get_ticket_context`** | Fetch knapsack-packed bounded context (ticket + epic + AST symbols + active guidelines + past lessons + test command).<br>• `ticketId` *(string)*: Target ticket ID (e.g. `TKT-UI-001`)<br>• `maxTokens` *(number, optional)*<br>• `format` *(xml \| markdown \| json, optional)* |
 | 2 | **`get_project_overview`** | Fetch complete module health, completion levels, bug indicators, and Kanban lanes. |
-| 3 | **`audit_guidelines`** | Audit changed files against machine-enforced policies and design guidelines before claiming closure.<br>• `targetFiles` *(string[], optional)* |
+| 3 | **`audit_guidelines`** | Audit changed files against machine-enforced policies and design guidelines.<br>• `targetFiles` *(string[], optional)* |
 | 4 | **`get_telemetry_metrics`** | Retrieve context compression ratios, token savings, and operation latency stats. |
 | 5 | **`update_ticket_state`** | Move tickets across Kanban lanes, record execution outputs, and log failure lessons.<br>• `ticketId` *(string)*<br>• `lane` *('Backlog' \| 'Todo' \| 'In Progress' \| 'Done' \| 'Blocked')*<br>• `status` *('planned' \| 'partial' \| 'implemented' \| 'verified', optional)*<br>• `lesson` *(object, optional)* |
 | 6 | **`compile_codelet`** | Synthesize and compile a natural language wish into a tested, reusable JavaScript routine.<br>• `wish` *(string)*<br>• `compound` *(number, optional)*<br>• `tags` *(string[], optional)* |
 | 7 | **`list_codelets`** | List all compiled routines and codelets in `.codelets/`. |
 | 8 | **`search_codelets`** | Search compiled routines by keyword, tag, or title.<br>• `query` *(string)* |
 | 9 | **`run_codelet`** | Execute a compiled routine by name or titleHash with input arguments.<br>• `nameOrHash` *(string)*<br>• `args` *(object, optional)* |
-| 10 | **`propose_decision`** | Propose a new Architectural Decision Record (ADR) and link affected modules or epics.<br>• `id` *(string)*<br>• `title` *(string)*<br>• `body` *(string)*<br>• `impactedModules` *(string[], optional)*<br>• `epicId` *(string, optional)* |
+| 10 | **`propose_decision`** | Propose a new Architectural Decision Record (ADR) and link affected modules or epics.<br>• `id` *(string)*<br>• `title` *(string)*<br>• `body` *(string)* |
 | 11 | **`revert_decision`** | Revert an ADR, automatically block/cancel dependent tickets, and log the reason.<br>• `id` *(string)*<br>• `reason` *(string)* |
-| 12 | **`get_blast_radius`** | Analyze dependency blast radius and affected tickets for a target file or symbol.<br>• `target` *(string)*: File path or AST symbol name |
+| 12 | **`get_blast_radius`** | Analyze static dependency blast radius for a target file or symbol.<br>• `target` *(string)* |
 | 13 | **`search_knowledge`** | Hybrid search across entities, epics, decisions, and in-code notes.<br>• `query` *(string)* |
+| 14 | **`claim_ticket`** | Atomically lease a ticket for an AI agent to prevent task collisions.<br>• `ticketId` *(string)*<br>• `agentId` *(string)*<br>• `durationMinutes` *(number, optional)* |
+| 15 | **`release_ticket`** | Release an active ticket claim lease.<br>• `ticketId` *(string)*<br>• `agentId` *(string, optional)* |
+| 16 | **`execute_shell_wish`** | Dispatch high-level natural language wishes into the Autonomous Shell Engine.<br>• `wish` *(string)* |
+| 17 | **`recommend_next_task`** | Get optimal next task from the dependency graph and bug ledger. |
+| 18 | **`analyze_feature_blast_radius`** | AI-driven semantic impact analysis for proposed feature requests.<br>• `featureWish` *(string)* |
+| 19 | **`doctor_diagnose`** | Run repository health diagnostics & auto-create bug tickets for unlinked notes.<br>• `fix` *(boolean, optional)* |
+| 20 | **`get_ticket_deep_view`** | Fetch deep inspection payload (AST symbols, callers, past run artifacts, failure lessons).<br>• `ticketId` *(string)* |
+| 21 | **`get_ui_state`** | Fetch unified cockpit state (health, lanes, claims, ADRs, subsystem matrix). |
 
 ---
 
@@ -253,7 +263,7 @@ When working inside a repository managed by `ai-workflow`, AI agents follow the 
 2. Get Packed Context  ───► MCP: get_ticket_context(ticketId)
         │                   (Provides AST symbols, active ADRs, past failure lessons)
         ▼
-3. Check Impact        ───► MCP: get_blast_radius(targetFile)
+3. Check Impact        ───► MCP: get_blast_radius(targetFile) / analyze_feature_blast_radius()
         │
         ▼
 4. Implement Changes   ───► Edit source files directly
@@ -273,28 +283,39 @@ When working inside a repository managed by `ai-workflow`, AI agents follow the 
 ai-workflow/
 ├── src/
 │   ├── cli.ts           # Main CLI entrypoint & setup wizard (aiwf, ai-workflow)
-│   ├── mcp.ts           # Model Context Protocol (MCP) server (aiwf-mcp)
+│   ├── mcp.ts           # Model Context Protocol (MCP) server (aiwf-mcp) - 21 tools
 │   ├── store.ts         # SQLite Causal Graph & Semantika triple store
-│   ├── indexer.ts       # Codebase parser & AST symbol extraction
+│   ├── indexer.ts       # Codebase parser & semantic subsystem AST indexing
 │   ├── sync.ts          # Bidirectional 2-Way Git Markdown reconciliation
 │   ├── context.ts       # Knapsack context packing & token budgeting
 │   ├── compiler.ts      # JIT text-compiler & codelet routine manager
 │   ├── decisions.ts     # Versioned ADR manager with ticket rollback
 │   ├── guidelines.ts    # Machine policy enforcement & regex moderation
-│   ├── impact.ts        # Blast radius analysis & task recommender
+│   ├── impact.ts        # Static & AI-driven feature blast radius analysis
 │   ├── metrics.ts       # Real-time telemetry & compression metrics
-│   ├── shell.ts         # Multi-mode interactive REPL (/design, /product, /dev, /triage)
-│   ├── ui.ts            # ANSI TUI dashboard & web graph server
+│   ├── shell.ts         # Tool-Aware Autonomous Agent REPL (/design, /product, /dev, /triage)
+│   ├── ui.ts            # Riot.js Web Cockpit & ANSI TUI dashboard server
 │   └── types.ts         # TypeScript data contracts & schema definitions
+├── fe/
+│   └── components/      # Modular Riot.js SPA components
+│       ├── app-root.riot
+│       ├── page-kanban.riot
+│       ├── page-epics.riot
+│       ├── page-graph.riot
+│       ├── page-decisions.riot
+│       ├── page-modules.riot
+│       ├── ticket-inspector.riot
+│       └── web-shell.riot
 ├── tests/
 │   ├── engine.test.ts   # Core store, ADR rollbacks, context, sync & setup tests
 │   ├── mcp-e2e.test.ts  # End-to-end MCP tool execution tests
 │   ├── moderation.test.ts # ReDoS and rule moderation test suite
-│   └── metrics.test.ts  # Telemetry collection & token compression tests
+│   ├── metrics.test.ts  # Telemetry collection & token compression tests
+│   └── shell.test.ts    # Tool-Aware autonomous shell tests
 ├── kanban.md            # Git-tracked Kanban board projection
 ├── epics.md             # Git-tracked Epics ledger projection
 ├── decisions.md         # Git-tracked Architectural Decision Records (ADRs)
-├── modules.md           # Git-tracked Module completion matrix
+├── modules.md           # Git-tracked Subsystem completion matrix
 └── enforcement.md       # Machine-enforced coding & architecture rules
 ```
 
@@ -308,18 +329,20 @@ Run the comprehensive test suite with Bun:
 bun test
 ```
 
-All 20 test suites pass deterministically in under 300ms:
+All 28 tests across 5 test suites pass deterministically in ~500ms:
 
 ```
 tests/engine.test.ts:      8 passed
-tests/mcp-e2e.test.ts:     5 passed
+tests/mcp-e2e.test.ts:     7 passed
 tests/moderation.test.ts:  4 passed
 tests/metrics.test.ts:     3 passed
+tests/shell.test.ts:       6 passed
 
-Total: 20 passed, 0 failed (~300ms)
+Total: 28 passed, 0 failed (~500ms)
 ```
 
 ---
 
 ## 📄 License
 MIT © Dharmax
+
