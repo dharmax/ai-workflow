@@ -3,7 +3,12 @@
     <h3 style="color: var(--accent); font-size: 14px; margin-bottom: 8px;">🎯 AI-Driven Feature Blast Radius & Causal Impact</h3>
     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Type a proposed feature or refactoring wish to semantically analyze impacted modules, affected active tickets, and test requirements.</p>
     <div style="display: flex; gap: 8px;">
-      <input type="text" id="featureWishInput" placeholder="e.g. Migrate store to Postgres or Add OAuth2 auth flow" style="flex:1; padding: 10px 14px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 6px;">
+      <input type="text"
+             value={ state.featureWish }
+             oninput={ (e) => update({ featureWish: e.target.value }) }
+             onkeydown={ (e) => e.key === 'Enter' && runFeatureImpact() }
+             placeholder="e.g. Migrate store to Postgres or Add OAuth2 auth flow"
+             style="flex:1; padding: 10px 14px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 6px;">
       <button class="primary" onclick={ runFeatureImpact }>Analyze Feature Impact</button>
     </div>
   </div>
@@ -20,7 +25,12 @@
   <div class="stat-card">
     <h3>Static Target Blast Radius (File / Symbol)</h3>
     <div style="display: flex; gap: 8px; margin-top: 8px;">
-      <input type="text" id="targetInput" placeholder="e.g. src/store.ts" style="flex:1; padding: 8px 12px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 4px;">
+      <input type="text"
+             value={ state.target }
+             oninput={ (e) => update({ target: e.target.value }) }
+             onkeydown={ (e) => e.key === 'Enter' && runStaticImpact() }
+             placeholder="e.g. src/store.ts"
+             style="flex:1; padding: 8px 12px; background: #0b1120; border: 1px solid var(--card-border); color:#fff; border-radius: 4px;">
       <button onclick={ runStaticImpact }>Analyze Target</button>
     </div>
     <div if={ state.staticImpact } style="margin-top: 12px; font-size: 13px;">
@@ -31,10 +41,9 @@
 
   <script>
     export default {
-      state: { featureImpact: null, staticImpact: null },
+      state: { featureWish: '', target: '', featureImpact: null, staticImpact: null },
       async runFeatureImpact() {
-        const input = document.getElementById('featureWishInput');
-        const wish = input ? input.value.trim() : '';
+        const wish = (this.state.featureWish || '').trim();
         if (!wish) return;
         const res = await fetch('/api/impact/feature', {
           method: 'POST',
@@ -44,8 +53,7 @@
         this.update({ featureImpact: res });
       },
       async runStaticImpact() {
-        const input = document.getElementById('targetInput');
-        const target = input ? input.value.trim() : '';
+        const target = (this.state.target || '').trim();
         if (!target) return;
         const res = await fetch('/api/impact?target=' + encodeURIComponent(target)).then(r => r.json());
         this.update({ staticImpact: res });

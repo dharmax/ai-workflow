@@ -1,0 +1,36 @@
+<page-modules>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Subsystem / Module</th>
+        <th>Completion</th>
+        <th>AST Symbols</th>
+        <th>Open Bugs</th>
+        <th>Active Tickets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ m in (props.health && props.health.modules || []) }>
+        <td><strong>{ m.name }</strong></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="flex:1; background:#0b1120; height:8px; border-radius:4px; overflow:hidden; border:1px solid #1e293b;">
+              <div style="width:{ m.completionPercent }%; background:{ m.completionPercent === 100 ? '#22c55e' : '#38bdf8' }; height:100%;"></div>
+            </div>
+            <span style="font-size:12px; font-weight:600;">{ m.completionPercent }%</span>
+          </div>
+        </td>
+        <td>{ m.symbolCount }</td>
+        <td>
+          <span if={ m.bugsCount > 0 } style="color:#f87171; font-weight:700;">{ m.bugsCount } 🔴</span>
+          <span if={ m.bugsCount === 0 } style="color:#4ade80;">0</span>
+        </td>
+        <td style="color:var(--text-muted); font-size:12px;">{ m.activeTickets.join(', ') || '-' }</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    export default {}
+  </script>
+</page-modules>

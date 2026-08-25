@@ -1,0 +1,1453 @@
+diff --git a/kanban.md b/kanban.md
+index 0e6e038..bf4db30 100644
+--- a/kanban.md
++++ b/kanban.md
+@@ -14,11 +14,12 @@ kanban-plugin: board
+ 
+ ## In Progress
+ 
+-- [/] **TKT-TRUST-005**: Repair MCP ticket-context utility
+-  - Summary: packTicketContext with bounded token knapsack packing implemented and verified across MCP tools and Web Cockpit.
++- No items
+ 
+ ## Done
+ 
++- [x] **TKT-9D54**: Unified Capability Registry across MCP, CLI, Shell & Skill+MCP Pair
++- [x] **TKT-TRUST-005**: Repair MCP ticket-context utility
+ - [x] **TKT-TRUST-004**: Require structured evidence reports
+   - Summary: SQLite run artifacts record execution output, test pass/fail results, and failure lessons.
+ - [x] **TKT-TRUST-003**: Make readiness metrics block closure
+diff --git a/src/cli.ts b/src/cli.ts
+index a18aad0..045e7d9 100755
+--- a/src/cli.ts
++++ b/src/cli.ts
+@@ -4,42 +4,152 @@ import os from 'node:os';
+ import fs from 'node:fs';
+ import { fileURLToPath } from 'node:url';
+ import { WorkflowStore } from './store.ts';
+-import { indexCodebase } from './indexer.ts';
+-import { exportMarkdown, importMarkdown } from './sync.ts';
+-import { renderTuiDashboard, startWebServer } from './ui.ts';
+-import { InteractiveShell } from './shell.ts';
+-import { runMcpStdio } from './mcp.ts';
+-import { getBlastRadius, generateDigest, recommendNextTask, doctorCheck } from './impact.ts';
+ import { DecisionManager } from './decisions.ts';
+ import { CodeletEngine } from './compiler.ts';
+-import { auditCodebase } from './guidelines.ts';
++import { LocalGitTransport } from './transport.ts';
+ import { MetricsCollector } from './metrics.ts';
++import { registry, type CommandContext } from './registry.ts';
++import { startWebServer } from './ui.ts';
++import { InteractiveShell } from './shell.ts';
++import { runMcpStdio } from './mcp.ts';
+ 
+ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = path.dirname(__filename);
+ const repoRoot = path.resolve(__dirname, '..');
+ const cliPath = path.resolve(__dirname, 'cli.ts');
+ const mcpPath = path.resolve(__dirname, 'mcp.ts');
++const skillSourcePath = path.resolve(repoRoot, 'skills', 'ai-workflow', 'SKILL.md');
++
++let _ctx: CommandContext | null = null;
++function getContext(): CommandContext {
++  if (!_ctx) {
++    const store = new WorkflowStore();
++    _ctx = {
++      store,
++      decisions: new DecisionManager(store),
++      compiler: new CodeletEngine(store),
++      transport: new LocalGitTransport(store),
++      metrics: new MetricsCollector(store),
++      projectRoot: store.root
++    };
++  }
++  return _ctx;
++}
+ 
+-const args = process.argv.slice(2);
+-const command = args[0]?.toLowerCase() || 'status';
++function parseCliFlags(rawArgs: string[]): { flags: Record<string, any>; nonFlags: string[] } {
++  const flags: Record<string, any> = {};
++  const nonFlags: string[] = [];
++
++  for (let i = 0; i < rawArgs.length; i++) {
++    const arg = rawArgs[i];
++    if (arg.startsWith('--')) {
++      const key = arg.slice(2);
++      if (key.includes('=')) {
++        const [k, v] = key.split('=', 2);
++        flags[k] = v;
++      } else if (i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
++        flags[key] = rawArgs[i + 1];
++        i++;
++      } else {
++        flags[key] = true;
++      }
++    } else if (arg.startsWith('-') && arg.length === 2) {
++      const key = arg.slice(1);
++      flags[key] = true;
++    } else {
++      nonFlags.push(arg);
++    }
++  }
+ 
+-let _store: WorkflowStore | null = null;
+-function getStore() {
+-  if (!_store) _store = new WorkflowStore();
+-  return _store;
++  return { flags, nonFlags };
+ }
+-function getDecisions() { return new DecisionManager(getStore()); }
+-function getCompiler() { return new CodeletEngine(getStore()); }
+-function getMetrics() { return new MetricsCollector(getStore()); }
+-
+-function handleSetup(cliArgs: string[]) {
+-  const isJson = cliArgs.includes('--json');
+-  const isLinkOnly = cliArgs.includes('--link');
+-  const isClaude = cliArgs.includes('--claude');
+-  const isCursor = cliArgs.includes('--cursor');
+-  const isGemini = cliArgs.includes('--gemini');
+-  const isWindsurf = cliArgs.includes('--windsurf');
++
++function printHelp() {
++  console.log(`
++\x1b[1;36m========================================================================\x1b[0m
++\x1b[1;37m   AI-WORKFLOW (aiwf) - Bun-First Causal Engineering OS & Agent Bridge\x1b[0m
++\x1b[1;36m========================================================================\x1b[0m
++
++\x1b[1;33mUsage:\x1b[0m
++  aiwf <command> [subcommand] [arguments...] [--json]
++
++\x1b[1;32m📊 Graph & Project Visibility:\x1b[0m
++  status / view                         Print project health, lanes, and module completion matrix
++  sync                                  Index codebase AST symbols, notes & reconcile Markdown
++  search <query>                        Search entities, decisions, and in-code notes (TODO/BUG)
++  symbol <name>                         Fast AST symbol lookup (definitions, callers, callees)
++  slice <file> <symbol>                 Surgical AST slice: read only function/class source lines
++  outline <file>                        Compact AST outline & signatures for a file
++  burndown                              Real-time epic completion percentages & burndown
++  git-status                            Parsed git working tree state & branch info
++  lint-graph                            Check graph integrity (orphans, dead symbols, stale claims)
++  ui-state                              Output unified cockpit JSON state
++
++\x1b[1;32m🎟️ Ticket & Context Lifecycle:\x1b[0m
++  context <ticketId> [--budget N]       Extract bounded token context pack (symbols, guidelines, tests)
++  ticket list [lane]                    List tickets in Backlog, Todo, In Progress, Done, Blocked
++  ticket inspect <ticketId>             Deep inspection (AST symbols, run artifacts, relations)
++  ticket create <title...>              Create a new ticket in Todo lane and sync kanban.md
++  ticket move <id> <lane> [status]      Move a ticket and record execution lessons
++  lesson <ticketId> <text...>           Persist bug lesson into SQLite memory for future tickets
++  pr-summary [ticketId]                 Format conventional commit & PR description
++  start <ticketId>                      Move ticket to In Progress (with title preservation)
++  done <ticketId>                       Mark ticket as Done (verified) and sync kanban.md
++  claim <id> [agent] [mins]             Atomically lease a ticket to prevent agent collision
++  release <ticketId>                    Release an active ticket lease
++  diff [target]                         Self-review working tree or file diff before ticket closure
++  next                                  Recommend highest leverage next task from causal graph
++
++\x1b[1;32m💥 Impact, Pre-Flight Gates & Health:\x1b[0m
++  impact <file-or-symbol>               Calculate blast radius, affected tickets & test targets
++  gate <file-or-symbol>                 Pre-flight verification gate checklist before editing
++  test-target <file>                    Resolve paired test file and exact test runner command
++  triage [command]                      Triage & parse test failures into compact JSON summary
++  hotspots [days]                       Identify recent churn hotspots & active files
++  feature-impact <wish...>              Semantic AI blast radius for proposed features
++  digest [hours]                        Print standup digest (completed tasks, ADRs, bugs)
++  doctor [--fix]                        Run diagnostics & optionally auto-generate bug tickets
++
++\x1b[1;32m⚡ Codelets & Deterministic Routines:\x1b[0m
++  codelet list                          List all pre-compiled routines in .codelets/
++  codelet search <query>                Search compiled routines by keyword/tag
++  codelet compile <wish...>             Synthesize and compile natural language into routine
++  codelet run <hash> [argsJson]         Execute pre-compiled routine deterministically
++  sweep [--fix]                         Scan TODO/FIXME/BUG notes across codebase
++
++\x1b[1;32m📜 Architectural Decisions (ADR):\x1b[0m
++  decision list                         List all Architectural Decision Records
++  decision propose <id> <title> [body]  Propose an ADR and link affected modules
++  decision accept <id>                  Accept a proposed ADR
++  decision revert <id> [reason]         Revert ADR and cancel dependent tickets
++
++\x1b[1;32m⚙️ System, MCP & Shell:\x1b[0m
++  root [dir]                            Find real project root by traversing parent markers
++  env                                   Instant runtime, toolchain, and OS orientation
++  token-count [files...]                Estimate prompt token budget across files
++  snapshot [label]                      Create non-destructive working tree patch snapshot
++  note <text...>                        Append ephemeral note to .ai-workflow/scratchpad.md
++  notes                                 Read shared agent session scratchpad
++  setup [--all|--link|--doctor]         Install CLI binaries, MCP configs & companion SKILL.md
++  audit [files...]                      Validate codebase against policy enforcement rules
++  metrics                               Display token savings, compression & execution telemetry
++  shell / repl                          Launch interactive autonomous shell REPL
++  mcp                                   Start Model Context Protocol (MCP) server over stdio
++  ui [port]                             Launch web graph & Kanban dashboard (default: 3456)
++  --json                                Output structured JSON for any command
++  `);
++}
++
++function handleSetup(flags: Record<string, any>) {
++  const isJson = flags.json;
++  const isLinkOnly = flags.link;
++  const isDoctor = flags.doctor;
++  const isClaude = flags.claude;
++  const isCursor = flags.cursor;
++  const isGemini = flags.gemini;
++  const isAntigravity = flags.antigravity || flags.agy;
++  const isCodex = flags.codex;
++  const isAll = flags.all;
+ 
+   const binDirs = [
+     path.join(os.homedir(), '.local', 'bin'),
+@@ -76,6 +186,24 @@ function handleSetup(cliArgs: string[]) {
+     }
+   }
+ 
++  // Skill Installation Destinations
++  const skillDestinations = [
++    path.join(os.homedir(), '.gemini', 'config', 'skills', 'ai-workflow', 'SKILL.md'),
++    path.join(repoRoot, '.cursor', 'skills', 'ai-workflow', 'SKILL.md')
++  ];
++
++  const installedSkills: string[] = [];
++  if (fs.existsSync(skillSourcePath)) {
++    for (const dest of skillDestinations) {
++      try {
++        const destDir = path.dirname(dest);
++        fs.mkdirSync(destDir, { recursive: true });
++        fs.copyFileSync(skillSourcePath, dest);
++        installedSkills.push(dest);
++      } catch {}
++    }
++  }
++
+   const mcpConfig = {
+     mcpServers: {
+       "ai-workflow": {
+@@ -89,6 +217,8 @@ function handleSetup(cliArgs: string[]) {
+     binaries: linkedPaths,
+     mcpServerPath: mcpPath,
+     cliPath: cliPath,
++    skillSource: skillSourcePath,
++    installedSkills,
+     claudeCodeCommand: `claude mcp add ai-workflow bun run ${mcpPath}`,
+     mcpConfig
+   };
+@@ -98,6 +228,15 @@ function handleSetup(cliArgs: string[]) {
+     return;
+   }
+ 
++  if (isDoctor) {
++    console.log(`\x1b[1;36m=== AIWF Pair Installation Diagnostic Check ===\x1b[0m`);
++    console.log(`1. CLI Binary: ${linkedPaths.length > 0 ? '\x1b[32mOK (Linked) ✅\x1b[0m' : '\x1b[31mMISSING ❌\x1b[0m'}`);
++    console.log(`2. MCP Server: ${fs.existsSync(mcpPath) ? '\x1b[32mOK (Ready) ✅\x1b[0m' : '\x1b[31mMISSING ❌\x1b[0m'}`);
++    console.log(`3. Companion Skill: ${installedSkills.length > 0 ? '\x1b[32mOK (Installed) ✅\x1b[0m' : '\x1b[33mNOT DEPLOYED ⚠️\x1b[0m'}`);
++    for (const s of installedSkills) console.log(`   - ${s}`);
++    return;
++  }
++
+   if (isLinkOnly) {
+     console.log(`\x1b[32mSuccessfully linked binaries to PATH:\x1b[0m`);
+     for (const p of linkedPaths) console.log(`  - ${p}`);
+@@ -105,284 +244,133 @@ function handleSetup(cliArgs: string[]) {
+   }
+ 
+   if (isClaude) {
+-    console.log(`\x1b[1;36m=== Claude Code CLI Command ===\x1b[0m`);
+-    console.log(`claude mcp add ai-workflow bun run ${mcpPath}\n`);
+-    console.log(`\x1b[1;36m=== Claude Desktop Config ===\x1b[0m`);
+-    console.log(JSON.stringify(mcpConfig, null, 2));
+-    return;
+-  }
+-
+-  if (isCursor) {
+-    console.log(`\x1b[1;36m=== Cursor MCP Config (.cursor/mcp.json) ===\x1b[0m`);
++    console.log(`\x1b[1;36m=== Claude Code & Desktop Configuration ===\x1b[0m`);
++    console.log(`Claude Code CLI:\n  \x1b[1mclaude mcp add ai-workflow bun run ${mcpPath}\x1b[0m\n`);
++    console.log(`Claude Desktop (~/.config/Claude/claude_desktop_config.json):`);
+     console.log(JSON.stringify(mcpConfig, null, 2));
+     return;
+   }
+ 
+-  if (isGemini) {
+-    console.log(`\x1b[1;36m=== Gemini CLI Config (~/.gemini/settings.json) ===\x1b[0m`);
++  if (isCursor || isCodex) {
++    console.log(`\x1b[1;36m=== Cursor / Codex Configuration (.cursor/mcp.json) ===\x1b[0m`);
+     console.log(JSON.stringify(mcpConfig, null, 2));
+     return;
+   }
+ 
+-  if (isWindsurf) {
+-    console.log(`\x1b[1;36m=== Windsurf MCP Config (~/.codeium/windsurf/mcp_config.json) ===\x1b[0m`);
++  if (isGemini || isAntigravity) {
++    console.log(`\x1b[1;36m=== Antigravity & Gemini CLI Configuration (~/.gemini/settings.json) ===\x1b[0m`);
+     console.log(JSON.stringify(mcpConfig, null, 2));
+     return;
+   }
+ 
+-  console.log(`\x1b[1;36m==================================================\x1b[0m`);
+-  console.log(`\x1b[1;37m   AI-WORKFLOW CLIENT & MCP SETUP WIZARD\x1b[0m`);
+-  console.log(`\x1b[1;36m==================================================\x1b[0m\n`);
++  console.log(`\x1b[1;36m========================================================================\x1b[0m`);
++  console.log(`\x1b[1;37m   AI-WORKFLOW (aiwf) UNIVERSAL CLIENT & SKILL+MCP PAIR SETUP\x1b[0m`);
++  console.log(`\x1b[1;36m========================================================================\x1b[0m\n`);
+ 
+   console.log(`\x1b[1;32m1. Global CLI Binaries Linked:\x1b[0m`);
+   if (linkedPaths.length > 0) {
+     for (const p of linkedPaths) console.log(`   - \x1b[1m${p}\x1b[0m`);
+-  } else {
+-    console.log(`   (Run: bun link or check permissions on ~/.local/bin)`);
+   }
+-  console.log(`\n   You can now run: \x1b[1;33maiwf --help\x1b[0m or \x1b[1;33mai-workflow status\x1b[0m anywhere.\n`);
++  console.log(`\n   You can now run \x1b[1;33maiwf --help\x1b[0m or \x1b[1;33mai-workflow status\x1b[0m anywhere.\n`);
++
++  console.log(`\x1b[1;32m2. Companion Skill Deployed (Playbook/SOP):\x1b[0m`);
++  if (installedSkills.length > 0) {
++    for (const s of installedSkills) console.log(`   - \x1b[1m${s}\x1b[0m`);
++  }
+ 
+-  console.log(`\x1b[1;32m2. Claude Code CLI Setup:\x1b[0m`);
++  console.log(`\n\x1b[1;32m3. Claude Code One-Liner:\x1b[0m`);
+   console.log(`   \x1b[1mclaude mcp add ai-workflow bun run ${mcpPath}\x1b[0m\n`);
+ 
+-  console.log(`\x1b[1;32m3. Claude Desktop / Cursor / Windsurf / Gemini CLI MCP Config:\x1b[0m`);
++  console.log(`\x1b[1;32m4. Antigravity / Cursor / Gemini MCP Configuration:\x1b[0m`);
+   console.log(JSON.stringify(mcpConfig, null, 2));
+-  console.log(`\n   Add to:`);
+-  console.log(`   - Claude Desktop: ~/.config/Claude/claude_desktop_config.json`);
+-  console.log(`   - Cursor: .cursor/mcp.json or Global Settings > Features > MCP`);
+-  console.log(`   - Gemini CLI: ~/.gemini/settings.json (mcpServers)`);
+-  console.log(`   - Windsurf: ~/.codeium/windsurf/mcp_config.json`);
+-  console.log(`\n\x1b[1;32mSetup complete! ✅\x1b[0m`);
++  console.log(`\n\x1b[1;32mSetup complete! Pair (MCP + Skill) is active. ✅\x1b[0m`);
+ }
+ 
+ async function main() {
+-  switch (command) {
+-    case 'sync': {
+-      console.log('\x1b[36mIndexing codebase...\x1b[0m');
+-      const store = getStore();
+-      const idx = await indexCodebase(store);
+-      console.log(`Indexed ${idx.filesCount} files, ${idx.symbolsCount} AST symbols, ${idx.notesCount} code notes.`);
+-      console.log('\x1b[36mReconciling Markdown projections and guidelines...\x1b[0m');
+-      await importMarkdown(store);
+-      await exportMarkdown(store);
+-      console.log('\x1b[32mSync complete! kanban.md, epics.md, decisions.md, and modules.md updated.\x1b[0m');
+-      break;
+-    }
+-
+-    case 'audit': {
+-      console.log('\x1b[36mAuditing codebase against enforcement policies and guidelines...\x1b[0m');
+-      const res = await auditCodebase(getStore());
+-      if (res.passed) {
+-        console.log('\x1b[32mAudit Passed! 0 guideline violations found. ✅\x1b[0m');
+-      } else {
+-        console.log(`\x1b[31mAudit Failed! Found ${res.violationsCount} violation(s):\x1b[0m`);
+-        for (const f of res.findings.slice(0, 15)) {
+-          console.log(`  \x1b[1m${f.file}:${f.line}\x1b[0m [${f.ruleId}]: ${f.message}`);
+-        }
+-        if (res.findings.length > 15) {
+-          console.log(`  ... and ${res.findings.length - 15} more findings.`);
+-        }
+-      }
+-      break;
+-    }
++  const rawArgs = process.argv.slice(2);
++  const { flags, nonFlags } = parseCliFlags(rawArgs);
+ 
+-    case 'metrics': {
+-      const summary = getMetrics().getSummary();
+-      console.log(`\x1b[1;36m=== Context & Performance Telemetry Metrics ===\x1b[0m`);
+-      console.log(`Total Context Packs: \x1b[1m${summary.totalContextPacks}\x1b[0m`);
+-      console.log(`Total Tokens Saved:  \x1b[1;32m${summary.totalTokensSaved.toLocaleString()} tokens\x1b[0m`);
+-      console.log(`Avg Compression:     \x1b[1;32m${summary.averageCompressionRatio}%\x1b[0m`);
+-      console.log(`Avg Context Pack:    \x1b[1m${summary.averageContextPackDurationMs}ms\x1b[0m`);
+-      if (Object.keys(summary.operationsSummary).length > 0) {
+-        console.log(`\n\x1b[1mOperations Breakdown:\x1b[0m`);
+-        for (const [op, stats] of Object.entries(summary.operationsSummary)) {
+-          console.log(`  - \x1b[33m${op}\x1b[0m: ${stats.count} calls (avg ${stats.avgDurationMs}ms, failure rate: ${stats.failureRate}%)`);
+-        }
+-      }
+-      break;
+-    }
+-
+-    case 'status':
+-    case 'view': {
+-      console.log(renderTuiDashboard(getStore()));
+-      break;
+-    }
+-
+-    case 'shell':
+-    case 'repl': {
+-      const shell = new InteractiveShell(getStore());
+-      await shell.start();
+-      break;
+-    }
+-
+-    case 'mcp': {
+-      await runMcpStdio();
+-      break;
+-    }
++  if (flags.help || flags.h || (nonFlags.length === 1 && nonFlags[0] === 'help')) {
++    printHelp();
++    return;
++  }
+ 
+-    case 'impact': {
+-      const target = args[1];
+-      if (!target) {
+-        console.log('Usage: ai-workflow impact <file-or-symbol>');
+-        process.exit(1);
++  if (nonFlags.length === 0) {
++    // Default to status
++    const ctx = getContext();
++    const cap = registry.get('get_project_overview');
++    if (cap) {
++      const res = await cap.handler(ctx, {});
++      if (flags.json) {
++        console.log(JSON.stringify(res, null, 2));
++      } else {
++        console.log(cap.renderTui ? cap.renderTui(res) : JSON.stringify(res, null, 2));
+       }
+-      const res = getBlastRadius(getStore(), target);
+-      console.log(`\x1b[1;36mBlast Radius for "${target}":\x1b[0m ${res.affectedFilesCount} files affected.`);
+-      console.log(`Files: ${res.affectedFiles.join(', ')}`);
+-      console.log(`Affected Tickets: ${res.affectedTickets.map(t => t.id).join(', ') || 'None'}`);
+-      console.log(`Recommended Tests: ${res.recommendedTests.join(', ')}`);
+-      break;
+-    }
+-
+-    case 'digest':
+-    case 'standup': {
+-      const hours = parseInt(args[1] || '24', 10);
+-      const dig = generateDigest(getStore(), hours);
+-      console.log(`\x1b[1;32m=== Daily Digest (Past ${hours}h) ===\x1b[0m`);
+-      console.log(`Completed Tickets: ${dig.completedTickets.map(t => t.id).join(', ') || 'None'}`);
+-      console.log(`In Progress: ${dig.inProgressTickets.map(t => t.id).join(', ') || 'None'}`);
+-      console.log(`Recent ADR Decisions: ${dig.recentDecisions.map(d => d.id).join(', ') || 'None'}`);
+-      console.log(`Open Bug Badges: ${dig.openBugsCount} 🔴`);
+-      break;
+     }
++    return;
++  }
+ 
+-    case 'next': {
+-      const next = recommendNextTask(getStore());
+-      console.log(`\x1b[1;33mRecommended Next Task:\x1b[0m ${next.ticket ? `${next.ticket.id}: ${next.ticket.title}` : 'None'}`);
+-      console.log(`Reason: ${next.reason}`);
+-      break;
+-    }
++  const firstArg = nonFlags[0].toLowerCase();
+ 
+-    case 'doctor': {
+-      const fix = args.includes('--fix');
+-      const doc = doctorCheck(getStore(), { fix });
+-      console.log(`\x1b[1;34m=== Repo Doctor Health Report ===\x1b[0m`);
+-      console.log(`Total Files: ${doc.totalFiles}`);
+-      console.log(`Unlinked Bug Notes (TODO/FIXME): ${doc.unlinkedBugNotes}`);
+-      if (fix) {
+-        console.log(`Auto-created ${doc.autoFixedTickets.length} bug tickets in Todo lane.`);
+-      } else if (doc.unlinkedBugNotes > 0) {
+-        console.log(`Tip: run 'ai-workflow doctor --fix' to auto-generate tickets for unlinked bug notes.`);
+-      }
+-      break;
+-    }
++  // Special System Commands
++  if (firstArg === 'setup' || firstArg === 'install') {
++    handleSetup(flags);
++    return;
++  }
+ 
+-    case 'decision': {
+-      const sub = args[1]?.toLowerCase();
+-      const decisions = getDecisions();
+-      const store = getStore();
+-      if (sub === 'revert' && args[2]) {
+-        const reason = args.slice(3).join(' ') || 'Reverted by operator';
+-        const res = decisions.revertDecision(args[2], reason);
+-        await exportMarkdown(store);
+-        console.log(`\x1b[33mReverted decision ${args[2]}.\x1b[0m Affected tickets cancelled: ${res.affectedTickets.map(t => t.id).join(', ') || 'None'}`);
+-      } else if (sub === 'accept' && args[2]) {
+-        decisions.acceptDecision(args[2]);
+-        await exportMarkdown(store);
+-        console.log(`\x1b[32mAccepted decision ${args[2]}.\x1b[0m`);
+-      } else if (sub === 'propose' && args[2] && args[3]) {
+-        const id = args[2];
+-        const title = args[3];
+-        const body = args.slice(4).join(' ') || '';
+-        decisions.proposeDecision({ id, title, body });
+-        await exportMarkdown(store);
+-        console.log(`\x1b[32mProposed decision ${id}: ${title}\x1b[0m`);
+-      } else {
+-        const list = decisions.listDecisions();
+-        console.log(`\x1b[1;34m=== Architectural Decision Records (ADRs) ===\x1b[0m`);
+-        for (const d of list) {
+-          console.log(`- \x1b[1m${d.id}\x1b[0m [${d.status}]: ${d.title}`);
+-        }
+-      }
+-      break;
+-    }
++  if (firstArg === 'ui' || firstArg === 'serve' || firstArg === 'web') {
++    const port = parseInt(nonFlags[1] || '3456', 10);
++    startWebServer(getContext().store, port);
++    return;
++  }
+ 
+-    case 'ui': {
+-      const port = parseInt(args[1] || '3456', 10);
+-      startWebServer(getStore(), port);
+-      break;
+-    }
++  if (firstArg === 'mcp') {
++    await runMcpStdio();
++    return;
++  }
+ 
+-    case 'run': {
+-      const wish = args.slice(1).join(' ');
+-      if (!wish) {
+-        console.log('Usage: ai-workflow run <natural language wish>');
+-        process.exit(1);
+-      }
+-      console.log(`\x1b[33mSynthesizing and running routine for: "${wish}"...\x1b[0m`);
+-      const codelet = await getCompiler().compileWish(wish);
+-      console.log(`Compiled codelet: ${codelet.meta.title}`);
+-      const res = await codelet.execute({});
+-      console.log('Result:', res);
+-      break;
+-    }
++  if (firstArg === 'shell' || firstArg === 'repl') {
++    const shell = new InteractiveShell(getContext().store);
++    await shell.start();
++    return;
++  }
+ 
+-    case 'claim': {
+-      const ticketId = args[1];
+-      const agentId = args[2] || process.env.USER || 'agent-1';
+-      const durationMin = parseInt(args[3] || '30', 10);
+-      if (!ticketId) {
+-        console.log('Usage: ai-workflow claim <ticketId> [agentId] [durationMinutes]');
+-        process.exit(1);
+-      }
+-      const res = getStore().claimTicket(ticketId, agentId, durationMin * 60 * 1000);
+-      if (res.success) {
+-        console.log(`\x1b[32mTicket ${ticketId} claimed by ${agentId} until ${res.lease?.expiresAt} ✅\x1b[0m`);
+-      } else {
+-        console.log(`\x1b[31mFailed to claim ticket:\x1b[0m ${res.reason}`);
+-      }
+-      break;
+-    }
++  // Registry-Dispatched Commands
++  const match = registry.findForCli(nonFlags);
++  if (!match.capability) {
++    console.error(`\x1b[31mUnknown command:\x1b[0m "${nonFlags.join(' ')}". Run \x1b[1;33maiwf --help\x1b[0m to view all available capabilities.`);
++    process.exit(1);
++  }
+ 
+-    case 'release': {
+-      const ticketId = args[1];
+-      const agentId = args[2];
+-      if (!ticketId) {
+-        console.log('Usage: ai-workflow release <ticketId> [agentId]');
+-        process.exit(1);
+-      }
+-      const res = getStore().releaseTicket(ticketId, agentId);
+-      if (res.success) {
+-        console.log(`\x1b[32mTicket ${ticketId} released successfully ✅\x1b[0m`);
+-      } else {
+-        console.log(`\x1b[31mFailed to release ticket:\x1b[0m ${res.reason}`);
+-      }
+-      break;
+-    }
++  const cap = match.capability;
++  const ctx = getContext();
++  let argsPayload: any = {};
+ 
+-    case 'setup':
+-    case 'install': {
+-      handleSetup(args.slice(1));
+-      break;
+-    }
++  if (cap.parseCliArgs) {
++    argsPayload = cap.parseCliArgs(match.args, flags);
++  } else if (match.args.length > 0) {
++    argsPayload = { input: match.args.join(' ') };
++  }
+ 
+-    case 'help':
+-    default: {
+-      console.log(`
+-ai-workflow - Bun-First Causal Engineering OS & Project Visibility Engine
+-
+-Commands:
+-  setup / install            Link global CLI binaries & print/export AI client MCP configurations
+-  sync                       Index codebase, parse symbols & notes, and reconcile Markdown
+-  status / view              Print ANSI TUI project health & module dependency matrix
+-  audit                      Validate codebase against enforcement policies & guidelines
+-  metrics                    Display context compression & execution performance telemetry
+-  shell / repl               Launch interactive multi-mode REPL (/design, /product, /dev, /triage)
+-  mcp                        Start Model Context Protocol (MCP) server over stdio
+-  impact <target>            Run blast radius analysis on a file or AST symbol
+-  digest [hours]             Print daily standup summary (completed tasks, ADRs, bugs)
+-  next                       Recommend the next high-leverage task
+-  doctor [--fix]             Run repo health check and optionally auto-generate bug tickets
+-  decision <list|revert|...> Manage versioned Architectural Decision Records (ADRs)
+-  ui [port]                  Launch local web graph & health dashboard (default: 3456)
+-  run <wish>                 Synthesize and execute a deterministic JS routine
+-      `);
+-      break;
++  try {
++    const result = await cap.handler(ctx, argsPayload);
++
++    if (flags.json) {
++      console.log(JSON.stringify(result, null, 2));
++    } else if (typeof result === 'string') {
++      console.log(result);
++    } else if (cap.renderTui) {
++      console.log(cap.renderTui(result));
++    } else {
++      console.log(JSON.stringify(result, null, 2));
+     }
++  } catch (err: any) {
++    console.error(`\x1b[31mError executing ${cap.name}:\x1b[0m`, err.message || err);
++    process.exit(1);
+   }
+ }
+ 
+ main().catch(err => {
+-  console.error('\x1b[31mError:\x1b[0m', err);
++  console.error('\x1b[31mFatal Error:\x1b[0m', err);
+   process.exit(1);
+ });
+diff --git a/src/mcp.ts b/src/mcp.ts
+index fd290fa..e7f8ab9 100755
+--- a/src/mcp.ts
++++ b/src/mcp.ts
+@@ -3,14 +3,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+ import { z } from 'zod';
+ import { WorkflowStore } from './store.ts';
+-import { packTicketContext } from './context.ts';
+ import { CodeletEngine } from './compiler.ts';
+ import { LocalGitTransport } from './transport.ts';
+-import { auditCodebase } from './guidelines.ts';
+ import { DecisionManager } from './decisions.ts';
+-import { getBlastRadius, getFeatureBlastRadius, generateDigest, recommendNextTask, doctorCheck } from './impact.ts';
+ import { MetricsCollector } from './metrics.ts';
+-import { InteractiveShell } from './shell.ts';
++import { registry, type CommandContext } from './registry.ts';
+ 
+ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
+   const store = new WorkflowStore(projectRoot);
+@@ -18,211 +15,47 @@ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
+   const decisions = new DecisionManager(store);
+   const transport = new LocalGitTransport(store);
+   const metrics = new MetricsCollector(store);
++
++  const ctx: CommandContext = {
++    store,
++    compiler,
++    decisions,
++    transport,
++    metrics,
++    projectRoot
++  };
++
+   const server = new McpServer({
+     name: 'ai-workflow',
+     version: '1.0.0'
+   });
+ 
+-  // 1. get_ticket_context
+-  server.tool('get_ticket_context', 'Fetch high-density bounded context (ticket + epic + AST symbols + guidelines + past lessons + test command)', {
+-    ticketId: z.string(),
+-    maxTokens: z.number().optional(),
+-    format: z.enum(['xml', 'markdown', 'json']).optional()
+-  }, async ({ ticketId, maxTokens, format }) => {
+-    const res = await packTicketContext(store, ticketId, { maxTokens, format });
+-    return {
+-      content: [{ type: 'text', text: res.rendered || `Ticket not found: ${ticketId}` }]
+-    };
+-  });
+-
+-  // 2. get_project_overview
+-  server.tool('get_project_overview', 'Fetch complete module health, completion levels, bug indicators, and Kanban lanes', {}, async () => {
+-    const health = store.getProjectHealth();
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(health, null, 2) }]
+-    };
+-  });
+-
+-  // 3. audit_guidelines
+-  server.tool('audit_guidelines', 'Audit codebase against machine-enforced policies and design guidelines', {
+-    targetFiles: z.array(z.string()).optional()
+-  }, async ({ targetFiles }) => {
+-    const res = await auditCodebase(store, { targetFiles });
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 4. get_telemetry_metrics
+-  server.tool('get_telemetry_metrics', 'Get context compression ratios, token savings, and execution latency metrics', {}, async () => {
+-    const summary = metrics.getSummary();
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }]
+-    };
+-  });
+-
+-  // 5. update_ticket_state
+-  server.tool('update_ticket_state', 'Move a ticket, record execution output or failure lessons, and sync markdown', {
+-    ticketId: z.string(),
+-    lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']),
+-    status: z.enum(['planned', 'partial', 'implemented', 'verified']).optional(),
+-    lesson: z.record(z.any()).optional()
+-  }, async ({ ticketId, lane, status, lesson }) => {
+-    const existing = store.getEntity(ticketId);
+-    const updated = store.upsertEntity({
+-      id: ticketId,
+-      type: 'ticket',
+-      title: existing?.title || ticketId,
+-      lane,
+-      status: status ?? (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'partial' : 'planned')
++  // Automatically register all capabilities from the central registry
++  for (const cap of registry.getAll()) {
++    const shape = (cap.schema instanceof z.ZodObject) ? cap.schema.shape : {};
++    server.tool(cap.name, cap.description, shape, async (args: any) => {
++      try {
++        const result = await cap.handler(ctx, args);
++        const text = typeof result === 'string'
++          ? result
++          : JSON.stringify(result, null, 2);
++        return {
++          content: [{ type: 'text', text }]
++        };
++      } catch (err: any) {
++        return {
++          isError: true,
++          content: [{ type: 'text', text: `Error executing ${cap.name}: ${err.message}` }]
++        };
++      }
+     });
++  }
+ 
+-    if (lesson) {
+-      store.recordRunArtifact({
+-        id: `run-${Date.now()}`,
+-        ticketId,
+-        action: 'mcp-update',
+-        status: lane === 'Done' ? 'passed' : 'failed',
+-        lessons: lesson
+-      });
+-    }
+-
+-    await transport.sync();
+-    return {
+-      content: [{ type: 'text', text: `Ticket ${ticketId} updated to ${lane}. Synced with kanban.md.` }]
+-    };
+-  });
+-
+-  // 6. compile_codelet
+-  server.tool('compile_codelet', 'Synthesize and compile a natural language wish into a tested, reusable JavaScript routine', {
+-    wish: z.string(),
+-    compound: z.number().optional(),
+-    tags: z.array(z.string()).optional()
+-  }, async ({ wish, compound, tags }) => {
+-    const codelet = await compiler.compileWish(wish, { compound, tags });
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify({
+-        title: codelet.meta.title,
+-        titleHash: codelet.meta.titleHash,
+-        doc: codelet.meta.doc,
+-        sourceCode: codelet.sourceCode
+-      }, null, 2) }]
+-    };
+-  });
+-
+-  // 7. list_codelets
+-  server.tool('list_codelets', 'List all compiled routines and codelets in the repository', {}, async () => {
+-    const list = await compiler.listCodelets();
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(list, null, 2) }]
+-    };
+-  });
+-
+-  // 8. search_codelets
+-  server.tool('search_codelets', 'Search compiled routines by keyword, tag, or title', {
+-    query: z.string()
+-  }, async ({ query }) => {
+-    const list = await compiler.listCodelets();
+-    const lower = query.toLowerCase();
+-    const matched = list.filter((c: any) => 
+-      c.meta?.title?.toLowerCase().includes(lower) || 
+-      c.meta?.doc?.toLowerCase().includes(lower) ||
+-      (c.meta?.tags || []).some((t: string) => t.toLowerCase().includes(lower))
+-    );
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(matched, null, 2) }]
+-    };
+-  });
+-
+-  // 9. run_codelet
+-  server.tool('run_codelet', 'Execute a compiled routine by name or titleHash with input arguments', {
+-    nameOrHash: z.string(),
+-    args: z.record(z.any()).optional()
+-  }, async ({ nameOrHash, args }) => {
+-    const result = await compiler.runCodelet(nameOrHash, args || {});
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify({ nameOrHash, result }, null, 2) }]
+-    };
+-  });
+-
+-  // 10. propose_decision
+-  server.tool('propose_decision', 'Propose an Architectural Decision Record (ADR) and link affected modules or epics', {
+-    id: z.string(),
+-    title: z.string(),
+-    body: z.string(),
+-    impactedModules: z.array(z.string()).optional(),
+-    epicId: z.string().optional()
+-  }, async ({ id, title, body, impactedModules, epicId }) => {
+-    const dec = decisions.proposeDecision({ id, title, body, impactedModules, epicId });
+-    await transport.sync();
+-    return {
+-      content: [{ type: 'text', text: `Proposed ADR ${id}: ${title}. Synced with decisions.md.` }]
+-    };
+-  });
+-
+-  // 11. revert_decision
+-  server.tool('revert_decision', 'Revert an Architectural Decision Record (ADR), cancel affected tickets, and log reason', {
+-    id: z.string(),
+-    reason: z.string()
+-  }, async ({ id, reason }) => {
+-    const res = decisions.revertDecision(id, reason);
+-    await transport.sync();
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 12. get_blast_radius
+-  server.tool('get_blast_radius', 'Analyze blast radius for a target file or symbol', {
+-    target: z.string()
+-  }, async ({ target }) => {
+-    const res = getBlastRadius(store, target);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 13. search_knowledge
+-  server.tool('search_knowledge', 'Search across entities, epics, decisions, and in-code notes', {
+-    query: z.string()
+-  }, async ({ query }) => {
+-    const lower = query.toLowerCase();
+-    const entities = store.listEntities().filter(e => e.title.toLowerCase().includes(lower) || (e.body || '').toLowerCase().includes(lower));
+-    const notes = store.listCodeNotes().filter(n => n.body.toLowerCase().includes(lower) || n.filePath.toLowerCase().includes(lower));
+-
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify({ matchedEntities: entities, matchedNotes: notes }, null, 2) }]
+-    };
+-  });
+-
+-  // 14. claim_ticket
+-  server.tool('claim_ticket', 'Atomically claim/lease a ticket for an AI agent to prevent task collision', {
+-    ticketId: z.string(),
+-    agentId: z.string(),
+-    durationMinutes: z.number().optional()
+-  }, async ({ ticketId, agentId, durationMinutes }) => {
+-    const durationMs = (durationMinutes ?? 30) * 60 * 1000;
+-    const res = store.claimTicket(ticketId, agentId, durationMs);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 15. release_ticket
+-  server.tool('release_ticket', 'Release an active ticket claim/lease', {
+-    ticketId: z.string(),
+-    agentId: z.string().optional()
+-  }, async ({ ticketId, agentId }) => {
+-    const res = store.releaseTicket(ticketId, agentId);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 16. execute_shell_wish
++  // Shell execution tool for autonomous directives
+   server.tool('execute_shell_wish', 'Execute an autonomous wish or command through the ai-workflow Shell Engine', {
+     wish: z.string()
+   }, async ({ wish }) => {
++    const { InteractiveShell } = await import('./shell.ts');
+     const shell = new InteractiveShell(store);
+     const output = await shell.executeCommand(wish);
+     return {
+@@ -230,63 +63,7 @@ export function createAiWorkflowMcpServer(projectRoot: string = process.cwd()) {
+     };
+   });
+ 
+-  // 17. recommend_next_task
+-  server.tool('recommend_next_task', 'Get the highest leverage task from the dependency graph', {}, async () => {
+-    const res = recommendNextTask(store);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 18. analyze_feature_blast_radius
+-  server.tool('analyze_feature_blast_radius', 'Analyze AI-driven semantic blast radius for a proposed feature or refactoring', {
+-    featureWish: z.string()
+-  }, async ({ featureWish }) => {
+-    const res = await getFeatureBlastRadius(store, featureWish);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 19. doctor_diagnose
+-  server.tool('doctor_diagnose', 'Run repository health diagnostics and optionally auto-create tickets for unlinked notes', {
+-    fix: z.boolean().optional()
+-  }, async ({ fix }) => {
+-    const res = doctorCheck(store, { fix });
+-    if (fix) await transport.sync();
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify(res, null, 2) }]
+-    };
+-  });
+-
+-  // 20. get_ticket_deep_view
+-  server.tool('get_ticket_deep_view', 'Get deep inspection payload for a ticket including AST symbols, callers, past run artifacts and lessons', {
+-    ticketId: z.string()
+-  }, async ({ ticketId }) => {
+-    const ticket = store.getEntity(ticketId);
+-    if (!ticket) return { content: [{ type: 'text', text: `Ticket ${ticketId} not found.` }] };
+-    const context = await packTicketContext(store, ticketId);
+-    const artifacts = store.getRunArtifacts(ticketId);
+-    const outgoing = store.getOutgoing(ticketId);
+-    const incoming = store.getIncoming(ticketId);
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify({ ticket, context, artifacts, outgoing, incoming }, null, 2) }]
+-    };
+-  });
+-
+-  // 21. get_ui_state
+-  server.tool('get_ui_state', 'Fetch unified cockpit state (health, lanes, claims, ADRs, module matrix)', {}, async () => {
+-    const health = store.getProjectHealth();
+-    const tickets = store.listEntities({ type: 'ticket' });
+-    const claims = store.getActiveClaims();
+-    const decisions = store.listEntities({ type: 'decision' });
+-    const epics = store.listEntities({ type: 'epic' });
+-    return {
+-      content: [{ type: 'text', text: JSON.stringify({ health, tickets, claims, decisions, epics }, null, 2) }]
+-    };
+-  });
+-
+-  return { server, store, compiler, decisions, metrics };
++  return { server, store, compiler, decisions, metrics, transport };
+ }
+ 
+ export async function runMcpStdio(projectRoot?: string) {
+@@ -296,8 +73,8 @@ export async function runMcpStdio(projectRoot?: string) {
+     process.stderr.write('Run \x1b[1;32maiwf setup\x1b[0m to see client configurations. Press \x1b[1mCtrl+C\x1b[0m to exit.\n\n');
+   }
+   const { server } = createAiWorkflowMcpServer(projectRoot);
+-  const transport = new StdioServerTransport();
+-  await server.connect(transport);
++  const stdioTransport = new StdioServerTransport();
++  await server.connect(stdioTransport);
+ }
+ 
+ if (import.meta.main) {
+@@ -306,4 +83,3 @@ if (import.meta.main) {
+     process.exit(1);
+   });
+ }
+-
+diff --git a/src/shell.ts b/src/shell.ts
+index 764a6f3..cb2573d 100644
+--- a/src/shell.ts
++++ b/src/shell.ts
+@@ -5,11 +5,10 @@ import { Asker } from '@dharmax/llm-utils';
+ import { WorkflowStore } from './store.ts';
+ import { CodeletEngine } from './compiler.ts';
+ import { DecisionManager } from './decisions.ts';
+-import { renderTuiDashboard } from './ui.ts';
+-import { getBlastRadius, getFeatureBlastRadius, generateDigest, recommendNextTask, doctorCheck } from './impact.ts';
+ import { LocalGitTransport } from './transport.ts';
+-import { auditCodebase } from './guidelines.ts';
+ import { MetricsCollector } from './metrics.ts';
++import { registry, type CommandContext } from './registry.ts';
++import { recommendNextTask, getFeatureBlastRadius } from './impact.ts';
+ import { packTicketContext } from './context.ts';
+ 
+ export type ShellMode = 'design' | 'product' | 'dev' | 'triage';
+@@ -21,12 +20,14 @@ export class InteractiveShell {
+   public decisions: DecisionManager;
+   public transport: LocalGitTransport;
+   public metrics: MetricsCollector;
++  private ctx: CommandContext;
++  private ollamaHost: string;
+ 
+   constructor(public store: WorkflowStore, asker?: Asker) {
+-    const host = process.env.OLLAMA_HOST || 'http://lotus:11434';
++    this.ollamaHost = process.env.OLLAMA_HOST || 'http://lotus:11434';
+     this.asker = asker ?? new Asker({
+       providers: [
+-        { id: 'ollama', host, baseUrl: host, available: true, enabled: true }
++        { id: 'ollama', host: this.ollamaHost, baseUrl: this.ollamaHost, available: true, enabled: true }
+       ],
+       defaultModel: { providerId: 'ollama', modelId: 'qwen2.5-coder:7b' },
+       preferLocal: true
+@@ -35,15 +36,24 @@ export class InteractiveShell {
+     this.decisions = new DecisionManager(store);
+     this.transport = new LocalGitTransport(store);
+     this.metrics = new MetricsCollector(store);
++
++    this.ctx = {
++      store: this.store,
++      compiler: this.compiler,
++      decisions: this.decisions,
++      transport: this.transport,
++      metrics: this.metrics,
++      projectRoot: store.root
++    };
+   }
+ 
+   async start() {
+     const rl = readline.createInterface({ input, output });
+-    console.log(`\x1b[1;36m==================================================\x1b[0m`);
+-    console.log(`\x1b[1;37m   AI-WORKFLOW REPL & CAUSAL ENGINEERING OS\x1b[0m`);
+-    console.log(`\x1b[1;36m==================================================\x1b[0m`);
++    console.log(`\x1b[1;36m========================================================================\x1b[0m`);
++    console.log(`\x1b[1;37m   AI-WORKFLOW (aiwf) INTERACTIVE REPL & CAUSAL ENGINEERING OS\x1b[0m`);
++    console.log(`\x1b[1;36m========================================================================\x1b[0m`);
+     console.log(`Modes: /design (Architect) | /product (PM) | /dev (Engineer) | /triage (Reviewer)`);
+-    console.log(`Commands: sync, status, next, impact <target>, digest, doctor, audit, metrics, claim, release, exit\n`);
++    console.log(`Type 'help' to see all commands, or ask natural language directives.\n`);
+ 
+     while (true) {
+       const modeColor = this.mode === 'design' ? '\x1b[35m' : this.mode === 'product' ? '\x1b[34m' : this.mode === 'dev' ? '\x1b[32m' : '\x1b[33m';
+@@ -53,17 +63,8 @@ export class InteractiveShell {
+       if (!line) continue;
+       if (line === 'exit' || line === 'quit') break;
+ 
+-      const isFastCmd = ['sync', 'status', 'view', 'next', 'impact', 'digest', 'standup', 'doctor', 'audit', 'metrics', 'start', 'done', 'claim', 'release', 'decision', 'help'].includes(line.split(/\s+/)[0].toLowerCase()) || line.startsWith('/');
+-
+-      if (!isFastCmd) {
+-        process.stdout.write(`\x1b[36mExecuting action...\x1b[0m\r`);
+-      }
+-
+       const res = await this.executeCommand(line);
+       if (res) {
+-        if (!isFastCmd) {
+-          process.stdout.write(`                   \r`);
+-        }
+         console.log(res + '\n');
+       }
+     }
+@@ -74,7 +75,7 @@ export class InteractiveShell {
+     const trimmed = line.trim();
+     if (!trimmed) return '';
+ 
+-    // Mode Switch
++    // 1. Mode Switch
+     if (trimmed.startsWith('/')) {
+       const targetMode = trimmed.slice(1).toLowerCase();
+       if (['design', 'product', 'dev', 'triage'].includes(targetMode)) {
+@@ -84,192 +85,88 @@ export class InteractiveShell {
+       return `\x1b[31mUnknown mode: ${targetMode}. Valid modes: /design, /product, /dev, /triage\x1b[0m`;
+     }
+ 
+-    const parts = trimmed.split(/\s+/);
+-    const cmd = parts[0].toLowerCase();
+-
+-    // Fast direct commands
+-    switch (cmd) {
+-      case 'sync': {
+-        await this.transport.sync();
+-        return `\x1b[32mSynced Markdown (kanban.md, epics.md, decisions.md, modules.md) with SQLite.\x1b[0m`;
+-      }
+-
+-      case 'status':
+-      case 'view': {
+-        return renderTuiDashboard(this.store);
+-      }
+-
+-      case 'next': {
+-        const rec = recommendNextTask(this.store);
+-        const ticketStr = rec.ticket ? `\x1b[1m${rec.ticket.id}: ${rec.ticket.title}\x1b[0m` : 'None';
+-        return `\x1b[1;33mNext Recommended Task:\x1b[0m ${ticketStr}\nReason: ${rec.reason}`;
+-      }
+-
+-      case 'impact': {
+-        const target = parts[1];
+-        if (!target) return 'Usage: impact <file-or-symbol>';
+-        const res = getBlastRadius(this.store, target);
+-        return `\x1b[1;36mBlast Radius for ${target}:\x1b[0m ${res.affectedFilesCount} files affected.\nFiles: ${res.affectedFiles.join(', ')}\nAffected Tickets: ${res.affectedTickets.map(t => t.id).join(', ') || 'None'}\nRecommended Tests: ${res.recommendedTests.join(', ')}`;
+-      }
+-
+-      case 'digest':
+-      case 'standup': {
+-        const hours = parseInt(parts[1] || '24', 10);
+-        const dig = generateDigest(this.store, hours);
+-        return `\x1b[1;32m=== Daily Digest (Past ${hours}h) ===\x1b[0m\nCompleted Tickets: ${dig.completedTickets.map(t => t.id).join(', ') || 'None'}\nIn Progress: ${dig.inProgressTickets.map(t => t.id).join(', ') || 'None'}\nRecent ADR Decisions: ${dig.recentDecisions.map(d => d.id).join(', ') || 'None'}\nOpen Bug Badges: ${dig.openBugsCount} 🔴`;
+-      }
+-
+-      case 'doctor': {
+-        const fix = parts.includes('--fix');
+-        const doc = doctorCheck(this.store, { fix });
+-        let out = `\x1b[1;34m=== Repo Doctor Health Report ===\x1b[0m\nTotal Files: ${doc.totalFiles}\nUnlinked Bug Notes (TODO/FIXME): ${doc.unlinkedBugNotes}`;
+-        if (fix) {
+-          out += `\nAuto-created ${doc.autoFixedTickets.length} bug tickets in Todo lane.`;
+-        }
+-        return out;
+-      }
+-
+-      case 'audit': {
+-        const res = await auditCodebase(this.store);
+-        if (res.passed) {
+-          return `\x1b[32mAudit Passed! 0 guideline violations found. ✅\x1b[0m`;
+-        }
+-        let out = `\x1b[31mAudit Failed! Found ${res.violationsCount} violation(s):\x1b[0m\n`;
+-        for (const f of res.findings.slice(0, 10)) {
+-          out += `  \x1b[1m${f.file}:${f.line}\x1b[0m [${f.ruleId}]: ${f.message}\n`;
+-        }
+-        return out.trim();
+-      }
+-
+-      case 'metrics': {
+-        const summary = this.metrics.getSummary();
+-        return `\x1b[1;36m=== Context & Performance Telemetry Metrics ===\x1b[0m\nTotal Context Packs: ${summary.totalContextPacks}\nTotal Tokens Saved: ${summary.totalTokensSaved.toLocaleString()} tokens\nAvg Compression: ${summary.averageCompressionRatio}%\nAvg Context Pack: ${summary.averageContextPackDurationMs}ms`;
+-      }
+-
+-      case 'start': {
+-        const ticketId = parts[1];
+-        if (!ticketId) return 'Usage: start <ticketId>';
+-        const existing = this.store.getEntity(ticketId);
+-        this.store.upsertEntity({
+-          id: ticketId,
+-          type: 'ticket',
+-          title: existing?.title || ticketId,
+-          lane: 'In Progress'
+-        });
+-        await this.transport.sync();
+-        return `\x1b[32mTicket ${ticketId} moved to In Progress. Synced with kanban.md.\x1b[0m`;
+-      }
++    // 2. Help Command
++    if (trimmed.toLowerCase() === 'help') {
++      return this.renderShellHelp();
++    }
+ 
+-      case 'done': {
+-        const ticketId = parts[1];
+-        if (!ticketId) return 'Usage: done <ticketId>';
+-        const existing = this.store.getEntity(ticketId);
+-        this.store.upsertEntity({
+-          id: ticketId,
+-          type: 'ticket',
+-          title: existing?.title || ticketId,
+-          lane: 'Done',
+-          status: 'verified'
+-        });
+-        await this.transport.sync();
+-        return `\x1b[32mTicket ${ticketId} moved to Done. Synced with kanban.md.\x1b[0m`;
+-      }
++    const parts = trimmed.split(/\s+/);
+ 
+-      case 'claim': {
+-        const ticketId = parts[1];
+-        const agentId = parts[2] || process.env.USER || 'agent-1';
+-        const durationMin = parseInt(parts[3] || '30', 10);
+-        if (!ticketId) return 'Usage: claim <ticketId> [agentId] [durationMinutes]';
+-        const res = this.store.claimTicket(ticketId, agentId, durationMin * 60 * 1000);
+-        if (res.success) {
+-          return `\x1b[32mTicket ${ticketId} claimed by ${agentId} until ${res.lease?.expiresAt} ✅\x1b[0m`;
+-        }
+-        return `\x1b[31mFailed to claim ticket:\x1b[0m ${res.reason}`;
++    // 3. Match from CapabilityRegistry (Handles "list codelets", "codelet list", "status", "tickets", "next", "gate", "sweep", etc.)
++    const normalizedParts = (parts[0].toLowerCase() === 'list' && parts.length > 1)
++      ? [parts[1], 'list', ...parts.slice(2)]
++      : parts;
++
++    const match = registry.findForCli(normalizedParts) || registry.findForCli(parts);
++    if (match && match.capability) {
++      const cap = match.capability;
++      let argsPayload: any = {};
++      if (cap.parseCliArgs) {
++        argsPayload = cap.parseCliArgs(match.args, {});
++      } else if (match.args.length > 0) {
++        argsPayload = { input: match.args.join(' ') };
+       }
+ 
+-      case 'release': {
+-        const ticketId = parts[1];
+-        const agentId = parts[2];
+-        if (!ticketId) return 'Usage: release <ticketId> [agentId]';
+-        const res = this.store.releaseTicket(ticketId, agentId);
+-        if (res.success) {
+-          return `\x1b[32mTicket ${ticketId} released successfully ✅\x1b[0m`;
+-        }
+-        return `\x1b[31mFailed to release ticket:\x1b[0m ${res.reason}`;
++      try {
++        const result = await cap.handler(this.ctx, argsPayload);
++        if (typeof result === 'string') return result;
++        if (cap.renderTui) return cap.renderTui(result);
++        return JSON.stringify(result, null, 2);
++      } catch (err: any) {
++        return `\x1b[31mError executing ${cap.name}:\x1b[0m ${err.message}`;
+       }
++    }
+ 
+-      case 'decision': {
+-        const sub = parts[1]?.toLowerCase();
+-        if (sub === 'revert' && parts[2]) {
+-          const reason = parts.slice(3).join(' ') || 'Reverted by operator';
+-          const res = this.decisions.revertDecision(parts[2], reason);
+-          await this.transport.sync();
+-          return `\x1b[33mReverted decision ${parts[2]}.\x1b[0m Affected tickets cancelled: ${res.affectedTickets.map(t => t.id).join(', ') || 'None'}`;
+-        }
+-        if (sub === 'accept' && parts[2]) {
+-          this.decisions.acceptDecision(parts[2]);
+-          await this.transport.sync();
+-          return `\x1b[32mAccepted decision ${parts[2]}.\x1b[0m`;
+-        }
+-        if (sub === 'propose' && parts[2] && parts[3]) {
+-          const id = parts[2];
+-          const title = parts[3];
+-          const body = parts.slice(4).join(' ') || '';
+-          this.decisions.proposeDecision({ id, title, body });
+-          await this.transport.sync();
+-          return `\x1b[32mProposed decision ${id}: ${title}\x1b[0m`;
+-        }
+-        const list = this.decisions.listDecisions();
+-        let out = `\x1b[1;34m=== Architectural Decision Records (ADRs) ===\x1b[0m\n`;
+-        for (const d of list) {
+-          out += `- \x1b[1m${d.id}\x1b[0m [${d.status}]: ${d.title}\n`;
+-        }
+-        return out.trim();
+-      }
++    // 4. Natural Language Tool-Aware Directives
++    return this.handleNaturalLanguage(trimmed);
++  }
+ 
+-      case 'help': {
+-        return `
+-\x1b[1;36mAI-Workflow Interactive Shell Commands & Natural Language Operations:\x1b[0m
+-  /design, /product, /dev, /triage   Switch reasoning mode
+-  sync                               Reconcile Markdown ledgers & AST index
+-  status / view                      Display project health matrix & Kanban
+-  next                               Get recommended next priority task
+-  impact <file|symbol>               Calculate blast radius & test targets
+-  digest [hours]                     Generate daily standup digest
+-  doctor [--fix]                     Repository diagnostics & auto-ticket creation
+-  audit                              Audit codebase against policy rules
+-  metrics                            Display context compression & telemetry
+-  start <ticketId>                   Move ticket to In Progress
+-  done <ticketId>                    Move ticket to Done (verified)
+-  claim <ticketId> [agent] [mins]    Atomically lease a ticket
+-  release <ticketId> [agent]         Release ticket lease
+-  decision <list|propose|accept|revert>  Manage Architectural Decision Records (ADRs)
+-  exit / quit                        Exit shell
+-
+-\x1b[1;33mNatural Language Directives (Tool-Aware):\x1b[0m
+-  "how many todo items do we have?"      -> Queries exact ticket counts from SQLite
++  private renderShellHelp(): string {
++    return `
++\x1b[1;36mAI-Workflow Interactive Commands (Deterministic & Instant):\x1b[0m
++  /design, /product, /dev, /triage      Switch reasoning role
++  status / view                         Project health, lanes, and module completion matrix
++  sync                                  Reconcile Markdown ledgers & AST index
++  tickets / ticket list [lane]          List tickets across Kanban lanes
++  context <ticketId>                    Bounded context extraction pack
++  ticket inspect <ticketId>             Deep AST symbols and execution artifacts
++  start <ticketId>                      Move ticket to In Progress
++  done <ticketId>                       Move ticket to Done (verified)
++  claim <ticketId> [agent] [mins]       Atomically lease ticket
++  release <ticketId>                    Release ticket lease
++  next                                  Get recommended priority task
++  impact <file|symbol>                  Calculate blast radius & test targets
++  gate <file|symbol>                    Pre-flight safety gate checklist
++  symbol <name>                         AST fast symbol lookup (callers, callees, location)
++  codelets / codelet list               List compiled deterministic routines
++  codelet run <hash> [argsJson]         Execute routine deterministically
++  sweep [--fix]                         Scan technical debt & auto-create Kanban tickets
++  digest [hours]                        Generate standup summary
++  doctor [--fix]                        Diagnostics & health check
++  audit                                 Validate codebase against policy rules
++  metrics                               Context compression & latency telemetry
++  decision <list|propose|accept|revert> Manage Architectural Decision Records (ADRs)
++  exit / quit                           Exit REPL
++
++\x1b[1;33mNatural Language Directives:\x1b[0m
++  "how many todo items do we have?"      -> Queries ticket counts from SQLite
+   "can you handle the next one?"         -> Autonomously claims, starts, and packs context for top task
+-  "what breaks if we add OAuth2?"        -> Runs AI-driven feature blast radius
+-  "create a ticket to optimize store.ts" -> Inserts ticket & relates to file
+-        `.trim();
+-      }
+-    }
+-
+-    // Natural Language Tool-Aware Autonomous Action Loop
+-    return this.handleToolAwareWish(trimmed);
++  "what breaks if we refactor auth?"     -> AI-driven semantic feature blast radius
++  "create ticket <title>"                -> Creates ticket and syncs kanban.md
++    `.trim();
+   }
+ 
+-  private async handleToolAwareWish(line: string): Promise<string> {
++  private async handleNaturalLanguage(line: string): Promise<string> {
+     const lower = line.toLowerCase();
+ 
+-    // 1. Directive: "Handle next task" / "Take next ticket" / "Start next"
++    // 1. Directive: "Handle next task" / "Take next ticket"
+     if (
+       lower.includes('handle the next') || 
+       lower.includes('take the next') || 
+       lower.includes('start the next') || 
+       lower.includes('work on the next') ||
+       lower.includes('handle next') ||
+-      lower.includes('next task') && (lower.includes('do') || lower.includes('take') || lower.includes('start'))
++      (lower.includes('next task') && (lower.includes('do') || lower.includes('take') || lower.includes('start')))
+     ) {
+       const rec = recommendNextTask(this.store);
+       if (!rec.ticket) {
+@@ -277,19 +174,12 @@ export class InteractiveShell {
+       }
+ 
+       const ticketId = rec.ticket.id;
+-      // 1. Claim lease
+       this.store.claimTicket(ticketId, 'shell-agent', 30 * 60 * 1000);
+-      // 2. Move to In Progress
+       const claimedEntity = this.store.getEntity(ticketId) || rec.ticket;
+-      this.store.upsertEntity({
+-        ...claimedEntity,
+-        lane: 'In Progress'
+-      });
++      this.store.upsertEntity({ ...claimedEntity, lane: 'In Progress' });
+       await this.transport.sync();
+ 
+-      // 3. Pack bounded context
+       const packed = await packTicketContext(this.store, ticketId);
+-
+       return `\x1b[1;32m⚡ Autonomously dispatched next task:\x1b[0m \x1b[1m${ticketId}: ${rec.ticket.title}\x1b[0m
+ - \x1b[36mLease:\x1b[0m Claimed by 'shell-agent' (30m lease)
+ - \x1b[36mLane Transition:\x1b[0m Moved from Todo -> In Progress (synced with kanban.md)
+@@ -317,7 +207,7 @@ export class InteractiveShell {
+       return out;
+     }
+ 
+-    // 3. Directive: "What breaks if..." / "Feature blast radius..."
++    // 3. Directive: "What breaks if..."
+     if (lower.includes('what breaks') || lower.includes('blast radius of') || lower.includes('impact of') || lower.includes('if we add') || lower.includes('if we change')) {
+       const featureText = line.replace(/^(what breaks if we|what breaks if|blast radius of|impact of|what happens if we)\s+/i, '');
+       const blast = await getFeatureBlastRadius(this.store, featureText, this.asker);
+@@ -331,45 +221,41 @@ Recommended Tests: ${blast.recommendedTests.join(', ')}
+ Architectural Assessment: ${blast.architecturalSummary}`;
+     }
+ 
+-    // 4. Directive: "Create ticket <title>" / "Add ticket <title>"
++    // 4. Directive: "Create ticket <title>"
+     if (lower.startsWith('create ticket') || lower.startsWith('add ticket') || lower.startsWith('new ticket')) {
+       const title = line.replace(/^(create ticket|add ticket|new ticket)\s*:?\s*/i, '').trim();
+       if (!title) return 'Usage: create ticket <title>';
+       const id = `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+-      const ticket = this.store.upsertEntity({
++      this.store.upsertEntity({
+         id,
+         type: 'ticket',
+         title,
+         lane: 'Todo',
+-        status: 'implemented',
++        status: 'planned',
+         body: `Created via autonomous shell directive: "${line}"`
+       });
+       await this.transport.sync();
+       return `\x1b[32mCreated ticket ${id}: "${title}" in Todo lane. Synced with kanban.md ✅\x1b[0m`;
+     }
+ 
+-    // 5. Directive: "Audit" / "Check rules"
+-    if (lower.includes('audit') || lower.includes('check rules') || lower.includes('guidelines')) {
+-      const res = await auditCodebase(this.store);
+-      if (res.passed) return `\x1b[32mAudit Passed! 0 guideline violations found across codebase. ✅\x1b[0m`;
+-      let out = `\x1b[31mAudit Failed! Found ${res.violationsCount} violation(s):\x1b[0m\n`;
+-      for (const f of res.findings.slice(0, 10)) {
+-        out += `  ${f.file}:${f.line} [${f.ruleId}]: ${f.message}\n`;
+-      }
+-      return out.trim();
+-    }
+-
+-    // 6. Dev Mode Natural Language Routine Compilation
++    // 5. Dev Mode Natural Language Routine Compilation
+     if (this.mode === 'dev') {
+       try {
+         const codelet = await this.compiler.compileWish(line);
+-        const testRes = await codelet.test();
+-        return `\x1b[32mCompiled routine: ${codelet.meta.title} (Hash: ${codelet.meta.titleHash})\x1b[0m\nDoc: ${codelet.meta.doc}\nAutomated Test Verification: ${testRes.passed ? 'PASSED ✅' : 'FAILED ❌'}`;
++        return `\x1b[32mCompiled routine: ${codelet.meta.title}\x1b[0m\nDoc: ${codelet.meta.doc}\nSaved to .codelets/${codelet.meta.title}.json ✅`;
+       } catch (err: any) {
+         return `\x1b[31mSynthesis error:\x1b[0m ${err.message}`;
+       }
+     }
+ 
++    // 6. Fast Health Check to prevent 45s hang if Ollama is unreachable
++    const isOnline = await this.probeOllamaHealth();
++    if (!isOnline) {
++      return `\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m
++- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).
++- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`;
++    }
++
+     // 7. General Architecture Reasoning with Live Causal Graph Grounding
+     const projectContext = this.buildLiveProjectContext();
+     const systemPrompt = `You are the AI-Workflow Causal Assistant & Autonomous Engineer in ${this.mode.toUpperCase()} mode.
+@@ -382,7 +268,7 @@ ${projectContext}`;
+     try {
+       const res = await this.asker.ask(line, {
+         system: systemPrompt,
+-        timeoutMs: 45000
++        timeoutMs: 15000
+       });
+       if (res.ok && res.text) {
+         return res.text;
+@@ -396,6 +282,17 @@ ${projectContext}`;
+     }
+   }
+ 
++  private async probeOllamaHealth(): Promise<boolean> {
++    try {
++      const res = await fetch(`${this.ollamaHost}/api/tags`, {
++        signal: AbortSignal.timeout(1200)
++      });
++      return res.ok;
++    } catch {
++      return false;
++    }
++  }
++
+   private buildLiveProjectContext(): string {
+     const health = this.store.getProjectHealth();
+     const tickets = this.store.listEntities({ type: 'ticket' });
+diff --git a/src/store.ts b/src/store.ts
+index ceade33..320c4b5 100644
+--- a/src/store.ts
++++ b/src/store.ts
+@@ -11,6 +11,8 @@ import {
+   RawOntology
+ } from '@dharmax/semantika';
+ 
++import { findProjectRoot } from './helpers.ts';
++
+ function initSchema(db: Database) {
+   db.exec(`
+     CREATE TABLE IF NOT EXISTS entities (
+@@ -114,8 +116,8 @@ export class WorkflowStore {
+   private stmtUpsertEntity: Statement;
+   private stmtAddRelation: Statement;
+ 
+-  constructor(projectRoot: string = process.cwd()) {
+-    this.root = path.resolve(projectRoot);
++  constructor(projectRoot?: string) {
++    this.root = projectRoot ? path.resolve(projectRoot) : findProjectRoot(process.cwd()).root;
+     const dbDir = path.join(this.root, '.ai-workflow', 'state');
+     mkdirSync(dbDir, { recursive: true });
+     

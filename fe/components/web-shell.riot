@@ -4,27 +4,32 @@
       <span style="font-weight: 700; font-size: 13px; color: var(--accent);">⚡ AI-Workflow Autonomous Shell & Action Dispatcher</span>
       <span style="font-size: 12px; color: var(--text-muted);">{ props.collapsed ? '[▲ Click to Expand]' : '[▼ Click to Minimize]' }</span>
     </div>
-    <div class="shell-log" id="shellLogEl">{ props.log }</div>
+    <div class="shell-log">{ props.log }</div>
     <div class="shell-input-box">
-      <input type="text" class="shell-input" id="shellWebInput" placeholder="Enter command or natural wish (e.g. 'can you handle the next one', 'audit', 'sync')..." onkeydown={ handleKey }>
+      <input type="text"
+             class="shell-input"
+             value={ state.input }
+             oninput={ (e) => update({ input: e.target.value }) }
+             onkeydown={ handleKey }
+             placeholder="Enter command or natural wish (e.g. 'can you handle the next one', 'triage', 'sync')...">
       <button class="primary" onclick={ sendCommand }>Run</button>
     </div>
   </div>
 
   <script>
     export default {
+      state: { input: '' },
       onUpdated() {
-        const el = document.getElementById('shellLogEl');
-        if (el) el.scrollTop = el.scrollHeight;
+        const logEl = this.$('.shell-log');
+        if (logEl) logEl.scrollTop = logEl.scrollHeight;
       },
       handleKey(e) {
         if (e.key === 'Enter') this.sendCommand();
       },
       sendCommand() {
-        const el = document.getElementById('shellWebInput');
-        const val = el ? el.value.trim() : '';
+        const val = (this.state.input || '').trim();
         if (!val) return;
-        el.value = '';
+        this.update({ input: '' });
         if (this.props.onExec) this.props.onExec(val);
       }
     }

@@ -160,5 +160,112 @@ describe('AI-Workflow Interactive Shell Tests', () => {
     const createRes = await shell.executeCommand('create ticket Implement Webhook Notifications');
     expect(createRes).toContain('Created ticket');
     expect(createRes).toContain('Implement Webhook Notifications');
+
+    // 5. "why are tests failing?"
+    const triageRes = await shell.executeCommand('why are tests failing?');
+    expect(triageRes).toBeDefined();
+
+    // 6. "burndown"
+    const burnRes = await shell.executeCommand('burndown');
+    expect(burnRes).toBeDefined();
+
+    // 7. "environment info"
+    const envRes = await shell.executeCommand('environment info');
+    expect(envRes).toContain('Environment & Toolchain Orientation');
+  });
+
+  test('Comprehensive Shell Capability Suite: root, env, git-status, notes, snapshot, pr-summary, tokens, outline, help, edge cases', async () => {
+    // 1. Root
+    const rootRes = await shell.executeCommand('root');
+    expect(rootRes).toContain('Project Root');
+
+    // 2. Env
+    const envRes = await shell.executeCommand('env');
+    expect(envRes).toContain('Platform');
+
+    // 3. Git Status
+    const gitStatusRes = await shell.executeCommand('git-status');
+    expect(gitStatusRes).toBeDefined();
+
+    // 4. Scratchpad Notes
+    const noteRes = await shell.executeCommand('note Refactored shell REPL with Tab completion');
+    expect(noteRes).toContain('Appended note');
+    const readNotesRes = await shell.executeCommand('notes');
+    expect(readNotesRes).toContain('Refactored shell REPL');
+
+    // 5. Token budget estimation
+    const tokenRes = await shell.executeCommand('token-count package.json');
+    expect(tokenRes).toContain('Estimated Tokens');
+
+    // 6. PR Summary
+    const prRes = await shell.executeCommand('pr-summary');
+    expect(prRes).toContain('PR Markdown Body');
+
+    // 7. Graph linter
+    const lintRes = await shell.executeCommand('lint-graph');
+    expect(lintRes).toContain('Causal Graph Integrity Lint');
+
+    // 8. Help
+    const helpRes = await shell.executeCommand('help');
+    expect(helpRes).toContain('AI-Workflow Interactive Commands');
+
+    // 9. Edge cases: Empty string, whitespace
+    const emptyRes = await shell.executeCommand('   ');
+    expect(emptyRes).toBe('');
+  });
+
+
+
+
+
+  test('Multi‑sentence natural language handling (5 sentences)', async () => {
+    const multiRes = await shell.executeCommand('Can you handle the next task? Also show me the metrics. List all open tickets now. What is the current environment info? Finally, summarize any blocked tickets.');
+    expect(multiRes).toBeDefined();
+    // Basic sanity checks for each component
+
+    expect(multiRes).toContain('Metrics');
+    expect(multiRes).toContain('Open tickets');
+    expect(multiRes).toContain('Environment');
+    expect(multiRes).toContain('Blocked tickets');
+  });
+
+  test('Live Cockpit Web Server endpoints: HTML, health, metrics, burndown, shell execution', async () => {
+    const { startWebServer } = await import('../src/ui.ts');
+    const server = startWebServer(store, 3999);
+
+    try {
+      // 1. Root HTML
+      const htmlRes = await fetch('http://localhost:3999/');
+      expect(htmlRes.status).toBe(200);
+      const htmlText = await htmlRes.text();
+      expect(htmlText).toContain('app-root');
+      expect(htmlText).toContain('page-metrics.riot');
+
+      // 2. Health API
+      const healthRes = await fetch('http://localhost:3999/api/health');
+      expect(healthRes.status).toBe(200);
+      const healthJson = await healthRes.json();
+      expect(healthJson.totalTickets).toBeDefined();
+
+      // 3. Metrics API
+      const metricsRes = await fetch('http://localhost:3999/api/metrics');
+      expect(metricsRes.status).toBe(200);
+
+      // 4. Burndown API
+      const burndownRes = await fetch('http://localhost:3999/api/burndown');
+      expect(burndownRes.status).toBe(200);
+
+      // 5. Shell Execution API
+      const shellExecRes = await fetch('http://localhost:3999/api/shell/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: 'status' })
+      });
+      expect(shellExecRes.status).toBe(200);
+      const shellExecJson = await shellExecRes.json();
+      expect(shellExecJson.output).toContain('AI-WORKFLOW');
+    } finally {
+      server.stop();
+    }
   });
 });

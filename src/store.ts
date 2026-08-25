@@ -11,6 +11,8 @@ import {
   RawOntology
 } from '@dharmax/semantika';
 
+import { findProjectRoot } from './helpers.ts';
+
 function initSchema(db: Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS entities (
@@ -114,8 +116,8 @@ export class WorkflowStore {
   private stmtUpsertEntity: Statement;
   private stmtAddRelation: Statement;
 
-  constructor(projectRoot: string = process.cwd()) {
-    this.root = path.resolve(projectRoot);
+  constructor(projectRoot?: string) {
+    this.root = projectRoot ? path.resolve(projectRoot) : findProjectRoot(process.cwd()).root;
     const dbDir = path.join(this.root, '.ai-workflow', 'state');
     mkdirSync(dbDir, { recursive: true });
     

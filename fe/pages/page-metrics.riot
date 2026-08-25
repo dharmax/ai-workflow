@@ -1,0 +1,91 @@
+<page-metrics>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Context Packs Generated</h3>
+      <div class="val" style="color: var(--accent);">{ state.metrics.totalContextPacks || 0 }</div>
+    </div>
+    <div class="stat-card">
+      <h3>Cumulative Tokens Saved</h3>
+      <div class="val" style="color: var(--success);">{ (state.metrics.totalSavedTokens || 0).toLocaleString() } 🪙</div>
+    </div>
+    <div class="stat-card">
+      <h3>Average Compression Ratio</h3>
+      <div class="val" style="color: #c084fc;">{ state.metrics.averageCompressionRatio || 0 }%</div>
+    </div>
+    <div class="stat-card">
+      <h3>Operation Success Rate</h3>
+      <div class="val" style="color: { state.metrics.failureRate > 0 ? '#f87171' : '#4ade80' };">
+        { 100 - (state.metrics.failureRate || 0) }%
+      </div>
+    </div>
+  </div>
+
+  <!-- TEST SUITE TRIAGE -->
+  <div class="stat-card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h3 style="color: var(--accent); margin: 0;">🧪 Test Suite Triage & Failure Diagnosis</h3>
+      <button class="primary" onclick={ runTriage }>Run Test Triage</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Parses test execution in the background to extract failing test assertions without raw stack trace noise.</p>
+    
+    <div if={ state.triageResult }>
+      <div if={ state.triageResult.passed } class="pill" style="color: #4ade80; font-size: 13px; padding: 6px 14px;">
+        { state.triageResult.summary }
+      </div>
+      <div if={ !state.triageResult.passed } style="margin-top: 10px;">
+        <div style="color: #f87171; font-weight: 700; font-size: 14px; margin-bottom: 8px;">
+          Detected { state.triageResult.failingCount } Failure(s):
+        </div>
+        <div each={ f in state.triageResult.failures } class="drawer-section" style="margin-bottom: 8px; border-color: #f87171;">
+          <strong style="color: #fbbf24;">{ f.testName }</strong>
+          <pre style="font-family: var(--font-mono); font-size: 12px; color: #fca5a5; margin-top: 4px; white-space: pre-wrap;">{ f.error }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECENT CHURN HOTSPOTS -->
+  <div class="stat-card">
+    <h3 style="color: var(--accent); margin-bottom: 8px;">🔥 Recent Churn Hotspots (Git Activity)</h3>
+    <div if={ state.hotspots && state.hotspots.hotspots.length } style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px; margin-top: 8px;">
+      <div each={ h in state.hotspots.hotspots } style="background: #0b1120; border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; font-size: 12px;">
+        <code>{ h.file }</code>
+        <span style="color: #fbbf24; font-weight: 600;">{ h.changes } commits</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    export default {
+      state: {
+        metrics: {},
+        hotspots: null,
+        triageResult: null
+      },
+      onMounted() {
+        this.loadMetrics();
+        this.loadHotspots();
+      },
+      async loadMetrics() {
+        try {
+          const res = await fetch('/api/metrics').then(r => r.json());
+          this.update({ metrics: res });
+        } catch {}
+      },
+      async loadHotspots() {
+        try {
+          const res = await fetch('/api/hotspots').then(r => r.json());
+          this.update({ hotspots: res });
+        } catch {}
+      },
+      async runTriage() {
+        try {
+          const res = await fetch('/api/triage').then(r => r.json());
+          this.update({ triageResult: res });
+        } catch (err) {
+          this.update({ triageResult: { passed: false, failingCount: 1, failures: [{ testName: 'Error', error: err.message }] } });
+        }
+      }
+    }
+  </script>
+</page-metrics>

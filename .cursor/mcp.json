@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ai-workflow": {
+      "command": "bun",
+      "args": [
+        "/home/dharmax/work/ai-workflow/src/mcp.ts"
+      ],
+      "instructions": "ai-workflow Causal Engineering OS: Use get_ticket_context before working on tickets; use get_project_overview for module health & bug counts; use audit_guidelines before claiming task completion; use propose_decision / revert_decision for architectural records; use compile_codelet / run_codelet for synthesized routines."
+    }
+  }
+}

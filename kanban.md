@@ -14,11 +14,12 @@ kanban-plugin: board
 
 ## In Progress
 
-- [/] **TKT-TRUST-005**: Repair MCP ticket-context utility
-  - Summary: packTicketContext with bounded token knapsack packing implemented and verified across MCP tools and Web Cockpit.
+- No items
 
 ## Done
 
+- [x] **TKT-9D54**: Unified Capability Registry across MCP, CLI, Shell & Skill+MCP Pair
+- [x] **TKT-TRUST-005**: Repair MCP ticket-context utility
 - [x] **TKT-TRUST-004**: Require structured evidence reports
   - Summary: SQLite run artifacts record execution output, test pass/fail results, and failure lessons.
 - [x] **TKT-TRUST-003**: Make readiness metrics block closure
