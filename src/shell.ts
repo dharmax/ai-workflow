@@ -339,10 +339,17 @@ export class InteractiveShell {
       }
     }
 
+    // If a deterministic directive already handled the request, return immediately
+    if (responses.length > 0 && this.mode !== 'dev') {
+      return responses.filter(r => r !== undefined && r !== null && r !== '').join('\n');
+    }
+
     // 10. Health check for Ollama
     const isOnline = await this.probeOllamaHealth();
     if (!isOnline) {
-      responses.push(`\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).\n- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST=\"http://localhost:11434\"\x1b[0m.`);
+      if (responses.length === 0) {
+        responses.push(`\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).\n- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`);
+      }
     } else {
       // 11. General Architecture Reasoning via LLM
       const projectContext = this.buildLiveProjectContext();
@@ -352,7 +359,7 @@ export class InteractiveShell {
         `Keep answers concise, direct, professional, and actionable.\n\n` +
         `${projectContext}`;
       try {
-        const res = await this.asker.ask(line, { system: systemPrompt, timeoutMs: 15000 });
+        const res = await this.asker.ask(line, { system: systemPrompt, timeoutMs: 4000, task: 'reasoning' });
         if (res.ok && res.text) {
           responses.push(res.text);
         } else if (res.failure) {

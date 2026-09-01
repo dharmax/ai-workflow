@@ -189,7 +189,7 @@ Impacted Files: ${Array.from(impactedFiles).join(', ') || 'General'}
 Related ADRs: ${conflictingDecisions.map(d => `${d.id}: ${d.title}`).join(', ') || 'None'}
 
 Provide a 2-sentence executive architectural summary evaluating potential risks and recommended precautions.`;
-      const res = await asker.ask(prompt, { timeoutMs: 15000 });
+      const res = await asker.ask(prompt, { timeoutMs: 3500, task: 'reasoning' });
       if (res.ok && res.text) {
         architecturalSummary = res.text.trim();
       }

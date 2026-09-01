@@ -36,7 +36,7 @@
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/text-compiler": "file:../text-compiler",
     "@modelcontextprotocol/sdk": "^1.6.0",
-    "zod": "^3.24.2"
+    "zod": "^4.5.4"
   },
   "overrides": {
     "@dharmax/block-patcher": "file:../block-patcher",

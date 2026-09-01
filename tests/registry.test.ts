@@ -282,4 +282,54 @@ describe('ai-workflow Unified Capability Registry Tests', () => {
     expect(burndownRes.totalEpics).toBeGreaterThanOrEqual(1);
     expect(burndownRes.epics[0].title).toBe('Core Reliability');
   });
+
+  test('Advanced Text-Compiler Capabilities: simulation stubs, JIT promotion, test harnesses, and diagrams', async () => {
+    // 1. Compile simulation stub
+    const mockCap = registry.get('compile_mock')!;
+    const mockRes = await mockCap.handler(ctx, {
+      intent: 'Charge customer card via PCI gateway',
+      stubPolicy: 'jit-promote',
+      outputSchema: { chargeId: 'string', approved: 'boolean' }
+    });
+    expect(mockRes.isStub).toBe(true);
+    expect(mockRes.stubPolicy).toBe('jit-promote');
+
+    // 2. Execute stub
+    const runCap = registry.get('run_codelet')!;
+    const runStub = await runCap.handler(ctx, { nameOrHash: mockRes.title, args: { amount: 100 } });
+    expect(runStub.result).toBeDefined();
+
+    // 3. Promote stub to verified implementation
+    const promoteCap = registry.get('promote_stub')!;
+    const promoted = await promoteCap.handler(ctx, {
+      idOrTitle: mockRes.title,
+      implementation: 'return { chargeId: "ch_live_123", approved: true };'
+    });
+    expect(promoted.isStub).toBe(false);
+
+    // 4. Run promoted codelet
+    const runPromoted = await runCap.handler(ctx, { nameOrHash: mockRes.title, args: { amount: 100 } });
+    expect(runPromoted.result.chargeId).toBe('ch_live_123');
+
+    // 5. Test Codelet Harness
+    const testCap = registry.get('test_codelet')!;
+    const testRes = await testCap.handler(ctx, { nameOrHash: mockRes.title });
+    expect(testRes.testResult.passed).toBe(true);
+
+    // 6. Workflow Mermaid Export
+    const mermaidCap = registry.get('render_workflow_mermaid')!;
+    const mermaidRes = await mermaidCap.handler(ctx, { wish: 'Normalize and validate user record' });
+    expect(mermaidRes.mermaid).toBeDefined();
+
+    // 7. Workflow Graph Export
+    const graphCap = registry.get('render_workflow_graph')!;
+    const graphRes = await graphCap.handler(ctx, { wish: 'Normalize and validate user record' });
+    expect(graphRes.nodes).toBeDefined();
+    expect(graphRes.edges).toBeDefined();
+
+    // 8. Compile and Execute One-Step
+    const execCap = registry.get('compile_and_execute')!;
+    const execRes = await execCap.handler(ctx, { instructions: 'Return success status' });
+    expect(execRes.result.status).toBe('completed');
+  });
 });

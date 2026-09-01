@@ -1,4 +1,9 @@
-import { HeuristicContextManager, LeanContextCompressor, MemoryContextStore } from '@dharmax/context-manager';
+import {
+  createContextManager,
+  MemoryContextStore,
+  type ContextBlock,
+  type ContextFormat
+} from '@dharmax/context-manager';
 import { WorkflowStore } from './store.ts';
 import { MetricsCollector } from './metrics.ts';
 import type { TicketContext } from './types.ts';
@@ -6,7 +11,7 @@ import type { TicketContext } from './types.ts';
 export async function packTicketContext(
   store: WorkflowStore, 
   ticketId: string, 
-  options: { maxTokens?: number; format?: 'xml' | 'markdown' | 'json' } = {}
+  options: { maxTokens?: number; format?: 'xml' | 'markdown' | 'json' | 'plain' } = {}
 ): Promise<{ rendered: string; context: TicketContext | null; tokenCount: number; rawTokens: number; compressionRatio: number }> {
   const startTime = performance.now();
   const context = store.getTicketContext(ticketId);
@@ -15,9 +20,10 @@ export async function packTicketContext(
   }
 
   const inMemoryStore = new MemoryContextStore();
+  const blocks: ContextBlock[] = [];
 
   // 1. Pinned: Active Ticket & Verification Requirement
-  await inMemoryStore.add({
+  blocks.push({
     id: `ticket:${context.ticket.id}`,
     title: `Ticket ${context.ticket.id}: ${context.ticket.title}`,
     body: [
@@ -32,7 +38,7 @@ export async function packTicketContext(
 
   // 2. Pinned: Parent Epic
   if (context.epic) {
-    await inMemoryStore.add({
+    blocks.push({
       id: `epic:${context.epic.id}`,
       title: `Parent Epic ${context.epic.id}: ${context.epic.title}`,
       body: context.epic.body || 'No epic body specified.',
@@ -45,7 +51,7 @@ export async function packTicketContext(
   // 3. Working: Linked Source Files & AST Symbols
   if (context.linkedSymbols.length > 0) {
     const symbolLines = context.linkedSymbols.map(s => `- ${s.kind} ${s.name} (${s.file}:${s.line})`);
-    await inMemoryStore.add({
+    blocks.push({
       id: `symbols:${context.ticket.id}`,
       title: 'Target Codebase Symbols',
       body: symbolLines.join('\n'),
@@ -60,7 +66,7 @@ export async function packTicketContext(
     const lessonLines = context.pastLessons.map((l, idx) => 
       `Attempt ${idx + 1} (${l.action}): ${l.status.toUpperCase()} -> Lessons: ${JSON.stringify(l.lessons)}`
     );
-    await inMemoryStore.add({
+    blocks.push({
       id: `lessons:${context.ticket.id}`,
       title: 'Past Failure Lessons (DO NOT REPEAT)',
       body: lessonLines.join('\n'),
@@ -72,7 +78,7 @@ export async function packTicketContext(
 
   // 5. Retrieved: Active Guidelines & Decisions
   for (const dec of context.decisions) {
-    await inMemoryStore.add({
+    blocks.push({
       id: `decision:${dec.id}`,
       title: `ADR ${dec.id}: ${dec.title}`,
       body: dec.body || '',
@@ -83,7 +89,7 @@ export async function packTicketContext(
   }
 
   for (const g of context.guidelines) {
-    await inMemoryStore.add({
+    blocks.push({
       id: `guideline:${g.id}`,
       title: `Guideline: ${g.title}`,
       body: g.body || '',
@@ -93,31 +99,37 @@ export async function packTicketContext(
     });
   }
 
+  await inMemoryStore.add(blocks);
+
   const allBlocks = await inMemoryStore.list();
   const rawTokens = Math.round(allBlocks.reduce((acc, b) => acc + (b.title.length + b.body.length) / 4, 0));
 
-  const hcm = new HeuristicContextManager({
+  const format: ContextFormat = (options.format as ContextFormat) || 'markdown';
+  const contextManager = createContextManager({
     store: inMemoryStore,
-    defaultMaxTokens: options.maxTokens ?? 1200
+    defaultMaxTokens: options.maxTokens ?? 1200,
+    format
   });
 
   const query = `${context.ticket.title} ${context.ticket.body || ''}`.trim();
-  const resolution = await hcm.resolve({
+  const resolution = await contextManager.resolve({
     query,
-    categories: ['ticket', 'epic', 'code', 'debugging', 'decision', 'guideline']
+    categories: ['ticket', 'epic', 'code', 'debugging', 'decision', 'guideline'],
+    maxTokens: options.maxTokens ?? 1200,
+    output: { format }
   });
 
-  const format = options.format ?? 'xml';
-  let rendered = '';
-
-  if (format === 'xml') {
-    rendered = `<context>\n` + resolution.items.map(item => 
-      `  <item id="${item.id}" title="${item.title}">\n    ${item.content.replace(/\n/g, '\n    ')}\n  </item>`
-    ).join('\n') + `\n</context>`;
-  } else if (format === 'markdown') {
-    rendered = resolution.items.map(item => `### ${item.title}\n${item.content}`).join('\n\n');
-  } else {
-    rendered = JSON.stringify(resolution.items, null, 2);
+  let rendered = resolution.rendered;
+  if (!rendered) {
+    if (format === 'xml') {
+      rendered = `<context>\n` + resolution.items.map(item => 
+        `  <item id="${item.id}" title="${item.title}">\n    ${item.content.replace(/\n/g, '\n    ')}\n  </item>`
+      ).join('\n') + `\n</context>`;
+    } else if (format === 'markdown') {
+      rendered = resolution.items.map(item => `### ${item.title}\n${item.content}`).join('\n\n');
+    } else {
+      rendered = JSON.stringify(resolution.items, null, 2);
+    }
   }
 
   const packedTokens = Math.round(rendered.length / 4);

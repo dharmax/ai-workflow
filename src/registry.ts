@@ -1000,6 +1000,161 @@ registry.register({
 });
 
 registry.register({
+  id: 'codelet_mock',
+  name: 'compile_mock',
+  cliCommand: 'codelet mock <intent...>',
+  aliases: ['codelet:mock', 'compile_mock', 'codelet:stub', 'compile_stub'],
+  category: 'codelet',
+  description: 'Compile contract-conforming simulation stubs with runtime policies (mock, jit-promote, throw, suspend)',
+  schema: z.object({
+    intent: z.string(),
+    stubPolicy: z.enum(['mock', 'jit-promote', 'throw', 'suspend']).optional(),
+    inputSchema: z.record(z.any()).optional(),
+    outputSchema: z.record(z.any()).optional()
+  }),
+  parseCliArgs: (args, flags) => ({
+    intent: args.join(' '),
+    stubPolicy: flags.policy as any || 'mock',
+    inputSchema: flags.in ? JSON.parse(flags.in) : undefined,
+    outputSchema: flags.out ? JSON.parse(flags.out) : undefined
+  }),
+  handler: async (ctx, { intent, stubPolicy, inputSchema, outputSchema }) => {
+    const stub = await ctx.compiler.compileMock(intent, { stubPolicy, inputSchema, outputSchema });
+    return {
+      id: stub.id,
+      title: stub.meta.title,
+      isStub: stub.meta.isStub,
+      stubPolicy: stub.meta.stubContract?.stubPolicy || stubPolicy || 'mock',
+      doc: stub.meta.doc,
+      sourceCode: stub.sourceCode
+    };
+  },
+  renderTui: (res) => {
+    return `\x1b[32mCompiled simulation stub: ${res.title}\x1b[0m\nPolicy: \x1b[33m${res.stubPolicy}\x1b[0m | IsStub: ${res.isStub}\nDoc: ${res.doc}\nSaved to .codelets/${res.title}.json ✅`;
+  }
+});
+
+registry.register({
+  id: 'codelet_promote',
+  name: 'promote_stub',
+  cliCommand: 'codelet promote <idOrTitle> [implementation]',
+  aliases: ['codelet:promote', 'promote_stub', 'promote'],
+  category: 'codelet',
+  description: 'JIT hot-swap promotion of a simulation stub to a verified real implementation',
+  schema: z.object({
+    idOrTitle: z.string(),
+    implementation: z.string().optional()
+  }),
+  parseCliArgs: (args) => ({
+    idOrTitle: args[0] || '',
+    implementation: args.slice(1).join(' ') || undefined
+  }),
+  handler: async (ctx, { idOrTitle, implementation }) => {
+    const promoted = await ctx.compiler.promoteStub(idOrTitle, { implementation });
+    return {
+      id: promoted.id,
+      title: promoted.meta.title,
+      isStub: promoted.meta.isStub,
+      tags: promoted.meta.tags,
+      sourceCode: promoted.sourceCode
+    };
+  },
+  renderTui: (res) => {
+    return `\x1b[32mPromoted stub "${res.title}" to verified implementation (isStub: ${res.isStub}) ✅\x1b[0m`;
+  }
+});
+
+registry.register({
+  id: 'codelet_test',
+  name: 'test_codelet',
+  cliCommand: 'codelet test <nameOrHash>',
+  aliases: ['codelet:test', 'test_codelet'],
+  category: 'codelet',
+  description: 'Execute verification test harness for a compiled codelet or function',
+  schema: z.object({
+    nameOrHash: z.string()
+  }),
+  parseCliArgs: (args) => ({ nameOrHash: args[0] || '' }),
+  handler: async (ctx, { nameOrHash }) => {
+    const testResult = await ctx.compiler.testCodelet(nameOrHash);
+    return { nameOrHash, testResult };
+  },
+  renderTui: (res) => {
+    const status = res.testResult.passed
+      ? `\x1b[32mPASSED (${res.testResult.durationMs?.toFixed(2) || 0}ms) ✅\x1b[0m`
+      : `\x1b[31mFAILED: ${res.testResult.error || 'Assertion error'} ❌\x1b[0m`;
+    return `Test for codelet \x1b[1m${res.nameOrHash}\x1b[0m: ${status}`;
+  }
+});
+
+registry.register({
+  id: 'workflow_mermaid',
+  name: 'render_workflow_mermaid',
+  cliCommand: 'workflow mermaid <wish...>',
+  aliases: ['workflow:mermaid', 'mermaid', 'to_mermaid'],
+  category: 'codelet',
+  description: 'Export compiled state machine workflow as a GitHub-compatible Mermaid state diagram',
+  schema: z.object({
+    wish: z.string()
+  }),
+  parseCliArgs: (args) => ({ wish: args.join(' ') }),
+  handler: async (ctx, { wish }) => {
+    const mermaid = await ctx.compiler.renderMermaid(wish);
+    return { wish, mermaid };
+  },
+  renderTui: (res) => {
+    return `\x1b[1;36m=== Mermaid State Diagram for "${res.wish}" ===\x1b[0m\n\`\`\`mermaid\n${res.mermaid}\n\`\`\``;
+  }
+});
+
+registry.register({
+  id: 'workflow_graph',
+  name: 'render_workflow_graph',
+  cliCommand: 'workflow graph <wish...>',
+  aliases: ['workflow:graph', 'workflow_graph', 'to_graph'],
+  category: 'codelet',
+  description: 'Export compiled state machine as structured graph nodes and edges for UI canvas renderers',
+  schema: z.object({
+    wish: z.string()
+  }),
+  parseCliArgs: (args) => ({ wish: args.join(' ') }),
+  handler: async (ctx, { wish }) => {
+    const graph = await ctx.compiler.renderGraph(wish);
+    return { wish, nodes: graph.nodes, edges: graph.edges };
+  },
+  renderTui: (res) => {
+    let out = `\x1b[1;36m=== Workflow Graph Nodes (${res.nodes.length}) & Edges (${res.edges.length}) ===\x1b[0m\n`;
+    out += `Nodes: ${res.nodes.map((n: any) => n.id).join(', ')}\n`;
+    out += `Edges: ${res.edges.map((e: any) => `${e.from} -> ${e.to} [${e.label || ''}]`).join(', ')}`;
+    return out.trim();
+  }
+});
+
+registry.register({
+  id: 'workflow_compile_and_execute',
+  name: 'compile_and_execute',
+  cliCommand: 'workflow run <instructions...>',
+  aliases: ['workflow:run', 'compile_and_execute', 'execute_workflow'],
+  category: 'codelet',
+  description: 'Compile natural language instructions and immediately execute with context',
+  schema: z.object({
+    instructions: z.string(),
+    context: z.record(z.any()).optional()
+  }),
+  parseCliArgs: (args, flags) => ({
+    instructions: args.join(' '),
+    context: flags.context ? JSON.parse(flags.context) : {}
+  }),
+  handler: async (ctx, { instructions, context }) => {
+    const result = await ctx.compiler.compileAndExecute(instructions, context || {});
+    return { instructions, result };
+  },
+  renderTui: (res) => {
+    return `\x1b[1;32m=== Workflow Execution Result ===\x1b[0m\nStatus: ${res.result.status}\nSuccess: ${res.result.success}\nOutput: ${JSON.stringify(res.result.output, null, 2)}`;
+  }
+});
+
+registry.register({
   id: 'codelet_sweep',
   name: 'sweep_bugs',
   cliCommand: 'sweep [--fix]',
