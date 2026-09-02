@@ -340,10 +340,11 @@ export class InteractiveShell {
       }
     }
 
-    // 9. Dev mode compilation
-    if (this.mode === 'dev') {
+    // 9. Dev mode wish compilation (explicit trigger)
+    if (this.mode === 'dev' && (lower.startsWith('compile ') || lower.startsWith('wish '))) {
       try {
-        const codelet = await this.compiler.compileWish(line);
+        const wishText = line.replace(/^(?:compile|wish)\s+/i, '');
+        const codelet = await this.compiler.compileWish(wishText);
         responses.push(`\x1b[32mCompiled routine: ${codelet.meta.title}\x1b[0m\nDoc: ${codelet.meta.doc}\nSaved to .codelets/${codelet.meta.title}.json ✅`);
       } catch (err: any) {
         responses.push(`\x1b[31mSynthesis error:\x1b[0m ${err.message}`);

@@ -1,5 +1,13 @@
 # Architectural Decision Records (ADRs)
 
+## ADR-011: JIT State Machine Compilation via TextCompiler
+- **Status**: `proposed`
+- **Date**: 2026-09-02T11:08:44.607Z
+
+Mount all aiwf capability tools and OS execution as first-class services into TextCompiler state flows.
+
+---
+
 ## DEC-003: Stealth IP Preservation: Zero Public Exposure for ai-workflow & text-compiler
 - **Status**: `accepted`
 - **Date**: 2026-08-23T07:31:33.993Z
