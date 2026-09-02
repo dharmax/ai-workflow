@@ -79,11 +79,11 @@ export class ShellAgent {
     options: { maxSteps?: number; onStep?: (trace: AgentStepTrace) => void } = {}
   ): Promise<AgentTurnResult> {
     this.mode = mode;
-    const maxSteps = options.maxSteps ?? 6;
+    const maxSteps = options.maxSteps ?? 8;
     const steps: AgentStepTrace[] = [];
 
     const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.BUN_TEST);
-    const turnTimeout = isTest ? 400 : 8000;
+    const turnTimeout = isTest ? 400 : 12000;
 
     const systemPrompt = this.buildSystemPrompt(mode);
     let currentInput = userMessage;
@@ -116,9 +116,9 @@ export class ShellAgent {
         break;
       }
 
-      // Check for tool call in response
-      const toolCall = this.parseToolCall(modelResponseText);
-      if (!toolCall) {
+      // Check for one or multiple tool calls in response
+      const toolCalls = this.parseToolCalls(modelResponseText);
+      if (toolCalls.length === 0) {
         // Final text response reached
         stepTrace.thought = modelResponseText;
         steps.push(stepTrace);
@@ -129,26 +129,30 @@ export class ShellAgent {
         };
       }
 
-      // Record tool call
-      stepTrace.toolCall = toolCall;
+      const observationBlocks: string[] = [];
+      for (const toolCall of toolCalls) {
+        const traceItem: AgentStepTrace = {
+          step: stepIndex,
+          toolCall
+        };
+        const toolResult = await executeShellTool(toolCall.tool, toolCall.args, this.ctx);
+        traceItem.toolResult = toolResult;
+        steps.push(traceItem);
 
-      // Execute tool call against project context
-      const toolResult = await executeShellTool(toolCall.tool, toolCall.args, this.ctx);
-      stepTrace.toolResult = toolResult;
-      steps.push(stepTrace);
+        if (options.onStep) {
+          options.onStep(traceItem);
+        }
 
-      if (options.onStep) {
-        options.onStep(stepTrace);
+        observationBlocks.push(`[OBSERVATION for ${toolCall.tool}]:\n${toolResult.output}`);
       }
 
-      // Format observation back to model
-      const observation = `[OBSERVATION for ${toolCall.tool}]:\n${toolResult.output}\n\nContinue your reasoning, call another tool if needed, or provide your final synthesized answer.`;
-      currentInput = observation;
+      // Format combined observations back to model
+      currentInput = `${observationBlocks.join('\n\n')}\n\nContinue your reasoning, call another tool if needed, or provide your final synthesized answer.`;
     }
 
     // If max steps reached, ask for final summary
     const summaryRes = await this.session.ask(
-      'Please summarize your final findings and provide a direct, actionable answer for the user based on the tool results gathered so far.',
+      'Please summarize your final findings and provide a direct, actionable answer for the user addressing all aspects of their request.',
       {
         system: systemPrompt,
         task: 'reasoning',
@@ -165,44 +169,46 @@ export class ShellAgent {
   }
 
   /**
-   * Parses tool call from model output (supports json fences and xml tags).
+   * Parses all tool calls from model output (supports multiple json fences and xml tags).
    */
-  private parseToolCall(text: string): { tool: string; args: Record<string, any> } | null {
-    // 1. Try ```tool_call or ```json fence
-    const fenceMatch = text.match(REGEX_TOOL_CALL_BLOCK);
-    if (fenceMatch && fenceMatch[1]) {
+  public parseToolCalls(text: string): Array<{ tool: string; args: Record<string, any> }> {
+    const toolCalls: Array<{ tool: string; args: Record<string, any> }> = [];
+
+    // 1. Match ```tool_call or ```json blocks
+    const blockRegex = /```(?:tool_call|json)\s*(\{[\s\S]*?\})\s*```/gi;
+    let match: RegExpExecArray | null;
+    while ((match = blockRegex.exec(text)) !== null) {
       try {
-        const parsed = JSON.parse(fenceMatch[1]);
+        const parsed = JSON.parse(match[1]);
         if (parsed.tool && typeof parsed.tool === 'string') {
-          return {
+          toolCalls.push({
             tool: parsed.tool,
             args: parsed.args || parsed.parameters || {}
-          };
+          });
         }
       } catch {
-        // Fallback to tag parsing
+        // Continue
       }
     }
 
-    // 2. Try <tool_call name="...">...</tool_call>
-    const tagMatch = text.match(REGEX_TOOL_CALL_TAG);
-    if (tagMatch) {
-      const toolName = tagMatch[1];
-      const body = tagMatch[2]?.trim() || '{}';
+    // 2. Match <tool_call name="...">...</tool_call> tags
+    const tagRegex = /<tool_call(?:\s+name=["']([^"']+)["'])?>([\s\S]*?)<\/tool_call>/gi;
+    while ((match = tagRegex.exec(text)) !== null) {
+      const toolName = match[1];
+      const body = match[2]?.trim() || '{}';
       try {
         const args = body ? JSON.parse(body) : {};
         if (toolName) {
-          return { tool: toolName, args };
-        }
-        if (args.tool) {
-          return { tool: args.tool, args: args.args || {} };
+          toolCalls.push({ tool: toolName, args });
+        } else if (args.tool) {
+          toolCalls.push({ tool: args.tool, args: args.args || {} });
         }
       } catch {
-        // Ignore
+        // Continue
       }
     }
 
-    return null;
+    return toolCalls;
   }
 
   /**
@@ -248,10 +254,16 @@ export class ShellAgent {
     }
     prompt += `\n`;
     prompt += this.toolCatalogPrompt;
-    prompt += `\n### OPERATING RULES:\n`;
-    prompt += `1. When the operator asks about design, project state, symbols, tests, or codebase changes, USE TOOLS to query ground truth instead of guessing.\n`;
-    prompt += `2. If a command or tool exists in the tool catalog (e.g. \`get_project_overview\`, \`find_symbol\`, \`get_blast_radius\`, \`propose_decision\`, \`exec_os_shell\`), call it using a \`\`\`tool_call block.\n`;
-    prompt += `3. Always provide clear, direct, professional, and actionable answers.\n`;
+    prompt += `\n### CORE OPERATIONAL & REASONING PROTOCOL:\n`;
+    prompt += `1. **Complex & Multi-Sentence Requests**:\n` +
+      `   - When the operator provides a complex prompt with multiple sentences, comments, critiques, or instructions, systematically break down every request.\n` +
+      `   - Address each question and comment thoroughly. Do not skip subtleties or give surface-level answers.\n`;
+    prompt += `2. **Ground Truth Tool Execution**:\n` +
+      `   - Never guess file contents, git status, AST symbols, test results, or graph relations. Use the appropriate tools (\`get_blast_radius\`, \`find_symbol\`, \`exec_os_shell\`, \`doctor_diagnose\`, \`search_knowledge\`, etc.).\n` +
+      `   - You can call MULTIPLE tools in a single turn by outputting multiple \`\`\`tool_call blocks.\n`;
+    prompt += `3. **Action & Follow-up**:\n` +
+      `   - When design or architecture decisions are established, propose them via \`propose_decision\` and create tracking tickets via \`create_ticket\` or \`track_plan_document\`.\n` +
+      `   - Format your final response with clear Markdown headers, code blocks, and structured action items.\n`;
 
     return prompt;
   }

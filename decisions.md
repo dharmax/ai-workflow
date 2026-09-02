@@ -1,5 +1,13 @@
 # Architectural Decision Records (ADRs)
 
+## ADR-012: State Machine Transactional Rollback
+- **Status**: `proposed`
+- **Date**: 2026-09-02T17:22:09.224Z
+
+Implement snapshot checkpoints and error compensation journals in @dharmax/text-compiler state machines.
+
+---
+
 ## ADR-011: JIT State Machine Compilation via TextCompiler
 - **Status**: `proposed`
 - **Date**: 2026-09-02T11:08:44.607Z

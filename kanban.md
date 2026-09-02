@@ -10,7 +10,8 @@ kanban-plugin: board
 
 ## Todo
 
-- No items
+- [ ] **TKT-ROLLBACK-01**: Implement State Flow Rollback Journal
+  - Summary: Implement memory rollback and compensation handlers per ADR-012.
 
 ## In Progress
 

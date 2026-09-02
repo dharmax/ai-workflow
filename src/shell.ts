@@ -174,196 +174,17 @@ export class InteractiveShell {
   decision <list|propose|accept|revert> Manage Architectural Decision Records (ADRs)
   exit / quit                           Exit REPL
 
-\x1b[1;33mNatural Language Directives:\x1b[0m
-  "how many todo items do we have?"      -> Queries ticket counts from SQLite
-  "can you handle the next one?"         -> Autonomously claims, starts, and packs context for top task
-  "what breaks if we refactor auth?"     -> AI-driven semantic feature blast radius
-  "create ticket <title>"                -> Creates ticket and syncs kanban.md
+\x1b[1;33mConversational AI Assistant:\x1b[0m
+  Any natural language text, architectural discussion, questions, multi-sentence intents,
+  or complex instructions will be directly reasoned over by the Autonomous Engineering OS Agent.
     `.trim();
   }
 
   private async handleNaturalLanguage(line: string): Promise<string> {
-    const lower = line.toLowerCase();
-    const responses: string[] = [];
-
-    // 1. Directive: "Handle next task" / "Take next ticket"
-    if (
-      lower.includes('handle the next') ||
-      lower.includes('take the next') ||
-      lower.includes('start the next') ||
-      lower.includes('work on the next') ||
-      lower.includes('handle next') ||
-      (lower.includes('next task') && (lower.includes('do') || lower.includes('take') || lower.includes('start')))
-    ) {
-      const rec = recommendNextTask(this.store);
-      if (!rec.ticket) {
-        responses.push(`\x1b[32mNo pending tasks available.\x1b[0m Reason: ${rec.reason}`);
-      } else {
-        const ticketId = rec.ticket.id;
-        this.store.claimTicket(ticketId, 'shell-agent', 30 * 60 * 1000);
-        const claimedEntity = this.store.getEntity(ticketId) || rec.ticket;
-        this.store.upsertEntity({ ...claimedEntity, lane: 'In Progress' });
-        await this.transport.sync();
-        const packed = await packTicketContext(this.store, ticketId);
-        responses.push(`\x1b[1;32m⚡ Autonomously dispatched next task:\x1b[0m \x1b[1m${ticketId}: ${rec.ticket.title}\x1b[0m`);
-        responses.push(`- \x1b[36mLease:\x1b[0m Claimed by 'shell-agent' (30m lease)`);
-        responses.push(`- \x1b[36mLane Transition:\x1b[0m Moved from Todo -> In Progress (synced with kanban.md)`);
-        responses.push(`- \x1b[36mBounded Context:\x1b[0m Packed ${packed.tokenCount} tokens (${packed.compressionRatio}% compression ratio)`);
-        responses.push(`- \x1b[36mLinked AST Symbols:\x1b[0m ${packed.context?.linkedSymbols.length || 0} symbols identified`);
-        responses.push(`- \x1b[36mVerification Target:\x1b[0m \`${packed.context?.verificationCommand || 'bun test'}\``);
-        responses.push(`- \x1b[33mReady for implementation in codebase.\x1b[0m`);
-      }
-    }
-
-    // 2. Directive: "How many todo / in progress / done items"
-    if (lower.includes('how many') && (lower.includes('todo') || lower.includes('done') || lower.includes('ticket') || lower.includes('bug') || lower.includes('in progress')) ) {
-      const health = this.store.getProjectHealth();
-      const todos = this.store.listEntities({ type: 'ticket', lane: 'Todo' });
-      const inProg = this.store.listEntities({ type: 'ticket', lane: 'In Progress' });
-      const done = this.store.listEntities({ type: 'ticket', lane: 'Done' });
-      let out = `\x1b[1;36m=== Project Ticket Counts ===\x1b[0m\n`;
-      out += `Total Tickets: \x1b[1m${health.totalTickets}\x1b[0m\n`;
-      out += `- Todo: \x1b[1;33m${todos.length}\x1b[0m\n`;
-      for (const t of todos) out += `  • ${t.id}: ${t.title}\n`;
-      out += `- In Progress: \x1b[1;34m${inProg.length}\x1b[0m\n`;
-      for (const t of inProg) out += `  • ${t.id}: ${t.title}\n`;
-      out += `- Done: \x1b[1;32m${done.length}\x1b[0m (Verified: ${done.filter(d => d.status === 'verified').length})\n`;
-      out += `- Open Bug Badges: \x1b[1;31m${health.openBugsCount} 🔴\x1b[0m`;
-      responses.push(out);
-    }
-
-    // 3. Directive: "What breaks if..." / blast radius
-    if (lower.includes('what breaks') || lower.includes('blast radius of') || lower.includes('impact of') || lower.includes('if we add') || lower.includes('if we change')) {
-      const featureText = line.replace(/^(what breaks if we|what breaks if|blast radius of|impact of|what happens if)\s+/i, '');
-      const blast = await getFeatureBlastRadius(this.store, featureText, this.asker);
-      const out = `\x1b[1;36m=== AI-Driven Feature Blast Radius ===\x1b[0m\n` +
-        `Target: \"${blast.featureWish}\"\n` +
-        `Risk Level: \x1b[1;${blast.riskLevel === 'High' ? '31' : blast.riskLevel === 'Medium' ? '33' : '32'}m${blast.riskLevel}\x1b[0m\n` +
-        `Impacted Modules: ${blast.impactedModules.join(', ') || 'None direct'}\n` +
-        `Impacted Files (${blast.impactedFiles.length}): ${blast.impactedFiles.join(', ') || 'None'}\n` +
-        `Affected Active Tickets: ${blast.affectedActiveTickets.map(t => t.id).join(', ') || 'None'}\n` +
-        `Recommended Tests: ${blast.recommendedTests.join(', ')}\n` +
-        `Architectural Assessment: ${blast.architecturalSummary}`;
-      responses.push(out);
-    }
-
-    // 4. Directive: "Why are tests failing / test triage"
-    if (lower.includes('why are test') || lower.includes('test fail') || lower.includes('failing test') || lower.includes('triage test')) {
-      const cap = registry.get('triage_test_failures');
-      if (cap) {
-        const res = await cap.handler(this.ctx, {});
-        responses.push(cap.renderTui ? cap.renderTui(res) : JSON.stringify(res, null, 2));
-      }
-    }
-
-    // 5. Directive: "Recent active files / hotspots"
-    if (lower.includes('hotspot') || lower.includes('recent active') || lower.includes('most changed') || lower.includes('active files')) {
-      const cap = registry.get('get_project_hotspots');
-      if (cap) {
-        const res = await cap.handler(this.ctx, { days: 14 });
-        responses.push(cap.renderTui ? cap.renderTui(res) : JSON.stringify(res, null, 2));
-      }
-    }
-
-    // 6. Directive: "Epic progress / burndown"
-    if (lower.includes('burndown') || lower.includes('epic progress') || lower.includes('epics status')) {
-      const cap = registry.get('get_epic_progress');
-      if (cap) {
-        const res = await cap.handler(this.ctx, {});
-        responses.push(cap.renderTui ? cap.renderTui(res) : JSON.stringify(res, null, 2));
-      }
-    }
-
-    // 7. Directive: "Environment info / toolchain"
-    if (lower.includes('environment info') || lower.includes('toolchain') || lower.includes('runtime info') || lower === 'env') {
-      const cap = registry.get('get_environment_info');
-      if (cap) {
-        const res = await cap.handler(this.ctx, {});
-        responses.push(cap.renderTui ? cap.renderTui(res) : JSON.stringify(res, null, 2));
-      }
-    }
-
-    // 7b. Additional directive: "metrics"
-    if (lower.includes('metrics')) {
-      try {
-        const res = await this.executeCommand('metrics');
-        if (res) responses.push(res);
-      } catch (e) {
-        // ignore errors
-      }
-    }
-
-    // 7c. Directive: "open tickets"
-    if (lower.includes('open tickets')) {
-      let out = `\x1b[1;36m=== Open tickets ===\x1b[0m\n`;
-      const openTickets = this.store.listEntities({ type: 'ticket' }).filter(t => t.lane !== 'Done' && t.lane !== 'Blocked');
-      if (openTickets.length > 0) {
-        for (const t of openTickets) {
-          out += `- ${t.id}: ${t.title} (${t.lane})\n`;
-        }
-      } else {
-        out += 'No open tickets.\n';
-      }
-      responses.push(out);
-    }
-
-    // 7d. Directive: "blocked tickets"
-    if (lower.includes('blocked tickets')) {
-      let out = `\x1b[1;36m=== Blocked tickets ===\x1b[0m\n`;
-      const blocked = this.store.listEntities({ type: 'ticket', lane: 'Blocked' });
-      if (blocked.length > 0) {
-        for (const t of blocked) {
-          out += `- ${t.id}: ${t.title}\n`;
-        }
-      } else {
-        out += 'No blocked tickets.\n';
-      }
-      responses.push(out);
-    }
-    // 8. Directive: "Create ticket <title>"
-    if (lower.startsWith('create ticket') || lower.startsWith('add ticket') || lower.startsWith('new ticket')) {
-      const title = line.replace(/^(create ticket|add ticket|new ticket)\s*:?\s*/i, '').trim();
-      if (!title) {
-        responses.push('Usage: create ticket <title>');
-      } else {
-        const id = `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-        this.store.upsertEntity({
-          id,
-          type: 'ticket',
-          title,
-          lane: 'Todo',
-          status: 'planned',
-          body: `Created via autonomous shell directive: \"${line}\"`
-        });
-        await this.transport.sync();
-        responses.push(`\x1b[32mCreated ticket ${id}: \"${title}\" in Todo lane. Synced with kanban.md ✅\x1b[0m`);
-      }
-    }
-
-    // 9. Dev mode wish compilation (explicit trigger)
-    if (this.mode === 'dev' && (lower.startsWith('compile ') || lower.startsWith('wish '))) {
-      try {
-        const wishText = line.replace(/^(?:compile|wish)\s+/i, '');
-        const codelet = await this.compiler.compileWish(wishText);
-        responses.push(`\x1b[32mCompiled routine: ${codelet.meta.title}\x1b[0m\nDoc: ${codelet.meta.doc}\nSaved to .codelets/${codelet.meta.title}.json ✅`);
-      } catch (err: any) {
-        responses.push(`\x1b[31mSynthesis error:\x1b[0m ${err.message}`);
-      }
-    }
-
-    // If a deterministic directive already handled the request, return immediately
-    if (responses.length > 0) {
-      return responses.filter(r => r !== undefined && r !== null && r !== '').join('\n');
-    }
-
-    // 10. Health check for Ollama / LLM provider
     const isOnline = this.hasCustomAsker || (await this.probeOllamaHealth());
-    if (!isOnline) {
-      if (responses.length === 0) {
-        responses.push(`\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).\n- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`);
-      }
-    } else {
-      // 11. Autonomous Conversational Agent Turn with Tool Execution
+
+    if (isOnline) {
+      // Autonomous Conversational Agent Turn with Full Multi-Tool Execution & Multi-Turn Reasoning
       try {
         const turnRes = await this.agent.turn(line, this.mode as ShellAgentMode, {
           onStep: (trace) => {
@@ -377,15 +198,14 @@ export class InteractiveShell {
           }
         });
         if (turnRes.output) {
-          responses.push(turnRes.output);
+          return turnRes.output;
         }
       } catch (err: any) {
-        responses.push(`\x1b[31mAgent error:\x1b[0m ${err.message}`);
+        return `\x1b[31mAgent error:\x1b[0m ${err.message}`;
       }
     }
 
-    // Return aggregated response (joined with newline). Empty response fallback.
-    return responses.filter(r => r !== undefined && r !== null && r !== '').join('\n');
+    return `\x1b[33mNotice: LLM provider (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic CLI operations: Type \x1b[1;36mhelp\x1b[0m for instant local commands.\n- Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`;
   }
 
   private async probeOllamaHealth(): Promise<boolean> {

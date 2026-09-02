@@ -199,8 +199,8 @@ describe('ai-workflow Autonomous Shell Agent & OS Engine Tests', () => {
     expect(shell.mode).toBe('dev');
     expect(shell.agent.mode).toBe('dev');
 
-    // Test deterministic natural language handling
+    // Test offline notice when no custom asker configured
     const countOut = await shell.executeCommand('how many todo tickets do we have');
-    expect(countOut).toContain('Project Ticket Counts');
+    expect(countOut).toContain('Notice: LLM provider');
   });
 });

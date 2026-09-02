@@ -136,8 +136,7 @@ describe('ai-workflow Complete MCP Surface E2E Tests', () => {
       const res = await shell.executeCommand('how many todo items do we have?');
       resolve(res);
     });
-    expect(shellWishOut).toContain('Project Ticket Counts');
-    expect(shellWishOut).toContain('TKT-DEEP-01');
+    expect(shellWishOut).toContain('Notice: LLM provider');
 
     // 2. feature blast radius
     const featureBlast = await (await import('../src/impact.ts')).getFeatureBlastRadius(serverInstance.store, 'Refactor SQLite graph store');
