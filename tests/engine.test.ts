@@ -112,6 +112,36 @@ describe('ai-workflow Reborn Engine Tests', () => {
     expect(content).toContain('Add Dark Mode Toggle');
   });
 
+  test('Design and Planning documents are automatically discovered, represented as tickets, and linked in causal graph', async () => {
+    const { syncPlanDocuments } = await import('../src/sync.ts');
+    
+    // 1. Create a design plan document
+    const planPath = path.join(tempDir, 'implementation_plan.md');
+    await Bun.write(planPath, '# Autonomous Shell Agent Implementation Plan\n\nDetailed design specifications and steps.');
+
+    // 2. Discover and sync
+    const created = await syncPlanDocuments(store);
+    expect(created.length).toBe(1);
+    expect(created[0].title).toContain('Autonomous Shell Agent Implementation Plan');
+    expect(created[0].lane).toBe('In Progress');
+    expect(created[0].status).toBe('in_design');
+
+    // 3. Verify relations in causal graph
+    const docEntity = store.getEntity(`doc:implementation_plan.md`);
+    expect(docEntity).toBeDefined();
+    expect(docEntity?.type).toBe('document');
+
+    const outgoing = store.getOutgoing(created[0].id, 'documents');
+    expect(outgoing.length).toBe(1);
+    expect(outgoing[0].id).toBe('doc:implementation_plan.md');
+
+    // 4. Verify kanban export contains the plan ticket
+    await exportMarkdown(store);
+    const kanbanText = await Bun.file(path.join(tempDir, 'kanban.md')).text();
+    expect(kanbanText).toContain(created[0].id);
+    expect(kanbanText).toContain('Autonomous Shell Agent Implementation Plan');
+  });
+
   test('Impact analysis and Task Recommender', () => {
     const file = store.upsertEntity({
       id: 'src/auth.ts',

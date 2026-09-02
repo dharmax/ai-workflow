@@ -10,6 +10,7 @@ import { MetricsCollector } from './metrics.ts';
 import { registry, type CommandContext } from './registry.ts';
 import { recommendNextTask, getFeatureBlastRadius } from './impact.ts';
 import { packTicketContext } from './context.ts';
+import { ShellAgent, type ShellAgentMode } from './shell-agent.ts';
 
 export type ShellMode = 'design' | 'product' | 'dev' | 'triage';
 
@@ -20,6 +21,7 @@ export class InteractiveShell {
   public decisions: DecisionManager;
   public transport: LocalGitTransport;
   public metrics: MetricsCollector;
+  public agent: ShellAgent;
   private ctx: CommandContext;
   private ollamaHost: string;
 
@@ -45,6 +47,8 @@ export class InteractiveShell {
       metrics: this.metrics,
       projectRoot: store.root
     };
+
+    this.agent = new ShellAgent(this.ctx, this.asker, this.mode);
   }
 
   async start() {
@@ -90,14 +94,19 @@ export class InteractiveShell {
     const trimmed = line.trim();
     if (!trimmed) return '';
 
-    // 1. Mode Switch
+    // 1. Mode Switch & Clear
     if (trimmed.startsWith('/')) {
-      const targetMode = trimmed.slice(1).toLowerCase();
-      if (['design', 'product', 'dev', 'triage'].includes(targetMode)) {
-        this.mode = targetMode as ShellMode;
+      const target = trimmed.slice(1).toLowerCase();
+      if (target === 'clear') {
+        this.agent.clear();
+        return `\x1b[32mCleared conversational agent memory.\x1b[0m`;
+      }
+      if (['design', 'product', 'dev', 'triage'].includes(target)) {
+        this.mode = target as ShellMode;
+        this.agent.setMode(this.mode);
         return `\x1b[32mSwitched to ${this.mode.toUpperCase()} mode.\x1b[0m`;
       }
-      return `\x1b[31mUnknown mode: ${targetMode}. Valid modes: /design, /product, /dev, /triage\x1b[0m`;
+      return `\x1b[31mUnknown mode: /${target}. Valid modes: /design, /product, /dev, /triage | /clear\x1b[0m`;
     }
 
     // 2. Help Command
@@ -340,7 +349,7 @@ export class InteractiveShell {
     }
 
     // If a deterministic directive already handled the request, return immediately
-    if (responses.length > 0 && this.mode !== 'dev') {
+    if (responses.length > 0) {
       return responses.filter(r => r !== undefined && r !== null && r !== '').join('\n');
     }
 
@@ -351,24 +360,24 @@ export class InteractiveShell {
         responses.push(`\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).\n- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`);
       }
     } else {
-      // 11. General Architecture Reasoning via LLM
-      const projectContext = this.buildLiveProjectContext();
-      const systemPrompt = `You are the AI-Workflow Causal Assistant & Autonomous Engineer in ${this.mode.toUpperCase()} mode.\n` +
-        `You have live access to the local project causal graph, tickets, modules, and ADR decisions provided below.\n` +
-        `Always answer questions directly using the live project context, citing specific ticket IDs, modules, or ADRs when relevant.\n` +
-        `Keep answers concise, direct, professional, and actionable.\n\n` +
-        `${projectContext}`;
+      // 11. Autonomous Conversational Agent Turn with Tool Execution
       try {
-        const res = await this.asker.ask(line, { system: systemPrompt, timeoutMs: 4000, task: 'reasoning' });
-        if (res.ok && res.text) {
-          responses.push(res.text);
-        } else if (res.failure) {
-          responses.push(`\x1b[31mLLM failure (${res.failure.kind}):\x1b[0m ${res.failure.message}`);
-        } else {
-          responses.push('No response generated.');
+        const turnRes = await this.agent.turn(line, this.mode as ShellAgentMode, {
+          onStep: (trace) => {
+            if (trace.toolCall) {
+              if (trace.toolCall.tool === 'exec_os_shell') {
+                console.log(`\x1b[35m⚡ [OS: ${trace.toolCall.args.command || ''}]\x1b[0m`);
+              } else {
+                console.log(`\x1b[36m⚡ [Tool: ${trace.toolCall.tool}]\x1b[0m`);
+              }
+            }
+          }
+        });
+        if (turnRes.output) {
+          responses.push(turnRes.output);
         }
       } catch (err: any) {
-        responses.push(`\x1b[31mLLM error:\x1b[0m ${err.message}`);
+        responses.push(`\x1b[31mAgent error:\x1b[0m ${err.message}`);
       }
     }
 
@@ -377,9 +386,11 @@ export class InteractiveShell {
   }
 
   private async probeOllamaHealth(): Promise<boolean> {
+    const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.BUN_TEST);
+    const timeoutMs = isTest ? 100 : 1200;
     try {
       const res = await fetch(`${this.ollamaHost}/api/tags`, {
-        signal: AbortSignal.timeout(1200)
+        signal: AbortSignal.timeout(timeoutMs)
       });
       return res.ok;
     } catch {

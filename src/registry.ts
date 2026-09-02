@@ -1587,4 +1587,93 @@ registry.register({
   }
 });
 
+registry.register({
+  id: 'plan_track',
+  name: 'track_plan_document',
+  cliCommand: 'plan track <documentPath> [title]',
+  aliases: ['plan:track', 'track_plan', 'track_plan_document'],
+  category: 'ticket',
+  description: 'Register an ongoing design or planning document as a first-class ticket and causal graph node',
+  schema: z.object({
+    documentPath: z.string(),
+    title: z.string().optional(),
+    lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional(),
+    epicId: z.string().optional()
+  }),
+  parseCliArgs: (args, flags) => ({
+    documentPath: args[0] || '',
+    title: args.slice(1).join(' ') || undefined,
+    lane: flags.lane as any || 'In Progress',
+    epicId: flags.epic as string || undefined
+  }),
+  handler: async (ctx, { documentPath, title, lane, epicId }) => {
+    const root = ctx.projectRoot;
+    const fullPath = path.isAbsolute(documentPath) ? documentPath : path.join(root, documentPath);
+    const relPath = path.relative(root, fullPath);
+
+    let docTitle = title;
+    if (!docTitle) {
+      try {
+        const { readFileSync } = await import('node:fs');
+        const content = readFileSync(fullPath, 'utf8');
+        const match = content.match(/^#\s+(.+)$/m);
+        if (match && match[1]) {
+          docTitle = match[1].replace(/^[^\w\s]+/, '').trim();
+        }
+      } catch {
+        docTitle = path.basename(relPath, '.md').replace(/[-_]/g, ' ');
+      }
+    }
+    docTitle = docTitle || path.basename(relPath, '.md');
+
+    const slug = path.basename(relPath, '.md').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const ticketId = `TKT-PLAN-${slug || 'DOC'}`;
+    const docId = `doc:${relPath}`;
+
+    ctx.store.upsertEntity({
+      id: docId,
+      type: 'document',
+      title: `Plan Document: ${docTitle}`,
+      body: `Planning specification located at ${relPath}`,
+      metadata: { path: relPath, isPlan: true }
+    });
+
+    const ticket = {
+      id: ticketId,
+      type: 'ticket' as const,
+      title: `Design & Plan: ${docTitle}`,
+      lane: (lane || 'In Progress') as any,
+      status: 'in_design',
+      body: `Active design & planning document: [${path.basename(relPath)}](${relPath})\n\nRepresents ongoing architectural design, RFC specifications, and implementation steps detailed in the plan document.`,
+      metadata: {
+        planDoc: relPath,
+        planType: 'architecture_plan',
+        epicId
+      }
+    };
+
+    ctx.store.upsertEntity(ticket);
+    ctx.store.addRelation({
+      fromId: ticketId,
+      toId: docId,
+      relation: 'documents'
+    });
+
+    if (epicId) {
+      ctx.store.addRelation({
+        fromId: ticketId,
+        toId: epicId,
+        relation: 'implements'
+      });
+    }
+
+    await ctx.transport.sync();
+    return { ticket, docId, documentPath: relPath };
+  },
+  renderTui: (res) => {
+    return `\x1b[32mTracked plan document "${res.documentPath}" as ticket \x1b[1m${res.ticket.id}\x1b[0m ("${res.ticket.title}") in ${res.ticket.lane} lane. Synced with kanban.md ✅\x1b[0m`;
+  }
+});
+
+
 

@@ -290,4 +290,114 @@ export async function importMarkdown(store: WorkflowStore) {
       }
     }
   }
+
+  // 5. Automatic Design/Planning Documents Sync
+  await syncPlanDocuments(store);
+}
+
+/**
+ * Discovers any design or planning documents in the project and represents them as
+ * first-class tickets and causal graph nodes pointing to the plan document.
+ */
+export async function syncPlanDocuments(store: WorkflowStore): Promise<Entity[]> {
+  const root = store.root;
+  const createdTickets: Entity[] = [];
+  const candidatePaths: string[] = [];
+
+  // 1. Common root plan files
+  const rootPlans = ['implementation_plan.md', 'plan.md', 'design.md', 'architecture.md', 'RFC.md'];
+  for (const p of rootPlans) {
+    if (existsSync(path.join(root, p))) {
+      candidatePaths.push(p);
+    }
+  }
+
+  // 2. Dedicated planning directories
+  const planDirs = ['plans', 'docs/plans', 'docs/rfc', 'docs/architecture', '.plans'];
+  for (const d of planDirs) {
+    const fullDir = path.join(root, d);
+    if (existsSync(fullDir)) {
+      try {
+        const { readdirSync } = await import('node:fs');
+        const entries = readdirSync(fullDir, { recursive: true }) as string[];
+        for (const entry of entries) {
+          if (typeof entry === 'string' && entry.endsWith('.md')) {
+            candidatePaths.push(path.join(d, entry));
+          }
+        }
+      } catch {
+        // Ignore read errors
+      }
+    }
+  }
+
+  const existingTickets = store.listEntities({ type: 'ticket' });
+
+  for (const relPath of candidatePaths) {
+    const fullPath = path.join(root, relPath);
+    if (!existsSync(fullPath)) continue;
+
+    let content = '';
+    try {
+      content = await readFile(fullPath, 'utf8');
+    } catch {
+      continue;
+    }
+
+    // Extract title from heading or filename
+    let title = path.basename(relPath, '.md').replace(/[-_]/g, ' ');
+    const headingMatch = content.match(/^#\s+(.+)$/m);
+    if (headingMatch && headingMatch[1]) {
+      title = headingMatch[1].replace(/^[^\w\s]+/, '').trim();
+    }
+
+    // Check if an existing ticket references this plan document
+    const alreadyTracked = existingTickets.some(t => {
+      const planDoc = t.metadata?.planDoc;
+      if (planDoc === relPath) return true;
+      if (t.body && t.body.includes(relPath)) return true;
+      return false;
+    });
+
+    if (!alreadyTracked) {
+      const slug = path.basename(relPath, '.md').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      const ticketId = `TKT-PLAN-${slug || 'DOC'}`;
+
+      const docId = `doc:${relPath}`;
+      store.upsertEntity({
+        id: docId,
+        type: 'document',
+        title: `Plan Document: ${title}`,
+        body: `Planning specification located at ${relPath}`,
+        metadata: {
+          path: relPath,
+          isPlan: true
+        }
+      });
+
+      const ticket: Entity = {
+        id: ticketId,
+        type: 'ticket',
+        title: `Design & Plan: ${title}`,
+        lane: 'In Progress',
+        status: 'in_design',
+        body: `Active design & planning document: [${path.basename(relPath)}](${relPath})\n\nRepresents ongoing architectural design, RFC specifications, and implementation steps detailed in the plan document.`,
+        metadata: {
+          planDoc: relPath,
+          planType: 'architecture_plan'
+        }
+      };
+
+      store.upsertEntity(ticket);
+      store.addRelation({
+        fromId: ticketId,
+        toId: docId,
+        relation: 'documents'
+      });
+
+      createdTickets.push(ticket);
+    }
+  }
+
+  return createdTickets;
 }

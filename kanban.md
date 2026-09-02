@@ -18,7 +18,6 @@ kanban-plugin: board
 
 ## Done
 
-- [x] **TKT-TRUST-005**: Repair MCP ticket-context utility
 - [x] **TKT-TRUST-004**: Require structured evidence reports
   - Summary: SQLite run artifacts record execution output, test pass/fail results, and failure lessons.
 - [x] **TKT-TRUST-003**: Make readiness metrics block closure
@@ -38,6 +37,7 @@ kanban-plugin: board
 - [x] **TKT-UI-002**: Enriched Web Dashboard (Kanban, Epics, Graph, Web Shell)
   - Summary: Built interactive dark-mode dashboard with Kanban lane shifting, Epic tree, blast radius visualizer, and slide-up Web Shell console.
 - [x] **TKT-9D54**: Unified Capability Registry across MCP, CLI, Shell & Skill+MCP Pair
+- [x] **TKT-TRUST-005**: Repair MCP ticket-context utility
 
 ## Blocked
 

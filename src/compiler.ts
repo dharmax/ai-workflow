@@ -7,6 +7,7 @@ import {
   createCallableFunction,
   createTestCallable,
   createDeterministicHash,
+  buildCodeletFromFunction,
   type CompiledCodelet,
   type CompiledWorkflow,
   type CompileOptions,
@@ -14,11 +15,17 @@ import {
   type CodeletMetadata,
   type TestResult,
   type StateMachineGraph,
-  type CompilationResult
+  type CompilationResult,
+  type ServiceDescriptor
 } from '@dharmax/text-compiler';
 import { Asker } from '@dharmax/llm-utils';
 import { applyPatchToFile } from '@dharmax/block-patcher';
 import { WorkflowStore } from './store.ts';
+import { registry, type CommandContext } from './registry.ts';
+import { executeOsCommand } from './os-shell.ts';
+import { DecisionManager } from './decisions.ts';
+import { LocalGitTransport } from './transport.ts';
+import { MetricsCollector } from './metrics.ts';
 
 export class PersistentCodeletRepository extends MemoryCodeletRepository {
   public readonly baseDir: string;
@@ -82,6 +89,7 @@ export class PersistentCodeletRepository extends MemoryCodeletRepository {
   }
 
   private persistToDiskSync(codelet: CompiledCodelet): void {
+    if (codelet.meta?.tags?.includes('service-bridge')) return;
     try {
       if (!existsSync(this.baseDir)) {
         mkdirSync(this.baseDir, { recursive: true });
@@ -100,10 +108,38 @@ export class PersistentCodeletRepository extends MemoryCodeletRepository {
     }
   }
 
+  public override registerFunction(fnOrDesc: any, options: any = {}): any {
+    const codelet = buildCodeletFromFunction(fnOrDesc, {
+      ...options,
+      tags: [...(options.tags || fnOrDesc.tags || []), 'service-bridge']
+    });
+    codelet.meta.tags = Array.from(new Set([...codelet.meta.tags, 'service-bridge']));
+    super.registerSync(codelet);
+    return codelet;
+  }
+
+  public override listSync(): CompiledCodelet[] {
+    const all = super.listSync();
+    return all.filter(c => !c.meta?.tags?.includes('service-bridge'));
+  }
+
+  public override async list(): Promise<CompiledCodelet[]> {
+    return this.listSync();
+  }
+
+  public override async listCodelets(): Promise<CompiledCodelet[]> {
+    return this.list();
+  }
+
+  public override async find(query: any = {}): Promise<CompiledCodelet[]> {
+    const results = await super.find(query);
+    return results.filter(c => !c.meta?.tags?.includes('service-bridge'));
+  }
+
   public override async delete(idOrHash: string): Promise<boolean> {
     const codelet = await this.get(idOrHash);
     const res = await super.delete(idOrHash);
-    if (codelet) {
+    if (res && codelet) {
       try {
         const title = codelet.meta?.title || codelet.id;
         const filePath = path.join(this.baseDir, `${title}.json`);
@@ -111,7 +147,7 @@ export class PersistentCodeletRepository extends MemoryCodeletRepository {
           unlinkSync(filePath);
         }
       } catch {
-        // Best effort
+        // Best-effort file deletion
       }
     }
     return res;
@@ -133,15 +169,14 @@ export class PersistentCodeletRepository extends MemoryCodeletRepository {
 }
 
 export class CodeletEngine {
-  public compiler: TextCompiler;
-  public toolkit: CompilerToolkit;
-  public repository: PersistentCodeletRepository;
-  public asker: Asker;
-  private codeletDir: string;
+  public readonly codeletDir: string;
+  public readonly repository: PersistentCodeletRepository;
+  public readonly toolkit: CompilerToolkit;
+  public readonly compiler: TextCompiler;
+  public readonly asker: Asker;
 
-  constructor(private store: WorkflowStore, asker?: Asker) {
-    this.codeletDir = path.join(store.root, '.codelets');
-    mkdirSync(this.codeletDir, { recursive: true });
+  constructor(public store: WorkflowStore, asker?: Asker, codeletDir?: string) {
+    this.codeletDir = codeletDir || path.join(store.root, '.codelets');
 
     const ollamaHost = process.env.OLLAMA_HOST || 'http://lotus:11434';
     this.asker = asker ?? new Asker({
@@ -217,9 +252,52 @@ export class CodeletEngine {
     } as any);
 
     this.repository = new PersistentCodeletRepository(this.codeletDir);
+
+    const services: ServiceDescriptor[] = [
+      {
+        name: 'exec_os_shell',
+        description: 'Execute arbitrary OS-level shell/bash command in project workspace',
+        tags: ['os', 'system', 'shell', 'service-bridge'],
+        schema: {
+          input: { command: 'string', timeoutMs: 'number?' },
+          output: { output: 'string', exitCode: 'number', success: 'boolean' }
+        },
+        execute: async (args: any) => {
+          const cmd = typeof args === 'string' ? args : (args.command || args.cmd || '');
+          const res = await executeOsCommand(cmd, { cwd: this.store.root, timeoutMs: args?.timeoutMs });
+          return { output: res.output, exitCode: res.exitCode, success: res.success };
+        }
+      }
+    ];
+
+    for (const cap of registry.getAll()) {
+      services.push({
+        name: cap.name,
+        description: cap.description,
+        tags: [cap.category, 'service-bridge'],
+        schema: {
+          input: {},
+          output: {}
+        },
+        execute: async (args: any) => {
+          const ctx: CommandContext = {
+            store: this.store,
+            compiler: this,
+            decisions: new DecisionManager(this.store),
+            transport: new LocalGitTransport(this.store),
+            metrics: new MetricsCollector(this.store),
+            projectRoot: this.store.root
+          };
+          const validatedArgs = cap.schema ? cap.schema.parse(args || {}) : args;
+          return cap.handler(ctx, validatedArgs);
+        }
+      });
+    }
+
     this.compiler = new TextCompiler({
       toolkit: this.toolkit,
-      repository: this.repository
+      repository: this.repository,
+      services
     });
   }
 
