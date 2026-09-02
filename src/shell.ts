@@ -24,8 +24,10 @@ export class InteractiveShell {
   public agent: ShellAgent;
   private ctx: CommandContext;
   private ollamaHost: string;
+  private hasCustomAsker: boolean;
 
   constructor(public store: WorkflowStore, asker?: Asker) {
+    this.hasCustomAsker = Boolean(asker);
     this.ollamaHost = process.env.OLLAMA_HOST || 'http://lotus:11434';
     this.asker = asker ?? new Asker({
       providers: [
@@ -353,8 +355,8 @@ export class InteractiveShell {
       return responses.filter(r => r !== undefined && r !== null && r !== '').join('\n');
     }
 
-    // 10. Health check for Ollama
-    const isOnline = await this.probeOllamaHealth();
+    // 10. Health check for Ollama / LLM provider
+    const isOnline = this.hasCustomAsker || (await this.probeOllamaHealth());
     if (!isOnline) {
       if (responses.length === 0) {
         responses.push(`\x1b[33mNotice: Ollama endpoint (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic operations: Type \x1b[1;36mhelp\x1b[0m to see all local instant commands (status, codelets, tickets, gate, sync, etc.).\n- External LLM: Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`);

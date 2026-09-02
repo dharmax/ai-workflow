@@ -488,6 +488,7 @@ registry.register({
   category: 'ticket',
   description: 'Create a new ticket in Todo lane and sync with kanban.md',
   schema: z.object({
+    id: z.string().optional(),
     title: z.string(),
     lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional(),
     body: z.string().optional()
@@ -496,8 +497,8 @@ registry.register({
     title: args.join(' '),
     lane: 'Todo'
   }),
-  handler: async (ctx, { title, lane, body }) => {
-    const id = `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  handler: async (ctx, { id: customId, title, lane, body }) => {
+    const id = customId || `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const ticket = ctx.store.upsertEntity({
       id,
       type: 'ticket',
