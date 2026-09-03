@@ -202,5 +202,112 @@ describe('ai-workflow Autonomous Shell Agent & OS Engine Tests', () => {
     // Test offline notice when no custom asker configured
     const countOut = await shell.executeCommand('how many todo tickets do we have');
     expect(countOut).toContain('Notice: LLM provider');
+
+    // Test offline grounded fallback on project inquiries
+    const projectOut = await shell.executeCommand('tell me about this project');
+    expect(projectOut).toContain('Notice: LLM provider');
+    expect(projectOut).toContain('[Local Grounded Context]:');
+    expect(projectOut).toContain('LIVE PROJECT CAUSAL GRAPH CONTEXT');
+  });
+
+  test('ShellAgent never returns "Task completed." on timeout/error and surfaces the exact error', async () => {
+    const { CompletionEngine } = await import('@dharmax/llm-utils');
+    const timeoutAdapter = {
+      id: 'mock-timeout',
+      async generate() {
+        return {
+          ok: false,
+          text: '',
+          failure: { kind: 'timeout', message: 'The operation timed out.' },
+          model: { providerId: 'mock-timeout', modelId: 'mock-agent' }
+        };
+      }
+    };
+    const completion = new CompletionEngine([timeoutAdapter as any]);
+    const mockAsker = new Asker({
+      completion,
+      providers: [{ id: 'mock-timeout', available: true, enabled: true }],
+      defaultModel: { providerId: 'mock-timeout', modelId: 'mock-agent' }
+    });
+
+    const agent = new ShellAgent(ctx, mockAsker, 'product');
+    const result = await agent.turn('tell me about this project', 'product', { timeoutMs: 100 });
+
+    expect(result.output).not.toBe('Task completed.');
+    expect(result.output).toContain('Model communication issue');
+    expect(result.output).toContain('The operation timed out.');
+  });
+
+  test('ShellAgent preserves partial tool observations when subsequent reasoning step fails', async () => {
+    const { CompletionEngine } = await import('@dharmax/llm-utils');
+    let callCount = 0;
+    const partialAdapter = {
+      id: 'mock-partial',
+      async generate() {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: true,
+            text: '```tool_call\n{\n  "tool": "get_project_overview",\n  "args": {}\n}\n```',
+            model: { providerId: 'mock-partial', modelId: 'mock-agent' }
+          };
+        }
+        return {
+          ok: false,
+          text: '',
+          failure: { kind: 'timeout', message: 'Secondary step timed out.' },
+          model: { providerId: 'mock-partial', modelId: 'mock-agent' }
+        };
+      }
+    };
+    const completion = new CompletionEngine([partialAdapter as any]);
+    const mockAsker = new Asker({
+      completion,
+      providers: [{ id: 'mock-partial', available: true, enabled: true }],
+      defaultModel: { providerId: 'mock-partial', modelId: 'mock-agent' }
+    });
+
+    const agent = new ShellAgent(ctx, mockAsker, 'product');
+    const result = await agent.turn('what modules do we have?', 'product', { timeoutMs: 100 });
+
+    expect(result.output).not.toBe('Task completed.');
+    expect(result.output).toContain('Model communication issue');
+    expect(result.output).toContain('Observations Collected Before Failure');
+    expect(result.output).toContain('AI-WORKFLOW CAUSAL OS');
+  });
+
+  test('ShellAgent synthesizes findings from collected observations when maxSteps is reached', async () => {
+    const { CompletionEngine } = await import('@dharmax/llm-utils');
+    const loopAdapter = {
+      id: 'mock-loop',
+      async generate(opts: any) {
+        if (opts.prompt.includes('summarize your final findings')) {
+          return {
+            ok: false,
+            text: '',
+            failure: { kind: 'error', message: 'Summary generation failed.' },
+            model: { providerId: 'mock-loop', modelId: 'mock-agent' }
+          };
+        }
+        return {
+          ok: true,
+          text: '```tool_call\n{\n  "tool": "get_project_overview",\n  "args": {}\n}\n```',
+          model: { providerId: 'mock-loop', modelId: 'mock-agent' }
+        };
+      }
+    };
+    const completion = new CompletionEngine([loopAdapter as any]);
+    const mockAsker = new Asker({
+      completion,
+      providers: [{ id: 'mock-loop', available: true, enabled: true }],
+      defaultModel: { providerId: 'mock-loop', modelId: 'mock-agent' }
+    });
+
+    const agent = new ShellAgent(ctx, mockAsker, 'product');
+    const result = await agent.turn('loop test', 'product', { maxSteps: 2, timeoutMs: 100 });
+
+    expect(result.output).not.toBe('Task completed.');
+    expect(result.output).toContain('Completed maximum reasoning steps (2)');
+    expect(result.output).toContain('Findings gathered from tools');
   });
 });

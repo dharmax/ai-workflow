@@ -184,10 +184,18 @@ export class InteractiveShell {
     const isOnline = this.hasCustomAsker || (await this.probeOllamaHealth());
 
     if (isOnline) {
+      const isTTY = Boolean(process.stdout.isTTY);
+      if (isTTY) {
+        process.stdout.write(`\x1b[90mThinking (${this.mode} agent)...\x1b[0m\r`);
+      }
+
       // Autonomous Conversational Agent Turn with Full Multi-Tool Execution & Multi-Turn Reasoning
       try {
         const turnRes = await this.agent.turn(line, this.mode as ShellAgentMode, {
           onStep: (trace) => {
+            if (isTTY) {
+              process.stdout.write(' '.repeat(45) + '\r');
+            }
             if (trace.toolCall) {
               if (trace.toolCall.tool === 'exec_os_shell') {
                 console.log(`\x1b[35m⚡ [OS: ${trace.toolCall.args.command || ''}]\x1b[0m`);
@@ -197,20 +205,40 @@ export class InteractiveShell {
             }
           }
         });
+
+        if (isTTY) {
+          process.stdout.write(' '.repeat(45) + '\r');
+        }
+
         if (turnRes.output) {
           return turnRes.output;
         }
       } catch (err: any) {
+        if (isTTY) {
+          process.stdout.write(' '.repeat(45) + '\r');
+        }
         return `\x1b[31mAgent error:\x1b[0m ${err.message}`;
       }
     }
 
-    return `\x1b[33mNotice: LLM provider (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic CLI operations: Type \x1b[1;36mhelp\x1b[0m for instant local commands.\n- Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`;
+    const offlineNotice = `\x1b[33mNotice: LLM provider (${this.ollamaHost}) is offline or unreachable.\x1b[0m\n- Deterministic CLI operations: Type \x1b[1;36mhelp\x1b[0m for instant local commands.\n- Start Ollama or configure \x1b[1mexport OLLAMA_HOST="http://localhost:11434"\x1b[0m.`;
+
+    const lower = line.toLowerCase();
+    if (lower.includes('project') || lower.includes('module') || lower.includes('about') || lower.includes('status') || lower.includes('ticket')) {
+      const liveContext = this.buildLiveProjectContext();
+      return `${offlineNotice}\n\n\x1b[1;36m[Local Grounded Context]:\x1b[0m\n${liveContext}`;
+    }
+
+    return offlineNotice;
   }
 
   private async probeOllamaHealth(): Promise<boolean> {
     const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.BUN_TEST);
-    const timeoutMs = isTest ? 100 : 1200;
+    // In test runner without explicit live testing flag, don't couple unit test suite to external LAN hosts
+    if (isTest && !process.env.LIVE_OLLAMA) {
+      return false;
+    }
+    const timeoutMs = 3000;
     try {
       const res = await fetch(`${this.ollamaHost}/api/tags`, {
         signal: AbortSignal.timeout(timeoutMs)
