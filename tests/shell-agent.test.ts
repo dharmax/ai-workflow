@@ -203,10 +203,8 @@ describe('ai-workflow Autonomous Shell Agent & OS Engine Tests', () => {
     const countOut = await shell.executeCommand('how many todo tickets do we have');
     expect(countOut).toContain('Notice: LLM provider');
 
-    // Test offline grounded fallback on project inquiries
+    // Test instant grounded fallback on project inquiries
     const projectOut = await shell.executeCommand('tell me about this project');
-    expect(projectOut).toContain('Notice: LLM provider');
-    expect(projectOut).toContain('[Local Grounded Context]:');
     expect(projectOut).toContain('LIVE PROJECT CAUSAL GRAPH CONTEXT');
   });
 

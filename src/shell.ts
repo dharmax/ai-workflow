@@ -29,11 +29,12 @@ export class InteractiveShell {
   constructor(public store: WorkflowStore, asker?: Asker) {
     this.hasCustomAsker = Boolean(asker);
     this.ollamaHost = process.env.OLLAMA_HOST || 'http://lotus:11434';
+    const modelId = process.env.OLLAMA_MODEL || process.env.AIWF_MODEL || 'qwen2.5-coder:7b';
     this.asker = asker ?? new Asker({
       providers: [
         { id: 'ollama', host: this.ollamaHost, baseUrl: this.ollamaHost, available: true, enabled: true }
       ],
-      defaultModel: { providerId: 'ollama', modelId: 'qwen2.5-coder:7b' },
+      defaultModel: { providerId: 'ollama', modelId },
       preferLocal: true
     });
     this.compiler = new CodeletEngine(store, this.asker);
@@ -69,25 +70,45 @@ export class InteractiveShell {
       return [hits.length ? hits : allCommands, linePartial];
     };
 
-    const rl = readline.createInterface({ input, output, completer });
-    console.log(`\x1b[1;36m========================================================================\x1b[0m`);
-    console.log(`\x1b[1;37m   AI-WORKFLOW (aiwf) INTERACTIVE REPL & CAUSAL ENGINEERING OS\x1b[0m`);
-    console.log(`\x1b[1;36m========================================================================\x1b[0m`);
-    console.log(`Modes: /design (Architect) | /product (PM) | /dev (Engineer) | /triage (Reviewer)`);
-    console.log(`Type 'help' for command list, or press [Tab] for command completion.\n`);
+    const isTTY = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+    const rl = readline.createInterface({
+      input,
+      output: isTTY ? output : undefined,
+      terminal: isTTY,
+      completer: isTTY ? completer : undefined
+    });
 
-    while (true) {
-      const modeColor = this.mode === 'design' ? '\x1b[35m' : this.mode === 'product' ? '\x1b[34m' : this.mode === 'dev' ? '\x1b[32m' : '\x1b[33m';
-      const prompt = `${modeColor}[${this.mode.toUpperCase()}]\x1b[0m \x1b[1m>\x1b[0m `;
-      const line = (await rl.question(prompt)).trim();
+    if (isTTY) {
+      console.log(`\x1b[1;36m========================================================================\x1b[0m`);
+      console.log(`\x1b[1;37m   AI-WORKFLOW (aiwf) INTERACTIVE REPL & CAUSAL ENGINEERING OS\x1b[0m`);
+      console.log(`\x1b[1;36m========================================================================\x1b[0m`);
+      console.log(`Modes: /design (Architect) | /product (PM) | /dev (Engineer) | /triage (Reviewer)`);
+      console.log(`Type 'help' for command list, or press [Tab] for command completion.\n`);
+    }
 
-      if (!line) continue;
-      if (line === 'exit' || line === 'quit') break;
+    const showPrompt = () => {
+      if (isTTY) {
+        const modeColor = this.mode === 'design' ? '\x1b[35m' : this.mode === 'product' ? '\x1b[34m' : this.mode === 'dev' ? '\x1b[32m' : '\x1b[33m';
+        output.write(`${modeColor}[${this.mode.toUpperCase()}]\x1b[0m \x1b[1m>\x1b[0m `);
+      }
+    };
+
+    showPrompt();
+    for await (const rawLine of rl) {
+      const line = rawLine.trim();
+      if (!line) {
+        showPrompt();
+        continue;
+      }
+      if (line === 'exit' || line === 'quit') {
+        break;
+      }
 
       const res = await this.executeCommand(line);
       if (res) {
         console.log(res + '\n');
       }
+      showPrompt();
     }
     rl.close();
   }
@@ -111,14 +132,52 @@ export class InteractiveShell {
       return `\x1b[31mUnknown mode: /${target}. Valid modes: /design, /product, /dev, /triage | /clear\x1b[0m`;
     }
 
-    // 2. Help Command
-    if (trimmed.toLowerCase() === 'help') {
+    const lower = trimmed.toLowerCase().replace(/[?!.,;]/g, '').trim();
+
+    // 2. Help Command & Instant Capabilities Guide
+    if (
+      lower === 'help' ||
+      lower === '?' ||
+      lower.startsWith('what can you do') ||
+      lower.startsWith('what can yuou do') ||
+      lower === 'capabilities' ||
+      lower === 'what are your capabilities'
+    ) {
       return this.renderShellHelp();
+    }
+
+    // 3. Instant Modules Inquiry Fast-Path
+    if (
+      lower === 'modules' ||
+      lower === 'list modules' ||
+      lower === 'show modules' ||
+      lower === 'what modules do we have' ||
+      lower === 'what modules do we have in this project'
+    ) {
+      const health = this.store.getProjectHealth();
+      let out = `\x1b[1;36m=================================================================\x1b[0m\n`;
+      out += `\x1b[1;37m   PROJECT MODULES MATRIX (${path.basename(this.store.root)})\x1b[0m\n`;
+      out += `\x1b[1;36m=================================================================\x1b[0m\n\n`;
+      out += `Total Modules: \x1b[1m${health.modules.length}\x1b[0m\n\n`;
+      for (const m of health.modules) {
+        out += `  - \x1b[1m${m.name.padEnd(20)}\x1b[0m \x1b[32m${m.completionPercent}%\x1b[0m (${m.symbolCount} symbols) | Bugs: ${m.bugsCount} | Todo: ${m.todoCount}\n`;
+      }
+      return out;
+    }
+
+    // 4. Instant Project Overview Inquiry Fast-Path
+    if (
+      lower === 'about' ||
+      lower === 'tell me about this project' ||
+      lower === 'tell me about the project' ||
+      lower === 'what is this project'
+    ) {
+      return this.buildLiveProjectContext();
     }
 
     const parts = trimmed.split(/\s+/);
 
-    // 3. Match from CapabilityRegistry (Handles "list codelets", "codelet list", "status", "tickets", "next", "gate", "sweep", etc.)
+    // 5. Match from CapabilityRegistry (Handles "list codelets", "codelet list", "status", "tickets", "next", "gate", "sweep", etc.)
     const normalizedParts = (parts[0].toLowerCase() === 'list' && parts.length > 1)
       ? [parts[1], 'list', ...parts.slice(2)]
       : parts;
@@ -143,7 +202,7 @@ export class InteractiveShell {
       }
     }
 
-    // 4. Natural Language Tool-Aware Directives
+    // 6. Natural Language Tool-Aware Directives
     return this.handleNaturalLanguage(trimmed);
   }
 

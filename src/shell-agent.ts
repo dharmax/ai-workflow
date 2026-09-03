@@ -314,8 +314,11 @@ export class ShellAgent {
       `   - Never guess file contents, git status, AST symbols, test results, or graph relations. Use the appropriate tools (\`get_blast_radius\`, \`find_symbol\`, \`exec_os_shell\`, \`doctor_diagnose\`, \`search_knowledge\`, etc.).\n` +
       `   - You can call MULTIPLE tools in a single turn by outputting multiple \`\`\`tool_call blocks.\n`;
     prompt += `3. **Action & Follow-up**:\n` +
-      `   - When design or architecture decisions are established, propose them via \`propose_decision\` and create tracking tickets via \`create_ticket\` or \`track_plan_document\`.\n` +
+      `   - When design or architecture decisions are established and requested, propose them via \`propose_decision\` and create tracking tickets via \`create_ticket\` or \`track_plan_document\`.\n` +
       `   - Format your final response with clear Markdown headers, code blocks, and structured action items.\n`;
+    prompt += `4. **Strict Mutation Guard (Read-Only by Default)**:\n` +
+      `   - When the operator asks questions, for project overviews, summaries, status, explanations, or analysis, DO NOT invoke mutating tools (\`propose_decision\`, \`accept_decision\`, \`create_ticket\`, \`update_ticket_state\`, \`claim_ticket\`, or mutating OS commands).\n` +
+      `   - All unsolicited observations or questions are INQUIRIES only. ONLY invoke mutating tools when the operator explicitly directs creating, starting, modifying, or deleting a resource.\n`;
 
     return prompt;
   }
