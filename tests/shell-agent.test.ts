@@ -308,4 +308,26 @@ describe('ai-workflow Autonomous Shell Agent & OS Engine Tests', () => {
     expect(result.output).toContain('Completed maximum reasoning steps (2)');
     expect(result.output).toContain('Findings gathered from tools');
   });
+
+  test('executeShellTool blocks destructive/mutating commands via Safety Gate', async () => {
+    const pushRes = await executeShellTool('exec_os_shell', { command: 'git push origin main' }, ctx);
+    expect(pushRes.success).toBe(false);
+    expect(pushRes.output).toContain('[BLOCKED BY SAFETY GATE]');
+
+    const commitRes = await executeShellTool('exec_os_shell', { command: 'git commit -m "test"' }, ctx);
+    expect(commitRes.success).toBe(false);
+    expect(commitRes.output).toContain('[BLOCKED BY SAFETY GATE]');
+
+    const rmRes = await executeShellTool('exec_os_shell', { command: 'rm -rf /tmp/test' }, ctx);
+    expect(rmRes.success).toBe(false);
+    expect(rmRes.output).toContain('[BLOCKED BY SAFETY GATE]');
+
+    const branchRes = await executeShellTool('exec_os_shell', { command: 'git branch -m main' }, ctx);
+    expect(branchRes.success).toBe(false);
+    expect(branchRes.output).toContain('[BLOCKED BY SAFETY GATE]');
+
+    // Safe command passes
+    const statusRes = await executeShellTool('exec_os_shell', { command: 'git status' }, ctx);
+    expect(statusRes.output).not.toContain('[BLOCKED BY SAFETY GATE]');
+  });
 });

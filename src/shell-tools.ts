@@ -32,9 +32,9 @@ export function getAvailableShellTools(): ShellToolDefinition[] {
   tools.push({
     name: 'exec_os_shell',
     category: 'system',
-    description: 'Execute arbitrary OS-level shell/bash commands (e.g. bun test, git status, ls, grep) in the project workspace',
+    description: 'Execute read-only and verification shell commands (e.g. bun test, git status, git diff, ls, grep) in the project workspace. Destructive and repository-mutating commands (git commit, git push, git branch -m, rm -rf) are blocked by the safety gate.',
     parameters: {
-      command: { type: 'string', description: 'The exact shell command line string to execute' },
+      command: { type: 'string', description: 'The verification or read-only shell command to execute (e.g. bun test, git status, git diff)' },
       timeoutMs: { type: 'number', description: 'Optional timeout in milliseconds (defaults to 30000)' }
     },
     example: '{"command": "bun test"}'
@@ -57,14 +57,28 @@ export function getAvailableShellTools(): ShellToolDefinition[] {
 /**
  * Executes any tool by name with arguments.
  */
+export const MUTATING_TOOL_DIRECTIVES: Record<string, RegExp> = {
+  start_ticket: /\b(start|begin|commence|work on)\b/i,
+  done_ticket: /\b(done|finish|complete|close|resolve)\b/i,
+  claim_ticket: /\b(claim|lease)\b/i,
+  release_ticket: /\b(release|unclaim)\b/i,
+  propose_decision: /\b(propose|draft|new decision|create decision|(?:create|propose|new|draft)\s+(?:an?\s+)?adr)\b/i,
+  accept_decision: /\b(accept|approve)\b/i,
+  revert_decision: /\b(revert|reject|cancel decision)\b/i,
+  create_ticket: /\b(create|add|new|file)\s+(?:.*?\s+)?(?:ticket|issue|task)s?\b/i,
+  update_ticket_state: /\b(move|update|transition)\b/i,
+  promote_stub: /\b(promote|implement)\b/i
+};
+
 export async function executeShellTool(
   toolName: string,
   args: Record<string, any>,
-  ctx: CommandContext
+  ctx: CommandContext,
+  options?: { allowMutation?: boolean; userIntent?: string }
 ): Promise<ToolExecutionResult> {
   // 1. OS Shell Command
   if (toolName === 'exec_os_shell' || toolName === 'shell' || toolName === 'bash') {
-    const cmd = args.command || args.cmd || String(args);
+    const cmd = (args.command || args.cmd || String(args)).trim();
     if (!cmd || typeof cmd !== 'string') {
       return {
         toolName,
@@ -72,6 +86,23 @@ export async function executeShellTool(
         error: 'Missing required "command" argument for exec_os_shell',
         output: 'Error: Missing command parameter.'
       };
+    }
+
+    // Safety Gate: Block mutating or destructive git/system commands during agent reasoning
+    const blockedPatterns = [
+      /\bgit\s+(push|commit|branch\s+-m|checkout\s+-b|reset|rebase|merge|clean|tag)\b/i,
+      /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive)\b/i,
+      /\b(dd|mkfs|shutdown|reboot)\b/i
+    ];
+    for (const pattern of blockedPatterns) {
+      if (pattern.test(cmd)) {
+        return {
+          toolName,
+          success: false,
+          error: `Safety Gate: Mutating operation "${cmd}" is blocked. Conversational reasoning is restricted to verification, testing, and read-only diagnostics (e.g. bun test, git status, git diff, ls, grep). Mutating operations must be performed directly by the operator.`,
+          output: `[BLOCKED BY SAFETY GATE]: "${cmd}" was blocked. Autonomous git push, git commit, branch renaming, or destructive file commands are forbidden during reasoning.`
+        };
+      }
     }
 
     const res: OsCommandResult = await executeOsCommand(cmd, {
@@ -97,6 +128,19 @@ export async function executeShellTool(
       error: `Unknown tool "${toolName}". Use "help" to see available tools.`,
       output: `Error: Tool "${toolName}" not found.`
     };
+  }
+
+  // 3. Mutation Gating Check for Workflow Tools (when invoked from conversational user intent)
+  if (options && options.userIntent !== undefined && MUTATING_TOOL_DIRECTIVES[toolName]) {
+    const isAllowed = options.allowMutation || MUTATING_TOOL_DIRECTIVES[toolName].test(options.userIntent);
+    if (!isAllowed) {
+      return {
+        toolName,
+        success: false,
+        error: `Mutation Gated: Tool "${toolName}" modifies canonical workflow state. The operator asked an inquiry or recommendation request ("${options.userIntent}").`,
+        output: `[MUTATION GATED]: Tool "${toolName}" modifies repository or workflow state. The operator asked an inquiry. Do NOT auto-execute mutations on inquiries; instead, report your findings and recommend this action so the operator can explicitly authorize it.`
+      };
+    }
   }
 
   try {

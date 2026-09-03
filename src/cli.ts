@@ -13,18 +13,18 @@ import { startWebServer } from './ui.ts';
 import { InteractiveShell } from './shell.ts';
 import { runMcpStdio } from './mcp.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
-const cliPath = path.resolve(__dirname, 'cli.ts');
-const mcpPath = path.resolve(__dirname, 'mcp.ts');
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
+const repoRoot = path.resolve(currentDirPath, '..');
+const cliPath = path.resolve(currentDirPath, 'cli.ts');
+const mcpPath = path.resolve(currentDirPath, 'mcp.ts');
 const skillSourcePath = path.resolve(repoRoot, 'skills', 'ai-workflow', 'SKILL.md');
 
-let _ctx: CommandContext | null = null;
+let cachedContext: CommandContext | null = null;
 function getContext(): CommandContext {
-  if (!_ctx) {
+  if (!cachedContext) {
     const store = new WorkflowStore();
-    _ctx = {
+    cachedContext = {
       store,
       decisions: new DecisionManager(store),
       compiler: new CodeletEngine(store),
@@ -33,7 +33,7 @@ function getContext(): CommandContext {
       projectRoot: store.root
     };
   }
-  return _ctx;
+  return cachedContext;
 }
 
 function parseCliFlags(rawArgs: string[]): { flags: Record<string, any>; nonFlags: string[] } {
