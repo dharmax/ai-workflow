@@ -1,7 +1,0 @@
-interface:
-  display_name: "AI Workflow"
-  short_description: "Workflow-backed engineering, status, review, and guarded execution"
-  default_prompt: "Use $ai-workflow to route through MCP-first project status, ticket context, graph search, code review/debug/refactor, artifact evidence, codelets, and explicit mutation gates before shell or file fallback."
-
-policy:
-  allow_implicit_invocation: true

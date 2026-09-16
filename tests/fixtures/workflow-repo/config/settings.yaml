@@ -1,4 +1,0 @@
-workflow:
-  lane: Todo
-# NOTE: yaml comments should be indexed
-provider: ollama
