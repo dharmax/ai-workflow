@@ -18,6 +18,7 @@ import { WorkflowActor } from './actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { initProject, installGlobalBinary, configureMcp } from './setup.ts';
 import { loadConfig, saveConfig } from './config.ts';
+import { ProgressIndicator } from './terminal/progress.ts';
 
 const args = process.argv.slice(2);
 const command = args[0] || (process.stdin.isTTY ? 'shell' : 'help');
@@ -110,7 +111,10 @@ async function main() {
 
     case 'init': {
       console.log(`🚀 Initializing AI-Workflow in ${root}...`);
+      const progress = new ProgressIndicator();
+      progress.start('Scaffolding project and indexing AST graph...');
       const initRes = await initProject(root);
+      progress.stop('Initialization complete', 'success');
       console.log(`✅ Indexed ${initRes.filesIndexed} file(s), ${initRes.symbolsIndexed} symbol(s), ${initRes.notesIndexed} note(s).`);
       console.log(`✅ Generated projections: ${initRes.projectionsExported.join(', ')}`);
       console.log(`✨ Ready! Run 'aiwf shell' or 'aiwf status' to begin.`);
@@ -346,8 +350,14 @@ async function main() {
     case 'index': {
       console.log(`🔄 Indexing AST symbols across codebase...`);
       const store = getStore();
-      const res = await indexCodebase(store, root);
-      console.log(`✅ Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.notesCount} note(s).`);
+      const progress = new ProgressIndicator();
+      progress.start('Scanning codebase for source files...');
+      const res = await indexCodebase(store, root, {
+        onProgress: (current, total, file) => {
+          progress.renderBar(current, total, file);
+        }
+      });
+      progress.stop(`Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.notesCount} note(s).`, 'success');
       break;
     }
 
@@ -471,9 +481,17 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const actor = new WorkflowActor({ store, projectRoot: root, preferLocal: true });
-      const res = await actor.execute(wish);
-      console.log(`[${res.mode.toUpperCase()}] ${res.answer}`);
+      const progress = new ProgressIndicator();
+      progress.start(`Executing: "${wish.slice(0, 35)}..."`);
+      try {
+        const actor = new WorkflowActor({ store, projectRoot: root, preferLocal: true });
+        const res = await actor.execute(wish);
+        progress.stop(`Executed in ${res.mode.toUpperCase()} mode`, 'success');
+        console.log(`\n[${res.mode.toUpperCase()}] ${res.answer}`);
+      } catch (err: any) {
+        progress.stop(`Execution failed: ${err.message || err}`, 'fail');
+        process.exit(1);
+      }
       break;
     }
 

@@ -43,15 +43,21 @@ export interface IndexResult {
   modulesCount: number;
 }
 
+export interface IndexOptions {
+  onProgress?: (current: number, total: number, label: string) => void;
+}
+
 export async function indexCodebase(
   store: WorkflowStore,
-  rootDir: string = store.root
+  rootDir: string = store.root,
+  options?: IndexOptions
 ): Promise<IndexResult> {
   let filesCount = 0;
   let symbolsCount = 0;
   let notesCount = 0;
   const walkedFiles = new Set<string>();
   const discoveredModules = new Set<string>();
+  const candidateFiles: Array<{ fullPath: string; relPath: string }> = [];
 
   async function walk(currentDir: string) {
     const entries = await readdir(currentDir, { withFileTypes: true });
@@ -68,26 +74,36 @@ export async function indexCodebase(
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
         if (!SUPPORTED_EXTENSIONS.has(ext)) continue;
+        candidateFiles.push({ fullPath, relPath });
+      }
+    }
+  }
 
-        try {
-          const content = await readFile(fullPath, 'utf8');
-          const parsed = parseIndexedFile({ filePath: relPath, content });
-          filesCount++;
-          walkedFiles.add(relPath);
+  await walk(rootDir);
 
-          const modName = resolveModulePath(relPath);
-          discoveredModules.add(modName);
+  for (let i = 0; i < candidateFiles.length; i++) {
+    const { fullPath, relPath } = candidateFiles[i];
+    options?.onProgress?.(i + 1, candidateFiles.length, relPath);
 
-          const modEntity = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
-            id: `mod:${modName}`,
-            title: modName,
-            path: modName,
-            status: 'implemented'
+    try {
+      const content = await readFile(fullPath, 'utf8');
+      const parsed = parseIndexedFile({ filePath: relPath, content });
+      filesCount++;
+      walkedFiles.add(relPath);
+
+      const modName = resolveModulePath(relPath);
+      discoveredModules.add(modName);
+
+      const modEntity = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
+        id: `mod:${modName}`,
+        title: modName,
+        path: modName,
+        status: 'implemented'
           });
 
           const fileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
             id: relPath,
-            title: entry.name,
+            title: path.basename(relPath),
             path: relPath,
             language: parsed.language,
             fileKind: parsed.fileKind,
@@ -145,10 +161,6 @@ export async function indexCodebase(
           // Skip unreadable files
         }
       }
-    }
-  }
-
-  await walk(rootDir);
 
   // 2. Discover and index local workspace/file: dependencies from package.json
   const pkgJsonPath = path.join(rootDir, 'package.json');
