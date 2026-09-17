@@ -24,21 +24,47 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   logLevel: 'info'
 };
 
+import os from 'node:os';
+
+export function getGlobalConfig(): Partial<ProjectConfig> {
+  const globalPath = path.join(os.homedir(), '.ai-workflow', 'config.json');
+  if (fs.existsSync(globalPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(globalPath, 'utf8'));
+      const ollamaHost = raw.providers?.ollama?.host || raw.ollamaUrl;
+      const model = raw.providers?.ollama?.plannerModel || raw.model;
+      return {
+        ...(ollamaHost ? { ollamaUrl: ollamaHost } : {}),
+        ...(model ? { model } : {})
+      };
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 export function getConfigPath(projectRoot: string): string {
   return path.join(projectRoot, '.ai-workflow', 'config.json');
 }
 
 export function loadConfig(projectRoot: string): ProjectConfig {
+  const globalCfg = getGlobalConfig();
+  const baseConfig: ProjectConfig = {
+    ...DEFAULT_CONFIG,
+    ollamaUrl: process.env.OLLAMA_HOST || process.env.OLLAMA_URL || globalCfg.ollamaUrl || DEFAULT_CONFIG.ollamaUrl,
+    ...globalCfg
+  };
   const cfgPath = getConfigPath(projectRoot);
   if (fs.existsSync(cfgPath)) {
     try {
       const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      return { ...DEFAULT_CONFIG, ...raw };
+      return { ...baseConfig, ...raw };
     } catch {
-      return { ...DEFAULT_CONFIG };
+      return baseConfig;
     }
   }
-  return { ...DEFAULT_CONFIG };
+  return baseConfig;
 }
 
 export function saveConfig(projectRoot: string, config: Partial<ProjectConfig>): ProjectConfig {

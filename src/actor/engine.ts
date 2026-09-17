@@ -13,6 +13,7 @@ import type { WorkflowStore } from '../graph/store.ts';
 export { pubsub };
 import { registry, type ToolRegistry, type ToolContext } from '../tools/registry.ts';
 import { bucketRouter } from '../tools/bucket-router.ts';
+import { loadConfig } from '../config.ts';
 
 export type ShellMode = 'design' | 'dev' | 'triage' | 'product';
 
@@ -28,7 +29,7 @@ export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
   design: {
     mode: 'design',
     taskClass: 'reasoning',
-    defaultLocalModel: 'qwen2.5-coder:14b',
+    defaultLocalModel: 'qwen2.5-coder:7b',
     defaultCloudModel: 'claude-3-7-sonnet',
     systemPrompt: `You are an expert Software Architect in [DESIGN] mode.
 Your objective is architectural clarity, ADR decision making, modular boundaries, and scalable contracts.
@@ -57,7 +58,7 @@ Use test_* tools to pair targets, triage failing tests, and capture error traces
   product: {
     mode: 'product',
     taskClass: 'creative',
-    defaultLocalModel: 'llama3.2',
+    defaultLocalModel: 'qwen2.5-coder:7b',
     defaultCloudModel: 'gemini-2.5-flash',
     systemPrompt: `You are a Technical Product Manager in [PRODUCT] mode.
 Your objective is roadmap clarity, Epics, User Stories, acceptance criteria, and Kanban lane hygiene.
@@ -127,7 +128,7 @@ export class WorkflowActor {
     this.projectRoot = options.projectRoot;
     this.mode = options.mode || 'dev';
     this.maxSteps = options.maxSteps || 10;
-    this.timeoutMs = options.timeoutMs || 8000;
+    this.timeoutMs = options.timeoutMs || 60000;
     this.preferLocal = options.preferLocal ?? true;
     this.metrics = new InMemoryMetricsStore();
 
@@ -137,9 +138,20 @@ export class WorkflowActor {
       this.asker = options.asker;
     } else {
       try {
+        const cfg = loadConfig(this.projectRoot);
+        const ollamaHost = cfg.ollamaUrl || 'http://localhost:11434';
+        const model = cfg.model || MODE_CONFIGS[this.mode].defaultLocalModel;
         this.asker = new Asker({
+          providers: {
+            ollama: {
+              id: 'ollama',
+              host: ollamaHost,
+              available: true,
+              local: true
+            }
+          },
           preferLocal: this.preferLocal,
-          defaultModel: MODE_CONFIGS[this.mode].defaultLocalModel
+          defaultModel: `ollama/${model}`
         });
       } catch {
         this.asker = undefined;
