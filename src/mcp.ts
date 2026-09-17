@@ -1,0 +1,149 @@
+/**
+ * Responsibility: Stdio MCP (Model Context Protocol) Server.
+ * Scope: Exposes all domain tools and autonomous actor capabilities to host AI environments
+ * (Google Antigravity, Claude Code, Cursor, Codex).
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  type Tool as McpTool
+} from '@modelcontextprotocol/sdk/types.js';
+import { zodToJsonSchema } from '@dharmax/llm-utils';
+import { WorkflowStore, findProjectRoot } from './graph/store.ts';
+import { initializeTools, registry, type ToolContext } from './tools/index.ts';
+import { WorkflowActor, type ShellMode } from './actor/engine.ts';
+
+export interface McpServerOptions {
+  store?: WorkflowStore;
+  projectRoot?: string;
+  actor?: WorkflowActor;
+}
+
+export function createMcpServer(options: McpServerOptions = {}) {
+  const root = options.projectRoot || findProjectRoot().root;
+  const store = options.store || new WorkflowStore(root);
+  initializeTools();
+
+  const actor = options.actor || new WorkflowActor({
+    store,
+    projectRoot: root,
+    preferLocal: true
+  });
+
+  const server = new Server(
+    {
+      name: 'ai-workflow',
+      version: '2.0.0'
+    },
+    {
+      capabilities: {
+        tools: {
+          listChanged: true
+        }
+      }
+    }
+  );
+
+  // 1. List Available Tools
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const tools: McpTool[] = [];
+
+    // Autonomous wish tool
+    tools.push({
+      name: 'execute_shell_wish',
+      description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          wish: {
+            type: 'string',
+            description: 'The natural language instruction, wish, or question to execute'
+          },
+          mode: {
+            type: 'string',
+            enum: ['design', 'dev', 'triage', 'product'],
+            description: 'Optional manual mode override'
+          }
+        },
+        required: ['wish']
+      }
+    });
+
+    // Domain facilities from registry
+    for (const t of registry.getAll()) {
+      let schema: any = { type: 'object' };
+      try {
+        const conv = zodToJsonSchema(t.parameters as any);
+        if (conv.ok && conv.schema) schema = conv.schema;
+      } catch {}
+
+      tools.push({
+        name: t.name,
+        description: `[${t.category.toUpperCase()}]: ${t.description}`,
+        inputSchema: schema
+      });
+    }
+
+    return { tools };
+  });
+
+  // 2. Call Tool
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    const ctx: ToolContext = {
+      store,
+      projectRoot: root
+    };
+
+    if (name === 'execute_shell_wish') {
+      const wish = String(args?.wish || '');
+      const mode = args?.mode as ShellMode | undefined;
+      const res = await actor.execute(wish, mode);
+
+      let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
+      if (res.stepsCount > 0) {
+        text += `\n\n*Executed ${res.stepsCount} autonomous step(s).*`;
+      }
+      return {
+        content: [{ type: 'text', text }]
+      };
+    }
+
+    const tool = registry.get(name);
+    if (!tool) {
+      return {
+        isError: true,
+        content: [{ type: 'text', text: `Tool '${name}' is not registered in AI-Workflow.` }]
+      };
+    }
+
+    try {
+      const result = await registry.execute(name, args || {}, ctx);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    } catch (err: any) {
+      return {
+        isError: true,
+        content: [{ type: 'text', text: `Execution error in '${name}': ${err.message}` }]
+      };
+    }
+  });
+
+  return { server, store, actor, projectRoot: root };
+}
+
+// Standalone execution entrypoint
+if (import.meta.main) {
+  const { server } = createMcpServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}

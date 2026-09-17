@@ -7,21 +7,14 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "types": ["node", "bun"]
   },
   "include": [
-    "aiwf-common-core/**/*.ts",
-    "aiwf-mcp/**/*.ts",
-    "aiwf-shell/**/*.ts",
-    "aiwf-shell/**/*.mjs",
-    "aiwf-skill/**/*.ts",
-    "scripts/**/*.ts",
-    "scripts/**/*.mjs",
+    "src/**/*.ts",
     "tests/**/*.ts"
   ]
 }
