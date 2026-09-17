@@ -87,6 +87,8 @@ aiwf <command> [options]
 | `tickets [lane]` | List Kanban tickets (Backlog, Todo, In Progress, Done, Blocked) | `aiwf tickets Todo` |
 | `claim <id> [--agent <a>] [-m <m>]` | Atomically lease a ticket with time-to-live | `aiwf claim TKT-001 --agent alpha -m 45` |
 | `release <id>` | Release an active ticket lease | `aiwf release TKT-001` |
+| `done <id>` | Mark ticket as Done, release lease, and sync Kanban | `aiwf done TKT-001` |
+| `move <id> <lane>` | Move ticket to specific lane | `aiwf move TKT-001 "In Progress"` |
 
 ### Intelligence & Code Navigation
 | Command | Description | Example |

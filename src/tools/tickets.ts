@@ -171,7 +171,20 @@ export function registerTicketTools() {
         };
       }
 
-      // 3. Next available Todo task
+      // 3. Unleased task in In Progress lane (e.g. starter task or expired lease pickup)
+      const unleasedInProgress = tickets.filter(t => (t as any).lane === 'In Progress' && !isClaimedByOther(t));
+      if (unleasedInProgress.length > 0) {
+        return {
+          ticket: {
+            id: ctx.store.localId(unleasedInProgress[0].id),
+            title: (unleasedInProgress[0] as any).title,
+            lane: (unleasedInProgress[0] as any).lane
+          },
+          reason: 'Unleased task in In Progress lane ready for pickup.'
+        };
+      }
+
+      // 4. Next available Todo task
       const todos = tickets.filter(t => (t as any).lane === 'Todo' && !isClaimedByOther(t));
       if (todos.length > 0) {
         return {

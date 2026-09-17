@@ -49,6 +49,8 @@ All capabilities are unified across stdio MCP and the CLI:
 | **List Kanban Tickets** | `aiwf tickets [lane]` | `list_tickets` |
 | **Lease Ticket** | `aiwf claim <id> [--agent <a>]` | `claim_ticket` |
 | **Release Lease** | `aiwf release <id>` | `release_ticket` |
+| **Mark Ticket Done** | `aiwf done <id>` | `update_ticket_state` |
+| **Move Ticket Lane** | `aiwf move <id> <lane>` | `update_ticket_state` |
 | **Uncommitted Diff** | `aiwf diff` | `get_git_diff` |
 | **Locate Symbol** | `aiwf symbol <name>` | `find_symbol` |
 | **Surgical Code Slice** | `aiwf slice <file> <sym>` | `get_symbol_source` |

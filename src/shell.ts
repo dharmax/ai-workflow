@@ -24,6 +24,8 @@ export const SHELL_COMMANDS = [
   'next',
   'claim',
   'release',
+  'done',
+  'move',
   'tickets',
   'sync',
   'diff',
@@ -75,6 +77,8 @@ Commands:
   next                       - Algorithmic recommendation for next task
   claim <ticketId> [agent]   - Atomically lease a ticket (default 30m)
   release <ticketId>         - Release active ticket lease
+  done <ticketId>            - Mark ticket as Done, release lease, and sync Kanban
+  move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
   sync                       - Bi-directional sync between SQLite Graph and Markdown
   diff                       - Display uncommitted git diff
@@ -147,6 +151,24 @@ Commands:
     const ticketId = line.slice(8).trim();
     const res = await registry.execute('release_ticket', { ticketId }, ctx);
     return { output: res.success ? `Released ticket ${ticketId}.` : `Ticket '${ticketId}' not found or lease inactive.` };
+  }
+
+  if (lower.startsWith('done ')) {
+    const ticketId = line.slice(5).trim();
+    await registry.execute('update_ticket_state', { ticketId, lane: 'Done' }, ctx);
+    await registry.execute('release_ticket', { ticketId }, ctx);
+    await exportProjections(session.store, session.projectRoot);
+    return { output: `Marked ticket '${ticketId}' as Done and synced Kanban.` };
+  }
+
+  if (lower.startsWith('move ')) {
+    const parts = line.slice(5).trim().split(/\s+/);
+    const ticketId = parts[0];
+    const lane = parts.slice(1).join(' ') as any;
+    if (!ticketId || !lane) return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
+    await registry.execute('update_ticket_state', { ticketId, lane }, ctx);
+    await exportProjections(session.store, session.projectRoot);
+    return { output: `Moved ticket '${ticketId}' to '${lane}'.` };
   }
 
   if (lower.startsWith('tickets') || lower === 'list') {

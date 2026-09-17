@@ -85,6 +85,12 @@ describe('Interactive Shell REPL Bridge', () => {
     const releaseRes = await processShellInput('release TKT-SHELL-1', session);
     expect(releaseRes.output).toContain('Released ticket TKT-SHELL-1');
 
+    const moveRes = await processShellInput('move TKT-SHELL-1 In Progress', session);
+    expect(moveRes.output).toContain("Moved ticket 'TKT-SHELL-1' to 'In Progress'");
+
+    const doneRes = await processShellInput('done TKT-SHELL-1', session);
+    expect(doneRes.output).toContain("Marked ticket 'TKT-SHELL-1' as Done and synced Kanban");
+
     // 4. Config Get & Set
     const cfgGet = await processShellInput('config get defaultAgentId', session);
     expect(cfgGet.output).toContain('defaultAgentId');

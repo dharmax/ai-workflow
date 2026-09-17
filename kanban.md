@@ -14,12 +14,12 @@ kanban-plugin: board
 
 ## In Progress
 
-- [/] **TKT-001**: Explore codebase and run diagnostics
-  - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
+- No items
 
 ## Done
 
-- No items
+- [x] **TKT-001**: Explore codebase and run diagnostics
+  - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
 
 ## Blocked
 

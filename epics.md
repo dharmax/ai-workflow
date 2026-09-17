@@ -5,5 +5,5 @@
 Initial architecture grounding and capability mapping.
 
 ### Linked Tickets
-- **TKT-001** [In Progress]: Explore codebase and run diagnostics
+- **TKT-001** [Done]: Explore codebase and run diagnostics
 

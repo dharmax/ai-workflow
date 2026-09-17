@@ -187,9 +187,9 @@ async function main() {
       }
       let agentId = 'human-operator';
       let durationMinutes = 30;
-      const agentIdx = args.indexOf('--agent');
+      const agentIdx = args.indexOf('--agent') !== -1 ? args.indexOf('--agent') : args.indexOf('-a');
       if (agentIdx !== -1 && args[agentIdx + 1]) agentId = args[agentIdx + 1];
-      const minIdx = args.indexOf('--minutes');
+      const minIdx = args.indexOf('--minutes') !== -1 ? args.indexOf('--minutes') : args.indexOf('-m');
       if (minIdx !== -1 && args[minIdx + 1]) durationMinutes = Number(args[minIdx + 1]);
 
       const store = getStore();
@@ -217,6 +217,34 @@ async function main() {
         console.error(`❌ Ticket '${ticketId}' not found or has no active lease.`);
         process.exit(1);
       }
+      break;
+    }
+
+    case 'done': {
+      const ticketId = args[1];
+      if (!ticketId) {
+        console.error(`Usage: aiwf done <ticketId>`);
+        process.exit(1);
+      }
+      const store = getStore();
+      await registry.execute('update_ticket_state', { ticketId, lane: 'Done' }, { store, projectRoot: root });
+      await registry.execute('release_ticket', { ticketId }, { store, projectRoot: root });
+      await exportProjections(store, root);
+      console.log(`✅ Marked ticket '${ticketId}' as Done and synced Kanban.`);
+      break;
+    }
+
+    case 'move': {
+      const ticketId = args[1];
+      const lane = args[2] as any;
+      if (!ticketId || !lane) {
+        console.error(`Usage: aiwf move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>`);
+        process.exit(1);
+      }
+      const store = getStore();
+      await registry.execute('update_ticket_state', { ticketId, lane }, { store, projectRoot: root });
+      await exportProjections(store, root);
+      console.log(`✅ Moved ticket '${ticketId}' to lane '${lane}'.`);
       break;
     }
 
@@ -407,6 +435,8 @@ Core Workflow Commands:
   tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
   claim <ticketId> [--agent <a>] [-m <m>] Atomically lease a ticket with TTL
   release <ticketId>                     Release active ticket lease
+  done <ticketId>                        Mark ticket as Done, release lease, and sync Kanban
+  move <ticketId> <lane>                 Move ticket to lane (Backlog, Todo, In Progress, Done, Blocked)
 
 Intelligence & Code Navigation:
   diff                                   Show uncommitted git diff cleanly

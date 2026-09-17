@@ -114,6 +114,16 @@ describe('Tool Registry & Deterministic Facilities', () => {
     expect(nextTaskTodo.ticket!.id).toBe(created.id);
     expect(nextTaskTodo.reason).toContain('Next planned task in Todo lane');
 
+    // 7b. Move task to In Progress without lease, verify recommend_next_task selects it
+    await registry.execute('update_ticket_state', {
+      ticketId: created.id,
+      lane: 'In Progress'
+    }, ctx);
+    const nextTaskUnleased = await registry.execute('recommend_next_task', {}, ctx);
+    expect(nextTaskUnleased.ticket).not.toBeNull();
+    expect(nextTaskUnleased.ticket!.id).toBe(created.id);
+    expect(nextTaskUnleased.reason).toContain('Unleased task in In Progress lane ready for pickup');
+
     // 8. Negative test: updating non-existent ticket must throw Error
     expect(registry.execute('update_ticket_state', {
       ticketId: 'TKT-NON-EXISTENT',
