@@ -352,20 +352,84 @@ async function main() {
     }
 
     case 'patch': {
+      const store = getStore();
+
+      if (args.includes('--spec')) {
+        const specIdx = args.indexOf('--spec');
+        const specPath = args[specIdx + 1];
+        if (!specPath || !fs.existsSync(specPath)) {
+          console.error(`Error: Spec file not found: ${specPath}`);
+          process.exit(1);
+        }
+        const specContent = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+        const patches = Array.isArray(specContent) ? specContent : [specContent];
+        const res = await registry.execute('apply_block_patch', { patches }, { store, projectRoot: root });
+        if (res.success) {
+          console.log(`✅ Applied ${patches.length} patch(es) via spec ${specPath} (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes across ${res.filesModified} file(s)).`);
+        } else {
+          console.error(`❌ Patch failed: ${res.message}`);
+          process.exit(1);
+        }
+        break;
+      }
+
+      if (args.includes('--stdin')) {
+        const stdinText = await Bun.stdin.text();
+        let patches;
+        try {
+          const parsed = JSON.parse(stdinText.trim());
+          patches = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          const filePath = args[1] === '--stdin' ? args[2] : args[1];
+          const targetContent = args[2] === '--stdin' ? args[3] : args[2];
+          if (!filePath || targetContent === undefined) {
+            console.error(`Usage: cat replacement.txt | aiwf patch <filePath> <targetContent> --stdin`);
+            process.exit(1);
+          }
+          patches = [{ file: filePath, search: targetContent, replace: stdinText }];
+        }
+        const res = await registry.execute('apply_block_patch', { patches }, { store, projectRoot: root });
+        if (res.success) {
+          console.log(`✅ Applied patch from stdin (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes).`);
+        } else {
+          console.error(`❌ Patch failed: ${res.message}`);
+          process.exit(1);
+        }
+        break;
+      }
+
       const filePath = args[1];
       const targetContent = args[2];
       const replacementContent = args[3];
       if (!filePath || targetContent === undefined || replacementContent === undefined) {
-        console.error(`Usage: aiwf patch <filePath> <targetContent> <replacementContent>`);
+        console.error(`Usage:
+  aiwf patch <filePath> <targetContent> <replacementContent>
+  aiwf patch --spec <patch.json>
+  cat code.txt | aiwf patch <filePath> <targetContent> --stdin`);
         process.exit(1);
       }
-      const store = getStore();
       const res = await registry.execute('apply_block_patch', { filePath, targetContent, replacementContent }, { store, projectRoot: root });
       if (res.success) {
         console.log(`✅ Applied patch to ${filePath} (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes).`);
       } else {
         console.error(`❌ Patch failed: ${res.message}`);
         process.exit(1);
+      }
+      break;
+    }
+
+    case 'scaffold': {
+      const targetPath = args[1];
+      const description = args.slice(2).join(' ');
+      if (!targetPath) {
+        console.error(`Usage: aiwf scaffold <filePath> [description]`);
+        process.exit(1);
+      }
+      const store = getStore();
+      const res = await registry.execute('scaffold_file', { targetPath, description }, { store, projectRoot: root });
+      console.log(`✅ Scaffolded ${res.createdFile} (${res.symbol})`);
+      if (res.createdTest) {
+        console.log(`  Created paired test: ${res.createdTest}`);
       }
       break;
     }
@@ -472,6 +536,7 @@ Intelligence & Code Navigation:
   blast <targetFilePathOrSymbol>         Analyze blast radius, affected files, and recommended tests
   index                                  Re-index codebase AST symbols and modules into graph
   patch <file> <search> <replace>        Apply deterministic AST block patch via block-patcher
+  scaffold <filePath> [description]      Scaffold typed source file paired with unit test harness
 
 Diagnostics & Health:
   doctor                                 Run comprehensive environment, graph, LLM, and MCP diagnostics

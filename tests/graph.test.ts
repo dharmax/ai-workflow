@@ -233,4 +233,76 @@ export function add(a: number, b: number): number {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('should discover and index exported symbols from local file: dependencies in package.json', async () => {
+    const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-ext-dep-'));
+    const appDir = path.join(parentDir, 'app');
+    const libDir = path.join(parentDir, 'lib');
+    fs.mkdirSync(path.join(appDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(libDir, 'src'), { recursive: true });
+
+    const diskStore = new WorkflowStore(appDir);
+
+    try {
+      // 1. Setup external dependency package
+      fs.writeFileSync(
+        path.join(libDir, 'package.json'),
+        JSON.stringify({
+          name: '@test/mylib',
+          version: '1.0.0',
+          main: './src/index.ts'
+        }, null, 2)
+      );
+      fs.writeFileSync(
+        path.join(libDir, 'src', 'index.ts'),
+        `export class SuperEngine {
+  start(): void {}
+}
+export function helperUtil(): string { return 'ok'; }
+function privateInternal(): void {}
+`
+      );
+
+      // 2. Setup app package with file: dependency
+      fs.writeFileSync(
+        path.join(appDir, 'package.json'),
+        JSON.stringify({
+          name: 'my-app',
+          dependencies: {
+            '@test/mylib': 'file:../lib'
+          }
+        }, null, 2)
+      );
+      fs.writeFileSync(
+        path.join(appDir, 'src', 'main.ts'),
+        `import { SuperEngine } from '@test/mylib';
+export function run(): void {
+  const e = new SuperEngine();
+  e.start();
+}
+`
+      );
+
+      const result = await indexCodebase(diskStore, appDir);
+      expect(result.filesCount).toBeGreaterThanOrEqual(2); // main.ts + lib index.ts
+
+      const symbols = await diskStore.listEntities<SymbolNode>(SymbolNode.dcr);
+      const symbolNames = symbols.map(s => (s as any).title);
+
+      // Exported external symbols must be indexed
+      expect(symbolNames).toContain('SuperEngine');
+      expect(symbolNames).toContain('helperUtil');
+      // Private internal non-exported function must not be indexed
+      expect(symbolNames).not.toContain('privateInternal');
+
+      // Check external file metadata
+      const files = await diskStore.listEntities<FileNode>(FileNode.dcr);
+      const extFile = files.find(f => (f as any).id.includes('@test/mylib'));
+      expect(extFile).toBeDefined();
+      expect((extFile as any).metadata?.isExternal).toBe(true);
+    } finally {
+      diskStore.close();
+      fs.rmSync(parentDir, { recursive: true, force: true });
+    }
+  });
 });

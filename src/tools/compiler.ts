@@ -120,39 +120,64 @@ export function registerCompilerTools() {
     description: 'Deterministically replace an AST code block in a file using @dharmax/block-patcher.',
     category: 'compiler',
     parameters: z.object({
-      filePath: z.string().describe('Relative path to the target file'),
-      targetContent: z.string().describe('Exact block of code to find and replace'),
-      replacementContent: z.string().describe('Replacement block of code')
+      filePath: z.string().optional().describe('Relative path to the target file'),
+      targetContent: z.string().optional().describe('Exact block of code to find and replace'),
+      replacementContent: z.string().optional().describe('Replacement block of code'),
+      patches: z.array(z.object({
+        file: z.string(),
+        search: z.string(),
+        replace: z.string()
+      })).optional().describe('Batch patch specifications')
     }),
-    execute: async ({ filePath, targetContent, replacementContent }, ctx: ToolContext) => {
-      const fullPath = path.resolve(ctx.projectRoot, filePath);
-      if (!fs.existsSync(fullPath)) {
-        throw new Error(`Target file does not exist: ${filePath}`);
+    execute: async ({ filePath, targetContent, replacementContent, patches }, ctx: ToolContext) => {
+      const allPatches = patches ? [...patches] : [];
+      if (filePath && targetContent !== undefined && replacementContent !== undefined) {
+        allPatches.push({ file: filePath, search: targetContent, replace: replacementContent });
       }
 
-      const originalContent = fs.readFileSync(fullPath, 'utf8');
-      const patchResult = applyPatch(originalContent, [
-        {
-          file: filePath,
-          search: targetContent,
-          replace: replacementContent
+      if (allPatches.length === 0) {
+        throw new Error('Either (filePath, targetContent, replacementContent) or patches array must be provided.');
+      }
+
+      // Group patches by file
+      const byFile = new Map<string, Array<{ file: string; search: string; replace: string }>>();
+      for (const p of allPatches) {
+        const list = byFile.get(p.file) || [];
+        list.push(p);
+        byFile.set(p.file, list);
+      }
+
+      let totalBytesModified = 0;
+      const summaries: any[] = [];
+
+      for (const [file, filePatches] of byFile.entries()) {
+        const fullPath = path.resolve(ctx.projectRoot, file);
+        if (!fs.existsSync(fullPath)) {
+          throw new Error(`Target file does not exist: ${file}`);
         }
-      ]);
 
-      if (!patchResult.allApplied) {
-        return {
-          success: false,
-          filePath,
-          message: 'Failed to apply patch: targetContent could not be uniquely matched.'
-        };
+        const originalContent = fs.readFileSync(fullPath, 'utf8');
+        const patchResult = applyPatch(originalContent, filePatches);
+
+        if (!patchResult.allApplied) {
+          return {
+            success: false,
+            filePath: file,
+            message: `Failed to apply patch to ${file}: targetContent could not be uniquely matched.`
+          };
+        }
+
+        fs.writeFileSync(fullPath, patchResult.content, 'utf8');
+        totalBytesModified += (patchResult.content.length - originalContent.length);
+        summaries.push(...patchResult.summary);
       }
 
-      fs.writeFileSync(fullPath, patchResult.content, 'utf8');
       return {
         success: true,
-        filePath,
-        bytesModified: patchResult.content.length - originalContent.length,
-        summary: patchResult.summary
+        filePath: filePath || allPatches[0].file,
+        bytesModified: totalBytesModified,
+        filesModified: byFile.size,
+        summary: summaries
       };
     }
   });

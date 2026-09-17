@@ -159,6 +159,25 @@ export function computeRate(tier: string): number {
     }, ctx)).rejects.toThrow('Target file does not exist');
   });
 
+  it('should support batch patches across multiple blocks and files', async () => {
+    const fileA = path.join(tempDir, 'fileA.ts');
+    const fileB = path.join(tempDir, 'fileB.ts');
+    fs.writeFileSync(fileA, 'const a = 1;\nconst b = 2;\n');
+    fs.writeFileSync(fileB, 'const c = 3;\n');
+
+    const batchRes = await registry.execute('apply_block_patch', {
+      patches: [
+        { file: 'fileA.ts', search: 'const a = 1;', replace: 'const a = 100;' },
+        { file: 'fileB.ts', search: 'const c = 3;', replace: 'const c = 300;' }
+      ]
+    }, ctx);
+
+    expect(batchRes.success).toBe(true);
+    expect(batchRes.filesModified).toBe(2);
+    expect(fs.readFileSync(fileA, 'utf8')).toContain('const a = 100;');
+    expect(fs.readFileSync(fileB, 'utf8')).toContain('const c = 300;');
+  });
+
   it('should route intents to appropriate buckets in TwoTierRouter', () => {
     const ticketBucket = bucketRouter.resolveBucket('claim ticket TKT-101 for agent alpha');
     expect(ticketBucket).toBe('ticket');

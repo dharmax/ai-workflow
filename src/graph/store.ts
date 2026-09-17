@@ -259,7 +259,14 @@ export class WorkflowStore {
     if (!sourceEntity) throw new Error(`Source entity not found: ${typeof source === 'string' ? source : source.id}`);
     if (!targetEntity) throw new Error(`Target entity not found: ${typeof target === 'string' ? target : target.id}`);
 
-    return await this.sp.createPredicate(sourceEntity, pDcr, targetEntity, payload);
+    try {
+      return await this.sp.createPredicate(sourceEntity, pDcr, targetEntity, payload);
+    } catch (err: any) {
+      if (err.name === 'DuplicateKeyError' || String(err).includes('duplicate key')) {
+        return null as any;
+      }
+      throw err;
+    }
   }
 
   /**

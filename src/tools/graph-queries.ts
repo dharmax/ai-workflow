@@ -51,9 +51,14 @@ export function registerGraphTools() {
       symbolName: z.string().describe('Name of the symbol to slice')
     }),
     execute: async ({ filePath, symbolName }, ctx: ToolContext) => {
-      const fullPath = path.resolve(ctx.projectRoot, filePath);
+      let fullPath = path.resolve(ctx.projectRoot, filePath);
       if (!fs.existsSync(fullPath)) {
-        throw new Error(`File not found: ${filePath}`);
+        const fileNode = await ctx.store.getEntity<FileNode>(filePath);
+        if (fileNode && (fileNode as any).metadata?.externalPath && fs.existsSync((fileNode as any).metadata.externalPath)) {
+          fullPath = (fileNode as any).metadata.externalPath;
+        } else {
+          throw new Error(`File not found: ${filePath}`);
+        }
       }
 
       const content = fs.readFileSync(fullPath, 'utf8');

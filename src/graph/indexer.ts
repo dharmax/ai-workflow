@@ -150,6 +150,133 @@ export async function indexCodebase(
 
   await walk(rootDir);
 
+  // 2. Discover and index local workspace/file: dependencies from package.json
+  const pkgJsonPath = path.join(rootDir, 'package.json');
+  try {
+    const pkgRaw = await readFile(pkgJsonPath, 'utf8');
+    const pkg = JSON.parse(pkgRaw);
+    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+
+    for (const [depName, depVersion] of Object.entries(deps)) {
+      if (typeof depVersion === 'string' && depVersion.startsWith('file:')) {
+        const depRel = depVersion.slice(5);
+        const depRoot = path.resolve(rootDir, depRel);
+        const depPkgPath = path.join(depRoot, 'package.json');
+
+        try {
+          const depPkgRaw = await readFile(depPkgPath, 'utf8');
+          const depPkg = JSON.parse(depPkgRaw);
+
+          // Find candidate entrypoint file
+          const candidates = [
+            depPkg.exports?.['.']?.bun,
+            depPkg.exports?.['.']?.default,
+            depPkg.exports?.['.']?.import,
+            depPkg.exports?.['.'],
+            depPkg.module,
+            depPkg.main,
+            'src/index.ts',
+            'src/index.js',
+            'index.ts',
+            'index.js'
+          ].filter(Boolean);
+
+          let entryFile: string | null = null;
+          let entryRel: string = '';
+          const { existsSync } = await import('node:fs');
+          for (const c of candidates) {
+            const p = path.resolve(depRoot, c);
+            if (existsSync(p)) {
+              entryFile = p;
+              entryRel = path.relative(depRoot, p);
+              break;
+            }
+          }
+
+          if (entryFile) {
+            const entryContent = await readFile(entryFile, 'utf8');
+            const filesToIndex: Array<{ fullPath: string; relPath: string; content: string }> = [
+              { fullPath: entryFile, relPath: `${depName}/${entryRel}`, content: entryContent }
+            ];
+
+            // Resolve barrel re-exports (e.g. `export * from './actor.ts'`)
+            const reExportMatches = [...entryContent.matchAll(/export\s+(?:\*|\{[^}]+\})\s+from\s+['"]([^'"]+)['"]/g)];
+            for (const m of reExportMatches) {
+              const targetRel = m[1];
+              if (!targetRel.startsWith('.')) continue;
+              let candidatePath = path.resolve(path.dirname(entryFile), targetRel);
+              if (!existsSync(candidatePath)) {
+                if (existsSync(`${candidatePath}.ts`)) candidatePath = `${candidatePath}.ts`;
+                else if (existsSync(`${candidatePath}.js`)) candidatePath = `${candidatePath}.js`;
+              }
+              if (existsSync(candidatePath)) {
+                try {
+                  const targetContent = await readFile(candidatePath, 'utf8');
+                  const relToDep = path.relative(depRoot, candidatePath);
+                  filesToIndex.push({
+                    fullPath: candidatePath,
+                    relPath: `${depName}/${relToDep}`,
+                    content: targetContent
+                  });
+                } catch {}
+              }
+            }
+
+            const modName = `@external/${depName}`;
+            discoveredModules.add(modName);
+
+            const modEntity = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
+              id: `mod:${modName}`,
+              title: modName,
+              path: modName,
+              status: 'implemented'
+            });
+
+            for (const fileItem of filesToIndex) {
+              const parsed = parseIndexedFile({ filePath: fileItem.relPath, content: fileItem.content });
+              const fileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
+                id: fileItem.relPath,
+                title: path.basename(fileItem.fullPath),
+                path: fileItem.relPath,
+                language: parsed.language,
+                fileKind: parsed.fileKind,
+                size: fileItem.content.length,
+                status: 'implemented',
+                metadata: { isExternal: true, externalPath: fileItem.fullPath }
+              });
+
+              walkedFiles.add(fileItem.relPath);
+              filesCount++;
+              await store.relate(modEntity, 'contains', fileEntity);
+
+              for (const sym of parsed.symbols) {
+                if (!sym.exported) continue;
+                symbolsCount++;
+                const symbolId = `${fileItem.relPath}#${sym.name}`;
+                const symbolEntity = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
+                  id: symbolId,
+                  title: sym.name,
+                  filePath: fileItem.relPath,
+                  kind: sym.kind,
+                  exported: true,
+                  line: sym.line,
+                  column: sym.column,
+                  status: 'implemented'
+                });
+
+                await store.relate(fileEntity, 'contains', symbolEntity);
+              }
+            }
+          }
+        } catch {
+          // Ignore unresolvable local dependency
+        }
+      }
+    }
+  } catch {
+    // No package.json or invalid JSON
+  }
+
   // Prune deleted files
   const existingFiles = await store.listEntities<FileNode>(FileNode.dcr);
   for (const f of existingFiles) {
