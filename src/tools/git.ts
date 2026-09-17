@@ -48,6 +48,7 @@ export function registerGitTools() {
           branch,
           clean: modified.length === 0 && untracked.length === 0 && staged.length === 0,
           modified,
+          modifiedFiles: modified,
           untracked,
           staged,
           totalChanges: modified.length + untracked.length + staged.length

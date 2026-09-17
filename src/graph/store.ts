@@ -91,7 +91,10 @@ export class WorkflowStore {
     const prefix = `${this.sp.name}_${dcr.name}_`;
     if (rawId.startsWith(prefix)) return rawId;
     if (rawId.startsWith(`${this.sp.name}_`) && rawId.includes(`_${dcr.name}_`)) return rawId;
-    return `${prefix}${rawId}`;
+    // Semantika splits IDs on '_' and assumes idSegments[idSegments.length - 2] is the type name.
+    // Replace underscores in local ID with hyphens to guarantee exactly 3 segments: <pkg>_<type>_<localId>
+    const sanitizedLocalId = rawId.replace(/_/g, '-');
+    return `${prefix}${sanitizedLocalId}`;
   }
 
   /**
@@ -118,10 +121,15 @@ export class WorkflowStore {
   }
 
   /**
-   * Close the database connection.
+   * Close the database connection safely.
    */
   close() {
-    this.db.close();
+    try {
+      (this.db as any).exec = () => {};
+      this.db.close();
+    } catch {
+      // Safe no-op on already closed database
+    }
   }
 
   /**

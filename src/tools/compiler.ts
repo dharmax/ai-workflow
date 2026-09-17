@@ -42,6 +42,9 @@ export function registerCompilerTools() {
 
       // 1. Run verification test harness if provided
       try {
+        // Strict JS syntax check
+        new Function('args', 'ctx', 'tk', `return (async () => { ${sourceCode} })();`);
+
         const callable = createCallableFunction(sourceCode);
         if (testSourceCode) {
           const testFn = new Function('fn', 'assert', `

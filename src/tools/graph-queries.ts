@@ -65,13 +65,24 @@ export function registerGraphTools() {
         ((s as any).title || '').toLowerCase() === symbolName.toLowerCase()
       );
 
-      const startLine = sym && (sym as any).line ? Math.max(1, (sym as any).line) : 1;
+      if (!sym) {
+        return {
+          filePath,
+          symbolName,
+          startLine: null,
+          lineCount: 0,
+          code: null
+        };
+      }
+
+      const startLine = (sym as any).line ? Math.max(1, (sym as any).line) : 1;
       const sliceLines = lines.slice(startLine - 1, startLine + 49); // 50-line window
 
       return {
         filePath,
-        symbolName: sym ? (sym as any).title : symbolName,
+        symbolName: (sym as any).title || symbolName,
         startLine,
+        endLine: startLine + sliceLines.length - 1,
         lineCount: sliceLines.length,
         code: sliceLines.join('\n')
       };
@@ -90,15 +101,18 @@ export function registerGraphTools() {
       const symbols = await ctx.store.listEntities<SymbolNode>(SymbolNode.dcr);
       const matched = symbols.filter(s => ((s as any).filePath || '').endsWith(normPath));
 
+      const mapped = matched.map(s => ({
+        name: (s as any).title,
+        kind: (s as any).kind || 'symbol',
+        exported: (s as any).exported,
+        line: (s as any).line || 1
+      }));
+
       return {
         file: normPath,
         symbolCount: matched.length,
-        signatures: matched.map(s => ({
-          name: (s as any).title,
-          kind: (s as any).kind || 'symbol',
-          exported: (s as any).exported,
-          line: (s as any).line || 1
-        }))
+        signatures: mapped,
+        symbols: mapped
       };
     }
   });
@@ -139,6 +153,7 @@ export function registerGraphTools() {
         affectedFilesCount: affectedFileIds.size,
         affectedFiles: Array.from(affectedFileIds),
         activeTickets,
+        dependentTickets: activeTickets,
         recommendedTests: recommendedTests.length > 0 ? recommendedTests : ['bun test']
       };
     }

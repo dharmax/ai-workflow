@@ -17,10 +17,13 @@ export function registerScriptingTools() {
     execute: async ({ code }, ctx: ToolContext) => {
       try {
         const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-        const fn = new AsyncFunction('store', 'sp', 'registry', 'ctx', `
-          ${code.includes('return') ? code : `return (${code});`}
-        `);
+        const trimmed = code.trim();
+        const hasStatements = /;\s*$|[\n;]|^\s*(const|let|var|throw|if|for|while|try|switch)\b/.test(trimmed);
+        const body = hasStatements || trimmed.includes('return')
+          ? trimmed
+          : `return (${trimmed});`;
 
+        const fn = new AsyncFunction('store', 'sp', 'registry', 'ctx', body);
         const result = await fn(ctx.store, ctx.store.sp, registry, ctx);
         return {
           success: true,

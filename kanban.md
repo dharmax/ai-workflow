@@ -14,12 +14,12 @@ kanban-plugin: board
 
 ## In Progress
 
-- No items
+- [/] **TKT-001**: Explore codebase and run diagnostics
+  - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
 
 ## Done
 
-- [x] **TKT-001**: Verify AI-Workflow 2.0 rewrite
-  - Summary: Complete dogfooding and MCP test verification
+- No items
 
 ## Blocked
 

@@ -114,13 +114,33 @@ export function registerTicketTools() {
     name: 'recommend_next_task',
     description: 'Algorithmic task selector: prioritizes active agent lease -> high-priority bugs -> unblocked Todo tasks.',
     category: 'ticket',
-    parameters: z.object({}),
-    execute: async (_, ctx: ToolContext) => {
+    parameters: z.object({
+      agentId: z.string().optional().describe('Optional agent ID to prioritize tickets claimed by this agent')
+    }),
+    execute: async ({ agentId }, ctx: ToolContext) => {
       const tickets = await ctx.store.listEntities<Ticket>(Ticket.dcr);
-      const isAvailable = (t: Ticket) => !ctx.store.isTicketClaimed(t.id);
+      const now = new Date();
 
-      // 1. Task currently in progress and claimed by me
-      const inProgress = tickets.filter(t => (t as any).lane === 'In Progress' && isAvailable(t));
+      const isClaimActive = (claim: any) => {
+        if (!claim || !claim.expiresAt) return false;
+        return new Date(claim.expiresAt) > now;
+      };
+
+      const isClaimedByOther = (t: Ticket) => {
+        const claim = (t as any).claim;
+        if (!isClaimActive(claim)) return false;
+        if (agentId && claim.agentId === agentId) return false;
+        return true;
+      };
+
+      // 1. Task currently in progress and claimed by this agent (or any active claim if no agent specified)
+      const inProgress = tickets.filter(t => {
+        if ((t as any).lane !== 'In Progress') return false;
+        const claim = (t as any).claim;
+        if (!isClaimActive(claim)) return false;
+        return agentId ? claim.agentId === agentId : true;
+      });
+
       if (inProgress.length > 0) {
         return {
           ticket: {
@@ -128,16 +148,18 @@ export function registerTicketTools() {
             title: (inProgress[0] as any).title,
             lane: (inProgress[0] as any).lane
           },
-          reason: 'Active task currently in progress.'
+          reason: `Active task currently in progress${(inProgress[0] as any).claim?.agentId ? ` (leased by ${(inProgress[0] as any).claim.agentId})` : ''}.`
         };
       }
 
-      // 2. High-priority bugs in Todo
+      // 2. High-priority bugs in Todo (not actively claimed by another agent)
       const bugs = tickets.filter(t => {
+        if ((t as any).lane !== 'Todo' || isClaimedByOther(t)) return false;
         const title = ((t as any).title || '').toLowerCase();
         const id = t.id.toLowerCase();
-        return (t as any).lane === 'Todo' && isAvailable(t) && (id.includes('bug') || title.includes('bug') || title.includes('fix'));
+        return id.includes('bug') || title.includes('bug') || title.includes('fix');
       });
+
       if (bugs.length > 0) {
         return {
           ticket: {
@@ -149,8 +171,8 @@ export function registerTicketTools() {
         };
       }
 
-      // 3. Next Todo task
-      const todos = tickets.filter(t => (t as any).lane === 'Todo' && isAvailable(t));
+      // 3. Next available Todo task
+      const todos = tickets.filter(t => (t as any).lane === 'Todo' && !isClaimedByOther(t));
       if (todos.length > 0) {
         return {
           ticket: {

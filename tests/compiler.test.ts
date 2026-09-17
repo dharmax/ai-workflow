@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { initializeTools, type ToolContext, bucketRouter } from '../src/tools/index.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 
@@ -11,7 +12,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
   const registry = initializeTools();
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(process.cwd(), 'temp-compiler-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-compiler-test-'));
     store = new WorkflowStore(tempDir, true);
     ctx = {
       store,
@@ -48,6 +49,46 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(runRes.result).toBe(150);
   });
 
+  it('should reject invalid syntax and failing verification tests in compile_codelet', async () => {
+    // 1. Syntax error in codelet
+    const syntaxFail = await registry.execute('compile_codelet', {
+      name: 'broken_syntax',
+      description: 'Contains broken javascript syntax',
+      sourceCode: 'return const = ;'
+    }, ctx);
+
+    expect(syntaxFail.verified).toBe(false);
+    expect(syntaxFail.verificationError).toBeDefined();
+
+    // 2. Assertion failure in test harness
+    const assertFail = await registry.execute('compile_codelet', {
+      name: 'failed_math',
+      description: 'Returns wrong answer',
+      sourceCode: 'return 100;',
+      testSourceCode: `
+        const res = await fn({}, {}, {});
+        assert(res === 999, "Expected 999 but got " + res);
+      `
+    }, ctx);
+
+    expect(assertFail.verified).toBe(false);
+    expect(assertFail.verificationError).toContain('Expected 999');
+
+    // 3. Attempting to promote an unverified codelet must throw an error
+    expect(registry.execute('promote_codelet', {
+      codeletId: assertFail.id
+    }, ctx)).rejects.toThrow('Cannot promote unverified codelet');
+
+    // 4. Attempting to promote or run a non-existent codelet must throw an error
+    expect(registry.execute('promote_codelet', {
+      codeletId: 'codelet-does_not_exist'
+    }, ctx)).rejects.toThrow('not found');
+
+    expect(registry.execute('run_codelet', {
+      codeletId: 'codelet-does_not_exist'
+    }, ctx)).rejects.toThrow('not found');
+  });
+
   it('should promote a verified codelet dynamically into ToolRegistry and execute it', async () => {
     const compileRes = await registry.execute('compile_codelet', {
       name: 'format_currency',
@@ -76,15 +117,17 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(executed).toBe('$123.45');
   });
 
-  it('should deterministically patch file blocks using block-patcher', async () => {
+  it('should deterministically patch file blocks and handle negative matching errors', async () => {
     const testFile = path.join(tempDir, 'service.ts');
-    fs.writeFileSync(testFile, `
+    const initialContent = `
 export function computeRate(tier: string): number {
   if (tier === 'basic') return 10;
   return 20;
 }
-`, 'utf8');
+`;
+    fs.writeFileSync(testFile, initialContent, 'utf8');
 
+    // 1. Successful patch
     const patchRes = await registry.execute('apply_block_patch', {
       filePath: 'service.ts',
       targetContent: "if (tier === 'basic') return 10;\n  return 20;",
@@ -96,6 +139,24 @@ export function computeRate(tier: string): number {
     const updated = fs.readFileSync(testFile, 'utf8');
     expect(updated).toContain("return 15;");
     expect(updated).toContain("return 30;");
+
+    // 2. Mismatched patch target: must return success: false and leave file content completely unchanged
+    const mismatchRes = await registry.execute('apply_block_patch', {
+      filePath: 'service.ts',
+      targetContent: "non_existent_code_block_that_does_not_exist();",
+      replacementContent: "something_else();"
+    }, ctx);
+
+    expect(mismatchRes.success).toBe(false);
+    expect(mismatchRes.message).toContain('Failed to apply patch');
+    expect(fs.readFileSync(testFile, 'utf8')).toBe(updated);
+
+    // 3. Patching non-existent file must throw
+    expect(registry.execute('apply_block_patch', {
+      filePath: 'missing-file.ts',
+      targetContent: 'foo',
+      replacementContent: 'bar'
+    }, ctx)).rejects.toThrow('Target file does not exist');
   });
 
   it('should route intents to appropriate buckets in TwoTierRouter', () => {

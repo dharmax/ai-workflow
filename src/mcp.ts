@@ -1,9 +1,12 @@
+#!/usr/bin/env bun
 /**
  * Responsibility: Stdio MCP (Model Context Protocol) Server.
  * Scope: Exposes all domain tools and autonomous actor capabilities to host AI environments
  * (Google Antigravity, Claude Code, Cursor, Codex).
  */
 
+import path from 'node:path';
+import fs from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -141,9 +144,70 @@ export function createMcpServer(options: McpServerOptions = {}) {
   return { server, store, actor, projectRoot: root };
 }
 
+/**
+ * Generates lazy-loaded JSON tool schema definitions for MCP hosts (e.g. ~/.gemini/antigravity-cli/mcp/ai-workflow/).
+ */
+export function exportMcpSchemas(targetDir: string): string[] {
+  fs.mkdirSync(targetDir, { recursive: true });
+  initializeTools();
+  const exportedFiles: string[] = [];
+
+  // 1. Wish tool
+  const wishSchema = {
+    name: 'execute_shell_wish',
+    description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
+    parameters: {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: {
+        wish: {
+          type: 'string',
+          description: 'The natural language instruction, wish, or question to execute'
+        },
+        mode: {
+          type: 'string',
+          enum: ['design', 'dev', 'triage', 'product'],
+          description: 'Optional manual mode override'
+        }
+      },
+      required: ['wish'],
+      additionalProperties: false
+    }
+  };
+  const wishPath = path.join(targetDir, 'execute_shell_wish.json');
+  fs.writeFileSync(wishPath, JSON.stringify(wishSchema, null, 2), 'utf8');
+  exportedFiles.push('execute_shell_wish.json');
+
+  // 2. All domain tools
+  for (const t of registry.getAll()) {
+    let parameters: any = { type: 'object' };
+    try {
+      const conv = zodToJsonSchema(t.parameters as any);
+      if (conv.ok && conv.schema) {
+        parameters = {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          ...conv.schema
+        };
+      }
+    } catch {}
+
+    const toolJson = {
+      name: t.name,
+      description: `[${t.category.toUpperCase()}]: ${t.description}`,
+      parameters
+    };
+    const toolFilePath = path.join(targetDir, `${t.name}.json`);
+    fs.writeFileSync(toolFilePath, JSON.stringify(toolJson, null, 2), 'utf8');
+    exportedFiles.push(`${t.name}.json`);
+  }
+
+  return exportedFiles;
+}
+
 // Standalone execution entrypoint
 if (import.meta.main) {
   const { server } = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
+

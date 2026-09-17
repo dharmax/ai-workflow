@@ -9,13 +9,43 @@ import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
-import pubsub from '@dharmax/pubsub';
+import { indexCodebase } from './graph/indexer.ts';
+import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
+import { loadConfig, saveConfig } from './config.ts';
 
 export interface ShellSession {
   store: WorkflowStore;
   actor: WorkflowActor;
   projectRoot: string;
 }
+
+export const SHELL_COMMANDS = [
+  'status',
+  'next',
+  'claim',
+  'release',
+  'tickets',
+  'sync',
+  'diff',
+  'symbol',
+  'slice',
+  'outline',
+  'blast',
+  'index',
+  'doctor',
+  'audit',
+  'metrics',
+  'config',
+  'eval',
+  '/design',
+  '/dev',
+  '/triage',
+  '/product',
+  'help',
+  '/help',
+  'exit',
+  'quit'
+];
 
 export async function processShellInput(
   input: string,
@@ -38,21 +68,32 @@ export async function processShellInput(
   if (lower === '/help' || lower === 'help') {
     return {
       output: `
-AI-Workflow 2.0 Terminal REPL
+\x1b[1;36m🏛️  AI-Workflow 2.0 Terminal REPL\x1b[0m
+
 Commands:
-  status               - Working tree git status & active ticket leases
-  next                 - Algorithmic recommendation for next task
-  claim <ticketId>     - Atomically lease a ticket
-  release <ticketId>   - Release active ticket lease
-  tickets [lane]       - List tickets in Kanban
-  sync                 - Bi-directional sync between SQLite Graph and Markdown
-  eval <js-code>       - On-the-fly JavaScript evaluation
-  /design              - Switch mode to [DESIGN] (Architecture & ADRs)
-  /dev                 - Switch mode to [DEV] (Code authoring & patching)
-  /triage              - Switch mode to [TRIAGE] (Failure analysis)
-  /product             - Switch mode to [PRODUCT] (Epics, Stories, Backlog)
-  exit                 - Exit shell
-  <any natural wish>   - Autonomous execution via Cognitive Actor
+  status                     - Working tree git status & active ticket leases
+  next                       - Algorithmic recommendation for next task
+  claim <ticketId> [agent]   - Atomically lease a ticket (default 30m)
+  release <ticketId>         - Release active ticket lease
+  tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
+  sync                       - Bi-directional sync between SQLite Graph and Markdown
+  diff                       - Display uncommitted git diff
+  symbol <name>              - Find symbol in AST+ semantic graph
+  slice <file> <symbol>      - Slice and extract source code of a symbol
+  outline <file>             - Display AST symbol outline for a file
+  blast <target>             - Analyze blast radius of file or symbol
+  index                      - Re-index codebase AST symbols and modules into graph
+  doctor                     - Run comprehensive environment & graph diagnostics
+  audit                      - Run architecture & graph integrity audit
+  metrics                    - Show Kanban distribution & code churn hotspots
+  config [get|set key val]   - View or update settings (.ai-workflow/config.json)
+  eval <js-code>             - On-the-fly JavaScript evaluation
+  /design                    - Switch mode to [DESIGN] (Architecture & ADRs)
+  /dev                       - Switch mode to [DEV] (Code authoring & patching)
+  /triage                    - Switch mode to [TRIAGE] (Diagnostics & Test Triage)
+  /product                   - Switch mode to [PRODUCT] (Roadmap & Story Grooming)
+  exit                       - Exit shell
+  <any natural instruction>  - Autonomous cognitive execution via Workflow Actor
 `
     };
   }
@@ -92,16 +133,20 @@ Commands:
   }
 
   if (lower.startsWith('claim ')) {
-    const ticketId = line.slice(6).trim();
-    const res = await registry.execute('claim_ticket', { ticketId, agentId: 'human-operator' }, ctx);
-    if (res.success) return { output: `Claimed ticket ${ticketId} for 30 minutes.` };
+    const parts = line.slice(6).trim().split(/\s+/);
+    const ticketId = parts[0];
+    const agentId = parts[1] || 'human-operator';
+    const durationMinutes = parts[2] ? Number(parts[2]) : 30;
+
+    const res = await registry.execute('claim_ticket', { ticketId, agentId, durationMinutes }, ctx);
+    if (res.success) return { output: `Claimed ticket ${ticketId} for ${durationMinutes}m by '${agentId}'.` };
     return { output: `Failed to claim: ${res.message}` };
   }
 
   if (lower.startsWith('release ')) {
     const ticketId = line.slice(8).trim();
     const res = await registry.execute('release_ticket', { ticketId }, ctx);
-    return { output: res.success ? `Released ticket ${ticketId}.` : `Ticket not found or lease inactive.` };
+    return { output: res.success ? `Released ticket ${ticketId}.` : `Ticket '${ticketId}' not found or lease inactive.` };
   }
 
   if (lower.startsWith('tickets') || lower === 'list') {
@@ -117,7 +162,121 @@ Commands:
   if (lower === 'sync') {
     const imp = await importProjections(session.store, session.projectRoot);
     const exp = await exportProjections(session.store, session.projectRoot);
-    return { output: `Reconciled ${imp.importedChanges} disk changes. Exported ${exp.exportedFiles.length} projections.` };
+    return { output: `Reconciled ${imp.importedChanges} disk change(s). Exported ${exp.exportedFiles.length} projection(s): ${exp.exportedFiles.join(', ')}.` };
+  }
+
+  if (lower === 'diff') {
+    const diff = await registry.execute('get_git_diff', {}, ctx);
+    return { output: diff.diff ? diff.diff.trim() : 'Working tree is clean. No uncommitted changes.' };
+  }
+
+  if (lower.startsWith('symbol ')) {
+    const name = line.slice(7).trim();
+    const symbols = await registry.execute('find_symbol', { name }, ctx);
+    if (symbols.length === 0) return { output: `No symbol found matching '${name}'.` };
+    return {
+      output: symbols.map((s: any) => `[${s.kind}] ${s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}`).join('\n')
+    };
+  }
+
+  if (lower.startsWith('slice ')) {
+    const parts = line.slice(6).trim().split(/\s+/);
+    if (parts.length < 2) return { output: 'Usage: slice <filePath> <symbolName>' };
+    const [filePath, symbolName] = parts;
+    const slice = await registry.execute('get_symbol_source', { filePath, symbolName }, ctx);
+    if (!slice.code) return { output: `Symbol '${symbolName}' not found in ${filePath}.` };
+    return { output: `// ${filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
+  }
+
+  if (lower.startsWith('outline ')) {
+    const filePath = line.slice(8).trim();
+    const outline = await registry.execute('get_file_outline', { filePath }, ctx);
+    if (outline.symbols.length === 0) return { output: `No symbols indexed for ${filePath}.` };
+    return {
+      output: `${filePath} (${outline.symbolCount} symbols):\n` +
+        outline.symbols.map((s: any) => `  - Line ${(s.line || 1).toString().padEnd(4)} [${s.kind}] ${s.name}`).join('\n')
+    };
+  }
+
+  if (lower.startsWith('blast ')) {
+    const target = line.slice(6).trim();
+    const blast = await registry.execute('analyze_blast_radius', { target }, ctx);
+    let out = `Blast Radius for '${target}':\n`;
+    out += `  Affected Files (${blast.affectedFiles.length}): ${blast.affectedFiles.join(', ') || 'None'}\n`;
+    out += `  Recommended Tests (${blast.recommendedTests.length}): ${blast.recommendedTests.join(', ') || 'None'}\n`;
+    out += `  Dependent Tickets (${blast.dependentTickets.length}): ${blast.dependentTickets.join(', ') || 'None'}`;
+    return { output: out };
+  }
+
+  if (lower === 'index') {
+    const res = await indexCodebase(session.store, session.projectRoot);
+    return { output: `Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.notesCount} note(s).` };
+  }
+
+  if (lower === 'doctor') {
+    const report = await runDiagnostics(session.store, session.projectRoot);
+    return { output: formatDiagnosticReport(report) };
+  }
+
+  if (lower === 'audit') {
+    const tickets = await registry.execute('list_tickets', {}, ctx);
+    const blocked = tickets.filter((t: any) => t.lane === 'Blocked');
+    const git = await registry.execute('get_git_status', {}, ctx);
+
+    let violations = 0;
+    let out = '🔍 AI-Workflow Audit:\n';
+    if (blocked.length > 0) {
+      out += `  ⚠️  ${blocked.length} blocked ticket(s): ${blocked.map((t: any) => t.id).join(', ')}\n`;
+      violations += blocked.length;
+    }
+    if (!git.clean) {
+      out += `  ⚠️  ${git.totalChanges} uncommitted git change(s).\n`;
+    }
+    out += `  ✨ Graph Health: ${violations === 0 ? '100% HEALTHY' : `${violations} issue(s) flagged`}`;
+    return { output: out };
+  }
+
+  if (lower === 'metrics') {
+    const tickets = await registry.execute('list_tickets', {}, ctx);
+    const lanes: Record<string, number> = {};
+    for (const t of tickets) lanes[(t as any).lane] = (lanes[(t as any).lane] || 0) + 1;
+
+    let out = '📊 AI-Workflow Project Metrics:\nKanban Lanes:\n';
+    for (const [lane, count] of Object.entries(lanes)) {
+      out += `  - ${lane.padEnd(14)}: ${count}\n`;
+    }
+    const hotspots = await registry.execute('get_git_hotspots', { days: 14 }, ctx);
+    if (hotspots.hotspots.length > 0) {
+      out += '\nTop Git Churn Hotspots (14 days):\n';
+      for (const h of hotspots.hotspots.slice(0, 5)) {
+        out += `  - ${h.file} (${h.changes} touches)\n`;
+      }
+    }
+    return { output: out.trim() };
+  }
+
+  if (lower.startsWith('config')) {
+    const parts = line.slice(6).trim().split(/\s+/);
+    const action = parts[0] || 'get';
+    if (action === 'get') {
+      const cfg = loadConfig(session.projectRoot);
+      const key = parts[1];
+      if (key) return { output: `${key} = ${(cfg as any)[key] ?? 'undefined'}` };
+      return { output: JSON.stringify(cfg, null, 2) };
+    }
+    if (action === 'set') {
+      const key = parts[1];
+      const val = parts[2];
+      if (!key || val === undefined) return { output: 'Usage: config set <key> <value>' };
+      let parsedVal: any = val;
+      if (val === 'true') parsedVal = true;
+      else if (val === 'false') parsedVal = false;
+      else if (!isNaN(Number(val))) parsedVal = Number(val);
+
+      const updated = saveConfig(session.projectRoot, { [key]: parsedVal });
+      return { output: `Updated config: ${key} = ${(updated as any)[key]}` };
+    }
+    return { output: 'Usage: config [get|set] [key] [value]' };
   }
 
   if (lower.startsWith('eval ')) {
@@ -133,6 +292,11 @@ Commands:
   return {
     output: `[${result.mode.toUpperCase()}] ${result.answer}`
   };
+}
+
+export function shellCompleter(line: string): [string[], string] {
+  const hits = SHELL_COMMANDS.filter((c) => c.startsWith(line));
+  return [hits.length ? hits : SHELL_COMMANDS, line];
 }
 
 export async function startShell(options: {
@@ -155,7 +319,8 @@ export async function startShell(options: {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true
+    terminal: true,
+    completer: shellCompleter
   });
 
   const prompt = () => {
@@ -164,7 +329,7 @@ export async function startShell(options: {
   };
 
   console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Shell (Bun-First Context OS)\x1b[0m`);
-  console.log(`Type 'help' for commands or write any instruction.\n`);
+  console.log(`Type 'help' for commands or write any instruction. Tab completion active.\n`);
 
   prompt();
 

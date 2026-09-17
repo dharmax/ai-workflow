@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
@@ -10,7 +11,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
   let store: WorkflowStore;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(process.cwd(), 'temp-actor-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-actor-test-'));
     store = new WorkflowStore(tempDir, true);
     initializeTools();
   });

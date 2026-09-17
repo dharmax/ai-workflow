@@ -25,6 +25,7 @@
     "shell": "bun src/cli.ts shell",
     "mcp": "bun src/cli.ts mcp",
     "ui": "bun src/cli.ts ui",
+    "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {

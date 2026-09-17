@@ -94,8 +94,10 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   }
 
   // 4. decisions.md (ADRs)
-  if (decisions.length > 0) {
-    let decisionsMd = `# Architectural Decision Records (ADRs)\n\n`;
+  let decisionsMd = `# Architectural Decision Records (ADRs)\n\n`;
+  if (decisions.length === 0) {
+    decisionsMd += `*No architectural decisions recorded yet. Propose decisions via \`aiwf exec "propose decision ..."\` or \`propose_decision\` tool.*\n`;
+  } else {
     for (const dec of decisions) {
       const decLocalId = store.localId(dec.id);
       decisionsMd += `## ${decLocalId}: ${(dec as any).title || decLocalId}\n`;
@@ -106,9 +108,9 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
       if ((dec as any).consequences) decisionsMd += `### Consequences\n${(dec as any).consequences}\n\n`;
       decisionsMd += `---\n\n`;
     }
-    await writeFile(path.join(rootDir, 'decisions.md'), decisionsMd, 'utf8');
-    exportedFiles.push('decisions.md');
   }
+  await writeFile(path.join(rootDir, 'decisions.md'), decisionsMd, 'utf8');
+  exportedFiles.push('decisions.md');
 
   // 5. modules.md
   let modulesMd = `# Architecture & Modules\n\n`;
@@ -177,7 +179,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         for (let j = 1; j < lines.length; j++) {
           const line = lines[j].trim();
-          const cardMatch = line.match(/^-\s+\[(.)\]\s+\*\*([A-Z0-9_-]+)\*\*:\s*(.+)$/);
+          const cardMatch = line.match(/^-\s+\[(.)\]\s+\*\*\[?([A-Z0-9_-]+)\]?\*\*:\s*(.+)$/);
           if (cardMatch) {
             const checkChar = cardMatch[1];
             const ticketId = cardMatch[2];

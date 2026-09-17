@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { createMcpServer } from '../src/mcp.ts';
 import { WorkflowActor } from '../src/actor/engine.ts';
@@ -11,7 +12,7 @@ describe('Stdio MCP Server Bridge', () => {
   let store: WorkflowStore;
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(process.cwd(), 'temp-mcp-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-mcp-test-'));
     store = new WorkflowStore(tempDir, true);
   });
 
@@ -102,5 +103,39 @@ describe('Stdio MCP Server Bridge', () => {
 
     expect(unknownRes.isError).toBe(true);
     expect(unknownRes.content[0].text).toContain('not registered');
+
+    // 4. Call tool that triggers execution error (update_ticket_state on missing ticket)
+    const errRes = await callHandler({
+      method: 'tools/call',
+      params: {
+        name: 'update_ticket_state',
+        arguments: {
+          ticketId: 'TKT-NON-EXISTENT',
+          lane: 'Done'
+        }
+      }
+    });
+
+    expect(errRes.isError).toBe(true);
+    expect(errRes.content[0].text).toContain("Ticket TKT-NON-EXISTENT not found");
+  });
+
+  it('should export valid MCP JSON tool schemas to disk for host discovery', async () => {
+    const { exportMcpSchemas } = await import('../src/mcp.ts');
+    const schemasDir = path.join(tempDir, 'mcp-schemas');
+
+    const files = exportMcpSchemas(schemasDir);
+    expect(files.length).toBeGreaterThanOrEqual(16);
+    expect(files).toContain('execute_shell_wish.json');
+    expect(files).toContain('claim_ticket.json');
+
+    // Verify written JSON schema contents
+    const claimSchemaPath = path.join(schemasDir, 'claim_ticket.json');
+    expect(fs.existsSync(claimSchemaPath)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(claimSchemaPath, 'utf8'));
+    expect(parsed.name).toBe('claim_ticket');
+    expect(parsed.parameters).toBeDefined();
+    expect(parsed.parameters.properties).toBeDefined();
+    expect(parsed.parameters.properties.ticketId).toBeDefined();
   });
 });

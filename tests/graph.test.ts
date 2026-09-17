@@ -85,32 +85,60 @@ describe('AST+ Semantic Graph (Semantika)', () => {
 
     // Traverse from Epic (depth 2)
     const traversed = await store.traverse(epic.id, { maxDepth: 2 });
-    expect(traversed.entities.length).toBeGreaterThan(0);
-    expect(traversed.predicates.length).toBeGreaterThan(0);
+    expect(traversed.entities.length).toBeGreaterThanOrEqual(2);
+    expect(traversed.predicates.length).toBeGreaterThanOrEqual(2);
+    const entityIds = traversed.entities.map(e => e.id);
+    expect(entityIds).toContain(ticket.id);
+    expect(entityIds).toContain(file.id);
   });
 
-  it('should atomically lease and release tickets', async () => {
+  it('should atomically lease, reject concurrent leases, and allow expired lease takeover', async () => {
     await store.upsertEntity<Ticket>(Ticket.dcr, {
       id: 'TKT-LEASE-1',
       title: 'Atomic Claim Test',
       lane: 'Todo'
     });
 
-    // Claim ticket
+    // 1. Claim ticket with agent-alpha
     const claimRes = await store.claimTicket('TKT-LEASE-1', 'agent-alpha', 15);
     expect(claimRes.success).toBe(true);
     expect(claimRes.claim?.agentId).toBe('agent-alpha');
-
     expect(await store.isTicketClaimed('TKT-LEASE-1')).toBe(true);
 
-    // Concurrent claim by another agent should fail
+    // 2. Concurrent claim by agent-beta while unexpired must be rejected
     const concurrentRes = await store.claimTicket('TKT-LEASE-1', 'agent-beta', 15);
     expect(concurrentRes.success).toBe(false);
+    expect(concurrentRes.message).toContain("actively leased by agent 'agent-alpha'");
 
-    // Active claims list
+    // 3. Claiming non-existent ticket must fail cleanly
+    const nonExistentClaim = await store.claimTicket('TKT-DOES-NOT-EXIST', 'agent-alpha', 10);
+    expect(nonExistentClaim.success).toBe(false);
+    expect(nonExistentClaim.message).toContain('Ticket not found');
+
+    // 4. Releasing non-existent ticket must return false
+    expect(await store.releaseTicket('TKT-DOES-NOT-EXIST')).toBe(false);
+
+    // 5. Active claims list
     const active = await store.getActiveClaims();
     expect(active.length).toBe(1);
     expect(active[0].ticketId).toBe('TKT-LEASE-1');
+
+    // 6. Expired lease takeover: simulate an expired lease for agent-alpha
+    const ticket = await store.getEntity<Ticket>('TKT-LEASE-1', Ticket.dcr);
+    await ticket!.update({
+      claim: {
+        agentId: 'agent-alpha',
+        claimedAt: new Date(Date.now() - 3600000).toISOString(),
+        expiresAt: new Date(Date.now() - 1000).toISOString() // expired 1 sec ago
+      }
+    }, true, false);
+
+    expect(await store.isTicketClaimed('TKT-LEASE-1')).toBe(false);
+
+    // Now agent-beta can take over the expired lease
+    const takeoverRes = await store.claimTicket('TKT-LEASE-1', 'agent-beta', 20);
+    expect(takeoverRes.success).toBe(true);
+    expect(takeoverRes.claim?.agentId).toBe('agent-beta');
 
     // Release claim
     const released = await store.releaseTicket('TKT-LEASE-1');
@@ -118,7 +146,7 @@ describe('AST+ Semantic Graph (Semantika)', () => {
     expect(await store.isTicketClaimed('TKT-LEASE-1')).toBe(false);
   });
 
-  it('should export and import markdown projections', async () => {
+  it('should export and import markdown projections with real disk mutation reconciliation', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-proj-'));
     const diskStore = new WorkflowStore(tmpDir);
 
@@ -144,15 +172,27 @@ describe('AST+ Semantic Graph (Semantika)', () => {
       expect(kanbanContent).toContain('TKT-EXPORT-1');
       expect(kanbanContent).toContain('Export Validation');
 
-      // Now create a new store and import projections
-      const freshStore = new WorkflowStore(tmpDir);
-      await importProjections(freshStore, tmpDir);
+      // Mutate kanban.md on disk (simulate human editing Obsidian Kanban)
+      const editedContent = kanbanContent
+        .replace('Export Validation', 'Obsidian Renamed Feature')
+        .replace(/## Todo\n[\s\S]*?(?=## In Progress)/, '## Todo\n\n')
+        .replace('## In Progress\n', '## In Progress\n- [ ] **[TKT-EXPORT-1]**: Obsidian Renamed Feature\n');
 
-      const imported = await freshStore.getEntity<Ticket>('TKT-EXPORT-1', Ticket.dcr);
-      expect(imported).not.toBeNull();
-      expect((imported as any).title).toBe('Export Validation');
+      fs.writeFileSync(kanbanFile, editedContent, 'utf8');
 
-      freshStore.close();
+      // Fast forward mtime so sync detects disk modification (> lastExportedAt + 50ms)
+      const futureTime = new Date(Date.now() + 5000);
+      fs.utimesSync(kanbanFile, futureTime, futureTime);
+
+      // Import projections into SQLite store
+      const importResult = await importProjections(diskStore, tmpDir);
+      expect(importResult.importedChanges).toBeGreaterThanOrEqual(1);
+
+      // Verify the SQLite store reflected the exact human mutation
+      const updatedTicket = await diskStore.getEntity<Ticket>('TKT-EXPORT-1', Ticket.dcr);
+      expect(updatedTicket).not.toBeNull();
+      expect((updatedTicket as any).title).toBe('Obsidian Renamed Feature');
+      expect((updatedTicket as any).lane).toBe('In Progress');
     } finally {
       diskStore.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
