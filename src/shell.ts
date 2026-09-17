@@ -24,6 +24,8 @@ export const SHELL_COMMANDS = [
   'next',
   'claim',
   'release',
+  'create',
+  'new',
   'done',
   'move',
   'tickets',
@@ -151,6 +153,14 @@ Commands:
     const ticketId = line.slice(8).trim();
     const res = await registry.execute('release_ticket', { ticketId }, ctx);
     return { output: res.success ? `Released ticket ${ticketId}.` : `Ticket '${ticketId}' not found or lease inactive.` };
+  }
+
+  if (lower.startsWith('create ') || lower.startsWith('new ')) {
+    const title = line.replace(/^(create|new)\s+/i, '').trim();
+    if (!title) return { output: 'Usage: create <title>' };
+    const res = await registry.execute('create_ticket', { title, lane: 'Todo' }, ctx);
+    await exportProjections(session.store, session.projectRoot);
+    return { output: `Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.` };
   }
 
   if (lower.startsWith('done ')) {

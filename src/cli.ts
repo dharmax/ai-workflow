@@ -165,6 +165,31 @@ async function main() {
       break;
     }
 
+    case 'create':
+    case 'new': {
+      const title = args[1];
+      if (!title) {
+        console.error('Usage: aiwf create "<title>" [--lane <lane>] [--priority <P0|P1|P2|P3>] [--id <id>]');
+        process.exit(1);
+      }
+      let lane: any = 'Todo';
+      let priority: any = 'P2';
+      let id: string | undefined;
+
+      const laneIdx = args.indexOf('--lane');
+      if (laneIdx !== -1 && args[laneIdx + 1]) lane = args[laneIdx + 1];
+      const prioIdx = args.indexOf('--priority') !== -1 ? args.indexOf('--priority') : args.indexOf('-p');
+      if (prioIdx !== -1 && args[prioIdx + 1]) priority = args[prioIdx + 1];
+      const idIdx = args.indexOf('--id');
+      if (idIdx !== -1 && args[idIdx + 1]) id = args[idIdx + 1];
+
+      const store = getStore();
+      const res = await registry.execute('create_ticket', { id, title, lane, priority }, { store, projectRoot: root });
+      await exportProjections(store, root);
+      console.log(`✅ Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.`);
+      break;
+    }
+
     case 'next': {
       const store = getStore();
       const agentId = args[1];
@@ -435,6 +460,7 @@ Core Workflow Commands:
   tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
   claim <ticketId> [--agent <a>] [-m <m>] Atomically lease a ticket with TTL
   release <ticketId>                     Release active ticket lease
+  create "<title>" [-p <P0-P3>] [--lane] Create a new Kanban ticket
   done <ticketId>                        Mark ticket as Done, release lease, and sync Kanban
   move <ticketId> <lane>                 Move ticket to lane (Backlog, Todo, In Progress, Done, Blocked)
 
