@@ -20,6 +20,7 @@ kanban-plugin: board
 
 - [x] **TKT-001**: Explore codebase and run diagnostics
   - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
+- [x] **TKT-UWR1**: DBG-001: Implement aiwf debug and triage CLI facilities
 
 ## Blocked
 

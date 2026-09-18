@@ -13,6 +13,7 @@ import { registerTestTools } from './test-runner.ts';
 import { registerScriptingTools } from './scripting.ts';
 import { registerCompilerTools } from './compiler.ts';
 import { registerScaffoldTools } from './scaffold.ts';
+import { registerDebuggerTools } from './debugger.ts';
 import { bucketRouter, TwoTierRouter, type ToolBucket } from './bucket-router.ts';
 
 let initialized = false;
@@ -28,6 +29,7 @@ export function initializeTools(): ToolRegistry {
     registerScriptingTools();
     registerCompilerTools();
     registerScaffoldTools();
+    registerDebuggerTools();
     initialized = true;
   }
   return registry;

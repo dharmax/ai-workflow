@@ -66,6 +66,24 @@ async function main() {
       break;
     }
 
+    case 'triage': {
+      const testCmd = args.slice(1).join(' ') || 'bun test';
+      console.log(`🧪 Triaging test failures with: "${testCmd}"...`);
+      const store = getStore();
+      const res = await registry.execute('triage_test_failures', { testCommand: testCmd }, { store, projectRoot: root });
+      if (res.passed) {
+        console.log(`\x1b[1;32m✅ ${res.summary || 'All tests passed cleanly!'}\x1b[0m`);
+      } else {
+        console.log(`\x1b[1;31m❌ Detected ${res.failingCount} failing test(s):\x1b[0m\n`);
+        for (const f of res.failures) {
+          console.log(`\x1b[1;33m• ${f.testName}\x1b[0m`);
+          console.log(`  ${f.error.split('\n').join('\n  ')}\n`);
+        }
+        process.exit(1);
+      }
+      break;
+    }
+
     case 'audit': {
       console.log(`🔍 Auditing AI-Workflow AST+ Graph & Codebase Health...`);
       const store = getStore();
@@ -347,6 +365,32 @@ async function main() {
       break;
     }
 
+    case 'debug': {
+      let target = args.slice(1).join(' ').trim();
+      if (!target && !process.stdin.isTTY) {
+        target = (await Bun.stdin.text()).trim();
+      }
+      if (!target) {
+        console.error(`Usage: aiwf debug <symbolName | filePath:line | stackTrace>`);
+        console.error(`       cat error.log | aiwf debug`);
+        process.exit(1);
+      }
+      const store = getStore();
+      const res = await registry.execute('debug_target', { target }, { store, projectRoot: root });
+      console.log(`\x1b[1;36m🔍 Debug Target Diagnosis: [${res.resolvedKind.toUpperCase()}]\x1b[0m`);
+      for (const loc of res.locations) {
+        const symInfo = loc.enclosingSymbol ? ` \x1b[90m[enclosing: ${loc.enclosingSymbol.kind} ${loc.enclosingSymbol.name}:${loc.enclosingSymbol.startLine}]\x1b[0m` : '';
+        console.log(`\n\x1b[1m📍 ${loc.filePath}:${loc.line}${loc.column ? `:${loc.column}` : ''}\x1b[0m${symInfo}`);
+        console.log(loc.snippet);
+      }
+      if (res.blastRadius && (res.blastRadius.affectedFiles.length > 0 || res.blastRadius.recommendedTests.length > 0)) {
+        console.log(`\n\x1b[1m💥 Blast Radius Analysis:\x1b[0m`);
+        console.log(`  Affected Files:    ${res.blastRadius.affectedFiles.join(', ') || 'None'}`);
+        console.log(`  Recommended Tests: ${res.blastRadius.recommendedTests.join(', ') || 'None'}`);
+      }
+      break;
+    }
+
     case 'index': {
       console.log(`🔄 Indexing AST symbols across codebase...`);
       const store = getStore();
@@ -552,6 +596,7 @@ Intelligence & Code Navigation:
   slice <filePath> <symbolName>          Extract exact source code snippet of a symbol
   outline <filePath>                     Print AST symbol outline for a file
   blast <targetFilePathOrSymbol>         Analyze blast radius, affected files, and recommended tests
+  debug <symbol|file:line|trace>         Diagnose target with snippet slicing and blast analysis
   index                                  Re-index codebase AST symbols and modules into graph
   patch <file> <search> <replace>        Apply deterministic AST block patch via block-patcher
   scaffold <filePath> [description]      Scaffold typed source file paired with unit test harness
@@ -559,6 +604,7 @@ Intelligence & Code Navigation:
 Diagnostics & Health:
   doctor                                 Run comprehensive environment, graph, LLM, and MCP diagnostics
   audit                                  Audit architecture and graph integrity
+  triage [testCommand]                   Run tests and extract compact failure triage report
   metrics                                Show Kanban distribution and git churn hotspots
 
 Configuration & Execution:

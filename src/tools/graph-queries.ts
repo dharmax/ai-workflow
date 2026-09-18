@@ -7,6 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
+import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
 
 export function registerGraphTools() {
@@ -130,37 +131,7 @@ export function registerGraphTools() {
       target: z.string().describe('File path or module to analyze')
     }),
     execute: async ({ target }, ctx: ToolContext) => {
-      const incomingDeps = await ctx.store.getIncoming(target, 'depends_on');
-      const incomingImports = await ctx.store.getIncoming(target, 'imports');
-
-      const directFiles = await ctx.store.listEntities<FileNode>(FileNode.dcr);
-      const matchedDirect = directFiles.filter(f => f.id.includes(target) || (f as any).path?.includes(target));
-
-      const affectedFileIds = new Set<string>();
-      for (const f of matchedDirect) affectedFileIds.add(ctx.store.localId(f.id));
-      for (const d of incomingDeps) affectedFileIds.add(ctx.store.localId(d.sourceId));
-      for (const i of incomingImports) affectedFileIds.add(ctx.store.localId(i.sourceId));
-
-      const recommendedTests: string[] = [];
-      for (const fileId of affectedFileIds) {
-        if (fileId.includes('test') || fileId.endsWith('.test.ts') || fileId.endsWith('.spec.ts')) {
-          recommendedTests.push(fileId);
-        }
-      }
-
-      const tickets = await ctx.store.listEntities<Ticket>(Ticket.dcr);
-      const activeTickets = tickets
-        .filter(t => (t as any).lane !== 'Done' && Array.from(affectedFileIds).some(fid => (t as any).body?.includes(fid)))
-        .map(t => ({ id: ctx.store.localId(t.id), title: (t as any).title, lane: (t as any).lane }));
-
-      return {
-        target,
-        affectedFilesCount: affectedFileIds.size,
-        affectedFiles: Array.from(affectedFileIds),
-        activeTickets,
-        dependentTickets: activeTickets,
-        recommendedTests: recommendedTests.length > 0 ? recommendedTests : ['bun test']
-      };
+      return analyzeBlastRadius(ctx.store, target, ctx.projectRoot);
     }
   });
 
@@ -197,4 +168,42 @@ export function registerGraphTools() {
       };
     }
   });
+}
+
+export async function analyzeBlastRadius(
+  store: WorkflowStore,
+  target: string,
+  _projectRoot: string
+) {
+  const incomingDeps = await store.getIncoming(target, 'depends_on');
+  const incomingImports = await store.getIncoming(target, 'imports');
+
+  const directFiles = await store.listEntities<FileNode>(FileNode.dcr);
+  const matchedDirect = directFiles.filter(f => f.id.includes(target) || (f as any).path?.includes(target));
+
+  const affectedFileIds = new Set<string>();
+  for (const f of matchedDirect) affectedFileIds.add(store.localId(f.id));
+  for (const d of incomingDeps) affectedFileIds.add(store.localId(d.sourceId));
+  for (const i of incomingImports) affectedFileIds.add(store.localId(i.sourceId));
+
+  const recommendedTests: string[] = [];
+  for (const fileId of affectedFileIds) {
+    if (fileId.includes('test') || fileId.endsWith('.test.ts') || fileId.endsWith('.spec.ts')) {
+      recommendedTests.push(fileId);
+    }
+  }
+
+  const tickets = await store.listEntities<Ticket>(Ticket.dcr);
+  const activeTickets = tickets
+    .filter(t => (t as any).lane !== 'Done' && Array.from(affectedFileIds).some(fid => (t as any).body?.includes(fid)))
+    .map(t => ({ id: store.localId(t.id), title: (t as any).title, lane: (t as any).lane }));
+
+  return {
+    target,
+    affectedFilesCount: affectedFileIds.size,
+    affectedFiles: Array.from(affectedFileIds),
+    activeTickets,
+    dependentTickets: activeTickets,
+    recommendedTests: recommendedTests.length > 0 ? recommendedTests : ['bun test']
+  };
 }
