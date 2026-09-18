@@ -19,6 +19,7 @@ import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { initProject, installGlobalBinary, configureMcp } from './setup.ts';
 import { loadConfig, saveConfig } from './config.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
+import { KnowledgeBaseClient } from './kb/client.ts';
 
 const args = process.argv.slice(2);
 const command = args[0] || (process.stdin.isTTY ? 'shell' : 'help');
@@ -613,6 +614,77 @@ async function main() {
       break;
     }
 
+    case 'kb': {
+      const sub = args[1] || 'list';
+      const kb = new KnowledgeBaseClient();
+
+      if (sub === 'sync') {
+        const force = args.includes('--force') || args.includes('-f');
+        const progress = new ProgressIndicator();
+        progress.start('Syncing manifest from dharmax/knowledgebase...');
+        const res = await kb.sync(force);
+        progress.stop(`Synced ${res.count} item(s) [Source: ${res.source.toUpperCase()}]`, 'success');
+        break;
+      }
+
+      if (sub === 'list') {
+        const typeFilter = args[2] as any;
+        const items = await kb.search({ type: typeFilter });
+        console.log(`\n\x1b[1;36m📚 Knowledgebase Catalog (${items.length} items from dharmax/knowledgebase)\x1b[0m\n`);
+        console.log(`  \x1b[1m${'Type'.padEnd(10)} ${'Item ID'.padEnd(34)} ${'Hash'.padEnd(14)} Title & Tags\x1b[0m`);
+        console.log(`  ${'─'.repeat(80)}`);
+        for (const item of items) {
+          const typeBadge = `[${item.type.toUpperCase()}]`.padEnd(10);
+          const hashShort = item.sha256.slice(0, 10);
+          console.log(`  ${typeBadge} \x1b[1m${item.id.padEnd(34)}\x1b[0m \x1b[90m${hashShort}\x1b[0m ${item.title}`);
+          console.log(`  ${''.padEnd(10)} \x1b[90mTags: ${item.tags.join(', ')}\x1b[0m\n`);
+        }
+        console.log(`Use 'aiwf kb show <id>' to inspect full specification.`);
+        break;
+      }
+
+      if (sub === 'search') {
+        const query = args.slice(2).join(' ');
+        if (!query) {
+          console.error('Usage: aiwf kb search <query>');
+          process.exit(1);
+        }
+        const items = await kb.search({ query });
+        console.log(`\n\x1b[1;36m🔍 Knowledgebase Search for "${query}" (${items.length} match(es))\x1b[0m\n`);
+        for (const item of items) {
+          console.log(`  \x1b[1m[${item.type.toUpperCase()}] ${item.id}\x1b[0m (${item.title})`);
+          console.log(`  \x1b[90m${item.description}\x1b[0m`);
+          console.log(`  Tags: ${item.tags.join(', ')} | Hash: ${item.sha256.slice(0, 12)}\n`);
+        }
+        break;
+      }
+
+      if (sub === 'show') {
+        const id = args[2];
+        if (!id) {
+          console.error('Usage: aiwf kb show <itemId>');
+          process.exit(1);
+        }
+        const item = await kb.getItem(id);
+        if (!item) {
+          console.error(`❌ Item '${id}' not found in knowledgebase.`);
+          process.exit(1);
+        }
+        console.log(`\n\x1b[1;36m📄 ${item.meta.title}\x1b[0m [${item.meta.type.toUpperCase()}]`);
+        console.log(`ID:          ${item.meta.id}`);
+        console.log(`Integrity:   ${item.verified ? '\x1b[32mVERIFIED SHA-256 ✅\x1b[0m' : '\x1b[31mHASH MISMATCH ❌\x1b[0m'}`);
+        console.log(`SHA-256:     ${item.meta.sha256}`);
+        console.log(`Description: ${item.meta.description}`);
+        console.log(`Tags:        ${item.meta.tags.join(', ')}\n`);
+        console.log(`\x1b[1m─── Content ───\x1b[0m`);
+        console.log(item.rawContent.trim());
+        break;
+      }
+
+      console.log(`Usage: aiwf kb [sync [--force] | list [service|skill|pattern] | search <query> | show <id>]`);
+      break;
+    }
+
     case 'shell': {
       const store = getStore();
       await startShell({ store, projectRoot: root });
@@ -669,6 +741,7 @@ Configuration & Execution:
   setup [--global] [--mcp]               Install global symlink (~/.local/bin/aiwf) and configure MCP
   config [get|set] [key] [val]           Inspect or update settings in .ai-workflow/config.json
   model [list|radar|set]                 Inspect gateway, Pareto radar rankings, or configure mode routes
+  kb [sync|list|search|show]             Search, inspect, and sync content-addressed skills & patterns
   eval "<code>"                          Evaluate short TypeScript/JS code against live store
   exec "<wish>"                          Execute one-off autonomous task or query via Workflow Actor
   shell                                  Launch interactive dual-nature Terminal REPL (<5ms fast-paths)

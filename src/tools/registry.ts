@@ -15,7 +15,7 @@ export interface ToolContext {
 export interface ToolDefinition<TParams = any, TResult = any> {
   name: string;
   description: string;
-  category: 'ticket' | 'graph' | 'compiler' | 'git' | 'os' | 'web' | 'test' | 'planning' | 'script';
+  category: 'ticket' | 'graph' | 'compiler' | 'git' | 'os' | 'web' | 'test' | 'planning' | 'script' | 'kb';
   parameters: ZodType<TParams>;
   execute: (params: TParams, ctx: ToolContext) => Promise<TResult> | TResult;
 }

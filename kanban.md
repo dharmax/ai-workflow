@@ -23,6 +23,8 @@ kanban-plugin: board
 - [x] **TKT-UWR1**: DBG-001: Implement aiwf debug and triage CLI facilities
 - [x] **TKT-RADAR1**: Implement Dynamic Cognitive Escalation and Multi-Provider Model Radar
   - Summary: SOTA benchmark Pareto radar discovery, multi-provider credentials, blast radius escalation, and shell/CLI controls.
+- [x] **TKT-KB-001**: Implement Content-Addressable Knowledgebase Ecosystem & Client Integrations
+  - Summary: Public registry dharmax/knowledgebase, canonical SHA-256 integrity, local cache, CLI facilities (aiwf kb), and agent tools.
 
 ## Blocked
 
