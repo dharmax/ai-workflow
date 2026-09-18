@@ -13,7 +13,9 @@ import type { WorkflowStore } from '../graph/store.ts';
 export { pubsub };
 import { registry, type ToolRegistry, type ToolContext } from '../tools/registry.ts';
 import { bucketRouter } from '../tools/bucket-router.ts';
-import { loadConfig } from '../config.ts';
+import { loadConfig, resolveCloudCredentials } from '../config.ts';
+import { ModelRadar } from './radar.ts';
+import { analyzeBlastRadius } from '../tools/graph-queries.ts';
 
 export type ShellMode = 'design' | 'dev' | 'triage' | 'product';
 
@@ -111,6 +113,7 @@ export interface WorkflowActorOptions {
   preferLocal?: boolean;
   offline?: boolean;
   timeoutMs?: number;
+  radar?: ModelRadar;
 }
 
 export class WorkflowActor {
@@ -120,8 +123,11 @@ export class WorkflowActor {
   public readonly maxSteps: number;
   public readonly timeoutMs: number;
   public readonly metrics: InMemoryMetricsStore;
+  public readonly radar: ModelRadar;
   private asker?: Asker;
   private preferLocal: boolean;
+  private configuredProviders: string[] = [];
+  private activeGateway: string = 'auto';
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -131,6 +137,60 @@ export class WorkflowActor {
     this.timeoutMs = options.timeoutMs || 60000;
     this.preferLocal = options.preferLocal ?? true;
     this.metrics = new InMemoryMetricsStore();
+    this.radar = options.radar || new ModelRadar({ projectRoot: this.projectRoot });
+
+    const cfg = loadConfig(this.projectRoot);
+    const creds = resolveCloudCredentials();
+    const providers: Record<string, any> = {};
+
+    // 1. Local Ollama Provider
+    const ollamaHost = cfg.ollamaUrl || 'http://localhost:11434';
+    providers.ollama = {
+      id: 'ollama',
+      host: ollamaHost,
+      available: true,
+      local: true
+    };
+
+    const gateway = cfg.gateway || 'auto';
+    this.activeGateway = gateway;
+
+    // 2. OpenRouter Gateway (universal multi-model endpoint)
+    if ((gateway === 'auto' || gateway === 'openrouter') && creds.openrouterApiKey) {
+      providers.openrouter = {
+        id: 'openrouter',
+        apiKey: creds.openrouterApiKey,
+        baseUrl: 'https://openrouter.ai/api/v1',
+        available: true
+      };
+    }
+
+    // 3. Direct Cloud Providers
+    if (gateway === 'auto' || gateway === 'direct') {
+      if (creds.anthropicApiKey) {
+        providers.anthropic = {
+          id: 'anthropic',
+          apiKey: creds.anthropicApiKey,
+          available: true
+        };
+      }
+      if (creds.geminiApiKey) {
+        providers.google = {
+          id: 'google',
+          apiKey: creds.geminiApiKey,
+          available: true
+        };
+      }
+      if (creds.openaiApiKey) {
+        providers.openai = {
+          id: 'openai',
+          apiKey: creds.openaiApiKey,
+          available: true
+        };
+      }
+    }
+
+    this.configuredProviders = Object.keys(providers).filter((p) => providers[p]?.available);
 
     if (options.offline || options.asker === null) {
       this.asker = undefined;
@@ -138,18 +198,9 @@ export class WorkflowActor {
       this.asker = options.asker;
     } else {
       try {
-        const cfg = loadConfig(this.projectRoot);
-        const ollamaHost = cfg.ollamaUrl || 'http://localhost:11434';
         const model = cfg.model || MODE_CONFIGS[this.mode].defaultLocalModel;
         this.asker = new Asker({
-          providers: {
-            ollama: {
-              id: 'ollama',
-              host: ollamaHost,
-              available: true,
-              local: true
-            }
-          },
+          providers,
           preferLocal: this.preferLocal,
           defaultModel: `ollama/${model}`
         });
@@ -163,15 +214,31 @@ export class WorkflowActor {
     this.mode = mode;
   }
 
+  getConfiguredProviders(): string[] {
+    return [...this.configuredProviders];
+  }
+
+  getActiveGateway(): string {
+    return this.activeGateway;
+  }
+
   /**
    * Primary entrypoint: runs a bounded Think-Act-Observe loop on user instruction.
+   * Dynamically evaluates complexity, blast radius, and ModelRadar for cognitive escalation.
    */
-  async execute(instruction: string, forcedMode?: ShellMode): Promise<{
+  async execute(
+    instruction: string,
+    forcedMode?: ShellMode,
+    execOptions?: { forceCloud?: boolean; forceModel?: string }
+  ): Promise<{
     mode: ShellMode;
     stepsCount: number;
     answer: string;
     events: ActorStepEvent[];
     offlineFallback?: boolean;
+    targetModel?: string;
+    escalated?: boolean;
+    escalationReason?: string;
   }> {
     const rawText = instruction.replace(/^\/(design|dev|triage|product|auto)\s*/i, '');
     const activeMode = forcedMode || (instruction.startsWith('/') ? classifyIntentMode(instruction) : classifyIntentMode(rawText));
@@ -188,6 +255,69 @@ export class WorkflowActor {
     // Fallback if no LLM provider is connected or available
     if (!this.asker) {
       return await this.executeOfflineFallback(rawText, activeMode, ctx);
+    }
+
+    const cfg = loadConfig(this.projectRoot);
+    const policy = cfg.escalation?.policy || 'auto';
+    const hasCloud = this.configuredProviders.some((p) => p !== 'ollama');
+
+    // Determine Cognitive Escalation
+    let shouldEscalate = false;
+    let escalationReason: string | undefined;
+
+    if (hasCloud) {
+      if (policy === 'sota' || execOptions?.forceCloud) {
+        shouldEscalate = true;
+        escalationReason = 'SOTA / forceCloud requested';
+      } else if (policy === 'auto') {
+        // Design mode heuristic: architecture & ADR synthesis requires deep reasoning
+        if (activeMode === 'design') {
+          shouldEscalate = true;
+          escalationReason = 'Design mode requires frontier reasoning';
+        }
+        // Blast radius heuristic: multi-file mutations require strong reasoning
+        const fileMatch = rawText.match(/([a-zA-Z0-9_\-\.\/]+\.(?:ts|js|tsx|jsx|json))/);
+        if (fileMatch) {
+          try {
+            const blast = await analyzeBlastRadius(this.store, fileMatch[1], this.projectRoot);
+            if (blast.affectedFiles.length >= (cfg.escalation?.blastRadiusThreshold ?? 3)) {
+              shouldEscalate = true;
+              escalationReason = `Blast radius (${blast.affectedFiles.length} files) >= threshold (${cfg.escalation?.blastRadiusThreshold ?? 3})`;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Determine target model
+    let targetModel: string;
+    if (execOptions?.forceModel) {
+      targetModel = execOptions.forceModel;
+    } else if (cfg.modelRoutes?.[activeMode]) {
+      targetModel = cfg.modelRoutes[activeMode];
+    } else if (shouldEscalate) {
+      const rec = this.radar.getRecommendations()[activeMode];
+      if (this.configuredProviders.includes('openrouter')) {
+        targetModel = `openrouter/${rec}`;
+      } else if (this.configuredProviders.includes('anthropic')) {
+        targetModel = `anthropic/${config.defaultCloudModel}`;
+      } else if (this.configuredProviders.includes('google')) {
+        targetModel = `google/${config.defaultCloudModel}`;
+      } else if (this.configuredProviders.includes('openai')) {
+        targetModel = `openai/gpt-4o`;
+      } else {
+        targetModel = `ollama/${cfg.model || config.defaultLocalModel}`;
+      }
+    } else {
+      targetModel = `ollama/${cfg.model || config.defaultLocalModel}`;
+    }
+
+    if (shouldEscalate) {
+      pubsub.trigger('aiwf', 'actor:escalate', {
+        mode: activeMode,
+        targetModel,
+        reason: escalationReason
+      });
     }
 
     try {
@@ -212,6 +342,9 @@ export class WorkflowActor {
 
       const result = await actor.run(rawText, {
         maxSteps: this.maxSteps,
+        askOptions: {
+          model: targetModel
+        },
         signal: AbortSignal.timeout(this.timeoutMs)
       });
 
@@ -245,7 +378,10 @@ export class WorkflowActor {
         mode: activeMode,
         stepsCount: events.length,
         answer: finalAnswer,
-        events
+        events,
+        targetModel,
+        escalated: shouldEscalate,
+        escalationReason
       };
     } catch (err: any) {
       // Graceful degradation on model connection error or timeout

@@ -41,6 +41,12 @@ export const SHELL_COMMANDS = [
   'metrics',
   'config',
   'eval',
+  'model',
+  '/model',
+  'radar',
+  '/radar',
+  'escalate',
+  '/escalate',
   '/design',
   '/dev',
   '/triage',
@@ -94,6 +100,9 @@ Commands:
   metrics                    - Show Kanban distribution & code churn hotspots
   config [get|set key val]   - View or update settings (.ai-workflow/config.json)
   eval <js-code>             - On-the-fly JavaScript evaluation
+  model (or /model)          - Show gateway, provider keys, and mode model assignments
+  radar [refresh]            - View SOTA model benchmark rankings & Pareto scores
+  escalate [policy]          - View or toggle escalation policy (auto|local_only|prompt|sota)
   /design                    - Switch mode to [DESIGN] (Architecture & ADRs)
   /dev                       - Switch mode to [DEV] (Code authoring & patching)
   /triage                    - Switch mode to [TRIAGE] (Diagnostics & Test Triage)
@@ -101,6 +110,59 @@ Commands:
   exit                       - Exit shell
   <any natural instruction>  - Autonomous cognitive execution via Workflow Actor
 `
+    };
+  }
+
+  if (lower === 'model' || lower === '/model') {
+    const cfg = loadConfig(session.projectRoot);
+    const providers = session.actor.getConfiguredProviders();
+    const recs = session.actor.radar.getRecommendations();
+    let text = `\x1b[1;36m🤖 AI-Workflow Model & Gateway Configuration\x1b[0m\n`;
+    text += `Active Gateway:     \x1b[1m${cfg.gateway}\x1b[0m\n`;
+    text += `Available Providers: ${providers.map((p) => `\x1b[32m${p}\x1b[0m`).join(', ')}\n`;
+    text += `Escalation Policy:   \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m (Blast threshold: ${cfg.escalation?.blastRadiusThreshold ?? 3})\n\n`;
+    text += `\x1b[1mMode Routing:\x1b[0m\n`;
+    text += `  [DESIGN]  Local: ${cfg.model} | Cloud: ${recs.design} ${cfg.modelRoutes?.design ? `(Override: ${cfg.modelRoutes.design})` : ''}\n`;
+    text += `  [DEV]     Local: ${cfg.model} | Cloud: ${recs.dev} ${cfg.modelRoutes?.dev ? `(Override: ${cfg.modelRoutes.dev})` : ''}\n`;
+    text += `  [TRIAGE]  Local: ${cfg.model} | Cloud: ${recs.triage} ${cfg.modelRoutes?.triage ? `(Override: ${cfg.modelRoutes.triage})` : ''}\n`;
+    text += `  [PRODUCT] Local: ${cfg.model} | Cloud: ${recs.product} ${cfg.modelRoutes?.product ? `(Override: ${cfg.modelRoutes.product})` : ''}\n`;
+    return { output: text };
+  }
+
+  if (lower.startsWith('radar') || lower.startsWith('/radar')) {
+    const force = lower.includes('refresh') || lower.includes('--refresh');
+    let data = session.actor.radar.getData();
+    if (force) {
+      data = await session.actor.radar.probe(true);
+    }
+    let text = `\x1b[1;36m📡 SOTA Model Radar (Source: ${data.source.toUpperCase()}, Updated: ${new Date(data.lastUpdated).toLocaleDateString()})\x1b[0m\n`;
+    text += `\x1b[90mPareto Score = (Coding Elo - 1000)² / ln(Blended Cost + 1)\x1b[0m\n\n`;
+    text += `  \x1b[1m${'Model Target'.padEnd(32)} ${'Elo'.padEnd(6)} ${'$/1M (in/out)'.padEnd(16)} ${'Pareto'.padEnd(8)} Recommended\x1b[0m\n`;
+    text += `  ${'─'.repeat(75)}\n`;
+    for (const m of data.models) {
+      const priceStr = m.promptPricePer1M === 0 ? 'FREE' : `$${m.promptPricePer1M}/$${m.completionPricePer1M}`;
+      const best = m.bestFor.map((b) => `[${b.toUpperCase()}]`).join(' ');
+      text += `  ${m.id.padEnd(32)} ${String(m.codingElo).padEnd(6)} ${priceStr.padEnd(16)} \x1b[1;32m${String(m.paretoScore).padEnd(8)}\x1b[0m ${best}\n`;
+    }
+    text += `\nType 'radar refresh' to fetch live metadata from OpenRouter.`;
+    return { output: text };
+  }
+
+  if (lower.startsWith('escalate') || lower.startsWith('/escalate')) {
+    const parts = line.replace(/^\/?escalate\s*/i, '').trim().split(/\s+/);
+    const target = parts[0] as any;
+    const cfg = loadConfig(session.projectRoot);
+    if (['auto', 'local_only', 'prompt', 'sota'].includes(target)) {
+      saveConfig(session.projectRoot, {
+        escalation: {
+          ...cfg.escalation,
+          policy: target
+        }
+      });
+      return { output: `✔ Escalation policy updated to: \x1b[1;32m${target}\x1b[0m` };
+    }
+    return {
+      output: `Current Escalation Policy: \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m\nUsage: /escalate [auto | local_only | prompt | sota]`
     };
   }
 
@@ -321,8 +383,12 @@ Commands:
 
   // 3. Autonomous Cognitive Fallback
   const result = await session.actor.execute(line);
+  let prefix = `[${result.mode.toUpperCase()}]`;
+  if (result.escalated) {
+    prefix += ` \x1b[35m[Escalated ➜ ${result.targetModel}]\x1b[0m`;
+  }
   return {
-    output: `[${result.mode.toUpperCase()}] ${result.answer}`
+    output: `${prefix} ${result.answer}`
   };
 }
 

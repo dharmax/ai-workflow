@@ -6,6 +6,30 @@
 import path from 'node:path';
 import fs from 'node:fs';
 
+export type GatewayType = 'auto' | 'openrouter' | 'direct' | 'ollama';
+export type EscalationPolicy = 'auto' | 'local_only' | 'prompt' | 'sota';
+
+export interface ModelRadarConfig {
+  enabled: boolean;
+  probeIntervalDays: number;
+  lastProbedAt?: string;
+  maxCostPer1MInput?: number;
+  maxCostPer1MOutput?: number;
+}
+
+export interface EscalationConfig {
+  policy: EscalationPolicy;
+  blastRadiusThreshold: number;
+  testRetryThreshold: number;
+}
+
+export interface CloudCredentials {
+  openrouterApiKey?: string;
+  anthropicApiKey?: string;
+  geminiApiKey?: string;
+  openaiApiKey?: string;
+}
+
 export interface ProjectConfig {
   defaultAgentId: string;
   defaultLeaseMinutes: number;
@@ -13,6 +37,10 @@ export interface ProjectConfig {
   model: string;
   autoSync: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  gateway: GatewayType;
+  modelRadar: ModelRadarConfig;
+  escalation: EscalationConfig;
+  modelRoutes?: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {
@@ -21,10 +49,41 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
   model: process.env.AIWF_MODEL || 'qwen2.5-coder:7b',
   autoSync: true,
-  logLevel: 'info'
+  logLevel: 'info',
+  gateway: 'auto',
+  modelRadar: {
+    enabled: true,
+    probeIntervalDays: 3,
+    maxCostPer1MInput: 5.0,
+    maxCostPer1MOutput: 15.0
+  },
+  escalation: {
+    policy: 'auto',
+    blastRadiusThreshold: 3,
+    testRetryThreshold: 2
+  },
+  modelRoutes: {}
 };
 
 import os from 'node:os';
+
+export function resolveCloudCredentials(): CloudCredentials {
+  const globalPath = path.join(os.homedir(), '.ai-workflow', 'config.json');
+  let globalKeys: Record<string, any> = {};
+  if (fs.existsSync(globalPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(globalPath, 'utf8'));
+      globalKeys = raw.keys || raw.credentials || raw.providers || {};
+    } catch {}
+  }
+
+  return {
+    openrouterApiKey: process.env.OPENROUTER_API_KEY || globalKeys.openrouterApiKey || globalKeys.openrouter?.apiKey,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || globalKeys.anthropicApiKey || globalKeys.anthropic?.apiKey,
+    geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || globalKeys.geminiApiKey || globalKeys.google?.apiKey,
+    openaiApiKey: process.env.OPENAI_API_KEY || globalKeys.openaiApiKey || globalKeys.openai?.apiKey
+  };
+}
 
 export function getGlobalConfig(): Partial<ProjectConfig> {
   const globalPath = path.join(os.homedir(), '.ai-workflow', 'config.json');
@@ -59,7 +118,13 @@ export function loadConfig(projectRoot: string): ProjectConfig {
   if (fs.existsSync(cfgPath)) {
     try {
       const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      return { ...baseConfig, ...raw };
+      return {
+        ...baseConfig,
+        ...raw,
+        modelRadar: { ...baseConfig.modelRadar, ...(raw.modelRadar || {}) },
+        escalation: { ...baseConfig.escalation, ...(raw.escalation || {}) },
+        modelRoutes: { ...baseConfig.modelRoutes, ...(raw.modelRoutes || {}) }
+      };
     } catch {
       return baseConfig;
     }

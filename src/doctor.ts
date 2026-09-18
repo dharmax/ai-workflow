@@ -7,7 +7,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { WorkflowStore } from './graph/store.ts';
 import { Ticket, Epic, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
-import { loadConfig } from './config.ts';
+import { loadConfig, resolveCloudCredentials } from './config.ts';
+import { ModelRadar } from './actor/radar.ts';
 
 export interface DiagnosticCheck {
   category: string;
@@ -180,7 +181,55 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     });
   }
 
-  // 7. MCP Integrations
+  // 7. Dynamic Gateway & Cloud Providers
+  const creds = resolveCloudCredentials();
+  const configuredProviders: string[] = ['ollama'];
+  if (creds.openrouterApiKey) configuredProviders.push('openrouter');
+  if (creds.anthropicApiKey) configuredProviders.push('anthropic');
+  if (creds.geminiApiKey) configuredProviders.push('google');
+  if (creds.openaiApiKey) configuredProviders.push('openai');
+
+  const radar = new ModelRadar({
+    projectRoot,
+    probeIntervalDays: config.modelRadar?.probeIntervalDays ?? 3
+  });
+  const cachedRadar = radar.loadCache();
+  const recs = radar.getRecommendations();
+
+  checks.push({
+    category: 'Routing',
+    name: 'Model Gateway & Providers',
+    status: 'ok',
+    message: `Gateway: ${config.gateway} | Escalation: ${config.escalation?.policy || 'auto'} | Active providers: ${configuredProviders.join(', ')}`,
+    details: {
+      gateway: config.gateway,
+      policy: config.escalation?.policy,
+      blastThreshold: config.escalation?.blastRadiusThreshold,
+      providers: configuredProviders,
+      credentialsFound: {
+        openrouter: !!creds.openrouterApiKey,
+        anthropic: !!creds.anthropicApiKey,
+        gemini: !!creds.geminiApiKey,
+        openai: !!creds.openaiApiKey
+      }
+    }
+  });
+
+  // 8. Model Radar & SOTA Benchmark Cache
+  checks.push({
+    category: 'Radar',
+    name: 'Model Radar (SOTA Discovery)',
+    status: 'ok',
+    message: cachedRadar
+      ? `Cache active (${cachedRadar.models.length} models, updated ${new Date(cachedRadar.lastUpdated).toLocaleDateString()}) | Dev: ${recs.dev}, Design: ${recs.design}`
+      : `Baseline active (6 models) | Dev: ${recs.dev}, Design: ${recs.design}. Run 'aiwf model radar --refresh' to probe OpenRouter.`,
+    details: {
+      source: cachedRadar ? cachedRadar.source : 'baseline',
+      recommendations: recs
+    }
+  });
+
+  // 9. MCP Integrations
   const home = process.env.HOME || '~';
   const ideMcp = path.join(home, '.config', 'Antigravity IDE', 'User', 'mcp_config.json');
   const cliMcp = path.join(home, '.gemini', 'config', 'mcp_config.json');
