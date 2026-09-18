@@ -45,9 +45,9 @@ export class KnowledgeBaseClient {
     try {
       const ctrl = new AbortController();
       const timeout = setTimeout(() => ctrl.abort(), 3500);
-      const res = await fetch(`${this.rawBaseUrl}/manifest.json`, {
+      const res = await fetch(`${this.rawBaseUrl}/manifest.json?t=${Date.now()}`, {
         signal: ctrl.signal,
-        headers: { 'User-Agent': 'dharmax-kb-client/1.0' }
+        headers: { 'User-Agent': 'dharmax-kb-client/1.0', 'Cache-Control': 'no-cache' }
       });
       clearTimeout(timeout);
 
