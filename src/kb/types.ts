@@ -14,6 +14,13 @@ export interface KnowledgeItemMeta {
   target: KnowledgeTarget;
   tags: string[];
   path: string;
+  entrypoint?: string;
+  files?: string[];
+  sourceCode?: string;
+  requirements?: {
+    daemons?: string[];
+    binaries?: string[];
+  };
   sha256: string;
   sizeBytes: number;
 }

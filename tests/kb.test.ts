@@ -179,4 +179,40 @@ describe('Content-Addressable Knowledgebase Client & Registry', () => {
     expect(searchRes.items).toBeDefined();
     expect(Array.isArray(searchRes.items)).toBe(true);
   });
+
+  it('should retrieve directory bundle skill with embedded sourceCode and verify integrity', async () => {
+    const client = new KnowledgeBaseClient({ cacheDir: tempCacheDir });
+    const dummyManifest: KnowledgeManifest = {
+      version: '1.0.0',
+      generatedAt: new Date().toISOString(),
+      repo: 'dharmax/knowledgebase',
+      totalItems: 1,
+      items: [
+        {
+          id: 'skills/generate-image-sd',
+          type: 'skill',
+          title: 'Local SDXL Image Generation',
+          description: 'SDXL skill bundle',
+          target: 'universal',
+          tags: ['image', 'sdxl'],
+          path: 'skills/generate-image-sd',
+          entrypoint: 'run.ts',
+          files: ['skill.json', 'run.ts', 'skill.test.ts'],
+          sourceCode: 'export default async function run(ctx) { return { ok: true }; }',
+          requirements: { daemons: ['http://lotus:7860/sdapi/v1/sd-models'] },
+          sha256: '9999999999999999999999999999999999999999999999999999999999999999',
+          sizeBytes: 1024
+        }
+      ]
+    };
+
+    fs.writeFileSync(path.join(tempCacheDir, 'manifest.json'), JSON.stringify(dummyManifest, null, 2), 'utf8');
+
+    const item = await client.getItem('skills/generate-image-sd');
+    expect(item).not.toBeNull();
+    expect(item?.meta.id).toBe('skills/generate-image-sd');
+    expect(item?.meta.entrypoint).toBe('run.ts');
+    expect(item?.rawContent).toContain('export default async function run');
+    expect(item?.verified).toBe(true);
+  });
 });

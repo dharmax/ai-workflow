@@ -113,16 +113,23 @@ export class KnowledgeBaseClient {
     const objectPath = path.join(this.objectsDir, `${meta.sha256}${ext}`);
 
     let rawContent: string | null = null;
+    let verified = false;
+    let parsed: any = undefined;
 
-    // 1. Check local content-addressed cache
-    if (fs.existsSync(objectPath)) {
+    // 0. If item has sourceCode embedded directly in manifest
+    if (meta.sourceCode) {
+      rawContent = meta.sourceCode;
+      verified = true;
+    } else if (fs.existsSync(objectPath)) {
+      // 1. Check local content-addressed cache
       rawContent = fs.readFileSync(objectPath, 'utf8');
     } else {
-      // 2. Fetch raw object from CDN
+      // 2. Fetch raw object from CDN (target entrypoint if directory bundle)
+      const fetchTarget = meta.entrypoint ? `${meta.path}/${meta.entrypoint}` : meta.path;
       try {
         const ctrl = new AbortController();
         const timeout = setTimeout(() => ctrl.abort(), 4000);
-        const res = await fetch(`${this.rawBaseUrl}/${meta.path}`, { signal: ctrl.signal });
+        const res = await fetch(`${this.rawBaseUrl}/${fetchTarget}`, { signal: ctrl.signal });
         clearTimeout(timeout);
 
         if (res.ok) {
@@ -136,18 +143,19 @@ export class KnowledgeBaseClient {
 
     if (!rawContent) return null;
 
-    // 3. Verify SHA-256 hash integrity
-    let calculatedHash = computeHash(rawContent);
-    let parsed: any = undefined;
+    // 3. Verify SHA-256 hash integrity if not already verified
+    if (!verified) {
+      let calculatedHash = computeHash(rawContent);
 
-    if (meta.path.endsWith('.json')) {
-      try {
-        parsed = JSON.parse(rawContent);
-        calculatedHash = computeHash(parsed);
-      } catch {}
+      if (meta.path.endsWith('.json')) {
+        try {
+          parsed = JSON.parse(rawContent);
+          calculatedHash = computeHash(parsed);
+        } catch {}
+      }
+
+      verified = calculatedHash === meta.sha256;
     }
-
-    const verified = calculatedHash === meta.sha256;
 
     return {
       meta,
