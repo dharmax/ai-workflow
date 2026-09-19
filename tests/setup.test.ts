@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { initProject, installGlobalBinary, configureMcp } from '../src/setup.ts';
+import {
+  initProject,
+  installGlobalBinary,
+  configureMcp,
+  replaceTomlServerSection,
+  syncSkills,
+  CANONICAL_SKILL_MD,
+  MCP_INSTRUCTIONS_2_0
+} from '../src/setup.ts';
 import { runDiagnostics, formatDiagnosticReport } from '../src/doctor.ts';
 import { loadConfig, saveConfig, DEFAULT_CONFIG } from '../src/config.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
@@ -142,6 +150,143 @@ export function authenticate(token: string): boolean {
     const evalOut = await new Response(evalProc.stdout).text();
     expect(await evalProc.exited).toBe(0);
     expect(evalOut.trim()).toBe('42');
+  });
+
+  it('should replace TOML server sections accurately without corrupting adjacent config', () => {
+    const originalToml = `model = "gpt-5"
+
+[mcp_servers.leanctx]
+command = "lean-ctx"
+
+[mcp_servers.aiwf-mcp]
+command = "old-cmd"
+args = ["old.ts"]
+[mcp_servers.aiwf-mcp.tools.sync_project]
+approval_mode = "approve"
+
+[mcp_servers.node_repl]
+args = []
+`;
+
+    const newBlock = `[mcp_servers.aiwf-mcp]
+command = "bun"
+args = ["run", "/new/path/mcp.ts"]
+[mcp_servers.aiwf-mcp.tools.claim_ticket]
+approval_mode = "approve"`;
+
+    const result = replaceTomlServerSection(originalToml, 'aiwf-mcp', newBlock);
+
+    expect(result).toContain('[mcp_servers.leanctx]');
+    expect(result).toContain('[mcp_servers.node_repl]');
+    expect(result).toContain('/new/path/mcp.ts');
+    expect(result).toContain('[mcp_servers.aiwf-mcp.tools.claim_ticket]');
+    expect(result).not.toContain('sync_project');
+    expect(result).not.toContain('old-cmd');
+
+    // Also test append when section does not exist
+    const appended = replaceTomlServerSection('key = 123', 'aiwf-mcp', newBlock);
+    expect(appended).toContain('key = 123');
+    expect(appended).toContain('[mcp_servers.aiwf-mcp]');
+  });
+
+  it('should distribute canonical 2.0 skills to all detected environments', () => {
+    const mockHome = path.join(tempDir, 'userhome');
+    fs.mkdirSync(path.join(mockHome, '.gemini'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.codex'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.claude'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.cursor'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.codeium', 'windsurf'), { recursive: true });
+
+    const synced = syncSkills(mockHome);
+    expect(synced).toContain('Antigravity');
+    expect(synced).toContain('OpenAI Codex');
+    expect(synced).toContain('Claude Code');
+    expect(synced).toContain('Cursor');
+    expect(synced).toContain('Windsurf');
+
+    const codexSkill = fs.readFileSync(path.join(mockHome, '.codex', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
+    expect(codexSkill).toBe(CANONICAL_SKILL_MD);
+    expect(codexSkill).toContain('AI-Workflow 2.0 Skill: Causal Context & Engineering OS');
+    expect(codexSkill).toContain('recommend_next_task');
+    expect(codexSkill).toContain('claim_ticket');
+
+    const claudeSkill = fs.readFileSync(path.join(mockHome, '.claude', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
+    expect(claudeSkill).toBe(CANONICAL_SKILL_MD);
+  });
+
+  it('should wire MCP configuration, tool approvals, and rules across all hosts', () => {
+    const mockHome = path.join(tempDir, 'userhome_mcp');
+    // Setup directory structure for all hosts
+    fs.mkdirSync(path.join(mockHome, '.config', 'Antigravity IDE', 'User'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.gemini', 'config'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.codex', 'rules'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.claude'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.cursor'), { recursive: true });
+    fs.mkdirSync(path.join(mockHome, '.codeium', 'windsurf'), { recursive: true });
+
+    // Seed initial Codex config & rules
+    fs.writeFileSync(path.join(mockHome, '.codex', 'config.toml'), `model = "gpt-5"\n[mcp_servers.old]\ncmd = "test"\n`);
+    fs.writeFileSync(path.join(mockHome, '.codex', 'rules', 'default.rules'), `prefix_rule(pattern=["npm", "test"], decision="allow")\n`);
+    fs.writeFileSync(path.join(mockHome, '.codex', 'AGENTS.md'), `# Instructions\n@LEAN-CTX.md\n`);
+    fs.writeFileSync(path.join(mockHome, '.claude.json'), JSON.stringify({ mcpServers: {} }));
+
+    const fakeMcpPath = path.join(tempDir, 'fake-mcp.ts');
+    fs.writeFileSync(fakeMcpPath, '// fake mcp');
+
+    const res = configureMcp({
+      mcpPath: fakeMcpPath,
+      homeDir: mockHome
+    });
+
+    expect(res.hostsUpdated).toContain('Antigravity IDE');
+    expect(res.hostsUpdated).toContain('Antigravity CLI');
+    expect(res.hostsUpdated).toContain('OpenAI Codex');
+    expect(res.hostsUpdated).toContain('Claude Code');
+    expect(res.hostsUpdated).toContain('Cursor');
+    expect(res.hostsUpdated).toContain('Windsurf');
+
+    // 1. Verify Codex config.toml has all 2.0 tool approvals
+    const codexToml = fs.readFileSync(path.join(mockHome, '.codex', 'config.toml'), 'utf8');
+    expect(codexToml).toContain('[mcp_servers.aiwf-mcp]');
+    expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.claim_ticket]');
+    expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.recommend_next_task]');
+    expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.apply_block_patch]');
+    expect(codexToml).toContain('approval_mode = "approve"');
+
+    // 2. Verify Codex rules has prefix_rule for aiwf and ai-workflow
+    const codexRules = fs.readFileSync(path.join(mockHome, '.codex', 'rules', 'default.rules'), 'utf8');
+    expect(codexRules).toContain('prefix_rule(pattern=["aiwf"], decision="allow")');
+    expect(codexRules).toContain('prefix_rule(pattern=["ai-workflow"], decision="allow")');
+
+    // 3. Verify Codex AGENTS.md and AI-WORKFLOW.md
+    const agentsMd = fs.readFileSync(path.join(mockHome, '.codex', 'AGENTS.md'), 'utf8');
+    expect(agentsMd).toContain('@AI-WORKFLOW.md');
+    expect(fs.existsSync(path.join(mockHome, '.codex', 'AI-WORKFLOW.md'))).toBe(true);
+
+    // 4. Verify Claude JSON
+    const claudeJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.claude.json'), 'utf8'));
+    expect(claudeJson.mcpServers['ai-workflow'].command).toBe('bun');
+    expect(claudeJson.mcpServers['ai-workflow'].args).toEqual(['run', fakeMcpPath]);
+
+    // 5. Verify Cursor JSON
+    const cursorJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.cursor', 'mcp.json'), 'utf8'));
+    expect(cursorJson.mcpServers['ai-workflow'].instructions).toBe(MCP_INSTRUCTIONS_2_0);
+
+    // 6. Verify Windsurf JSON
+    const windsurfJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.codeium', 'windsurf', 'mcp_config.json'), 'utf8'));
+    expect(windsurfJson.mcpServers['ai-workflow'].instructions).toBe(MCP_INSTRUCTIONS_2_0);
+  });
+
+  it('should install and verify global binary symlink in custom directory', () => {
+    const mockHome = path.join(tempDir, 'userhome_bin');
+    const fakeCli = path.join(tempDir, 'fake-cli.ts');
+    fs.writeFileSync(fakeCli, '#!/usr/bin/env bun\nconsole.log("cli");\n');
+
+    const res = installGlobalBinary(fakeCli, mockHome);
+    expect(res.binaryPath).toBe(fakeCli);
+    expect(res.symlinkTarget).toBe(path.join(mockHome, '.local', 'bin', 'aiwf'));
+    expect(fs.existsSync(res.symlinkTarget)).toBe(true);
+    expect(fs.lstatSync(res.symlinkTarget).isSymbolicLink()).toBe(true);
   });
 });
 

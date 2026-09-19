@@ -156,10 +156,13 @@ async function main() {
       if (isMcp) {
         const mcpRes = configureMcp();
         console.log(`🔌 Configured MCP hosts: ${mcpRes.hostsUpdated.join(', ') || 'None'}`);
+        if (mcpRes.skillsSynced && mcpRes.skillsSynced.length > 0) {
+          console.log(`🧠 Synchronized skills to: ${mcpRes.skillsSynced.join(', ')}`);
+        }
         console.log(`📄 Exported ${mcpRes.schemasCount} tool schema(s) to ${mcpRes.schemasDir}`);
       }
 
-      console.log(`✨ Setup complete! 'aiwf' is ready globally and in your IDE.`);
+      console.log(`✨ Setup complete! 'aiwf' is ready globally and wired into all AI environments.`);
       break;
     }
 

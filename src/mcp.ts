@@ -96,34 +96,58 @@ export function createMcpServer(options: McpServerOptions = {}) {
   // 2. Call Tool
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+
+    // Dynamically resolve target project root if caller passed a file/path/target/projectRoot
+    let activeRoot = root;
+    let activeStore = store;
+    const potentialPath = (args as any)?.projectRoot || (args as any)?.file || (args as any)?.path || (args as any)?.target;
+    if (typeof potentialPath === 'string' && (path.isAbsolute(potentialPath) || fs.existsSync(potentialPath))) {
+      try {
+        const resolvedPath = path.resolve(potentialPath);
+        const candidateDir = fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()
+          ? resolvedPath
+          : path.dirname(resolvedPath);
+        const found = findProjectRoot(candidateDir);
+        if (found.root !== root) {
+          activeRoot = found.root;
+          activeStore = new WorkflowStore(activeRoot);
+        }
+      } catch {}
+    }
+
     const ctx: ToolContext = {
-      store,
-      projectRoot: root
+      store: activeStore,
+      projectRoot: activeRoot
     };
 
-    if (name === 'execute_shell_wish') {
-      const wish = String(args?.wish || '');
-      const mode = args?.mode as ShellMode | undefined;
-      const res = await actor.execute(wish, mode);
-
-      let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
-      if (res.stepsCount > 0) {
-        text += `\n\n*Executed ${res.stepsCount} autonomous step(s).*`;
-      }
-      return {
-        content: [{ type: 'text', text }]
-      };
-    }
-
-    const tool = registry.get(name);
-    if (!tool) {
-      return {
-        isError: true,
-        content: [{ type: 'text', text: `Tool '${name}' is not registered in AI-Workflow.` }]
-      };
-    }
-
     try {
+      if (name === 'execute_shell_wish') {
+        const wish = String(args?.wish || '');
+        const mode = args?.mode as ShellMode | undefined;
+        const activeActor = activeRoot === root ? actor : new WorkflowActor({
+          store: activeStore,
+          projectRoot: activeRoot,
+          preferLocal: true
+        });
+        const res = await activeActor.execute(wish, mode);
+
+        let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
+        if (res.stepsCount > 0) {
+          text += `\n\n*Executed ${res.stepsCount} autonomous step(s).*`;
+        }
+        return {
+          content: [{ type: 'text', text }]
+        };
+      }
+
+      const tool = registry.get(name);
+      if (!tool) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Tool '${name}' is not registered in AI-Workflow.` }]
+        };
+      }
+
       const result = await registry.execute(name, args || {}, ctx);
       return {
         content: [
@@ -138,6 +162,10 @@ export function createMcpServer(options: McpServerOptions = {}) {
         isError: true,
         content: [{ type: 'text', text: `Execution error in '${name}': ${err.message}` }]
       };
+    } finally {
+      if (activeStore !== store) {
+        try { activeStore.close(); } catch {}
+      }
     }
   });
 
