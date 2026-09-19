@@ -2,10 +2,22 @@
  * Responsibility: Interactive Terminal REPL & Shell Bridge.
  * Scope: Dual-nature REPL supporting deterministic fast-path commands (<5ms),
  * mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), and autonomous LLM wish execution.
+ * Powered by @dharmax/ai-shell for raw TTY editing, smart completions, and interactive facilitation.
  */
 
-import readline from 'node:readline';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import {
+  TtyInputReader,
+  SmartCompleter,
+  InteractivePrompter,
+  ParameterFacilitator,
+  TerminalFormatter,
+  type CommandSchema
+} from '@dharmax/ai-shell';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
+import { Ticket } from './graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
@@ -17,6 +29,9 @@ export interface ShellSession {
   store: WorkflowStore;
   actor: WorkflowActor;
   projectRoot: string;
+  prompter?: InteractivePrompter;
+  facilitator?: ParameterFacilitator;
+  interactive?: boolean;
 }
 
 export const SHELL_COMMANDS = [
@@ -70,6 +85,9 @@ export async function processShellInput(
     projectRoot: session.projectRoot
   };
 
+  const facilitator = session.facilitator || new ParameterFacilitator(session.prompter);
+  const isInteractive = session.interactive ?? (session.prompter ? session.prompter.getIsTty() : false);
+
   // 1. Session Control & Mode Switching
   if (lower === 'exit' || lower === 'quit' || lower === '/exit') {
     return { output: 'Goodbye!', exit: true };
@@ -87,6 +105,7 @@ Commands:
   release <ticketId>         - Release active ticket lease
   done <ticketId>            - Mark ticket as Done, release lease, and sync Kanban
   move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
+  create <title>             - Create ticket in Todo lane
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
   sync                       - Bi-directional sync between SQLite Graph and Markdown
   diff                       - Display uncommitted git diff
@@ -149,9 +168,19 @@ Commands:
   }
 
   if (lower.startsWith('escalate') || lower.startsWith('/escalate')) {
-    const parts = line.replace(/^\/?escalate\s*/i, '').trim().split(/\s+/);
-    const target = parts[0] as any;
+    const parts = line.replace(/^\/?escalate\s*/i, '').trim().split(/\s+/).filter(Boolean);
+    let target = parts[0] as any;
     const cfg = loadConfig(session.projectRoot);
+
+    if (!target && isInteractive) {
+      const prompter = facilitator.getPrompter();
+      target = await prompter.select(
+        'Select escalation policy',
+        ['auto', 'local_only', 'prompt', 'sota'],
+        cfg.escalation?.policy || 'auto'
+      );
+    }
+
     if (['auto', 'local_only', 'prompt', 'sota'].includes(target)) {
       saveConfig(session.projectRoot, {
         escalation: {
@@ -200,47 +229,214 @@ Commands:
     };
   }
 
-  if (lower.startsWith('claim ')) {
-    const parts = line.slice(6).trim().split(/\s+/);
-    const ticketId = parts[0];
-    const agentId = parts[1] || 'human-operator';
-    const durationMinutes = parts[2] ? Number(parts[2]) : 30;
+  if (lower === 'claim' || lower.startsWith('claim ')) {
+    const rawTokens = line.replace(/^claim\s*/i, '').trim().split(/\s+/).filter(Boolean);
+    const rawArgs: Record<string, any> = {};
+    if (rawTokens[0]) rawArgs.ticketId = rawTokens[0];
+    if (rawTokens[1]) rawArgs.agentId = rawTokens[1];
+    if (rawTokens[2]) rawArgs.durationMinutes = rawTokens[2];
 
-    const res = await registry.execute('claim_ticket', { ticketId, agentId, durationMinutes }, ctx);
-    if (res.success) return { output: `Claimed ticket ${ticketId} for ${durationMinutes}m by '${agentId}'.` };
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'claim',
+          description: 'Atomically lease a ticket',
+          inputs: {
+            ticketId: {
+              type: 'string',
+              required: true,
+              description: 'Ticket ID to claim (e.g. TKT-1)',
+              choices: async () => {
+                try {
+                  const tickets = await session.store.listEntities(Ticket.dcr);
+                  return tickets.map((t: any) => t.id);
+                } catch {
+                  return [];
+                }
+              }
+            },
+            agentId: {
+              type: 'string',
+              default: 'human-operator',
+              description: 'Agent ID leasing the ticket'
+            },
+            durationMinutes: {
+              type: 'number',
+              default: 30,
+              description: 'Lease duration in minutes'
+            }
+          }
+        },
+        rawArgs,
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: claim <ticketId> [agent] [minutes]' };
+    }
+
+    const res = await registry.execute(
+      'claim_ticket',
+      {
+        ticketId: args.ticketId,
+        agentId: args.agentId || 'human-operator',
+        durationMinutes: args.durationMinutes || 30
+      },
+      ctx
+    );
+    if (res.success) return { output: `Claimed ticket ${args.ticketId} for ${args.durationMinutes}m by '${args.agentId}'.` };
     return { output: `Failed to claim: ${res.message}` };
   }
 
-  if (lower.startsWith('release ')) {
-    const ticketId = line.slice(8).trim();
-    const res = await registry.execute('release_ticket', { ticketId }, ctx);
-    return { output: res.success ? `Released ticket ${ticketId}.` : `Ticket '${ticketId}' not found or lease inactive.` };
+  if (lower === 'release' || lower.startsWith('release ')) {
+    const ticketId = line.replace(/^release\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'release',
+          description: 'Release active ticket lease',
+          inputs: {
+            ticketId: {
+              type: 'string',
+              required: true,
+              description: 'Ticket ID to release',
+              choices: async () => {
+                try {
+                  const claims = await session.store.getActiveClaims();
+                  return claims.map((c: any) => c.ticketId);
+                } catch {
+                  return [];
+                }
+              }
+            }
+          }
+        },
+        ticketId ? { ticketId } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: release <ticketId>' };
+    }
+
+    const res = await registry.execute('release_ticket', { ticketId: args.ticketId }, ctx);
+    return { output: res.success ? `Released ticket ${args.ticketId}.` : `Ticket '${args.ticketId}' not found or lease inactive.` };
   }
 
-  if (lower.startsWith('create ') || lower.startsWith('new ')) {
-    const title = line.replace(/^(create|new)\s+/i, '').trim();
-    if (!title) return { output: 'Usage: create <title>' };
-    const res = await registry.execute('create_ticket', { title, lane: 'Todo' }, ctx);
+  if (lower === 'create' || lower === 'new' || lower.startsWith('create ') || lower.startsWith('new ')) {
+    const title = line.replace(/^(create|new)\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'create',
+          description: 'Create a new ticket in Todo lane',
+          inputs: {
+            title: {
+              type: 'string',
+              required: true,
+              description: 'Ticket title'
+            }
+          }
+        },
+        title ? { title } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: create <title>' };
+    }
+
+    if (!args.title) return { output: 'Usage: create <title>' };
+    const res = await registry.execute('create_ticket', { title: args.title, lane: 'Todo' }, ctx);
     await exportProjections(session.store, session.projectRoot);
     return { output: `Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.` };
   }
 
-  if (lower.startsWith('done ')) {
-    const ticketId = line.slice(5).trim();
-    await registry.execute('update_ticket_state', { ticketId, lane: 'Done' }, ctx);
-    await registry.execute('release_ticket', { ticketId }, ctx);
+  if (lower === 'done' || lower.startsWith('done ')) {
+    const ticketId = line.replace(/^done\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'done',
+          description: 'Mark ticket as Done, release lease, and sync Kanban',
+          inputs: {
+            ticketId: {
+              type: 'string',
+              required: true,
+              description: 'Ticket ID to mark Done',
+              choices: async () => {
+                try {
+                  const tickets = await session.store.listEntities(Ticket.dcr);
+                  return tickets.filter((t: any) => t.lane !== 'Done').map((t: any) => t.id);
+                } catch {
+                  return [];
+                }
+              }
+            }
+          }
+        },
+        ticketId ? { ticketId } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: done <ticketId>' };
+    }
+
+    await registry.execute('update_ticket_state', { ticketId: args.ticketId, lane: 'Done' }, ctx);
+    await registry.execute('release_ticket', { ticketId: args.ticketId }, ctx);
     await exportProjections(session.store, session.projectRoot);
-    return { output: `Marked ticket '${ticketId}' as Done and synced Kanban.` };
+    return { output: `Marked ticket '${args.ticketId}' as Done and synced Kanban.` };
   }
 
-  if (lower.startsWith('move ')) {
-    const parts = line.slice(5).trim().split(/\s+/);
-    const ticketId = parts[0];
-    const lane = parts.slice(1).join(' ') as any;
-    if (!ticketId || !lane) return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
-    await registry.execute('update_ticket_state', { ticketId, lane }, ctx);
+  if (lower === 'move' || lower.startsWith('move ')) {
+    const parts = line.replace(/^move\s*/i, '').trim().split(/\s+/).filter(Boolean);
+    const rawArgs: Record<string, any> = {};
+    if (parts[0]) rawArgs.ticketId = parts[0];
+    if (parts.length > 1) rawArgs.lane = parts.slice(1).join(' ');
+
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'move',
+          description: 'Move ticket to lane',
+          inputs: {
+            ticketId: {
+              type: 'string',
+              required: true,
+              description: 'Ticket ID to move (e.g. TKT-1)',
+              choices: async () => {
+                try {
+                  const tickets = await session.store.listEntities(Ticket.dcr);
+                  return tickets.map((t: any) => t.id);
+                } catch {
+                  return [];
+                }
+              }
+            },
+            lane: {
+              type: 'string',
+              required: true,
+              description: 'Target lane',
+              choices: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']
+            }
+          }
+        },
+        rawArgs,
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
+    }
+
+    if (!args.ticketId || !args.lane) {
+      return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
+    }
+
+    await registry.execute('update_ticket_state', { ticketId: args.ticketId, lane: args.lane }, ctx);
     await exportProjections(session.store, session.projectRoot);
-    return { output: `Moved ticket '${ticketId}' to '${lane}'.` };
+    return { output: `Moved ticket '${args.ticketId}' to '${args.lane}'.` };
   }
 
   if (lower.startsWith('tickets') || lower === 'list') {
@@ -264,38 +460,129 @@ Commands:
     return { output: diff.diff ? diff.diff.trim() : 'Working tree is clean. No uncommitted changes.' };
   }
 
-  if (lower.startsWith('symbol ')) {
-    const name = line.slice(7).trim();
-    const symbols = await registry.execute('find_symbol', { name }, ctx);
-    if (symbols.length === 0) return { output: `No symbol found matching '${name}'.` };
+  if (lower === 'symbol' || lower.startsWith('symbol ')) {
+    const name = line.replace(/^symbol\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'symbol',
+          description: 'Find symbol in AST+ semantic graph',
+          inputs: {
+            name: {
+              type: 'string',
+              required: true,
+              description: 'Symbol name to find'
+            }
+          }
+        },
+        name ? { name } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: symbol <name>' };
+    }
+
+    const symbols = await registry.execute('find_symbol', { name: args.name }, ctx);
+    if (symbols.length === 0) return { output: `No symbol found matching '${args.name}'.` };
     return {
       output: symbols.map((s: any) => `[${s.kind}] ${s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}`).join('\n')
     };
   }
 
-  if (lower.startsWith('slice ')) {
-    const parts = line.slice(6).trim().split(/\s+/);
-    if (parts.length < 2) return { output: 'Usage: slice <filePath> <symbolName>' };
-    const [filePath, symbolName] = parts;
-    const slice = await registry.execute('get_symbol_source', { filePath, symbolName }, ctx);
-    if (!slice.code) return { output: `Symbol '${symbolName}' not found in ${filePath}.` };
-    return { output: `// ${filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
+  if (lower === 'slice' || lower.startsWith('slice ')) {
+    const parts = line.replace(/^slice\s*/i, '').trim().split(/\s+/).filter(Boolean);
+    const rawArgs: Record<string, any> = {};
+    if (parts[0]) rawArgs.filePath = parts[0];
+    if (parts[1]) rawArgs.symbolName = parts[1];
+
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'slice',
+          description: 'Slice and extract source code of a symbol',
+          inputs: {
+            filePath: {
+              type: 'string',
+              required: true,
+              description: 'File path containing symbol'
+            },
+            symbolName: {
+              type: 'string',
+              required: true,
+              description: 'Symbol name to extract'
+            }
+          }
+        },
+        rawArgs,
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: slice <filePath> <symbolName>' };
+    }
+
+    const slice = await registry.execute('get_symbol_source', { filePath: args.filePath, symbolName: args.symbolName }, ctx);
+    if (!slice.code) return { output: `Symbol '${args.symbolName}' not found in ${args.filePath}.` };
+    return { output: `// ${args.filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
   }
 
-  if (lower.startsWith('outline ')) {
-    const filePath = line.slice(8).trim();
-    const outline = await registry.execute('get_file_outline', { filePath }, ctx);
-    if (outline.symbols.length === 0) return { output: `No symbols indexed for ${filePath}.` };
+  if (lower === 'outline' || lower.startsWith('outline ')) {
+    const filePath = line.replace(/^outline\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'outline',
+          description: 'Display AST symbol outline for a file',
+          inputs: {
+            filePath: {
+              type: 'string',
+              required: true,
+              description: 'File path to outline'
+            }
+          }
+        },
+        filePath ? { filePath } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: outline <filePath>' };
+    }
+
+    const outline = await registry.execute('get_file_outline', { filePath: args.filePath }, ctx);
+    if (outline.symbols.length === 0) return { output: `No symbols indexed for ${args.filePath}.` };
     return {
-      output: `${filePath} (${outline.symbolCount} symbols):\n` +
+      output: `${args.filePath} (${outline.symbolCount} symbols):\n` +
         outline.symbols.map((s: any) => `  - Line ${(s.line || 1).toString().padEnd(4)} [${s.kind}] ${s.name}`).join('\n')
     };
   }
 
-  if (lower.startsWith('blast ')) {
-    const target = line.slice(6).trim();
-    const blast = await registry.execute('analyze_blast_radius', { target }, ctx);
-    let out = `Blast Radius for '${target}':\n`;
+  if (lower === 'blast' || lower.startsWith('blast ')) {
+    const target = line.replace(/^blast\s*/i, '').trim();
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'blast',
+          description: 'Analyze blast radius of file or symbol',
+          inputs: {
+            target: {
+              type: 'string',
+              required: true,
+              description: 'File path or symbol name to analyze'
+            }
+          }
+        },
+        target ? { target } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: blast <target>' };
+    }
+
+    const blast = await registry.execute('analyze_blast_radius', { target: args.target }, ctx);
+    let out = `Blast Radius for '${args.target}':\n`;
     out += `  Affected Files (${blast.affectedFiles.length}): ${blast.affectedFiles.join(', ') || 'None'}\n`;
     out += `  Recommended Tests (${blast.recommendedTests.length}): ${blast.recommendedTests.join(', ') || 'None'}\n`;
     out += `  Dependent Tickets (${blast.dependentTickets.length}): ${blast.dependentTickets.join(', ') || 'None'}`;
@@ -397,6 +684,92 @@ export function shellCompleter(line: string): [string[], string] {
   return [hits.length ? hits : SHELL_COMMANDS, line];
 }
 
+export function getTicketIdsSync(store: WorkflowStore): string[] {
+  try {
+    const rows = store.db.query('SELECT _id FROM aiwf_Ticket').all() as { _id: string }[];
+    return rows.map((r) => r._id.replace(/^aiwf_Ticket_/, ''));
+  } catch {
+    return [];
+  }
+}
+
+export function buildSmartCompleter(session: ShellSession): SmartCompleter {
+  const completer = new SmartCompleter({
+    builtins: SHELL_COMMANDS,
+    subcommands: {
+      move: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
+      tickets: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
+      escalate: ['auto', 'local_only', 'prompt', 'sota'],
+      '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
+      config: ['get', 'set'],
+      radar: ['refresh'],
+      '/radar': ['refresh']
+    }
+  });
+
+  // Dynamic ticket and lane completion provider
+  completer.addCustomCompleter((line, cursorPos) => {
+    const beforeCursor = line.slice(0, cursorPos);
+    const trimmedStart = beforeCursor.trimStart();
+    if (!trimmedStart) return null;
+
+    const endsWithSpace = beforeCursor.endsWith(' ');
+    const tokens = trimmedStart.trim().split(/\s+/).filter(Boolean);
+    const verb = tokens[0]?.toLowerCase();
+
+    if (['claim', 'release', 'done'].includes(verb)) {
+      if ((tokens.length === 1 && endsWithSpace) || (tokens.length === 2 && !endsWithSpace)) {
+        const prefix = endsWithSpace ? '' : tokens[1];
+        const ticketIds = getTicketIdsSync(session.store);
+        const matches = ticketIds.filter((id: string) => id.startsWith(prefix));
+        if (matches.length > 0) {
+          return {
+            completions: matches,
+            prefix,
+            startIndex: beforeCursor.length - prefix.length,
+            endIndex: cursorPos
+          };
+        }
+      }
+    }
+
+    if (verb === 'move') {
+      if ((tokens.length === 1 && endsWithSpace) || (tokens.length === 2 && !endsWithSpace)) {
+        const prefix = endsWithSpace ? '' : tokens[1];
+        const ticketIds = getTicketIdsSync(session.store);
+        const matches = ticketIds.filter((id: string) => id.startsWith(prefix));
+        if (matches.length > 0) {
+          return {
+            completions: matches,
+            prefix,
+            startIndex: beforeCursor.length - prefix.length,
+            endIndex: cursorPos
+          };
+        }
+      }
+
+      if ((tokens.length === 2 && endsWithSpace) || (tokens.length >= 3 && !endsWithSpace)) {
+        const laneTokens = endsWithSpace ? [] : tokens.slice(2);
+        const prefix = laneTokens.join(' ');
+        const lanes = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
+        const matches = lanes.filter((l) => l.toLowerCase().startsWith(prefix.toLowerCase()));
+        if (matches.length > 0) {
+          return {
+            completions: matches,
+            prefix,
+            startIndex: beforeCursor.length - prefix.length,
+            endIndex: cursorPos
+          };
+        }
+      }
+    }
+
+    return null;
+  });
+
+  return completer;
+}
+
 export async function startShell(options: {
   store?: WorkflowStore;
   projectRoot?: string;
@@ -412,42 +785,68 @@ export async function startShell(options: {
     preferLocal: true
   });
 
-  const session: ShellSession = { store, actor, projectRoot: root };
+  const tty = new TtyInputReader();
+  const prompter = new InteractivePrompter(tty);
+  const facilitator = new ParameterFacilitator(prompter);
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: true,
-    completer: shellCompleter
-  });
-
-  const prompt = () => {
-    rl.setPrompt(`aiwf [${session.actor.mode.toUpperCase()}] > `);
-    rl.prompt();
+  const session: ShellSession = {
+    store,
+    actor,
+    projectRoot: root,
+    prompter,
+    facilitator,
+    interactive: tty.getIsTty()
   };
+
+  const completer = buildSmartCompleter(session);
 
   console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Shell (Bun-First Context OS)\x1b[0m`);
   console.log(`Type 'help' for commands or write any instruction. Tab completion active.\n`);
 
-  prompt();
+  const historyDir = path.join(os.homedir(), '.local', 'share', 'ai-workflow');
+  const historyFile = path.join(historyDir, 'history');
+  let history: string[] = [];
+  try {
+    if (fs.existsSync(historyFile)) {
+      history = fs.readFileSync(historyFile, 'utf8').split(/\r?\n/).filter(Boolean).slice(-1000);
+    }
+  } catch {}
 
-  rl.on('line', async (line) => {
+  while (true) {
+    const promptStr = `aiwf [${session.actor.mode.toUpperCase()}] > `;
+    const line = await tty.readLine(promptStr, {
+      completer,
+      history,
+      cwd: session.projectRoot
+    });
+
+    if (line === null) {
+      // EOF
+      break;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Record history
+    if (history[history.length - 1] !== trimmed) {
+      history.push(trimmed);
+      try {
+        if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
+        fs.appendFileSync(historyFile, trimmed + '\n', 'utf8');
+      } catch {}
+    }
+
     try {
-      const res = await processShellInput(line, session);
+      const res = await processShellInput(trimmed, session);
       if (res.output) console.log(res.output);
       if (res.exit) {
-        rl.close();
-        return;
+        break;
       }
     } catch (err: any) {
       console.error(`Error: ${err.message}`);
     }
-    prompt();
-  });
-
-  rl.on('close', () => {
-    process.exit(0);
-  });
+  }
 }
 
 if (import.meta.main) {

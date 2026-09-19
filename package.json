@@ -29,6 +29,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@dharmax/ai-shell": "file:../ai-shell",
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
@@ -40,6 +41,7 @@
     "zod": "^4.5.4"
   },
   "overrides": {
+    "@dharmax/ai-shell": "file:../ai-shell",
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
