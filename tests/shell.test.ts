@@ -203,7 +203,7 @@ describe('Interactive Shell REPL Bridge', () => {
 
   it('should interactively facilitate missing parameters via InteractivePrompter', async () => {
     const { Ticket } = await import('../src/graph/ontology.ts');
-    const { InteractivePrompter, ParameterFacilitator } = await import('@dharmax/ai-shell');
+    const { InteractivePrompter, ParameterFacilitator } = await import('@dharmax/shell-ui');
 
     await session.store.upsertEntity(Ticket.dcr, {
       id: 'TKT-PROMPT-1',

@@ -2,7 +2,7 @@
  * Responsibility: Interactive Terminal REPL & Shell Bridge.
  * Scope: Dual-nature REPL supporting deterministic fast-path commands (<5ms),
  * mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), and autonomous LLM wish execution.
- * Powered by @dharmax/ai-shell for raw TTY editing, smart completions, and interactive facilitation.
+ * Powered by @dharmax/shell-ui for raw TTY editing, smart completions, and interactive facilitation.
  */
 
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ import {
   ParameterFacilitator,
   TerminalFormatter,
   type CommandSchema
-} from '@dharmax/ai-shell';
+} from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { Ticket } from './graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';

@@ -29,7 +29,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@dharmax/ai-shell": "file:../ai-shell",
+    "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
@@ -37,11 +37,11 @@
     "@dharmax/pubsub": "file:../pubsub",
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/text-compiler": "file:../text-compiler",
-    "@modelcontextprotocol/sdk": "^1.6.0",
-    "zod": "^4.5.4"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.6.5"
   },
   "overrides": {
-    "@dharmax/ai-shell": "file:../ai-shell",
+    "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
@@ -51,9 +51,9 @@
     "@dharmax/text-compiler": "file:../text-compiler"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.14",
-    "@types/node": "^26.0.1",
-    "happy-dom": "^20.11.6",
-    "typescript": "^6.0.3"
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.2",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2"
   }
 }
