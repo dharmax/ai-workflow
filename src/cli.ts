@@ -301,17 +301,154 @@ async function main() {
 
     case 'symbol': {
       const name = args[1];
-      if (!name) {
-        console.error(`Usage: aiwf symbol <symbolName>`);
+      if (!name || name.startsWith('-')) {
+        console.error(`Usage: aiwf symbol <symbolName> [--exact|-e] [--regex|-r] [--kind|-k <kind>] [--file|-f <path>] [--exported] [-n <limit>]`);
+        process.exit(1);
+      }
+      const exact = args.includes('--exact') || args.includes('-e');
+      const regex = args.includes('--regex') || args.includes('-r');
+      const exportedOnly = args.includes('--exported');
+
+      let kind: string | undefined;
+      const kIdx = args.indexOf('--kind') !== -1 ? args.indexOf('--kind') : args.indexOf('-k');
+      if (kIdx !== -1 && args[kIdx + 1]) kind = args[kIdx + 1];
+
+      let filePath: string | undefined;
+      const fIdx = args.indexOf('--file') !== -1 ? args.indexOf('--file') : args.indexOf('-f');
+      if (fIdx !== -1 && args[fIdx + 1]) filePath = args[fIdx + 1];
+
+      let limit = 50;
+      const nIdx = args.indexOf('-n') !== -1 ? args.indexOf('-n') : args.indexOf('--limit');
+      if (nIdx !== -1 && args[nIdx + 1]) limit = Number(args[nIdx + 1]) || 50;
+
+      const store = getStore();
+      const symbols = await registry.execute('find_symbol', {
+        name,
+        filePath,
+        kind,
+        exact,
+        regex,
+        exportedOnly,
+        limit
+      }, { store, projectRoot: root });
+
+      if (symbols.length === 0) {
+        console.log(`No symbol found matching '${name}'${kind ? ` (kind: ${kind})` : ''}.`);
+      } else {
+        console.log(`\x1b[1;36m🔍 AST Symbols matching '${name}' (${symbols.length} found):\x1b[0m`);
+        for (const s of symbols) {
+          const exportBadge = s.exported ? ' \x1b[32m(exported)\x1b[0m' : '';
+          const sig = s.signature ? ` \x1b[90m// ${s.signature}\x1b[0m` : '';
+          console.log(`  \x1b[33m[${s.kind}]\x1b[0m \x1b[1m${s.fullName || s.name}\x1b[0m -> ${s.filePath}:${s.line || 1}:${s.column || 0}${exportBadge}${sig}`);
+        }
+      }
+      break;
+    }
+
+    case 'graph': {
+      const query = args[1] && !args[1].startsWith('-') ? args[1] : undefined;
+      let entityType: any;
+      const tIdx = args.indexOf('--type') !== -1 ? args.indexOf('--type') : args.indexOf('-t');
+      if (tIdx !== -1 && args[tIdx + 1]) entityType = args[tIdx + 1];
+
+      let predicate: any;
+      const pIdx = args.indexOf('--pred') !== -1 ? args.indexOf('--pred') : args.indexOf('-p');
+      if (pIdx !== -1 && args[pIdx + 1]) predicate = args[pIdx + 1];
+
+      let sourceId: string | undefined;
+      const srcIdx = args.indexOf('--from') !== -1 ? args.indexOf('--from') : args.indexOf('--source');
+      if (srcIdx !== -1 && args[srcIdx + 1]) sourceId = args[srcIdx + 1];
+
+      let targetId: string | undefined;
+      const tgtIdx = args.indexOf('--to') !== -1 ? args.indexOf('--to') : args.indexOf('--target');
+      if (tgtIdx !== -1 && args[tgtIdx + 1]) targetId = args[tgtIdx + 1];
+
+      let maxDepth = 1;
+      const dIdx = args.indexOf('--depth') !== -1 ? args.indexOf('--depth') : args.indexOf('-d');
+      if (dIdx !== -1 && args[dIdx + 1]) maxDepth = Number(args[dIdx + 1]) || 1;
+
+      let limit = 50;
+      const nIdx = args.indexOf('-n') !== -1 ? args.indexOf('-n') : args.indexOf('--limit');
+      if (nIdx !== -1 && args[nIdx + 1]) limit = Number(args[nIdx + 1]) || 50;
+
+      const store = getStore();
+      const res = await registry.execute('search_graph', {
+        query,
+        entityType,
+        predicate,
+        sourceId,
+        targetId,
+        maxDepth,
+        limit
+      }, { store, projectRoot: root });
+
+      if (res.mode === 'traversal') {
+        console.log(`\x1b[1;36m🕸️  Graph Traversal from '${res.startId}' (depth: ${res.depth}, ${res.entitiesCount} entities, ${res.predicatesCount} connections):\x1b[0m\n`);
+        console.log(`  \x1b[1mEntities:\x1b[0m`);
+        for (const e of res.entities) {
+          console.log(`    - [${e.type}] \x1b[1m${e.title || e.id}\x1b[0m (${e.id})`);
+        }
+        console.log(`\n  \x1b[1mConnections:\x1b[0m`);
+        for (const p of res.predicates) {
+          console.log(`    - ${p.sourceId} \x1b[33m--(${p.predicate})-->\x1b[0m ${p.targetId}`);
+        }
+      } else if (res.mode === 'predicate_search') {
+        console.log(`\x1b[1;36m🔗 Predicate Search [${res.predicateFilter}] (${res.count} connection(s)):\x1b[0m`);
+        for (const p of res.results) {
+          console.log(`  - \x1b[1m${p.sourceId}\x1b[0m \x1b[33m--(${p.predicate})-->\x1b[0m \x1b[1m${p.targetId}\x1b[0m`);
+        }
+      } else {
+        console.log(`\x1b[1;36m🏛️  Graph Entity Search "${res.query}" (${res.count} match(es)):\x1b[0m`);
+        for (const e of res.results) {
+          const loc = e.filePath ? ` -> ${e.filePath}${e.line ? `:${e.line}` : ''}` : '';
+          const kindBadge = e.kind ? ` [${e.kind}]` : '';
+          console.log(`  - \x1b[33m[${e.type}${kindBadge}]\x1b[0m \x1b[1m${e.title || e.id}\x1b[0m (${e.id})${loc}`);
+        }
+      }
+      break;
+    }
+
+    case 'callers': {
+      const symbolName = args[1];
+      if (!symbolName) {
+        console.error('Usage: aiwf callers <symbolName>');
         process.exit(1);
       }
       const store = getStore();
-      const symbols = await registry.execute('find_symbol', { name }, { store, projectRoot: root });
-      if (symbols.length === 0) {
-        console.log(`No symbol found matching '${name}'.`);
+      const res = await registry.execute('search_graph', {
+        predicate: 'calls',
+        targetId: symbolName
+      }, { store, projectRoot: root });
+
+      if (res.results.length === 0) {
+        console.log(`No recorded call sites found calling '${symbolName}'.`);
       } else {
-        for (const s of symbols) {
-          console.log(`[${s.kind}] ${s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}`);
+        console.log(`\x1b[1;36m📞 Callers of '${symbolName}' (${res.results.length} call site(s)):\x1b[0m`);
+        for (const p of res.results) {
+          console.log(`  - \x1b[1m${p.sourceId}\x1b[0m calls ${p.targetId}`);
+        }
+      }
+      break;
+    }
+
+    case 'deps': {
+      const target = args[1];
+      if (!target) {
+        console.error('Usage: aiwf deps <fileOrModule>');
+        process.exit(1);
+      }
+      const store = getStore();
+      const res = await registry.execute('search_graph', {
+        sourceId: target,
+        predicate: 'depends_on'
+      }, { store, projectRoot: root });
+
+      if (res.results.length === 0) {
+        console.log(`No dependencies recorded for '${target}'.`);
+      } else {
+        console.log(`\x1b[1;36m📦 Dependencies for '${target}' (${res.results.length}):\x1b[0m`);
+        for (const p of res.results) {
+          console.log(`  - ${p.targetId}`);
         }
       }
       break;
@@ -724,7 +861,10 @@ Core Workflow Commands:
 
 Intelligence & Code Navigation:
   diff                                   Show uncommitted git diff cleanly
-  symbol <symbolName>                    Locate symbol across codebase in AST+ graph
+  symbol <name> [-e] [-r] [-k <kind>]    Locate symbol across codebase (supports --exact, --regex, --kind, --file)
+  graph [query] [--type] [--pred]        Search/traverse AST+ knowledge graph entities & semantic predicates
+  callers <symbolName>                   Find all callers and call sites invoking a symbol
+  deps <fileOrModule>                    List all static dependencies and imports for a file or module
   slice <filePath> <symbolName>          Extract exact source code snippet of a symbol
   outline <filePath>                     Print AST symbol outline for a file
   blast <targetFilePathOrSymbol>         Analyze blast radius, affected files, and recommended tests

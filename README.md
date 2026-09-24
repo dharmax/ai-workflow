@@ -94,12 +94,18 @@ aiwf <command> [options]
 | Command | Description | Example |
 | :--- | :--- | :--- |
 | `diff` | Show clean uncommitted git diff | `aiwf diff` |
-| `symbol <name>` | Find symbol across codebase in AST+ semantic graph | `aiwf symbol WorkflowStore` |
-| `slice <file> <symbol>` | Extract exact surgical code slice of a function or class | `aiwf slice src/graph/store.ts formatId` |
-| `outline <file>` | Print AST symbol outline (functions, classes, interfaces) | `aiwf outline src/graph/ontology.ts` |
+| `symbol <name>` | Find symbol across codebase in AST+ semantic graph (exact, regex, kind) | `aiwf symbol WorkflowStore -e` |
+| `graph [query]` | Query graph entities, traverse edges, or filter semantic predicates | `aiwf graph --from src/graph/indexer.ts --depth 2` |
+| `callers <symbol>` | Find all callers and call sites invoking a symbol | `aiwf callers getOutgoing` |
+| `deps <fileOrModule>`| List static module imports and dependencies | `aiwf deps src/tools/index.ts` |
+| `slice <file> <sym>` | Extract exact surgical code slice of a function or class | `aiwf slice src/graph/store.ts formatId` |
+| `outline <file>` | Print source-ordered AST symbol outline (functions, classes, interfaces) | `aiwf outline src/graph/ontology.ts` |
 | `blast <target>` | Analyze blast radius, affected files, and recommended tests | `aiwf blast src/graph/store.ts` |
+| `debug <target>` | Diagnose symbols, stack traces, or errors with snippet & blast analysis | `aiwf debug src/graph/indexer.ts:280` |
 | `index` | Re-index codebase AST symbols and modules into graph | `aiwf index` |
 | `patch <file> <s> <r>` | Apply deterministic AST block patch via block-patcher | `aiwf patch src/util.ts "oldCode" "newCode"` |
+| `scaffold <file> [desc]` | Scaffold typed source file paired with unit test harness | `aiwf scaffold src/service/auth.ts "JWT auth"` |
+| `kb <subcommand>` | Search, show, or sync content-addressable knowledgebase items | `aiwf kb search "service adapter"` |
 
 ### Diagnostics & Configuration
 | Command | Description | Example |

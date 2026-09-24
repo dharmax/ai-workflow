@@ -47,6 +47,9 @@ export const SHELL_COMMANDS = [
   'sync',
   'diff',
   'symbol',
+  'graph',
+  'callers',
+  'deps',
   'slice',
   'outline',
   'blast',
@@ -109,7 +112,10 @@ Commands:
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
   sync                       - Bi-directional sync between SQLite Graph and Markdown
   diff                       - Display uncommitted git diff
-  symbol <name>              - Find symbol in AST+ semantic graph
+  symbol <name>              - Find symbol in AST+ semantic graph (supports --exact, --kind)
+  graph [query]              - Search/traverse AST+ knowledge graph entities & relations
+  callers <symbol>           - Find all call sites invoking a symbol
+  deps <fileOrModule>        - List static dependencies and imports for a target
   slice <file> <symbol>      - Slice and extract source code of a symbol
   outline <file>             - Display AST symbol outline for a file
   blast <target>             - Analyze blast radius of file or symbol
@@ -461,32 +467,116 @@ Commands:
   }
 
   if (lower === 'symbol' || lower.startsWith('symbol ')) {
-    const name = line.replace(/^symbol\s*/i, '').trim();
-    let args: any;
-    try {
-      args = await facilitator.facilitate(
-        {
-          id: 'symbol',
-          description: 'Find symbol in AST+ semantic graph',
-          inputs: {
-            name: {
-              type: 'string',
-              required: true,
-              description: 'Symbol name to find'
+    const raw = line.replace(/^symbol\s*/i, '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    let name = parts[0] && !parts[0].startsWith('-') ? parts[0] : '';
+    const exact = parts.includes('--exact') || parts.includes('-e');
+    const regex = parts.includes('--regex') || parts.includes('-r');
+    let kind: string | undefined;
+    const kIdx = parts.indexOf('--kind') !== -1 ? parts.indexOf('--kind') : parts.indexOf('-k');
+    if (kIdx !== -1 && parts[kIdx + 1]) kind = parts[kIdx + 1];
+
+    if (!name) {
+      let args: any;
+      try {
+        args = await facilitator.facilitate(
+          {
+            id: 'symbol',
+            description: 'Find symbol in AST+ semantic graph',
+            inputs: {
+              name: {
+                type: 'string',
+                required: true,
+                description: 'Symbol name to find'
+              }
             }
-          }
-        },
-        name ? { name } : {},
-        { interactive: isInteractive }
-      );
-    } catch {
-      return { output: 'Usage: symbol <name>' };
+          },
+          {},
+          { interactive: isInteractive }
+        );
+        name = args.name;
+      } catch {
+        return { output: 'Usage: symbol <name>' };
+      }
     }
 
-    const symbols = await registry.execute('find_symbol', { name: args.name }, ctx);
-    if (symbols.length === 0) return { output: `No symbol found matching '${args.name}'.` };
+    const symbols = await registry.execute('find_symbol', { name, exact, regex, kind }, ctx);
+    if (symbols.length === 0) return { output: `No symbol found matching '${name}'${kind ? ` (kind: ${kind})` : ''}.` };
     return {
-      output: symbols.map((s: any) => `[${s.kind}] ${s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}`).join('\n')
+      output: symbols.map((s: any) => `[${s.kind}] ${s.fullName || s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}${s.signature ? ` // ${s.signature}` : ''}`).join('\n')
+    };
+  }
+
+  if (lower === 'graph' || lower.startsWith('graph ')) {
+    const raw = line.replace(/^graph\s*/i, '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    const query = parts[0] && !parts[0].startsWith('-') ? parts[0] : undefined;
+
+    let entityType: any;
+    const tIdx = parts.indexOf('--type') !== -1 ? parts.indexOf('--type') : parts.indexOf('-t');
+    if (tIdx !== -1 && parts[tIdx + 1]) entityType = parts[tIdx + 1];
+
+    let predicate: any;
+    const pIdx = parts.indexOf('--pred') !== -1 ? parts.indexOf('--pred') : parts.indexOf('-p');
+    if (pIdx !== -1 && parts[pIdx + 1]) predicate = parts[pIdx + 1];
+
+    let sourceId: string | undefined;
+    const srcIdx = parts.indexOf('--from') !== -1 ? parts.indexOf('--from') : parts.indexOf('--source');
+    if (srcIdx !== -1 && parts[srcIdx + 1]) sourceId = parts[srcIdx + 1];
+
+    let targetId: string | undefined;
+    const tgtIdx = parts.indexOf('--to') !== -1 ? parts.indexOf('--to') : parts.indexOf('--target');
+    if (tgtIdx !== -1 && parts[tgtIdx + 1]) targetId = parts[tgtIdx + 1];
+
+    let maxDepth = 1;
+    const dIdx = parts.indexOf('--depth') !== -1 ? parts.indexOf('--depth') : parts.indexOf('-d');
+    if (dIdx !== -1 && parts[dIdx + 1]) maxDepth = Number(parts[dIdx + 1]) || 1;
+
+    const res = await registry.execute('search_graph', {
+      query,
+      entityType,
+      predicate,
+      sourceId,
+      targetId,
+      maxDepth
+    }, ctx);
+
+    if (res.mode === 'traversal') {
+      let out = `Traversal from '${res.startId}' (depth: ${res.depth}, ${res.entitiesCount} entities, ${res.predicatesCount} connections):\nEntities:\n`;
+      for (const e of res.entities) out += `  - [${e.type}] ${e.title || e.id} (${e.id})\n`;
+      out += `Connections:\n`;
+      for (const p of res.predicates) out += `  - ${p.sourceId} --(${p.predicate})--> ${p.targetId}\n`;
+      return { output: out.trim() };
+    }
+    if (res.mode === 'predicate_search') {
+      if (res.results.length === 0) return { output: `No connections found for predicate '${res.predicateFilter}'.` };
+      return {
+        output: res.results.map((p: any) => `${p.sourceId} --(${p.predicate})--> ${p.targetId}`).join('\n')
+      };
+    }
+    if (res.results.length === 0) return { output: `No entities found matching '${res.query}'.` };
+    return {
+      output: res.results.map((e: any) => `[${e.type}${e.kind ? `:${e.kind}` : ''}] ${e.title || e.id} (${e.id})${e.filePath ? ` -> ${e.filePath}:${e.line || 1}` : ''}`).join('\n')
+    };
+  }
+
+  if (lower === 'callers' || lower.startsWith('callers ')) {
+    const sym = line.replace(/^callers\s*/i, '').trim();
+    if (!sym) return { output: 'Usage: callers <symbolName>' };
+    const res = await registry.execute('search_graph', { predicate: 'calls', targetId: sym }, ctx);
+    if (res.results.length === 0) return { output: `No recorded call sites found calling '${sym}'.` };
+    return {
+      output: res.results.map((p: any) => `${p.sourceId} calls ${p.targetId}`).join('\n')
+    };
+  }
+
+  if (lower === 'deps' || lower.startsWith('deps ')) {
+    const target = line.replace(/^deps\s*/i, '').trim();
+    if (!target) return { output: 'Usage: deps <fileOrModule>' };
+    const res = await registry.execute('search_graph', { sourceId: target, predicate: 'depends_on' }, ctx);
+    if (res.results.length === 0) return { output: `No dependencies recorded for '${target}'.` };
+    return {
+      output: res.results.map((p: any) => `- ${p.targetId}`).join('\n')
     };
   }
 
@@ -703,7 +793,8 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
       config: ['get', 'set'],
       radar: ['refresh'],
-      '/radar': ['refresh']
+      '/radar': ['refresh'],
+      graph: ['--type', '--pred', '--from', '--to', '--depth']
     }
   });
 

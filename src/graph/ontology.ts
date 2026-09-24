@@ -85,7 +85,8 @@ export class FileNode extends AbstractEntity {
     language: anyValidator,
     fileKind: anyValidator,
     size: anyValidator,
-    hash: anyValidator
+    hash: anyValidator,
+    mtime: anyValidator
   };
   static readonly dcr = new EntityDcr(FileNode, FileNode.template);
 }
@@ -98,7 +99,8 @@ export class SymbolNode extends AbstractEntity {
     exported: { validate: (v: any) => ({ value: Boolean(v) }) },
     line: { validate: (v: any) => ({ value: Number(v) || 1 }) },
     column: { validate: (v: any) => ({ value: Number(v) || 0 }) },
-    signature: anyValidator
+    signature: anyValidator,
+    containerName: anyValidator
   };
   static readonly dcr = new EntityDcr(SymbolNode, SymbolNode.template);
 }

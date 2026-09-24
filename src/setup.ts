@@ -43,7 +43,7 @@ export interface ConfigureMcpOptions {
 }
 
 export const MCP_INSTRUCTIONS_2_0 =
-  'ai-workflow 2.0 Causal Context & Engineering OS: Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use find_symbol, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context; use resolve_test_target & triage_test_failures for verification; use apply_block_patch, compile_codelet & promote_codelet for code mutations; update_ticket_state & release_ticket upon completion.';
+  'ai-workflow 2.0 Causal Context & Engineering OS: Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for verification; use apply_block_patch, compile_codelet & promote_codelet for code mutations; update_ticket_state & release_ticket upon completion.';
 
 export const CANONICAL_SKILL_MD = `---
 name: ai-workflow
@@ -66,11 +66,15 @@ AI-Workflow provides high-efficiency deterministic tools and a causal AST+ Conte
      \`Active Agent Lease -> P0/P1 High-Priority Bugs -> Unleased Todo Tasks\`.
 3. **Lease Before Edit (Mandatory Safety)**:
    - Always lease the target ticket before touching code: \`aiwf claim <ticketId>\` (or MCP \`claim_ticket\`). Never mutate code without an active lease.
-4. **Surgical Slicing & Blast Radius**:
-   - Use \`aiwf symbol <name>\` (MCP \`find_symbol\`) to locate symbols.
-   - Use \`aiwf slice <file> <symbol>\` (MCP \`get_symbol_source\`) to inspect 30-50 line function bodies without dumping full files.
-   - Use \`aiwf outline <file>\` (MCP \`get_file_outline\`) to inspect file exports and signatures.
+4. **Graph Intelligence, Callers & Blast Radius**:
+   - Use \`aiwf symbol <name>\` (MCP \`find_symbol\`) to locate symbols (exact, regex, kind filter, container resolution) with automatic incremental freshness.
+   - Use \`aiwf graph [query]\` (MCP \`search_graph\`) to query entities, semantic predicates, and traverse dependency / call graphs.
+   - Use \`aiwf callers <symbol>\` (MCP \`search_graph(predicate="calls", targetId=...)\`) to find all callers and invocation sites.
+   - Use \`aiwf deps <file>\` (MCP \`search_graph(predicate="depends_on", sourceId=...)\`) to inspect module dependencies and static imports.
+   - Use \`aiwf slice <file> <symbol>\` (MCP \`get_symbol_source\`) to inspect exact function bodies without dumping full files into context.
+   - Use \`aiwf outline <file>\` (MCP \`get_file_outline\`) to inspect file exports, signatures, and symbol layouts in source order.
    - Use \`aiwf blast <target>\` (MCP \`analyze_blast_radius\`) before modifying shared files.
+   - Use \`aiwf debug <target>\` (MCP \`debug_target\`) to diagnose errors, stack traces, and blast impact.
 5. **Deterministic Patching**:
    - Use \`aiwf patch <file> <target> <replacement>\` (or MCP \`apply_block_patch\`) for surgical block replacement via \`@dharmax/block-patcher\`.
    - Use \`compile_codelet\` and \`promote_codelet\` for JIT synthesis and dynamic tool expansion.
@@ -100,9 +104,14 @@ All capabilities are unified across stdio MCP and the CLI:
 | **Move Ticket Lane** | \`aiwf move <id> <lane>\` | \`update_ticket_state\` |
 | **Uncommitted Diff** | \`aiwf diff\` | \`get_git_diff\` |
 | **Locate Symbol** | \`aiwf symbol <name>\` | \`find_symbol\` |
+| **Graph Search & Traversal** | \`aiwf graph [query]\` | \`search_graph\` |
+| **Caller Invocations** | \`aiwf callers <sym>\` | \`search_graph\` (predicate: calls) |
+| **Module Dependencies** | \`aiwf deps <file>\` | \`search_graph\` (predicate: depends_on) |
 | **Surgical Code Slice** | \`aiwf slice <file> <sym>\` | \`get_symbol_source\` |
 | **File Outline** | \`aiwf outline <file>\` | \`get_file_outline\` |
 | **Blast Radius & Tests** | \`aiwf blast <target>\` | \`analyze_blast_radius\` |
+| **Target & Trace Debug** | \`aiwf debug <target>\` | \`debug_target\` |
+| **Knowledgebase Skills** | \`aiwf kb <search\|show>\` | \`search_knowledgebase\`, \`get_knowledge_item\` |
 | **Re-index AST Symbols** | \`aiwf index\` | \`indexCodebase\` (via setup) |
 | **AST Block Patching** | \`aiwf patch <file> <s> <r>\` | \`apply_block_patch\` |
 | **JIT Codelet Compiler** | *(via shell / MCP)* | \`compile_codelet\`, \`run_codelet\` |
@@ -134,7 +143,7 @@ export const CODEX_AGENT_RULES = `<!-- ai-workflow-rules -->
 When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \`kanban.md\`):
 - **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` to find active priority.
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
-- **Surgical Inspection**: Use \`find_symbol\`, \`get_symbol_source\`, \`get_file_outline\`, and \`analyze_blast_radius\` instead of dumping large files.
+- **Graph & Symbol Navigation**: Use \`find_symbol\`, \`search_graph\`, \`get_symbol_source\`, \`get_file_outline\`, and \`analyze_blast_radius\` instead of dumping large files into context.
 - **Deterministic Patches**: Use \`apply_block_patch\` or \`aiwf patch\` for AST block replacement.
 - **Verification**: Run \`resolve_test_target\` and \`triage_test_failures\` to verify code changes against test suites.
 - **Complete**: Call \`update_ticket_state(id, "Done")\`, \`release_ticket(id)\`, and sync with \`aiwf sync\`.

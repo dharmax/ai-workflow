@@ -185,8 +185,8 @@ export class Calculator {
 
     // 3. File outline returns structured symbols
     const outline = await registry.execute('get_file_outline', { filePath: 'src/sample.ts' }, ctx);
-    expect(outline.symbolCount).toBe(2);
-    expect(outline.symbols.map((s: any) => s.name)).toEqual(['add', 'Calculator']);
+    expect(outline.symbolCount).toBe(3);
+    expect(outline.symbols.map((s: any) => s.name)).toEqual(['add', 'Calculator', 'multiply']);
 
     // 4. Symbol source slice
     const slice = await registry.execute('get_symbol_source', {
