@@ -38,8 +38,6 @@ export interface UserStoryData extends BaseEntityData {
   context?: string;
   acceptanceCriteria?: string[];
   sla?: string;
-  linkedTicket?: string;
-  epicId?: string;
 }
 
 export interface TicketData extends BaseEntityData {
