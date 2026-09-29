@@ -6,7 +6,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { WorkflowStore } from './graph/store.ts';
-import { Ticket, Epic, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
+import { Ticket, Epic, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
 import { loadConfig, resolveCloudCredentials } from './config.ts';
 import { ModelRadar } from './actor/radar.ts';
 
@@ -82,6 +82,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     const dbExists = fs.existsSync(dbPath);
     const tickets = await store.listEntities<Ticket>(Ticket.dcr);
     const epics = await store.listEntities<Epic>(Epic.dcr);
+    const stories = await store.listEntities<UserStory>(UserStory.dcr);
     const files = await store.listEntities<FileNode>(FileNode.dcr);
     const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr);
 
@@ -89,8 +90,8 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
       category: 'Graph',
       name: 'AST+ Semantic Graph',
       status: 'ok',
-      message: `${tickets.length} tickets, ${epics.length} epics, ${files.length} indexed files, ${symbols.length} symbols`,
-      details: { tickets: tickets.length, epics: epics.length, files: files.length, symbols: symbols.length }
+      message: `${tickets.length} tickets, ${epics.length} epics, ${stories.length} user stories, ${files.length} indexed files, ${symbols.length} symbols`,
+      details: { tickets: tickets.length, epics: epics.length, stories: stories.length, files: files.length, symbols: symbols.length }
     });
   } catch (err: any) {
     checks.push({
@@ -102,7 +103,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
   }
 
   // 4. Markdown Projections
-  const projFiles = ['kanban.md', 'epics.md', 'modules.md', 'decisions.md'];
+  const projFiles = ['kanban.md', 'epics.md', 'user-stories.md', 'modules.md', 'decisions.md'];
   const missingProj = projFiles.filter(f => !fs.existsSync(path.join(projectRoot, f)));
   if (missingProj.length > 0) {
     checks.push({
@@ -116,7 +117,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
       category: 'Projections',
       name: 'Markdown Sync',
       status: 'ok',
-      message: 'All core projections present (kanban, epics, modules, decisions)'
+      message: 'All core projections present (kanban, epics, user stories, modules, decisions)'
     });
   }
 
