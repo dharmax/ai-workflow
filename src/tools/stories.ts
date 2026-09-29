@@ -93,7 +93,7 @@ export function registerStoryTools() {
       const entity = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
       const update = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
       await entity.update({ ...update, updatedAt: new Date().toISOString() }, true, false);
-      const refreshed = await ctx.store.getEntity(storyId, UserStory.dcr);
+      const refreshed = await ctx.store.getEntity<UserStory>(storyId, UserStory.dcr);
       return await storyView(ctx, refreshed || entity);
     }
   });
