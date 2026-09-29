@@ -263,7 +263,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
       if (headerMatch) {
         const id = headerMatch[1].trim();
         const title = headerMatch[2].trim();
-        const bodyLines = lines.slice(1).filter(l => !l.startsWith('### Linked Tickets') && !l.startsWith('- **'));
+        const bodyLines = lines.slice(1).filter(l => !l.startsWith('### Linked Tickets') && !l.startsWith('### User Stories') && !l.startsWith('- **'));
         const body = bodyLines.join('\n').trim();
 
         await store.upsertEntity<Epic>(Epic.dcr, {
@@ -335,6 +335,26 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         sla,
         acceptanceCriteria
       });
+
+      const existingEpicLinks = await store.getIncoming(storyEntity.id, 'contains');
+      const existingTicketLinks = await store.getIncoming(storyEntity.id, 'addresses');
+      const existingTestLinks = await store.getIncoming(storyEntity.id, 'verifies');
+
+      for (const link of existingEpicLinks) {
+        if (!epicIds.includes(store.localId(link.sourceId))) {
+          await store.unrelate(link.sourceId, 'contains', storyEntity.id);
+        }
+      }
+      for (const link of existingTicketLinks) {
+        if (!ticketIds.includes(store.localId(link.sourceId))) {
+          await store.unrelate(link.sourceId, 'addresses', storyEntity.id);
+        }
+      }
+      for (const link of existingTestLinks) {
+        if (!testIds.includes(store.localId(link.sourceId))) {
+          await store.unrelate(link.sourceId, 'verifies', storyEntity.id);
+        }
+      }
 
       for (const epicId of epicIds) {
         const epic = await store.getEntity<Epic>(epicId, Epic.dcr);
