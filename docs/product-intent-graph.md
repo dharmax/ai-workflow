@@ -218,29 +218,51 @@ Use existing predicates. Do not add product-specific predicates unless implement
 
 Do not duplicate these relations in entity fields.
 
-## 5. Product-intent lifecycle is not implementation coverage
+## 5. Lifecycle is not implementation coverage
 
-A serious source of future bugs would be conflating editorial lifecycle with implementation state.
+Do not force Epic, Feature, and UserStory through one shared status model.
 
-For Epic, Feature, and UserStory, use only intent lifecycle values:
+They represent different things.
+
+### Epic lifecycle
+
+An Epic is an initiative/work scope:
 
 ```ts
-type ProductIntentStatus =
+type EpicStatus =
+  | 'draft'
+  | 'planned'
+  | 'active'
+  | 'blocked'
+  | 'completed'
+  | 'cancelled'
+```
+
+Epic completion is project/workflow state. Do not derive it merely from code edges.
+
+### Feature / UserStory lifecycle
+
+Feature and UserStory are durable intent artifacts:
+
+```ts
+type IntentStatus =
   | 'draft'
   | 'proposed'
   | 'accepted'
   | 'deprecated'
 ```
 
-Do not write `implemented` or `verified` into Feature/UserStory status based on code state.
+Do not write `implemented`, `verified`, or `completed` into Feature/UserStory status based on code state.
 
-Implementation and verification are derived by `coverage()`.
+Implementation/verification evidence is derived from graph coverage.
 
-Ticket lifecycle remains Ticket-specific.
+### Existing data
 
-Existing broad `EntityStatus` may remain for other entity types; Product Intent operations must enforce the narrower values for these three entities.
+The current broad base `status` field may remain for compatibility with Semantika and other entity types, but product tools and product projections must normalize/enforce the appropriate lifecycle above.
 
-## 6. Coverage is derived graph state
+Do not build a migration framework preemptively. If real persisted legacy Epic/UserStory statuses exist, handle the concrete observed values with the smallest deterministic mapping.
+
+## 6. Coverage is derived structural/causal graph state
 
 Never persist:
 
@@ -255,6 +277,16 @@ for Epic/Feature/UserStory.
 
 Those values rot immediately when graph edges change.
 
+Coverage deliberately answers:
+
+> Given the semantic entities we already know about, are their expected causal connections present?
+
+It does **not** claim:
+
+> We have discovered every requirement, behavior, code path, or test that ought to exist.
+
+Semantic completeness is established by design/digest/decomposition passes. Once intent nodes exist, coverage deterministically checks whether they are causally connected to work, code, and evidence.
+
 Expose one deterministic primitive:
 
 ```ts
@@ -264,22 +296,25 @@ coverage(entityId): Promise<CoverageReport>
 Conceptually:
 
 ```ts
-type CoverageState =
-  | 'complete'
-  | 'blocked'
-  | 'structurally_incomplete'
-  | 'unimplemented'
-  | 'partially_implemented'
-  | 'unverified'
+interface CoverageGap {
+  kind:
+    | 'missing_parent'
+    | 'missing_acceptance_contract'
+    | 'missing_work'
+    | 'missing_code_grounding'
+    | 'missing_verification'
+    | 'missing_target_path'
+    | 'blocked'
+  message: string
+  relatedIds?: string[]
+}
 
 interface CoverageReport {
   entityId: string
   entityType: 'Epic' | 'Feature' | 'UserStory'
-  state: CoverageState
 
-  satisfied: CoverageFact[]
-  missing: CoverageFact[]
-  blockers: string[]
+  complete: boolean
+  gaps: CoverageGap[]
 
   related: {
     epics: string[]
@@ -292,7 +327,9 @@ interface CoverageReport {
 }
 ```
 
-Exact response types may be slightly smaller, but semantics below are frozen.
+`complete` is a derived convenience meaning **no known structural/causal gaps under this contract**. It is never persisted and must never be described as proof that the product itself is semantically complete.
+
+Avoid a second rigid workflow-state enum such as `partially_implemented` / `unverified` as canonical data. Callers can derive display labels from `gaps` when useful.
 
 ### UserStory coverage
 
@@ -307,18 +344,9 @@ For an accepted UserStory inspect:
 
 Coverage does not require every related Ticket to target code. Design/docs/migration tickets may legitimately be related. It requires at least one real grounded implementation path.
 
-State precedence:
+For an accepted Story, each missing expectation becomes a separate gap. Multiple gaps may coexist.
 
-```text
-active blocker                  -> blocked
-no Feature membership/criteria  -> structurally_incomplete
-no implementation Ticket        -> unimplemented
-Ticket exists but no code path  -> partially_implemented
-no verification                 -> unverified
-otherwise                       -> complete
-```
-
-Draft/proposed Stories still return the same facts, but callers should not treat lack of implementation as project failure until the Story is accepted.
+Draft/proposed Stories return the same facts, but callers should not treat their missing implementation/evidence as project failure until the Story is accepted.
 
 ### Feature coverage
 
@@ -334,12 +362,12 @@ Inspect:
 
 A Feature with no Stories is **not** structurally incomplete merely because Stories are absent.
 
-Feature verification is satisfied when either:
+Feature verification evidence exists when either:
 
 - an explicit Test verifies the Feature directly; or
-- every accepted contained Story is verified.
+- accepted contained Stories have verification evidence.
 
-If neither applies, it is unverified.
+This is **evidence coverage**, not a proof that the Feature's full semantics have been exhausted. Feature-level acceptance criteria that are not represented by Stories may still justify a direct Feature verification Test.
 
 ### Epic coverage
 
@@ -360,18 +388,18 @@ The key Epic invariant is not “must have Stories”; it is:
 
 > If an Epic declares a Feature/Story target, its implementation work must connect back to that target.
 
-## 7. Coverage is path-based, not percentage-based
+## 7. Coverage is gap/path-based, not percentage-based
 
 Do not introduce a numerical completeness score.
 
-The useful questions are categorical:
+The useful deterministic output is:
 
-- Which causal path exists?
-- Which expected edge/evidence is missing?
-- Which target is unconnected?
-- Which behavior is unverified?
+- which expected causal path exists;
+- which expected relation/evidence is missing;
+- which target is unconnected;
+- which known behavior lacks verification.
 
-A percentage hides exactly the information needed for safe modifications.
+A percentage hides the exact missing edge needed for safe modification.
 
 ## 8. Product impact
 
@@ -383,24 +411,55 @@ productImpact(entityId): Promise<ProductImpact>
 
 It accepts an Epic, Feature, or UserStory.
 
-It returns the compact semantic neighborhood needed before modification/refactoring:
+It returns the compact semantic neighborhood needed before modification/refactoring.
 
-- starting intent node;
-- targeted/containing intent nodes;
-- implementing/addressing Tickets;
-- direct code targets/modifications;
-- verifying Tests;
+Scope rules are explicit; do not use unrestricted graph traversal.
+
+### Starting from UserStory
+
+Include:
+
+- containing Feature(s);
+- active/planned Epics directly targeting that Story;
+- Tickets addressing that Story;
+- code directly targeted/modified by those Tickets;
+- Tests verifying that Story;
+- Decisions governing the Story, its containing Feature(s), or returned code anchors;
+- direct blockers/dependencies attached to the returned work/intent nodes.
+
+Do **not** automatically include sibling Stories.
+
+### Starting from Feature
+
+Include:
+
+- contained accepted Stories;
+- active/planned Epics targeting that Feature;
+- direct Feature-implementing Tickets;
+- Tickets addressing contained accepted Stories;
+- direct code anchors of those Tickets;
+- direct Feature/Story verification Tests;
 - governing Decisions;
-- directly relevant `depends_on` / `blocks` relationships.
+- direct blockers/dependencies.
 
-It does **not** duplicate AST blast analysis.
+Completed/cancelled historical Epics are excluded by default from Feature/Story impact to avoid history noise. They remain queryable through ordinary graph tools.
 
-Instead it returns concrete code targets ready for the existing blast/symbol/dependency tools.
+### Starting from Epic
 
-This keeps responsibilities clean:
+Include:
+
+- that Epic's targeted Features/Stories;
+- Tickets implementing that Epic;
+- those Tickets' Feature/Story/code edges;
+- relevant verification Tests and governing Decisions;
+- direct blockers/dependencies.
+
+`productImpact` does **not** duplicate AST blast analysis.
+
+It returns concrete code anchors ready for the existing blast/symbol/dependency tools:
 
 ```text
-productImpact  -> why/behavior/work/code anchors
+productImpact  -> why / behavior / work / code anchors
 blast          -> code consequences
 ```
 
@@ -408,18 +467,19 @@ No embeddings, cache, RAG layer, or second graph is needed.
 
 ## 9. Epic semantic decomposition
 
-The normal human-facing “add an Epic” flow should, by default, propose a complete enough intent model.
+The normal human-facing “add an Epic” flow should, by default, propose a complete-enough intent model **before persisting a new Epic**.
 
 Conceptually:
 
 ```text
-Epic description
+Epic draft (plain data)
     ↓
-inspect existing nearby Features/Stories
+current bounded product-intent graph
     ↓
-one bounded semantic decomposition
+one semantic decomposition
     ↓
 proposal:
+  Epic candidate
   reuse Feature A
   create Feature B
   reuse Story C
@@ -429,7 +489,11 @@ proposal:
 review/edit via shell-ui
     ↓
 deterministic apply
+    ↓
+Epic + accepted relations persisted together
 ```
+
+For an already-existing Epic, the same proposal flow may enrich/reconcile its structure.
 
 ### Crucial split: propose vs apply
 
@@ -438,13 +502,15 @@ Semantic reasoning never directly mutates the graph.
 Use:
 
 ```text
-proposeEpicStructure(...)
+proposeEpicStructure(epicDraftOrExistingId)
 applyEpicStructure(proposal)
 ```
 
 The proposal is data.
 
-The apply step is deterministic and validates every reference before writing.
+For a new Epic, proposal generation performs zero graph mutation. Aborting leaves no orphan Epic.
+
+The apply step validates every reference before writing and is safe to retry.
 
 This prevents an LLM/actor from partially mutating the graph while still deciding what the Epic means.
 
@@ -458,15 +524,27 @@ action: 'reuse' | 'create'
 
 Do not generate near-duplicate capabilities merely because wording differs.
 
-Use existing Semantika/graph search facilities. Do not add embeddings or a second semantic index for this.
+AI Workflow is defined to operate on a healthy project chunk. For the first implementation, provide the model the **current non-deprecated Product Intent Graph** (Epics only when relevant, Features, Stories, and concise accepted Decisions) rather than inventing fuzzy retrieval that might miss duplicates.
+
+This is product metadata, not the source-code corpus.
+
+If that bounded intent graph itself cannot fit the configured semantic model with safe headroom, fail clearly and ask the user to narrow/clean the project scope. Do not add hierarchical summarization, embeddings, or a second semantic index here.
 
 ### IDs
 
-The model does not invent canonical graph IDs.
+The model never invents canonical graph IDs.
 
-After semantic output is validated, host code assigns/reserves IDs for new proposal entities once. Those IDs are returned in the proposal.
+After semantic output is validated, host code assigns stable **candidate IDs** to newly proposed Epic/Feature/Story entities. Those IDs live in the proposal.
 
-Therefore applying the same proposal twice is idempotent rather than creating new IDs each time.
+There is no separate reservation subsystem.
+
+On apply:
+
+- if a candidate ID is unused, create it;
+- if it already refers to the same entity produced by an earlier apply, treat it idempotently;
+- if it collides with unrelated state, fail clearly rather than generating another ID mid-apply.
+
+Applying the same proposal twice must not create duplicate entities or edges.
 
 ### Unknowns
 
@@ -488,18 +566,16 @@ Low-level deterministic tools remain deterministic:
 
 They must not unexpectedly call an LLM.
 
-The normal interactive command/flow for adding an Epic performs decomposition by default:
+The normal interactive command for a **new** Epic does not call `create_epic` first. It builds an Epic draft, proposes the structure, reviews it, then applies the accepted proposal.
 
 ```text
-add Epic
+epic add <draft>
 → propose structure
 → interactive review
-→ apply accepted structure
+→ apply accepted proposal
 ```
 
-Provide an explicit `--no-decompose` escape hatch for manual/technical Epics.
-
-This gives the desired default behavior without corrupting the deterministic tool layer.
+Provide explicit `--no-decompose` for manual/technical Epic creation; that path may call deterministic `create_epic` directly.
 
 For MCP/non-interactive consumers, proposal and apply are separate explicit operations.
 
@@ -579,39 +655,59 @@ Keep code small and responsibility-driven.
 
 ```text
 src/graph/types.ts
-  FeatureData + ProductIntentStatus + public report/proposal types
+  FeatureData + EpicStatus + IntentStatus + report/proposal contracts
 
 src/graph/ontology.ts
-  Feature descriptor only; predicates already exist
+  Feature descriptor + small status validators/defaults
 
 src/product/coverage.ts
-  deterministic coverage() owner
+  deterministic structural/causal coverage owner
 
 src/product/impact.ts
-  deterministic productImpact() owner
+  deterministic bounded productImpact owner
 
 src/product/decompose.ts
   bounded semantic proposal generation + schema validation
   NO graph mutation
 
 src/product/apply.ts
-  validate + apply Epic structure proposal
-  deterministic/idempotent
+  validate + idempotently apply accepted proposal
 
 src/tools/product.ts
-  thin tool registration for Epic/Feature/Story CRUD,
-  coverage, impact, propose/apply
+  thin deterministic Epic/Feature/Story CRUD,
+  constrained relation mutation,
+  coverage/impact/propose/apply registration
 
 src/graph/projections.ts
   product Markdown projections
 
 src/cli.ts / src/shell.ts
-  human-facing default Epic flow + display only
+  human-facing product flows + display
 ```
 
 Do not create separate manager/repository/service classes for Epic, Feature, and Story.
 
 Do not keep both `stories.ts` and `product.ts` after migration unless there is a concrete reason. One small product-intent tool surface is preferable.
+
+### Constrained relation mutation
+
+Do not make `link_product_intent` a generic predicate gateway.
+
+The first implementation allows exactly these semantic combinations:
+
+```text
+Epic    --targets----> Feature
+Epic    --targets----> UserStory
+Feature --contains---> UserStory
+Ticket  --implements-> Epic
+Ticket  --implements-> Feature
+Ticket  --addresses--> UserStory
+Test    --verifies---> Feature
+Test    --verifies---> UserStory
+Decision--governs----> Epic | Feature | UserStory
+```
+
+Existing generic graph mechanisms continue to own other relations such as `depends_on` and `blocks`.
 
 ## 14. Migration from the current partial UserStory branch
 
@@ -663,11 +759,11 @@ The implementation is wrong if any of these become false:
 2. Features outlive Epics; an Epic targets rather than owns a Feature.
 3. Stories are optional and never generated as ceremony.
 4. Relations live in graph predicates, not duplicated ID fields.
-5. Coverage is derived, categorical, and deterministic.
+5. Coverage is derived, deterministic structural/causal evidence; it never claims undiscovered semantic completeness.
 6. Semantic proposal generation cannot mutate the graph.
-7. Applying the same accepted proposal twice does not duplicate entities/edges.
+7. Applying the same accepted proposal twice does not duplicate entities/edges; no ID-reservation subsystem exists.
 8. Low-level CRUD remains deterministic.
-9. Human-facing Epic creation decomposes intent by default.
+9. Human-facing new-Epic creation decomposes intent before persisting the Epic by default.
 10. Product impact stops at code anchors; AST blast remains the code graph's job.
 11. No new generic framework is introduced.
 12. Technical work remains representable without fake Features/Stories.
