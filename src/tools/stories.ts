@@ -7,8 +7,8 @@ import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { Epic, Ticket, TestNode, UserStory } from '../graph/ontology.ts';
 
-async function requireEntity<T>(ctx: ToolContext, id: string, dcr: any, kind: string): Promise<T> {
-  const entity = await ctx.store.getEntity<T>(id, dcr);
+async function requireEntity(ctx: ToolContext, id: string, dcr: any, kind: string): Promise<any> {
+  const entity = await ctx.store.getEntity(id, dcr);
   if (!entity) throw new Error(`${kind} ${id} not found.`);
   return entity;
 }
@@ -90,7 +90,7 @@ export function registerStoryTools() {
       status: z.enum(['draft', 'proposed', 'accepted', 'implemented', 'verified', 'deprecated']).optional()
     }),
     execute: async ({ storyId, ...changes }, ctx: ToolContext) => {
-      const entity = await requireEntity<UserStory>(ctx, storyId, UserStory.dcr, 'User story');
+      const entity = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
       const update = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
       await entity.update({ ...update, updatedAt: new Date().toISOString() }, true, false);
       return await storyView(ctx, entity);
@@ -108,7 +108,7 @@ export function registerStoryTools() {
       testIds: z.array(z.string()).optional()
     }),
     execute: async ({ storyId, epicId, ticketIds = [], testIds = [] }, ctx: ToolContext) => {
-      const story = await requireEntity<UserStory>(ctx, storyId, UserStory.dcr, 'User story');
+      const story = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
 
       if (epicId) {
         await requireEntity(ctx, epicId, Epic.dcr, 'Epic');
@@ -135,7 +135,7 @@ export function registerStoryTools() {
     category: 'planning',
     parameters: z.object({ storyId: z.string() }),
     execute: async ({ storyId }, ctx: ToolContext) => {
-      const story = await requireEntity<UserStory>(ctx, storyId, UserStory.dcr, 'User story');
+      const story = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
       return await storyView(ctx, story);
     }
   });
