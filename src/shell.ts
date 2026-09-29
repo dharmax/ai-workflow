@@ -44,6 +44,9 @@ export const SHELL_COMMANDS = [
   'done',
   'move',
   'tickets',
+  'stories',
+  'story',
+  'story-create',
   'sync',
   'diff',
   'symbol',
@@ -110,6 +113,9 @@ Commands:
   move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
   create <title>             - Create ticket in Todo lane
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
+  stories [coverage]         - List user stories (all|unimplemented|unverified)
+  story <storyId>            - Show story, Epic, tickets, tests, and coverage
+  story-create <title>       - Create a user story
   sync                       - Bi-directional sync between SQLite Graph and Markdown
   diff                       - Display uncommitted git diff
   symbol <name>              - Find symbol in AST+ semantic graph (supports --exact, --kind)
@@ -453,6 +459,46 @@ Commands:
     return {
       output: tickets.map((t: any) => `[${t.lane}] ${t.id}: ${t.title}${t.claim ? ` (Claimed: ${t.claim.agentId})` : ''}`).join('\n')
     };
+  }
+
+  if (lower === 'stories' || lower.startsWith('stories ')) {
+    const coverage = (line.split(/\s+/)[1] || 'all') as any;
+    const stories = await registry.execute('list_user_stories', { coverage }, ctx);
+    if (stories.length === 0) return { output: `No user stories found${coverage !== 'all' ? ` for coverage '${coverage}'` : ''}.` };
+    return {
+      output: stories.map((s: any) =>
+        `[${s.implemented ? 'implemented' : 'unimplemented'}/${s.verified ? 'verified' : 'unverified'}] ${s.id}: ${s.title}`
+      ).join('\n')
+    };
+  }
+
+  if (lower === 'story' || lower.startsWith('story ')) {
+    const storyId = line.replace(/^story\s*/i, '').trim();
+    if (!storyId) return { output: 'Usage: story <storyId>' };
+    try {
+      const s = await registry.execute('get_user_story', { storyId }, ctx);
+      return {
+        output: [
+          `${s.id}: ${s.title}`,
+          `Actor: ${s.actor || 'User'}`,
+          `Story: ${s.story || ''}`,
+          `Epic: ${s.epicIds.join(', ') || 'None'}`,
+          `Tickets: ${s.ticketIds.join(', ') || 'None'}`,
+          `Tests: ${s.testIds.join(', ') || 'None'}`,
+          `Coverage: ${s.implemented ? 'implemented' : 'unimplemented'}, ${s.verified ? 'verified' : 'unverified'}`
+        ].join('\n')
+      };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'story-create' || lower.startsWith('story-create ')) {
+    const title = line.replace(/^story-create\s*/i, '').trim();
+    if (!title) return { output: 'Usage: story-create <title>' };
+    const story = await registry.execute('create_user_story', { title }, ctx);
+    await exportProjections(session.store, session.projectRoot);
+    return { output: `Created user story '${story.id}' and synced projections.` };
   }
 
   if (lower === 'sync') {
