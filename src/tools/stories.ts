@@ -130,6 +130,27 @@ export function registerStoryTools() {
   });
 
   registry.register({
+    name: 'unlink_user_story',
+    description: 'Remove Epic, Ticket, or Test relations from a user story.',
+    category: 'planning',
+    parameters: z.object({
+      storyId: z.string(),
+      epicId: z.string().optional(),
+      ticketIds: z.array(z.string()).optional(),
+      testIds: z.array(z.string()).optional()
+    }),
+    execute: async ({ storyId, epicId, ticketIds = [], testIds = [] }, ctx: ToolContext) => {
+      const story = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
+
+      if (epicId) await ctx.store.unrelate(epicId, 'contains', story.id);
+      for (const ticketId of ticketIds) await ctx.store.unrelate(ticketId, 'addresses', story.id);
+      for (const testId of testIds) await ctx.store.unrelate(testId, 'verifies', story.id);
+
+      return await storyView(ctx, story);
+    }
+  });
+
+  registry.register({
     name: 'get_user_story',
     description: 'Get a user story with its Epic, implementation tickets, tests, and coverage state.',
     category: 'planning',
