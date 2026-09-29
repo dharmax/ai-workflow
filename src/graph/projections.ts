@@ -12,7 +12,8 @@ import {
   Epic,
   UserStory,
   Decision,
-  ModuleNode
+  ModuleNode,
+  TestNode
 } from './ontology.ts';
 import type { TicketLane } from './types.ts';
 
@@ -77,21 +78,40 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   exportedFiles.push('epics.md');
 
   // 3. user-stories.md
-  if (userStories.length > 0) {
-    let storiesMd = `# User Stories & Behavioral Specifications\n\n`;
+  let storiesMd = `# User Stories & Behavioral Specifications\n\n`;
+  if (userStories.length === 0) {
+    storiesMd += `*No user stories recorded yet.*\n`;
+  } else {
     for (const story of userStories) {
       const storyLocalId = store.localId(story.id);
-      storiesMd += `## ${storyLocalId}\n`;
+      const [epicPreds, ticketPreds, testPreds] = await Promise.all([
+        store.getIncoming(story.id, 'contains'),
+        store.getIncoming(story.id, 'addresses'),
+        store.getIncoming(story.id, 'verifies')
+      ]);
+
+      const epicIds = epicPreds.map(p => store.localId(p.sourceId));
+      const ticketIds = ticketPreds.map(p => store.localId(p.sourceId));
+      const testIds = testPreds.map(p => store.localId(p.sourceId));
+      const criteria = Array.isArray((story as any).acceptanceCriteria) ? (story as any).acceptanceCriteria : [];
+
+      storiesMd += `## ${storyLocalId}: ${(story as any).title || storyLocalId}\n`;
+      if (epicIds.length > 0) storiesMd += `- **Epic**: ${epicIds.map(id => `\`${id}\``).join(', ')}\n`;
       storiesMd += `- **Actor**: ${(story as any).actor || 'User'}\n`;
-      storiesMd += `- **Story**: ${(story as any).story || 'N/A'}\n`;
+      storiesMd += `- **Story**: ${(story as any).story || ''}\n`;
       if ((story as any).context) storiesMd += `- **Context**: ${(story as any).context}\n`;
-      if ((story as any).acceptanceCriteria) storiesMd += `- **Acceptance Criteria**: ${(story as any).acceptanceCriteria}\n`;
       if ((story as any).sla) storiesMd += `- **Performance SLA**: ${(story as any).sla}\n`;
+      if (ticketIds.length > 0) storiesMd += `- **Tickets**: ${ticketIds.map(id => `\`${id}\``).join(', ')}\n`;
+      if (testIds.length > 0) storiesMd += `- **Tests**: ${testIds.map(id => `\`${id}\``).join(', ')}\n`;
+      if (criteria.length > 0) {
+        storiesMd += `- **Acceptance Criteria**:\n`;
+        for (const criterion of criteria) storiesMd += `  - [ ] ${criterion}\n`;
+      }
       storiesMd += `\n`;
     }
-    await writeFile(path.join(rootDir, 'user-stories.md'), storiesMd, 'utf8');
-    exportedFiles.push('user-stories.md');
   }
+  await writeFile(path.join(rootDir, 'user-stories.md'), storiesMd, 'utf8');
+  exportedFiles.push('user-stories.md');
 
   // 4. decisions.md (ADRs)
   let decisionsMd = `# Architectural Decision Records (ADRs)\n\n`;
@@ -249,74 +269,76 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
   // 3. Import user-stories.md
   if (existsSync(userStoriesPath)) {
     const storiesContent = await readFile(userStoriesPath, 'utf8');
-    const lines = storiesContent.split('\n');
-    let currentEpicId: string | null = null;
+    const blocks = storiesContent.split(/\n##\s+/);
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      const epicHeader = line.match(/^##\s+([A-Z0-9_-]+):/);
-      if (epicHeader) {
-        currentEpicId = epicHeader[1].trim();
-        continue;
+    for (let i = 1; i < blocks.length; i++) {
+      const block = blocks[i];
+      const lines = block.split('\n');
+      const headerMatch = lines[0].match(/^([A-Z0-9_-]+):\s*(.+)$/);
+      if (!headerMatch) continue;
+
+      const storyId = headerMatch[1].trim();
+      const title = headerMatch[2].trim();
+      let actor = '';
+      let storyText = '';
+      let context = '';
+      let sla = '';
+      const epicIds: string[] = [];
+      const ticketIds: string[] = [];
+      const testIds: string[] = [];
+      const acceptanceCriteria: string[] = [];
+
+      for (const rawLine of lines.slice(1)) {
+        const line = rawLine.trim();
+        const actorMatch = line.match(/^-\s+\*\*Actor\*\*:\s*(.*)$/i);
+        if (actorMatch) actor = actorMatch[1].trim();
+
+        const storyMatch = line.match(/^-\s+\*\*Story\*\*:\s*(.*)$/i);
+        if (storyMatch) storyText = storyMatch[1].trim();
+
+        const contextMatch = line.match(/^-\s+\*\*Context\*\*:\s*(.*)$/i);
+        if (contextMatch) context = contextMatch[1].trim();
+
+        const slaMatch = line.match(/^-\s+\*\*Performance SLA\*\*:\s*(.*)$/i);
+        if (slaMatch) sla = slaMatch[1].trim();
+
+        const epicMatch = line.match(/^-\s+\*\*Epic\*\*:\s*(.*)$/i);
+        if (epicMatch) epicIds.push(...Array.from(epicMatch[1].matchAll(/`([A-Z0-9_-]+)`/g), m => m[1]));
+
+        const ticketsMatch = line.match(/^-\s+\*\*Tickets\*\*:\s*(.*)$/i);
+        if (ticketsMatch) ticketIds.push(...Array.from(ticketsMatch[1].matchAll(/`([A-Z0-9_-]+)`/g), m => m[1]));
+
+        const testsMatch = line.match(/^-\s+\*\*Tests\*\*:\s*(.*)$/i);
+        if (testsMatch) testIds.push(...Array.from(testsMatch[1].matchAll(/`([A-Z0-9_-]+)`/g), m => m[1]));
+
+        const criterion = line.match(/^-\s+\[.\]\s+(.+)$/);
+        if (criterion) acceptanceCriteria.push(criterion[1].trim());
       }
 
-      const storyHeader = line.match(/^###\s+`?([A-Z0-9_-]+)`?:\s*(.+)$/);
-      if (storyHeader) {
-        const storyId = storyHeader[1].trim();
-        const title = storyHeader[2].trim();
-        let actor = '';
-        let story = '';
-        let context = '';
-        let sla = '';
-        let linkedTicket = '';
-        const acceptanceCriteria: string[] = [];
+      const storyEntity = await store.upsertEntity<UserStory>(UserStory.dcr, {
+        id: storyId,
+        title,
+        actor,
+        story: storyText,
+        context,
+        sla,
+        acceptanceCriteria
+      });
 
-        let k = i + 1;
-        while (k < lines.length && !lines[k].trim().startsWith('###') && !lines[k].trim().startsWith('##')) {
-          const l = lines[k].trim();
-          const actorMatch = l.match(/-\s+\*\*Actor & Story\*\*:\s*As a\s+\*\*([^*]+)\*\*,\s*I want to\s+(.+)$/i);
-          if (actorMatch) {
-            actor = actorMatch[1].trim();
-            story = actorMatch[2].trim();
-          }
-          const contextMatch = l.match(/-\s+\*\*Context\*\*:\s*(.+)$/i);
-          if (contextMatch) context = contextMatch[1].trim();
-
-          const slaMatch = l.match(/-\s+\*\*Performance SLA\*\*:\s*(.+)$/i);
-          if (slaMatch) sla = slaMatch[1].trim();
-
-          const ticketMatch = l.match(/-\s+\*\*Linked Ticket\*\*:\s*`?([A-Z0-9_-]+)`?/i);
-          if (ticketMatch) linkedTicket = ticketMatch[1].trim();
-
-          const acMatch = l.match(/-\s+\[.\]\s+(.+)$/);
-          if (acMatch) acceptanceCriteria.push(acMatch[1].trim());
-
-          k++;
-        }
-
-        const storyEntity = await store.upsertEntity<UserStory>(UserStory.dcr, {
-          id: storyId,
-          title,
-          actor,
-          story,
-          context,
-          sla,
-          linkedTicket,
-          epicId: currentEpicId ?? undefined,
-          acceptanceCriteria
-        });
-
-        if (currentEpicId) {
-          try {
-            await store.relate(storyEntity, 'implements', currentEpicId);
-          } catch {}
-        }
-        if (linkedTicket) {
-          try {
-            await store.relate(linkedTicket, 'implements', storyEntity);
-          } catch {}
-        }
+      for (const epicId of epicIds) {
+        const epic = await store.getEntity<Epic>(epicId, Epic.dcr);
+        if (epic) await store.relate(epic, 'contains', storyEntity);
       }
+      for (const ticketId of ticketIds) {
+        const ticket = await store.getEntity<Ticket>(ticketId, Ticket.dcr);
+        if (ticket) await store.relate(ticket, 'addresses', storyEntity);
+      }
+      for (const testId of testIds) {
+        const test = await store.getEntity<TestNode>(testId, TestNode.dcr);
+        if (test) await store.relate(test, 'verifies', storyEntity);
+      }
+
+      importedChanges++;
     }
   }
 
