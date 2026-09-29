@@ -333,7 +333,8 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         story: storyText,
         context,
         sla,
-        acceptanceCriteria
+        acceptanceCriteria,
+        status: 'proposed'
       });
 
       const existingEpicLinks = await store.getIncoming(storyEntity.id, 'contains');
