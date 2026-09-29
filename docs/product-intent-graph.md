@@ -37,10 +37,10 @@ It is not a Scrum framework and not a requirements-management product.
         | contains                  | implemented by
         v                           ^
     UserStory <----- addresses ----- Ticket
- observable behavior                  |
-        ^                             | targets / modifies
-        | verifies                    v
-       Test                    Module / File / Symbol
+ observable behavior                  ^   |
+        ^                              |   | targets / modifies
+        | verifies              contains  v
+       Test                        Epic   Module / File / Symbol
 
 Decision --governs--> any relevant intent/code node
 ```
@@ -79,10 +79,10 @@ Examples:
 
 An Epic is work scope, not a permanent product capability.
 
-Existing direct technical work remains valid:
+Epic scopes its executable work:
 
 ```text
-Ticket --implements--> Epic
+Epic --contains--> Ticket
 ```
 
 An Epic does **not** require a Feature or UserStory if it is genuinely technical.
@@ -160,7 +160,7 @@ Executable implementation work.
 Tickets may participate in several causal links:
 
 ```text
-Ticket --implements--> Epic
+Epic   --contains----> Ticket
 Ticket --implements--> Feature
 Ticket --addresses---> UserStory
 Ticket --targets-----> Module/File/Symbol
@@ -169,7 +169,7 @@ Ticket --modifies----> Module/File/Symbol
 
 These links answer different questions and are not redundant:
 
-- implements Epic: which initiative owns this work?
+- Epic contains Ticket: which initiative owns this work?
 - implements Feature: which capability is this work realizing?
 - addresses Story: which behavior does the work satisfy?
 - targets/modifies code: where is the implementation?
@@ -208,7 +208,7 @@ Use existing predicates. Do not add product-specific predicates unless implement
 | Epic | targets | Feature | Initiative affects/creates/changes capability |
 | Epic | targets | UserStory | Initiative specifically affects behavior |
 | Feature | contains | UserStory | Behavior belongs to stable capability |
-| Ticket | implements | Epic | Ticket belongs to/implements initiative |
+| Epic | contains | Ticket | Initiative scopes executable work |
 | Ticket | implements | Feature | Ticket directly implements capability |
 | Ticket | addresses | UserStory | Ticket implements/changes behavior |
 | Ticket | targets / modifies | code node | Work-to-code grounding |
@@ -233,7 +233,6 @@ type EpicStatus =
   | 'draft'
   | 'planned'
   | 'active'
-  | 'blocked'
   | 'completed'
   | 'cancelled'
 ```
@@ -375,10 +374,10 @@ Inspect:
 
 1. incoming Ticket `implements` Epic;
 2. targeted Features/Stories;
-3. whether each targeted Feature/Story has at least one causal path from an Epic Ticket:
-   - Epic <-implements- Ticket -implements-> Feature
-   - Epic <-implements- Ticket -addresses-> Story
-4. code grounding of Epic Tickets;
+3. whether each targeted Feature/Story has at least one causal path through a Ticket contained by the Epic:
+   - Epic -contains-> Ticket -implements-> Feature
+   - Epic -contains-> Ticket -addresses-> Story
+4. code grounding of contained Epic Tickets;
 5. verification of targeted intent;
 6. blockers.
 
@@ -698,8 +697,8 @@ The first implementation allows exactly these semantic combinations:
 ```text
 Epic    --targets----> Feature
 Epic    --targets----> UserStory
+Epic    --contains---> Ticket
 Feature --contains---> UserStory
-Ticket  --implements-> Epic
 Ticket  --implements-> Feature
 Ticket  --addresses--> UserStory
 Test    --verifies---> Feature
@@ -756,7 +755,7 @@ Digest integration comes later through graph mapping, not package coupling.
 The implementation is wrong if any of these become false:
 
 1. Semantika is canonical state.
-2. Features outlive Epics; an Epic targets rather than owns a Feature.
+2. Features outlive Epics; an Epic targets Features/Stories but contains its own Tickets.
 3. Stories are optional and never generated as ceremony.
 4. Relations live in graph predicates, not duplicated ID fields.
 5. Coverage is derived, deterministic structural/causal evidence; it never claims undiscovered semantic completeness.
