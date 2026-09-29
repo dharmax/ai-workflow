@@ -160,6 +160,14 @@ describe('User stories as first-class graph entities', () => {
       expect(epicLinks).toHaveLength(1);
       expect(ticketLinks).toHaveLength(1);
       expect(testLinks).toHaveLength(1);
+
+      const withoutTicket = fs.readFileSync(storyPath, 'utf8')
+        .replace(/^- \*\*Tickets\*\*:.*\n/m, '');
+      fs.writeFileSync(storyPath, withoutTicket, 'utf8');
+      const laterTime = new Date(Date.now() + 10000);
+      fs.utimesSync(storyPath, laterTime, laterTime);
+      await importProjections(diskStore, tempDir);
+      expect(await diskStore.getIncoming('STORY-PROJ', 'addresses')).toHaveLength(0);
     } finally {
       diskStore.close();
     }
