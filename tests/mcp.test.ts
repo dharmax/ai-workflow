@@ -48,6 +48,12 @@ describe('Stdio MCP Server Bridge', () => {
 
     const ticketTool = response.tools.find((t: any) => t.name === 'claim_ticket');
     expect(ticketTool).toBeDefined();
+
+    const storyTool = response.tools.find((t: any) => t.name === 'create_user_story');
+    expect(storyTool).toBeDefined();
+
+    const storyCoverageTool = response.tools.find((t: any) => t.name === 'list_user_stories');
+    expect(storyCoverageTool).toBeDefined();
   });
 
   it('should call domain tools through the MCP request handler', async () => {
@@ -92,7 +98,21 @@ describe('Stdio MCP Server Bridge', () => {
     expect(wishRes.content).toBeDefined();
     expect(wishRes.content[0].text).toContain('AI-Workflow');
 
-    // 3. Call non-existent tool
+    // 3. Call story tool through MCP
+    const storyRes = await callHandler({
+      method: 'tools/call',
+      params: {
+        name: 'create_user_story',
+        arguments: {
+          id: 'STORY-MCP-1',
+          title: 'MCP story'
+        }
+      }
+    });
+    expect(storyRes.isError).not.toBe(true);
+    expect(storyRes.content[0].text).toContain('STORY-MCP-1');
+
+    // 4. Call non-existent tool
     const unknownRes = await callHandler({
       method: 'tools/call',
       params: {
@@ -104,7 +124,7 @@ describe('Stdio MCP Server Bridge', () => {
     expect(unknownRes.isError).toBe(true);
     expect(unknownRes.content[0].text).toContain('not registered');
 
-    // 4. Call tool that triggers execution error (update_ticket_state on missing ticket)
+    // 5. Call tool that triggers execution error (update_ticket_state on missing ticket)
     const errRes = await callHandler({
       method: 'tools/call',
       params: {
