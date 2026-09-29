@@ -15,9 +15,9 @@ Repository:
 
 Current development branch:
 
-- feat/user-stories-first-class
+- feat/product-intent-graph
 
-That branch contains useful partial UserStory work but is not merge-ready.
+This branch was created from the partial UserStory work and now owns the broader Product Intent Graph implementation. The older feat/user-stories-first-class branch is historical and should not receive further implementation work.
 
 Do not merge it until the deterministic Ticket 1 gate is green.
 
@@ -90,7 +90,7 @@ Do not rediscover unrelated scheduler/compiler/knowledgebase/model-radar archite
 
 ## Before changing code
 
-1. inspect master...feat/user-stories-first-class;
+1. inspect master...feat/product-intent-graph;
 2. create or reuse AIWF-PRODUCT-GRAPH;
 3. claim it;
 4. record the frozen canonical relations above;
