@@ -64,6 +64,17 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
 
     const implementsPreds = await store.getIncoming(epic.id, 'implements');
     const linkedTickets = tickets.filter(t => implementsPreds.some(p => p.sourceId === t.id));
+    const storyPreds = await store.getOutgoing(epic.id, 'contains');
+    const linkedStories = userStories.filter(s => storyPreds.some(p => p.targetId === s.id));
+
+    if (linkedStories.length > 0) {
+      epicsMd += `### User Stories\n`;
+      for (const story of linkedStories) {
+        const storyLocalId = store.localId(story.id);
+        epicsMd += `- **${storyLocalId}**: ${(story as any).title || storyLocalId}\n`;
+      }
+      epicsMd += `\n`;
+    }
 
     if (linkedTickets.length > 0) {
       epicsMd += `### Linked Tickets\n`;
