@@ -191,6 +191,59 @@ async function main() {
       break;
     }
 
+    case 'stories': {
+      const store = getStore();
+      const coverage = (args[1] || 'all') as any;
+      const stories = await registry.execute('list_user_stories', { coverage }, { store, projectRoot: root });
+      if (stories.length === 0) {
+        console.log(`No user stories found${coverage !== 'all' ? ` for coverage '${coverage}'` : ''}.`);
+      } else {
+        for (const s of stories) {
+          console.log(`[${s.implemented ? 'implemented' : 'unimplemented'}/${s.verified ? 'verified' : 'unverified'}] ${s.id}: ${s.title}`);
+        }
+      }
+      break;
+    }
+
+    case 'story': {
+      const storyId = args[1];
+      if (!storyId) {
+        console.error('Usage: aiwf story <storyId>');
+        process.exit(1);
+      }
+      const store = getStore();
+      const s = await registry.execute('get_user_story', { storyId }, { store, projectRoot: root });
+      console.log(`${s.id}: ${s.title}`);
+      console.log(`Actor:    ${s.actor || 'User'}`);
+      console.log(`Story:    ${s.story || ''}`);
+      console.log(`Epic:     ${s.epicIds.join(', ') || 'None'}`);
+      console.log(`Tickets:  ${s.ticketIds.join(', ') || 'None'}`);
+      console.log(`Tests:    ${s.testIds.join(', ') || 'None'}`);
+      console.log(`Coverage: ${s.implemented ? 'implemented' : 'unimplemented'}, ${s.verified ? 'verified' : 'unverified'}`);
+      break;
+    }
+
+    case 'story-create': {
+      const title = args[1];
+      if (!title) {
+        console.error('Usage: aiwf story-create "<title>" [--actor <actor>] [--story <behavior>] [--epic <epicId>]');
+        process.exit(1);
+      }
+      const actorIdx = args.indexOf('--actor');
+      const storyIdx = args.indexOf('--story');
+      const epicIdx = args.indexOf('--epic');
+      const store = getStore();
+      const created = await registry.execute('create_user_story', {
+        title,
+        actor: actorIdx !== -1 ? args[actorIdx + 1] : undefined,
+        story: storyIdx !== -1 ? args[storyIdx + 1] : undefined,
+        epicId: epicIdx !== -1 ? args[epicIdx + 1] : undefined
+      }, { store, projectRoot: root });
+      await exportProjections(store, root);
+      console.log(`✅ Created user story '${created.id}' and synced projections.`);
+      break;
+    }
+
     case 'create':
     case 'new': {
       const title = args[1];
@@ -853,6 +906,9 @@ Core Workflow Commands:
   sync                                   Synchronize SQLite Graph bi-directionally with Markdown Projections
   next [agentId]                         Algorithmic task selector: active lease -> P1 bugs -> Todo tasks
   tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
+  stories [all|unimplemented|unverified] List user stories by coverage state
+  story <storyId>                        Show story relations and coverage
+  story-create "<title>"                 Create a user story
   claim <ticketId> [--agent <a>] [-m <m>] Atomically lease a ticket with TTL
   release <ticketId>                     Release active ticket lease
   create "<title>" [-p <P0-P3>] [--lane] Create a new Kanban ticket
