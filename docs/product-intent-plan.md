@@ -25,7 +25,7 @@ Build the deterministic substrate first:
 ~~~text
 Epic --targets--> Feature --contains--> UserStory
   ^                   ^                     ^
-  | implements        | implements          | addresses
+  | contains          | implements          | addresses
 Ticket ---------------+---------------------+
   |
   +--targets/modifies--> Code
@@ -89,7 +89,6 @@ type EpicStatus =
   | 'draft'
   | 'planned'
   | 'active'
-  | 'blocked'
   | 'completed'
   | 'cancelled'
 
@@ -151,7 +150,7 @@ They allow exactly:
 Epic      targets      Feature
 Epic      targets      UserStory
 Feature   contains     UserStory
-Ticket    implements   Epic
+Epic      contains     Ticket
 Ticket    implements   Feature
 Ticket    addresses    UserStory
 Test      verifies     Feature
@@ -214,7 +213,7 @@ For an accepted Story report independent gaps for:
 - no containing Feature -> missing_parent;
 - no acceptance criteria -> missing_acceptance_contract;
 - no addressing Ticket -> missing_work;
-- Ticket(s) but no targets/modifies code path -> missing_code_grounding;
+- addressing Ticket(s) but no targets/modifies code path -> missing_code_grounding;
 - no verifying Test -> missing_verification;
 - active blocker -> blocked.
 
@@ -303,7 +302,7 @@ Starting from Feature include:
 Starting from Epic include:
 
 - targeted Features/Stories;
-- Tickets implementing Epic;
+- Tickets contained by Epic;
 - those Tickets' Feature/Story/code edges;
 - relevant verification Tests and Decisions;
 - direct blockers/dependencies.
@@ -426,8 +425,10 @@ FEAT-EVENT-CREATE
   contains STORY-CREATE
   contains STORY-ATTENDEES
 
+EPIC-CALENDAR
+  contains TKT-CONTRACT
+
 TKT-CONTRACT
-  implements EPIC-CALENDAR
   implements FEAT-EVENT-CREATE
   addresses STORY-ATTENDEES
   modifies CalendarCreateInput
@@ -442,7 +443,7 @@ ADR-CALENDAR
 Assert:
 
 - exact Story coverage gaps/complete result;
-- Epic target-path coverage;
+- Epic contained-ticket target-path coverage;
 - impact(STORY-ATTENDEES) includes expected Feature/Ticket/code/Test/Decision;
 - unrelated contact-search nodes are excluded.
 
