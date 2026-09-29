@@ -51,9 +51,7 @@ export class UserStory extends AbstractEntity {
     story: anyValidator,
     context: anyValidator,
     acceptanceCriteria: anyValidator,
-    sla: anyValidator,
-    linkedTicket: anyValidator,
-    epicId: anyValidator
+    sla: anyValidator
   };
   static readonly dcr = new EntityDcr(UserStory, UserStory.template);
 }
