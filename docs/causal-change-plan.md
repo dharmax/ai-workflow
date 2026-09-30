@@ -40,12 +40,30 @@ Product/graph anchor
 exact TypeScript file/position/definition/references
 ```
 
-## 1. Verify local TS7 first
+## 1. Make TS7 a real runtime/setup dependency
 
-Before coding:
+Before building the client:
 
-1. confirm the repository's installed `typescript` is 7.x.
-2. verify `node_modules/.bin/tsc --lsp` starts an LSP server over stdio.
+1. move `typescript@^7` from `devDependencies` to `dependencies`.
+2. add one small shared TypeScript resolver/provisioner in the setup/runtime layer.
+3. resolution order:
+   - compatible project-local TypeScript 7;
+   - aiwf's own packaged TypeScript 7;
+   - compatible host `PATH` TypeScript 7.
+4. extend `aiwf setup` to ensure a compatible host-level TS7 exists:
+   - verify an existing host `tsc` if compatible;
+   - otherwise provision `typescript@^7` at Bun user/global scope, without sudo;
+   - re-resolve and fail clearly if no compatible TS7 is usable.
+5. never mutate a project's pinned TypeScript dependency merely because it is older.
+6. extend `aiwf doctor` to report selected executable, version, native-LSP readiness, and host-level compatibility.
+7. test resolver/setup behavior with injected executable/process seams; do not actually alter the developer machine from unit tests.
+
+The LSP client, setup, and doctor must call the **same resolver**. No duplicated `which/version` logic.
+
+Then verify on the real checkout:
+
+1. selected TypeScript is 7.x.
+2. selected `tsc --lsp` starts an LSP server over stdio.
 3. record the server's actual initialize capabilities.
 4. do not assume unsupported refactors.
 
@@ -81,6 +99,9 @@ src/change/types.ts
 src/change/ts-lsp.ts
   one small TS7 LSP process client
 
+src/typescript-runtime.ts (or the smallest existing setup/runtime home)
+  single TS7 resolve/version/provision contract shared by setup, doctor and LSP client
+
 src/change/engine.ts
   exact target resolution + preview/apply orchestration
 
@@ -94,7 +115,7 @@ Do not create Manager/Service/Repository/backend-framework layers.
 
 Responsibilities only:
 
-- resolve compatible TS7 `tsc` executable.
+- obtain compatible TS7 `tsc` executable from the shared resolver.
 - lazy-start `tsc --lsp`.
 - initialize root/workspace.
 - reuse one client per project root.
@@ -201,6 +222,17 @@ Two plausible same-name symbols without enough target context must not be guesse
 - client starts.
 - repeated requests reuse it.
 - shutdown leaves no leaked child process.
+
+### TypeScript setup/runtime
+
+Prove deterministically that:
+
+- compatible project-local TS7 wins.
+- aiwf-packaged TS7 is the fallback when project TypeScript is absent or incompatible.
+- compatible host TS7 is recognized.
+- setup requests user-level Bun provisioning only when required.
+- an older project-pinned TypeScript is not modified.
+- doctor and LSP client resolve the same executable.
 
 ### Unsupported server
 
