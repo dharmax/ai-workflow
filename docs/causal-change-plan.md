@@ -382,6 +382,7 @@ Compute a deterministic hash from:
 - resolved target
 - normalized workspace edit/resource operations
 - original hashes of all touched files
+- the bounded graph relation/entity snapshot used for Product Impact, anchor migration, and verification
 
 `applyChange(request, fingerprint)` must recompute the preview immediately.
 
@@ -465,6 +466,8 @@ After apply:
 4. run targeted tests using existing test tools.
 5. run typecheck.
 6. full `bun test` for ticket acceptance.
+
+If diagnostics/typecheck/tests fail **after** the prepared filesystem mutation was committed successfully, keep the changed workspace and return a failed verification report. Do not attempt semantic rollback from test failure.
 
 No separate test-runner subsystem.
 
