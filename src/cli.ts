@@ -191,15 +191,80 @@ async function main() {
       break;
     }
 
+    case 'epics': {
+      const store = getStore();
+      const epics = await registry.execute('list_epics', {}, { store, projectRoot: root });
+      if (epics.length === 0) {
+        console.log('No epics found.');
+      } else {
+        for (const e of epics) {
+          console.log(`[${e.status.padEnd(9)}] ${e.id.padEnd(14)}: ${e.title} (Priority: ${e.priority})`);
+        }
+      }
+      break;
+    }
+
+    case 'epic': {
+      const epicId = args[1];
+      if (!epicId) {
+        console.error('Usage: aiwf epic <epicId>');
+        process.exit(1);
+      }
+      const store = getStore();
+      const e = await registry.execute('get_epic', { epicId }, { store, projectRoot: root });
+      console.log(`${e.id}: ${e.title}`);
+      console.log(`Status:   ${e.status}`);
+      console.log(`Priority: ${e.priority}`);
+      if (e.body) console.log(`Body:     ${e.body}`);
+      console.log(`Features: ${e.targetedFeatures.join(', ') || 'None'}`);
+      console.log(`Stories:  ${e.targetedStories.join(', ') || 'None'}`);
+      console.log(`Tickets:  ${e.containedTickets.join(', ') || 'None'}`);
+      break;
+    }
+
+    case 'features': {
+      const store = getStore();
+      const features = await registry.execute('list_features', {}, { store, projectRoot: root });
+      if (features.length === 0) {
+        console.log('No features found.');
+      } else {
+        for (const f of features) {
+          console.log(`[${f.status.padEnd(10)}] ${f.id.padEnd(14)}: ${f.title}`);
+        }
+      }
+      break;
+    }
+
+    case 'feature': {
+      const featureId = args[1];
+      if (!featureId) {
+        console.error('Usage: aiwf feature <featureId>');
+        process.exit(1);
+      }
+      const store = getStore();
+      const f = await registry.execute('get_feature', { featureId }, { store, projectRoot: root });
+      console.log(`${f.id}: ${f.title}`);
+      console.log(`Status:   ${f.status}`);
+      if (f.body) console.log(`Body:     ${f.body}`);
+      console.log(`Epics:    ${f.targetingEpics.join(', ') || 'None'}`);
+      console.log(`Stories:  ${f.containedStories.join(', ') || 'None'}`);
+      console.log(`Tickets:  ${f.implementingTickets.join(', ') || 'None'}`);
+      console.log(`Tests:    ${f.verifyingTests.join(', ') || 'None'}`);
+      if (f.acceptanceCriteria.length > 0) {
+        console.log('Criteria:');
+        for (const c of f.acceptanceCriteria) console.log(`  - ${c}`);
+      }
+      break;
+    }
+
     case 'stories': {
       const store = getStore();
-      const coverage = (args[1] || 'all') as any;
-      const stories = await registry.execute('list_user_stories', { coverage }, { store, projectRoot: root });
+      const stories = await registry.execute('list_user_stories', {}, { store, projectRoot: root });
       if (stories.length === 0) {
-        console.log(`No user stories found${coverage !== 'all' ? ` for coverage '${coverage}'` : ''}.`);
+        console.log('No user stories found.');
       } else {
         for (const s of stories) {
-          console.log(`[${s.implemented ? 'implemented' : 'unimplemented'}/${s.verified ? 'verified' : 'unverified'}] ${s.id}: ${s.title}`);
+          console.log(`[${s.status.padEnd(10)}] ${s.id.padEnd(14)}: ${s.title}`);
         }
       }
       break;
@@ -214,33 +279,162 @@ async function main() {
       const store = getStore();
       const s = await registry.execute('get_user_story', { storyId }, { store, projectRoot: root });
       console.log(`${s.id}: ${s.title}`);
+      console.log(`Status:   ${s.status}`);
       console.log(`Actor:    ${s.actor || 'User'}`);
       console.log(`Story:    ${s.story || ''}`);
-      console.log(`Epic:     ${s.epicIds.join(', ') || 'None'}`);
-      console.log(`Tickets:  ${s.ticketIds.join(', ') || 'None'}`);
-      console.log(`Tests:    ${s.testIds.join(', ') || 'None'}`);
-      console.log(`Coverage: ${s.implemented ? 'implemented' : 'unimplemented'}, ${s.verified ? 'verified' : 'unverified'}`);
+      if (s.context) console.log(`Context:  ${s.context}`);
+      if (s.sla) console.log(`SLA:      ${s.sla}`);
+      console.log(`Features: ${s.containingFeatures.join(', ') || 'None'}`);
+      console.log(`Epics:    ${s.targetingEpics.join(', ') || 'None'}`);
+      console.log(`Tickets:  ${s.addressingTickets.join(', ') || 'None'}`);
+      console.log(`Tests:    ${s.verifyingTests.join(', ') || 'None'}`);
+      if (s.acceptanceCriteria.length > 0) {
+        console.log('Criteria:');
+        for (const c of s.acceptanceCriteria) console.log(`  - ${c}`);
+      }
       break;
     }
 
-    case 'story-create': {
-      const title = args[1];
-      if (!title) {
-        console.error('Usage: aiwf story-create "<title>" [--actor <actor>] [--story <behavior>] [--epic <epicId>]');
+    case 'coverage': {
+      const entityId = args[1];
+      if (!entityId) {
+        console.error('Usage: aiwf coverage <entityId>');
         process.exit(1);
       }
-      const actorIdx = args.indexOf('--actor');
-      const storyIdx = args.indexOf('--story');
-      const epicIdx = args.indexOf('--epic');
       const store = getStore();
-      const created = await registry.execute('create_user_story', {
+      const cov = await registry.execute('get_product_coverage', { entityId }, { store, projectRoot: root });
+      console.log(`Coverage for ${cov.entityType} '${cov.entityId}':`);
+      console.log(`  Complete: ${cov.complete ? 'YES ✅' : 'NO ❌'}`);
+      if (cov.gaps.length > 0) {
+        console.log('  Gaps:');
+        for (const g of cov.gaps) {
+          console.log(`    - [${g.kind}] ${g.message}`);
+        }
+      }
+      console.log('  Related Entities:');
+      console.log(`    Epics:    ${cov.related.epics.join(', ') || 'None'}`);
+      console.log(`    Features: ${cov.related.features.join(', ') || 'None'}`);
+      console.log(`    Stories:  ${cov.related.stories.join(', ') || 'None'}`);
+      console.log(`    Tickets:  ${cov.related.tickets.join(', ') || 'None'}`);
+      console.log(`    Code:     ${cov.related.code.join(', ') || 'None'}`);
+      console.log(`    Tests:    ${cov.related.tests.join(', ') || 'None'}`);
+      break;
+    }
+
+    case 'impact': {
+      const entityId = args[1];
+      if (!entityId) {
+        console.error('Usage: aiwf impact <entityId>');
+        process.exit(1);
+      }
+      const store = getStore();
+      const imp = await registry.execute('get_product_impact', { entityId }, { store, projectRoot: root });
+      console.log(`Product Impact for ${imp.entityType} '${imp.entityId}':`);
+      console.log(`  Epics:        ${imp.epics.join(', ') || 'None'}`);
+      console.log(`  Features:     ${imp.features.join(', ') || 'None'}`);
+      console.log(`  Stories:      ${imp.stories.join(', ') || 'None'}`);
+      console.log(`  Tickets:      ${imp.tickets.join(', ') || 'None'}`);
+      console.log(`  Code Anchors: ${imp.code.join(', ') || 'None'}`);
+      console.log(`  Tests:        ${imp.tests.join(', ') || 'None'}`);
+      console.log(`  Decisions:    ${imp.decisions.join(', ') || 'None'}`);
+      console.log(`  Blockers:     ${imp.blockers.join(', ') || 'None'}`);
+      console.log(`  Dependencies: ${imp.dependencies.join(', ') || 'None'}`);
+      break;
+    }
+
+    case 'epic-create':
+    case 'epic-add': {
+      const title = args[1];
+      if (!title) {
+        console.error('Usage: aiwf epic-create "<title>" [--body <description>] [--priority <number>] [--no-decompose] [--apply]');
+        process.exit(1);
+      }
+      const bodyIdx = args.indexOf('--body');
+      const body = bodyIdx !== -1 ? args[bodyIdx + 1] : undefined;
+      const prioIdx = args.indexOf('--priority');
+      const priority = prioIdx !== -1 ? parseInt(args[prioIdx + 1], 10) : 1;
+      const noDecompose = args.includes('--no-decompose');
+      const autoApply = args.includes('--apply');
+
+      const store = getStore();
+
+      if (noDecompose) {
+        const created = await registry.execute('create_epic', {
+          title,
+          body,
+          priority,
+          status: 'planned'
+        }, { store, projectRoot: root });
+        await exportProjections(store, root);
+        console.log(`✅ Created Epic '${created.id}' without decomposition and synced projections.`);
+        break;
+      }
+
+      console.log(`🤖 Analyzing Epic draft "${title}" and existing Product Intent Graph...`);
+      const proposal = await registry.execute('propose_epic_structure', {
         title,
-        actor: actorIdx !== -1 ? args[actorIdx + 1] : undefined,
-        story: storyIdx !== -1 ? args[storyIdx + 1] : undefined,
-        epicId: epicIdx !== -1 ? args[epicIdx + 1] : undefined
+        body,
+        status: 'planned'
       }, { store, projectRoot: root });
+
+      console.log(`\n📋 Proposed Epic Structure:`);
+      console.log(`Epic: [${proposal.epic.action.toUpperCase()}] ${proposal.epic.id}: ${proposal.epic.title}`);
+
+      console.log(`\nFeatures (${proposal.features.length}):`);
+      for (const f of proposal.features) {
+        console.log(`  [${f.action.toUpperCase()}] ${f.id}: ${f.title}`);
+        if (f.acceptanceCriteria && f.acceptanceCriteria.length > 0) {
+          console.log(`    Criteria: ${f.acceptanceCriteria.join('; ')}`);
+        }
+      }
+
+      console.log(`\nUser Stories (${proposal.stories.length}):`);
+      for (const s of proposal.stories) {
+        console.log(`  [${s.action.toUpperCase()}] ${s.id} (Feature: ${s.featureId}): ${s.title}`);
+        if (s.story) console.log(`    Outcome: ${s.story}`);
+      }
+
+      if (proposal.questions.length > 0) {
+        console.log(`\nQuestions / Ambiguities (${proposal.questions.length}):`);
+        for (const q of proposal.questions) {
+          console.log(`  [${q.blocking ? 'BLOCKING ⚠️' : 'INFO'}] ${q.id}: ${q.text}`);
+        }
+      }
+
+      const hasBlocking = proposal.questions.some((q: any) => q.blocking);
+      if (hasBlocking) {
+        console.log(`\n⚠️  Cannot apply proposal automatically: blocking questions require resolution.`);
+        break;
+      }
+
+      if (autoApply || !process.stdout.isTTY) {
+        if (!autoApply) {
+          console.log(`\n(Non-interactive mode. Run with --apply to persist structure to the graph.)`);
+          break;
+        }
+      } else {
+        const readline = await import('node:readline/promises');
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const answer = await rl.question('\nApply this structure to graph? [y/N]: ');
+        rl.close();
+        if (answer.trim().toLowerCase() !== 'y' && answer.trim().toLowerCase() !== 'yes') {
+          console.log('Aborted. Graph unchanged.');
+          break;
+        }
+      }
+
+      const applied = await registry.execute('apply_epic_structure', { proposal }, { store, projectRoot: root });
       await exportProjections(store, root);
-      console.log(`✅ Created user story '${created.id}' and synced projections.`);
+      console.log(`\n✅ Applied Epic structure to graph and synced projections:`);
+      console.log(`  Epic:     ${applied.epicId}`);
+      console.log(`  Features: ${applied.featureIds.join(', ') || 'None'}`);
+      console.log(`  Stories:  ${applied.storyIds.join(', ') || 'None'}`);
+
+      const cov = await registry.execute('get_product_coverage', { entityId: applied.epicId }, { store, projectRoot: root });
+      console.log(`\nStructural Coverage for ${applied.epicId}: ${cov.complete ? 'COMPLETE ✅' : 'IN PROGRESS (gaps present)'}`);
+      if (cov.gaps.length > 0) {
+        for (const g of cov.gaps) console.log(`  - [${g.kind}] ${g.message}`);
+      }
       break;
     }
 
@@ -906,9 +1100,15 @@ Core Workflow Commands:
   sync                                   Synchronize SQLite Graph bi-directionally with Markdown Projections
   next [agentId]                         Algorithmic task selector: active lease -> P1 bugs -> Todo tasks
   tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
-  stories [all|unimplemented|unverified] List user stories by coverage state
-  story <storyId>                        Show story relations and coverage
-  story-create "<title>"                 Create a user story
+  epics [status]                         List epics in the Product Intent Graph
+  epic <epicId>                          Show epic details, targeted features/stories, and tickets
+  epic-create "<title>" [options]        Create Epic with semantic decomposition and proposal review
+  features [status]                      List features in the Product Intent Graph
+  feature <featureId>                    Show feature details, containing stories, and tickets
+  stories [status]                       List user stories in the Product Intent Graph
+  story <storyId>                        Show user story details and relations
+  coverage <entityId>                    Show structural and causal coverage for an Epic, Feature, or Story
+  impact <entityId>                      Show bounded product impact and code anchors
   claim <ticketId> [--agent <a>] [-m <m>] Atomically lease a ticket with TTL
   release <ticketId>                     Release active ticket lease
   create "<title>" [-p <P0-P3>] [--lane] Create a new Kanban ticket

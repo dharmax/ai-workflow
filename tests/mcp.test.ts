@@ -52,6 +52,15 @@ describe('Stdio MCP Server Bridge', () => {
     const storyTool = response.tools.find((t: any) => t.name === 'create_user_story');
     expect(storyTool).toBeDefined();
 
+    const featureTool = response.tools.find((t: any) => t.name === 'create_feature');
+    expect(featureTool).toBeDefined();
+
+    const coverageTool = response.tools.find((t: any) => t.name === 'get_product_coverage');
+    expect(coverageTool).toBeDefined();
+
+    const impactTool = response.tools.find((t: any) => t.name === 'get_product_impact');
+    expect(impactTool).toBeDefined();
+
     const storyCoverageTool = response.tools.find((t: any) => t.name === 'list_user_stories');
     expect(storyCoverageTool).toBeDefined();
   });
@@ -111,6 +120,19 @@ describe('Stdio MCP Server Bridge', () => {
     });
     expect(storyRes.isError).not.toBe(true);
     expect(storyRes.content[0].text).toContain('STORY-MCP-1');
+
+    // 3b. Call coverage tool through MCP
+    const covRes = await callHandler({
+      method: 'tools/call',
+      params: {
+        name: 'get_product_coverage',
+        arguments: {
+          entityId: 'STORY-MCP-1'
+        }
+      }
+    });
+    expect(covRes.isError).not.toBe(true);
+    expect(covRes.content[0].text).toContain('complete');
 
     // 4. Call non-existent tool
     const unknownRes = await callHandler({

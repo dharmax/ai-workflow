@@ -10,7 +10,7 @@ A Bun-first, deterministic Context Engine and Causal Engineering OS. AI-Workflow
 2. **Deterministic-First Tooling (<5ms, 0 Tokens)**: 20+ zero-token domain facilities for atomic ticket leases, AST symbol search, surgical slicing, blast radius estimation, and block patching.
 3. **Dual-Nature Interactive REPL**: Terminal shell with sub-5ms deterministic command fast-paths, tab auto-completion, dynamic cognitive mode switching (`/design`, `/dev`, `/triage`, `/product`), and grounded offline fallback.
 4. **Frictionless Setup & Discovery**: Zero-config project onboarding (`aiwf init`), global CLI symlinking (`aiwf setup`), automated MCP host configuration (Antigravity IDE, Claude Code, Cursor), and comprehensive diagnostics (`aiwf doctor`).
-5. **Bi-Directional Markdown Projections**: Obsidian Kanban (`kanban.md`), epics (`epics.md`), user stories (`user-stories.md`), modules (`modules.md`), and ADRs (`decisions.md`) sync bi-directionally with SQLite with active lease preservation.
+5. **Bi-Directional Markdown Projections**: Obsidian Kanban (`kanban.md`), epics (`epics.md`), features (`features.md`), user stories (`user-stories.md`), modules (`modules.md`), and ADRs (`decisions.md`) sync bi-directionally with SQLite with active lease preservation.
 6. **JIT Codelet Compiler & Promotion**: Synthesizes isolated, tested ESM routines and promotes verified codelets into live tools callable by human operators and AI agents alike.
 
 ---
@@ -43,7 +43,7 @@ aiwf init
 What `aiwf init` does:
 - Creates `.ai-workflow/` structure (`state/`, `codelets/`, `config.json`).
 - Indexes codebase AST symbols, functions, classes, and in-code notes (`TODO:`, `FIXME:`).
-- Generates starter Obsidian projections (`kanban.md`, `epics.md`, `user-stories.md`, `modules.md`, `decisions.md`).
+- Generates starter Obsidian projections (`kanban.md`, `epics.md`, `features.md`, `user-stories.md`, `modules.md`, `decisions.md`).
 - Prepares the AST+ SQLite store (`.ai-workflow/state/graph.db`).
 
 ### 3. Verify Health (`aiwf doctor`)
@@ -61,8 +61,8 @@ Overall Health: HEALTHY ✅
 
   [OK] Runtime / Bun Engine: Bun v1.3.14 active
   [OK] VCS / Git Status: Branch: master (Clean)
-  [OK] Graph / AST+ Semantic Graph: 1 tickets, 1 epics, 38 indexed files, 738 symbols
-  [OK] Projections / Markdown Sync: All core projections present (kanban, epics, modules, decisions)
+  [OK] Graph / AST+ Semantic Graph: 7 tickets, 1 epics, 119 indexed files, 5180 symbols
+  [OK] Projections / Markdown Sync: All core projections present (kanban, epics, features, user stories, modules, decisions)
   [OK] Tickets / Lease & Flow Health: 0 active lease(s)
   [OK] Cognitive / LLM Host (Ollama): Offline grounded mode active (http://localhost:11434 not reached)
   [OK] MCP / IDE/CLI Integration: Registered in Antigravity MCP hosts
@@ -85,9 +85,15 @@ aiwf <command> [options]
 | `sync` | Bi-directionally reconcile SQLite Graph with Markdown projections | `aiwf sync` |
 | `next [agentId]` | Algorithmic task selector (Active Lease $\to$ P1 Bugs $\to$ Todo) | `aiwf next` |
 | `tickets [lane]` | List Kanban tickets (Backlog, Todo, In Progress, Done, Blocked) | `aiwf tickets Todo` |
-| `stories [coverage]` | List user stories, including unimplemented/unverified coverage views | `aiwf stories unimplemented` |
-| `story <id>` | Show a story with Epic, implementation tickets, tests, and coverage | `aiwf story STORY-001` |
-| `story-create "<title>"` | Create a first-class behavioral user story | `aiwf story-create "Search my contacts"` |
+| `epics [status]` | List epics in the Product Intent Graph | `aiwf epics` |
+| `epic <id>` | Show an Epic with targeted features/stories and contained tickets | `aiwf epic EPIC-001` |
+| `epic-create "<title>"` | Create Epic with semantic decomposition and proposal review | `aiwf epic-create "Calendar invites"` |
+| `features [status]` | List features in the Product Intent Graph | `aiwf features` |
+| `feature <id>` | Show a Feature with containing stories, tickets, and tests | `aiwf feature FEAT-001` |
+| `stories [status]` | List user stories in the Product Intent Graph | `aiwf stories` |
+| `story <id>` | Show a user story with feature, tickets, tests, and criteria | `aiwf story STORY-001` |
+| `coverage <id>` | Show structural and causal coverage for an Epic, Feature, or Story | `aiwf coverage STORY-001` |
+| `impact <id>` | Show bounded product impact and code anchors | `aiwf impact FEAT-001` |
 | `claim <id> [--agent <a>] [-m <m>]` | Atomically lease a ticket with time-to-live | `aiwf claim TKT-001 --agent alpha -m 45` |
 | `release <id>` | Release an active ticket lease | `aiwf release TKT-001` |
 | `done <id>` | Mark ticket as Done, release lease, and sync Kanban | `aiwf done TKT-001` |
@@ -181,8 +187,7 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 
 ### Exposed MCP Tools
 - **`execute_shell_wish`**: Autonomous coding engine with auto-mode switching.
-- **Tickets**: `create_ticket`, `claim_ticket`, `release_ticket`, `update_ticket_state`, `list_tickets`, `recommend_next_task`.
-- **User Stories**: `create_user_story`, `update_user_story`, `link_user_story`, `unlink_user_story`, `get_user_story`, `list_user_stories`. Canonical relations are Epic `contains` Story, Ticket `addresses` Story, and Test `verifies` Story.
+- **Product Intent Graph**: `create_epic`, `get_epic`, `list_epics`, `update_epic`, `create_feature`, `get_feature`, `list_features`, `update_feature`, `create_user_story`, `get_user_story`, `list_user_stories`, `update_user_story`, `link_product`, `unlink_product`, `get_product_coverage`, `get_product_impact`. Canonical relations: Epic `targets` Feature/Story, Feature `contains` Story, Epic `contains` Ticket, Ticket `implements` Feature, Ticket `addresses` Story, Test `verifies` Feature/Story, Decision `governs` Epic/Feature/Story.
 - **AST Graph**: `find_symbol`, `get_symbol_source`, `get_file_outline`, `analyze_blast_radius`, `estimate_token_budget`.
 - **Compiler**: `compile_codelet`, `run_codelet`, `promote_codelet`, `apply_block_patch`.
 - **Git & OS**: `get_git_status`, `get_git_diff`, `get_git_hotspots`, `generate_pr_summary`, `run_command`, `get_environment_info`.

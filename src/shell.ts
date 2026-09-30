@@ -44,9 +44,16 @@ export const SHELL_COMMANDS = [
   'done',
   'move',
   'tickets',
+  'epics',
+  'epic',
+  'epic-create',
+  'epic-add',
+  'features',
+  'feature',
   'stories',
   'story',
-  'story-create',
+  'coverage',
+  'impact',
   'sync',
   'diff',
   'symbol',
@@ -113,9 +120,15 @@ Commands:
   move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
   create <title>             - Create ticket in Todo lane
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
-  stories [coverage]         - List user stories (all|unimplemented|unverified)
-  story <storyId>            - Show story, Epic, tickets, tests, and coverage
-  story-create <title>       - Create a user story
+  epics [status]             - List epics in the Product Intent Graph
+  epic <epicId>              - Show epic details, targeted features/stories, and tickets
+  epic-create <title>        - Create Epic with semantic decomposition and proposal review
+  features [status]          - List features in the Product Intent Graph
+  feature <featureId>        - Show feature details, containing stories, and tickets
+  stories [status]           - List user stories in the Product Intent Graph
+  story <storyId>            - Show story details, containing feature, tickets, tests
+  coverage <entityId>        - Show structural and causal coverage for an Epic, Feature, or Story
+  impact <entityId>          - Show bounded product impact and code anchors
   sync                       - Bi-directional sync between SQLite Graph and Markdown
   diff                       - Display uncommitted git diff
   symbol <name>              - Find symbol in AST+ semantic graph (supports --exact, --kind)
@@ -461,14 +474,192 @@ Commands:
     };
   }
 
-  if (lower === 'stories' || lower.startsWith('stories ')) {
-    const coverage = (line.split(/\s+/)[1] || 'all') as any;
-    const stories = await registry.execute('list_user_stories', { coverage }, ctx);
-    if (stories.length === 0) return { output: `No user stories found${coverage !== 'all' ? ` for coverage '${coverage}'` : ''}.` };
+  if (lower === 'epics' || lower.startsWith('epics ')) {
+    const status = line.split(/\s+/)[1] as any;
+    const epics = await registry.execute('list_epics', { status }, ctx);
+    if (epics.length === 0) return { output: 'No epics found.' };
     return {
-      output: stories.map((s: any) =>
-        `[${s.implemented ? 'implemented' : 'unimplemented'}/${s.verified ? 'verified' : 'unverified'}] ${s.id}: ${s.title}`
-      ).join('\n')
+      output: epics.map((e: any) => `[${e.status}] ${e.id}: ${e.title} (Priority: ${e.priority})`).join('\n')
+    };
+  }
+
+  if (lower === 'epic' || lower.startsWith('epic ')) {
+    const epicId = line.replace(/^epic\s*/i, '').trim();
+    if (!epicId) return { output: 'Usage: epic <epicId>' };
+    try {
+      const e = await registry.execute('get_epic', { epicId }, ctx);
+      return {
+        output: [
+          `${e.id}: ${e.title}`,
+          `Status:   ${e.status}`,
+          `Priority: ${e.priority}`,
+          e.body ? `Body:     ${e.body}` : null,
+          `Features: ${e.targetedFeatures.join(', ') || 'None'}`,
+          `Stories:  ${e.targetedStories.join(', ') || 'None'}`,
+          `Tickets:  ${e.containedTickets.join(', ') || 'None'}`
+        ].filter(Boolean).join('\n')
+      };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'epic-create' || lower.startsWith('epic-create ') || lower === 'epic-add' || lower.startsWith('epic-add ')) {
+    const rest = line.replace(/^(epic-create|epic-add)\s*/i, '').trim();
+    const parts = rest.split(/\s+/).filter(Boolean);
+    const flags: Record<string, any> = {};
+    const positional: string[] = [];
+
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === '--no-decompose') {
+        flags.noDecompose = true;
+      } else if (parts[i] === '--apply') {
+        flags.apply = true;
+      } else if (parts[i] === '--body' && parts[i + 1]) {
+        flags.body = parts[++i];
+      } else if (parts[i] === '--priority' && parts[i + 1]) {
+        flags.priority = parseInt(parts[++i], 10);
+      } else {
+        positional.push(parts[i]);
+      }
+    }
+
+    const title = positional.join(' ');
+    let args: any;
+    try {
+      args = await facilitator.facilitate(
+        {
+          id: 'epic-create',
+          description: 'Create an Epic with semantic decomposition and review',
+          inputs: {
+            title: {
+              type: 'string',
+              required: true,
+              description: 'Epic title'
+            }
+          }
+        },
+        title ? { title } : {},
+        { interactive: isInteractive }
+      );
+    } catch {
+      return { output: 'Usage: epic-create "<title>" [--body <description>] [--priority <number>] [--no-decompose] [--apply]' };
+    }
+
+    if (!args.title) return { output: 'Usage: epic-create "<title>" [--body <description>] [--priority <number>] [--no-decompose] [--apply]' };
+
+    if (flags.noDecompose) {
+      const created = await registry.execute('create_epic', {
+        title: args.title,
+        body: flags.body,
+        priority: flags.priority || 1,
+        status: 'planned'
+      }, ctx);
+      await exportProjections(session.store, session.projectRoot);
+      return { output: `Created Epic '${created.id}' without decomposition and synced projections.` };
+    }
+
+    const proposal = await registry.execute('propose_epic_structure', {
+      title: args.title,
+      body: flags.body,
+      status: 'planned'
+    }, ctx);
+
+    const lines: string[] = [];
+    lines.push(`📋 Proposed Epic Structure:`);
+    lines.push(`Epic: [${proposal.epic.action.toUpperCase()}] ${proposal.epic.id}: ${proposal.epic.title}`);
+
+    lines.push(`\nFeatures (${proposal.features.length}):`);
+    for (const f of proposal.features) {
+      lines.push(`  [${f.action.toUpperCase()}] ${f.id}: ${f.title}`);
+      if (f.acceptanceCriteria && f.acceptanceCriteria.length > 0) {
+        lines.push(`    Criteria: ${f.acceptanceCriteria.join('; ')}`);
+      }
+    }
+
+    lines.push(`\nUser Stories (${proposal.stories.length}):`);
+    for (const s of proposal.stories) {
+      lines.push(`  [${s.action.toUpperCase()}] ${s.id} (Feature: ${s.featureId}): ${s.title}`);
+      if (s.story) lines.push(`    Outcome: ${s.story}`);
+    }
+
+    if (proposal.questions.length > 0) {
+      lines.push(`\nQuestions / Ambiguities (${proposal.questions.length}):`);
+      for (const q of proposal.questions) {
+        lines.push(`  [${q.blocking ? 'BLOCKING ⚠️' : 'INFO'}] ${q.id}: ${q.text}`);
+      }
+    }
+
+    const hasBlocking = proposal.questions.some((q: any) => q.blocking);
+    if (hasBlocking) {
+      lines.push(`\n⚠️  Cannot apply proposal automatically: blocking questions require resolution.`);
+      return { output: lines.join('\n') };
+    }
+
+    let shouldApply = flags.apply;
+    if (!shouldApply && session.prompter && isInteractive) {
+      const confirmed = await session.prompter.confirm('Apply this structure to graph?', true);
+      shouldApply = confirmed;
+    }
+
+    if (!shouldApply) {
+      lines.push(`\nProposal review complete. (Run with --apply or confirm in interactive prompt to persist to graph.)`);
+      return { output: lines.join('\n') };
+    }
+
+    const applied = await registry.execute('apply_epic_structure', { proposal }, ctx);
+    await exportProjections(session.store, session.projectRoot);
+    lines.push(`\n✅ Applied Epic structure to graph and synced projections:`);
+    lines.push(`  Epic:     ${applied.epicId}`);
+    lines.push(`  Features: ${applied.featureIds.join(', ') || 'None'}`);
+    lines.push(`  Stories:  ${applied.storyIds.join(', ') || 'None'}`);
+
+    const cov = await registry.execute('get_product_coverage', { entityId: applied.epicId }, ctx);
+    lines.push(`\nStructural Coverage for ${applied.epicId}: ${cov.complete ? 'COMPLETE ✅' : 'IN PROGRESS (gaps present)'}`);
+    if (cov.gaps.length > 0) {
+      for (const g of cov.gaps) lines.push(`  - [${g.kind}] ${g.message}`);
+    }
+
+    return { output: lines.join('\n') };
+  }
+
+  if (lower === 'features' || lower.startsWith('features ')) {
+    const status = line.split(/\s+/)[1] as any;
+    const features = await registry.execute('list_features', { status }, ctx);
+    if (features.length === 0) return { output: 'No features found.' };
+    return {
+      output: features.map((f: any) => `[${f.status}] ${f.id}: ${f.title}`).join('\n')
+    };
+  }
+
+  if (lower === 'feature' || lower.startsWith('feature ')) {
+    const featureId = line.replace(/^feature\s*/i, '').trim();
+    if (!featureId) return { output: 'Usage: feature <featureId>' };
+    try {
+      const f = await registry.execute('get_feature', { featureId }, ctx);
+      return {
+        output: [
+          `${f.id}: ${f.title}`,
+          `Status:   ${f.status}`,
+          f.body ? `Body:     ${f.body}` : null,
+          `Epics:    ${f.targetingEpics.join(', ') || 'None'}`,
+          `Stories:  ${f.containedStories.join(', ') || 'None'}`,
+          `Tickets:  ${f.implementingTickets.join(', ') || 'None'}`,
+          `Tests:    ${f.verifyingTests.join(', ') || 'None'}`,
+          f.acceptanceCriteria.length > 0 ? `Criteria:\n${f.acceptanceCriteria.map((c: string) => `  - ${c}`).join('\n')}` : null
+        ].filter(Boolean).join('\n')
+      };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'stories' || lower.startsWith('stories ')) {
+    const status = line.split(/\s+/)[1] as any;
+    const stories = await registry.execute('list_user_stories', { status }, ctx);
+    if (stories.length === 0) return { output: 'No user stories found.' };
+    return {
+      output: stories.map((s: any) => `[${s.status}] ${s.id}: ${s.title}`).join('\n')
     };
   }
 
@@ -480,25 +671,71 @@ Commands:
       return {
         output: [
           `${s.id}: ${s.title}`,
-          `Actor: ${s.actor || 'User'}`,
-          `Story: ${s.story || ''}`,
-          `Epic: ${s.epicIds.join(', ') || 'None'}`,
-          `Tickets: ${s.ticketIds.join(', ') || 'None'}`,
-          `Tests: ${s.testIds.join(', ') || 'None'}`,
-          `Coverage: ${s.implemented ? 'implemented' : 'unimplemented'}, ${s.verified ? 'verified' : 'unverified'}`
-        ].join('\n')
+          `Status:   ${s.status}`,
+          `Actor:    ${s.actor || 'User'}`,
+          `Story:    ${s.story || ''}`,
+          s.context ? `Context:  ${s.context}` : null,
+          s.sla ? `SLA:      ${s.sla}` : null,
+          `Features: ${s.containingFeatures.join(', ') || 'None'}`,
+          `Epics:    ${s.targetingEpics.join(', ') || 'None'}`,
+          `Tickets:  ${s.addressingTickets.join(', ') || 'None'}`,
+          `Tests:    ${s.verifyingTests.join(', ') || 'None'}`,
+          s.acceptanceCriteria.length > 0 ? `Criteria:\n${s.acceptanceCriteria.map((c: string) => `  - ${c}`).join('\n')}` : null
+        ].filter(Boolean).join('\n')
       };
     } catch (err: any) {
       return { output: err.message || String(err) };
     }
   }
 
-  if (lower === 'story-create' || lower.startsWith('story-create ')) {
-    const title = line.replace(/^story-create\s*/i, '').trim();
-    if (!title) return { output: 'Usage: story-create <title>' };
-    const story = await registry.execute('create_user_story', { title }, ctx);
-    await exportProjections(session.store, session.projectRoot);
-    return { output: `Created user story '${story.id}' and synced projections.` };
+  if (lower === 'coverage' || lower.startsWith('coverage ')) {
+    const entityId = line.replace(/^coverage\s*/i, '').trim();
+    if (!entityId) return { output: 'Usage: coverage <entityId>' };
+    try {
+      const cov = await registry.execute('get_product_coverage', { entityId }, ctx);
+      const lines = [
+        `Coverage for ${cov.entityType} '${cov.entityId}':`,
+        `  Complete: ${cov.complete ? 'YES ✅' : 'NO ❌'}`
+      ];
+      if (cov.gaps.length > 0) {
+        lines.push('  Gaps:');
+        for (const g of cov.gaps) lines.push(`    - [${g.kind}] ${g.message}`);
+      }
+      lines.push('  Related Entities:');
+      lines.push(`    Epics:    ${cov.related.epics.join(', ') || 'None'}`);
+      lines.push(`    Features: ${cov.related.features.join(', ') || 'None'}`);
+      lines.push(`    Stories:  ${cov.related.stories.join(', ') || 'None'}`);
+      lines.push(`    Tickets:  ${cov.related.tickets.join(', ') || 'None'}`);
+      lines.push(`    Code:     ${cov.related.code.join(', ') || 'None'}`);
+      lines.push(`    Tests:    ${cov.related.tests.join(', ') || 'None'}`);
+      return { output: lines.join('\n') };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'impact' || lower.startsWith('impact ')) {
+    const entityId = line.replace(/^impact\s*/i, '').trim();
+    if (!entityId) return { output: 'Usage: impact <entityId>' };
+    try {
+      const imp = await registry.execute('get_product_impact', { entityId }, ctx);
+      return {
+        output: [
+          `Product Impact for ${imp.entityType} '${imp.entityId}':`,
+          `  Epics:        ${imp.epics.join(', ') || 'None'}`,
+          `  Features:     ${imp.features.join(', ') || 'None'}`,
+          `  Stories:      ${imp.stories.join(', ') || 'None'}`,
+          `  Tickets:      ${imp.tickets.join(', ') || 'None'}`,
+          `  Code Anchors: ${imp.code.join(', ') || 'None'}`,
+          `  Tests:        ${imp.tests.join(', ') || 'None'}`,
+          `  Decisions:    ${imp.decisions.join(', ') || 'None'}`,
+          `  Blockers:     ${imp.blockers.join(', ') || 'None'}`,
+          `  Dependencies: ${imp.dependencies.join(', ') || 'None'}`
+        ].join('\n')
+      };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
   }
 
   if (lower === 'sync') {

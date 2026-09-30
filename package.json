@@ -22,6 +22,7 @@
     "status": "bun src/cli.ts status",
     "audit": "bun src/cli.ts audit",
     "metrics": "bun src/cli.ts metrics",
+    "doctor": "bun src/cli.ts doctor",
     "shell": "bun src/cli.ts shell",
     "mcp": "bun src/cli.ts mcp",
     "ui": "bun src/cli.ts ui",

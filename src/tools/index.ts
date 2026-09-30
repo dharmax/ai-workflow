@@ -9,7 +9,7 @@ import { registerGraphTools } from './graph-queries.ts';
 import { registerGitTools } from './git.ts';
 import { registerOsTools } from './os.ts';
 import { registerPlanningTools } from './planning.ts';
-import { registerStoryTools } from './stories.ts';
+import { registerProductTools } from './product.ts';
 import { registerTestTools } from './test-runner.ts';
 import { registerScriptingTools } from './scripting.ts';
 import { registerCompilerTools } from './compiler.ts';
@@ -27,7 +27,7 @@ export function initializeTools(): ToolRegistry {
     registerGitTools();
     registerOsTools();
     registerPlanningTools();
-    registerStoryTools();
+    registerProductTools();
     registerTestTools();
     registerScriptingTools();
     registerCompilerTools();

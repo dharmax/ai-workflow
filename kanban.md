@@ -27,6 +27,8 @@ kanban-plugin: board
   - Summary: Public registry dharmax/knowledgebase, canonical SHA-256 integrity, local cache, CLI facilities (aiwf kb), and agent tools.
 - [x] **TKT-AST-001**: Comprehensive AST Symbol Coverage, Incremental Auto-Refresh, and Symbol/Graph Search APIs
   - Summary: Ensure that: 1. The AST graph really covers all symbols (functions, methods, classes, interfaces, types, enums, variables, constants, exports, re-exports, etc., including inside blocks/nested scopes if appropriate, across TS/JS). 2. The AST is always up to date (incremental staleness checking using file mtimes / hashes, auto-refresh on read/query). 3. The MCP and shell expose useful symbol search and graph search APIs (fuzzy/regex/exact symbol search, graph traversal: callers, dependencies, dependents, relations).
+- [x] **TKT-KRZQ**: AIWF-PRODUCT-GRAPH: Deterministic Product Intent Graph
+- [x] **TKT-OM7L**: AIWF-EPIC-DECOMPOSITION: Semantic Epic Decomposition & Proposal Review
 
 ## Blocked
 

@@ -7,6 +7,19 @@ export type TicketLane = 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Blocked'
 export type TicketStatus = 'planned' | 'in_progress' | 'verified' | 'blocked' | 'rejected';
 export type EntityStatus = 'draft' | 'proposed' | 'accepted' | 'implemented' | 'verified' | 'deprecated';
 
+export type EpicStatus =
+  | 'draft'
+  | 'planned'
+  | 'active'
+  | 'completed'
+  | 'cancelled';
+
+export type IntentStatus =
+  | 'draft'
+  | 'proposed'
+  | 'accepted'
+  | 'deprecated';
+
 export interface TicketClaim {
   agentId: string;
   claimedAt: string;
@@ -29,10 +42,17 @@ export interface IdeaData extends BaseEntityData {
 }
 
 export interface EpicData extends BaseEntityData {
+  status?: EpicStatus;
   priority?: number;
 }
 
+export interface FeatureData extends BaseEntityData {
+  status?: IntentStatus;
+  acceptanceCriteria?: string[];
+}
+
 export interface UserStoryData extends BaseEntityData {
+  status?: IntentStatus;
   actor?: string;
   story?: string;
   context?: string;

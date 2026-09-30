@@ -39,14 +39,25 @@ export class Idea extends AbstractEntity {
 export class Epic extends AbstractEntity {
   static template = {
     ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     priority: { validate: (v: any) => ({ value: v ?? 1 }) }
   };
   static readonly dcr = new EntityDcr(Epic, Epic.template);
 }
 
+export class Feature extends AbstractEntity {
+  static template = {
+    ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
+    acceptanceCriteria: anyValidator
+  };
+  static readonly dcr = new EntityDcr(Feature, Feature.template);
+}
+
 export class UserStory extends AbstractEntity {
   static template = {
     ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     actor: anyValidator,
     story: anyValidator,
     context: anyValidator,
@@ -177,6 +188,7 @@ export class TraceNode extends AbstractEntity {
 export {
   Idea as IdeaEntity,
   Epic as EpicEntity,
+  Feature as FeatureEntity,
   UserStory as UserStoryEntity,
   Ticket as TicketEntity,
   ModuleNode as ModuleEntity,
@@ -191,6 +203,7 @@ export {
 export const durableEntityDescriptors = [
   Idea.dcr,
   Epic.dcr,
+  Feature.dcr,
   UserStory.dcr,
   Ticket.dcr,
   ModuleNode.dcr,

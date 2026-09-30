@@ -166,11 +166,15 @@ export class WorkflowStore {
       } catch {}
     }
 
+    const defaultStatus = (dcr.name === 'Epic' || dcr.name === 'Feature' || dcr.name === 'UserStory')
+      ? 'draft'
+      : 'implemented';
+
     const createPayload = {
       ...data,
       id: formattedId,
       _id: formattedId,
-      status: data.status ?? 'implemented',
+      status: data.status ?? defaultStatus,
       createdAt: data.createdAt ?? new Date().toISOString(),
       updatedAt: data.updatedAt ?? new Date().toISOString()
     };
