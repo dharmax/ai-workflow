@@ -184,8 +184,9 @@ Fingerprint input must include all mutation-defining information, especially:
 - exact workspace edits
 - original hashes of touched files
 - file rename/create/delete operations
+- the relevant causal graph snapshot that affects impact, durable anchor migration, or verification
 
-This prevents stale previews without another persistence subsystem.
+This prevents stale previews without another persistence subsystem. A code-identical preview is still stale if the causal graph state it relied on has materially changed.
 
 ## 5. JS/TS target resolution
 
@@ -372,6 +373,8 @@ Use existing test facilities:
 - TypeScript diagnostics/typecheck.
 - targeted tests derived from Product Impact / touched test files.
 - broader `bun test` for acceptance and when impact warrants it.
+
+A verification failure after a successful disk commit does **not** trigger speculative source rollback. Return the failed verification with the changed workspace intact for inspection/fix-forward. Rollback is only best-effort recovery from failures while committing the prepared filesystem mutation itself.
 
 The change engine does not become another test runner.
 
