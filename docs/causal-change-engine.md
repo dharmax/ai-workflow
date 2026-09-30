@@ -70,6 +70,39 @@ Never infer availability from an old TypeScript/VS Code feature list. Capability
 
 As of the design review, TypeScript 7's native LSP clearly advertises rename, file-rename, references, call hierarchy, diagnostics, and a bounded set of code actions. Do **not** assume richer refactors such as extract/inline/move-symbol are exposed until the running server advertises a usable stable operation.
 
+### TypeScript installation and resolution
+
+TypeScript 7 is a **runtime dependency** of aiwf, not merely a development dependency.
+
+`aiwf setup` must ensure a compatible TypeScript 7 installation is actually usable on the host:
+
+1. detect compatible project-local TypeScript 7 without modifying it.
+2. detect aiwf's own packaged/runtime TypeScript 7.
+3. detect a compatible `tsc` already on `PATH`.
+4. if no usable host-level TypeScript 7 command exists, provision `typescript@^7` at user/global Bun scope (no sudo), then verify it.
+5. fail setup clearly if provisioning or verification fails.
+
+Do **not** overwrite, upgrade, or downgrade a project's pinned TypeScript version as a side effect of aiwf setup.
+
+Runtime selection for the change engine should prefer:
+
+```text
+compatible project-local TS7
+→ aiwf packaged TS7
+→ compatible host PATH TS7
+```
+
+This gives project fidelity where possible while guaranteeing aiwf still has a known compatible semantic engine.
+
+`aiwf doctor` must report:
+
+- selected TypeScript executable path
+- version
+- whether native LSP startup is usable
+- whether the host-level `tsc` command is compatible
+
+The resolver/provisioner should have one owner shared by setup, doctor, and the LSP client. Do not duplicate TypeScript discovery logic.
+
 ### codebase-parser owns cheap indexing
 
 `@dharmax/codebase-parser` remains the lightweight multi-language indexer for:
@@ -219,8 +252,8 @@ Preferred minimal dependency: `vscode-jsonrpc` (or an equivalently small establi
 
 The client should:
 
-- resolve a TypeScript 7 `tsc` executable.
-- prefer the target project's TypeScript 7 when compatible; otherwise use aiwf's own TypeScript 7 dependency.
+- use the shared TypeScript resolver established by setup.
+- prefer compatible project-local TypeScript 7, then aiwf's packaged runtime TypeScript 7, then a compatible host PATH TypeScript 7.
 - launch `tsc --lsp` over stdio lazily.
 - initialize exactly one process per project root and reuse it.
 - advertise only the client capabilities aiwf actually supports.
