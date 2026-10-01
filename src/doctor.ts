@@ -9,6 +9,7 @@ import { WorkflowStore } from './graph/store.ts';
 import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
 import { loadConfig, resolveCloudCredentials } from './config.ts';
 import { ModelRadar } from './actor/radar.ts';
+import { resolveTypeScriptRuntime, checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime } from './typescript-runtime.ts';
 
 export interface DiagnosticCheck {
   category: string;
@@ -38,6 +39,81 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     status: bunOk ? 'ok' : 'error',
     message: bunOk ? `Bun v${bunVersion} active` : 'Bun runtime not detected'
   });
+
+  // 1b. TypeScript 7 Semantic Engine
+  try {
+    const tsRes = await resolveTypeScriptRuntime(projectRoot);
+    const hostCompat = await checkHostTypeScriptCompatibility();
+    let tsStatus: 'ok' | 'warn' | 'error' = 'ok';
+    let tsMsg = '';
+
+    if (!tsRes.isCompatible) {
+      tsStatus = 'error';
+      tsMsg = tsRes.error || 'No compatible TypeScript 7 installation detected. Run `aiwf setup`.';
+    } else if (!tsRes.lspReady) {
+      tsStatus = 'warn';
+      tsMsg = `TypeScript v${tsRes.version} (${tsRes.source}) found at '${tsRes.executablePath}', but native LSP mode (--lsp) failed probe.`;
+    } else {
+      tsMsg = `TypeScript v${tsRes.version} (${tsRes.source}: ${tsRes.executablePath}) native LSP ready | Host tsc: ${hostCompat.compatible ? `v${hostCompat.version} (compatible)` : 'incompatible or missing'}`;
+    }
+
+    checks.push({
+      category: 'Runtime',
+      name: 'TypeScript 7 Engine',
+      status: tsStatus,
+      message: tsMsg,
+      details: {
+        executablePath: tsRes.executablePath,
+        version: tsRes.version,
+        source: tsRes.source,
+        lspReady: tsRes.lspReady,
+        hostCompatible: hostCompat.compatible,
+        hostVersion: hostCompat.version
+      }
+    });
+  } catch (err: any) {
+    checks.push({
+      category: 'Runtime',
+      name: 'TypeScript 7 Engine',
+      status: 'error',
+      message: `TypeScript diagnostic failed: ${err.message}`
+    });
+  }
+
+  // 1c. TypeScript 6 Refactor Compatibility Sidecar
+  try {
+    const ts6Res = await resolveTs6RefactorRuntime(projectRoot);
+    let ts6Status: 'ok' | 'warn' | 'error' = 'ok';
+    let ts6Msg = '';
+
+    if (!ts6Res.isAvailable) {
+      ts6Status = 'warn';
+      ts6Msg = ts6Res.error || 'TypeScript 6 refactor sidecar not available. Run `aiwf setup`.';
+    } else {
+      ts6Msg = `TypeScript v${ts6Res.ts6Version} (${ts6Res.tsserverPath}) ready via tsls v${ts6Res.tslsVersion} (${ts6Res.tslsBinPath})`;
+    }
+
+    checks.push({
+      category: 'Runtime',
+      name: 'TypeScript 6 Refactor Sidecar',
+      status: ts6Status,
+      message: ts6Msg,
+      details: {
+        isAvailable: ts6Res.isAvailable,
+        ts6Version: ts6Res.ts6Version,
+        tsserverPath: ts6Res.tsserverPath,
+        tslsVersion: ts6Res.tslsVersion,
+        tslsBinPath: ts6Res.tslsBinPath
+      }
+    });
+  } catch (err: any) {
+    checks.push({
+      category: 'Runtime',
+      name: 'TypeScript 6 Refactor Sidecar',
+      status: 'warn',
+      message: `TypeScript 6 sidecar diagnostic failed: ${err.message}`
+    });
+  }
 
   // 2. Git Working Tree
   try {

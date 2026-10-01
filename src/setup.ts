@@ -14,6 +14,9 @@ import { Ticket, Epic } from './graph/ontology.ts';
 import { saveConfig } from './config.ts';
 import { exportMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
+import { ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
+
+export interface SetupTypeScriptResult extends TsProvisionResult {}
 
 export interface InitResult {
   projectRoot: string;
@@ -538,4 +541,17 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
     schemasDir,
     skillsSynced
   };
+}
+
+/**
+ * Ensures compatible host-level TypeScript 7 is available for runtime semantic operations,
+ * and provisions the TS6 refactor compatibility sidecar as needed.
+ */
+export async function setupTypeScript(
+  projectRoot: string = process.cwd(),
+  seams?: TsResolverSeams
+): Promise<{ ts7: SetupTypeScriptResult; ts6: TsProvisionResult }> {
+  const ts7 = await ensureHostTypeScript7(seams);
+  const ts6 = await ensureTs6RefactorRuntime(projectRoot, seams);
+  return { ts7, ts6 };
 }

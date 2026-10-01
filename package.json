@@ -30,15 +30,18 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
     "@dharmax/llm-utils": "file:../llm-utils",
     "@dharmax/pubsub": "file:../pubsub",
     "@dharmax/semantika": "file:../semantika",
+    "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/text-compiler": "file:../text-compiler",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "typescript": "^7.0.2",
+    "typescript-language-server": "^6.0.1",
+    "vscode-jsonrpc": "^9.0.3",
     "zod": "^4.6.5"
   },
   "overrides": {
@@ -54,7 +57,6 @@
   "devDependencies": {
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.2",
-    "happy-dom": "^20.14.5",
-    "typescript": "^7.0.2"
+    "happy-dom": "^20.14.5"
   }
 }

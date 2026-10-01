@@ -57,6 +57,9 @@ export const SHELL_COMMANDS = [
   'sync',
   'diff',
   'symbol',
+  'rename',
+  'refactor',
+  'change',
   'graph',
   'callers',
   'deps',
@@ -841,6 +844,140 @@ Commands:
     return {
       output: res.results.map((e: any) => `[${e.type}${e.kind ? `:${e.kind}` : ''}] ${e.title || e.id} (${e.id})${e.filePath ? ` -> ${e.filePath}:${e.line || 1}` : ''}`).join('\n')
     };
+  }
+
+  if (lower === 'rename' || lower.startsWith('rename ')) {
+    const raw = line.replace(/^rename\s*/i, '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      return { output: 'Usage: rename <symbolName|filePath> <newName> [--file <path>] [--yes]' };
+    }
+
+    const isFileRename = parts[0].includes('/') || parts[0].endsWith('.ts') || parts[0].endsWith('.js');
+    const autoApply = parts.includes('--yes') || parts.includes('-y');
+    const targetArg = parts[0];
+    const newName = parts[1];
+
+    let fileFilter: string | undefined;
+    const fIdx = parts.indexOf('--file') !== -1 ? parts.indexOf('--file') : parts.indexOf('-f');
+    if (fIdx !== -1 && parts[fIdx + 1]) fileFilter = parts[fIdx + 1];
+
+    const changeReq: any = isFileRename
+      ? { action: 'rename_file', oldPath: targetArg, newPath: newName }
+      : { action: 'rename_symbol', target: { type: 'symbol', symbolName: targetArg, filePath: fileFilter || '' }, newName };
+
+    try {
+      const preview = await registry.execute('preview_change', changeReq, ctx);
+      if (preview.blocked) {
+        return { output: `❌ Cannot rename: ${preview.blockReason}` };
+      }
+
+      const lines: string[] = [];
+      lines.push(`🔍 Change Preview (${preview.fingerprint.slice(0, 10)}):`);
+      lines.push(`  ${preview.summary}`);
+      lines.push(`  Affected files (${preview.affectedFiles.length}): ${preview.affectedFiles.join(', ')}`);
+
+      let confirmed = autoApply;
+      if (!confirmed && session.prompter && isInteractive) {
+        confirmed = await session.prompter.confirm(`Apply changes across ${preview.affectedFiles.length} file(s)?`, false);
+      }
+
+      if (confirmed) {
+        const applyRes = await registry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
+        if (applyRes.ok) {
+          lines.push(`\n✅ Applied successfully. Touched: ${applyRes.filesTouched.join(', ') || 'none'}. Verification: ${applyRes.verification.passed ? 'PASSED' : 'CHECK FAILED'}`);
+        } else {
+          lines.push(`\n❌ Apply failed: ${applyRes.error}`);
+        }
+      } else {
+        lines.push(`\nOperation cancelled. To apply later, run: apply_change with fingerprint ${preview.fingerprint}`);
+      }
+
+      return { output: lines.join('\n') };
+    } catch (err: any) {
+      return { output: `Rename error: ${err.message || String(err)}` };
+    }
+  }
+
+  if (lower === 'refactor' || lower.startsWith('refactor ')) {
+    const raw = line.replace(/^refactor\s*/i, '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      return { output: 'Usage: refactor <kind> <symbolName|filePath:startLine:startChar-endLine:endChar> [options]\nExamples:\n  refactor extract-function src/math.ts:2:2-3:28\n  refactor inline-variable myVar --file src/math.ts\n  refactor move-to-file myFunc --target src/other.ts --file src/math.ts' };
+    }
+
+    const kind = parts[0];
+    const targetArg = parts[1];
+    const autoApply = parts.includes('--yes') || parts.includes('-y');
+
+    let fileFilter: string | undefined;
+    const fIdx = parts.indexOf('--file') !== -1 ? parts.indexOf('--file') : parts.indexOf('-f');
+    if (fIdx !== -1 && parts[fIdx + 1]) fileFilter = parts[fIdx + 1];
+
+    let targetFileArg: string | undefined;
+    const tIdx = parts.indexOf('--target') !== -1 ? parts.indexOf('--target') : parts.indexOf('-t');
+    if (tIdx !== -1 && parts[tIdx + 1]) targetFileArg = parts[tIdx + 1];
+
+    let targetObj: any;
+    const rangeMatch = targetArg.match(/^([^:]+):(\d+):(\d+)-(\d+):(\d+)$/);
+    if (rangeMatch) {
+      targetObj = {
+        type: 'range',
+        filePath: rangeMatch[1],
+        startLine: parseInt(rangeMatch[2], 10),
+        startCharacter: parseInt(rangeMatch[3], 10),
+        endLine: parseInt(rangeMatch[4], 10),
+        endCharacter: parseInt(rangeMatch[5], 10)
+      };
+    } else {
+      targetObj = {
+        type: 'symbol',
+        symbolName: targetArg,
+        filePath: fileFilter || ''
+      };
+    }
+
+    const changeReq: any = {
+      action: 'refactor',
+      target: targetObj,
+      refactorKind: kind,
+      arguments: targetFileArg ? { targetFile: targetFileArg } : undefined
+    };
+
+    try {
+      const preview = await registry.execute('preview_change', changeReq, ctx);
+      if (preview.blocked) {
+        if (preview.requiredArguments && preview.requiredArguments.length > 0) {
+          return { output: `⚠️  Refactor requires missing argument(s): ${preview.requiredArguments.join(', ')}\n${preview.blockReason}` };
+        }
+        return { output: `❌ Cannot refactor: ${preview.blockReason}` };
+      }
+
+      const lines: string[] = [];
+      lines.push(`🔍 Change Preview (${preview.fingerprint.slice(0, 10)}):`);
+      lines.push(`  ${preview.summary}`);
+      lines.push(`  Affected files (${preview.affectedFiles.length}): ${preview.affectedFiles.join(', ')}`);
+
+      let confirmed = autoApply;
+      if (!confirmed && session.prompter && isInteractive) {
+        confirmed = await session.prompter.confirm(`Apply refactoring across ${preview.affectedFiles.length} file(s)?`, false);
+      }
+
+      if (confirmed) {
+        const applyRes = await registry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
+        if (applyRes.ok) {
+          lines.push(`\n✅ Applied successfully. Touched: ${applyRes.filesTouched.join(', ') || 'none'}. Verification: ${applyRes.verification.passed ? 'PASSED' : 'CHECK FAILED'}`);
+        } else {
+          lines.push(`\n❌ Apply failed: ${applyRes.error}`);
+        }
+      } else {
+        lines.push(`\nOperation cancelled. To apply later, run: apply_change with fingerprint ${preview.fingerprint}`);
+      }
+
+      return { output: lines.join('\n') };
+    } catch (err: any) {
+      return { output: `Refactor error: ${err.message || String(err)}` };
+    }
   }
 
   if (lower === 'callers' || lower.startsWith('callers ')) {

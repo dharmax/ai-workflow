@@ -29,6 +29,9 @@ kanban-plugin: board
   - Summary: Ensure that: 1. The AST graph really covers all symbols (functions, methods, classes, interfaces, types, enums, variables, constants, exports, re-exports, etc., including inside blocks/nested scopes if appropriate, across TS/JS). 2. The AST is always up to date (incremental staleness checking using file mtimes / hashes, auto-refresh on read/query). 3. The MCP and shell expose useful symbol search and graph search APIs (fuzzy/regex/exact symbol search, graph traversal: callers, dependencies, dependents, relations).
 - [x] **TKT-KRZQ**: AIWF-PRODUCT-GRAPH: Deterministic Product Intent Graph
 - [x] **TKT-OM7L**: AIWF-EPIC-DECOMPOSITION: Semantic Epic Decomposition & Proposal Review
+- [x] **AIWF-CHANGE-FOUNDATION**: --id
+- [x] **AIWF-NATIVE-CODE-CHANGE**: --id
+- [x] **TKT-QRT7**: AIWF-LEGACY-REFACTOR-BRIDGE
 
 ## Blocked
 

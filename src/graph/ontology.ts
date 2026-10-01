@@ -101,6 +101,17 @@ export class FileNode extends AbstractEntity {
 }
 
 export class SymbolNode extends AbstractEntity {
+  title?: string;
+  body?: string;
+  status?: string;
+  filePath?: string;
+  kind?: string;
+  exported?: boolean;
+  line?: number;
+  column?: number;
+  signature?: string;
+  containerName?: string;
+
   static template = {
     ...baseTemplate,
     filePath: anyValidator,

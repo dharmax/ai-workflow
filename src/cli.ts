@@ -16,7 +16,7 @@ import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WorkflowActor } from './actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
-import { initProject, installGlobalBinary, configureMcp } from './setup.ts';
+import { initProject, installGlobalBinary, configureMcp, setupTypeScript } from './setup.ts';
 import { loadConfig, saveConfig } from './config.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
 import { KnowledgeBaseClient } from './kb/client.ts';
@@ -145,6 +145,23 @@ async function main() {
       const isMcp = args.includes('--mcp') || args.length === 1;
 
       console.log(`⚙️  Running AI-Workflow Setup...`);
+      const tsSetup = await setupTypeScript(root);
+      if (tsSetup.ts7.provisioned) {
+        console.log(`📦 Provisioned TypeScript 7 v${tsSetup.ts7.version} at Bun global scope: ${tsSetup.ts7.executablePath}`);
+      } else if (tsSetup.ts7.error) {
+        console.warn(`⚠️  TypeScript 7 provisioning warning: ${tsSetup.ts7.error}`);
+      } else if (tsSetup.ts7.executablePath) {
+        console.log(`⚡ Verified compatible TypeScript 7 v${tsSetup.ts7.version}: ${tsSetup.ts7.executablePath}`);
+      }
+
+      if (tsSetup.ts6.provisioned) {
+        console.log(`📦 Provisioned TypeScript 6 Refactor Sidecar: ${tsSetup.ts6.executablePath} (v${tsSetup.ts6.version})`);
+      } else if (tsSetup.ts6.error) {
+        console.warn(`⚠️  TypeScript 6 sidecar warning: ${tsSetup.ts6.error}`);
+      } else if (tsSetup.ts6.executablePath) {
+        console.log(`⚡ Verified TypeScript 6 Refactor Sidecar: ${tsSetup.ts6.executablePath} (v${tsSetup.ts6.version})`);
+      }
+
       if (isGlobal) {
         const binRes = installGlobalBinary();
         console.log(`🔗 Symlinked CLI: ${binRes.symlinkTarget} -> ${binRes.binaryPath}`);

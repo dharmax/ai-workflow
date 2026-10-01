@@ -77,12 +77,7 @@ export async function indexSingleFile(
     status: 'implemented'
   });
 
-  // Clean up previous file contents (symbols and notes) for this relPath using filtered query
-  const existingSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: relPath });
-  for (const s of existingSymbols) {
-    try { await store.deleteEntity(s.id); } catch {}
-  }
-
+  // Clean up previous file notes for this relPath using filtered query (symbols are stably reconciled below)
   const existingNotes = await store.listEntities<Lesson>(Lesson.dcr, { filePath: relPath });
   for (const n of existingNotes) {
     try { await store.deleteEntity(n.id); } catch {}
@@ -120,32 +115,84 @@ export async function indexSingleFile(
 
   await store.relate(modEntity, 'contains', fileEntity);
 
-  let symbolsCount = 0;
-  const containerEntities = new Map<string, SymbolNode>();
+  // 1. Reconcile symbols stably: do NOT blindly delete existing symbols.
+  // Group old and new symbols by stable key: containerName + kind + name
+  const existingSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: relPath });
+  const oldByKey = new Map<string, SymbolNode[]>();
+  for (const s of existingSymbols) {
+    const key = `${s.containerName || ''}::${s.kind}::${s.title}`;
+    const list = oldByKey.get(key) || [];
+    list.push(s);
+    oldByKey.set(key, list);
+  }
 
-  // 1. Index symbols with unique scoped IDs
+  const newByKey = new Map<string, typeof parsed.symbols>();
+  for (const sym of parsed.symbols) {
+    const key = `${sym.containerName || ''}::${sym.kind}::${sym.name}`;
+    const list = newByKey.get(key) || [];
+    list.push(sym);
+    newByKey.set(key, list);
+  }
+
+  // Set of old entity IDs that were matched and preserved
+  const preservedOldIds = new Set<string>();
+  const containerEntities = new Map<string, SymbolNode>();
+  let symbolsCount = 0;
+
+  // Process new symbols: either update uniquely matched old entity, or create new
   for (const sym of parsed.symbols) {
     symbolsCount++;
-    const containerPrefix = sym.containerName ? `${sym.containerName}.` : '';
-    const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
+    const key = `${sym.containerName || ''}::${sym.kind}::${sym.name}`;
+    const oldMatches = oldByKey.get(key) || [];
+    const newMatches = newByKey.get(key) || [];
 
-    const symbolEntity = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
-      id: symbolId,
-      title: sym.name,
-      containerName: sym.containerName,
-      filePath: relPath,
-      kind: sym.kind,
-      exported: sym.exported,
-      line: sym.line,
-      column: sym.column,
-      signature: sym.metadata?.signature,
-      status: 'implemented'
-    });
+    let symbolEntity: SymbolNode;
+    // Exactly one old and one new symbol share this key: update old entity in place
+    if (oldMatches.length === 1 && newMatches.length === 1) {
+      const oldEntity = oldMatches[0];
+      preservedOldIds.add(oldEntity.id);
+      await oldEntity.update({
+        line: sym.line,
+        column: sym.column,
+        exported: sym.exported,
+        signature: sym.metadata?.signature,
+        status: 'implemented',
+        updatedAt: new Date().toISOString()
+      }, true, false);
+      symbolEntity = oldEntity;
+    } else {
+      // Unmatched or ambiguous duplicate key: create new symbol entity
+      const containerPrefix = sym.containerName ? `${sym.containerName}.` : '';
+      const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
+      symbolEntity = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
+        id: symbolId,
+        title: sym.name,
+        containerName: sym.containerName,
+        filePath: relPath,
+        kind: sym.kind,
+        exported: sym.exported,
+        line: sym.line,
+        column: sym.column,
+        signature: sym.metadata?.signature,
+        status: 'implemented'
+      });
+    }
 
-    await store.relate(fileEntity, 'contains', symbolEntity);
+    try {
+      await store.relate(fileEntity, 'contains', symbolEntity);
+    } catch {}
 
     if (!sym.containerName && ['class', 'interface', 'enum', 'struct', 'trait'].includes(sym.kind)) {
       containerEntities.set(sym.name, symbolEntity);
+    }
+  }
+
+  // Delete unmatched old symbols that were not preserved
+  for (const oldSym of existingSymbols) {
+    if (!preservedOldIds.has(oldSym.id)) {
+      try {
+        await store.deleteEntity(oldSym.id);
+      } catch {}
     }
   }
 
@@ -153,9 +200,19 @@ export async function indexSingleFile(
   for (const sym of parsed.symbols) {
     if (sym.containerName && containerEntities.has(sym.containerName)) {
       const parentEntity = containerEntities.get(sym.containerName)!;
-      const containerPrefix = `${sym.containerName}.`;
-      const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
-      const memberEntity = await store.getEntity<SymbolNode>(symbolId, SymbolNode.dcr);
+      const key = `${sym.containerName}::${sym.kind}::${sym.name}`;
+      const oldMatches = oldByKey.get(key) || [];
+      const newMatches = newByKey.get(key) || [];
+
+      let memberEntity: SymbolNode | null = null;
+      if (oldMatches.length === 1 && newMatches.length === 1 && preservedOldIds.has(oldMatches[0].id)) {
+        memberEntity = oldMatches[0];
+      } else {
+        const containerPrefix = `${sym.containerName}.`;
+        const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
+        memberEntity = await store.getEntity<SymbolNode>(symbolId, SymbolNode.dcr);
+      }
+
       if (memberEntity) {
         try {
           await store.relate(parentEntity, 'contains', memberEntity);

@@ -9,6 +9,7 @@ import type { ToolDefinition, ToolRegistry } from './registry.ts';
 export type ToolBucket =
   | 'ticket'
   | 'graph'
+  | 'change'
   | 'compiler'
   | 'git'
   | 'os'
@@ -22,6 +23,15 @@ interface BucketRule {
 }
 
 const BUCKET_RULES: BucketRule[] = [
+  {
+    bucket: 'change',
+    keywords: [
+      'rename', 'refactor', 'move file', 'rename file', 'organize imports',
+      'preview change', 'apply change', 'source action', 'extract', 'inline',
+      'move declaration', 'extract function', 'extract method', 'extract constant',
+      'extract type', 'inline variable', 'move'
+    ]
+  },
   {
     bucket: 'ticket',
     keywords: ['ticket', 'lease', 'claim', 'release', 'kanban', 'backlog', 'todo', 'done', 'lane', 'task', 'recommend', 'p0', 'p1', 'p2']
