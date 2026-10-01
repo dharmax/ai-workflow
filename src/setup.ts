@@ -43,6 +43,8 @@ export interface ConfigureMcpOptions {
   cliPath?: string;
   mcpPath?: string;
   homeDir?: string;
+  link?: boolean;
+  binaryPath?: string;
 }
 
 export const MCP_INSTRUCTIONS_2_0 =
@@ -226,9 +228,16 @@ export function installGlobalBinary(sourceCliPath?: string, homeDir?: string): G
   const binDir = path.join(home, '.local', 'bin');
   fs.mkdirSync(binDir, { recursive: true });
 
-  const resolvedSource = sourceCliPath
-    ? path.resolve(sourceCliPath)
-    : path.resolve(__dirname, 'cli.ts');
+  let resolvedSource: string;
+  const isCompiled = !process.execPath.endsWith('bun') && !process.execPath.endsWith('bun.exe');
+
+  if (sourceCliPath) {
+    resolvedSource = path.resolve(sourceCliPath);
+  } else if (isCompiled) {
+    resolvedSource = process.execPath;
+  } else {
+    resolvedSource = path.resolve(__dirname, 'cli.ts');
+  }
 
   const symlinkTarget = path.join(binDir, 'aiwf');
 
@@ -238,10 +247,22 @@ export function installGlobalBinary(sourceCliPath?: string, homeDir?: string): G
     }
   } catch {}
 
-  fs.symlinkSync(resolvedSource, symlinkTarget);
+  // If source is the target itself (e.g. executed in place in ~/.local/bin/aiwf), nothing to link
+  if (resolvedSource !== symlinkTarget) {
+    try {
+      if (fs.existsSync(symlinkTarget) || fs.lstatSync(symlinkTarget).isSymbolicLink()) {
+        fs.unlinkSync(symlinkTarget);
+      }
+    } catch {}
+
+    if (isCompiled) {
+      fs.copyFileSync(resolvedSource, symlinkTarget);
+    } else {
+      fs.symlinkSync(resolvedSource, symlinkTarget);
+    }
+  }
 
   try {
-    fs.chmodSync(resolvedSource, 0o755);
     fs.chmodSync(symlinkTarget, 0o755);
   } catch {}
 
@@ -368,9 +389,19 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
 
   const hostsUpdated: string[] = [];
 
+  const isLink = !!options.link;
+  const installedAiWf = options.binaryPath || options.cliPath || path.join(home, '.local', 'bin', 'aiwf');
+  const execBasename = path.basename(process.execPath, '.exe');
+  const isBunRuntime = execBasename === 'bun';
+  const useBinary = !isLink && (options.binaryPath || options.cliPath || fs.existsSync(installedAiWf) || !isBunRuntime);
+  const binaryTarget = options.binaryPath || options.cliPath || (fs.existsSync(installedAiWf) ? installedAiWf : (!isBunRuntime ? process.execPath : 'aiwf'));
+
+  const mcpCommand = useBinary ? binaryTarget : 'bun';
+  const mcpArgs = useBinary ? ['mcp'] : ['run', resolvedMcp];
+
   const mcpJsonEntry = {
-    command: 'bun',
-    args: ['run', resolvedMcp],
+    command: mcpCommand,
+    args: mcpArgs,
     instructions: MCP_INSTRUCTIONS_2_0
   };
 
@@ -423,7 +454,8 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
       }
 
       // Generate clean 2.0 tool approvals block
-      let codexServerBlock = `[mcp_servers.aiwf-mcp]\ncommand = "bun"\nargs = ["run", "${resolvedMcp}"]\nenv = { AI_WORKFLOW_TOOLKIT_ROOT = "${pkgRoot}" }`;
+      const codexArgsToml = JSON.stringify(mcpArgs);
+      let codexServerBlock = `[mcp_servers.aiwf-mcp]\ncommand = "${mcpCommand}"\nargs = ${codexArgsToml}\nenv = { AI_WORKFLOW_TOOLKIT_ROOT = "${pkgRoot}" }`;
       for (const tool of allToolNames) {
         codexServerBlock += `\n\n[mcp_servers.aiwf-mcp.tools.${tool}]\napproval_mode = "approve"`;
       }
@@ -484,8 +516,8 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
       }
       claudeConfig.mcpServers = claudeConfig.mcpServers || {};
       claudeConfig.mcpServers['ai-workflow'] = {
-        command: 'bun',
-        args: ['run', resolvedMcp]
+        command: mcpCommand,
+        args: mcpArgs
       };
       fs.writeFileSync(claudeConfigPath, JSON.stringify(claudeConfig, null, 2), 'utf8');
       hostsUpdated.push('Claude Code');

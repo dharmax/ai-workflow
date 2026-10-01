@@ -32,6 +32,7 @@ kanban-plugin: board
 - [x] **AIWF-CHANGE-FOUNDATION**: --id
 - [x] **AIWF-NATIVE-CODE-CHANGE**: --id
 - [x] **TKT-QRT7**: AIWF-LEGACY-REFACTOR-BRIDGE
+- [x] **TKT-B9BE**: Emit self-contained dist/aiwf binary and install.sh
 
 ## Blocked
 

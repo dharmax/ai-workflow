@@ -27,34 +27,46 @@ const baseTemplate = {
 // Durable Domain Entities (aiwf-durable)
 // -----------------------------------------------------------------------------
 
-export class Idea extends AbstractEntity {
+export abstract class WorkflowEntity extends AbstractEntity {
+  static readonly dcr: EntityDcr;
+
+  override typeName(): string {
+    return (this.constructor as typeof WorkflowEntity).dcr?.name || this.constructor.name;
+  }
+
+  override get descriptor(): EntityDcr {
+    return (this.constructor as typeof WorkflowEntity).dcr || super.descriptor;
+  }
+}
+
+export class Idea extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     feasibility: anyValidator,
     impact: anyValidator
   };
-  static readonly dcr = new EntityDcr(Idea, Idea.template);
+  static readonly dcr = new EntityDcr(Idea, Idea.template, 'Idea');
 }
 
-export class Epic extends AbstractEntity {
+export class Epic extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     priority: { validate: (v: any) => ({ value: v ?? 1 }) }
   };
-  static readonly dcr = new EntityDcr(Epic, Epic.template);
+  static readonly dcr = new EntityDcr(Epic, Epic.template, 'Epic');
 }
 
-export class Feature extends AbstractEntity {
+export class Feature extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     acceptanceCriteria: anyValidator
   };
-  static readonly dcr = new EntityDcr(Feature, Feature.template);
+  static readonly dcr = new EntityDcr(Feature, Feature.template, 'Feature');
 }
 
-export class UserStory extends AbstractEntity {
+export class UserStory extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
@@ -64,10 +76,10 @@ export class UserStory extends AbstractEntity {
     acceptanceCriteria: anyValidator,
     sla: anyValidator
   };
-  static readonly dcr = new EntityDcr(UserStory, UserStory.template);
+  static readonly dcr = new EntityDcr(UserStory, UserStory.template, 'UserStory');
 }
 
-export class Ticket extends AbstractEntity {
+export class Ticket extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     lane: { validate: (v: any) => ({ value: v ?? 'Backlog' }) },
@@ -75,19 +87,19 @@ export class Ticket extends AbstractEntity {
     claim: anyValidator,
     estimateTokens: anyValidator
   };
-  static readonly dcr = new EntityDcr(Ticket, Ticket.template);
+  static readonly dcr = new EntityDcr(Ticket, Ticket.template, 'Ticket');
 }
 
-export class ModuleNode extends AbstractEntity {
+export class ModuleNode extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     path: anyValidator,
     completionPercent: { validate: (v: any) => ({ value: v ?? 0 }) }
   };
-  static readonly dcr = new EntityDcr(ModuleNode, ModuleNode.template);
+  static readonly dcr = new EntityDcr(ModuleNode, ModuleNode.template, 'ModuleNode');
 }
 
-export class FileNode extends AbstractEntity {
+export class FileNode extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     path: anyValidator,
@@ -97,10 +109,10 @@ export class FileNode extends AbstractEntity {
     hash: anyValidator,
     mtime: anyValidator
   };
-  static readonly dcr = new EntityDcr(FileNode, FileNode.template);
+  static readonly dcr = new EntityDcr(FileNode, FileNode.template, 'FileNode');
 }
 
-export class SymbolNode extends AbstractEntity {
+export class SymbolNode extends WorkflowEntity {
   title?: string;
   body?: string;
   status?: string;
@@ -122,10 +134,10 @@ export class SymbolNode extends AbstractEntity {
     signature: anyValidator,
     containerName: anyValidator
   };
-  static readonly dcr = new EntityDcr(SymbolNode, SymbolNode.template);
+  static readonly dcr = new EntityDcr(SymbolNode, SymbolNode.template, 'SymbolNode');
 }
 
-export class TestNode extends AbstractEntity {
+export class TestNode extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     targetPath: anyValidator,
@@ -133,20 +145,20 @@ export class TestNode extends AbstractEntity {
     lastRun: anyValidator,
     passed: anyValidator
   };
-  static readonly dcr = new EntityDcr(TestNode, TestNode.template);
+  static readonly dcr = new EntityDcr(TestNode, TestNode.template, 'TestNode');
 }
 
-export class Decision extends AbstractEntity {
+export class Decision extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     decision: anyValidator,
     context: anyValidator,
     consequences: anyValidator
   };
-  static readonly dcr = new EntityDcr(Decision, Decision.template);
+  static readonly dcr = new EntityDcr(Decision, Decision.template, 'Decision');
 }
 
-export class Lesson extends AbstractEntity {
+export class Lesson extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     ticketId: anyValidator,
@@ -154,10 +166,10 @@ export class Lesson extends AbstractEntity {
     noteType: { validate: (v: any) => ({ value: v ?? 'LESSON' }) },
     preventionPattern: anyValidator
   };
-  static readonly dcr = new EntityDcr(Lesson, Lesson.template);
+  static readonly dcr = new EntityDcr(Lesson, Lesson.template, 'Lesson');
 }
 
-export class Artifact extends AbstractEntity {
+export class Artifact extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     action: anyValidator,
@@ -165,14 +177,14 @@ export class Artifact extends AbstractEntity {
     patchPath: anyValidator,
     reportUrl: anyValidator
   };
-  static readonly dcr = new EntityDcr(Artifact, Artifact.template);
+  static readonly dcr = new EntityDcr(Artifact, Artifact.template, 'Artifact');
 }
 
 // -----------------------------------------------------------------------------
 // Ephemeral In-Memory Entities (aiwf-ephemeral)
 // -----------------------------------------------------------------------------
 
-export class CallSite extends AbstractEntity {
+export class CallSite extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     callerFile: anyValidator,
@@ -180,10 +192,10 @@ export class CallSite extends AbstractEntity {
     line: anyValidator,
     column: anyValidator
   };
-  static readonly dcr = new EntityDcr(CallSite, CallSite.template);
+  static readonly dcr = new EntityDcr(CallSite, CallSite.template, 'CallSite');
 }
 
-export class TraceNode extends AbstractEntity {
+export class TraceNode extends WorkflowEntity {
   static template = {
     ...baseTemplate,
     traceId: anyValidator,
@@ -192,7 +204,7 @@ export class TraceNode extends AbstractEntity {
     output: anyValidator,
     durationMs: anyValidator
   };
-  static readonly dcr = new EntityDcr(TraceNode, TraceNode.template);
+  static readonly dcr = new EntityDcr(TraceNode, TraceNode.template, 'TraceNode');
 }
 
 // Aliases for compatibility
@@ -235,6 +247,10 @@ export const entityDescriptors = [
   ...durableEntityDescriptors,
   ...ephemeralEntityDescriptors
 ];
+
+for (const dcr of entityDescriptors) {
+  dcr.collectionName = dcr.name;
+}
 
 // Predicate payload schema
 export const predicatePayloadTemplate = {

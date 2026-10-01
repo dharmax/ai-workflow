@@ -263,7 +263,7 @@ approval_mode = "approve"`;
     expect(agentsMd).toContain('@AI-WORKFLOW.md');
     expect(fs.existsSync(path.join(mockHome, '.codex', 'AI-WORKFLOW.md'))).toBe(true);
 
-    // 4. Verify Claude JSON
+    // 4. Verify Claude JSON in link mode
     const claudeJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.claude.json'), 'utf8'));
     expect(claudeJson.mcpServers['ai-workflow'].command).toBe('bun');
     expect(claudeJson.mcpServers['ai-workflow'].args).toEqual(['run', fakeMcpPath]);
@@ -275,6 +275,29 @@ approval_mode = "approve"`;
     // 6. Verify Windsurf JSON
     const windsurfJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.codeium', 'windsurf', 'mcp_config.json'), 'utf8'));
     expect(windsurfJson.mcpServers['ai-workflow'].instructions).toBe(MCP_INSTRUCTIONS_2_0);
+
+    // 7. Verify Production binary mode configuration (no source-tree assumption)
+    const mockBin = path.join(mockHome, '.local', 'bin', 'aiwf');
+    fs.mkdirSync(path.dirname(mockBin), { recursive: true });
+    fs.writeFileSync(mockBin, '#!/bin/sh\n');
+    fs.chmodSync(mockBin, 0o755);
+
+    configureMcp({
+      homeDir: mockHome,
+      binaryPath: mockBin
+    });
+
+    const claudeJsonProd = JSON.parse(fs.readFileSync(path.join(mockHome, '.claude.json'), 'utf8'));
+    expect(claudeJsonProd.mcpServers['ai-workflow'].command).toBe(mockBin);
+    expect(claudeJsonProd.mcpServers['ai-workflow'].args).toEqual(['mcp']);
+
+    const cursorJsonProd = JSON.parse(fs.readFileSync(path.join(mockHome, '.cursor', 'mcp.json'), 'utf8'));
+    expect(cursorJsonProd.mcpServers['ai-workflow'].command).toBe(mockBin);
+    expect(cursorJsonProd.mcpServers['ai-workflow'].args).toEqual(['mcp']);
+
+    const codexTomlProd = fs.readFileSync(path.join(mockHome, '.codex', 'config.toml'), 'utf8');
+    expect(codexTomlProd).toContain(`command = "${mockBin}"`);
+    expect(codexTomlProd).toContain('args = ["mcp"]');
   });
 
   it('should install and verify global binary symlink in custom directory', () => {

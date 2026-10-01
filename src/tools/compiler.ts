@@ -9,7 +9,40 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { applyPatch } from '@dharmax/block-patcher';
-import { createCallableFunction } from '@dharmax/text-compiler';
+
+/**
+ * Extracts executable code from optional markdown fences.
+ */
+function extractJsFromFence(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  const match = raw.match(/```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/);
+  return (match ? match[1] : raw).trim();
+}
+
+/**
+ * Compiles a codelet string into an executable JavaScript function.
+ */
+function createCallableFunction(code: string, isAsync = false): (args?: any, ctx?: any, tk?: any) => any {
+  const cleaned = extractJsFromFence(code)
+    .replace(/^export\s+default\s+/gm, '')
+    .replace(/^export\s+/gm, '')
+    .trim();
+
+  // Try direct expression or function declaration first
+  try {
+    const fn = new Function('args', 'ctx', 'tk', `return (${cleaned});`)();
+    if (typeof fn === 'function') {
+      return (args: any = {}, ctx?: any, tk?: any) => fn(args, ctx, tk);
+    }
+  } catch {}
+
+  // Function body or statements
+  const fn = isAsync
+    ? new Function('args', 'ctx', 'tk', `return (async () => { ${cleaned} })();`)
+    : new Function('args', 'ctx', 'tk', cleaned);
+
+  return (args: any = {}, ctx?: any, tk?: any) => fn(args, ctx, tk);
+}
 
 export interface CodeletRecord {
   id: string;
