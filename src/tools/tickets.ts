@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { Ticket } from '../graph/ontology.ts';
 import type { TicketLane } from '../graph/types.ts';
+import { applyProductMutations } from '../product/mutation.ts';
 
 export function registerTicketTools() {
   registry.register({
@@ -49,16 +50,11 @@ export function registerTicketTools() {
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const ticket = await ctx.store.upsertEntity<Ticket>(Ticket.dcr, {
-        id,
-        title: params.title,
-        lane: params.lane,
-        body: params.body || '',
-        priority: params.priority,
-        status: params.lane === 'Done' ? 'verified' : params.lane === 'In Progress' ? 'in_progress' : 'planned'
-      });
+      await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Ticket', id,
+        fields: { title: params.title, lane: params.lane, body: params.body || '', priority: params.priority,
+          status: params.lane === 'Done' ? 'verified' : params.lane === 'In Progress' ? 'in_progress' : 'planned' } }]);
       return {
-        id: ctx.store.localId(ticket.id),
+        id,
         title: params.title,
         lane: params.lane
       };
@@ -75,17 +71,13 @@ export function registerTicketTools() {
       status: z.string().optional().describe('Optional lifecycle status')
     }),
     execute: async ({ ticketId, lane, status }, ctx: ToolContext) => {
-      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
-      if (!ticket) throw new Error(`Ticket ${ticketId} not found.`);
-      await ticket.update({
-        lane,
-        status: status || (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : 'planned'),
-        updatedAt: new Date().toISOString()
-      }, true, false);
+      if (!await ctx.store.getEntity(ticketId, Ticket.dcr)) throw new Error(`Ticket ${ticketId} not found.`);
+      await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Ticket', id: ticketId,
+        fields: { lane, status: status || (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : 'planned') } }]);
       return {
-        ticketId: ctx.store.localId(ticket.id),
+        ticketId,
         lane,
-        status: (ticket as any).status
+        status: status || (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : 'planned')
       };
     }
   });

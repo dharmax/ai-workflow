@@ -33,6 +33,8 @@ kanban-plugin: board
 - [x] **AIWF-NATIVE-CODE-CHANGE**: --id
 - [x] **TKT-QRT7**: AIWF-LEGACY-REFACTOR-BRIDGE
 - [x] **TKT-B9BE**: Emit self-contained dist/aiwf binary and install.sh
+- [x] **AIWF-PRODUCT-CHANGE**: Product Intent through Causal Change Engine
+  - Summary: Verified 2026-10-02: typecheck passed; bun test 117/117; disposable public preview/apply passed; TS7/TS6 code-change suites passed. See docs/product-change-handoff.md.
 
 ## Blocked
 

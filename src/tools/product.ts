@@ -8,16 +8,13 @@ import { registry, type ToolContext } from './registry.ts';
 import {
   Epic,
   Feature,
-  UserStory,
-  Ticket,
-  TestNode,
-  Decision
+  UserStory
 } from '../graph/ontology.ts';
-import type { EpicStatus, IntentStatus } from '../graph/types.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { getProductImpact } from '../product/impact.ts';
 import { proposeEpicStructure, type EpicStructureProposal } from '../product/decompose.ts';
 import { applyEpicStructure } from '../product/apply.ts';
+import { applyProductMutations, resolveProductEntity, productKind } from '../product/mutation.ts';
 
 const EPIC_STATUSES = ['draft', 'planned', 'active', 'completed', 'cancelled'] as const;
 const INTENT_STATUSES = ['draft', 'proposed', 'accepted', 'deprecated'] as const;
@@ -28,46 +25,6 @@ async function requireEntity(ctx: ToolContext, id: string, dcr?: any, kind?: str
     throw new Error(`${kind || 'Entity'} '${id}' not found.`);
   }
   return entity;
-}
-
-function resolveEntityKind(entity: any): string {
-  if (entity instanceof Epic) return 'Epic';
-  if (entity instanceof Feature) return 'Feature';
-  if (entity instanceof UserStory) return 'UserStory';
-  if (entity instanceof Ticket) return 'Ticket';
-  if (entity instanceof TestNode) return 'Test';
-  if (entity instanceof Decision) return 'Decision';
-  return entity.dcr?.name || entity.constructor.name;
-}
-
-const ALLOWED_PRODUCT_RELATIONS: Array<{ source: string; predicate: string; target: string[] }> = [
-  { source: 'Epic', predicate: 'targets', target: ['Feature', 'UserStory'] },
-  { source: 'Feature', predicate: 'contains', target: ['UserStory'] },
-  { source: 'Epic', predicate: 'contains', target: ['Ticket'] },
-  { source: 'Ticket', predicate: 'implements', target: ['Feature'] },
-  { source: 'Ticket', predicate: 'addresses', target: ['UserStory'] },
-  { source: 'Test', predicate: 'verifies', target: ['Feature', 'UserStory'] },
-  { source: 'Decision', predicate: 'governs', target: ['Epic', 'Feature', 'UserStory'] }
-];
-
-function validateProductRelation(sourceKind: string, predicate: string, targetKind: string) {
-  const allowed = ALLOWED_PRODUCT_RELATIONS.find(
-    r => r.source === sourceKind && r.predicate === predicate && r.target.includes(targetKind)
-  );
-
-  if (!allowed) {
-    throw new Error(
-      `Invalid product relation: '${sourceKind} ${predicate} ${targetKind}' is not allowed. ` +
-      `Permitted product relations are:\n` +
-      `  Epic targets Feature | UserStory\n` +
-      `  Feature contains UserStory\n` +
-      `  Epic contains Ticket\n` +
-      `  Ticket implements Feature\n` +
-      `  Ticket addresses UserStory\n` +
-      `  Test verifies Feature | UserStory\n` +
-      `  Decision governs Epic | Feature | UserStory`
-    );
-  }
 }
 
 async function epicView(ctx: ToolContext, epic: Epic) {
@@ -170,13 +127,9 @@ export function registerProductTools() {
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `EPIC-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const epic = await ctx.store.upsertEntity<Epic>(Epic.dcr, {
-        id,
-        title: params.title,
-        body: params.body || '',
-        priority: params.priority ?? 1,
-        status: params.status || 'draft'
-      });
+      await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Epic', id,
+        fields: { title: params.title, body: params.body || '', priority: params.priority ?? 1, status: params.status || 'draft' } }]);
+      const epic = await requireEntity(ctx, id, Epic.dcr, 'Epic');
       return await epicView(ctx, epic);
     }
   });
@@ -219,11 +172,9 @@ export function registerProductTools() {
       status: z.enum(EPIC_STATUSES).optional()
     }),
     execute: async ({ epicId, ...changes }, ctx: ToolContext) => {
-      const entity = await requireEntity(ctx, epicId, Epic.dcr, 'Epic');
       const update = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
-      await entity.update({ ...update, updatedAt: new Date().toISOString() }, true, false);
-      const refreshed = await ctx.store.getEntity<Epic>(epicId, Epic.dcr);
-      return await epicView(ctx, refreshed || entity);
+      await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Epic', id: epicId, fields: update }]);
+      return await epicView(ctx, await requireEntity(ctx, epicId, Epic.dcr, 'Epic'));
     }
   });
 
@@ -243,13 +194,9 @@ export function registerProductTools() {
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `FEAT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const feature = await ctx.store.upsertEntity<Feature>(Feature.dcr, {
-        id,
-        title: params.title,
-        body: params.body || '',
-        acceptanceCriteria: params.acceptanceCriteria || [],
-        status: params.status || 'draft'
-      });
+      await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Feature', id,
+        fields: { title: params.title, body: params.body || '', acceptanceCriteria: params.acceptanceCriteria || [], status: params.status || 'draft' } }]);
+      const feature = await requireEntity(ctx, id, Feature.dcr, 'Feature');
       return await featureView(ctx, feature);
     }
   });
@@ -292,11 +239,9 @@ export function registerProductTools() {
       status: z.enum(INTENT_STATUSES).optional()
     }),
     execute: async ({ featureId, ...changes }, ctx: ToolContext) => {
-      const entity = await requireEntity(ctx, featureId, Feature.dcr, 'Feature');
       const update = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
-      await entity.update({ ...update, updatedAt: new Date().toISOString() }, true, false);
-      const refreshed = await ctx.store.getEntity<Feature>(featureId, Feature.dcr);
-      return await featureView(ctx, refreshed || entity);
+      await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Feature', id: featureId, fields: update }]);
+      return await featureView(ctx, await requireEntity(ctx, featureId, Feature.dcr, 'Feature'));
     }
   });
 
@@ -319,16 +264,10 @@ export function registerProductTools() {
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `STORY-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const story = await ctx.store.upsertEntity<UserStory>(UserStory.dcr, {
-        id,
-        title: params.title,
-        actor: params.actor || '',
-        story: params.story || '',
-        context: params.context || '',
-        acceptanceCriteria: params.acceptanceCriteria || [],
-        sla: params.sla || '',
-        status: params.status || 'draft'
-      });
+      await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'UserStory', id,
+        fields: { title: params.title, actor: params.actor || '', story: params.story || '', context: params.context || '',
+          acceptanceCriteria: params.acceptanceCriteria || [], sla: params.sla || '', status: params.status || 'draft' } }]);
+      const story = await requireEntity(ctx, id, UserStory.dcr, 'UserStory');
       return await storyView(ctx, story);
     }
   });
@@ -382,11 +321,9 @@ export function registerProductTools() {
       status: z.enum(INTENT_STATUSES).optional()
     }),
     execute: async ({ storyId, ...changes }, ctx: ToolContext) => {
-      const entity = await requireEntity(ctx, storyId, UserStory.dcr, 'User story');
       const update = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
-      await entity.update({ ...update, updatedAt: new Date().toISOString() }, true, false);
-      const refreshed = await ctx.store.getEntity<UserStory>(storyId, UserStory.dcr);
-      return await storyView(ctx, refreshed || entity);
+      await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'UserStory', id: storyId, fields: update }]);
+      return await storyView(ctx, await requireEntity(ctx, storyId, UserStory.dcr, 'User story'));
     }
   });
 
@@ -403,15 +340,11 @@ export function registerProductTools() {
       targetId: z.string().describe('Target entity ID')
     }),
     execute: async ({ sourceId, predicate, targetId }, ctx: ToolContext) => {
-      const source = await requireEntity(ctx, sourceId, undefined, 'Source entity');
-      const target = await requireEntity(ctx, targetId, undefined, 'Target entity');
-
-      const sourceKind = resolveEntityKind(source);
-      const targetKind = resolveEntityKind(target);
-
-      validateProductRelation(sourceKind, predicate, targetKind);
-
-      await ctx.store.relate(source, predicate, target);
+      const source = await resolveProductEntity(ctx.store, sourceId);
+      const target = await resolveProductEntity(ctx.store, targetId);
+      const sourceKind = productKind(source)!;
+      const targetKind = productKind(target)!;
+      await applyProductMutations(ctx.store, [{ kind: 'product_link', sourceId, predicate, targetId }]);
 
       return {
         success: true,
@@ -434,15 +367,11 @@ export function registerProductTools() {
       targetId: z.string().describe('Target entity ID')
     }),
     execute: async ({ sourceId, predicate, targetId }, ctx: ToolContext) => {
-      const source = await requireEntity(ctx, sourceId, undefined, 'Source entity');
-      const target = await requireEntity(ctx, targetId, undefined, 'Target entity');
-
-      const sourceKind = resolveEntityKind(source);
-      const targetKind = resolveEntityKind(target);
-
-      validateProductRelation(sourceKind, predicate, targetKind);
-
-      await ctx.store.unrelate(source.id, predicate, target.id);
+      const source = await resolveProductEntity(ctx.store, sourceId);
+      const target = await resolveProductEntity(ctx.store, targetId);
+      const sourceKind = productKind(source)!;
+      const targetKind = productKind(target)!;
+      await applyProductMutations(ctx.store, [{ kind: 'product_unlink', sourceId, predicate, targetId }]);
 
       return {
         success: true,

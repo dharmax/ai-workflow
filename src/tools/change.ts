@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
 import type { ChangeRequest } from '../change/types.ts';
+import { ProductMutationSchema } from '../product/mutation.ts';
 
 const ChangeTargetSchema = z.discriminatedUnion('type', [
   z.object({
@@ -40,6 +41,7 @@ const ChangeTargetSchema = z.discriminatedUnion('type', [
 ]);
 
 const ChangeRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1) }),
   z.object({
     action: z.literal('rename_symbol'),
     target: ChangeTargetSchema,
@@ -77,7 +79,7 @@ const ChangeRequestSchema = z.discriminatedUnion('action', [
 export function registerChangeTools() {
   registry.register({
     name: 'preview_change',
-    description: 'Preview an exact code refactoring or change mutation (TS7 rename, file move, source actions) with zero disk side-effects.',
+    description: 'Preview code or Product Intent mutations with zero write side effects.',
     category: 'change',
     parameters: ChangeRequestSchema,
     execute: async (request: any, ctx: ToolContext) => {

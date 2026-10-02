@@ -20,6 +20,8 @@ import { resolveCodeTarget } from './target-resolver.ts';
 import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile } from '../graph/indexer.ts';
 import { SymbolNode, Ticket, Decision } from '../graph/ontology.ts';
+import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
+import { getCoverage } from '../product/coverage.ts';
 import type {
   ChangeRequest,
   ChangePreview,
@@ -217,6 +219,7 @@ export class CausalChangeEngine {
    * Previews a change request without mutating disk.
    */
   async previewChange(request: ChangeRequest): Promise<ChangePreview> {
+    if (request.action === 'product_change') return this.previewProductChange(request);
     await ensureAstFresh(this.store, this.projectRoot);
 
     let productImpact: ProductImpact | undefined;
@@ -524,6 +527,41 @@ export class CausalChangeEngine {
     };
   }
 
+  private async previewProductChange(request: Extract<ChangeRequest, { action: 'product_change' }>): Promise<ChangePreview> {
+    try {
+      const { snapshot } = await validateProductMutations(this.store, request.mutations);
+      const deleted = request.mutations.filter(m => m.kind === 'product_delete');
+      const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
+      const affected = new Set<string>();
+      for (const mutation of request.mutations) {
+        if ('id' in mutation) affected.add(mutation.id);
+        else { affected.add(mutation.sourceId); affected.add(mutation.targetId); }
+      }
+      const productImpacts: ProductImpact[] = [];
+      for (const id of affected) {
+        const entity = await this.store.getEntity(id);
+        if (entity && ['Epic', 'Feature', 'UserStory'].includes(entity.typeName())) {
+          productImpacts.push(await getProductImpact(this.store, id));
+        }
+      }
+      const fingerprint = computeFileSha256(JSON.stringify({ request, snapshot }));
+      return {
+        fingerprint, summary: `${request.mutations.length} Product Intent mutation(s): ${[...affected].sort().join(', ')}`,
+        request, mutations: request.mutations, affectedFiles: [], originalHashes: {},
+        affectedProducts: [...affected].sort(), productImpact: productImpacts[0], productImpacts,
+        dependents, warnings: dependents.length ? [`Explicit deletion affects ${dependents.length} relation(s).`] : [],
+        blocked: false, verification: { diagnosticsExpected: false, typecheck: false, targetedTests: [], graphChecks: {} }
+      };
+    } catch (error) {
+      const blocked = this.createBlockedPreview(request, error instanceof Error ? error.message : String(error), []);
+      const deleted = request.mutations.filter(m => m.kind === 'product_delete');
+      blocked.dependents = (await Promise.all(deleted.map(async m => {
+        try { return await productDependents(this.store, m.id); } catch { return []; }
+      }))).flat();
+      return blocked;
+    }
+  }
+
   private createBlockedPreview(
     request: ChangeRequest,
     reason: string,
@@ -581,6 +619,40 @@ export class CausalChangeEngine {
 
     if (preview.fingerprint !== fingerprint) {
       throw new Error(`Stale change preview: fingerprint mismatch (expected '${fingerprint}', recomputed '${preview.fingerprint}'). Workspace or causal graph modified since preview.`);
+    }
+
+    if (request.action === 'product_change') {
+      await applyProductMutations(this.store, request.mutations);
+      const errors: string[] = [];
+      const finalRelations = new Map<string, boolean>();
+      for (const mutation of request.mutations) {
+        if (mutation.kind === 'product_link' || mutation.kind === 'product_unlink') {
+          finalRelations.set(JSON.stringify([mutation.sourceId, mutation.predicate, mutation.targetId]), mutation.kind === 'product_link');
+        }
+      }
+      for (const mutation of request.mutations) {
+        if (mutation.kind === 'product_delete') {
+          if (await this.store.getEntity(mutation.id)) errors.push(`Deleted entity '${mutation.id}' remains.`);
+        } else if ('id' in mutation) {
+          if (!await this.store.getEntity(mutation.id)) errors.push(`Entity '${mutation.id}' is missing after apply.`);
+          if (mutation.entityType !== 'Ticket') {
+            try { await getCoverage(this.store, mutation.id); await getProductImpact(this.store, mutation.id); }
+            catch (error) { errors.push(String(error)); }
+          }
+        } else {
+          const key = JSON.stringify([mutation.sourceId, mutation.predicate, mutation.targetId]);
+          if (finalRelations.get(key) !== (mutation.kind === 'product_link')) continue;
+          const source = await this.store.getEntity(mutation.sourceId);
+          const target = await this.store.getEntity(mutation.targetId);
+          const outgoing = source ? await this.store.getOutgoing(source.id, mutation.predicate) : [];
+          const linked = outgoing.some(edge => edge.targetId === target?.id);
+          if (linked !== finalRelations.get(key)) errors.push(`Relation '${mutation.sourceId} ${mutation.predicate} ${mutation.targetId}' verification failed.`);
+        }
+      }
+      return {
+        ok: true, fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
+        verification: { passed: errors.length === 0, diagnosticsOk: errors.length === 0, errors }
+      };
     }
 
     // 2. Validate current disk hashes against preview original hashes

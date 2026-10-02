@@ -7,6 +7,7 @@
  */
 
 import type { ProductImpact } from '../product/impact.ts';
+import type { ProductMutation } from '../product/mutation.ts';
 
 export interface LspPosition {
   line: number;      // 0-based
@@ -71,11 +72,8 @@ export type ChangeMutation =
       kind: 'workspace_edit';
       source: 'typescript-lsp' | 'typescript6-refactor';
       edit: WorkspaceEditLike;
-    };
-  // Future Product Intent mutations:
-  // | { kind: 'product_create'; ... }
-  // | { kind: 'product_update'; ... }
-  // | { kind: 'product_delete'; ... }
+    }
+  | ProductMutation;
 
 export interface ResolvedCodeTarget {
   filePath: string;
@@ -96,6 +94,7 @@ export type ChangeTarget =
   | { type: 'file'; filePath: string };
 
 export type ChangeRequest =
+  | { action: 'product_change'; mutations: ProductMutation[] }
   | {
       action: 'rename_symbol';
       target: ChangeTarget;
@@ -145,7 +144,10 @@ export interface ChangePreview {
   mutations: ChangeMutation[];
   affectedFiles: string[];
   originalHashes: Record<string, string>;
+  affectedProducts?: string[];
+  dependents?: Array<{ sourceId: string; predicate: string; targetId: string }>;
   productImpact?: ProductImpact;
+  productImpacts?: ProductImpact[];
   verification: VerificationPlan;
   warnings: string[];
   blocked: boolean;
