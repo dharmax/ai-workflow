@@ -151,10 +151,9 @@ For one Ticket:
 2. collect existing graph/product/work/code/test/decision/lesson evidence;
 3. run the compact System-1 assessment to prioritize missing evidence;
 4. validate stale code anchors;
-5. deterministically fill exact missing facts where safe;
+5. derive exact/semantic enrichment candidates with provenance;
 6. use bounded autoregressive reasoning only when System-1/deterministic evidence is insufficient;
-7. persist only confirmed canonical facts;
-8. return a compact dossier with provenance and one disposition:
+7. return a compact dossier with proposed enrichments and one disposition:
    - ready;
    - needs_preparation;
    - rejectable.
@@ -162,8 +161,11 @@ For one Ticket:
 Ambiguous semantic ownership returns needs_input.
 
 No child Ticket creation.
+No Ticket/Product semantic mutation.
 No implementation code mutation.
 No lane movement merely because investigation ran.
+
+Derived code-index freshness may update because it is not canonical Ticket/Product state.
 
 ## Shell/MCP
 
@@ -214,18 +216,19 @@ No SubTask/ManagementTicket/Plan entity.
 
 prepare_ticket:
 
-1. calls/uses the same read-mostly investigation owner;
+1. calls/uses the same semantically read-only investigation owner;
 2. uses the existing System-1 assessment as a cheap atomic-vs-split/escalation hint;
-3. returns immediately when deterministic evidence + high-confidence assessment show the Ticket is already executable;
+3. returns immediately when no canonical enrichment or decomposition is needed and the Ticket is already executable;
 4. claims the Ticket before the first durable preparation mutation;
-5. clarifies missing material requirements through needs_input;
-6. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
-7. gives every executable child a clear body + Ticket acceptance criteria;
-8. connects children to relevant Epic/Feature/Story/code context;
-9. adds depends_on only for real ordering constraints;
-10. applies graph changes through the existing Product Intent/Causal Change mutation path;
-11. releases any lease acquired by this call before returning needs_input/blocked;
-12. is idempotent on rerun.
+5. applies confirmed investigation enrichments through the canonical Product Intent/Causal Change path;
+6. clarifies missing material requirements through needs_input;
+7. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
+8. gives every executable child a clear body + Ticket acceptance criteria;
+9. connects children to relevant Epic/Feature/Story/code context;
+10. adds depends_on only for real ordering constraints;
+11. applies graph changes through the existing Product Intent/Causal Change mutation path;
+12. releases any lease acquired by this call before returning needs_input/blocked;
+13. is idempotent on rerun.
 
 System-1 never invents child tickets or decomposition text.
 
