@@ -1,9 +1,8 @@
 # Product Intent Graph — Design
 
-This document is architectural truth for the Product Intent Graph work.
+Status: implemented architectural truth for AIWF Product Intent.
 
-Implementation order and gates are in [product-intent-plan.md](product-intent-plan.md).
-The constrained Codex/AIWF execution handoff is in [product-intent-codex.md](product-intent-codex.md).
+The next artifact-level execution architecture is defined in [artifact-operations.md](artifact-operations.md).
 
 ## 1. Purpose
 
@@ -157,10 +156,25 @@ when there is no real behavioral contract.
 
 Executable implementation work.
 
+A Ticket also owns its own execution acceptance contract:
+
+```ts
+interface TicketData extends BaseEntityData {
+  lane: TicketLane
+  priority?: 'P0' | 'P1' | 'P2' | 'P3'
+  acceptanceCriteria?: string[]
+  claim?: TicketClaim
+  estimateTokens?: number
+}
+```
+
+Ticket acceptance criteria describe completion of the work item. They do not replace Feature/UserStory behavioral acceptance criteria.
+
 Tickets may participate in several causal links:
 
 ```text
 Epic   --contains----> Ticket
+Ticket --contains----> Ticket
 Ticket --implements--> Feature
 Ticket --addresses---> UserStory
 Ticket --targets-----> Module/File/Symbol
@@ -170,9 +184,12 @@ Ticket --modifies----> Module/File/Symbol
 These links answer different questions and are not redundant:
 
 - Epic contains Ticket: which initiative owns this work?
+- Ticket contains Ticket: which ordinary work item decomposes into child work?
 - implements Feature: which capability is this work realizing?
 - addresses Story: which behavior does the work satisfy?
 - targets/modifies code: where is the implementation?
+
+There is no separate SubTask or ManagementTicket entity. A parent Ticket is an ordinary Ticket whose role is expressed by graph relations.
 
 A Ticket need not have every relation.
 
@@ -209,6 +226,7 @@ Use existing predicates. Do not add product-specific predicates unless implement
 | Epic | targets | UserStory | Initiative specifically affects behavior |
 | Feature | contains | UserStory | Behavior belongs to stable capability |
 | Epic | contains | Ticket | Initiative scopes executable work |
+| Ticket | contains | Ticket | Work item decomposes into child work |
 | Ticket | implements | Feature | Ticket directly implements capability |
 | Ticket | addresses | UserStory | Ticket implements/changes behavior |
 | Ticket | targets / modifies | code node | Work-to-code grounding |
@@ -372,7 +390,7 @@ This is **evidence coverage**, not a proof that the Feature's full semantics hav
 
 Inspect:
 
-1. incoming Ticket `implements` Epic;
+1. contained Tickets: Epic `contains` Ticket;
 2. targeted Features/Stories;
 3. whether each targeted Feature/Story has at least one causal path through a Ticket contained by the Epic:
    - Epic -contains-> Ticket -implements-> Feature
