@@ -95,7 +95,7 @@ Over a compact Ticket/Product state:
 - decide which evidence families are worth retrieving;
 - estimate ambiguity/escalation need.
 
-#### B. Evidence/candidate pruning
+#### B. Evidence/candidate ranking and pruning
 
 After deterministic retrieval has already produced a bounded candidate set:
 
@@ -103,6 +103,10 @@ After deterministic retrieval has already produced a bounded candidate set:
 - shortlist Decisions/Lessons/docs;
 - shortlist tests when explicit graph verification links are absent;
 - shortlist existing Features/Stories/Tickets for semantic reuse.
+
+Deterministically mandatory evidence is never pruned: explicit Ticket targets/modifies edges, governing Decisions, blockers/dependencies, acceptance criteria, directly linked Product Intent, and explicit verifying tests always survive.
+
+System-1 operates only on optional candidates discovered beyond that mandatory neighborhood. Prefer conservative ranking/top-N retention over hard elimination when false negatives would be costly.
 
 This is a major token-saving path:
 
@@ -134,7 +138,7 @@ System-1 is **advisory, not authoritative**.
 It may:
 
 - route retrieval;
-- prune evidence;
+- rank/prune optional evidence conservatively;
 - prune a run-local tool surface;
 - choose a cheaper vs stronger reasoning path;
 - shortlist candidates;
@@ -251,11 +255,11 @@ Own the Ticket from current state to a truthful terminal outcome.
 Canonical happy path:
 
 ~~~
-investigate
+investigate (read-mostly)
+    |
+claim before first durable preparation/code mutation
     |
 prepare if needed
-    |
-claim
     |
 resolve executable leaf work
     |
@@ -271,6 +275,20 @@ release + sync
 ~~~
 
 For a parent Ticket, resolve ready children in dependency order, then verify the parent's own completion contract.
+
+### Lease discipline
+
+Investigation does not require a claim.
+
+Any operation that may mutate Ticket/Product/code state must hold the relevant Ticket lease before its first mutation.
+
+Standalone prepare_ticket therefore claims the Ticket before applying decomposition/clarification changes.
+
+resolve_ticket claims the parent before preparation, then claims each executable child before mutating that child.
+
+If an operation must return needs_input or blocked for an external caller, release leases it acquired during that call before returning. Do not leave an artifact accidentally locked while waiting for a human/client retry.
+
+An existing active lease by another agent is a temporary operation blocker, not a durable Ticket Blocked state.
 
 Do not implement this as uncontrolled recursion. Build a bounded work set from contains / depends_on, detect cycles, and execute leaves in dependency order.
 
