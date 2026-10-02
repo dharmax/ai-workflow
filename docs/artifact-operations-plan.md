@@ -8,6 +8,7 @@ Start every ticket AIWF-native:
 
 ~~~
 aiwf sync
+→ ensure/reuse the named plan ticket
 → claim the one active ticket
 → use current AIWF graph/context to locate implementation details
 → read source surgically
