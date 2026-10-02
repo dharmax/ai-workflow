@@ -4,6 +4,14 @@ Design authority: docs/artifact-operations.md.
 
 This plan is intentionally staged. Each ticket must be independently useful and green before the next starts.
 
+## External shared capability gate
+
+System-1 infrastructure is owned by @dharmax/llm-utils, not AIWF.
+
+AIWF must not duplicate ai-cli's Laya wrapper.
+
+The separate llm-utils ticket LLMUTILS-SYSTEM1 provides the shared typed System-1 contract/adapters. AIWF-PRIMITIVE-TRUTH can proceed independently, but AIWF-TICKET-INVESTIGATION must not implement its own Laya wrapper if that shared gate is not yet available.
+
 Start every ticket AIWF-native:
 
 ~~~
@@ -75,7 +83,7 @@ Introduce the shared artifact-operation contract and implement investigate_ticke
 
 This is deliberately read-mostly and is the safest proof of the new abstraction.
 
-Also add the first narrow System-1 integration here, because investigation is where cheap semantic triage can be proven without granting mutation authority.
+Consume the shared llm-utils System-1 primitive here, because investigation is where cheap semantic triage can be proven without granting mutation authority.
 
 ## Domain corrections
 
@@ -109,11 +117,9 @@ No persisted operation state.
 
 ## System-1 assessment
 
-Add one tiny injectable System-1 adapter, with Laya as the first backend.
+Use the llm-utils System-1 primitive. AIWF owns only its question set, confidence/escalation policy and compact-state builder.
 
-No registry/provider framework.
-
-Given a compact Ticket state (intent + acceptance criteria + relevant graph facts/candidate labels), batch a small typed assessment such as:
+Given a compact Ticket state (intent + acceptance criteria + a bounded candidate/fact list), batch a small typed assessment such as:
 
 - work_kind: bug_fix | refactor | feature_work | test_work | docs_config | mixed;
 - scope: single_symbol | single_file | multi_file | cross_subsystem | unclear;
@@ -123,7 +129,7 @@ Given a compact Ticket state (intent + acceptance criteria + relevant graph fact
 - needs_code_context: yes/no probability;
 - needs_test_context: yes/no probability.
 
-Use the answers only to choose what evidence to retrieve and whether to escalate.
+Use the answers to choose what evidence to retrieve, which candidates survive, which small tool family is likely relevant, and whether to escalate.
 
 Rules:
 
@@ -133,7 +139,9 @@ Rules:
 - never persist a graph relation or terminal Ticket state from System-1 alone;
 - batch questions at one decision point rather than scattering classifier calls.
 
-Expose timing and classification probabilities in debug/metrics output so usefulness can be measured.
+Also apply System-1 after deterministic retrieval to a bounded shortlist of candidate symbols/files/Decisions/Lessons/tests/Product Intent entities. It may remove low-relevance candidates from model context, but never from canonical graph state.
+
+Expose timing, raw probabilities/distributions, candidate counts before/after pruning, and escalation outcome in debug/metrics output so usefulness can be measured.
 
 ## Investigation behavior
 
@@ -171,7 +179,9 @@ At minimum:
 
 - already-well-grounded Ticket: mostly graph reads, no autoregressive semantic call if unnecessary;
 - System-1 high-confidence routing correctly avoids irrelevant evidence families;
+- bounded candidate pruning keeps the actually relevant artifact(s);
 - low-confidence System-1 cleanly escalates rather than guessing;
+- contradictory deterministic evidence overrides/escalates System-1;
 - System-1 unavailable: behavior remains correct;
 - stale/missing code target: repaired exactly;
 - ambiguous Feature/Story ownership: needs_input, no guessed relation;
@@ -267,10 +277,12 @@ Do not use uncontrolled recursive agent calls.
 
 For each leaf:
 
-- gather bounded evidence with @dharmax/context-manager where useful;
-- run one compact System-1 assessment to classify likely change mechanism, scope and reasoning depth;
+- deterministically gather a bounded candidate set;
+- use System-1 to prune candidate evidence and classify likely change mechanism, scope and reasoning depth;
+- pack the surviving evidence with @dharmax/context-manager where useful;
 - use that assessment to choose an exact small run-local AIWF tool set and model tier;
-- use Asker/LLMActor from llm-utils only for the generative/reasoning part;
+- use Asker for semantic/code synthesis that needs no tools;
+- use LLMActor only when implementation genuinely needs tool interaction;
 - prefer deterministic refactor/edit/test primitives.
 
 On a failed verification pass, System-1 may cheaply classify the failure family (compile/type/test assertion/tool/environment/semantic/unknown) before the next diagnostic step. It does not decide that the Ticket is fixed.
@@ -419,6 +431,8 @@ Compare:
 
 - task correctness;
 - System-1 decisions, confidence, latency and how many autoregressive calls they avoided or escalated;
+- evidence candidates before/after System-1 pruning;
+- false-prune rate on artifacts later proven necessary;
 - external paid input/output tokens;
 - external tool calls;
 - external source reads;
