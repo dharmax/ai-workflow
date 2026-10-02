@@ -79,7 +79,14 @@ This is deliberately read-mostly and is the safest proof of the new abstraction.
 Add only what investigation/preparation demonstrably need:
 
 - Ticket.acceptanceCriteria?: string[];
-- allow Decision --governs--> Ticket.
+- allow Decision --governs--> Ticket;
+- centralize coherent Ticket lane/status transitions:
+  - Backlog/Todo → planned;
+  - In Progress → in_progress;
+  - Blocked → blocked;
+  - Done → verified or rejected.
+
+Fix the current Blocked→planned behavior.
 
 Do not add child Tickets yet unless Ticket 3 requires them.
 
@@ -241,6 +248,8 @@ If one of those demonstrably makes the implementation smaller during this ticket
 
 Never mark Done if Ticket acceptance criteria are not explicitly verified.
 
+Before code mutation, inspect Git state after target discovery. By default, a dirty target file returns needs_input; unrelated dirty files may remain. Never reset/stash/commit user changes automatically.
+
 ## Acceptance
 
 Use several real tickets, including:
@@ -250,7 +259,9 @@ Use several real tickets, including:
 3. one safe TS refactor;
 4. one prepared parent with dependent children;
 5. one case requiring user input;
-6. one failing-test repair loop.
+6. one failing-test repair loop;
+7. one dirty unrelated file that does not block;
+8. one dirty target file that safely returns needs_input.
 
 For each record:
 
