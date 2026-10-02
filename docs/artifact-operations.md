@@ -192,6 +192,20 @@ Rejection requires grounded evidence. If the reason is interpretive or product-d
 
 System/tool failures are errors, not new Ticket lifecycle states.
 
+### Workspace safety
+
+resolve_ticket owns workspace safety before code mutation.
+
+After investigation identifies the likely touched files:
+
+- inspect current Git state;
+- unrelated dirty files do not automatically block the Ticket;
+- a dirty target file requires explicit permission or returns needs_input;
+- capture the current target-file hashes in the normal Causal Change fingerprint before applying edits;
+- never clean/reset/stash/commit user work automatically.
+
+The existing snapshot helper is optional insurance, not a correctness boundary.
+
 ### process_story(storyId)
 
 Make an accepted UserStory actionable.
@@ -318,6 +332,25 @@ Examples:
 Technical Tickets with no Feature/Story still need verifiable completion criteria.
 
 Preparation should add/clarify Ticket acceptance criteria when missing and material.
+
+### Lane/status coherence
+
+Ticket lane is workflow presentation; Ticket status is lifecycle meaning. They must never contradict each other.
+
+Canonical combinations:
+
+~~~
+Backlog / Todo   → planned
+In Progress      → in_progress
+Blocked          → blocked
+Done             → verified OR rejected
+~~~
+
+A rejected Ticket is terminal: status=rejected, lane=Done.
+
+A temporary operation blocker such as another active lease does not automatically change the Ticket to Blocked. Persist lane=Blocked/status=blocked only for a durable project blocker.
+
+One deterministic Ticket-state owner must enforce these combinations. Artifact operations must not hand-write lane/status pairs.
 
 ## 7. Small graph extensions
 
