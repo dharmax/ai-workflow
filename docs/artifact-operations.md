@@ -68,6 +68,57 @@ Use exact run-local tool sets first.
 
 Adopt semantic-registry later only if real execution demonstrates that dynamic capability discovery is materially better than operation-owned capability sets.
 
+### System-1 is the preferred first semantic gate
+
+Do not send every semantic question to an autoregressive LLM.
+
+When the needed answer is a typed decision rather than generated content, use a fast System-1 pass first.
+
+The current intended backend is Laya, which can evaluate several typed questions over one compact state in a single forward pass and return probabilities for:
+
+- choice;
+- ordinal score;
+- yes/no (noul).
+
+Typical AIWF uses:
+
+- classify ticket work shape and likely scope;
+- decide which evidence families are probably relevant;
+- estimate reasoning depth / escalation need;
+- distinguish likely atomic vs decomposition-worthy work;
+- classify implementation mechanism candidates;
+- classify a failing run before choosing a repair path;
+- shortlist likely reusable Product Intent candidates.
+
+System-1 is **advisory, not authoritative**.
+
+It may:
+
+- route retrieval;
+- prune a run-local tool surface;
+- choose a cheaper vs stronger reasoning path;
+- shortlist candidates;
+- trigger escalation.
+
+It must not by itself:
+
+- persist a semantic graph relation;
+- reject or complete a Ticket;
+- choose destructive mutation;
+- declare acceptance criteria satisfied;
+- create a Product Intent artifact;
+- suppress deterministic verification.
+
+Low confidence, disagreement with deterministic evidence, or a materially consequential semantic choice escalates to the normal reasoning path.
+
+Use one batched assessment at a meaningful decision point rather than many tiny classifier calls.
+
+The assessment state must stay compact: artifact intent, acceptance contract, relevant graph facts/candidate labels, and current failure/evidence summary. Do not feed source files to System-1.
+
+System-1 availability is an optimization, not a correctness dependency. If unavailable, AIWF falls back to the ordinary bounded LLM path.
+
+Do not build a generic System-1 framework. A tiny injectable adapter over the current backend is sufficient.
+
 ### No "context pack" as the product abstraction
 
 @dharmax/context-manager is useful internally for selecting, budgeting and rendering evidence.
@@ -411,30 +462,53 @@ Do not build a general AST editing framework.
 
 The deterministic operation owns lifecycle.
 
-LLMs own only judgments that cannot be deterministic:
+Use the cheapest cognition that can answer the actual question:
 
-- whether a broad Ticket has coherent separable work;
-- semantic intent/product relation when not explicit;
+1. deterministic evidence/rules;
+2. System-1 typed decision when the task is classification/scoring/triage;
+3. autoregressive LLM only when generation, synthesis, ambiguous semantics, or deeper reasoning is required.
+
+Autoregressive LLMs remain responsible for:
+
+- actual decomposition boundaries and child-ticket content;
+- semantic intent/product relation when System-1 cannot safely narrow it;
 - implementation design/code generation;
-- difficult failure diagnosis;
+- difficult failure diagnosis after cheap classification;
 - Product Intent decomposition.
 
-Use @dharmax/context-manager to bound evidence passed to a model when useful.
+Use @dharmax/context-manager to bound evidence passed to an LLM when useful.
 
-Use exact run-local AIWF tool surfaces. A typical leaf implementation actor should see only the few relevant capabilities, not all MCP tools.
+Use exact run-local AIWF tool surfaces. System-1 should help select that small surface before an Actor run. A typical leaf implementation actor should see only the few relevant capabilities, not all MCP tools.
 
-## 10. Model policy
+No System-1 result becomes canonical graph truth without deterministic confirmation or the stronger semantic path appropriate to that fact.
 
-Do not equate every semantic operation with the cheapest available model.
+## 10. Cognition / model policy
 
-Use task class + escalation:
+Use System-1 aggressively for non-generative semantic decisions, but never confuse cheap classification with engineering authority.
 
-- investigation: deterministic first; cheap/local semantic pass when needed;
-- ticket preparation: moderate reasoning; escalate for broad/cross-cutting decomposition;
-- leaf implementation: code-capable model selected by complexity/blast;
-- Story/Feature processing: reasoning-grade when semantics are nontrivial;
-- Epic processing: normally stronger-than-minimal reasoning, with escalation for broad impact, ambiguity, conflicting evidence, or weak first-pass confidence;
+Suggested flow:
+
+~~~
+deterministic evidence
+      |
+      v
+System-1 typed assessment
+      |
+      +-- high-confidence, low-consequence routing decision --> cheap/direct path
+      |
+      +-- uncertain / broad / consequential ----------------> reasoning LLM
+~~~
+
+Examples:
+
+- investigation: System-1 can classify work kind, scope, likely evidence families and reasoning depth;
+- preparation: System-1 can cheaply distinguish likely-atomic / likely-decomposable / unclear, but the actual decomposition is generated/reviewed by a reasoning model;
+- leaf implementation: System-1 can select likely mechanism/tool family and model tier before the code-capable Actor runs;
+- failure repair: System-1 can classify compile/type/test/tool/environment/semantic failure and route the next diagnostic step;
+- Story/Feature/Epic processing: System-1 can shortlist reuse candidates and estimate ambiguity/breadth, while the final semantic decomposition uses reasoning-grade cognition;
 - final verification remains deterministic wherever possible.
+
+Epic processing should normally use stronger-than-minimal reasoning even when System-1 is confident; the System-1 pass reduces and structures the problem rather than replacing the reasoning pass.
 
 A stronger model should receive a small prepared problem, not compensate for poor retrieval with a giant repository dump.
 
