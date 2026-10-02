@@ -139,7 +139,7 @@ Do not create a second exact code graph in aiwf.
 
 ## 4. Generic change contract
 
-The implementation must use **change** terminology, not a refactor-only architecture, because Product Intent mutation is the next capability.
+The implementation uses **change** terminology because code and Product Intent mutations share the same preview/fingerprint/apply safety boundary.
 
 Keep the model small:
 
@@ -147,16 +147,13 @@ Keep the model small:
 type ChangeMutation =
   | {
       kind: 'workspace_edit'
-      source: 'typescript-lsp'
+      source: 'typescript-lsp' | 'typescript6-refactor'
       edit: WorkspaceEditLike
     }
+  | ProductMutation
 
-// Future extension, not implemented in the first code-change phase:
-// | { kind: 'product_create'; ... }
-// | { kind: 'product_update'; ... }
-// | { kind: 'product_delete'; ... }
-// | { kind: 'product_link'; ... }
-// | { kind: 'product_unlink'; ... }
+// ProductMutation is the implemented product_create / product_update /
+// product_delete / product_link / product_unlink union.
 
 interface ChangePreview {
   fingerprint: string
