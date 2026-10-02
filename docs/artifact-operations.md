@@ -74,30 +74,71 @@ Do not send every semantic question to an autoregressive LLM.
 
 When the needed answer is a typed decision rather than generated content, use a fast System-1 pass first.
 
-The current intended backend is Laya, which can evaluate several typed questions over one compact state in a single forward pass and return probabilities for:
+The generic System-1 contract belongs in @dharmax/llm-utils. AIWF consumes it; AIWF must not copy ai-cli's Laya wrapper or depend on ai-cli.
+
+The first backend is Laya, which supports batched:
 
 - choice;
-- ordinal score;
-- yes/no (noul).
+- ordinal score over an ordered rubric;
+- yes/no probability (noul).
 
-Typical AIWF uses:
+AIWF uses System-1 in three distinct roles.
 
-- classify ticket work shape and likely scope;
-- decide which evidence families are probably relevant;
-- estimate reasoning depth / escalation need;
-- distinguish likely atomic vs decomposition-worthy work;
-- classify implementation mechanism candidates;
-- classify a failing run before choosing a repair path;
-- shortlist likely reusable Product Intent candidates.
+#### A. Artifact triage
+
+Over a compact Ticket/Product state:
+
+- classify work kind;
+- estimate scope/breadth;
+- estimate reasoning depth;
+- classify likely atomic vs decomposition-worthy;
+- decide which evidence families are worth retrieving;
+- estimate ambiguity/escalation need.
+
+#### B. Evidence/candidate pruning
+
+After deterministic retrieval has already produced a bounded candidate set:
+
+- rank likely relevant symbols/files;
+- shortlist Decisions/Lessons/docs;
+- shortlist tests when explicit graph verification links are absent;
+- shortlist existing Features/Stories/Tickets for semantic reuse.
+
+This is a major token-saving path:
+
+~~~
+deterministic retrieval
+      ↓
+bounded candidates
+      ↓
+System-1 relevance filter
+      ↓
+small evidence set
+      ↓
+reasoning/code model
+~~~
+
+Never send whole files or an unbounded repository candidate set to System-1.
+
+#### C. Execution/failure routing
+
+Before a generative Actor run or after failed verification:
+
+- choose likely mechanism family: native refactor / exact symbol edit / bounded patch / test/config/docs work;
+- choose likely model tier;
+- classify failure family: compile / type / assertion / tool / environment / semantic / unknown;
+- decide whether the next step is cheap inspection or deeper diagnosis.
 
 System-1 is **advisory, not authoritative**.
 
 It may:
 
 - route retrieval;
+- prune evidence;
 - prune a run-local tool surface;
 - choose a cheaper vs stronger reasoning path;
 - shortlist candidates;
+- identify likely unmet criteria/gaps for follow-up;
 - trigger escalation.
 
 It must not by itself:
@@ -105,19 +146,19 @@ It must not by itself:
 - persist a semantic graph relation;
 - reject or complete a Ticket;
 - choose destructive mutation;
-- declare acceptance criteria satisfied;
-- create a Product Intent artifact;
-- suppress deterministic verification.
+- positively declare acceptance criteria satisfied;
+- create/reuse/link a Product Intent artifact as canonical truth;
+- suppress deterministic verification or required reasoning review.
 
 Low confidence, disagreement with deterministic evidence, or a materially consequential semantic choice escalates to the normal reasoning path.
 
 Use one batched assessment at a meaningful decision point rather than many tiny classifier calls.
 
-The assessment state must stay compact: artifact intent, acceptance contract, relevant graph facts/candidate labels, and current failure/evidence summary. Do not feed source files to System-1.
+The assessment state must stay compact: artifact intent, acceptance contract, a few graph facts/candidate labels, and current failure/evidence summary. Laya's practical state window is small, so deterministic retrieval must narrow first. Do not feed source files to System-1.
 
-System-1 availability is an optimization, not a correctness dependency. If unavailable, AIWF falls back to the ordinary bounded LLM path.
+System-1 availability is an optimization, not a correctness dependency. If unavailable, AIWF falls back to the ordinary bounded reasoning path.
 
-Do not build a generic System-1 framework. A tiny injectable adapter over the current backend is sufficient.
+Do not build a System-1 framework inside AIWF. Consume the shared llm-utils primitive and keep only AIWF's question sets, thresholds and policy here.
 
 ### No "context pack" as the product abstraction
 
@@ -466,7 +507,10 @@ Use the cheapest cognition that can answer the actual question:
 
 1. deterministic evidence/rules;
 2. System-1 typed decision when the task is classification/scoring/triage;
-3. autoregressive LLM only when generation, synthesis, ambiguous semantics, or deeper reasoning is required.
+3. bounded reasoning LLM when semantic adjudication/synthesis is required;
+4. code-capable Actor only when actual implementation generation/tool use is required.
+
+Do not invoke an Actor merely to classify or retrieve.
 
 Autoregressive LLMs remain responsible for:
 
@@ -481,6 +525,8 @@ Use @dharmax/context-manager to bound evidence passed to an LLM when useful.
 Use exact run-local AIWF tool surfaces. System-1 should help select that small surface before an Actor run. A typical leaf implementation actor should see only the few relevant capabilities, not all MCP tools.
 
 No System-1 result becomes canonical graph truth without deterministic confirmation or the stronger semantic path appropriate to that fact.
+
+A useful asymmetry: System-1 may cheaply flag a likely problem and trigger inspection, but terminal success must be proven by deterministic evidence and/or the stronger semantic verifier required by the acceptance criterion.
 
 ## 10. Cognition / model policy
 
