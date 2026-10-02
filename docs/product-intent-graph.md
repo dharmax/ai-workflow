@@ -1,8 +1,6 @@
 # Product Intent Graph — Design
 
-Status: implemented architectural truth for AIWF Product Intent.
-
-The next artifact-level execution architecture is defined in [artifact-operations.md](artifact-operations.md).
+Status: authoritative architectural truth for AIWF Product Intent. The core graph is implemented; Ticket acceptance criteria and Ticket→Ticket containment documented below are the explicit next extensions required by [artifact-operations.md](artifact-operations.md).
 
 ## 1. Purpose
 
