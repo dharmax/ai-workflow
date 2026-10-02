@@ -1,8 +1,6 @@
 # Causal Change Engine — Design
 
-Status: authoritative design for the next ai-workflow implementation phase  
-Branch: `feat/causal-change-engine`  
-Base: `master@aedbfee41940e4f5e0211e4ef954facd5de1f7fb`
+Status: implemented architectural truth for AIWF safe code/Product Intent change.
 
 ## 1. Purpose
 
@@ -433,20 +431,15 @@ understand request
 
 MCP/non-TTY callers perform preview and apply explicitly.
 
-## 13. Next capability: Product Intent mutations
+## 13. Product Intent mutations
 
-The same change contract must intentionally support the immediate next feature:
+Product Intent mutation is now part of this same change contract.
 
-- add/change/delete Epic
-- add/change/delete Feature
-- add/change/delete UserStory
-- add/change/delete Ticket
+The implemented Product Intent design is detailed in [product-change.md](product-change.md).
 
-This phase is **designed now but implemented after native code changes are accepted**.
+It reuses deterministic product/ticket rules and graph primitives rather than duplicating CRUD.
 
-It must reuse existing deterministic product/ticket tools and graph primitives; do not duplicate CRUD.
-
-Future Product mutations become additional `ChangeMutation` variants and use the same:
+Product mutations use the same:
 
 - preview
 - fingerprint
@@ -460,7 +453,7 @@ Deletion is never blind cascading. Preview must expose incoming/outgoing causal 
 - include explicit unlink/deprecation/removal operations, or
 - block with exact dependents.
 
-A future mixed change may therefore be one coherent preview:
+A mixed change may therefore be one coherent preview:
 
 ```text
 change STORY-X acceptance criteria
