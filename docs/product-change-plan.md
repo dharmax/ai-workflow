@@ -10,24 +10,15 @@ This is an **AIWF development flow**. Track and execute it in AIWF itself.
 
 Extend the existing Causal Change Engine to Product Intent mutations without creating a second product model, CRUD implementation, or change subsystem.
 
-### Read first
+### Start
 
-1. `AGENTS.md`
-2. `docs/product-intent-graph.md`
-3. `docs/product-intent-plan.md`
-4. `docs/causal-change-engine.md`
-5. `docs/product-change.md`
-6. `src/change/types.ts`
-7. `src/change/engine.ts`
-8. `src/tools/change.ts`
-9. `src/tools/product.ts`
-10. `src/tools/tickets.ts`
-11. `src/product/apply.ts`
-12. `src/product/decompose.ts`
-13. `src/product/coverage.ts`
-14. `src/product/impact.ts`
+1. Run `aiwf sync`.
+2. Ensure `AIWF-PRODUCT-CHANGE` exists in AIWF; create it only if absent.
+3. Claim `AIWF-PRODUCT-CHANGE`.
+4. Use AIWF's own product/graph/symbol/blast/search capabilities to establish the current relevant architecture and implementation context.
+5. Read source/docs surgically only when AIWF points to them or exact implementation detail is required.
 
-Then use AIWF graph/symbol tools for narrow context.
+Do not preload a fixed file list. The point of AIWF is to provide bounded, current context.
 
 ### Step 1 — normalize one Product Intent mutation owner
 
