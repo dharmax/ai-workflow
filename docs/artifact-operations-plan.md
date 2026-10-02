@@ -75,6 +75,8 @@ Introduce the shared artifact-operation contract and implement investigate_ticke
 
 This is deliberately read-mostly and is the safest proof of the new abstraction.
 
+Also add the first narrow System-1 integration here, because investigation is where cheap semantic triage can be proven without granting mutation authority.
+
 ## Domain corrections
 
 Add only what investigation/preparation demonstrably need:
@@ -105,17 +107,46 @@ with operation-specific disposition inside complete.
 
 No persisted operation state.
 
+## System-1 assessment
+
+Add one tiny injectable System-1 adapter, with Laya as the first backend.
+
+No registry/provider framework.
+
+Given a compact Ticket state (intent + acceptance criteria + relevant graph facts/candidate labels), batch a small typed assessment such as:
+
+- work_kind: bug_fix | refactor | feature_work | test_work | docs_config | mixed;
+- scope: single_symbol | single_file | multi_file | cross_subsystem | unclear;
+- preparation: likely_atomic | likely_split | unclear;
+- reasoning_depth: direct | moderate | deep;
+- needs_product_context: yes/no probability;
+- needs_code_context: yes/no probability;
+- needs_test_context: yes/no probability.
+
+Use the answers only to choose what evidence to retrieve and whether to escalate.
+
+Rules:
+
+- unavailable System-1 → ordinary bounded path;
+- low confidence → ordinary bounded path;
+- contradiction with deterministic graph/code evidence → ignore/escalate;
+- never persist a graph relation or terminal Ticket state from System-1 alone;
+- batch questions at one decision point rather than scattering classifier calls.
+
+Expose timing and classification probabilities in debug/metrics output so usefulness can be measured.
+
 ## Investigation behavior
 
 For one Ticket:
 
 1. perform one freshness reconciliation;
 2. collect existing graph/product/work/code/test/decision/lesson evidence;
-3. validate stale code anchors;
-4. deterministically fill exact missing facts where safe;
-5. use bounded semantic reasoning only when necessary;
-6. persist only confirmed canonical facts;
-7. return a compact dossier with provenance and one disposition:
+3. run the compact System-1 assessment to prioritize missing evidence;
+4. validate stale code anchors;
+5. deterministically fill exact missing facts where safe;
+6. use bounded autoregressive reasoning only when System-1/deterministic evidence is insufficient;
+7. persist only confirmed canonical facts;
+8. return a compact dossier with provenance and one disposition:
    - ready;
    - needs_preparation;
    - rejectable.
@@ -138,7 +169,10 @@ MCP returns required inputs; caller updates ordinary artifact fields/relations a
 
 At minimum:
 
-- already-well-grounded Ticket: mostly graph reads, no semantic call if unnecessary;
+- already-well-grounded Ticket: mostly graph reads, no autoregressive semantic call if unnecessary;
+- System-1 high-confidence routing correctly avoids irrelevant evidence families;
+- low-confidence System-1 cleanly escalates rather than guessing;
+- System-1 unavailable: behavior remains correct;
 - stale/missing code target: repaired exactly;
 - ambiguous Feature/Story ownership: needs_input, no guessed relation;
 - duplicate/already-satisfied Ticket: grounded rejectable;
@@ -171,14 +205,17 @@ No SubTask/ManagementTicket/Plan entity.
 prepare_ticket:
 
 1. calls/uses the same investigation owner;
-2. returns immediately when the Ticket is already executable;
-3. clarifies missing material requirements through needs_input;
-4. when decomposition is genuinely useful, proposes a small coherent set of child Tickets;
-5. gives every executable child a clear body + Ticket acceptance criteria;
-6. connects children to relevant Epic/Feature/Story/code context;
-7. adds depends_on only for real ordering constraints;
-8. applies graph changes through the existing Product Intent/Causal Change mutation path;
-9. is idempotent on rerun.
+2. uses the existing System-1 assessment as a cheap atomic-vs-split/escalation hint;
+3. returns immediately when deterministic evidence + high-confidence assessment show the Ticket is already executable;
+4. clarifies missing material requirements through needs_input;
+5. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
+6. gives every executable child a clear body + Ticket acceptance criteria;
+7. connects children to relevant Epic/Feature/Story/code context;
+8. adds depends_on only for real ordering constraints;
+9. applies graph changes through the existing Product Intent/Causal Change mutation path;
+10. is idempotent on rerun.
+
+System-1 never invents child tickets or decomposition text.
 
 Do not split based on token count or arbitrary maximum size.
 
@@ -231,10 +268,12 @@ Do not use uncontrolled recursive agent calls.
 For each leaf:
 
 - gather bounded evidence with @dharmax/context-manager where useful;
-- use an exact small run-local AIWF tool set;
-- use Asker/LLMActor from llm-utils;
-- choose/escalate model by actual task complexity/blast;
+- run one compact System-1 assessment to classify likely change mechanism, scope and reasoning depth;
+- use that assessment to choose an exact small run-local AIWF tool set and model tier;
+- use Asker/LLMActor from llm-utils only for the generative/reasoning part;
 - prefer deterministic refactor/edit/test primitives.
+
+On a failed verification pass, System-1 may cheaply classify the failure family (compile/type/test assertion/tool/environment/semantic/unknown) before the next diagnostic step. It does not decide that the Ticket is fixed.
 
 Do not require LLMPipeline, LLMSession, or semantic-registry.
 
@@ -322,10 +361,12 @@ Product processing normally receives stronger reasoning than mechanical ticket i
 Epic processing in particular should use:
 
 1. deterministic current Product Intent retrieval;
-2. bounded extraction/reuse candidate pass;
-3. reasoning-grade decomposition;
+2. System-1 to classify technical-vs-behavioral shape, breadth/ambiguity, and shortlist likely reusable candidates from a bounded candidate set;
+3. reasoning-grade decomposition over that reduced evidence;
 4. coherence/reuse review;
-5. escalation when ambiguity, breadth or disagreement warrants it.
+5. escalation when ambiguity, breadth or weak confidence warrants it.
+
+System-1 may shortlist Product Intent candidates; it may not create/reuse/link one as canonical truth by itself.
 
 No model tier is trusted merely because it returned valid JSON.
 
@@ -377,6 +418,7 @@ B: same model begins with resolve_ticket and uses primitives only if AIWF return
 Compare:
 
 - task correctness;
+- System-1 decisions, confidence, latency and how many autoregressive calls they avoided or escalated;
 - external paid input/output tokens;
 - external tool calls;
 - external source reads;
