@@ -172,13 +172,15 @@ The public abstraction is artifact investigation/resolution, not "give the calle
 
 ### No Insight/Investigation entity yet
 
-Investigation persists canonical durable facts where they belong:
+Investigation derives canonical-fact candidates in the terms where they would belong:
 
 - graph relations;
 - exact code anchors;
 - acceptance criteria;
 - Decisions when there is a real durable decision;
 - Lessons when there is a real reusable lesson/trap.
+
+It does not persist those semantic enrichments itself. A mutating operation applies accepted/confirmed changes through the ordinary canonical path while leased.
 
 The investigation dossier itself is derived output. Do not create a shadow narrative state model merely to cache an LLM answer.
 
@@ -204,9 +206,14 @@ Then it fills genuine gaps as cheaply as possible:
 
 1. deterministic graph/code lookup;
 2. exact language tooling where correctness matters;
-3. bounded semantic reasoning only for unresolved meaning.
+3. System-1 triage/ranking where useful;
+4. bounded semantic reasoning only for unresolved meaning.
 
-It may persist confirmed canonical facts. It never edits implementation code and never creates child work.
+Investigation is semantically read-only.
+
+It may refresh the derived code index/freshness state, but it does not mutate Ticket/Product fields or semantic relations. Any confirmed/proposed enrichments are returned in the dossier and are applied later by prepare_ticket/resolve_ticket while holding the Ticket lease.
+
+It never edits implementation code and never creates child work.
 
 It returns a derived dossier and disposition such as:
 
@@ -278,7 +285,9 @@ For a parent Ticket, resolve ready children in dependency order, then verify the
 
 ### Lease discipline
 
-Investigation does not require a claim.
+Investigation does not require a claim because it does not mutate canonical Ticket/Product semantic state.
+
+Refreshing the derived code index is not a Ticket mutation.
 
 Any operation that may mutate Ticket/Product/code state must hold the relevant Ticket lease before its first mutation.
 
