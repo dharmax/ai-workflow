@@ -139,7 +139,7 @@ Rules:
 - never persist a graph relation or terminal Ticket state from System-1 alone;
 - batch questions at one decision point rather than scattering classifier calls.
 
-Also apply System-1 after deterministic retrieval to a bounded shortlist of candidate symbols/files/Decisions/Lessons/tests/Product Intent entities. It may remove low-relevance candidates from model context, but never from canonical graph state.
+Also apply System-1 after deterministic retrieval to a bounded shortlist of optional candidate symbols/files/Decisions/Lessons/tests/Product Intent entities. Explicit graph neighbors and other deterministically mandatory evidence always survive. Prefer conservative ranking/top-N retention; System-1 may remove only optional low-relevance candidates from model context, never from canonical graph state.
 
 Expose timing, raw probabilities/distributions, candidate counts before/after pruning, and escalation outcome in debug/metrics output so usefulness can be measured.
 
@@ -214,16 +214,18 @@ No SubTask/ManagementTicket/Plan entity.
 
 prepare_ticket:
 
-1. calls/uses the same investigation owner;
+1. calls/uses the same read-mostly investigation owner;
 2. uses the existing System-1 assessment as a cheap atomic-vs-split/escalation hint;
 3. returns immediately when deterministic evidence + high-confidence assessment show the Ticket is already executable;
-4. clarifies missing material requirements through needs_input;
-5. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
-6. gives every executable child a clear body + Ticket acceptance criteria;
-7. connects children to relevant Epic/Feature/Story/code context;
-8. adds depends_on only for real ordering constraints;
-9. applies graph changes through the existing Product Intent/Causal Change mutation path;
-10. is idempotent on rerun.
+4. claims the Ticket before the first durable preparation mutation;
+5. clarifies missing material requirements through needs_input;
+6. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
+7. gives every executable child a clear body + Ticket acceptance criteria;
+8. connects children to relevant Epic/Feature/Story/code context;
+9. adds depends_on only for real ordering constraints;
+10. applies graph changes through the existing Product Intent/Causal Change mutation path;
+11. releases any lease acquired by this call before returning needs_input/blocked;
+12. is idempotent on rerun.
 
 System-1 never invents child tickets or decomposition text.
 
@@ -258,8 +260,8 @@ The operation owns:
 
 ~~~
 investigate
+→ claim before first mutation
 → prepare when required
-→ claim
 → execute ready leaf work
 → verify
 → bounded repair
@@ -270,6 +272,8 @@ investigate
 ~~~
 
 For parents, build a bounded child work set, topologically order real dependencies, resolve executable leaves, then verify parent acceptance.
+
+Lease each child before mutating it. If another agent owns an active lease, return a temporary blocked result; do not mutate that child's lifecycle and do not leave newly acquired leases behind on needs_input/blocked returns.
 
 Do not use uncontrolled recursive agent calls.
 
@@ -432,7 +436,8 @@ Compare:
 - task correctness;
 - System-1 decisions, confidence, latency and how many autoregressive calls they avoided or escalated;
 - evidence candidates before/after System-1 pruning;
-- false-prune rate on artifacts later proven necessary;
+- false-prune rate on optional artifacts later proven necessary;
+- proof that mandatory graph evidence is never pruned;
 - external paid input/output tokens;
 - external tool calls;
 - external source reads;
