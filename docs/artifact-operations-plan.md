@@ -31,6 +31,17 @@ aiwf sync
 
 Do not preload a fixed file list.
 
+## Entity implementation rule
+
+Follow Semantika's normal entity pattern throughout this plan:
+
+- every semantic entity remains a real JS/TS class with its DCR;
+- tightly-related domain behavior belongs on that entity class;
+- shell/MCP/tool functions load the entity, call its method, and serialize the result;
+- keep only genuinely cross-entity/infrastructural algorithms as small helpers.
+
+Do not create Service/Manager/Repository wrappers around entity behavior.
+
 ---
 
 # 1. AIWF-PRIMITIVE-TRUTH
@@ -205,7 +216,7 @@ Reject if it introduces:
 
 ## Goal
 
-Introduce the shared artifact-operation contract and implement investigate_ticket only.
+Introduce the shared artifact-operation contract and implement `Ticket.investigate()` plus the thin `investigate_ticket` transport operation.
 
 This is deliberately read-mostly and is the safest proof of the new abstraction.
 
@@ -327,7 +338,7 @@ Stop here and inspect real output before Ticket 4.
 
 ## Goal
 
-Implement prepare_ticket and ordinary Ticket decomposition, including the first real proposal Critic path.
+Implement `Ticket.prepare()` plus the thin `prepare_ticket` transport operation and ordinary Ticket decomposition, including the first real proposal Critic path.
 
 ## Graph change
 
@@ -408,7 +419,7 @@ Gate + KISS audit.
 
 ## Goal
 
-Make resolve_ticket finish a realistic prepared Ticket from start to verified completion.
+Make `Ticket.resolve()` plus the thin `resolve_ticket` transport operation finish a realistic prepared Ticket from start to verified completion.
 
 Do not redesign the whole shell actor.
 
@@ -493,12 +504,12 @@ Gate + adversarial KISS audit.
 
 ## Goal
 
-Add:
+Add entity-owned processing methods with thin transport aliases:
 
 ~~~
-process_story
-process_feature
-process_epic
+UserStory.process()  ↔ process_story
+Feature.process()    ↔ process_feature
+Epic.process()       ↔ process_epic
 ~~~
 
 using the same operation-result and needs_input contract.
@@ -638,7 +649,8 @@ Stop and simplify if implementation introduces:
 - broad tool catalogs rendered to every actor step;
 - arbitrary decomposition thresholds;
 - new entities/predicates without a concrete acceptance case;
-- complex code for an operation whose domain behavior is simple.
+- complex code for an operation whose domain behavior is simple;
+- Service/Manager classes that merely wrap Semantika entity methods.
 
 A simple artifact lifecycle must look simple in code.
 
