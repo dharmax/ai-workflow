@@ -191,6 +191,30 @@ There is no separate SubTask or ManagementTicket entity. A parent Ticket is an o
 
 A Ticket need not have every relation.
 
+### Completeness target
+
+Artifact Operations add one durable **desired** completeness target to work/product scopes:
+
+```ts
+type CompletenessLevel = 'poc' | 'functional' | 'advanced' | 'production'
+```
+
+The optional `completenessTarget` field is valid on:
+
+- Module;
+- Epic;
+- Feature;
+- UserStory;
+- Ticket.
+
+It expresses the desired engineering/product thoroughness for future processing. It does **not** claim the artifact currently meets that level.
+
+Current completeness remains derived from Product Coverage, acceptance evidence, tests and semantic review under the selected profile.
+
+Do not persist achieved completeness, completeness percentages, or `productionReady=true`.
+
+Effective-target inheritance and operation overrides are defined in `artifact-operations.md`; Product Intent stores only explicit artifact targets.
+
 ### Test
 
 Evidence.
@@ -344,6 +368,8 @@ interface CoverageReport {
 
 `complete` is a derived convenience meaning **no known structural/causal gaps under this contract**. It is never persisted and must never be described as proof that the product itself is semantically complete.
 
+Coverage is intentionally independent of `completenessTarget`. Artifact Operations combine this structural report with the effective target and semantic/critic review to derive a broader CompletenessAssessment.
+
 Avoid a second rigid workflow-state enum such as `partially_implemented` / `unverified` as canonical data. Callers can derive display labels from `gaps` when useful.
 
 ### UserStory coverage
@@ -464,8 +490,8 @@ Completed/cancelled historical Epics are excluded by default from Feature/Story 
 Include:
 
 - that Epic's targeted Features/Stories;
-- Tickets implementing that Epic;
-- those Tickets' Feature/Story/code edges;
+- Tickets contained by that Epic;
+- those contained Tickets' Feature/Story/code edges;
 - relevant verification Tests and governing Decisions;
 - direct blockers/dependencies.
 
