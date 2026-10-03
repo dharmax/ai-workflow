@@ -639,9 +639,9 @@ A simple artifact lifecycle must look simple in code.
 
 ---
 
-## Separate deferred metrics feature
+## Separate metrics feature
 
-Performance telemetry is deliberately not implemented inside these artifact-operation tickets.
+Performance telemetry is deliberately tracked in its own development flow rather than implemented inside these artifact-operation tickets.
 
 The separate cross-package feature is documented in:
 
@@ -650,4 +650,4 @@ The separate cross-package feature is documented in:
 - `@dharmax/llm-utils/docs/performance-metrics.md`
 - `@dharmax/llm-utils/docs/performance-metrics-plan.md`
 
-Implement it after the artifact-operation core is proven, except for lightweight debug counters already required by acceptance tests.
+Land its basic correlated run metrics before the end-to-end `resolve_ticket` performance proof, then perform the controlled A/B benchmark only after the primary high-level interface exists.
