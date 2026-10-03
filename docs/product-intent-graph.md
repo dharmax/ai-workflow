@@ -121,6 +121,7 @@ interface UserStoryData extends BaseEntityData {
   context?: string
   acceptanceCriteria?: string[]
   sla?: string
+  completenessTarget?: CompletenessLevel
 }
 ```
 
