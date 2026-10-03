@@ -13,6 +13,14 @@ import { applyProductMutations } from '../product/mutation.ts';
 
 export function registerTicketTools() {
   registry.register({
+    name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification.', category: 'ticket',
+    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
+    execute: async ({ ticketId, ...options }, ctx) => {
+      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr); if (!ticket) throw new Error(`Ticket '${ticketId}' not found.`);
+      return ticket.resolve(ctx.store, options);
+    }
+  });
+  registry.register({
     name: 'prepare_ticket', description: 'Make a Ticket executable through read-only investigation, independent proposal review and leased safe enrichment/decomposition.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {

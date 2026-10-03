@@ -15,7 +15,7 @@ import type { WorkflowStore } from './store.ts';
 
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts';
 
-import type { InvestigationOptions, TicketDossier, OperationResult, PreparationOptions, PreparedTicket } from '../ticket-operation-types.ts';
+import type { InvestigationOptions, TicketDossier, OperationResult, PreparationOptions, PreparedTicket, ResolutionOptions, ResolvedTicket, ResolutionVerificationInput } from '../ticket-operation-types.ts';
 import { withArtifactMetrics, cognitionMetrics, countEngineering, visitMetricArtifact, recordMetricCompleteness } from '../performance-metrics.ts';
 
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
@@ -232,7 +232,8 @@ export class Ticket extends WorkflowEntity {
             const name = entity.containerName ? `${entity.containerName}.${entity.title}` : entity.title!;
             const source = await getExactSymbolSource(store.root, filePath, name);
             countEngineering('sourceReads'); countEngineering('exactSymbolReads');
-            evidence.source = source.code; evidence.exact = true;
+            evidence.source = source.code; evidence.exact = true; evidence.symbolKind = source.kind;
+            evidence.symbolName = entity.title; evidence.containerName = entity.containerName;
           } catch (error) {
             return { status: 'needs_input', artifactId: id, required: [{ question: `Confirm stale symbol target '${store.localId(entity.id)}': ${String(error)}`, why: 'Exact language tooling cannot resolve the authored target.', target: 'Ticket code target relation' }] };
           }
@@ -406,6 +407,217 @@ export class Ticket extends WorkflowEntity {
       }
       return { status: 'blocked', artifactId: id, blockers: findings.map(finding => ({ reason: `Critic revision limit: ${finding.message}`, artifactId: finding.artifactId })) };
     } catch (error) { return { status: 'blocked', artifactId: id, blockers: [{ reason: `Ticket preparation failed: ${String(error)}` }] }; }
+    });
+  }
+
+  async resolve(store: WorkflowStore, options: ResolutionOptions = {}): Promise<OperationResult<ResolvedTicket>> {
+    return withArtifactMetrics(store.root, 'resolve_ticket', store.localId(this.id), { ...options, depth: options.depth ?? 'all' }, async () => {
+      const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema } = await import('../ticket-operation-types.ts');
+      const { ArtifactBudget } = await import('../artifact-policy.ts');
+      const { CausalChangeEngine } = await import('../change/engine.ts');
+      const { workspacePath } = await import('../change/workspace-path.ts');
+      const { createDefaultAsker } = await import('../product/decompose.ts');
+      const { loadConfig } = await import('../config.ts');
+      const { applyProductMutations } = await import('../product/mutation.ts');
+      const { initializeTools, registry } = await import('../tools/index.ts');
+      const { z } = await import('zod');
+      const { LLMActor, LayaSystemOne } = await import('@dharmax/llm-utils');
+      const fs = await import('node:fs'), path = await import('node:path');
+      const crypto = await import('node:crypto');
+      initializeTools();
+      const cfg = loadConfig(store.root), agentId = options.agentId ?? cfg.defaultAgentId, rootId = store.localId(this.id);
+      const acquired = new Set<string>(), ownedFiles = new Set<string>(), allFiles = new Set<string>(), resolved: string[] = [];
+      const ownedHashes = new Map<string, string>();
+      let executingTicket: Ticket = this;
+      const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
+      const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
+      const tests: ResolutionVerificationInput['tests'] = [];
+      let repairs = 0, acceptance: import('../ticket-operation-types.ts').AcceptanceVerification = { criteria: [], aspects: [] };
+      const ctx = { store, projectRoot: store.root };
+      const blocked = (reason: string): OperationResult<ResolvedTicket> => ({ status: 'blocked', artifactId: rootId, blockers: [{ reason }] });
+      const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> => ({ status: 'needs_input', artifactId: rootId, required: [{ question, why, target }] });
+      const lease = async (ticket: Ticket) => {
+        const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!, active = fresh.claim && Date.parse(fresh.claim.expiresAt) > Date.now();
+        if (active) return fresh.claim!.agentId === agentId ? null : `Ticket '${store.localId(ticket.id)}' is leased by '${fresh.claim!.agentId}'.`;
+        const claim = await store.claimTicket(store.localId(ticket.id), agentId, cfg.defaultLeaseMinutes, false);
+        if (claim.success) { acquired.add(store.localId(ticket.id)); return null; } return claim.message ?? 'Lease unavailable.';
+      };
+      const guardFiles = (files: string[]) => {
+        const status = Bun.spawnSync(['git', 'status', '--porcelain=v1', '-z'], { cwd: store.root, stderr: 'pipe' });
+        if (!status.success) throw new Error('Workspace Git status unavailable; edits require an inspectable repository.');
+        const dirty = new Set<string>(), entries = status.stdout.toString().split('\0');
+        for (let i = 0; i < entries.length; i++) if (entries[i]) { dirty.add(entries[i].slice(3)); if (/[RC]/.test(entries[i].slice(0, 2))) dirty.add(entries[++i]); }
+        for (const file of files) {
+          const relative = workspacePath(store.root, file);
+          const currentHash = fs.existsSync(path.resolve(store.root, relative)) ? crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, relative))).digest('hex') : 'missing';
+          if (ownedHashes.has(relative) && ownedHashes.get(relative) !== currentHash) return relative;
+          if (dirty.has(relative) && !ownedFiles.has(relative) && !options.allowDirtyTargets?.includes(relative)) return relative;
+        }
+        return null;
+      };
+      const apply = async (request: import('../change/types.ts').ChangeRequest, fingerprint?: string) => {
+        const leaseError = await lease(executingTicket); if (leaseError) throw new Error(leaseError);
+        if (request.action === 'product_change') throw new Error('Implementation cannot mutate Product/Ticket semantics through code tools.');
+        const engine = new CausalChangeEngine(ctx), preview = await engine.previewChange(request);
+        if (preview.blocked) throw new Error(preview.blockReason ?? 'Change preview blocked.');
+        const conflict = guardFiles(preview.affectedFiles); if (conflict) throw new Error(`Dirty target requires input: ${conflict}`);
+        await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id: store.localId(executingTicket.id), fields: { lane: 'In Progress' } }]);
+        const result = await engine.applyChange(request, fingerprint ?? preview.fingerprint);
+        for (const file of [...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])]) {
+          ownedFiles.add(file); allFiles.add(file);
+          ownedHashes.set(file, fs.existsSync(path.resolve(store.root, file)) ? crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') : 'missing');
+        }
+        countEngineering('codeEdits'); countEngineering('filesTouched', result.filesTouched.length);
+        if (!result.ok || !result.verification.passed) throw new Error(`Change verification failed: ${JSON.stringify(result.verification)}`);
+        return result;
+      };
+      try {
+        // Prepare a bounded closure first, then execute a single dependency order.
+        const queue: Array<{ ticket: Ticket; depth: number }> = [{ ticket: this, depth: 0 }];
+        while (queue.length) {
+          const { ticket, depth } = queue.shift()!, id = store.localId(ticket.id);
+          if (work.has(id)) continue;
+          if (!budget.visit(id, depth)) return needs(`Increase depth/maxArtifacts to include '${id}'.`, 'The work closure exceeds the explicit operation budget.', 'Operation depth/maxArtifacts');
+          const investigation = await ticket.investigate(store, options); if (investigation.status !== 'complete') return investigation;
+          if (investigation.value.disposition === 'rejectable') return needs(`Review rejection evidence for '${id}': ${investigation.value.rationale}`, 'Rejection is grounded but requires explicit disposition approval.', 'Ticket lifecycle');
+          const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
+          const prepared = await ticket.prepare(store, { ...options, agentId }); if (prepared.status !== 'complete') return prepared;
+          const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!;
+          const grounded = prepared.value.applied ? await fresh.investigate(store, options) : investigation;
+          if (grounded.status !== 'complete') return grounded;
+          work.set(id, fresh); dossiers.set(id, grounded.value); visitMetricArtifact(id);
+          for (const child of prepared.value.children) queue.push({ ticket: (await store.getEntity<Ticket>(child, Ticket.dcr))!, depth: depth + 1 });
+        }
+        const order: string[] = [], visiting = new Set<string>(), visited = new Set<string>();
+        const visit = async (id: string): Promise<void> => {
+          if (visiting.has(id)) throw new Error(`Work containment/dependency cycle at '${id}'.`); if (visited.has(id)) return;
+          visiting.add(id);
+          for (const edge of await store.getOutgoing(work.get(id)!.id)) if (['contains', 'depends_on'].includes(edge.predicateName)) {
+            const target = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr); if (!target) continue;
+            const targetId = store.localId(target.id);
+            if (work.has(targetId)) await visit(targetId);
+            else if (edge.predicateName === 'depends_on' && !(target.lane === 'Done' && target.status === 'verified')) throw new Error(`Unresolved prerequisite '${targetId}' outside the bounded work set.`);
+          }
+          visiting.delete(id); visited.add(id); order.push(id);
+        };
+        await visit(rootId);
+        for (const id of order) {
+          const ticket = work.get(id)!, dossier = dossiers.get(id)!; executingTicket = ticket; recordMetricCompleteness(dossier.completeness);
+          const signature = crypto.createHash('sha256').update(JSON.stringify({ ticket: { title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria }, aspects: dossier.aspects.aspects.map(aspect => ({ id: aspect.id, criteria: aspect.criteria })), completeness: dossier.completeness })).digest('hex');
+          const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr);
+          if (ticket.lane === 'Done' && ticket.status === 'verified' && receipt) {
+            const proof = JSON.parse((receipt as Artifact & { body: string }).body) as { signature: string; hashes: Record<string, string>; acceptance: import('../ticket-operation-types.ts').AcceptanceVerification };
+            const expectedTests = (options.testCommands ?? []).flat().filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg));
+            const verifiedContract = dossier.ticket.acceptanceCriteria.every(criterion => proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)) && dossier.aspects.aspects.every(aspect => proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed));
+            if (proof.signature === signature && verifiedContract && expectedTests.every(file => file in proof.hashes) && Object.entries(proof.hashes).every(([file, hash]) => fs.existsSync(path.resolve(store.root, file)) && crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') === hash)) {
+              acceptance = AcceptanceVerificationSchema.parse(proof.acceptance);
+              acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
+              for (const file of Object.keys(proof.hashes)) allFiles.add(file);
+              resolved.push(id); countEngineering('artifactsReused'); continue;
+            }
+          }
+          if (ticket.lane === 'Done') await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: { lane: 'In Progress' } }]);
+          if (!dossier.ticket.acceptanceCriteria.length) return needs(`Author executable acceptance criteria for '${id}'.`, 'Completion cannot be verified without a contract.', 'Ticket acceptanceCriteria');
+          const children = (await store.getOutgoing(ticket.id, 'contains')).filter(edge => work.has(store.localId(edge.targetId))).map(edge => store.localId(edge.targetId));
+          const verify = options.verify ?? (async (input: ResolutionVerificationInput) => {
+            const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
+            const sources = input.files.filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
+            const testSources = input.tests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg) && fs.existsSync(path.resolve(store.root, arg))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') })));
+            countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Requirements are not evidence. Use actual code, test assertions and successful executions; if proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
+            if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
+          });
+          let feedback: string[] = [];
+          for (let attempt = 0; attempt <= maxRepairs; attempt++) {
+            if (attempt) { repairs++; countEngineering('repairs'); }
+            const current = attempt ? await ticket.investigate(store, options) : null;
+            if (current && current.status !== 'complete') return current;
+            const implementationDossier = current?.status === 'complete' ? current.value : dossier;
+            let proposedTests = options.testCommands ?? [];
+            if (!children.length && ticket.lane !== 'Done') {
+              const implementation = options.implement ?? (async (input: TicketDossier, findings: readonly string[]) => {
+                const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Implementation provider unavailable.');
+                const exact = input.evidence.filter(item => item.source && item.exact && [6, 12].includes(item.symbolKind ?? 0));
+                const mechanism = await (options.systemOne ?? new LayaSystemOne()).assess({ criterionCount: input.ticket.acceptanceCriteria.length, exactTargets: exact.length, repair: findings.length > 0, failure: findings.join('\n').slice(0, 1000) }, {
+                  mechanism: { type: 'choice', instructions: 'Choose the least interactive implementation mechanism.', criteria: { synthesis: 'Exact targets are sufficient for a pure change proposal', interactive: 'Bounded navigation/tool interaction is needed', unknown: 'Unclear' } },
+                  modelTier: { type: 'choice', instructions: 'Suggest a configured reasoning tier; this is only a hint.', criteria: { configured: 'Normal implementation route is sufficient', stronger: 'Use the configured stronger design route if available', unknown: 'Unclear' } },
+                  ...(findings.length ? { failureKind: { type: 'choice' as const, instructions: 'Classify observed verification failure.', criteria: { code: 'Implementation defect', test: 'Assertion mismatch', tool: 'Tool or stale target failure', environment: 'Missing capability or provider', unknown: 'Unclear' } } } : {})
+                }, cognitionMetrics());
+                countEngineering('systemOneCalls');
+                const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
+                if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
+                  countEngineering('reasoningCalls');
+                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
+                  if (!response.ok) throw new Error(`Implementation synthesis failed: ${response.failure?.message}`);
+                  const proposal = ExactImplementationSchema.parse(response.data), target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
+                  return { changes: [proposal.action === 'replace_symbol' ? { action: proposal.action, target, replacement: proposal.replacement } : { action: proposal.action, target, newName: proposal.newName }], testCommands: proposal.testCommands };
+                }
+                const names = ['find_symbol', 'get_symbol_source', 'get_file_outline', 'search_graph', 'get_exact_references', 'preview_change', 'apply_change'];
+                const actor = new LLMActor(asker, { maxSteps: 16, system: 'Implement only the leased Ticket. Navigate surgically, then use preview_change/apply_change for edits. Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.' });
+                for (const name of names) {
+                  const tool = registry.get(name); if (!tool) continue;
+                  actor.registerTool({ name, description: tool.description, parameters: tool.parameters, execute: async params => {
+                    if (name === 'apply_change') { countEngineering('toolCalls'); const value = params as { request: import('../change/types.ts').ChangeRequest; fingerprint: string }; return apply(value.request, value.fingerprint); }
+                    if (name === 'get_symbol_source') { countEngineering('sourceReads'); countEngineering('exactSymbolReads'); }
+                    return registry.execute(name, params, ctx);
+                  } });
+                }
+                const output = await actor.run(`Ticket dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), askOptions: { model, timeoutMs: 60000 } });
+                if (!output.ok) throw new Error(`Implementation Actor halted: ${output.haltReason}: ${output.error}`);
+                return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
+              });
+              const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback));
+              if (proposal.required?.length) return { status: 'needs_input', artifactId: id, required: proposal.required };
+              let changeBlocked = false;
+              for (const request of proposal.changes) {
+                const preview = await new CausalChangeEngine(ctx).previewChange(request);
+                if (preview.blocked) { feedback = [preview.blockReason ?? 'Change preview blocked']; changeBlocked = true; break; }
+                const conflict = guardFiles(preview.affectedFiles); if (conflict) return needs(`Allow edits to dirty target '${conflict}', or restore it before retrying.`, 'The target contains uncommitted work present before this operation.', 'Operation allowDirtyTargets');
+                const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
+                await apply(request, preview.fingerprint);
+              }
+              if (changeBlocked) continue;
+              if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands;
+            }
+            if (!proposedTests.length) {
+              for (const file of allFiles) { const target = await registry.execute('resolve_test_target', { filePath: file }, ctx); if (target.found) proposedTests.push(['bun', 'test', target.testFile]); }
+              if (!proposedTests.length) proposedTests.push(['bun', 'test']);
+            }
+            const currentTests: ResolutionVerificationInput['tests'] = [];
+            for (const command of proposedTests) {
+              if (command[0] !== 'bun' || !['test', 'run'].includes(command[1] ?? '') || command[1] === 'run' && !['typecheck', 'build'].includes(command[2] ?? '')) return needs(`Supply a project test/typecheck/build command for '${id}'.`, 'Verification commands must be bounded engineering checks.', 'Operation testCommands');
+              const process = Bun.spawn(command, { cwd: store.root, stdout: 'pipe', stderr: 'pipe' });
+              const timeout = setTimeout(() => process.kill(), 60000);
+              const [stdout, stderr, exit] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
+              clearTimeout(timeout);
+              countEngineering('testsRun'); if (exit !== 0) countEngineering('testFailures');
+              currentTests.push({ command, passed: exit === 0, output: (stdout + '\n' + stderr).slice(-16000) });
+            }
+            tests.push(...currentTests);
+            if (currentTests.some(test => !test.passed)) { feedback = currentTests.filter(test => !test.passed).map(test => test.output); continue; }
+            acceptance = AcceptanceVerificationSchema.parse(await verify({ dossier, files: [...allFiles], tests: currentTests, children }));
+            acceptance.criteria = acceptance.criteria.filter(check => dossier.ticket.acceptanceCriteria.includes(check.criterion));
+            acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
+            const missing = [...dossier.ticket.acceptanceCriteria.filter(criterion => !acceptance.criteria.some(check => check.criterion === criterion && check.passed)), ...dossier.aspects.aspects.map(aspect => aspect.id).filter(aspect => !acceptance.aspects.some(check => check.id === aspect && check.passed))];
+            if (missing.length) { feedback = missing.map(item => `Unverified required acceptance/Aspect: ${item}`); continue; }
+            const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
+            const hashes = Object.fromEntries([...new Set([...allFiles, ...dossier.evidence.filter(item => item.filePath).map(item => item.filePath!), ...currentTests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg)))])].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex')]));
+            const proof = await store.upsertEntity<Artifact>(Artifact.dcr, { id: `VERIFY-${id}`, title: `Verified acceptance for ${id}`, body: JSON.stringify({ signature, hashes, acceptance, tests: currentTests.map(test => ({ command: test.command, passed: test.passed })), children, verifiedAt: new Date().toISOString() }), status: 'verified' });
+            await store.relate(proof, 'verifies', ticket);
+            await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: { lane: 'Done', status: 'verified' } }]);
+            resolved.push(id); break;
+          }
+          if (!resolved.includes(id)) return blocked(`Bounded repair exhausted for '${id}': ${feedback.join('\n')}`);
+        }
+        return { status: 'complete', artifactId: rootId, value: { verification: true, resolved, files: [...allFiles], repairs, acceptance } };
+      } catch (error) {
+        const message = String(error);
+        if (message.includes('Dirty target requires input:')) return needs(message, 'The Actor selected a target with existing uncommitted work.', 'Operation allowDirtyTargets');
+        return blocked(`Ticket resolution failed: ${message}`);
+      } finally {
+        for (const id of acquired) await store.releaseTicket(id);
+        const { exportProjections } = await import('./projections.ts'); await exportProjections(store);
+      }
     });
   }
 

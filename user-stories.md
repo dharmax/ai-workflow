@@ -24,7 +24,8 @@
 - **Actor**: External caller
 - **Story**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 - **Tickets**: `AIWF-TICKET-RESOLUTION-FIRST-PROOF`
-- **Coverage**: missing_acceptance_contract, missing_code_grounding, missing_verification
+- **Tests**: `TEST-AIWF-RESOLVE`
+- **Coverage**: missing_acceptance_contract, missing_code_grounding
 
 ## STORY-AIWF-PROCESS-INTENT: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 - **Status**: `accepted`

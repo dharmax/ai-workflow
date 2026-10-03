@@ -94,6 +94,7 @@ export type ChangeTarget =
   | { type: 'file'; filePath: string };
 
 export type ChangeRequest =
+  | { action: 'create_file'; filePath: string; content: string; productContextEntityId?: string }
   | { action: 'product_change'; mutations: ProductMutation[] }
   | { action: 'replace_symbol'; target: ChangeTarget; replacement: string; productContextEntityId?: string }
   | {

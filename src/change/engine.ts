@@ -20,6 +20,7 @@ import { resolveCodeTarget } from './target-resolver.ts';
 import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
+import { workspacePath } from './workspace-path.ts';
 import { SymbolNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
 import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
@@ -242,6 +243,15 @@ export class CausalChangeEngine {
     const originalHashes: Record<string, string> = {};
 
     switch (request.action) {
+      case 'create_file': {
+        try {
+          const relative = workspacePath(this.projectRoot, request.filePath);
+          if (fs.existsSync(path.resolve(this.projectRoot, relative))) throw new Error(`Creation target '${relative}' already exists.`);
+          mutations.push({ kind: 'workspace_edit', source: 'typescript-lsp', edit: { changes: { [this.lspClient.toUri(relative)]: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: request.content }] } } });
+          affectedFilesSet.add(relative); summary = `Create '${relative}' without overwriting existing work.`;
+        } catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
+        break;
+      }
       case 'replace_symbol': {
         try {
           resolvedTarget = await resolveCodeTarget(request.target, this.store, this.lspClient, this.projectRoot);
@@ -502,6 +512,8 @@ export class CausalChangeEngine {
     }
 
     const affectedFiles = Array.from(affectedFilesSet).sort();
+    try { for (const file of affectedFiles) workspacePath(this.projectRoot, file); }
+    catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
 
     // Read and record original hashes
     for (const f of affectedFiles) {

@@ -67,7 +67,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Todo]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Done]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
 - **Complete**: Yes
@@ -101,7 +101,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-PROCESS-INTENT**: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 
 ### Implementing Tickets
-- **AIWF-PRODUCT-PROCESSING** [Backlog]: Gate 8: PRODUCT-PROCESSING
+- **AIWF-PRODUCT-PROCESSING** [Todo]: Gate 8: PRODUCT-PROCESSING
 
 ### Coverage
 - **Complete**: No

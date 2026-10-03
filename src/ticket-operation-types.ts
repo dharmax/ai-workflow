@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
 import type { AspectAssessment } from './aspects.ts';
+import { ChangeRequestSchema } from './tools/change.ts';
 
 export type OperationResult<T> =
   | { status: 'complete'; artifactId: string; value: T }
@@ -10,6 +11,7 @@ export type OperationResult<T> =
 export interface TicketEvidence {
   id: string; kind: string; title: string; body?: string; mandatory: boolean; provenance: string;
   filePath?: string; source?: string; exact?: boolean;
+  symbolName?: string; containerName?: string; symbolKind?: number;
 }
 export const InvestigationJudgmentSchema = z.object({
   disposition: z.enum(['ready', 'needs_preparation', 'rejectable']),
@@ -51,3 +53,25 @@ export interface PreparedTicket {
   dossier: TicketDossier; children: string[]; created: string[]; reused: string[];
   applied: boolean; criticRounds: number; rationale: string;
 }
+
+export const ResolutionProposalSchema = z.object({
+  changes: z.array(ChangeRequestSchema).default([]), testCommands: z.array(z.array(z.string().min(1)).min(1)).default([]),
+  required: z.array(z.object({ question: z.string(), why: z.string(), target: z.string() })).optional()
+});
+export type ResolutionProposal = z.infer<typeof ResolutionProposalSchema>;
+export const ExactImplementationSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('replace_symbol'), replacement: z.string().min(1), testCommands: z.array(z.array(z.string()).min(1)).default([]) }),
+  z.object({ action: z.literal('rename_symbol'), newName: z.string().min(1), testCommands: z.array(z.array(z.string()).min(1)).default([]) })
+]);
+export const AcceptanceVerificationSchema = z.object({
+  criteria: z.array(z.object({ criterion: z.string(), passed: z.boolean(), evidence: z.string().min(1) })),
+  aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().min(1) }))
+});
+export type AcceptanceVerification = z.infer<typeof AcceptanceVerificationSchema>;
+export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[] }
+export interface ResolutionOptions extends PreparationOptions {
+  maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
+  implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;
+  verify?: (input: ResolutionVerificationInput) => Promise<AcceptanceVerification>;
+}
+export interface ResolvedTicket { verification: boolean; resolved: string[]; files: string[]; repairs: number; acceptance: AcceptanceVerification }

@@ -36,6 +36,7 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
   ['Ticket', 'targets', 'Module'],
   ['Ticket', 'contains', 'Ticket'], ['Ticket', 'depends_on', 'Ticket'],
+  ['Artifact', 'verifies', 'Ticket'], ['Test', 'verifies', 'Ticket'],
   ['Ticket', 'modifies', 'File'], ['Ticket', 'modifies', 'Symbol'], ['Ticket', 'targets', 'File'], ['Ticket', 'targets', 'Symbol'],
   ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
   ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory'],
