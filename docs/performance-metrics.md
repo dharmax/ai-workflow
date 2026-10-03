@@ -48,6 +48,8 @@ artifactId/type
 startedAt / durationMs
 outcome: complete | needs_input | blocked | rejected | error
 effective completeness/depth/maxArtifacts/critic
+AIWF version/commit + llm-utils version
+model IDs + System-1 backend/quality
 artifacts visited/created/reused
 internal tool calls
 source reads / exact-symbol reads
@@ -69,7 +71,7 @@ Metrics are operational telemetry, not Product Intent graph truth.
 
 Do not store metric events as semantic graph entities.
 
-First implementation should persist compact run summaries in an append-only project-local store outside projections. Prefer the smallest durable form that supports filtering/aggregation; do not introduce an analytics database.
+First implementation should persist compact run summaries in `.ai-workflow/metrics.jsonl` (gitignored) outside projections. One JSON line per completed high-level operation is sufficient. Do not introduce an analytics database.
 
 Detailed llm-utils events may remain transient if their aggregates are captured into the run summary.
 
@@ -83,6 +85,8 @@ Examples:
 - average repair loops per resolved Ticket;
 - model calls/tokens/cost per successfully resolved Ticket;
 - System-1 latency and escalation rate;
+- System-1 route agreement with the eventual stronger/deterministic path where a comparable outcome exists;
+- Critic yield: review rounds that produced material accepted revisions vs no-op review;
 - evidence reduction ratio: optional candidates before vs after System-1;
 - critic revision rate and non-convergence rate;
 - artifacts processed per run;
@@ -108,7 +112,7 @@ For A/B studies, tag runs with a scenario/version/variant and compare:
 - wall time;
 - user interventions.
 
-Arbitrary tags are sufficient. Do not build an experiment-management framework.
+Arbitrary tags plus version/model/policy metadata are sufficient. Do not build an experiment-management framework.
 
 ## 7. CLI
 
