@@ -18,12 +18,13 @@ Aspects must land before ticket investigation/preparation/resolution is consider
 
 Add:
 
-- Aspect entity using IntentStatus;
+- Aspect JS/TS entity class using IntentStatus and its Semantika DCR;
 - optional acceptanceCriteria;
 - applies_to predicate;
 - allowed relations from the design;
 - Product Intent mutation support for Aspect;
-- deterministic CRUD/query;
+- Aspect-local relation/assessment methods on the entity class;
+- thin deterministic CRUD/query transport tools over entity methods;
 - aspects.md projection.
 
 Do not add semantic generation yet.
@@ -118,4 +119,4 @@ bun test
 
 Then full diff + method-by-method KISS audit + one real project case.
 
-Reject if implementation creates a taxonomy framework, Aspect workflow engine, percentage scoring, generic graph inheritance, or shadow metrics system.
+Reject if implementation creates a taxonomy framework, Aspect workflow engine, percentage scoring, generic graph inheritance, shadow metrics system, or an Aspect Service/Manager that steals tightly-related business logic from the Semantika entity class.
