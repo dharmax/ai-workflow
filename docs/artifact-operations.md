@@ -229,6 +229,8 @@ Persist only the desired target.
 
 Do not persist "this Feature is production-complete" or "current completeness=advanced". That would rot just like persisted coverage.
 
+Legacy `Module.completionPercent` is the same stale-state smell. It must not be reused as completeness. The operation-policy implementation should remove/deprecate that persisted field and any ProjectHealth percentage that pretends to be semantic completeness; operational progress may be derived separately if still useful.
+
 Use four ordered initial targets:
 
 ~~~
