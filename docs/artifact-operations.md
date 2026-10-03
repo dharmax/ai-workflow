@@ -270,12 +270,23 @@ UserStory
 
 Also add a project default in AIWF project config.
 
-Effective completeness resolution:
+Effective completeness resolution is scope-aware:
+
+For the root artifact of a call:
 
 1. explicit operation override;
-2. explicit target on the artifact;
+2. explicit target on the root artifact;
 3. inherited target from defined semantic work scopes;
 4. project default.
+
+For descendants reached recursively:
+
+1. explicit target on that descendant;
+2. completeness inherited from the current operation/root path;
+3. other defined semantic-scope inheritance;
+4. project default.
+
+Thus a root run override does not silently erase a deliberate child-scope target.
 
 Inheritance is intentionally constrained rather than generic graph traversal:
 
@@ -288,7 +299,7 @@ An explicit target on a persistent completeness scope overrides inherited target
 
 Ticket completion remains governed by its acceptance criteria. Raising a Feature/Module/Epic/Story target does not retroactively reopen verified Tickets; completeness assessment creates/adds new work for newly exposed gaps.
 
-An operation-level override applies to that run and its recursive descendants. It is not persisted unless the caller explicitly asks to remember it.
+An operation-level override sets the root run target and is inherited by recursive descendants that do not have their own explicit target. It is not persisted unless the caller explicitly asks to remember it on the root scope.
 
 Provide one small deterministic mutation/query surface for target management rather than hiding it in natural-language state:
 
