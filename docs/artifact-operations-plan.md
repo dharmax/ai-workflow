@@ -12,6 +12,8 @@ AIWF must not duplicate ai-cli's Laya wrapper.
 
 The separate llm-utils ticket LLMUTILS-SYSTEM1 provides the shared typed System-1 contract/adapters. AIWF-PRIMITIVE-TRUTH can proceed independently, but AIWF-TICKET-INVESTIGATION must not implement its own Laya wrapper if that shared gate is not yet available.
 
+First-class Aspects are a separate AIWF-owned gate defined in `docs/aspects.md` / `docs/aspects-plan.md`. Complete `AIWF-ASPECTS` after `AIWF-OPERATION-POLICY` and before `AIWF-TICKET-INVESTIGATION`, because investigation/preparation/resolution consume applicable Aspect context.
+
 Start every ticket AIWF-native:
 
 ~~~
@@ -170,7 +172,7 @@ At this gate, critic tests use injected fake critics. The first real AI critic i
 
 Define the CompletenessAssessment result shape, but do not pretend structural Coverage proves semantic maturity.
 
-At this gate it may compose deterministic Product Coverage + known policy facts only. Semantic gap discovery arrives with later operations/critics.
+At this gate it may compose deterministic Product Coverage + known policy facts only. After `AIWF-ASPECTS`, completeness assessment also consumes AspectAssessment. Semantic gap discovery arrives with later operations/Critics.
 
 ## Acceptance
 
@@ -307,7 +309,8 @@ At minimum:
 - stale/missing code target: repaired exactly;
 - ambiguous Feature/Story ownership: needs_input, no guessed relation;
 - duplicate/already-satisfied Ticket: grounded rejectable;
-- technical Ticket with missing completion contract: asks for or derives Ticket acceptance criteria.
+- technical Ticket with missing completion contract: asks for or derives Ticket acceptance criteria;
+- explicit applicable Aspect is present in the dossier and cannot be pruned by System-1.
 
 Gate with typecheck/tests + KISS audit.
 
@@ -531,7 +534,7 @@ process_story / process_feature / process_epic all accept the shared operation p
 - raising completeness fills missing work idempotently rather than regenerating existing structure;
 - lowering completeness never deletes already-valid structure.
 
-Acceptance must include a POC→production upgrade on an existing artifact with no duplicate Stories/Tickets.
+Acceptance must include a POC→production upgrade on an existing artifact with no duplicate Stories/Tickets, including newly material Aspect gaps when appropriate.
 
 ## Model policy
 
@@ -633,3 +636,18 @@ Stop and simplify if implementation introduces:
 - complex code for an operation whose domain behavior is simple.
 
 A simple artifact lifecycle must look simple in code.
+
+---
+
+## Separate deferred metrics feature
+
+Performance telemetry is deliberately not implemented inside these artifact-operation tickets.
+
+The separate cross-package feature is documented in:
+
+- `docs/performance-metrics.md`
+- `docs/performance-metrics-plan.md`
+- `@dharmax/llm-utils/docs/performance-metrics.md`
+- `@dharmax/llm-utils/docs/performance-metrics-plan.md`
+
+Implement it after the artifact-operation core is proven, except for lightweight debug counters already required by acceptance tests.
