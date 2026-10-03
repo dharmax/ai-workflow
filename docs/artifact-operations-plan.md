@@ -132,6 +132,7 @@ Define one small shared ArtifactOperationOptions contract:
 ~~~
 completeness?: CompletenessLevel
 depth?: number | 'all'
+maxArtifacts?: number
 critic?: ArtifactCritic | 'auto' | 'none'
 ~~~
 
@@ -216,7 +217,7 @@ Add only what investigation/preparation demonstrably need:
 
 Fix the current Blocked→planned behavior.
 
-Do not add child Tickets yet unless Ticket 3 requires them.
+Do not add child Tickets yet; Ticket 4 introduces decomposition.
 
 ## Operation contract
 
