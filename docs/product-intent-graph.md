@@ -1,6 +1,6 @@
 # Product Intent Graph — Design
 
-Status: authoritative architectural truth for AIWF Product Intent. The core graph is implemented; Ticket acceptance criteria, Ticket containment, Decision governance for Tickets, desired completeness targets, and first-class Aspects are the explicit next extensions defined by [artifact-operations.md](artifact-operations.md) and [aspects.md](aspects.md).
+Status: authoritative implemented architectural truth for AIWF Product Intent, including Ticket acceptance/containment, desired completeness targets, and first-class Aspects as defined by [artifact-operations.md](artifact-operations.md) and [aspects.md](aspects.md).
 
 ## 1. Purpose
 
