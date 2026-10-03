@@ -160,14 +160,16 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   const dependents = deleted.flatMap(id => [...edges.values()].filter(e => e.sourceId === id || e.targetId === id));
   if (dependents.length) throw new Error(`Delete blocked by dependents: ${JSON.stringify(dependents)}. Explicitly unlink them first.`);
   const visiting = new Set<string>(), visited = new Set<string>();
+  const workEdge = (edge: { sourceId: string; targetId: string; predicate: string }) =>
+    ['contains', 'depends_on'].includes(edge.predicate) && state.get(edge.sourceId)?.kind === 'Ticket' && state.get(edge.targetId)?.kind === 'Ticket';
   function visit(id: string): void {
     if (visiting.has(id)) throw new Error(`Ticket containment/dependency cycle at '${id}'.`);
     if (visited.has(id)) return;
     visiting.add(id);
-    for (const edge of edges.values()) if (edge.sourceId === id && ['contains', 'depends_on'].includes(edge.predicate)) visit(edge.targetId);
+    for (const edge of edges.values()) if (edge.sourceId === id && workEdge(edge)) visit(edge.targetId);
     visiting.delete(id); visited.add(id);
   }
-  for (const id of edges.values()) if (['contains', 'depends_on'].includes(id.predicate)) visit(id.sourceId);
+  for (const edge of edges.values()) if (workEdge(edge)) visit(edge.sourceId);
   return { snapshot, dependents };
 }
 

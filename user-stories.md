@@ -33,7 +33,8 @@
 - **Actor**: External caller
 - **Story**: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 - **Tickets**: `AIWF-PRODUCT-PROCESSING`
-- **Coverage**: missing_acceptance_contract, missing_code_grounding, missing_verification
+- **Tests**: `TEST-AIWF-PROCESS`
+- **Coverage**: missing_acceptance_contract
 
 ## STORY-AIWF-DELEGATE-WORK: External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives
 - **Status**: `accepted`

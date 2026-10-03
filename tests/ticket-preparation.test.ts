@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Aspect, Feature } from '../src/graph/ontology.ts';
+import { Ticket, Aspect, Feature, FileNode } from '../src/graph/ontology.ts';
 import type { ArtifactCritic } from '../src/artifact-policy.ts';
 import type { TicketPreparationProposal } from '../src/ticket-operation-types.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
@@ -14,6 +14,14 @@ import { saveConfig } from '../src/config.ts';
 describe('reviewed Ticket preparation', () => {
   let root: string, store: WorkflowStore;
   const unavailable: SystemOne = { assess: async () => null };
+  it('keeps source import cycles separate from Ticket work-cycle validation', async () => {
+    const a = await store.upsertEntity(FileNode.dcr, { id: 'a.ts', filePath: 'a.ts' });
+    const b = await store.upsertEntity(FileNode.dcr, { id: 'b.ts', filePath: 'b.ts' });
+    await store.relate(a, 'depends_on', b); await store.relate(b, 'depends_on', a);
+    await store.upsertEntity(Ticket.dcr, { id: 'WORK', title: 'Change source', acceptanceCriteria: ['Source changes safely'] });
+    await applyProductMutations(store, [{ kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'a.ts' }, { kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'b.ts' }]);
+    expect((await store.getOutgoing('WORK', 'modifies')).length).toBe(2);
+  });
   const split: SystemOne = { assess: async () => ({ backendId: 'fixture', quality: 'high', latencyMs: 0, answers: Object.fromEntries(Object.entries({ workKind: 'code', scope: 'grounded', context: 'none', atomicity: 'split', depth: 'deterministic' }).map(([id, choice]) => [id, { choice, probabilities: { [choice]: 0.99 } }])) }) };
   const accept: ArtifactCritic = { id: 'independent-fixture', review: async () => ({ verdict: 'accept' }) };
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-prepare-')); store = new WorkflowStore(root); });

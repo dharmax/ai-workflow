@@ -101,13 +101,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-PROCESS-INTENT**: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 
 ### Implementing Tickets
-- **AIWF-PRODUCT-PROCESSING** [Todo]: Gate 8: PRODUCT-PROCESSING
+- **AIWF-PRODUCT-PROCESSING** [Done]: Gate 8: PRODUCT-PROCESSING
+
+### Verifying Tests
+- **TEST-AIWF-PROCESS**
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-PRODUCT-PROCESSING' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-PRODUCT-PROCESSING' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-PRIMARY-INTERFACE: High-level shell/MCP delegation surface
 
@@ -121,7 +121,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-DELEGATE-WORK**: External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives
 
 ### Implementing Tickets
-- **AIWF-PRIMARY-INTERFACE** [Backlog]: Gate 9: PRIMARY-INTERFACE
+- **AIWF-PRIMARY-INTERFACE** [Todo]: Gate 9: PRIMARY-INTERFACE
 
 ### Coverage
 - **Complete**: No

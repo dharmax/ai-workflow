@@ -17,6 +17,7 @@ import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspec
 
 import type { InvestigationOptions, TicketDossier, OperationResult, PreparationOptions, PreparedTicket, ResolutionOptions, ResolvedTicket, ResolutionVerificationInput } from '../ticket-operation-types.ts';
 import { withArtifactMetrics, cognitionMetrics, countEngineering, visitMetricArtifact, recordMetricCompleteness } from '../performance-metrics.ts';
+import type { ProcessOptions, ProcessedIntent, IntentContext } from '../product/process-types.ts';
 
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
 
@@ -48,6 +49,133 @@ export abstract class WorkflowEntity extends AbstractEntity {
   override get descriptor(): EntityDcr {
     return (this.constructor as typeof WorkflowEntity).dcr || super.descriptor;
   }
+
+  /** Shared concrete reconciliation for the three Product Intent entities; no workflow state is persisted. */
+  static async processIntent(root: Epic | Feature | UserStory, store: WorkflowStore, options: ProcessOptions): Promise<OperationResult<ProcessedIntent>> {
+    const rootId = store.localId(root.id);
+    return withArtifactMetrics(store.root, `process_${root instanceof UserStory ? 'story' : root instanceof Feature ? 'feature' : 'epic'}`, rootId, options, async () => {
+      const { IntentProposalSchema } = await import('../product/process-types.ts');
+      const { ArtifactBudget, resolveArtifactCritic } = await import('../artifact-policy.ts');
+      const { AiArtifactCritic, CriticResultSchema } = await import('../artifact-critic.ts');
+      const { loadConfig } = await import('../config.ts');
+      const { getCoverage } = await import('../product/coverage.ts');
+      const { getProductImpact } = await import('../product/impact.ts');
+      const { CausalChangeEngine } = await import('../change/engine.ts');
+      const { createDefaultAsker } = await import('../product/decompose.ts');
+      const { LayaSystemOne } = await import('@dharmax/llm-utils');
+      const cfg = loadConfig(store.root), budget = new ArtifactBudget(options, 1, cfg.maxArtifacts);
+      const created = new Set<string>(), reused = new Set<string>(), processed: string[] = [], knownGaps: string[] = [];
+      const queue: Array<{ entity: Epic | Feature | UserStory; depth: number; inherited?: CompletenessLevel }> = [{ entity: root, depth: 0 }];
+      const seen = new Set<string>(), rootTarget = (await scopeTarget(root, store, { override: options.completeness })).effective;
+      const critic = await resolveArtifactCritic(options.critic, async id => new AiArtifactCritic(id, store.root));
+      const reviewInputs: import('../artifact-policy.ts').CriticInput[] = [];
+      try {
+        while (queue.length) {
+          const { entity, depth, inherited } = queue.shift()!, id = store.localId(entity.id);
+          if (seen.has(id)) continue;
+          if (!budget.visit(id, depth)) continue;
+          seen.add(id); visitMetricArtifact(id);
+          const completeness = (await scopeTarget(entity, store, { override: depth === 0 ? options.completeness : undefined, inherited, descendant: depth > 0 })).effective;
+          const kind = entity instanceof Epic ? 'Epic' : entity instanceof Feature ? 'Feature' : 'UserStory';
+          const fields = entity as WorkflowEntity & { body?: string; story?: string; acceptanceCriteria?: string[]; status?: string };
+          if (!entity.title?.trim() || !(fields.body?.trim() || fields.story?.trim() || fields.acceptanceCriteria?.length)) return { status: 'needs_input', artifactId: rootId, required: [{ question: `Author observable scope or acceptance for '${id}'.`, why: 'A title alone cannot determine useful work.', target: `${kind} intent` }] };
+          const all: Array<Feature | UserStory | Ticket> = [];
+          for (const ctor of [Feature, UserStory, Ticket]) all.push(...await store.listEntities(ctor.dcr) as Array<Feature | UserStory | Ticket>);
+          const edges = [...await store.getOutgoing(entity.id), ...await store.getIncoming(entity.id)];
+          const linked = new Set(edges.map(edge => edge.sourceId === entity.id ? edge.targetId : edge.sourceId));
+          const optional = all.filter(item => !linked.has(item.id) && item.id !== entity.id).slice(0, cfg.maxArtifacts);
+          const aspects = await applicableAspects(entity, store);
+          const candidates = (await store.listEntities<Aspect>(Aspect.dcr)).filter(a => !aspects.some(existing => existing.id === a.id) && a.status !== 'deprecated').slice(0, cfg.maxArtifacts);
+          const assessment = await (options.systemOne ?? new LayaSystemOne()).assess({ kind, title: entity.title, completeness, candidates: optional.map(item => ({ id: store.localId(item.id), title: item.title })), aspects: candidates.map(a => ({ id: store.localId(a.id), title: a.title })) },
+            Object.fromEntries([...optional, ...candidates].map(item => [store.localId(item.id), { type: 'choice' as const, instructions: 'Keep material reuse/Aspect candidates; omit only clearly irrelevant candidates.', criteria: { keep: 'Relevant or uncertain', omit: 'Clearly irrelevant' } }])), cognitionMetrics()).catch(() => null);
+          countEngineering('systemOneCalls'); countEngineering('optionalCandidates', optional.length + candidates.length);
+          const keep = (item: WorkflowEntity) => !(assessment?.quality === 'high' && assessment.answers[store.localId(item.id)]?.choice === 'omit' && (typeof assessment.answers[store.localId(item.id)]?.prob === 'number' && Number(assessment.answers[store.localId(item.id)]?.prob) >= .8));
+          const selected = [...all.filter(item => linked.has(item.id)), ...optional.filter(keep)];
+          countEngineering('optionalSelected', optional.filter(keep).length + candidates.filter(keep).length);
+          const context: IntentContext = { id, kind, title: entity.title!, body: fields.body || fields.story || '', acceptanceCriteria: fields.acceptanceCriteria ?? [], completeness, depth,
+            existing: selected.map(item => ({ id: store.localId(item.id), kind: item.typeName(), title: item.title,
+              ...((item as Ticket).acceptanceCriteria?.length ? { acceptanceCriteria: (item as Ticket).acceptanceCriteria } : { body: (item as Ticket).body }),
+              status: (item as Ticket).status, lane: (item as Ticket).lane, linked: linked.has(item.id) })),
+            applicableAspects: aspects.map(a => store.localId(a.id)), candidateAspects: candidates.filter(keep).map(a => ({ id: store.localId(a.id), title: a.title!, criteria: a.acceptanceCriteria ?? [] })),
+            coverage: await getCoverage(store, id), impact: await getProductImpact(store, id), aspectAssessment: await assessAspects(entity, store, aspects) };
+          const propose = options.propose ?? (async (input: IntentContext, findings: readonly { message: string }[]) => {
+            const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Product reasoning provider unavailable.'); countEngineering('reasoningCalls');
+            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work. Reuse stable existing Features/Stories/Tickets, including work outside this root. Epic may target Features/Stories or contain technical Tickets. Feature may contain meaningful observable Stories or have direct technical implementation Tickets. Story may produce only addressing Tickets. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
+            if (!response.ok) throw new Error(`Product proposal failed: ${response.failure?.message}`); return IntentProposalSchema.parse(response.data);
+          });
+          let accepted = false, findings: Array<{ message: string }> = [];
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const beforeProposal = new Set(budget.visited);
+            const proposal = IntentProposalSchema.parse(await propose(context, findings));
+            if (proposal.required.length) return { status: 'needs_input', artifactId: rootId, required: proposal.required };
+            const mutations: import('../product/mutation.ts').ProductMutation[] = [], childIds: string[] = [], batchCreated: string[] = [], batchReused: string[] = [];
+            const batchTitles = new Set<string>();
+            for (const item of proposal.items) {
+              if (kind === 'UserStory' && item.kind !== 'Ticket' || kind === 'Feature' && item.kind === 'Feature') throw new Error(`Invalid next layer: ${kind} → ${item.kind}.`);
+              const identity = `${item.kind}:${item.title.trim().toLowerCase()}`;
+              if (batchTitles.has(identity)) throw new Error(`Duplicate intent/work contract '${item.title}'.`); batchTitles.add(identity);
+              const sameId = await store.getEntity<WorkflowEntity>(item.id);
+              const matches = all.filter(existing => existing.typeName() === item.kind && existing.title?.trim().toLowerCase() === item.title.trim().toLowerCase());
+              if (matches.length > 1 || sameId && (sameId.typeName() !== item.kind || sameId.title?.trim().toLowerCase() !== item.title.trim().toLowerCase())) return { status: 'needs_input', artifactId: rootId, required: [{ question: `Choose the existing identity for '${item.title}'.`, why: 'The proposed identity collides with different or ambiguous intent.', target: item.id }] };
+              const match = sameId ?? matches[0], childId = match ? store.localId(match.id) : item.id;
+              if (!budget.visit(childId, depth + 1)) { knownGaps.push(`Expansion budget stopped '${childId}'.`); continue; }
+              childIds.push(childId);
+              if (match) batchReused.push(childId);
+              else {
+                batchCreated.push(childId);
+                mutations.push({ kind: 'product_create', entityType: item.kind, id: childId, fields: item.kind === 'UserStory' ? { title: item.title, actor: item.actor ?? 'Caller', story: item.story ?? item.body, acceptanceCriteria: item.acceptanceCriteria, status: 'proposed' } : { title: item.title, body: item.body, acceptanceCriteria: item.acceptanceCriteria, ...(item.kind === 'Ticket' ? { lane: 'Backlog' as const } : { status: 'proposed' }) } });
+              }
+              const link = item.kind === 'Ticket' && kind !== 'Epic' ? { sourceId: childId, predicate: kind === 'Feature' ? 'implements' : 'addresses', targetId: id } : { sourceId: id, predicate: kind === 'Epic' && item.kind !== 'Ticket' ? 'targets' : 'contains', targetId: childId };
+              if (!(await store.getOutgoing(link.sourceId, link.predicate)).some(edge => store.localId(edge.targetId) === link.targetId)) mutations.push({ kind: 'product_link', ...link });
+            }
+            for (const aspectId of proposal.aspectIds) {
+              if (!candidates.some(a => store.localId(a.id) === aspectId)) throw new Error(`Unreviewed/unknown candidate Aspect '${aspectId}'.`);
+              mutations.push({ kind: 'product_link', sourceId: aspectId, predicate: 'applies_to', targetId: id });
+            }
+            const reviewInput = { artifactId: id, intent: context.body, neighborhood: [...context.existing, ...context.candidateAspects], proposal: mutations,
+              applicableAspects: context.applicableAspects, candidateAspects: context.candidateAspects.map(a => a.id), completeness, depth,
+              acceptanceCriteria: context.acceptanceCriteria, evidence: [JSON.stringify(context.coverage), JSON.stringify(context.aspectAssessment)] };
+            if (critic) {
+              countEngineering('criticRounds'); const review = CriticResultSchema.parse(await critic.review(reviewInput));
+              if (review.verdict === 'needs_input') return { status: 'needs_input', artifactId: rootId, required: review.required.map(item => ({ ...item, why: 'Independent Product Critic needs a semantic decision.', target: id })) };
+              if (review.verdict === 'reject') return { status: 'blocked', artifactId: rootId, blockers: review.findings.map(item => ({ reason: item.message })) };
+              if (review.verdict === 'revise') {
+                for (const candidate of budget.visited) if (!beforeProposal.has(candidate)) budget.visited.delete(candidate);
+                countEngineering('criticRevisions'); findings = review.findings; continue;
+              }
+            }
+            if (mutations.length) {
+              const engine = new CausalChangeEngine({ store, projectRoot: store.root }), request = { action: 'product_change' as const, mutations };
+              const preview = await engine.previewChange(request); if (preview.blocked) throw new Error(preview.blockReason);
+              const result = await engine.applyChange(request, preview.fingerprint); if (!result.ok || !result.verification.passed) throw new Error('Product batch verification failed.');
+            }
+            batchCreated.forEach(child => created.add(child)); batchReused.forEach(child => reused.add(child));
+            countEngineering('artifactsCreated', batchCreated.length); countEngineering('artifactsReused', batchReused.length);
+            knownGaps.push(...proposal.gaps); reviewInputs.push(reviewInput); processed.push(id); accepted = true;
+            const outgoing = await store.getOutgoing(entity.id), incoming = await store.getIncoming(entity.id);
+            const descendants = [...childIds, ...outgoing.filter(e => ['targets', 'contains'].includes(e.predicateName)).map(e => store.localId(e.targetId)), ...incoming.filter(e => e.predicateName === (kind === 'Feature' ? 'implements' : 'addresses')).map(e => store.localId(e.sourceId))];
+            for (const childId of new Set(descendants)) {
+              const child = await store.getEntity(childId);
+              if (!child || !(child instanceof Feature || child instanceof UserStory || child instanceof Ticket)) continue;
+              if (!budget.visit(childId, depth + 1)) continue;
+              if (child instanceof Ticket) { if (child.lane !== 'Done' || child.status !== 'verified') budget.remaining.add(childId); }
+              else if (budget.depth === 'all' || depth + 1 < budget.depth) queue.push({ entity: child, depth: depth + 1, inherited: completeness });
+              else { budget.stoppedAtDepth = true; budget.remaining.add(childId); }
+            }
+            break;
+          }
+          if (!accepted) return { status: 'blocked', artifactId: rootId, blockers: findings.map(item => ({ reason: `Product Critic revision exhausted: ${item.message}` })) };
+        }
+        if (critic && ['advanced', 'production'].includes(rootTarget) && (budget.depth === 'all' || budget.depth > 1)) {
+          countEngineering('criticRounds');
+          const final = CriticResultSchema.parse(await critic.review({ artifactId: rootId, intent: (root as WorkflowEntity & { body?: string }).body ?? root.title!, neighborhood: reviewInputs.map(input => ({ ...input })), proposal: [], applicableAspects: (await applicableAspects(root, store)).map(a => store.localId(a.id)), candidateAspects: [], completeness: rootTarget, depth: 0, evidence: [JSON.stringify(await getCoverage(store, rootId)), JSON.stringify(await assessAspects(root, store))] }));
+          if (final.verdict !== 'accept') return final.verdict === 'needs_input' ? { status: 'needs_input', artifactId: rootId, required: final.required.map(item => ({ ...item, why: 'Final cross-layer review requires input.', target: rootId })) } : { status: 'blocked', artifactId: rootId, blockers: final.findings.map(item => ({ reason: `Final cross-layer review: ${item.message}` })) };
+        }
+        return { status: 'complete', artifactId: rootId, value: { created: [...created], reused: [...reused], processed, remaining: [...budget.remaining], stoppedAtDepth: budget.stoppedAtDepth, stoppedAtMaxArtifacts: budget.stoppedAtMaxArtifacts, artifactComplete: !knownGaps.length && !budget.remaining.size, knownGaps, coverage: await getCoverage(store, rootId), impact: await getProductImpact(store, rootId), aspectAssessment: await assessAspects(root, store) } };
+      } catch (error) { return { status: 'blocked', artifactId: rootId, blockers: [{ reason: `Product processing failed: ${String(error)}` }] }; }
+      finally { const { exportProjections } = await import('./projections.ts'); await exportProjections(store); }
+    });
+  }
 }
 
 export class Idea extends WorkflowEntity {
@@ -63,6 +191,7 @@ export class Idea extends WorkflowEntity {
 }
 
 export class Epic extends WorkflowEntity {
+  process(store: WorkflowStore, options: ProcessOptions = {}) { return WorkflowEntity.processIntent(this, store, options); }
   applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
   assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
   reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
@@ -81,6 +210,7 @@ export class Epic extends WorkflowEntity {
 }
 
 export class Feature extends WorkflowEntity {
+  process(store: WorkflowStore, options: ProcessOptions = {}) { return WorkflowEntity.processIntent(this, store, options); }
   applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
   assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
   reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
@@ -99,6 +229,7 @@ export class Feature extends WorkflowEntity {
 }
 
 export class UserStory extends WorkflowEntity {
+  process(store: WorkflowStore, options: ProcessOptions = {}) { return WorkflowEntity.processIntent(this, store, options); }
   applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
   assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
   reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
@@ -507,9 +638,9 @@ export class Ticket extends WorkflowEntity {
           const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr);
           if (ticket.lane === 'Done' && ticket.status === 'verified' && receipt) {
             const proof = JSON.parse((receipt as Artifact & { body: string }).body) as { signature: string; hashes: Record<string, string>; acceptance: import('../ticket-operation-types.ts').AcceptanceVerification };
-            const expectedTests = (options.testCommands ?? []).flat().filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg));
+            const expectedFiles = [...(options.testCommands ?? []).flat().filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg)), ...dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)];
             const verifiedContract = dossier.ticket.acceptanceCriteria.every(criterion => proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)) && dossier.aspects.aspects.every(aspect => proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed));
-            if (proof.signature === signature && verifiedContract && expectedTests.every(file => file in proof.hashes) && Object.entries(proof.hashes).every(([file, hash]) => fs.existsSync(path.resolve(store.root, file)) && crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') === hash)) {
+            if (proof.signature === signature && verifiedContract && expectedFiles.every(file => file in proof.hashes) && Object.entries(proof.hashes).every(([file, hash]) => fs.existsSync(path.resolve(store.root, file)) && crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') === hash)) {
               acceptance = AcceptanceVerificationSchema.parse(proof.acceptance);
               acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
               for (const file of Object.keys(proof.hashes)) allFiles.add(file);

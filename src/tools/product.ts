@@ -15,6 +15,7 @@ import { getProductImpact } from '../product/impact.ts';
 import { proposeEpicStructure, type EpicStructureProposal } from '../product/decompose.ts';
 import { applyEpicStructure } from '../product/apply.ts';
 import { applyProductMutations, resolveProductEntity, productKind } from '../product/mutation.ts';
+import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 
 const EPIC_STATUSES = ['draft', 'planned', 'active', 'completed', 'cancelled'] as const;
 const INTENT_STATUSES = ['draft', 'proposed', 'accepted', 'deprecated'] as const;
@@ -111,6 +112,17 @@ async function storyView(ctx: ToolContext, story: UserStory) {
 }
 
 export function registerProductTools() {
+  for (const [name, ctor, key] of [['process_epic', Epic, 'epicId'], ['process_feature', Feature, 'featureId'], ['process_story', UserStory, 'storyId']] as const) {
+    registry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
+      parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string() }),
+      execute: async (params, ctx) => {
+        const { [key]: id, ...options } = params;
+        const entity = await ctx.store.getEntity(String(id), ctor.dcr) as Epic | Feature | UserStory | null;
+        if (!entity) throw new Error(`${ctor.name} '${id}' not found.`);
+        return entity.process(ctx.store, options);
+      }
+    });
+  }
   // ---------------------------------------------------------------------------
   // Epic Tools
   // ---------------------------------------------------------------------------

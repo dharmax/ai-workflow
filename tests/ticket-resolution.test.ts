@@ -61,6 +61,16 @@ describe('Ticket-owned bounded resolution', () => {
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
   }, 30000);
 
+  it('reverifies a broader authored source scope instead of reusing narrower proof', async () => {
+    const t = await ticket(); expect((await t.resolve(store, fix)).status).toBe('complete');
+    fs.writeFileSync(path.join(root, 'src/consumer.ts'), 'export const contract = "new scope";');
+    const file = await store.upsertEntity(FileNode.dcr, { id: 'src/consumer.ts', filePath: 'src/consumer.ts' }); await store.relate(t, 'modifies', file);
+    let verifications = 0;
+    const result = await t.resolve(store, { ...fix, implement: async () => { throw Error('Done code should be verified, not changed'); }, verify: async input => { verifications++; return verify(input); } });
+    expect(result.status).toBe('complete'); expect(verifications).toBe(1);
+    const proof = await store.getEntity('VERIFY-T') as unknown as { body: string }; expect(JSON.parse(proof.body).hashes['src/consumer.ts']).toBeDefined();
+  }, 30000);
+
   it('repairs a real failing test exactly once and never marks failed acceptance Done', async () => {
     const t = await ticket(); let attempts = 0;
     const result = await t.resolve(store, { ...fix, implement: async (_dossier, feedback) => { attempts++; if (attempts > 1) expect(feedback.join('\n')).toContain('Expected: 5'); return { changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: attempts === 1 ? 'export function add(a: number, b: number) { return a + b + 1; }' : 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }; } });
