@@ -45,6 +45,7 @@ Implement get_applicable_aspects(entityId) with only the bounded rules in the de
 
 Acceptance covers:
 
+- Idea direct Aspect;
 - Feature direct Aspect;
 - Story inheritance from Feature;
 - Epic Aspect reaches contained Ticket but not targeted Feature;
