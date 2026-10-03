@@ -70,7 +70,7 @@ export interface WorkspaceEditLike {
 export type ChangeMutation =
   | {
       kind: 'workspace_edit';
-      source: 'typescript-lsp' | 'typescript6-refactor';
+      source: 'typescript-lsp' | 'typescript6-refactor' | 'workspace-text';
       edit: WorkspaceEditLike;
     }
   | ProductMutation;
@@ -94,6 +94,7 @@ export type ChangeTarget =
   | { type: 'file'; filePath: string };
 
 export type ChangeRequest =
+  | { action: 'replace_text'; filePath: string; oldText: string; newText: string }
   | { action: 'create_file'; filePath: string; content: string; productContextEntityId?: string }
   | { action: 'product_change'; mutations: ProductMutation[] }
   | { action: 'replace_symbol'; target: ChangeTarget; replacement: string; productContextEntityId?: string }

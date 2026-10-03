@@ -233,28 +233,11 @@ RULES:
 Respond ONLY with valid JSON conforming to the schema.`;
 
     const modelTarget = options?.model || 'ollama/qwen2.5-coder:7b';
-    let rawResponse: any;
-
-    try {
-      rawResponse = await (asker as any).json(prompt, SemanticDecompositionOutputSchema, {
-        model: modelTarget,
-        temperature: 0.2
-      });
-    } catch (firstErr: any) {
-      // Small single repair attempt if JSON parse fails
-      try {
-        const repairPrompt = `The previous JSON output had an error: ${firstErr.message}. Output ONLY valid JSON adhering to the schema:\n${prompt}`;
-        rawResponse = await (asker as any).json(repairPrompt, SemanticDecompositionOutputSchema, {
-          model: modelTarget,
-          temperature: 0.1
-        });
-      } catch (err: any) {
-        throw new Error(`Semantic decomposition failed: ${err.message}`);
-      }
-    }
-
-    const payload = rawResponse?.data ?? (typeof rawResponse?.text === 'string' ? JSON.parse(rawResponse.text) : rawResponse);
-    semanticOutput = SemanticDecompositionOutputSchema.parse(payload);
+    const response = await asker.json(prompt, SemanticDecompositionOutputSchema, {
+      model: modelTarget, temperature: 0.2, maxRetries: 1
+    });
+    if (!response.ok) throw new Error(`Semantic decomposition failed: ${response.failure?.message}`);
+    semanticOutput = SemanticDecompositionOutputSchema.parse(response.data);
   }
 
   // ---------------------------------------------------------------------------

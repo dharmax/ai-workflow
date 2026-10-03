@@ -1,8 +1,11 @@
 /**
- * Responsibility: Public tool definitions for previewing and applying changes.
- * Scope: Exposes `preview_change` and `apply_change` in registry under category 'change'.
+ * Responsibility: Public tools for bounded workspace reads and previewed changes.
+ * Scope: Exposes `read_workspace_file`, `preview_change` and `apply_change` in registry under category 'change'.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
@@ -41,6 +44,7 @@ const ChangeTargetSchema = z.discriminatedUnion('type', [
 ]);
 
 export const ChangeRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('replace_text'), filePath: z.string().min(1), oldText: z.string().min(1), newText: z.string() }),
   z.object({ action: z.literal('create_file'), filePath: z.string().min(1), content: z.string(), productContextEntityId: z.string().optional() }),
   z.object({ action: z.literal('replace_symbol'), target: ChangeTargetSchema, replacement: z.string().min(1), productContextEntityId: z.string().optional() }),
   z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1) }),
@@ -79,6 +83,28 @@ export const ChangeRequestSchema = z.discriminatedUnion('action', [
 ]);
 
 export function registerChangeTools() {
+  registry.register({
+    name: 'read_workspace_file',
+    description: 'Read an existing regular workspace file, up to 64 KiB, without shell execution.',
+    category: 'change',
+    parameters: z.object({ filePath: z.string().min(1) }),
+    execute: async ({ filePath }, ctx: ToolContext) => {
+      if (path.isAbsolute(filePath)) throw new Error('Workspace path must be relative.');
+      const relative = workspacePath(ctx.projectRoot, filePath);
+      const absolute = path.resolve(ctx.projectRoot, relative);
+      const descriptor = fs.openSync(absolute, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+      try {
+        const stat = fs.fstatSync(descriptor);
+        if (!stat.isFile()) throw new Error('Workspace target must be an existing regular file.');
+        if (stat.size > 65536) throw new Error('Workspace file exceeds the 64 KiB read limit.');
+        const content = Buffer.alloc(65537);
+        let length = 0, bytes = 0;
+        do { bytes = fs.readSync(descriptor, content, length, content.length - length, null); length += bytes; } while (bytes && length < content.length);
+        if (length > 65536) throw new Error('Workspace file exceeds the 64 KiB read limit.');
+        return { filePath: relative, content: content.subarray(0, length).toString('utf8') };
+      } finally { fs.closeSync(descriptor); }
+    }
+  });
   registry.register({
     name: 'preview_change',
     description: 'Preview code or Product Intent mutations with zero write side effects.',

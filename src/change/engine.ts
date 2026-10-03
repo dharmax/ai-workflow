@@ -229,7 +229,7 @@ export class CausalChangeEngine {
     await ensureAstFresh(this.store, this.projectRoot);
 
     let productImpact: ProductImpact | undefined;
-    if (request.productContextEntityId) {
+    if ('productContextEntityId' in request && request.productContextEntityId) {
       try {
         productImpact = await getProductImpact(this.store, request.productContextEntityId);
       } catch {}
@@ -243,6 +243,27 @@ export class CausalChangeEngine {
     const originalHashes: Record<string, string> = {};
 
     switch (request.action) {
+      case 'replace_text': {
+        try {
+          if (path.isAbsolute(request.filePath)) throw new Error('Workspace path must be relative.');
+          const relative = workspacePath(this.projectRoot, request.filePath);
+          const absolute = path.resolve(this.projectRoot, relative);
+          if (!fs.statSync(absolute).isFile()) throw new Error('Replacement target must be an existing regular file.');
+          const content = fs.readFileSync(absolute, 'utf8');
+          const start = content.indexOf(request.oldText);
+          if (!request.oldText || start < 0 || content.indexOf(request.oldText, start + 1) >= 0) throw new Error('oldText must occur exactly once.');
+          const position = (offset: number) => {
+            const lines = content.slice(0, offset).split('\n');
+            return { line: lines.length - 1, character: lines[lines.length - 1].length };
+          };
+          mutations.push({ kind: 'workspace_edit', source: 'workspace-text', edit: {
+            changes: { [this.lspClient.toUri(relative)]: [{ range: { start: position(start), end: position(start + request.oldText.length) }, newText: request.newText }] }
+          } });
+          affectedFilesSet.add(relative);
+          summary = `Replace unique text in '${relative}'.`;
+        } catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
+        break;
+      }
       case 'create_file': {
         try {
           const relative = workspacePath(this.projectRoot, request.filePath);

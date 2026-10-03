@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import { CompletionEngine } from '@dharmax/llm-utils';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -151,4 +152,74 @@ describe('Ticket-owned bounded resolution', () => {
       expect(result.status).toBe('complete'); expect(prompt).toContain('"source":"export function add(a: number, b: number) { return a + b; }"'); expect(prompt).toContain('"testSources":');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
+  for (const mode of ['zero', 'continue', 'ordinary', 'limit', 'error', 'failed-edit', 'no-op'] as const) it(`bounds real implementation Actor tranches: ${mode}`, async () => {
+    const t = await ticket();
+    const targetFile = mode === 'ordinary' ? 'package.json' : 'src/add.ts';
+    if (mode === 'ordinary') {
+      fs.writeFileSync(path.join(root, targetFile), '{"scripts":{"test":"pending"}}\n');
+      fs.writeFileSync(path.join(root, 'tests/package.test.ts'), 'import {test,expect} from "bun:test"; import fs from "node:fs"; test("Consuela runnable test script",()=>expect(JSON.parse(fs.readFileSync("package.json","utf8")).scripts.test).toBe("bun test"));');
+      git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'ordinary target');
+      await store.relate(t, 'modifies', await store.upsertEntity(FileNode.dcr, { id: targetFile, filePath: targetFile }));
+    } else {
+      const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')!;
+      await store.relate(t, 'modifies', symbol);
+    }
+    const completes = mode === 'continue' || mode === 'ordinary';
+    let calls = 0;
+    const refreshed: string[] = [];
+    const interactive = { assess: async (_input: unknown, spec: Record<string, unknown>) => 'mechanism' in spec
+      ? { quality: 'high' as const, backendId: 'fixture', latencyMs: 0, answers: { mechanism: { choice: 'interactive' } } } : null };
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const tranche = Math.floor(calls / 16), step = calls++ % 16;
+      if (!step) refreshed.push(prompt);
+      if (mode === 'error') return { model, ok: false, text: '', failure: { kind: 'invalid_response', message: 'fixture provider failed', retryable: false, fatal: false } };
+      const oldText = mode === 'ordinary' ? (tranche === 0 ? 'pending' : 'bun test --todo') : tranche === 0 ? 'a - b' : tranche === 1 ? 'a + b + 0' : 'a + b + 0 + 0';
+      const newText = mode === 'no-op' ? oldText : mode === 'ordinary' ? (tranche === 0 ? 'bun test --todo' : 'bun test') : mode === 'continue' && tranche === 1 ? 'a + b' : oldText.replace('a - b', 'a + b') + ' + 0';
+      const request = { action: 'replace_text' as const, filePath: targetFile, oldText: mode === 'failed-edit' ? 'absent' : oldText, newText };
+      let decision: unknown;
+      if (completes && tranche === 1 && step === 3) decision = { thought: 'Complete', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', mode === 'ordinary' ? 'tests/package.test.ts' : 'tests/add.test.ts']] }) };
+      else {
+        let name = 'read_workspace_file', parameters: Record<string, unknown> = { filePath: targetFile };
+        if (mode !== 'zero' && step === 1) { name = 'preview_change'; parameters = request; }
+        if (mode !== 'zero' && step === 2) {
+          name = 'apply_change'; parameters = { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint };
+        }
+        decision = { thought: 'Bounded fixture work', action: 'tool_call', toolCalls: [{ name, parameters }] };
+      }
+      return { model, ok: true, text: JSON.stringify(decision) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne: interactive, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe(completes ? 'complete' : 'blocked');
+      expect(calls).toBe(completes ? 20 : mode === 'limit' ? 48 : mode === 'error' ? 1 : 16);
+      if (mode === 'ordinary') {
+        expect(refreshed[1]).toContain('bun test --todo');
+        expect(JSON.parse(fs.readFileSync(path.join(root, targetFile), 'utf8')).scripts.test).toBe('bun test');
+      } else if (mode === 'continue' || mode === 'limit') {
+        expect(refreshed[0]).toContain('return a - b');
+        expect(refreshed[1]).toContain('return a + b + 0');
+        expect(refreshed[1]).not.toContain('return a - b');
+        expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain(mode === 'continue' ? 'return a + b;' : 'return a + b + 0 + 0 + 0;');
+      } else expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a - b');
+      if (result.status === 'blocked') expect(result.blockers[0].reason).toContain(mode === 'error' ? 'error' : 'max_steps_exceeded');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
+  it('keeps the three-tranche total across acceptance repair attempts', async () => {
+    const t = await ticket(); let calls = 0;
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
+      calls++;
+      const oldText = calls === 1 ? 'a - b' : 'a + b' + ' + 0'.repeat(calls - 2);
+      return { model, ok: true, text: JSON.stringify({ thought: 'Propose exact edit', action: 'final_answer', finalAnswer: JSON.stringify({
+        changes: [{ action: 'replace_text', filePath: 'src/add.ts', oldText, newText: calls === 1 ? 'a + b' : oldText + ' + 0' }],
+        testCommands: [['bun', 'test', 'tests/add.test.ts']]
+      }) }) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', maxRepairs: 3, verify: async () => ({ criteria: [], aspects: [] }) });
+      expect(result.status).toBe('blocked'); expect(calls).toBe(3);
+      if (result.status === 'blocked') expect(result.blockers[0].reason).toContain('tranche limit');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
 });

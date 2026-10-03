@@ -6,7 +6,7 @@
 | :--- | :---: | :---: | :---: | :--- |
 | `root` | project default | 93 | 0 | None |
 | `src/graph` | project default | 843 | 0 | None |
-| `src/tools` | project default | 392 | 0 | None |
+| `src/tools` | project default | 398 | 0 | None |
 | `src/actor` | project default | 269 | 0 | None |
 | `src/mcp` | project default | 36 | 0 | None |
 | `src/shell` | project default | 139 | 0 | None |
@@ -15,8 +15,8 @@
 | `src/config` | project default | 47 | 0 | None |
 | `src/doctor` | project default | 60 | 0 | None |
 | `src/setup` | project default | 106 | 0 | None |
-| `tests` | project default | 720 | 0 | None |
-| `skills` | project default | 11 | 0 | None |
+| `tests` | project default | 742 | 0 | None |
+| `skills` | project default | 9 | 0 | None |
 | `src/terminal` | project default | 58 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
 | `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
@@ -27,9 +27,9 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 640 | 0 | None |
 | `src/kb` | project default | 127 | 0 | None |
-| `docs` | project default | 196 | 0 | None |
-| `src/product` | project default | 299 | 0 | None |
-| `src/change` | project default | 653 | 0 | None |
+| `docs` | project default | 203 | 0 | None |
+| `src/product` | project default | 297 | 0 | None |
+| `src/change` | project default | 666 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 85 | 0 | None |
 | `src/aspects` | project default | 32 | 0 | None |
