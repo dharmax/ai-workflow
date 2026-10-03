@@ -174,7 +174,7 @@ Aspect satisfaction is derived. Never persist a satisfaction score/status.
 Canonical causal forms include:
 
 ```text
-Aspect   --applies_to--> Module | Epic | Feature | UserStory
+Aspect   --applies_to--> Idea | Module | Epic | Feature | UserStory
 Ticket   --addresses---> Aspect
 Test     --verifies----> Aspect
 Artifact --verifies----> Aspect
@@ -284,7 +284,7 @@ Use existing predicates. Do not add product-specific predicates unless implement
 | Ticket | contains | Ticket | Work item decomposes into child work |
 | Ticket | implements | Feature | Ticket directly implements capability |
 | Ticket | addresses | UserStory | Ticket implements/changes behavior |
-| Aspect | applies_to | Module/Epic/Feature/UserStory | Cross-cutting concern applies to scope |
+| Aspect | applies_to | Idea/Module/Epic/Feature/UserStory | Cross-cutting concern applies to scope |
 | Ticket | addresses | Aspect | Work intentionally handles concern |
 | Ticket | targets / modifies | code node | Work-to-code grounding |
 | Test / Artifact | verifies | Feature/UserStory/Aspect | Explicit verification/evidence |
