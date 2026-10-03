@@ -1,9 +1,9 @@
 {
   "name": "ai-workflow",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Bun-First Causal Engineering OS, Project Visibility Engine, and MCP Host Bridge.",
+  "description": "AI coding super-charger",
   "main": "./src/index.ts",
   "bun": "./src/index.ts",
   "bin": {
