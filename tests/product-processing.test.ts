@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, Aspect } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, Aspect, TestNode, Artifact, Decision } from '../src/graph/ontology.ts';
 import type { ProcessOptions, IntentProposal } from '../src/product/process-types.ts';
 import type { ArtifactCritic, CriticInput } from '../src/artifact-policy.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
@@ -87,6 +87,26 @@ describe('entity-owned Product Intent processing', () => {
     expect(revised.status).toBe('complete'); expect(await store.getEntity('BAD')).toBeNull(); expect(await store.getEntity('GOOD')).not.toBeNull();
     const reject = await s.process(store, { ...options, critic: { id: 'reject', review: async () => ({ verdict: 'reject', findings: [{ message: 'Duplicate ceremony' }] }) }, propose: async () => empty({ items: [item('NO', 'Ticket')] }) });
     expect(reject.status).toBe('blocked'); expect(await store.getEntity('NO')).toBeNull();
+  });
+
+  it('requires the explicit root contract in final production cross-layer review', async () => {
+    const f = await feature(); let rounds = 0;
+    const result = await f.process(store, { ...options, completeness: 'production', depth: 2,
+      propose: async () => empty(), critic: { id: 'root', review: async input => {
+        rounds++; expect(input.acceptanceCriteria).toEqual(['Durable operations work']);
+        return rounds === 1 ? { verdict: 'accept' } : { verdict: 'reject', findings: [{ message: 'Root durable outcome is unproved' }] };
+      } } });
+    expect(rounds).toBe(2); expect(result.status).toBe('blocked');
+  });
+
+  it('keeps linked verification and governing evidence mandatory even when optional candidates are pruned', async () => {
+    const f = await feature(); const t = await store.upsertEntity(Ticket.dcr, { id: 'T', title: 'Verified implementation', acceptanceCriteria: ['Durable operations work'], lane: 'Done', status: 'verified' }); await store.relate(t, 'implements', f);
+    const report = await store.upsertEntity(Artifact.dcr, { id: 'PROOF', title: 'Restart proof', body: 'Actual restart regression and typecheck passed', status: 'verified' }); await store.relate(report, 'verifies', t);
+    const test = await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Durability regression', filePath: 'tests/storage.test.ts', status: 'verified' }); await store.relate(test, 'verifies', f);
+    const decision = await store.upsertEntity(Decision.dcr, { id: 'DECISION', title: 'Preserve durable contract', body: 'Do not weaken restart behavior' }); await store.relate(decision, 'governs', f);
+    const result = await f.process(store, { ...options, propose: async context => { expect(context.existing.map(item => item.id)).toContain('PROOF'); return empty(); }, critic: { id: 'evidence', review: async input => {
+      expect(input.neighborhood.map(item => item.id)).toEqual(expect.arrayContaining(['PROOF', 'TEST', 'DECISION'])); expect(input.neighborhood.find(item => item.id === 'PROOF')?.body).toContain('Actual restart regression'); return { verdict: 'accept' };
+    } } }); expect(result.status).toBe('complete');
   });
 
   it('thin registry adapters use the same entity path and preserve read-only completion targets', async () => {

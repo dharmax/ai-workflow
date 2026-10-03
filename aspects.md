@@ -15,7 +15,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2
+- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None
@@ -35,7 +35,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2
+- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None
@@ -55,7 +55,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2
+- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None

@@ -98,6 +98,18 @@ export abstract class WorkflowEntity extends AbstractEntity {
               status: (item as Ticket).status, lane: (item as Ticket).lane, linked: linked.has(item.id) })),
             applicableAspects: aspects.map(a => store.localId(a.id)), candidateAspects: candidates.filter(keep).map(a => ({ id: store.localId(a.id), title: a.title!, criteria: a.acceptanceCriteria ?? [] })),
             coverage: await getCoverage(store, id), impact: await getProductImpact(store, id), aspectAssessment: await assessAspects(entity, store, aspects) };
+          // Verification and governing evidence is mandatory, never System-1 optional pruning.
+          const evidence = new Map<string, Record<string, unknown>>();
+          for (const subject of [entity, ...all.filter(item => linked.has(item.id))]) {
+            for (const edge of await store.getIncoming(subject.id)) {
+              if (!['verifies', 'governs'].includes(edge.predicateName)) continue;
+              const record = await store.getEntity<WorkflowEntity>(edge.sourceId);
+              if (!(record instanceof TestNode || record instanceof Artifact || record instanceof Decision)) continue;
+              const data = record as WorkflowEntity & { body?: string; filePath?: string; status?: string };
+              evidence.set(store.localId(record.id), { id: store.localId(record.id), kind: record.typeName(), title: record.title, body: data.body, filePath: data.filePath, status: data.status, verifies: store.localId(subject.id) });
+            }
+          }
+          context.existing.push(...evidence.values());
           const propose = options.propose ?? (async (input: IntentContext, findings: readonly { message: string }[]) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Product reasoning provider unavailable.'); countEngineering('reasoningCalls');
             const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work. Reuse stable existing Features/Stories/Tickets, including work outside this root. Epic may target Features/Stories or contain technical Tickets. Feature may contain meaningful observable Stories or have direct technical implementation Tickets. Story may produce only addressing Tickets. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
@@ -168,7 +180,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
         }
         if (critic && ['advanced', 'production'].includes(rootTarget) && (budget.depth === 'all' || budget.depth > 1)) {
           countEngineering('criticRounds');
-          const final = CriticResultSchema.parse(await critic.review({ artifactId: rootId, intent: (root as WorkflowEntity & { body?: string }).body ?? root.title!, neighborhood: reviewInputs.map(input => ({ ...input })), proposal: [], applicableAspects: (await applicableAspects(root, store)).map(a => store.localId(a.id)), candidateAspects: [], completeness: rootTarget, depth: 0, evidence: [JSON.stringify(await getCoverage(store, rootId)), JSON.stringify(await assessAspects(root, store))] }));
+          const final = CriticResultSchema.parse(await critic.review({ artifactId: rootId, intent: (root as WorkflowEntity & { body?: string }).body ?? root.title!, neighborhood: reviewInputs.map(input => ({ ...input })), proposal: [], applicableAspects: (await applicableAspects(root, store)).map(a => store.localId(a.id)), candidateAspects: [], completeness: rootTarget, depth: 0, acceptanceCriteria: (root as WorkflowEntity & { acceptanceCriteria?: string[] }).acceptanceCriteria ?? [], evidence: [JSON.stringify(await getCoverage(store, rootId)), JSON.stringify(await assessAspects(root, store))] }));
           if (final.verdict !== 'accept') return final.verdict === 'needs_input' ? { status: 'needs_input', artifactId: rootId, required: final.required.map(item => ({ ...item, why: 'Final cross-layer review requires input.', target: rootId })) } : { status: 'blocked', artifactId: rootId, blockers: final.findings.map(item => ({ reason: `Final cross-layer review: ${item.message}` })) };
         }
         return { status: 'complete', artifactId: rootId, value: { created: [...created], reused: [...reused], processed, remaining: [...budget.remaining], stoppedAtDepth: budget.stoppedAtDepth, stoppedAtMaxArtifacts: budget.stoppedAtMaxArtifacts, artifactComplete: !knownGaps.length && !budget.remaining.size, knownGaps, coverage: await getCoverage(store, rootId), impact: await getProductImpact(store, rootId), aspectAssessment: await assessAspects(root, store) } };
@@ -652,10 +664,12 @@ export class Ticket extends WorkflowEntity {
           const children = (await store.getOutgoing(ticket.id, 'contains')).filter(edge => work.has(store.localId(edge.targetId))).map(edge => store.localId(edge.targetId));
           const verify = options.verify ?? (async (input: ResolutionVerificationInput) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
-            const sources = input.files.filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
+            const sourceFiles = new Set([...input.files, ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)]);
+            const sources = [...sourceFiles].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
             const testSources = input.tests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg) && fs.existsSync(path.resolve(store.root, arg))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') })));
+            const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
             countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Requirements are not evidence. Use actual code, test assertions and successful executions; if proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, dossier: reviewDossier, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [];

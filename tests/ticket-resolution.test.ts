@@ -134,7 +134,21 @@ describe('Ticket-owned bounded resolution', () => {
       const result = await t.resolve(store, { systemOne, critic: 'none', testCommands: [['bun', 'test', 'tests/add.test.ts']] });
       expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
       expect(prompts).toHaveLength(2); expect(prompts[0]).toContain('"symbolName":"add"'); expect(prompts[1]).toContain('Independently verify EVERY');
+      expect(prompts[1]).not.toContain('return a - b'); expect(prompts[1]).toContain('return a + b');
       expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].cognition.llm.calls).toBe(2);
+    } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
+  }, 30000);
+  it('sends current authored source to the default independent verifier for a no-edit review', async () => {
+    const t = await ticket(); fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }');
+    let prompt = '';
+    const server = Bun.serve({ port: 0, fetch: async request => {
+      const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;
+      return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Actual source addition and tests signed assertions passed' }], aspects: [] }) } });
+    } });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', implement: async () => ({ changes: [], testCommands: [] }), testCommands: [['bun', 'test', 'tests/add.test.ts']] });
+      expect(result.status).toBe('complete'); expect(prompt).toContain('"source":"export function add(a: number, b: number) { return a + b; }"'); expect(prompt).toContain('"testSources":');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
 });
