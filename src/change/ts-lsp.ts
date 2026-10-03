@@ -8,6 +8,7 @@
  */
 
 import path from 'node:path';
+import fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
@@ -224,9 +225,14 @@ export class TsLspClient {
   async getDocumentSymbols(filePath: string): Promise<LspDocumentSymbol[]> {
     await this.ensureStarted();
     if (!this.capabilities?.raw.documentSymbolProvider) throw new Error('TypeScript document symbols unavailable.');
-    return await this.connection!.sendRequest('textDocument/documentSymbol', {
-      textDocument: { uri: this.toUri(filePath) }
-    }) as LspDocumentSymbol[] || [];
+    const uri = this.toUri(filePath);
+    await this.connection!.sendNotification('textDocument/didOpen', { textDocument: {
+      uri, languageId: /\.[cm]?tsx?$/.test(filePath) ? 'typescript' : 'javascript', version: 1,
+      text: fs.readFileSync(path.resolve(this.projectRoot, filePath), 'utf8')
+    } });
+    try {
+      return await this.connection!.sendRequest('textDocument/documentSymbol', { textDocument: { uri } }) as LspDocumentSymbol[] || [];
+    } finally { await this.connection!.sendNotification('textDocument/didClose', { textDocument: { uri } }); }
   }
 
   async getIncomingCalls(filePath: string, position: LspPosition): Promise<Array<{ from: LspCallHierarchyItem; fromRanges: LspRange[] }>> {

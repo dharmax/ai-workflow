@@ -81,6 +81,7 @@ export async function indexSingleFile(
   // Clean up previous file notes for this relPath using filtered query (symbols are stably reconciled below)
   const existingNotes = await store.listEntities<Lesson>(Lesson.dcr, { filePath: relPath });
   for (const n of existingNotes) {
+    if (!store.localId(n.id).startsWith(`note:${relPath}:`)) continue;
     try { await store.deleteEntity(n.id); } catch {}
   }
 
@@ -192,7 +193,9 @@ export async function indexSingleFile(
   for (const oldSym of existingSymbols) {
     if (!preservedOldIds.has(oldSym.id)) {
       try {
-        await store.deleteEntity(oldSym.id);
+        const referenced = (await store.getIncoming(oldSym.id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName));
+        if (referenced) await store.upsertEntity(SymbolNode.dcr, { id: oldSym.id, status: 'deprecated', metadata: { missing: true } });
+        else await store.deleteEntity(oldSym.id);
       } catch {}
     }
   }
@@ -315,6 +318,14 @@ export async function removeFileFromIndex(store: WorkflowStore, relPath: string)
   if (!fileEntity) return false;
 
   const contained = await store.getOutgoing(fileEntity.id, 'contains');
+  // A deleted source is still a durable work target. Keep its anchors so investigation
+  // can report the missing file rather than silently erase Ticket/Decision intent.
+  for (const id of [fileEntity.id, ...contained.map(edge => edge.targetId)]) {
+    if ((await store.getIncoming(id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName))) {
+      await store.upsertEntity(FileNode.dcr, { id: fileEntity.id, mtime: 0, status: 'deprecated', metadata: { isStub: true, missing: true } });
+      return true;
+    }
+  }
   for (const pred of contained) {
     try {
       await store.deleteEntity(pred.targetId);

@@ -70,6 +70,7 @@ export interface UserStoryData extends BaseEntityData {
 }
 
 export interface TicketData extends BaseEntityData {
+  acceptanceCriteria?: string[];
   lane: TicketLane;
   priority?: 'P0' | 'P1' | 'P2' | 'P3';
   claim?: TicketClaim;

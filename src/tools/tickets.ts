@@ -4,12 +4,23 @@
  */
 
 import { z } from 'zod';
+import { ticketState } from '../graph/ticket-state.ts';
+import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { registry, type ToolContext } from './registry.ts';
 import { Ticket } from '../graph/ontology.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 
 export function registerTicketTools() {
+  registry.register({
+    name: 'investigate_ticket', description: 'Return a grounded, semantically read-only Ticket dossier with proposed enrichments and precise disposition.', category: 'ticket',
+    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string() }),
+    execute: async ({ ticketId, ...options }, ctx) => {
+      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
+      if (!ticket) throw new Error(`Ticket '${ticketId}' not found.`);
+      return ticket.investigate(ctx.store, options);
+    }
+  });
   registry.register({
     name: 'claim_ticket',
     description: 'Atomically lease a ticket to an agent with a time-to-live to prevent concurrent collisions.',
@@ -46,13 +57,14 @@ export function registerTicketTools() {
       title: z.string().describe('Brief, descriptive ticket title'),
       lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).default('Todo'),
       body: z.string().optional().describe('Detailed context, requirements, or acceptance criteria'),
+      acceptanceCriteria: z.array(z.string()).optional(),
       priority: z.enum(['P0', 'P1', 'P2', 'P3']).default('P2')
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Ticket', id,
-        fields: { title: params.title, lane: params.lane, body: params.body || '', priority: params.priority,
-          status: params.lane === 'Done' ? 'verified' : params.lane === 'In Progress' ? 'in_progress' : 'planned' } }]);
+        fields: { title: params.title, body: params.body || '', priority: params.priority,
+          acceptanceCriteria: params.acceptanceCriteria, ...ticketState(params.lane) } }]);
       return {
         id,
         title: params.title,
@@ -73,11 +85,11 @@ export function registerTicketTools() {
     execute: async ({ ticketId, lane, status }, ctx: ToolContext) => {
       if (!await ctx.store.getEntity(ticketId, Ticket.dcr)) throw new Error(`Ticket ${ticketId} not found.`);
       await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Ticket', id: ticketId,
-        fields: { lane, status: status || (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : 'planned') } }]);
+        fields: ticketState(lane, status) }]);
       return {
         ticketId,
         lane,
-        status: status || (lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : 'planned')
+        status: ticketState(lane, status).status
       };
     }
   });

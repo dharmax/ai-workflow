@@ -7,6 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { Database } from 'bun:sqlite';
+import { ticketState } from './ticket-state.ts';
 import {
   SemanticPackage,
   SqliteStore,
@@ -154,16 +155,16 @@ export class WorkflowStore {
     const formattedId = rawId ? this.formatId(dcr, rawId) : undefined;
 
     if (formattedId) {
-      try {
-        const existing = await this.getEntity<T>(formattedId, dcr);
-        if (existing) {
-          const updatePayload: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
-          delete updatePayload.id;
-          delete updatePayload._id;
-          await existing.update(updatePayload, true, false);
-          return existing;
-        }
-      } catch {}
+      const existing = await this.getEntity<T>(formattedId, dcr);
+      if (existing) {
+        const state = dcr.name === 'Ticket' && (data.lane || data.status)
+          ? ticketState(data.lane ?? (existing as unknown as Ticket).lane, data.status) : {};
+        const updatePayload: Record<string, any> = { ...data, ...state, updatedAt: new Date().toISOString() };
+        delete updatePayload.id;
+        delete updatePayload._id;
+        await existing.update(updatePayload, true, false);
+        return existing;
+      }
     }
 
     const defaultStatus = (dcr.name === 'Epic' || dcr.name === 'Feature' || dcr.name === 'UserStory')
@@ -176,7 +177,8 @@ export class WorkflowStore {
       _id: formattedId,
       status: data.status ?? defaultStatus,
       createdAt: data.createdAt ?? new Date().toISOString(),
-      updatedAt: data.updatedAt ?? new Date().toISOString()
+      updatedAt: data.updatedAt ?? new Date().toISOString(),
+      ...(dcr.name === 'Ticket' ? ticketState(data.lane ?? 'Backlog', data.status) : {})
     };
     return await this.sp.createEntity<T>(dcr, createPayload, true, false);
   }

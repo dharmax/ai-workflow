@@ -20,6 +20,7 @@ import {
 import type { TicketLane, EpicStatus, IntentStatus } from './types.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { exportAspectProjection, importAspectProjection } from './aspect-projections.ts';
+import { ticketState } from './ticket-state.ts';
 
 const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
 
@@ -383,10 +384,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
             await store.upsertEntity<Ticket>(Ticket.dcr, {
               id: ticketId,
               title,
-              lane: resolvedLane,
               body: summary,
               claim,
-              status: resolvedLane === 'Done' ? 'verified' : resolvedLane === 'In Progress' ? 'in_progress' : 'planned'
+              ...ticketState(resolvedLane, resolvedLane === 'Done' && (existingTicket as Ticket | null)?.status === 'rejected' ? 'rejected' : undefined)
             });
             importedChanges++;
           }

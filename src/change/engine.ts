@@ -20,7 +20,7 @@ import { resolveCodeTarget } from './target-resolver.ts';
 import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
-import { SymbolNode, Ticket, Decision } from '../graph/ontology.ts';
+import { SymbolNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
 import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
@@ -658,7 +658,10 @@ export class CausalChangeEngine {
           if (await this.store.getEntity(mutation.id)) errors.push(`Deleted entity '${mutation.id}' remains.`);
         } else if ('id' in mutation) {
           if (!await this.store.getEntity(mutation.id)) errors.push(`Entity '${mutation.id}' is missing after apply.`);
-          if (mutation.entityType !== 'Ticket') {
+          if (mutation.entityType === 'Aspect') {
+            const aspect = await this.store.getEntity<Aspect>(mutation.id, Aspect.dcr);
+            if (aspect) await aspect.view(this.store);
+          } else if (['Epic', 'Feature', 'UserStory'].includes(mutation.entityType)) {
             try { await getCoverage(this.store, mutation.id); await getProductImpact(this.store, mutation.id); }
             catch (error) { errors.push(String(error)); }
           }
@@ -807,10 +810,10 @@ export class CausalChangeEngine {
       // Locate newly reconciled symbol node across touched files
       let newAnchor: SymbolNode | null = null;
       for (const f of filesToReindex) {
-        const syms = await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {
+        const syms = (await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {
           filePath: f,
           title: targetSymbolName
-        });
+        })).filter(symbol => symbol.status !== 'deprecated');
         if (syms.length === 1) {
           newAnchor = syms[0];
           break;
@@ -824,6 +827,7 @@ export class CausalChangeEngine {
             const source = await this.store.getEntity(snap.sourceId);
             if (source) {
               await this.store.relate(source, snap.predicate, newAnchor);
+              if (oldAnchorId !== newAnchorId) await this.store.unrelate(source.id, snap.predicate, oldAnchorId);
             }
           } catch {}
         }

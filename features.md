@@ -65,15 +65,12 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **AIWF-TICKET-INVESTIGATION** [Todo]: Gate 4: TICKET-INVESTIGATION
-- **AIWF-TICKET-PREPARATION** [Backlog]: Gate 5: TICKET-PREPARATION
+- **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
+- **AIWF-TICKET-PREPARATION** [Todo]: Gate 5: TICKET-PREPARATION
 - **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-PERFORMANCE-METRICS: Correlated AIWF + llm-utils performance telemetry
 

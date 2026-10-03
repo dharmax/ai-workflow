@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Artifact } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
+import { ticketState } from '../graph/ticket-state.ts';
+import type { TicketLane } from '../graph/types.ts';
 
 const kinds = { Aspect, Idea, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode } as const;
 export type ProductKind = keyof typeof kinds;
@@ -34,7 +36,8 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
   ['Ticket', 'targets', 'Module'],
   ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
-  ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory']
+  ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory'],
+  ['Decision', 'governs', 'Ticket']
 ];
 
 export function productKind(entity: unknown): ProductKind | undefined {
@@ -64,7 +67,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
     UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority'], Test: [], Decision: [], Module: ['completenessTarget']
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: [], Decision: [], Module: ['completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
@@ -89,7 +92,7 @@ export async function productDependents(store: WorkflowStore, id: string) {
 export async function validateProductMutations(store: WorkflowStore, mutations: ProductMutation[]) {
   if (!mutations.length) throw new Error('Product change requires at least one mutation.');
   mutations.forEach(mutation => ProductMutationSchema.parse(mutation));
-  const state = new Map<string, { kind: ProductKind; exists: boolean }>();
+  const state = new Map<string, { kind: ProductKind; exists: boolean; lane?: TicketLane }>();
   const edges = new Map<string, { sourceId: string; predicate: string; targetId: string }>();
   const snapshot: Record<string, unknown> = {};
   const key = (s: string, p: string, t: string) => JSON.stringify([s, p, t]);
@@ -98,7 +101,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     const entity = await resolveProductEntity(store, id);
     const kind = productKind(entity)!;
     const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
-    state.set(id, { kind, exists: true });
+    state.set(id, { kind, exists: true, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const incoming = await store.getIncoming(entity.id);
     const outgoing = await store.getOutgoing(entity.id);
     snapshot[id] = { kind, fields, incoming: incoming.map(e => [e.sourceId, e.predicateName, e.targetId]).sort(), outgoing: outgoing.map(e => [e.sourceId, e.predicateName, e.targetId]).sort() };
@@ -113,13 +116,18 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     if (mutation.kind === 'product_create') {
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
       validateFields(mutation.entityType, mutation.fields, true);
-      state.set(mutation.id, { kind: mutation.entityType, exists: true });
+      if (mutation.entityType === 'Ticket') ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status);
+      state.set(mutation.id, { kind: mutation.entityType, exists: true, lane: mutation.entityType === 'Ticket' ? mutation.fields.lane ?? 'Todo' : undefined });
       snapshot[mutation.id] = null;
     } else if (mutation.kind === 'product_update' || mutation.kind === 'product_delete') {
       const entity = await load(mutation.id);
       if (!entity.exists || entity.kind !== mutation.entityType) throw new Error(`${mutation.entityType} '${mutation.id}' is unavailable.`);
       if (mutation.kind === 'product_update') {
         validateFields(entity.kind, mutation.fields, false);
+        if (entity.kind === 'Ticket' && (mutation.fields.lane || mutation.fields.status)) {
+          const next = ticketState(mutation.fields.lane ?? entity.lane ?? 'Todo', mutation.fields.status);
+          entity.lane = next.lane;
+        }
       } else {
         entity.exists = false;
         deleted.push(mutation.id);
@@ -144,10 +152,12 @@ export async function applyProductMutations(store: WorkflowStore, mutations: Pro
     if (mutation.kind === 'product_create') {
       await store.upsertEntity(kinds[mutation.entityType].dcr, { id: mutation.id, ...mutation.fields,
         status: mutation.fields.status ?? (mutation.entityType === 'Ticket' ? 'planned' : 'draft'),
-        ...(mutation.entityType === 'Ticket' ? { lane: mutation.fields.lane ?? 'Todo', priority: mutation.fields.priority ?? 'P2' } : {}) });
+        ...(mutation.entityType === 'Ticket' ? { ...ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status), priority: mutation.fields.priority ?? 'P2' } : {}) });
     } else if (mutation.kind === 'product_update') {
       const entity = await resolveProductEntity(store, mutation.id);
-      await entity.update({ ...mutation.fields, updatedAt: new Date().toISOString() }, true, false);
+      const state = mutation.entityType === 'Ticket' && (mutation.fields.lane || mutation.fields.status)
+        ? ticketState(mutation.fields.lane ?? (entity as Ticket).lane, mutation.fields.status) : {};
+      await entity.update({ ...mutation.fields, ...state, updatedAt: new Date().toISOString() }, true, false);
     } else if (mutation.kind === 'product_delete') {
       await store.deleteEntity(mutation.id);
     } else {
