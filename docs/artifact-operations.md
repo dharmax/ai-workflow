@@ -216,7 +216,9 @@ effectivePolicy:
   completeness: advanced
   completenessSource: feature:FEAT-X
   depth: 2
+  maxArtifacts: 24
   critic: strict
+  criticSource: explicit
 ~~~
 
 This makes behavior inspectable and reproducible.
@@ -243,6 +245,17 @@ Their meaning is qualitative and domain-sensitive, not a quota of Stories or tes
 No target requires ceremonial Stories or arbitrary counts.
 
 A technical Feature/Epic may still have zero UserStories at production level when Stories add no semantic value.
+
+Completeness is evaluated across applicable dimensions, not by raw artifact counts:
+
+- intent breadth — known required behaviors/capabilities are represented at the useful level;
+- failure/edge behavior — important invalid, boundary and failure cases are not silently omitted;
+- verification — evidence depth matches the target, from proof-of-concept checks through meaningful integration/end-to-end coverage where relevant;
+- integration/recovery — interactions, persistence, restart/retry/recovery and compatibility are covered when relevant;
+- non-functional concerns — security, performance, concurrency/resource limits and privacy only when materially applicable;
+- operability — configuration, migration, observability and documentation when the target and domain require them.
+
+System-1 may cheaply classify which dimensions are likely applicable. The Critic/reasoning path judges adequacy. Do not encode universal quotas such as minimum Story counts or fixed test percentages.
 
 ### Persistent target and inheritance
 
@@ -329,6 +342,16 @@ Defaults:
 - resolve_ticket: all, because resolve means end-to-end unless explicitly capped.
 
 Depth counts artifact processing/decomposition edges, not individual code/tool calls.
+
+Concrete expansion edges:
+
+- Epic → produced/reused Feature, UserStory or Ticket batch = one level;
+- Feature → produced/reused UserStory or Ticket batch = one level;
+- UserStory → produced/reused addressing Ticket batch = one level;
+- Ticket → child Ticket decomposition = one level;
+- Ticket → code execution is implementation, not another recursion level.
+
+Thus `process_epic(..., depth=1)` may establish its immediate coherent Feature/Story/Ticket layer but does not recursively process those children. `depth=2` may process the immediate children once more.
 
 Depth does not bound breadth. Therefore every recursive operation also has a simple `maxArtifacts` safety budget (operation override then project config default). Hitting it stops further expansion/resolution, reports remaining artifacts, and never falsely marks the root complete. Do not build a generic budget subsystem around this first guard.
 
