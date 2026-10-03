@@ -1,6 +1,6 @@
 # Artifact Operations — Design
 
-Status: authoritative target design for the next AIWF phase.
+Status: authoritative implemented design for AIWF artifact operations. Historical implementation sequencing is retained in `artifact-operations-plan.md`; this document defines current semantics.
 
 ## 1. Purpose
 
@@ -264,7 +264,7 @@ System-1 may cheaply classify which dimensions are likely applicable. The Critic
 
 ### Persistent target and inheritance
 
-Add an optional completenessTarget to durable work/product scopes where it is meaningful:
+Durable work/product scopes may carry an optional completenessTarget where meaningful:
 
 ~~~
 Module
@@ -935,7 +935,7 @@ process_epic / process_feature / process_story
 
 Primitive tools remain available for explicit inspection, debugging and unusual expert control.
 
-Do not remove or hide primitives during the first proof.
+Do not remove or hide primitives; they remain the explicit drill-down/escape surface.
 
 ## 13. Non-goals
 
