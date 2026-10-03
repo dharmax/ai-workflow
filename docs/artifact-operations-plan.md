@@ -1,14 +1,16 @@
 # Artifact Operations Program — Sole Implementation Plan
 
-Status: **sole authoritative execution plan for the current AIWF program**.
+Status: **completed historical implementation program**. Retained for architectural rationale, acceptance history, and reconstruction; it is not current work.
 
-If Codex is given one instruction, it should be:
+The program below has been completed. **Do not execute its gates as present-day instructions.**
 
-> Follow `docs/artifact-operations-plan.md` completely. Use AIWF itself as the primary development/navigation/work-management system. Do not invent a parallel plan.
+For current use:
+- start with `README.md` as the human entry point;
+- use `skills/ai-workflow/SKILL.md` for agent operation;
+- use the focused design documents in `docs/` for authoritative semantics;
+- use live AIWF graph/repository state for current implementation truth.
 
-All other documents in `docs/` are **design references**, not competing execution plans. Read them only when this plan or AIWF context makes them relevant.
-
-Do not create additional plan/handoff/status documents for this program. Durable implementation state belongs in AIWF Product Intent/Tickets/graph plus Git.
+This file remains intentionally detailed because it records the constraints, gate acceptance contracts, dogfooding strategy, and rejection criteria that shaped the implementation. Historical imperative language below is part of that record.
 
 ---
 
