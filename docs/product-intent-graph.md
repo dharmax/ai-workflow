@@ -815,6 +815,10 @@ Replace:
 
 Do not merge this branch until the full deterministic gate passes.
 
+## Open question: relation propagation
+
+Future design should distinguish relation families that flow from broader scope to narrower scope from relation families whose effective value is aggregated upward from lower-level artifacts. Aspects are a likely example of the first case. Do not add a generic propagation mechanism yet; define semantics per relation family when this is designed.
+
 ## 15. Explicit non-goals
 
 Do not add:
