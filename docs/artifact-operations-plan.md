@@ -75,7 +75,121 @@ Then method-by-method KISS review.
 
 ---
 
-# 2. AIWF-TICKET-INVESTIGATION
+# 2. AIWF-OPERATION-POLICY
+
+## Goal
+
+Implement the small cross-cutting policy substrate before any structure-producing artifact operation.
+
+Do not implement ticket investigation/preparation/resolution yet.
+
+## Completeness target
+
+Add:
+
+~~~
+type CompletenessLevel = 'poc' | 'functional' | 'advanced' | 'production'
+~~~
+
+Add optional completenessTarget to:
+
+- Module;
+- Epic;
+- Feature;
+- UserStory;
+- Ticket.
+
+Add project config defaultCompletenessTarget.
+
+Add deterministic helpers/tools:
+
+~~~
+set_completeness_target(entityId, level | null)
+get_completeness_target(entityId)
+resolve_effective_completeness(entityId, override?)
+~~~
+
+Implement only the constrained inheritance rules from the design. No generic policy traversal.
+
+Tests must prove:
+
+- explicit operation override wins;
+- explicit artifact target wins over inherited target;
+- Story inherits strictest containing Feature target;
+- Ticket inherits strictest relevant parent Ticket/Epic/Feature/Story/Module target;
+- Feature does not inherit from targeting Epic;
+- project default is final fallback;
+- explicit lower artifact target can deliberately override stricter inherited work;
+- clearing explicit target restores inheritance/default behavior.
+
+Do not persist achieved/current completeness.
+
+## Operation options
+
+Define one small shared ArtifactOperationOptions contract:
+
+~~~
+completeness?: CompletenessLevel
+depth?: number | 'all'
+critic?: ArtifactCritic | 'auto' | 'none'
+~~~
+
+Transport-facing MCP/shell schemas use critic IDs rather than executable objects.
+
+Every artifact-operation result later must report its resolved effective policy and source.
+
+## Depth semantics
+
+Implement/validate the depth value and shared accounting rules only.
+
+No recursion engine.
+
+Depth counts artifact-expansion/decomposition edges:
+
+- 0 = current artifact only;
+- 1 = immediate next artifact layer;
+- N = N expansion edges;
+- all = no user cap, still bounded by real graph/safety constraints.
+
+## Critic contract
+
+Add the small read-only ArtifactCritic interface and CriticResult types.
+
+Do not build a registry/plugin framework.
+
+Provide only the smallest resolver needed for transport-level IDs, backed by injected/configured critics.
+
+At this gate, critic tests use injected fake critics. The first real AI critic is earned by Ticket 4 when there is a real proposal to review.
+
+## Derived completeness
+
+Define the CompletenessAssessment result shape, but do not pretend structural Coverage proves semantic maturity.
+
+At this gate it may compose deterministic Product Coverage + known policy facts only. Semantic gap discovery arrives with later operations/critics.
+
+## Acceptance
+
+Run:
+
+~~~bash
+bun run typecheck
+bun test
+~~~
+
+Then KISS audit the policy implementation.
+
+Reject if it introduces:
+
+- generic policy engines;
+- persistent current-completeness state;
+- arbitrary graph inheritance;
+- critic registry/plugin infrastructure;
+- recursion framework;
+- hard-coded model names.
+
+---
+
+# 3. AIWF-TICKET-INVESTIGATION
 
 ## Goal
 
@@ -192,15 +306,15 @@ At minimum:
 
 Gate with typecheck/tests + KISS audit.
 
-Stop here and inspect real output before Ticket 3.
+Stop here and inspect real output before Ticket 4.
 
 ---
 
-# 3. AIWF-TICKET-PREPARATION
+# 4. AIWF-TICKET-PREPARATION
 
 ## Goal
 
-Implement prepare_ticket and ordinary Ticket decomposition.
+Implement prepare_ticket and ordinary Ticket decomposition, including the first real proposal Critic path.
 
 ## Graph change
 
@@ -232,6 +346,34 @@ prepare_ticket:
 
 System-1 never invents child tickets or decomposition text.
 
+## Critic flow
+
+Before applying any generated child-ticket batch:
+
+~~~
+proposal
+→ selected Critic
+→ accept | revise | needs_input | reject
+→ deterministic validation
+→ apply
+~~~
+
+Implement one real built-in independent AI critic behind the ArtifactCritic contract, selected through critic=auto for the normal path.
+
+Critic policy depends on effective completeness but remains overridable by an explicit critic ID/object.
+
+Bound revision attempts. Critic failure/non-convergence must not silently downgrade the requested completeness.
+
+Acceptance must include:
+
+- critic catches an omitted child required by the target;
+- critic catches duplicate/redundant child work;
+- critic catches ceremonial decomposition;
+- critic requests revision and producer converges;
+- critic needs_input flows through the normal interaction contract;
+- critic=none explicitly bypasses only the critic, not deterministic validation;
+- custom injected critic is honored.
+
 Do not split based on token count or arbitrary maximum size.
 
 ## Acceptance
@@ -249,7 +391,7 @@ Gate + KISS audit.
 
 ---
 
-# 4. AIWF-TICKET-RESOLUTION-FIRST-PROOF
+# 5. AIWF-TICKET-RESOLUTION-FIRST-PROOF
 
 ## Goal
 
@@ -334,7 +476,7 @@ Gate + adversarial KISS audit.
 
 ---
 
-# 5. AIWF-PRODUCT-PROCESSING
+# 6. AIWF-PRODUCT-PROCESSING
 
 ## Goal
 
@@ -373,6 +515,19 @@ Never revert to Epic owning Features.
 
 Existing Epic proposal/apply code should be reused or simplified into internal machinery; avoid two competing semantic decomposition paths.
 
+## Completeness / depth / critic behavior
+
+process_story / process_feature / process_epic all accept the shared operation policy.
+
+- completeness controls semantic breadth/thoroughness, not item counts;
+- depth controls how many artifact levels are recursively processed;
+- critic reviews each generated batch before apply;
+- advanced/production with depth > 1 gets a final root-level cross-layer critic review;
+- raising completeness fills missing work idempotently rather than regenerating existing structure;
+- lowering completeness never deletes already-valid structure.
+
+Acceptance must include a POC→production upgrade on an existing artifact with no duplicate Stories/Tickets.
+
 ## Model policy
 
 Product processing normally receives stronger reasoning than mechanical ticket investigation.
@@ -406,7 +561,7 @@ Gate + KISS audit.
 
 ---
 
-# 6. AIWF-PRIMARY-INTERFACE
+# 7. AIWF-PRIMARY-INTERFACE
 
 ## Goal
 
@@ -414,15 +569,20 @@ Only after the artifact operations are proven, make them AIWF's first-choice she
 
 ## Work
 
-1. Shell help/normal language flow prioritizes:
+1. Shell/MCP expose the policy controls consistently:
+   - --completeness / completeness;
+   - --depth / depth;
+   - --critic / critic;
+   - explicit remember/set-completeness operation rather than silently persisting run overrides.
+2. Shell help/normal language flow prioritizes:
    - resolve_ticket;
    - prepare_ticket;
    - investigate_ticket;
    - process_epic/feature/story.
-2. Canonical installed skill tells external coding agents to delegate artifact work first.
-3. Existing primitives remain exposed as drill-down/debug/expert operations.
-4. Measure whether the old bucket-router/WorkflowActor path is now redundant.
-5. Remove/replace it only if the new operations cover its real responsibilities more simply.
+3. Canonical installed skill tells external coding agents to delegate artifact work first.
+4. Existing primitives remain exposed as drill-down/debug/expert operations.
+5. Measure whether the old bucket-router/WorkflowActor path is now redundant.
+6. Remove/replace it only if the new operations cover its real responsibilities more simply.
 
 Do not introduce semantic-registry merely to replace the router. Evaluate it only if a real remaining dynamic-discovery problem exists.
 
