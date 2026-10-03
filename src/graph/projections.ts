@@ -19,6 +19,7 @@ import {
 } from './ontology.ts';
 import type { TicketLane, EpicStatus, IntentStatus } from './types.ts';
 import { getCoverage } from '../product/coverage.ts';
+import { exportAspectProjection, importAspectProjection } from './aspect-projections.ts';
 
 const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
 
@@ -304,6 +305,8 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   modulesMd += `\`\`\`\n`;
   await writeFile(path.join(rootDir, 'modules.md'), modulesMd, 'utf8');
   exportedFiles.push('modules.md');
+  await exportAspectProjection(store, rootDir);
+  exportedFiles.push('aspects.md');
 
   // Record export timestamp in sync-state.json
   const stateDir = path.join(rootDir, '.ai-workflow', 'state');
@@ -695,5 +698,6 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
     }
   }
 
+  importedChanges += await importAspectProjection(store, rootDir, lastExportedAt);
   return { importedChanges };
 }

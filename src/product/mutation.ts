@@ -1,12 +1,12 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Artifact } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 
-const kinds = { Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode } as const;
+const kinds = { Aspect, Idea, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode } as const;
 export type ProductKind = keyof typeof kinds;
-const entityKind = z.enum(['Epic', 'Feature', 'UserStory', 'Ticket']);
+const entityKind = z.enum(['Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
 const ticketLane = z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']);
@@ -27,6 +27,8 @@ export const ProductMutationSchema = z.discriminatedUnion('kind', [
 export type ProductMutation = z.infer<typeof ProductMutationSchema> & { source?: never };
 
 const relations: Array<[ProductKind, string, ProductKind]> = [
+  ...(['Idea', 'Module', 'Epic', 'Feature', 'UserStory'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
+  ['Ticket', 'addresses', 'Aspect'], ['Test', 'verifies', 'Aspect'], ['Artifact', 'verifies', 'Aspect'], ['Decision', 'governs', 'Aspect'],
   ['Epic', 'targets', 'Feature'], ['Epic', 'targets', 'UserStory'],
   ['Feature', 'contains', 'UserStory'], ['Epic', 'contains', 'Ticket'],
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
@@ -58,6 +60,7 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
 function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
+    Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Artifact: [],
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
     UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
@@ -67,7 +70,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
   if (input.status !== undefined) {
     if (kind === 'Epic') epicStatus.parse(input.status);
-    if (kind === 'Feature' || kind === 'UserStory') intentStatus.parse(input.status);
+    if (kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
   if (kind === 'Epic' && input.priority !== undefined) z.number().parse(input.priority);
@@ -94,7 +97,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     if (state.has(id)) return state.get(id)!;
     const entity = await resolveProductEntity(store, id);
     const kind = productKind(entity)!;
-    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'story', 'context', 'sla', 'lane', 'claim', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true });
     const incoming = await store.getIncoming(entity.id);
     const outgoing = await store.getOutgoing(entity.id);

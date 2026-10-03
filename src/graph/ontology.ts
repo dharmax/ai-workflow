@@ -13,6 +13,8 @@ import {
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from '../artifact-policy.ts';
 import type { WorkflowStore } from './store.ts';
 
+import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts';
+
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
 
 const anyValidator = { validate: (v: any) => ({ value: v }) };
@@ -33,6 +35,7 @@ const baseTemplate = {
 // -----------------------------------------------------------------------------
 
 export abstract class WorkflowEntity extends AbstractEntity {
+  declare title?: string;
   static readonly dcr: EntityDcr;
 
   override typeName(): string {
@@ -45,6 +48,9 @@ export abstract class WorkflowEntity extends AbstractEntity {
 }
 
 export class Idea extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   static template = {
     ...baseTemplate,
     feasibility: anyValidator,
@@ -54,6 +60,9 @@ export class Idea extends WorkflowEntity {
 }
 
 export class Epic extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   declare completenessTarget?: CompletenessLevel | null;
   getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
   async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
@@ -69,6 +78,9 @@ export class Epic extends WorkflowEntity {
 }
 
 export class Feature extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   declare completenessTarget?: CompletenessLevel | null;
   getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
   async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
@@ -84,6 +96,9 @@ export class Feature extends WorkflowEntity {
 }
 
 export class UserStory extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   declare completenessTarget?: CompletenessLevel | null;
   getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
   async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
@@ -102,7 +117,44 @@ export class UserStory extends WorkflowEntity {
   static readonly dcr = new EntityDcr(UserStory, UserStory.template, 'UserStory');
 }
 
+export class Aspect extends WorkflowEntity {
+  declare title: string;
+  declare body: string;
+  declare status: 'draft' | 'proposed' | 'accepted' | 'deprecated';
+  declare acceptanceCriteria?: string[];
+  static template = { ...baseTemplate, status: { validate: (v: unknown) => ({ value: v ?? 'draft' }) }, acceptanceCriteria: anyValidator };
+  static readonly dcr = new EntityDcr(Aspect, Aspect.template, 'Aspect');
+  static async create(store: WorkflowStore, data: { id: string; title: string; body?: string; status?: 'draft' | 'proposed' | 'accepted' | 'deprecated'; acceptanceCriteria?: string[] }) {
+    const { applyProductMutations } = await import('../product/mutation.ts');
+    const { id, ...fields } = data;
+    await applyProductMutations(store, [{ kind: 'product_create', entityType: 'Aspect', id, fields }]);
+    return (await store.getEntity<Aspect>(id, Aspect.dcr))!;
+  }
+  async revise(store: WorkflowStore, fields: { title?: string; body?: string; status?: 'draft' | 'proposed' | 'accepted' | 'deprecated'; acceptanceCriteria?: string[] }) {
+    const { applyProductMutations } = await import('../product/mutation.ts');
+    await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Aspect', id: store.localId(this.id), fields }]);
+    return (await store.getEntity<Aspect>(this.id, Aspect.dcr))!;
+  }
+  async view(store: WorkflowStore) {
+    const scopes = (await store.getOutgoing(this.id, 'applies_to')).map(e => store.localId(e.targetId)).sort();
+    return { id: store.localId(this.id), title: this.title, body: this.body, status: this.status, acceptanceCriteria: this.acceptanceCriteria ?? [], scopes,
+      assessment: (await assessAspects(this, store, [this])).aspects[0] };
+  }
+  async applyTo(scope: WorkflowEntity, store: WorkflowStore) {
+    const { applyProductMutations } = await import('../product/mutation.ts');
+    await applyProductMutations(store, [{ kind: 'product_link', sourceId: store.localId(this.id), predicate: 'applies_to', targetId: store.localId(scope.id) }]);
+  }
+  async removeFrom(scope: WorkflowEntity, store: WorkflowStore) {
+    const { applyProductMutations } = await import('../product/mutation.ts');
+    await applyProductMutations(store, [{ kind: 'product_unlink', sourceId: store.localId(this.id), predicate: 'applies_to', targetId: store.localId(scope.id) }]);
+  }
+  assess(scope: WorkflowEntity, store: WorkflowStore) { return assessAspects(scope, store, [this]); }
+}
+
 export class Ticket extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   getCompletenessContext(store: WorkflowStore, override?: CompletenessLevel) { return ticketCompleteness(this, store, override); }
   static template = {
     ...baseTemplate,
@@ -115,6 +167,9 @@ export class Ticket extends WorkflowEntity {
 }
 
 export class ModuleNode extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   declare completenessTarget?: CompletenessLevel | null;
   getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
   async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
@@ -142,7 +197,7 @@ export class FileNode extends WorkflowEntity {
 }
 
 export class SymbolNode extends WorkflowEntity {
-  title?: string;
+  declare title?: string;
   body?: string;
   status?: string;
   filePath?: string;
@@ -253,6 +308,7 @@ export {
 };
 
 export const durableEntityDescriptors = [
+  Aspect.dcr,
   Idea.dcr,
   Epic.dcr,
   Feature.dcr,
@@ -292,6 +348,7 @@ export const predicatePayloadTemplate = {
 };
 
 export const semanticPredicates = {
+  applies_to: new PredicateDcr('applies_to', [], { target: ['title'] }, predicatePayloadTemplate),
   contains: new PredicateDcr('contains', [], { target: ['title'] }, predicatePayloadTemplate),
   calls: new PredicateDcr('calls', [], { target: ['title'] }, predicatePayloadTemplate),
   inherits: new PredicateDcr('inherits', [], { target: ['title'] }, predicatePayloadTemplate),

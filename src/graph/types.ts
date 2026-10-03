@@ -48,6 +48,11 @@ export interface EpicData extends BaseEntityData {
   priority?: number;
 }
 
+export interface AspectData extends BaseEntityData {
+  status?: IntentStatus;
+  acceptanceCriteria?: string[];
+}
+
 export interface FeatureData extends BaseEntityData {
   completenessTarget?: CompletenessLevel | null;
   status?: IntentStatus;
@@ -146,6 +151,7 @@ export interface SemanticPredicatePayload {
 }
 
 export type SemanticPredicateName =
+  | 'applies_to'
   | 'contains'
   | 'calls'
   | 'inherits'

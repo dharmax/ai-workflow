@@ -43,14 +43,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-ASPECTS** [Blocked]: Gate 3: ASPECTS
+- **AIWF-ASPECTS** [Done]: Gate 3: ASPECTS
+
+### Verifying Tests
+- **TEST-AIWF-ASPECTS**
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] blocked: Feature 'FEAT-AIWF-ASPECTS' is blocked by active blocker(s).
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-ASPECTS' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-ASPECTS' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-TICKET-OPS: Ticket investigation, preparation and end-to-end resolution
 
@@ -66,14 +65,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **AIWF-TICKET-INVESTIGATION** [Blocked]: Gate 4: TICKET-INVESTIGATION
+- **AIWF-TICKET-INVESTIGATION** [Todo]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Backlog]: Gate 5: TICKET-PREPARATION
 - **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
-  - [ ] blocked: Feature 'FEAT-AIWF-TICKET-OPS' is blocked by active blocker(s).
   - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has implementation Ticket(s) but no code modifications or targets.
   - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has no verification Test directly or via contained stories.
 
