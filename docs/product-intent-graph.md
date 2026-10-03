@@ -359,7 +359,7 @@ It does **not** claim:
 
 > We have discovered every requirement, behavior, code path, or test that ought to exist.
 
-Semantic completeness is established by design/digest/decomposition passes. Once intent nodes exist, coverage deterministically checks whether they are causally connected to work, code, and evidence.
+Semantic completeness is established by artifact processing, Aspect review, Critic/reasoning passes, and external design/digest inputs. Once intent nodes exist, coverage deterministically checks whether they are causally connected to work, code, and evidence.
 
 Expose one deterministic primitive:
 
@@ -693,7 +693,8 @@ Projected files:
 `epics.md`
 - Epic text/status
 - targeted Features/Stories
-- implementing Tickets
+- contained Tickets
+- applicable Aspects
 - derived coverage summary
 
 `features.md`
@@ -701,6 +702,7 @@ Projected files:
 - Epics targeting it
 - contained Stories
 - direct implementing Tickets
+- applicable Aspects
 - Tests
 - derived coverage summary
 
@@ -709,6 +711,7 @@ Projected files:
 - containing Feature
 - Epics targeting it
 - addressing Tickets
+- applicable Aspects
 - Tests
 - derived coverage summary
 
@@ -782,7 +785,11 @@ Ticket  --implements-> Feature
 Ticket  --addresses--> UserStory
 Test    --verifies---> Feature
 Test    --verifies---> UserStory
-Decision--governs----> Epic | Feature | UserStory
+Aspect  --applies_to--> Module | Epic | Feature | UserStory
+Ticket  --addresses---> Aspect
+Test    --verifies----> Aspect
+Artifact--verifies----> Aspect
+Decision--governs----> Epic | Feature | UserStory | Aspect | Ticket
 ```
 
 Existing generic graph mechanisms continue to own other relations such as `depends_on` and `blocks`.
