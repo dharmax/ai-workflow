@@ -204,10 +204,11 @@ The optional `completenessTarget` field is valid on:
 - Module;
 - Epic;
 - Feature;
-- UserStory;
-- Ticket.
+- UserStory.
 
 It expresses the desired engineering/product thoroughness for future processing. It does **not** claim the artifact currently meets that level.
+
+Ticket deliberately has no persisted completeness target. Ticket completion is its explicit acceptance contract; tickets inherit/run under the relevant Module/Epic/Feature/UserStory target or operation override.
 
 Current completeness remains derived from Product Coverage, acceptance evidence, tests and semantic review under the selected profile.
 
