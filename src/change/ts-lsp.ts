@@ -43,6 +43,23 @@ export interface LspLocation {
   range: LspRange;
 }
 
+export interface LspDocumentSymbol {
+  name: string;
+  kind: number;
+  range: LspRange;
+  selectionRange: LspRange;
+  children?: LspDocumentSymbol[];
+}
+
+export interface LspCallHierarchyItem {
+  name: string;
+  kind: number;
+  uri: string;
+  range: LspRange;
+  selectionRange: LspRange;
+  data?: unknown;
+}
+
 export interface LspPrepareRenameResult {
   range: LspRange;
   placeholder?: string;
@@ -134,6 +151,7 @@ export class TsLspClient {
         rootPath: this.projectRoot,
         capabilities: {
           textDocument: {
+            documentSymbol: { hierarchicalDocumentSymbolSupport: true },
             rename: { dynamicRegistration: false, prepareSupport: true },
             references: { dynamicRegistration: false },
             definition: { dynamicRegistration: false },
@@ -201,6 +219,24 @@ export class TsLspClient {
 
   fromUri(uri: string): string {
     return fileURLToPath(uri);
+  }
+
+  async getDocumentSymbols(filePath: string): Promise<LspDocumentSymbol[]> {
+    await this.ensureStarted();
+    if (!this.capabilities?.raw.documentSymbolProvider) throw new Error('TypeScript document symbols unavailable.');
+    return await this.connection!.sendRequest('textDocument/documentSymbol', {
+      textDocument: { uri: this.toUri(filePath) }
+    }) as LspDocumentSymbol[] || [];
+  }
+
+  async getIncomingCalls(filePath: string, position: LspPosition): Promise<Array<{ from: LspCallHierarchyItem; fromRanges: LspRange[] }>> {
+    await this.ensureStarted();
+    if (!this.capabilities?.callHierarchyProvider) throw new Error('TypeScript call hierarchy unavailable.');
+    const items = await this.connection!.sendRequest('textDocument/prepareCallHierarchy', {
+      textDocument: { uri: this.toUri(filePath) }, position
+    }) as LspCallHierarchyItem[] | null;
+    if (!items || items.length !== 1) throw new Error('Expected one exact call hierarchy target.');
+    return await this.connection!.sendRequest('callHierarchy/incomingCalls', { item: items[0] }) as Array<{ from: LspCallHierarchyItem; fromRanges: LspRange[] }> || [];
   }
 
   /**

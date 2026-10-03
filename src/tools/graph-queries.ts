@@ -10,8 +10,33 @@ import { registry, type ToolContext } from './registry.ts';
 import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
+import { getExactSymbolSource } from '../change/symbol-source.ts';
+import { getTsLspClient } from '../change/ts-lsp.ts';
+import { resolveCodeTarget } from '../change/target-resolver.ts';
 
 export function registerGraphTools() {
+  registry.register({
+    name: 'get_exact_callers',
+    description: 'Find exact TS/JS incoming calls using TypeScript call hierarchy.',
+    category: 'graph',
+    parameters: z.object({ filePath: z.string(), symbolName: z.string(), containerName: z.string().optional() }),
+    execute: async (params, ctx: ToolContext) => {
+      const client = getTsLspClient(ctx.projectRoot);
+      const target = await resolveCodeTarget({ type: 'symbol', ...params }, ctx.store, client, ctx.projectRoot);
+      return { exact: true, source: 'typescript-lsp', target, callers: await client.getIncomingCalls(target.filePath, target.position) };
+    }
+  });
+  registry.register({
+    name: 'get_exact_references',
+    description: 'Find exact TS/JS references using TypeScript LSP; graph call edges are heuristic discovery only.',
+    category: 'graph',
+    parameters: z.object({ filePath: z.string(), symbolName: z.string(), containerName: z.string().optional() }),
+    execute: async (params, ctx: ToolContext) => {
+      const client = getTsLspClient(ctx.projectRoot);
+      const target = await resolveCodeTarget({ type: 'symbol', ...params }, ctx.store, client, ctx.projectRoot);
+      return { exact: true, source: 'typescript-lsp', target, references: await client.getReferences(target.filePath, target.position) };
+    }
+  });
   registry.register({
     name: 'find_symbol',
     description: 'Look up AST symbols across the codebase by exact name, fuzzy substring, regex, or kind filter with automatic freshness sync.',
@@ -346,12 +371,25 @@ export function registerGraphTools() {
         };
       }
 
+      try {
+        const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
+        return {
+          filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
+          startLine: exact.range.start.line + 1, endLine: exact.range.end.line + 1,
+          lineCount: exact.code.split('\n').length, code: exact.code
+        };
+      } catch (error) {
+        if (/\.[cm]?[jt]sx?$/.test(fullPath)) throw error;
+      }
+
       const startLine = (sym as any).line ? Math.max(1, (sym as any).line) : 1;
       const sliceLines = lines.slice(startLine - 1, startLine + 49); // 50-line window
 
       return {
         filePath,
         symbolName: (sym as any).title || symbolName,
+        exact: false,
+        source: 'graph-excerpt',
         startLine,
         endLine: startLine + sliceLines.length - 1,
         lineCount: sliceLines.length,

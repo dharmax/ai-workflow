@@ -21,7 +21,7 @@ import { Ticket } from './graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
-import { indexCodebase } from './graph/indexer.ts';
+import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { loadConfig, saveConfig } from './config.ts';
 
@@ -743,8 +743,9 @@ Commands:
 
   if (lower === 'sync') {
     const imp = await importProjections(session.store, session.projectRoot);
+    const freshness = await ensureAstFresh(session.store, session.projectRoot);
     const exp = await exportProjections(session.store, session.projectRoot);
-    return { output: `Reconciled ${imp.importedChanges} disk change(s). Exported ${exp.exportedFiles.length} projection(s): ${exp.exportedFiles.join(', ')}.` };
+    return { output: `Reconciled ${imp.importedChanges} disk change(s). Code index: ${freshness.updatedFiles.length} updated, ${freshness.deletedFiles.length} deleted. Exported ${exp.exportedFiles.length} projection(s): ${exp.exportedFiles.join(', ')}.` };
   }
 
   if (lower === 'diff') {
@@ -1034,7 +1035,7 @@ Commands:
 
     const slice = await registry.execute('get_symbol_source', { filePath: args.filePath, symbolName: args.symbolName }, ctx);
     if (!slice.code) return { output: `Symbol '${args.symbolName}' not found in ${args.filePath}.` };
-    return { output: `// ${args.filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
+    return { output: `// ${slice.exact ? 'exact' : 'excerpt'} ${args.filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
   }
 
   if (lower === 'outline' || lower.startsWith('outline ')) {

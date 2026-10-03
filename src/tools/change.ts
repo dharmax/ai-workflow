@@ -41,6 +41,7 @@ const ChangeTargetSchema = z.discriminatedUnion('type', [
 ]);
 
 const ChangeRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('replace_symbol'), target: ChangeTargetSchema, replacement: z.string().min(1), productContextEntityId: z.string().optional() }),
   z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1) }),
   z.object({
     action: z.literal('rename_symbol'),

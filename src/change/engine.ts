@@ -18,7 +18,8 @@ import { getTsLspClient, TsLspClient } from './ts-lsp.ts';
 import { getTs6RefactorClient, Ts6RefactorClient } from './ts6-refactor.ts';
 import { resolveCodeTarget } from './target-resolver.ts';
 import { getProductImpact, type ProductImpact } from '../product/impact.ts';
-import { ensureAstFresh, indexSingleFile } from '../graph/indexer.ts';
+import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
+import { getExactSymbolSource } from './symbol-source.ts';
 import { SymbolNode, Ticket, Decision } from '../graph/ontology.ts';
 import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
@@ -219,6 +220,10 @@ export class CausalChangeEngine {
    * Previews a change request without mutating disk.
    */
   async previewChange(request: ChangeRequest): Promise<ChangePreview> {
+    return withAstSnapshot(() => this.buildPreview(request));
+  }
+
+  private async buildPreview(request: ChangeRequest): Promise<ChangePreview> {
     if (request.action === 'product_change') return this.previewProductChange(request);
     await ensureAstFresh(this.store, this.projectRoot);
 
@@ -237,6 +242,24 @@ export class CausalChangeEngine {
     const originalHashes: Record<string, string> = {};
 
     switch (request.action) {
+      case 'replace_symbol': {
+        try {
+          resolvedTarget = await resolveCodeTarget(request.target, this.store, this.lspClient, this.projectRoot);
+          const qualified = resolvedTarget.containerName ? `${resolvedTarget.containerName}.${resolvedTarget.symbolName}` : resolvedTarget.symbolName;
+          const exact = await getExactSymbolSource(this.projectRoot, resolvedTarget.filePath, qualified, this.lspClient);
+          // LSP SymbolKind: Method=6, Function=12. Other declarations need their own acceptance case.
+          if (exact.kind !== 6 && exact.kind !== 12) throw new Error('Replacement supports only known functions/methods.');
+          resolvedTarget.range = exact.range;
+          mutations.push({ kind: 'workspace_edit', source: 'typescript-lsp', edit: {
+            changes: { [resolvedTarget.uri]: [{ range: exact.range, newText: request.replacement }] }
+          } });
+          affectedFilesSet.add(resolvedTarget.filePath);
+          summary = `Replace '${qualified}' using its exact TypeScript declaration range.`;
+        } catch (error) {
+          return this.createBlockedPreview(request, String(error), warnings, productImpact);
+        }
+        break;
+      }
       case 'rename_symbol': {
         try {
           resolvedTarget = await resolveCodeTarget(request.target, this.store, this.lspClient, this.projectRoot);

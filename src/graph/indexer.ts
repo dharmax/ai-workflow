@@ -4,6 +4,7 @@
  */
 
 import path from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { parseIndexedFile } from '@dharmax/codebase-parser';
@@ -329,7 +330,29 @@ export async function removeFileFromIndex(store: WorkflowStore, relPath: string)
  * Checks whether any files on disk were created, modified, or deleted since last indexed,
  * and surgically updates only the affected files in milliseconds.
  */
-export async function ensureAstFresh(
+const freshnessScope = new AsyncLocalStorage<Map<WorkflowStore, Map<string, Promise<FreshnessResult>>>>();
+
+/** Reuse one reconciliation inside a bounded, read-only operation. Start a new scope after edits. */
+export function withAstSnapshot<T>(operation: () => Promise<T>): Promise<T> {
+  return freshnessScope.run(new Map(), operation);
+}
+
+export function ensureAstFresh(
+  store: WorkflowStore,
+  rootDir: string = store.root,
+  options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
+): Promise<FreshnessResult> {
+  const scope = freshnessScope.getStore();
+  if (!scope || options?.force) return reconcileAst(store, rootDir, options);
+  let roots = scope.get(store);
+  if (!roots) { roots = new Map(); scope.set(store, roots); }
+  const root = path.resolve(rootDir);
+  let pending = roots.get(root);
+  if (!pending) { pending = reconcileAst(store, rootDir, options); roots.set(root, pending); }
+  return pending;
+}
+
+async function reconcileAst(
   store: WorkflowStore,
   rootDir: string = store.root,
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
@@ -501,16 +524,19 @@ export async function indexExternalDependencies(store: WorkflowStore, rootDir: s
             }
 
             const modName = `@external/${depName}`;
-            const modEntity = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
-              id: `mod:${modName}`,
-              title: modName,
-              path: modName,
-              status: 'implemented'
-            });
-
             for (const fileItem of filesToIndex) {
-              const parsed = parseIndexedFile({ filePath: fileItem.relPath, content: fileItem.content });
               const fileStat = existsSync(fileItem.fullPath) ? await stat(fileItem.fullPath) : { size: fileItem.content.length, mtimeMs: Date.now() };
+              const existing = await store.getEntity<FileNode & { mtime?: number; size?: number; metadata?: { externalPath?: string } }>(fileItem.relPath, FileNode.dcr);
+              if (existing?.mtime === fileStat.mtimeMs && existing.size === fileStat.size && existing.metadata?.externalPath === fileItem.fullPath) continue;
+              const parsed = parseIndexedFile({ filePath: fileItem.relPath, content: fileItem.content });
+              const modEntity = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr)
+                || await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
+                  id: `mod:${modName}`, title: modName, path: modName, status: 'implemented'
+                });
+              if (existing) {
+                const oldSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: fileItem.relPath });
+                for (const symbol of oldSymbols) await store.deleteEntity(symbol.id);
+              }
 
               const fileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
                 id: fileItem.relPath,

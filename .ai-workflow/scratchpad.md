@@ -1,0 +1,2 @@
+
+- **[2026-10-03T08:13:14.345Z]**: {"gate":"AIWF-PRIMITIVE-TRUTH","runtime":"1.3.14","typescript":"7.0.2","measurements":[{"tool":"find_symbol","ms":2790.41,"bytes":476},{"tool":"get_symbol_source","ms":367.1,"bytes":870},{"tool":"get_exact_references","ms":41.26,"bytes":4443},{"tool":"get_exact_callers","ms":26.66,"bytes":3992}],"unchangedReads":{"times":[16.26,12.79,12.19],"writes":0},"baseline":"Before fix: symbol/slice calls about 2.5s, fixed 50-line excerpts, concurrent external indexing optimistic-lock errors. No token-savings claim."}

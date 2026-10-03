@@ -95,6 +95,7 @@ export type ChangeTarget =
 
 export type ChangeRequest =
   | { action: 'product_change'; mutations: ProductMutation[] }
+  | { action: 'replace_symbol'; target: ChangeTarget; replacement: string; productContextEntityId?: string }
   | {
       action: 'rename_symbol';
       target: ChangeTarget;

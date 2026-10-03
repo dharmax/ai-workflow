@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
-import { indexCodebase } from './graph/indexer.ts';
+import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { startShell } from './shell.ts';
 import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -20,6 +20,8 @@ import { initProject, installGlobalBinary, configureMcp, setupTypeScript } from 
 import { loadConfig, saveConfig } from './config.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
 import { KnowledgeBaseClient } from './kb/client.ts';
+import { closeAllTsLspClients } from './change/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from './change/ts6-refactor.ts';
 
 const args = process.argv.slice(2);
 const command = args[0] || (process.stdin.isTTY ? 'shell' : 'help');
@@ -38,8 +40,10 @@ async function main() {
       console.log(`🔄 Synchronizing AST+ Graph with Markdown Projections in ${root}...`);
       const store = getStore();
       const imp = await importProjections(store, root);
+      const freshness = await ensureAstFresh(store, root);
       const exp = await exportProjections(store, root);
       console.log(`✅ Reconciled ${imp.importedChanges} disk change(s).`);
+      console.log(`✅ Code index: ${freshness.updatedFiles.length} updated, ${freshness.deletedFiles.length} deleted.`);
       console.log(`✅ Exported ${exp.exportedFiles.length} file(s): ${exp.exportedFiles.join(', ')}`);
       break;
     }
@@ -731,7 +735,7 @@ async function main() {
         console.error(`Symbol '${symbolName}' not found in ${filePath}.`);
         process.exit(1);
       }
-      console.log(`// ${filePath}:${slice.startLine}-${slice.endLine}`);
+      console.log(`// ${slice.exact ? 'exact' : 'excerpt'} ${filePath}:${slice.startLine}-${slice.endLine}`);
       console.log(slice.code);
       break;
     }
@@ -1169,7 +1173,10 @@ Configuration & Execution:
   }
 }
 
-main().catch(err => {
+main().finally(async () => {
+  await closeAllTsLspClients();
+  await closeAllTs6RefactorClients();
+}).catch(err => {
   console.error(`Fatal: ${err.message}`);
   process.exit(1);
 });
