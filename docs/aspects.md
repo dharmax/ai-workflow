@@ -163,9 +163,23 @@ process_story/process_feature/process_epic reconcile existing Aspects, suggest m
 
 Module-level Aspects influence work targeting/modifying that Module.
 
-## 10. Public operations
+## 10. Entity API and public operations
 
-First-class deterministic surface:
+`Aspect` is a Semantika entity class and owns Aspect-local behavior.
+
+Intended in-process shape:
+
+~~~ts
+await aspect.applyTo(scope)
+await aspect.removeFrom(scope)
+await aspect.assess(scope)
+~~~
+
+Ticket/Feature/UserStory/Epic/Module entities expose their own applicable-Aspect query where that behavior is tightly tied to their graph neighborhood, for example `ticket.applicableAspects()`.
+
+Cross-scope resolution may use one small shared helper internally; the helper is not the public domain model.
+
+MCP/shell exposes thin deterministic aliases:
 
 ~~~
 create_aspect
@@ -178,7 +192,9 @@ get_applicable_aspects
 assess_aspects
 ~~~
 
-Normal high-level artifact operations call these internally as needed. Callers should not orchestrate them manually in the ordinary path.
+Normal high-level artifact operations call the entity methods internally as needed. Callers should not orchestrate low-level Aspect operations manually in the ordinary path.
+
+Do not create an `AspectService` or `AspectManager`.
 
 ## 11. Safe mutation
 
