@@ -1,10 +1,12 @@
-# 🏛️ AI-Workflow 2.0 (Causal Context & Engineering OS)
+# AI-Workflow 2.0 — Artifact-First Engineering
 
-A Bun-first, deterministic Context Engine and Causal Engineering OS. AI-Workflow represents entire software systems—source code AST symbols, architectural decisions (ADRs), module boundaries, tickets, and lessons—in a unified semantic knowledge graph (`@dharmax/semantika`), exposed through **stdio MCP**, an **interactive dual-nature REPL shell**, and agent **skills**.
+AIWF is a Bun-first engineering system built on a durable semantic project graph. Humans and coding agents delegate **Tickets and Product Intent artifacts** to AIWF; AIWF performs bounded investigation, preparation, safe implementation, testing, repair, acceptance verification, and evidence recording. Exact graph/code/change/test primitives remain available for deliberate drill-down.
+
+The graph is backed by `@dharmax/semantika` and exposed through CLI/shell, stdio MCP, and the installed AIWF skill.
 
 ---
 
-## Delegate artifact work first
+## Start here: delegate artifact work
 
 ```bash
 aiwf investigate TICKET-ID
@@ -24,18 +26,19 @@ Completeness overrides are temporary. Remember a target explicitly with `complet
 
 **Verified limits:** controlled arithmetic resolution passed with the configured local model. Broad program Tickets reached timeout/step limits and required explicit fallback review. Program Epic processing with a reviewed existing-layer proposal and independent auto Critic created no ceremonial artifacts. These are measured capabilities, not a claim that every arbitrary task resolves autonomously. Exact symbol/graph/refactor/test primitives remain available for drill-down and actual blockers.
 
-## ✨ Core Pillars
+## Architecture in one minute
 
-1. **AST+ Semantic Graph (Semantika)**: Everything passes through the graph. Code symbols, classes, files, modules, Kanban cards, and architectural decisions are typed entities connected by semantic predicates (`contains`, `implements`, `modifies`, `depends_on`).
-2. **Deterministic-First Tooling (<5ms, 0 Tokens)**: 20+ zero-token domain facilities for atomic ticket leases, AST symbol search, surgical slicing, blast radius estimation, and block patching.
-3. **Dual-Nature Interactive REPL**: Terminal shell with sub-5ms deterministic command fast-paths, tab auto-completion, dynamic cognitive mode switching (`/design`, `/dev`, `/triage`, `/product`), and grounded offline fallback.
-4. **Frictionless Setup & Discovery**: Zero-config project onboarding (`aiwf init`), global CLI symlinking (`aiwf setup`), automated MCP host configuration (Antigravity IDE, Claude Code, Cursor), and comprehensive diagnostics (`aiwf doctor`).
-5. **Bi-Directional Markdown Projections**: Obsidian Kanban (`kanban.md`), epics (`epics.md`), features (`features.md`), user stories (`user-stories.md`), modules (`modules.md`), and ADRs (`decisions.md`) sync bi-directionally with SQLite with active lease preservation.
-6. **JIT Codelet Compiler & Promotion**: Synthesizes isolated, tested ESM routines and promotes verified codelets into live tools callable by human operators and AI agents alike.
+1. **Artifact operations are the normal interface.** `Ticket.investigate()`, `Ticket.prepare()`, `Ticket.resolve()`, and `Epic/Feature/UserStory.process()` own the engineering lifecycle.
+2. **Primitives are the hands underneath.** Exact source/symbol intelligence, graph traversal, safe preview/apply mutation, tests, Git, and Product Intent primitives remain directly callable.
+3. **Truth is evidence-backed.** Completion requires authored acceptance plus material Aspect verification. Ambiguity returns `needs_input`; a real execution/evidence blocker returns `blocked`.
+4. **Cognition is bounded.** Deterministic evidence comes first; System-1 may rank optional candidates; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools.
+5. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
+
+For semantics, read `docs/artifact-operations.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### 1. Global Setup (Frictionless)
 
@@ -50,7 +53,7 @@ This single command:
 - Symlinks the executable into `~/.local/bin/aiwf` with executable permissions.
 - Configures the MCP server in **Antigravity IDE** (`~/.config/Antigravity IDE/User/mcp_config.json`).
 - Configures the MCP server in **Antigravity CLI** (`~/.gemini/config/mcp_config.json`).
-- Exports 30+ JSON tool schemas into `~/.gemini/antigravity-cli/mcp/ai-workflow/` for lazy loading.
+- Exports MCP tool schemas into `~/.gemini/antigravity-cli/mcp/ai-workflow/` for lazy loading.
 
 ### 2. Project Initialization (`aiwf init`)
 
@@ -130,7 +133,7 @@ aiwf <command> [options]
 | `slice <file> <sym>` | Extract exact surgical code slice of a function or class | `aiwf slice src/graph/store.ts formatId` |
 | `outline <file>` | Print source-ordered AST symbol outline (functions, classes, interfaces) | `aiwf outline src/graph/ontology.ts` |
 | `blast <target>` | Analyze blast radius, affected files, and recommended tests | `aiwf blast src/graph/store.ts` |
-| `debug <target>` | Diagnose symbols, stack traces, or errors with snippet & blast analysis | `aiwf debug src/graph/indexer.ts:280` |
+| `debug <target>` | Low-level diagnostic drill-down for a code target/error; not an artifact-resolution lifecycle | `aiwf debug src/graph/indexer.ts:280` |
 | `index` | Re-index codebase AST symbols and modules into graph | `aiwf index` |
 | `patch <file> <s> <r>` | Apply deterministic AST block patch via block-patcher | `aiwf patch src/util.ts "oldCode" "newCode"` |
 | `scaffold <file> [desc]` | Scaffold typed source file paired with unit test harness | `aiwf scaffold src/service/auth.ts "JWT auth"` |
@@ -162,7 +165,7 @@ Run `aiwf` or `aiwf shell` to enter the interactive console:
 aiwf [DEV] > help
 ```
 
-- **Instant Fast-Paths (<5ms)**: `status`, `diff`, `next`, `claim <id>`, `release <id>`, `tickets`, `symbol <name>`, `slice <file> <sym>`, `outline <file>`, `blast <target>`, `index`, `doctor`, `audit`, `metrics`, `sync`.
+- **Deterministic fast paths**: `status`, `diff`, `next`, `claim <id>`, `release <id>`, `tickets`, `symbol <name>`, `slice <file> <sym>`, `outline <file>`, `blast <target>`, `index`, `doctor`, `audit`, `metrics`, `sync`.
 - **Tab Auto-Completion**: Press `<Tab>` to cycle through all commands.
 - **On-the-fly JavaScript Execution**: Type `eval <js-code>` to run queries against `store`, `sp`, `registry`, or `ctx` directly.
 - **Dynamic Cognitive Modes**:
@@ -206,6 +209,8 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 ```
 
 ### Exposed MCP Tools
+- **Artifact operations — preferred:** `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, `process_story`.
+- **Artifact policy:** completeness target/query operations and consistent completeness/depth/maxArtifacts/critic controls.
 - **`execute_shell_wish`**: Autonomous coding engine with auto-mode switching.
 - **Product Intent Graph**: `create_epic`, `get_epic`, `list_epics`, `update_epic`, `create_feature`, `get_feature`, `list_features`, `update_feature`, `create_user_story`, `get_user_story`, `list_user_stories`, `update_user_story`, `link_product`, `unlink_product`, `get_product_coverage`, `get_product_impact`. Canonical relations: Epic `targets` Feature/Story, Feature `contains` Story, Epic `contains` Ticket, Ticket `implements` Feature, Ticket `addresses` Story, Test `verifies` Feature/Story, Decision `governs` Epic/Feature/Story.
 - **AST Graph**: `find_symbol`, `get_symbol_source`, `get_file_outline`, `analyze_blast_radius`, `estimate_token_budget`.
@@ -215,54 +220,26 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 
 ---
 
-## 📁 Repository Structure
+## Documentation map
 
-```
-ai-workflow/
-├── src/
-│   ├── graph/
-│   │   ├── types.ts          # Semantic types, claims, lanes, and metrics
-│   │   ├── ontology.ts       # Semantika entity descriptors & predicates
-│   │   ├── store.ts          # WorkflowStore with SQLite persistence
-│   │   ├── indexer.ts        # AST symbol extraction and module mapping
-│   │   └── projections.ts    # Bi-directional Markdown/Kanban sync
-│   ├── tools/
-│   │   ├── registry.ts       # Type-safe ToolRegistry with Zod schemas
-│   │   ├── tickets.ts        # Atomic leases, recommendations, transitions
-│   │   ├── graph-queries.ts  # Symbol search, slicing, file outlines, blast radius
-│   │   ├── git.ts            # Git porcelain status, diffs, hotspots
-│   │   ├── os.ts             # Command execution, platform detection
-│   │   ├── compiler.ts       # JIT codelet compiler, promotion, block-patcher
-│   │   ├── test-runner.ts    # Target resolution, failure triage
-│   │   ├── planning.ts       # ADR proposals, scratchpad ledger
-│   │   ├── scripting.ts      # Direct Bun JavaScript eval
-│   │   ├── bucket-router.ts  # Two-tier intent classification
-│   │   └── index.ts          # Tools aggregator and initializer
-│   ├── actor/
-│   │   └── engine.ts         # WorkflowActor cognitive loop & mode switcher
-│   ├── doctor.ts             # Comprehensive environment & subsystem diagnostics
-│   ├── setup.ts              # Frictionless project init & global MCP configuration
-│   ├── config.ts             # Configuration manager (.ai-workflow/config.json)
-│   ├── mcp.ts                # Stdio MCP server & JSON schema generator
-│   ├── shell.ts              # Terminal REPL with <5ms fast-paths & completer
-│   └── cli.ts                # Unified CLI entrypoint
-├── tests/
-│   ├── graph.test.ts         # Graph persistence, relations, leases, sync
-│   ├── tools.test.ts         # Tool execution, prioritization, negative checks
-│   ├── compiler.test.ts      # Codelet compilation, promotion, block-patching
-│   ├── actor.test.ts         # Mode switching, ReAct loop, pubsub telemetry
-│   ├── mcp.test.ts           # MCP tool listing, tool calls, error handling
-│   ├── shell.test.ts         # Shell fast-paths, mode switching, completer
-│   └── setup.test.ts         # Project initialization, doctor, configuration
-└── skills/
-    └── ai-workflow/
-        ├── SKILL.md          # Skill descriptor and tool reference for agents
-        └── AGENTS.md         # Operational guidelines and mode specs
-```
+| Document | Authority |
+| --- | --- |
+| `README.md` | Human entry point: what AIWF is and how to start |
+| `skills/ai-workflow/SKILL.md` | Operational instructions for external coding agents |
+| `skills/ai-workflow/AGENTS.md` | Compact invariant/discipline sheet |
+| `docs/artifact-operations.md` | Artifact lifecycle, completeness, depth, Critic and interaction semantics |
+| `docs/product-intent-graph.md` | Product/work intent model, relations, coverage and impact |
+| `docs/aspects.md` | Cross-cutting intent and Aspect evidence |
+| `docs/causal-change-engine.md` | Safe preview/apply mutation for code and Product Intent |
+| `docs/performance-metrics.md` | Correlated operation/cognition measurement |
+| `docs/product-change.md` | Product Intent mutation through the safe change path |
+| `docs/artifact-operations-plan.md` | Completed implementation program; historical rationale and acceptance record |
+
+Do not treat the historical program plan as current work. Current behavior is defined by the implemented design docs, live schemas/help, and repository state.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 All unit tests validate state mutations, boundary conditions, and negative failure paths with zero mock theater:
 
@@ -278,6 +255,6 @@ bun x tsc --noEmit
 
 ---
 
-## 📜 License
+## License
 
 MIT License. Designed and built with the Google DeepMind Antigravity Protocol.
