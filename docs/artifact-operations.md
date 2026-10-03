@@ -184,7 +184,250 @@ It does not persist those semantic enrichments itself. A mutating operation appl
 
 The investigation dossier itself is derived output. Do not create a shadow narrative state model merely to cache an LLM answer.
 
-## 3. First-class public operations
+## 3. Operation policy: completeness, critic and depth
+
+Artifact operations need a small explicit policy. This is not a workflow framework.
+
+Conceptually:
+
+~~~
+interface ArtifactOperationOptions {
+  completeness?: CompletenessLevel
+  depth?: number | 'all'
+  critic?: ArtifactCritic | 'auto' | 'none'
+}
+~~~
+
+In-process callers may inject an ArtifactCritic object directly.
+
+Shell/MCP cannot transport executable objects, so they select a configured critic by ID:
+
+~~~
+aiwf process epic EPIC-X --completeness production --depth 2 --critic strict
+~~~
+
+The transport-level value is resolved to an ArtifactCritic by AIWF. Do not create a generic plugin/registry framework merely for this lookup.
+
+Every operation result reports the effective policy actually used:
+
+~~~
+effectivePolicy:
+  completeness: advanced
+  completenessSource: feature:FEAT-X
+  depth: 2
+  critic: strict
+~~~
+
+This makes behavior inspectable and reproducible.
+
+### Completeness is a target, never persisted achievement
+
+Persist only the desired target.
+
+Do not persist "this Feature is production-complete" or "current completeness=advanced". That would rot just like persisted coverage.
+
+Use four ordered initial targets:
+
+~~~
+poc < functional < advanced < production
+~~~
+
+Their meaning is qualitative and domain-sensitive, not a quota of Stories or tests.
+
+- poc — prove the core concept/happy path with the minimum meaningful acceptance and verification needed to establish viability.
+- functional — cover the main intended behavior and important failure paths with useful acceptance and verification.
+- advanced — cover meaningful breadth, edge cases, integration/recovery and relevant non-functional concerns.
+- production — cover the known accepted behavior plus robustness and relevant security/performance/observability/migration/documentation concerns, with strong verification.
+
+No target requires ceremonial Stories or arbitrary counts.
+
+A technical Feature/Epic may still have zero UserStories at production level when Stories add no semantic value.
+
+### Persistent target and inheritance
+
+Add an optional completenessTarget to durable work/product scopes where it is meaningful:
+
+~~~
+Module
+Epic
+Feature
+UserStory
+Ticket
+~~~
+
+Also add a project default in AIWF project config.
+
+Effective completeness resolution:
+
+1. explicit operation override;
+2. explicit target on the artifact;
+3. inherited target from defined semantic work scopes;
+4. project default.
+
+Inheritance is intentionally constrained rather than generic graph traversal:
+
+- UserStory may inherit from its containing Feature(s); strictest inherited target wins.
+- Ticket may inherit from parent Ticket(s), containing Epic(s), implemented Feature(s), addressed UserStory(ies), and explicitly targeted Module(s); strictest inherited target wins.
+- Feature does not inherit from targeting Epics: Epics do not own durable Features.
+- Epic and Module use their own explicit target or project default.
+
+An explicit target on the artifact overrides inherited targets, including a deliberate lower target such as a POC spike inside production work.
+
+An operation-level override applies to that run and its recursive descendants. It is not persisted unless the caller explicitly asks to remember it.
+
+Provide one small deterministic mutation/query surface for target management rather than hiding it in natural-language state:
+
+~~~
+set_completeness_target(entityId, level | null)
+get_completeness_target(entityId)  // explicit + effective + source
+~~~
+
+### Derived completeness assessment
+
+Structural Product Coverage remains what it is today: deterministic causal/graph evidence.
+
+Do not overload Coverage with semantic maturity.
+
+Artifact operations may derive a CompletenessAssessment against the effective target:
+
+~~~
+target
+structuralCoverage
+knownGaps[]
+meetsTarget
+evidence
+~~~
+
+meetsTarget means no known unmet requirements under the selected target and available evidence. It is not a guarantee that unknown requirements do not exist.
+
+A higher target may reveal additional required Stories/Tickets/tests/docs/operational work. Lowering the target never deletes already-valid work.
+
+Raising a target is additive and idempotent: poc → production means find and fill the additional known gaps, not regenerate the artifact tree.
+
+### Recursion depth is independent of completeness
+
+Completeness answers how thorough. Depth answers how far down the artifact/work graph this call should continue.
+
+Do not conflate them.
+
+Use:
+
+~~~
+depth = 0     current artifact only; analyze/review, no recursive child processing
+depth = 1     process immediate next-level artifacts
+depth = N     recurse at most N artifact-expansion/decomposition edges
+depth = all   continue through the reachable work tree, subject to leases/blockers/safety
+~~~
+
+Defaults:
+
+- investigate_ticket: 0;
+- prepare_ticket: 1;
+- process_story/feature/epic: 1;
+- resolve_ticket: all, because resolve means end-to-end unless explicitly capped.
+
+Depth counts artifact processing/decomposition edges, not individual code/tool calls.
+
+If requested depth is reached while unresolved descendants remain, the operation itself may return complete for the requested scope, but it must report artifactComplete=false, remaining IDs, and stoppedAtDepth; it must not mark the parent Ticket verified.
+
+Cycle detection and existing dependency ordering rules still apply.
+
+### Critic
+
+Generated Product Intent/work structure should not be trusted merely because the producer returned valid JSON.
+
+Use a small domain-level critic contract:
+
+~~~
+interface ArtifactCritic {
+  id: string
+  review(input: CriticInput): Promise<CriticResult>
+}
+
+type CriticResult =
+  | { verdict: 'accept'; findings?: Finding[] }
+  | { verdict: 'revise'; findings: Finding[] }
+  | { verdict: 'needs_input'; required: RequiredInput[] }
+  | { verdict: 'reject'; findings: Finding[] }
+~~~
+
+A critic may be an independent AI reviewer, deterministic rules, or a small composition of both supplied behind one Critic object.
+
+The critic is read-only. It never mutates Product Intent/work state.
+
+Review input includes parent artifact/intent, relevant graph neighborhood, proposed Features/Stories/Tickets/relations, effective completeness target, current recursion depth, and acceptance/coverage evidence.
+
+The critic checks especially:
+
+- omission against requested completeness;
+- duplicate/redundant artifacts;
+- bad abstraction level;
+- ceremonial or unnecessary Stories/Tickets;
+- missing acceptance criteria;
+- inappropriate reuse/create decisions;
+- incoherent dependencies;
+- mismatch with Decisions/constraints;
+- overproduction/story explosion.
+
+A revise verdict feeds bounded critique back to the producer for another proposal pass.
+
+A needs_input verdict uses the ordinary operation interaction contract.
+
+A reject verdict means the proposal is unusable as produced. After a small bounded number of regeneration attempts, fail the operation with the critic findings; do not silently apply a weaker result.
+
+### Critic selection
+
+Critic selection is explicit and overridable.
+
+- in-process API: pass an ArtifactCritic object;
+- MCP/shell: pass a configured critic ID;
+- none: explicit opt-out;
+- auto: AIWF chooses the normal critic policy from the effective completeness target and operation type.
+
+Do not hard-code model names into artifact semantics.
+
+The default auto policy becomes stricter as completeness rises:
+
+- poc: lightweight independent review;
+- functional: independent semantic review;
+- advanced: stronger independent review;
+- production: strong independent review, with a final cross-level review when recursion produced multiple layers.
+
+Independent means a separate review call/context. At advanced/production level, do not treat the producer's own self-critique as sufficient.
+
+System-1 may cheaply classify likely critique dimensions or rank suspected problems. It is not the Critic and cannot accept a proposal.
+
+### Review-before-apply invariant
+
+For structure-producing operations:
+
+~~~
+derive context
+→ produce proposal
+→ Critic review
+→ revise / needs_input if required
+→ deterministic validation
+→ apply
+~~~
+
+Do not create Product Intent/Ticket children first and critique them afterward.
+
+Existing propose/apply boundaries are useful machinery for this.
+
+### Policy memory
+
+Only policy that describes durable project intent is remembered automatically through explicit state:
+
+- project default completeness;
+- artifact completenessTarget.
+
+Critic choice and recursion depth are execution choices and are not silently persisted per artifact.
+
+If later usage proves persistent critic/depth policy useful, add it from evidence rather than preemptively growing the graph.
+
+---
+
+## 4. First-class public operations
 
 ### investigate_ticket(ticketId)
 
@@ -364,7 +607,7 @@ It must preserve the existing invariant that an Epic targets durable capabilitie
 
 Existing propose_epic_structure / apply_epic_structure may be reused internally while useful. They should no longer define the long-term public abstraction.
 
-## 4. Shared operation control contract
+## 5. Shared operation control contract
 
 Keep the cross-operation control contract tiny.
 
@@ -403,7 +646,7 @@ durable Decision when the answer truly is a project decision
 
 This is declarative missing state, not an arbitrary "write this JSON path" language.
 
-## 5. Shell and MCP interaction
+## 6. Shell and MCP interaction
 
 The same operation implementation serves both.
 
@@ -428,7 +671,7 @@ If it does not know, it asks its user.
 
 The caller should not have to reconstruct AIWF's investigation or implementation workflow itself.
 
-## 6. Ticket execution contract
+## 7. Ticket execution contract
 
 A Ticket needs a real completion contract.
 
@@ -471,7 +714,7 @@ A temporary operation blocker such as another active lease does not automaticall
 
 One deterministic Ticket-state owner must enforce these combinations. Artifact operations must not hand-write lane/status pairs.
 
-## 7. Small graph extensions
+## 8. Small graph extensions
 
 Only two relation corrections are justified now:
 
@@ -488,7 +731,7 @@ Do not add a new predicate.
 
 Do not add Test-verifies-Ticket yet. Verification evidence can be returned/recorded through existing tests, ticket lifecycle, artifacts, and product verification. Add that relation only if real usage proves the graph cannot represent needed evidence cleanly.
 
-## 8. Primitive quality bar
+## 9. Primitive quality bar
 
 Artifact operations are only as good as their hands.
 
@@ -526,7 +769,7 @@ Add the smallest exact symbol-edit capability necessary for ordinary function/me
 
 Do not build a general AST editing framework.
 
-## 9. Internal cognition and evidence
+## 10. Internal cognition and evidence
 
 The deterministic operation owns lifecycle.
 
@@ -555,7 +798,7 @@ No System-1 result becomes canonical graph truth without deterministic confirmat
 
 A useful asymmetry: System-1 may cheaply flag a likely problem and trigger inspection, but terminal success must be proven by deterministic evidence and/or the stronger semantic verifier required by the acceptance criterion.
 
-## 10. Cognition / model policy
+## 11. Cognition / model policy
 
 Use System-1 aggressively for non-generative semantic decisions, but never confuse cheap classification with engineering authority.
 
@@ -585,7 +828,7 @@ Epic processing should normally use stronger-than-minimal reasoning even when Sy
 
 A stronger model should receive a small prepared problem, not compensate for poor retrieval with a giant repository dump.
 
-## 11. Public surface priority
+## 12. Public surface priority
 
 Once proven, shell/MCP/skills should teach callers this order:
 
@@ -600,7 +843,7 @@ Primitive tools remain available for explicit inspection, debugging and unusual 
 
 Do not remove or hide primitives during the first proof.
 
-## 12. Non-goals
+## 13. Non-goals
 
 Do not build:
 
@@ -615,7 +858,7 @@ Do not build:
 - a new context/RAG database;
 - external-agent-specific behavior.
 
-## 13. Success criterion
+## 14. Success criterion
 
 The decisive test is not whether AIWF helps Codex navigate.
 
