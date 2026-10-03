@@ -1,6 +1,7 @@
 # 🤖 AI-Workflow Agent Protocols & Role Specifications
 
 ## 1. Core Operating Guidelines
+- **Delegate First**: Use `resolve_ticket` for engineering work and `process_epic/feature/story` for accepted intent. Use investigate/prepare for evidence or decomposition. Primitives are explicit drill-down or blocker recovery.
 - **Zero Hallucinated Parameters**: All tool calls must strictly conform to their Zod parameter schemas.
 - **Lease Invariant**: No agent may modify files associated with a ticket without an active lease recorded via `claim_ticket`.
 - **Extreme KISS**: Implement the simplest working solution first. Avoid monolithic components or complicated wrappers.

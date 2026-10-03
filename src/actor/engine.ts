@@ -13,6 +13,7 @@ import type { WorkflowStore } from '../graph/store.ts';
 export { pubsub };
 import { registry, type ToolRegistry, type ToolContext } from '../tools/registry.ts';
 import { bucketRouter } from '../tools/bucket-router.ts';
+import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig, resolveCloudCredentials } from '../config.ts';
 import { ModelRadar } from './radar.ts';
 import { analyzeBlastRadius } from '../tools/graph-queries.ts';
@@ -256,6 +257,13 @@ export class WorkflowActor {
     };
 
     const events: ActorStepEvent[] = [];
+
+    const delegation = artifactCommand(rawText.trim().split(/\s+/));
+    if (delegation) {
+      const result = await registry.execute(delegation.tool, delegation.args, ctx);
+      const answer = JSON.stringify(result, null, 2);
+      return { mode: activeMode, stepsCount: 1, answer, events: [{ step: 1, mode: activeMode, thought: 'Explicit artifact delegation', toolCall: { name: delegation.tool, params: delegation.args }, toolResult: result, finalAnswer: answer }] };
+    }
 
     // Fallback if no LLM provider is connected or available
     if (!this.asker) {

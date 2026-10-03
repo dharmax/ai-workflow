@@ -121,11 +121,11 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-DELEGATE-WORK**: External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives
 
 ### Implementing Tickets
-- **AIWF-PRIMARY-INTERFACE** [Todo]: Gate 9: PRIMARY-INTERFACE
+- **AIWF-PRIMARY-INTERFACE** [Done]: Gate 9: PRIMARY-INTERFACE
+
+### Verifying Tests
+- **TEST-AIWF-DELEGATION**
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-PRIMARY-INTERFACE' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-PRIMARY-INTERFACE' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 

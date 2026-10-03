@@ -48,117 +48,52 @@ export interface ConfigureMcpOptions {
 }
 
 export const MCP_INSTRUCTIONS_2_0 =
-  'ai-workflow 2.0 Causal Context & Engineering OS: Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use propose_epic_structure, apply_epic_structure, get_product_coverage & get_product_impact for product intent navigation; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for verification; use apply_block_patch, compile_codelet & promote_codelet for code mutations; update_ticket_state & release_ticket upon completion.';
+  'AIWF: Delegate Ticket work first with resolve_ticket; investigate_ticket and prepare_ticket are grounded alternatives. Process accepted intent with process_epic/process_feature/process_story. Use completeness/depth/maxArtifacts/critic consistently, persist completeness only explicitly. Inspect needs_input/blocked; preserve user work and require acceptance proof. Use primitives only for drill-down or actual blockers. Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use propose_epic_structure, apply_epic_structure, get_product_coverage & get_product_impact for product intent navigation; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for verification; use apply_block_patch, compile_codelet & promote_codelet for code mutations; update_ticket_state & release_ticket upon completion.';
 
 export const CANONICAL_SKILL_MD = `---
 name: ai-workflow
-description: Governs the AI agent workflow lifecycle using ai-workflow (aiwf) tools. Use when checking project status, inspecting tickets, managing claims, calculating blast radius, auditing guidelines, running codelets, or extracting bounded ticket contexts.
+description: Delegate Ticket and Product Intent work to AIWF; investigate, prepare, resolve and process artifacts before drilling into engineering primitives.
 ---
 
-# 🏛️ AI-Workflow 2.0 Skill: Causal Context & Engineering OS
+# AIWF artifact delegation
 
-AI-Workflow provides high-efficiency deterministic tools and a causal AST+ Context Graph for human pair programming and autonomous coding agents.
+Use AIWF as the primary engineering and work-management system.
 
----
+## Preferred workflow
 
-## 🚀 The Zero-Token Discovery Protocol (Always Follow This Order)
+1. If given a Ticket, call \`resolve_ticket\` / \`aiwf resolve <ticketId>\` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
+2. For evidence without implementation, use \`investigate_ticket\` / \`aiwf investigate <ticketId>\`. For executable enrichment or useful decomposition, use \`prepare_ticket\` / \`aiwf prepare <ticketId>\`.
+3. For accepted intent, use \`process_epic\`, \`process_feature\` or \`process_story\` / \`aiwf process epic|feature|story <id>\`. Reuse meaningful existing work; technical work needs no ceremonial Story.
+4. Inspect \`needs_input\` and \`blocked\`. Resolve the exact question or capability gap and retry against durable graph state. Do not mark Done or weaken acceptance to bypass verification.
+5. Use primitives for explicit drill-down/debugging or an actual delegation blocker. First inspect AIWF's dossier; then use graph/symbol/exact source/references/blast/test evidence surgically. Claim the relevant Ticket before manual edits, preserve unrelated work, verify real acceptance, and sync.
 
-1. **Orientation & Health**:
-   - Run \`aiwf status\` (or MCP \`get_git_status\` + \`list_tickets\`) to inspect working tree status and active leases.
-   - Run \`aiwf doctor\` to verify graph database, projections, and MCP connectivity.
-2. **Product Intent, Epics & Coverage**:
-   - Inspect requirements and capabilities via \`list_epics\`, \`list_features\`, and \`list_user_stories\`.
-   - Evaluate causal grounding and gaps via \`get_product_coverage(entityId)\` (\`aiwf coverage <id>\`).
-   - Extract bounded semantic neighborhoods before refactoring via \`get_product_impact(entityId)\` (\`aiwf impact <id>\`).
-   - Decompose new initiatives with zero graph mutation via \`propose_epic_structure\` (\`aiwf epic-create\`), review proposals, and persist idempotently via \`apply_epic_structure\`.
-3. **Next Task Recommendation**:
-   - Run \`aiwf next\` (or MCP \`recommend_next_task\`) to select the active sprint priority:
-     \`Active Agent Lease -> P0/P1 High-Priority Bugs -> Unleased Todo Tasks\`.
-4. **Lease Before Edit (Mandatory Safety)**:
-   - Always lease the target ticket before touching code: \`aiwf claim <ticketId>\` (or MCP \`claim_ticket\`). Never mutate code without an active lease.
-5. **Graph Intelligence, Callers & Blast Radius**:
-   - Use \`aiwf symbol <name>\` (MCP \`find_symbol\`) to locate symbols (exact, regex, kind filter, container resolution) with automatic incremental freshness.
-   - Use \`aiwf graph [query]\` (MCP \`search_graph\`) to query entities, semantic predicates, and traverse dependency / call graphs.
-   - Use \`aiwf callers <symbol>\` (MCP \`search_graph(predicate="calls", targetId=...)\`) to find all callers and invocation sites.
-   - Use \`aiwf deps <file>\` (MCP \`search_graph(predicate="depends_on", sourceId=...)\`) to inspect module dependencies and static imports.
-   - Use \`aiwf slice <file> <symbol>\` (MCP \`get_symbol_source\`) to inspect exact function bodies without dumping full files into context.
-   - Use \`aiwf outline <file>\` (MCP \`get_file_outline\`) to inspect file exports, signatures, and symbol layouts in source order.
-   - Use \`aiwf blast <target>\` (MCP \`analyze_blast_radius\`) before modifying shared files.
-   - Use \`aiwf debug <target>\` (MCP \`debug_target\`) to diagnose errors, stack traces, and blast impact.
-6. **Deterministic Patching**:
-   - Use \`aiwf patch <file> <target> <replacement>\` (or MCP \`apply_block_patch\`) for surgical block replacement via \`@dharmax/block-patcher\`.
-   - Use \`compile_codelet\` and \`promote_codelet\` for JIT synthesis and dynamic tool expansion.
-7. **Pair-Test Verification**:
-   - Resolve paired test target via MCP \`resolve_test_target\`.
-   - Execute verification tests via MCP \`triage_test_failures\`.
-8. **Synchronize Ledgers & Close Lease**:
-   - Move completed ticket to \`Done\` via MCP \`update_ticket_state(ticketId, lane="Done")\`.
-   - Release lease via \`aiwf release <ticketId>\` (or MCP \`release_ticket\`).
-   - Run \`aiwf sync\` to ensure Obsidian Markdown projections (\`kanban.md\`, \`epics.md\`, \`features.md\`, \`user-stories.md\`, \`decisions.md\`, \`modules.md\`) mirror the SQLite Graph.
+## Policy
 
----
+All artifact operations accept \`completeness\`, \`depth\`, \`maxArtifacts\`, \`critic\` consistently. CLI flags: \`--completeness production --depth 1 --max-artifacts 24 --critic auto\`.
 
-## 🛠️ MCP Tools vs. CLI Commands Reference
+Completeness controls thoroughness, never artifact counts. Depth bounds expansion; breadth is separately bounded. Applicable Aspects are mandatory. \`critic=auto\` uses independent review; \`none\` bypasses semantic critique only.
 
-All capabilities are unified across stdio MCP and the CLI:
+An operation override never remembers completeness. Use \`set_completeness_target\` / \`aiwf completeness set <id> <level>\` explicitly; \`clear\` removes it. Read provenance with \`get_completeness_target\` / \`aiwf completeness get <id>\`.
 
-| Capability / Action | CLI Command | MCP Tool |
-| :--- | :--- | :--- |
-| **Working Tree & Leases** | \`aiwf status\` | \`get_git_status\`, \`list_tickets\` |
-| **System Diagnostics** | \`aiwf doctor\` | \`get_environment_info\` |
-| **Next Task Recommendation** | \`aiwf next [agentId]\` | \`recommend_next_task\` |
-| **List Kanban Tickets** | \`aiwf tickets [lane]\` | \`list_tickets\` |
-| **Lease Ticket** | \`aiwf claim <id> [--agent <a>]\` | \`claim_ticket\` |
-| **Release Lease** | \`aiwf release <id>\` | \`release_ticket\` |
-| **Mark Ticket Done** | \`aiwf done <id>\` | \`update_ticket_state\` |
-| **Move Ticket Lane** | \`aiwf move <id> <lane>\` | \`update_ticket_state\` |
-| **Product Epics** | \`aiwf epics [status]\`, \`aiwf epic <id>\` | \`list_epics\`, \`get_epic\`, \`create_epic\`, \`update_epic\` |
-| **Epic Decomposition** | \`aiwf epic-create "<title>"\` | \`propose_epic_structure\`, \`apply_epic_structure\` |
-| **Product Features** | \`aiwf features [status]\`, \`aiwf feature <id>\` | \`list_features\`, \`get_feature\`, \`create_feature\`, \`update_feature\` |
-| **User Stories** | \`aiwf stories [status]\`, \`aiwf story <id>\` | \`list_user_stories\`, \`get_user_story\`, \`create_user_story\`, \`update_user_story\` |
-| **Product Relations** | *(via shell / MCP)* | \`link_product\`, \`unlink_product\` |
-| **Causal Coverage** | \`aiwf coverage <entityId>\` | \`get_product_coverage\` |
-| **Product Impact** | \`aiwf impact <entityId>\` | \`get_product_impact\` |
-| **Uncommitted Diff** | \`aiwf diff\` | \`get_git_diff\` |
-| **Locate Symbol** | \`aiwf symbol <name>\` | \`find_symbol\` |
-| **Graph Search & Traversal** | \`aiwf graph [query]\` | \`search_graph\` |
-| **Caller Invocations** | \`aiwf callers <sym>\` | \`search_graph\` (predicate: calls) |
-| **Module Dependencies** | \`aiwf deps <file>\` | \`search_graph\` (predicate: depends_on) |
-| **Surgical Code Slice** | \`aiwf slice <file> <sym>\` | \`get_symbol_source\` |
-| **File Outline** | \`aiwf outline <file>\` | \`get_file_outline\` |
-| **Blast Radius & Tests** | \`aiwf blast <target>\` | \`analyze_blast_radius\` |
-| **Target & Trace Debug** | \`aiwf debug <target>\` | \`debug_target\` |
-| **Knowledgebase Skills** | \`aiwf kb <search\|show>\` | \`search_knowledgebase\`, \`get_knowledge_item\` |
-| **Re-index AST Symbols** | \`aiwf index\` | \`indexCodebase\` (via setup) |
-| **AST Block Patching** | \`aiwf patch <file> <s> <r>\` | \`apply_block_patch\` |
-| **JIT Codelet Compiler** | *(via shell / MCP)* | \`compile_codelet\`, \`run_codelet\` |
-| **Promote Codelet to Tool** | *(via shell / MCP)* | \`promote_codelet\` |
-| **Test Target Resolution** | *(via shell / MCP)* | \`resolve_test_target\` |
-| **Failure Triage** | *(via shell / MCP)* | \`triage_test_failures\` |
-| **Playwright Testing** | *(via shell / MCP)* | \`run_playwright\` |
-| **Architectural Decisions**| *(via shell / MCP)* | \`propose_decision\` |
-| **Shared Scratchpad** | *(via shell / MCP)* | \`read_scratchpad\`, \`append_scratchpad_note\` |
-| **Bun JS Scripting** | \`aiwf eval <js>\` | \`script_eval\` |
-| **Autonomous Execution** | \`aiwf exec "<wish>"\` | \`execute_shell_wish\` |
-| **Interactive REPL** | \`aiwf shell\` (or \`aiwf\`) | *(terminal REPL)* |
-| **Setup & MCP Wiring** | \`aiwf setup\` / \`aiwf init\` | *(setup engine)* |
+Resolution accepts explicit \`testCommands\`, \`maxRepairs\`, and \`allowDirtyTargets\` through MCP. CLI exposes \`--max-repairs\` and repeated \`--allow-dirty-target\`. Dirty targets require explicit authorization; never reset, stash or commit user work automatically.
 
----
+## Drill-down tools
 
-## 🔒 Safety & Concurrency Rules for Agents
+- Orientation: \`aiwf status\`, \`next\`, \`doctor\`, \`coverage <id>\`, \`impact <id>\`.
+- Evidence: \`symbol\`, \`graph\`, \`slice\`, \`outline\`, \`callers\`, \`deps\`, \`blast\`; TS/JS exact references and symbol source are preferred for correctness.
+- Safe edits: \`preview_change\` → \`apply_change\` with fingerprint; semantic rename/refactor and symbol replacement through the existing Causal Change Engine.
+- Tests: \`resolve_test_target\`, \`triage_test_failures\`. Successful execution and explicit acceptance proof are both required.
+- Graph state: canonical Product Intent tools, ordinary Ticket children and real prerequisites. No parallel plan/session/shadow graph.
+- Measurement: \`aiwf metrics --operation resolve_ticket --ticket <id> --since 7d\`; persisted aggregate telemetry contains no prompts/source/tool arguments. Never claim paid-token savings without measurement.
 
-- **Zero Hallucinated Parameters**: All tool calls must strictly conform to their Zod parameter schemas.
-- **Claim Before Edit**: No agent may edit code for a ticket without an active lease recorded via \`claim_ticket\`.
-- **Product Grounding**: Before authoring tickets or code for an epic or feature, verify its intent context and causal coverage using \`get_product_coverage\` and \`get_product_impact\`.
-- **Extreme KISS**: Implement the simplest solution first. Avoid monolithic components or complicated wrappers.
-- **Verification Gate**: Every code modification must be verified by running the corresponding unit test suite via \`resolve_test_target\` and \`triage_test_failures\`.
-- **Bidirectional Ledger Integrity**: Run \`aiwf sync\` after task completion to guarantee that Markdown files and the SQLite graph stay 100% in sync.
+Use \`aiwf help\` for verified command syntax. Low-level primitives remain available.
 `;
 
 export const CODEX_AGENT_RULES = `<!-- ai-workflow-rules -->
 # AI-Workflow 2.0 — Causal Context & Engineering OS
 
 When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \`kanban.md\`):
+- **Delegate First**: Given a Ticket, call \`resolve_ticket\`; use \`investigate_ticket\` or \`prepare_ticket\` for evidence/preparation, and \`process_epic/feature/story\` for intent. Inspect precise blockers before manual work.
 - **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` to find active priority.
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
 - **Product Intent & Coverage**: Use \`get_product_coverage\`, \`get_product_impact\`, \`list_epics\`, \`list_features\`, \`list_user_stories\` to verify intent and impact before changing features.

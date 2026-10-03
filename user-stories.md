@@ -42,5 +42,6 @@
 - **Actor**: External caller
 - **Story**: External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives
 - **Tickets**: `AIWF-PRIMARY-INTERFACE`
-- **Coverage**: missing_acceptance_contract, missing_code_grounding, missing_verification
+- **Tests**: `TEST-AIWF-DELEGATION`
+- **Coverage**: missing_acceptance_contract
 

@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
+import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
 import os from 'node:os';
 import {
   TtyInputReader,
@@ -36,6 +37,8 @@ export interface ShellSession {
 }
 
 export const SHELL_COMMANDS = [
+  'resolve', 'prepare', 'investigate', 'process', 'completeness',
+  'resolve_ticket', 'prepare_ticket', 'investigate_ticket', 'process_epic', 'process_feature', 'process_story',
   'status',
   'next',
   'claim',
@@ -115,7 +118,9 @@ export async function processShellInput(
       output: `
 \x1b[1;36m🏛️  AI-Workflow 2.0 Terminal REPL\x1b[0m
 
-Commands:
+${ARTIFACT_HELP}
+
+Drill-down and project commands:
   status                     - Working tree git status & active ticket leases
   next                       - Algorithmic recommendation for next task
   claim <ticketId> [agent]   - Atomically lease a ticket (default 30m)
@@ -1167,6 +1172,8 @@ Commands:
   }
 
   // 3. Autonomous Cognitive Fallback
+  const delegation = artifactCommand(line.split(/\s+/));
+  if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
   const result = await session.actor.execute(line);
   let prefix = `[${result.mode.toUpperCase()}]`;
   if (result.escalated) {
@@ -1216,7 +1223,7 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
     const tokens = trimmedStart.trim().split(/\s+/).filter(Boolean);
     const verb = tokens[0]?.toLowerCase();
 
-    if (['claim', 'release', 'done'].includes(verb)) {
+    if (['resolve', 'prepare', 'investigate', 'resolve_ticket', 'prepare_ticket', 'investigate_ticket', 'claim', 'release', 'done'].includes(verb)) {
       if ((tokens.length === 1 && endsWithSpace) || (tokens.length === 2 && !endsWithSpace)) {
         const prefix = endsWithSpace ? '' : tokens[1];
         const ticketIds = getTicketIdsSync(session.store);

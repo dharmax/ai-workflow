@@ -18,6 +18,7 @@ import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode } from './actor/engine.ts';
+import { ARTIFACT_HELP } from './artifact-command.ts';
 
 export interface McpServerOptions {
   store?: WorkflowStore;
@@ -42,6 +43,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
       version: '2.0.0'
     },
     {
+      instructions: 'Delegate Ticket work with resolve_ticket first. Use investigate_ticket/prepare_ticket for grounded evidence/preparation and process_epic/process_feature/process_story for accepted intent. Inspect precise blockers before primitive orchestration.\n' + ARTIFACT_HELP,
       capabilities: {
         tools: {
           listChanged: true
@@ -80,7 +82,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
       let schema: any = { type: 'object' };
       try {
         const conv = zodToJsonSchema(t.parameters as any);
-        if (conv.ok && conv.schema) schema = conv.schema;
+        if (conv.ok && conv.schema) schema = { ...conv.schema, type: 'object' };
       } catch {}
 
       tools.push({
@@ -214,7 +216,8 @@ export function exportMcpSchemas(targetDir: string): string[] {
       if (conv.ok && conv.schema) {
         parameters = {
           $schema: 'https://json-schema.org/draft/2020-12/schema',
-          ...conv.schema
+          ...conv.schema,
+          type: 'object'
         };
       }
     } catch {}
@@ -238,4 +241,3 @@ if (import.meta.main) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
-

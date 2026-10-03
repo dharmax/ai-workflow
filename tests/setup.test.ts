@@ -206,9 +206,9 @@ approval_mode = "approve"`;
 
     const codexSkill = fs.readFileSync(path.join(mockHome, '.codex', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
     expect(codexSkill).toBe(CANONICAL_SKILL_MD);
-    expect(codexSkill).toContain('AI-Workflow 2.0 Skill: Causal Context & Engineering OS');
-    expect(codexSkill).toContain('recommend_next_task');
-    expect(codexSkill).toContain('claim_ticket');
+    expect(codexSkill).toContain('AIWF artifact delegation');
+    expect(codexSkill).toContain('call `resolve_ticket`');
+    expect(codexSkill).toContain('Claim the relevant Ticket before manual edits');
 
     const claudeSkill = fs.readFileSync(path.join(mockHome, '.claude', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
     expect(claudeSkill).toBe(CANONICAL_SKILL_MD);
@@ -312,4 +312,3 @@ approval_mode = "approve"`;
     expect(fs.lstatSync(res.symlinkTarget).isSymbolicLink()).toBe(true);
   });
 });
-

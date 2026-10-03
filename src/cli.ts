@@ -7,6 +7,7 @@
 
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
+import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
@@ -35,6 +36,15 @@ async function main() {
     return storeInstance;
   };
   initializeTools();
+
+  const delegation = artifactCommand(args);
+  if (delegation) {
+    const result = await registry.execute(delegation.tool, delegation.args, { store: getStore(), projectRoot: root });
+    console.log(JSON.stringify(result, null, 2));
+    if (result?.status === 'blocked' || result?.status === 'needs_input') process.exitCode = 2;
+    getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients();
+    return;
+  }
 
   switch (command) {
     case 'sync': {
@@ -1102,7 +1112,9 @@ async function main() {
 
 Usage: aiwf <command> [options]
 
-Core Workflow Commands:
+${ARTIFACT_HELP}
+
+Drill-down and project commands:
   status                                 Show working tree, active ticket leases, and project status
   sync                                   Synchronize SQLite Graph bi-directionally with Markdown Projections
   next [agentId]                         Algorithmic task selector: active lease -> P1 bugs -> Todo tasks
@@ -1140,7 +1152,7 @@ Diagnostics & Health:
   doctor                                 Run comprehensive environment, graph, LLM, and MCP diagnostics
   audit                                  Audit architecture and graph integrity
   triage [testCommand]                   Run tests and extract compact failure triage report
-  metrics                                Show Kanban distribution and git churn hotspots
+  metrics [--operation ...]              Query persisted performance (--ticket, --since, --tag)
 
 Configuration & Execution:
   init                                   Zero-config project initialization in current directory

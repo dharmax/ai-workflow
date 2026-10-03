@@ -4,6 +4,26 @@ A Bun-first, deterministic Context Engine and Causal Engineering OS. AI-Workflow
 
 ---
 
+## Delegate artifact work first
+
+```bash
+aiwf investigate TICKET-ID
+aiwf prepare TICKET-ID --critic auto
+aiwf resolve TICKET-ID --completeness production --critic auto
+aiwf process epic EPIC-ID --completeness production --depth 1 --max-artifacts 24
+aiwf completeness get FEATURE-ID
+aiwf completeness set FEATURE-ID production
+aiwf metrics --operation resolve_ticket --ticket TICKET-ID --since 7d
+```
+
+The same commands work in the shell. Explicit instructions such as `please resolve ticket TICKET-ID` delegate directly to the artifact operation. MCP exposes `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, and `process_story`, with consistent completeness/depth/maxArtifacts/critic options.
+
+Resolution investigates, leases, prepares, applies safe edits, runs tests, repairs within a bound, and verifies authored acceptance plus material Aspects. Inspect `needs_input` or `blocked` and retry after addressing the precise cause. Dirty target edits require explicit `allowDirtyTargets` authorization (CLI: repeated `--allow-dirty-target path`). AIWF does not automatically commit engineering work.
+
+Completeness overrides are temporary. Remember a target explicitly with `completeness set`; use `clear` to remove it. Processing reuses stable capabilities and produces useful next-layer work; its result reports remaining work and depth/breadth stops without treating artifact count as completeness.
+
+**Verified limits:** controlled arithmetic resolution passed with the configured local model. Broad program Tickets reached timeout/step limits and required explicit fallback review. Program Epic processing with a reviewed existing-layer proposal and independent auto Critic created no ceremonial artifacts. These are measured capabilities, not a claim that every arbitrary task resolves autonomously. Exact symbol/graph/refactor/test primitives remain available for drill-down and actual blockers.
+
 ## ✨ Core Pillars
 
 1. **AST+ Semantic Graph (Semantika)**: Everything passes through the graph. Code symbols, classes, files, modules, Kanban cards, and architectural decisions are typed entities connected by semantic predicates (`contains`, `implements`, `modifies`, `depends_on`).
@@ -121,7 +141,7 @@ aiwf <command> [options]
 | :--- | :--- | :--- |
 | `doctor` | Run comprehensive environment, graph, LLM, and MCP diagnostics | `aiwf doctor` |
 | `audit` | Audit architecture health and graph integrity | `aiwf audit` |
-| `metrics` | Show Kanban lane distribution and code churn hotspots | `aiwf metrics` |
+| `metrics` | Query persisted artifact-operation performance aggregates | `aiwf metrics` |
 | `config [get\|set]` | Inspect or update settings in `.ai-workflow/config.json` | `aiwf config set defaultLeaseMinutes 60` |
 
 ### Shell & Cognitive Execution
