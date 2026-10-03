@@ -96,8 +96,9 @@ Add optional completenessTarget to:
 - Module;
 - Epic;
 - Feature;
-- UserStory;
-- Ticket.
+- UserStory.
+
+Do not persist completenessTarget on Ticket. Ticket completion remains its explicit acceptance contract; inherited/run completeness may cause additional work to be created without reopening historical verified Tickets.
 
 Add project config defaultCompletenessTarget.
 
@@ -116,7 +117,7 @@ Tests must prove:
 - explicit operation override wins;
 - explicit artifact target wins over inherited target;
 - Story inherits strictest containing Feature target;
-- Ticket inherits strictest relevant parent Ticket/Epic/Feature/Story/Module target;
+- Ticket effective target is derived from current run override + containing Epic/implemented Feature/addressed Story/targeted Module + project default; no Ticket target is stored;
 - Feature does not inherit from targeting Epic;
 - project default is final fallback;
 - explicit lower artifact target can deliberately override stricter inherited work;
@@ -149,7 +150,9 @@ Depth counts artifact-expansion/decomposition edges:
 - 0 = current artifact only;
 - 1 = immediate next artifact layer;
 - N = N expansion edges;
-- all = no user cap, still bounded by real graph/safety constraints.
+- all = no user depth cap, still bounded by real graph/safety constraints.
+
+Add one simple maxArtifacts guard (project default + operation override) so shallow-but-wide work cannot explode. Reaching it reports remaining work and must not mark the root complete. No generic cost/budget framework in this phase.
 
 ## Critic contract
 
@@ -572,6 +575,7 @@ Only after the artifact operations are proven, make them AIWF's first-choice she
 1. Shell/MCP expose the policy controls consistently:
    - --completeness / completeness;
    - --depth / depth;
+   - --max-artifacts / maxArtifacts;
    - --critic / critic;
    - explicit remember/set-completeness operation rather than silently persisting run overrides.
 2. Shell help/normal language flow prioritizes:
