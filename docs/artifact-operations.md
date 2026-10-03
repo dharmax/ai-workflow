@@ -194,6 +194,7 @@ Conceptually:
 interface ArtifactOperationOptions {
   completeness?: CompletenessLevel
   depth?: number | 'all'
+  maxArtifacts?: number
   critic?: ArtifactCritic | 'auto' | 'none'
 }
 ~~~
@@ -252,7 +253,6 @@ Module
 Epic
 Feature
 UserStory
-Ticket
 ~~~
 
 Also add a project default in AIWF project config.
@@ -267,11 +267,13 @@ Effective completeness resolution:
 Inheritance is intentionally constrained rather than generic graph traversal:
 
 - UserStory may inherit from its containing Feature(s); strictest inherited target wins.
-- Ticket may inherit from parent Ticket(s), containing Epic(s), implemented Feature(s), addressed UserStory(ies), and explicitly targeted Module(s); strictest inherited target wins.
+- Ticket has no persisted completeness target. Its effective target comes from the current operation override, containing Epic(s), implemented Feature(s), addressed UserStory(ies), explicitly targeted Module(s), then project default; strictest inherited target wins.
 - Feature does not inherit from targeting Epics: Epics do not own durable Features.
 - Epic and Module use their own explicit target or project default.
 
-An explicit target on the artifact overrides inherited targets, including a deliberate lower target such as a POC spike inside production work.
+An explicit target on a persistent completeness scope overrides inherited targets, including a deliberate lower target such as a POC Feature inside broader production work.
+
+Ticket completion remains governed by its acceptance criteria. Raising a Feature/Module/Epic/Story target does not retroactively reopen verified Tickets; completeness assessment creates/adds new work for newly exposed gaps.
 
 An operation-level override applies to that run and its recursive descendants. It is not persisted unless the caller explicitly asks to remember it.
 
@@ -327,6 +329,8 @@ Defaults:
 - resolve_ticket: all, because resolve means end-to-end unless explicitly capped.
 
 Depth counts artifact processing/decomposition edges, not individual code/tool calls.
+
+Depth does not bound breadth. Therefore every recursive operation also has a simple `maxArtifacts` safety budget (operation override then project config default). Hitting it stops further expansion/resolution, reports remaining artifacts, and never falsely marks the root complete. Do not build a generic budget subsystem around this first guard.
 
 If requested depth is reached while unresolved descendants remain, the operation itself may return complete for the requested scope, but it must report artifactComplete=false, remaining IDs, and stoppedAtDepth; it must not mark the parent Ticket verified.
 
@@ -419,7 +423,7 @@ Existing propose/apply boundaries are useful machinery for this.
 Only policy that describes durable project intent is remembered automatically through explicit state:
 
 - project default completeness;
-- artifact completenessTarget.
+- Module/Epic/Feature/UserStory completenessTarget.
 
 Critic choice and recursion depth are execution choices and are not silently persisted per artifact.
 
