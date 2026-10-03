@@ -45,7 +45,7 @@ The result must be measurably better: less external repository archaeology, fewe
 9. **Gate before Done.** Never call `aiwf done` merely because code compiles. All gate acceptance, typecheck, tests, diff/KISS audit and required real proof must pass first.
 10. **Preserve user work.** Never reset/stash/clean/commit unrelated user changes automatically.
 11. **Commit only green coherent gates.** Keep commits small enough to audit but do not manufacture micro-commits. Sync AIWF projections with the same gate commit.
-12. **Do not mutate sibling packages from this repo flow.** `llm-utils` owns its own System-1 and generic metrics work. Verify those capability gates; if missing when required, block the AIWF ticket with the exact reason and stop at that gate.
+12. **Cross-package prerequisites are part of the program.** `llm-utils` owns generic System-1 and cognition metrics, but a missing required capability must not terminate this program. Pause the AIWF ticket, implement/verify the smallest required sibling-package gate on that package's `master`, then return, sync, and continue. Never copy sibling-owned machinery into AIWF.
 
 ---
 
@@ -195,13 +195,13 @@ This self-hosting progression is part of acceptance, not optional polish.
 
 `AIWF-TICKET-INVESTIGATION` requires the shared System-1 contract/adapters from `@dharmax/llm-utils`.
 
-Before Gate 4, verify the installed/package dependency actually exports the required capability and its tests/version are green. If not, move `AIWF-TICKET-INVESTIGATION` to Blocked with the exact missing capability/version and stop. Do not copy `ai-cli`'s Laya wrapper into AIWF.
+Before Gate 4, verify the installed/package dependency actually exports the required capability and its tests/version are green. If missing, pause `AIWF-TICKET-INVESTIGATION`, complete `LLMUTILS-SYSTEM1` in `llm-utils` on `master`, verify it there, then return and continue. Do not copy `ai-cli`'s Laya wrapper into AIWF. The shared implementation should generalize the proven ai-cli mechanism; ai-cli should consume the shared primitive rather than remain a second generic Laya wrapper.
 
 ### LLMUTILS-PERFORMANCE-METRICS
 
 `AIWF-PERFORMANCE-METRICS` requires llm-utils correlated generic LLM/System-1/Actor metrics.
 
-Verify that gate before Gate 6. If missing, block `AIWF-PERFORMANCE-METRICS` and stop before the end-to-end resolution benchmark. The purpose is to measure the proof, not reconstruct telemetry afterward.
+Verify that gate before Gate 6. If missing, pause `AIWF-PERFORMANCE-METRICS`, complete `LLMUTILS-PERFORMANCE-METRICS` in `llm-utils` on `master`, verify it there, then return and continue before the end-to-end resolution benchmark. The purpose is to measure the proof, not reconstruct telemetry afterward.
 
 ---
 
