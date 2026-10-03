@@ -81,11 +81,12 @@ Production capability governed by docs/artifact-operations-plan.md.
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-PERFORMANCE-METRICS** [Todo]: Gate 6: PERFORMANCE-METRICS
+- **AIWF-PERFORMANCE-METRICS** [Blocked]: Gate 6: PERFORMANCE-METRICS
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-PERFORMANCE-METRICS' is blocked by active blocker(s).
   - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-PERFORMANCE-METRICS' has implementation Ticket(s) but no code modifications or targets.
   - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-PERFORMANCE-METRICS' has no verification Test directly or via contained stories.
 
