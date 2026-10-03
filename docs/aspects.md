@@ -1,6 +1,6 @@
 # Aspects — Design
 
-Status: authoritative target design for first-class cross-cutting concerns in AIWF.
+Status: authoritative implemented design for first-class cross-cutting concerns in AIWF.
 
 ## 1. Purpose
 
@@ -14,7 +14,7 @@ An Aspect is not a Story, Ticket, tag, checklist item, or metric.
 
 ## 2. Canonical entity
 
-Add one durable Aspect entity using the normal IntentStatus lifecycle:
+AIWF uses one durable Aspect entity with the normal IntentStatus lifecycle:
 
 ~~~
 draft → proposed → accepted → deprecated
@@ -31,7 +31,7 @@ interface AspectData extends BaseEntityData {
 
 Do not persist satisfied, score, coveragePercent, or productionReady on Aspect. Satisfaction/coverage is derived.
 
-Do not add a fixed Aspect category taxonomy in the first proof. Title/body/criteria carry the semantics.
+There is no fixed Aspect category taxonomy. Title/body/criteria carry the semantics.
 
 ### Aspect vs Feature
 
