@@ -4,11 +4,11 @@ import { createDefaultAsker } from './product/decompose.ts';
 import type { ArtifactCritic, CriticInput, CriticResult } from './artifact-policy.ts';
 import { cognitionMetrics } from './performance-metrics.ts';
 
-export const CriticResultSchema = z.discriminatedUnion('verdict', [
-  z.object({ verdict: z.literal('accept'), findings: z.array(z.object({ message: z.string(), artifactId: z.string().optional() })).optional() }),
-  z.object({ verdict: z.enum(['revise', 'reject']), findings: z.array(z.object({ message: z.string(), artifactId: z.string().optional() })).min(1) }),
-  z.object({ verdict: z.literal('needs_input'), required: z.array(z.object({ question: z.string(), artifactId: z.string().optional() })).min(1) })
-]);
+export const CriticResultSchema = z.object({
+  verdict: z.enum(['accept', 'revise', 'reject', 'needs_input']),
+  findings: z.array(z.object({ message: z.string(), artifactId: z.string().default('') })).default([]),
+  required: z.array(z.object({ question: z.string(), artifactId: z.string().default('') })).default([])
+});
 const AiReviewSchema = z.object({
   criteria: z.array(z.object({ criterion: z.string(), covered: z.boolean(), evidence: z.string() })),
   aspects: z.array(z.object({ id: z.string(), covered: z.boolean(), evidence: z.string() })),

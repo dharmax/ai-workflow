@@ -153,10 +153,11 @@ export function createDefaultAsker(projectRoot?: string): Asker | undefined {
   };
 
   const gateway = cfg.gateway || 'auto';
-  if ((gateway === 'auto' || gateway === 'openrouter') && creds.openrouterApiKey) {
+  const openrouterApiKey = cfg.openrouterApiKey || creds.openrouterApiKey;
+  if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
     providers.openrouter = {
       id: 'openrouter',
-      apiKey: creds.openrouterApiKey,
+      apiKey: openrouterApiKey,
       baseUrl: 'https://openrouter.ai/api/v1',
       available: true
     };

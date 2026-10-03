@@ -44,6 +44,7 @@ export interface ProjectConfig {
   modelRadar: ModelRadarConfig;
   escalation: EscalationConfig;
   modelRoutes?: Record<string, string>;
+  openrouterApiKey?: string;
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {

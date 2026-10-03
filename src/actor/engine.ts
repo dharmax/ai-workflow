@@ -162,10 +162,11 @@ export class WorkflowActor {
     this.activeGateway = gateway;
 
     // 2. OpenRouter Gateway (universal multi-model endpoint)
-    if ((gateway === 'auto' || gateway === 'openrouter') && creds.openrouterApiKey) {
+    const openrouterApiKey = cfg.openrouterApiKey || creds.openrouterApiKey;
+    if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
       providers.openrouter = {
         id: 'openrouter',
-        apiKey: creds.openrouterApiKey,
+        apiKey: openrouterApiKey,
         baseUrl: 'https://openrouter.ai/api/v1',
         available: true
       };
