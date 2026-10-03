@@ -26,7 +26,7 @@ This work belongs entirely to `ai-workflow`. Consumers such as `aiwf-digest`, MC
 
 AIWF owns:
 
-- Epic / Feature / UserStory / Ticket semantics and lifecycles;
+- Epic / Feature / UserStory / Aspect / Ticket semantics and lifecycles;
 - allowed Product Intent relations;
 - Product Impact and Coverage;
 - Product Intent mutation validation;
@@ -58,8 +58,8 @@ Do not create another ProductChange/Work API.
 The existing Product Intent Graph remains authoritative.
 
 - Epic lifecycle: draft / planned / active / completed / cancelled.
-- Feature/UserStory lifecycle: draft / proposed / accepted / deprecated.
-- relation shapes remain those validated by the Product Intent tools.
+- Feature/UserStory/Aspect lifecycle: draft / proposed / accepted / deprecated.
+- relation shapes remain those validated by the Product Intent tools, including Aspect `applies_to` and Aspect work/evidence relations defined in `docs/aspects.md`.
 - do not add Feature/UserStory priority merely because an external caller asks to "change priority".
 - hard deletion is never an uncontrolled cascade.
 
