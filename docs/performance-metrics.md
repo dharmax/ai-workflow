@@ -1,6 +1,6 @@
 # Performance Metrics — Design
 
-Status: deferred feature design. Implement after the artifact-operation core is proven.
+Status: authoritative implemented design for AIWF artifact-operation performance metrics.
 
 ## 1. Purpose
 
