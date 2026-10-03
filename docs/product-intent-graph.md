@@ -1,6 +1,6 @@
 # Product Intent Graph — Design
 
-Status: authoritative architectural truth for AIWF Product Intent. The core graph is implemented; Ticket acceptance criteria, Ticket containment, Decision governance for Tickets, and desired completeness targets documented below are the explicit next extensions required by [artifact-operations.md](artifact-operations.md).
+Status: authoritative architectural truth for AIWF Product Intent. The core graph is implemented; Ticket acceptance criteria, Ticket containment, Decision governance for Tickets, desired completeness targets, and first-class Aspects are the explicit next extensions defined by [artifact-operations.md](artifact-operations.md) and [aspects.md](aspects.md).
 
 ## 1. Purpose
 
@@ -152,6 +152,35 @@ Story: As a developer I want to remove an obsolete adapter
 
 when there is no real behavioral contract.
 
+### Aspect
+
+A durable cross-cutting concern that applies across one or more higher-level scopes.
+
+Examples include security, performance, persistence, robustness, maintainability, observability, data consistency and operational cost.
+
+Aspect semantics and inheritance are defined in [aspects.md](aspects.md).
+
+Minimal intrinsic data:
+
+```ts
+interface AspectData extends BaseEntityData {
+  status?: IntentStatus
+  acceptanceCriteria?: string[]
+}
+```
+
+Aspect satisfaction is derived. Never persist a satisfaction score/status.
+
+Canonical causal forms include:
+
+```text
+Aspect   --applies_to--> Module | Epic | Feature | UserStory
+Ticket   --addresses---> Aspect
+Test     --verifies----> Aspect
+Artifact --verifies----> Aspect
+Decision --governs-----> Aspect
+```
+
 ### Ticket
 
 Executable implementation work.
@@ -225,6 +254,7 @@ Evidence.
 ```text
 Test --verifies--> UserStory
 Test --verifies--> Feature
+Test --verifies--> Aspect
 ```
 
 A direct Feature verification is allowed for capability-level integration/acceptance tests.
@@ -236,7 +266,7 @@ Tests that merely happen to touch the same source file are not automatically beh
 Existing relation remains:
 
 ```text
-Decision --governs--> Epic/Feature/UserStory/Ticket/Module/File/Symbol
+Decision --governs--> Epic/Feature/UserStory/Aspect/Ticket/Module/File/Symbol
 ```
 
 No new decision subsystem is part of this work.
@@ -254,8 +284,10 @@ Use existing predicates. Do not add product-specific predicates unless implement
 | Ticket | contains | Ticket | Work item decomposes into child work |
 | Ticket | implements | Feature | Ticket directly implements capability |
 | Ticket | addresses | UserStory | Ticket implements/changes behavior |
+| Aspect | applies_to | Module/Epic/Feature/UserStory | Cross-cutting concern applies to scope |
+| Ticket | addresses | Aspect | Work intentionally handles concern |
 | Ticket | targets / modifies | code node | Work-to-code grounding |
-| Test | verifies | Feature/UserStory | Explicit verification evidence |
+| Test / Artifact | verifies | Feature/UserStory/Aspect | Explicit verification/evidence |
 | Decision | governs | relevant node | Architectural/product constraint |
 | any appropriate node | depends_on / blocks | relevant node | Existing dependency semantics |
 
@@ -371,7 +403,7 @@ interface CoverageReport {
 
 `complete` is a derived convenience meaning **no known structural/causal gaps under this contract**. It is never persisted and must never be described as proof that the product itself is semantically complete.
 
-Coverage is intentionally independent of `completenessTarget`. Artifact Operations combine this structural report with the effective target and semantic/critic review to derive a broader CompletenessAssessment.
+Coverage is intentionally independent of `completenessTarget` and Aspect adequacy. Artifact Operations combine this structural report with the effective target, AspectAssessment, and semantic/Critic review to derive a broader CompletenessAssessment.
 
 Avoid a second rigid workflow-state enum such as `partially_implemented` / `unverified` as canonical data. Callers can derive display labels from `gaps` when useful.
 
@@ -497,6 +529,8 @@ Include:
 - those contained Tickets' Feature/Story/code edges;
 - relevant verification Tests and governing Decisions;
 - direct blockers/dependencies.
+
+Product impact should also surface applicable Aspect IDs for the starting Epic/Feature/UserStory so change planning sees cross-cutting constraints. Detailed Aspect evidence remains owned by `assess_aspects`.
 
 `productImpact` does **not** duplicate AST blast analysis.
 
