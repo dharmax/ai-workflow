@@ -128,6 +128,8 @@ Tests must prove:
 
 Do not persist achieved/current completeness.
 
+Remove/deprecate legacy persisted `Module.completionPercent`; do not reinterpret it as a completeness target. Audit `ProjectHealth.completionPercent` as well: remove it or clearly keep it only as derived workflow progress, never semantic completeness.
+
 ## Operation options
 
 Define one small shared ArtifactOperationOptions contract:
