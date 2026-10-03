@@ -1,670 +1,692 @@
-# Artifact Operations — Implementation Plan
+# Artifact Operations Program — Sole Implementation Plan
 
-Design authority: docs/artifact-operations.md.
+Status: **sole authoritative execution plan for the current AIWF program**.
 
-This plan is intentionally staged. Each ticket must be independently useful and green before the next starts.
+If Codex is given one instruction, it should be:
 
-## External shared capability gate
+> Follow `docs/artifact-operations-plan.md` completely. Use AIWF itself as the primary development/navigation/work-management system. Do not invent a parallel plan.
 
-System-1 infrastructure is owned by @dharmax/llm-utils, not AIWF.
+All other documents in `docs/` are **design references**, not competing execution plans. Read them only when this plan or AIWF context makes them relevant.
 
-AIWF must not duplicate ai-cli's Laya wrapper.
-
-The separate llm-utils ticket LLMUTILS-SYSTEM1 provides the shared typed System-1 contract/adapters. AIWF-PRIMITIVE-TRUTH can proceed independently, but AIWF-TICKET-INVESTIGATION must not implement its own Laya wrapper if that shared gate is not yet available.
-
-First-class Aspects are a separate AIWF-owned gate defined in `docs/aspects.md` / `docs/aspects-plan.md`. Complete `AIWF-ASPECTS` after `AIWF-OPERATION-POLICY` and before `AIWF-TICKET-INVESTIGATION`, because investigation/preparation/resolution consume applicable Aspect context.
-
-Start every ticket AIWF-native:
-
-~~~
-aiwf sync
-→ ensure/reuse the named plan ticket
-→ claim the one active ticket
-→ use current AIWF graph/context to locate implementation details
-→ read source surgically
-→ implement
-→ focused tests
-→ full gate
-→ KISS audit
-→ sync + close
-~~~
-
-Do not preload a fixed file list.
-
-## Entity implementation rule
-
-Follow Semantika's normal entity pattern throughout this plan:
-
-- every semantic entity remains a real JS/TS class with its DCR;
-- tightly-related domain behavior belongs on that entity class;
-- shell/MCP/tool functions load the entity, call its method, and serialize the result;
-- keep only genuinely cross-entity/infrastructural algorithms as small helpers.
-
-Do not create Service/Manager/Repository wrappers around entity behavior.
+Do not create additional plan/handoff/status documents for this program. Durable implementation state belongs in AIWF Product Intent/Tickets/graph plus Git.
 
 ---
 
-# 1. AIWF-PRIMITIVE-TRUTH
+## 1. Program outcome
 
-## Goal
+Turn AIWF from a collection of useful engineering primitives into an engineering system that can own high-level artifacts end-to-end:
 
-Make the low-level operations trustworthy enough to support autonomous artifact resolution.
+~~~
+Ticket.investigate() / investigate_ticket
+Ticket.prepare()     / prepare_ticket
+Ticket.resolve()     / resolve_ticket
 
-Do not build artifact operations yet.
+UserStory.process()  / process_story
+Feature.process()    / process_feature
+Epic.process()       / process_epic
+~~~
 
-## Work
+External agents should delegate work to AIWF instead of manually orchestrating symbol/graph/source/refactor/test primitives.
 
-1. Make aiwf sync reconcile changed code/index state as well as Markdown projections.
-2. Remove unnecessary write behavior from repeated read/query freshness checks, especially unchanged external dependency indexing.
-3. Make freshness reusable within one higher-level operation rather than forcing every primitive to perform a full independent refresh.
-4. Fix get_symbol_source so "exact symbol source" is actually exact; otherwise explicitly return an excerpt.
-5. For TS/JS correctness-sensitive definitions/references/callers, use existing TS LSP facilities where appropriate; retain cheap graph facts for broad discovery.
-6. Add one small exact symbol replacement/change primitive through the existing Causal Change safety path if current primitives cannot replace a known function/method without the caller supplying its old body.
+The result must be measurably better: less external repository archaeology, fewer expensive-agent tool calls/tokens where measurable, truthful code intelligence, safe execution, strong completeness/Aspect/Critic handling, and simple implementation.
 
-No general editing framework.
+---
 
-## Acceptance
+## 2. Non-negotiable working rules
 
-Benchmark on the AIWF repository:
+1. **Work on `master`.** Do not create a branch forest. Do not create per-ticket branches. If an external constraint forces a temporary branch, merge/delete it at the first green stable point.
+2. **AIWF first.** Use current AIWF graph/Product Intent/ticket/code-navigation tools before reading source broadly.
+3. **One active implementation ticket at a time.** Exactly one program ticket should normally be `Todo`/`In Progress`; later gates remain `Backlog` until promoted.
+4. **No fixed source-file preload.** Let AIWF identify relevant symbols/files; inspect exact source surgically.
+5. **Semantika entity pattern.** Every semantic entity is a real JS/TS class with its DCR. Tightly-related business logic belongs on the entity class. MCP/shell tools are thin load→call→serialize adapters.
+6. **No service-layer cosplay.** No `TicketService`, `AspectManager`, generic workflow engine, policy engine, repository layer, or second graph/model unless a concrete acceptance case makes it unavoidable.
+7. **Truth before convenience.** Approximate graph facts may discover candidates; correctness-sensitive TS/JS facts use exact language tooling when available.
+8. **No hidden state.** Artifact operations are re-entrant over durable graph/project state; `needs_input`/`blocked` returns do not create opaque continuation sessions.
+9. **Gate before Done.** Never call `aiwf done` merely because code compiles. All gate acceptance, typecheck, tests, diff/KISS audit and required real proof must pass first.
+10. **Preserve user work.** Never reset/stash/clean/commit unrelated user changes automatically.
+11. **Commit only green coherent gates.** Keep commits small enough to audit but do not manufacture micro-commits. Sync AIWF projections with the same gate commit.
+12. **Do not mutate sibling packages from this repo flow.** `llm-utils` owns its own System-1 and generic metrics work. Verify those capability gates; if missing when required, block the AIWF ticket with the exact reason and stop at that gate.
+
+---
+
+## 3. Bootstrap this program into current AIWF
+
+Do this once, idempotently, before implementation.
+
+### 3.1 Establish current state
+
+Run:
+
+~~~bash
+aiwf sync
+aiwf status
+aiwf doctor
+aiwf epics
+aiwf features
+aiwf stories
+aiwf tickets
+~~~
+
+Inspect only enough graph state to avoid duplicates. Do not read source yet.
+
+### 3.2 Deterministically instantiate the program graph
+
+This plan **already is the decomposition**. Do **not** feed it through today's `propose_epic_structure` and let an older LLM reinterpret it.
+
+Prefer AIWF MCP deterministic Product Intent tools because they support exact IDs and canonical relation validation:
+
+- `create_epic`
+- `create_feature`
+- `create_user_story`
+- `create_ticket`
+- `link_product`
+
+Reuse an equivalent existing artifact rather than duplicating it. Prefer the stable IDs below when creating new artifacts. If an equivalent pre-existing artifact has another ID, reuse it and record the mapping once in the AIWF scratchpad.
+
+Create/reuse this Epic:
+
+~~~
+EPIC-AIWF-ARTIFACT-OPS
+Artifact Operations: AIWF as the Engineering Agent
+~~~
+
+Create/reuse these durable Features:
+
+| ID | Capability | Final target |
+| --- | --- | --- |
+| `FEAT-AIWF-TRUTHFUL-PRIMITIVES` | Truthful, efficient code intelligence/change primitives | production |
+| `FEAT-AIWF-ARTIFACT-POLICY` | Completeness/depth/critic operation policy | production |
+| `FEAT-AIWF-ASPECTS` | First-class cross-cutting Aspects | production |
+| `FEAT-AIWF-TICKET-OPS` | Ticket investigation, preparation and end-to-end resolution | production |
+| `FEAT-AIWF-PERFORMANCE-METRICS` | Correlated AIWF + llm-utils performance telemetry | production |
+| `FEAT-AIWF-PRODUCT-PROCESSING` | Story/Feature/Epic semantic processing | production |
+| `FEAT-AIWF-PRIMARY-INTERFACE` | High-level shell/MCP delegation surface | production |
+
+Create/reuse these UserStories only because they express observable caller behavior:
+
+| ID | Feature | Behavior |
+| --- | --- | --- |
+| `STORY-AIWF-INVESTIGATE-TICKET` | Ticket Ops | Caller can obtain a grounded Ticket dossier without doing repository archaeology itself |
+| `STORY-AIWF-PREPARE-TICKET` | Ticket Ops | Caller can make a broad Ticket executable or receive precise missing-input requirements |
+| `STORY-AIWF-RESOLVE-TICKET` | Ticket Ops | Caller can delegate a Ticket and receive verified completion / needs-input / blocked |
+| `STORY-AIWF-PROCESS-INTENT` | Product Processing | Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts |
+| `STORY-AIWF-DELEGATE-WORK` | Primary Interface | External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives |
+
+Link:
+
+- Epic `targets` every Feature above.
+- Feature `contains` its Story/Stories above.
+
+Create/reuse the program Tickets below. Put **only the first unfinished gate in `Todo`**; every later unfinished gate starts in `Backlog`.
+
+| Order | Ticket ID | Implements / addresses |
+| ---: | --- | --- |
+| 1 | `AIWF-PRIMITIVE-TRUTH` | implements Truthful Primitives |
+| 2 | `AIWF-OPERATION-POLICY` | implements Artifact Policy |
+| 3 | `AIWF-ASPECTS` | implements Aspects |
+| 4 | `AIWF-TICKET-INVESTIGATION` | implements Ticket Ops; addresses Investigate Ticket |
+| 5 | `AIWF-TICKET-PREPARATION` | implements Ticket Ops; addresses Prepare Ticket |
+| 6 | `AIWF-PERFORMANCE-METRICS` | implements Performance Metrics |
+| 7 | `AIWF-TICKET-RESOLUTION-FIRST-PROOF` | implements Ticket Ops; addresses Resolve Ticket |
+| 8 | `AIWF-PRODUCT-PROCESSING` | implements Product Processing; addresses Process Intent |
+| 9 | `AIWF-PRIMARY-INTERFACE` | implements Primary Interface; addresses Delegate Work |
+| 10 | `AIWF-FINAL-DOGFOOD-AUDIT` | Epic-contained final integration/measurement work |
+
+Link the Epic `contains` every Ticket. Link each Ticket to the Feature/Story listed above using canonical `implements` / `addresses` relations.
+
+Today's bootstrap Ticket schema does not yet have structured `acceptanceCriteria`. Put each gate's concise acceptance contract in the Ticket body. After structured Ticket criteria exist, migrate **remaining unfinished Tickets only** to the real field; do not rewrite history needlessly.
+
+Current AIWF does not yet expose the future Ticket→Ticket decomposition semantics required by this program. Do not fake dependency relations. The bootstrap execution order is represented simply by **one Todo ticket at a time**.
+
+After bootstrap:
+
+~~~bash
+aiwf sync
+aiwf coverage EPIC-AIWF-ARTIFACT-OPS
+aiwf audit
+~~~
+
+Coverage gaps are expected because implementation has not happened yet. What matters here is that the program graph is coherent and non-duplicated.
+
+---
+
+## 4. Per-ticket execution protocol
+
+Until the new high-level operations replace parts of this protocol, every gate runs like this:
+
+~~~text
+aiwf sync
+→ aiwf next codex
+→ verify it is the expected gate
+→ aiwf claim <ticket> --agent codex --minutes 60
+→ aiwf move <ticket> "In Progress"
+→ AIWF graph/product/code discovery
+→ surgical source/design reads only as needed
+→ implement
+→ focused tests
+→ bun run typecheck
+→ bun test
+→ aiwf diff
+→ method/file-level KISS audit
+→ aiwf audit
+→ aiwf sync
+→ aiwf done <ticket>
+→ promote the next gate from Backlog to Todo
+~~~
+
+Use `aiwf impact <Feature-or-Story>` before substantial changes when it can narrow the semantic/code neighborhood. Use `aiwf symbol`, graph, source, references, blast and test triage only for unresolved details—not as a ritual sequence.
+
+### Progressive dogfooding
+
+The protocol deliberately changes as AIWF improves:
+
+- After Gate 4, call `investigate_ticket` / `Ticket.investigate()` on every subsequent Ticket before manual repository investigation. Manual discovery should become fallback.
+- After Gate 5, call `prepare_ticket` / `Ticket.prepare()` on every subsequent Ticket. If it legitimately decomposes work, execute the generated child Tickets rather than bypassing them.
+- After Gate 7, `resolve_ticket` / `Ticket.resolve()` becomes the **default executor** for every remaining implementation Ticket. Codex intervenes only for `needs_input`, `blocked`, explicit review, or a demonstrated capability gap.
+- After Gate 8, use `process_epic/feature/story` on this program itself to discover remaining semantic gaps.
+
+This self-hosting progression is part of acceptance, not optional polish.
+
+---
+
+## 5. External package gates
+
+### LLMUTILS-SYSTEM1
+
+`AIWF-TICKET-INVESTIGATION` requires the shared System-1 contract/adapters from `@dharmax/llm-utils`.
+
+Before Gate 4, verify the installed/package dependency actually exports the required capability and its tests/version are green. If not, move `AIWF-TICKET-INVESTIGATION` to Blocked with the exact missing capability/version and stop. Do not copy `ai-cli`'s Laya wrapper into AIWF.
+
+### LLMUTILS-PERFORMANCE-METRICS
+
+`AIWF-PERFORMANCE-METRICS` requires llm-utils correlated generic LLM/System-1/Actor metrics.
+
+Verify that gate before Gate 6. If missing, block `AIWF-PERFORMANCE-METRICS` and stop before the end-to-end resolution benchmark. The purpose is to measure the proof, not reconstruct telemetry afterward.
+
+---
+
+## 6. Gate 1 — AIWF-PRIMITIVE-TRUTH
+
+### Goal
+
+Make AIWF's low-level hands truthful, fast, and worthy of autonomous use.
+
+### Design references
+
+Read only the relevant sections of `docs/artifact-operations.md` and `docs/causal-change-engine.md` after AIWF context has identified the implementation surface.
+
+### Work
+
+1. Make `aiwf sync` reconcile changed code/index state as well as Markdown projections.
+2. Remove unnecessary persistent writes from repeated read/query freshness checks, especially unchanged external dependency indexing.
+3. Allow one higher-level operation to perform one bounded freshness reconciliation and reuse that snapshot.
+4. Make `get_symbol_source` return the actual symbol body/range when it claims exactness; otherwise explicitly label an excerpt.
+5. For correctness-sensitive TS/JS definitions/references/callers, use existing TS LSP facilities; keep AST graph facts for cheap discovery.
+6. Add the smallest exact symbol/function replacement capability through the existing safe Causal Change path if current primitives cannot replace a known unit without the caller supplying its old body.
+7. Do not build a general AST editor or another exact code graph.
+
+### Acceptance
+
+On the AIWF repository, prove:
 
 - locate a known symbol;
 - return its exact source;
 - find exact TS references;
 - inspect dependencies;
-- perform an existing rename/refactor;
-- replace one known function/method in a disposable worktree;
-- run its targeted test.
+- perform an existing semantic rename/refactor;
+- replace one known function/method in a disposable worktree/fixture;
+- run its targeted test;
+- repeated reads of an unchanged project do not cause graph rewrites/lock noise;
+- measured result sizes/timings are recorded for comparison.
 
-Record wall time, result size and whether any "read" caused graph rewrites/lock warnings.
-
-Gate:
-
-~~~bash
-bun run typecheck
-bun test
-~~~
-
-Then method-by-method KISS review.
+Then full typecheck/tests + method-by-method KISS audit.
 
 ---
 
-# 2. AIWF-OPERATION-POLICY
+## 7. Gate 2 — AIWF-OPERATION-POLICY
 
-## Goal
+### Goal
 
-Implement the small cross-cutting policy substrate before any structure-producing artifact operation.
+Add the tiny shared policy substrate required by artifact operations—nothing more.
 
-Do not implement ticket investigation/preparation/resolution yet.
+### Design reference
 
-## Completeness target
+`docs/artifact-operations.md` § operation policy/completeness/Critic/depth.
 
-Add:
+### Work
+
+Implement:
 
 ~~~
 type CompletenessLevel = 'poc' | 'functional' | 'advanced' | 'production'
+
+interface ArtifactOperationOptions {
+  completeness?: CompletenessLevel
+  depth?: number | 'all'
+  maxArtifacts?: number
+  critic?: ArtifactCritic | { id: string } | 'auto' | 'none'
+}
 ~~~
 
-Add optional completenessTarget to:
+Add optional `completenessTarget` to Module/Epic/Feature/UserStory and a project default. Do **not** persist completeness on Ticket.
 
-- Module;
-- Epic;
-- Feature;
-- UserStory.
+Implement deterministic completeness resolution exactly as designed, including scope-specific Ticket completeness context; do not collapse POC Feature + production Module into one semantic scalar.
 
-Do not persist completenessTarget on Ticket. Ticket completion remains its explicit acceptance contract; inherited/run completeness may cause additional work to be created without reopening historical verified Tickets.
+Add:
 
-Add project config defaultCompletenessTarget.
+- `set_completeness_target`
+- `get_completeness_target`
+- shared depth/maxArtifacts validation/accounting
+- small read-only `ArtifactCritic` contract and transport-ID resolver
+- derived `CompletenessAssessment` shape without fake percentages.
 
-Add deterministic helpers/tools:
+Remove/deprecate legacy persisted `Module.completionPercent`; ensure `ProjectHealth.completionPercent` is not presented as semantic completeness.
 
-~~~
-set_completeness_target(entityId, level | null)
-get_completeness_target(entityId)
-resolve_effective_completeness(entityId, override?)
-~~~
+No real AI Critic yet—use injected test critics only.
 
-Implement only the constrained inheritance rules from the design. No generic policy traversal.
+### Acceptance
 
-Tests must prove:
+Prove override/inheritance rules, explicit child targets, multi-scope Ticket context, clearing targets, depth semantics and maxArtifacts stop behavior.
 
-- explicit operation override wins for the root artifact;
-- an explicit descendant target wins over recursively inherited run completeness;
-- explicit artifact target wins over ordinary inherited target;
-- Story inherits strictest containing Feature target;
-- Ticket stores no target; resolve a scope-specific completeness context from run override + containing Epic/implemented Feature/addressed Story/targeted Module + project fallback; do not collapse conflicting scope targets into one semantic level;
-- Feature does not inherit from targeting Epic;
-- project default is final fallback;
-- explicit lower artifact target can deliberately override ordinary inherited target for that artifact;
-- POC Feature inside production Module preserves both scope targets for Ticket resolution instead of forcing one scalar;
-- clearing explicit target restores inheritance/default behavior.
+Reject generic policy engines, recursive frameworks, critic registries, hard-coded model names, or persisted achieved completeness.
 
-Do not persist achieved/current completeness.
+### Dogfood immediately
 
-Remove/deprecate legacy persisted `Module.completionPercent`; do not reinterpret it as a completeness target. Audit `ProjectHealth.completionPercent` as well: remove it or clearly keep it only as derived workflow progress, never semantic completeness.
-
-## Operation options
-
-Define one small shared ArtifactOperationOptions contract:
-
-~~~
-completeness?: CompletenessLevel
-depth?: number | 'all'
-maxArtifacts?: number
-critic?: ArtifactCritic | { id: string } | 'auto' | 'none'
-~~~
-
-Transport-facing MCP/shell schemas use critic IDs rather than executable objects.
-
-Every artifact-operation result later must report its resolved effective policy and source. Ticket-oriented results also report the contributing scope-completeness context.
-
-Use the strongest contributing Ticket level only as a model/Critic-strength hint; semantic acceptance must respect each contributing scope.
-
-## Depth semantics
-
-Implement/validate the depth value and shared accounting rules only.
-
-No recursion engine.
-
-Depth counts artifact-expansion/decomposition edges:
-
-- 0 = current artifact only;
-- 1 = immediate next artifact layer;
-- N = N expansion edges;
-- all = no user depth cap, still bounded by real graph/safety constraints.
-
-Add one simple maxArtifacts guard (project default + operation override) so shallow-but-wide work cannot explode. Reaching it reports remaining work and must not mark the root complete. No generic cost/budget framework in this phase.
-
-## Critic contract
-
-Add the small read-only ArtifactCritic interface and CriticResult types.
-
-Do not build a registry/plugin framework.
-
-Provide only the smallest resolver needed for transport-level IDs, backed by injected/configured critics.
-
-At this gate, critic tests use injected fake critics. The first real AI critic is earned by Ticket 4 when there is a real proposal to review.
-
-## Derived completeness
-
-Define the CompletenessAssessment result shape, but do not pretend structural Coverage proves semantic maturity.
-
-At this gate it may compose deterministic Product Coverage + known policy facts only. After `AIWF-ASPECTS`, completeness assessment also consumes AspectAssessment. Semantic gap discovery arrives with later operations/Critics.
-
-## Acceptance
-
-Run:
-
-~~~bash
-bun run typecheck
-bun test
-~~~
-
-Then KISS audit the policy implementation.
-
-Reject if it introduces:
-
-- generic policy engines;
-- persistent current-completeness state;
-- arbitrary graph inheritance;
-- critic registry/plugin infrastructure;
-- recursion framework;
-- hard-coded model names.
+After this gate, set `production` completeness targets on the program Epic and every durable Feature created in §3. Re-run coverage/completeness views and keep the target state in AIWF.
 
 ---
 
-# 3. AIWF-TICKET-INVESTIGATION
+## 8. Gate 3 — AIWF-ASPECTS
 
-## Goal
+### Goal
 
-Introduce the shared artifact-operation contract and implement `Ticket.investigate()` plus the thin `investigate_ticket` transport operation.
+Make Aspects first-class cross-cutting intent before ticket automation depends on them.
 
-This is deliberately read-mostly and is the safest proof of the new abstraction.
+### Design reference
 
-Consume the shared llm-utils System-1 primitive here, because investigation is where cheap semantic triage can be proven without granting mutation authority.
+`docs/aspects.md`.
 
-## Domain corrections
+### Work — checkpoint A: entity + graph semantics
 
-Add only what investigation/preparation demonstrably need:
+Add a real Semantika `Aspect` entity class + DCR using IntentStatus and optional acceptance criteria.
 
-- Ticket.acceptanceCriteria?: string[];
-- allow Decision --governs--> Ticket;
-- centralize coherent Ticket lane/status transitions:
-  - Backlog/Todo → planned;
-  - In Progress → in_progress;
-  - Blocked → blocked;
-  - Done → verified or rejected.
+Add only the new `applies_to` predicate and the relation shapes defined in the design:
 
-Fix the current Blocked→planned behavior.
+- Aspect `applies_to` Idea/Module/Epic/Feature/UserStory;
+- Ticket `addresses` Aspect;
+- Test/Artifact `verifies` Aspect;
+- Decision `governs` Aspect.
 
-Do not add child Tickets yet; Ticket 4 introduces decomposition.
+Aspect-local behavior lives on `Aspect`; applicable-Aspect behavior lives on the relevant entity classes, backed only by small bounded helpers where genuinely cross-entity.
 
-## Operation contract
+Extend the existing Product Intent/Causal Change mutation owner. No `AspectService`, `AspectChange`, taxonomy framework or shadow graph.
 
-Implement only:
+Add deterministic CRUD/query + `aspects.md` projection with single relation ownership.
 
-~~~
-complete
-needs_input
-blocked
-~~~
+### Work — checkpoint B: applicability + assessment
 
-with operation-specific disposition inside complete.
+Implement bounded `get_applicable_aspects` semantics exactly from the design—no unrestricted inheritance traversal.
 
-No persisted operation state.
+Implement derived structural Aspect assessment: applicable concerns, addressing work, tests/evidence artifacts, governing Decisions and known gaps. No score/percentage.
 
-## System-1 assessment
+### Work — checkpoint C: cognition
 
-Use the llm-utils System-1 primitive. AIWF owns only its question set, confidence/escalation policy and compact-state builder.
+Use System-1 only to shortlist candidate missing Aspects from a bounded vocabulary/project set. Reasoning/Critic adjudicates materiality. No AI silently persists an Aspect.
 
-Given a compact Ticket state (intent + acceptance criteria + a bounded candidate/fact list), batch a small typed assessment such as:
+### Acceptance
 
-- work_kind: bug_fix | refactor | feature_work | test_work | docs_config | mixed;
-- scope: single_symbol | single_file | multi_file | cross_subsystem | unclear;
-- preparation: likely_atomic | likely_split | unclear;
-- reasoning_depth: direct | moderate | deep;
-- needs_product_context: yes/no probability;
-- needs_code_context: yes/no probability;
-- needs_test_context: yes/no probability.
+Prove Feature direct Aspect, Story inheritance, Epic→contained-Ticket applicability without contaminating targeted Feature, Module→targeting Ticket, parent/child Ticket handling, dedup/cycle safety, evidence via code/test/report/Decision, and both omission + anti-ceremony behavior.
 
-Use the answers to choose what evidence to retrieve, which candidates survive, which small tool family is likely relevant, and whether to escalate.
+### Dogfood immediately
 
-Rules:
+Create/reuse and apply at least these **material** Aspects to this program where appropriate:
 
-- unavailable System-1 → ordinary bounded path;
-- low confidence → ordinary bounded path;
-- contradiction with deterministic graph/code evidence → ignore/escalate;
-- never persist a graph relation or terminal Ticket state from System-1 alone;
-- batch questions at one decision point rather than scattering classifier calls.
+- `Maintainability / KISS` — program Epic;
+- `Robustness / truthfulness` — Truthful Primitives and Ticket Ops Features;
+- `Execution efficiency / token attention` — Ticket Ops and Primary Interface Features.
 
-Also apply System-1 after deterministic retrieval to a bounded shortlist of optional candidate symbols/files/Decisions/Lessons/tests/Product Intent entities. Explicit graph neighbors and other deterministically mandatory evidence always survive. Prefer conservative ranking/top-N retention; System-1 may remove only optional low-relevance candidates from model context, never from canonical graph state.
+Do not add irrelevant standard Aspects merely to exercise the feature.
 
-Expose timing, raw probabilities/distributions, candidate counts before/after pruning, and escalation outcome in debug/metrics output so usefulness can be measured.
-
-## Investigation behavior
-
-For one Ticket:
-
-1. perform one freshness reconciliation;
-2. collect existing graph/product/work/code/test/decision/lesson evidence;
-3. run the compact System-1 assessment to prioritize missing evidence;
-4. validate stale code anchors;
-5. derive exact/semantic enrichment candidates with provenance;
-6. use bounded autoregressive reasoning only when System-1/deterministic evidence is insufficient;
-7. return a compact dossier with proposed enrichments and one disposition:
-   - ready;
-   - needs_preparation;
-   - rejectable.
-
-Ambiguous semantic ownership returns needs_input.
-
-No child Ticket creation.
-No Ticket/Product semantic mutation.
-No implementation code mutation.
-No lane movement merely because investigation ran.
-
-Derived code-index freshness may update because it is not canonical Ticket/Product state.
-
-## Shell/MCP
-
-Expose the same structured tool.
-
-Shell may interactively satisfy needs_input, persist canonical state, and retry.
-
-MCP returns required inputs; caller updates ordinary artifact fields/relations and retries.
-
-## Acceptance cases
-
-At minimum:
-
-- already-well-grounded Ticket: mostly graph reads, no autoregressive semantic call if unnecessary;
-- System-1 high-confidence routing correctly avoids irrelevant evidence families;
-- bounded candidate pruning keeps the actually relevant artifact(s);
-- low-confidence System-1 cleanly escalates rather than guessing;
-- contradictory deterministic evidence overrides/escalates System-1;
-- System-1 unavailable: behavior remains correct;
-- stale/missing code target: repaired exactly;
-- ambiguous Feature/Story ownership: needs_input, no guessed relation;
-- duplicate/already-satisfied Ticket: grounded rejectable;
-- technical Ticket with missing completion contract: asks for or derives Ticket acceptance criteria;
-- explicit applicable Aspect is present in the dossier and cannot be pruned by System-1.
-
-Gate with typecheck/tests + KISS audit.
-
-Stop here and inspect real output before Ticket 4.
+Run Aspect assessment on the program before proceeding.
 
 ---
 
-# 4. AIWF-TICKET-PREPARATION
+## 9. Gate 4 — AIWF-TICKET-INVESTIGATION
 
-## Goal
+### Goal
 
-Implement `Ticket.prepare()` plus the thin `prepare_ticket` transport operation and ordinary Ticket decomposition, including the first real proposal Critic path.
+Implement `Ticket.investigate()` plus thin `investigate_ticket` transport operation.
 
-## Graph change
+### External gate
 
-Add exactly:
+`LLMUTILS-SYSTEM1` must be available.
 
-~~~
-Ticket --contains--> Ticket
-~~~
+### Work
 
-No SubTask/ManagementTicket/Plan entity.
+1. Add structured Ticket `acceptanceCriteria?: string[]`.
+2. Allow Decision `governs` Ticket.
+3. Centralize coherent Ticket lane/status transitions and fix current Blocked→planned behavior.
+4. Investigation is semantically read-only; code-index freshness may update.
+5. Gather mandatory graph/Product/Decision/Lesson/Aspect/code/test evidence first.
+6. Run one compact batched System-1 assessment for work kind/scope/atomicity/reasoning depth/context families.
+7. Deterministically retrieve a bounded optional candidate set; System-1 may rank/prune only optional candidates, never mandatory evidence.
+8. Use bounded reasoning only for unresolved semantics.
+9. Return dossier + proposed enrichments + provenance + disposition (`ready`, `needs_preparation`, `rejectable`) or shared `needs_input`/`blocked`.
+10. Investigation itself never writes semantic enrichments, creates children, edits code, or moves lane.
 
-## Behavior
+### Acceptance
 
-prepare_ticket:
+Prove:
 
-1. calls/uses the same semantically read-only investigation owner;
-2. uses the existing System-1 assessment as a cheap atomic-vs-split/escalation hint;
-3. returns immediately when no canonical enrichment or decomposition is needed and the Ticket is already executable;
-4. claims the Ticket before the first durable preparation mutation;
-5. applies confirmed investigation enrichments through the canonical Product Intent/Causal Change path;
-6. clarifies missing material requirements through needs_input;
-7. when decomposition is genuinely useful, asks a reasoning model to propose a small coherent set of child Tickets;
-8. gives every executable child a clear body + Ticket acceptance criteria;
-9. connects children to relevant Epic/Feature/Story/code context;
-10. adds depends_on only for real ordering constraints;
-11. applies graph changes through the existing Product Intent/Causal Change mutation path;
-12. releases any lease acquired by this call before returning needs_input/blocked;
-13. is idempotent on rerun.
+- well-grounded Ticket avoids unnecessary autoregressive calls;
+- high-confidence routing avoids irrelevant evidence;
+- low confidence/contradiction escalates;
+- System-1 unavailable still yields correct behavior;
+- stale/missing code target is identified exactly;
+- ambiguous product ownership yields `needs_input`, not a guess;
+- duplicate/already-satisfied work yields grounded `rejectable`;
+- material explicit Aspect is always present and cannot be pruned;
+- dossier is substantially more useful than today's manual symbol/graph sequence.
 
-System-1 never invents child tickets or decomposition text.
+### Dogfood immediately
 
-## Critic flow
-
-Before applying any generated child-ticket batch:
-
-~~~
-proposal
-→ selected Critic
-→ accept | revise | needs_input | reject
-→ deterministic validation
-→ apply
-~~~
-
-Implement one real built-in independent AI critic behind the ArtifactCritic contract, selected through critic=auto for the normal path.
-
-Critic policy depends on effective completeness but remains overridable by an explicit critic ID/object.
-
-Bound revision attempts. Critic failure/non-convergence must not silently downgrade the requested completeness.
-
-Acceptance must include:
-
-- critic catches an omitted child required by the target;
-- critic catches duplicate/redundant child work;
-- critic catches ceremonial decomposition;
-- critic requests revision and producer converges;
-- critic needs_input flows through the normal interaction contract;
-- critic=none explicitly bypasses only the critic, not deterministic validation;
-- custom injected critic is honored.
-
-Do not split based on token count or arbitrary maximum size.
-
-## Acceptance
-
-Cases:
-
-- atomic ticket remains atomic;
-- large cross-cutting ticket becomes 2–4 meaningful children;
-- technical ticket decomposes without fake Stories;
-- rerun produces zero duplicate children;
-- ambiguous split returns needs_input;
-- child dependency cycle is rejected.
-
-Gate + KISS audit.
+Run `investigate_ticket` on `AIWF-TICKET-PREPARATION`, save/inspect the dossier, and use it as the primary context for Gate 5.
 
 ---
 
-# 5. AIWF-TICKET-RESOLUTION-FIRST-PROOF
+## 10. Gate 5 — AIWF-TICKET-PREPARATION
 
-## Goal
+### Goal
 
-Make `Ticket.resolve()` plus the thin `resolve_ticket` transport operation finish a realistic prepared Ticket from start to verified completion.
+Implement `Ticket.prepare()` plus thin `prepare_ticket`, ordinary Ticket→Ticket decomposition, and the first real Critic path.
 
-Do not redesign the whole shell actor.
+### Work
 
-## Deterministic lifecycle
+1. Add exactly `Ticket --contains--> Ticket`; no SubTask/ManagementTicket/Plan entity.
+2. Start from semantically read-only investigation.
+3. If no enrichment/decomposition is needed, return quickly.
+4. Claim before the first durable mutation.
+5. Apply confirmed investigation enrichments through the canonical safe mutation path.
+6. Use System-1 only as atomic-vs-split/escalation hint.
+7. When decomposition is genuinely useful, reasoning model proposes a small coherent child set with bodies + acceptance criteria + relevant Product/Aspect/code relations.
+8. Add `depends_on` only when real ordering exists and the canonical graph path supports it.
+9. Before apply: selected Critic reviews proposal → accept/revise/needs_input/reject → deterministic validation → apply.
+10. Built-in `critic=auto` must use an independent review context; advanced/production must not rely on producer self-critique.
+11. Bound revision attempts; no silent completeness downgrade.
+12. Rerun is idempotent and reuses children.
+13. Release leases acquired by the call before returning `needs_input`/`blocked`.
 
-The operation owns:
+### Acceptance
 
-~~~
+Prove atomic Ticket remains atomic, broad Ticket decomposes meaningfully, technical Ticket needs no fake Story, rerun creates no duplicates, dependency cycles reject, Critic catches omission/duplication/ceremony, Critic revision converges, custom critic works, `critic=none` bypasses only semantic critic—not deterministic validation.
+
+### Dogfood immediately
+
+Run `prepare_ticket` on `AIWF-PERFORMANCE-METRICS` and `AIWF-TICKET-RESOLUTION-FIRST-PROOF`. Honor any justified child decomposition rather than bypassing it.
+
+---
+
+## 11. Gate 6 — AIWF-PERFORMANCE-METRICS
+
+### Goal
+
+Land enough correlated telemetry to measure the first real end-to-end resolution proof.
+
+### External gate
+
+`LLMUTILS-PERFORMANCE-METRICS` must be available.
+
+### Design reference
+
+`docs/performance-metrics.md`.
+
+### Work
+
+1. Create one trace ID per high-level artifact operation and propagate llm-utils `MetricsContext`.
+2. Collect AIWF-owned deterministic counters/outcomes only; never duplicate llm-utils LLM/System-1/Actor token/latency accounting.
+3. Produce compact run summaries: operation/artifact/policy/outcome, version/model/backend, artifact visits/creates/reuse, tool/source/edit/test counts, critic rounds, System-1 routing/pruning, correlated LLM usage, verification.
+4. Persist one JSON line per completed operation in gitignored `.ai-workflow/metrics.jsonl`; metrics failure never fails engineering work.
+5. Repurpose/extend `aiwf metrics` to query/filter useful performance aggregates by operation/artifact/time/tag.
+6. No prompt/source/output/tool-argument content in metrics.
+
+### Acceptance
+
+Prove restart persistence, no duplicate token accounting, correlation across investigate/prepare + nested llm-utils calls, no content leakage, useful median/p95/outcome/repair/System-1/Critic/evidence-reduction metrics, and negligible instrumentation overhead.
+
+Do not build a dashboard, telemetry platform, OpenTelemetry layer, metric graph entities, or synthetic quality score.
+
+---
+
+## 12. Gate 7 — AIWF-TICKET-RESOLUTION-FIRST-PROOF
+
+### Goal
+
+Implement `Ticket.resolve()` plus thin `resolve_ticket` and prove that AIWF can actually own engineering work end-to-end.
+
+### Deterministic lifecycle
+
+~~~text
 investigate
 → claim before first mutation
-→ prepare when required
-→ execute ready leaf work
-→ verify
+→ prepare if needed
+→ resolve ready leaf work
+→ targeted verification
 → bounded repair
-→ verify acceptance
-→ mark verified/Done
+→ verify Ticket acceptance + material Aspects
+→ verified/Done
 → release
 → sync
 ~~~
 
-For parents, build a bounded child work set, topologically order real dependencies, resolve executable leaves, then verify parent acceptance.
+Parent Tickets use a bounded child work set, cycle detection and dependency order. Do not implement uncontrolled recursive agent calls.
 
-Lease each child before mutating it. If another agent owns an active lease, return a temporary blocked result; do not mutate that child's lifecycle and do not leave newly acquired leases behind on needs_input/blocked returns.
+### Cognition
 
-Do not use uncontrolled recursive agent calls.
+- deterministic evidence first;
+- System-1 for optional evidence pruning, mechanism/failure classification and model-tier hint;
+- context-manager to pack surviving evidence where useful;
+- Asker for synthesis not requiring tools;
+- LLMActor only when implementation genuinely requires tool interaction;
+- exact refactor/edit/test primitives first choice.
 
-## Cognition
+Workspace safety: inspect Git state after targets are known; unrelated dirty files may remain, dirty target requires `needs_input` by default; never reset/stash/commit user work automatically.
 
-For each leaf:
+### Acceptance
 
-- deterministically gather a bounded candidate set;
-- use System-1 to prune candidate evidence and classify likely change mechanism, scope and reasoning depth;
-- pack the surviving evidence with @dharmax/context-manager where useful;
-- use that assessment to choose an exact small run-local AIWF tool set and model tier;
-- use Asker for semantic/code synthesis that needs no tools;
-- use LLMActor only when implementation genuinely needs tool interaction;
-- prefer deterministic refactor/edit/test primitives.
+Prove with deterministic tests/fixtures plus real controlled work:
 
-On a failed verification pass, System-1 may cheaply classify the failure family (compile/type/test assertion/tool/environment/semantic/unknown) before the next diagnostic step. It does not decide that the Ticket is fixed.
+- surgical code fix;
+- function-level change;
+- safe TS refactor;
+- parent with children;
+- needs-input case;
+- failed-test repair loop;
+- unrelated dirty file allowed;
+- dirty target safely stops;
+- no Done unless acceptance is explicitly verified;
+- metrics record the complete run.
 
-Do not require LLMPipeline, LLMSession, or semantic-registry.
+### Mandatory dogfood transition
 
-If one of those demonstrably makes the implementation smaller during this ticket, document the evidence before adopting it.
+After this gate is green, **stop manually implementing later program Tickets by default**.
 
-## Failure/control behavior
+Use `resolve_ticket` for:
 
-- missing semantic fact → needs_input;
-- real external/dependency/lease blocker → blocked;
-- demonstrably obsolete/duplicate/already-satisfied ticket → verified rejection with evidence;
-- tool/runtime failure → operation error, not a fake project status.
+- `AIWF-PRODUCT-PROCESSING`
+- `AIWF-PRIMARY-INTERFACE`
+- `AIWF-FINAL-DOGFOOD-AUDIT`
 
-Never mark Done if Ticket acceptance criteria are not explicitly verified.
-
-Before code mutation, inspect Git state after target discovery. By default, a dirty target file returns needs_input; unrelated dirty files may remain. Never reset/stash/commit user changes automatically.
-
-## Acceptance
-
-Use several real tickets, including:
-
-1. one surgical code fix;
-2. one function-level implementation/change;
-3. one safe TS refactor;
-4. one prepared parent with dependent children;
-5. one case requiring user input;
-6. one failing-test repair loop;
-7. one dirty unrelated file that does not block;
-8. one dirty target file that safely returns needs_input.
-
-For each record:
-
-- external caller tool calls;
-- source reads performed by external caller;
-- AIWF internal tool calls;
-- model usage/tokens where measurable;
-- verification evidence.
-
-Gate + adversarial KISS audit.
+Codex may intervene only when the operation returns `needs_input`/`blocked`, or when a concrete bug in `resolve_ticket` itself must be fixed. Such bugs become child Tickets and are resolved through the same system once fixed.
 
 ---
 
-# 6. AIWF-PRODUCT-PROCESSING
+## 13. Gate 8 — AIWF-PRODUCT-PROCESSING
 
-## Goal
+### Goal
 
-Add entity-owned processing methods with thin transport aliases:
-
-~~~
-UserStory.process()  ↔ process_story
-Feature.process()    ↔ process_feature
-Epic.process()       ↔ process_epic
-~~~
-
-using the same operation-result and needs_input contract.
-
-## Rules
-
-### Story
-
-Reconcile existing work first, then create/reuse only necessary addressing Tickets.
-
-### Feature
-
-Create/reuse meaningful Stories when they clarify observable behavior; direct Tickets remain valid when Stories would be ceremony.
-
-### Epic
-
-Reuse stable Features/Stories. Technical Epics may produce direct Tickets.
-
-Preserve:
+Implement entity-owned:
 
 ~~~
-Epic --targets--> Feature/UserStory
-Epic --contains--> Ticket
+UserStory.process() ↔ process_story
+Feature.process()   ↔ process_feature
+Epic.process()      ↔ process_epic
 ~~~
 
-Never revert to Epic owning Features.
+### Design references
 
-Existing Epic proposal/apply code should be reused or simplified into internal machinery; avoid two competing semantic decomposition paths.
+`docs/artifact-operations.md`, `docs/product-intent-graph.md`, `docs/aspects.md`.
 
-## Completeness / depth / critic behavior
+### Rules
 
-process_story / process_feature / process_epic all accept the shared operation policy.
+- Story reconciles existing work and creates/reuses only necessary addressing Tickets.
+- Feature creates/reuses meaningful Stories when they clarify observable behavior; direct Tickets remain valid for technical work.
+- Epic reuses stable Features/Stories; technical Epics may create direct Tickets.
+- Preserve `Epic targets Feature/UserStory` and `Epic contains Ticket`; never make Epic own Feature.
+- completeness controls thoroughness, not counts;
+- depth controls artifact expansion depth; Aspect discovery itself does not consume depth;
+- maxArtifacts bounds breadth;
+- every generated batch is reviewed before apply;
+- advanced/production depth>1 receives final root-level cross-layer Critic review;
+- raising completeness fills gaps idempotently; lowering never deletes valid work;
+- applicable Aspects and materially missing candidate Aspects participate in proposal/Critic review.
 
-- completeness controls semantic breadth/thoroughness, not item counts;
-- depth controls how many artifact levels are recursively processed;
-- critic reviews each generated batch before apply;
-- advanced/production with depth > 1 gets a final root-level cross-layer critic review;
-- raising completeness fills missing work idempotently rather than regenerating existing structure;
-- lowering completeness never deletes already-valid structure.
+Epic processing normally uses stronger-than-minimal reasoning after deterministic retrieval + System-1 candidate narrowing.
 
-Acceptance must include a POC→production upgrade on an existing artifact with no duplicate Stories/Tickets, including newly material Aspect gaps when appropriate.
+### Acceptance
 
-## Model policy
+Prove Feature/Story reuse, technical Epic without fake Stories, Story→useful Ticket work, ambiguity→needs_input, rerun idempotence, no duplicate intent/work, coherent Coverage/Impact/AspectAssessment, and POC→production upgrade that adds only genuinely missing work.
 
-Product processing normally receives stronger reasoning than mechanical ticket investigation.
+### Dogfood immediately
 
-Epic processing in particular should use:
+Run `process_epic` on `EPIC-AIWF-ARTIFACT-OPS` with:
 
-1. deterministic current Product Intent retrieval;
-2. System-1 to classify technical-vs-behavioral shape, breadth/ambiguity, and shortlist likely reusable candidates from a bounded candidate set;
-3. reasoning-grade decomposition over that reduced evidence;
-4. coherence/reuse review;
-5. escalation when ambiguity, breadth or weak confidence warrants it.
+~~~
+completeness: production
+depth: 1
+critic: auto
+~~~
 
-System-1 may shortlist Product Intent candidates; it may not create/reuse/link one as canonical truth by itself.
-
-No model tier is trusted merely because it returned valid JSON.
-
-## Acceptance
-
-Use realistic cases proving:
-
-- Feature reuse;
-- Story reuse;
-- technical Epic with no fake Story;
-- Story → useful Tickets;
-- ambiguity → needs_input;
-- rerun idempotence;
-- no duplicate intent/work entities;
-- Product Coverage/Impact remains coherent.
-
-Gate + KISS audit.
+Review and accept only real missing intent/work. Do not allow the new processor to manufacture ceremonial artifacts merely to make its own graph look richer.
 
 ---
 
-# 7. AIWF-PRIMARY-INTERFACE
+## 14. Gate 9 — AIWF-PRIMARY-INTERFACE
 
-## Goal
+### Goal
 
-Only after the artifact operations are proven, make them AIWF's first-choice shell/MCP/skill interface.
+Make artifact-level operations the obvious first-choice shell/MCP/skill surface.
 
-## Work
+### Work
 
-1. Shell/MCP expose the policy controls consistently:
-   - --completeness / completeness;
-   - --depth / depth;
-   - --max-artifacts / maxArtifacts;
-   - --critic / critic;
-   - explicit remember/set-completeness operation rather than silently persisting run overrides.
-2. Shell help/normal language flow prioritizes:
-   - resolve_ticket;
-   - prepare_ticket;
-   - investigate_ticket;
-   - process_epic/feature/story.
-3. Canonical installed skill tells external coding agents to delegate artifact work first.
-4. Existing primitives remain exposed as drill-down/debug/expert operations.
-5. Measure whether the old bucket-router/WorkflowActor path is now redundant.
-6. Remove/replace it only if the new operations cover its real responsibilities more simply.
+1. Shell help/natural-language flow prioritizes `resolve_ticket`, `prepare_ticket`, `investigate_ticket`, `process_epic/feature/story`.
+2. Shell/MCP expose `completeness`, `depth`, `maxArtifacts`, `critic` consistently; remembering completeness is explicit via completeness-target operations, never a hidden side effect.
+3. Installed AIWF skill tells external coding agents to **delegate artifact work first** and use primitives only for explicit drill-down/debugging.
+4. Existing low-level primitives remain available.
+5. Measure whether legacy bucket-router/WorkflowActor responsibilities are now redundant. Remove/simplify only what the new operations demonstrably replace; do not introduce semantic-registry merely for architectural symmetry.
+6. Update README/examples to show the new preferred workflow using commands that are actually verified.
 
-Do not introduce semantic-registry merely to replace the router. Evaluate it only if a real remaining dynamic-discovery problem exists.
+### Acceptance
 
-## Final acceptance: external-agent A/B
-
-Repeat a known historical engineering ticket from a pre-change commit/worktree.
-
-A: external coding agent works normally with repository/tool access.
-
-B: same model begins with resolve_ticket and uses primitives only if AIWF returns a genuine gap.
-
-Compare:
-
-- task correctness;
-- System-1 decisions, confidence, latency and how many autoregressive calls they avoided or escalated;
-- evidence candidates before/after System-1 pruning;
-- false-prune rate on optional artifacts later proven necessary;
-- proof that mandatory graph evidence is never pruned;
-- external paid input/output tokens;
-- external tool calls;
-- external source reads;
-- total latency;
-- AIWF local/cheap model use;
-- manual intervention.
-
-Claim paid-token savings only from measured data.
+An external coding agent given a Ticket should naturally invoke high-level AIWF rather than reproduce the old status→graph→symbol→slice→blast choreography.
 
 ---
 
-# Global rejection criteria
+## 15. Gate 10 — AIWF-FINAL-DOGFOOD-AUDIT
+
+### Goal
+
+Use the completed system on itself and produce measured evidence that the program succeeded.
+
+### Self-review
+
+Run the program Epic through the final high-level system:
+
+1. production completeness;
+2. applicable Aspect assessment;
+3. `critic=auto`;
+4. bounded processing/resolution of any real remaining gaps;
+5. Product Coverage and Product Impact;
+6. `aiwf doctor`, `aiwf audit`, full typecheck/tests;
+7. full repository diff/code-method KISS audit.
+
+No known program gap may be hidden merely to complete the Epic. Conversely, do not generate ceremony to chase an imaginary score.
+
+### Controlled A/B measurement
+
+Use a historical engineering task with a known-good outcome from before this program; prefer the prior `AIWF-PRODUCT-CHANGE` task if it can be reconstructed safely.
+
+Compare the same external model/task under:
+
+~~~
+A: normal repository/tool workflow
+B: high-level AIWF delegation first
+~~~
+
+Measure:
+
+- correctness/acceptance outcome;
+- external paid tokens when actually available;
+- external source reads/tool calls;
+- AIWF internal LLM/System-1 tokens/cost/latency;
+- wall time;
+- user interventions;
+- evidence-candidate reduction;
+- Critic revisions;
+- first-pass verification/repair loops.
+
+Do not claim paid-token savings unless measured.
+
+### Final program state
+
+- all program Tickets terminal and truthful;
+- no active leases;
+- no unintended Blocked/In Progress work;
+- program Features/Stories/Aspects coherent;
+- Epic coverage/Aspect/completeness assessment has no known material gap at production target;
+- master green and clean;
+- projections synced;
+- relevant README/skill docs current;
+- Epic marked completed only now.
+
+Produce one concise final report from measured facts. Do not create a new handoff document.
+
+---
+
+## 16. Global rejection criteria
 
 Stop and simplify if implementation introduces:
 
-- generic workflow/state-machine machinery;
-- a second project/product model;
-- operation session tables/resume tokens;
-- duplicate context/vector/search subsystem;
-- hidden LLM writes to graph semantics;
-- broad tool catalogs rendered to every actor step;
-- arbitrary decomposition thresholds;
-- new entities/predicates without a concrete acceptance case;
-- complex code for an operation whose domain behavior is simple;
-- Service/Manager classes that merely wrap Semantika entity methods.
+- generic workflow/state-machine infrastructure;
+- a second Product/project graph;
+- Service/Manager/Repository wrappers around Semantika entity behavior;
+- persisted operation sessions/resume tokens;
+- duplicate context/vector/search system;
+- hidden LLM writes to canonical semantics;
+- broad tool catalogs rendered to every Actor step;
+- arbitrary decomposition/count thresholds;
+- Aspect taxonomy bureaucracy or percentage scores;
+- persistent achieved-completeness flags;
+- duplicate LLM/System-1 metric accounting;
+- prompt/source logging in metrics;
+- a new entity/predicate without a concrete acceptance case;
+- complex code for a simple artifact lifecycle.
 
-A simple artifact lifecycle must look simple in code.
+The governing rule remains:
+
+> **If a simple engineering operation looks architecturally complicated in code, treat that as a defect and simplify it.**
 
 ---
 
-## Separate metrics feature
+## 17. Design-reference map
 
-Performance telemetry is deliberately tracked in its own development flow rather than implemented inside these artifact-operation tickets.
+Use this map only when a gate needs semantic detail. Do not preload all documents:
 
-The separate cross-package feature is documented in:
+| Gate | Design reference |
+| --- | --- |
+| Primitive Truth | `docs/causal-change-engine.md`, relevant primitive sections of `docs/artifact-operations.md` |
+| Operation Policy / Ticket Ops / Product Processing / Primary Interface | `docs/artifact-operations.md` |
+| Aspects | `docs/aspects.md` |
+| Product relations/coverage/impact | `docs/product-intent-graph.md`, `docs/product-change.md` |
+| Performance Metrics | `docs/performance-metrics.md` |
 
-- `docs/performance-metrics.md`
-- `docs/performance-metrics-plan.md`
-- `@dharmax/llm-utils/docs/performance-metrics.md`
-- `@dharmax/llm-utils/docs/performance-metrics-plan.md`
-
-Land its basic correlated run metrics before the end-to-end `resolve_ticket` performance proof, then perform the controlled A/B benchmark only after the primary high-level interface exists.
+`docs/product-intent-graph.md` contains an intentionally unresolved future question about directional relation propagation (downward inheritance vs upward union per relation family). **Do not design or implement a generic propagation mechanism in this program.**
