@@ -24,7 +24,7 @@ Resolution investigates, leases, prepares, applies safe edits, runs tests, repai
 
 Completeness overrides are temporary. Remember a target explicitly with `completeness set`; use `clear` to remove it. Processing reuses stable capabilities and produces useful next-layer work; its result reports remaining work and depth/breadth stops without treating artifact count as completeness.
 
-**Verified limits:** controlled arithmetic resolution passed with the configured local model. Broad program Tickets reached timeout/step limits and required explicit fallback review. Program Epic processing with a reviewed existing-layer proposal and independent auto Critic created no ceremonial artifacts. These are measured capabilities, not a claim that every arbitrary task resolves autonomously. Exact symbol/graph/refactor/test primitives remain available for drill-down and actual blockers.
+**Verified evidence and limits:** final dogfooding completed the artifact-operations program truthfully after earlier broad runs exposed timeout/step-limit and verifier-quality failures. In a controlled reconstructed historical relation-validation task, the same local model/task failed under the ordinary tool workflow but succeeded through one high-level `resolve_ticket` delegation with the exact requested one-line fix and unchanged tests. This validates the delegation mechanism; it is not a claim that arbitrary software work is universally autonomous. Exact graph/source/change/test primitives remain available for drill-down and real blockers.
 
 ## Architecture in one minute
 
