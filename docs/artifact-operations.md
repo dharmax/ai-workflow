@@ -6,7 +6,9 @@ Status: authoritative target design for the next AIWF phase.
 
 AIWF should not make an expensive external coding agent orchestrate dozens of low-level engineering tools.
 
-The primary public interface should operate on durable engineering artifacts:
+The primary public interface should operate on durable engineering artifacts.
+
+Per Semantika's entity pattern, the in-process domain API is entity-oriented: Ticket/Epic/Feature/UserStory instances own their tightly-related operations. Shell/MCP names are transport aliases over those methods, not separate business-logic owners:
 
 ~~~
 human / Codex / AGY / future host
@@ -501,7 +503,9 @@ If later usage proves persistent critic/depth policy useful, add it from evidenc
 
 ## 4. First-class public operations
 
-### investigate_ticket(ticketId)
+### investigate_ticket(ticketId) / ticket.investigate(options)
+
+The MCP/shell operation loads the Ticket and delegates to the Ticket instance.
 
 Make the Ticket as grounded as current evidence allows.
 
@@ -543,7 +547,9 @@ or the shared control result needs_input / blocked.
 
 A model guess must not silently become a durable semantic relation. Ambiguous product ownership or intent returns needs_input.
 
-### prepare_ticket(ticketId)
+### prepare_ticket(ticketId) / ticket.prepare(options)
+
+The MCP/shell operation loads the Ticket and delegates to the Ticket instance.
 
 Make a Ticket executable.
 
@@ -571,7 +577,9 @@ Preparation must be idempotent: rerunning it reuses existing children and relati
 
 Do not split by arbitrary token/line thresholds. Split only when the work has coherent independently verifiable boundaries.
 
-### resolve_ticket(ticketId)
+### resolve_ticket(ticketId) / ticket.resolve(options)
+
+The MCP/shell operation loads the Ticket and delegates to the Ticket instance.
 
 Own the Ticket from current state to a truthful terminal outcome.
 
@@ -641,7 +649,7 @@ After investigation identifies the likely touched files:
 
 The existing snapshot helper is optional insurance, not a correctness boundary.
 
-### process_story(storyId)
+### process_story(storyId) / story.process(options)
 
 Make an accepted UserStory actionable.
 
@@ -649,7 +657,7 @@ Reconcile against existing work first. Create/reuse addressing Tickets only when
 
 Do not manufacture extra Tickets to satisfy a hierarchy.
 
-### process_feature(featureId)
+### process_feature(featureId) / feature.process(options)
 
 Make the Feature's next meaningful intent/work layer explicit.
 
@@ -659,7 +667,7 @@ Depending on the capability, this may:
 - create/reuse direct implementation Tickets when ceremonial Stories add no value;
 - return needs_input when behavior/scope is materially ambiguous.
 
-### process_epic(epicId)
+### process_epic(epicId) / epic.process(options)
 
 Turn the initiative into the next coherent Product Intent/work layer while reusing stable capabilities.
 
@@ -679,6 +687,19 @@ or direct Tickets for genuinely technical work
 It must preserve the existing invariant that an Epic targets durable capabilities; it does not own Features.
 
 Existing propose_epic_structure / apply_epic_structure may be reused internally while useful. They should no longer define the long-term public abstraction.
+
+### Entity-method ownership rule
+
+Artifact operations are not service objects.
+
+- Ticket owns investigate/prepare/resolve behavior tightly coupled to Ticket state and relations.
+- Epic, Feature, and UserStory own their process behavior.
+- Entity methods may call small cross-entity helpers for mutation validation, ordering, completeness resolution, code/index access, Critic invocation, etc.
+- MCP/shell/tool registrations should contain parsing/loading/serialization only.
+
+Do not create TicketService, ArtifactOperationManager, or equivalent wrappers around methods that naturally belong to the entity.
+
+---
 
 ## 5. Shared operation control contract
 
