@@ -195,7 +195,7 @@ interface ArtifactOperationOptions {
   completeness?: CompletenessLevel
   depth?: number | 'all'
   maxArtifacts?: number
-  critic?: ArtifactCritic | 'auto' | 'none'
+  critic?: ArtifactCritic | { id: string } | 'auto' | 'none'
 }
 ~~~
 
@@ -215,6 +215,7 @@ Every operation result reports the effective policy actually used:
 effectivePolicy:
   completeness: advanced
   completenessSource: feature:FEAT-X
+  scopeCompleteness: [...]
   depth: 2
   maxArtifacts: 24
   critic: strict
@@ -290,10 +291,29 @@ For descendants reached recursively:
 
 Thus a root run override does not silently erase a deliberate child-scope target.
 
+### Ticket completeness context
+
+Tickets can simultaneously serve scopes with different targets. Do not collapse these into one semantic level.
+
+Example: a POC Feature may be implemented inside a production-quality Module. Product breadth may remain POC while the Module's security/maintainability/operability expectations still apply to the code.
+
+For Ticket investigation/preparation/resolution derive:
+
+~~~
+scopeCompleteness:
+  epic?: [...]
+  feature?: [...]
+  story?: [...]
+  module?: [...]
+  runOverride?: ...
+~~~
+
+Use the strongest contributing level only as a conservative hint for model/Critic strength. Acceptance and Aspect review must preserve the individual scope targets rather than pretending they are one scalar.
+
 Inheritance is intentionally constrained rather than generic graph traversal:
 
 - UserStory may inherit from its containing Feature(s); strictest inherited target wins.
-- Ticket has no persisted completeness target. Its effective target comes from the current operation override, containing Epic(s), implemented Feature(s), addressed UserStory(ies), explicitly targeted Module(s), then project default; strictest inherited target wins.
+- Ticket has no persisted completeness target. It carries a completeness context from the scopes it serves: containing Epic(s), implemented Feature(s), addressed UserStory(ies), explicitly targeted Module(s), plus any operation override and project fallback.
 - Feature does not inherit from targeting Epics: Epics do not own durable Features.
 - Epic and Module use their own explicit target or project default.
 
