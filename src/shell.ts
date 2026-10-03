@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
 import os from 'node:os';
 import {
   TtyInputReader,
@@ -144,7 +145,7 @@ Commands:
   index                      - Re-index codebase AST symbols and modules into graph
   doctor                     - Run comprehensive environment & graph diagnostics
   audit                      - Run architecture & graph integrity audit
-  metrics                    - Show Kanban distribution & code churn hotspots
+  metrics [--operation ...]  - Query persisted performance metrics (--ticket, --since, --tag)
   config [get|set key val]   - View or update settings (.ai-workflow/config.json)
   eval <js-code>             - On-the-fly JavaScript evaluation
   model (or /model)          - Show gateway, provider keys, and mode model assignments
@@ -1128,23 +1129,9 @@ Commands:
     return { output: out };
   }
 
-  if (lower === 'metrics') {
-    const tickets = await registry.execute('list_tickets', {}, ctx);
-    const lanes: Record<string, number> = {};
-    for (const t of tickets) lanes[(t as any).lane] = (lanes[(t as any).lane] || 0) + 1;
-
-    let out = '📊 AI-Workflow Project Metrics:\nKanban Lanes:\n';
-    for (const [lane, count] of Object.entries(lanes)) {
-      out += `  - ${lane.padEnd(14)}: ${count}\n`;
-    }
-    const hotspots = await registry.execute('get_git_hotspots', { days: 14 }, ctx);
-    if (hotspots.hotspots.length > 0) {
-      out += '\nTop Git Churn Hotspots (14 days):\n';
-      for (const h of hotspots.hotspots.slice(0, 5)) {
-        out += `  - ${h.file} (${h.changes} touches)\n`;
-      }
-    }
-    return { output: out.trim() };
+  if (lower === 'metrics' || lower.startsWith('metrics ')) {
+    const { rows, ...summary } = queryPerformance(session.projectRoot, performanceQueryArgs(line.trim().split(/\s+/).slice(1)));
+    return { output: '📊 AIWF Performance Metrics\n' + JSON.stringify(summary, null, 2) };
   }
 
   if (lower.startsWith('config')) {

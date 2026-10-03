@@ -33,14 +33,12 @@ Execute docs/artifact-operations-plan.md completely as the sole authoritative ex
 - **AIWF-ASPECTS** [Done]: Gate 3: ASPECTS
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-PERFORMANCE-METRICS** [Blocked]: Gate 6: PERFORMANCE-METRICS
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Todo]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-PRODUCT-PROCESSING** [Backlog]: Gate 8: PRODUCT-PROCESSING
 - **AIWF-PRIMARY-INTERFACE** [Backlog]: Gate 9: PRIMARY-INTERFACE
 - **AIWF-FINAL-DOGFOOD-AUDIT** [Backlog]: Gate 10: FINAL-DOGFOOD-AUDIT
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] blocked: Epic 'EPIC-AIWF-ARTIFACT-OPS' is blocked by active blocker(s).
+- **Complete**: Yes
 

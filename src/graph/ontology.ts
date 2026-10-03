@@ -16,6 +16,7 @@ import type { WorkflowStore } from './store.ts';
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts';
 
 import type { InvestigationOptions, TicketDossier, OperationResult, PreparationOptions, PreparedTicket } from '../ticket-operation-types.ts';
+import { withArtifactMetrics, cognitionMetrics, countEngineering, visitMetricArtifact, recordMetricCompleteness } from '../performance-metrics.ts';
 
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
 
@@ -171,7 +172,7 @@ export class Ticket extends WorkflowEntity {
     const { getExactSymbolSource } = await import('../change/symbol-source.ts');
     const fs = await import('node:fs');
     const path = await import('node:path');
-    return withAstSnapshot(async () => {
+    return withArtifactMetrics(store.root, 'investigate_ticket', store.localId(this.id), options, () => withAstSnapshot(async () => {
       await ensureAstFresh(store);
       const id = store.localId(this.id);
       const current = (await store.getEntity<Ticket>(this.id, Ticket.dcr))!;
@@ -185,8 +186,10 @@ export class Ticket extends WorkflowEntity {
         proposedEnrichments: { relations: [] }, provenance: { systemOne: null, reasoningUsed: false, optionalCandidates: 0, optionalSelected: 0, freshnessReconciliations: 1 }
       };
       const mandatory = new Map<string, WorkflowEntity>();
+      recordMetricCompleteness(dossier.completeness);
       const add = (entity: WorkflowEntity, provenance: string, required = true) => {
         if (dossier.evidence.some(e => e.id === store.localId(entity.id))) return;
+        if (['Ticket', 'Epic', 'Feature', 'UserStory', 'Module', 'Idea', 'Artifact'].includes(entity.typeName())) visitMetricArtifact(store.localId(entity.id));
         dossier.evidence.push({ id: store.localId(entity.id), kind: entity.typeName(), title: entity.title ?? store.localId(entity.id), body: (entity as WorkflowEntity & { body?: string }).body, mandatory: required, provenance });
         if (required) mandatory.set(entity.id, entity);
       };
@@ -228,6 +231,7 @@ export class Ticket extends WorkflowEntity {
           try {
             const name = entity.containerName ? `${entity.containerName}.${entity.title}` : entity.title!;
             const source = await getExactSymbolSource(store.root, filePath, name);
+            countEngineering('sourceReads'); countEngineering('exactSymbolReads');
             evidence.source = source.code; evidence.exact = true;
           } catch (error) {
             return { status: 'needs_input', artifactId: id, required: [{ question: `Confirm stale symbol target '${store.localId(entity.id)}': ${String(error)}`, why: 'Exact language tooling cannot resolve the authored target.', target: 'Ticket code target relation' }] };
@@ -256,6 +260,7 @@ export class Ticket extends WorkflowEntity {
       const words = new Set(`${current.title} ${codeMentions}`.match(/[A-Za-z_$][\w$]{2,}/g) ?? []);
       const optional = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).filter(s => s.filePath && /\.[cm]?[jt]sx?$/.test(s.filePath) && !s.filePath.startsWith('@') && ['class', 'function', 'method'].includes(s.kind ?? '') && words.has(s.title ?? '') && !mandatory.has(s.id)).slice(0, max);
       dossier.provenance.optionalCandidates = optional.length;
+      countEngineering('optionalCandidates', optional.length); countEngineering('systemOneCalls');
       const assessment = await (options.systemOne ?? new LayaSystemOne()).assess(
         { ticket: { title: current.title, criteria: current.acceptanceCriteria, scopes: [...mandatory.values()].map(e => ({ id: store.localId(e.id), kind: e.typeName() })) }, candidates: optional.map(s => ({ id: store.localId(s.id), name: s.title, file: s.filePath })) },
         { workKind: { type: 'choice', instructions: 'Classify the work kind.', criteria: { code: 'Source implementation/refactor', docs: 'Documentation', product: 'Intent/work structure', unknown: 'Unclear' } },
@@ -263,7 +268,7 @@ export class Ticket extends WorkflowEntity {
           scope: { type: 'choice', instructions: 'Are authored Product/code scopes sufficient?', criteria: { grounded: 'Scopes are explicit or valid technical work', ambiguous: 'Missing ownership or target decision' } },
           context: { type: 'choice', instructions: 'Which optional context family is relevant?', criteria: { code: 'Implementation symbols', intent: 'Product meaning', none: 'Mandatory evidence is sufficient' } },
           depth: { type: 'choice', instructions: 'Is semantic reasoning necessary?', criteria: { deterministic: 'Existing contract/evidence is sufficient', reasoning: 'Unresolved meaning or contradiction' } },
-          ...Object.fromEntries(optional.map(s => [store.localId(s.id), { type: 'choice' as const, instructions: `Include optional symbol ${s.title}?`, criteria: { include: 'Relevant', omit: 'Irrelevant' } }])) }).catch(() => null);
+          ...Object.fromEntries(optional.map(s => [store.localId(s.id), { type: 'choice' as const, instructions: `Include optional symbol ${s.title}?`, criteria: { include: 'Relevant', omit: 'Irrelevant' } }])) }, cognitionMetrics()).catch(() => null);
       if (assessment) dossier.provenance.systemOne = { backendId: assessment.backendId, quality: assessment.quality };
       const routes: Record<string, string[]> = { workKind: ['code', 'docs', 'product', 'unknown'], atomicity: ['atomic', 'split', 'unknown'], scope: ['grounded', 'ambiguous'], context: ['code', 'intent', 'none'], depth: ['deterministic', 'reasoning'] };
       const confident = assessment?.quality === 'high' && Object.entries(routes).every(([key, choices]) => {
@@ -272,6 +277,7 @@ export class Ticket extends WorkflowEntity {
       const selected = optional.filter(s => !confident || assessment?.answers[store.localId(s.id)]?.choice !== 'omit');
       for (const candidate of selected) add(candidate, 'Bounded optional code candidate', false);
       dossier.provenance.optionalSelected = selected.length;
+      countEngineering('optionalSelected', selected.length);
       const unresolved = !current.acceptanceCriteria?.length || Boolean(assessment && (!confident || assessment.answers.scope?.choice === 'ambiguous' || assessment.answers.depth?.choice === 'reasoning' || assessment.answers.atomicity?.choice === 'unknown' || (assessment.answers.workKind?.choice === 'docs' && codePaths.size > 0)));
       if (!current.acceptanceCriteria?.length || assessment?.answers.atomicity?.choice === 'split') dossier.disposition = 'needs_preparation';
       if (unresolved) {
@@ -280,10 +286,11 @@ export class Ticket extends WorkflowEntity {
             const { createDefaultAsker } = await import('../product/decompose.ts');
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Reasoning provider unavailable.');
             const cfg = loadConfig(store.root);
-            const response = await asker.json(`Investigate this grounded Ticket dossier. Return a disposition and rationale, proposed acceptance criteria when missing, or precise required inputs. Do not mutate state or invent Product ownership. ${JSON.stringify(input)}`, InvestigationJudgmentSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000 });
+            const response = await asker.json(`Investigate this grounded Ticket dossier. Return a disposition and rationale, proposed acceptance criteria when missing, or precise required inputs. Do not mutate state or invent Product ownership. ${JSON.stringify(input)}`, InvestigationJudgmentSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Investigation provider failed: ${response.failure?.kind ?? 'unknown'}: ${response.failure?.message ?? 'No validated result.'}`);
             return InvestigationJudgmentSchema.parse(response.data);
           });
+          countEngineering('reasoningCalls');
           const judgment = InvestigationJudgmentSchema.parse(await reason(dossier));
           dossier.provenance.reasoningUsed = true;
           if (judgment.required?.length) return { status: 'needs_input', artifactId: id, required: judgment.required };
@@ -295,13 +302,15 @@ export class Ticket extends WorkflowEntity {
         }
       }
       return { status: 'complete', artifactId: id, value: dossier };
-    });
+    }));
   }
 
   async prepare(store: WorkflowStore, options: PreparationOptions = {}): Promise<OperationResult<PreparedTicket>> {
+    return withArtifactMetrics(store.root, 'prepare_ticket', store.localId(this.id), options, async () => {
     const investigation = await this.investigate(store, options);
     if (investigation.status !== 'complete') return investigation;
     const dossier = investigation.value, id = dossier.ticket.id;
+    recordMetricCompleteness(dossier.completeness);
     const { TicketPreparationProposalSchema } = await import('../ticket-operation-types.ts');
     const { resolveArtifactCritic, ArtifactBudget } = await import('../artifact-policy.ts');
     const { AiArtifactCritic, CriticResultSchema } = await import('../artifact-critic.ts');
@@ -320,6 +329,7 @@ export class Ticket extends WorkflowEntity {
       try {
         const { validateProductMutations } = await import('../product/mutation.ts');
         await validateProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: {} }]);
+        countEngineering('artifactsReused', existing.length);
         return result('Existing executable children reused.');
       } catch (error) { return { status: 'blocked', artifactId: id, blockers: [{ reason: `Existing child work is invalid: ${String(error)}` }] }; }
     }
@@ -330,7 +340,8 @@ export class Ticket extends WorkflowEntity {
       const propose = options.propose ?? (async (input: TicketDossier, findings: readonly import('../artifact-policy.ts').CriticFinding[]) => {
         const { createDefaultAsker } = await import('../product/decompose.ts');
         const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Preparation reasoning provider unavailable.');
-        const proposal = await asker.json(`Make this Ticket executable. Preserve an atomic unit unless independently verifiable boundaries genuinely justify children. Never create a Story for technical work. Use ordinary Ticket children with stable IDs prefixed '${id}/', meaningful bodies and acceptance criteria, relevant relations to known IDs, and dependencies only for real ordering. Reuse existing work. Do not add ceremony, downgrade completeness or mutate state. Return no children if atomic. Dossier: ${JSON.stringify(input)} Existing children: ${JSON.stringify(children.map(child => ({ id: store.localId(child.id), title: child.title, body: child.body, acceptanceCriteria: child.acceptanceCriteria })))} Critic findings: ${JSON.stringify(findings)}`, TicketPreparationProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000 });
+        countEngineering('reasoningCalls');
+        const proposal = await asker.json(`Make this Ticket executable. Preserve an atomic unit unless independently verifiable boundaries genuinely justify children. Never create a Story for technical work. Use ordinary Ticket children with stable IDs prefixed '${id}/', meaningful bodies and acceptance criteria, relevant relations to known IDs, and dependencies only for real ordering. Reuse existing work. Do not add ceremony, downgrade completeness or mutate state. Return no children if atomic. Dossier: ${JSON.stringify(input)} Existing children: ${JSON.stringify(children.map(child => ({ id: store.localId(child.id), title: child.title, body: child.body, acceptanceCriteria: child.acceptanceCriteria })))} Critic findings: ${JSON.stringify(findings)}`, TicketPreparationProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, ...cognitionMetrics() });
         if (!proposal.ok) throw new Error(`Preparation provider failed: ${proposal.failure?.kind ?? 'unknown'}: ${proposal.failure?.message ?? 'No validated result.'}`);
         return TicketPreparationProposalSchema.parse(proposal.data);
       });
@@ -366,10 +377,11 @@ export class Ticket extends WorkflowEntity {
             proposal: mutations, applicableAspects: dossier.aspects.aspects.map(aspect => aspect.id), candidateAspects: [],
             completeness: dossier.completeness.criticStrength, depth: options.depth === 'all' ? 1 : options.depth ?? 1,
             acceptanceCriteria: dossier.ticket.acceptanceCriteria, evidence: dossier.evidence.filter(item => ['Test', 'Artifact'].includes(item.kind)).map(item => item.id) }));
+          countEngineering('criticRounds');
           const review = CriticResultSchema.parse(await critic.review(input));
           if (review.verdict === 'needs_input') return { status: 'needs_input', artifactId: id, required: review.required.map(required => ({ ...required, why: 'Independent Critic requires a semantic decision.', target: 'Ticket preparation contract' })) };
           if (review.verdict === 'reject') return { status: 'blocked', artifactId: id, blockers: review.findings.map(finding => ({ reason: finding.message, artifactId: finding.artifactId })) };
-          if (review.verdict === 'revise') { findings = review.findings; continue; }
+          if (review.verdict === 'revise') { countEngineering('criticRevisions'); findings = review.findings; continue; }
         }
         const engine = new CausalChangeEngine({ store, projectRoot: store.root });
         const request = { action: 'product_change' as const, mutations };
@@ -387,12 +399,14 @@ export class Ticket extends WorkflowEntity {
           if (preview.blocked) throw new Error(`Preparation changed before apply: ${preview.blockReason}`);
           const applied = await engine.applyChange(request, preview.fingerprint);
           if (!applied.ok || !applied.verification.passed) throw new Error(`Preparation apply verification failed: ${JSON.stringify(applied.verification)}`);
+          countEngineering('artifactsCreated', created.length); countEngineering('artifactsReused', reused.length);
           if (held) { const { exportProjections } = await import('./projections.ts'); await exportProjections(store); }
           return { status: 'complete', artifactId: id, value: { dossier, children: [...new Set([...existing, ...identities.values()])], created, reused, applied: true, criticRounds: critic ? attempt + 1 : 0, rationale: proposal.rationale } };
         } finally { if (acquired) { await store.releaseTicket(id); const { exportProjections } = await import('./projections.ts'); await exportProjections(store); } }
       }
       return { status: 'blocked', artifactId: id, blockers: findings.map(finding => ({ reason: `Critic revision limit: ${finding.message}`, artifactId: finding.artifactId })) };
     } catch (error) { return { status: 'blocked', artifactId: id, blockers: [{ reason: `Ticket preparation failed: ${String(error)}` }] }; }
+    });
   }
 
   static template = {

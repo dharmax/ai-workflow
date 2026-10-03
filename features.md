@@ -67,7 +67,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Todo]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
 - **Complete**: Yes
@@ -81,14 +81,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-PERFORMANCE-METRICS** [Blocked]: Gate 6: PERFORMANCE-METRICS
+- **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
+
+### Verifying Tests
+- **TEST-AIWF-METRICS**
 
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] blocked: Feature 'FEAT-AIWF-PERFORMANCE-METRICS' is blocked by active blocker(s).
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-PERFORMANCE-METRICS' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-PERFORMANCE-METRICS' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-PRODUCT-PROCESSING: Story/Feature/Epic semantic processing
 

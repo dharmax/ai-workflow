@@ -6,10 +6,14 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
+import { queryPerformance } from '../performance-metrics.ts';
 import { registry, type ToolContext } from './registry.ts';
 import { Decision } from '../graph/ontology.ts';
 
 export function registerPlanningTools() {
+  registry.register({ name: 'get_performance_metrics', description: 'Query compact persisted engineering performance summaries; root runs by default avoid nested token duplication.', category: 'planning',
+    parameters: z.object({ operation: z.string().optional(), artifactId: z.string().optional(), since: z.string().optional(), tag: z.string().optional(), includeNested: z.boolean().optional() }),
+    execute: (query, ctx) => queryPerformance(ctx.projectRoot, query) });
   registry.register({
     name: 'propose_decision',
     description: 'Record a new Architectural Decision Record (ADR) in the graph.',

@@ -25,12 +25,14 @@ export type CriticResult =
   | { verdict: 'needs_input'; required: RequiredInput[] };
 export interface ArtifactCritic { readonly id: string; review(input: CriticInput): Promise<CriticResult> }
 export interface ArtifactOperationOptions {
+  tags?: Record<string, string | number | boolean>;
   completeness?: CompletenessLevel;
   depth?: number | 'all';
   maxArtifacts?: number;
   critic?: ArtifactCritic | { id: string } | 'auto' | 'none';
 }
 export const ArtifactTransportOptionsSchema = z.object({
+  tags: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   completeness: CompletenessSchema.optional(),
   depth: z.union([z.number().int().nonnegative(), z.literal('all')]).optional(),
   maxArtifacts: z.number().int().positive().optional(),

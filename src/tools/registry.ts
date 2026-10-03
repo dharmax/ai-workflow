@@ -4,6 +4,7 @@
  */
 
 import { z, type ZodType } from 'zod';
+import { countEngineering } from '../performance-metrics.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export interface ToolContext {
@@ -43,6 +44,7 @@ export class ToolRegistry {
     const tool = this.get(name);
     if (!tool) throw new Error(`Tool '${name}' not found in registry.`);
     const parsed = tool.parameters.parse(params);
+    countEngineering('toolCalls');
     return await tool.execute(parsed, ctx);
   }
 }

@@ -109,7 +109,7 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(auditRes.output).toContain('AI-Workflow Audit');
 
     const metricsRes = await processShellInput('metrics', session);
-    expect(metricsRes.output).toContain('Project Metrics');
+    expect(metricsRes.output).toContain('Performance Metrics');
   });
 
   it('should auto-complete shell commands with shellCompleter', async () => {

@@ -6,6 +6,7 @@
  */
 
 import path from 'node:path';
+import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
@@ -111,24 +112,9 @@ async function main() {
     }
 
     case 'metrics': {
-      console.log(`📊 AI-Workflow Project Metrics`);
-      const store = getStore();
-      const tickets = await registry.execute('list_tickets', {}, { store, projectRoot: root });
-      const lanes: Record<string, number> = {};
-      for (const t of tickets) lanes[(t as any).lane] = (lanes[(t as any).lane] || 0) + 1;
-
-      console.log(`Kanban Distribution:`);
-      for (const [lane, count] of Object.entries(lanes)) {
-        console.log(`  - ${lane.padEnd(14)}: ${count}`);
-      }
-
-      const hotspots = await registry.execute('get_git_hotspots', { days: 14 }, { store, projectRoot: root });
-      if (hotspots.hotspots.length > 0) {
-        console.log(`\nTop Code Churn Hotspots (14 days):`);
-        for (const h of hotspots.hotspots.slice(0, 5)) {
-          console.log(`  - ${h.file} (${h.changes} touches)`);
-        }
-      }
+      const { rows, ...summary } = queryPerformance(root, performanceQueryArgs(args.slice(1)));
+      console.log('📊 AIWF Performance Metrics');
+      console.log(JSON.stringify(summary, null, 2));
       break;
     }
 
