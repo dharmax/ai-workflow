@@ -93,7 +93,7 @@ Overall Health: HEALTHY ✅
 
 ---
 
-## 💻 Command Line Interface (CLI)
+## Command Line Interface (CLI)
 
 Outside of the shell, all capabilities are directly accessible:
 
@@ -157,7 +157,7 @@ aiwf <command> [options]
 
 ---
 
-## 🐚 Interactive Terminal REPL
+## Interactive Terminal REPL
 
 Run `aiwf` or `aiwf shell` to enter the interactive console:
 
@@ -177,7 +177,7 @@ aiwf [DEV] > help
 
 ---
 
-## 🔌 Model Context Protocol (MCP) Integration
+## Model Context Protocol (MCP) Integration
 
 AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (MCP) server.
 
@@ -190,7 +190,7 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
     "ai-workflow": {
       "command": "bun",
       "args": ["/home/dharmax/work/ai-workflow/src/cli.ts", "mcp"],
-      "instructions": "ai-workflow Causal Engineering OS: Use get_ticket_context before working on tickets; use get_project_overview for module health & bug counts; use audit_guidelines before claiming task completion; use propose_decision / revert_decision for architectural records; use compile_codelet / run_codelet for synthesized routines."
+      "instructions": "Delegate Ticket work with resolve_ticket first. Use investigate_ticket/prepare_ticket for evidence or preparation, and process_epic/process_feature/process_story for accepted intent. Use primitives only for deliberate drill-down or a concrete blocker."
     }
   }
 }
@@ -211,7 +211,7 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 ### Exposed MCP Tools
 - **Artifact operations — preferred:** `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, `process_story`.
 - **Artifact policy:** completeness target/query operations and consistent completeness/depth/maxArtifacts/critic controls.
-- **`execute_shell_wish`**: Autonomous coding engine with auto-mode switching.
+- **`execute_shell_wish`**: Free-form cognitive fallback for work that is not already represented by an artifact operation.
 - **Product Intent Graph**: `create_epic`, `get_epic`, `list_epics`, `update_epic`, `create_feature`, `get_feature`, `list_features`, `update_feature`, `create_user_story`, `get_user_story`, `list_user_stories`, `update_user_story`, `link_product`, `unlink_product`, `get_product_coverage`, `get_product_impact`. Canonical relations: Epic `targets` Feature/Story, Feature `contains` Story, Epic `contains` Ticket, Ticket `implements` Feature, Ticket `addresses` Story, Test `verifies` Feature/Story, Decision `governs` Epic/Feature/Story.
 - **AST Graph**: `find_symbol`, `get_symbol_source`, `get_file_outline`, `analyze_blast_radius`, `estimate_token_budget`.
 - **Compiler**: `compile_codelet`, `run_codelet`, `promote_codelet`, `apply_block_patch`.
