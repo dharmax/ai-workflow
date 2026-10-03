@@ -33,12 +33,25 @@ Do not persist satisfied, score, coveragePercent, or productionReady on Aspect. 
 
 Do not add a fixed Aspect category taxonomy in the first proof. Title/body/criteria carry the semantics.
 
+### Aspect vs Feature
+
+Use a Feature when the thing is a durable capability/behavior the system provides.
+
+Use an Aspect when the thing is a cross-cutting quality/constraint that changes how one or more capabilities/scopes should be designed, implemented, measured or operated.
+
+Example:
+
+- `Durable scheduled execution` is a Feature.
+- `Persistence/durability requirements across scheduler state` is an Aspect.
+
+If scope-specific criteria differ materially, prefer a narrower Aspect entity (for example `Search latency` rather than one universal `Performance` node) instead of inventing structured policy on the `applies_to` edge.
+
 ## 3. Scope relation
 
 One new semantic predicate is justified:
 
 ~~~
-Aspect --applies_to--> Module | Epic | Feature | UserStory
+Aspect --applies_to--> Idea | Module | Epic | Feature | UserStory
 ~~~
 
 Aspect deliberately does not apply directly to Ticket. Tickets are executable work and inherit concerns from the scopes they serve.
@@ -76,6 +89,7 @@ get_applicable_aspects(entityId)
 
 The resolver is constrained, not generic graph inheritance.
 
+- Idea: direct Aspects applying to the Idea.
 - Module: direct Aspects applying to the Module.
 - Epic: direct Aspects applying to the Epic.
 - Feature: direct Aspects applying to the Feature; do not inherit from targeting Epics.
@@ -169,7 +183,7 @@ The mutation layer should distinguish mutable intent entities from valid relatio
 Required relation shapes:
 
 ~~~
-Aspect   --applies_to--> Module | Epic | Feature | UserStory
+Aspect   --applies_to--> Idea | Module | Epic | Feature | UserStory
 Ticket   --addresses---> Aspect
 Test     --verifies----> Aspect
 Artifact --verifies----> Aspect
