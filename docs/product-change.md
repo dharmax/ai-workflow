@@ -1,10 +1,10 @@
 # Product Intent Change — Design
 
-Status: authoritative AIWF design for Product Intent mutation through the Causal Change Engine.
+Status: authoritative implemented AIWF design for Product Intent mutation through the Causal Change Engine.
 
 ## Purpose
 
-AIWF already owns the Product Intent Graph and deterministic product/ticket tools. The next AIWF capability is to make Product Intent changes use the same safe change path as code changes:
+AIWF owns the Product Intent Graph and deterministic product/ticket tools. Product Intent changes use the same safe change path as code changes:
 
 ```text
 ChangeRequest
