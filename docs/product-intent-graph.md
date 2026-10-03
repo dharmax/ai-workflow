@@ -271,6 +271,49 @@ Decision --governs--> Epic/Feature/UserStory/Aspect/Ticket/Module/File/Symbol
 
 No new decision subsystem is part of this work.
 
+## Entity-oriented domain API
+
+AIWF follows Semantika's standard entity pattern: every durable semantic entity type is a real JS/TS class extending the Semantika entity base and owning its DCR/schema.
+
+Closely-related domain behavior should normally be exposed as methods on those entity classes, because each instance already owns identity, persistence access and graph navigation.
+
+Examples of the intended shape:
+
+```ts
+await ticket.investigate(options)
+await ticket.prepare(options)
+await ticket.resolve(options)
+
+await epic.process(options)
+await feature.process(options)
+await story.process(options)
+
+await feature.coverage()
+await feature.productImpact()
+
+await aspect.applyTo(scope)
+await aspect.assessment(scope)
+```
+
+Exact names may evolve during implementation, but the ownership rule should not.
+
+Shell/MCP/tool functions are transport adapters. They load the entity and call its domain method; they should not become the primary home of entity business logic.
+
+Keep a free function/helper only when the behavior is genuinely cross-entity or infrastructural and has no honest owning entity, for example:
+
+- validating one coherent multi-entity Product mutation set before apply;
+- topologically ordering a set of child Tickets;
+- bounded graph/index freshness;
+- shared completeness-scope resolution across several independent scopes.
+
+Even then, prefer a small function over Manager/Service/Repository classes.
+
+Entity methods may delegate to such helpers; helpers must not recreate a parallel object model.
+
+Static/class-level behavior is appropriate for entity creation/query/proposal operations that do not yet have an instance.
+
+---
+
 ## 4. Canonical predicates
 
 Use existing predicates. Do not add product-specific predicates unless implementation proves one is genuinely impossible to express.
