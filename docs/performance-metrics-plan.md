@@ -2,9 +2,11 @@
 
 Design authority: docs/performance-metrics.md.
 
-This is a separate deferred AIWF development flow. Do not mix it into the current artifact-operation implementation tickets.
+This is a separate AIWF development flow. Keep it independently tracked, but land basic correlated run metrics before the first serious end-to-end `resolve_ticket` performance proof so the proof is measured rather than reconstructed afterward.
 
 External gate: llm-utils LLMUTILS-PERFORMANCE-METRICS must provide correlated generic cognition metrics.
+
+Recommended timing: implement Gates 1–3 in parallel after `AIWF-TICKET-INVESTIGATION` and before the acceptance benchmark of `AIWF-TICKET-RESOLUTION-FIRST-PROOF`. Gate 4 A/B benchmarking waits until the primary high-level interface is usable.
 
 # AIWF-PERFORMANCE-METRICS
 
