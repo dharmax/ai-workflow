@@ -15,7 +15,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
+- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None
@@ -23,7 +23,7 @@
 ## ASP-AIWF-TRUTH: Robustness / truthfulness
 
 - **Status**: `accepted`
-- **Scopes**: `FEAT-AIWF-TICKET-OPS`, `FEAT-AIWF-TRUTHFUL-PRIMITIVES`
+- **Scopes**: `EPIC-AIWF-ARTIFACT-OPS`, `FEAT-AIWF-TICKET-OPS`, `FEAT-AIWF-TRUTHFUL-PRIMITIVES`
 
 ### Description
 
@@ -35,7 +35,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
+- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None
@@ -43,7 +43,7 @@
 ## ASP-AIWF-EFFICIENCY: Execution efficiency / token attention
 
 - **Status**: `accepted`
-- **Scopes**: `FEAT-AIWF-PRIMARY-INTERFACE`, `FEAT-AIWF-TICKET-OPS`
+- **Scopes**: `EPIC-AIWF-ARTIFACT-OPS`, `FEAT-AIWF-PRIMARY-INTERFACE`, `FEAT-AIWF-TICKET-OPS`
 
 ### Description
 
@@ -55,7 +55,7 @@
 ### Evidence (read-only)
 - Tickets: None
 - Tests: None
-- Artifacts: REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
+- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
 - Code: None
 - Gaps: None

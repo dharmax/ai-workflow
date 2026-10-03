@@ -9,6 +9,7 @@
 - **Tests**: `TEST-AIWF-INVESTIGATE`
 - **Acceptance Criteria**:
   - [ ] Caller obtains a grounded read-only Ticket dossier with mandatory acceptance, Aspect and exact code evidence or precise missing-input requirements.
+  - [ ] System-1 unavailable still yields correct behavior by retaining all mandatory evidence and falling back safely without failing engineering work.
 - **Coverage**: Complete
 
 ## STORY-AIWF-PREPARE-TICKET: Caller can make a broad Ticket executable or receive precise missing-input requirements

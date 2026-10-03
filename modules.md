@@ -4,8 +4,8 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 94 | 0 | None |
-| `src/graph` | project default | 841 | 0 | None |
+| `root` | project default | 93 | 0 | None |
+| `src/graph` | project default | 843 | 0 | None |
 | `src/tools` | project default | 392 | 0 | None |
 | `src/actor` | project default | 269 | 0 | None |
 | `src/mcp` | project default | 36 | 0 | None |

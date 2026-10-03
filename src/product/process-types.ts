@@ -6,7 +6,7 @@ export const IntentProposalSchema = z.object({
   items: z.array(z.object({
     id: z.string().min(1), kind: z.enum(['Feature', 'UserStory', 'Ticket']), title: z.string().min(1),
     body: z.string().default(''), actor: z.string().optional(), story: z.string().optional(),
-    acceptanceCriteria: z.array(z.string().min(1)).min(1)
+    acceptanceCriteria: z.array(z.string().min(1)).default([])
   })).default([]),
   aspectIds: z.array(z.string()).default([]), gaps: z.array(z.string()).default([]),
   required: z.array(z.object({ question: z.string(), why: z.string(), target: z.string() })).default([]),
