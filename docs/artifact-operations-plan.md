@@ -120,10 +120,11 @@ Tests must prove:
 - an explicit descendant target wins over recursively inherited run completeness;
 - explicit artifact target wins over ordinary inherited target;
 - Story inherits strictest containing Feature target;
-- Ticket effective target is derived from current run override + containing Epic/implemented Feature/addressed Story/targeted Module + project default; no Ticket target is stored;
+- Ticket stores no target; resolve a scope-specific completeness context from run override + containing Epic/implemented Feature/addressed Story/targeted Module + project fallback; do not collapse conflicting scope targets into one semantic level;
 - Feature does not inherit from targeting Epic;
 - project default is final fallback;
-- explicit lower artifact target can deliberately override stricter inherited work;
+- explicit lower artifact target can deliberately override ordinary inherited target for that artifact;
+- POC Feature inside production Module preserves both scope targets for Ticket resolution instead of forcing one scalar;
 - clearing explicit target restores inheritance/default behavior.
 
 Do not persist achieved/current completeness.
@@ -138,12 +139,14 @@ Define one small shared ArtifactOperationOptions contract:
 completeness?: CompletenessLevel
 depth?: number | 'all'
 maxArtifacts?: number
-critic?: ArtifactCritic | 'auto' | 'none'
+critic?: ArtifactCritic | { id: string } | 'auto' | 'none'
 ~~~
 
 Transport-facing MCP/shell schemas use critic IDs rather than executable objects.
 
-Every artifact-operation result later must report its resolved effective policy and source.
+Every artifact-operation result later must report its resolved effective policy and source. Ticket-oriented results also report the contributing scope-completeness context.
+
+Use the strongest contributing Ticket level only as a model/Critic-strength hint; semantic acceptance must respect each contributing scope.
 
 ## Depth semantics
 
