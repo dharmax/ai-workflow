@@ -1,12 +1,12 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Artifact } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import { ticketState } from '../graph/ticket-state.ts';
 import type { TicketLane } from '../graph/types.ts';
 
-const kinds = { Aspect, Idea, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode } as const;
+const kinds = { Aspect, Idea, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;
 const entityKind = z.enum(['Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
@@ -35,6 +35,8 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Feature', 'contains', 'UserStory'], ['Epic', 'contains', 'Ticket'],
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
   ['Ticket', 'targets', 'Module'],
+  ['Ticket', 'contains', 'Ticket'], ['Ticket', 'depends_on', 'Ticket'],
+  ['Ticket', 'modifies', 'File'], ['Ticket', 'modifies', 'Symbol'], ['Ticket', 'targets', 'File'], ['Ticket', 'targets', 'Symbol'],
   ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
   ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory'],
   ['Decision', 'governs', 'Ticket']
@@ -63,7 +65,7 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
 function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
-    Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Artifact: [],
+    Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Artifact: [], File: [], Symbol: [],
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
     UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
@@ -112,6 +114,19 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     return state.get(id)!;
   }
   const deleted: string[] = [];
+  // Work containment and prerequisites share execution direction. Inspect their
+  // existing closure so a batch cannot hide a cycle behind an untouched Ticket.
+  const queue = mutations.flatMap(mutation => 'id' in mutation ? [mutation.id] : [mutation.sourceId, mutation.targetId]);
+  const examined = new Set<string>();
+  while (queue.length) {
+    const id = queue.shift()!; if (examined.has(id)) continue; examined.add(id);
+    const ticket = await store.getEntity<Ticket>(id, Ticket.dcr); if (!ticket) continue;
+    await load(id);
+    for (const edge of await store.getOutgoing(ticket.id)) if (['contains', 'depends_on'].includes(edge.predicateName)) {
+      const target = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr);
+      if (target) queue.push(store.localId(target.id));
+    }
+  }
   for (const mutation of mutations) {
     if (mutation.kind === 'product_create') {
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
@@ -143,6 +158,15 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   }
   const dependents = deleted.flatMap(id => [...edges.values()].filter(e => e.sourceId === id || e.targetId === id));
   if (dependents.length) throw new Error(`Delete blocked by dependents: ${JSON.stringify(dependents)}. Explicitly unlink them first.`);
+  const visiting = new Set<string>(), visited = new Set<string>();
+  function visit(id: string): void {
+    if (visiting.has(id)) throw new Error(`Ticket containment/dependency cycle at '${id}'.`);
+    if (visited.has(id)) return;
+    visiting.add(id);
+    for (const edge of edges.values()) if (edge.sourceId === id && ['contains', 'depends_on'].includes(edge.predicate)) visit(edge.targetId);
+    visiting.delete(id); visited.add(id);
+  }
+  for (const id of edges.values()) if (['contains', 'depends_on'].includes(id.predicate)) visit(id.sourceId);
   return { snapshot, dependents };
 }
 

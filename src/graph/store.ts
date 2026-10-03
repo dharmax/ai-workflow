@@ -344,7 +344,8 @@ export class WorkflowStore {
   async claimTicket(
     ticketId: string,
     agentId: string,
-    durationMinutes: number = 30
+    durationMinutes: number = 30,
+    moveToInProgress: boolean = true
   ): Promise<{ success: boolean; claim?: TicketClaim; message?: string }> {
     const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
     if (!ticket) return { success: false, message: `Ticket not found: ${ticketId}` };
@@ -367,7 +368,7 @@ export class WorkflowStore {
       expiresAt
     };
 
-    await ticket.update({ claim, lane: 'In Progress' }, true, false);
+    await ticket.update({ claim, ...(moveToInProgress ? ticketState('In Progress') : {}) }, true, false);
     return { success: true, claim };
   }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { SystemOne } from '@dharmax/llm-utils';
-import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext } from './artifact-policy.ts';
+import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
 import type { AspectAssessment } from './aspects.ts';
 
 export type OperationResult<T> =
@@ -30,4 +30,24 @@ export interface TicketDossier {
 export interface InvestigationOptions extends ArtifactOperationOptions {
   systemOne?: SystemOne;
   reason?: (dossier: TicketDossier) => Promise<InvestigationJudgment>;
+}
+
+export const TicketPreparationProposalSchema = z.object({
+  rationale: z.string(),
+  acceptanceCriteria: z.array(z.string().min(1)).min(1).optional(),
+  children: z.array(z.object({
+    id: z.string().min(1), title: z.string().min(1), body: z.string().min(1),
+    acceptanceCriteria: z.array(z.string().min(1)).min(1),
+    relations: z.array(z.object({ predicate: z.enum(['implements', 'addresses', 'targets', 'modifies']), targetId: z.string().min(1) })).default([]),
+    dependsOn: z.array(z.string().min(1)).default([])
+  })).default([])
+});
+export type TicketPreparationProposal = z.infer<typeof TicketPreparationProposalSchema>;
+export interface PreparationOptions extends InvestigationOptions {
+  agentId?: string;
+  propose?: (dossier: TicketDossier, findings: readonly CriticFinding[]) => Promise<TicketPreparationProposal>;
+}
+export interface PreparedTicket {
+  dossier: TicketDossier; children: string[]; created: string[]; reused: string[];
+  applied: boolean; criticRounds: number; rationale: string;
 }

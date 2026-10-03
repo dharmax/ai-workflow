@@ -15,7 +15,8 @@
 - **Actor**: External caller
 - **Story**: Caller can make a broad Ticket executable or receive precise missing-input requirements
 - **Tickets**: `AIWF-TICKET-PREPARATION`
-- **Coverage**: missing_acceptance_contract, missing_code_grounding, missing_verification
+- **Tests**: `TEST-AIWF-PREPARE`
+- **Coverage**: missing_acceptance_contract
 
 ## STORY-AIWF-RESOLVE-TICKET: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 - **Status**: `accepted`

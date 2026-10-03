@@ -66,7 +66,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
-- **AIWF-TICKET-PREPARATION** [Todo]: Gate 5: TICKET-PREPARATION
+- **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
 - **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
@@ -81,7 +81,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-PERFORMANCE-METRICS** [Backlog]: Gate 6: PERFORMANCE-METRICS
+- **AIWF-PERFORMANCE-METRICS** [Todo]: Gate 6: PERFORMANCE-METRICS
 
 ### Coverage
 - **Complete**: No

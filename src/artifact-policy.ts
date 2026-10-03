@@ -17,6 +17,7 @@ export interface CriticInput {
   readonly completeness: CompletenessLevel;
   readonly depth: number;
   readonly evidence: readonly string[];
+  readonly acceptanceCriteria?: readonly string[];
 }
 export type CriticResult =
   | { verdict: 'accept'; findings?: CriticFinding[] }
