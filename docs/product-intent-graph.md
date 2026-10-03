@@ -673,7 +673,7 @@ If current llm-utils offers a clean structured-output helper, use it.
 
 If not, request JSON once and validate/repair only with the smallest existing utility. Do not build a generic structured-agent subsystem.
 
-The existing `WorkflowActor` remains the general interactive actor; it may orchestrate the product tools, but decomposition itself should be a small proposal function.
+Artifact Operations are the preferred long-term high-level orchestration surface. Product decomposition remains a small proposal function underneath `process_epic` / `process_feature` / `process_story`; do not expand the legacy WorkflowActor merely to preserve the old flow.
 
 ## 12. Product projections
 
@@ -684,6 +684,7 @@ Projected files:
 - `epics.md`
 - `features.md`
 - `user-stories.md`
+- `aspects.md`
 - existing `kanban.md`
 - existing `decisions.md`
 - existing `modules.md`
@@ -785,7 +786,7 @@ Ticket  --implements-> Feature
 Ticket  --addresses--> UserStory
 Test    --verifies---> Feature
 Test    --verifies---> UserStory
-Aspect  --applies_to--> Module | Epic | Feature | UserStory
+Aspect  --applies_to--> Idea | Module | Epic | Feature | UserStory
 Ticket  --addresses---> Aspect
 Test    --verifies----> Aspect
 Artifact--verifies----> Aspect
@@ -832,7 +833,7 @@ Do not add:
 - generic planning workflow engine;
 - second actor framework;
 - persisted coverage flags;
-- automatic Ticket creation during Epic decomposition;
+- unreviewed Ticket/Product mutation during semantic proposal generation;
 - Unknown/Risk entity system as part of this slice;
 - refactoring mutation logic;
 - digest dependency;
