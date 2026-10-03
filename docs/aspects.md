@@ -60,6 +60,14 @@ An Aspect attached to an Epic constrains that initiative's work; it does not bec
 
 An Aspect attached to a Feature is durable with the Feature and flows to its contained Stories and implementing/addressing work.
 
+### Project-wide scope
+
+Project-wide Aspects are legitimate, but AIWF currently has no canonical Project graph entity.
+
+Do not encode "no applies_to edge means global", duplicate the Aspect onto every Module, or add a Project entity incidentally inside this feature.
+
+Leave project-wide Aspect representation as an explicit follow-up design question unless a canonical Project/root entity is introduced for broader reasons.
+
 ## 4. Work and evidence relations
 
 Reuse existing predicates where their semantics fit:
@@ -178,7 +186,7 @@ Aspect is part of AIWF's intent domain.
 
 Extend the existing Product Intent/Causal Change mutation owner rather than creating AspectChange.
 
-The mutation layer should distinguish mutable intent entities from valid relation-only endpoints instead of forcing every endpoint into one CRUD enum.
+The mutation layer should distinguish mutable intent entities from valid relation-only endpoints such as Idea, Module, Test, Artifact and Decision instead of forcing every endpoint into one CRUD enum.
 
 Required relation shapes:
 
