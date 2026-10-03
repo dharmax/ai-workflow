@@ -6,7 +6,7 @@
 - **Actor**: External caller
 - **Story**: Caller can obtain a grounded Ticket dossier without doing repository archaeology itself
 - **Tickets**: `AIWF-TICKET-INVESTIGATION`
-- **Coverage**: missing_acceptance_contract, missing_code_grounding, missing_verification
+- **Coverage**: blocked, missing_acceptance_contract, missing_code_grounding, missing_verification
 
 ## STORY-AIWF-PREPARE-TICKET: Caller can make a broad Ticket executable or receive precise missing-input requirements
 - **Status**: `accepted`

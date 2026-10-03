@@ -30,8 +30,8 @@ Execute docs/artifact-operations-plan.md completely as the sole authoritative ex
 ### Contained Tickets
 - **AIWF-PRIMITIVE-TRUTH** [Done]: Gate 1: PRIMITIVE-TRUTH
 - **AIWF-OPERATION-POLICY** [Done]: Gate 2: OPERATION-POLICY
-- **AIWF-ASPECTS** [Todo]: Gate 3: ASPECTS
-- **AIWF-TICKET-INVESTIGATION** [Backlog]: Gate 4: TICKET-INVESTIGATION
+- **AIWF-ASPECTS** [Blocked]: Gate 3: ASPECTS
+- **AIWF-TICKET-INVESTIGATION** [Blocked]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Backlog]: Gate 5: TICKET-PREPARATION
 - **AIWF-PERFORMANCE-METRICS** [Backlog]: Gate 6: PERFORMANCE-METRICS
 - **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
@@ -40,5 +40,7 @@ Execute docs/artifact-operations-plan.md completely as the sole authoritative ex
 - **AIWF-FINAL-DOGFOOD-AUDIT** [Backlog]: Gate 10: FINAL-DOGFOOD-AUDIT
 
 ### Coverage
-- **Complete**: Yes
+- **Complete**: No
+- **Gaps**:
+  - [ ] blocked: Epic 'EPIC-AIWF-ARTIFACT-OPS' is blocked by active blocker(s).
 

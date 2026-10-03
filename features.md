@@ -11,11 +11,11 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-PRIMITIVE-TRUTH** [Done]: Gate 1: PRIMITIVE-TRUTH
 
+### Verifying Tests
+- **TEST-AIWF-PRIMITIVE-TRUTH**
+
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-TRUTHFUL-PRIMITIVES' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-TRUTHFUL-PRIMITIVES' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-ARTIFACT-POLICY: Completeness/depth/critic operation policy
 
@@ -28,11 +28,11 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-OPERATION-POLICY** [Done]: Gate 2: OPERATION-POLICY
 
+### Verifying Tests
+- **TEST-AIWF-OPERATION-POLICY**
+
 ### Coverage
-- **Complete**: No
-- **Gaps**:
-  - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-ARTIFACT-POLICY' has implementation Ticket(s) but no code modifications or targets.
-  - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-ARTIFACT-POLICY' has no verification Test directly or via contained stories.
+- **Complete**: Yes
 
 ## FEAT-AIWF-ASPECTS: First-class cross-cutting Aspects
 
@@ -43,11 +43,12 @@ Production capability governed by docs/artifact-operations-plan.md.
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-ASPECTS** [Todo]: Gate 3: ASPECTS
+- **AIWF-ASPECTS** [Blocked]: Gate 3: ASPECTS
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-ASPECTS' is blocked by active blocker(s).
   - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-ASPECTS' has implementation Ticket(s) but no code modifications or targets.
   - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-ASPECTS' has no verification Test directly or via contained stories.
 
@@ -65,13 +66,14 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **AIWF-TICKET-INVESTIGATION** [Backlog]: Gate 4: TICKET-INVESTIGATION
+- **AIWF-TICKET-INVESTIGATION** [Blocked]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Backlog]: Gate 5: TICKET-PREPARATION
 - **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-TICKET-OPS' is blocked by active blocker(s).
   - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has implementation Ticket(s) but no code modifications or targets.
   - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-TICKET-OPS' has no verification Test directly or via contained stories.
 
