@@ -330,6 +330,14 @@ A higher target may reveal additional required Stories/Tickets/tests/docs/operat
 
 Raising a target is additive and idempotent: poc → production means find and fill the additional known gaps, not regenerate the artifact tree.
 
+### Aspects are part of completeness, not a fifth policy axis
+
+First-class Aspects are defined in `docs/aspects.md`.
+
+Completeness assessment must include applicable Aspect coverage/evidence. Do not add a separate `aspectLevel` knob.
+
+At higher completeness, System-1/reasoning/Critic examine a broader Aspect candidate set and demand stronger evidence where material. Explicit accepted Aspects are mandatory evidence for the stronger path and are never pruned away.
+
 ### Recursion depth is independent of completeness
 
 Completeness answers how thorough. Depth answers how far down the artifact/work graph this call should continue.
@@ -353,6 +361,8 @@ Defaults:
 - resolve_ticket: all, because resolve means end-to-end unless explicitly capped.
 
 Depth counts artifact processing/decomposition edges, not individual code/tool calls.
+
+Aspect processing is not a separate recursion tree. Discovering/reviewing Aspects on the current artifact does not consume depth; child work created to address an Aspect behaves like ordinary child artifacts and does.
 
 Concrete expansion edges:
 
@@ -393,7 +403,7 @@ A critic may be an independent AI reviewer, deterministic rules, or a small comp
 
 The critic is read-only. It never mutates Product Intent/work state.
 
-Review input includes parent artifact/intent, relevant graph neighborhood, proposed Features/Stories/Tickets/relations, effective completeness target, current recursion depth, and acceptance/coverage evidence.
+Review input includes parent artifact/intent, relevant graph neighborhood, proposed Features/Stories/Aspects/Tickets/relations, applicable and candidate Aspects, effective completeness target, current recursion depth, and acceptance/coverage evidence.
 
 The critic checks especially:
 
@@ -405,6 +415,8 @@ The critic checks especially:
 - inappropriate reuse/create decisions;
 - incoherent dependencies;
 - mismatch with Decisions/constraints;
+- omitted material cross-cutting Aspects or weak Aspect evidence;
+- irrelevant Aspect ceremony;
 - overproduction/story explosion.
 
 A revise verdict feeds bounded critique back to the producer for another proposal pass.
@@ -479,6 +491,7 @@ It reads existing state first:
 - blockers and dependencies;
 - governing Decisions;
 - relevant Lessons;
+- applicable Aspects and their work/evidence;
 - existing code targets/modifications;
 - tests and current verification evidence;
 - repository state needed to validate stale anchors.
