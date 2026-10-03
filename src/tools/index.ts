@@ -17,6 +17,7 @@ import { registerScaffoldTools } from './scaffold.ts';
 import { registerDebuggerTools } from './debugger.ts';
 import { registerKnowledgebaseTools } from './kb.ts';
 import { registerChangeTools } from './change.ts';
+import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { bucketRouter, TwoTierRouter, type ToolBucket } from './bucket-router.ts';
 
 let initialized = false;
@@ -36,6 +37,7 @@ export function initializeTools(): ToolRegistry {
     registerDebuggerTools();
     registerKnowledgebaseTools();
     registerChangeTools();
+    registerArtifactPolicyTools();
     initialized = true;
   }
   return registry;

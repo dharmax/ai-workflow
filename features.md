@@ -3,6 +3,7 @@
 ## FEAT-AIWF-TRUTHFUL-PRIMITIVES: Truthful, efficient code intelligence/change primitives
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
@@ -19,12 +20,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-ARTIFACT-POLICY: Completeness/depth/critic operation policy
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-OPERATION-POLICY** [Todo]: Gate 2: OPERATION-POLICY
+- **AIWF-OPERATION-POLICY** [Done]: Gate 2: OPERATION-POLICY
 
 ### Coverage
 - **Complete**: No
@@ -35,12 +37,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-ASPECTS: First-class cross-cutting Aspects
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
 
 ### Implementing Tickets
-- **AIWF-ASPECTS** [Backlog]: Gate 3: ASPECTS
+- **AIWF-ASPECTS** [Todo]: Gate 3: ASPECTS
 
 ### Coverage
 - **Complete**: No
@@ -51,6 +54,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-TICKET-OPS: Ticket investigation, preparation and end-to-end resolution
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
@@ -74,6 +78,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PERFORMANCE-METRICS: Correlated AIWF + llm-utils performance telemetry
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
@@ -90,6 +95,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PRODUCT-PROCESSING: Story/Feature/Epic semantic processing
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.
@@ -109,6 +115,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PRIMARY-INTERFACE: High-level shell/MCP delegation surface
 
 - **Status**: `accepted`
+- **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
 Production capability governed by docs/artifact-operations-plan.md.

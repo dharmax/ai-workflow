@@ -13,6 +13,7 @@ Initial architecture grounding and capability mapping.
 ## EPIC-AIWF-ARTIFACT-OPS: Artifact Operations: AIWF as the Engineering Agent
 
 - **Status**: `active`
+- **Completeness Target**: `production`
 - **Priority**: 1
 
 Execute docs/artifact-operations-plan.md completely as the sole authoritative execution plan. Production target; ten ordered gates.
@@ -28,8 +29,8 @@ Execute docs/artifact-operations-plan.md completely as the sole authoritative ex
 
 ### Contained Tickets
 - **AIWF-PRIMITIVE-TRUTH** [Done]: Gate 1: PRIMITIVE-TRUTH
-- **AIWF-OPERATION-POLICY** [Todo]: Gate 2: OPERATION-POLICY
-- **AIWF-ASPECTS** [Backlog]: Gate 3: ASPECTS
+- **AIWF-OPERATION-POLICY** [Done]: Gate 2: OPERATION-POLICY
+- **AIWF-ASPECTS** [Todo]: Gate 3: ASPECTS
 - **AIWF-TICKET-INVESTIGATION** [Backlog]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Backlog]: Gate 5: TICKET-PREPARATION
 - **AIWF-PERFORMANCE-METRICS** [Backlog]: Gate 6: PERFORMANCE-METRICS

@@ -1,3 +1,4 @@
+import type { CompletenessLevel } from '../artifact-policy.ts';
 /**
  * Responsibility: Core type definitions for the AST+ Semantic Graph, Tickets, and Entities.
  * Scope: Typed contracts for Semantika ontology nodes, predicates, claims, and project health.
@@ -42,16 +43,19 @@ export interface IdeaData extends BaseEntityData {
 }
 
 export interface EpicData extends BaseEntityData {
+  completenessTarget?: CompletenessLevel | null;
   status?: EpicStatus;
   priority?: number;
 }
 
 export interface FeatureData extends BaseEntityData {
+  completenessTarget?: CompletenessLevel | null;
   status?: IntentStatus;
   acceptanceCriteria?: string[];
 }
 
 export interface UserStoryData extends BaseEntityData {
+  completenessTarget?: CompletenessLevel | null;
   status?: IntentStatus;
   actor?: string;
   story?: string;
@@ -68,8 +72,8 @@ export interface TicketData extends BaseEntityData {
 }
 
 export interface ModuleData extends BaseEntityData {
+  completenessTarget?: CompletenessLevel | null;
   path: string;
-  completionPercent?: number;
 }
 
 export interface FileData extends BaseEntityData {
@@ -163,7 +167,7 @@ export type SemanticPredicateName =
 export interface ModuleHealth {
   name: string;
   path: string;
-  completionPercent: number;
+  completenessTarget?: CompletenessLevel | null;
   symbolCount: number;
   bugsCount: number;
   activeTickets: string[];
@@ -172,6 +176,7 @@ export interface ModuleHealth {
 export interface ProjectHealth {
   totalTickets: number;
   byLane: Record<TicketLane, number>;
+  /** Operational ticket progress only; never semantic completeness. */
   completionPercent: number;
   modules: ModuleHealth[];
   activeClaims: Array<{ ticketId: string; claim: TicketClaim }>;

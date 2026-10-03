@@ -1,3 +1,4 @@
+import type { CompletenessLevel } from './artifact-policy.ts';
 /**
  * Responsibility: Project and Global Configuration Management.
  * Scope: Reads and updates .ai-workflow/config.json with global user fallbacks.
@@ -31,6 +32,8 @@ export interface CloudCredentials {
 }
 
 export interface ProjectConfig {
+  defaultCompleteness: CompletenessLevel;
+  maxArtifacts: number;
   defaultAgentId: string;
   defaultLeaseMinutes: number;
   ollamaUrl: string;
@@ -44,6 +47,8 @@ export interface ProjectConfig {
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {
+  defaultCompleteness: 'functional',
+  maxArtifacts: 24,
   defaultAgentId: 'human-operator',
   defaultLeaseMinutes: 30,
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',

@@ -10,6 +10,11 @@ import {
   RawOntology
 } from '@dharmax/semantika';
 
+import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from '../artifact-policy.ts';
+import type { WorkflowStore } from './store.ts';
+
+const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
+
 const anyValidator = { validate: (v: any) => ({ value: v }) };
 
 const baseTemplate = {
@@ -49,8 +54,14 @@ export class Idea extends WorkflowEntity {
 }
 
 export class Epic extends WorkflowEntity {
+  declare completenessTarget?: CompletenessLevel | null;
+  getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
+  async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
+    return store.upsertEntity(Epic.dcr, { id: this.id, completenessTarget: level == null ? null : CompletenessSchema.parse(level) });
+  }
   static template = {
     ...baseTemplate,
+    completenessTarget: completenessValidator,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     priority: { validate: (v: any) => ({ value: v ?? 1 }) }
   };
@@ -58,8 +69,14 @@ export class Epic extends WorkflowEntity {
 }
 
 export class Feature extends WorkflowEntity {
+  declare completenessTarget?: CompletenessLevel | null;
+  getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
+  async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
+    return store.upsertEntity(Feature.dcr, { id: this.id, completenessTarget: level == null ? null : CompletenessSchema.parse(level) });
+  }
   static template = {
     ...baseTemplate,
+    completenessTarget: completenessValidator,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     acceptanceCriteria: anyValidator
   };
@@ -67,8 +84,14 @@ export class Feature extends WorkflowEntity {
 }
 
 export class UserStory extends WorkflowEntity {
+  declare completenessTarget?: CompletenessLevel | null;
+  getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
+  async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
+    return store.upsertEntity(UserStory.dcr, { id: this.id, completenessTarget: level == null ? null : CompletenessSchema.parse(level) });
+  }
   static template = {
     ...baseTemplate,
+    completenessTarget: completenessValidator,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
     actor: anyValidator,
     story: anyValidator,
@@ -80,6 +103,7 @@ export class UserStory extends WorkflowEntity {
 }
 
 export class Ticket extends WorkflowEntity {
+  getCompletenessContext(store: WorkflowStore, override?: CompletenessLevel) { return ticketCompleteness(this, store, override); }
   static template = {
     ...baseTemplate,
     lane: { validate: (v: any) => ({ value: v ?? 'Backlog' }) },
@@ -91,10 +115,15 @@ export class Ticket extends WorkflowEntity {
 }
 
 export class ModuleNode extends WorkflowEntity {
+  declare completenessTarget?: CompletenessLevel | null;
+  getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) { return scopeTarget(this, store, options); }
+  async setCompletenessTarget(store: WorkflowStore, level: CompletenessLevel | null) {
+    return store.upsertEntity(ModuleNode.dcr, { id: this.id, completenessTarget: level == null ? null : CompletenessSchema.parse(level) });
+  }
   static template = {
     ...baseTemplate,
-    path: anyValidator,
-    completionPercent: { validate: (v: any) => ({ value: v ?? 0 }) }
+    completenessTarget: completenessValidator,
+    path: anyValidator
   };
   static readonly dcr = new EntityDcr(ModuleNode, ModuleNode.template, 'ModuleNode');
 }

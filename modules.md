@@ -2,35 +2,36 @@
 
 ## Module Health
 
-| Module | Completion | Symbols | Bugs 🔴 | Active Tickets |
+| Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | **0%** | 98 | 0 | None |
-| `src/graph` | **0%** | 607 | 0 | None |
-| `src/tools` | **0%** | 379 | 0 | None |
-| `src/actor` | **0%** | 260 | 0 | None |
-| `src/mcp` | **0%** | 36 | 0 | None |
-| `src/shell` | **0%** | 138 | 0 | None |
-| `src/cli` | **0%** | 134 | 0 | None |
-| `src/index` | **0%** | 0 | 0 | None |
-| `src/config` | **0%** | 44 | 0 | None |
-| `src/doctor` | **0%** | 60 | 0 | None |
-| `src/setup` | **0%** | 106 | 0 | None |
-| `tests` | **0%** | 527 | 0 | None |
-| `skills` | **0%** | 11 | 0 | None |
-| `src/terminal` | **0%** | 58 | 0 | None |
-| `@external/@dharmax/block-patcher` | **0%** | 26 | 0 | None |
-| `@external/@dharmax/codebase-parser` | **0%** | 2 | 0 | None |
-| `@external/@dharmax/context-manager` | **0%** | 245 | 0 | None |
-| `@external/@dharmax/llm-utils` | **0%** | 1225 | 0 | None |
-| `@external/@dharmax/pubsub` | **0%** | 66 | 0 | None |
-| `@external/@dharmax/semantika` | **0%** | 1298 | 0 | None |
-| `@external/@dharmax/text-compiler` | **0%** | 0 | 0 | None |
-| `@external/@dharmax/shell-ui` | **0%** | 640 | 0 | None |
-| `src/kb` | **0%** | 127 | 0 | None |
-| `docs` | **0%** | 203 | 0 | None |
-| `src/product` | **0%** | 255 | 0 | None |
-| `src/change` | **0%** | 639 | 0 | None |
-| `src/typescript-runtime` | **0%** | 76 | 0 | None |
+| `root` | project default | 95 | 0 | None |
+| `src/graph` | project default | 638 | 0 | None |
+| `src/tools` | project default | 382 | 0 | None |
+| `src/actor` | project default | 260 | 0 | None |
+| `src/mcp` | project default | 36 | 0 | None |
+| `src/shell` | project default | 138 | 0 | None |
+| `src/cli` | project default | 134 | 0 | None |
+| `src/index` | project default | 0 | 0 | None |
+| `src/config` | project default | 46 | 0 | None |
+| `src/doctor` | project default | 60 | 0 | None |
+| `src/setup` | project default | 106 | 0 | None |
+| `tests` | project default | 545 | 0 | None |
+| `skills` | project default | 11 | 0 | None |
+| `src/terminal` | project default | 58 | 0 | None |
+| `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
+| `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
+| `@external/@dharmax/context-manager` | project default | 245 | 0 | None |
+| `@external/@dharmax/llm-utils` | project default | 1225 | 0 | None |
+| `@external/@dharmax/pubsub` | project default | 66 | 0 | None |
+| `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
+| `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
+| `@external/@dharmax/shell-ui` | project default | 640 | 0 | None |
+| `src/kb` | project default | 127 | 0 | None |
+| `docs` | project default | 203 | 0 | None |
+| `src/product` | project default | 255 | 0 | None |
+| `src/change` | project default | 639 | 0 | None |
+| `src/typescript-runtime` | project default | 76 | 0 | None |
+| `src/artifact-policy` | project default | 83 | 0 | None |
 
 ## Dependency Diagram
 

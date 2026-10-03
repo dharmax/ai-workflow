@@ -449,7 +449,7 @@ export class WorkflowStore {
       moduleSummaries.push({
         name: (m as any).title || this.localId(m.id),
         path: (m as any).path || this.localId(m.id),
-        completionPercent: (m as any).completionPercent || 0,
+        completenessTarget: m.completenessTarget,
         symbolCount,
         bugsCount: bugsInModule.length,
         activeTickets

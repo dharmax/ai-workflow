@@ -1,3 +1,4 @@
+import { CompletenessSchema, type CompletenessLevel } from '../artifact-policy.ts';
 /**
  * Responsibility: Bi-directional markdown projections of AST+ Graph entities.
  * Scope: Synchronizing kanban.md (Obsidian), epics.md, features.md, user-stories.md, decisions.md, and modules.md.
@@ -67,6 +68,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
       const epicLocalId = store.localId(epic.id);
       epicsMd += `## ${epicLocalId}: ${(epic as any).title || epicLocalId}\n\n`;
       epicsMd += `- **Status**: \`${(epic as any).status || 'draft'}\`\n`;
+      if (epic.completenessTarget) epicsMd += `- **Completeness Target**: \`${epic.completenessTarget}\`\n`;
       epicsMd += `- **Priority**: ${(epic as any).priority ?? 1}\n\n`;
 
       if ((epic as any).body) {
@@ -152,6 +154,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
 
       featuresMd += `## ${featLocalId}: ${(feature as any).title || featLocalId}\n\n`;
       featuresMd += `- **Status**: \`${(feature as any).status || 'draft'}\`\n`;
+      if (feature.completenessTarget) featuresMd += `- **Completeness Target**: \`${feature.completenessTarget}\`\n`;
       if (epicIds.length > 0) {
         featuresMd += `- **Epics**: ${epicIds.map(id => `\`${id}\``).join(', ')}\n`;
       }
@@ -236,6 +239,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
 
       storiesMd += `## ${storyLocalId}: ${(story as any).title || storyLocalId}\n`;
       storiesMd += `- **Status**: \`${(story as any).status || 'draft'}\`\n`;
+      if (story.completenessTarget) storiesMd += `- **Completeness Target**: \`${story.completenessTarget}\`\n`;
       if (featureIds.length > 0) storiesMd += `- **Feature**: ${featureIds.map(id => `\`${id}\``).join(', ')}\n`;
       if (epicIds.length > 0) storiesMd += `- **Epics**: ${epicIds.map(id => `\`${id}\``).join(', ')}\n`;
       storiesMd += `- **Actor**: ${(story as any).actor || 'User'}\n`;
@@ -282,10 +286,10 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   // 6. modules.md
   let modulesMd = `# Architecture & Modules\n\n`;
   modulesMd += `## Module Health\n\n`;
-  modulesMd += `| Module | Completion | Symbols | Bugs 🔴 | Active Tickets |\n`;
+  modulesMd += `| Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |\n`;
   modulesMd += `| :--- | :---: | :---: | :---: | :--- |\n`;
   for (const m of health.modules) {
-    modulesMd += `| \`${m.name}\` | **${m.completionPercent}%** | ${m.symbolCount} | ${m.bugsCount} | ${m.activeTickets.join(', ') || 'None'} |\n`;
+    modulesMd += `| \`${m.name}\` | ${m.completenessTarget || 'project default'} | ${m.symbolCount} | ${m.bugsCount} | ${m.activeTickets.join(', ') || 'None'} |\n`;
   }
   modulesMd += `\n## Dependency Diagram\n\n\`\`\`mermaid\ngraph TD\n`;
   for (const m of health.modules) {
@@ -403,6 +407,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         const id = headerMatch[1].trim();
         const title = headerMatch[2].trim();
+        let completenessTarget: CompletenessLevel | null = null;
         let status: EpicStatus = 'draft';
         let priority = 1;
 
@@ -414,6 +419,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         for (const rawLine of lines.slice(1)) {
           const line = rawLine.trim();
+
+          const completenessMatch = line.match(/^-\s+\*\*Completeness Target\*\*:\s*`?([a-z]+)`?/i);
+          if (completenessMatch) { completenessTarget = CompletenessSchema.parse(completenessMatch[1]); continue; }
 
           const statusMatch = line.match(/^-\s+\*\*Status\*\*:\s*`?([a-z_-]+)`?/i);
           if (statusMatch) {
@@ -461,6 +469,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           title,
           body,
           priority,
+          completenessTarget,
           status
         });
 
@@ -505,6 +514,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         const id = headerMatch[1].trim();
         const title = headerMatch[2].trim();
+        let completenessTarget: CompletenessLevel | null = null;
         let status: IntentStatus = 'draft';
         const acceptanceCriteria: string[] = [];
         const containedStories: string[] = [];
@@ -514,6 +524,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         for (const rawLine of lines.slice(1)) {
           const line = rawLine.trim();
+
+          const completenessMatch = line.match(/^-\s+\*\*Completeness Target\*\*:\s*`?([a-z]+)`?/i);
+          if (completenessMatch) { completenessTarget = CompletenessSchema.parse(completenessMatch[1]); continue; }
 
           const statusMatch = line.match(/^-\s+\*\*Status\*\*:\s*`?([a-z_-]+)`?/i);
           if (statusMatch) {
@@ -560,6 +573,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           title,
           body,
           acceptanceCriteria,
+          completenessTarget,
           status
         });
 
@@ -604,6 +618,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         const storyId = headerMatch[1].trim();
         const title = headerMatch[2].trim();
+        let completenessTarget: CompletenessLevel | null = null;
         let status: IntentStatus = 'draft';
         let actor = '';
         let storyText = '';
@@ -613,6 +628,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         for (const rawLine of lines.slice(1)) {
           const line = rawLine.trim();
+
+          const completenessMatch = line.match(/^-\s+\*\*Completeness Target\*\*:\s*`?([a-z]+)`?/i);
+          if (completenessMatch) { completenessTarget = CompletenessSchema.parse(completenessMatch[1]); continue; }
 
           const statusMatch = line.match(/^-\s+\*\*Status\*\*:\s*`?([a-z_-]+)`?/i);
           if (statusMatch) status = statusMatch[1] as IntentStatus;
@@ -642,6 +660,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           context,
           sla,
           acceptanceCriteria,
+          completenessTarget,
           status
         });
 

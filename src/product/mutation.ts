@@ -1,9 +1,10 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode } from '../graph/ontology.ts';
+import { CompletenessSchema } from '../artifact-policy.ts';
 
-const kinds = { Epic, Feature, UserStory, Ticket, Test: TestNode, Decision } as const;
+const kinds = { Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode } as const;
 export type ProductKind = keyof typeof kinds;
 const entityKind = z.enum(['Epic', 'Feature', 'UserStory', 'Ticket']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
@@ -13,7 +14,7 @@ const ticketPriority = z.enum(['P0', 'P1', 'P2', 'P3']);
 const fields = z.object({
   title: z.string().min(1), body: z.string(), status: z.string(), priority: z.union([z.number(), ticketPriority]),
   acceptanceCriteria: z.array(z.string()), actor: z.string(), story: z.string(), context: z.string(),
-  sla: z.string(), lane: ticketLane
+  sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
 }).partial().strict();
 
 export const ProductMutationSchema = z.discriminatedUnion('kind', [
@@ -29,6 +30,7 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Epic', 'targets', 'Feature'], ['Epic', 'targets', 'UserStory'],
   ['Feature', 'contains', 'UserStory'], ['Epic', 'contains', 'Ticket'],
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
+  ['Ticket', 'targets', 'Module'],
   ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
   ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory']
 ];
@@ -56,10 +58,10 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
 function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
-    Epic: ['title', 'body', 'status', 'priority'],
-    Feature: ['title', 'body', 'status', 'acceptanceCriteria'],
-    UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority'], Test: [], Decision: []
+    Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
+    Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
+    UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
+    Ticket: ['title', 'body', 'status', 'lane', 'priority'], Test: [], Decision: [], Module: ['completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
