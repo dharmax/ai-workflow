@@ -233,9 +233,9 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 | `docs/causal-change-engine.md` | Safe preview/apply mutation for code and Product Intent |
 | `docs/performance-metrics.md` | Correlated operation/cognition measurement |
 | `docs/product-change.md` | Product Intent mutation through the safe change path |
-| `docs/artifact-operations-plan.md` | Completed implementation program; historical rationale and acceptance record |
+| `docs/debugging-design.md` | Draft design for bug intake, root-cause investigation, remediation handoff, and optional fixing |
 
-Do not treat the historical program plan as current work. Current behavior is defined by the implemented design docs, live schemas/help, and repository state.
+Current behavior is defined by the implemented design docs, live schemas/help, and repository state. Draft design documents describe intended future behavior explicitly.
 
 ---
 
