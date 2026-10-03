@@ -114,8 +114,9 @@ Implement only the constrained inheritance rules from the design. No generic pol
 
 Tests must prove:
 
-- explicit operation override wins;
-- explicit artifact target wins over inherited target;
+- explicit operation override wins for the root artifact;
+- an explicit descendant target wins over recursively inherited run completeness;
+- explicit artifact target wins over ordinary inherited target;
 - Story inherits strictest containing Feature target;
 - Ticket effective target is derived from current run override + containing Epic/implemented Feature/addressed Story/targeted Module + project default; no Ticket target is stored;
 - Feature does not inherit from targeting Epic;
