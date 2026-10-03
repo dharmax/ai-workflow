@@ -100,6 +100,7 @@ Minimal intrinsic data:
 ```ts
 interface FeatureData extends BaseEntityData {
   acceptanceCriteria?: string[]
+  completenessTarget?: CompletenessLevel
 }
 ```
 
