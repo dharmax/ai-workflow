@@ -367,7 +367,7 @@ Implement `Ticket.investigate()` plus thin `investigate_ticket` transport operat
 2. Allow Decision `governs` Ticket.
 3. Centralize coherent Ticket lane/status transitions and fix current Blocked→planned behavior.
 4. Investigation is semantically read-only; code-index freshness may update.
-5. Gather mandatory graph/Product/Decision/Lesson/Aspect/code/test evidence first.
+5. Gather mandatory graph/Product/Decision/Lesson/Aspect/code/test evidence first. Also gather the project's **engineering doctrine**: applicable repository/agent instructions (for example `AGENTS.md` and installed AIWF skill rules), accepted Decisions, Lessons, coding conventions, architectural boundaries, explicit anti-patterns and other durable project guidelines. Doctrine is correctness evidence: it is never optional-candidate evidence and must never be pruned by System-1.
 6. Run one compact batched System-1 assessment for work kind/scope/atomicity/reasoning depth/context families.
 7. Deterministically retrieve a bounded optional candidate set; System-1 may rank/prune only optional candidates, never mandatory evidence.
 8. Use bounded reasoning only for unresolved semantics.
@@ -410,7 +410,7 @@ Implement `Ticket.prepare()` plus thin `prepare_ticket`, ordinary Ticket→Ticke
 6. Use System-1 only as atomic-vs-split/escalation hint.
 7. When decomposition is genuinely useful, reasoning model proposes a small coherent child set with bodies + acceptance criteria + relevant Product/Aspect/code relations.
 8. Add `depends_on` only when real ordering exists and the canonical graph path supports it.
-9. Before apply: selected Critic reviews proposal → accept/revise/needs_input/reject → deterministic validation → apply.
+9. Before apply: selected Critic reviews proposal → accept/revise/needs_input/reject → deterministic validation → apply. Critic input must include the applicable engineering doctrine and reject proposals that violate it even when the proposed structure is otherwise plausible.
 10. Built-in `critic=auto` must use an independent review context; advanced/production must not rely on producer self-critique.
 11. Bound revision attempts; no silent completeness downgrade.
 12. Rerun is idempotent and reuses children.
@@ -484,10 +484,11 @@ Parent Tickets use a bounded child work set, cycle detection and dependency orde
 
 - deterministic evidence first;
 - System-1 for optional evidence pruning, mechanism/failure classification and model-tier hint;
-- context-manager to pack surviving evidence where useful;
+- context-manager to pack surviving evidence where useful; engineering doctrine is pinned mandatory context and may be compressed but never omitted because of token pressure;
 - Asker for synthesis not requiring tools;
 - LLMActor only when implementation genuinely requires tool interaction;
-- exact refactor/edit/test primitives first choice.
+- exact refactor/edit/test primitives first choice;
+- before mutation, derive an explicit bounded doctrine checklist for this Ticket (coding style, architecture/package boundaries, KISS/anti-pattern rules, relevant Decisions/Lessons/Aspects); implementation and repair prompts receive it, and final Critic/verification checks compliance independently.
 
 Workspace safety: inspect Git state after targets are known; unrelated dirty files may remain, dirty target requires `needs_input` by default; never reset/stash/commit user work automatically.
 
@@ -506,9 +507,13 @@ Prove with deterministic tests/fixtures plus real controlled work:
 - no Done unless acceptance is explicitly verified;
 - metrics record the complete run.
 
-### Mandatory dogfood transition
+### Mandatory activation + dogfood transition
 
-After this gate is green, **stop manually implementing later program Tickets by default**.
+After this gate is green, committed, synced, and the full Gate-7 verification suite passes:
+
+1. Activate the just-built AIWF for subsequent work before continuing. If the global `aiwf` is a source symlink into this checkout, no reinstall is required; restart/reload any long-lived MCP/agent host so it sees the new tool surface. If `aiwf` is a copied/compiled binary, rebuild and reinstall it from this exact green commit, then run `aiwf doctor` and one harmless read-only smoke operation.
+2. Do **not** activate from a dirty/partially-green Gate 7. The previous installed AIWF remains the rollback path until the new installation passes doctor + smoke.
+3. Once activated, **stop manually implementing later program Tickets by default**.
 
 Use `resolve_ticket` for:
 
@@ -587,7 +592,7 @@ Make artifact-level operations the obvious first-choice shell/MCP/skill surface.
 
 ### Acceptance
 
-An external coding agent given a Ticket should naturally invoke high-level AIWF rather than reproduce the old status→graph→symbol→slice→blast choreography.
+An external coding agent given a Ticket should naturally invoke high-level AIWF rather than reproduce the old status→graph→symbol→slice→blast choreography. Its generated/installed agent instructions must also make clear that project engineering doctrine is mandatory input to high-level operations, not prose advice left for the external agent to remember independently.
 
 ---
 
