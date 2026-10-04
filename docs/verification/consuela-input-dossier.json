@@ -1,0 +1,74 @@
+{
+  "status": "complete",
+  "artifactId": "TKT-CS-ALIGN-01",
+  "value": {
+    "ticket": {
+      "id": "TKT-CS-ALIGN-01",
+      "title": "Make context-manager the sole prompt-context authority",
+      "body": "Part of EPIC-CS-ECOSYSTEM-ALIGNMENT. Authoritative full plan: docs/consuela-ecosystem-alignment-plan.md and epic body. User explicitly requests AIWF resolution. Work directly on ai-cli master / specified sibling default branches. Run tests/typecheck after each bounded step; preserve unrelated dirty work. Independent critic and production completeness required. Do not weaken criteria or claim completion without evidence.\n\n- Use local sibling @dharmax/context-manager and SemantikaContextSource or minimal relation-to-ContextBlock projection; route knowledge through contextManager.resolve.\n- Deterministic regression proves workspace and personal stores remain structurally isolated.\n- Deterministic regressions prove maxTokens and maxItems bounds are enforced by context-manager.\n- Deterministic regression proves ordinary non-context questions perform no unnecessary retrieval.\n- Existing knowledge/context tests pass; no duplicate vector/tag/search or retrieval/packing paths remain.\n- Remove obsolete ai-cli packing/formatting and scope_isolation once independent of Laya; preserve baseline safety and same-run recovery.",
+      "lane": "Todo",
+      "status": "planned",
+      "acceptanceCriteria": [
+        "Use local sibling @dharmax/context-manager and SemantikaContextSource or minimal relation-to-ContextBlock projection; route knowledge through contextManager.resolve.",
+        "Deterministic regression proves workspace and personal stores remain structurally isolated.",
+        "Deterministic regressions prove maxTokens and maxItems bounds are enforced by context-manager.",
+        "Deterministic regression proves ordinary non-context questions perform no unnecessary retrieval.",
+        "Existing knowledge/context tests pass; no duplicate vector/tag/search or retrieval/packing paths remain.",
+        "Remove obsolete ai-cli packing/formatting and scope_isolation once independent of Laya; preserve baseline safety and same-run recovery."
+      ]
+    },
+    "disposition": "ready",
+    "rationale": "Existing acceptance and mandatory evidence define executable work.",
+    "evidence": [
+      {
+        "id": "TKT-CS-ALIGN-01",
+        "kind": "Ticket",
+        "title": "Make context-manager the sole prompt-context authority",
+        "body": "Part of EPIC-CS-ECOSYSTEM-ALIGNMENT. Authoritative full plan: docs/consuela-ecosystem-alignment-plan.md and epic body. User explicitly requests AIWF resolution. Work directly on ai-cli master / specified sibling default branches. Run tests/typecheck after each bounded step; preserve unrelated dirty work. Independent critic and production completeness required. Do not weaken criteria or claim completion without evidence.\n\n- Use local sibling @dharmax/context-manager and SemantikaContextSource or minimal relation-to-ContextBlock projection; route knowledge through contextManager.resolve.\n- Deterministic regression proves workspace and personal stores remain structurally isolated.\n- Deterministic regressions prove maxTokens and maxItems bounds are enforced by context-manager.\n- Deterministic regression proves ordinary non-context questions perform no unnecessary retrieval.\n- Existing knowledge/context tests pass; no duplicate vector/tag/search or retrieval/packing paths remain.\n- Remove obsolete ai-cli packing/formatting and scope_isolation once independent of Laya; preserve baseline safety and same-run recovery.",
+        "mandatory": true,
+        "provenance": "Ticket contract"
+      },
+      {
+        "id": "EPIC-CS-ECOSYSTEM-ALIGNMENT",
+        "kind": "Epic",
+        "title": "Consuela ecosystem alignment: context authority, skill discovery, and sibling reconciliation",
+        "body": "# Consuela ecosystem alignment — execution plan\n\n**For AGY / local AIWF execution. Work directly on `master`; do not create a long-lived feature branch.**\nRun tests/typecheck after each bounded step. Merge/delete any temporary branch immediately if one is ever needed.\n\n## Current verified baseline\n\nAlready simplified on `ai-cli/master`:\n- run-local Actor capability recovery is implemented and bounded;\n- obsolete global `onMissingTool` removed;\n- Actor prompt now permits host-resolvable missing-capability attempts;\n- capability recovery budget test genuinely proves 2 additions + third blocked;\n- System-1/Laya no longer owns execution mode, target domain, output style, or reasoning depth;\n- Laya-driven Actor directives were removed.\n\nThe current ecosystem has evolved:\n- `llm-utils` owns generic SystemOne, Actor/Session, context protocol, and correlated metrics;\n- `semantic-registry` owns generic heterogeneous semantic discovery;\n- `skill-manager` already uses semantic-registry for skill discovery;\n- `context-manager` is now a small Semantika-backed attention/packing layer with read-only `ContextSource`;\n- Semantika owns tags/taxonomy/vector discovery and persistence.\n\n## Step 1 — Make context-manager the prompt-context authority\n\nGoal: remove Consuela-owned context packing/formatting where context-manager now owns it.\n\n1. Add `@dharmax/context-manager` as the local sibling dependency.\n2. Integrate the existing Semantika-backed knowledge stores through context-manager.\n   - Prefer `SemantikaContextSource` where the existing `SemanticPackage` can be exposed cleanly.\n   - If relation rendering still has real product value, keep only the smallest ai-cli-specific projection needed to map Semantika artifacts/relations into `ContextBlock`; do not create another search/index.\n3. Route workspace/personal knowledge context through `contextManager.resolve({ query, maxTokens, maxItems, ... })`.\n4. Delete ai-cli-owned prompt packing/formatting that becomes redundant.\n5. Once personal/workspace context no longer depends on Laya scope selection, remove `scope_isolation` from System-1 too. Reads should use bounded relevance, not a brittle read-scope classifier.\n\nAcceptance:\n- existing knowledge/context tests stay green;\n- workspace and personal stores remain structurally isolated;\n- relevant context is token/item bounded by context-manager;\n- no second vector/tag/search implementation exists;\n- ordinary non-context questions do not gain unnecessary retrieval.\n\nStop if the integration is only cosmetic and still leaves duplicate retrieval/packing paths.\n\n## Step 2 — Remove duplicate skill discovery ownership\n\nCurrent smell: `skill-manager` already owns skill discovery through semantic-registry, while ai-cli also re-registers every skill in its own `ResourceRegistry`.\n\nAudit and collapse to one discovery owner per resource:\n- ai-cli ResourceRegistry should own executable runtime tools/capabilities;\n- skill-manager should own skill lifecycle + skill discovery + activation;\n- the turn resource resolver may compose the two result sets, but must not semantically re-index the same skill twice;\n- capability recovery must still map a matched skill's `requires.capabilities` to a real executable ToolDefinition;\n- keep one small initial Actor tool surface and same-run recovery.\n\nDo not introduce a new umbrella registry, planner, or resource graph just to unify calls.\n\nAcceptance:\n- no duplicate skill indexing/classification;\n- skill affinity/activation still works;\n- initial resource selection and same-run recovery both find skill-required capabilities;\n- no global Actor tool growth.\n\n## Step 3 — reconcile sibling branch leftovers, then delete them\n\n### context-manager\nThese branches are superseded intermediate histories; current `main` already contains their resulting architecture:\n- `fix/source-native-tests`\n- `refactor/bun-typescript-package`\n- `refactor/semantika-context-source`\n\nAfter local verification that `main` tests/build pass, delete all three.\n\n### llm-utils\nDo **not** delete these yet:\n- `agent/openai-responses-api` contains OpenAI Responses API support absent from current master.\n- `feature/verified-task-pipeline-20260921` contains explicit verified-stage / fail-closed pipeline semantics absent from current master.\n\nReconcile each against current master rather than merging old branches wholesale:\n1. Re-implement/cherry-pick only behavior still desirable against current `.ts` architecture.\n2. Add current-style tests.\n3. Run full llm-utils suite/typecheck.\n4. Commit on master.\n5. Delete the obsolete branch immediately.\n\nFor the OpenAI adapter, decide explicitly whether modern OpenAI models should use `/responses` while preserving current structured-output, timeout, metrics and provider-error behavior.\n\nFor verified pipeline semantics, first determine whether they are still useful to any real consumer. If unused, preserve no speculative API merely because the old branch exists.\n\n## Final KISS audit\n\nThe desired Consuela path should read roughly:\n\n```text\nuser input\n  -> small System-1 safety/scheduling hint\n  -> strong semantic interpretation\n  -> context-manager over Semantika when context is needed\n  -> tool discovery via semantic-registry + skill discovery via skill-manager\n  -> one LLMActor run\n       -> bounded same-run capability recovery\n  -> existing safety/runtime authorities\n```\n\nIf implementation grows substantially beyond that picture, stop and simplify.\n\n\nMandatory decomposition instructions: Create bounded technical tickets covering (1) context-manager integration INCLUDING deterministic regressions proving workspace/personal store structural isolation, maxTokens and maxItems enforcement, and no retrieval for ordinary non-context questions; (2) sole skill discovery ownership with initial-selection and same-run-recovery regressions; (3) context-manager main verification and conditional cleanup; (4) llm-utils Responses reconciliation with explicit routing Decision and preserved adapter contracts; (5) real-consumer verified-pipeline audit and conditional reconciliation/cleanup; (6) final KISS audit and full acceptance evidence. These test criteria must be assigned explicit work in the proposal, not merely repeated in narrative. Preserve every source-plan constraint. Reuse existing work where meaningful. Resolve generated tickets in real prerequisite order. Production completeness and independent critic required. Preserve unrelated dirty work.",
+        "mandatory": true,
+        "provenance": "Ticket contains"
+      }
+    ],
+    "completeness": {
+      "epic": [
+        {
+          "id": "EPIC-CS-ECOSYSTEM-ALIGNMENT",
+          "target": {
+            "explicit": "production",
+            "effective": "production",
+            "source": "explicit"
+          }
+        }
+      ],
+      "feature": [],
+      "story": [],
+      "module": [],
+      "runOverride": "production",
+      "projectFallback": "functional",
+      "criticStrength": "production"
+    },
+    "aspects": {
+      "scopeId": "TKT-CS-ALIGN-01",
+      "aspects": [],
+      "knownGaps": []
+    },
+    "proposedEnrichments": {
+      "relations": []
+    },
+    "provenance": {
+      "systemOne": null,
+      "reasoningUsed": false,
+      "optionalCandidates": 0,
+      "optionalSelected": 0,
+      "freshnessReconciliations": 1
+    }
+  }
+}

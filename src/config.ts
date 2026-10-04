@@ -37,6 +37,7 @@ export interface ProjectConfig {
   defaultAgentId: string;
   defaultLeaseMinutes: number;
   ollamaUrl: string;
+  ollamaContextWindow: number;
   model: string;
   autoSync: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
@@ -53,6 +54,7 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   defaultAgentId: 'human-operator',
   defaultLeaseMinutes: 30,
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
+  ollamaContextWindow: 32768,
   model: process.env.AIWF_MODEL || 'qwen2.5-coder:7b',
   autoSync: true,
   logLevel: 'info',

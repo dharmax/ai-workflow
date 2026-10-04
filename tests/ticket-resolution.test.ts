@@ -201,7 +201,11 @@ describe('Ticket-owned bounded resolution', () => {
         expect(refreshed[1]).not.toContain('return a - b');
         expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain(mode === 'continue' ? 'return a + b;' : 'return a + b + 0 + 0 + 0;');
       } else expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a - b');
-      if (result.status === 'blocked') expect(result.blockers[0].reason).toContain(mode === 'error' ? 'error' : 'max_steps_exceeded');
+      if (result.status === 'blocked') {
+        expect(result.blockers[0].reason).toContain(mode === 'error' ? 'error' : 'max_steps_exceeded');
+        expect(result.blockers[0].reason).toContain('recent observations:');
+        if (mode === 'zero') expect(result.blockers[0].reason).toContain('read_workspace_file');
+      }
     } finally { completion.mockRestore(); }
   }, 30000);
 
@@ -219,6 +223,77 @@ describe('Ticket-owned bounded resolution', () => {
       const result = await t.resolve(store, { systemOne, critic: 'none', maxRepairs: 3, verify: async () => ({ criteria: [], aspects: [] }) });
       expect(result.status).toBe('blocked'); expect(calls).toBe(3);
       if (result.status === 'blocked') expect(result.blockers[0].reason).toContain('tranche limit');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
+  it('grounds dependency work before edits and sends the complete Actor catalog through Ollama with explicit context', async () => {
+    fs.writeFileSync(path.join(root, 'package.json'), '{"dependencies":{}}');
+    fs.writeFileSync(path.join(root, 'tests/package.test.ts'), 'import {test,expect} from "bun:test"; import fs from "node:fs"; test("local context-manager dependency",()=>expect(JSON.parse(fs.readFileSync("package.json","utf8")).dependencies["@dharmax/context-manager"]).toBe("file:../context-manager"));');
+    git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'dependency fixture');
+    await indexCodebase(store, root);
+    const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'DEPENDENCY', title: 'Add context-manager dependency', body: 'The package is not installed yet. Add the existing local sibling as a dependency in package.json.', lane: 'Todo', acceptanceCriteria: ['The package references the local context-manager sibling'] });
+    let calls = 0;
+    const request = { action: 'replace_text' as const, filePath: 'package.json', oldText: '"dependencies":{}', newText: '"dependencies":{"@dharmax/context-manager":"file:../context-manager"}' };
+    const server = Bun.serve({ port: 0, fetch: async incoming => {
+      const body = await incoming.json() as { options: { num_ctx?: number }; messages: Array<{ role: string; content: string }> };
+      calls++;
+      expect(body.options.num_ctx).toBe(32768);
+      const system = body.messages.find(message => message.role === 'system')!.content;
+      const goal = body.messages.find(message => message.role === 'user')!.content;
+      expect(system).not.toContain('product_change'); expect(system).not.toContain('ProductMutation');
+      expect(system).toContain('"$defs"'); expect(system.length).toBeLessThan(30000);
+      expect(goal).toContain(root); expect(goal).toContain('"package.json"'); expect(goal).toContain('a package that needs adding will not yet have indexed symbols');
+      if (calls === 2) { expect(goal).toContain('RECOVERY / REPLANNING TURN'); expect(goal).toContain('contents are not indexed symbols: use read_workspace_file'); }
+      if (calls === 4) { expect(goal).toContain('RECOVERY / REPLANNING TURN'); expect(goal).toContain('Change preview blocked'); expect(goal).toContain('replace an existing anchor'); }
+      let decision: unknown;
+      if (calls === 7) {
+        const observations = [...goal.matchAll(/- read_workspace_file\(.*\) -> Result: (.*)/g)];
+        expect(JSON.parse(observations.at(-1)![1]!).content).toContain('"@dharmax/context-manager":"file:../context-manager"');
+        decision = { thought: 'Completed dependency edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/package.test.ts']] }) };
+      }
+      else if (calls === 6) decision = { thought: 'Verify current disk after the apply', action: 'tool_call', toolCalls: [{ name: 'read_workspace_file', parameters: { filePath: 'package.json' } }] };
+      else if (calls === 5) {
+        const observation = JSON.parse([...goal.matchAll(/- preview_change\(.*\) -> Result: (.*)/g)].at(-1)![1]!);
+        expect(observation.applied).toBe(false); expect(observation.blocked).toBe(false);
+        expect(observation.nextCall).toMatchObject({ toolName: 'apply_change', parameters: { request } });
+        expect(observation.nextCall.parameters.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+        expect(observation.mutations).toBeUndefined(); expect(observation.originalHashes).toBeUndefined();
+        expect(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).toBe('{"dependencies":{}}');
+        decision = { thought: 'The preview has not applied anything; execute its next call', action: 'tool_call', toolCalls: [{ name: observation.nextCall.toolName, parameters: observation.nextCall.parameters }] };
+      }
+      else if (calls === 3) decision = { thought: 'Incorrect insertion anchor', action: 'tool_call', toolCalls: [{ name: 'preview_change', parameters: { ...request, oldText: '"@dharmax/context-manager":"file:../context-manager"' } }] };
+      else decision = { thought: 'Use the existing relative target', action: 'tool_call', toolCalls: [{
+        name: calls === 1 ? 'find_symbol' : calls === 2 ? 'read_workspace_file' : 'preview_change',
+        parameters: calls === 1 ? { name: '@dharmax/context-manager', filePath: 'package.json' } : calls === 2 ? { filePath: 'package.json' } : request
+      }] };
+      return Response.json({ message: { content: JSON.stringify(decision) } });
+    } });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('complete'); expect(calls).toBe(7);
+      expect(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies['@dharmax/context-manager']).toBe('file:../context-manager');
+    } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
+  }, 30000);
+
+  it('treats a missing symbol slice as a recovery observation instead of successful source', async () => {
+    const t = await ticket(); let calls = 0;
+    const request = { action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b' };
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      calls++;
+      if (calls === 2) {
+        expect(prompt).toContain('RECOVERY / REPLANNING TURN');
+        expect(prompt).toContain("Symbol 'InventedTarget' was not found in 'src/add.ts'");
+        expect(prompt).toContain('Use get_file_outline for actual declaration names');
+      }
+      const name = calls === 1 ? 'get_symbol_source' : calls === 2 ? 'get_file_outline' : calls === 3 ? 'preview_change' : 'apply_change';
+      const parameters = calls === 1 ? { filePath: 'src/add.ts', symbolName: 'InventedTarget' } : calls === 2 ? { filePath: 'src/add.ts' } : calls === 3 ? request : { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint };
+      const decision = calls === 5 ? { thought: 'Verified tool edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) } : { thought: 'Use grounded observations', action: 'tool_call', toolCalls: [{ name, parameters }] };
+      return { model, ok: true, text: JSON.stringify(decision) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('complete'); expect(calls).toBe(5);
     } finally { completion.mockRestore(); }
   }, 30000);
 

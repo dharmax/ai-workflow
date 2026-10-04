@@ -148,6 +148,7 @@ export function createDefaultAsker(projectRoot?: string): Asker | undefined {
     id: 'ollama',
     baseUrl: `${ollamaHost}/api`,
     host: ollamaHost,
+    contextWindow: cfg.ollamaContextWindow,
     available: true,
     local: true
   };

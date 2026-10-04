@@ -41,13 +41,12 @@ const ChangeTargetSchema = z.discriminatedUnion('type', [
     type: z.literal('file'),
     filePath: z.string().describe('Relative path to file')
   })
-]);
+]).meta({ id: 'ChangeTarget' });
 
-export const ChangeRequestSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('replace_text'), filePath: z.string().min(1), oldText: z.string().min(1), newText: z.string() }),
+export const CodeChangeRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('replace_text'), filePath: z.string().min(1), oldText: z.string().min(1).describe('Literal text already present exactly once in the existing file. To insert, use an existing anchor, not the missing text. Example: insert a JSON dependency by replacing the existing "dependencies": { prefix with that same prefix plus the new entry.'), newText: z.string().describe('Replacement for oldText. To insert, include the original anchor plus the added text here.') }),
   z.object({ action: z.literal('create_file'), filePath: z.string().min(1), content: z.string(), productContextEntityId: z.string().optional() }),
   z.object({ action: z.literal('replace_symbol'), target: ChangeTargetSchema, replacement: z.string().min(1), productContextEntityId: z.string().optional() }),
-  z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1) }),
   z.object({
     action: z.literal('rename_symbol'),
     target: ChangeTargetSchema,
@@ -80,6 +79,11 @@ export const ChangeRequestSchema = z.discriminatedUnion('action', [
     arguments: z.record(z.string(), z.any()).optional().describe('Optional refactoring parameters (e.g. targetFile for Move to file)'),
     productContextEntityId: z.string().optional().describe('Optional Feature, Story, or Epic ID for causal grounding')
   })
+]);
+
+export const ChangeRequestSchema = z.discriminatedUnion('action', [
+  ...CodeChangeRequestSchema.options,
+  z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1) })
 ]);
 
 export function registerChangeTools() {

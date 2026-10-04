@@ -1,0 +1,100 @@
+{
+  "ok": true,
+  "model": {
+    "providerId": "ollama",
+    "modelId": "qwen2.5-coder:7b-instruct-q4_K_M"
+  },
+  "usage": {
+    "promptTokens": 4612,
+    "completionTokens": 1482,
+    "totalTokens": 6094,
+    "available": true
+  },
+  "proposal": {
+    "items": [
+      {
+        "id": "TKT-CS-ALIGN-01",
+        "kind": "Ticket",
+        "title": "Make context-manager the sole prompt-context authority",
+        "body": "Integrate the existing Semantika-backed knowledge stores through context-manager. Route workspace/personal knowledge context through contextManager.resolve(). Delete ai-cli-owned prompt packing/formatting that becomes redundant. Once personal/workspace context no longer depends on Laya scope selection, remove scope_isolation from System-1 too. Reads should use bounded relevance, not a brittle read-scope classifier.",
+        "story": "TKT-CS-ALIGN-01",
+        "acceptanceCriteria": [
+          "Use local sibling @dharmax/context-manager and SemantikaContextSource or minimal relation-to-ContextBlock projection; route knowledge through contextManager.resolve.",
+          "Deterministic regression proves workspace and personal stores remain structurally isolated.",
+          "Deterministic regressions prove maxTokens and maxItems bounds are enforced by context-manager.",
+          "Deterministic regression proves ordinary non-context questions perform no unnecessary retrieval.",
+          "Existing knowledge/context tests pass; no duplicate vector/tag/search or retrieval/packing paths remain.",
+          "Remove obsolete ai-cli packing/formatting and scope_isolation once independent of Laya; preserve baseline safety and same-run recovery."
+        ]
+      },
+      {
+        "id": "TKT-CS-ALIGN-02",
+        "kind": "Ticket",
+        "title": "Collapse duplicate skill discovery into skill-manager ownership",
+        "body": "ResourceRegistry indexes executable tools/capabilities only; skill-manager owns skill lifecycle, discovery, activation. No duplicate semantic skill indexing/classification; compose results without another umbrella registry/planner/resource graph. Skill affinity and activation regressions pass. Initial selection and same-run recovery both resolve matched skill requires.capabilities to real ToolDefinition. Keep small initial Actor tool surface, bounded run-local recovery and no global Actor tool growth.",
+        "story": "TKT-CS-ALIGN-02",
+        "acceptanceCriteria": [
+          "ResourceRegistry indexes executable tools/capabilities only; skill-manager owns skill lifecycle, discovery, activation.",
+          "No duplicate semantic skill indexing/classification; compose results without another umbrella registry/planner/resource graph.",
+          "Skill affinity and activation regressions pass.",
+          "Initial selection and same-run recovery both resolve matched skill requires.capabilities to real ToolDefinition.",
+          "Keep small initial Actor tool surface, bounded run-local recovery and no global Actor tool growth."
+        ]
+      },
+      {
+        "id": "TKT-CS-ALIGN-03",
+        "kind": "Ticket",
+        "title": "Verify context-manager main and remove superseded local branches",
+        "body": "Verify sibling context-manager main tests and build pass, preserving unrelated work. Verify superseded architecture is present before deleting fix/source-native-tests, refactor/bun-typescript-package, refactor/semantika-context-source. Record exact verification and branch cleanup evidence; no remote deletion implied.",
+        "story": "TKT-CS-ALIGN-03",
+        "acceptanceCriteria": [
+          "Verify sibling context-manager main tests and build pass, preserving unrelated work.",
+          "Verify superseded architecture is present before deleting fix/source-native-tests, refactor/bun-typescript-package, refactor/semantika-context-source.",
+          "Record exact verification and branch cleanup evidence; no remote deletion implied."
+        ]
+      },
+      {
+        "id": "TKT-CS-ALIGN-04",
+        "kind": "Ticket",
+        "title": "Reconcile llm-utils OpenAI Responses support against current master",
+        "body": "Inspect agent/openai-responses-api against current .ts master; reuse only desirable behavior, no wholesale old branch merge. Record explicit Decision whether modern OpenAI models use /responses. Preserve structured output, timeout, correlated metrics and provider-error contracts with current-style regression tests. Full llm-utils tests/typecheck pass; commit intended changes on master preserving unrelated work, then delete obsolete local branch.",
+        "story": "TKT-CS-ALIGN-04",
+        "acceptanceCriteria": [
+          "Inspect agent/openai-responses-api against current .ts master; reuse only desirable behavior, no wholesale old branch merge.",
+          "Record explicit Decision whether modern OpenAI models use /responses.",
+          "Preserve structured output, timeout, correlated metrics and provider-error contracts with current-style regression tests.",
+          "Full llm-utils tests/typecheck pass; commit intended changes on master preserving unrelated work, then delete obsolete local branch."
+        ]
+      },
+      {
+        "id": "TKT-CS-ALIGN-05",
+        "kind": "Ticket",
+        "title": "Audit real consumers and reconcile verified pipeline branch",
+        "body": "Identify real consumers of verified-stage/fail-closed semantics from feature/verified-task-pipeline-20260921. If unused, record evidence and preserve no speculative API. If useful, selectively reconcile current .ts master and add current-style fail-closed tests. Full llm-utils tests/typecheck pass; commit any necessary changes on master preserving unrelated work, then delete obsolete local branch.",
+        "story": "TKT-CS-ALIGN-05",
+        "acceptanceCriteria": [
+          "Identify real consumers of verified-stage/fail-closed semantics from feature/verified-task-pipeline-20260921.",
+          "If unused, record evidence and preserve no speculative API. If useful, selectively reconcile current .ts master and add current-style fail-closed tests.",
+          "Full llm-utils tests/typecheck pass; commit any necessary changes on master preserving unrelated work, then delete obsolete local branch."
+        ]
+      },
+      {
+        "id": "TKT-CS-ALIGN-06",
+        "kind": "Ticket",
+        "title": "Verify ecosystem acceptance and final KISS architecture",
+        "body": "Verify all earlier ticket acceptance with actual tests/typecheck and recorded evidence across relevant repositories. Final architecture follows source plan: small System-1 hint, semantic interpretation, context-manager over Semantika when needed, tools via semantic-registry and skills via skill-manager, one Actor with bounded same-run recovery, existing authorities. No duplicate retrieval/packing/skill indexing; no new umbrella registry/planner/resource graph. Stop and simplify if architecture grows beyond plan. Do not complete epic until material acceptance evidence and reconciliation/conditional branch cleanup are verified.",
+        "story": "TKT-CS-ALIGN-06",
+        "acceptanceCriteria": [
+          "Verify all earlier ticket acceptance with actual tests/typecheck and recorded evidence across relevant repositories.",
+          "Final architecture follows source plan: small System-1 hint, semantic interpretation, context-manager over Semantika when needed, tools via semantic-registry and skills via skill-manager, one Actor with bounded same-run recovery, existing authorities.",
+          "No duplicate retrieval/packing/skill indexing; no new umbrella registry/planner/resource graph. Stop and simplify if architecture grows beyond plan.",
+          "Do not complete epic until material acceptance evidence and reconciliation/conditional branch cleanup are verified."
+        ]
+      }
+    ],
+    "aspectIds": [],
+    "gaps": [],
+    "required": [],
+    "rationale": "The proposed tickets cover the necessary work to align the ecosystem as per the epic requirements. Each ticket has executable acceptance criteria and is linked to the epic. No new stories or features are created, and no existing work is duplicated or expanded. The work is focused on the core aspects of the epic and does not introduce unnecessary complexity."
+  }
+}
