@@ -60,6 +60,17 @@ Failed trials stay in the evidence; use a new `trial` value after a fix.
 
 ## Gate 2 — Digest semantic core
 
+From this gate through Gate 4, tag measured AIWF implementation runs with:
+
+```text
+study=digest-self-hosting-build-v1
+scenario=native-digest-implementation
+variant=aiwf-high-level
+trial=<ordinal>
+```
+
+See `docs/verification/benchmarks/digest-self-hosting-build-v1.md`.
+
 Prefer one initial `src/digest.ts`.
 
 Implement the contract in `docs/digest.md` with obvious control flow:
