@@ -58,11 +58,11 @@ describe('correlated artifact performance telemetry', () => {
     const summary = queryPerformance(root);
     expect(summary).toMatchObject({ runs: 2, outcomes: { complete: 1, needs_input: 1 }, repairs: 1, criticRounds: 2, criticRevisions: 1, evidenceReduction: 0.75, firstPassVerification: 0 });
     expect(summary.p95Ms).toBeGreaterThanOrEqual(summary.medianMs!);
+    expect(performanceQueryArgs(['--operation', 'resolve_ticket', '--tag', 'variant=aiwf', '--ticket', 'T', '--trace', 'trace-1'])).toEqual({ operation: 'resolve_ticket', tag: 'variant=aiwf', artifactId: 'T', traceId: 'trace-1' });
+    const bundle = performanceEvidenceBundle(root, { operation: 'resolve_ticket' }); expect(bundle.schemaVersion).toBe(1); expect(bundle.runs).toHaveLength(2); expect(JSON.stringify(bundle)).not.toContain('PRIVATE_SOURCE_PROMPT_BODY');
     const file = path.join(root, '.ai-workflow/metrics.jsonl'); fs.unlinkSync(file); fs.mkdirSync(file);
     expect(await withArtifactMetrics(root, 'controlled', 'T', {}, async () => 42)).toBe(42);
     await expect(withArtifactMetrics(root, 'controlled', 'T', {}, async () => { throw Error('engineering failure'); })).rejects.toThrow('engineering failure');
-    expect(performanceQueryArgs(['--operation', 'resolve_ticket', '--tag', 'variant=aiwf', '--ticket', 'T', '--trace', 'trace-1'])).toEqual({ operation: 'resolve_ticket', tag: 'variant=aiwf', artifactId: 'T', traceId: 'trace-1' });
-    const bundle = performanceEvidenceBundle(root, { operation: 'resolve_ticket' }); expect(bundle.schemaVersion).toBe(1); expect(bundle.runs).toHaveLength(2); expect(JSON.stringify(bundle)).not.toContain('PRIVATE_SOURCE_PROMPT_BODY');
     expect(() => performanceQueryArgs(['--unknown', 'value'])).toThrow();
   });
 });
