@@ -92,7 +92,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
     } finally {
       try {
         const events = store.query(), llm = new LlmMetrics(store);
-        const llmEvents = events.filter((event): event is Extract<typeof event, { kind: 'llm' }> => event.kind === 'llm');
+        const llmEvents = llm.list();
         const systemOne = events.filter(event => event.kind === 'system1'), actors = events.filter(event => event.kind === 'actor');
         const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../package.json'), 'utf8')) as { version: string };
         const dependency = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../node_modules/@dharmax/llm-utils/package.json'), 'utf8')) as { version: string };
