@@ -34,7 +34,7 @@ Completeness overrides are temporary. Remember a target explicitly with `complet
 4. **Cognition is bounded.** Deterministic evidence comes first; System-1 may rank optional candidates; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools.
 5. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
 
-For semantics, read `docs/artifact-operations.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
+For artifact semantics, read `docs/artifact-operations.md`; for semantic reconciliation, read `docs/digest.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
 
 ---
 
