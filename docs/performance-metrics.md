@@ -88,6 +88,7 @@ interface OperationSummary {
   version: string
   aiwfRevision: string
   llmUtilsVersion: string
+  llmUtilsRevision: string
 
   project: {
     revisionBefore: string
@@ -134,6 +135,12 @@ interface OperationSummary {
     llm: AggregateMetrics
     costAvailable: boolean
     models: string[]
+    modelConfigs: Array<{
+      providerId: string
+      modelId: string
+      maxTokens?: number
+      contextWindow?: number
+    }>
 
     phases: Record<string, {
       calls: number
@@ -167,11 +174,12 @@ interface OperationSummary {
 Cross-project dogfood requires two different revisions:
 
 - **AIWF revision** — which AIWF engine implementation performed the work;
+- **llm-utils revision** — which shared cognition/runtime implementation was embedded;
 - **project revision** — which target repository state was operated on.
 
 Never collapse these into one ambiguous `revision` field.
 
-Record project revision both before and after the operation. A mutation may leave an uncommitted tree, so dirty-before/dirty-after is also material evidence.
+Compiled AIWF binaries bake the AIWF and llm-utils revisions at build time; source-mode falls back to sibling Git evidence. Record project revision both before and after the operation. A mutation may leave an uncommitted tree, so dirty-before/dirty-after is also material evidence.
 
 ## Cost semantics
 
