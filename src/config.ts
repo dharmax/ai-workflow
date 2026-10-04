@@ -46,6 +46,7 @@ export interface ProjectConfig {
   modelRadar: ModelRadarConfig;
   escalation: EscalationConfig;
   modelRoutes?: Record<string, string>;
+  providerOptions?: Record<string, Record<string, unknown>>;
   openrouterApiKey?: string;
 }
 
@@ -72,7 +73,8 @@ export const DEFAULT_CONFIG: ProjectConfig = {
     blastRadiusThreshold: 3,
     testRetryThreshold: 2
   },
-  modelRoutes: {}
+  modelRoutes: {},
+  providerOptions: {}
 };
 
 import os from 'node:os';
@@ -107,7 +109,8 @@ export function getGlobalConfig(): Partial<ProjectConfig> {
         ...(model ? { model } : {}),
         ...(Number.isInteger(raw.llmOutputTokens) && raw.llmOutputTokens > 0 ? { llmOutputTokens: raw.llmOutputTokens } : {}),
         ...(Number.isInteger(raw.ollamaContextWindow) && raw.ollamaContextWindow > 0 ? { ollamaContextWindow: raw.ollamaContextWindow } : {}),
-        ...(raw.modelRoutes && typeof raw.modelRoutes === 'object' ? { modelRoutes: raw.modelRoutes } : {})
+        ...(raw.modelRoutes && typeof raw.modelRoutes === 'object' ? { modelRoutes: raw.modelRoutes } : {}),
+        ...(raw.providerOptions && typeof raw.providerOptions === 'object' ? { providerOptions: raw.providerOptions } : {})
       };
     } catch {
       return {};
@@ -136,7 +139,8 @@ export function loadConfig(projectRoot: string): ProjectConfig {
         ...raw,
         modelRadar: { ...baseConfig.modelRadar, ...(raw.modelRadar || {}) },
         escalation: { ...baseConfig.escalation, ...(raw.escalation || {}) },
-        modelRoutes: { ...baseConfig.modelRoutes, ...(raw.modelRoutes || {}) }
+        modelRoutes: { ...baseConfig.modelRoutes, ...(raw.modelRoutes || {}) },
+        providerOptions: { ...baseConfig.providerOptions, ...(raw.providerOptions || {}) }
       };
     } catch {
       return baseConfig;
