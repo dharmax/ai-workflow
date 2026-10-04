@@ -61,7 +61,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
       const { getCoverage } = await import('../product/coverage.ts');
       const { getProductImpact } = await import('../product/impact.ts');
       const { CausalChangeEngine } = await import('../change/engine.ts');
-      const { createDefaultAsker } = await import('../product/decompose.ts');
+      const { createDefaultAsker } = await import('../model-runtime.ts');
       const { LayaSystemOne } = await import('@dharmax/llm-utils');
       const cfg = loadConfig(store.root), budget = new ArtifactBudget(options, 1, cfg.maxArtifacts);
       const created = new Set<string>(), reused = new Set<string>(), processed: string[] = [], knownGaps: string[] = [];
@@ -112,7 +112,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
           context.existing.push(...evidence.values());
           const propose = options.propose ?? (async (input: IntentContext, findings: readonly { message: string }[]) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Product reasoning provider unavailable.'); countEngineering('reasoningCalls');
-            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work for current kind '${kind}'. Permitted child kinds: Epic -> Feature or Ticket; Feature -> UserStory or Ticket; UserStory -> Ticket ONLY (never UserStory). Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, ...cognitionMetrics() });
+            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work for current kind '${kind}'. Permitted child kinds: Epic -> Feature or Ticket; Feature -> UserStory or Ticket; UserStory -> Ticket ONLY (never UserStory). Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Product proposal failed: ${response.failure?.message}`); return IntentProposalSchema.parse(response.data);
           });
           let accepted = false, findings: Array<{ message: string }> = [];
@@ -429,10 +429,10 @@ export class Ticket extends WorkflowEntity {
       if (unresolved) {
         try {
           const reason = options.reason ?? (async (input: TicketDossier) => {
-            const { createDefaultAsker } = await import('../product/decompose.ts');
+            const { createDefaultAsker } = await import('../model-runtime.ts');
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Reasoning provider unavailable.');
             const cfg = loadConfig(store.root);
-            const response = await asker.json(`Investigate this grounded Ticket dossier. Return a disposition and rationale, proposed acceptance criteria when missing, or precise required inputs. Do not mutate state or invent Product ownership. ${JSON.stringify(input)}`, InvestigationJudgmentSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, ...cognitionMetrics() });
+            const response = await asker.json(`Investigate this grounded Ticket dossier. Return a disposition and rationale, proposed acceptance criteria when missing, or precise required inputs. Do not mutate state or invent Product ownership. ${JSON.stringify(input)}`, InvestigationJudgmentSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Investigation provider failed: ${response.failure?.kind ?? 'unknown'}: ${response.failure?.message ?? 'No validated result.'}`);
             return InvestigationJudgmentSchema.parse(response.data);
           });
@@ -484,10 +484,10 @@ export class Ticket extends WorkflowEntity {
     try {
       const critic = await resolveArtifactCritic(options.critic, async criticId => new AiArtifactCritic(criticId, store.root));
       const propose = options.propose ?? (async (input: TicketDossier, findings: readonly import('../artifact-policy.ts').CriticFinding[]) => {
-        const { createDefaultAsker } = await import('../product/decompose.ts');
+        const { createDefaultAsker } = await import('../model-runtime.ts');
         const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Preparation reasoning provider unavailable.');
         countEngineering('reasoningCalls');
-        const proposal = await asker.json(`Make this Ticket executable. Preserve an atomic unit unless independently verifiable boundaries genuinely justify children. Never create a Story for technical work. Use ordinary Ticket children with stable IDs prefixed '${id}/', meaningful bodies and acceptance criteria, relevant relations to known IDs, and dependencies only for real ordering. Reuse existing work. Do not add ceremony, downgrade completeness or mutate state. Return no children if atomic. Dossier: ${JSON.stringify(input)} Existing children: ${JSON.stringify(children.map(child => ({ id: store.localId(child.id), title: child.title, body: child.body, acceptanceCriteria: child.acceptanceCriteria })))} Critic findings: ${JSON.stringify(findings)}`, TicketPreparationProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, ...cognitionMetrics() });
+        const proposal = await asker.json(`Make this Ticket executable. Preserve an atomic unit unless independently verifiable boundaries genuinely justify children. Never create a Story for technical work. Use ordinary Ticket children with stable IDs prefixed '${id}/', meaningful bodies and acceptance criteria, relevant relations to known IDs, and dependencies only for real ordering. Reuse existing work. Do not add ceremony, downgrade completeness or mutate state. Return no children if atomic. Dossier: ${JSON.stringify(input)} Existing children: ${JSON.stringify(children.map(child => ({ id: store.localId(child.id), title: child.title, body: child.body, acceptanceCriteria: child.acceptanceCriteria })))} Critic findings: ${JSON.stringify(findings)}`, TicketPreparationProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
         if (!proposal.ok) throw new Error(`Preparation provider failed: ${proposal.failure?.kind ?? 'unknown'}: ${proposal.failure?.message ?? 'No validated result.'}`);
         return TicketPreparationProposalSchema.parse(proposal.data);
       });
@@ -562,7 +562,7 @@ export class Ticket extends WorkflowEntity {
       const { CausalChangeEngine } = await import('../change/engine.ts');
       const { CodeChangeRequestSchema } = await import('../tools/change.ts');
       const { workspacePath } = await import('../change/workspace-path.ts');
-      const { createDefaultAsker } = await import('../product/decompose.ts');
+      const { createDefaultAsker } = await import('../model-runtime.ts');
       const { loadConfig } = await import('../config.ts');
       const { applyProductMutations } = await import('../product/mutation.ts');
       const { initializeTools, registry } = await import('../tools/index.ts');
@@ -673,7 +673,7 @@ export class Ticket extends WorkflowEntity {
             const testSources = input.tests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg) && fs.existsSync(path.resolve(store.root, arg))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') })));
             const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
             countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, dossier: reviewDossier, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, ...cognitionMetrics() });
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, dossier: reviewDossier, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [], actorTranches = 0;
@@ -696,7 +696,7 @@ export class Ticket extends WorkflowEntity {
                 const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
                 if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
                   countEngineering('reasoningCalls');
-                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, maxRetries: 1, ...cognitionMetrics() });
+                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
                   if (!response.ok) throw new Error(`Implementation synthesis failed: ${response.failure?.message}`);
                   const proposal = ExactImplementationSchema.parse(response.data), target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
                   return { changes: [proposal.action === 'replace_symbol' ? { action: proposal.action, target, replacement: proposal.replacement } : { action: proposal.action, target, newName: proposal.newName }], testCommands: proposal.testCommands };
@@ -729,7 +729,7 @@ export class Ticket extends WorkflowEntity {
                       return result;
                     } });
                   }
-                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), askOptions: { model, timeoutMs: 60000 } });
+                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
                   if (output.ok) return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
                   const successfulEdits = successfulChanges - changesBefore;
                   if (output.haltReason !== 'max_steps_exceeded' || !successfulEdits || tranche === 2) {
