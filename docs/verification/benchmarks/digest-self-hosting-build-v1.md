@@ -42,6 +42,8 @@ If AIWF itself requires a repair:
 3. rebuild/reinstall AIWF if runtime code changed;
 4. continue with a new trial.
 
+Because benchmark-tagged runs require a clean target baseline, a successful self-hosted Ticket may leave AIWF source dirty after its measured operation. Review and commit that verified Ticket result before starting the next measured Ticket. This is evidence hygiene, not manual implementation rescue.
+
 ## Evidence
 
 Capture:
