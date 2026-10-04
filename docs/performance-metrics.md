@@ -339,7 +339,9 @@ AIWF must not self-assign a marketing quality score.
 
 ## Human intervention
 
-A benchmark should count meaningful human intervention:
+A benchmark should count meaningful human intervention. Until automatic interaction instrumentation is active, aggregate human-intervention metrics are **unavailable**, not zero; record interventions in the benchmark note rather than inventing a measured count.
+
+Meaningful intervention includes:
 
 - clarification answers;
 - manual code edits;
