@@ -35,12 +35,21 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
   it('honors project default and task model routes in the shared Asker', () => {
     saveConfig(tempDir, {
       model: 'ollama/qwen-project',
+      ollamaContextWindow: 24576,
+      llmOutputTokens: 3072,
+      providerOptions: {
+        ollama: { top_k: 32, top_p: 0.85 }
+      },
       modelRoutes: {
         design: 'openrouter/deepseek/deepseek-chat',
         'digest.review': 'google/gemini-review'
       }
     });
     const asker = createDefaultAsker(tempDir)!;
+    expect(asker.getProvider('ollama')).toMatchObject({
+      contextWindow: 24576,
+      providerOptions: { top_k: 32, top_p: 0.85 }
+    });
     expect(asker.getRouter().resolve(undefined, ['ollama', 'openrouter', 'google'])).toEqual({
       providerId: 'ollama',
       modelId: 'qwen-project'
