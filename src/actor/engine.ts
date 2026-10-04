@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { LLMActor, Asker, ModelRouter, InMemoryMetricsStore } from '@dharmax/llm-utils';
+import { LLMActor, Asker, InMemoryMetricsStore } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
@@ -14,7 +14,8 @@ export { pubsub };
 import { registry, type ToolRegistry, type ToolContext } from '../tools/registry.ts';
 import { bucketRouter } from '../tools/bucket-router.ts';
 import { artifactCommand } from '../artifact-command.ts';
-import { loadConfig, resolveCloudCredentials } from '../config.ts';
+import { loadConfig } from '../config.ts';
+import { modelRuntime } from '../model-runtime.ts';
 import { ModelRadar } from './radar.ts';
 import { analyzeBlastRadius } from '../tools/graph-queries.ts';
 
@@ -145,57 +146,8 @@ export class WorkflowActor {
     this.metrics = new InMemoryMetricsStore();
     this.radar = options.radar || new ModelRadar({ projectRoot: this.projectRoot });
 
-    const cfg = loadConfig(this.projectRoot);
-    const creds = resolveCloudCredentials();
-    const providers: Record<string, any> = {};
-
-    // 1. Local Ollama Provider
-    const ollamaHost = cfg.ollamaUrl || 'http://localhost:11434';
-    providers.ollama = {
-      id: 'ollama',
-      host: ollamaHost,
-      available: true,
-      local: true
-    };
-
-    const gateway = cfg.gateway || 'auto';
-    this.activeGateway = gateway;
-
-    // 2. OpenRouter Gateway (universal multi-model endpoint)
-    const openrouterApiKey = cfg.openrouterApiKey || creds.openrouterApiKey;
-    if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
-      providers.openrouter = {
-        id: 'openrouter',
-        apiKey: openrouterApiKey,
-        baseUrl: 'https://openrouter.ai/api/v1',
-        available: true
-      };
-    }
-
-    // 3. Direct Cloud Providers
-    if (gateway === 'auto' || gateway === 'direct') {
-      if (creds.anthropicApiKey) {
-        providers.anthropic = {
-          id: 'anthropic',
-          apiKey: creds.anthropicApiKey,
-          available: true
-        };
-      }
-      if (creds.geminiApiKey) {
-        providers.google = {
-          id: 'google',
-          apiKey: creds.geminiApiKey,
-          available: true
-        };
-      }
-      if (creds.openaiApiKey) {
-        providers.openai = {
-          id: 'openai',
-          apiKey: creds.openaiApiKey,
-          available: true
-        };
-      }
-    }
+    const {config: cfg, providers} = modelRuntime(this.projectRoot);
+    this.activeGateway = cfg.gateway || 'auto';
 
     this.configuredProviders = Object.keys(providers).filter((p) => providers[p]?.available);
 
@@ -205,11 +157,11 @@ export class WorkflowActor {
       this.asker = options.asker;
     } else {
       try {
-        const model = cfg.model || MODE_CONFIGS[this.mode].defaultLocalModel;
         this.asker = new Asker({
           providers,
+          routes: cfg.modelRoutes,
           preferLocal: this.preferLocal,
-          defaultModel: `ollama/${model}`
+          defaultModel: cfg.model || MODE_CONFIGS[this.mode].defaultLocalModel
         });
       } catch {
         this.asker = undefined;
@@ -320,10 +272,10 @@ export class WorkflowActor {
       } else if (this.configuredProviders.includes('openai')) {
         targetModel = `openai/gpt-4o`;
       } else {
-        targetModel = `ollama/${cfg.model || config.defaultLocalModel}`;
+        targetModel = cfg.model || config.defaultLocalModel;
       }
     } else {
-      targetModel = `ollama/${cfg.model || config.defaultLocalModel}`;
+      targetModel = cfg.model || config.defaultLocalModel;
     }
 
     if (shouldEscalate) {
@@ -357,7 +309,8 @@ export class WorkflowActor {
       const result = await actor.run(rawText, {
         maxSteps: this.maxSteps,
         askOptions: {
-          model: targetModel
+          model: targetModel,
+          maxTokens: cfg.llmOutputTokens
         },
         signal: AbortSignal.timeout(this.timeoutMs)
       });
