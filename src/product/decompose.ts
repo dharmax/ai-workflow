@@ -5,11 +5,13 @@
  */
 
 import { z } from 'zod';
-import { Asker, type AskerOptions } from '@dharmax/llm-utils';
+import type { Asker } from '@dharmax/llm-utils';
 import { WorkflowStore } from '../graph/store.ts';
 import { Epic, Feature, UserStory, Decision } from '../graph/ontology.ts';
 import type { EpicStatus, IntentStatus } from '../graph/types.ts';
-import { loadConfig, resolveCloudCredentials } from '../config.ts';
+import { loadConfig } from '../config.ts';
+import { createDefaultAsker } from '../model-runtime.ts';
+export { createDefaultAsker } from '../model-runtime.ts';
 
 export interface EpicStructureProposal {
   epic: {
@@ -137,50 +139,6 @@ export async function buildProductIntentContext(store: WorkflowStore): Promise<s
   return lines.join('\n');
 }
 
-export function createDefaultAsker(projectRoot?: string): Asker | undefined {
-  const root = projectRoot || process.cwd();
-  const cfg = loadConfig(root);
-  const creds = resolveCloudCredentials();
-
-  const providers: Record<string, any> = {};
-  const ollamaHost = process.env.OLLAMA_HOST || cfg.ollamaUrl || 'http://lotus:11434';
-  providers.ollama = {
-    id: 'ollama',
-    baseUrl: `${ollamaHost}/api`,
-    host: ollamaHost,
-    contextWindow: cfg.ollamaContextWindow,
-    available: true,
-    local: true
-  };
-
-  const gateway = cfg.gateway || 'auto';
-  const openrouterApiKey = cfg.openrouterApiKey || creds.openrouterApiKey;
-  if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
-    providers.openrouter = {
-      id: 'openrouter',
-      apiKey: openrouterApiKey,
-      baseUrl: 'https://openrouter.ai/api/v1',
-      available: true
-    };
-  }
-
-  if (gateway === 'auto' || gateway === 'direct') {
-    if (creds.openaiApiKey) providers.openai = { id: 'openai', apiKey: creds.openaiApiKey, available: true };
-    if (creds.anthropicApiKey) providers.anthropic = { id: 'anthropic', apiKey: creds.anthropicApiKey, available: true };
-    if (creds.geminiApiKey) providers.google = { id: 'google', apiKey: creds.geminiApiKey, available: true };
-  }
-
-  try {
-    return new Asker({
-      providers,
-      routes: cfg.modelRoutes,
-      defaultModel: cfg.model
-    });
-  } catch {
-    return undefined;
-  }
-}
-
 export type SemanticDecompositionInput = z.input<typeof SemanticDecompositionOutputSchema>;
 
 export async function proposeEpicStructure(
@@ -234,7 +192,7 @@ Respond ONLY with valid JSON conforming to the schema.`;
     const cfg = loadConfig(store.root);
     const modelTarget = options?.model || cfg.modelRoutes?.design || cfg.model;
     const response = await asker.json(prompt, SemanticDecompositionOutputSchema, {
-      model: modelTarget, temperature: 0.2, maxRetries: 1
+      model: modelTarget, temperature: 0.2, maxRetries: 1, maxTokens: cfg.llmOutputTokens
     });
     if (!response.ok) throw new Error(`Semantic decomposition failed: ${response.failure?.message}`);
     semanticOutput = SemanticDecompositionOutputSchema.parse(response.data);
