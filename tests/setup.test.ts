@@ -8,6 +8,7 @@ import {
   configureMcp,
   replaceTomlServerSection,
   syncSkills,
+  PRIME_DIRECTIVE,
   CANONICAL_SKILL_MD,
   MCP_INSTRUCTIONS_2_0
 } from '../src/setup.ts';
@@ -209,6 +210,7 @@ approval_mode = "approve"`;
     expect(codexSkill).toContain('AIWF artifact delegation');
     expect(codexSkill).toContain('call `resolve_ticket`');
     expect(codexSkill).toContain('Claim the relevant Ticket before manual edits');
+    expect(codexSkill).toContain(PRIME_DIRECTIVE);
 
     const claudeSkill = fs.readFileSync(path.join(mockHome, '.claude', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
     expect(claudeSkill).toBe(CANONICAL_SKILL_MD);
@@ -271,6 +273,7 @@ approval_mode = "approve"`;
     // 5. Verify Cursor JSON
     const cursorJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.cursor', 'mcp.json'), 'utf8'));
     expect(cursorJson.mcpServers['ai-workflow'].instructions).toBe(MCP_INSTRUCTIONS_2_0);
+    expect(MCP_INSTRUCTIONS_2_0).toContain(PRIME_DIRECTIVE);
 
     // 6. Verify Windsurf JSON
     const windsurfJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.codeium', 'windsurf', 'mcp_config.json'), 'utf8'));
