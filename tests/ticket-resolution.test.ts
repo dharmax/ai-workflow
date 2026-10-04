@@ -11,6 +11,7 @@ import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
 import type { ResolutionVerificationInput, ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';
+import { registry } from '../src/tools/registry.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 
 describe('Ticket-owned bounded resolution', () => {
@@ -180,6 +181,7 @@ describe('Ticket-owned bounded resolution', () => {
       if (completes && tranche === 1 && step === 3) decision = { thought: 'Complete', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', mode === 'ordinary' ? 'tests/package.test.ts' : 'tests/add.test.ts']] }) };
       else {
         let name = 'read_workspace_file', parameters: Record<string, unknown> = { filePath: targetFile };
+        if (step >= 3 || mode === 'zero') { name = 'find_symbol'; parameters = { name: `distinct_observation_${step}` }; }
         if (mode !== 'zero' && step === 1) { name = 'preview_change'; parameters = request; }
         if (mode !== 'zero' && step === 2) {
           name = 'apply_change'; parameters = { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint };
@@ -204,9 +206,75 @@ describe('Ticket-owned bounded resolution', () => {
       if (result.status === 'blocked') {
         expect(result.blockers[0].reason).toContain(mode === 'error' ? 'error' : 'max_steps_exceeded');
         expect(result.blockers[0].reason).toContain('recent observations:');
-        if (mode === 'zero') expect(result.blockers[0].reason).toContain('read_workspace_file');
+        if (mode === 'zero') expect(result.blockers[0].reason).toContain('find_symbol');
       }
     } finally { completion.mockRestore(); }
+  }, 30000);
+
+  it('rejects repeated unchanged navigation and permits re-reading after a real edit', async () => {
+    const t = await ticket(); let calls = 0;
+    const request = { action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b' };
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const step = calls++;
+      if (step === 2) expect(prompt).toContain('Stalled navigation: this identical observation');
+      if (step === 5) {
+        expect(prompt).toContain('return a + b');
+        return { model, ok: true, text: JSON.stringify({ thought: 'Done', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) }) };
+      }
+      const name = step === 2 ? 'preview_change' : step === 3 ? 'apply_change' : 'read_workspace_file';
+      const parameters = step === 2 ? request : step === 3
+        ? { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint }
+        : { filePath: 'src/add.ts' };
+      return { model, ok: true, text: JSON.stringify({ thought: 'Inspect or edit', action: 'tool_call', toolCalls: [{ name, parameters }] }) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('complete'); expect(calls).toBe(6);
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
+  for (const name of ['get_file_outline', 'read_workspace_file']) {
+    it(`stops identical ${name} observations after three steps and executes once`, async () => {
+      const t = await ticket(); let calls = 0, executions = 0;
+      const original = registry.execute.bind(registry);
+      const execution = spyOn(registry, 'execute').mockImplementation(async (tool, params, ctx) => {
+        if (tool === name) executions++;
+        return original(tool, params, ctx);
+      });
+      const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+        if (calls === 2) expect(prompt).toContain('Replan using existing evidence');
+        calls++;
+        return { model, ok: true, text: JSON.stringify({ thought: 'Inspect', action: 'tool_call', toolCalls: [{ name, parameters: { filePath: 'src/add.ts' } }] }) };
+      });
+      try {
+        const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+        expect(result.status).toBe('blocked'); expect(JSON.stringify(result)).toContain('Stalled navigation');
+        expect(calls).toBe(3); expect(executions).toBe(1);
+        expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a - b');
+      } finally { completion.mockRestore(); execution.mockRestore(); }
+    }, 30000);
+  }
+
+  it('allows different observations and rejects reordered canonical parameters', async () => {
+    const t = await ticket(); let calls = 0, reads = 0;
+    const original = registry.execute.bind(registry);
+    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => {
+      if (name === 'find_symbol') reads++;
+      return original(name, params, ctx);
+    });
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const step = calls++;
+      if (step === 3) expect(prompt).toContain('Stalled navigation: this identical observation');
+      const parameters = step === 0 ? { name: 'add', filePath: 'src/add.ts' }
+        : step === 1 ? { name: 'different', filePath: 'src/add.ts' }
+        : { filePath: 'src/add.ts', name: 'add' };
+      return { model, ok: true, text: JSON.stringify({ thought: 'Inspect', action: 'tool_call', toolCalls: [{ name: 'find_symbol', parameters }] }) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('blocked'); expect(calls).toBe(4); expect(reads).toBe(2);
+    } finally { completion.mockRestore(); execution.mockRestore(); }
   }, 30000);
 
   it('keeps the three-tranche total across acceptance repair attempts', async () => {

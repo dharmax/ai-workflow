@@ -10,6 +10,7 @@ import {
   RawOntology
 } from '@dharmax/semantika';
 
+import { canonical } from '../kb/canonical.ts';
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from '../artifact-policy.ts';
 import type { WorkflowStore } from './store.ts';
 
@@ -705,16 +706,30 @@ export class Ticket extends WorkflowEntity {
                 let currentDossier = input;
                 while (actorTranches < 3) {
                   const tranche = actorTranches++, changesBefore = successfulChanges;
+                  const observations = new Set<string>(), controller = new AbortController();
+                  let duplicateAttempts = 0;
                   const workspaceFiles = (await store.listEntities<FileNode>(FileNode.dcr)).map(file => store.localId(file.id)).filter(file => !file.startsWith('@') && !file.startsWith('node_modules/')).sort((a, b) => Number(/\.[cm]?[jt]sx?$/.test(b)) - Number(/\.[cm]?[jt]sx?$/.test(a)) || a.localeCompare(b)).slice(0, 64);
                   const actor = new LLMActor(asker, { maxSteps: 16, system: `Implement only Ticket ${currentDossier.ticket.id}: ${currentDossier.ticket.title}. Required outcomes: ${JSON.stringify(currentDossier.ticket.acceptanceCriteria)}. Parent intent constrains this task; do not execute other tickets. Keep thought to one short sentence; put replacement code only in tool parameters. Do not repeat an identical read/search on unchanged disk. Empty search results mean no match, not a reason to repeat the search. Inspect existing files and use concrete preview_change/apply_change edits to satisfy the authored contract. preview_change is read-only: nothing changes until apply_change succeeds. After a safe preview, apply the identical request with its returned fingerprint before moving to the next change. Preserve authored dependency paths; never invent package versions. For a local sibling dependency, follow the existing file:../ dependency convention when present; never substitute a registry version. Navigate surgically, read_workspace_file for ordinary files, then use preview_change/apply_change for edits (replace_text requires unique existing text). Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.` });
                   for (const name of names) {
                     const tool = registry.get(name); if (!tool) continue;
                     actor.registerTool({ name, description: tool.description, parameters: name === 'preview_change' ? CodeChangeRequestSchema : name === 'apply_change' ? z.object({ request: CodeChangeRequestSchema, fingerprint: z.string().min(1) }) : tool.parameters, execute: async params => {
+                      if (controller.signal.aborted) throw new Error('Stalled navigation: implementation tranche terminated.');
                       if (name === 'apply_change') {
                         countEngineering('toolCalls');
                         const value = params as { request: import('../change/types.ts').ChangeRequest; fingerprint: string };
-                        return apply(value.request, value.fingerprint);
+                        const epochBefore = successfulChanges;
+                        const result = await apply(value.request, value.fingerprint);
+                        if (successfulChanges > epochBefore) duplicateAttempts = 0;
+                        return result;
                       }
+                      // Every non-mutating tool is an observation, including change previews.
+                      const key = canonical([name, params, successfulChanges]);
+                      if (observations.has(key)) {
+                        if (++duplicateAttempts >= 2) controller.abort();
+                        throw new Error('Stalled navigation: this identical observation already ran in the current workspace mutation epoch. Replan using existing evidence, a different observation, or a concrete change; two consecutive duplicate attempts terminate this tranche.');
+                      }
+                      observations.add(key);
+                      duplicateAttempts = 0;
                       if (name === 'get_symbol_source') { countEngineering('sourceReads'); countEngineering('exactSymbolReads'); }
                       if (name === 'read_workspace_file') countEngineering('sourceReads');
                       const result = await registry.execute(name, params, ctx);
@@ -729,7 +744,8 @@ export class Ticket extends WorkflowEntity {
                       return result;
                     } });
                   }
-                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), signal: controller.signal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps).`);
                   if (output.ok) return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
                   const successfulEdits = successfulChanges - changesBefore;
                   if (output.haltReason !== 'max_steps_exceeded' || !successfulEdits || tranche === 2) {
