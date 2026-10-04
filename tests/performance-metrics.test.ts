@@ -62,6 +62,7 @@ describe('correlated artifact performance telemetry', () => {
     const bundle = performanceEvidenceBundle(root, { operation: 'resolve_ticket' }); expect(bundle.schemaVersion).toBe(1); expect(bundle.runs).toHaveLength(2); expect(JSON.stringify(bundle)).not.toContain('PRIVATE_SOURCE_PROMPT_BODY');
     const file = path.join(root, '.ai-workflow/metrics.jsonl'); fs.unlinkSync(file); fs.mkdirSync(file);
     expect(await withArtifactMetrics(root, 'controlled', 'T', {}, async () => 42)).toBe(42);
+    await expect(withArtifactMetrics(root, 'controlled', 'T', { tags: { study: 'benchmark-fixture' } }, async () => 42)).rejects.toThrow(/Benchmark evidence persistence failed/);
     await expect(withArtifactMetrics(root, 'controlled', 'T', {}, async () => { throw Error('engineering failure'); })).rejects.toThrow('engineering failure');
     expect(() => performanceQueryArgs(['--unknown', 'value'])).toThrow();
   });
