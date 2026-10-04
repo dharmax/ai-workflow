@@ -22,7 +22,15 @@ export interface OperationSummary {
   counters: Partial<Record<EngineeringCounter, number>>;
   cognition: {
     llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; structuredRepairs: number; models: string[];
-    modelConfigs: Array<{ providerId: string; modelId: string; maxTokens?: number; contextWindow?: number }>;
+    modelConfigs: Array<{
+      providerId: string
+      modelId: string
+      maxTokens?: number
+      contextWindow?: number
+      temperature?: number
+      providerOptionKeys?: string[]
+      providerOptionsHash?: string
+    }>;
     phases: Record<string, { calls: number; totalTokens: number; latencyMs: number }>;
     systemOne: { calls: number; latencyMs: number; unavailable: number; backends: string[] };
     actor: { runs: number; steps: number; toolCalls: number; toolFailures: number; missingToolRecoveries: number };
@@ -128,8 +136,19 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         const modelConfigs = [...new Map(llmEvents.map(event => {
           const maxTokens = typeof event.metadata?.maxTokens === 'number' ? event.metadata.maxTokens : undefined;
           const contextWindow = typeof event.metadata?.contextWindow === 'number' ? event.metadata.contextWindow : undefined;
-          const key = `${event.providerId}/${event.modelId}/${maxTokens ?? ''}/${contextWindow ?? ''}`;
-          return [key, { providerId: event.providerId, modelId: event.modelId, ...(maxTokens !== undefined ? {maxTokens} : {}), ...(contextWindow !== undefined ? {contextWindow} : {}) }] as const;
+          const temperature = typeof event.metadata?.temperature === 'number' ? event.metadata.temperature : undefined;
+          const providerOptionKeys = Array.isArray(event.metadata?.providerOptionKeys) ? event.metadata.providerOptionKeys.filter((value): value is string => typeof value === 'string') : undefined;
+          const providerOptionsHash = typeof event.metadata?.providerOptionsHash === 'string' ? event.metadata.providerOptionsHash : undefined;
+          const key = `${event.providerId}/${event.modelId}/${maxTokens ?? ''}/${contextWindow ?? ''}/${temperature ?? ''}/${providerOptionsHash ?? ''}`;
+          return [key, {
+            providerId: event.providerId,
+            modelId: event.modelId,
+            ...(maxTokens !== undefined ? {maxTokens} : {}),
+            ...(contextWindow !== undefined ? {contextWindow} : {}),
+            ...(temperature !== undefined ? {temperature} : {}),
+            ...(providerOptionKeys?.length ? {providerOptionKeys} : {}),
+            ...(providerOptionsHash ? {providerOptionsHash} : {})
+          }] as const;
         })).values()];
         const phases = llmEvents.reduce<Record<string, { calls: number; totalTokens: number; latencyMs: number }>>((all, event) => {
           const phase = typeof event.tags?.phase === 'string' ? event.tags.phase : undefined;
