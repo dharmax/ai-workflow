@@ -47,7 +47,7 @@ describe('correlated artifact performance telemetry', () => {
       await withArtifactMetrics(root, 'controlled_actor', 'T', {}, async () => actor.run('PRIVATE_ACTOR_TASK', cognitionMetrics()));
       const row = queryPerformance(root).rows[0];
       expect(row.cognition.actor.runs).toBe(1); expect(row.cognition.llm.calls).toBe(1); expect(row.cognition.llm.totalTokens).toBe(8);
-      expect(row.cognition.termination.actorHaltReasons.completed).toBe(1); expect(row.cognition.modelConfigs).toBeArray();
+      expect(row.cognition.termination.actorHaltReasons.completed).toBe(1); expect(row.cognition.modelConfigs).toBeArray(); expect(row.cognition.structuredRepairs).toBe(0);
       expect(fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8')).not.toContain('PRIVATE_ACTOR_TASK');
     } finally { server.stop(true); }
   });
