@@ -6,7 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket } from '../src/graph/ontology.ts';
 import { RemoteSystemOne, Asker, LLMActor } from '@dharmax/llm-utils';
 import { saveConfig } from '../src/config.ts';
-import { queryPerformance, withArtifactMetrics, cognitionMetrics, countEngineering, performanceQueryArgs } from '../src/performance-metrics.ts';
+import { queryPerformance, withArtifactMetrics, cognitionMetrics, countEngineering, performanceQueryArgs, performanceEvidenceBundle } from '../src/performance-metrics.ts';
 
 describe('correlated artifact performance telemetry', () => {
   let root: string, store: WorkflowStore;
@@ -30,6 +30,7 @@ describe('correlated artifact performance telemetry', () => {
       expect(investigation.parentSpanId).toBe(preparation.spanId);
       expect(preparation.cognition.llm).toMatchObject({ calls: 1, promptTokens: 11, completionTokens: 7, totalTokens: 18 });
       expect(preparation.cognition.systemOne.calls).toBe(1); expect(preparation.counters.artifactVisits).toBe(1);
+      expect(preparation.aiwfRevision).toBeString(); expect(preparation.project.revisionBefore).toBeString(); expect(preparation.runtime.bun).toBeString();
       expect(queryPerformance(root).totalTokens).toBe(18);
       const raw = fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8'); expect(raw).not.toContain(secret); expect(raw).not.toContain('Restart retains jobs'); expect(raw).not.toContain('Missing authored acceptance');
       store.close(); store = new WorkflowStore(root);
@@ -46,6 +47,7 @@ describe('correlated artifact performance telemetry', () => {
       await withArtifactMetrics(root, 'controlled_actor', 'T', {}, async () => actor.run('PRIVATE_ACTOR_TASK', cognitionMetrics()));
       const row = queryPerformance(root).rows[0];
       expect(row.cognition.actor.runs).toBe(1); expect(row.cognition.llm.calls).toBe(1); expect(row.cognition.llm.totalTokens).toBe(8);
+      expect(row.cognition.termination.actorHaltReasons.completed).toBe(1);
       expect(fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8')).not.toContain('PRIVATE_ACTOR_TASK');
     } finally { server.stop(true); }
   });
@@ -59,7 +61,8 @@ describe('correlated artifact performance telemetry', () => {
     const file = path.join(root, '.ai-workflow/metrics.jsonl'); fs.unlinkSync(file); fs.mkdirSync(file);
     expect(await withArtifactMetrics(root, 'controlled', 'T', {}, async () => 42)).toBe(42);
     await expect(withArtifactMetrics(root, 'controlled', 'T', {}, async () => { throw Error('engineering failure'); })).rejects.toThrow('engineering failure');
-    expect(performanceQueryArgs(['--operation', 'resolve_ticket', '--tag', 'variant=aiwf', '--ticket', 'T'])).toEqual({ operation: 'resolve_ticket', tag: 'variant=aiwf', artifactId: 'T' });
+    expect(performanceQueryArgs(['--operation', 'resolve_ticket', '--tag', 'variant=aiwf', '--ticket', 'T', '--trace', 'trace-1'])).toEqual({ operation: 'resolve_ticket', tag: 'variant=aiwf', artifactId: 'T', traceId: 'trace-1' });
+    const bundle = performanceEvidenceBundle(root, { operation: 'resolve_ticket' }); expect(bundle.schemaVersion).toBe(1); expect(bundle.runs).toHaveLength(2); expect(JSON.stringify(bundle)).not.toContain('PRIVATE_SOURCE_PROMPT_BODY');
     expect(() => performanceQueryArgs(['--unknown', 'value'])).toThrow();
   });
 });
