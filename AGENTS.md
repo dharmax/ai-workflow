@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## Prime Directive
+The simplest correct solution wins. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.
+
 ## Project Structure & Module Organization
 The TypeScript sources live under `src/`:
 - `cli.ts`: Entry point for the `aiwf` CLI binary.
