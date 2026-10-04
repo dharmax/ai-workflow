@@ -38,6 +38,7 @@ export interface ProjectConfig {
   defaultLeaseMinutes: number;
   ollamaUrl: string;
   ollamaContextWindow: number;
+  llmOutputTokens: number;
   model: string;
   autoSync: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
@@ -55,6 +56,7 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   defaultLeaseMinutes: 30,
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
   ollamaContextWindow: 32768,
+  llmOutputTokens: 4096,
   model: process.env.AIWF_MODEL || 'qwen2.5-coder:7b',
   autoSync: true,
   logLevel: 'info',
@@ -102,7 +104,10 @@ export function getGlobalConfig(): Partial<ProjectConfig> {
       const model = raw.providers?.ollama?.plannerModel || raw.model;
       return {
         ...(ollamaHost ? { ollamaUrl: ollamaHost } : {}),
-        ...(model ? { model } : {})
+        ...(model ? { model } : {}),
+        ...(Number.isInteger(raw.llmOutputTokens) && raw.llmOutputTokens > 0 ? { llmOutputTokens: raw.llmOutputTokens } : {}),
+        ...(Number.isInteger(raw.ollamaContextWindow) && raw.ollamaContextWindow > 0 ? { ollamaContextWindow: raw.ollamaContextWindow } : {}),
+        ...(raw.modelRoutes && typeof raw.modelRoutes === 'object' ? { modelRoutes: raw.modelRoutes } : {})
       };
     } catch {
       return {};
