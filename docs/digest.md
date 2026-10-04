@@ -1,48 +1,42 @@
-# Digest — High-Level Semantic Reconciliation
+# Digest — Native Semantic Reconciliation
 
-**Status:** proposed AIWF high-level operation.
+**Status:** accepted AIWF design; implementation pending.
 
 ## Purpose
 
-AIWF already owns engineering-domain truth, repository evidence, Product Intent, Aspects, Decisions, safe change, artifact processing and bounded cognition.
-
-A separate `aiwf-digest` package would now mostly export AIWF context out of the system and then pass a synthesis back in.
-
-Digest therefore belongs inside AIWF as one high-level semantic operation:
+Digest is AIWF's high-level operation for reconciling substantial engineering/product material before that material becomes canonical work or code.
 
 ```text
-substantial subject material
-        +
-bounded authoritative project evidence
-        ↓
-      digest
- analyze → reconcile → independent review
-        ↓
- complete | needs_input | blocked
+subject material + authoritative evidence + accepted decisions
+                           ↓
+                         digest
+              analyze → reconcile → review
+                           ↓
+             complete | needs_input | blocked
 ```
 
-Digest is **not** a durable entity, workflow engine, planner, Ticket generator or mutation subsystem.
+Its single responsibility is:
 
-Its responsibility is:
+> **Reconcile meaning into a coherent, evidence-grounded synthesis without owning mutation or engineering execution.**
 
-> turn substantial, imperfect engineering/product material into a coherent, evidence-grounded, independently reviewed semantic synthesis.
+A separate `aiwf-digest` package is no longer justified. AIWF already owns the project graph, engineering evidence, model routing, correlated metrics, Product Intent, Aspects, Decisions and safe execution surfaces. Exporting project context to a sibling package and then importing its synthesis back would create an artificial boundary.
 
 ## Position in AIWF
 
-The high-level AIWF surface becomes:
+The high-level surface has three distinct layers:
 
 ```text
 digest
-  understand / challenge / reconcile accepted meaning
+  understand, challenge and reconcile meaning
 
 process_epic / process_feature / process_story
-  turn accepted Product Intent into coherent project work
+  turn accepted Product Intent into coherent work
 
 resolve_ticket
   execute and verify engineering work
 ```
 
-Typical flow:
+Typical composition:
 
 ```text
 rough design / requirements / proposal
@@ -51,23 +45,84 @@ rough design / requirements / proposal
         ↓
 reviewed coherent definition
         ↓
-optional ordinary AIWF change / Product Intent mutation
+explicit caller acceptance
+        ↓
+ordinary AIWF change/Product Intent mutation when desired
         ↓
 process_* / resolve_ticket
 ```
 
-These operations may compose, but none emulates another.
+Digest does not emulate either downstream layer.
+
+## Non-entity operation
+
+Digest is not durable project truth by itself.
+
+Do **not** add:
+
+- a Digest entity;
+- a DigestSession;
+- persisted workflow stages;
+- resume tokens;
+- a second graph/database;
+- a Digest manager/service wrapper.
+
+Retrying Digest means re-running it against durable source/project state plus explicit prior decisions.
 
 ## Core contract
 
-Keep the public contract small.
+Keep the semantic contract compact and explicit.
 
 ```ts
 interface DigestSource {
   id: string
   text: string
-  kind?: 'subject' | 'evidence'
   location?: string
+}
+
+interface DigestSourceRef {
+  sourceId: string
+  section?: string
+  excerpt?: string
+}
+
+type DigestFindingKind =
+  | 'contradiction'
+  | 'omission'
+  | 'duplication'
+  | 'assumption'
+  | 'evidence_conflict'
+  | 'weak_abstraction'
+
+interface DigestFinding {
+  id: string
+  kind: DigestFindingKind
+  material: boolean
+  statement: string
+  sources: DigestSourceRef[]
+}
+
+interface DigestQuestion {
+  id: string
+  question: string
+  why: string
+  sources: DigestSourceRef[]
+  choices?: string[]
+}
+
+interface DigestAnalysis {
+  summary: string
+  findings: DigestFinding[]
+  questions: DigestQuestion[]
+}
+
+interface DigestReview {
+  verdict: 'accept' | 'revise' | 'needs_input'
+  findings: Array<{
+    statement: string
+    sources: DigestSourceRef[]
+  }>
+  required?: DigestQuestion[]
 }
 
 interface DigestInput {
@@ -87,28 +142,31 @@ type DigestResult =
   | {
       status: 'needs_input'
       analysis: DigestAnalysis
-      required: RequiredInput[]
+      required: DigestQuestion[]
     }
   | {
       status: 'blocked'
-      blockers: Blocker[]
+      blockers: Array<{ reason: string }>
     }
 ```
 
-Do not persist Digest sessions or results merely because the operation ran. The durable truth remains the repository and AIWF graph.
+These are semantic concepts, not a demand for one file/type per interface.
 
-A retry receives the subject again plus any user decisions. Re-entrancy comes from durable project state, not hidden continuation state.
+### Subject vs evidence
 
-## Inputs
+The distinction is strict:
 
-Digest should accept:
+- **subject** — material whose meaning may be reconciled/re-written;
+- **evidence** — authoritative/reference material used to judge the subject;
+- **decisions** — explicit answers already supplied by the user/caller.
 
-- one or more workspace files;
-- direct text supplied by an in-process/MCP caller;
-- selected Product Intent / Decision / Aspect text projected into source form;
-- explicit evidence supplied by the caller.
+Evidence is not silently rewritten. Subject intent is not silently overridden merely because an evidence source differs; the conflict must be surfaced and resolved according to authority.
 
-CLI v1:
+## Source loading boundary
+
+The semantic core receives text sources.
+
+Workspace path loading belongs to the AIWF transport/adapter layer:
 
 ```bash
 aiwf digest docs/debugging-design.md
@@ -116,179 +174,273 @@ aiwf digest docs/a.md docs/b.md
 aiwf digest docs/debugging-design.md --against docs/artifact-operations.md
 ```
 
-MCP/in-process callers use the structured contract rather than CLI path syntax.
+The loader:
+
+- confines paths to the active project;
+- reads existing regular files only;
+- records source ID/location and source-size metrics;
+- performs no mutation;
+- fails clearly when input cannot fit the configured reasoning route.
+
+Do not make file I/O part of the semantic algorithm.
 
 ## Evidence policy
 
-Digest benefits from AIWF because the host already knows the project.
+### V1: explicit and deterministic evidence only
 
-Evidence gathering must remain bounded and inspectable.
+The first implementation does **not** perform heuristic repository archaeology.
 
-Order:
+Evidence may come from:
 
-1. explicit evidence supplied by the caller;
-2. direct semantic relations already known by AIWF:
+1. caller-supplied `evidence`;
+2. explicit `--against` workspace sources;
+3. directly related AIWF facts when the subject itself is an AIWF artifact:
    - governing Decisions;
    - applicable Aspects;
    - directly related Product Intent;
-   - directly related Modules/files;
-3. explicitly referenced local documents;
-4. a small optional candidate set selected from deterministic project search and, where useful, System-1 ranking.
+   - explicitly linked Modules/files.
 
-Never dump the repository or whole graph into the prompt.
+No semantic search over the whole repository is needed for the first proof.
 
-Mandatory explicit evidence is never pruned. Optional candidates may be conservatively ranked.
+If real dogfooding later demonstrates that important evidence is repeatedly missed, add the smallest bounded candidate lookup then. System-1 may rank optional candidates only after deterministic retrieval has produced a bounded set.
 
-The result should report which evidence sources materially participated.
+Never create another retrieval/index/vector subsystem.
 
 ## Semantic algorithm
 
-Only three semantic operations exist.
+Exactly three semantic operations exist.
 
 ### 1. Analyze
 
-One structured reasoning call extracts:
+One structured reasoning call determines:
 
 - intended objectives/behavior;
-- explicit constraints and decisions;
-- assumptions;
+- explicit constraints and accepted decisions;
+- important assumptions;
 - contradictions;
 - omissions;
 - duplication;
 - weak abstractions;
-- conflicts/support from evidence;
+- evidence support/conflict;
 - material unresolved questions.
 
-Understanding and critique are one operation.
+Every substantive finding references source evidence.
+
+A question is material only when different plausible answers would materially change the synthesis. Non-material uncertainty does not block.
+
+If unresolved material questions remain, return `needs_input` before reconciliation.
 
 ### 2. Reconcile
 
-Given subject, evidence, analysis and prior user decisions:
+Given subject, evidence, analysis and explicit user decisions:
 
-- preserve explicit intent;
+- preserve supported intent;
 - resolve supported contradictions/gaps;
 - simplify duplication;
+- strengthen weak abstractions when evidence supports it;
 - avoid unsupported invention;
-- produce a coherent synthesis;
-- return `needs_input` when a material ambiguity changes the design.
+- produce one coherent synthesis.
 
-Clarification is an outcome, not a stage.
+Reconciliation does not expose or depend on private chain-of-thought. The structured analysis is the explicit reasoning artifact.
 
 ### 3. Independent review
 
-A fresh structured call reviews the synthesis against the original subject and authoritative evidence.
+Review is a fresh structured call against:
 
-It attacks:
+- the original subject;
+- authoritative evidence;
+- accepted user decisions;
+- the proposed synthesis.
+
+Do **not** feed it the reconciler's hidden rationale.
+
+Review attacks:
 
 - lost intent;
 - invented requirements;
 - unresolved contradictions;
 - invalid simplification;
-- patch-level reasoning;
 - evidence conflict;
-- unsupported certainty.
+- unsupported certainty;
+- patch-level reasoning where a stronger invariant is already explicit.
 
-If review finds concrete defects, permit **one** bounded reconcile → review retry.
+If review returns concrete `revise` findings, allow exactly **one** reconcile → review retry.
 
-After that, return the truthful result. No generic retry framework.
+If a material question is discovered, return `needs_input`.
 
-## Cognition
+If the second review still requires revision, return `blocked` with the unresolved findings. No generic retry framework.
 
-Use current `@dharmax/llm-utils`:
+## Cognition and model routing
 
-- `Asker.json(..., { maxRetries: 1 })` for structured calls;
-- configured model routing and context/output budgets;
+Use current `@dharmax/llm-utils` only:
+
+- `Asker.json(..., { maxRetries: 1 })`;
+- existing model routing;
+- configured provider context/output budgets;
 - existing correlated metrics.
 
-Do not use `LLMActor` in the core semantic pass. Digest is synthesis over already selected evidence, not tool exploration.
+No `LLMActor` is needed in the semantic core.
 
-Do not use System-1 merely because it exists. It is useful only for cheap bounded candidate ranking when evidence discovery produces optional alternatives.
+No `LLMPipeline` or `LLMSession` owns the lifecycle.
 
-The model context must be budget-aware. If input does not fit coherently, use the smallest earned extension:
+System-1 is not used in V1. It becomes relevant only if a later bounded evidence-candidate set benefits measurably from cheap ranking.
+
+AIWF may define normal route names:
+
+```text
+digest.analyze
+digest.reconcile
+digest.review
+```
+
+They use the existing router. They do not create a Digest-specific routing system.
+
+The same model may serve all three routes; independent review means a separate call/context, not necessarily a different model.
+
+## Context and output budgets
+
+The Consuela dogfood showed that model context/output configuration is part of correctness, not merely performance.
+
+Digest must therefore:
+
+- use the configured provider context window;
+- set explicit output budgets per semantic call;
+- record actual provider/model/token/finish information;
+- fail truthfully on timeout/quota/output exhaustion;
+- never convert truncation into a semantic conclusion.
+
+For V1, keep source composition simple. The first dogfood corpus fits the configured large context.
+
+If a real source set does not fit coherently, earn the smallest extension:
 
 ```text
 semantic sections
-  → compact section analyses with provenance
-  → global reconcile
-  → final review against important source evidence
+   → compact analyses with provenance
+   → global reconcile
+   → independent review against important originals
 ```
 
-No vector database, corpus or resumable pipeline.
+Do not build a permanent corpus/chunker/index in anticipation.
 
 ## Provenance
 
-Findings should cite source IDs and, where practical, headings/sections or bounded excerpts.
+Provenance is mandatory but minimal.
 
-Provenance exists to answer:
+A source reference identifies:
+
+- source ID;
+- useful heading/section when available;
+- optionally a short bounded excerpt.
+
+It exists to answer:
 
 - what claim came from where?
-- which evidence caused a change?
-- which original intent was preserved?
+- what evidence caused a material change?
+- what original intent was preserved or rejected?
 
-Do not invent content hashes or a permanent source corpus in v1.
+Do not store source/prompt contents in operational metrics.
+
+Do not introduce source hashes as semantic infrastructure. Benchmark evidence may record repository revisions separately.
 
 ## Mutation boundary
 
-V1 Digest is read-only.
+V1 Digest is strictly read-only.
 
-It does **not**:
+It does not:
 
 - edit the subject;
 - call `apply_change`;
-- create/update Product Intent;
-- generate implementation Tickets;
+- mutate Product Intent;
+- create Tickets;
 - mark artifacts complete.
 
-A caller may take an accepted synthesis and use ordinary AIWF mutation surfaces afterward.
+After explicit acceptance, a caller may use ordinary AIWF mutation operations.
 
-A later convenience command may safely apply a synthesis only by composing existing preview/apply primitives. That convenience must remain outside Digest semantics and must not introduce a second mutation path.
+A future convenience command may compose Digest with existing preview/apply, but the mutation remains owned by the normal CausalChangeEngine. There is never a Digest mutation engine.
 
-## Interaction
+## Interaction boundary
 
-Digest should integrate naturally with shell-ui once available:
+Digest semantics are UI-neutral.
 
-- `needs_input` → semantic elicitation/form;
+With shell-ui:
+
+- `needs_input` → renderer-neutral elicitation/form;
 - completed synthesis → editable review;
-- revise → one explicit user decision/feedback round;
+- revise → explicit feedback/decision;
 - accept/cancel → caller action.
 
-The Digest contract itself must stay UI-neutral.
+Plain/non-interactive mode returns the semantic result and never fabricates user decisions.
+
+## Metrics and benchmark evidence
+
+Every Digest run is an AIWF high-level operation and participates in `withArtifactMetrics`.
+
+At minimum record without source contents:
+
+- study/scenario/variant/trial tags when benchmarking;
+- AIWF revision and target-project revisions;
+- provider/model;
+- per-phase calls/tokens/latency;
+- total duration;
+- source/evidence item counts and bounded size statistics;
+- structured-repair attempts;
+- findings count by kind/materiality;
+- `needs_input` count;
+- reconcile/review revision count;
+- terminal/failure/finish reasons;
+- final review verdict.
+
+Quality is not reduced to a synthetic score.
+
+Human acceptance/rejection of the synthesis is benchmark evidence, not something Digest self-awards.
+
+Controlled benchmark runs must export sanitized metric evidence into a versioned file under `docs/verification/benchmarks/`.
 
 ## First dogfood
 
 Subject:
 
-```
+```text
 docs/debugging-design.md
 ```
 
-Authoritative evidence should include only the relevant current AIWF design:
+Explicit evidence:
 
 - `docs/artifact-operations.md`;
-- `docs/product-intent-graph.md` where Product semantics matter;
-- `docs/aspects.md` where cross-cutting intent matters;
-- current code/contracts when the document makes implementation claims.
+- `docs/aspects.md`;
+- `docs/product-intent-graph.md`.
 
-Success means the run identifies real contradictions, duplication, missing invariants or unnecessary complexity and produces a synthesis that survives human review.
+Current implementation contracts may be added only when the document makes a concrete claim that the design docs cannot verify.
 
-It must not manufacture criticism to appear useful.
+Success requires more than “the model produced criticism”:
+
+1. explicit source intent is preserved;
+2. every material criticism is evidence-backed;
+3. no criticism is manufactured merely to change something;
+4. real contradictions/duplication/missing invariants are surfaced;
+5. the synthesis is materially clearer/stronger when change is warranted;
+6. unresolved material choices become `needs_input`;
+7. independent review catches controlled seeded omissions/inventions;
+8. a human evaluator accepts the substantive improvements or explicitly concludes the original was already stronger.
 
 ## Rejection criteria
 
-Reject implementation that introduces:
+Reject implementation that adds:
 
-- a Digest entity;
-- a DigestManager/Service;
-- persisted Digest sessions/results;
-- a generic workflow/pipeline engine;
-- a mirrored project/product graph;
-- another search/vector/index system;
-- duplicate model routing/metrics;
-- Actor-driven wandering through project tools;
-- mutation logic inside Digest;
-- Ticket/Product work generation;
-- ceremonial multi-stage cognition beyond analyze/reconcile/review.
+- Digest entities/sessions;
+- managers/services around three calls;
+- generic workflows/stage engines;
+- mirrored Product Intent schemas;
+- repository-wide semantic retrieval in V1;
+- vector/index/corpus infrastructure;
+- Actor wandering;
+- duplicate routing or metrics;
+- mutation/apply logic;
+- Ticket/work generation;
+- unbounded retries;
+- hidden quality scores;
+- benchmark claims without frozen provenance.
 
-The invariant is:
+The governing invariant is:
 
-> **Digest reconciles meaning. AIWF already owns the project, evidence and execution around it.**
+> **Digest reconciles meaning. AIWF owns the truth, evidence and execution around it.**
