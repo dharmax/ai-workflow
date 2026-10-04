@@ -6,7 +6,7 @@
  */
 
 import path from 'node:path';
-import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
+import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
 import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
@@ -122,6 +122,17 @@ async function main() {
     }
 
     case 'metrics': {
+      if (args[1] === 'export') {
+        const output = args[2];
+        if (!output || output.startsWith('--')) throw new Error('Usage: aiwf metrics export <workspace-path.json> [filters]');
+        const target = path.resolve(root, output), relative = path.relative(root, target);
+        if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Metrics evidence export must stay inside the project workspace.');
+        const bundle = performanceEvidenceBundle(root, performanceQueryArgs(args.slice(3)));
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, JSON.stringify(bundle, null, 2) + '\n', 'utf8');
+        console.log(`✅ Exported ${bundle.runs.length} sanitized metric run(s) to ${relative}`);
+        break;
+      }
       const { rows, ...summary } = queryPerformance(root, performanceQueryArgs(args.slice(1)));
       console.log('📊 AIWF Performance Metrics');
       console.log(JSON.stringify(summary, null, 2));
