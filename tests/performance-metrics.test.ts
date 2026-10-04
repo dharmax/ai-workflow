@@ -30,7 +30,7 @@ describe('correlated artifact performance telemetry', () => {
       expect(investigation.parentSpanId).toBe(preparation.spanId);
       expect(preparation.cognition.llm).toMatchObject({ calls: 1, promptTokens: 11, completionTokens: 7, totalTokens: 18 });
       expect(preparation.cognition.systemOne.calls).toBe(1); expect(preparation.counters.artifactVisits).toBe(1);
-      expect(preparation.aiwfRevision).toBeString(); expect(preparation.project.revisionBefore).toBeString(); expect(preparation.runtime.bun).toBeString();
+      expect(preparation.aiwfRevision).toBeString(); expect(preparation.llmUtilsRevision).toBeString(); expect(preparation.project.revisionBefore).toBeString(); expect(preparation.runtime.bun).toBeString();
       expect(queryPerformance(root).totalTokens).toBe(18);
       const raw = fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8'); expect(raw).not.toContain(secret); expect(raw).not.toContain('Restart retains jobs'); expect(raw).not.toContain('Missing authored acceptance');
       store.close(); store = new WorkflowStore(root);
@@ -47,7 +47,7 @@ describe('correlated artifact performance telemetry', () => {
       await withArtifactMetrics(root, 'controlled_actor', 'T', {}, async () => actor.run('PRIVATE_ACTOR_TASK', cognitionMetrics()));
       const row = queryPerformance(root).rows[0];
       expect(row.cognition.actor.runs).toBe(1); expect(row.cognition.llm.calls).toBe(1); expect(row.cognition.llm.totalTokens).toBe(8);
-      expect(row.cognition.termination.actorHaltReasons.completed).toBe(1);
+      expect(row.cognition.termination.actorHaltReasons.completed).toBe(1); expect(row.cognition.modelConfigs).toBeArray();
       expect(fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8')).not.toContain('PRIVATE_ACTOR_TASK');
     } finally { server.stop(true); }
   });
