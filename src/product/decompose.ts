@@ -164,12 +164,10 @@ export function createDefaultAsker(projectRoot?: string): Asker | undefined {
     };
   }
 
-  if (creds.geminiApiKey) {
-    providers.google = {
-      id: 'google',
-      apiKey: creds.geminiApiKey,
-      available: true
-    };
+  if (gateway === 'auto' || gateway === 'direct') {
+    if (creds.openaiApiKey) providers.openai = { id: 'openai', apiKey: creds.openaiApiKey, available: true };
+    if (creds.anthropicApiKey) providers.anthropic = { id: 'anthropic', apiKey: creds.anthropicApiKey, available: true };
+    if (creds.geminiApiKey) providers.google = { id: 'google', apiKey: creds.geminiApiKey, available: true };
   }
 
   try {
