@@ -1,6 +1,6 @@
 # Artifact Operations — Design
 
-Status: authoritative implemented design for AIWF artifact operations. Historical implementation sequencing is retained in `artifact-operations-plan.md`; this document defines current semantics.
+Status: authoritative implemented design for AIWF artifact operations. This document defines current semantics; completed historical implementation plans are intentionally not retained as active documentation.
 
 ## 1. Purpose
 
