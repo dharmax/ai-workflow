@@ -32,6 +32,7 @@ Resolution accepts explicit `testCommands`, `maxRepairs`, and `allowDirtyTargets
 - Safe edits: `preview_change` → `apply_change` with fingerprint; semantic rename/refactor and symbol replacement through the existing Causal Change Engine.
 - Tests: `resolve_test_target`, `triage_test_failures`. Successful execution and explicit acceptance proof are both required.
 - Graph state: canonical Product Intent tools, ordinary Ticket children and real prerequisites. No parallel plan/session/shadow graph.
-- Measurement: `aiwf metrics --operation resolve_ticket --ticket <id> --since 7d`; persisted aggregate telemetry contains no prompts/source/tool arguments. Never claim paid-token savings without measurement.
+- Measurement: `aiwf metrics --operation resolve_ticket --ticket <id> --since 7d`; controlled studies use repeated `--tag key=value` and `aiwf metrics export <path> ...`. Benchmark-tagged runs require clean AIWF, llm-utils and target baselines. Persisted telemetry contains no prompts/source/tool arguments or raw provider options.
+- Model runtime: common budgets are configured explicitly; provider-native inference knobs live under project `providerOptions[providerId]`. Ollama context/output budgets map to `num_ctx`/`num_predict`; do not hard-code model parameters in feature logic.
 
 Use `aiwf help` for verified command syntax. Low-level primitives remain available.
