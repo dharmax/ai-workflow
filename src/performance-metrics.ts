@@ -1,7 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import fs from 'node:fs';
 import path from 'node:path';
-import { InMemoryMetricsStore, LlmMetrics, childMetricsContext, type MetricsContext, type MetricsSink } from '@dharmax/llm-utils';
+import { InMemoryMetricsStore, LlmMetrics, LLM_UTILS_VERSION, childMetricsContext, type MetricsContext, type MetricsSink } from '@dharmax/llm-utils';
+import packageJson from '../package.json' with { type: 'json' };
+
+declare const AIWF_BUILD_REVISION: string;
 import { loadConfig } from './config.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
@@ -27,6 +30,11 @@ export interface OperationSummary {
 }
 interface MetricScope { root: string; context: MetricsContext; sink: MetricsSink; store: InMemoryMetricsStore; counters: OperationSummary['counters']; visited: Set<string>; completenessContext?: TicketCompletenessContext; parent?: MetricScope }
 const active = new AsyncLocalStorage<MetricScope>();
+
+function aiwfRevision(): string {
+  if (typeof AIWF_BUILD_REVISION !== 'undefined') return AIWF_BUILD_REVISION;
+  return gitEvidence(path.resolve(import.meta.dir, '..')).revision;
+}
 
 function gitEvidence(cwd: string): { revision: string; branch: string; dirty: boolean } {
   const revision = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd, stderr: 'ignore' });
@@ -100,9 +108,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         const events = store.query(), llm = new LlmMetrics(store);
         const llmEvents = llm.list();
         const systemOne = events.filter(event => event.kind === 'system1'), actors = events.filter(event => event.kind === 'actor');
-        const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../package.json'), 'utf8')) as { version: string };
-        const dependency = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../node_modules/@dharmax/llm-utils/package.json'), 'utf8')) as { version: string };
-        const aiwfGit = gitEvidence(path.resolve(import.meta.dir, '..')), projectAfter = gitEvidence(root);
+        const projectAfter = gitEvidence(root);
         const phases = llmEvents.reduce<Record<string, { calls: number; totalTokens: number; latencyMs: number }>>((all, event) => {
           const phase = typeof event.tags?.phase === 'string' ? event.tags.phase : undefined;
           if (!phase) return all;
@@ -112,7 +118,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         }, {});
         const summary: OperationSummary = { ...context, operation, artifactId, startedAt, durationMs: performance.now() - start, outcome,
           policy: { completeness: options.completeness, depth: options.depth ?? 1, maxArtifacts: options.maxArtifacts ?? cfg.maxArtifacts, critic: typeof options.critic === 'object' ? options.critic.id : options.critic ?? 'auto' },
-          tags: context.tags ?? {}, version: pkg.version, aiwfRevision: aiwfGit.revision, llmUtilsVersion: dependency.version,
+          tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: aiwfRevision(), llmUtilsVersion: LLM_UTILS_VERSION,
           project: { revisionBefore: projectBefore.revision, revisionAfter: projectAfter.revision, branch: projectBefore.branch, dirtyBefore: projectBefore.dirty, dirtyAfter: projectAfter.dirty },
           runtime: { bun: Bun.version, platform: process.platform },
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
