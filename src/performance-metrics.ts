@@ -5,7 +5,9 @@ import { InMemoryMetricsStore, LlmMetrics, LLM_UTILS_VERSION, childMetricsContex
 import packageJson from '../package.json' with { type: 'json' };
 
 declare const AIWF_BUILD_REVISION: string;
+declare const AIWF_BUILD_DIRTY: boolean;
 declare const LLM_UTILS_BUILD_REVISION: string;
+declare const LLM_UTILS_BUILD_DIRTY: boolean;
 import { loadConfig } from './config.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
@@ -14,7 +16,7 @@ export interface OperationSummary {
   traceId: string; spanId?: string; parentSpanId?: string; operation: string; artifactId: string;
   startedAt: string; durationMs: number; outcome: string;
   policy: { completeness?: string; depth: number | 'all'; maxArtifacts: number; critic: string };
-  tags: Record<string, string | number | boolean>; version: string; aiwfRevision: string; llmUtilsVersion: string; llmUtilsRevision: string;
+  tags: Record<string, string | number | boolean>; version: string; aiwfRevision: string; aiwfDirty: boolean; llmUtilsVersion: string; llmUtilsRevision: string; llmUtilsDirty: boolean;
   project: { revisionBefore: string; revisionAfter: string; branch: string; dirtyBefore: boolean; dirtyAfter: boolean };
   runtime: { bun: string; platform: string };
   counters: Partial<Record<EngineeringCounter, number>>;
@@ -33,14 +35,16 @@ export interface OperationSummary {
 interface MetricScope { root: string; context: MetricsContext; sink: MetricsSink; store: InMemoryMetricsStore; counters: OperationSummary['counters']; visited: Set<string>; completenessContext?: TicketCompletenessContext; parent?: MetricScope }
 const active = new AsyncLocalStorage<MetricScope>();
 
-function aiwfRevision(): string {
-  if (typeof AIWF_BUILD_REVISION !== 'undefined') return AIWF_BUILD_REVISION;
-  return gitEvidence(path.resolve(import.meta.dir, '..')).revision;
+function aiwfBuildEvidence(): {revision: string; dirty: boolean} {
+  if (typeof AIWF_BUILD_REVISION !== 'undefined') return {revision: AIWF_BUILD_REVISION, dirty: typeof AIWF_BUILD_DIRTY !== 'undefined' ? AIWF_BUILD_DIRTY : true};
+  const evidence = gitEvidence(path.resolve(import.meta.dir, '..'));
+  return {revision: evidence.revision, dirty: evidence.dirty};
 }
 
-function llmUtilsRevision(): string {
-  if (typeof LLM_UTILS_BUILD_REVISION !== 'undefined') return LLM_UTILS_BUILD_REVISION;
-  return gitEvidence(path.resolve(import.meta.dir, '../../llm-utils')).revision;
+function llmUtilsBuildEvidence(): {revision: string; dirty: boolean} {
+  if (typeof LLM_UTILS_BUILD_REVISION !== 'undefined') return {revision: LLM_UTILS_BUILD_REVISION, dirty: typeof LLM_UTILS_BUILD_DIRTY !== 'undefined' ? LLM_UTILS_BUILD_DIRTY : true};
+  const evidence = gitEvidence(path.resolve(import.meta.dir, '../../llm-utils'));
+  return {revision: evidence.revision, dirty: evidence.dirty};
 }
 
 function gitEvidence(cwd: string): { revision: string; branch: string; dirty: boolean } {
@@ -86,7 +90,11 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
     for (let current: MetricScope | undefined = scope; current; current = current.parent) current.store.append(event);
   } } };
   const startedAt = new Date().toISOString(), start = performance.now();
-  const projectBefore = gitEvidence(root);
+  const projectBefore = gitEvidence(root), engineBefore = aiwfBuildEvidence(), llmUtilsBefore = llmUtilsBuildEvidence();
+  if (requireEvidence) {
+    if ([engineBefore.revision, llmUtilsBefore.revision, projectBefore.revision].includes('unavailable')) throw new Error('Benchmark provenance preflight failed: revision unavailable.');
+    if (engineBefore.dirty || llmUtilsBefore.dirty || projectBefore.dirty) throw new Error('Benchmark provenance preflight failed: AIWF, llm-utils and target baseline must be clean.');
+  }
   let outcome = 'error', verification: boolean | undefined;
   let acceptance: OperationSummary['acceptance'];
   return active.run(scope, async () => {
@@ -132,7 +140,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         }, {});
         const summary: OperationSummary = { ...context, operation, artifactId, startedAt, durationMs: performance.now() - start, outcome,
           policy: { completeness: options.completeness, depth: options.depth ?? 1, maxArtifacts: options.maxArtifacts ?? cfg.maxArtifacts, critic: typeof options.critic === 'object' ? options.critic.id : options.critic ?? 'auto' },
-          tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: aiwfRevision(), llmUtilsVersion: LLM_UTILS_VERSION, llmUtilsRevision: llmUtilsRevision(),
+          tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: engineBefore.revision, aiwfDirty: engineBefore.dirty, llmUtilsVersion: LLM_UTILS_VERSION, llmUtilsRevision: llmUtilsBefore.revision, llmUtilsDirty: llmUtilsBefore.dirty,
           project: { revisionBefore: projectBefore.revision, revisionAfter: projectAfter.revision, branch: projectBefore.branch, dirtyBefore: projectBefore.dirty, dirtyAfter: projectAfter.dirty },
           runtime: { bun: Bun.version, platform: process.platform },
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
