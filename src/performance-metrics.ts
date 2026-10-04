@@ -19,7 +19,7 @@ export interface OperationSummary {
   runtime: { bun: string; platform: string };
   counters: Partial<Record<EngineeringCounter, number>>;
   cognition: {
-    llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; models: string[];
+    llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; structuredRepairs: number; models: string[];
     modelConfigs: Array<{ providerId: string; modelId: string; maxTokens?: number; contextWindow?: number }>;
     phases: Record<string, { calls: number; totalTokens: number; latencyMs: number }>;
     systemOne: { calls: number; latencyMs: number; unavailable: number; backends: string[] };
@@ -136,7 +136,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
           runtime: { bun: Bun.version, platform: process.platform },
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
           cognition: {
-            llm: llm.totals(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => event.costUsd !== undefined), models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
+            llm: llm.totals(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => event.costUsd !== undefined), structuredRepairs: llmEvents.filter(event => (event.attempt ?? 1) > 1).length, models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
             modelConfigs,
             phases,
             systemOne: { calls: systemOne.length, latencyMs: systemOne.reduce((sum, event) => sum + event.latencyMs, 0), unavailable: systemOne.filter(event => !event.available).length, backends: [...new Set(systemOne.map(event => `${event.backendId}/${event.quality}`))] },
@@ -200,8 +200,12 @@ export function queryPerformance(root: string, query: PerformanceQuery = {}) {
     runs: rows.length, medianMs: percentile(0.5), p95Ms: percentile(0.95),
     outcomes: rows.reduce<Record<string, number>>((counts, row) => { counts[row.outcome] = (counts[row.outcome] ?? 0) + 1; return counts; }, {}),
     totalTokens: rows.reduce((total, row) => total + row.cognition.llm.totalTokens, 0),
-    totalCostUsd: rows.reduce((total, row) => total + row.cognition.llm.totalCostUsd, 0),
+    totalCostUsd: rows.length > 0 && rows.every(row => row.cognition.costAvailable)
+      ? rows.reduce((total, row) => total + row.cognition.llm.totalCostUsd, 0)
+      : null,
+    knownCostUsd: rows.filter(row => row.cognition.costAvailable).reduce((total, row) => total + row.cognition.llm.totalCostUsd, 0),
     costAvailableRuns: rows.filter(row => row.cognition.costAvailable).length,
+    structuredRepairs: rows.reduce((total, row) => total + row.cognition.structuredRepairs, 0),
     repairs: sum('repairs'), criticRounds: sum('criticRounds'), criticRevisions: sum('criticRevisions'), humanInterventions: sum('humanInterventions'),
     optionalCandidates: sum('optionalCandidates'), optionalSelected: sum('optionalSelected'), evidenceReduction: sum('optionalCandidates') ? 1 - sum('optionalSelected') / sum('optionalCandidates') : null,
     verifiedRuns: rows.filter(row => row.verification === true).length,
