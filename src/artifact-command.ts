@@ -10,7 +10,7 @@ export const ARTIFACT_HELP = `Delegate artifact work first:
   completeness set <id> <poc|functional|advanced|production|clear>
 
 Operation options: --completeness <level> --depth <N|all> --max-artifacts <N>
-                   --critic <auto|none|configured-id>
+                   --critic <auto|none|configured-id> --tag <key=value> (repeatable)
 Resolution options: --agent <id> --max-repairs <0..3> --allow-dirty-target <path>
 Completeness on an operation is temporary. Persist it only with completeness set.
 needs_input/blocked are results to inspect; Done requires explicit acceptance proof.
@@ -36,12 +36,19 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
   if (tool.endsWith('_ticket') && words[0]?.toLowerCase() === 'ticket') words.shift();
   const id = words.shift(); if (!id || id.startsWith('--')) throw new Error(`${verb} requires an artifact ID.`);
   const options: Record<string, unknown> = {};
-  const flags: Record<string, string> = { '--completeness': 'completeness', '--depth': 'depth', '--max-artifacts': 'maxArtifacts', '--maxArtifacts': 'maxArtifacts', '--critic': 'critic', '--agent': 'agentId', '--max-repairs': 'maxRepairs', '--allow-dirty-target': 'allowDirtyTargets' };
+  const flags: Record<string, string> = { '--completeness': 'completeness', '--depth': 'depth', '--max-artifacts': 'maxArtifacts', '--maxArtifacts': 'maxArtifacts', '--critic': 'critic', '--tag': 'tags', '--agent': 'agentId', '--max-repairs': 'maxRepairs', '--allow-dirty-target': 'allowDirtyTargets' };
   while (words.length) {
     const flag = words.shift()!, key = flags[flag], value = words.shift();
     if (!key || !value || value.startsWith('--')) throw new Error(`Invalid or missing operation option '${flag}'.`);
     if (['agentId', 'maxRepairs', 'allowDirtyTargets'].includes(key) && tool !== 'resolve_ticket') throw new Error(`${flag} applies only to resolution.`);
     if (key === 'allowDirtyTargets') options[key] = [...(options[key] as string[] ?? []), value];
+    else if (key === 'tags') {
+      const split = value.indexOf('=');
+      if (split <= 0 || split === value.length - 1) throw new Error('--tag requires key=value.');
+      const tagKey = value.slice(0, split);
+      if (!/^[A-Za-z0-9_.-]+$/.test(tagKey)) throw new Error(`Invalid metric tag key '${tagKey}'.`);
+      options.tags = { ...((options.tags as Record<string, string>) ?? {}), [tagKey]: value.slice(split + 1) };
+    }
     else if (key === 'maxArtifacts' || key === 'maxRepairs' || key === 'depth' && value !== 'all') options[key] = Number(value);
     else if (key === 'critic') options[key] = ['auto', 'none'].includes(value) ? value : { id: value };
     else options[key] = value;
