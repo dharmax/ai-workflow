@@ -30,6 +30,11 @@ const args = process.argv.slice(2);
 const command = args[0] || (process.stdin.isTTY ? 'shell' : 'help');
 
 async function main() {
+  if (command === 'version' || command === '--version' || command === '-V') {
+    console.log(formatBuildInfo('AIWF'));
+    return;
+  }
+
   const root = findProjectRoot().root;
   let storeInstance: WorkflowStore | null = null;
   const getStore = () => {
@@ -48,13 +53,6 @@ async function main() {
   }
 
   switch (command) {
-    case 'version':
-    case '--version':
-    case '-V': {
-      console.log(formatBuildInfo('AIWF'));
-      break;
-    }
-
     case 'sync': {
       console.log(`🔄 Synchronizing AST+ Graph with Markdown Projections in ${root}...`);
       const store = getStore();
