@@ -30,6 +30,7 @@ describe('correlated artifact performance telemetry', () => {
       expect(investigation.parentSpanId).toBe(preparation.spanId);
       expect(preparation.cognition.llm).toMatchObject({ calls: 1, promptTokens: 11, completionTokens: 7, totalTokens: 18 });
       expect(preparation.cognition.systemOne.calls).toBe(1); expect(preparation.counters.artifactVisits).toBe(1);
+      expect(preparation.cognition.modelConfigs).toContainEqual({ providerId: 'ollama', modelId: 'fixture', maxTokens: 4096, contextWindow: 32768 });
       expect(preparation.aiwfRevision).toBeString(); expect(preparation.llmUtilsRevision).toBeString(); expect(preparation.project.revisionBefore).toBeString(); expect(preparation.runtime.bun).toBeString();
       expect(queryPerformance(root).totalTokens).toBe(18);
       const raw = fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8'); expect(raw).not.toContain(secret); expect(raw).not.toContain('Restart retains jobs'); expect(raw).not.toContain('Missing authored acceptance');
@@ -62,7 +63,7 @@ describe('correlated artifact performance telemetry', () => {
     const bundle = performanceEvidenceBundle(root, { operation: 'resolve_ticket' }); expect(bundle.schemaVersion).toBe(1); expect(bundle.runs).toHaveLength(2); expect(JSON.stringify(bundle)).not.toContain('PRIVATE_SOURCE_PROMPT_BODY');
     const file = path.join(root, '.ai-workflow/metrics.jsonl'); fs.unlinkSync(file); fs.mkdirSync(file);
     expect(await withArtifactMetrics(root, 'controlled', 'T', {}, async () => 42)).toBe(42);
-    await expect(withArtifactMetrics(root, 'controlled', 'T', { tags: { study: 'benchmark-fixture' } }, async () => 42)).rejects.toThrow(/Benchmark evidence persistence failed/);
+    await expect(withArtifactMetrics(root, 'controlled', 'T', { tags: { study: 'benchmark-fixture' } }, async () => 42)).rejects.toThrow(/Benchmark provenance preflight failed/);
     await expect(withArtifactMetrics(root, 'controlled', 'T', {}, async () => { throw Error('engineering failure'); })).rejects.toThrow('engineering failure');
     expect(() => performanceQueryArgs(['--unknown', 'value'])).toThrow();
   });
