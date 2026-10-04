@@ -30,7 +30,7 @@ describe('correlated artifact performance telemetry', () => {
       expect(investigation.parentSpanId).toBe(preparation.spanId);
       expect(preparation.cognition.llm).toMatchObject({ calls: 1, promptTokens: 11, completionTokens: 7, totalTokens: 18 });
       expect(preparation.cognition.systemOne.calls).toBe(1); expect(preparation.counters.artifactVisits).toBe(1);
-      expect(preparation.cognition.modelConfigs).toContainEqual({ providerId: 'ollama', modelId: 'fixture', maxTokens: 4096, contextWindow: 32768 });
+      expect(preparation.cognition.modelConfigs).toContainEqual({ providerId: 'ollama', modelId: 'fixture', maxTokens: 4096, contextWindow: 32768, temperature: 0 });
       expect(preparation.aiwfRevision).toBeString(); expect(preparation.llmUtilsRevision).toBeString(); expect(preparation.project.revisionBefore).toBeString(); expect(preparation.runtime.bun).toBeString();
       expect(queryPerformance(root).totalTokens).toBe(18);
       const raw = fs.readFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), 'utf8'); expect(raw).not.toContain(secret); expect(raw).not.toContain('Restart retains jobs'); expect(raw).not.toContain('Missing authored acceptance');
