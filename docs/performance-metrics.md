@@ -141,6 +141,9 @@ interface OperationSummary {
       modelId: string
       maxTokens?: number
       contextWindow?: number
+      temperature?: number
+      providerOptionKeys?: string[]
+      providerOptionsHash?: string
     }>
 
     phases: Record<string, {
@@ -362,7 +365,8 @@ Freeze:
 - task/scenario;
 - repository revision or equivalent starting snapshot;
 - model/provider;
-- model context/output budgets;
+- model context/output budgets and temperature;
+- materially relevant provider-specific model parameters;
 - acceptance rubric;
 - allowed tools/environment.
 
