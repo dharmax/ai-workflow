@@ -46,5 +46,5 @@ export function getBuildInfo(): BuildInfo {
 
 export function formatBuildInfo(name = 'AIWF'): string {
   const info = getBuildInfo()
-  return `${name} ${info.version} · build ${info.build} (${info.revision}) · updated ${info.updatedAt}`
+  return `${name} ${info.version} · build ${info.build} (${info.revision.slice(0, 12)}) · updated ${info.updatedAt}`
 }
