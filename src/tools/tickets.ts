@@ -11,12 +11,18 @@ import { Ticket } from '../graph/ontology.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 
+async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket> {
+  const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
+  if (!ticket) throw new Error(`Ticket '${ticketId}' not found in AIWF project '${ctx.projectRoot}'. Verify the active project with 'aiwf status' and synchronize its projections if needed.`);
+  return ticket;
+}
+
 export function registerTicketTools() {
   registry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {
-      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr); if (!ticket) throw new Error(`Ticket '${ticketId}' not found.`);
+      const ticket = await requireTicket(ctx, ticketId);
       return ticket.resolve(ctx.store, options);
     }
   });
@@ -24,8 +30,7 @@ export function registerTicketTools() {
     name: 'prepare_ticket', description: 'Make a Ticket executable through read-only investigation, independent proposal review and leased safe enrichment/decomposition.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {
-      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
-      if (!ticket) throw new Error(`Ticket '${ticketId}' not found.`);
+      const ticket = await requireTicket(ctx, ticketId);
       return ticket.prepare(ctx.store, options);
     }
   });
@@ -33,8 +38,7 @@ export function registerTicketTools() {
     name: 'investigate_ticket', description: 'Return a grounded, semantically read-only Ticket dossier with proposed enrichments and precise disposition.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string() }),
     execute: async ({ ticketId, ...options }, ctx) => {
-      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
-      if (!ticket) throw new Error(`Ticket '${ticketId}' not found.`);
+      const ticket = await requireTicket(ctx, ticketId);
       return ticket.investigate(ctx.store, options);
     }
   });
