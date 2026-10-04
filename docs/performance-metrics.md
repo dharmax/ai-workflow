@@ -1,149 +1,445 @@
-# Performance Metrics — Design
+# Performance Metrics and Benchmark Evidence
 
-Status: authoritative implemented design for AIWF artifact-operation performance metrics.
+**Status:** authoritative design for implemented AIWF operation telemetry and controlled benchmark evidence.
 
-## 1. Purpose
+## Purpose
 
-AIWF should be able to answer, with measurements rather than claims:
+AIWF must support claims with measurements rather than anecdotes.
 
-- how fast artifact operations are;
-- how many model/System-1/tool calls they use;
-- how many tokens/cost they consume;
-- how often they finish without user intervention;
-- how often they need clarification, block, reject or fail;
-- how often first-pass verification succeeds;
-- how much repair/rework occurs;
-- whether System-1/evidence pruning actually reduces expensive cognition;
-- whether high-level AIWF operations reduce external-agent archaeology/tool usage in controlled comparisons.
+The telemetry layer should answer:
 
-llm-utils supplies generic cognition telemetry. AIWF supplies engineering-operation telemetry and persistence/reporting.
+- how often high-level operations complete, need input, block or fail;
+- how long they take;
+- which models/providers were used;
+- how many calls/tokens they consumed;
+- whether provider cost is known or unavailable;
+- why model/Actor runs terminated;
+- how much deterministic/tool work occurred;
+- whether verification passed on the first attempt;
+- how much repair/Critic revision occurred;
+- how much human intervention was required;
+- whether high-level AIWF delegation reduces external-agent archaeology in controlled A/B studies.
 
-## 2. Ownership boundary
+Operational telemetry is not a quality score. Benchmark evidence combines telemetry with explicit acceptance/evaluation.
 
-llm-utils owns provider/System-1/Actor metrics and correlation primitives.
+## Ownership boundary
 
-AIWF owns:
+`@dharmax/llm-utils` owns generic cognition telemetry:
 
-- artifact-operation run IDs/traces;
-- operation/policy/outcome tags;
-- deterministic tool/source/edit/test counters;
-- Critic/revision/input/blocking counters;
-- evidence-candidate/pruning counters;
-- aggregation by Ticket/Epic/Feature/operation/version;
-- local persistence and CLI reporting.
+- provider/model calls;
+- prompt/completion tokens;
+- provider latency;
+- provider failure kind;
+- provider finish reason;
+- System-1 activity;
+- Actor steps/tool calls/failures/recovery/halt reason.
 
-AIWF must not re-count LLM tokens/latency already measured by llm-utils.
+AIWF owns engineering-operation telemetry:
 
-## 3. One trace per high-level operation
+- operation trace/span;
+- project/artifact identity;
+- effective policy;
+- deterministic/tool/edit/test counters;
+- Critic/repair counters;
+- evidence-candidate counters;
+- acceptance verification;
+- project/engine provenance;
+- benchmark tags;
+- local persistence/query/export.
 
-Every investigate/prepare/resolve/process operation creates a trace ID and passes it through llm-utils MetricsContext.
+AIWF must not estimate or re-count model token usage already emitted by llm-utils.
 
-Persist one compact AIWF run summary after the operation finishes.
+## One trace per high-level operation
+
+Each high-level operation gets one trace:
+
+```text
+investigate_ticket
+prepare_ticket
+resolve_ticket
+process_epic / process_feature / process_story
+digest
+```
+
+Nested operations use child spans and the same trace.
+
+One compact summary is persisted after each high-level span finishes.
+
+## Operation summary
+
+A persisted row contains no prompt/source/output contents.
 
 Conceptually:
 
-~~~
-operation
-artifactId/type
-startedAt / durationMs
-outcome: complete | needs_input | blocked | rejected | error
-effective completeness/depth/maxArtifacts/critic
-AIWF version/commit + llm-utils version
-model IDs + System-1 backend/quality
-artifacts visited/created/reused
-internal tool calls
-source reads / exact-symbol reads
-code edits / files touched
-tests run / failures / repairs
-critic rounds / revisions
-System-1 calls/latency/escalations
-candidate evidence before/after pruning
-LLM calls/tokens/cost/latency
-actor steps/tool calls
-verification outcome
-~~~
+```ts
+interface OperationSummary {
+  traceId: string
+  spanId?: string
+  parentSpanId?: string
 
-Do not store prompt/source/output contents in metrics.
+  operation: string
+  artifactId: string
+  startedAt: string
+  durationMs: number
+  outcome: 'complete' | 'needs_input' | 'blocked' | 'rejected' | 'error'
 
-## 4. Persistence
+  tags: Record<string, string | number | boolean>
 
-Metrics are operational telemetry, not Product Intent graph truth.
+  version: string
+  aiwfRevision: string
+  llmUtilsVersion: string
 
-Do not store metric events as semantic graph entities.
+  project: {
+    revisionBefore: string
+    revisionAfter: string
+    branch: string
+    dirtyBefore: boolean
+    dirtyAfter: boolean
+  }
 
-First implementation should persist compact run summaries in `.ai-workflow/metrics.jsonl` (gitignored) outside projections. One JSON line per completed high-level operation is sufficient. Do not introduce an analytics database.
+  runtime: {
+    bun: string
+    platform: string
+  }
 
-Detailed llm-utils events may remain transient if their aggregates are captured into the run summary.
+  policy: {
+    completeness?: string
+    depth: number | 'all'
+    maxArtifacts: number
+    critic: string
+  }
 
-## 5. Useful derived metrics
+  counters: {
+    artifactVisits?: number
+    artifactsCreated?: number
+    artifactsReused?: number
+    toolCalls?: number
+    sourceReads?: number
+    exactSymbolReads?: number
+    codeEdits?: number
+    filesTouched?: number
+    testsRun?: number
+    testFailures?: number
+    repairs?: number
+    criticRounds?: number
+    criticRevisions?: number
+    systemOneCalls?: number
+    reasoningCalls?: number
+    optionalCandidates?: number
+    optionalSelected?: number
+    humanInterventions?: number
+  }
+
+  cognition: {
+    llm: AggregateMetrics
+    costAvailable: boolean
+    models: string[]
+
+    phases: Record<string, {
+      calls: number
+      totalTokens: number
+      latencyMs: number
+    }>
+
+    systemOne: ...
+    actor: ...
+
+    termination: {
+      llmFailureKinds: Record<string, number>
+      finishReasons: Record<string, number>
+      actorHaltReasons: Record<string, number>
+    }
+  }
+
+  verification?: boolean
+
+  acceptance?: {
+    criteriaPassed: number
+    criteriaTotal: number
+    aspectsPassed: number
+    aspectsTotal: number
+  }
+}
+```
+
+## Revision provenance
+
+Cross-project dogfood requires two different revisions:
+
+- **AIWF revision** — which AIWF engine implementation performed the work;
+- **project revision** — which target repository state was operated on.
+
+Never collapse these into one ambiguous `revision` field.
+
+Record project revision both before and after the operation. A mutation may leave an uncommitted tree, so dirty-before/dirty-after is also material evidence.
+
+## Cost semantics
+
+A numeric zero is not equivalent to free.
+
+`costAvailable` distinguishes:
+
+- measured/provider-priced cost;
+- unavailable cost information.
+
+Sales/benchmark reports must never infer “$0” when the provider did not supply or AIWF did not calculate pricing.
+
+Local-model runs may legitimately have no API price; report tokens/latency and describe infrastructure cost separately if needed.
+
+## Termination provenance
+
+Failures must remain distinguishable without parsing prose.
 
 Examples:
 
-- median/p95 operation duration;
-- success / needs-input / blocked / error rates;
-- first-pass verification rate;
-- average repair loops per resolved Ticket;
-- model calls/tokens/cost per successfully resolved Ticket;
-- System-1 latency and escalation rate;
-- System-1 route agreement with the eventual stronger/deterministic path where a comparable outcome exists;
-- Critic yield: review rounds that produced material accepted revisions vs no-op review;
-- evidence reduction ratio: optional candidates before vs after System-1;
-- critic revision rate and non-convergence rate;
-- artifacts processed per run;
-- external intervention rate;
-- source-read/tool-call counts per resolved Ticket.
+- provider `timeout`;
+- provider `quota`;
+- provider `rate_limit`;
+- provider `invalid_response`;
+- finish reason `length` / `max_tokens`;
+- Actor `max_steps_exceeded`;
+- Actor `error`;
+- Actor `completed`.
 
-These are observations, not quality scores.
+This is why llm-utils preserves both failure kind and provider finish reason.
 
-Do not collapse engineering quality into one synthetic number.
+Do not report “AIWF failed” when the evidence actually says provider quota, cold-model timeout or output exhaustion.
 
-## 6. Token-savings claims
+## Phase metrics
 
-AIWF may report its own internal usage exactly.
+High-level semantic operations may tag cognition calls with a small phase label.
 
-It must not claim external paid-token savings from a normal run unless the external client provides comparable usage or a controlled A/B benchmark is run.
+Digest uses:
 
-For A/B studies, tag runs with a scenario/version/variant and compare:
+```text
+phase=analyze
+phase=reconcile
+phase=review
+phase=reconcile_revision
+phase=review_revision
+```
 
-- correctness/acceptance outcome;
-- external client tokens when available;
-- external source reads/tool calls;
-- AIWF internal tokens/cost;
+These are metric dimensions only, not workflow state.
+
+They allow later evidence such as:
+
+- review consumed 18% of total tokens;
+- one revision round cost X tokens/Y seconds;
+- analysis dominated latency;
+- schema repair added one extra provider call.
+
+Do not persist phase state outside telemetry.
+
+## Persistence
+
+Runtime telemetry lives in:
+
+```text
+.ai-workflow/metrics.jsonl
+```
+
+One JSON line per completed high-level span.
+
+It is operational/local data and remains outside the semantic graph and projections.
+
+Telemetry failure must never fail engineering work.
+
+## Benchmark tags
+
+Controlled runs use ordinary metric tags; no experiment platform is needed.
+
+Recommended keys:
+
+```text
+study
+scenario
+variant
+trial
+baseline
+```
+
+Example:
+
+```bash
+aiwf resolve TKT-CS-ALIGN-01 \
+  --completeness production \
+  --critic auto \
+  --tag study=consuela-resolve-v1 \
+  --tag scenario=context-manager-ticket \
+  --tag variant=aiwf \
+  --tag trial=1
+```
+
+Tags are labels, not claims.
+
+## Durable benchmark evidence
+
+Runtime JSONL is not sufficient evidence for a future commercial document because it is local and mutable.
+
+Controlled studies therefore export a sanitized evidence bundle into the repository:
+
+```bash
+aiwf metrics export \
+  docs/verification/benchmarks/consuela-resolve-v1.json \
+  --tag study=consuela-resolve-v1
+```
+
+The bundle contains:
+
+- schema version;
+- export timestamp;
+- query;
+- aggregate summary;
+- sanitized operation rows.
+
+It intentionally excludes prompts/source/output contents.
+
+Commit the bundle together with a concise human-readable benchmark note that records:
+
+- task/scenario definition;
+- frozen input/project revisions;
+- variant definitions;
+- acceptance/evaluation method;
+- environmental caveats;
+- facts that were unavailable.
+
+The committed bundle is evidence; the prose note interprets it.
+
+## Quality and acceptance evidence
+
+Operational success is necessary but not sufficient.
+
+For Ticket resolution, useful quality evidence includes:
+
+- authored acceptance criteria passed/total;
+- applicable Aspects passed/total;
+- tests;
+- independent Critic result;
+- original defect/oracle where relevant.
+
+For Digest, useful quality evidence includes:
+
+- final independent review verdict;
+- material findings supported by provenance;
+- controlled seeded-fault detection;
+- human acceptance/rejection of substantive synthesis changes.
+
+AIWF must not self-assign a marketing quality score.
+
+## Human intervention
+
+A benchmark should count meaningful human intervention:
+
+- clarification answers;
+- manual code edits;
+- manual tool rescue;
+- manual retry caused by AIWF logic;
+- manual acceptance decision when the study requires it.
+
+Do not count passive observation as intervention.
+
+When an operation ends `needs_input`, the subsequent user-answer/retry should be associated with the same study/scenario tags so the study can report the interaction honestly.
+
+## Controlled A/B claims
+
+A claim such as “AIWF reduces tokens/tool calls/time” requires comparable variants.
+
+Freeze:
+
+- task/scenario;
+- repository revision or equivalent starting snapshot;
+- model/provider;
+- model context/output budgets;
+- acceptance rubric;
+- allowed tools/environment.
+
+Compare:
+
+- correctness/acceptance;
+- external-agent tokens when available;
+- external-agent tool/source reads when available;
+- AIWF internal tokens/cost/latency;
 - wall time;
-- user interventions.
+- user interventions;
+- repair/review loops.
 
-Arbitrary tags plus version/model/policy metadata are sufficient. Do not build an experiment-management framework.
+If external-agent usage is unavailable, say unavailable. Do not substitute AIWF internal metrics for external-client usage.
 
-## 7. CLI
+## Useful derived metrics
 
-Repurpose/extend aiwf metrics toward actual performance telemetry.
+Examples:
 
-Useful views:
+- success/needs-input/blocked/error rate;
+- median/p95 duration;
+- tokens per verified Ticket;
+- tokens per accepted Digest;
+- first-pass verification rate;
+- repair loops per resolution;
+- Critic revision rate;
+- human intervention rate;
+- Actor tool-failure/recovery counts;
+- termination/failure distribution;
+- evidence reduction ratio where candidate pruning is actually used;
+- phase token/latency distribution;
+- cost per accepted outcome when cost is genuinely available.
 
-~~~
+These are observations, not one synthetic score.
+
+## CLI
+
+Queries:
+
+```bash
 aiwf metrics
 aiwf metrics --operation resolve_ticket
 aiwf metrics --ticket TKT-X
+aiwf metrics --trace <trace-id>
 aiwf metrics --since 7d
-aiwf metrics --tag variant=aiwf
-~~~
+aiwf metrics --tag study=consuela-resolve-v1
+```
 
-Project health/Kanban counts may remain available elsewhere; they are not performance metrics.
+Durable export:
 
-## 8. Relation to Aspects
+```bash
+aiwf metrics export docs/verification/benchmarks/run.json --tag study=...
+```
 
-Metrics and Aspects are separate.
+## Privacy and evidence integrity
 
-Operational AIWF metrics measure how AIWF itself performs.
+Never persist in metrics:
 
-A performance/cost/robustness Aspect may use benchmark/report Artifacts as evidence about the software being built.
+- prompt text;
+- source text;
+- model output text;
+- credentials;
+- private user content.
 
-Do not silently treat AIWF telemetry as application Aspect evidence unless an explicit Artifact/verification path is created.
+Benchmark prose may quote only deliberately selected non-sensitive evidence.
 
-## 9. Non-goals
+Do not edit exported metric values to improve a result. If a run was contaminated, retain it or explicitly mark/exclude it in the benchmark note with the reason.
 
-Do not build dashboards, cloud telemetry, OpenTelemetry integration, universal tracing infrastructure, quality scores, prompt logging, or an experiment platform in the first implementation.
+## Non-goals
 
-## 10. Success criterion
+Do not build:
 
-After a real resolve_ticket run, AIWF can explain where time/tokens/tool calls went and compare runs without guessing.
+- a dashboard;
+- cloud telemetry;
+- OpenTelemetry infrastructure;
+- an experiment-management service;
+- automatic marketing copy;
+- synthetic quality scores;
+- prompt/source logging.
+
+## Success criterion
+
+After a real dogfood run, a future reader can determine:
+
+1. exactly which AIWF and target-project revisions were used;
+2. which model/provider and budgets were involved;
+3. what the operation consumed;
+4. how it terminated;
+5. whether acceptance/verification succeeded;
+6. how much repair/human intervention occurred;
+7. which claims are measured and which data was unavailable.
+
+That is sufficient raw material for a credible AIWF sales/technical-evaluation document without retrofitting telemetry later.
