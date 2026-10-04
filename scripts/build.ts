@@ -33,7 +33,7 @@ const result = await Bun.build({
   define: {
     AIWF_VERSION: JSON.stringify(packageJson.version),
     AIWF_BUILD_NUMBER: JSON.stringify(buildNumber),
-    AIWF_BUILD_REVISION: JSON.stringify(shortRevision),
+    AIWF_BUILD_REVISION: JSON.stringify(revision),
     AIWF_BUILD_UPDATED_AT: JSON.stringify(updatedAt),
     AIWF_BUILD_DIRTY: JSON.stringify(dirty),
     LLM_UTILS_BUILD_REVISION: JSON.stringify(llmUtilsRevision),
