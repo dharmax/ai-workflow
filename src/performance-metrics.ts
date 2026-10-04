@@ -123,7 +123,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
           runtime: { bun: Bun.version, platform: process.platform },
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
           cognition: {
-            llm: llm.totals(), costAvailable: llmEvents.some(event => event.costUsd !== undefined), models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
+            llm: llm.totals(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => event.costUsd !== undefined), models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
             phases,
             systemOne: { calls: systemOne.length, latencyMs: systemOne.reduce((sum, event) => sum + event.latencyMs, 0), unavailable: systemOne.filter(event => !event.available).length, backends: [...new Set(systemOne.map(event => `${event.backendId}/${event.quality}`))] },
             actor: {
