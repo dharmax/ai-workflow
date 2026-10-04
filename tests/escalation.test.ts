@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { WorkflowActor, pubsub } from '../src/actor/engine.ts';
-import { resolveCloudCredentials, saveConfig } from '../src/config.ts';
+import { loadConfig, resolveCloudCredentials, saveConfig } from '../src/config.ts';
 import { FileNode } from '../src/graph/ontology.ts';
 
 describe('Cognitive Escalation & Multi-Provider Engine', () => {
@@ -83,7 +83,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
 
     const res = await actor.execute('/design propose system architecture');
     expect(res.escalated).toBeFalsy();
-    expect(res.targetModel).toContain('ollama');
+    expect(res.targetModel).toBe(loadConfig(tempDir).model);
   });
 
   it('should auto-escalate in design mode when cloud provider is configured and emit pubsub event', async () => {
