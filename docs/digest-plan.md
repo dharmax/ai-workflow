@@ -1,190 +1,195 @@
-# Digest — Implementation Plan
+# Digest — Dogfood-First Implementation Plan
 
-**Goal:** add Digest directly to AIWF as a small, reliable high-level semantic operation and retire the need for a separate `aiwf-digest` package.
+**Goal:** implement native Digest inside AIWF while proving the high-level AIWF substrate with measured dogfood evidence.
 
-Work directly on `master`. Keep each gate independently green and review the actual code for KISS after each gate.
+Work on `master`. Keep every gate green. Prefer AIWF high-level operations for implementation; manual intervention is for truthful `needs_input` or a concrete AIWF defect.
 
-## Gate 0 — prove AIWF execution health first
+## Gate 0 — measurement/runtime readiness
 
-Before implementing Digest, complete one real external `resolve_ticket` dogfood run against the Consuela project.
+Before measured dogfood, verify:
 
-Reason: Digest will depend on the same model routing, structured output, context budgeting, project-root grounding and cleanup discipline. Do not build a new high-level operation on top of an execution substrate that is still observably broken.
+- AIWF revision and target-project revisions are recorded separately;
+- dirty-before/dirty-after is recorded;
+- provider/model/tokens/latency and cost availability are recorded;
+- provider failure kind + finish reason are preserved;
+- Actor halt/tool-failure/recovery counts are preserved;
+- cognition can be tagged by phase;
+- artifact commands accept repeated benchmark tags;
+- sanitized `aiwf metrics export` works;
+- provider adapters honor configured output budgets consistently;
+- missing-artifact errors name the active project root.
 
-Acceptance:
+Run AIWF and llm-utils typecheck/tests. Do not trust benchmark data until this passes.
 
-- correct target project/store is selected;
-- real Ticket is found;
-- implementation reaches safe mutation;
-- tests/verification run;
-- terminal reason is truthful;
-- process/resources clean up;
-- any failure is classified concretely rather than hidden behind generic Actor failure.
+## Gate 1 — Consuela resolve_ticket qualification
 
-Digest implementation may proceed if the remaining failure is clearly unrelated to shared semantic infrastructure.
-
-## Gate 1 — semantic core
-
-Add a small module, preferably:
-
-```text
-src/digest.ts
-```
-
-Do not create a subsystem directory unless the file genuinely becomes too large.
-
-Implement:
-
-- `DigestSource`;
-- `DigestInput`;
-- `DigestResult`;
-- compact Zod schemas for analysis and review;
-- `digest(input, options)`.
-
-Internal control flow should visibly be:
-
-```ts
-analysis = analyze(...)
-if (material questions) return needs_input
-
-synthesis = reconcile(...)
-review = review(...)
-
-if (review requests concrete revision)
-  synthesis = reconcile(...review findings...)
-  review = review(...)
-
-return complete | needs_input | blocked
-```
-
-Use `Asker.json(..., { maxRetries: 1 })` for each structured call.
-
-No Actor, Pipeline, persisted state or mutation.
-
-Tests:
-
-- coherent source completes;
-- contradiction against evidence is detected/reconciled;
-- material ambiguity returns `needs_input`;
-- unsupported invention is rejected by review;
-- first review defect can be repaired once;
-- persistent review failure ends honestly;
-- schema-invalid first response can repair once through llm-utils;
-- persistent invalid structured output fails honestly.
-
-## Gate 2 — bounded AIWF evidence adapter
-
-Add the smallest adapter from AIWF project state to `DigestSource[]`.
-
-Inputs:
-
-- subject workspace paths;
-- explicit `--against` paths/IDs.
-
-Automatically add only directly relevant authoritative evidence:
-
-- governing Decisions;
-- applicable Aspects;
-- directly related Product Intent;
-- explicit document references;
-- a bounded optional candidate set when justified.
-
-Keep deterministic retrieval separate from semantic synthesis.
-
-Acceptance:
-
-- explicit evidence is always retained;
-- unrelated repository material is not loaded;
-- evidence set has a hard configurable item/token bound;
-- result reports participating source IDs;
-- no new search/index implementation;
-- no whole-repo prompt construction.
-
-If automatic evidence selection is not clearly useful in the first dogfood, keep v1 to explicit evidence rather than inventing heuristics.
-
-## Gate 3 — public AIWF surface
-
-Expose one operation through the existing high-level transports:
+Run from the **ai-cli/Consuela project root**:
 
 ```bash
-aiwf digest <subject...> [--against <source>]...
+aiwf status
+aiwf sync
+aiwf tickets Todo
 ```
 
-MCP:
+Confirm `TKT-CS-ALIGN-01` exists, then:
+
+```bash
+aiwf resolve TKT-CS-ALIGN-01 \
+  --completeness production \
+  --critic auto \
+  --tag study=consuela-resolve-v1 \
+  --tag scenario=context-manager-authority \
+  --tag variant=aiwf-high-level \
+  --tag trial=1
+```
+
+No manual implementation edits during the run.
+
+Qualify the substrate when AIWF reaches real safe mutation, runs tests, keeps repair bounded, explicitly verifies acceptance, distinguishes its own edits from unrelated dirty work, reports a precise terminal reason, and exits cleanly.
+
+Provider quota/timeout/output exhaustion is not an AIWF engineering failure, but must be recorded as such.
+
+After each meaningful trial:
+
+```bash
+aiwf metrics export docs/verification/benchmarks/consuela-resolve-v1.json \
+  --tag study=consuela-resolve-v1
+```
+
+Failed trials stay in the evidence; use a new `trial` value after a fix.
+
+## Gate 2 — Digest semantic core
+
+Prefer one initial `src/digest.ts`.
+
+Implement the contract in `docs/digest.md` with obvious control flow:
 
 ```text
-digest
+analyze
+  ├─ material question → needs_input
+  ↓
+reconcile
+  ↓
+independent review
+  ├─ accept → complete
+  ├─ needs_input → needs_input
+  └─ revise → one reconcile + one review
+                    ├─ accept → complete
+                    ├─ needs_input → needs_input
+                    └─ revise → blocked
 ```
 
-In-process API should call the same semantic implementation.
+Use `Asker.json(..., { maxRetries: 1 })`.
 
-Update:
+No Actor, Pipeline, Session, persistence or mutation.
 
-- README high-level command examples;
-- help;
-- AIWF skill instructions.
+Tag reasoning calls:
 
-Do not add a separate `digest_prepare`, `digest_review`, `digest_apply` family.
+```text
+phase=analyze
+phase=reconcile
+phase=review
+phase=reconcile_revision
+phase=review_revision
+```
 
-Acceptance:
+Core regressions must prove coherent completion, evidence-backed contradiction handling, no fabricated criticism, material ambiguity/decision retry, one bounded review revision, honest non-convergence, structured-response repair, and no prompt/source/output leakage into metrics.
 
-- CLI/MCP/in-process results have the same status/result semantics;
-- `needs_input` is preserved, not converted to an exception;
-- no implicit writes occur;
-- project root is explicit/correct in tests.
+## Gate 3 — explicit source adapter
 
-## Gate 4 — real debugging-design dogfood
+V1 supports:
 
-Run:
+```bash
+aiwf digest <subject-path>...
+aiwf digest <subject-path>... --against <evidence-path>...
+```
+
+Workspace-relative existing regular files only; read-only; preserve source IDs/locations.
+
+Do **not** add heuristic repository search or automatic whole-project context in V1.
+
+Direct AIWF relations may be added later only when a concrete artifact-based use case demonstrates value.
+
+## Gate 4 — one public operation
+
+Expose exactly `digest` through in-process API, CLI, MCP and AIWF skill instructions.
+
+Preserve `complete | needs_input | blocked`.
+
+Do not add `digest_prepare`, `digest_review`, `digest_apply` or a Digest manager.
+
+No implicit writes.
+
+## Gate 5 — controlled Digest benchmark
+
+Study:
+
+```text
+study=digest-debugging-design-v1
+scenario=debugging-design-reconciliation
+```
+
+Freeze AIWF revision, project revision, subject/evidence files, model/provider, context/output budgets and evaluation rubric.
+
+### Variant A — direct model baseline
+
+Give the same model the same subject/evidence and ask directly for a reconciled design, without Digest's structured three-call operation.
+
+Record available wall time, calls/tokens, tool/source reads, termination reason and user intervention. Mark unavailable measurements as unavailable.
+
+### Variant B — AIWF Digest
 
 ```bash
 aiwf digest docs/debugging-design.md \
   --against docs/artifact-operations.md \
   --against docs/aspects.md \
-  --against docs/product-intent-graph.md
+  --against docs/product-intent-graph.md \
+  --tag study=digest-debugging-design-v1 \
+  --tag scenario=debugging-design-reconciliation \
+  --tag variant=aiwf-digest \
+  --tag trial=1
 ```
 
-Use the configured real reasoning model.
+### Quality evaluation
 
-Human-review the result.
+Use both:
 
-The run succeeds only if:
+1. **seeded controlled subject** with known contradiction, lost invariant and invented requirement;
+2. **real debugging-design.md** with human review of accepted improvements, fabricated findings, lost intent and unresolved issues.
 
-- source intent is preserved;
-- real contradictions/gaps are surfaced;
-- criticism is not manufactured;
-- synthesis is materially cleaner/more coherent;
-- provenance is useful;
-- unresolved material choices become `needs_input`;
-- independent review catches at least deliberately seeded regressions in a controlled test.
+Digest never scores itself.
 
-Record concise evidence, not giant transport dumps unless diagnosing a failure.
+Export:
 
-## Gate 5 — optional interaction polish
+```bash
+aiwf metrics export docs/verification/benchmarks/digest-debugging-design-v1.json \
+  --tag study=digest-debugging-design-v1
+```
 
-Once shell-ui's renderer-neutral interaction API is ready, map:
+Commit the sanitized bundle plus a concise benchmark note. Raw transport traces are diagnostic evidence only.
 
-- Digest `needs_input` → elicitation/forms;
-- completed synthesis → editable review;
-- accept/revise/cancel → caller-level action.
+## Gate 6 — shell-ui interaction
 
-Do not make shell-ui a dependency of Digest semantics.
+After semantic proof, map:
 
-This gate is optional for the first functional Digest proof.
+- `needs_input` → renderer-neutral elicitation/form;
+- synthesis → editable review;
+- revise → explicit feedback;
+- accept/cancel → caller action.
 
-## Gate 6 — retire separate aiwf-digest
+This is UX, not Digest semantics.
 
-Only after the AIWF dogfood is accepted:
+## Gate 7 — retire aiwf-digest
 
-1. compare AIWF Digest against any still-useful code/docs in `dharmax/aiwf-digest`;
-2. move only genuinely useful tests/wording;
-3. mark that package/repo deprecated or archive it;
-4. do not keep two live implementations.
+After Gate 5 succeeds:
 
-No compatibility layer is required unless a real consumer exists.
+1. inspect `dharmax/aiwf-digest` once more;
+2. migrate only useful tests/wording not already represented;
+3. archive/deprecate the separate package/repo;
+4. remove real consumer dependencies;
+5. keep no compatibility facade without a real consumer.
 
 ## Final acceptance
-
-Run:
 
 ```bash
 bun run typecheck
@@ -195,29 +200,16 @@ aiwf audit
 
 Then perform a method-level KISS audit.
 
-The final implementation should still be describable as:
+Reject the implementation if it adds a second graph, retrieval/vector stack, generic workflow/state machine, persisted Digest state, duplicate routing/metrics, mutation inside Digest, unbounded retries, or benchmark claims unsupported by exported evidence.
+
+The implementation must still read approximately as:
 
 ```text
-bounded sources
+bounded explicit sources
   → analyze
   → reconcile
   → independent review
   → complete / needs_input / blocked
 ```
 
-If the implementation contains a new planner, workflow graph, persistent session model, retrieval stack or mutation engine, it is wrong.
-
-## Non-goals
-
-Do not implement during this program:
-
-- arbitrary web research inside Digest;
-- permanent source corpora;
-- vector search;
-- generic document management;
-- automatic Product Intent mutation;
-- automatic Ticket generation;
-- large-corpus infrastructure before a real source set requires it;
-- a second Critic framework;
-- a second model router;
-- a separate package merely for architectural neatness.
+Dogfooding is part of the product evidence, not merely the development method.
