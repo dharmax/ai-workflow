@@ -16,6 +16,7 @@ export interface OperationSummary {
   counters: Partial<Record<EngineeringCounter, number>>;
   cognition: {
     llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; models: string[];
+    phases: Record<string, { calls: number; totalTokens: number; latencyMs: number }>;
     systemOne: { calls: number; latencyMs: number; unavailable: number; backends: string[] };
     actor: { runs: number; steps: number; toolCalls: number; toolFailures: number; missingToolRecoveries: number };
     termination: { llmFailureKinds: Record<string, number>; finishReasons: Record<string, number>; actorHaltReasons: Record<string, number> };
@@ -44,8 +45,13 @@ function countValues(values: Array<string | undefined>): Record<string, number> 
   return counts;
 }
 
-export function cognitionMetrics(): { metrics?: MetricsContext; metricsSink?: MetricsSink } {
-  const scope = active.getStore(); return scope ? { metrics: scope.context, metricsSink: scope.sink } : {};
+export function cognitionMetrics(tags?: Record<string, string | number | boolean>): { metrics?: MetricsContext; metricsSink?: MetricsSink } {
+  const scope = active.getStore();
+  if (!scope) return {};
+  if (!tags || !Object.keys(tags).length) return { metrics: scope.context, metricsSink: scope.sink };
+  const metrics = childMetricsContext(scope.context);
+  metrics.tags = { ...scope.context.tags, ...tags };
+  return { metrics, metricsSink: scope.sink };
 }
 export function countEngineering(name: EngineeringCounter, amount = 1): void {
   for (let scope = active.getStore(); scope; scope = scope.parent) scope.counters[name] = (scope.counters[name] ?? 0) + amount;
@@ -97,6 +103,13 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../package.json'), 'utf8')) as { version: string };
         const dependency = JSON.parse(fs.readFileSync(path.resolve(import.meta.dir, '../node_modules/@dharmax/llm-utils/package.json'), 'utf8')) as { version: string };
         const aiwfGit = gitEvidence(path.resolve(import.meta.dir, '..')), projectAfter = gitEvidence(root);
+        const phases = llmEvents.reduce<Record<string, { calls: number; totalTokens: number; latencyMs: number }>>((all, event) => {
+          const phase = typeof event.tags?.phase === 'string' ? event.tags.phase : undefined;
+          if (!phase) return all;
+          const row = all[phase] ?? { calls: 0, totalTokens: 0, latencyMs: 0 };
+          row.calls += 1; row.totalTokens += event.totalTokens; row.latencyMs += event.latencyMs; all[phase] = row;
+          return all;
+        }, {});
         const summary: OperationSummary = { ...context, operation, artifactId, startedAt, durationMs: performance.now() - start, outcome,
           policy: { completeness: options.completeness, depth: options.depth ?? 1, maxArtifacts: options.maxArtifacts ?? cfg.maxArtifacts, critic: typeof options.critic === 'object' ? options.critic.id : options.critic ?? 'auto' },
           tags: context.tags ?? {}, version: pkg.version, aiwfRevision: aiwfGit.revision, llmUtilsVersion: dependency.version,
@@ -105,6 +118,7 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
           cognition: {
             llm: llm.totals(), costAvailable: llmEvents.some(event => event.costUsd !== undefined), models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
+            phases,
             systemOne: { calls: systemOne.length, latencyMs: systemOne.reduce((sum, event) => sum + event.latencyMs, 0), unavailable: systemOne.filter(event => !event.available).length, backends: [...new Set(systemOne.map(event => `${event.backendId}/${event.quality}`))] },
             actor: {
               runs: actors.length,
