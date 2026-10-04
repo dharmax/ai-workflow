@@ -36,6 +36,34 @@ Completeness overrides are temporary. Remember a target explicitly with `complet
 
 For artifact semantics, read `docs/artifact-operations.md`; for semantic reconciliation, read `docs/digest.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
 
+
+### Model runtime configuration
+
+AIWF uses llm-utils' shared model runtime. Common controls are explicit, while provider-specific knobs remain provider-native:
+
+```json
+{
+  "model": "qwen2.5-coder:7b",
+  "ollamaContextWindow": 32768,
+  "llmOutputTokens": 4096,
+  "modelRoutes": {
+    "design": "openrouter/deepseek/deepseek-chat",
+    "critic": "google/gemini-2.5-pro"
+  },
+  "providerOptions": {
+    "ollama": {
+      "top_k": 40,
+      "top_p": 0.9,
+      "repeat_penalty": 1.1,
+      "seed": 42
+    }
+  }
+}
+```
+
+For Ollama, `ollamaContextWindow` maps to `num_ctx`, `llmOutputTokens` maps to `num_predict`, and `providerOptions.ollama` is passed through to Ollama's native `options`. Typed controls win over conflicting raw provider values.
+
+
 ---
 
 ## Installation & Setup
