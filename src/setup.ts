@@ -47,8 +47,11 @@ export interface ConfigureMcpOptions {
   binaryPath?: string;
 }
 
+export const PRIME_DIRECTIVE =
+  'The simplest correct solution wins. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.';
+
 export const MCP_INSTRUCTIONS_2_0 =
-  'AIWF: Delegate Ticket work first with resolve_ticket; investigate_ticket and prepare_ticket are grounded alternatives. Process accepted intent with process_epic/process_feature/process_story. Use completeness/depth/maxArtifacts/critic consistently, persist completeness only explicitly. Inspect needs_input/blocked; preserve user work and require acceptance proof. Use primitives only for drill-down or actual blockers. Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use propose_epic_structure, apply_epic_structure, get_product_coverage & get_product_impact for product intent navigation; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for explicit verification drill-down; use preview_change then apply_change with its fingerprint for deliberate low-level mutations. Delegated Ticket completion belongs to resolve_ticket; do not manually mark it Done.';
+  `Prime Directive: ${PRIME_DIRECTIVE} AIWF: Delegate Ticket work first with resolve_ticket; investigate_ticket and prepare_ticket are grounded alternatives. Process accepted intent with process_epic/process_feature/process_story. Use completeness/depth/maxArtifacts/critic consistently, persist completeness only explicitly. Inspect needs_input/blocked; preserve user work and require acceptance proof. Use primitives only for drill-down or actual blockers. Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use propose_epic_structure, apply_epic_structure, get_product_coverage & get_product_impact for product intent navigation; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for explicit verification drill-down; use preview_change then apply_change with its fingerprint for deliberate low-level mutations. Delegated Ticket completion belongs to resolve_ticket; do not manually mark it Done.`;
 
 export const CANONICAL_SKILL_MD = `---
 name: ai-workflow
@@ -58,6 +61,10 @@ description: Delegate Ticket and Product Intent work to AIWF; investigate, prepa
 # AIWF artifact delegation
 
 Use AIWF as the primary engineering and work-management system.
+
+## Prime Directive
+
+${PRIME_DIRECTIVE}
 
 ## Preferred workflow
 
@@ -93,6 +100,7 @@ export const CODEX_AGENT_RULES = `<!-- ai-workflow-rules -->
 # AI-Workflow 2.0 — Causal Context & Engineering OS
 
 When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \`kanban.md\`):
+- **Prime Directive**: ${PRIME_DIRECTIVE}
 - **Delegate First**: Given a Ticket, call \`resolve_ticket\`; use \`investigate_ticket\` or \`prepare_ticket\` for evidence/preparation, and \`process_epic/feature/story\` for intent. Inspect precise blockers before manual work.
 - **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` to find active priority.
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
@@ -100,7 +108,7 @@ When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \
 - **Graph & Symbol Navigation**: Use \`find_symbol\`, \`search_graph\`, \`get_symbol_source\`, \`get_file_outline\`, and \`analyze_blast_radius\` instead of dumping large files into context.
 - **Deterministic Patches**: Use \`apply_block_patch\` or \`aiwf patch\` for AST block replacement.
 - **Verification**: Run \`resolve_test_target\` and \`triage_test_failures\` to verify code changes against test suites.
-- **Complete**: Call \`update_ticket_state(id, "Done")\`, \`release_ticket(id)\`, and sync with \`aiwf sync\`.
+- **Complete**: Delegated completion belongs to \`resolve_ticket\`. For genuinely manual recovery after a blocker, mark Done only after acceptance proof, then release and sync.
 <!-- /ai-workflow-rules -->
 `;
 
