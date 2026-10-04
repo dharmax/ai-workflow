@@ -134,6 +134,7 @@ interface OperationSummary {
   cognition: {
     llm: AggregateMetrics
     costAvailable: boolean
+    structuredRepairs: number
     models: string[]
     modelConfigs: Array<{
       providerId: string
@@ -184,6 +185,8 @@ Compiled AIWF binaries bake the AIWF and llm-utils revisions at build time; sour
 ## Cost semantics
 
 A numeric zero is not equivalent to free.
+
+`costAvailable` is true only when **every** LLM call in that run has cost data. Aggregate `totalCostUsd` is therefore null if any included run lacks complete cost coverage; `knownCostUsd` may still report the measured subset.
 
 `costAvailable` distinguishes:
 
