@@ -175,8 +175,8 @@ export function createDefaultAsker(projectRoot?: string): Asker | undefined {
   try {
     return new Asker({
       providers,
-      preferLocal: true,
-      defaultModel: 'ollama/qwen2.5-coder:7b'
+      routes: cfg.modelRoutes,
+      defaultModel: cfg.model
     });
   } catch {
     return undefined;
@@ -233,7 +233,8 @@ RULES:
 
 Respond ONLY with valid JSON conforming to the schema.`;
 
-    const modelTarget = options?.model || 'ollama/qwen2.5-coder:7b';
+    const cfg = loadConfig(store.root);
+    const modelTarget = options?.model || cfg.modelRoutes?.design || cfg.model;
     const response = await asker.json(prompt, SemanticDecompositionOutputSchema, {
       model: modelTarget, temperature: 0.2, maxRetries: 1
     });
