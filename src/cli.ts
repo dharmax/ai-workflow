@@ -128,6 +128,7 @@ async function main() {
         const target = path.resolve(root, output), relative = path.relative(root, target);
         if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Metrics evidence export must stay inside the project workspace.');
         const bundle = performanceEvidenceBundle(root, performanceQueryArgs(args.slice(3)));
+        if (!bundle.runs.length) throw new Error('No metric runs matched the requested benchmark filters; refusing to create an empty evidence bundle.');
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.writeFileSync(target, JSON.stringify(bundle, null, 2) + '\n', 'utf8');
         console.log(`✅ Exported ${bundle.runs.length} sanitized metric run(s) to ${relative}`);
