@@ -48,6 +48,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
     const asker = createDefaultAsker(tempDir)!;
     expect(asker.getProvider('ollama')).toMatchObject({
       contextWindow: 24576,
+      maxTokens: 3072,
       providerOptions: { top_k: 32, top_p: 0.85 }
     });
     expect(asker.getRouter().resolve(undefined, ['ollama', 'openrouter', 'google'])).toEqual({
