@@ -5,6 +5,7 @@ import { InMemoryMetricsStore, LlmMetrics, LLM_UTILS_VERSION, childMetricsContex
 import packageJson from '../package.json' with { type: 'json' };
 
 declare const AIWF_BUILD_REVISION: string;
+declare const LLM_UTILS_BUILD_REVISION: string;
 import { loadConfig } from './config.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
@@ -13,12 +14,13 @@ export interface OperationSummary {
   traceId: string; spanId?: string; parentSpanId?: string; operation: string; artifactId: string;
   startedAt: string; durationMs: number; outcome: string;
   policy: { completeness?: string; depth: number | 'all'; maxArtifacts: number; critic: string };
-  tags: Record<string, string | number | boolean>; version: string; aiwfRevision: string; llmUtilsVersion: string;
+  tags: Record<string, string | number | boolean>; version: string; aiwfRevision: string; llmUtilsVersion: string; llmUtilsRevision: string;
   project: { revisionBefore: string; revisionAfter: string; branch: string; dirtyBefore: boolean; dirtyAfter: boolean };
   runtime: { bun: string; platform: string };
   counters: Partial<Record<EngineeringCounter, number>>;
   cognition: {
     llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; models: string[];
+    modelConfigs: Array<{ providerId: string; modelId: string; maxTokens?: number; contextWindow?: number }>;
     phases: Record<string, { calls: number; totalTokens: number; latencyMs: number }>;
     systemOne: { calls: number; latencyMs: number; unavailable: number; backends: string[] };
     actor: { runs: number; steps: number; toolCalls: number; toolFailures: number; missingToolRecoveries: number };
@@ -34,6 +36,11 @@ const active = new AsyncLocalStorage<MetricScope>();
 function aiwfRevision(): string {
   if (typeof AIWF_BUILD_REVISION !== 'undefined') return AIWF_BUILD_REVISION;
   return gitEvidence(path.resolve(import.meta.dir, '..')).revision;
+}
+
+function llmUtilsRevision(): string {
+  if (typeof LLM_UTILS_BUILD_REVISION !== 'undefined') return LLM_UTILS_BUILD_REVISION;
+  return gitEvidence(path.resolve(import.meta.dir, '../../llm-utils')).revision;
 }
 
 function gitEvidence(cwd: string): { revision: string; branch: string; dirty: boolean } {
@@ -109,6 +116,12 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         const llmEvents = llm.list();
         const systemOne = events.filter(event => event.kind === 'system1'), actors = events.filter(event => event.kind === 'actor');
         const projectAfter = gitEvidence(root);
+        const modelConfigs = [...new Map(llmEvents.map(event => {
+          const maxTokens = typeof event.metadata?.maxTokens === 'number' ? event.metadata.maxTokens : undefined;
+          const contextWindow = typeof event.metadata?.contextWindow === 'number' ? event.metadata.contextWindow : undefined;
+          const key = `${event.providerId}/${event.modelId}/${maxTokens ?? ''}/${contextWindow ?? ''}`;
+          return [key, { providerId: event.providerId, modelId: event.modelId, ...(maxTokens !== undefined ? {maxTokens} : {}), ...(contextWindow !== undefined ? {contextWindow} : {}) }] as const;
+        })).values()];
         const phases = llmEvents.reduce<Record<string, { calls: number; totalTokens: number; latencyMs: number }>>((all, event) => {
           const phase = typeof event.tags?.phase === 'string' ? event.tags.phase : undefined;
           if (!phase) return all;
@@ -118,12 +131,13 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
         }, {});
         const summary: OperationSummary = { ...context, operation, artifactId, startedAt, durationMs: performance.now() - start, outcome,
           policy: { completeness: options.completeness, depth: options.depth ?? 1, maxArtifacts: options.maxArtifacts ?? cfg.maxArtifacts, critic: typeof options.critic === 'object' ? options.critic.id : options.critic ?? 'auto' },
-          tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: aiwfRevision(), llmUtilsVersion: LLM_UTILS_VERSION,
+          tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: aiwfRevision(), llmUtilsVersion: LLM_UTILS_VERSION, llmUtilsRevision: llmUtilsRevision(),
           project: { revisionBefore: projectBefore.revision, revisionAfter: projectAfter.revision, branch: projectBefore.branch, dirtyBefore: projectBefore.dirty, dirtyAfter: projectAfter.dirty },
           runtime: { bun: Bun.version, platform: process.platform },
           counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
           cognition: {
             llm: llm.totals(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => event.costUsd !== undefined), models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
+            modelConfigs,
             phases,
             systemOne: { calls: systemOne.length, latencyMs: systemOne.reduce((sum, event) => sum + event.latencyMs, 0), unavailable: systemOne.filter(event => !event.available).length, backends: [...new Set(systemOne.map(event => `${event.backendId}/${event.quality}`))] },
             actor: {
