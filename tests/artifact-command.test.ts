@@ -18,10 +18,10 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
   beforeEach(async () => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-command-')); store = new WorkflowStore(root); initializeTools(); await store.upsertEntity(Ticket.dcr, { id: 'T', title: 'Concrete task', body: 'Preserve an authored API', acceptanceCriteria: ['API remains compatible'], lane: 'Todo' }); await store.upsertEntity(Feature.dcr, { id: 'F', title: 'Capability', body: 'Stable behavior' }); });
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
   it('validates the same policy, custom critic IDs and explicit dirty authorization without guessing parameters', () => {
-    expect(artifactCommand('resolve T --completeness production --depth all --max-artifacts 12 --critic strict --max-repairs 1 --allow-dirty-target src/a.ts'.split(' '))).toEqual({ tool: 'resolve_ticket', args: { ticketId: 'T', completeness: 'production', depth: 'all', maxArtifacts: 12, critic: { id: 'strict' }, maxRepairs: 1, allowDirtyTargets: ['src/a.ts'] } });
+    expect(artifactCommand('resolve T --completeness production --depth all --max-artifacts 12 --critic strict --tag study=consuela --tag variant=aiwf --max-repairs 1 --allow-dirty-target src/a.ts'.split(' '))).toEqual({ tool: 'resolve_ticket', args: { ticketId: 'T', completeness: 'production', depth: 'all', maxArtifacts: 12, critic: { id: 'strict' }, tags: { study: 'consuela', variant: 'aiwf' }, maxRepairs: 1, allowDirtyTargets: ['src/a.ts'] } });
     expect(artifactCommand(['process', 'story', 'S', '--depth', '0'])?.args).toEqual({ storyId: 'S', depth: 0 });
     expect(() => artifactCommand(['resolve', 'T', '--depth', '-1'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--max-artifacts', 'NaN'])).toThrow(); expect(() => artifactCommand(['process', 'feature', 'F', '--agent', 'a'])).toThrow();
-    expect(() => artifactCommand(['resolve', 'T', '--unknown', 'x'])).toThrow(); expect(artifactCommand(['inspect', 'something'])).toBeNull();
+    expect(() => artifactCommand(['resolve', 'T', '--unknown', 'x'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--tag', 'broken'])).toThrow(); expect(artifactCommand(['inspect', 'something'])).toBeNull();
   });
   it('routes an explicit natural-language Ticket request through the entity once without outer Actor inference', async () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true }); let calls = 0;
