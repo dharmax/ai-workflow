@@ -1163,7 +1163,8 @@ Diagnostics & Health:
   doctor                                 Run comprehensive environment, graph, LLM, and MCP diagnostics
   audit                                  Audit architecture and graph integrity
   triage [testCommand]                   Run tests and extract compact failure triage report
-  metrics [--operation ...]              Query persisted performance (--ticket, --since, --tag)
+  metrics [--operation ...]              Query persisted performance (--ticket, --trace, --since, --tag)
+  metrics export <path> [filters]         Export sanitized benchmark evidence inside the workspace
 
 Configuration & Execution:
   init                                   Zero-config project initialization in current directory
