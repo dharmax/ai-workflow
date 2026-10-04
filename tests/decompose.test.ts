@@ -11,7 +11,8 @@ import {
   Decision
 } from '../src/graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
-import { proposeEpicStructure, type EpicStructureProposal } from '../src/product/decompose.ts';
+import { createDefaultAsker, proposeEpicStructure, type EpicStructureProposal } from '../src/product/decompose.ts';
+import { saveConfig } from '../src/config.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
 
 describe('Epic Decomposition & Apply (Ticket 2)', () => {
@@ -29,6 +30,29 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
   afterEach(() => {
     store.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('honors project default and task model routes in the shared Asker', () => {
+    saveConfig(tempDir, {
+      model: 'ollama/qwen-project',
+      modelRoutes: {
+        design: 'openrouter/deepseek/deepseek-chat',
+        'digest.review': 'google/gemini-review'
+      }
+    });
+    const asker = createDefaultAsker(tempDir)!;
+    expect(asker.getRouter().resolve(undefined, ['ollama', 'openrouter', 'google'])).toEqual({
+      providerId: 'ollama',
+      modelId: 'qwen-project'
+    });
+    expect(asker.getRouter().resolve('design', ['ollama', 'openrouter', 'google'])).toEqual({
+      providerId: 'openrouter',
+      modelId: 'deepseek/deepseek-chat'
+    });
+    expect(asker.getRouter().resolve('digest.review', ['ollama', 'openrouter', 'google'])).toEqual({
+      providerId: 'google',
+      modelId: 'gemini-review'
+    });
   });
 
   // 1. Equivalent Feature reuse by existing ID
