@@ -7,6 +7,10 @@ description: Delegate Ticket and Product Intent work to AIWF; investigate, prepa
 
 Use AIWF as the primary engineering and work-management system.
 
+## Prime Directive
+
+The simplest correct solution wins. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.
+
 ## Preferred workflow
 
 1. If given a Ticket, call `resolve_ticket` / `aiwf resolve <ticketId>` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
@@ -32,7 +36,6 @@ Resolution accepts explicit `testCommands`, `maxRepairs`, and `allowDirtyTargets
 - Safe edits: `preview_change` → `apply_change` with fingerprint; semantic rename/refactor and symbol replacement through the existing Causal Change Engine.
 - Tests: `resolve_test_target`, `triage_test_failures`. Successful execution and explicit acceptance proof are both required.
 - Graph state: canonical Product Intent tools, ordinary Ticket children and real prerequisites. No parallel plan/session/shadow graph.
-- Measurement: `aiwf metrics --operation resolve_ticket --ticket <id> --since 7d`; controlled studies use repeated `--tag key=value` and `aiwf metrics export <path> ...`. Benchmark-tagged runs require clean AIWF, llm-utils and target baselines. Persisted telemetry contains no prompts/source/tool arguments or raw provider options.
-- Model runtime: common budgets are configured explicitly; provider-native inference knobs live under project `providerOptions[providerId]`. Ollama context/output budgets map to `num_ctx`/`num_predict`; do not hard-code model parameters in feature logic.
+- Measurement: `aiwf metrics --operation resolve_ticket --ticket <id> --since 7d`; persisted aggregate telemetry contains no prompts/source/tool arguments. Never claim paid-token savings without measurement.
 
 Use `aiwf help` for verified command syntax. Low-level primitives remain available.
