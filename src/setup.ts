@@ -104,10 +104,33 @@ When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \
 <!-- /ai-workflow-rules -->
 `;
 
+function ensureLocalAiWorkflowExcludes(projectRoot: string): void {
+  const gitPath = Bun.spawnSync(['git', '-C', projectRoot, 'rev-parse', '--git-path', 'info/exclude'], {stderr: 'ignore'});
+  if (!gitPath.success) return;
+  const rawPath = gitPath.stdout.toString().trim();
+  if (!rawPath) return;
+  const excludePath = path.isAbsolute(rawPath) ? rawPath : path.resolve(projectRoot, rawPath);
+  const entries = [
+    '.ai-workflow/state/',
+    '.ai-workflow/generated/',
+    '.ai-workflow/cache/',
+    '.ai-workflow/metrics.jsonl',
+    '.ai-workflow/config.json'
+  ];
+  let existing = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, 'utf8') : '';
+  const lines = new Set(existing.split('\n').map(line => line.trim()));
+  const missing = entries.filter(entry => !lines.has(entry));
+  if (!missing.length) return;
+  fs.mkdirSync(path.dirname(excludePath), {recursive: true});
+  existing = existing.trimEnd();
+  fs.writeFileSync(excludePath, (existing ? existing + '\n' : '') + missing.join('\n') + '\n', 'utf8');
+}
+
 /**
  * Initializes a repository with .ai-workflow state, AST indexing, and Kanban projections.
  */
 export async function initProject(projectRoot: string): Promise<InitResult> {
+  ensureLocalAiWorkflowExcludes(projectRoot);
   const aiwfDir = path.join(projectRoot, '.ai-workflow');
   const stateDir = path.join(aiwfDir, 'state');
   const codeletsDir = path.join(aiwfDir, 'codelets');
