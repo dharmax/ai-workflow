@@ -79,6 +79,7 @@ export function recordMetricCompleteness(context: TicketCompletenessContext): vo
 /** Telemetry scope only: never owns engineering state, writes or continuation. */
 export async function withArtifactMetrics<T>(root: string, operation: string, artifactId: string, options: ArtifactOperationOptions & { tags?: Record<string, string | number | boolean> }, run: () => Promise<T>): Promise<T> {
   const parent = active.getStore(), cfg = loadConfig(root), store = new InMemoryMetricsStore();
+  const requireEvidence = !parent && typeof options.tags?.study === 'string' && Boolean(options.tags.study);
   const context: MetricsContext = { ...(parent ? childMetricsContext(parent.context) : { traceId: crypto.randomUUID(), spanId: crypto.randomUUID() }), taskClass: operation, tags: { ...parent?.context.tags, ...options.tags } };
   const scope: MetricScope = { root, context, store, counters: {}, visited: new Set(), parent, sink: { append: event => {
     // Events are transient; persisted summaries contain aggregates only.
@@ -154,9 +155,15 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
             }
           }
         };
+        if (requireEvidence && [summary.aiwfRevision, summary.llmUtilsRevision, summary.project.revisionBefore, summary.project.revisionAfter].includes('unavailable')) {
+          throw new Error('Benchmark provenance is incomplete.');
+        }
         fs.mkdirSync(path.join(root, '.ai-workflow'), { recursive: true });
         fs.appendFileSync(path.join(root, '.ai-workflow/metrics.jsonl'), JSON.stringify(summary) + '\n');
-      } catch { /* Measurement/persistence failure must not fail engineering work. */ }
+      } catch (error) {
+        if (requireEvidence) throw new Error(`Benchmark evidence persistence failed after '${operation}': ${String(error)}`);
+        /* Ordinary telemetry must not fail engineering work. */
+      }
     }
   });
 }
