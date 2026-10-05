@@ -19,7 +19,6 @@ import { registerKnowledgebaseTools } from './kb.ts';
 import { registerChangeTools } from './change.ts';
 import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { registerAspectTools } from './aspects.ts';
-import { bucketRouter, TwoTierRouter, type ToolBucket } from './bucket-router.ts';
 
 let initialized = false;
 
@@ -45,4 +44,4 @@ export function initializeTools(): ToolRegistry {
   return registry;
 }
 
-export { registry, type ToolRegistry, type ToolContext, type ToolDefinition, bucketRouter, TwoTierRouter, type ToolBucket };
+export { registry, type ToolRegistry, type ToolContext, type ToolDefinition };
