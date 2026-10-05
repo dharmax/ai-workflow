@@ -64,15 +64,19 @@ describe('semantic tool discovery and surfaces', () => {
     initializeTools()
     let localCalls = 0
     let fallbackCalls = 0
+    let localOptions: any
+    let fallbackOptions: any
     const local = {
-      json: async () => {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
         localCalls++
+        localOptions = options
         return {ok: false}
       },
     } as any
     const fallback = {
-      json: async () => {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
         fallbackCalls++
+        fallbackOptions = options
         return {
           ok: true,
           data: {
@@ -91,6 +95,8 @@ describe('semantic tool discovery and surfaces', () => {
 
     expect(localCalls).toBe(1)
     expect(fallbackCalls).toBe(1)
+    expect(localOptions.task).toBeUndefined()
+    expect(fallbackOptions.task).toBe('fast')
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
   })
 
