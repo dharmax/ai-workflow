@@ -64,15 +64,19 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       }
     });
 
+    let askOptions: any;
     const mockAsker = {
-      json: async () => ({
-        ok: true,
-        data: {
-          thought: 'Conclude',
-          action: 'final_answer',
-          finalAnswer: 'Local reasoning complete'
-        }
-      })
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        askOptions = options;
+        return {
+          ok: true,
+          data: {
+            thought: 'Conclude',
+            action: 'final_answer',
+            finalAnswer: 'Local reasoning complete'
+          }
+        };
+      }
     } as any;
 
     const actor = new WorkflowActor({
@@ -83,7 +87,9 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
 
     const res = await actor.execute('/design propose system architecture');
     expect(res.escalated).toBeFalsy();
-    expect(res.targetModel).toBe(loadConfig(tempDir).model);
+    expect(res.targetModel).toBeUndefined();
+    expect(askOptions.task).toBe('reasoning');
+    expect(askOptions.preferLocal).toBe(true);
   });
 
   it('should auto-escalate in design mode when cloud provider is configured and emit pubsub event', async () => {
@@ -101,15 +107,19 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       escalationEventReceived = ev.data;
     });
 
+    let askOptions: any;
     const mockAsker = {
-      json: async () => ({
-        ok: true,
-        data: {
-          thought: 'Conclude design',
-          action: 'final_answer',
-          finalAnswer: 'Frontier architecture designed'
-        }
-      })
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        askOptions = options;
+        return {
+          ok: true,
+          data: {
+            thought: 'Conclude design',
+            action: 'final_answer',
+            finalAnswer: 'Frontier architecture designed'
+          }
+        };
+      }
     } as any;
 
     const actor = new WorkflowActor({
@@ -122,11 +132,13 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
 
     expect(res.escalated).toBe(true);
     expect(res.escalationReason).toContain('Design mode');
-    expect(res.targetModel).toContain('openrouter');
-    expect(res.targetModel).toContain('deepseek');
+    expect(res.targetModel).toBeUndefined();
+    expect(askOptions.task).toBe('reasoning');
+    expect(askOptions.preferLocal).toBe(false);
     expect(escalationEventReceived).not.toBeNull();
     expect(escalationEventReceived.mode).toBe('design');
-    expect(escalationEventReceived.targetModel).toBe(res.targetModel);
+    expect(escalationEventReceived.taskClass).toBe('reasoning');
+    expect(escalationEventReceived.preferLocal).toBe(false);
   });
 
   it('should respect custom modelRoutes overrides', async () => {
@@ -137,15 +149,19 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       }
     });
 
+    let askOptions: any;
     const mockAsker = {
-      json: async () => ({
-        ok: true,
-        data: {
-          thought: 'Done',
-          action: 'final_answer',
-          finalAnswer: 'Custom route executed'
-        }
-      })
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        askOptions = options;
+        return {
+          ok: true,
+          data: {
+            thought: 'Done',
+            action: 'final_answer',
+            finalAnswer: 'Custom route executed'
+          }
+        };
+      }
     } as any;
 
     const actor = new WorkflowActor({
@@ -156,6 +172,8 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
 
     const res = await actor.execute('/dev write unit test');
     expect(res.targetModel).toBe('anthropic/claude-3.7-sonnet');
+    expect(askOptions.model).toBe('anthropic/claude-3.7-sonnet');
+    expect(askOptions.task).toBeUndefined();
   });
 
   it('should auto-escalate when blast radius exceeds threshold', async () => {
@@ -177,15 +195,19 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       lastModified: Date.now()
     });
 
+    let askOptions: any;
     const mockAsker = {
-      json: async () => ({
-        ok: true,
-        data: {
-          thought: 'Conclude',
-          action: 'final_answer',
-          finalAnswer: 'Blast radius mutation concluded'
-        }
-      })
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        askOptions = options;
+        return {
+          ok: true,
+          data: {
+            thought: 'Conclude',
+            action: 'final_answer',
+            finalAnswer: 'Blast radius mutation concluded'
+          }
+        };
+      }
     } as any;
 
     const actor = new WorkflowActor({
@@ -197,6 +219,8 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const res = await actor.execute('Refactor src/core.ts and update all callers');
     expect(res.escalated).toBe(true);
     expect(res.escalationReason).toContain('Blast radius');
-    expect(res.targetModel).toContain('deepseek');
+    expect(res.targetModel).toBeUndefined();
+    expect(askOptions.task).toBe('reasoning');
+    expect(askOptions.preferLocal).toBe(false);
   });
 });
