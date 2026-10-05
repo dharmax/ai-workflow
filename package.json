@@ -42,7 +42,8 @@
     "typescript": "^7.0.2",
     "typescript-language-server": "^6.0.1",
     "vscode-jsonrpc": "^9.0.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@dharmax/semantic-registry": "file:../semantic-registry"
   },
   "overrides": {
     "@dharmax/shell-ui": "file:../shell-ui",
