@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'bun:test'
 import {initializeTools, registry} from '../src/tools/index.ts'
-import {ToolDiscovery} from '../src/tools/discovery.ts'
+import {ToolDiscovery, semanticsForTool} from '../src/tools/discovery.ts'
 import {getPublicMcpTools} from '../src/tools/surface.ts'
 
 describe('semantic tool discovery and surfaces', () => {
@@ -206,6 +206,12 @@ describe('semantic tool discovery and surfaces', () => {
     const result = await discovery.discover('???')
 
     expect(result.tools).toEqual([])
+  })
+
+  it('keeps every registered function semantically distinguishable at the full key tuple', () => {
+    initializeTools()
+    const signatures = registry.getAll().map(tool => JSON.stringify(semanticsForTool(tool)))
+    expect(new Set(signatures).size).toBe(signatures.length)
   })
 
   it('keeps the public MCP API smaller than the internal implementation registry', () => {
