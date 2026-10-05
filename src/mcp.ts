@@ -17,7 +17,7 @@ import {
 import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
-import { getPublicMcpTools } from './tools/surface.ts';
+import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from './tools/surface.ts';
 import { WorkflowActor, type ShellMode } from './actor/engine.ts';
 import { ARTIFACT_HELP } from './artifact-command.ts';
 
@@ -140,6 +140,13 @@ export function createMcpServer(options: McpServerOptions = {}) {
         }
         return {
           content: [{ type: 'text', text }]
+        };
+      }
+
+      if (!PUBLIC_MCP_TOOL_NAMES.has(name)) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Tool '${name}' is not exposed by the AI-Workflow MCP surface.` }]
         };
       }
 
