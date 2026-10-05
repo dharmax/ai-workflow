@@ -75,7 +75,8 @@ DO NOT automatically generate tickets or implementation tasks during product roa
 };
 
 /**
- * Classifies prompt into one of the four operational modes in <1ms (0 tokens).
+ * Parses explicit shell mode syntax only. Natural-language mode selection belongs
+ * to semantic ToolDiscovery and does not use keyword heuristics.
  */
 export function classifyIntentMode(text: string): ShellMode {
   const token = text.trim().split(/\s+/, 1)[0]?.toLowerCase()
@@ -189,9 +190,13 @@ export class WorkflowActor {
     escalated?: boolean;
     escalationReason?: string;
   }> {
-    const explicitMode = instruction.trim().startsWith('/')
-      ? classifyIntentMode(instruction)
-      : undefined;
+    const modeToken = instruction.trim().split(/\s+/, 1)[0]?.toLowerCase();
+    const explicitMode: ShellMode | undefined =
+      modeToken === '/design' ? 'design' :
+      modeToken === '/dev' ? 'dev' :
+      modeToken === '/triage' ? 'triage' :
+      modeToken === '/product' ? 'product' :
+      undefined;
     const rawText = instruction.replace(/^\/(design|dev|triage|product|auto)\s*/i, '');
     let activeMode = forcedMode || explicitMode || this.mode;
 
