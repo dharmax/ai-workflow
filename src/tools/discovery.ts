@@ -245,18 +245,17 @@ function withoutMode(query: RegistryQuery): RegistryQuery {
 }
 
 function constrainQuery(query: RegistryQuery, vocabulary: Vocabulary): RegistryQuery {
-  return Object.fromEntries(
-    Object.entries(query)
-      .map(([key, values]) => {
-        if (key === 'mode') {
-          const allowed = new Set(['design', 'dev', 'triage', 'product'])
-          return [key, values.filter(value => allowed.has(value))]
-        }
-        const allowed = new Set(vocabulary[key] ?? [])
-        return [key, values.filter(value => allowed.has(value))]
-      })
-      .filter(([, values]) => values.length > 0),
-  )
+  const constrained: Record<string, readonly string[]> = {}
+  for (const [key, values] of Object.entries(query)) {
+    const allowed = new Set(key === 'mode'
+      ? ['design', 'dev', 'triage', 'product']
+      : vocabulary[key] ?? [])
+    const valid = values.filter(value => allowed.has(value))
+    // Dropping an unsupported capability dimension would broaden an AND query.
+    if (key !== 'mode' && valid.length === 0) return {}
+    if (valid.length > 0) constrained[key] = valid
+  }
+  return constrained
 }
 
 function normalizeQuery(query: Record<string, string[]>): RegistryQuery {

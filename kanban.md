@@ -76,6 +76,8 @@ kanban-plugin: board
 ## Blocked
 
 - [ ] **TKT-RILZ**: Stop stalled implementation navigation
+- [ ] **TKT-GB73**: Reject semantic discovery when a capability constraint has no valid values
+  - Summary: Implemented in src/tools/discovery.ts: reject the lookup when a supplied capability dimension has zero valid values; retain valid OR alternatives and optional mode filtering. Focused discovery/Actor tests: 16 pass, 0 fail. Full suite: 211 pass, 2 fail (escalation task reasoning/code and trace viewport). Typecheck blocked by llm-utils maxHistoryChars and missing shell-ui exports. No commit; awaiting repository-wide checks.
 
 %% kanban:settings
 ```
