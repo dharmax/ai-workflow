@@ -188,6 +188,15 @@ export function createMcpServer(options: McpServerOptions = {}) {
 export function exportMcpSchemas(targetDir: string): string[] {
   fs.mkdirSync(targetDir, { recursive: true });
   initializeTools();
+
+  // This directory is AIWF-owned. Remove obsolete schemas so a reduced public
+  // surface cannot leave stale internal tools advertised by previous setups.
+  for (const entry of fs.readdirSync(targetDir)) {
+    if (entry.endsWith('.json')) {
+      try { fs.unlinkSync(path.join(targetDir, entry)); } catch {}
+    }
+  }
+
   const exportedFiles: string[] = [];
 
   // 1. Wish tool
