@@ -52,6 +52,9 @@ describe('Interactive Shell REPL Bridge', () => {
     const res = await processShellInput('review the README against the implementation', session);
     expect(res.output.startsWith('[DESIGN]')).toBe(true);
     expect(res.output).toContain('LLM unavailable');
+
+    const inline = await processShellInput('/triage check the failing tests', session);
+    expect(inline.output.startsWith('[TRIAGE]')).toBe(true);
   });
 
   it('should execute all domain fast-paths without LLM invocation', async () => {
