@@ -321,6 +321,7 @@ export class WorkflowActor {
 
       const selectedNames = new Set(discovery.tools.map(tool => tool.name));
       const runTools = discovery.tools.map(wrapTool);
+      const recoverTool = this.toolDiscovery?.recover?.bind(this.toolDiscovery);
       let recoveredCount = 0;
 
       pubsub.trigger('aiwf', 'actor:discovery', {
@@ -332,10 +333,10 @@ export class WorkflowActor {
       const result = await this.session!.run(actor, rawText, {
         maxSteps: this.maxSteps,
         tools: runTools,
-        onMissingTool: this.toolDiscovery?.recover
+        onMissingTool: recoverTool
           ? async (toolName, parameters) => {
               if (recoveredCount >= 2) return undefined;
-              const recovered = await this.toolDiscovery!.recover(
+              const recovered = await recoverTool(
                 rawText,
                 toolName,
                 parameters,
