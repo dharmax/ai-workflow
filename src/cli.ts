@@ -824,7 +824,7 @@ async function main() {
           progress.renderBar(current, total, file);
         }
       });
-      progress.stop(`Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.notesCount} note(s).`, 'success');
+      progress.stop(`Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.testsCount} test artifact(s), ${res.notesCount} note(s).`, 'success');
       break;
     }
 
