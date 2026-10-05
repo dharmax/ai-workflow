@@ -91,6 +91,53 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(capturedOptions.system).toContain('resolve_test_target');
   });
 
+  it('should keep a real semantic-discovery Actor prompt small for an open-ticket question', async () => {
+    let actorSystem = ''
+    let classifierCalls = 0
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
+          classifierCalls++
+          return {
+            ok: true,
+            data: {
+              mode: ['product'],
+              domain: ['ticket'],
+              object: ['ticket'],
+              action: ['list', 'read'],
+              effect: ['read'],
+            },
+          }
+        }
+
+        actorSystem = options.system ?? ''
+        return {
+          ok: true,
+          data: {
+            thought: 'Answer directly from the available capability surface.',
+            action: 'final_answer',
+            finalAnswer: 'Ticket status can be inspected.',
+          },
+        }
+      },
+    } as any
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+    })
+
+    const res = await actor.execute('do we have open tickets?')
+
+    expect(res.mode).toBe('product')
+    expect(classifierCalls).toBe(1)
+    expect(actorSystem).toContain('### Tool: list_tickets')
+    expect(actorSystem).not.toContain('### Tool: resolve_ticket')
+    expect(actorSystem).not.toContain('### Tool: run_command')
+    expect(actorSystem.length).toBeLessThan(8_000)
+  });
+
   it('should expose only semantically discovered ticket tools to the Actor', async () => {
     let call = 0
     const systems: string[] = []
