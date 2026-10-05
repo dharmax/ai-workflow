@@ -161,6 +161,11 @@ describe('semantic tool discovery and surfaces', () => {
         data: {mode: ['triage'], domain: ['test'], object: ['test'], action: ['debug'], effect: ['execution']},
         expected: 'triage_test_failures',
       },
+      {
+        query: 'show git status',
+        data: {mode: ['dev'], domain: ['git'], object: ['status'], action: ['get'], effect: ['read']},
+        expected: 'get_git_status',
+      },
     ]
 
     for (const item of cases) {
