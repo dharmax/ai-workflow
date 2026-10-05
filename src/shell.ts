@@ -16,6 +16,7 @@ import {
   InteractivePrompter,
   ParameterFacilitator,
   TerminalFormatter,
+  ProcessViewport,
   type CommandSchema
 } from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
@@ -34,6 +35,7 @@ export interface ShellSession {
   prompter?: InteractivePrompter;
   facilitator?: ParameterFacilitator;
   interactive?: boolean;
+  viewport?: ProcessViewport<any>;
 }
 
 export const SHELL_COMMANDS = [
@@ -1175,7 +1177,19 @@ Drill-down and project commands:
   const delegation = artifactCommand(line.split(/\s+/));
   if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
   const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
-  const result = await session.actor.execute(line, inlineMode ? undefined : session.actor.mode);
+  session.viewport?.start('Thinking...');
+  let result;
+  try {
+    result = await session.actor.execute(
+      line,
+      inlineMode ? undefined : session.actor.mode,
+      { onStep: step => session.viewport?.onStep(step) }
+    );
+  } finally {
+    // The result status is rendered below once known; on thrown errors stop as failed.
+  }
+  session.viewport?.stop(result.offlineFallback ? 'fail' : 'success');
+
   let prefix = `[${result.mode.toUpperCase()}]`;
   if (result.escalated) {
     prefix += result.targetModel
@@ -1183,7 +1197,7 @@ Drill-down and project commands:
       : ` \x1b[35m[Escalated]\x1b[0m`;
   }
   return {
-    output: `${prefix} ${result.answer}`
+    output: `${prefix} ${TerminalFormatter.format(result.answer)}`
   };
 }
 
@@ -1304,7 +1318,11 @@ export async function startShell(options: {
     projectRoot: root,
     prompter,
     facilitator,
-    interactive: tty.getIsTty()
+    interactive: tty.getIsTty(),
+    viewport: new ProcessViewport({
+      mode: 'fold',
+      interactive: tty.getIsTty()
+    })
   };
 
   const completer = buildSmartCompleter(session);
