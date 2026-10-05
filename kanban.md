@@ -14,7 +14,8 @@ kanban-plugin: board
 
 ## In Progress
 
-- No items
+- [/] **TKT-REPEAT-NAV-01**: Prevent identical unchanged navigation from exhausting ticket resolution
+  - Summary: Reproduced in ai-cli TKT-CS-TRUTH-01 and llm-utils TKT-AICLI-TRUTH-01 at AIWF 359c1a7. Both hit 16 steps zero edits; sibling final steps 14-16 identical get_file_outline src/session.ts. Existing resolver instructs no repeat but does not enforce. Small repair only in src/graph/ontology.ts implementation tool adapter: repeated identical navigation against unchanged workspace must produce actionable error directing existing read_workspace_file/source/preview/apply tools, rather than silently consuming step budget. Allow same request after actual successful mutation. No new workflow/planner, no budget increase, preserve existing dirty work. Add meaningful deterministic regression, typecheck/focused tests. Then resume consumer tickets.
 
 ## Done
 
@@ -74,7 +75,7 @@ kanban-plugin: board
 
 ## Blocked
 
-- No items
+- [ ] **TKT-RILZ**: Stop stalled implementation navigation
 
 %% kanban:settings
 ```
