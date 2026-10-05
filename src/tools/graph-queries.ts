@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
+import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
 import { getExactSymbolSource } from '../change/symbol-source.ts';
 import { getTsLspClient } from '../change/ts-lsp.ts';
@@ -497,10 +498,19 @@ export async function analyzeBlastRadius(
   for (const d of incomingDeps) affectedFileIds.add(store.localId(d.sourceId));
   for (const i of incomingImports) affectedFileIds.add(store.localId(i.sourceId));
 
-  const recommendedTests: string[] = [];
+  const recommendedTests = new Set<string>();
   for (const fileId of affectedFileIds) {
+    const file = await store.getEntity<FileNode>(fileId, FileNode.dcr);
+    if (file) {
+      for (const test of await findTestsVerifying(store, file.id)) {
+        const testPath = (test as any).filePath || (test as any).targetPath;
+        if (testPath) recommendedTests.add(normalizeTestPath(testPath));
+      }
+    }
+
+    // A changed test file should still recommend itself even before graph relations exist.
     if (fileId.includes('test') || fileId.endsWith('.test.ts') || fileId.endsWith('.spec.ts')) {
-      recommendedTests.push(fileId);
+      recommendedTests.add(normalizeTestPath(fileId));
     }
   }
 
@@ -515,6 +525,6 @@ export async function analyzeBlastRadius(
     affectedFiles: Array.from(affectedFileIds),
     activeTickets,
     dependentTickets: activeTickets,
-    recommendedTests: recommendedTests.length > 0 ? recommendedTests : ['bun test']
+    recommendedTests: recommendedTests.size > 0 ? [...recommendedTests] : ['bun test']
   };
 }
