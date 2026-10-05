@@ -1424,9 +1424,8 @@ export async function startShell(options: {
 
   let renderer: UiRenderer | undefined;
   if (tty.getIsTty()) {
-    const shellUi = await import('@dharmax/shell-ui');
-    const OpenTuiRenderer = (shellUi as { OpenTuiRenderer?: new () => UiRenderer }).OpenTuiRenderer;
-    if (OpenTuiRenderer) renderer = new OpenTuiRenderer();
+    const { OpenTuiRenderer } = await import('@dharmax/shell-ui');
+    renderer = new OpenTuiRenderer();
   }
 
   const session: ShellSession = {
