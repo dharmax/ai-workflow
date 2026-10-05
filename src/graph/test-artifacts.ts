@@ -97,13 +97,14 @@ export async function upsertTestArtifact(
   content: string,
 ): Promise<TestNode> {
   const normalized = normalizeTestPath(filePath)
+  const existing = await store.getEntity<TestNode>(testArtifactId(normalized), TestNode.dcr)
   const test = await store.upsertEntity<TestNode>(TestNode.dcr, {
     id: testArtifactId(normalized),
     title: path.posix.basename(normalized),
     filePath: normalized,
     targetPath: normalized,
     framework: inferTestFramework(normalized, content),
-    status: 'implemented',
+    ...(existing ? {} : {status: 'implemented'}),
   })
 
   await store.relate(file, 'contains', test)
