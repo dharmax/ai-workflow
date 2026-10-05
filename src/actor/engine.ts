@@ -10,7 +10,8 @@ import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
-import { registry, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
+import { registry, type ToolContext } from '../tools/registry.ts';
+import { ToolDiscovery, type DiscoveredTools } from '../tools/discovery.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
 import { modelRuntime } from '../model-runtime.ts';
@@ -73,43 +74,15 @@ DO NOT automatically generate tickets or implementation tasks during product roa
   }
 };
 
-const MODE_TOOL_CATEGORIES: Record<ShellMode, ToolDefinition['category'][]> = {
-  design: ['graph', 'planning', 'kb', 'git'],
-  dev: ['graph', 'compiler', 'git', 'test', 'change', 'script', 'os'],
-  triage: ['test', 'graph', 'git', 'os'],
-  product: ['ticket', 'planning', 'graph', 'kb'],
-};
-
-function toolsForMode(mode: ShellMode): ToolDefinition[] {
-  const categories = new Set(MODE_TOOL_CATEGORIES[mode]);
-  return registry.getAll().filter(tool => categories.has(tool.category));
-}
-
 /**
  * Classifies prompt into one of the four operational modes in <1ms (0 tokens).
  */
 export function classifyIntentMode(text: string): ShellMode {
-  const trimmed = text.trim().toLowerCase();
-
-  // 1. Explicit mode directives
-  if (trimmed.startsWith('/design')) return 'design';
-  if (trimmed.startsWith('/dev')) return 'dev';
-  if (trimmed.startsWith('/triage')) return 'triage';
-  if (trimmed.startsWith('/product')) return 'product';
-
-  // 2. Keyword heuristics
-  if (/\b(design|architecture|architect|rfc|adr|trade-?offs?|refactor|should we|modular)\b/.test(trimmed)) {
-    return 'design';
-  }
-  if (/\b(test|fail|failing|triage|broken|playwright|regression|bug|error|crash|stack trace)\b/.test(trimmed)) {
-    return 'triage';
-  }
-  if (/\b(ticket|tickets|kanban|epic|story|user story|feature|roadmap|acceptance criteria|product|backlog|priority)\b/.test(trimmed)) {
-    return 'product';
-  }
-
-  // Default to dev for code implementation
-  return 'dev';
+  const token = text.trim().split(/\s+/, 1)[0]?.toLowerCase()
+  if (token === '/design') return 'design'
+  if (token === '/triage') return 'triage'
+  if (token === '/product') return 'product'
+  return 'dev'
 }
 
 export interface ActorStepEvent {
@@ -131,6 +104,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 }
 
 export class WorkflowActor {
@@ -146,6 +120,7 @@ export class WorkflowActor {
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
+  private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -178,7 +153,10 @@ export class WorkflowActor {
         this.asker = undefined;
       }
     }
-    if (this.asker) this.session = new LLMSession(this.asker);
+    if (this.asker) {
+      this.session = new LLMSession(this.asker);
+      this.toolDiscovery = options.toolDiscovery ?? new ToolDiscovery(registry, this.asker);
+    }
   }
 
   setMode(mode: ShellMode): void {
@@ -211,10 +189,11 @@ export class WorkflowActor {
     escalated?: boolean;
     escalationReason?: string;
   }> {
+    const explicitMode = instruction.trim().startsWith('/')
+      ? classifyIntentMode(instruction)
+      : undefined;
     const rawText = instruction.replace(/^\/(design|dev|triage|product|auto)\s*/i, '');
-    const activeMode = forcedMode || (instruction.startsWith('/') ? classifyIntentMode(instruction) : classifyIntentMode(rawText));
-    this.mode = activeMode;
-    const config = MODE_CONFIGS[activeMode];
+    let activeMode = forcedMode || explicitMode || this.mode;
 
     const ctx: ToolContext = {
       store: this.store,
@@ -233,6 +212,13 @@ export class WorkflowActor {
     if (!this.asker) {
       return this.executeOfflineFallback(activeMode, 'No LLM provider is configured.');
     }
+
+    const discovery: DiscoveredTools = this.toolDiscovery
+      ? await this.toolDiscovery.discover(rawText, 8)
+      : {query: {}, tools: []};
+    activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
+    this.mode = activeMode;
+    const config = MODE_CONFIGS[activeMode];
 
     const cfg = loadConfig(this.projectRoot);
     const policy = cfg.escalation?.policy || 'auto';
@@ -291,9 +277,9 @@ export class WorkflowActor {
         system: config.systemPrompt
       });
 
-      // Natural-language intent is interpreted against a bounded capability surface for the
-      // active operational mode. Explicit shell commands remain deterministic fast paths.
-      for (const t of toolsForMode(activeMode)) {
+      // The Actor receives only capabilities selected for this request by semantic discovery.
+      // Discovery failure means a small/empty surface, never the global registry.
+      for (const t of discovery.tools) {
         actor.registerTool({
           name: t.name,
           description: t.description,
