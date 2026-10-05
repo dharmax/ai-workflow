@@ -50,7 +50,7 @@ describe('Interactive Shell REPL Bridge', () => {
   it('should preserve the selected shell mode for natural-language instructions', async () => {
     await processShellInput('/design', session);
     const res = await processShellInput('review the README against the implementation', session);
-    expect(res.output).toStartWith('[DESIGN]');
+    expect(res.output.startsWith('[DESIGN]')).toBe(true);
     expect(res.output).toContain('LLM unavailable');
   });
 
