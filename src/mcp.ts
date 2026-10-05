@@ -17,6 +17,7 @@ import {
 import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
+import { getPublicMcpTools } from './tools/surface.ts';
 import { WorkflowActor, type ShellMode } from './actor/engine.ts';
 import { ARTIFACT_HELP } from './artifact-command.ts';
 
@@ -78,7 +79,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
     });
 
     // Domain facilities from registry
-    for (const t of registry.getAll()) {
+    for (const t of getPublicMcpTools(registry)) {
       let schema: any = { type: 'object' };
       try {
         const conv = zodToJsonSchema(t.parameters as any);
@@ -209,7 +210,7 @@ export function exportMcpSchemas(targetDir: string): string[] {
   exportedFiles.push('execute_shell_wish.json');
 
   // 2. All domain tools
-  for (const t of registry.getAll()) {
+  for (const t of getPublicMcpTools(registry)) {
     let parameters: any = { type: 'object' };
     try {
       const conv = zodToJsonSchema(t.parameters as any);
