@@ -85,6 +85,42 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(capturedOptions.system).toContain('resolve_test_target');
   });
 
+  it('should preserve conversational context across shell actor turns', async () => {
+    const prompts: string[] = [];
+    let call = 0;
+    const mockAsker = {
+      json: async (prompt: string) => {
+        prompts.push(prompt);
+        call++;
+        return {
+          ok: true,
+          data: {
+            thought: 'Answer from available context.',
+            action: 'final_answer',
+            finalAnswer: call === 1
+              ? 'I inspected the recent README-related changes.'
+              : 'Those changes affected README behavior.'
+          }
+        };
+      }
+    } as any;
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker
+    });
+
+    await actor.execute('ensure the readme is aligned with latest changes');
+    const second = await actor.execute('what were those changes?');
+
+    expect(second.answer).toContain('Those changes');
+    expect(prompts[1]).toContain('Session History');
+    expect(prompts[1]).toContain('ensure the readme is aligned with latest changes');
+    expect(prompts[1]).toContain('I inspected the recent README-related changes.');
+    expect(prompts[1]).toContain('what were those changes?');
+  });
+
   it('should execute a cognitive loop with a mock Asker and emit pubsub events', async () => {
     let callCount = 0;
     const mockAsker = {
