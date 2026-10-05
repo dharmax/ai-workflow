@@ -95,6 +95,41 @@ export function registerTicketTools() {
   });
 
   registry.register({
+    name: 'update_ticket',
+    description: 'Update editable Ticket content and optional Kanban lane through canonical Product mutation.',
+    category: 'ticket',
+    parameters: z.object({
+      ticketId: z.string().describe('Ticket identifier'),
+      title: z.string().min(1).optional(),
+      body: z.string().optional(),
+      acceptanceCriteria: z.array(z.string()).optional(),
+      priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional(),
+      lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional()
+    }),
+    execute: async ({ ticketId, lane, ...changes }, ctx: ToolContext) => {
+      const ticket = await requireTicket(ctx, ticketId) as any;
+      const fields = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+      if (lane) Object.assign(fields, ticketState(lane));
+      await applyProductMutations(ctx.store, [{
+        kind: 'product_update',
+        entityType: 'Ticket',
+        id: ticketId,
+        fields
+      }]);
+      const updated = await requireTicket(ctx, ticketId) as any;
+      return {
+        ticketId,
+        title: updated.title,
+        lane: updated.lane,
+        status: updated.status,
+        priority: updated.priority,
+        body: updated.body,
+        acceptanceCriteria: updated.acceptanceCriteria ?? []
+      };
+    }
+  });
+
+  registry.register({
     name: 'update_ticket_state',
     description: 'Update the lane and lifecycle status of a ticket.',
     category: 'ticket',
