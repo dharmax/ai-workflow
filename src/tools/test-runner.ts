@@ -11,51 +11,11 @@ import {registry, type ToolContext} from './registry.ts'
 import {Ticket, TestNode} from '../graph/ontology.ts'
 import {ensureAstFresh} from '../graph/indexer.ts'
 import {
-  failureGraphEvidence,
   findTestsVerifying,
-  isTestFilePath,
   normalizeTestPath,
-  recordTestOutcome,
+  recordTestExecution,
+  testPathsFromCommand,
 } from '../graph/test-artifacts.ts'
-
-function canonicalTestPath(root: string, value: string): string | undefined {
-  const cleaned = value
-    .replace(/^[("'\[]+/, '')
-    .replace(/[):,"'\]]+$/, '')
-    .trim()
-  if (!cleaned || !isTestFilePath(cleaned)) return undefined
-  return normalizeTestPath(path.isAbsolute(cleaned) ? path.relative(root, cleaned) : cleaned)
-}
-
-function commandTestPaths(command: string, root: string): string[] {
-  const result = new Set<string>()
-  for (const token of command.split(/\s+/)) {
-    const p = canonicalTestPath(root, token)
-    if (p) result.add(p)
-  }
-  return [...result]
-}
-
-function outputTestPaths(output: string, root: string): string[] {
-  const result = new Set<string>()
-  const candidates = output.match(/[A-Za-z0-9_@.+~\/-]+(?:\.test|\.spec)\.[cm]?[jt]sx?|(?:tests?|__tests__)\/[A-Za-z0-9_@.+~\/-]+\.[cm]?[jt]sx?/g) ?? []
-  for (const candidate of candidates) {
-    const p = canonicalTestPath(root, candidate)
-    if (p) result.add(p)
-  }
-  return [...result]
-}
-
-async function allIndexedTestPaths(ctx: ToolContext): Promise<string[]> {
-  const tests = await ctx.store.listEntities<TestNode>(TestNode.dcr)
-  return tests
-    .map(test => normalizeTestPath((test as any).filePath || (test as any).targetPath || ''))
-    .filter(Boolean)
-}
-
-function isFullBunSuite(command: string): boolean {
-  return command.trim() === 'bun test'
-}
 
 export function registerTestTools() {
   registry.register({
@@ -74,7 +34,7 @@ export function registerTestTools() {
       if (source) {
         const graphTests = await findTestsVerifying(ctx.store, source.id)
         const testFiles = graphTests
-          .map(test => normalizeTestPath((test as any).filePath || (test as any).targetPath || ''))
+          .map(test => normalizeTestPath(test.filePath || test.targetPath || ''))
           .filter(Boolean)
         if (testFiles.length > 0) {
           return {
@@ -133,11 +93,10 @@ export function registerTestTools() {
     execute: async ({testCommand}, ctx: ToolContext) => {
       const started = Date.now()
       await ensureAstFresh(ctx.store, ctx.projectRoot)
-      const targetedPaths = commandTestPaths(testCommand, ctx.projectRoot)
+      const targetedPaths = testPathsFromCommand(testCommand, ctx.projectRoot)
 
       try {
-        const parts = testCommand.split(/\s+/)
-        const proc = Bun.spawn(parts, {
+        const proc = Bun.spawn(testCommand.split(/\s+/), {
           cwd: ctx.projectRoot,
           stdout: 'pipe',
           stderr: 'pipe'
@@ -148,19 +107,19 @@ export function registerTestTools() {
         const exitCode = await proc.exited
         const durationMs = Date.now() - started
         const combined = stdout + '\n' + stderr
+        const graphRun = await recordTestExecution(
+          ctx.store,
+          ctx.projectRoot,
+          testCommand,
+          {passed: exitCode === 0, output: combined, exitCode, durationMs},
+        )
 
         if (exitCode === 0) {
-          const passedPaths = targetedPaths.length > 0
-            ? targetedPaths
-            : isFullBunSuite(testCommand)
-              ? await allIndexedTestPaths(ctx)
-              : []
-          await recordTestOutcome(ctx.store, passedPaths, {passed: true, exitCode, durationMs})
           return {
             passed: true,
             failingCount: 0,
             failures: [],
-            testArtifactsUpdated: passedPaths.length,
+            testArtifactsUpdated: graphRun.testFiles.length,
             summary: 'All tests passed cleanly'
           }
         }
@@ -177,41 +136,30 @@ export function registerTestTools() {
           }
         }
 
-        const failedPaths = outputTestPaths(combined, ctx.projectRoot)
-        const artifactPaths = failedPaths.length > 0 ? failedPaths : targetedPaths
-        const failureSnippet = combined.slice(0, 3000)
-        await recordTestOutcome(ctx.store, artifactPaths, {
-          passed: false,
-          failure: failureSnippet,
-          exitCode,
-          durationMs
-        })
-        const graphEvidence = await failureGraphEvidence(ctx.store, artifactPaths)
-
         return {
           passed: false,
           failingCount: failureLines.length || 1,
           failures: failureLines.slice(0, 5),
-          failedTestFiles: artifactPaths,
-          graphEvidence,
-          likelyCauses: graphEvidence.likelyCauses,
+          failedTestFiles: graphRun.testFiles.length > 0 ? graphRun.testFiles : targetedPaths,
+          graphEvidence: graphRun.graphEvidence,
+          likelyCauses: graphRun.graphEvidence.likelyCauses,
           rawSnippet: combined.slice(0, 1500)
         }
       } catch (err: any) {
         const durationMs = Date.now() - started
-        await recordTestOutcome(ctx.store, targetedPaths, {
-          passed: false,
-          failure: err.message,
-          durationMs
-        })
-        const graphEvidence = await failureGraphEvidence(ctx.store, targetedPaths)
+        const graphRun = await recordTestExecution(
+          ctx.store,
+          ctx.projectRoot,
+          testCommand,
+          {passed: false, output: err.message, durationMs},
+        )
         return {
           passed: false,
           failingCount: 1,
           failures: [{testName: 'Runner error', error: err.message}],
-          failedTestFiles: targetedPaths,
-          graphEvidence,
-          likelyCauses: graphEvidence.likelyCauses
+          failedTestFiles: graphRun.testFiles.length > 0 ? graphRun.testFiles : targetedPaths,
+          graphEvidence: graphRun.graphEvidence,
+          likelyCauses: graphRun.graphEvidence.likelyCauses
         }
       }
     }
@@ -230,9 +178,6 @@ export function registerTestTools() {
       const cmd = ['bunx', 'playwright', 'test']
       if (specPath) cmd.push(specPath)
       const started = Date.now()
-      const targetedPaths = specPath
-        ? [canonicalTestPath(ctx.projectRoot, specPath)].filter((value): value is string => Boolean(value))
-        : []
 
       try {
         const proc = Bun.spawn(cmd, {
@@ -246,33 +191,22 @@ export function registerTestTools() {
         const exitCode = await proc.exited
         const durationMs = Date.now() - started
         const combined = stdout + '\n' + stderr
+        const graphRun = await recordTestExecution(
+          ctx.store,
+          ctx.projectRoot,
+          cmd,
+          {passed: exitCode === 0, output: combined, exitCode, durationMs},
+        )
 
         if (exitCode === 0) {
-          const passedPaths = targetedPaths.length > 0
-            ? targetedPaths
-            : (await ctx.store.listEntities<TestNode>(TestNode.dcr))
-              .filter(test => (test as any).framework === 'playwright')
-              .map(test => normalizeTestPath((test as any).filePath || ''))
-              .filter(Boolean)
-          await recordTestOutcome(ctx.store, passedPaths, {passed: true, exitCode, durationMs})
           return {
             passed: true,
-            testArtifactsUpdated: passedPaths.length,
+            testArtifactsUpdated: graphRun.testFiles.length,
             summary: 'Playwright test run succeeded cleanly.'
           }
         }
 
         const failureOutput = combined.slice(0, 3000)
-        const outputPaths = outputTestPaths(combined, ctx.projectRoot)
-        const artifactPaths = outputPaths.length > 0 ? outputPaths : targetedPaths
-        await recordTestOutcome(ctx.store, artifactPaths, {
-          passed: false,
-          failure: failureOutput,
-          exitCode,
-          durationMs
-        })
-        const graphEvidence = await failureGraphEvidence(ctx.store, artifactPaths)
-
         let createdTicketId: string | null = null
         if (createBugOnFailure) {
           const ticket = await ctx.store.upsertEntity<Ticket>(Ticket.dcr, {
@@ -289,25 +223,25 @@ export function registerTestTools() {
         return {
           passed: false,
           exitCode,
-          failedTestFiles: artifactPaths,
-          graphEvidence,
-          likelyCauses: graphEvidence.likelyCauses,
+          failedTestFiles: graphRun.testFiles,
+          graphEvidence: graphRun.graphEvidence,
+          likelyCauses: graphRun.graphEvidence.likelyCauses,
           failureSnippet: failureOutput,
           createdTicketId
         }
       } catch (err: any) {
         const durationMs = Date.now() - started
-        await recordTestOutcome(ctx.store, targetedPaths, {
-          passed: false,
-          failure: err.message,
-          durationMs
-        })
-        const graphEvidence = await failureGraphEvidence(ctx.store, targetedPaths)
+        const graphRun = await recordTestExecution(
+          ctx.store,
+          ctx.projectRoot,
+          cmd,
+          {passed: false, output: err.message, durationMs},
+        )
         return {
           passed: false,
-          failedTestFiles: targetedPaths,
-          graphEvidence,
-          likelyCauses: graphEvidence.likelyCauses,
+          failedTestFiles: graphRun.testFiles,
+          graphEvidence: graphRun.graphEvidence,
+          likelyCauses: graphRun.graphEvidence.likelyCauses,
           error: err.message
         }
       }
