@@ -136,6 +136,61 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(systems[0]).not.toContain('resolve_ticket')
   });
 
+  it('should recover one missing capability through semantic discovery without exposing the registry', async () => {
+    let call = 0
+    const systems: string[] = []
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        systems.push(options.system ?? '')
+        call++
+        if (call === 1) {
+          return {
+            ok: true,
+            data: {
+              thought: 'Need the next-task capability.',
+              action: 'tool_call',
+              toolCalls: [{callId: '1', name: 'recommend_next_task', parameters: {}}],
+            },
+          }
+        }
+        return {
+          ok: true,
+          data: {
+            thought: 'Use the observation.',
+            action: 'final_answer',
+            finalAnswer: 'No pending task.',
+          },
+        }
+      },
+    } as any
+
+    const discovery = {
+      discover: async () => ({
+        query: {domain: ['ticket']},
+        mode: 'product' as const,
+        tools: [registry.get('list_tickets')!],
+      }),
+      recover: async (_goal: string, name: string) =>
+        name === 'recommend_next_task' ? registry.get('recommend_next_task') : undefined,
+    }
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+      toolDiscovery: discovery,
+    })
+
+    const res = await actor.execute('what should I work on?')
+
+    expect(res.answer).toBe('No pending task.')
+    expect(res.events[0]?.toolCall?.name).toBe('recommend_next_task')
+    expect(systems[0]).toContain('list_tickets')
+    expect(systems[0]).not.toContain('recommend_next_task')
+    expect(systems[0]).not.toContain('run_command')
+    expect(systems[1]).toContain('recommend_next_task')
+  });
+
   it('should preserve conversational context across shell actor turns', async () => {
     const prompts: string[] = [];
     let call = 0;
