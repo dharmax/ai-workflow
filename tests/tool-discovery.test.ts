@@ -32,6 +32,26 @@ describe('semantic tool discovery and surfaces', () => {
     expect(result.tools.length).toBeLessThan(registry.getAll().length)
   })
 
+  it('does not broaden a failed multi-key lookup into a category bucket', async () => {
+    initializeTools()
+    const asker = {
+      json: async () => ({
+        ok: true,
+        data: {
+          mode: ['dev'],
+          domain: ['planning'],
+          object: ['nonexistent-object'],
+          effect: ['read'],
+        },
+      }),
+    } as any
+
+    const discovery = new ToolDiscovery(registry, asker)
+    const result = await discovery.discover('inspect something unknown')
+
+    expect(result.tools).toEqual([])
+  })
+
   it('never turns an unclassifiable request into the full registry', async () => {
     initializeTools()
     const asker = {
