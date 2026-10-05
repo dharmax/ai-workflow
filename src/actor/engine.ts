@@ -105,7 +105,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
-  toolDiscovery?: Pick<ToolDiscovery, 'discover' | 'recover'>;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
 }
 
 export class WorkflowActor {
@@ -121,7 +121,7 @@ export class WorkflowActor {
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
-  private toolDiscovery?: Pick<ToolDiscovery, 'discover' | 'recover'>;
+  private toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -156,7 +156,28 @@ export class WorkflowActor {
     }
     if (this.asker) {
       this.session = new LLMSession(this.asker, { maxHistoryTurns: 20 });
-      this.toolDiscovery = options.toolDiscovery ?? new ToolDiscovery(registry, this.asker);
+      if (options.toolDiscovery) {
+        this.toolDiscovery = options.toolDiscovery;
+      } else if (options.asker) {
+        // Injected askers (tests/custom hosts) remain the single authority.
+        this.toolDiscovery = new ToolDiscovery(registry, this.asker);
+      } else {
+        // Semantic discovery is intentionally local-first and must not inherit
+        // project task routes that can force a cheap classifier onto cloud models.
+        let discoveryAsker = this.asker;
+        try {
+          discoveryAsker = new Asker({
+            providers: { ollama: providers.ollama },
+            defaultModel: cfg.model,
+            preferLocal: true
+          });
+        } catch {}
+        this.toolDiscovery = new ToolDiscovery(
+          registry,
+          discoveryAsker,
+          discoveryAsker === this.asker ? undefined : this.asker
+        );
+      }
     }
   }
 
