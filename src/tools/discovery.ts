@@ -1,9 +1,8 @@
 import {
   MemoryRegistryStore,
-  Registry,
-  type IRegistryItem,
   type RegistryClassifier,
   type RegistryQuery,
+  type RegistryStore,
 } from '@dharmax/semantic-registry'
 import {z, type Asker} from '@dharmax/llm-utils'
 import type {ToolDefinition, ToolRegistry} from './registry.ts'
@@ -51,10 +50,6 @@ export interface DiscoveredTools {
   query: RegistryQuery
   mode?: 'design' | 'dev' | 'triage' | 'product'
   tools: ToolDefinition[]
-}
-
-interface ToolItem extends IRegistryItem {
-  readonly tool: ToolDefinition
 }
 
 type Vocabulary = Readonly<Record<string, readonly string[]>>
@@ -110,22 +105,13 @@ Return semantic intent only. Do not answer the request.`
 }
 
 export class AiWorkflowRegistryClassifier implements RegistryClassifier {
-  private readonly known = new Map<string, RegistryQuery>()
-
   constructor(
     private readonly asker: Asker,
     private readonly vocabulary: () => Vocabulary,
     private readonly fallbackAsker?: Asker,
   ) {}
 
-  remember(text: string, query: RegistryQuery): void {
-    this.known.set(text, query)
-  }
-
   async classify(text: string): Promise<RegistryQuery> {
-    const known = this.known.get(text)
-    if (known) return known
-
     const vocabulary = this.vocabulary()
     const system = classifierSystem(vocabulary)
     let result = await this.asker.json(text, QUERY_SCHEMA, {
@@ -150,8 +136,8 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
 
 export class ToolDiscovery {
   private readonly classifier: AiWorkflowRegistryClassifier
-  private readonly semantic: Registry
-  private syncedCount = 0
+  private readonly index: RegistryStore = new MemoryRegistryStore()
+  private readonly indexed = new Set<string>()
 
   constructor(
     private readonly tools: ToolRegistry,
@@ -163,7 +149,6 @@ export class ToolDiscovery {
       () => vocabularyFor(this.tools.getAll()),
       fallbackAsker,
     )
-    this.semantic = new Registry(new MemoryRegistryStore(), this.classifier)
   }
 
   async discover(text: string, limit = 5): Promise<DiscoveredTools> {
@@ -174,12 +159,12 @@ export class ToolDiscovery {
     const searchable = withoutMode(query)
     if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
 
-    const matches = await this.semantic.find(searchable, {limit})
-    return {
-      query,
-      mode,
-      tools: matches.map(item => (item as ToolItem).tool),
-    }
+    const ids = await this.index.search(searchable, limit)
+    const matches = ids
+      .map(id => this.tools.get(id))
+      .filter((tool): tool is ToolDefinition => tool !== undefined)
+
+    return {query, mode, tools: matches}
   }
 
   async recover(
@@ -200,23 +185,11 @@ export class ToolDiscovery {
   }
 
   private async sync(): Promise<void> {
-    const all = this.tools.getAll()
-    if (all.length === this.syncedCount && all.every(tool => this.semantic.get(tool.name))) return
-
-    for (const tool of all) {
-      if (this.semantic.get(tool.name)) continue
-
-      const functionalDescription = `${tool.name}: ${tool.description}`
-      this.classifier.remember(functionalDescription, semanticsForTool(tool))
-      const item: ToolItem = {
-        id: tool.name,
-        tool,
-        functionalDescription,
-      }
-      await this.semantic.register(item)
+    for (const tool of this.tools.getAll()) {
+      if (this.indexed.has(tool.name)) continue
+      await this.index.put(tool.name, semanticsForTool(tool))
+      this.indexed.add(tool.name)
     }
-
-    this.syncedCount = all.length
   }
 }
 
