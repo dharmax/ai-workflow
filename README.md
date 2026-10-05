@@ -204,13 +204,13 @@ aiwf [DEV] > help
   - `/triage` - Switches to failure diagnosis and log distillation.
   - `/product` - Switches to Epics, User Stories, and sprint backlog grooming.
 - **Structured Views**: `ticket`, `epic`, `feature`, `story`, and `aspect` open generic shell-ui Views on an interactive TTY; `edit <id>` enters edit mode. Saves return through AIWF's canonical mutation tools and then sync projections.
-- **Cognitive Fallback**: Any natural language sentence is evaluated by the bounded cognitive actor with live grounded observations.
+- **Semantic Cognitive Fallback**: Natural-language input is classified once into structured intent; `@dharmax/semantic-registry` selects a small relevant tool set before the bounded Actor runs. Discovery failure never expands to the full registry.
 
 ---
 
 ## Model Context Protocol (MCP) Integration
 
-AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (MCP) server.
+AI-Workflow exposes an explicit stable public workflow/drill-down surface via stdio MCP. Internal CRUD, scripting, compiler, and other implementation primitives remain in AIWF's internal registry and can be selected semantically for AIWF's own Actor without being advertised to every MCP host.
 
 ### Host Configuration
 
@@ -240,15 +240,14 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 ```
 
 ### Exposed MCP Tools
-- **Artifact operations — preferred:** `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, `process_story`.
-- **Ticket editing primitive:** `update_ticket` updates editable Ticket content/lane through canonical Product mutation; the shell View uses this rather than writing graph state directly.
-- **Artifact policy:** completeness target/query operations and consistent completeness/depth/maxArtifacts/critic controls.
-- **`execute_shell_wish`**: Free-form cognitive fallback for work that is not already represented by an artifact operation.
-- **Product Intent Graph**: `create_epic`, `get_epic`, `list_epics`, `update_epic`, `create_feature`, `get_feature`, `list_features`, `update_feature`, `create_user_story`, `get_user_story`, `list_user_stories`, `update_user_story`, `link_product`, `unlink_product`, `get_product_coverage`, `get_product_impact`. Canonical relations: Epic `targets` Feature/Story, Feature `contains` Story, Epic `contains` Ticket, Ticket `implements` Feature, Ticket `addresses` Story, Test `verifies` Feature/Story, Decision `governs` Epic/Feature/Story.
-- **AST Graph**: `find_symbol`, `get_symbol_source`, `get_file_outline`, `analyze_blast_radius`, `estimate_token_budget`.
-- **Compiler**: `compile_codelet`, `run_codelet`, `promote_codelet`, `apply_block_patch`.
-- **Git & OS**: `get_git_status`, `get_git_diff`, `get_git_hotspots`, `generate_pr_summary`, `run_command`, `get_environment_info`.
-- **Planning & Test**: `propose_decision`, `read_scratchpad`, `append_scratchpad_note`, `resolve_test_target`, `triage_test_failures`, `run_playwright`, `script_eval`.
+- **Artifact workflow — preferred:** `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, `process_story`.
+- **Ticket flow:** create/list/recommend/claim/release/state operations needed to coordinate work.
+- **Product/Aspect read surfaces:** list/read coverage, impact, applicable aspects and aspect assessment.
+- **Artifact policy:** completeness target query/set.
+- **Grounded drill-down:** selected graph/source/reference/blast, safe change, test, git and knowledge tools.
+- **`execute_shell_wish`:** free-form cognitive entrypoint; AIWF performs semantic tool discovery internally before its Actor runs.
+
+The internal ToolRegistry is intentionally larger than the MCP surface. Adding an internal tool does not make it public automatically; public MCP names are declared in `src/tools/surface.ts`. Setup also removes stale exported schema files when this surface shrinks.
 
 ---
 
