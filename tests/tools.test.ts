@@ -306,6 +306,11 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(resolved.source).toBe('graph');
     expect(resolved.testFile).toBe('tests/math.test.ts');
 
+    const blast = await registry.execute('analyze_blast_radius', {
+      target: 'src/math.ts'
+    }, ctx);
+    expect(blast.recommendedTests).toContain('tests/math.test.ts');
+
     const triage = await registry.execute('triage_test_failures', {
       testCommand: 'bun test tests/math.test.ts'
     }, ctx);
