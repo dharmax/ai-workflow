@@ -142,6 +142,34 @@ describe('semantic tool discovery and surfaces', () => {
     expect(recovered?.name).toBe('recommend_next_task')
   })
 
+  it('resolves canonical multi-key intents to narrow functions across domains', async () => {
+    initializeTools()
+    const cases = [
+      {
+        query: 'who calls parseConfig?',
+        data: {mode: ['dev'], domain: ['graph'], object: ['caller'], action: ['inspect'], effect: ['read']},
+        expected: 'get_exact_callers',
+      },
+      {
+        query: 'show the source of parseConfig',
+        data: {mode: ['dev'], domain: ['graph'], object: ['source'], action: ['get'], effect: ['read']},
+        expected: 'get_symbol_source',
+      },
+      {
+        query: 'fix the failing auth test',
+        data: {mode: ['triage'], domain: ['test'], object: ['test'], action: ['debug'], effect: ['execution']},
+        expected: 'triage_test_failures',
+      },
+    ]
+
+    for (const item of cases) {
+      const asker = {json: async () => ({ok: true, data: item.data})} as any
+      const discovery = new ToolDiscovery(registry, asker)
+      const result = await discovery.discover(item.query)
+      expect(result.tools.map(tool => tool.name)).toEqual([item.expected])
+    }
+  })
+
   it('does not broaden a failed multi-key lookup into a category bucket', async () => {
     initializeTools()
     const asker = {
