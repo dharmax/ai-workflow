@@ -78,6 +78,25 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(session.modeOverride).toBeUndefined();
   });
 
+  it('should not force the current mode for ordinary input in auto mode', async () => {
+    let forcedMode: any = 'unset'
+    const autoSession: ShellSession = {
+      store,
+      projectRoot: tempDir,
+      actor: {
+        mode: 'dev',
+        execute: async (_line: string, mode?: any) => {
+          forcedMode = mode
+          return {mode: 'product', stepsCount: 0, answer: 'selected', events: []}
+        },
+      } as any,
+    }
+
+    const res = await processShellInput('list current project tickets', autoSession)
+    expect(forcedMode).toBeUndefined()
+    expect(res.output.startsWith('[PRODUCT]')).toBe(true)
+  })
+
   it('should preserve the selected shell mode for natural-language instructions', async () => {
     await processShellInput('/design', session);
     const res = await processShellInput('review the README against the implementation', session);
