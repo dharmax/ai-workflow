@@ -9,6 +9,7 @@ import {
   ModuleNode,
   FileNode,
   SymbolNode,
+  TestNode,
   Lesson
 } from '../src/graph/ontology.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
@@ -228,6 +229,44 @@ export function add(a: number, b: number): number {
 
       const notes = await diskStore.listEntities<Lesson>(Lesson.dcr);
       expect(notes.some(n => (n as any).noteType === 'TODO')).toBe(true);
+    } finally {
+      diskStore.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should index test files as durable graph verification artifacts', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-graph-'));
+    const diskStore = new WorkflowStore(tmpDir);
+
+    try {
+      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDir, 'tests'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, 'src', 'math.ts'),
+        `export function add(a: number, b: number) { return a + b }\n`,
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, 'tests', 'math.test.ts'),
+        `import {test, expect} from 'bun:test'
+import {add} from '../src/math'
+test('adds', () => expect(add(1, 2)).toBe(3))
+`,
+      );
+
+      const result = await indexCodebase(diskStore, tmpDir);
+      expect(result.testsCount).toBe(1);
+
+      const tests = await diskStore.listEntities<TestNode>(TestNode.dcr);
+      expect(tests.length).toBe(1);
+      expect((tests[0] as any).filePath).toBe('tests/math.test.ts');
+      expect((tests[0] as any).framework).toBe('bun');
+
+      const source = await diskStore.getEntity<FileNode>('src/math.ts', FileNode.dcr);
+      expect(source).not.toBeNull();
+      const verification = await diskStore.getIncoming(source!.id, 'verifies');
+      expect(verification.length).toBe(1);
+      expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
     } finally {
       diskStore.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
