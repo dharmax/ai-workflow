@@ -10,7 +10,7 @@ import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
-import { registry, type ToolContext } from '../tools/registry.ts';
+import { registry, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
 import { modelRuntime } from '../model-runtime.ts';
@@ -73,6 +73,18 @@ DO NOT automatically generate tickets or implementation tasks during product roa
   }
 };
 
+const MODE_TOOL_CATEGORIES: Record<ShellMode, ToolDefinition['category'][]> = {
+  design: ['graph', 'planning', 'kb', 'git'],
+  dev: ['graph', 'compiler', 'git', 'test', 'change', 'script', 'os'],
+  triage: ['test', 'graph', 'git', 'os'],
+  product: ['ticket', 'planning', 'graph', 'kb'],
+};
+
+function toolsForMode(mode: ShellMode): ToolDefinition[] {
+  const categories = new Set(MODE_TOOL_CATEGORIES[mode]);
+  return registry.getAll().filter(tool => categories.has(tool.category));
+}
+
 /**
  * Classifies prompt into one of the four operational modes in <1ms (0 tokens).
  */
@@ -92,7 +104,7 @@ export function classifyIntentMode(text: string): ShellMode {
   if (/\b(test|fail|failing|triage|broken|playwright|regression|bug|error|crash|stack trace)\b/.test(trimmed)) {
     return 'triage';
   }
-  if (/\b(epic|story|user story|feature|roadmap|acceptance criteria|product|backlog|priority)\b/.test(trimmed)) {
+  if (/\b(ticket|tickets|kanban|epic|story|user story|feature|roadmap|acceptance criteria|product|backlog|priority)\b/.test(trimmed)) {
     return 'product';
   }
 
@@ -256,7 +268,7 @@ export class WorkflowActor {
 
     // Explicit model choices remain authoritative. Otherwise llm-utils selects
     // from persisted advice using the semantic task class and locality preference.
-    const explicitModel = execOptions?.forceModel ?? cfg.modelRoutes?.[activeMode];
+    const explicitModel = execOptions?.forceModel ?? (shouldEscalate ? cfg.modelRoutes?.[activeMode] : undefined);
     const preferLocalForRun = policy === 'local_only'
       ? true
       : shouldEscalate
@@ -279,9 +291,9 @@ export class WorkflowActor {
         system: config.systemPrompt
       });
 
-      // Natural-language intent is interpreted by the LLM against the real capability surface.
-      // Explicit shell commands are handled deterministically before reaching this path.
-      for (const t of registry.getAll()) {
+      // Natural-language intent is interpreted against a bounded capability surface for the
+      // active operational mode. Explicit shell commands remain deterministic fast paths.
+      for (const t of toolsForMode(activeMode)) {
         actor.registerTool({
           name: t.name,
           description: t.description,
