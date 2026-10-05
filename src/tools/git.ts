@@ -60,6 +60,32 @@ export function registerGitTools() {
   });
 
   registry.register({
+    name: 'get_recent_git_changes',
+    description: 'Inspect recent committed repository history with commit metadata and changed file names.',
+    category: 'git',
+    parameters: z.object({
+      limit: z.number().int().min(1).max(20).default(5).describe('Number of recent commits to inspect')
+    }),
+    execute: async ({ limit }, ctx: ToolContext) => {
+      const proc = Bun.spawn([
+        'git', 'log', `-${limit}`,
+        '--date=iso-strict',
+        '--pretty=format:---COMMIT---%n%H%n%ad%n%s',
+        '--name-status'
+      ], {
+        cwd: ctx.projectRoot,
+        stdout: 'pipe',
+        stderr: 'pipe'
+      });
+      const stdout = await new Response(proc.stdout).text();
+      const stderr = await new Response(proc.stderr).text();
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(stderr.trim() || 'git log failed');
+      return { limit, history: stdout.trim() || 'No commits found.' };
+    }
+  });
+
+  registry.register({
     name: 'get_git_diff',
     description: 'Inspect uncommitted git diff in the working tree or for a specific file.',
     category: 'git',
