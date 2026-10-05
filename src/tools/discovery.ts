@@ -17,7 +17,7 @@ Return only these dimensions when useful:
 - mode: exactly one of design, dev, triage, product
 - domain: one or more of ticket, planning, graph, compiler, git, test, change, kb, os, script
 - object: short singular nouns such as ticket, epic, feature, story, aspect, symbol, file, test, repository, knowledge, command
-- action: canonical verbs such as list, get, search, find, inspect, analyze, recommend, create, update, resolve, prepare, investigate, run, apply, compile, debug
+- action: canonical verbs such as list, get, search, find, inspect, analyze, recommend, create, update, resolve, prepare, process, reconcile, investigate, run, apply, compile, debug
 - effect: read, mutation, execution
 
 Use short lowercase canonical values. Omit uncertain dimensions.
@@ -39,6 +39,7 @@ const ACTION_ALIASES: Record<string, string[]> = {
   recommend: ['recommend', 'select', 'read'],
   investigate: ['investigate', 'inspect', 'read'],
   prepare: ['prepare'],
+  process: ['process', 'resolve', 'reconcile'],
   resolve: ['resolve', 'execute'],
   create: ['create'],
   update: ['update', 'edit'],
