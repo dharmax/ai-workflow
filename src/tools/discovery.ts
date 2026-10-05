@@ -121,18 +121,12 @@ export class ToolDiscovery {
     const searchable = withoutMode(query)
     if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
 
-    for (const candidate of relaxationSequence(searchable)) {
-      const matches = await this.semantic.find(candidate, {limit})
-      if (matches.length > 0) {
-        return {
-          query,
-          mode,
-          tools: matches.map(item => (item as ToolItem).tool),
-        }
-      }
+    const matches = await this.semantic.find(searchable, {limit})
+    return {
+      query,
+      mode,
+      tools: matches.map(item => (item as ToolItem).tool),
     }
-
-    return {query, mode, tools: []}
   }
 
   private async sync(): Promise<void> {
@@ -194,24 +188,6 @@ function readMode(query: RegistryQuery): DiscoveredTools['mode'] {
 function withoutMode(query: RegistryQuery): RegistryQuery {
   return Object.fromEntries(
     Object.entries(query).filter(([key, values]) => key !== 'mode' && values.length > 0),
-  )
-}
-
-function relaxationSequence(query: RegistryQuery): RegistryQuery[] {
-  const candidates: RegistryQuery[] = [query]
-  if (query.object) {
-    const {object: _object, ...withoutObject} = query
-    candidates.push(withoutObject)
-  }
-  if (query.action && query.domain) {
-    candidates.push({
-      domain: query.domain,
-      ...(query.effect ? {effect: query.effect} : {}),
-    })
-  }
-  return candidates.filter((candidate, index, all) =>
-    Object.keys(candidate).length > 0 &&
-    all.findIndex(other => JSON.stringify(other) === JSON.stringify(candidate)) === index
   )
 }
 
