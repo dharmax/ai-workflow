@@ -10,6 +10,7 @@
         "@dharmax/context-manager": "file:../context-manager",
         "@dharmax/llm-utils": "file:../llm-utils",
         "@dharmax/pubsub": "file:../pubsub",
+        "@dharmax/semantic-registry": "file:../semantic-registry",
         "@dharmax/semantika": "file:../semantika",
         "@dharmax/shell-ui": "file:../shell-ui",
         "@dharmax/text-compiler": "file:../text-compiler",
@@ -32,6 +33,7 @@
     "@dharmax/context-manager": "file:../context-manager",
     "@dharmax/llm-utils": "file:../llm-utils",
     "@dharmax/pubsub": "file:../pubsub",
+    "@dharmax/semantic-registry": "file:../semantic-registry",
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/text-compiler": "file:../text-compiler",
@@ -48,6 +50,8 @@
     "@dharmax/llm-utils": ["@dharmax/llm-utils@file:../llm-utils", { "dependencies": { "@dharmax/pubsub": "file:../pubsub", "jsonrepair": "^3.14.1", "zod": "^4.4.3" }, "devDependencies": { "@dharmax/shell-proc-utils": "file:../shell-proc-utils", "@types/bun": "^1.4.2", "esbuild": "^0.28.0", "typescript": "^6.0.3" }, "peerDependencies": { "@dharmax/shell-proc-utils": ">=0.1.0", "@receptron/laya": "^0.1.2" }, "optionalPeers": ["@dharmax/shell-proc-utils", "@receptron/laya"], "bin": { "llm": "./bin/cli.ts" } }],
 
     "@dharmax/pubsub": ["@dharmax/pubsub@file:../pubsub", { "devDependencies": { "ts-node": "^10.9.2", "typedoc": "^0.28.17", "typescript": "^5.9.3" } }],
+
+    "@dharmax/semantic-registry": ["@dharmax/semantic-registry@file:../semantic-registry"],
 
     "@dharmax/semantika": ["@dharmax/semantika@file:../semantika", { "dependencies": { "short-uuid": "^5.2.0" }, "devDependencies": { "@types/chai": "^5.0.1", "@types/mocha": "^10.0.10", "@types/node": "^22.13.1", "@types/pg": "^8.16.0", "chai": "^5.1.1", "joi": "^17.13.3", "mocha": "^11.1.0", "mongodb": "^6.13.0", "pg": "^8.18.0", "ts-node": "^10.9.2", "typescript": "^5.7.3" }, "peerDependencies": { "joi": "^17.0.0", "mongodb": "^6.0.0", "pg": "^8.0.0" }, "optionalPeers": ["joi", "mongodb", "pg"] }],
 
