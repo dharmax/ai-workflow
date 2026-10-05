@@ -31,8 +31,9 @@ Completeness overrides are temporary. Remember a target explicitly with `complet
 1. **Artifact operations are the normal interface.** `Ticket.investigate()`, `Ticket.prepare()`, `Ticket.resolve()`, and `Epic/Feature/UserStory.process()` own the engineering lifecycle.
 2. **Primitives are the hands underneath.** Exact source/symbol intelligence, graph traversal, safe preview/apply mutation, tests, Git, and Product Intent primitives remain directly callable.
 3. **Truth is evidence-backed.** Completion requires authored acceptance plus material Aspect verification. Ambiguity returns `needs_input`; a real execution/evidence blocker returns `blocked`.
-4. **Cognition is bounded.** Deterministic evidence comes first; System-1 may rank optional candidates; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools.
-5. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
+4. **Cognition is bounded.** Deterministic evidence comes first; System-1 may rank optional candidates; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools. Natural-language Actor runs receive only the small function set selected through `@dharmax/semantic-registry`; a semantic miss never expands to the global function registry.
+5. **Tests are graph evidence.** Test files are durable `TestNode` artifacts. Static test imports derive `TestNode --verifies→ FileNode` edges, while authored `verifies` links to Features/Stories remain intact. Test executions update pass/fail evidence, so failure triage and blast-radius analysis can locate relevant code and tests through the graph.
+6. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
 
 For artifact semantics, read `docs/artifact-operations.md`; for semantic reconciliation, read `docs/digest.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
 
@@ -95,7 +96,7 @@ aiwf init
 
 What `aiwf init` does:
 - Creates `.ai-workflow/` structure (`state/`, `codelets/`, `config.json`).
-- Indexes codebase AST symbols, functions, classes, and in-code notes (`TODO:`, `FIXME:`).
+- Indexes codebase AST symbols, functions, classes, in-code notes (`TODO:`, `FIXME:`), and test artifacts with verification edges to imported source files.
 - Generates starter Obsidian projections (`kanban.md`, `epics.md`, `features.md`, `user-stories.md`, `modules.md`, `decisions.md`).
 - Prepares the AST+ SQLite store (`.ai-workflow/state/graph.db`).
 
