@@ -13,8 +13,10 @@ import {
   ModuleNode,
   FileNode,
   SymbolNode,
+  TestNode,
   Lesson
 } from './ontology.ts';
+import {isTestFilePath, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini',
@@ -43,6 +45,7 @@ export interface IndexResult {
   symbolsCount: number;
   notesCount: number;
   modulesCount: number;
+  testsCount: number;
 }
 
 export interface IndexOptions {
@@ -116,6 +119,17 @@ export async function indexSingleFile(
   });
 
   await store.relate(modEntity, 'contains', fileEntity);
+
+  const testArtifact = isTestFilePath(relPath)
+    ? await upsertTestArtifact(store, fileEntity, relPath, content)
+    : null;
+
+  if (!testArtifact) {
+    const staleTest = await store.getEntity<TestNode>(testArtifactId(relPath), TestNode.dcr);
+    if (staleTest) {
+      try { await store.deleteEntity(staleTest.id); } catch {}
+    }
+  }
 
   // 1. Reconcile symbols stably: do NOT blindly delete existing symbols.
   // Group old and new symbols by stable key: containerName + kind + name
@@ -254,6 +268,9 @@ export async function indexSingleFile(
           }
           await store.relate(fileEntity, 'imports', targetFileEntity);
           await store.relate(fileEntity, 'depends_on', targetFileEntity);
+          if (testArtifact && targetRel !== relPath) {
+            await store.relate(testArtifact, 'verifies', targetFileEntity);
+          }
         } catch {}
       } else {
         // External package or built-in import (e.g. @test/mylib, lodash)
@@ -607,11 +624,13 @@ export async function indexCodebase(
   const allSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr);
   const allNotes = await store.listEntities<Lesson>(Lesson.dcr);
   const allModules = await store.listEntities<ModuleNode>(ModuleNode.dcr);
+  const allTests = await store.listEntities<TestNode>(TestNode.dcr);
 
   return {
     filesCount: allFiles.length,
     symbolsCount: allSymbols.length,
     notesCount: allNotes.length,
-    modulesCount: allModules.length
+    modulesCount: allModules.length,
+    testsCount: allTests.length
   };
 }
