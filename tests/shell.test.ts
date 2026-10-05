@@ -82,6 +82,19 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(inline.output.startsWith('[TRIAGE]')).toBe(true);
   });
 
+  it('should handle trace controls as deterministic shell commands', async () => {
+    const on = await processShellInput('trace on', session)
+    expect(on.output).toBe('Trace mode: full')
+    expect(session.viewport?.getMode()).toBe('full')
+
+    const off = await processShellInput('trace off', session)
+    expect(off.output).toBe('Trace mode: fold')
+    expect(session.viewport?.getMode()).toBe('fold')
+
+    const mode = await processShellInput('trace', session)
+    expect(mode.output).toBe('Trace mode: fold')
+  })
+
   it('should execute all domain fast-paths without LLM invocation', async () => {
     // 1. Status & Diff
     const statusRes = await processShellInput('status', session);
