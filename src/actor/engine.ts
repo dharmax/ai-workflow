@@ -37,7 +37,7 @@ export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
     systemPrompt: `You are an expert Software Architect in [DESIGN] mode.
 Your objective is architectural clarity, ADR decision making, modular boundaries, and scalable contracts.
 Favor extreme KISS principles. Avoid premature monolithic bloat.
-Use ast_* and plan_* tools to inspect existing architecture and propose decisions.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered graph, planning, knowledge, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
   },
   dev: {
     mode: 'dev',
@@ -47,7 +47,7 @@ Use ast_* and plan_* tools to inspect existing architecture and propose decision
     systemPrompt: `You are an expert Implementation Engineer in [DEV] mode.
 Your objective is writing high-quality code, compiling verified codelets, and surgically patching files.
 Always inspect the blast radius and pair with unit tests.
-Use compiler_* and git_* tools to safely implement changes.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered code, graph, change, test, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
   },
   triage: {
     mode: 'triage',
@@ -56,7 +56,7 @@ Use compiler_* and git_* tools to safely implement changes.\nClaims about the cu
     defaultCloudModel: 'gemini-2.5-flash-lite',
     systemPrompt: `You are a Quality & Triage Engineer in [TRIAGE] mode.
 Your objective is rapid failure analysis, test suite diagnostics, and preventing regressions.
-Use test_* tools to pair targets, triage failing tests, and capture error traces without massive log waste.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered test, graph, git, or other capabilities shown for this run to diagnose failures without massive log waste.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
   },
   product: {
     mode: 'product',
