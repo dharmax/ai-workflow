@@ -54,8 +54,7 @@ describe('Stdio MCP Server Bridge', () => {
     expect(response.tools.find((t: any) => t.name === 'create_user_story')).toBeUndefined();
     expect(response.tools.find((t: any) => t.name === 'run_command')).toBeUndefined();
 
-    const featureTool = response.tools.find((t: any) => t.name === 'create_feature');
-    expect(featureTool).toBeDefined();
+    expect(response.tools.find((t: any) => t.name === 'create_feature')).toBeUndefined();
 
     const coverageTool = response.tools.find((t: any) => t.name === 'get_product_coverage');
     expect(coverageTool).toBeDefined();
