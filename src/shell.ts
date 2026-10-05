@@ -17,8 +17,6 @@ import {
   ParameterFacilitator,
   TerminalFormatter,
   ProcessViewport,
-  OpenTuiRenderer,
-  PlainRenderer,
   type UiRenderer,
   type CommandSchema
 } from '@dharmax/shell-ui';
@@ -1397,9 +1395,11 @@ export async function startShell(options: {
   const prompter = new InteractivePrompter(tty);
   const facilitator = new ParameterFacilitator(prompter);
 
-  const renderer: UiRenderer = tty.getIsTty()
-    ? new OpenTuiRenderer()
-    : new PlainRenderer();
+  let renderer: UiRenderer | undefined;
+  if (tty.getIsTty()) {
+    const { OpenTuiRenderer } = await import('@dharmax/shell-ui');
+    renderer = new OpenTuiRenderer();
+  }
 
   const session: ShellSession = {
     store,
@@ -1464,7 +1464,7 @@ export async function startShell(options: {
       console.error(`Error: ${err.message}`);
     }
   }
-  await renderer.dispose();
+  await renderer?.dispose();
 }
 
 if (import.meta.main) {
