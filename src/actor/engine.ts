@@ -10,7 +10,7 @@ import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
-import { registry, type ToolContext } from '../tools/registry.ts';
+import { registry, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
 import { ToolDiscovery, type DiscoveredTools } from '../tools/discovery.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
@@ -105,7 +105,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
-  toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover' | 'recover'>;
 }
 
 export class WorkflowActor {
@@ -121,7 +121,7 @@ export class WorkflowActor {
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
-  private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
+  private toolDiscovery?: Pick<ToolDiscovery, 'discover' | 'recover'>;
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -219,7 +219,7 @@ export class WorkflowActor {
     }
 
     const discovery: DiscoveredTools = this.toolDiscovery
-      ? await this.toolDiscovery.discover(rawText, 8)
+      ? await this.toolDiscovery.discover(rawText, 5)
       : {query: {}, tools: []};
     activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
     this.mode = activeMode;
@@ -282,22 +282,44 @@ export class WorkflowActor {
         system: config.systemPrompt
       });
 
-      // The Actor receives only capabilities selected for this request by semantic discovery.
-      // Discovery failure means a small/empty surface, never the global registry.
-      for (const t of discovery.tools) {
-        actor.registerTool({
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters as any,
-          execute: async (params) => {
-            pubsub.trigger('aiwf', 'actor:tool', { name: t.name, params });
-            return await t.execute(params, ctx);
-          }
-        });
-      }
+      const wrapTool = (tool: ToolDefinition) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters as any,
+        execute: async (params: any) => {
+          pubsub.trigger('aiwf', 'actor:tool', { name: tool.name, params });
+          return await tool.execute(params, ctx);
+        }
+      });
+
+      const selectedNames = new Set(discovery.tools.map(tool => tool.name));
+      const runTools = discovery.tools.map(wrapTool);
+      let recoveredCount = 0;
+
+      pubsub.trigger('aiwf', 'actor:discovery', {
+        mode: activeMode,
+        query: discovery.query,
+        tools: [...selectedNames]
+      });
 
       const result = await this.session!.run(actor, rawText, {
         maxSteps: this.maxSteps,
+        tools: runTools,
+        onMissingTool: this.toolDiscovery?.recover
+          ? async (toolName, parameters) => {
+              if (recoveredCount >= 2) return undefined;
+              const recovered = await this.toolDiscovery!.recover(
+                rawText,
+                toolName,
+                parameters,
+                selectedNames
+              );
+              if (!recovered) return undefined;
+              selectedNames.add(recovered.name);
+              recoveredCount++;
+              return wrapTool(recovered);
+            }
+          : undefined,
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
           preferLocal: preferLocalForRun,
