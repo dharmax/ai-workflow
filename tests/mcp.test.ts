@@ -161,10 +161,15 @@ describe('Stdio MCP Server Bridge', () => {
     const { exportMcpSchemas } = await import('../src/mcp.ts');
     const schemasDir = path.join(tempDir, 'mcp-schemas');
 
+    fs.mkdirSync(schemasDir, {recursive: true});
+    fs.writeFileSync(path.join(schemasDir, 'run_command.json'), '{}');
+
     const files = exportMcpSchemas(schemasDir);
     expect(files.length).toBeGreaterThanOrEqual(16);
     expect(files).toContain('execute_shell_wish.json');
     expect(files).toContain('claim_ticket.json');
+    expect(files).not.toContain('run_command.json');
+    expect(fs.existsSync(path.join(schemasDir, 'run_command.json'))).toBe(false);
 
     // Verify written JSON schema contents
     const claimSchemaPath = path.join(schemasDir, 'claim_ticket.json');
