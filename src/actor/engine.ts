@@ -166,9 +166,15 @@ export class WorkflowActor {
         // project task routes that can force a cheap classifier onto cloud models.
         let discoveryAsker = this.asker;
         try {
+          const configured = cfg.model.trim();
+          const localModelId = configured.startsWith('ollama/')
+            ? configured.slice('ollama/'.length)
+            : configured.includes('/')
+              ? MODE_CONFIGS[this.mode].defaultLocalModel
+              : configured || MODE_CONFIGS[this.mode].defaultLocalModel;
           discoveryAsker = new Asker({
             providers: { ollama: providers.ollama },
-            defaultModel: cfg.model,
+            defaultModel: { providerId: 'ollama', modelId: localModelId },
             preferLocal: true
           });
         } catch {}
