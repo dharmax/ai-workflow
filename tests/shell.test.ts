@@ -47,6 +47,13 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(session.actor.mode).toBe('triage');
   });
 
+  it('should preserve the selected shell mode for natural-language instructions', async () => {
+    await processShellInput('/design', session);
+    const res = await processShellInput('review the README against the implementation', session);
+    expect(res.output).toStartWith('[DESIGN]');
+    expect(res.output).toContain('LLM unavailable');
+  });
+
   it('should execute all domain fast-paths without LLM invocation', async () => {
     // 1. Status & Diff
     const statusRes = await processShellInput('status', session);
