@@ -100,6 +100,7 @@ export const SHELL_COMMANDS = [
   'doctor',
   'audit',
   'metrics',
+  'trace',
   'config',
   'eval',
   'model',
@@ -1224,6 +1225,30 @@ Drill-down and project commands:
     return { output: '📊 AIWF Performance Metrics\n' + JSON.stringify(summary, null, 2) };
   }
 
+  if (lower === 'trace' || lower.startsWith('trace ')) {
+    if (!session.viewport) return {output: 'Trace viewport unavailable.'}
+    const arg = line.slice(5).trim().toLowerCase()
+    if (!arg) {
+      return {output: `Trace mode: ${session.viewport.getMode()}`}
+    }
+    if (arg === 'on' || arg === 'full') {
+      session.viewport.setMode('full')
+      return {output: 'Trace mode: full'}
+    }
+    if (arg === 'off' || arg === 'fold') {
+      session.viewport.setMode('fold')
+      return {output: 'Trace mode: fold'}
+    }
+    if (arg === 'compact') {
+      session.viewport.setMode('compact')
+      return {output: 'Trace mode: compact'}
+    }
+    if (arg === 'show' || arg === 'last') {
+      return {output: session.viewport.formatBoxedTrace()}
+    }
+    return {output: 'Usage: trace [on|off|full|fold|compact|show]'}
+  }
+
   if (lower.startsWith('config')) {
     const parts = line.slice(6).trim().split(/\s+/);
     const action = parts[0] || 'get';
@@ -1307,6 +1332,7 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       escalate: ['auto', 'local_only', 'prompt', 'sota'],
       '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
       config: ['get', 'set'],
+      trace: ['on', 'off', 'full', 'fold', 'compact', 'show'],
       radar: ['refresh'],
       '/radar': ['refresh'],
       graph: ['--type', '--pred', '--from', '--to', '--depth']
