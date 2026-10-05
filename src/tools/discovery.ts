@@ -94,6 +94,8 @@ effect: ${effects}
 Matching is AND across dimensions and OR within values of a dimension.
 Choose the smallest set that identifies the required capability. Multiple values in one
 dimension are useful for genuine synonyms, e.g. ["inspect","read"].
+Include effect only when the request explicitly distinguishes read-only work from mutation
+or execution; otherwise omit it so effect does not overconstrain capability discovery.
 
 Examples:
 "do we have open tickets?" -> {"mode":["product"],"domain":["ticket"],"object":["ticket"],"action":["list","read"],"effect":["read"]}
