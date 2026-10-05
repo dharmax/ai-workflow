@@ -66,10 +66,16 @@ describe('Interactive Shell REPL Bridge', () => {
     const designRes = await processShellInput('/design', session);
     expect(designRes.newMode).toBe('design');
     expect(session.actor.mode).toBe('design');
+    expect(session.modeOverride).toBe('design');
 
     const triageRes = await processShellInput('/triage', session);
     expect(triageRes.newMode).toBe('triage');
     expect(session.actor.mode).toBe('triage');
+    expect(session.modeOverride).toBe('triage');
+
+    const autoRes = await processShellInput('/auto', session);
+    expect(autoRes.output).toContain('[AUTO]');
+    expect(session.modeOverride).toBeUndefined();
   });
 
   it('should preserve the selected shell mode for natural-language instructions', async () => {
