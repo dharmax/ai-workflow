@@ -178,6 +178,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(res.mode).toBe('product')
     expect(res.answer).toBe('There are open tickets.')
     expect(systems[0]).toContain('list_tickets')
+    expect((systems[0].match(/### Tool:/g) ?? []).length).toBe(1)
+    expect(systems[0].length).toBeLessThan(8_000)
     expect(systems[0]).not.toContain('run_command')
     expect(systems[0]).not.toContain('compile_codelet')
     expect(systems[0]).not.toContain('resolve_ticket')
