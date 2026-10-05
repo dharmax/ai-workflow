@@ -1,6 +1,6 @@
 import path from 'node:path'
 import type {WorkflowStore} from './store.ts'
-import {FileNode, TestNode} from './ontology.ts'
+import {FileNode, SymbolNode, TestNode} from './ontology.ts'
 
 export function normalizeTestPath(value: string): string {
   return value.replace(/\\/g, '/').replace(/^\.\//, '')
@@ -14,6 +14,30 @@ export function isTestFilePath(value: string): boolean {
     || /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(base)
     || /^test_.+\.py$/i.test(base)
     || /_test\.py$/i.test(base)
+  )
+}
+
+/**
+ * Test-path matching is intentionally broad for runner output/CLI parsing.
+ * Graph indexing is stricter so helpers/fixtures under tests/ do not become TestNodes.
+ */
+export function isTestSource(filePath: string, content: string): boolean {
+  const p = normalizeTestPath(filePath)
+  const base = path.posix.basename(p)
+
+  if (
+    /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(base)
+    || /^test_.+\.py$/i.test(base)
+    || /_test\.py$/i.test(base)
+  ) return true
+
+  if (!/(?:^|\/)(?:tests?|__tests__)(?:\/|$)/i.test(p)) return false
+
+  return (
+    /(?:from\s+['"]bun:test['"]|from\s+['"]@playwright\/test['"]|from\s+['"]vitest['"]|\bjest\b)/.test(content)
+    || /\b(?:test|it|describe)\s*\(/.test(content)
+    || /\bdef\s+test_[A-Za-z0-9_]*\s*\(/.test(content)
+    || /\bpytest\b/.test(content)
   )
 }
 
@@ -150,10 +174,17 @@ export async function failureGraphEvidence(
     const test = await store.getEntity<TestNode>(testArtifactId(filePath), TestNode.dcr)
     if (!test) continue
 
-    const verifies = (await store.getOutgoing(test.id, 'verifies'))
-      .map(edge => store.localId(edge.targetId))
+    const verificationEdges = await store.getOutgoing(test.id, 'verifies')
+    const verifies: string[] = []
 
-    verifies.forEach(id => likelyCauses.add(id))
+    for (const edge of verificationEdges) {
+      verifies.push(store.localId(edge.targetId))
+      const target = await store.getEntity(edge.targetId)
+      if (target instanceof FileNode || target instanceof SymbolNode) {
+        likelyCauses.add(store.localId(target.id))
+      }
+    }
+
     tests.push({
       id: store.localId(test.id),
       filePath,
