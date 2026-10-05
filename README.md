@@ -138,13 +138,16 @@ aiwf <command> [options]
 | `sync` | Bi-directionally reconcile SQLite Graph with Markdown projections | `aiwf sync` |
 | `next [agentId]` | Algorithmic task selector (Active Lease $\to$ P1 Bugs $\to$ Todo) | `aiwf next` |
 | `tickets [lane]` | List Kanban tickets (Backlog, Todo, In Progress, Done, Blocked) | `aiwf tickets Todo` |
+| `ticket <id>` | Open a Ticket View in the interactive shell (text fallback otherwise) | `aiwf ticket TKT-001` |
+| `edit <id>` | Open Ticket/Epic/Feature/Story/Aspect directly in edit mode | `aiwf edit TKT-001` |
 | `epics [status]` | List epics in the Product Intent Graph | `aiwf epics` |
 | `epic <id>` | Show an Epic with targeted features/stories and contained tickets | `aiwf epic EPIC-001` |
 | `epic-create "<title>"` | Create Epic with semantic decomposition and proposal review | `aiwf epic-create "Calendar invites"` |
 | `features [status]` | List features in the Product Intent Graph | `aiwf features` |
 | `feature <id>` | Show a Feature with containing stories, tickets, and tests | `aiwf feature FEAT-001` |
 | `stories [status]` | List user stories in the Product Intent Graph | `aiwf stories` |
-| `story <id>` | Show a user story with feature, tickets, tests, and criteria | `aiwf story STORY-001` |
+| `story <id>` | Show/open a user story with feature, tickets, tests, and criteria | `aiwf story STORY-001` |
+| `aspect <id>` | Open an Aspect View in the interactive shell | `aiwf aspect ASP-001` |
 | `coverage <id>` | Show structural and causal coverage for an Epic, Feature, or Story | `aiwf coverage STORY-001` |
 | `impact <id>` | Show bounded product impact and code anchors | `aiwf impact FEAT-001` |
 | `claim <id> [--agent <a>] [-m <m>]` | Atomically lease a ticket with time-to-live | `aiwf claim TKT-001 --agent alpha -m 45` |
@@ -203,6 +206,7 @@ aiwf [DEV] > help
   - `/dev` - Switches to code authoring, patching, and codelet compilation.
   - `/triage` - Switches to failure diagnosis and log distillation.
   - `/product` - Switches to Epics, User Stories, and sprint backlog grooming.
+- **Structured Views**: `ticket`, `epic`, `feature`, `story`, and `aspect` open generic shell-ui Views on an interactive TTY; `edit <id>` enters edit mode. Saves return through AIWF's canonical mutation tools and then sync projections.
 - **Cognitive Fallback**: Any natural language sentence is evaluated by the bounded cognitive actor with live grounded observations.
 
 ---
@@ -240,6 +244,7 @@ AI-Workflow exposes all capabilities via a native stdio Model Context Protocol (
 
 ### Exposed MCP Tools
 - **Artifact operations — preferred:** `investigate_ticket`, `prepare_ticket`, `resolve_ticket`, `process_epic`, `process_feature`, `process_story`.
+- **Ticket editing primitive:** `update_ticket` updates editable Ticket content/lane through canonical Product mutation; the shell View uses this rather than writing graph state directly.
 - **Artifact policy:** completeness target/query operations and consistent completeness/depth/maxArtifacts/critic controls.
 - **`execute_shell_wish`**: Free-form cognitive fallback for work that is not already represented by an artifact operation.
 - **Product Intent Graph**: `create_epic`, `get_epic`, `list_epics`, `update_epic`, `create_feature`, `get_feature`, `list_features`, `update_feature`, `create_user_story`, `get_user_story`, `list_user_stories`, `update_user_story`, `link_product`, `unlink_product`, `get_product_coverage`, `get_product_impact`. Canonical relations: Epic `targets` Feature/Story, Feature `contains` Story, Epic `contains` Ticket, Ticket `implements` Feature, Ticket `addresses` Story, Test `verifies` Feature/Story, Decision `governs` Epic/Feature/Story.
