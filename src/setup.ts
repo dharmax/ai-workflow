@@ -24,6 +24,7 @@ export interface InitResult {
   filesIndexed: number;
   symbolsIndexed: number;
   notesIndexed: number;
+  testsIndexed: number;
   projectionsExported: string[];
 }
 
@@ -183,6 +184,7 @@ export async function initProject(projectRoot: string): Promise<InitResult> {
     filesIndexed: indexRes.filesCount,
     symbolsIndexed: indexRes.symbolsCount,
     notesIndexed: indexRes.notesCount,
+    testsIndexed: indexRes.testsCount,
     projectionsExported: exportRes.exportedFiles
   };
 }
