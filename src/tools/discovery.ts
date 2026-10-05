@@ -10,25 +10,7 @@ import type {ToolDefinition, ToolRegistry} from './registry.ts'
 
 const QUERY_SCHEMA = z.record(z.string(), z.array(z.string()))
 
-const CLASSIFIER_SYSTEM = `
-Classify an AI-Workflow user request for capability discovery.
-
-Return only these dimensions when useful:
-- mode: exactly one of design, dev, triage, product
-- domain: one or more of ticket, planning, graph, compiler, git, test, change, kb, os, script
-- object: short singular nouns such as ticket, epic, feature, story, aspect, symbol, file, test, repository, knowledge, command
-- action: canonical verbs such as list, get, search, find, inspect, analyze, recommend, create, update, resolve, prepare, process, reconcile, investigate, run, apply, compile, debug
-- effect: read, mutation, execution
-
-Use short lowercase canonical values. Omit uncertain dimensions.
-For questions about existing project state, prefer read effects.
-Examples:
-"do we have open tickets?" -> {"mode":["product"],"domain":["ticket"],"object":["ticket"],"action":["list"],"effect":["read"]}
-"who calls parseConfig?" -> {"mode":["dev"],"domain":["graph"],"object":["symbol"],"action":["find"],"effect":["read"]}
-"fix the failing auth test" -> {"mode":["triage"],"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
-`.trim()
-
-const ACTION_ALIASES: Record<string, string[]> = {
+const ACTION_ALIASES: Record<string, readonly string[]> = {
   get: ['get', 'read', 'inspect'],
   list: ['list', 'read', 'inspect'],
   find: ['find', 'search', 'read'],
@@ -75,10 +57,65 @@ interface ToolItem extends IRegistryItem {
   readonly tool: ToolDefinition
 }
 
+type Vocabulary = Readonly<Record<string, readonly string[]>>
+
+function vocabularyFor(tools: readonly ToolDefinition[]): Vocabulary {
+  const values = new Map<string, Set<string>>()
+
+  for (const tool of tools) {
+    const semantics = semanticsForTool(tool)
+    for (const [key, entries] of Object.entries(semantics)) {
+      let bucket = values.get(key)
+      if (!bucket) {
+        bucket = new Set<string>()
+        values.set(key, bucket)
+      }
+      for (const entry of entries) bucket.add(entry)
+    }
+  }
+
+  return Object.fromEntries(
+    [...values.entries()].map(([key, bucket]) => [key, [...bucket].sort()]),
+  )
+}
+
+function classifierSystem(vocabulary: Vocabulary): string {
+  const domains = vocabulary.domain?.join(', ') || '(none)'
+  const objects = vocabulary.object?.join(', ') || '(none)'
+  const actions = vocabulary.action?.join(', ') || '(none)'
+  const effects = vocabulary.effect?.join(', ') || '(none)'
+
+  return `Classify one AI-Workflow request for semantic capability discovery.
+
+Output a JSON object whose values are arrays. Use only the dimensions and values listed below.
+Never invent a value. Omit a dimension when none of its allowed values clearly applies.
+
+mode: design, dev, triage, product
+domain: ${domains}
+object: ${objects}
+action: ${actions}
+effect: ${effects}
+
+Matching is AND across dimensions and OR within values of a dimension.
+Choose the smallest set that identifies the required capability. Multiple values in one
+dimension are useful for genuine synonyms, e.g. ["inspect","read"].
+
+Examples:
+"do we have open tickets?" -> {"mode":["product"],"domain":["ticket"],"object":["ticket"],"action":["list","read"],"effect":["read"]}
+"who calls parseConfig?" -> {"mode":["dev"],"domain":["graph"],"object":["caller"],"action":["inspect","read"],"effect":["read"]}
+"show the source of parseConfig" -> {"mode":["dev"],"domain":["graph"],"object":["symbol","source"],"action":["get","read"],"effect":["read"]}
+"fix the failing auth test" -> {"mode":["triage"],"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
+
+Return semantic intent only. Do not answer the request.`
+}
+
 export class AiWorkflowRegistryClassifier implements RegistryClassifier {
   private readonly known = new Map<string, RegistryQuery>()
 
-  constructor(private readonly asker: Asker) {}
+  constructor(
+    private readonly asker: Asker,
+    private readonly vocabulary: () => Vocabulary,
+  ) {}
 
   remember(text: string, query: RegistryQuery): void {
     this.known.set(text, query)
@@ -88,32 +125,37 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
     const known = this.known.get(text)
     if (known) return known
 
+    const vocabulary = this.vocabulary()
     const result = await this.asker.json(text, QUERY_SCHEMA, {
-      system: CLASSIFIER_SYSTEM,
+      system: classifierSystem(vocabulary),
       task: 'fast',
       preferLocal: true,
       temperature: 0,
-      maxTokens: 256,
+      maxTokens: 192,
     })
 
     if (!result.ok || !result.data) return {}
-    return normalizeQuery(result.data)
+    return constrainQuery(normalizeQuery(result.data), vocabulary)
   }
 }
 
 export class ToolDiscovery {
   private readonly classifier: AiWorkflowRegistryClassifier
   private readonly semantic: Registry
+  private syncedCount = 0
 
   constructor(
     private readonly tools: ToolRegistry,
     asker: Asker,
   ) {
-    this.classifier = new AiWorkflowRegistryClassifier(asker)
+    this.classifier = new AiWorkflowRegistryClassifier(
+      asker,
+      () => vocabularyFor(this.tools.getAll()),
+    )
     this.semantic = new Registry(new MemoryRegistryStore(), this.classifier)
   }
 
-  async discover(text: string, limit = 8): Promise<DiscoveredTools> {
+  async discover(text: string, limit = 5): Promise<DiscoveredTools> {
     await this.sync()
 
     const query = await this.classifier.classify(text)
@@ -129,8 +171,28 @@ export class ToolDiscovery {
     }
   }
 
+  async recover(
+    goal: string,
+    attemptedToolName: string,
+    attemptedParams: Record<string, unknown>,
+    currentToolNames: ReadonlySet<string>,
+  ): Promise<ToolDefinition | undefined> {
+    const query = [
+      `Goal: ${goal}`,
+      `Missing capability requested by actor: ${attemptedToolName}`,
+      `Arguments: ${JSON.stringify(attemptedParams)}`,
+      'Select the single registered capability that best satisfies this action.',
+    ].join('\n')
+
+    const result = await this.discover(query, 3)
+    return result.tools.find(tool => !currentToolNames.has(tool.name))
+  }
+
   private async sync(): Promise<void> {
-    for (const tool of this.tools.getAll()) {
+    const all = this.tools.getAll()
+    if (all.length === this.syncedCount && all.every(tool => this.semantic.get(tool.name))) return
+
+    for (const tool of all) {
       if (this.semantic.get(tool.name)) continue
 
       const functionalDescription = `${tool.name}: ${tool.description}`
@@ -142,6 +204,8 @@ export class ToolDiscovery {
       }
       await this.semantic.register(item)
     }
+
+    this.syncedCount = all.length
   }
 }
 
@@ -154,7 +218,7 @@ export function semanticsForTool(tool: ToolDefinition): RegistryQuery {
   return {
     domain: [tool.category],
     ...(objects.length > 0 ? {object: objects} : {}),
-    action: actions,
+    action: [...actions],
     effect: [effectForAction(verb)],
   }
 }
@@ -174,6 +238,9 @@ function normalizeObject(value: string): string {
   if (value === 'aspects') return 'aspect'
   if (value === 'tests') return 'test'
   if (value === 'symbols') return 'symbol'
+  if (value === 'callers') return 'caller'
+  if (value === 'references') return 'reference'
+  if (value === 'files') return 'file'
   if (value === 'knowledgebase') return 'knowledge'
   return value.endsWith('s') && value.length > 3 ? value.slice(0, -1) : value
 }
@@ -188,6 +255,21 @@ function readMode(query: RegistryQuery): DiscoveredTools['mode'] {
 function withoutMode(query: RegistryQuery): RegistryQuery {
   return Object.fromEntries(
     Object.entries(query).filter(([key, values]) => key !== 'mode' && values.length > 0),
+  )
+}
+
+function constrainQuery(query: RegistryQuery, vocabulary: Vocabulary): RegistryQuery {
+  return Object.fromEntries(
+    Object.entries(query)
+      .map(([key, values]) => {
+        if (key === 'mode') {
+          const allowed = new Set(['design', 'dev', 'triage', 'product'])
+          return [key, values.filter(value => allowed.has(value))]
+        }
+        const allowed = new Set(vocabulary[key] ?? [])
+        return [key, values.filter(value => allowed.has(value))]
+      })
+      .filter(([, values]) => values.length > 0),
   )
 }
 
