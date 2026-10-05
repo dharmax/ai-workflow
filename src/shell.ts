@@ -39,6 +39,8 @@ export interface ShellSession {
   interactive?: boolean;
   viewport?: ProcessViewport<any>;
   renderer?: UiRenderer;
+  /** Undefined means semantic auto-mode; set by standalone /design|/dev|/triage|/product. */
+  modeOverride?: ShellMode;
 }
 
 async function presentEntityView(
@@ -113,6 +115,7 @@ export const SHELL_COMMANDS = [
   '/dev',
   '/triage',
   '/product',
+  '/auto',
   'help',
   '/help',
   'exit',
@@ -190,7 +193,8 @@ Drill-down and project commands:
   /design                    - Switch mode to [DESIGN] (Architecture & ADRs)
   /dev                       - Switch mode to [DEV] (Code authoring & patching)
   /triage                    - Switch mode to [TRIAGE] (Diagnostics & Test Triage)
-  /product                   - Switch mode to [PRODUCT] (Roadmap & Story Grooming)
+  /product                   - Lock mode to [PRODUCT] (Roadmap & Story Grooming)
+  /auto                      - Return to semantic automatic mode selection
   exit                       - Exit shell
   <any natural instruction>  - Autonomous cognitive execution via Workflow Actor
 `
@@ -261,20 +265,28 @@ Drill-down and project commands:
   }
 
   if (lower === '/design') {
+    session.modeOverride = 'design';
     session.actor.setMode('design');
-    return { output: 'Switched mode to [DESIGN] (Reasoning & Architecture)', newMode: 'design' };
+    return { output: 'Locked mode to [DESIGN] (Reasoning & Architecture)', newMode: 'design' };
   }
   if (lower === '/dev') {
+    session.modeOverride = 'dev';
     session.actor.setMode('dev');
-    return { output: 'Switched mode to [DEV] (Implementation & Patching)', newMode: 'dev' };
+    return { output: 'Locked mode to [DEV] (Implementation & Patching)', newMode: 'dev' };
   }
   if (lower === '/triage') {
+    session.modeOverride = 'triage';
     session.actor.setMode('triage');
-    return { output: 'Switched mode to [TRIAGE] (Diagnostics & Test Triage)', newMode: 'triage' };
+    return { output: 'Locked mode to [TRIAGE] (Diagnostics & Test Triage)', newMode: 'triage' };
   }
   if (lower === '/product') {
+    session.modeOverride = 'product';
     session.actor.setMode('product');
-    return { output: 'Switched mode to [PRODUCT] (Roadmap & Story Grooming)', newMode: 'product' };
+    return { output: 'Locked mode to [PRODUCT] (Roadmap & Story Grooming)', newMode: 'product' };
+  }
+  if (lower === '/auto') {
+    session.modeOverride = undefined;
+    return { output: 'Switched to [AUTO] semantic mode selection.' };
   }
 
   // 2. Deterministic Fast-Paths (<5ms, 0 tokens)
@@ -1291,7 +1303,7 @@ Drill-down and project commands:
   try {
     result = await session.actor.execute(
       line,
-      inlineMode ? undefined : session.actor.mode,
+      inlineMode ? undefined : session.modeOverride,
       { onStep: step => session.viewport?.onStep(step) }
     );
   } finally {
