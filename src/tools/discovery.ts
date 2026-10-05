@@ -216,19 +216,24 @@ function effectForAction(action: string): string {
 }
 
 function normalizeObject(value: string): string {
-  if (value === 'user') return 'story'
-  if (value === 'stories') return 'story'
-  if (value === 'tickets') return 'ticket'
-  if (value === 'features') return 'feature'
-  if (value === 'epics') return 'epic'
-  if (value === 'aspects') return 'aspect'
-  if (value === 'tests') return 'test'
-  if (value === 'symbols') return 'symbol'
-  if (value === 'callers') return 'caller'
-  if (value === 'references') return 'reference'
-  if (value === 'files') return 'file'
-  if (value === 'knowledgebase') return 'knowledge'
-  return value.endsWith('s') && value.length > 3 ? value.slice(0, -1) : value
+  const canonical: Record<string, string> = {
+    user: 'story',
+    stories: 'story',
+    tickets: 'ticket',
+    features: 'feature',
+    epics: 'epic',
+    aspects: 'aspect',
+    tests: 'test',
+    symbols: 'symbol',
+    callers: 'caller',
+    references: 'reference',
+    files: 'file',
+    metrics: 'metric',
+    changes: 'change',
+    dependencies: 'dependency',
+    knowledgebase: 'knowledge',
+  }
+  return canonical[value] ?? value
 }
 
 function readMode(query: RegistryQuery): DiscoveredTools['mode'] {
