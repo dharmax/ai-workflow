@@ -49,8 +49,10 @@ describe('Stdio MCP Server Bridge', () => {
     const ticketTool = response.tools.find((t: any) => t.name === 'claim_ticket');
     expect(ticketTool).toBeDefined();
 
-    const storyTool = response.tools.find((t: any) => t.name === 'create_user_story');
+    const storyTool = response.tools.find((t: any) => t.name === 'process_story');
     expect(storyTool).toBeDefined();
+    expect(response.tools.find((t: any) => t.name === 'create_user_story')).toBeUndefined();
+    expect(response.tools.find((t: any) => t.name === 'run_command')).toBeUndefined();
 
     const featureTool = response.tools.find((t: any) => t.name === 'create_feature');
     expect(featureTool).toBeDefined();
@@ -107,32 +109,26 @@ describe('Stdio MCP Server Bridge', () => {
     expect(wishRes.content).toBeDefined();
     expect(wishRes.content[0].text).toContain('AI-Workflow');
 
-    // 3. Call story tool through MCP
-    const storyRes = await callHandler({
+    // 3. Internal primitives are not callable merely by guessing their names.
+    const hiddenRes = await callHandler({
       method: 'tools/call',
       params: {
         name: 'create_user_story',
-        arguments: {
-          id: 'STORY-MCP-1',
-          title: 'MCP story'
-        }
+        arguments: { id: 'STORY-MCP-1', title: 'MCP story' }
       }
     });
-    expect(storyRes.isError).not.toBe(true);
-    expect(storyRes.content[0].text).toContain('STORY-MCP-1');
+    expect(hiddenRes.isError).toBe(true);
+    expect(hiddenRes.content[0].text).toContain('not exposed');
 
-    // 3b. Call coverage tool through MCP
-    const covRes = await callHandler({
+    // 3b. Public product reads remain available.
+    const storiesRes = await callHandler({
       method: 'tools/call',
       params: {
-        name: 'get_product_coverage',
-        arguments: {
-          entityId: 'STORY-MCP-1'
-        }
+        name: 'list_user_stories',
+        arguments: {}
       }
     });
-    expect(covRes.isError).not.toBe(true);
-    expect(covRes.content[0].text).toContain('complete');
+    expect(storiesRes.isError).not.toBe(true);
 
     // 4. Call non-existent tool
     const unknownRes = await callHandler({
@@ -144,7 +140,7 @@ describe('Stdio MCP Server Bridge', () => {
     });
 
     expect(unknownRes.isError).toBe(true);
-    expect(unknownRes.content[0].text).toContain('not registered');
+    expect(unknownRes.content[0].text).toContain('not exposed');
 
     // 5. Call tool that triggers execution error (update_ticket_state on missing ticket)
     const errRes = await callHandler({
