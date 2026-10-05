@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { initializeTools, type ToolContext } from '../src/tools/index.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { SymbolNode, FileNode, TestNode } from '../src/graph/ontology.ts';
+import { SymbolNode, FileNode, TestNode, Feature } from '../src/graph/ontology.ts';
 
 describe('Tool Registry & Deterministic Facilities', () => {
   let tempDir: string;
@@ -306,6 +306,14 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(resolved.source).toBe('graph');
     expect(resolved.testFile).toBe('tests/math.test.ts');
 
+    const feature = await store.upsertEntity<Feature>(Feature.dcr, {
+      id: 'FEAT-MATH',
+      title: 'Math behavior'
+    });
+    const indexedTest = await store.getEntity<TestNode>('test:tests/math.test.ts', TestNode.dcr);
+    expect(indexedTest).not.toBeNull();
+    await store.relate(indexedTest!, 'verifies', feature);
+
     const blast = await registry.execute('analyze_blast_radius', {
       target: 'src/math.ts'
     }, ctx);
@@ -318,6 +326,8 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(triage.passed).toBe(false);
     expect(triage.failedTestFiles).toContain('tests/math.test.ts');
     expect(triage.likelyCauses).toContain('src/math.ts');
+    expect(triage.likelyCauses).not.toContain('FEAT-MATH');
+    expect(triage.graphEvidence.tests[0]?.verifies).toContain('FEAT-MATH');
 
     const testArtifact = await store.getEntity<TestNode>('test:tests/math.test.ts', TestNode.dcr);
     expect(testArtifact).not.toBeNull();
