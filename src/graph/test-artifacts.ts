@@ -31,6 +31,41 @@ export function inferTestFramework(filePath: string, content: string): string {
   return 'unknown'
 }
 
+
+function canonicalTestPath(root: string, value: string): string | undefined {
+  const cleaned = value
+    .replace(/^[("'\[]+/, '')
+    .replace(/[):,"'\]]+$/, '')
+    .trim()
+  if (!cleaned || !isTestFilePath(cleaned)) return undefined
+  return normalizeTestPath(path.isAbsolute(cleaned) ? path.relative(root, cleaned) : cleaned)
+}
+
+export function testPathsFromCommand(
+  command: string | readonly string[],
+  root: string,
+): string[] {
+  const tokens = typeof command === 'string' ? command.split(/\s+/) : [...command]
+  const result = new Set<string>()
+  for (const token of tokens) {
+    const testPath = canonicalTestPath(root, token)
+    if (testPath) result.add(testPath)
+  }
+  return [...result]
+}
+
+export function testPathsFromOutput(output: string, root: string): string[] {
+  const result = new Set<string>()
+  const candidates = output.match(
+    /[A-Za-z0-9_@.+~\/-]+(?:\.test|\.spec)\.[cm]?[jt]sx?|(?:tests?|__tests__)\/[A-Za-z0-9_@.+~\/-]+\.[cm]?[jt]sx?/g,
+  ) ?? []
+  for (const candidate of candidates) {
+    const testPath = canonicalTestPath(root, candidate)
+    if (testPath) result.add(testPath)
+  }
+  return [...result]
+}
+
 export async function upsertTestArtifact(
   store: WorkflowStore,
   file: FileNode,
@@ -129,3 +164,54 @@ export async function failureGraphEvidence(
 
   return {tests, likelyCauses: [...likelyCauses]}
 }
+
+export async function recordTestExecution(
+  store: WorkflowStore,
+  root: string,
+  command: string | readonly string[],
+  outcome: {
+    passed: boolean
+    output?: string
+    exitCode?: number
+    durationMs?: number
+  },
+): Promise<{
+  testFiles: string[]
+  graphEvidence: Awaited<ReturnType<typeof failureGraphEvidence>>
+}> {
+  const tokens = typeof command === 'string' ? command.trim().split(/\s+/) : [...command]
+  const targeted = testPathsFromCommand(tokens, root)
+  const reported = outcome.output ? testPathsFromOutput(outcome.output, root) : []
+
+  let testFiles = reported.length > 0 ? reported : targeted
+  if (outcome.passed && testFiles.length === 0) {
+    const all = await store.listEntities<TestNode>(TestNode.dcr)
+    const isFullBunSuite = tokens.length === 2 && tokens[0] === 'bun' && tokens[1] === 'test'
+    const isFullPlaywrightSuite =
+      tokens.length === 3 && tokens[0] === 'bunx' && tokens[1] === 'playwright' && tokens[2] === 'test'
+
+    if (isFullBunSuite) {
+      testFiles = all
+        .map(test => normalizeTestPath(test.filePath || test.targetPath || ''))
+        .filter(Boolean)
+    } else if (isFullPlaywrightSuite) {
+      testFiles = all
+        .filter(test => test.framework === 'playwright')
+        .map(test => normalizeTestPath(test.filePath || test.targetPath || ''))
+        .filter(Boolean)
+    }
+  }
+
+  await recordTestOutcome(store, testFiles, {
+    passed: outcome.passed,
+    failure: outcome.passed ? undefined : outcome.output,
+    exitCode: outcome.exitCode,
+    durationMs: outcome.durationMs,
+  })
+
+  return {
+    testFiles,
+    graphEvidence: await failureGraphEvidence(store, testFiles),
+  }
+}
+
