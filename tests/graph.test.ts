@@ -254,6 +254,12 @@ import {add} from '../src/math'
 test('adds', () => expect(add(1, 2)).toBe(3))
 `,
       );
+      fs.writeFileSync(
+        path.join(tmpDir, 'tests', 'math-helpers.ts'),
+        `import {add} from '../src/math'
+export const sample = () => add(1, 2)
+`,
+      );
 
       const feature = await diskStore.upsertEntity<Feature>(Feature.dcr, {
         id: 'FEAT-MATH',
@@ -272,6 +278,7 @@ test('adds', () => expect(add(1, 2)).toBe(3))
 
       const tests = await diskStore.listEntities<TestNode>(TestNode.dcr);
       expect(tests.length).toBe(1);
+      expect(tests.some(test => (test as any).filePath === 'tests/math-helpers.ts')).toBe(false);
       expect((tests[0] as any).filePath).toBe('tests/math.test.ts');
       expect((tests[0] as any).framework).toBe('bun');
 
