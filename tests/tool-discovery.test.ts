@@ -32,6 +32,110 @@ describe('semantic tool discovery and surfaces', () => {
     expect(result.tools.length).toBeLessThan(registry.getAll().length)
   })
 
+  it('constrains classifier output to the registry vocabulary before matching', async () => {
+    initializeTools()
+    const asker = {
+      json: async () => ({
+        ok: true,
+        data: {
+          mode: ['product', 'invented-mode'],
+          domain: ['ticket', 'invented-domain'],
+          object: ['ticket', 'invented-object'],
+          action: ['list', 'invented-action'],
+          effect: ['read', 'invented-effect'],
+        },
+      }),
+    } as any
+
+    const discovery = new ToolDiscovery(registry, asker)
+    const result = await discovery.discover('do we have open tickets?')
+
+    expect(result.query).toEqual({
+      mode: ['product'],
+      domain: ['ticket'],
+      object: ['ticket'],
+      action: ['list'],
+      effect: ['read'],
+    })
+    expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
+  })
+
+  it('uses the fallback classifier only after the local classifier fails', async () => {
+    initializeTools()
+    let localCalls = 0
+    let fallbackCalls = 0
+    const local = {
+      json: async () => {
+        localCalls++
+        return {ok: false}
+      },
+    } as any
+    const fallback = {
+      json: async () => {
+        fallbackCalls++
+        return {
+          ok: true,
+          data: {
+            mode: ['product'],
+            domain: ['ticket'],
+            object: ['ticket'],
+            action: ['list'],
+            effect: ['read'],
+          },
+        }
+      },
+    } as any
+
+    const discovery = new ToolDiscovery(registry, local, fallback)
+    const result = await discovery.discover('do we have open tickets?')
+
+    expect(localCalls).toBe(1)
+    expect(fallbackCalls).toBe(1)
+    expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
+  })
+
+  it('recovers one missing capability semantically without returning an existing tool', async () => {
+    initializeTools()
+    const asker = {
+      json: async (prompt: string) => {
+        if (prompt.includes('Missing capability requested by actor')) {
+          return {
+            ok: true,
+            data: {
+              mode: ['product'],
+              domain: ['ticket'],
+              object: ['next', 'task'],
+              action: ['recommend'],
+              effect: ['read'],
+            },
+          }
+        }
+        return {
+          ok: true,
+          data: {
+            mode: ['product'],
+            domain: ['ticket'],
+            object: ['ticket'],
+            action: ['list'],
+            effect: ['read'],
+          },
+        }
+      },
+    } as any
+
+    const discovery = new ToolDiscovery(registry, asker)
+    const initial = await discovery.discover('show tickets')
+    expect(initial.tools.map(tool => tool.name)).toEqual(['list_tickets'])
+
+    const recovered = await discovery.recover(
+      'choose the next ticket',
+      'recommend_next_task',
+      {},
+      new Set(initial.tools.map(tool => tool.name)),
+    )
+    expect(recovered?.name).toBe('recommend_next_task')
+  })
+
   it('does not broaden a failed multi-key lookup into a category bucket', async () => {
     initializeTools()
     const asker = {
