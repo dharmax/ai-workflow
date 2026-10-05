@@ -131,8 +131,8 @@ describe('Interactive Shell REPL Bridge', () => {
 
   it('should delegate complex natural language wishes to cognitive actor', async () => {
     const wishRes = await processShellInput('tell me about the project architecture', session);
-    expect(wishRes.output).toContain('Offline Fast-Path');
-    expect(wishRes.output).toBeDefined();
+    expect(wishRes.output).toContain('LLM unavailable');
+    expect(wishRes.output).not.toContain('Target Domain');
   });
 
   it('should reject missing required parameters with usage info in non-interactive mode', async () => {
