@@ -39,7 +39,9 @@ For artifact semantics, read `docs/artifact-operations.md`; for semantic reconci
 
 ### Model runtime configuration
 
-AIWF uses llm-utils' shared model runtime. Common controls are explicit, while provider-specific knobs remain provider-native:
+AIWF delegates ordinary natural-language model selection to llm-utils. The shell supplies the workload task class and local/cloud preference; persisted llm-utils model advice chooses the model. An explicit shell/model override remains authoritative. `model` is the legacy/default fallback when no applicable advice exists.
+
+Common controls are explicit, while provider-specific knobs remain provider-native:
 
 ```json
 {
@@ -115,7 +117,7 @@ Overall Health: HEALTHY ✅
   [OK] Graph / AST+ Semantic Graph: 7 tickets, 1 epics, 119 indexed files, 5180 symbols
   [OK] Projections / Markdown Sync: All core projections present (kanban, epics, features, user stories, modules, decisions)
   [OK] Tickets / Lease & Flow Health: 0 active lease(s)
-  [OK] Cognitive / LLM Host (Ollama): Offline grounded mode active (http://localhost:11434 not reached)
+  [OK] Cognitive / LLM Host (Ollama): Unavailable (http://localhost:11434 not reached)
   [OK] MCP / IDE/CLI Integration: Registered in Antigravity MCP hosts
 ```
 
