@@ -886,12 +886,25 @@ export class SymbolNode extends WorkflowEntity {
 }
 
 export class TestNode extends WorkflowEntity {
+  declare filePath?: string;
+  declare targetPath?: string;
+  declare framework?: string;
+  declare lastRun?: string;
+  declare passed?: boolean;
+  declare failure?: string;
+  declare exitCode?: number;
+  declare durationMs?: number;
+
   static template = {
     ...baseTemplate,
+    filePath: anyValidator,
     targetPath: anyValidator,
     framework: anyValidator,
     lastRun: anyValidator,
-    passed: anyValidator
+    passed: anyValidator,
+    failure: anyValidator,
+    exitCode: anyValidator,
+    durationMs: anyValidator
   };
   static readonly dcr = new EntityDcr(TestNode, TestNode.template, 'TestNode');
 }
