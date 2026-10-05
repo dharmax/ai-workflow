@@ -91,6 +91,51 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(capturedOptions.system).toContain('resolve_test_target');
   });
 
+  it('should expose only semantically discovered ticket tools to the Actor', async () => {
+    let call = 0
+    const systems: string[] = []
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        systems.push(options.system ?? '')
+        call++
+        if (call === 1) {
+          return {
+            ok: true,
+            data: {
+              thought: 'Inspect open tickets.',
+              action: 'tool_call',
+              toolCalls: [{callId: '1', name: 'list_tickets', parameters: {}}],
+            },
+          }
+        }
+        return {
+          ok: true,
+          data: {
+            thought: 'Answer from ticket observation.',
+            action: 'final_answer',
+            finalAnswer: 'There are open tickets.',
+          },
+        }
+      },
+    } as any
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+      toolDiscovery: discover(['list_tickets'], 'product'),
+    })
+
+    const res = await actor.execute('do we have open tickets?')
+
+    expect(res.mode).toBe('product')
+    expect(res.answer).toBe('There are open tickets.')
+    expect(systems[0]).toContain('list_tickets')
+    expect(systems[0]).not.toContain('run_command')
+    expect(systems[0]).not.toContain('compile_codelet')
+    expect(systems[0]).not.toContain('resolve_ticket')
+  });
+
   it('should preserve conversational context across shell actor turns', async () => {
     const prompts: string[] = [];
     let call = 0;
