@@ -3,7 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools } from '../src/tools/index.ts';
+import { initializeTools, registry } from '../src/tools/index.ts';
+import { FakeRenderer } from '@dharmax/shell-ui';
 import { WorkflowActor } from '../src/actor/engine.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
 
@@ -120,6 +121,43 @@ describe('Interactive Shell REPL Bridge', () => {
 
     const metricsRes = await processShellInput('metrics', session);
     expect(metricsRes.output).toContain('Performance Metrics');
+  });
+
+  it('should open and save Ticket Views through the canonical update tool', async () => {
+    await registry.execute('create_ticket', {
+      id: 'TKT-VIEW-1',
+      title: 'Original title',
+      lane: 'Todo',
+      priority: 'P2',
+      body: 'Original body'
+    }, { store, projectRoot: tempDir });
+
+    const renderer = new FakeRenderer().viewWith('ticket:TKT-VIEW-1', {
+      status: 'submitted',
+      values: {
+        title: 'Updated title',
+        lane: 'In Progress',
+        priority: 'P1',
+        body: 'Updated body',
+        acceptanceCriteria: 'works\npersists'
+      }
+    });
+    session.renderer = renderer;
+    session.interactive = true;
+
+    const result = await processShellInput('ticket TKT-VIEW-1', session);
+    expect(result.output).toContain("Saved ticket 'TKT-VIEW-1'");
+
+    const ticket = await store.getEntity<any>('TKT-VIEW-1');
+    expect(ticket.title).toBe('Updated title');
+    expect(ticket.lane).toBe('In Progress');
+    expect(ticket.priority).toBe('P1');
+    expect(ticket.body).toBe('Updated body');
+    expect(ticket.acceptanceCriteria).toEqual(['works', 'persists']);
+
+    const request = renderer.requests.at(-1) as any;
+    expect(request.fields.id.mode).toBe('readonly');
+    expect(request.fields.body.grow).toBe(true);
   });
 
   it('should auto-complete shell commands with shellCompleter', async () => {
