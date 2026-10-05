@@ -14,6 +14,7 @@ import { Ticket, Epic } from './graph/ontology.ts';
 import { saveConfig } from './config.ts';
 import { exportMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
+import { getPublicMcpTools } from './tools/surface.ts';
 import { ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
 
 export interface SetupTypeScriptResult extends TsProvisionResult {}
@@ -351,7 +352,7 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
     : path.resolve(__dirname, 'mcp.ts');
 
   initializeTools();
-  const allToolNames = ['execute_shell_wish', ...registry.getAll().map(t => t.name)];
+  const allToolNames = ['execute_shell_wish', ...getPublicMcpTools(registry).map(t => t.name)];
 
   const hostsUpdated: string[] = [];
 
