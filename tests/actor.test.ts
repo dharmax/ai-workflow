@@ -37,25 +37,52 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(classifyIntentMode('Implement the new ticket lease API in store.ts')).toBe('dev');
   });
 
-  it('should run bounded offline execution with grounded graph observation', async () => {
+  it('should report natural-language LLM unavailability without inventing intent', async () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
       offline: true
     });
 
-    const receivedEvents: any[] = [];
-    pubsub.on('actor:step', ev => {
-      receivedEvents.push(ev.data);
-    });
-
-    const res = await actor.execute('What is the recommended next task to work on?');
+    const res = await actor.execute('unsure readme is aligned with latest changes');
 
     expect(res.mode).toBe('dev');
     expect(res.offlineFallback).toBe(true);
-    expect(res.answer).toContain('Offline Fast-Path');
-    expect(res.answer).toContain('recommend_next_task');
-    expect(res.events.length).toBeGreaterThan(0);
+    expect(res.answer).toContain('LLM unavailable');
+    expect(res.answer).not.toContain('Target Domain');
+    expect(res.answer).not.toContain('Recommended Capabilities');
+    expect(res.events).toEqual([]);
+  });
+
+  it('should delegate natural-language intent and model choice to llm-utils', async () => {
+    let capturedOptions: any;
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        capturedOptions = options;
+        return {
+          ok: true,
+          data: {
+            thought: 'The request is clear.',
+            action: 'final_answer',
+            finalAnswer: 'README checked.'
+          }
+        };
+      }
+    } as any;
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker
+    });
+
+    const res = await actor.execute('unsure readme is aligned with latest changes');
+
+    expect(res.answer).toBe('README checked.');
+    expect(capturedOptions.task).toBe('code');
+    expect(capturedOptions.model).toBeUndefined();
+    expect(capturedOptions.system).toContain('get_git_status');
+    expect(capturedOptions.system).toContain('resolve_test_target');
   });
 
   it('should execute a cognitive loop with a mock Asker and emit pubsub events', async () => {
