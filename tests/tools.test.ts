@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { initializeTools, type ToolContext } from '../src/tools/index.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { SymbolNode, FileNode } from '../src/graph/ontology.ts';
+import { SymbolNode, FileNode, TestNode } from '../src/graph/ontology.ts';
 
 describe('Tool Registry & Deterministic Facilities', () => {
   let tempDir: string;
@@ -283,6 +283,41 @@ export class Calculator {
     }, ctx);
     expect(triageFail.passed).toBe(false);
     expect(triageFail.failingCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should localize a failing test through TestNode graph evidence', async () => {
+    fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'tests'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'src', 'math.ts'),
+      `export function add(a: number, b: number) { return a + b }\n`,
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'tests', 'math.test.ts'),
+      `import {test, expect} from 'bun:test'
+import {add} from '../src/math'
+test('adds', () => expect(add(1, 2)).toBe(4))
+`,
+    );
+
+    const resolved = await registry.execute('resolve_test_target', {
+      filePath: 'src/math.ts'
+    }, ctx);
+    expect(resolved.source).toBe('graph');
+    expect(resolved.testFile).toBe('tests/math.test.ts');
+
+    const triage = await registry.execute('triage_test_failures', {
+      testCommand: 'bun test tests/math.test.ts'
+    }, ctx);
+
+    expect(triage.passed).toBe(false);
+    expect(triage.failedTestFiles).toContain('tests/math.test.ts');
+    expect(triage.likelyCauses).toContain('src/math.ts');
+
+    const testArtifact = await store.getEntity<TestNode>('test:tests/math.test.ts', TestNode.dcr);
+    expect(testArtifact).not.toBeNull();
+    expect((testArtifact as any).passed).toBe(false);
+    expect((testArtifact as any).status).toBe('failing');
   });
 
   it('should evaluate custom JS scripts on the fly and catch errors with script_eval', async () => {
