@@ -1,8 +1,8 @@
 /**
  * Responsibility: Autonomous Cognitive Actor Engine & Dynamic Mode Switcher.
- * Scope: Built on @dharmax/llm-utils (LLMActor, ModelRouter, LlmMetrics), with deterministic
- * mode routing ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), bounded ReAct loop, pubsub telemetry,
- * and robust offline fallback.
+ * Scope: Built on @dharmax/llm-utils (LLMActor, model routing/advice), with deterministic
+ * mode selection ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), bounded ReAct loop, pubsub telemetry,
+ * and honest offline failure reporting.
  */
 
 import { z } from 'zod';
@@ -11,8 +11,7 @@ import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
-import { registry, type ToolRegistry, type ToolContext } from '../tools/registry.ts';
-import { bucketRouter } from '../tools/bucket-router.ts';
+import { registry, type ToolContext } from '../tools/registry.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
 import { modelRuntime } from '../model-runtime.ts';
@@ -183,7 +182,7 @@ export class WorkflowActor {
 
   /**
    * Primary entrypoint: runs a bounded Think-Act-Observe loop on user instruction.
-   * Dynamically evaluates complexity, blast radius, and ModelRadar for cognitive escalation.
+   * AIWF supplies task intent/locality; llm-utils owns model selection.
    */
   async execute(
     instruction: string,
@@ -218,9 +217,8 @@ export class WorkflowActor {
       return { mode: activeMode, stepsCount: 1, answer, events: [{ step: 1, mode: activeMode, thought: 'Explicit artifact delegation', toolCall: { name: delegation.tool, params: delegation.args }, toolResult: result, finalAnswer: answer }] };
     }
 
-    // Fallback if no LLM provider is connected or available
     if (!this.asker) {
-      return await this.executeOfflineFallback(rawText, activeMode, ctx);
+      return this.executeOfflineFallback(activeMode, 'No LLM provider is configured.');
     }
 
     const cfg = loadConfig(this.projectRoot);
@@ -255,46 +253,34 @@ export class WorkflowActor {
       }
     }
 
-    // Determine target model
-    let targetModel: string;
-    if (execOptions?.forceModel) {
-      targetModel = execOptions.forceModel;
-    } else if (cfg.modelRoutes?.[activeMode]) {
-      targetModel = cfg.modelRoutes[activeMode];
-    } else if (shouldEscalate) {
-      const rec = this.radar.getRecommendations()[activeMode];
-      if (this.configuredProviders.includes('openrouter')) {
-        targetModel = `openrouter/${rec}`;
-      } else if (this.configuredProviders.includes('anthropic')) {
-        targetModel = `anthropic/${config.defaultCloudModel}`;
-      } else if (this.configuredProviders.includes('google')) {
-        targetModel = `google/${config.defaultCloudModel}`;
-      } else if (this.configuredProviders.includes('openai')) {
-        targetModel = `openai/gpt-4o`;
-      } else {
-        targetModel = cfg.model || config.defaultLocalModel;
-      }
-    } else {
-      targetModel = cfg.model || config.defaultLocalModel;
-    }
+    // Explicit model choices remain authoritative. Otherwise llm-utils selects
+    // from persisted advice using the semantic task class and locality preference.
+    const explicitModel = execOptions?.forceModel ?? cfg.modelRoutes?.[activeMode];
+    const preferLocalForRun = policy === 'local_only'
+      ? true
+      : shouldEscalate
+        ? false
+        : this.preferLocal;
 
     if (shouldEscalate) {
       pubsub.trigger('aiwf', 'actor:escalate', {
         mode: activeMode,
-        targetModel,
+        targetModel: explicitModel,
+        taskClass: config.taskClass,
+        preferLocal: preferLocalForRun,
         reason: escalationReason
       });
     }
 
     try {
-      const candidateTools = bucketRouter.getCandidateTools(rawText, registry);
       const actor = new LLMActor(this.asker, {
         maxSteps: this.maxSteps,
         system: config.systemPrompt
       });
 
-      // Mount selected candidate tools
-      for (const t of candidateTools) {
+      // Natural-language intent is interpreted by the LLM against the real capability surface.
+      // Explicit shell commands are handled deterministically before reaching this path.
+      for (const t of registry.getAll()) {
         actor.registerTool({
           name: t.name,
           description: t.description,
@@ -309,7 +295,8 @@ export class WorkflowActor {
       const result = await actor.run(rawText, {
         maxSteps: this.maxSteps,
         askOptions: {
-          model: targetModel,
+          ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
+          preferLocal: preferLocalForRun,
           maxTokens: cfg.llmOutputTokens
         },
         signal: AbortSignal.timeout(this.timeoutMs)
@@ -338,7 +325,7 @@ export class WorkflowActor {
       const finalAnswer = result.finalText || lastStep?.finalAnswer || (result.ok ? 'Instruction processed.' : 'Unable to complete instruction.');
 
       if (!result.ok && (!result.finalText && !lastStep?.finalAnswer)) {
-        return await this.executeOfflineFallback(rawText, activeMode, ctx, result.error);
+        return this.executeOfflineFallback(activeMode, result.error);
       }
 
       return {
@@ -346,66 +333,38 @@ export class WorkflowActor {
         stepsCount: events.length,
         answer: finalAnswer,
         events,
-        targetModel,
+        targetModel: explicitModel,
         escalated: shouldEscalate,
         escalationReason
       };
     } catch (err: any) {
-      // Graceful degradation on model connection error or timeout
-      return await this.executeOfflineFallback(rawText, activeMode, ctx, err.message);
+      return this.executeOfflineFallback(activeMode, err.message);
     }
   }
 
   /**
-   * Deterministic grounded offline handler: provides real context and recommendations
-   * when LLM is offline or times out.
+   * Natural-language execution requires an LLM. Deterministic shell commands are
+   * handled by the shell before this path, so failure must not invent intent.
    */
-  private async executeOfflineFallback(
-    text: string,
+  private executeOfflineFallback(
     mode: ShellMode,
-    ctx: ToolContext,
     reason?: string
-  ): Promise<{
+  ): {
     mode: ShellMode;
     stepsCount: number;
     answer: string;
     events: ActorStepEvent[];
     offlineFallback: boolean;
-  }> {
-    const bucket = bucketRouter.resolveBucket(text);
-    const candidates = bucketRouter.getCandidateTools(text, registry);
-    const candidateNames = candidates.map(c => c.name).join(', ');
-
-    let summary = `[Mode: ${mode.toUpperCase()}] Offline Fast-Path\n`;
-    if (reason) summary += `Notice: LLM provider unavailable (${reason}).\n`;
-    summary += `Target Domain: ${bucket}\n`;
-    summary += `Recommended Capabilities: ${candidateNames}\n`;
-
-    // Execute the top candidate tool deterministically if safe/read-only
-    let autoResult: any = null;
-    const topTool = candidates[0];
-    if (topTool && ['list_tickets', 'recommend_next_task', 'get_git_status', 'get_environment_info'].includes(topTool.name)) {
-      try {
-        autoResult = await topTool.execute({}, ctx);
-        summary += `\nDirect Observation from ${topTool.name}:\n` + JSON.stringify(autoResult, null, 2);
-      } catch {}
-    }
-
+  } {
+    const detail = reason ? ` (${reason})` : '';
+    const answer = `LLM unavailable${detail}. Natural-language execution was not attempted.`;
     return {
       mode,
-      stepsCount: autoResult ? 1 : 0,
-      answer: summary,
-      events: [
-        {
-          step: 1,
-          mode,
-          thought: `Offline grounded execution using ${topTool?.name || 'fast-path'}`,
-          toolCall: topTool ? { name: topTool.name, params: {} } : undefined,
-          toolResult: autoResult,
-          finalAnswer: summary
-        }
-      ],
+      stepsCount: 0,
+      answer,
+      events: [],
       offlineFallback: true
     };
   }
+
 }
