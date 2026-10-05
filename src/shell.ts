@@ -181,6 +181,7 @@ Drill-down and project commands:
   doctor                     - Run comprehensive environment & graph diagnostics
   audit                      - Run architecture & graph integrity audit
   metrics [--operation ...]  - Query persisted performance metrics (--ticket, --since, --tag)
+  trace [on|off|show]        - Control/show Actor execution trace without invoking the LLM
   config [get|set key val]   - View or update settings (.ai-workflow/config.json)
   eval <js-code>             - On-the-fly JavaScript evaluation
   model (or /model)          - Show gateway, provider keys, and mode model assignments
