@@ -96,6 +96,7 @@ describe('semantic tool discovery and surfaces', () => {
     expect(localCalls).toBe(1)
     expect(fallbackCalls).toBe(1)
     expect(localOptions.task).toBeUndefined()
+    expect((localOptions.system ?? '').length).toBeLessThan(8_000)
     expect(fallbackOptions.task).toBe('fast')
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
   })
