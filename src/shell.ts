@@ -1174,7 +1174,8 @@ Drill-down and project commands:
   // 3. Autonomous Cognitive Fallback
   const delegation = artifactCommand(line.split(/\s+/));
   if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
-  const result = await session.actor.execute(line, session.actor.mode);
+  const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
+  const result = await session.actor.execute(line, inlineMode ? undefined : session.actor.mode);
   let prefix = `[${result.mode.toUpperCase()}]`;
   if (result.escalated) {
     prefix += result.targetModel
