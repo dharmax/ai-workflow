@@ -188,7 +188,7 @@ export class WorkflowActor {
   async execute(
     instruction: string,
     forcedMode?: ShellMode,
-    execOptions?: { forceCloud?: boolean; forceModel?: string }
+    execOptions?: { forceCloud?: boolean; forceModel?: string; onStep?: (step: any) => void }
   ): Promise<{
     mode: ShellMode;
     stepsCount: number;
@@ -300,7 +300,8 @@ export class WorkflowActor {
           preferLocal: preferLocalForRun,
           maxTokens: cfg.llmOutputTokens
         },
-        signal: AbortSignal.timeout(this.timeoutMs)
+        signal: AbortSignal.timeout(this.timeoutMs),
+        onStep: execOptions?.onStep
       });
 
       // Record steps telemetry
