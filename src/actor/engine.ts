@@ -5,7 +5,7 @@
  * and honest offline failure reporting.
  */
 
-import { LLMActor, Asker, InMemoryMetricsStore } from '@dharmax/llm-utils';
+import { LLMActor, LLMSession, Asker, InMemoryMetricsStore } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
