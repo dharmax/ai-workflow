@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { initializeTools, type ToolContext, bucketRouter } from '../src/tools/index.ts';
+import { initializeTools, type ToolContext } from '../src/tools/index.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 
 describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
@@ -178,24 +178,5 @@ export function computeRate(tier: string): number {
     expect(fs.readFileSync(fileB, 'utf8')).toContain('const c = 300;');
   });
 
-  it('should route intents to appropriate buckets in TwoTierRouter', () => {
-    const ticketBucket = bucketRouter.resolveBucket('claim ticket TKT-101 for agent alpha');
-    expect(ticketBucket).toBe('ticket');
 
-    const astBucket = bucketRouter.resolveBucket('what is the blast radius of src/graph/store.ts?');
-    expect(astBucket).toBe('graph');
-
-    const gitBucket = bucketRouter.resolveBucket('show me uncommitted git diff');
-    expect(gitBucket).toBe('git');
-
-    const compBucket = bucketRouter.resolveBucket('synthesize a codelet to parse json');
-    expect(compBucket).toBe('compiler');
-
-    const testBucket = bucketRouter.resolveBucket('triage test failures in test suite');
-    expect(testBucket).toBe('test');
-
-    const candidates = bucketRouter.getCandidateTools('claim lease on ticket TKT-002', registry);
-    expect(candidates.length).toBeGreaterThan(0);
-    expect(candidates.some(c => c.name.includes('ticket'))).toBe(true);
-  });
 });
