@@ -8,6 +8,10 @@ import { WorkflowActor, pubsub } from '../src/actor/engine.ts';
 import { resolveCloudCredentials, saveConfig } from '../src/config.ts';
 import { FileNode } from '../src/graph/ontology.ts';
 
+const noTools = (mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
+  discover: async () => ({query: {}, mode, tools: []}),
+})
+
 describe('Cognitive Escalation & Multi-Provider Engine', () => {
   let tempDir: string;
   let store: WorkflowStore;
@@ -82,7 +86,8 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: noTools()
     });
 
     const res = await actor.execute('/design propose system architecture');
@@ -125,7 +130,8 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: noTools()
     });
 
     const res = await actor.execute('/design propose system architecture');
@@ -167,10 +173,11 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: noTools()
     });
 
-    const res = await actor.execute('/dev write unit test');
+    const res = await actor.execute('/dev write unit test', undefined, {forceCloud: true});
     expect(res.targetModel).toBe('anthropic/claude-3.7-sonnet');
     expect(askOptions.model).toBe('anthropic/claude-3.7-sonnet');
     expect(askOptions.task).toBeUndefined();
@@ -213,7 +220,8 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: noTools()
     });
 
     const res = await actor.execute('Refactor src/core.ts and update all callers');
