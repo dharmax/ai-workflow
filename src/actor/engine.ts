@@ -130,6 +130,7 @@ export class WorkflowActor {
   public readonly metrics: InMemoryMetricsStore;
   public readonly radar: ModelRadar;
   private asker?: Asker;
+  private session?: LLMSession;
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
@@ -165,6 +166,7 @@ export class WorkflowActor {
         this.asker = undefined;
       }
     }
+    if (this.asker) this.session = new LLMSession(this.asker);
   }
 
   setMode(mode: ShellMode): void {
@@ -291,7 +293,7 @@ export class WorkflowActor {
         });
       }
 
-      const result = await actor.run(rawText, {
+      const result = await this.session!.run(actor, rawText, {
         maxSteps: this.maxSteps,
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
