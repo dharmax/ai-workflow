@@ -16,7 +16,7 @@ import {
   TestNode,
   Lesson
 } from './ontology.ts';
-import {isTestFilePath, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
+import {isTestSource, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini',
@@ -120,7 +120,7 @@ export async function indexSingleFile(
 
   await store.relate(modEntity, 'contains', fileEntity);
 
-  const testArtifact = isTestFilePath(relPath)
+  const testArtifact = isTestSource(relPath, content)
     ? await upsertTestArtifact(store, fileEntity, relPath, content)
     : null;
 
