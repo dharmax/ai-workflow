@@ -11,7 +11,6 @@ export * from './graph/projections.ts';
 
 // Capabilities & Deterministic Tools
 export * from './tools/registry.ts';
-export * from './tools/bucket-router.ts';
 export * from './tools/index.ts';
 export * from './tools/compiler.ts';
 
