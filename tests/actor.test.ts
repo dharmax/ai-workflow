@@ -104,7 +104,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
               mode: ['product'],
               domain: ['ticket'],
               object: ['ticket'],
-              action: ['list', 'read'],
+              action: ['list'],
               effect: ['read'],
             },
           }
