@@ -241,6 +241,15 @@ export class Calculator {
     const gitStatus = await registry.execute('get_git_status', {}, ctx);
     expect(typeof gitStatus.clean).toBe('boolean');
     expect(Array.isArray(gitStatus.modifiedFiles)).toBe(true);
+
+    Bun.spawnSync(['git', 'config', 'user.email', 'test@example.com'], { cwd: tempDir });
+    Bun.spawnSync(['git', 'config', 'user.name', 'AIWF Test'], { cwd: tempDir });
+    Bun.spawnSync(['git', 'add', 'package.json'], { cwd: tempDir });
+    Bun.spawnSync(['git', 'commit', '-m', 'initial test commit'], { cwd: tempDir });
+
+    const recent = await registry.execute('get_recent_git_changes', { limit: 1 }, ctx);
+    expect(recent.history).toContain('initial test commit');
+    expect(recent.history).toContain('package.json');
   });
 
   it('should propose ADRs and manage scratchpad notes', async () => {
