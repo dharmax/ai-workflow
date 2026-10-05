@@ -269,7 +269,11 @@ export const sample = () => add(1, 2)
         id: 'test:tests/math.test.ts',
         title: 'math.test.ts',
         filePath: 'tests/math.test.ts',
-        framework: 'bun'
+        framework: 'bun',
+        status: 'failing',
+        passed: false,
+        failure: 'previous failure',
+        lastRun: '2026-10-05T00:00:00.000Z'
       });
       await diskStore.relate(existingTest, 'verifies', feature);
 
@@ -281,6 +285,9 @@ export const sample = () => add(1, 2)
       expect(tests.some(test => (test as any).filePath === 'tests/math-helpers.ts')).toBe(false);
       expect((tests[0] as any).filePath).toBe('tests/math.test.ts');
       expect((tests[0] as any).framework).toBe('bun');
+      expect((tests[0] as any).status).toBe('failing');
+      expect((tests[0] as any).passed).toBe(false);
+      expect((tests[0] as any).failure).toBe('previous failure');
 
       const source = await diskStore.getEntity<FileNode>('src/math.ts', FileNode.dcr);
       expect(source).not.toBeNull();
