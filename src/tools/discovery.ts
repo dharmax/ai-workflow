@@ -115,6 +115,7 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
   constructor(
     private readonly asker: Asker,
     private readonly vocabulary: () => Vocabulary,
+    private readonly fallbackAsker?: Asker,
   ) {}
 
   remember(text: string, query: RegistryQuery): void {
@@ -126,13 +127,21 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
     if (known) return known
 
     const vocabulary = this.vocabulary()
-    const result = await this.asker.json(text, QUERY_SCHEMA, {
-      system: classifierSystem(vocabulary),
-      task: 'fast',
-      preferLocal: true,
+    const system = classifierSystem(vocabulary)
+    let result = await this.asker.json(text, QUERY_SCHEMA, {
+      system,
       temperature: 0,
       maxTokens: 192,
     })
+
+    if ((!result.ok || !result.data) && this.fallbackAsker) {
+      result = await this.fallbackAsker.json(text, QUERY_SCHEMA, {
+        system,
+        task: 'fast',
+        temperature: 0,
+        maxTokens: 192,
+      })
+    }
 
     if (!result.ok || !result.data) return {}
     return constrainQuery(normalizeQuery(result.data), vocabulary)
@@ -147,10 +156,12 @@ export class ToolDiscovery {
   constructor(
     private readonly tools: ToolRegistry,
     asker: Asker,
+    fallbackAsker?: Asker,
   ) {
     this.classifier = new AiWorkflowRegistryClassifier(
       asker,
       () => vocabularyFor(this.tools.getAll()),
+      fallbackAsker,
     )
     this.semantic = new Registry(new MemoryRegistryStore(), this.classifier)
   }
