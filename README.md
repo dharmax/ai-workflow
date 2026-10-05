@@ -138,8 +138,6 @@ aiwf <command> [options]
 | `sync` | Bi-directionally reconcile SQLite Graph with Markdown projections | `aiwf sync` |
 | `next [agentId]` | Algorithmic task selector (Active Lease $\to$ P1 Bugs $\to$ Todo) | `aiwf next` |
 | `tickets [lane]` | List Kanban tickets (Backlog, Todo, In Progress, Done, Blocked) | `aiwf tickets Todo` |
-| `ticket <id>` | Open a Ticket View in the interactive shell (text fallback otherwise) | `aiwf ticket TKT-001` |
-| `edit <id>` | Open Ticket/Epic/Feature/Story/Aspect directly in edit mode | `aiwf edit TKT-001` |
 | `epics [status]` | List epics in the Product Intent Graph | `aiwf epics` |
 | `epic <id>` | Show an Epic with targeted features/stories and contained tickets | `aiwf epic EPIC-001` |
 | `epic-create "<title>"` | Create Epic with semantic decomposition and proposal review | `aiwf epic-create "Calendar invites"` |
@@ -147,7 +145,6 @@ aiwf <command> [options]
 | `feature <id>` | Show a Feature with containing stories, tickets, and tests | `aiwf feature FEAT-001` |
 | `stories [status]` | List user stories in the Product Intent Graph | `aiwf stories` |
 | `story <id>` | Show/open a user story with feature, tickets, tests, and criteria | `aiwf story STORY-001` |
-| `aspect <id>` | Open an Aspect View in the interactive shell | `aiwf aspect ASP-001` |
 | `coverage <id>` | Show structural and causal coverage for an Epic, Feature, or Story | `aiwf coverage STORY-001` |
 | `impact <id>` | Show bounded product impact and code anchors | `aiwf impact FEAT-001` |
 | `claim <id> [--agent <a>] [-m <m>]` | Atomically lease a ticket with time-to-live | `aiwf claim TKT-001 --agent alpha -m 45` |
