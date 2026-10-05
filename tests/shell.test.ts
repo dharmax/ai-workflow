@@ -4,9 +4,33 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
-import { FakeRenderer } from '@dharmax/shell-ui';
+import type { UiRenderer, ViewRequest, ViewResult } from '@dharmax/shell-ui';
 import { WorkflowActor } from '../src/actor/engine.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
+
+class TestViewRenderer implements UiRenderer {
+  readonly mode = 'plain'
+  readonly requests: ViewRequest[] = []
+  constructor(private readonly result: ViewResult) {}
+  isAvailable() { return true }
+  async elicit() { return { status: 'unavailable', id: 'test' } as const }
+  async form() { return { status: 'unavailable' } as const }
+  async review() { return { status: 'unavailable' } as const }
+  async view(request: ViewRequest): Promise<ViewResult> {
+    this.requests.push(request)
+    return this.result
+  }
+  showProcess(model: any) {
+    return {
+      step() {},
+      label() {},
+      mode() {},
+      finish() {},
+      model,
+    }
+  }
+  dispose() {}
+}
 
 describe('Interactive Shell REPL Bridge', () => {
   let tempDir: string;
@@ -132,7 +156,7 @@ describe('Interactive Shell REPL Bridge', () => {
       body: 'Original body'
     }, { store, projectRoot: tempDir });
 
-    const renderer = new FakeRenderer().viewWith('ticket:TKT-VIEW-1', {
+    const renderer = new TestViewRenderer({
       status: 'submitted',
       values: {
         title: 'Updated title',
