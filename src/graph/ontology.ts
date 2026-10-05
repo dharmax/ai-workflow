@@ -782,14 +782,27 @@ export class Ticket extends WorkflowEntity {
               if (!proposedTests.length) proposedTests.push(['bun', 'test']);
             }
             const currentTests: ResolutionVerificationInput['tests'] = [];
+            const { ensureAstFresh } = await import('./indexer.ts');
+            const { recordTestExecution } = await import('./test-artifacts.ts');
+            await ensureAstFresh(store, store.root);
             for (const command of proposedTests) {
               if (command[0] !== 'bun' || !['test', 'run'].includes(command[1] ?? '') || command[1] === 'run' && !['typecheck', 'build'].includes(command[2] ?? '')) return needs(`Supply a project test/typecheck/build command for '${id}'.`, 'Verification commands must be bounded engineering checks.', 'Operation testCommands');
               const process = Bun.spawn(command, { cwd: store.root, stdout: 'pipe', stderr: 'pipe' });
               const timeout = setTimeout(() => process.kill(), 60000);
+              const startedAt = Date.now();
               const [stdout, stderr, exit] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
               clearTimeout(timeout);
               countEngineering('testsRun'); if (exit !== 0) countEngineering('testFailures');
-              currentTests.push({ command, passed: exit === 0, output: (stdout + '\n' + stderr).slice(-16000) });
+              const output = (stdout + '\n' + stderr).slice(-16000);
+              if (command[1] === 'test') {
+                await recordTestExecution(store, store.root, command, {
+                  passed: exit === 0,
+                  output,
+                  exitCode: exit,
+                  durationMs: Date.now() - startedAt
+                });
+              }
+              currentTests.push({ command, passed: exit === 0, output });
             }
             tests.push(...currentTests);
             if (currentTests.some(test => !test.passed)) { feedback = currentTests.filter(test => !test.passed).map(test => test.output); continue; }
