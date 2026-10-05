@@ -17,6 +17,9 @@ import {
   ParameterFacilitator,
   TerminalFormatter,
   ProcessViewport,
+  OpenTuiRenderer,
+  PlainRenderer,
+  type UiRenderer,
   type CommandSchema
 } from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
@@ -27,6 +30,7 @@ import { exportProjections, importProjections } from './graph/projections.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { loadConfig, saveConfig } from './config.ts';
+import { buildEntityView, resolveEntityViewKind, saveEntityView, type EntityViewKind } from './entity-view.ts';
 
 export interface ShellSession {
   store: WorkflowStore;
@@ -36,6 +40,25 @@ export interface ShellSession {
   facilitator?: ParameterFacilitator;
   interactive?: boolean;
   viewport?: ProcessViewport<any>;
+  renderer?: UiRenderer;
+}
+
+async function presentEntityView(
+  session: ShellSession,
+  ctx: ToolContext,
+  kind: EntityViewKind,
+  id: string,
+  mode: 'readonly' | 'edit',
+): Promise<string | null> {
+  if (!session.renderer) return null
+  const result = await session.renderer.view(await buildEntityView(ctx, kind, id, mode))
+  if (result.status === 'unavailable') return null
+  if (result.status === 'submitted') {
+    await saveEntityView(ctx, kind, id, result.values)
+    await exportProjections(session.store, session.projectRoot)
+    return `Saved ${kind} '${id}'.`
+  }
+  return ''
 }
 
 export const SHELL_COMMANDS = [
@@ -50,6 +73,8 @@ export const SHELL_COMMANDS = [
   'done',
   'move',
   'tickets',
+  'ticket',
+  'edit',
   'epics',
   'epic',
   'epic-create',
@@ -58,6 +83,7 @@ export const SHELL_COMMANDS = [
   'feature',
   'stories',
   'story',
+  'aspect',
   'coverage',
   'impact',
   'sync',
@@ -131,6 +157,8 @@ Drill-down and project commands:
   move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
   create <title>             - Create ticket in Todo lane
   tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
+  ticket <ticketId>           - Open ticket View (interactive shell)
+  edit <entityId>             - Open Ticket/Epic/Feature/Story/Aspect directly in edit mode
   epics [status]             - List epics in the Product Intent Graph
   epic <epicId>              - Show epic details, targeted features/stories, and tickets
   epic-create <title>        - Create Epic with semantic decomposition and proposal review
@@ -138,6 +166,7 @@ Drill-down and project commands:
   feature <featureId>        - Show feature details, containing stories, and tickets
   stories [status]           - List user stories in the Product Intent Graph
   story <storyId>            - Show story details, containing feature, tickets, tests
+  aspect <aspectId>           - Open Aspect View (interactive shell)
   coverage <entityId>        - Show structural and causal coverage for an Epic, Feature, or Story
   impact <entityId>          - Show bounded product impact and code anchors
   sync                       - Bi-directional sync between SQLite Graph and Markdown
@@ -475,6 +504,43 @@ Drill-down and project commands:
     return { output: `Moved ticket '${args.ticketId}' to '${args.lane}'.` };
   }
 
+  if (lower === 'edit' || lower.startsWith('edit ')) {
+    const entityId = line.replace(/^edit\s*/i, '').trim();
+    if (!entityId) return { output: 'Usage: edit <entityId>' };
+    try {
+      const kind = await resolveEntityViewKind(ctx, entityId);
+      const rendered = await presentEntityView(session, ctx, kind, entityId, 'edit');
+      return { output: rendered ?? 'Interactive View unavailable.' };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'ticket' || lower.startsWith('ticket ')) {
+    const ticketId = line.replace(/^ticket\s*/i, '').trim();
+    if (!ticketId) return { output: 'Usage: ticket <ticketId>' };
+    try {
+      const rendered = await presentEntityView(session, ctx, 'ticket', ticketId, 'readonly');
+      if (rendered !== null) return { output: rendered };
+      const ticket = await session.store.getEntity<Ticket>(ticketId, Ticket.dcr) as any;
+      if (!ticket) return { output: `Ticket '${ticketId}' not found.` };
+      return {
+        output: [
+          `${ticketId}: ${ticket.title || ''}`,
+          `Lane:     ${ticket.lane || ''}`,
+          `Priority: ${ticket.priority || ''}`,
+          `Status:   ${ticket.status || ''}`,
+          ticket.body ? `Body:     ${ticket.body}` : null,
+          ticket.acceptanceCriteria?.length
+            ? `Criteria:\n${ticket.acceptanceCriteria.map((item: string) => `  - ${item}`).join('\n')}`
+            : null
+        ].filter(Boolean).join('\n')
+      };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
   if (lower.startsWith('tickets') || lower === 'list') {
     const parts = line.split(/\s+/);
     const lane = parts[1] as any;
@@ -498,6 +564,8 @@ Drill-down and project commands:
     const epicId = line.replace(/^epic\s*/i, '').trim();
     if (!epicId) return { output: 'Usage: epic <epicId>' };
     try {
+      const rendered = await presentEntityView(session, ctx, 'epic', epicId, 'readonly');
+      if (rendered !== null) return { output: rendered };
       const e = await registry.execute('get_epic', { epicId }, ctx);
       return {
         output: [
@@ -647,6 +715,8 @@ Drill-down and project commands:
     const featureId = line.replace(/^feature\s*/i, '').trim();
     if (!featureId) return { output: 'Usage: feature <featureId>' };
     try {
+      const rendered = await presentEntityView(session, ctx, 'feature', featureId, 'readonly');
+      if (rendered !== null) return { output: rendered };
       const f = await registry.execute('get_feature', { featureId }, ctx);
       return {
         output: [
@@ -678,6 +748,8 @@ Drill-down and project commands:
     const storyId = line.replace(/^story\s*/i, '').trim();
     if (!storyId) return { output: 'Usage: story <storyId>' };
     try {
+      const rendered = await presentEntityView(session, ctx, 'story', storyId, 'readonly');
+      if (rendered !== null) return { output: rendered };
       const s = await registry.execute('get_user_story', { storyId }, ctx);
       return {
         output: [
@@ -694,6 +766,19 @@ Drill-down and project commands:
           s.acceptanceCriteria.length > 0 ? `Criteria:\n${s.acceptanceCriteria.map((c: string) => `  - ${c}`).join('\n')}` : null
         ].filter(Boolean).join('\n')
       };
+    } catch (err: any) {
+      return { output: err.message || String(err) };
+    }
+  }
+
+  if (lower === 'aspect' || lower.startsWith('aspect ')) {
+    const aspectId = line.replace(/^aspect\s*/i, '').trim();
+    if (!aspectId) return { output: 'Usage: aspect <aspectId>' };
+    try {
+      const rendered = await presentEntityView(session, ctx, 'aspect', aspectId, 'readonly');
+      if (rendered !== null) return { output: rendered };
+      const aspect = await registry.execute('get_aspect', { id: aspectId }, ctx);
+      return { output: JSON.stringify(aspect, null, 2) };
     } catch (err: any) {
       return { output: err.message || String(err) };
     }
@@ -1312,6 +1397,10 @@ export async function startShell(options: {
   const prompter = new InteractivePrompter(tty);
   const facilitator = new ParameterFacilitator(prompter);
 
+  const renderer: UiRenderer = tty.getIsTty()
+    ? new OpenTuiRenderer()
+    : new PlainRenderer();
+
   const session: ShellSession = {
     store,
     actor,
@@ -1322,7 +1411,8 @@ export async function startShell(options: {
     viewport: new ProcessViewport({
       mode: 'fold',
       interactive: tty.getIsTty()
-    })
+    }),
+    renderer
   };
 
   const completer = buildSmartCompleter(session);
@@ -1374,6 +1464,7 @@ export async function startShell(options: {
       console.error(`Error: ${err.message}`);
     }
   }
+  await renderer.dispose();
 }
 
 if (import.meta.main) {
