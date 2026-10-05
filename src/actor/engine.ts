@@ -155,7 +155,7 @@ export class WorkflowActor {
       }
     }
     if (this.asker) {
-      this.session = new LLMSession(this.asker, { maxHistoryTurns: 20 });
+      this.session = new LLMSession(this.asker, { maxHistoryTurns: 20, maxHistoryChars: 24_000 });
       if (options.toolDiscovery) {
         this.toolDiscovery = options.toolDiscovery;
       } else if (options.asker) {
