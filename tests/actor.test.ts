@@ -3,8 +3,16 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools } from '../src/tools/index.ts';
+import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
+
+const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
+  discover: async () => ({
+    query: {},
+    mode,
+    tools: names.map(name => registry.get(name)).filter(Boolean) as any[],
+  }),
+})
 
 describe('Cognitive Actor & Mode Switcher', () => {
   let tempDir: string;
@@ -28,13 +36,10 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(classifyIntentMode('/triage why are playwright tests failing?')).toBe('triage');
     expect(classifyIntentMode('/product prioritize next sprint backlog')).toBe('product');
 
-    // Natural language heuristics
-    expect(classifyIntentMode('How should we design the architecture and modular boundaries?')).toBe('design');
-    expect(classifyIntentMode('What are the trade-offs of this RFC proposal?')).toBe('design');
-    expect(classifyIntentMode('Triage the failing tests in tests/graph.test.ts')).toBe('triage');
-    expect(classifyIntentMode('There is a regression bug in the login flow')).toBe('triage');
-    expect(classifyIntentMode('Add a new Epic for user onboarding and draft stories')).toBe('product');
-    expect(classifyIntentMode('Implement the new ticket lease API in store.ts')).toBe('dev');
+    // Natural-language mode selection is semantic and happens in ToolDiscovery.
+    // This helper only parses explicit operator syntax and otherwise falls back to dev.
+    expect(classifyIntentMode('How should we design the architecture?')).toBe('dev');
+    expect(classifyIntentMode('Add a new Epic for user onboarding')).toBe('dev');
   });
 
   it('should report natural-language LLM unavailability without inventing intent', async () => {
@@ -73,7 +78,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: discover(['get_git_status', 'resolve_test_target'], 'dev')
     });
 
     const res = await actor.execute('unsure readme is aligned with latest changes');
@@ -108,7 +114,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker
+      asker: mockAsker,
+      toolDiscovery: discover([], 'dev')
     });
 
     await actor.execute('ensure the readme is aligned with latest changes');
@@ -151,7 +158,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
       store,
       projectRoot: tempDir,
       asker: mockAsker,
-      maxSteps: 5
+      maxSteps: 5,
+      toolDiscovery: discover(['get_environment_info'], 'triage')
     });
 
     const actorEvents: any[] = [];
