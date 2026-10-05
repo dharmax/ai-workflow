@@ -6,6 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import {
   Ticket,
   Epic,
+  Feature,
   ModuleNode,
   FileNode,
   SymbolNode,
@@ -254,6 +255,18 @@ test('adds', () => expect(add(1, 2)).toBe(3))
 `,
       );
 
+      const feature = await diskStore.upsertEntity<Feature>(Feature.dcr, {
+        id: 'FEAT-MATH',
+        title: 'Math behavior'
+      });
+      const existingTest = await diskStore.upsertEntity<TestNode>(TestNode.dcr, {
+        id: 'test:tests/math.test.ts',
+        title: 'math.test.ts',
+        filePath: 'tests/math.test.ts',
+        framework: 'bun'
+      });
+      await diskStore.relate(existingTest, 'verifies', feature);
+
       const result = await indexCodebase(diskStore, tmpDir);
       expect(result.testsCount).toBe(1);
 
@@ -267,6 +280,10 @@ test('adds', () => expect(add(1, 2)).toBe(3))
       const verification = await diskStore.getIncoming(source!.id, 'verifies');
       expect(verification.length).toBe(1);
       expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
+
+      const productVerification = await diskStore.getIncoming(feature.id, 'verifies');
+      expect(productVerification.length).toBe(1);
+      expect(diskStore.localId(productVerification[0]!.sourceId)).toBe('test:tests/math.test.ts');
     } finally {
       diskStore.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
