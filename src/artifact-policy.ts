@@ -25,6 +25,8 @@ export type CriticResult =
   | { verdict: 'needs_input'; required: RequiredInput[] };
 export interface ArtifactCritic { readonly id: string; review(input: CriticInput): Promise<CriticResult> }
 export interface ArtifactOperationOptions {
+  /** Internal execution cancellation; deliberately not part of the transport schema. */
+  signal?: AbortSignal;
   tags?: Record<string, string | number | boolean>;
   completeness?: CompletenessLevel;
   depth?: number | 'all';
