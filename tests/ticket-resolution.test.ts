@@ -304,17 +304,27 @@ describe('Ticket-owned bounded resolution', () => {
       expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].cognition.llm.calls).toBe(2);
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
-  it('sends current authored source to the default independent verifier for a no-edit review', async () => {
-    const t = await ticket(); fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }');
+  it('sends graph-narrowed outlines and snippets, not whole files, to the default verifier', async () => {
+    const t = await ticket();
+    const irrelevant = 'IRRELEVANT-CONTEXT-' + 'x'.repeat(12_000);
+    fs.writeFileSync(path.join(root, 'src/add.ts'), `export function add(a: number, b: number) { return a + b; }\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
+    fs.appendFileSync(path.join(root, 'tests/add.test.ts'), `\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
     let prompt = '';
     const server = Bun.serve({ port: 0, fetch: async request => {
       const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;
-      return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Actual source addition and tests signed assertions passed' }], aspects: [] }) } });
+      return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Current add implementation and graph-selected test assertion passed' }], aspects: [] }) } });
     } });
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', implement: async () => ({ changes: [], testCommands: [] }), testCommands: [['bun', 'test', 'tests/add.test.ts']] });
-      expect(result.status).toBe('complete'); expect(prompt).toContain('"source":"export function add(a: number, b: number) { return a + b; }"'); expect(prompt).toContain('"testSources":');
+      expect(result.status).toBe('complete');
+      expect(prompt).toContain('"code":');
+      expect(prompt).toContain('"outline":');
+      expect(prompt).toContain('"snippets":');
+      expect(prompt).toContain('export function add(a: number, b: number) { return a + b; }');
+      expect(prompt).toContain('test usage/assertion context');
+      expect(prompt).not.toContain('IRRELEVANT-CONTEXT-');
+      expect(prompt).not.toContain('"testSources":');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
   for (const mode of ['zero', 'continue', 'ordinary', 'limit', 'error', 'failed-edit', 'no-op'] as const) it(`bounds real implementation Actor tranches: ${mode}`, async () => {
