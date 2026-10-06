@@ -13,7 +13,7 @@ import {
   TestNode,
   Lesson
 } from '../src/graph/ontology.ts';
-import { indexCodebase, indexSingleFile } from '../src/graph/indexer.ts';
+import { ensureAstFresh, indexCodebase, indexSingleFile } from '../src/graph/indexer.ts';
 import { reconcileTestVerificationEdges } from '../src/graph/test-artifacts.ts';
 import { exportProjections, importProjections } from '../src/graph/projections.ts';
 
@@ -352,6 +352,55 @@ test('adds', () => expect(add(1, 2)).toBe(3))
       await reconcileTestVerificationEdges(diskStore);
 
       const verification = await diskStore.getIncoming(addSymbol!.id, 'verifies');
+      expect(verification).toHaveLength(1);
+      expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
+    } finally {
+      diskStore.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should restore test-to-symbol evidence after an incrementally changed source removes and restores a symbol', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-incremental-'));
+    const diskStore = new WorkflowStore(tmpDir);
+
+    try {
+      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDir, 'tests'), { recursive: true });
+      const sourcePath = path.join(tmpDir, 'src', 'math.ts');
+      fs.writeFileSync(sourcePath, `export function add(a: number, b: number) { return a + b }\n`);
+      fs.writeFileSync(
+        path.join(tmpDir, 'tests', 'math.test.ts'),
+        `import {test, expect} from 'bun:test'
+import {add} from '../src/math'
+test('adds', () => expect(add(1, 2)).toBe(3))
+`,
+      );
+
+      await indexCodebase(diskStore, tmpDir);
+
+      const findRealAdd = async () =>
+        (await diskStore.listEntities<SymbolNode>(SymbolNode.dcr, { title: 'add' }))
+          .find(symbol => symbol.filePath === 'src/math.ts');
+
+      let add = await findRealAdd();
+      expect(add).toBeDefined();
+      expect(await diskStore.getIncoming(add!.id, 'verifies')).toHaveLength(1);
+
+      fs.writeFileSync(sourcePath, `export function sum(a: number, b: number) { return a + b }\n`);
+      const firstTouch = new Date(Date.now() + 2_000);
+      fs.utimesSync(sourcePath, firstTouch, firstTouch);
+      await ensureAstFresh(diskStore, tmpDir);
+      expect(await findRealAdd()).toBeUndefined();
+
+      fs.writeFileSync(sourcePath, `export function add(a: number, b: number) { return a + b } // restored\n`);
+      const secondTouch = new Date(Date.now() + 4_000);
+      fs.utimesSync(sourcePath, secondTouch, secondTouch);
+      await ensureAstFresh(diskStore, tmpDir);
+
+      add = await findRealAdd();
+      expect(add).toBeDefined();
+      const verification = await diskStore.getIncoming(add!.id, 'verifies');
       expect(verification).toHaveLength(1);
       expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
     } finally {
