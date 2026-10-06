@@ -327,10 +327,11 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(triage.failedTestFiles).toContain('tests/math.test.ts');
     const symbolCause = triage.likelyCauses.find((cause: string) => cause.startsWith('src/math.ts#add:'));
     expect(symbolCause).toBeDefined();
+    const preciseCause = symbolCause!;
     expect(triage.likelyCauses).toContain('src/math.ts');
-    expect(triage.likelyCauses.indexOf(symbolCause)).toBeLessThan(triage.likelyCauses.indexOf('src/math.ts'));
+    expect(triage.likelyCauses.indexOf(preciseCause)).toBeLessThan(triage.likelyCauses.indexOf('src/math.ts'));
     expect(triage.likelyCauses).not.toContain('FEAT-MATH');
-    expect(triage.graphEvidence.tests[0]?.verifies).toContain(symbolCause);
+    expect(triage.graphEvidence.tests[0]?.verifies).toContain(preciseCause);
     expect(triage.graphEvidence.tests[0]?.verifies).toContain('FEAT-MATH');
 
     const testArtifact = await store.getEntity<TestNode>('test:tests/math.test.ts', TestNode.dcr);
