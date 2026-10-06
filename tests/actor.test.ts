@@ -177,6 +177,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     expect(res.mode).toBe('product')
     expect(res.answer).toBe('There are open tickets.')
+    expect(res.discoveredTools).toEqual(['list_tickets'])
     expect(systems[0]).toContain('list_tickets')
     expect((systems[0].match(/### Tool:/g) ?? []).length).toBe(1)
     expect(systems[0].length).toBeLessThan(8_000)
