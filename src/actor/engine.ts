@@ -28,6 +28,8 @@ export interface ModeRoutingConfig {
   defaultCloudModel: string;
 }
 
+const OPERATION_RESULT_TRUTH = `OperationResult.status describes the operation outcome, not a Ticket lane. Never claim a Ticket changed lane/status unless that change is explicitly observed in ticket data or a mutation result.`;
+
 export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
   design: {
     mode: 'design',
@@ -37,7 +39,7 @@ export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
     systemPrompt: `You are an expert Software Architect in [DESIGN] mode.
 Your objective is architectural clarity, ADR decision making, modular boundaries, and scalable contracts.
 Favor extreme KISS principles. Avoid premature monolithic bloat.
-Use only the discovered graph, planning, knowledge, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered graph, planning, knowledge, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.\n${OPERATION_RESULT_TRUTH}`
   },
   dev: {
     mode: 'dev',
@@ -47,7 +49,7 @@ Use only the discovered graph, planning, knowledge, git, or other capabilities s
     systemPrompt: `You are an expert Implementation Engineer in [DEV] mode.
 Your objective is writing high-quality code, compiling verified codelets, and surgically patching files.
 Always inspect the blast radius and pair with unit tests.
-Use only the discovered code, graph, change, test, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered code, graph, change, test, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.\n${OPERATION_RESULT_TRUTH}`
   },
   triage: {
     mode: 'triage',
@@ -56,7 +58,7 @@ Use only the discovered code, graph, change, test, git, or other capabilities sh
     defaultCloudModel: 'gemini-2.5-flash-lite',
     systemPrompt: `You are a Quality & Triage Engineer in [TRIAGE] mode.
 Your objective is rapid failure analysis, test suite diagnostics, and preventing regressions.
-Use only the discovered test, graph, git, or other capabilities shown for this run to diagnose failures without massive log waste.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Use only the discovered test, graph, git, or other capabilities shown for this run to diagnose failures without massive log waste.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.\n${OPERATION_RESULT_TRUTH}`
   },
   product: {
     mode: 'product',
@@ -70,7 +72,7 @@ When creating or structuring an Epic, always follow the causal flow:
 2. Surface and review unresolved questions.
 3. Use apply_epic_structure to persist the accepted proposal.
 4. Use get_product_coverage to inspect structural and causal coverage.
-DO NOT automatically generate tickets or implementation tasks during product roadmap decomposition.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+DO NOT automatically generate tickets or implementation tasks during product roadmap decomposition.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.\n${OPERATION_RESULT_TRUTH}`
   }
 };
 
