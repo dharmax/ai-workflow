@@ -1126,7 +1126,7 @@ async function main() {
     case '-h':
     default: {
       console.log(`
-\x1b[1;36m🏛️  AI-Workflow 2.0 (Bun-First Context OS)\x1b[0m
+\x1b[1;36m🏛️  AI-Workflow 2.0 (developer supreme)\x1b[0m
 
 Usage: aiwf <command> [options]
 
