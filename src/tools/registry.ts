@@ -10,6 +10,7 @@ import type { WorkflowStore } from '../graph/store.ts';
 export interface ToolContext {
   store: WorkflowStore;
   projectRoot: string;
+  signal?: AbortSignal;
   [key: string]: any;
 }
 
