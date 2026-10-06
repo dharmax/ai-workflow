@@ -317,6 +317,156 @@ describe('Cognitive Actor & Mode Switcher', () => {
     }
   })
 
+  it('uses timeoutMs per model call instead of inventing a whole-run deadline', async () => {
+    const seen: any[] = []
+    let calls = 0
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        seen.push(options)
+        calls++
+        return calls === 1
+          ? {
+              ok: true,
+              data: {
+                thought: 'Inspect status.',
+                action: 'tool_call',
+                toolCalls: [{callId: '1', name: 'get_git_status', parameters: {}}],
+              },
+            }
+          : {
+              ok: true,
+              data: {
+                thought: 'Done.',
+                action: 'final_answer',
+                finalAnswer: 'done',
+              },
+            }
+      },
+    } as any
+
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+      toolDiscovery: discover(['get_git_status'], 'dev'),
+    })
+
+    const result = await actor.execute('inspect status')
+
+    expect(result.answer).toBe('done')
+    expect(seen.every(options => options.timeoutMs === 60000)).toBe(true)
+    expect(seen.every(options => options.signal === undefined)).toBe(true)
+  })
+
+  it('propagates an explicit cancellation signal through model and tool execution', async () => {
+    const controller = new AbortController()
+    let modelSignal: AbortSignal | undefined
+    let toolSignal: AbortSignal | undefined
+    let calls = 0
+    const tool = {
+      name: 'capture_signal',
+      description: 'Capture execution signal',
+      category: 'os' as const,
+      parameters: (await import('@dharmax/llm-utils')).z.object({}),
+      execute: (_params: unknown, ctx: any) => {
+        toolSignal = ctx.signal
+        return {ok: true}
+      },
+    }
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        modelSignal = options.signal
+        calls++
+        return calls === 1
+          ? {
+              ok: true,
+              data: {
+                thought: 'Use the tool.',
+                action: 'tool_call',
+                toolCalls: [{callId: '1', name: 'capture_signal', parameters: {}}],
+              },
+            }
+          : {
+              ok: true,
+              data: {
+                thought: 'Done.',
+                action: 'final_answer',
+                finalAnswer: 'done',
+              },
+            }
+      },
+    } as any
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+      toolDiscovery: {
+        discover: async () => ({query: {}, mode: 'dev' as const, tools: [tool] as any[]}),
+      },
+    })
+
+    const result = await actor.execute('run the selected capability', undefined, {signal: controller.signal})
+
+    expect(result.answer).toBe('done')
+    expect(modelSignal).toBe(controller.signal)
+    expect(toolSignal).toBe(controller.signal)
+  })
+
+  it('reports partial actor failure instead of claiming execution was not attempted', async () => {
+    const mockAsker = {
+      json: async () => ({
+        ok: true,
+        data: {
+          thought: 'Use one tool.',
+          action: 'tool_call',
+          toolCalls: [{callId: '1', name: 'get_git_status', parameters: {}}],
+        },
+      }),
+    } as any
+    const actor = new WorkflowActor({
+      store,
+      projectRoot: tempDir,
+      asker: mockAsker,
+      maxSteps: 1,
+      toolDiscovery: discover(['get_git_status'], 'dev'),
+    })
+
+    const result = await actor.execute('inspect until complete')
+
+    expect(result.failed).toBe(true)
+    expect(result.stepsCount).toBe(1)
+    expect(result.answer).toContain('Execution stopped after 1 step(s) (max_steps_exceeded)')
+    expect(result.answer).not.toContain('Natural-language execution was not attempted')
+    expect(result.issues?.some(issue => issue.kind === 'budget')).toBe(true)
+  })
+
+  it('forwards tool cancellation into ticket resolution options', async () => {
+    await store.upsertEntity(Ticket.dcr, {
+      id: 'TKT-SIGNAL',
+      title: 'Signal propagation',
+      lane: 'Todo',
+    })
+    const controller = new AbortController()
+    const original = Ticket.prototype.resolve
+    let received: AbortSignal | undefined
+    try {
+      Ticket.prototype.resolve = async function (_store, options) {
+        received = options.signal
+        return {status: 'complete', artifactId: 'TKT-SIGNAL', value: {verification: true}} as any
+      }
+
+      await registry.execute('resolve_ticket', {ticketId: 'TKT-SIGNAL'}, {
+        store,
+        projectRoot: tempDir,
+        signal: controller.signal,
+      })
+
+      expect(received).toBe(controller.signal)
+    } finally {
+      Ticket.prototype.resolve = original
+    }
+  })
+
   it('should preserve conversational context across shell actor turns', async () => {
     const prompts: string[] = [];
     let call = 0;
