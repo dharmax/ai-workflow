@@ -242,7 +242,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(systems[1]).toContain('recommend_next_task')
   });
 
-  it('routes ordinary resolve-next language to the composed capability in one Actor tool call', async () => {
+  it('composes selected existing capabilities for multi-stage natural language', async () => {
     await store.upsertEntity(Ticket.dcr, {
       id: 'TKT-NEXT-ACTOR',
       title: 'Next actor work',
@@ -264,30 +264,38 @@ describe('Cognitive Actor & Mode Switcher', () => {
               data: {
                 mode: ['dev'],
                 domain: ['ticket'],
-                object: ['next'],
-                action: ['resolve'],
-                effect: ['execution'],
+                action: ['recommend', 'resolve'],
               },
             }
           }
 
           actorCalls++
           if (actorCalls === 1) {
-            expect(options.system).toContain('### Tool: resolve_next_ticket')
-            expect(options.system).not.toContain('### Tool: list_tickets')
+            expect(options.system).toContain('### Tool: recommend_next_task')
+            expect(options.system).toContain('### Tool: resolve_ticket')
             return {
               ok: true,
               data: {
-                thought: 'Use the composed next-ticket operation.',
+                thought: 'Select the next actionable ticket.',
                 action: 'tool_call',
-                toolCalls: [{callId: '1', name: 'resolve_next_ticket', parameters: {}}],
+                toolCalls: [{callId: '1', name: 'recommend_next_task', parameters: {}}],
+              },
+            }
+          }
+          if (actorCalls === 2) {
+            return {
+              ok: true,
+              data: {
+                thought: 'Resolve the selected ticket.',
+                action: 'tool_call',
+                toolCalls: [{callId: '2', name: 'resolve_ticket', parameters: {ticketId: 'TKT-NEXT-ACTOR'}}],
               },
             }
           }
           return {
             ok: true,
             data: {
-              thought: 'Report the observed result.',
+              thought: 'Report the observed resolution.',
               action: 'final_answer',
               finalAnswer: 'Resolved TKT-NEXT-ACTOR.',
             },
@@ -299,45 +307,11 @@ describe('Cognitive Actor & Mode Switcher', () => {
       const result = await actor.execute('please resolve next open or in-progress ticket')
 
       expect(result.answer).toBe('Resolved TKT-NEXT-ACTOR.')
-      expect(result.events[0]?.toolCall?.name).toBe('resolve_next_ticket')
-      expect(result.events[0]?.toolResult?.selectedTicket?.id).toBe('TKT-NEXT-ACTOR')
-      expect(actorCalls).toBe(2)
-    } finally {
-      Ticket.prototype.resolve = original
-    }
-  })
-
-  it('resolves the deterministic next selection without conflating operation blockage with ticket lane', async () => {
-    await store.upsertEntity(Ticket.dcr, {
-      id: 'TKT-NEXT',
-      title: 'Next work',
-      lane: 'In Progress',
-      claim: {agentId: 'agent-1', expiresAt: new Date(Date.now() - 1_000).toISOString()},
-    })
-
-    const original = Ticket.prototype.resolve
-    try {
-      Ticket.prototype.resolve = async function () {
-        return {
-          status: 'blocked',
-          artifactId: 'TKT-NEXT',
-          blockers: [{reason: 'Provider unavailable'}],
-        } as any
-      }
-
-      const result = await registry.execute('resolve_next_ticket', {agentId: 'agent-1'}, {
-        store,
-        projectRoot: tempDir,
-      })
-
-      expect(result.selectedTicket).toEqual({
-        id: 'TKT-NEXT',
-        title: 'Next work',
-        lane: 'In Progress',
-      })
-      expect(result.resolution.status).toBe('blocked')
-      expect(result.resolution.blockers[0].reason).toBe('Provider unavailable')
-      expect((await store.getEntity<any>('TKT-NEXT', Ticket.dcr))?.lane).toBe('In Progress')
+      expect(result.events.map(event => event.toolCall?.name).filter(Boolean)).toEqual([
+        'recommend_next_task',
+        'resolve_ticket',
+      ])
+      expect(actorCalls).toBe(3)
     } finally {
       Ticket.prototype.resolve = original
     }
