@@ -242,6 +242,71 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(systems[1]).toContain('recommend_next_task')
   });
 
+  it('routes ordinary resolve-next language to the composed capability in one Actor tool call', async () => {
+    await store.upsertEntity(Ticket.dcr, {
+      id: 'TKT-NEXT-ACTOR',
+      title: 'Next actor work',
+      lane: 'In Progress',
+    })
+
+    const original = Ticket.prototype.resolve
+    let actorCalls = 0
+    try {
+      Ticket.prototype.resolve = async function () {
+        return {status: 'complete', artifactId: 'TKT-NEXT-ACTOR', value: {verification: true}} as any
+      }
+
+      const mockAsker = {
+        json: async (_prompt: string, _schema: unknown, options: any) => {
+          if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
+            return {
+              ok: true,
+              data: {
+                mode: ['dev'],
+                domain: ['ticket'],
+                object: ['next'],
+                action: ['resolve'],
+                effect: ['execution'],
+              },
+            }
+          }
+
+          actorCalls++
+          if (actorCalls === 1) {
+            expect(options.system).toContain('### Tool: resolve_next_ticket')
+            expect(options.system).not.toContain('### Tool: list_tickets')
+            return {
+              ok: true,
+              data: {
+                thought: 'Use the composed next-ticket operation.',
+                action: 'tool_call',
+                toolCalls: [{callId: '1', name: 'resolve_next_ticket', parameters: {}}],
+              },
+            }
+          }
+          return {
+            ok: true,
+            data: {
+              thought: 'Report the observed result.',
+              action: 'final_answer',
+              finalAnswer: 'Resolved TKT-NEXT-ACTOR.',
+            },
+          }
+        },
+      } as any
+
+      const actor = new WorkflowActor({store, projectRoot: tempDir, asker: mockAsker})
+      const result = await actor.execute('please resolve next open or in-progress ticket')
+
+      expect(result.answer).toBe('Resolved TKT-NEXT-ACTOR.')
+      expect(result.events[0]?.toolCall?.name).toBe('resolve_next_ticket')
+      expect(result.events[0]?.toolResult?.selectedTicket?.id).toBe('TKT-NEXT-ACTOR')
+      expect(actorCalls).toBe(2)
+    } finally {
+      Ticket.prototype.resolve = original
+    }
+  })
+
   it('resolves the deterministic next selection without conflating operation blockage with ticket lane', async () => {
     await store.upsertEntity(Ticket.dcr, {
       id: 'TKT-NEXT',
