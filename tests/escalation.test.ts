@@ -228,7 +228,9 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     expect(res.escalated).toBe(true);
     expect(res.escalationReason).toContain('Blast radius');
     expect(res.targetModel).toBeUndefined();
-    expect(askOptions.task).toBe('reasoning');
+    // Escalation changes locality, while the dev task remains code generation.
+    expect(res.mode).toBe('dev');
+    expect(askOptions.task).toBe('code');
     expect(askOptions.preferLocal).toBe(false);
   });
 });

@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
-import type { UiRenderer, ViewRequest, ViewResult } from '@dharmax/shell-ui';
+import { ProcessViewport, type UiRenderer, type ViewRequest, type ViewResult } from '@dharmax/shell-ui';
 import { WorkflowActor } from '../src/actor/engine.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
 
@@ -108,16 +108,59 @@ describe('Interactive Shell REPL Bridge', () => {
   });
 
   it('should handle trace controls as deterministic shell commands', async () => {
-    const on = await processShellInput('trace on', session)
-    expect(on.output).toBe('Trace mode: full')
-    expect(session.viewport?.getMode()).toBe('full')
+    // Match the viewport supplied by startShell, without requiring a terminal.
+    session.viewport = new ProcessViewport({mode: 'fold', interactive: false})
+    const execute = spyOn(session.actor, 'execute')
+    try {
+      const on = await processShellInput('trace on', session)
+      expect(on.output).toBe('Trace mode: full')
+      expect(session.viewport?.getMode()).toBe('full')
 
-    const off = await processShellInput('trace off', session)
-    expect(off.output).toBe('Trace mode: fold')
-    expect(session.viewport?.getMode()).toBe('fold')
+      const off = await processShellInput('trace off', session)
+      expect(off.output).toBe('Trace mode: fold')
+      expect(session.viewport?.getMode()).toBe('fold')
 
-    const mode = await processShellInput('trace', session)
-    expect(mode.output).toBe('Trace mode: fold')
+      const mode = await processShellInput('trace', session)
+      expect(mode.output).toBe('Trace mode: fold')
+      expect(execute).not.toHaveBeenCalled()
+    } finally {
+      execute.mockRestore()
+    }
+  })
+
+  it('should report unavailable trace controls without invoking the Actor', async () => {
+    const execute = spyOn(session.actor, 'execute')
+    try {
+      const result = await processShellInput('trace on', session)
+      expect(result.output).toBe('Trace viewport unavailable.')
+      expect(session.viewport).toBeUndefined()
+      expect(execute).not.toHaveBeenCalled()
+    } finally {
+      execute.mockRestore()
+    }
+  })
+
+  it('should facilitate interactive escalation policy selection', async () => {
+    const { ParameterFacilitator } = await import('@dharmax/shell-ui')
+    const requests: unknown[] = []
+    session.interactive = true
+    session.facilitator = new ParameterFacilitator({
+      elicit: async request => {
+        requests.push(request)
+        return {status: 'answered', id: request.id, value: 'local_only'}
+      },
+      form: async () => ({status: 'unavailable'}),
+      review: async () => ({status: 'unavailable'}),
+      view: async () => ({status: 'unavailable'}),
+    })
+    const result = await processShellInput('escalate', session)
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toMatchObject({kind: 'select', choices: [
+      {id: 'auto'}, {id: 'local_only'}, {id: 'prompt'}, {id: 'sota'}
+    ]})
+    expect(result.output).toContain('local_only')
+    const { loadConfig } = await import('../src/config.ts')
+    expect(loadConfig(tempDir).escalation?.policy).toBe('local_only')
   })
 
   it('should execute all domain fast-paths without LLM invocation', async () => {

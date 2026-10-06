@@ -242,12 +242,15 @@ Drill-down and project commands:
     const cfg = loadConfig(session.projectRoot);
 
     if (!target && isInteractive) {
-      const prompter = facilitator.getPrompter();
-      target = await prompter.select(
-        'Select escalation policy',
-        ['auto', 'local_only', 'prompt', 'sota'],
-        cfg.escalation?.policy || 'auto'
-      );
+      const values = await facilitator.facilitate({
+        policy: {
+          type: 'string',
+          description: 'Select escalation policy',
+          choices: ['auto', 'local_only', 'prompt', 'sota'],
+          required: true
+        }
+      }, {}, {interactive: true});
+      target = values.policy;
     }
 
     if (['auto', 'local_only', 'prompt', 'sota'].includes(target)) {
