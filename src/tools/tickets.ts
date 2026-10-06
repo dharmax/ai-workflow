@@ -10,6 +10,7 @@ import { registry, type ToolContext } from './registry.ts';
 import { Ticket } from '../graph/ontology.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
+import { loadConfig } from '../config.ts';
 
 async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket> {
   const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
@@ -18,6 +19,36 @@ async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket
 }
 
 export function registerTicketTools() {
+  registry.register({
+    name: 'resolve_next_ticket',
+    description: 'Select the next actionable Ticket deterministically, then resolve that exact Ticket through the canonical resolver. Use for requests like "resolve the next open or in-progress ticket".',
+    category: 'ticket',
+    parameters: ArtifactTransportOptionsSchema.extend({
+      agentId: z.string().optional(),
+      maxRepairs: z.number().int().min(0).max(3).optional(),
+      allowDirtyTargets: z.array(z.string()).optional(),
+      testCommands: z.array(z.array(z.string()).min(1)).optional()
+    }),
+    execute: async (options, ctx) => {
+      const agentId = options.agentId ?? loadConfig(ctx.projectRoot).defaultAgentId;
+      const selection = await registry.execute('recommend_next_task', {agentId}, ctx);
+      if (!selection.ticket) return {status: 'no_work', selectedTicket: null, reason: selection.reason};
+
+      const selectedTicket = {...selection.ticket};
+      const resolution = await registry.execute('resolve_ticket', {
+        ...options,
+        agentId,
+        ticketId: selectedTicket.id,
+      }, ctx);
+
+      return {
+        selectedTicket,
+        selectionReason: selection.reason,
+        resolution,
+      };
+    }
+  });
+
   registry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
