@@ -493,12 +493,38 @@ export async function analyzeBlastRadius(
   const directFiles = await store.listEntities<FileNode>(FileNode.dcr);
   const matchedDirect = directFiles.filter(f => f.id.includes(target) || (f as any).path?.includes(target));
 
+  const exactSymbol = await store.getEntity<SymbolNode>(target, SymbolNode.dcr);
+  const matchedSymbols = exactSymbol
+    ? [exactSymbol]
+    : (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: target }))
+        .filter(symbol => symbol.status !== 'deprecated');
+
   const affectedFileIds = new Set<string>();
   for (const f of matchedDirect) affectedFileIds.add(store.localId(f.id));
   for (const d of incomingDeps) affectedFileIds.add(store.localId(d.sourceId));
   for (const i of incomingImports) affectedFileIds.add(store.localId(i.sourceId));
 
   const recommendedTests = new Set<string>();
+
+  // Symbols are first-class blast-radius targets. Their containing source file,
+  // graph callers, and directly verifying tests are already indexed evidence.
+  for (const symbol of matchedSymbols) {
+    if (symbol.filePath) affectedFileIds.add(normalizeTestPath(symbol.filePath));
+
+    for (const call of await store.getIncoming(symbol.id, 'calls')) {
+      const caller = await store.getEntity(call.sourceId);
+      if (caller instanceof FileNode) affectedFileIds.add(store.localId(caller.id));
+      else if (caller instanceof SymbolNode && caller.filePath) {
+        affectedFileIds.add(normalizeTestPath(caller.filePath));
+      }
+    }
+
+    for (const test of await findTestsVerifying(store, symbol.id)) {
+      const testPath = (test as any).filePath || (test as any).targetPath;
+      if (testPath) recommendedTests.add(normalizeTestPath(testPath));
+    }
+  }
+
   for (const fileId of affectedFileIds) {
     const file = await store.getEntity<FileNode>(fileId, FileNode.dcr);
     if (file) {
