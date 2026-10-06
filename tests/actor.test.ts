@@ -5,6 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
+import { Ticket } from '../src/graph/ontology.ts';
 
 const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
   discover: async () => ({
@@ -240,6 +241,42 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(systems[0]).not.toContain('run_command')
     expect(systems[1]).toContain('recommend_next_task')
   });
+
+  it('resolves the deterministic next selection without conflating operation blockage with ticket lane', async () => {
+    await store.upsertEntity(Ticket.dcr, {
+      id: 'TKT-NEXT',
+      title: 'Next work',
+      lane: 'In Progress',
+      claim: {agentId: 'agent-1', expiresAt: new Date(Date.now() - 1_000).toISOString()},
+    })
+
+    const original = Ticket.prototype.resolve
+    try {
+      Ticket.prototype.resolve = async function () {
+        return {
+          status: 'blocked',
+          artifactId: 'TKT-NEXT',
+          blockers: [{reason: 'Provider unavailable'}],
+        } as any
+      }
+
+      const result = await registry.execute('resolve_next_ticket', {agentId: 'agent-1'}, {
+        store,
+        projectRoot: tempDir,
+      })
+
+      expect(result.selectedTicket).toEqual({
+        id: 'TKT-NEXT',
+        title: 'Next work',
+        lane: 'In Progress',
+      })
+      expect(result.resolution.status).toBe('blocked')
+      expect(result.resolution.blockers[0].reason).toBe('Provider unavailable')
+      expect((await store.getEntity<any>('TKT-NEXT', Ticket.dcr))?.lane).toBe('In Progress')
+    } finally {
+      Ticket.prototype.resolve = original
+    }
+  })
 
   it('should preserve conversational context across shell actor turns', async () => {
     const prompts: string[] = [];
