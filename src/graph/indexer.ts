@@ -16,7 +16,7 @@ import {
   TestNode,
   Lesson
 } from './ontology.ts';
-import {isTestSource, reconcileTestVerificationEdges, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
+import {findTestsVerifying, isTestSource, reconcileTestVerificationEdges, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini',
@@ -434,6 +434,15 @@ async function reconcileAst(
 
   const updatedFiles: string[] = [];
   const visitedRelPaths = new Set<string>();
+  const affectedTests = new Map<string, TestNode>();
+
+  const rememberVerifyingTests = async (filePath: string) => {
+    const file = await store.getEntity<FileNode>(filePath, FileNode.dcr);
+    if (!file) return
+    for (const test of await findTestsVerifying(store, file.id)) {
+      affectedTests.set(test.id, test)
+    }
+  };
 
   for (let i = 0; i < candidateFiles.length; i++) {
     const { fullPath, relPath, stat: s } = candidateFiles[i];
@@ -451,6 +460,7 @@ async function reconcileAst(
 
     if (isNew || isModified) {
       try {
+        if (!options?.force) await rememberVerifyingTests(relPath);
         await indexSingleFile(store, fullPath, relPath, rootDir);
         updatedFiles.push(relPath);
       } catch {}
@@ -462,14 +472,17 @@ async function reconcileAst(
     if (info.isExternal || info.isStub) continue;
     if (!visitedRelPaths.has(relPath)) {
       try {
+        if (!options?.force) await rememberVerifyingTests(relPath);
         await removeFileFromIndex(store, relPath);
         deletedFiles.push(relPath);
       } catch {}
     }
   }
 
-  if (options?.force || updatedFiles.length > 0 || deletedFiles.length > 0) {
+  if (options?.force) {
     await reconcileTestVerificationEdges(store)
+  } else if (affectedTests.size > 0) {
+    await reconcileTestVerificationEdges(store, [...affectedTests.values()])
   }
 
   return {
