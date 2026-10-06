@@ -481,8 +481,16 @@ async function reconcileAst(
 
   if (options?.force) {
     await reconcileTestVerificationEdges(store)
-  } else if (affectedTests.size > 0) {
-    await reconcileTestVerificationEdges(store, [...affectedTests.values()])
+  } else {
+    for (const test of affectedTests.values()) {
+      const testPath = test.filePath || test.targetPath
+      if (!testPath) continue
+      const fullPath = path.resolve(rootDir, testPath)
+      if (!existsSync(fullPath)) continue
+      try {
+        await indexSingleFile(store, fullPath, testPath, rootDir)
+      } catch {}
+    }
   }
 
   return {
