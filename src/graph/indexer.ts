@@ -310,6 +310,33 @@ export async function indexSingleFile(
     }
   }
 
+  // A test verifies not only imported source files but, when the existing call graph
+  // can prove it, the exact symbols exercised inside those files. This is a purely
+  // graph-derived refinement: no name guessing and no extra AI.
+  if (testArtifact) {
+    const verifiedFileIds = new Set<string>()
+    for (const edge of await store.getOutgoing(testArtifact.id, 'verifies')) {
+      const target = await store.getEntity(edge.targetId)
+      if (target instanceof FileNode) verifiedFileIds.add(target.id)
+    }
+
+    if (verifiedFileIds.size > 0) {
+      for (const edge of await store.getOutgoing(fileEntity.id, 'calls')) {
+        const target = await store.getEntity<SymbolNode>(edge.targetId, SymbolNode.dcr)
+        if (!target?.filePath) continue
+        const targetFile = await store.getEntity<FileNode>(target.filePath, FileNode.dcr)
+        if (!targetFile || !verifiedFileIds.has(targetFile.id)) continue
+
+        try {
+          await store.relate(testArtifact, 'verifies', target, {
+            state: 'derived',
+            note: 'Static test call into imported source'
+          })
+        } catch {}
+      }
+    }
+  }
+
   // 4. Index in-code notes (BUG, FIXME, TODO)
   let notesCount = 0;
   for (const note of parsed.notes) {
