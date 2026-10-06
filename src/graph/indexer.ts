@@ -268,12 +268,6 @@ export async function indexSingleFile(
           }
           await store.relate(fileEntity, 'imports', targetFileEntity);
           await store.relate(fileEntity, 'depends_on', targetFileEntity);
-          if (testArtifact && targetRel !== relPath) {
-            await store.relate(testArtifact, 'verifies', targetFileEntity, {
-              state: 'derived',
-              note: 'Static test import'
-            });
-          }
         } catch {}
       } else {
         // External package or built-in import (e.g. @test/mylib, lodash)
