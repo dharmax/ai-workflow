@@ -5,7 +5,7 @@
  * and honest offline failure reporting.
  */
 
-import { LLMActor, LLMSession, Asker, InMemoryMetricsStore } from '@dharmax/llm-utils';
+import { LLMActor, LLMSession, Asker, InMemoryMetricsStore, type ActorIssue } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
@@ -207,13 +207,15 @@ export class WorkflowActor {
   async execute(
     instruction: string,
     forcedMode?: ShellMode,
-    execOptions?: { forceCloud?: boolean; forceModel?: string; onStep?: (step: any) => void }
+    execOptions?: { forceCloud?: boolean; forceModel?: string; signal?: AbortSignal; onStep?: (step: any) => void }
   ): Promise<{
     mode: ShellMode;
     stepsCount: number;
     answer: string;
     events: ActorStepEvent[];
     offlineFallback?: boolean;
+    failed?: boolean;
+    issues?: ActorIssue[];
     targetModel?: string;
     escalated?: boolean;
     escalationReason?: string;
@@ -231,7 +233,8 @@ export class WorkflowActor {
 
     const ctx: ToolContext = {
       store: this.store,
-      projectRoot: this.projectRoot
+      projectRoot: this.projectRoot,
+      signal: execOptions?.signal
     };
 
     const events: ActorStepEvent[] = [];
@@ -354,9 +357,10 @@ export class WorkflowActor {
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
           preferLocal: preferLocalForRun,
-          maxTokens: cfg.llmOutputTokens
+          maxTokens: cfg.llmOutputTokens,
+          timeoutMs: this.timeoutMs
         },
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: execOptions?.signal,
         onStep: execOptions?.onStep
       });
 
@@ -384,7 +388,7 @@ export class WorkflowActor {
 
       if (!result.ok && (!result.finalText && !lastStep?.finalAnswer)) {
         return {
-          ...this.executeOfflineFallback(activeMode, result.error),
+          ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
           discoveredTools: [...selectedNames]
         };
       }
@@ -397,14 +401,44 @@ export class WorkflowActor {
         targetModel: explicitModel,
         escalated: shouldEscalate,
         escalationReason,
-        discoveredTools: [...selectedNames]
+        discoveredTools: [...selectedNames],
+        issues: result.issues
       };
     } catch (err: any) {
       return {
-        ...this.executeOfflineFallback(activeMode, err.message),
+        ...this.executeFailure(activeMode, events, 'error', err.message, []),
         discoveredTools: discovery.tools.map(tool => tool.name)
       };
     }
+  }
+
+  private executeFailure(
+    mode: ShellMode,
+    events: ActorStepEvent[],
+    haltReason: string,
+    error?: string,
+    issues: ActorIssue[] = []
+  ): {
+    mode: ShellMode;
+    stepsCount: number;
+    answer: string;
+    events: ActorStepEvent[];
+    failed: true;
+    issues: ActorIssue[];
+  } {
+    const summary = [...new Set(issues.map(issue =>
+      `${issue.kind}${issue.source ? `/${issue.source}` : ''}: ${issue.message}`
+    ))].slice(-6);
+    const detail = error || 'Execution did not complete.';
+    const issueText = summary.length ? ` Issues: ${summary.join(' | ')}` : '';
+    return {
+      mode,
+      stepsCount: events.length,
+      answer: `Execution stopped after ${events.length} step(s) (${haltReason}): ${detail}.${issueText}`,
+      events,
+      failed: true,
+      issues
+    };
   }
 
   /**
