@@ -116,13 +116,15 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
     private readonly fallbackAsker?: Asker,
   ) {}
 
-  async classify(text: string): Promise<RegistryQuery> {
+  async classify(text: string, options: {signal?: AbortSignal; timeoutMs?: number} = {}): Promise<RegistryQuery> {
     const vocabulary = this.vocabulary()
     const system = classifierSystem(vocabulary)
     let result = await this.asker.json(text, QUERY_SCHEMA, {
       system,
       temperature: 0,
       maxTokens: 192,
+      signal: options.signal,
+      timeoutMs: options.timeoutMs,
     })
 
     if ((!result.ok || !result.data) && this.fallbackAsker) {
@@ -131,6 +133,8 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
         task: 'fast',
         temperature: 0,
         maxTokens: 192,
+        signal: options.signal,
+        timeoutMs: options.timeoutMs,
       })
     }
 
@@ -156,10 +160,10 @@ export class ToolDiscovery {
     )
   }
 
-  async discover(text: string, limit = 5): Promise<DiscoveredTools> {
+  async discover(text: string, limit = 5, options: {signal?: AbortSignal; timeoutMs?: number} = {}): Promise<DiscoveredTools> {
     await this.sync()
 
-    const query = await this.classifier.classify(text)
+    const query = await this.classifier.classify(text, options)
     const mode = readMode(query)
     const searchable = withoutMode(query)
     if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
@@ -177,6 +181,7 @@ export class ToolDiscovery {
     attemptedToolName: string,
     attemptedParams: Record<string, unknown>,
     currentToolNames: ReadonlySet<string>,
+    options: {signal?: AbortSignal; timeoutMs?: number} = {},
   ): Promise<ToolDefinition | undefined> {
     const query = [
       `Goal: ${goal}`,
@@ -185,7 +190,7 @@ export class ToolDiscovery {
       'Select the single registered capability that best satisfies this action.',
     ].join('\n')
 
-    const result = await this.discover(query, 3)
+    const result = await this.discover(query, 3, options)
     return result.tools.find(tool => !currentToolNames.has(tool.name))
   }
 
