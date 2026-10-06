@@ -135,14 +135,8 @@ export async function reconcileTestVerificationEdges(
 
   for (const test of tests) {
     for (const edge of await store.getOutgoing(test.id, 'verifies')) {
-      const target = await store.getEntity(edge.targetId)
-      if (
-        target instanceof FileNode
-        || target instanceof SymbolNode
-        || (!target && (edge as any).state === 'derived')
-      ) {
-        try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
-      }
+      if ((edge as any).payload?.state !== 'derived') continue
+      try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
     }
 
     const testPath = normalizeTestPath(test.filePath || test.targetPath || '')
