@@ -13,7 +13,8 @@ import {
   TestNode,
   Lesson
 } from '../src/graph/ontology.ts';
-import { indexCodebase } from '../src/graph/indexer.ts';
+import { indexCodebase, indexSingleFile } from '../src/graph/indexer.ts';
+import { reconcileTestVerificationEdges } from '../src/graph/test-artifacts.ts';
 import { exportProjections, importProjections } from '../src/graph/projections.ts';
 
 describe('AST+ Semantic Graph (Semantika)', () => {
@@ -305,6 +306,54 @@ export const sample = () => add(1, 2)
       const productVerification = await diskStore.getIncoming(feature.id, 'verifies');
       expect(productVerification.length).toBe(1);
       expect(diskStore.localId(productVerification[0]!.sourceId)).toBe('test:tests/math.test.ts');
+    } finally {
+      diskStore.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('should reconcile symbol verification when a test is indexed before its source', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-order-'));
+    const diskStore = new WorkflowStore(tmpDir);
+
+    try {
+      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(tmpDir, 'tests'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, 'src', 'math.ts'),
+        `export function add(a: number, b: number) { return a + b }\n`,
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, 'tests', 'math.test.ts'),
+        `import {test, expect} from 'bun:test'
+import {add} from '../src/math'
+test('adds', () => expect(add(1, 2)).toBe(3))
+`,
+      );
+
+      await indexSingleFile(
+        diskStore,
+        path.join(tmpDir, 'tests', 'math.test.ts'),
+        'tests/math.test.ts',
+        tmpDir,
+      );
+      await indexSingleFile(
+        diskStore,
+        path.join(tmpDir, 'src', 'math.ts'),
+        'src/math.ts',
+        tmpDir,
+      );
+
+      const addSymbol = (await diskStore.listEntities<SymbolNode>(SymbolNode.dcr, { title: 'add' }))
+        .find(symbol => symbol.filePath === 'src/math.ts');
+      expect(addSymbol).toBeDefined();
+      expect(await diskStore.getIncoming(addSymbol!.id, 'verifies')).toHaveLength(0);
+
+      await reconcileTestVerificationEdges(diskStore);
+
+      const verification = await diskStore.getIncoming(addSymbol!.id, 'verifies');
+      expect(verification).toHaveLength(1);
+      expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
     } finally {
       diskStore.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
