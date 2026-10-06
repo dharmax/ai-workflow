@@ -109,12 +109,6 @@ export async function upsertTestArtifact(
 
   await store.relate(file, 'contains', test)
 
-  for (const edge of await store.getOutgoing(test.id, 'verifies')) {
-    const target = await store.getEntity(edge.targetId)
-    if (!(target instanceof FileNode || target instanceof SymbolNode)) continue
-    try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
-  }
-
   return test
 }
 
