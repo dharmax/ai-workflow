@@ -23,7 +23,7 @@ export function registerTicketTools() {
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId);
-      return ticket.resolve(ctx.store, options);
+      return ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
     }
   });
   registry.register({
@@ -31,7 +31,7 @@ export function registerTicketTools() {
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId);
-      return ticket.prepare(ctx.store, options);
+      return ticket.prepare(ctx.store, { ...options, signal: ctx.signal });
     }
   });
   registry.register({
@@ -39,7 +39,7 @@ export function registerTicketTools() {
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string() }),
     execute: async ({ ticketId, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId);
-      return ticket.investigate(ctx.store, options);
+      return ticket.investigate(ctx.store, { ...options, signal: ctx.signal });
     }
   });
   registry.register({
