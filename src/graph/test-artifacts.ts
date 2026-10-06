@@ -111,7 +111,7 @@ export async function upsertTestArtifact(
 
   for (const edge of await store.getOutgoing(test.id, 'verifies')) {
     const target = await store.getEntity(edge.targetId)
-    if (!(target instanceof FileNode)) continue
+    if (!(target instanceof FileNode || target instanceof SymbolNode)) continue
     try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
   }
 
@@ -169,7 +169,8 @@ export async function failureGraphEvidence(
   likelyCauses: string[]
 }> {
   const tests: Array<{id: string; filePath: string; framework?: string; verifies: string[]}> = []
-  const likelyCauses = new Set<string>()
+  const likelySymbols = new Set<string>()
+  const likelyFiles = new Set<string>()
 
   for (const filePath of new Set(filePaths.map(normalizeTestPath))) {
     const test = await store.getEntity<TestNode>(testArtifactId(filePath), TestNode.dcr)
@@ -181,8 +182,10 @@ export async function failureGraphEvidence(
     for (const edge of verificationEdges) {
       verifies.push(store.localId(edge.targetId))
       const target = await store.getEntity(edge.targetId)
-      if (target instanceof FileNode || target instanceof SymbolNode) {
-        likelyCauses.add(store.localId(target.id))
+      if (target instanceof SymbolNode) {
+        likelySymbols.add(store.localId(target.id))
+      } else if (target instanceof FileNode) {
+        likelyFiles.add(store.localId(target.id))
       }
     }
 
@@ -194,7 +197,7 @@ export async function failureGraphEvidence(
     })
   }
 
-  return {tests, likelyCauses: [...likelyCauses]}
+  return {tests, likelyCauses: [...likelySymbols, ...likelyFiles]}
 }
 
 export async function recordTestExecution(
