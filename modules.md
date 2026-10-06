@@ -5,7 +5,7 @@
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
 | `root` | project default | 97 | 0 | None |
-| `src/graph` | project default | 1113 | 0 | None |
+| `src/graph` | project default | 1114 | 0 | None |
 | `src/tools` | project default | 462 | 0 | None |
 | `src/actor` | project default | 272 | 0 | None |
 | `src/mcp` | project default | 36 | 0 | None |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 50 | 0 | None |
 | `src/doctor` | project default | 60 | 0 | None |
 | `src/setup` | project default | 115 | 0 | None |
-| `tests` | project default | 868 | 0 | None |
+| `tests` | project default | 870 | 0 | None |
 | `skills` | project default | 10 | 0 | None |
 | `src/terminal` | project default | 58 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -42,6 +42,7 @@
 | `scripts` | project default | 18 | 0 | None |
 | `src/entity-view` | project default | 16 | 0 | None |
 | `@external/@dharmax/semantic-registry` | project default | 67 | 0 | None |
+| `src/verification-context` | project default | 47 | 0 | None |
 
 ## Dependency Diagram
 

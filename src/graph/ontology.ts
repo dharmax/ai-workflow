@@ -573,6 +573,7 @@ export class Ticket extends WorkflowEntity {
       const crypto = await import('node:crypto');
       const { ensureAstFresh } = await import('./indexer.ts');
       const { verifyingTestsForTargets, recordTestExecution, currentTestEvidence, hashFiles, testPathsFromCommand } = await import('./test-artifacts.ts');
+      const { buildVerificationContext } = await import('../verification-context.ts');
       initializeTools();
       const cfg = loadConfig(store.root), agentId = options.agentId ?? cfg.defaultAgentId, rootId = store.localId(this.id);
       const acquired = new Set<string>(), ownedFiles = new Set<string>(), allFiles = new Set<string>(), resolved: string[] = [];
@@ -684,14 +685,28 @@ export class Ticket extends WorkflowEntity {
           const children = (await store.getOutgoing(ticket.id, 'contains')).filter(edge => work.has(store.localId(edge.targetId))).map(edge => store.localId(edge.targetId));
           const verify = options.verify ?? (async (input: ResolutionVerificationInput) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
-            const sourceFiles = new Set([...input.files, ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)]);
-            for (const test of input.testNodes) sourceFiles.delete(test.filePath);
-            const sources = [...sourceFiles].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
-            const testSources = [...new Set(input.testNodes.map(test => test.filePath))].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
             const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
-            const review = {...input, dossier: reviewDossier, tests: input.tests.map(({output: _reportedOnTestNodes, ...test}) => test), testNodes: input.testNodes.map(({hashes: _checkedByResolver, ...test}) => test), sources, testSources};
-            countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify(review)}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const verificationContext = await buildVerificationContext(store, store.root, {
+              dossier: input.dossier,
+              files: input.files,
+              testNodes: input.testNodes,
+            });
+            const reviewContext = {
+              dossier: reviewDossier,
+              files: input.files,
+              children: input.children,
+              tests: input.tests.map(test => ({ command: test.command, passed: test.passed })),
+              testNodes: input.testNodes.map(test => ({
+                id: test.id, filePath: test.filePath, passed: test.passed, command: test.command, verifies: test.verifies, output: test.output,
+              })),
+              code: verificationContext.files,
+            };
+            const serializedContext = JSON.stringify(reviewContext);
+            if (serializedContext.length > 80_000) {
+              throw new Error(`Acceptance verification context exceeds 80000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`);
+            }
+            countEngineering('sourceReads', verificationContext.files.reduce((count, file) => count + file.snippets.length, 0)); countEngineering('reasoningCalls');
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. code contains graph-derived current file outlines and relevant source/test snippets AFTER implementation; tests/testNodes contain compact successful execution evidence. Use those, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete snippet/assertion/result for each claim. Do not accept a producer's completion statement. Context: ${serializedContext}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [], actorTranches = 0;

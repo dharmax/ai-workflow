@@ -284,7 +284,7 @@ describe('Ticket-owned bounded resolution', () => {
 
   it('projects canonical execution evidence into acceptance review without duplicating test files or raw hashes', async () => {
     const t = await ticket(); await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
-    let context: {sources: Array<{file: string}>; testSources: Array<{file: string}>; testNodes: Array<Record<string, unknown>>; tests: Array<Record<string, unknown>>} | undefined;
+    let context: {code: Array<{file: string}>; testNodes: Array<Record<string, unknown>>; tests: Array<Record<string, unknown>>} | undefined;
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
       context = JSON.parse(prompt.slice(prompt.indexOf('Context: ') + 9));
       console.info('AIWF acceptance prompt bytes:', Buffer.byteLength(prompt));
@@ -292,8 +292,9 @@ describe('Ticket-owned bounded resolution', () => {
     });
     try {
       expect((await t.resolve(store, {...fix, verify: undefined})).status).toBe('complete');
-      expect(context!.sources.some(source => source.file.startsWith('tests/'))).toBe(false);
-      expect(context!.testSources.map(source => source.file).sort()).toEqual(['tests/add.test.ts', 'tests/contract.spec.ts']);
+      const testFiles = context!.code.map(source => source.file).filter(file => file.startsWith('tests/')).sort();
+      expect(testFiles).toEqual(['tests/add.test.ts', 'tests/contract.spec.ts']);
+      expect(new Set(context!.code.map(source => source.file)).size).toBe(context!.code.length);
       expect(context!.testNodes.every((test: object) => !('hashes' in test))).toBe(true);
       expect(context!.tests.every((test: object) => !('output' in test))).toBe(true);
     } finally {completion.mockRestore()}
@@ -393,17 +394,32 @@ describe('Ticket-owned bounded resolution', () => {
       expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].cognition.llm.calls).toBe(2);
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
-  it('sends current authored source to the default independent verifier for a no-edit review', async () => {
-    const t = await ticket(); fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }');
+  it('sends graph-narrowed outlines and snippets, not whole files, to the default verifier', async () => {
+    const t = await ticket();
+    const irrelevant = 'IRRELEVANT-CONTEXT-' + 'x'.repeat(12_000);
+    fs.writeFileSync(path.join(root, 'src/add.ts'), `export function add(a: number, b: number) { return a + b; }\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
+    fs.appendFileSync(path.join(root, 'tests/add.test.ts'), `\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
+    await indexCodebase(store, root);
+    const target = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/add.ts' && symbol.title === 'add')!;
+    const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
+    await store.relate(test, 'verifies', target, {state: 'authored'});
     let prompt = '';
     const server = Bun.serve({ port: 0, fetch: async request => {
       const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;
-      return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Actual source addition and tests signed assertions passed' }], aspects: [] }) } });
+      return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Current add implementation and graph-selected test assertion passed' }], aspects: [] }) } });
     } });
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', implement: async () => ({ changes: [], testCommands: [] }), testCommands: [['bun', 'test', 'tests/add.test.ts']] });
-      expect(result.status).toBe('complete'); expect(prompt).toContain('"source":"export function add(a: number, b: number) { return a + b; }"'); expect(prompt).toContain('"testSources":');
+      if (result.status !== 'complete') throw Error(JSON.stringify(result));
+      expect(result.status).toBe('complete');
+      expect(prompt).toContain('"code":');
+      expect(prompt).toContain('"outline":');
+      expect(prompt).toContain('"snippets":');
+      expect(prompt).toContain('export function add(a: number, b: number) { return a + b; }');
+      expect(prompt).toContain('test usage/assertion context');
+      expect(prompt).not.toContain('IRRELEVANT-CONTEXT-');
+      expect(prompt).not.toContain('"testSources":');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
   for (const mode of ['zero', 'continue', 'ordinary', 'limit', 'error', 'failed-edit', 'no-op'] as const) it(`bounds real implementation Actor tranches: ${mode}`, async () => {
