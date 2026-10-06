@@ -102,6 +102,7 @@ Examples:
 "who calls parseConfig?" -> {"mode":["dev"],"domain":["graph"],"object":["caller"],"action":["inspect"],"effect":["read"]}
 "show the source of parseConfig" -> {"mode":["dev"],"domain":["graph"],"object":["source"],"action":["get"],"effect":["read"]}
 "fix the failing auth test" -> {"mode":["triage"],"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
+"resolve the next ticket" -> {"mode":["dev"],"domain":["ticket"],"object":["next"],"action":["resolve"],"effect":["execution"]}
 
 Return semantic intent only. Do not answer the request.`
 }
