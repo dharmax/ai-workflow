@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, FileNode, Aspect, SymbolNode } from '../src/graph/ontology.ts';
+import { Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } from '../src/graph/ontology.ts';
 import { saveConfig } from '../src/config.ts';
+import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence } from '../src/graph/test-artifacts.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
@@ -44,6 +45,169 @@ describe('Ticket-owned bounded resolution', () => {
     expect(await store.getEntity('VERIFY-T')).not.toBeNull(); expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].verification).toBe(true);
     const rerun = await t.resolve(store, { ...fix, implement: async () => { throw Error('must reuse verified work'); } }); expect(rerun.status).toBe('complete');
     expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[1].counters.artifactsReused).toBe(1);
+  }, 30000);
+
+  const graphOracle = async (target: FileNode | SymbolNode, file = 'tests/contract.spec.ts') => {
+    fs.writeFileSync(path.join(root, file), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("signed addition contract",()=>{expect(add(2,3)).toBe(5); expect(add(-2,3)).toBe(1)});');
+    await indexCodebase(store, root);
+    const test = (await store.getEntity<TestNode>(`test:${file}`, TestNode.dcr))!;
+    await store.relate(test, 'verifies', target, {state: 'authored', note: 'Explicit behavioral contract'});
+    return test;
+  };
+
+  for (const symbolOnly of [false, true]) it(`selects ${symbolOnly ? 'symbol-only' : 'file'} verifies edges before fallback and producer guesses`, async () => {
+    const t = await ticket();
+    const target = symbolOnly ? (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')! : (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!;
+    const oracle = await graphOracle(target);
+    const original = registry.execute.bind(registry), fallbackFiles: string[] = [];
+    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbackFiles.push(params.filePath); return original(name, params, ctx); });
+    let sawEvidence = false;
+    try {
+      const result = await t.resolve(store, {...fix, implement: async () => ({...(await fix.implement!({} as never, [])), testCommands: []}), verify: async input => {
+        const evidence = input.testNodes.find(node => node.id === store.localId(oracle.id))!;
+        expect(evidence).toMatchObject({passed: true, filePath: 'tests/contract.spec.ts'});
+        expect(evidence.verifies).toContain(store.localId(target.id));
+        expect(evidence.hashes['src/add.ts']).toBeDefined(); sawEvidence = true;
+        return verify(input);
+      }});
+      expect(result.status).toBe('complete'); expect(sawEvidence).toBe(true); expect(fallbackFiles).not.toContain('src/add.ts');
+    } finally { execution.mockRestore(); }
+    expect((await store.getEntity<TestNode>(oracle.id, TestNode.dcr))!).toMatchObject({passed: true, status: 'verified', command: ['bun', 'test', 'tests/contract.spec.ts']});
+  }, 30000);
+
+  it('uses filename fallback only for an uncovered source and persists its canonical evidence', async () => {
+    fs.writeFileSync(path.join(root, 'tests/add.test.ts'), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("addition",()=>expect(add(2,3)).toBe(5));');
+    await indexCodebase(store, root);
+    const t = await ticket(); const original = registry.execute.bind(registry); let fallbacks = 0;
+    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx); });
+    try {
+      const result = await t.resolve(store, {...fix, implement: async dossier => ({...(await fix.implement!(dossier, [])), testCommands: []})});
+      expect(result.status).toBe('complete'); expect(fallbacks).toBe(1);
+      expect((await currentTestEvidence(store, ['test:tests/add.test.ts']))[0]?.passed).toBe(true);
+    } finally { execution.mockRestore(); }
+  }, 30000);
+
+  it('repairs a failing graph obligation even when the producer supplies a passing decoy', async () => {
+    const t = await ticket(); await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    fs.writeFileSync(path.join(root, 'tests/decoy.test.ts'), 'import {test,expect} from "bun:test"; test("unrelated",()=>expect(true).toBe(true));');
+    let attempts = 0;
+    const result = await t.resolve(store, {...fix, implement: async dossier => {
+      const proposal = await fix.implement!(dossier, []); attempts++;
+      if (attempts === 1) proposal.changes = [];
+      return {...proposal, testCommands: [['bun', 'test', 'tests/decoy.test.ts']]};
+    }});
+    expect(result.status).toBe('complete'); expect(attempts).toBe(2);
+  }, 30000);
+
+  it('hashes full-suite TestNodes, rejects changed spec proof, and reuses unchanged full-suite proof', async () => {
+    const t = await ticket(); const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    const options = {...fix, testCommands: [['bun', 'test']]};
+    expect((await t.resolve(store, options)).status).toBe('complete');
+    const proof = JSON.parse(((await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr))! as Artifact & {body: string}).body);
+    expect(proof.hashes['tests/contract.spec.ts']).toBeDefined(); expect(proof.testNodes.length).toBe(2);
+    expect(proof.testNodes.find((test: {filePath: string}) => test.filePath === 'tests/add.test.ts').output).not.toContain('tests/contract.spec.ts:\n');
+    expect((await t.resolve(store, {...options, implement: async () => {throw Error('unchanged proof must be reused')}, verify: async () => {throw Error('unchanged proof must be reused')}})).status).toBe('complete');
+    fs.appendFileSync(path.join(root, 'tests/contract.spec.ts'), '\ntest("new oracle",()=>expect(add(1,1)).toBe(99));');
+    const result = await t.resolve(store, {...options, maxRepairs: 0}); expect(result.status).toBe('blocked');
+    expect((await store.getEntity<TestNode>(oracle.id, TestNode.dcr))!.passed).toBe(false);
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+  }, 30000);
+
+  it('invalidates receipt when source changes and repairs formerly Done work', async () => {
+    const t = await ticket(); expect((await t.resolve(store, fix)).status).toBe('complete');
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a:number,b:number){return a-b;}');
+    let attempts = 0;
+    const result = await t.resolve(store, {...fix, allowDirtyTargets: ['src/add.ts'], implement: async dossier => {attempts++; return fix.implement!(dossier, [])}});
+    expect(result.status).toBe('complete'); expect(attempts).toBe(1); if (result.status === 'complete') expect(result.value.repairs).toBe(1);
+  }, 30000);
+
+  it('rejects later failing TestNode evidence and invalid persisted receipts without false failure', async () => {
+    const t = await ticket(); expect((await t.resolve(store, fix)).status).toBe('complete');
+    await recordTestExecution(store, root, ['bun', 'test', 'tests/add.test.ts'], {passed: false, exitCode: 1, output: 'environment regression'});
+    let reviews = 0; const options = {...fix, verify: async (input: ResolutionVerificationInput) => {reviews++; return verify(input)}};
+    expect((await t.resolve(store, options)).status).toBe('complete'); expect(reviews).toBe(1);
+    const receipt = (await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr))!; await receipt.update({body: '{broken JSON'}, true, false);
+    expect((await t.resolve(store, options)).status).toBe('complete'); expect(reviews).toBe(2);
+  }, 30000);
+
+  it('preserves authored verifies edges and reproduces derived edges on repeated reconciliation', async () => {
+    const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
+    const file = (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!;
+    await store.unrelate(test.id, 'verifies', file.id); await store.relate(test, 'verifies', file, {state: 'authored', note: 'Manual contract'});
+    await reconcileTestVerificationEdges(store); await reconcileTestVerificationEdges(store);
+    const edges = await store.getOutgoing(test.id, 'verifies');
+    expect((edges.find(edge => edge.targetId === file.id) as unknown as {payload: {state: string; note: string}}).payload).toMatchObject({state: 'authored', note: 'Manual contract'});
+    const before = edges.map(edge => ({target: edge.targetId, payload: (edge as unknown as {payload: unknown}).payload}));
+    await reconcileTestVerificationEdges(store);
+    expect((await store.getOutgoing(test.id, 'verifies')).map(edge => ({target: edge.targetId, payload: (edge as unknown as {payload: unknown}).payload}))).toEqual(before);
+    const derived = await graphOracle(file, 'tests/derived.test.ts');
+    fs.writeFileSync(path.join(root, 'tests/derived.test.ts'), 'import {test,expect} from "bun:test";\nimport {add} from "../src/add";\ntest("addition",()=>expect(add(2,3)).toBe(5));');
+    await store.unrelate(derived.id, 'verifies', file.id); await indexCodebase(store, root);
+    await reconcileTestVerificationEdges(store);
+    expect((await store.getOutgoing(derived.id, 'verifies')).some(edge => (edge as unknown as {payload?: {state?: string}}).payload?.state === 'derived')).toBe(true);
+  });
+
+  it('updates authored TestNodes with custom IDs and does not invent full-suite evidence for filtered/no-test runs', async () => {
+    const authored = await store.upsertEntity<TestNode>(TestNode.dcr, {id: 'AUTHORED', filePath: 'tests/add.test.ts', framework: 'bun'});
+    await recordTestExecution(store, root, ['bun', 'test', 'tests/add.test.ts'], {passed: false, exitCode: 1, output: 'failed'});
+    expect((await store.getEntity<TestNode>(authored.id, TestNode.dcr))!.passed).toBe(false);
+    await recordTestExecution(store, root, ['bun', 'test', '--test-name-pattern', 'missing'], {passed: true, exitCode: 0, output: 'No tests found'});
+    expect((await store.getEntity<TestNode>(authored.id, TestNode.dcr))!.passed).toBe(false);
+  });
+
+  it('backfills unchanged legacy indexed tests before discovery and records every full-suite file', async () => {
+    const t = await ticket();
+    await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    await store.deleteEntity((await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!.id);
+    await store.deleteEntity((await store.getEntity<TestNode>('test:tests/contract.spec.ts', TestNode.dcr))!.id);
+    const original = registry.execute.bind(registry); let fallbacks = 0;
+    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => {if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx)});
+    try {
+      const result = await t.resolve(store, {...fix, testCommands: [['bun', 'test']], implement: async dossier => {
+        expect(await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr)).not.toBeNull();
+        expect(await store.getEntity<TestNode>('test:tests/contract.spec.ts', TestNode.dcr)).not.toBeNull();
+        return fix.implement!(dossier, []);
+      }, verify: async input => {
+        expect(input.testNodes.map(test => test.filePath).sort()).toEqual(['tests/add.test.ts', 'tests/contract.spec.ts']);
+        expect(input.testNodes.every(test => test.passed)).toBe(true);
+        return verify(input);
+      }});
+      expect(result.status).toBe('complete'); expect(fallbacks).toBeLessThanOrEqual(1);
+      expect(await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr)).not.toBeNull();
+    } finally {execution.mockRestore()}
+  }, 30000);
+
+  it('rejects acceptance proof if its source changes during independent review', async () => {
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, verify: async input => {fs.appendFileSync(path.join(root, 'src/add.ts'), '// concurrent edit'); return verify(input)}});
+    expect(result.status).toBe('blocked'); expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+  }, 30000);
+
+  it('keeps passing executions distinct from an explicitly unproved criterion', async () => {
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, verify: async input => {
+      expect(input.testNodes.every(test => test.passed)).toBe(true);
+      return {criteria: [{criterion: input.dossier.ticket.acceptanceCriteria[0], passed: false, evidence: 'The requested invariant requires additional proof.'}], aspects: []};
+    }});
+    expect(result.status).toBe('blocked'); expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+  }, 30000);
+
+  it('rejects contradictory acceptance checks instead of picking the passing duplicate', async () => {
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, verify: async input => ({criteria: [
+      {criterion: input.dossier.ticket.acceptanceCriteria[0], passed: true, evidence: 'Tests passed'},
+      {criterion: input.dossier.ticket.acceptanceCriteria[0], passed: false, evidence: 'Required behavior unproved'}
+    ], aspects: []})});
+    expect(result.status).toBe('blocked'); expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+  }, 30000);
+
+  it('rejects evidence when a test mutates its verified source during execution', async () => {
+    const t = await ticket();
+    fs.appendFileSync(path.join(root, 'tests/add.test.ts'), '\nimport fs from "node:fs"; test("concurrent writer",()=>fs.appendFileSync("src/add.ts","// mutation during tests"));');
+    let reviews = 0;
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, verify: async input => {reviews++; return verify(input)}});
+    expect(result.status).toBe('blocked'); expect(reviews).toBe(0);
+    expect((await currentTestEvidence(store, ['test:tests/add.test.ts']))[0]?.passed).toBe(false);
   }, 30000);
 
   it('allows and preserves unrelated dirty files but stops before editing a dirty target', async () => {
@@ -157,6 +321,8 @@ describe('Ticket-owned bounded resolution', () => {
     const t = await ticket();
     const targetFile = mode === 'ordinary' ? 'package.json' : 'src/add.ts';
     if (mode === 'ordinary') {
+      await store.unrelate(t.id, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!.id);
+      await store.upsertEntity(Ticket.dcr, {id: t.id, title: 'Repair runnable test script', acceptanceCriteria: ['The test script runs bun test']});
       fs.writeFileSync(path.join(root, targetFile), '{"scripts":{"test":"pending"}}\n');
       fs.writeFileSync(path.join(root, 'tests/package.test.ts'), 'import {test,expect} from "bun:test"; import fs from "node:fs"; test("Consuela runnable test script",()=>expect(JSON.parse(fs.readFileSync("package.json","utf8")).scripts.test).toBe("bun test"));');
       git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'ordinary target');

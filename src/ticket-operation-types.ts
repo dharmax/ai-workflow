@@ -64,14 +64,31 @@ export const ExactImplementationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('rename_symbol'), newName: z.string().min(1), testCommands: z.array(z.array(z.string()).min(1)).default([]) })
 ]);
 export const AcceptanceVerificationSchema = z.object({
-  criteria: z.array(z.object({ criterion: z.string(), passed: z.boolean(), evidence: z.string().min(1) })),
-  aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().min(1) }))
+  criteria: z.array(z.object({ criterion: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
+  aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) }))
+}).superRefine((value, ctx) => {
+  for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)]] as const) {
+    if (new Set(keys).size !== keys.length) ctx.addIssue({code: 'custom', path: [field], message: 'Acceptance checks must identify each requirement exactly once.'});
+  }
 });
 export type AcceptanceVerification = z.infer<typeof AcceptanceVerificationSchema>;
-export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[] }
+export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[]; testNodes: Awaited<ReturnType<typeof import('./graph/test-artifacts.ts').currentTestEvidence>> }
 export interface ResolutionOptions extends PreparationOptions {
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
   implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;
   verify?: (input: ResolutionVerificationInput) => Promise<AcceptanceVerification>;
 }
 export interface ResolvedTicket { verification: boolean; resolved: string[]; files: string[]; repairs: number; acceptance: AcceptanceVerification }
+
+// Receipts are untrusted persisted data. Invalid/legacy receipts trigger verification.
+export const VerificationReceiptSchema = z.object({
+  signature: z.string(), hashes: z.record(z.string(), z.string()), acceptance: AcceptanceVerificationSchema,
+  tests: z.array(z.object({command: z.array(z.string()), passed: z.boolean()})),
+  testNodes: z.array(z.object({id: z.string(), hashes: z.record(z.string(), z.string())})).min(1)
+});
+export function readVerificationReceipt(body: unknown) {
+  try {
+    const parsed = VerificationReceiptSchema.safeParse(JSON.parse(String(body)));
+    return parsed.success ? parsed.data : null;
+  } catch { return null; }
+}

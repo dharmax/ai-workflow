@@ -1,4 +1,7 @@
 import path from 'node:path'
+import fs from 'node:fs'
+import {createHash} from 'node:crypto'
+import {canonical} from '../kb/canonical.ts'
 import type {WorkflowStore} from './store.ts'
 import {FileNode, SymbolNode, TestNode} from './ontology.ts'
 
@@ -71,7 +74,8 @@ export function testPathsFromCommand(
 ): string[] {
   const tokens = typeof command === 'string' ? command.split(/\s+/) : [...command]
   const result = new Set<string>()
-  for (const token of tokens) {
+  const args = tokens.slice(tokens[0] === 'bun' && tokens[1] === 'test' ? 2 : tokens[0] === 'bunx' && tokens[1] === 'playwright' && tokens[2] === 'test' ? 3 : 0)
+  for (const token of args) {
     const testPath = canonicalTestPath(root, token)
     if (testPath) result.add(testPath)
   }
@@ -124,6 +128,98 @@ export async function findTestsVerifying(
   return result
 }
 
+/** Backfill unchanged indexed tests from projects indexed before TestNode existed. */
+export async function ensureTestArtifacts(store: WorkflowStore): Promise<void> {
+  const paths = new Set((await store.listEntities<TestNode>(TestNode.dcr)).map(test => normalizeTestPath(test.filePath || test.targetPath || '')))
+  const created: TestNode[] = []
+  for (const file of await store.listEntities<FileNode>(FileNode.dcr)) {
+    const relative = store.localId(file.id)
+    if (paths.has(relative) || !isTestFilePath(relative) || relative.startsWith('@')) continue
+    const fullPath = path.resolve(store.root, relative)
+    if (!fs.existsSync(fullPath) || !fs.lstatSync(fullPath).isFile()) continue
+    const content = fs.readFileSync(fullPath, 'utf8')
+    if (!isTestSource(relative, content)) continue
+    created.push(await upsertTestArtifact(store, file, relative, content))
+    paths.add(relative)
+  }
+  if (created.length) await reconcileTestVerificationEdges(store, created)
+}
+
+/** Select authored and derived verifying tests, including symbol-only edges. */
+export async function verifyingTestsForTargets(
+  store: WorkflowStore,
+  targetIds: readonly string[],
+  files: readonly string[],
+): Promise<{tests: TestNode[]; uncoveredFiles: string[]}> {
+  await ensureTestArtifacts(store)
+  const tests = new Map<string, TestNode>()
+  const add = async (id: string) => {
+    const entity = await store.getEntity(id)
+    if (entity instanceof TestNode) tests.set(entity.id, entity)
+    for (const test of await findTestsVerifying(store, id)) tests.set(test.id, test)
+  }
+  for (const id of targetIds) await add(id)
+  const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr)
+  const uncoveredFiles: string[] = []
+  for (const file of new Set(files.map(normalizeTestPath))) {
+    const ids = [file, ...symbols.filter(symbol => symbol.filePath === file && symbol.status !== 'deprecated').map(symbol => symbol.id)]
+    let covered = false
+    for (const id of ids) {
+      const entity = await store.getEntity(id)
+      if (!entity) continue
+      const verifying = await findTestsVerifying(store, entity.id)
+      for (const test of verifying) tests.set(test.id, test)
+      covered ||= verifying.some(test => Boolean(test.filePath || test.targetPath))
+    }
+    if (!covered && ![...tests.values()].some(test => normalizeTestPath(test.filePath || test.targetPath || '') === file)) uncoveredFiles.push(file)
+  }
+  return {tests: [...tests.values()].filter(test => Boolean(test.filePath || test.targetPath)), uncoveredFiles}
+}
+
+/** Hash the test and its local verification/import scope; missing files invalidate proof. */
+export async function testEvidenceHashes(store: WorkflowStore, test: TestNode): Promise<Record<string, string>> {
+  const files = new Set<string>([normalizeTestPath(test.filePath || test.targetPath || '')].filter(Boolean))
+  for (const edge of await store.getOutgoing(test.id, 'verifies')) {
+    const target = await store.getEntity(edge.targetId)
+    if (target instanceof FileNode) files.add(store.localId(target.id))
+    if (target instanceof SymbolNode && target.filePath) files.add(normalizeTestPath(target.filePath))
+  }
+  for (const file of files) {
+    const entity = await store.getEntity<FileNode>(file, FileNode.dcr)
+    if (!entity) continue
+    for (const edge of await store.getOutgoing(entity.id, 'imports')) {
+      const target = await store.getEntity<FileNode>(edge.targetId, FileNode.dcr)
+      const relative = target && store.localId(target.id)
+      if (relative && !relative.startsWith('@') && !relative.startsWith('node_modules/') && !relative.startsWith('../')) files.add(relative)
+    }
+  }
+  return hashFiles(store.root, [...files])
+}
+
+export function hashFiles(root: string, files: readonly string[]): Record<string, string> {
+  return Object.fromEntries([...new Set(files)].map(file => {
+    const fullPath = path.resolve(root, file)
+    const relative = path.relative(root, fullPath)
+    if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error(`Evidence outside workspace: ${file}`)
+    return [normalizeTestPath(relative), fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()
+      ? createHash('sha256').update(fs.readFileSync(fullPath)).digest('hex') : 'missing']
+  }))
+}
+
+export async function currentTestEvidence(store: WorkflowStore, ids: readonly string[]) {
+  const evidence = []
+  for (const id of new Set(ids)) {
+    const test = await store.getEntity<TestNode>(id, TestNode.dcr)
+    if (!test) continue
+    const hashes = {...hashFiles(store.root, Object.keys(test.executionHashes || {})), ...await testEvidenceHashes(store, test)}
+    evidence.push({id: store.localId(test.id), filePath: test.filePath || test.targetPath || '',
+      passed: test.passed === true && Boolean(test.lastRun) && canonical(hashes) === canonical(test.executionHashes),
+      lastRun: test.lastRun, command: test.command, hashes, output: test.output || '',
+      verifies: (await store.getOutgoing(test.id, 'verifies')).map(edge => store.localId(edge.targetId))})
+  }
+  return evidence
+}
+
 export async function reconcileTestVerificationEdges(
   store: WorkflowStore,
   selected?: TestNode | TestNode[],
@@ -134,8 +230,9 @@ export async function reconcileTestVerificationEdges(
   const symbolsByTitle = new Map<string, SymbolNode[]>()
 
   for (const test of tests) {
+    const authored = new Set<string>()
     for (const edge of await store.getOutgoing(test.id, 'verifies')) {
-      if ((edge as any).payload?.state !== 'derived') continue
+      if ((edge as {payload?: {state?: string}}).payload?.state !== 'derived') { authored.add(edge.targetId); continue }
       try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
     }
 
@@ -151,7 +248,7 @@ export async function reconcileTestVerificationEdges(
       const targetPath = normalizeTestPath((target as any).path || store.localId(target.id))
       verifiedFiles.add(targetPath)
       try {
-        await store.relate(test, 'verifies', target, {
+        if (!authored.has(target.id)) await store.relate(test, 'verifies', target, {
           state: 'derived',
           note: 'Static test import',
         })
@@ -184,7 +281,7 @@ export async function reconcileTestVerificationEdges(
 
       if (!resolved.filePath || !verifiedFiles.has(normalizeTestPath(resolved.filePath))) continue
       try {
-        await store.relate(test, 'verifies', resolved, {
+        if (!authored.has(resolved.id)) await store.relate(test, 'verifies', resolved, {
           state: 'derived',
           note: 'Static test call into imported source',
         })
@@ -201,19 +298,30 @@ export async function recordTestOutcome(
     failure?: string
     exitCode?: number
     durationMs?: number
+    command?: string[]
+    output?: string
+    hashesBefore?: Record<string, Record<string, string>>
   },
 ): Promise<void> {
   const lastRun = new Date().toISOString()
 
-  for (const filePath of new Set(filePaths.map(normalizeTestPath))) {
-    const test = await store.getEntity<TestNode>(testArtifactId(filePath), TestNode.dcr)
-    if (!test) continue
+  const paths = new Set(filePaths.map(normalizeTestPath))
+  for (const test of await store.listEntities<TestNode>(TestNode.dcr)) {
+    const filePath = normalizeTestPath(test.filePath || test.targetPath || '')
+    if (!paths.has(filePath)) continue
+    const output = outcome.output || ''
+    const start = output.indexOf(filePath + ':\n')
+    const nextHeader = start < 0 ? -1 : output.slice(start + filePath.length + 2).search(/\n[^\n]+\.(?:test|spec)\.[cm]?[jt]sx?:\n/)
+    const testOutput = start < 0 ? output.slice(-4000) : output.slice(start, nextHeader < 0 ? undefined : start + filePath.length + 2 + nextHeader)
     await test.update({
       lastRun,
       passed: outcome.passed,
       failure: outcome.passed ? '' : outcome.failure ?? '',
       exitCode: outcome.exitCode,
       durationMs: outcome.durationMs,
+      command: outcome.command,
+      output: testOutput.slice(-16000),
+      executionHashes: outcome.hashesBefore?.[test.id] ?? await testEvidenceHashes(store, test),
       status: outcome.passed ? 'verified' : 'failing',
     }, true, false)
   }
@@ -235,9 +343,10 @@ export async function failureGraphEvidence(
   const likelySymbols = new Set<string>()
   const likelyFiles = new Set<string>()
 
-  for (const filePath of new Set(filePaths.map(normalizeTestPath))) {
-    const test = await store.getEntity<TestNode>(testArtifactId(filePath), TestNode.dcr)
-    if (!test) continue
+  const paths = new Set(filePaths.map(normalizeTestPath))
+  for (const test of await store.listEntities<TestNode>(TestNode.dcr)) {
+    const filePath = normalizeTestPath(test.filePath || test.targetPath || '')
+    if (!paths.has(filePath)) continue
 
     const verificationEdges = await store.getOutgoing(test.id, 'verifies')
     const verifies: string[] = []
@@ -272,6 +381,7 @@ export async function recordTestExecution(
     output?: string
     exitCode?: number
     durationMs?: number
+    hashesBefore?: Record<string, Record<string, string>>
   },
 ): Promise<{
   testFiles: string[]
@@ -281,30 +391,26 @@ export async function recordTestExecution(
   const targeted = testPathsFromCommand(tokens, root)
   const reported = outcome.output ? testPathsFromOutput(outcome.output, root) : []
 
-  let testFiles = reported.length > 0 ? reported : targeted
-  if (outcome.passed && testFiles.length === 0) {
-    const all = await store.listEntities<TestNode>(TestNode.dcr)
-    const isFullBunSuite = tokens.length === 2 && tokens[0] === 'bun' && tokens[1] === 'test'
-    const isFullPlaywrightSuite =
-      tokens.length === 3 && tokens[0] === 'bunx' && tokens[1] === 'playwright' && tokens[2] === 'test'
-
-    if (isFullBunSuite) {
-      testFiles = all
-        .map(test => normalizeTestPath(test.filePath || test.targetPath || ''))
-        .filter(Boolean)
-    } else if (isFullPlaywrightSuite) {
-      testFiles = all
-        .filter(test => test.framework === 'playwright')
-        .map(test => normalizeTestPath(test.filePath || test.targetPath || ''))
-        .filter(Boolean)
-    }
-  }
+  await ensureTestArtifacts(store)
+  const all = await store.listEntities<TestNode>(TestNode.dcr)
+  const knownPaths = all.map(test => normalizeTestPath(test.filePath || test.targetPath || '')).filter(Boolean)
+  const selected = knownPaths.filter(file => [...targeted, ...tokens.slice(tokens[0] === 'bun' ? 2 : 3).filter(token => !token.startsWith('-')).map(normalizeTestPath)].some(target => file === target || file.startsWith(target.replace(/\/$/, '') + '/')))
+  const isFullBunSuite = tokens.length === 2 && tokens[0] === 'bun' && tokens[1] === 'test'
+  const isFullPlaywrightSuite = tokens.length === 3 && tokens[0] === 'bunx' && tokens[1] === 'playwright' && tokens[2] === 'test'
+  const output = outcome.output || ''
+  const noTests = /^\s*No tests found/im.test(output) || /^\s*0 pass\s*$/m.test(output) && /^\s*0 fail\s*$/m.test(output)
+  const testFiles = [...new Set(noTests ? [] : reported.length ? reported.filter(file => knownPaths.includes(file)) : selected.length ? selected
+    : isFullBunSuite ? all.filter(test => test.framework === 'bun').map(test => test.filePath || test.targetPath!).filter(Boolean)
+    : isFullPlaywrightSuite ? all.filter(test => test.framework === 'playwright').map(test => test.filePath || test.targetPath!).filter(Boolean) : [])]
 
   await recordTestOutcome(store, testFiles, {
     passed: outcome.passed,
     failure: outcome.passed ? undefined : outcome.output,
     exitCode: outcome.exitCode,
     durationMs: outcome.durationMs,
+    command: tokens,
+    output: outcome.output,
+    hashesBefore: outcome.hashesBefore,
   })
 
   return {
@@ -312,4 +418,3 @@ export async function recordTestExecution(
     graphEvidence: await failureGraphEvidence(store, testFiles),
   }
 }
-

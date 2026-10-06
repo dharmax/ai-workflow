@@ -523,7 +523,7 @@ export class Ticket extends WorkflowEntity {
           const input = JSON.parse(JSON.stringify({ artifactId: id, intent: dossier.ticket.body, neighborhood: dossier.evidence,
             proposal: mutations, applicableAspects: dossier.aspects.aspects.map(aspect => aspect.id), candidateAspects: [],
             completeness: dossier.completeness.criticStrength, depth: options.depth === 'all' ? 1 : options.depth ?? 1,
-            acceptanceCriteria: dossier.ticket.acceptanceCriteria, evidence: dossier.evidence.filter(item => ['Test', 'Artifact'].includes(item.kind)).map(item => item.id) }));
+            acceptanceCriteria: dossier.ticket.acceptanceCriteria, evidence: dossier.evidence.filter(item => ['TestNode', 'Artifact'].includes(item.kind)).map(item => item.id) }));
           countEngineering('criticRounds');
           const review = CriticResultSchema.parse(await critic.review(input));
           if (review.verdict === 'needs_input') return { status: 'needs_input', artifactId: id, required: review.required.map(required => ({ ...required, why: 'Independent Critic requires a semantic decision.', target: 'Ticket preparation contract' })) };
@@ -558,7 +558,7 @@ export class Ticket extends WorkflowEntity {
 
   async resolve(store: WorkflowStore, options: ResolutionOptions = {}): Promise<OperationResult<ResolvedTicket>> {
     return withArtifactMetrics(store.root, 'resolve_ticket', store.localId(this.id), { ...options, depth: options.depth ?? 'all' }, async () => {
-      const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema } = await import('../ticket-operation-types.ts');
+      const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema, readVerificationReceipt } = await import('../ticket-operation-types.ts');
       const { ArtifactBudget } = await import('../artifact-policy.ts');
       const { CausalChangeEngine } = await import('../change/engine.ts');
       const { CodeChangeRequestSchema } = await import('../tools/change.ts');
@@ -568,9 +568,11 @@ export class Ticket extends WorkflowEntity {
       const { applyProductMutations } = await import('../product/mutation.ts');
       const { initializeTools, registry } = await import('../tools/index.ts');
       const { z } = await import('zod');
-      const { LLMActor, LayaSystemOne } = await import('@dharmax/llm-utils');
+      const { LLMActor } = await import('@dharmax/llm-utils');
       const fs = await import('node:fs'), path = await import('node:path');
       const crypto = await import('node:crypto');
+      const { ensureAstFresh } = await import('./indexer.ts');
+      const { verifyingTestsForTargets, recordTestExecution, currentTestEvidence, hashFiles, testPathsFromCommand } = await import('./test-artifacts.ts');
       initializeTools();
       const cfg = loadConfig(store.root), agentId = options.agentId ?? cfg.defaultAgentId, rootId = store.localId(this.id);
       const acquired = new Set<string>(), ownedFiles = new Set<string>(), allFiles = new Set<string>(), resolved: string[] = [];
@@ -578,7 +580,6 @@ export class Ticket extends WorkflowEntity {
       let executingTicket: Ticket = this, successfulChanges = 0;
       const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
       const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
-      const tests: ResolutionVerificationInput['tests'] = [];
       let repairs = 0, acceptance: import('../ticket-operation-types.ts').AcceptanceVerification = { criteria: [], aspects: [] };
       const ctx = { store, projectRoot: store.root };
       const blocked = (reason: string): OperationResult<ResolvedTicket> => ({ status: 'blocked', artifactId: rootId, blockers: [{ reason }] });
@@ -626,12 +627,11 @@ export class Ticket extends WorkflowEntity {
           const { ticket, depth } = queue.shift()!, id = store.localId(ticket.id);
           if (work.has(id)) continue;
           if (!budget.visit(id, depth)) return needs(`Increase depth/maxArtifacts to include '${id}'.`, 'The work closure exceeds the explicit operation budget.', 'Operation depth/maxArtifacts');
-          const investigation = await ticket.investigate(store, options); if (investigation.status !== 'complete') return investigation;
-          if (investigation.value.disposition === 'rejectable') return needs(`Review rejection evidence for '${id}': ${investigation.value.rationale}`, 'Rejection is grounded but requires explicit disposition approval.', 'Ticket lifecycle');
           const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
           const prepared = await ticket.prepare(store, { ...options, agentId }); if (prepared.status !== 'complete') return prepared;
+          if (prepared.value.dossier.disposition === 'rejectable') return needs(`Review rejection evidence for '${id}': ${prepared.value.dossier.rationale}`, 'Rejection is grounded but requires explicit disposition approval.', 'Ticket lifecycle');
           const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!;
-          const grounded = prepared.value.applied ? await fresh.investigate(store, options) : investigation;
+          const grounded = prepared.value.applied ? await fresh.investigate(store, options) : {status: 'complete' as const, value: prepared.value.dossier};
           if (grounded.status !== 'complete') return grounded;
           work.set(id, fresh); dossiers.set(id, grounded.value); visitMetricArtifact(id);
           for (const child of prepared.value.children) queue.push({ ticket: (await store.getEntity<Ticket>(child, Ticket.dcr))!, depth: depth + 1 });
@@ -652,12 +652,24 @@ export class Ticket extends WorkflowEntity {
         for (const id of order) {
           const ticket = work.get(id)!, dossier = dossiers.get(id)!; executingTicket = ticket; recordMetricCompleteness(dossier.completeness);
           const signature = crypto.createHash('sha256').update(JSON.stringify({ ticket: { title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria }, aspects: dossier.aspects.aspects.map(aspect => ({ id: aspect.id, criteria: aspect.criteria })), completeness: dossier.completeness })).digest('hex');
+          const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!);
+          await ensureAstFresh(store, store.root);
+          const graphScope = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), scopeFiles);
+          for (const test of graphScope.tests) if (!dossier.evidence.some(item => item.id === store.localId(test.id))) dossier.evidence.push({
+            id: store.localId(test.id), kind: 'TestNode', title: test.title || store.localId(test.id),
+            filePath: test.filePath || test.targetPath, mandatory: true, provenance: 'Graph verifies code target'
+          });
           const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr);
-          if (ticket.lane === 'Done' && ticket.status === 'verified' && receipt) {
-            const proof = JSON.parse((receipt as Artifact & { body: string }).body) as { signature: string; hashes: Record<string, string>; acceptance: import('../ticket-operation-types.ts').AcceptanceVerification };
-            const expectedFiles = [...(options.testCommands ?? []).flat().filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg)), ...dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)];
+          const proof = receipt && readVerificationReceipt((receipt as Artifact & { body: string }).body);
+          if (ticket.lane === 'Done' && ticket.status === 'verified' && proof) {
+            const testNodes = await currentTestEvidence(store, (proof.testNodes ?? []).map(test => test.id));
+            const expectedFiles = [...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root)), ...scopeFiles, ...graphScope.tests.map(test => test.filePath || test.targetPath!)];
+            const fullSuite = proof.tests.some(test => canonical(test.command) === canonical(['bun', 'test']));
+            if (fullSuite) expectedFiles.push(...(await store.listEntities<TestNode>(TestNode.dcr)).filter(test => test.framework === 'bun').map(test => test.filePath || test.targetPath!).filter(Boolean));
+            const requestedChecks = (options.testCommands ?? []).every(command => proof.tests.some(test => test.passed && canonical(test.command) === canonical(command)));
+            const currentProof = requestedChecks && Boolean(proof.testNodes?.length) && testNodes.length === proof.testNodes!.length && testNodes.every(test => test.passed && canonical(test.hashes) === canonical(proof.testNodes!.find(old => old.id === test.id)?.hashes));
             const verifiedContract = dossier.ticket.acceptanceCriteria.every(criterion => proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)) && dossier.aspects.aspects.every(aspect => proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed));
-            if (proof.signature === signature && verifiedContract && expectedFiles.every(file => file in proof.hashes) && Object.entries(proof.hashes).every(([file, hash]) => fs.existsSync(path.resolve(store.root, file)) && crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') === hash)) {
+            if (proof.signature === signature && currentProof && verifiedContract && expectedFiles.every(file => file in proof.hashes) && canonical(proof.hashes) === canonical(hashFiles(store.root, Object.keys(proof.hashes)))) {
               acceptance = AcceptanceVerificationSchema.parse(proof.acceptance);
               acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
               for (const file of Object.keys(proof.hashes)) allFiles.add(file);
@@ -671,7 +683,7 @@ export class Ticket extends WorkflowEntity {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
             const sourceFiles = new Set([...input.files, ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)]);
             const sources = [...sourceFiles].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
-            const testSources = input.tests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg) && fs.existsSync(path.resolve(store.root, arg))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') })));
+            const testSources = [...new Set(input.testNodes.map(test => test.filePath))].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
             const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
             countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
             const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, dossier: reviewDossier, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
@@ -683,17 +695,17 @@ export class Ticket extends WorkflowEntity {
             const current = attempt ? await ticket.investigate(store, options) : null;
             if (current && current.status !== 'complete') return current;
             const implementationDossier = current?.status === 'complete' ? current.value : dossier;
-            let proposedTests = options.testCommands ?? [];
-            if (!children.length && ticket.lane !== 'Done') {
+            let proposedTests = [...(options.testCommands ?? [])];
+            if (!children.length && (ticket.lane !== 'Done' || attempt > 0)) {
               const implementation = options.implement ?? (async (input: TicketDossier, findings: readonly string[]) => {
                 const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Implementation provider unavailable.');
                 const exact = input.evidence.filter(item => item.source && item.exact && [6, 12].includes(item.symbolKind ?? 0));
-                const mechanism = await (options.systemOne ?? new LayaSystemOne()).assess({ criterionCount: input.ticket.acceptanceCriteria.length, exactTargets: exact.length, repair: findings.length > 0, failure: findings.join('\n').slice(0, 1000) }, {
+                const mechanism = options.systemOne ? await options.systemOne.assess({ criterionCount: input.ticket.acceptanceCriteria.length, exactTargets: exact.length, repair: findings.length > 0, failure: findings.join('\n').slice(0, 1000) }, {
                   mechanism: { type: 'choice', instructions: 'Choose the least interactive implementation mechanism.', criteria: { synthesis: 'Exact targets are sufficient for a pure change proposal', interactive: 'Bounded navigation/tool interaction is needed', unknown: 'Unclear' } },
                   modelTier: { type: 'choice', instructions: 'Suggest a configured reasoning tier; this is only a hint.', criteria: { configured: 'Normal implementation route is sufficient', stronger: 'Use the configured stronger design route if available', unknown: 'Unclear' } },
                   ...(findings.length ? { failureKind: { type: 'choice' as const, instructions: 'Classify observed verification failure.', criteria: { code: 'Implementation defect', test: 'Assertion mismatch', tool: 'Tool or stale target failure', environment: 'Missing capability or provider', unknown: 'Unclear' } } } : {})
-                }, cognitionMetrics());
-                countEngineering('systemOneCalls');
+                }, cognitionMetrics()) : null;
+                if (options.systemOne) countEngineering('systemOneCalls');
                 const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
                 if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
                   countEngineering('reasoningCalls');
@@ -768,52 +780,73 @@ export class Ticket extends WorkflowEntity {
               if (proposal.required?.length) return { status: 'needs_input', artifactId: id, required: proposal.required };
               let changeBlocked = false;
               for (const request of proposal.changes) {
-                const preview = await new CausalChangeEngine(ctx).previewChange(request);
-                if (preview.blocked) { feedback = [preview.blockReason ?? 'Change preview blocked']; changeBlocked = true; break; }
-                const conflict = guardFiles(preview.affectedFiles); if (conflict) return needs(`Allow edits to dirty target '${conflict}', or restore it before retrying.`, 'The target contains uncommitted work present before this operation.', 'Operation allowDirtyTargets');
-                const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
-                await apply(request, preview.fingerprint);
+                try { await apply(request); }
+                catch (error) {
+                  if (String(error).includes('Dirty target requires input:')) throw error;
+                  feedback = [String(error)]; changeBlocked = true; break;
+                }
               }
               if (changeBlocked) continue;
               if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands;
             }
-            if (!proposedTests.length) {
-              for (const file of allFiles) { const target = await registry.execute('resolve_test_target', { filePath: file }, ctx); if (target.found) proposedTests.push(['bun', 'test', target.testFile]); }
-              if (!proposedTests.length) proposedTests.push(['bun', 'test']);
-            }
-            const currentTests: ResolutionVerificationInput['tests'] = [];
-            const { ensureAstFresh } = await import('./indexer.ts');
-            const { recordTestExecution } = await import('./test-artifacts.ts');
             await ensureAstFresh(store, store.root);
+            const graphTests = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), [...scopeFiles, ...allFiles]);
+            // Graph obligations cannot be replaced by a producer's suggested passing test.
+            const unsupported = graphTests.tests.find(test => !['bun', 'unknown', 'playwright', undefined].includes(test.framework));
+            if (unsupported) return needs(`Supply a supported runner for '${unsupported.filePath || unsupported.targetPath}'.`, `Test framework '${unsupported.framework}' cannot be run by this resolver.`, 'TestNode framework');
+            const graphCommands = graphTests.tests.map(test => test.framework === 'playwright' ? ['bunx', 'playwright', 'test', test.filePath || test.targetPath!] : ['bun', 'test', test.filePath || test.targetPath!]);
+            const fallbackCommands: string[][] = [];
+            for (const file of graphTests.uncoveredFiles) {
+              const target = await registry.execute('resolve_test_target', { filePath: file }, ctx);
+              if (target.found) for (const testFile of target.testFiles) fallbackCommands.push(['bun', 'test', testFile]);
+            }
+            proposedTests = [...new Map([...graphCommands, ...fallbackCommands, ...proposedTests].map(command => [canonical(command), command])).values()];
+            if (!proposedTests.length) proposedTests.push(['bun', 'test']);
+            if (proposedTests.some(command => canonical(command) === canonical(['bun', 'test']))) proposedTests = proposedTests.filter(command => command[0] !== 'bun' || command[1] !== 'test' || command.length === 2);
+            const currentTests: ResolutionVerificationInput['tests'] = [];
+            const executedNodes = new Set<string>();
+            const indexedTests = await store.listEntities<TestNode>(TestNode.dcr);
+            const beforeExecution = await currentTestEvidence(store, indexedTests.map(test => test.id));
+            const sourceHashesBefore = hashFiles(store.root, [...allFiles, ...scopeFiles]);
+            const hashesBefore = Object.fromEntries(beforeExecution.map(test => [store.formatId(TestNode.dcr, test.id), {...test.hashes, ...sourceHashesBefore}]));
             for (const command of proposedTests) {
-              if (command[0] !== 'bun' || !['test', 'run'].includes(command[1] ?? '') || command[1] === 'run' && !['typecheck', 'build'].includes(command[2] ?? '')) return needs(`Supply a project test/typecheck/build command for '${id}'.`, 'Verification commands must be bounded engineering checks.', 'Operation testCommands');
+              const playwright = command[0] === 'bunx' && command[1] === 'playwright' && command[2] === 'test';
+              if (!playwright && (command[0] !== 'bun' || !['test', 'run'].includes(command[1] ?? '') || command[1] === 'run' && !['typecheck', 'build'].includes(command[2] ?? ''))) return needs(`Supply a project test/typecheck/build command for '${id}'.`, 'Verification commands must be bounded engineering checks.', 'Operation testCommands');
               const process = Bun.spawn(command, { cwd: store.root, stdout: 'pipe', stderr: 'pipe' });
-              const timeout = setTimeout(() => process.kill(), 60000);
+              let timedOut = false;
+              const timeout = setTimeout(() => { timedOut = true; process.kill(); }, 60000);
               const startedAt = Date.now();
               const [stdout, stderr, exit] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
               clearTimeout(timeout);
-              countEngineering('testsRun'); if (exit !== 0) countEngineering('testFailures');
-              const output = (stdout + '\n' + stderr).slice(-16000);
-              if (command[1] === 'test') {
-                await recordTestExecution(store, store.root, command, {
-                  passed: exit === 0,
-                  output,
+              const passed = exit === 0 && !timedOut;
+              countEngineering('testsRun'); if (!passed) countEngineering('testFailures');
+              const fullOutput = stdout + '\n' + stderr + (timedOut ? '\nVerification command timed out.' : '');
+              const output = fullOutput.slice(-16000);
+              if (command[1] === 'test' || playwright) {
+                const execution = await recordTestExecution(store, store.root, command, {
+                  passed,
+                  output: fullOutput,
                   exitCode: exit,
-                  durationMs: Date.now() - startedAt
+                  durationMs: Date.now() - startedAt,
+                  hashesBefore
                 });
+                for (const test of indexedTests) if (execution.testFiles.includes(test.filePath || test.targetPath || '')) executedNodes.add(test.id);
               }
-              currentTests.push({ command, passed: exit === 0, output });
+              currentTests.push({ command, passed, output });
             }
-            tests.push(...currentTests);
             if (currentTests.some(test => !test.passed)) { feedback = currentTests.filter(test => !test.passed).map(test => test.output); continue; }
-            acceptance = AcceptanceVerificationSchema.parse(await verify({ dossier, files: [...allFiles], tests: currentTests, children }));
+            const testNodes = await currentTestEvidence(store, [...executedNodes]);
+            if (!testNodes.length || testNodes.some(test => !test.passed) || graphTests.tests.some(required => !testNodes.some(test => test.id === store.localId(required.id)))) { feedback = ['No current passing TestNode execution proves this verification scope.']; continue; }
+            const verificationHashes = hashFiles(store.root, [...allFiles, ...scopeFiles, ...testNodes.flatMap(test => Object.keys(test.hashes))]);
+            acceptance = AcceptanceVerificationSchema.parse(await verify({ dossier: implementationDossier, files: [...allFiles], tests: currentTests, testNodes, children }));
+            if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes)))) { feedback = ['Source or test changed during independent acceptance verification.']; continue; }
             acceptance.criteria = acceptance.criteria.filter(check => dossier.ticket.acceptanceCriteria.includes(check.criterion));
             acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
             const missing = [...dossier.ticket.acceptanceCriteria.filter(criterion => !acceptance.criteria.some(check => check.criterion === criterion && check.passed)), ...dossier.aspects.aspects.map(aspect => aspect.id).filter(aspect => !acceptance.aspects.some(check => check.id === aspect && check.passed))];
             if (missing.length) { feedback = missing.map(item => `Unverified required acceptance/Aspect: ${item}`); continue; }
             const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
-            const hashes = Object.fromEntries([...new Set([...allFiles, ...dossier.evidence.filter(item => item.filePath).map(item => item.filePath!), ...currentTests.flatMap(test => test.command.filter(arg => /\.test\.[cm]?[jt]sx?$/.test(arg)))])].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex')]));
-            const proof = await store.upsertEntity<Artifact>(Artifact.dcr, { id: `VERIFY-${id}`, title: `Verified acceptance for ${id}`, body: JSON.stringify({ signature, hashes, acceptance, tests: currentTests.map(test => ({ command: test.command, passed: test.passed })), children, verifiedAt: new Date().toISOString() }), status: 'verified' });
+            const hashes = verificationHashes;
+            const proof = await store.upsertEntity<Artifact>(Artifact.dcr, { id: `VERIFY-${id}`, title: `Verified acceptance for ${id}`, body: JSON.stringify({ signature, hashes, acceptance, testNodes, tests: currentTests.map(test => ({ command: test.command, passed: test.passed })), children, verifiedAt: new Date().toISOString() }), status: 'verified' });
             await store.relate(proof, 'verifies', ticket);
             await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: { lane: 'Done', status: 'verified' } }]);
             resolved.push(id); break;
@@ -907,6 +940,9 @@ export class TestNode extends WorkflowEntity {
   declare failure?: string;
   declare exitCode?: number;
   declare durationMs?: number;
+  declare command?: string[];
+  declare output?: string;
+  declare executionHashes?: Record<string, string>;
 
   static template = {
     ...baseTemplate,
@@ -917,7 +953,10 @@ export class TestNode extends WorkflowEntity {
     passed: anyValidator,
     failure: anyValidator,
     exitCode: anyValidator,
-    durationMs: anyValidator
+    durationMs: anyValidator,
+    command: anyValidator,
+    output: anyValidator,
+    executionHashes: anyValidator
   };
   static readonly dcr = new EntityDcr(TestNode, TestNode.template, 'TestNode');
 }
