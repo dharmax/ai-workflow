@@ -451,7 +451,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let received: AbortSignal | undefined
     try {
       Ticket.prototype.resolve = async function (_store, options) {
-        received = options.signal
+        received = options?.signal
         return {status: 'complete', artifactId: 'TKT-SIGNAL', value: {verification: true}} as any
       }
 
