@@ -155,7 +155,7 @@ export class WorkflowActor {
       }
     }
     if (this.asker) {
-      this.session = new LLMSession(this.asker, { maxHistoryTurns: 20, maxHistoryChars: 24_000 });
+      this.session = new LLMSession(this.asker, { maxHistoryTurns: 20, maxHistoryChars: 12_000 });
       if (options.toolDiscovery) {
         this.toolDiscovery = options.toolDiscovery;
       } else if (options.asker) {
@@ -216,6 +216,7 @@ export class WorkflowActor {
     targetModel?: string;
     escalated?: boolean;
     escalationReason?: string;
+    discoveredTools?: string[];
   }> {
     const modeToken = instruction.trim().split(/\s+/, 1)[0]?.toLowerCase();
     const explicitMode: ShellMode | undefined =
@@ -246,7 +247,7 @@ export class WorkflowActor {
     }
 
     const discovery: DiscoveredTools = this.toolDiscovery
-      ? await this.toolDiscovery.discover(rawText, 5)
+      ? await this.toolDiscovery.discover(rawText, 3)
       : {query: {}, tools: []};
     activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
     this.mode = activeMode;
@@ -306,6 +307,7 @@ export class WorkflowActor {
     try {
       const actor = new LLMActor(this.asker, {
         maxSteps: this.maxSteps,
+        maxToolCatalogChars: 16_000,
         system: config.systemPrompt
       });
 
@@ -380,7 +382,10 @@ export class WorkflowActor {
       const finalAnswer = result.finalText || lastStep?.finalAnswer || (result.ok ? 'Instruction processed.' : 'Unable to complete instruction.');
 
       if (!result.ok && (!result.finalText && !lastStep?.finalAnswer)) {
-        return this.executeOfflineFallback(activeMode, result.error);
+        return {
+          ...this.executeOfflineFallback(activeMode, result.error),
+          discoveredTools: [...selectedNames]
+        };
       }
 
       return {
@@ -390,10 +395,14 @@ export class WorkflowActor {
         events,
         targetModel: explicitModel,
         escalated: shouldEscalate,
-        escalationReason
+        escalationReason,
+        discoveredTools: [...selectedNames]
       };
     } catch (err: any) {
-      return this.executeOfflineFallback(activeMode, err.message);
+      return {
+        ...this.executeOfflineFallback(activeMode, err.message),
+        discoveredTools: discovery.tools.map(tool => tool.name)
+      };
     }
   }
 
