@@ -697,7 +697,12 @@ export class Ticket extends WorkflowEntity {
               children: input.children,
               tests: input.tests.map(test => ({ command: test.command, passed: test.passed })),
               testNodes: input.testNodes.map(test => ({
-                id: test.id, filePath: test.filePath, passed: test.passed, command: test.command, verifies: test.verifies, output: test.output,
+                id: test.id,
+                filePath: test.filePath,
+                passed: test.passed,
+                command: test.command,
+                verifies: test.verifies,
+                ...(test.passed ? {} : { failureOutput: test.output.slice(-2000) }),
               })),
               code: verificationContext.files,
             };
