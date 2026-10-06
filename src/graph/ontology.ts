@@ -24,6 +24,21 @@ const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? 
 
 const anyValidator = { validate: (v: any) => ({ value: v }) };
 
+function combineSignals(...signals: Array<AbortSignal | undefined>): AbortSignal | undefined {
+  const active = signals.filter((signal): signal is AbortSignal => Boolean(signal));
+  if (!active.length) return undefined;
+  if (active.length === 1) return active[0];
+  const controller = new AbortController();
+  const abort = (signal: AbortSignal) => {
+    if (!controller.signal.aborted) controller.abort(signal.reason);
+  };
+  for (const signal of active) {
+    if (signal.aborted) abort(signal);
+    else signal.addEventListener('abort', () => abort(signal), { once: true });
+  }
+  return controller.signal;
+}
+
 const baseTemplate = {
   id: anyValidator,
   _id: anyValidator,
@@ -113,7 +128,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
           context.existing.push(...evidence.values());
           const propose = options.propose ?? (async (input: IntentContext, findings: readonly { message: string }[]) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Product reasoning provider unavailable.'); countEngineering('reasoningCalls');
-            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work for current kind '${kind}'. Permitted child kinds: Epic -> Feature or Ticket; Feature -> UserStory or Ticket; UserStory -> Ticket ONLY (never UserStory). Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work for current kind '${kind}'. Permitted child kinds: Epic -> Feature or Ticket; Feature -> UserStory or Ticket; UserStory -> Ticket ONLY (never UserStory). Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Product proposal failed: ${response.failure?.message}`); return IntentProposalSchema.parse(response.data);
           });
           let accepted = false, findings: Array<{ message: string }> = [];
@@ -311,6 +326,7 @@ export class Ticket extends WorkflowEntity {
   reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   getCompletenessContext(store: WorkflowStore, override?: CompletenessLevel) { return ticketCompleteness(this, store, override); }
   async investigate(store: WorkflowStore, options: InvestigationOptions = {}): Promise<OperationResult<TicketDossier>> {
+    options.signal?.throwIfAborted();
     const { ensureAstFresh, withAstSnapshot } = await import('./indexer.ts');
     const { LayaSystemOne } = await import('@dharmax/llm-utils');
     const { InvestigationJudgmentSchema } = await import('../ticket-operation-types.ts');
@@ -453,6 +469,7 @@ export class Ticket extends WorkflowEntity {
   }
 
   async prepare(store: WorkflowStore, options: PreparationOptions = {}): Promise<OperationResult<PreparedTicket>> {
+    options.signal?.throwIfAborted();
     return withArtifactMetrics(store.root, 'prepare_ticket', store.localId(this.id), options, async () => {
     const investigation = await this.investigate(store, options);
     if (investigation.status !== 'complete') return investigation;
@@ -557,6 +574,7 @@ export class Ticket extends WorkflowEntity {
   }
 
   async resolve(store: WorkflowStore, options: ResolutionOptions = {}): Promise<OperationResult<ResolvedTicket>> {
+    options.signal?.throwIfAborted();
     return withArtifactMetrics(store.root, 'resolve_ticket', store.localId(this.id), { ...options, depth: options.depth ?? 'all' }, async () => {
       const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature } = await import('../ticket-operation-types.ts');
       const { ArtifactBudget } = await import('../artifact-policy.ts');
@@ -583,7 +601,7 @@ export class Ticket extends WorkflowEntity {
       const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
       const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
       let repairs = 0, acceptance: import('../ticket-operation-types.ts').AcceptanceVerification = { criteria: [], aspects: [] };
-      const ctx = { store, projectRoot: store.root };
+      const ctx = { store, projectRoot: store.root, signal: options.signal };
       const blocked = (reason: string): OperationResult<ResolvedTicket> => ({ status: 'blocked', artifactId: rootId, blockers: [{ reason }] });
       const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> => ({ status: 'needs_input', artifactId: rootId, required: [{ question, why, target }] });
       const lease = async (ticket: Ticket) => {
@@ -627,6 +645,7 @@ export class Ticket extends WorkflowEntity {
         // Prepare a bounded closure first, then execute a single dependency order.
         const queue: Array<{ ticket: Ticket; depth: number }> = [{ ticket: this, depth: 0 }];
         while (queue.length) {
+          options.signal?.throwIfAborted();
           const { ticket, depth } = queue.shift()!, id = store.localId(ticket.id);
           if (work.has(id)) continue;
           if (!budget.visit(id, depth)) return needs(`Increase depth/maxArtifacts to include '${id}'.`, 'The work closure exceeds the explicit operation budget.', 'Operation depth/maxArtifacts');
@@ -711,11 +730,12 @@ export class Ticket extends WorkflowEntity {
               throw new Error(`Acceptance verification context exceeds 80000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`);
             }
             countEngineering('sourceReads', verificationContext.files.reduce((count, file) => count + file.snippets.length, 0)); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. code contains graph-derived current file outlines and relevant source/test snippets AFTER implementation; tests/testNodes contain compact successful execution evidence. Use those, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete snippet/assertion/result for each claim. Do not accept a producer's completion statement. Context: ${serializedContext}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. code contains graph-derived current file outlines and relevant source/test snippets AFTER implementation; tests/testNodes contain compact successful execution evidence. Use those, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete snippet/assertion/result for each claim. Do not accept a producer's completion statement. Context: ${serializedContext}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [], actorTranches = 0;
           for (let attempt = 0; attempt <= maxRepairs; attempt++) {
+            options.signal?.throwIfAborted();
             if (attempt) { repairs++; countEngineering('repairs'); }
             const current = attempt ? await ticket.investigate(store, options) : null;
             if (current && current.status !== 'complete') return current;
@@ -734,7 +754,7 @@ export class Ticket extends WorkflowEntity {
                 const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
                 if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
                   countEngineering('reasoningCalls');
-                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
                   if (!response.ok) throw new Error(`Implementation synthesis failed: ${response.failure?.message}`);
                   const proposal = ExactImplementationSchema.parse(response.data), target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
                   return { changes: [proposal.action === 'replace_symbol' ? { action: proposal.action, target, replacement: proposal.replacement } : { action: proposal.action, target, newName: proposal.newName }], testCommands: proposal.testCommands };
@@ -744,6 +764,7 @@ export class Ticket extends WorkflowEntity {
                 while (actorTranches < 3) {
                   const tranche = actorTranches++, changesBefore = successfulChanges;
                   const observations = new Set<string>(), controller = new AbortController();
+                  const trancheSignal = combineSignals(options.signal, controller.signal);
                   let duplicateAttempts = 0;
                   const workspaceFiles = (await store.listEntities<FileNode>(FileNode.dcr)).map(file => store.localId(file.id)).filter(file => !file.startsWith('@') && !file.startsWith('node_modules/')).sort((a, b) => Number(/\.[cm]?[jt]sx?$/.test(b)) - Number(/\.[cm]?[jt]sx?$/.test(a)) || a.localeCompare(b)).slice(0, 64);
                   const actor = new LLMActor(asker, { maxSteps: 16, system: `Implement only Ticket ${currentDossier.ticket.id}: ${currentDossier.ticket.title}. Required outcomes: ${JSON.stringify(currentDossier.ticket.acceptanceCriteria)}. Parent intent constrains this task; do not execute other tickets. Keep thought to one short sentence; put replacement code only in tool parameters. Do not repeat an identical read/search on unchanged disk. Empty search results mean no match, not a reason to repeat the search. Inspect existing files and use concrete preview_change/apply_change edits to satisfy the authored contract. preview_change is read-only: nothing changes until apply_change succeeds. After a safe preview, apply the identical request with its returned fingerprint before moving to the next change. Preserve authored dependency paths; never invent package versions. For a local sibling dependency, follow the existing file:../ dependency convention when present; never substitute a registry version. Navigate surgically, read_workspace_file for ordinary files, then use preview_change/apply_change for edits (replace_text requires unique existing text). Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.` });
@@ -781,7 +802,8 @@ export class Ticket extends WorkflowEntity {
                       return result;
                     } });
                   }
-                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), signal: controller.signal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), signal: trancheSignal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  if (options.signal?.aborted) options.signal.throwIfAborted();
                   if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps).`);
                   if (output.ok) return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
                   const successfulEdits = successfulChanges - changesBefore;
@@ -837,12 +859,17 @@ export class Ticket extends WorkflowEntity {
             for (const command of proposedTests) {
               const playwright = command[0] === 'bunx' && command[1] === 'playwright' && command[2] === 'test';
               if (!playwright && (command[0] !== 'bun' || !['test', 'run'].includes(command[1] ?? '') || command[1] === 'run' && !['typecheck', 'build'].includes(command[2] ?? ''))) return needs(`Supply a project test/typecheck/build command for '${id}'.`, 'Verification commands must be bounded engineering checks.', 'Operation testCommands');
+              options.signal?.throwIfAborted();
               const process = Bun.spawn(command, { cwd: store.root, stdout: 'pipe', stderr: 'pipe' });
-              let timedOut = false;
+              let timedOut = false, aborted = false;
+              const onAbort = () => { aborted = true; process.kill(); };
+              options.signal?.addEventListener('abort', onAbort, { once: true });
               const timeout = setTimeout(() => { timedOut = true; process.kill(); }, 60000);
               const startedAt = Date.now();
               const [stdout, stderr, exit] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
               clearTimeout(timeout);
+              options.signal?.removeEventListener('abort', onAbort);
+              if (aborted) options.signal?.throwIfAborted();
               const passed = exit === 0 && !timedOut;
               countEngineering('testsRun'); if (!passed) countEngineering('testFailures');
               const fullOutput = stdout + '\n' + stderr + (timedOut ? '\nVerification command timed out.' : '');
