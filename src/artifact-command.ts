@@ -23,11 +23,15 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
   const aliases: Record<string, string> = { resolve: 'resolve_ticket', prepare: 'prepare_ticket', investigate: 'investigate_ticket', resolve_ticket: 'resolve_ticket', prepare_ticket: 'prepare_ticket', investigate_ticket: 'investigate_ticket', process_epic: 'process_epic', process_feature: 'process_feature', process_story: 'process_story' };
   let tool = verb ? aliases[verb] : undefined;
   if (verb === 'process') {
-    const kind = words.shift()?.toLowerCase(); if (!['epic', 'feature', 'story'].includes(kind ?? '')) throw new Error('Usage: process epic|feature|story <id>');
+    const kind = words.shift()?.toLowerCase();
+    if (!['epic', 'feature', 'story'].includes(kind ?? '')) return null;
     tool = `process_${kind}`;
   }
   if (verb === 'completeness') {
-    const action = words.shift(), entityId = words.shift(); if (!entityId) throw new Error('Completeness requires an artifact ID.');
+    const action = words.shift();
+    if (!['get', 'set'].includes(action ?? '')) return null;
+    const entityId = words.shift();
+    if (!entityId) throw new Error('Completeness requires an artifact ID.');
     if (action === 'get' && !words.length) return { tool: 'get_completeness_target', args: { entityId } };
     if (action === 'set' && words.length === 1) return { tool: 'set_completeness_target', args: { entityId, level: words[0] === 'clear' ? null : CompletenessSchema.parse(words[0]) } };
     throw new Error('Usage: completeness get <id> | completeness set <id> <level|clear>');
@@ -35,6 +39,7 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
   if (!tool) return null;
   if (tool.endsWith('_ticket') && words[0]?.toLowerCase() === 'ticket') words.shift();
   const id = words.shift(); if (!id || id.startsWith('--')) throw new Error(`${verb} requires an artifact ID.`);
+  if (words.length && !words[0]!.startsWith('--')) return null;
   const options: Record<string, unknown> = {};
   const flags: Record<string, string> = { '--completeness': 'completeness', '--depth': 'depth', '--max-artifacts': 'maxArtifacts', '--maxArtifacts': 'maxArtifacts', '--critic': 'critic', '--tag': 'tags', '--agent': 'agentId', '--max-repairs': 'maxRepairs', '--allow-dirty-target': 'allowDirtyTargets' };
   while (words.length) {
