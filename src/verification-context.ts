@@ -64,7 +64,7 @@ export async function buildVerificationContext(
   input: {
     dossier: TicketDossier
     files: readonly string[]
-    testNodes: readonly TestNode[] | readonly Array<{id: string; filePath: string; verifies?: string[]}>
+    testNodes: ReadonlyArray<TestNode> | ReadonlyArray<{id: string; filePath: string; verifies?: string[]}>
   },
   maxChars = DEFAULT_VERIFICATION_CONTEXT_CHARS,
 ): Promise<{files: VerificationFileContext[]; characters: number}> {
@@ -162,7 +162,11 @@ export async function buildVerificationContext(
     const fullPath = path.resolve(root, context.file)
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue
     const source = fs.readFileSync(fullPath, 'utf8')
-    if (source.length <= SMALL_FILE_CHARS) context.snippets.push({label: 'small-file fallback', startLine: 1, endLine: source.split('\n').length, source})
+    if (source.length <= SMALL_FILE_CHARS) {
+      context.snippets.push({label: 'small-file fallback', startLine: 1, endLine: source.split('\n').length, source})
+      continue
+    }
+    throw new Error(`No graph-derived verification snippet for large relevant file '${context.file}'. Add/repair symbol or verification edges instead of sending the whole file.`)
   }
 
   const files = [...contexts.values()].sort((a, b) => a.file.localeCompare(b.file))
