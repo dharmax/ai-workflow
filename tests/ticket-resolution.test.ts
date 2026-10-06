@@ -296,6 +296,7 @@ describe('Ticket-owned bounded resolution', () => {
       expect(testFiles).toEqual(['tests/add.test.ts', 'tests/contract.spec.ts']);
       expect(new Set(context!.code.map(source => source.file)).size).toBe(context!.code.length);
       expect(context!.testNodes.every((test: object) => !('hashes' in test))).toBe(true);
+      expect(context!.testNodes.every((test: object) => !('output' in test))).toBe(true);
       expect(context!.tests.every((test: object) => !('output' in test))).toBe(true);
     } finally {completion.mockRestore()}
   }, 30000);
