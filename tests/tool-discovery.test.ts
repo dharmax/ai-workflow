@@ -82,6 +82,33 @@ describe('semantic tool discovery and surfaces', () => {
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
   })
 
+  it('propagates execution cancellation and per-call timeout into semantic classification', async () => {
+    initializeTools()
+    const controller = new AbortController()
+    let captured: any
+    const asker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        captured = options
+        return {
+          ok: true,
+          data: {
+            mode: ['product'],
+            domain: ['ticket'],
+            object: ['ticket'],
+            action: ['list'],
+            effect: ['read'],
+          },
+        }
+      },
+    } as any
+
+    const discovery = new ToolDiscovery(registry, asker)
+    await discovery.discover('show tickets', 5, {signal: controller.signal, timeoutMs: 1234})
+
+    expect(captured.signal).toBe(controller.signal)
+    expect(captured.timeoutMs).toBe(1234)
+  })
+
   it('uses the fallback classifier only after the local classifier fails', async () => {
     initializeTools()
     let localCalls = 0
