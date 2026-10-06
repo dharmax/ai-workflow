@@ -1317,8 +1317,11 @@ Drill-down and project commands:
       ? ` \x1b[35m[Escalated ➜ ${result.targetModel}]\x1b[0m`
       : ` \x1b[35m[Escalated]\x1b[0m`;
   }
+  const discoveryLine = session.viewport?.getMode() === 'full'
+    ? `[DISCOVERY] ${result.discoveredTools?.length ? result.discoveredTools.join(', ') : '(none)'}\n`
+    : '';
   return {
-    output: `${prefix} ${TerminalFormatter.format(result.answer)}`
+    output: `${discoveryLine}${prefix} ${TerminalFormatter.format(result.answer)}`
   };
 }
 
