@@ -130,6 +130,81 @@ export async function findTestsVerifying(
   return result
 }
 
+export async function reconcileTestVerificationEdges(
+  store: WorkflowStore,
+  selected?: TestNode | readonly TestNode[],
+): Promise<void> {
+  const tests = selected
+    ? Array.isArray(selected) ? [...selected] : [selected]
+    : await store.listEntities<TestNode>(TestNode.dcr)
+  const symbolsByTitle = new Map<string, SymbolNode[]>()
+
+  for (const test of tests) {
+    for (const edge of await store.getOutgoing(test.id, 'verifies')) {
+      const target = await store.getEntity(edge.targetId)
+      if (
+        target instanceof FileNode
+        || target instanceof SymbolNode
+        || (!target && (edge as any).state === 'derived')
+      ) {
+        try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
+      }
+    }
+
+    const testPath = normalizeTestPath(test.filePath || test.targetPath || '')
+    if (!testPath) continue
+    const file = await store.getEntity<FileNode>(testPath, FileNode.dcr)
+    if (!file) continue
+
+    const verifiedFiles = new Set<string>()
+    for (const edge of await store.getOutgoing(file.id, 'imports')) {
+      const target = await store.getEntity<FileNode>(edge.targetId, FileNode.dcr)
+      if (!target) continue
+      const targetPath = normalizeTestPath((target as any).path || store.localId(target.id))
+      verifiedFiles.add(targetPath)
+      try {
+        await store.relate(test, 'verifies', target, {
+          state: 'derived',
+          note: 'Static test import',
+        })
+      } catch {}
+    }
+
+    if (verifiedFiles.size === 0) continue
+
+    for (const edge of await store.getOutgoing(file.id, 'calls')) {
+      const target = await store.getEntity<SymbolNode>(edge.targetId, SymbolNode.dcr)
+      if (!target) continue
+
+      let resolved = target
+      const targetPath = target.filePath ? normalizeTestPath(target.filePath) : ''
+      if (!targetPath || !verifiedFiles.has(targetPath)) {
+        const title = target.title || store.localId(target.id)
+        let candidates = symbolsByTitle.get(title)
+        if (!candidates) {
+          candidates = (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title }))
+            .filter(symbol => symbol.status !== 'deprecated')
+          symbolsByTitle.set(title, candidates)
+        }
+        const imported = candidates.filter(symbol =>
+          Boolean(symbol.filePath)
+          && verifiedFiles.has(normalizeTestPath(symbol.filePath!)),
+        )
+        if (imported.length !== 1) continue
+        resolved = imported[0]!
+      }
+
+      if (!resolved.filePath || !verifiedFiles.has(normalizeTestPath(resolved.filePath))) continue
+      try {
+        await store.relate(test, 'verifies', resolved, {
+          state: 'derived',
+          note: 'Static test call into imported source',
+        })
+      } catch {}
+    }
+  }
+}
+
 export async function recordTestOutcome(
   store: WorkflowStore,
   filePaths: readonly string[],
