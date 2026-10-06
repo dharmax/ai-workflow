@@ -93,16 +93,18 @@ effect: ${effects}
 
 Matching is AND across dimensions and OR within values of a dimension.
 Choose the smallest set that identifies the required capability. Prefer one canonical value
-per dimension. Use multiple values only when the request genuinely asks for alternatives.
-Include effect only when the request explicitly distinguishes read-only work from mutation
-or execution; otherwise omit it so effect does not overconstrain capability discovery.
+per dimension. For a request that requires multiple sequential capabilities, include the
+needed action values together and omit object/effect dimensions that differ between stages,
+so discovery can expose the small composable tool set without inventing a workflow tool.
+Use multiple values otherwise only when the request genuinely asks for alternatives.
+Include effect only when it applies to every required stage; otherwise omit it so effect
+does not overconstrain capability discovery.
 
 Examples:
 "do we have open tickets?" -> {"mode":["product"],"domain":["ticket"],"object":["ticket"],"action":["list"],"effect":["read"]}
 "who calls parseConfig?" -> {"mode":["dev"],"domain":["graph"],"object":["caller"],"action":["inspect"],"effect":["read"]}
 "show the source of parseConfig" -> {"mode":["dev"],"domain":["graph"],"object":["source"],"action":["get"],"effect":["read"]}
 "fix the failing auth test" -> {"mode":["triage"],"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
-"resolve the next ticket" -> {"mode":["dev"],"domain":["ticket"],"object":["next"],"action":["resolve"],"effect":["execution"]}
 
 Return semantic intent only. Do not answer the request.`
 }
