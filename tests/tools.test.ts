@@ -319,6 +319,15 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     }, ctx);
     expect(blast.recommendedTests).toContain('tests/math.test.ts');
 
+    const addSymbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: 'add' }))
+      .find(symbol => symbol.filePath === 'src/math.ts');
+    expect(addSymbol).toBeDefined();
+    const symbolBlast = await registry.execute('analyze_blast_radius', {
+      target: store.localId(addSymbol!.id)
+    }, ctx);
+    expect(symbolBlast.affectedFiles).toContain('src/math.ts');
+    expect(symbolBlast.recommendedTests).toContain('tests/math.test.ts');
+
     const triage = await registry.execute('triage_test_failures', {
       testCommand: 'bun test tests/math.test.ts'
     }, ctx);
