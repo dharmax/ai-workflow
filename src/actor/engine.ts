@@ -251,7 +251,7 @@ export class WorkflowActor {
     }
 
     const discovery: DiscoveredTools = this.toolDiscovery
-      ? await this.toolDiscovery.discover(rawText, 3)
+      ? await this.toolDiscovery.discover(rawText, 3, {signal: execOptions?.signal, timeoutMs: this.timeoutMs})
       : {query: {}, tools: []};
     activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
     this.mode = activeMode;
@@ -346,7 +346,8 @@ export class WorkflowActor {
                 rawText,
                 toolName,
                 parameters,
-                selectedNames
+                selectedNames,
+                {signal: execOptions?.signal, timeoutMs: this.timeoutMs}
               );
               if (!recovered) return undefined;
               selectedNames.add(recovered.name);
