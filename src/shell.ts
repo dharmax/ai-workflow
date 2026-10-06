@@ -1462,7 +1462,7 @@ export async function startShell(options: {
 
   const completer = buildSmartCompleter(session);
 
-  console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Shell (Bun-First Context OS)\x1b[0m`);
+  console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Shell (Developer Supreme)\x1b[0m`);
   console.log(`Type 'help' for commands or write any instruction. Tab completion active.\n`);
 
   const historyDir = path.join(os.homedir(), '.local', 'share', 'ai-workflow');
