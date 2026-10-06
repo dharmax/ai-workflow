@@ -295,6 +295,13 @@ export const sample = () => add(1, 2)
       expect(verification.length).toBe(1);
       expect(diskStore.localId(verification[0]!.sourceId)).toBe('test:tests/math.test.ts');
 
+      const addSymbols = await diskStore.listEntities<SymbolNode>(SymbolNode.dcr, { title: 'add' });
+      const addSymbol = addSymbols.find(symbol => symbol.filePath === 'src/math.ts');
+      expect(addSymbol).toBeDefined();
+      const symbolVerification = await diskStore.getIncoming(addSymbol!.id, 'verifies');
+      expect(symbolVerification.length).toBe(1);
+      expect(diskStore.localId(symbolVerification[0]!.sourceId)).toBe('test:tests/math.test.ts');
+
       const productVerification = await diskStore.getIncoming(feature.id, 'verifies');
       expect(productVerification.length).toBe(1);
       expect(diskStore.localId(productVerification[0]!.sourceId)).toBe('test:tests/math.test.ts');
