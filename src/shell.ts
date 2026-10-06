@@ -1312,7 +1312,7 @@ Drill-down and project commands:
   } finally {
     // The result status is rendered below once known; on thrown errors stop as failed.
   }
-  session.viewport?.stop(result.offlineFallback ? 'fail' : 'success');
+  session.viewport?.stop(result.offlineFallback || result.failed ? 'fail' : 'success');
 
   let prefix = `[${result.mode.toUpperCase()}]`;
   if (result.escalated) {
