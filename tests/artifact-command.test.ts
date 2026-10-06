@@ -23,6 +23,19 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
     expect(() => artifactCommand(['resolve', 'T', '--depth', '-1'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--max-artifacts', 'NaN'])).toThrow(); expect(() => artifactCommand(['process', 'feature', 'F', '--agent', 'a'])).toThrow();
     expect(() => artifactCommand(['resolve', 'T', '--unknown', 'x'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--tag', 'broken'])).toThrow(); expect(artifactCommand(['inspect', 'something'])).toBeNull();
   });
+  it('leaves ordinary natural-language delegation to the Actor instead of misparsing it as command options', () => {
+    expect(artifactCommand('resolve next open or in-progress ticket'.split(' '))).toBeNull();
+    expect(artifactCommand('please resolve next open or in-progress ticket'.split(' '))).toBeNull();
+    expect(artifactCommand('please resolve the next suitable ticket'.split(' '))).toBeNull();
+    expect(artifactCommand('process the next useful ticket'.split(' '))).toBeNull();
+    expect(artifactCommand('completeness of the current epic'.split(' '))).toBeNull();
+
+    expect(artifactCommand('resolve T --critic auto'.split(' '))).toEqual({
+      tool: 'resolve_ticket',
+      args: {ticketId: 'T', critic: 'auto'},
+    });
+    expect(() => artifactCommand('resolve T --unknown x'.split(' '))).toThrow();
+  });
   it('routes an explicit natural-language Ticket request through the entity once without outer Actor inference', async () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true }); let calls = 0;
     const original = Ticket.prototype.resolve;
