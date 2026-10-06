@@ -32,7 +32,7 @@ describe('semantic tool discovery and surfaces', () => {
     expect(result.tools.length).toBeLessThan(registry.getAll().length)
   })
 
-  it('discovers the composed next-ticket resolver for ordinary resolve-next intent', async () => {
+  it('exposes a small composable tool set for a multi-stage intent', async () => {
     initializeTools()
     const asker = {
       json: async () => ({
@@ -40,18 +40,18 @@ describe('semantic tool discovery and surfaces', () => {
         data: {
           mode: ['dev'],
           domain: ['ticket'],
-          object: ['next'],
-          action: ['resolve'],
-          effect: ['execution'],
+          action: ['recommend', 'resolve'],
         },
       }),
     } as any
 
     const discovery = new ToolDiscovery(registry, asker)
-    const result = await discovery.discover('resolve the next ticket')
+    const result = await discovery.discover('choose suitable work and execute it')
 
     expect(result.mode).toBe('dev')
-    expect(result.tools.map(tool => tool.name)).toEqual(['resolve_next_ticket'])
+    expect(new Set(result.tools.map(tool => tool.name))).toEqual(
+      new Set(['recommend_next_task', 'resolve_ticket']),
+    )
   })
 
   it('constrains classifier output to the registry vocabulary before matching', async () => {
