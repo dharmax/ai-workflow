@@ -132,7 +132,7 @@ export async function findTestsVerifying(
 
 export async function reconcileTestVerificationEdges(
   store: WorkflowStore,
-  selected?: TestNode | readonly TestNode[],
+  selected?: TestNode | TestNode[],
 ): Promise<void> {
   const tests = selected
     ? Array.isArray(selected) ? [...selected] : [selected]
