@@ -76,6 +76,8 @@ kanban-plugin: board
   - Summary: Reproduced both reported failures directly on master. Escalation test mismatched intentional task-class/locality routing (15c8aa8); corrected dev expectation to code and retained cloud/escalation assertions. Trace fixture now provides the real shell viewport; checks mode controls, absent viewport, and zero Actor calls. Fixed interactive escalation via existing facilitator API, with deterministic selection regression coverage. Completed shell-ui InteractionPort view adapters in e08177d; installed its declared @opentui/core dependency without lockfiles. AIWF full suite: 220 pass, 0 fail; typecheck passes. shell-ui current workspace: 30 pass, 0 fail; typecheck passes. Concurrent unrelated shell-ui facilitator edits preserved outside our commit. Disabled Bun lockfile saving and ignored both formats per user request. No branches created.
 - [x] **TKT-SUPY**: Audit and canonicalize Ticket.resolve TestNode verification
   - Summary: Audit only Ticket.resolve and TestNode integration against the user supplied lifecycle. Correct demonstrated defects using existing helpers; exclude debug/fix and digest.
+- [x] **TKT-OCTF**: Measured follow-up audit of Ticket.resolve and TestNode freshness
+  - Summary: Repeat the Ticket.resolve and TestNode audit against current source, measure AIWF using existing telemetry and timings, and fix only reproduced acceptance/evidence defects. Do not touch debug/fix or digest.
 
 ## Blocked
 

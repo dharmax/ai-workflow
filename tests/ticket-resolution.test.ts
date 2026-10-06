@@ -210,6 +210,95 @@ describe('Ticket-owned bounded resolution', () => {
     expect((await currentTestEvidence(store, ['test:tests/add.test.ts']))[0]?.passed).toBe(false);
   }, 30000);
 
+  it('reverifies a new authored target even when an earlier receipt already hashed it as an import', async () => {
+    fs.writeFileSync(path.join(root, 'src/consumer.ts'), 'export const consumer = "not an addition implementation";');
+    fs.writeFileSync(path.join(root, 'tests/add.test.ts'), 'import {test,expect} from "bun:test";\nimport "../src/consumer";\nimport {add} from "../src/add";\ntest("signed addition",()=>{expect(add(2,3)).toBe(5);expect(add(-2,3)).toBe(1)});');
+    await indexCodebase(store, root);
+    const t = await ticket(); await store.upsertEntity(Ticket.dcr, {id: t.id, acceptanceCriteria: ['Every authored code target implements signed addition']});
+    let reviews = 0;
+    const options = {...fix, maxRepairs: 0, verify: async (input: ResolutionVerificationInput) => {
+      reviews++;
+      if (input.dossier.evidence.some(item => item.mandatory && item.filePath === 'src/consumer.ts')) return {criteria: [{criterion: input.dossier.ticket.acceptanceCriteria[0], passed: false, evidence: 'The newly authored consumer target has no addition implementation'}], aspects: []};
+      return verify(input);
+    }};
+    expect((await t.resolve(store, options)).status).toBe('complete');
+    const proof = JSON.parse(((await store.getEntity('VERIFY-T')) as Artifact & {body: string}).body);
+    expect(proof.hashes['src/consumer.ts']).toBeDefined();
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>('src/consumer.ts', FileNode.dcr))!);
+    const result = await t.resolve(store, {...options, implement: async () => {throw Error('Reverify scope without editing')}});
+    expect(result.status).toBe('blocked'); expect(reviews).toBe(2);
+    expect((await store.getEntity<Ticket>(t.id, Ticket.dcr))!.lane).not.toBe('Done');
+  }, 30000);
+
+  it('refuses Done when the authored contract changes during independent verification', async () => {
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, verify: async input => {
+      await store.upsertEntity(Ticket.dcr, {id: t.id, acceptanceCriteria: ['A newly authored unproved behavior']});
+      return verify(input);
+    }});
+    expect(result.status).toBe('needs_input');
+    expect((await store.getEntity<Ticket>(t.id, Ticket.dcr))!.lane).not.toBe('Done');
+    expect(await store.getEntity('VERIFY-T')).toBeNull();
+  }, 30000);
+
+  it('records the actual verifying TestNode when its path contains spaces', async () => {
+    const t = await ticket();
+    const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!, 'tests/signed values.spec.ts');
+    const result = await t.resolve(store, {...fix, maxRepairs: 0});
+    expect(result.status).toBe('complete');
+    expect((await store.getEntity<TestNode>(oracle.id, TestNode.dcr))!.passed).toBe(true);
+  }, 30000);
+
+  it('preserves native authored-symbol migration during an authorized rename and reuses its new proof', async () => {
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a:number,b:number){return a+b;}');
+    git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'correct addition');
+    await indexCodebase(store, root);
+    const t = await ticket();
+    await store.unrelate(t.id, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!.id);
+    const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')!;
+    await store.relate(t, 'modifies', symbol);
+    const options = {...fix, maxRepairs: 0, implement: async () => ({changes: [{action: 'rename_symbol' as const, target: {type: 'symbol' as const, filePath: 'src/add.ts', symbolName: 'add'}, newName: 'sum'}], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
+    expect((await t.resolve(store, options)).status).toBe('complete');
+    const current = (await store.getOutgoing(t.id, 'modifies'))[0]!;
+    expect((await store.getEntity<SymbolNode>(current.targetId, SymbolNode.dcr))!.title).toBe('sum');
+    expect((await t.resolve(store, {...options, implement: async () => {throw Error('Unchanged renamed proof must be reused')}, verify: async () => {throw Error('Unchanged renamed proof must be reused')}})).status).toBe('complete');
+  }, 30000);
+
+  it('does not mark a skipped file passing merely because another full-suite file passed', async () => {
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a:number,b:number){return a+b;}');
+    const t = await ticket();
+    const disabled = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!, 'tests/disabled.spec.ts');
+    fs.writeFileSync(path.join(root, 'tests/disabled.spec.ts'), 'import {test,expect} from "bun:test"; test.skip("unproved behavior",()=>expect(1).toBe(99));');
+    await indexCodebase(store, root);
+    await store.upsertEntity(TestNode.dcr, {id: disabled.id, passed: false, lastRun: '2000-01-01T00:00:00.000Z'});
+    const process = Bun.spawn(['bun', 'test'], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
+    expect(exitCode).toBe(0);
+    const execution = await recordTestExecution(store, root, ['bun', 'test'], {passed: true, output: stdout + '\n' + stderr, exitCode});
+    expect(execution.testFiles).toContain('tests/add.test.ts'); expect(execution.testFiles).not.toContain('tests/disabled.spec.ts');
+    expect((await store.getEntity<TestNode>(disabled.id, TestNode.dcr))!).toMatchObject({passed: false, lastRun: '2000-01-01T00:00:00.000Z'});
+    let reviews = 0;
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, implement: async () => ({changes: [], testCommands: [['bun', 'test']]}), verify: async input => {reviews++; return verify(input)}});
+    expect(result.status).toBe('blocked'); expect(reviews).toBe(0);
+  }, 30000);
+
+  it('projects canonical execution evidence into acceptance review without duplicating test files or raw hashes', async () => {
+    const t = await ticket(); await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    let context: {sources: Array<{file: string}>; testSources: Array<{file: string}>; testNodes: Array<Record<string, unknown>>; tests: Array<Record<string, unknown>>} | undefined;
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      context = JSON.parse(prompt.slice(prompt.indexOf('Context: ') + 9));
+      console.info('AIWF acceptance prompt bytes:', Buffer.byteLength(prompt));
+      return {model, ok: true, text: JSON.stringify({criteria: [{criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Signed addition assertions and current source prove this requirement'}], aspects: []})};
+    });
+    try {
+      expect((await t.resolve(store, {...fix, verify: undefined})).status).toBe('complete');
+      expect(context!.sources.some(source => source.file.startsWith('tests/'))).toBe(false);
+      expect(context!.testSources.map(source => source.file).sort()).toEqual(['tests/add.test.ts', 'tests/contract.spec.ts']);
+      expect(context!.testNodes.every((test: object) => !('hashes' in test))).toBe(true);
+      expect(context!.tests.every((test: object) => !('output' in test))).toBe(true);
+    } finally {completion.mockRestore()}
+  }, 30000);
+
   it('allows and preserves unrelated dirty files but stops before editing a dirty target', async () => {
     const t = await ticket(); fs.writeFileSync(path.join(root, 'notes.txt'), 'user work');
     const result = await t.resolve(store, fix); expect(result.status).toBe('complete'); expect(fs.readFileSync(path.join(root, 'notes.txt'), 'utf8')).toBe('user work');

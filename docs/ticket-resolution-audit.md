@@ -1,6 +1,6 @@
 # Ticket.resolve / TestNode audit
 
-Scope: Ticket resolution only, on master, owned by TKT-SUPY. Debug/fix and digest are excluded.
+Scope: Ticket resolution only, on master, owned by TKT-SUPY and follow-up TKT-OCTF. Debug/fix and digest are excluded.
 
 ## Permission and responsibility audit
 
@@ -51,3 +51,29 @@ Validated on the final code:
 - The configured provider rejected oversized review prompts despite available account credit. Surgical code/regression excerpts allowed the same route to complete all five criteria. This validates the lifecycle with the existing verifier-injection contract; it does not establish an unlimited default-verifier context budget. The default verifier still reads whole source/test files and can exceed provider limits for large scopes.
 
 The final dogfood receipt contains 33 TestNodes (including authored identities) for all 32 executed files. A subsequent unchanged real-ticket resolution completed through receipt reuse with implementation and verification callbacks that throw if invoked. Final projection sync completed and no audit-ticket lease remains.
+
+## Measured follow-up audit (TKT-OCTF)
+
+Five additional defects were reproduced before correction:
+
+1. An incidental imported file already present in receipt hashes could subsequently become an authored target without invalidating proof. The contract fingerprint now includes authored FileNode/SymbolNode identities.
+2. Acceptance criteria could change during independent review while resolution persisted the old review and marked the new contract Done. The resolver rereads the current contract, Aspects, completeness and authored scope before persisting proof.
+3. Bun test paths containing spaces were lost by filename extraction even when a verifying TestNode existed. Runner headers now match canonical TestNode paths directly.
+4. Full-suite output marked skipped-only files passing when another file passed. Canonical Bun sections must contain an actual pass, fail or load error before updating execution evidence; skipped obligations cannot satisfy acceptance.
+5. Default acceptance context duplicated test sources and runner output and included raw freshness hashes that have no semantic value to the reviewer. Test sources appear once; hashes remain resolver-owned freshness evidence and output remains on TestNodes.
+
+Small helpers own contract fingerprinting and canonical runner sections. The existing change engine's `migratedAnchors` preserves authorized symbol identity migration while guarding the semantic contract; a dedicated rename-and-reuse regression prevents a false rejection. No new orchestration abstraction was introduced.
+
+Focused resolver and existing test-tool suites: 53 pass, 0 fail (45 resolver, 8 tools). Full suite: 240 pass, 0 fail across 32 files in 38.97 seconds; strict typecheck passed. Six new realistic regressions cover the five defects and native rename preservation. Existing tests continue to cover graph file/symbol selection, insufficient-graph fallback, bounded repair, unproved acceptance, stale proof and unchanged reuse.
+
+Measured usefulness using existing AIWF telemetry and direct timings:
+
+- Real unchanged TKT-SUPY proof reuse: 1.71 seconds, one reused artifact, no test executions, edits or reviewer calls. This measures warm reuse, not general autonomous implementation performance.
+- Identical default-review fixture: 4,155 to 3,169 prompt bytes, a 23.7% reduction. This is a byte measurement, not a claim about paid tokens or cost.
+- Earlier telemetry recorded eight TKT-SUPY attempts: three complete, five blocked, median 40.75 seconds. Injected reviews lacked cognition instrumentation, so those records cannot establish token spend or dollar savings.
+- Follow-up TKT-OCTF resolution completed in 45.62 seconds with full tests/typecheck and an instrumented independent review (7,042 tokens, dollar cost unavailable). The same unchanged ticket then reused its receipt in 1.67 seconds with throwing implementation/review callbacks, zero test executions and zero LLM calls. Both ran against the recorded dirty working snapshot, not a clean benchmark baseline.
+- The first follow-up review was blocked by OpenRouter's explicit key monthly-limit response (2,048 output tokens requested, 1,733 reported available). Retrying the same route with a 1,024-token output cap completed all five acceptance checks. No provider/model route or acceptance requirement was changed.
+
+AIWF was useful for grounded scope, enforced leases, canonical test evidence, independent review, durable proof and fast unchanged reuse. It did not replace the method-by-method forensic audit. Large default review contexts and provider-side prompt limits remain limitations; available account credit alone does not establish that a particular model request fits its route limits.
+
+TKT-OCTF has a persisted acceptance receipt and is Done. The follow-up receipt includes all 33 canonical TestNode identities for 32 executed files; unchanged reuse confirms the final source/test hashes remain current.

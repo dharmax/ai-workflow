@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
+import { canonical } from './kb/canonical.ts';
+import type { WorkflowStore } from './graph/store.ts';
+import type { Ticket } from './graph/ontology.ts';
+import type { CompletenessLevel } from './artifact-policy.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
 import type { AspectAssessment } from './aspects.ts';
@@ -91,4 +96,25 @@ export function readVerificationReceipt(body: unknown) {
     const parsed = VerificationReceiptSchema.safeParse(JSON.parse(String(body)));
     return parsed.success ? parsed.data : null;
   } catch { return null; }
+}
+
+/** Fingerprint the authored contract, including scope rather than incidental imported bytes. */
+export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = []) {
+  const {FileNode, SymbolNode} = await import('./graph/ontology.ts');
+  const targets = new Set<string>();
+  for (const edge of [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)]) {
+    if (!['contains', 'implements', 'addresses', 'targets', 'modifies', 'governs', 'blocks', 'depends_on', 'verifies'].includes(edge.predicateName)) continue;
+    const entity = await store.getEntity(edge.sourceId === ticket.id ? edge.targetId : edge.sourceId);
+    if (entity instanceof FileNode || entity instanceof SymbolNode) {
+      let id = entity.id;
+      // Native changes may migrate durable anchors without changing authored scope.
+      for (const migration of [...migrations].reverse()) if (id === migration.newId) id = migration.oldId;
+      targets.add(id);
+    }
+  }
+  const aspects = (await ticket.assessAspects(store)).aspects.map(aspect => ({id: aspect.id, criteria: aspect.criteria})).sort((a, b) => a.id.localeCompare(b.id));
+  return createHash('sha256').update(canonical({
+    ticket: {title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria},
+    targets: [...targets].sort(), aspects, completeness: await ticket.getCompletenessContext(store, completeness)
+  })).digest('hex');
 }

@@ -558,7 +558,7 @@ export class Ticket extends WorkflowEntity {
 
   async resolve(store: WorkflowStore, options: ResolutionOptions = {}): Promise<OperationResult<ResolvedTicket>> {
     return withArtifactMetrics(store.root, 'resolve_ticket', store.localId(this.id), { ...options, depth: options.depth ?? 'all' }, async () => {
-      const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema, readVerificationReceipt } = await import('../ticket-operation-types.ts');
+      const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature } = await import('../ticket-operation-types.ts');
       const { ArtifactBudget } = await import('../artifact-policy.ts');
       const { CausalChangeEngine } = await import('../change/engine.ts');
       const { CodeChangeRequestSchema } = await import('../tools/change.ts');
@@ -578,6 +578,7 @@ export class Ticket extends WorkflowEntity {
       const acquired = new Set<string>(), ownedFiles = new Set<string>(), allFiles = new Set<string>(), resolved: string[] = [];
       const ownedHashes = new Map<string, string>();
       let executingTicket: Ticket = this, successfulChanges = 0;
+      let anchorMigrations: import('../change/types.ts').ChangeApplyResult['migratedAnchors'] = [];
       const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
       const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
       let repairs = 0, acceptance: import('../ticket-operation-types.ts').AcceptanceVerification = { criteria: [], aspects: [] };
@@ -611,6 +612,7 @@ export class Ticket extends WorkflowEntity {
         const conflict = guardFiles(preview.affectedFiles); if (conflict) throw new Error(`Dirty target requires input: ${conflict}`);
         await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id: store.localId(executingTicket.id), fields: { lane: 'In Progress' } }]);
         const result = await engine.applyChange(request, fingerprint ?? preview.fingerprint);
+        anchorMigrations.push(...result.migratedAnchors);
         for (const file of [...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])]) {
           ownedFiles.add(file); allFiles.add(file);
           ownedHashes.set(file, fs.existsSync(path.resolve(store.root, file)) ? crypto.createHash('sha256').update(fs.readFileSync(path.resolve(store.root, file))).digest('hex') : 'missing');
@@ -650,10 +652,11 @@ export class Ticket extends WorkflowEntity {
         };
         await visit(rootId);
         for (const id of order) {
+          anchorMigrations = [];
           const ticket = work.get(id)!, dossier = dossiers.get(id)!; executingTicket = ticket; recordMetricCompleteness(dossier.completeness);
-          const signature = crypto.createHash('sha256').update(JSON.stringify({ ticket: { title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria }, aspects: dossier.aspects.aspects.map(aspect => ({ id: aspect.id, criteria: aspect.criteria })), completeness: dossier.completeness })).digest('hex');
           const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!);
           await ensureAstFresh(store, store.root);
+          const signature = await ticketVerificationSignature(store, ticket, options.completeness);
           const graphScope = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), scopeFiles);
           for (const test of graphScope.tests) if (!dossier.evidence.some(item => item.id === store.localId(test.id))) dossier.evidence.push({
             id: store.localId(test.id), kind: 'TestNode', title: test.title || store.localId(test.id),
@@ -682,11 +685,13 @@ export class Ticket extends WorkflowEntity {
           const verify = options.verify ?? (async (input: ResolutionVerificationInput) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
             const sourceFiles = new Set([...input.files, ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)]);
+            for (const test of input.testNodes) sourceFiles.delete(test.filePath);
             const sources = [...sourceFiles].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
             const testSources = [...new Set(input.testNodes.map(test => test.filePath))].filter(file => fs.existsSync(path.resolve(store.root, file))).map(file => ({ file, source: fs.readFileSync(path.resolve(store.root, file), 'utf8') }));
             const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
+            const review = {...input, dossier: reviewDossier, tests: input.tests.map(({output: _reportedOnTestNodes, ...test}) => test), testNodes: input.testNodes.map(({hashes: _checkedByResolver, ...test}) => test), sources, testSources};
             countEngineering('sourceReads', sources.length + testSources.length); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify({ ...input, dossier: reviewDossier, sources, testSources })}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. sources/testSources are current disk contents AFTER implementation; use them and successful executions, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete assertion/result for each claim. Do not accept a producer's completion statement. Context: ${JSON.stringify(review)}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [], actorTranches = 0;
@@ -844,9 +849,12 @@ export class Ticket extends WorkflowEntity {
             acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
             const missing = [...dossier.ticket.acceptanceCriteria.filter(criterion => !acceptance.criteria.some(check => check.criterion === criterion && check.passed)), ...dossier.aspects.aspects.map(aspect => aspect.id).filter(aspect => !acceptance.aspects.some(check => check.id === aspect && check.passed))];
             if (missing.length) { feedback = missing.map(item => `Unverified required acceptance/Aspect: ${item}`); continue; }
+            const currentTicket = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!;
+            if (await ticketVerificationSignature(store, currentTicket, options.completeness, anchorMigrations) !== signature) return needs('Review the changed Ticket contract or authored scope and retry resolution.', 'The acceptance contract changed during implementation or independent verification.', 'Ticket verification contract');
+            const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness);
             const leaseError = await lease(ticket); if (leaseError) return blocked(leaseError);
             const hashes = verificationHashes;
-            const proof = await store.upsertEntity<Artifact>(Artifact.dcr, { id: `VERIFY-${id}`, title: `Verified acceptance for ${id}`, body: JSON.stringify({ signature, hashes, acceptance, testNodes, tests: currentTests.map(test => ({ command: test.command, passed: test.passed })), children, verifiedAt: new Date().toISOString() }), status: 'verified' });
+            const proof = await store.upsertEntity<Artifact>(Artifact.dcr, { id: `VERIFY-${id}`, title: `Verified acceptance for ${id}`, body: JSON.stringify({ signature: verifiedSignature, hashes, acceptance, testNodes, tests: currentTests.map(test => ({ command: test.command, passed: test.passed })), children, verifiedAt: new Date().toISOString() }), status: 'verified' });
             await store.relate(proof, 'verifies', ticket);
             await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: { lane: 'Done', status: 'verified' } }]);
             resolved.push(id); break;

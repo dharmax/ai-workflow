@@ -290,6 +290,20 @@ export async function reconcileTestVerificationEdges(
   }
 }
 
+/** Bun headers name canonical paths; assertion markers distinguish execution from scanning/skips. */
+function testOutputSections(output: string, root: string, filePaths: readonly string[]): Map<string, string> {
+  const labels = new Map(filePaths.flatMap(file => [file, `./${file}`, path.resolve(root, file)].map(label => [label, file] as const)))
+  const sections = new Map<string, string[]>()
+  let current: string | undefined
+  for (const line of output.replace(/\u001b\[[0-9;]*m/g, '').split(/\r?\n/)) {
+    const file = line.endsWith(':') ? labels.get(line.slice(0, -1)) : undefined
+    if (file) { current = file; sections.set(file, []) }
+    else if (/\.[cm]?[jt]sx?:$/.test(line)) current = undefined
+    if (current) sections.get(current)!.push(line)
+  }
+  return new Map([...sections].map(([file, lines]) => [file, lines.join('\n')]))
+}
+
 export async function recordTestOutcome(
   store: WorkflowStore,
   filePaths: readonly string[],
@@ -306,13 +320,13 @@ export async function recordTestOutcome(
   const lastRun = new Date().toISOString()
 
   const paths = new Set(filePaths.map(normalizeTestPath))
-  for (const test of await store.listEntities<TestNode>(TestNode.dcr)) {
+  const tests = await store.listEntities<TestNode>(TestNode.dcr)
+  const sections = testOutputSections(outcome.output || '', store.root, tests.map(test => normalizeTestPath(test.filePath || test.targetPath || '')))
+  for (const test of tests) {
     const filePath = normalizeTestPath(test.filePath || test.targetPath || '')
     if (!paths.has(filePath)) continue
     const output = outcome.output || ''
-    const start = output.indexOf(filePath + ':\n')
-    const nextHeader = start < 0 ? -1 : output.slice(start + filePath.length + 2).search(/\n[^\n]+\.(?:test|spec)\.[cm]?[jt]sx?:\n/)
-    const testOutput = start < 0 ? output.slice(-4000) : output.slice(start, nextHeader < 0 ? undefined : start + filePath.length + 2 + nextHeader)
+    const testOutput = sections.get(filePath) ?? output.slice(-4000)
     await test.update({
       lastRun,
       passed: outcome.passed,
@@ -398,8 +412,10 @@ export async function recordTestExecution(
   const isFullBunSuite = tokens.length === 2 && tokens[0] === 'bun' && tokens[1] === 'test'
   const isFullPlaywrightSuite = tokens.length === 3 && tokens[0] === 'bunx' && tokens[1] === 'playwright' && tokens[2] === 'test'
   const output = outcome.output || ''
+  const bunSections = tokens[0] === 'bun' && tokens[1] === 'test' ? testOutputSections(output, root, knownPaths) : new Map<string, string>()
+  const executed = [...bunSections].filter(([, section]) => /^\((?:pass|fail)\)|^\s*error:/m.test(section)).map(([file]) => file)
   const noTests = /^\s*No tests found/im.test(output) || /^\s*0 pass\s*$/m.test(output) && /^\s*0 fail\s*$/m.test(output)
-  const testFiles = [...new Set(noTests ? [] : reported.length ? reported.filter(file => knownPaths.includes(file)) : selected.length ? selected
+  const testFiles = [...new Set(noTests ? [] : bunSections.size ? executed : reported.length ? reported.filter(file => knownPaths.includes(file)) : selected.length ? selected
     : isFullBunSuite ? all.filter(test => test.framework === 'bun').map(test => test.filePath || test.targetPath!).filter(Boolean)
     : isFullPlaywrightSuite ? all.filter(test => test.framework === 'playwright').map(test => test.filePath || test.targetPath!).filter(Boolean) : [])]
 
