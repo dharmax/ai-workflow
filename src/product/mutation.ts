@@ -1,14 +1,14 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import { ticketState } from '../graph/ticket-state.ts';
 import type { TicketLane } from '../graph/types.ts';
 
-const kinds = { Aspect, Idea, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
+const kinds = { Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;
-const entityKind = z.enum(['Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect']);
+const entityKind = z.enum(['Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
 const ticketLane = z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']);
@@ -29,16 +29,23 @@ export const ProductMutationSchema = z.discriminatedUnion('kind', [
 export type ProductMutation = z.infer<typeof ProductMutationSchema> & { source?: never };
 
 const relations: Array<[ProductKind, string, ProductKind]> = [
-  ...(['Idea', 'Module', 'Epic', 'Feature', 'UserStory'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
+  ...(['Idea', 'Goal', 'Concept', 'Flow', 'Module', 'Epic', 'Feature', 'UserStory'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
   ['Ticket', 'addresses', 'Aspect'], ['Test', 'verifies', 'Aspect'], ['Artifact', 'verifies', 'Aspect'], ['Decision', 'governs', 'Aspect'],
-  ['Epic', 'targets', 'Feature'], ['Epic', 'targets', 'UserStory'],
-  ['Feature', 'contains', 'UserStory'], ['Epic', 'contains', 'Ticket'],
+  ['Idea', 'inspires', 'Goal'], ['Idea', 'inspires', 'Concept'], ['Idea', 'inspires', 'Flow'],
+  ['Goal', 'inspires', 'Concept'], ['Flow', 'serves', 'Goal'],
+  ['Concept', 'governs', 'Flow'], ['Concept', 'governs', 'UserStory'], ['Concept', 'governs', 'Feature'], ['Concept', 'governs', 'Epic'], ['Concept', 'governs', 'Ticket'],
+  ['Flow', 'contains', 'UserStory'], ['Feature', 'enables', 'UserStory'],
+  // Legacy read/write compatibility while old Product Intent is migrated.
+  ['Feature', 'contains', 'UserStory'],
+  ['Epic', 'targets', 'Goal'], ['Epic', 'targets', 'Concept'], ['Epic', 'targets', 'Flow'], ['Epic', 'targets', 'Feature'], ['Epic', 'targets', 'UserStory'],
+  ['Epic', 'contains', 'Ticket'],
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
   ['Ticket', 'targets', 'Module'],
   ['Ticket', 'contains', 'Ticket'], ['Ticket', 'depends_on', 'Ticket'],
   ['Artifact', 'verifies', 'Ticket'], ['Test', 'verifies', 'Ticket'],
   ['Ticket', 'modifies', 'File'], ['Ticket', 'modifies', 'Symbol'], ['Ticket', 'targets', 'File'], ['Ticket', 'targets', 'Symbol'],
-  ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
+  ['Test', 'verifies', 'Flow'], ['Test', 'verifies', 'Feature'], ['Test', 'verifies', 'UserStory'],
+  ['Decision', 'governs', 'Goal'], ['Decision', 'governs', 'Concept'], ['Decision', 'governs', 'Flow'],
   ['Decision', 'governs', 'Epic'], ['Decision', 'governs', 'Feature'], ['Decision', 'governs', 'UserStory'],
   ['Decision', 'governs', 'Ticket']
 ];
@@ -66,7 +73,9 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
 function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
-    Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Artifact: [], File: [], Symbol: [],
+    Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Goal: ['title', 'body', 'status'],
+    Concept: ['title', 'body', 'status'], Flow: ['title', 'body', 'status', 'actor', 'context'],
+    Artifact: [], File: [], Symbol: [],
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
     UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
@@ -76,7 +85,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
   if (input.status !== undefined) {
     if (kind === 'Epic') epicStatus.parse(input.status);
-    if (kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
+    if (kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
   if (kind === 'Epic' && input.priority !== undefined) z.number().parse(input.priority);
