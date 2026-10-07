@@ -104,10 +104,11 @@ A maintainer needs to remove an obsolete persistence adapter with no change to o
 
 The first mandatory live journey regressions are:
 
-1. **J2.1** through the real shell/NL discovery path, compared with deterministic `next`.
-2. **J1.1** through real Product Intent proposal/review/apply boundaries.
-3. **J3.1** through real `resolve_ticket` lifecycle boundaries.
-4. **J4.1** using a defect connected to a primary Flow/Goal.
-5. **J5.1** through the public MCP surface.
+1. **J2.1** through the real shell/NL path, compared with deterministic `next`.
+2. **J2.4** through the real local Actor using its basic substrate plus bounded discovery, including the exact compound comparison requests in `fix-plan-1.md`.
+3. **J1.1** through real Product Intent proposal/review/apply boundaries.
+4. **J3.1** through real `resolve_ticket` lifecycle boundaries.
+5. **J4.1** using a defect connected to a primary Flow/Goal.
+6. **J5.1** through the public MCP surface.
 
 Mocked classifier/model/tool selections may support lower-level tests but cannot be the sole proof for these journeys.
