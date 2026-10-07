@@ -72,13 +72,11 @@ async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localI
     store.getOutgoing(story.id, 'depends_on')
   ]);
 
-  const legacyFeaturePreds = [];
+  const features = new Set<string>(enablePreds.map(p => store.localId(p.sourceId)));
   for (const pred of containsPreds) {
     const source = await store.getEntity(pred.sourceId);
-    if (source instanceof Feature) legacyFeaturePreds.push(pred);
+    if (source instanceof Feature) features.add(store.localId(source.id));
   }
-  const featurePreds = [...enablePreds, ...legacyFeaturePreds];
-  const features = new Set<string>(featurePreds.map(p => store.localId(p.sourceId)));
   const tickets = new Set<string>(ticketPreds.map(p => store.localId(p.sourceId)));
   const tests = new Set<string>(testPreds.map(p => store.localId(p.sourceId)));
   const decisions = new Set<string>(decisionPreds.map(p => store.localId(p.sourceId)));
@@ -110,7 +108,7 @@ async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localI
   }
 
   // Decisions governing containing features
-  for (const fId of featurePreds.map(p => p.sourceId)) {
+  for (const fId of features) {
     const decs = await store.getIncoming(fId, 'governs');
     for (const d of decs) decisions.add(store.localId(d.sourceId));
   }
