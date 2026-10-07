@@ -1,83 +1,164 @@
-# Fix plan 1: let the LLM compose basic AIWF operations
+# Fix plan 1: dependable LLM composition
 
-Status: planning only. Tracking ticket: `TKT-8D3F`. Implementation and live acceptance remain open.
+Status: design/planning only. Tracking ticket: `TKT-8D3F`. No implementation is authorized by this document.
 
-## Goal and boundaries
+## Actor story
 
-Give the Actor a stable basic execution surface so the LLM can retrieve evidence, compose Linux commands or a codelet, and reason over results. Specialized semantic discovery is optional assistance; it must not gate basic execution. Reuse existing tools and contracts. Do not add query-specific ranking handlers, a new execution engine, branches, or changes to debug/fix/digest. Preserve configured model choices and unrelated work.
+**J2.4 — Compose an unfamiliar project question from basic operations**
 
-## Evidence and artifact mapping
+A developer asks a compound or unusual question about the current project that is not exactly covered by one named AIWF capability. AIWF starts with a small dependable execution surface, gathers real project evidence by composing basic operations and any specialized capabilities it discovers, reasons over the observations, and returns the requested grounded answer. If the needed evidence cannot be obtained, it stops with the concrete missing evidence or execution failure. The developer does not need a query-specific command or for AIWF developers to pre-encode words such as “second”, “least”, or a particular comparison.
 
-Artifacts below were grounded using AIWF `investigate TKT-8D3F`, `symbol WorkflowActor`, `graph TestNode --type TestNode`, and `blast` on `src/actor/engine.ts`, `src/tools/os.ts`, `src/tools/compiler.ts`, and `src/shell.ts`, followed by bounded source inspection. “Affected” means inspect or verify; it does not authorize editing every listed file. Existing TestNode IDs are retained as canonical test inventory. Cross-repository runtime files are dependencies, not newly invented AIWF product artifacts.
+This journey is the reason for the work below. “Expose more tools” is not itself the requirement.
 
-Current findings: basic shell and codelet primitives already exist. The Actor builds its initial execution catalog from semantic discovery results. Some current tests explicitly require shell/codelet tools to be absent. Audit the intended local Actor versus public MCP boundary before changing those expectations. Codelet invocation currently receives `args` and `ctx`; establish how existing scripting/tool composition works before adding any contract. No architecture change is assumed necessary.
+## Design
 
-## 1. Audit the execution contract
+The Actor gets two kinds of capability:
 
-Trace initial tool selection, exact schemas, prompts, result history, limits, and termination. Exercise existing compound-command and codelet paths. Identify demonstrated restrictions, including intentional public capability boundaries, before editing. Produce a short defect list and the smallest justified changes.
+1. **basic execution substrate** — a tiny dependable surface available from the first Actor step;
+2. **specialized semantic capabilities** — narrow domain tools selected/discovered when they are useful.
 
-Affected artifacts: `src/actor/engine.ts` (`WorkflowActor.execute`, mode prompts); `src/tools/discovery.ts`; `src/tools/registry.ts`; `src/tools/index.ts`; `src/tools/os.ts` (`registerOsTools`); `src/tools/compiler.ts` (`registerCompilerTools`, `createCallableFunction`); `src/tools/scripting.ts`; `src/mcp.ts`; sibling `../llm-utils/src/actor.ts` and session implementation if implicated.
+Semantic discovery is therefore an optimization and specialization mechanism, not a prerequisite for basic competence.
 
-Verification artifacts: `test:tests/actor.test.ts`, `test:tests/tool-discovery.test.ts`, `test:tests/tools.test.ts`, `test:tests/compiler.test.ts`, `test:tests/mcp.test.ts`.
+The substrate must remain small enough to preserve tool-catalog isolation and understandable safety. Current candidates are `run_command`, `compile_codelet`, `run_codelet`, and `script_eval`, but this list is explicitly **not** the chosen API.
 
-## 2. Expose existing basic primitives directly
+Current source suggests the likely minimum is `run_command` plus the existing `discover_tools` path. A compound shell command can inspect CLI/project evidence, while discovery supplies efficient canonical domain tools. Codelet/script facilities should remain on-demand unless the audit proves that a permanently exposed additional primitive is both necessary and properly isolated.
 
-Make existing basic execution primitives available from the first local Actor step independently of semantic classification. Candidate primitives are `run_command`, `compile_codelet`, `run_codelet`, and existing `script_eval`; choose the smallest useful surface after step 1, avoiding redundant paths. Keep specialized discovery optional. Remove machinery rendered redundant by direct composition. Preserve per-run catalog isolation and the public MCP contract unless a demonstrated defect requires a separate justified change.
+In particular, current `script_eval` receives the global registry and therefore can bypass a run-local catalog. It must not become a default primitive in that form.
 
-Affected artifacts: `src/actor/engine.ts`; `src/tools/discovery.ts`; tool registration/capability policy identified in step 1. Inspect `src/tools/index.ts` and `src/mcp.ts` as boundary dependencies, not automatic edit targets. Shared Actor changes only if its existing run-local tool contract is insufficient.
+No ranking API, ordinal parser, query-specific workflow tool, second execution engine, or full-registry fallback is allowed.
 
-Verification artifacts: `test:tests/actor.test.ts`, `test:tests/tool-discovery.test.ts`, `test:tests/mcp.test.ts`; sibling Actor regression tests if changed. Assert basic execution survives empty or failed discovery and does not expose the whole registry or leak capabilities between runs.
+## 1. Audit the execution contract before changing exposure
 
-## 3. Give the model a usable environment
+Trace the current local Actor boundary end-to-end:
 
-Describe the project directory, available execution primitives, and how to inspect AIWF help and obtain real evidence. Allow the model to choose direct tools, compound shell commands, or a codelet. Leave sorting, comparisons, decomposition, and conclusions to the model. Preserve explicit model configuration. Do not encode words such as “second” or “least” into dispatch logic.
+- initial tool selection and `discover_tools`;
+- exact tool schemas placed in the run-local catalog;
+- shell/codelet/script execution semantics;
+- authorization/safety behavior;
+- cancellation and timeout propagation;
+- stdout/stderr/exit status/truncation;
+- failure representation;
+- multi-tool-call step recording;
+- public MCP versus internal local Actor boundaries.
 
-Affected artifacts: `src/actor/engine.ts` (mode prompts and tool context); `src/cli.ts` (existing help/eval interfaces, inspect first); `src/tools/os.ts`; `src/tools/compiler.ts`; `src/tools/scripting.ts`. Read-only evidence dependencies: `src/tools/tickets.ts`, `src/tools/graph-queries.ts`, existing product graph entities and their relations. No ranking API changes planned.
+The audit must produce a short concrete defect list. Do not infer missing architecture from names or tests.
 
-Verification artifacts: `test:tests/actor.test.ts`, `test:tests/escalation.test.ts`, `TEST-AIWF-DELEGATION` / `test:tests/artifact-command.test.ts`.
+Known items requiring confirmation:
 
-## 4. Verify the execution boundary
+- `run_command` has its own timeout but currently does not use `ctx.signal`;
+- command failure is returned as `{success:false,...}`, while shared Actor failure behavior is exception/observation based;
+- codelet/script paths need explicit cancellation and async behavior verification;
+- `script_eval` currently receives the global registry;
+- `WorkflowActor` events currently retain only the first call/result from a step even though the shared Actor can issue multiple tool calls.
 
-Exercise stdout, stderr, exit status, explicit output truncation, timeout, cancellation, async codelets, and failure propagation. Inspect existing authorization behavior so shell/codelet composition honors it. Correct only reproduced semantic defects, using existing contracts. Do not add a second policy system or pretend arbitrary commands are read-only.
+Affected artifacts are inspection scope, not edit scope: `src/actor/engine.ts`, `src/tools/{registry,index,os,compiler,scripting,discovery}.ts`, `src/mcp.ts`, and shared `llm-utils` Actor/session code only if the local contract is insufficient.
 
-Affected artifacts: `src/tools/os.ts`; `src/tools/compiler.ts`; `src/tools/scripting.ts`; `src/tools/registry.ts`; `src/actor/engine.ts` (execution context and signal propagation); sibling shared Actor execution only if implicated.
+## 2. Make the chosen substrate truthful before making it permanent
 
-Verification artifacts: `test:tests/tools.test.ts`, `test:tests/compiler.test.ts`, `test:tests/actor.test.ts`, `TEST-AIWF-PRIMITIVE-TRUTH`. Use isolated projects and harmless real command/codelet executions.
+Only after step 1, select the smallest baseline primitive set.
 
-## 5. Make composition observable
+Any always-present primitive must satisfy the existing execution contract:
 
-Show actual commands/codelets, returned evidence, errors, elapsed time, and termination reason. Distinguish failed execution from empty successful output and truncated output. Preserve usable trace show/full/open behavior without private model reasoning. Reuse the existing trace record and viewport.
+- parent cancellation reaches in-flight work;
+- timeout behavior is bounded and distinguishable from cancellation;
+- exit/failure/empty-output/truncation are unambiguous;
+- mutation risk is not mislabeled read-only;
+- per-run catalog isolation remains real;
+- no global-registry escape hatch;
+- ordinary failures become useful Actor observations rather than false success.
 
-Affected artifacts: `src/shell-trace.ts`; `src/shell.ts`; `src/actor/engine.ts` (step/tool events); `docs/shell-trace.md`. The shell blast graph also identifies `src/cli.ts` and `@dharmax/shell-ui/src/shell.ts`; inspect these dependencies and change only if necessary.
+Prefer correcting existing tools over adding wrappers or another executor.
 
-Verification artifacts: `test:tests/shell-trace.test.ts`, `test:tests/shell.test.ts`, `test:tests/artifact-command.test.ts`; sibling shell-ui tests/typecheck only if changed.
+If `run_command + discover_tools` satisfies J2.4, stop there. Add codelet/script primitives to the baseline only when a real journey demonstrates the need.
 
-## 6. Test protocol and reasoning separately
+## 3. Expose the substrate from the first local Actor step
 
-Deterministic regressions prove basic availability, execution, accumulated history, errors, and isolation. Live runs must answer these exact requests from actual project evidence:
+The local `WorkflowActor` begins every natural-language run with:
+
+- the chosen basic substrate;
+- the small set of specialized tools returned by initial semantic discovery;
+- `discover_tools` for bounded later specialization.
+
+An empty or failed semantic lookup must not remove the substrate.
+
+The public MCP surface remains intentionally narrower and is not changed merely because the local Actor has internal execution primitives.
+
+Keep the current discovery/refinement machinery until live evidence shows a piece has become redundant. Simplification follows proof; it is not assumed in advance.
+
+## 4. Give the Actor enough environment, not a workflow
+
+The Actor should know:
+
+- canonical project root;
+- which baseline primitives exist and what they return;
+- that `aiwf help` / existing CLI commands can expose deterministic project operations;
+- that specialized capabilities can be discovered;
+- that current-project claims require observed evidence.
+
+Do not teach query-specific algorithms. Sorting, comparison, decomposition, traversal choice and synthesis remain model reasoning over observed data.
+
+Do not encode “second”, “least”, “most”, or specific artifact-comparison wording in dispatch code.
+
+## 5. Make composition fully observable
+
+Reuse the existing shell trace. It must truthfully retain:
+
+- every tool call in a step, not only the first;
+- every corresponding result/error;
+- command/codelet text where applicable;
+- elapsed time;
+- discovery/catalog changes;
+- timeout/cancellation/failure reason;
+- final answer.
+
+Private chain-of-thought remains excluded.
+
+This is a correction to the existing event/trace representation, not a new telemetry subsystem.
+
+## 6. Acceptance: protocol first, autonomous journey second
+
+Deterministic tests prove only the protocol:
+
+- baseline availability when discovery is empty/fails;
+- catalog isolation across runs;
+- truthful success/failure/empty/truncated results;
+- timeout and cancellation;
+- async execution where supported;
+- multiple calls/results preserved;
+- bounded specialized discovery.
+
+Then exercise the real actor journey with the ordinary configured route and actual project evidence.
+
+Mandatory live acceptance requests:
 
 - “give me the 2nd most recommended next ticket?”
 - “give me the most recommended and the least recommended tickets and see if they are related to the same main artifacts”
 
-Use isolated realistic fixtures covering related and unrelated artifacts, ties, and insufficient evidence. Check answers against independently inspected tickets and graph relations. Define candidate scope and how ties are handled transparently; do not implement special query parsing. Exercise compound shell and codelet composition as general mechanisms. Mocked model decisions prove protocol only, never autonomous reasoning. Qualify the ordinary configured route; diagnostic model overrides are reported separately.
+Use realistic isolated fixtures with ties, related/unrelated artifacts and insufficient evidence. Independently inspect the fixture truth and compare the answer.
 
-Affected artifacts: existing Ticket, UserStory, Feature, Epic and relation fixtures; tests in `tests/actor.test.ts`, `tests/tools.test.ts`, `tests/compiler.test.ts`, `tests/shell-trace.test.ts`; isolated live qualification harness and its retained evidence. Any new test file must become a canonical TestNode rather than a parallel inventory.
+Mocked model decisions prove protocol only. A green suite does not close J2.4.
 
-Verification artifacts: corresponding existing TestNodes above; `TKT-8D3F` acceptance evidence. Provider failure or incorrect reasoning leaves acceptance open.
+## 7. Persist proof and measure honestly
 
-## 7. Qualify, measure, and persist proof
+Run focused tests, full `bun test`, strict typecheck, and affected sibling suites only when sibling source changed.
 
-Run focused tests, then full `bun test` and `bun run typecheck`. Run affected sibling suites/typechecks if sibling source changes. Record live correctness, total latency, model/tool call counts, repeated work, provider/model identity, and tokens/cost only when actually reported. Separate execution defects, model reasoning failures, and provider blockers. Compare against retained earlier runs with their uncontrolled timing limitations stated.
+Persist canonical TestNode evidence and Ticket acceptance proof. Record latency, model/tool calls, repeated work, provider/model identity and cost/tokens only when actually reported.
 
-Persist test executions on canonical TestNodes and independently verify acceptance through the existing Ticket lifecycle. Synchronize projections, release the lease, and keep the ticket open until both live requests are qualified. A green suite alone is insufficient. The requested document is a plan, not an instruction to start implementation now.
+Separate:
 
-Affected artifacts: `TKT-8D3F`; canonical TestNodes; existing acceptance/receipt and performance telemetry contracts; `docs/fix-plan-1.md`; `docs/shell-trace.md` if results warrant updates; generated `kanban.md` and `modules.md` projections. Existing Ticket.resolve/TestNode lifecycle is reused, not redesigned.
+- execution-contract defects;
+- model reasoning failures;
+- semantic-discovery failures;
+- provider/model availability failures.
+
+Keep `TKT-8D3F` open until the live J2.4 acceptance requests succeed on the intended route.
 
 ## Completion criteria
 
-- Basic execution is usable without specialized semantic discovery.
-- The LLM composes existing operations without query-specific code.
-- Commands and codelets produce truthful, useful observable results.
-- Regression suites and affected typechecks pass.
-- Both exact live requests are answered correctly from observed evidence on the intended route.
-- Proof and measurements distinguish supervised guardrails from autonomous model performance.
+- basic project evidence gathering survives failed/empty specialized discovery;
+- the baseline surface is small, truthful, cancellable and isolated;
+- specialized discovery remains available without gating basic execution;
+- the model answers both mandatory live requests by composing observed evidence;
+- no query-specific ranking/ordinal logic was added;
+- trace shows the complete observable execution;
+- canonical tests/typecheck and live journey evidence are green.
