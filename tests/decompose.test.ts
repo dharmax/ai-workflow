@@ -194,7 +194,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
     const result = await applyEpicStructure(store, proposal);
     expect(result.applied).toBe(true);
     expect((await store.listEntities<Feature>(Feature.dcr))).toHaveLength(0);
-    expect((await store.getOutgoing(result.storyIds[0], 'contains'))).toHaveLength(0);
+    expect((await store.getIncoming(result.storyIds[0], 'enables'))).toHaveLength(0);
   });
 
   // 3. Zero graph mutation during proposal (and abort leaves graph completely untouched)
