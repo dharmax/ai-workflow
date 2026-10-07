@@ -4,7 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import {
-   Epic,
+  Flow,
+  Epic,
   Feature,
   UserStory,
   Ticket,
@@ -373,10 +374,10 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
           story: 'second story'
         });
 
-        // Initial links: Epic targets Feature P, Feature P contains Story P1 and Story P2
+        // Initial links: Epic targets Feature P; Feature P enables Story P1 and Story P2.
         await diskStore.relate('EPIC-P', 'targets', 'FEAT-P');
-        await diskStore.relate('FEAT-P', 'contains', 'STORY-P1');
-        await diskStore.relate('FEAT-P', 'contains', 'STORY-P2');
+        await diskStore.relate('FEAT-P', 'enables', 'STORY-P1');
+        await diskStore.relate('FEAT-P', 'enables', 'STORY-P2');
 
         // 1. Export projections
         const exported = await exportProjections(diskStore, diskDir);
@@ -404,11 +405,11 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
         const imp = await importProjections(diskStore, diskDir);
         expect(imp.importedChanges).toBeGreaterThanOrEqual(1);
 
-        // Verify STORY-P2 was removed from Feature P contains relation in graph
-        const outgoingContains = await diskStore.getOutgoing('FEAT-P', 'contains');
-        const containedIds = outgoingContains.map(p => diskStore.localId(p.targetId));
-        expect(containedIds).toContain('STORY-P1');
-        expect(containedIds).not.toContain('STORY-P2');
+        // Verify STORY-P2 was removed from Feature P enables relation in graph
+        const outgoingEnables = await diskStore.getOutgoing('FEAT-P', 'enables');
+        const enabledIds = outgoingEnables.map(p => diskStore.localId(p.targetId));
+        expect(enabledIds).toContain('STORY-P1');
+        expect(enabledIds).not.toContain('STORY-P2');
 
         // 4. Verify user-stories.md edits do NOT destroy graph links
         const storyMd = fs.readFileSync(storyPath, 'utf8');
@@ -420,9 +421,9 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
         const refreshedStory = await diskStore.getEntity<UserStory>('STORY-P1', UserStory.dcr);
         expect((refreshedStory as any).story).toBe('first story rewritten');
 
-        // Feature contains Story P1 edge still intact!
-        const recheckContains = await diskStore.getOutgoing('FEAT-P', 'contains');
-        expect(recheckContains.some(p => diskStore.localId(p.targetId) === 'STORY-P1')).toBe(true);
+        // Feature enables Story P1 edge still intact.
+        const recheckEnables = await diskStore.getOutgoing('FEAT-P', 'enables');
+        expect(recheckEnables.some(p => diskStore.localId(p.targetId) === 'STORY-P1')).toBe(true);
 
         // 5. Idempotent export and import without changes
         const reExport = await exportProjections(diskStore, diskDir);
@@ -457,6 +458,10 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
         id: 'STORY-ATTENDEES', title: 'Invite attendees', status: 'accepted',
         acceptanceCriteria: ['Attendee email invited']
       });
+      const calendarFlow = await store.upsertEntity<Flow>(Flow.dcr, {
+        id: 'FLOW-CALENDAR', title: 'Create and share a calendar event', actor: 'Calendar user',
+        body: 'The user creates an event and may invite attendees.', status: 'accepted'
+      });
       const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {
         id: 'TKT-CONTRACT', title: 'Implement attendee contract', lane: 'Done'
       });
@@ -476,9 +481,11 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       await store.relate(epic, 'targets', feat);
       await store.relate(epic, 'targets', storyAttendees);
 
-      // FEAT-EVENT-CREATE contains STORY-CREATE & STORY-ATTENDEES
-      await store.relate(feat, 'contains', storyCreate);
-      await store.relate(feat, 'contains', storyAttendees);
+      // The Flow contains the Stories; the Feature enables them.
+      await store.relate(calendarFlow, 'contains', storyCreate);
+      await store.relate(calendarFlow, 'contains', storyAttendees);
+      await store.relate(feat, 'enables', storyCreate);
+      await store.relate(feat, 'enables', storyAttendees);
 
       // EPIC-CALENDAR contains TKT-CONTRACT
       await store.relate(epic, 'contains', ticket);
@@ -504,7 +511,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       const tktContact = await store.upsertEntity<Ticket>(Ticket.dcr, {
         id: 'TKT-CONTACT', title: 'Contact search query', lane: 'Todo'
       });
-      await store.relate(featContact, 'contains', storyContact);
+      await store.relate(featContact, 'enables', storyContact);
       await store.relate(tktContact, 'addresses', storyContact);
 
       // --- Assertions ---
