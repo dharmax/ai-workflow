@@ -13,6 +13,8 @@ The simplest correct solution wins. Before adding any narrow rule, tool, abstrac
 
 Product development starts from actor journeys, not capability lists. Before implementing a product capability, identify the concrete actor situation, intention, interaction/progression and useful end state that give it meaning. The actor may be human, agent, API client, service, scheduler or other system actor. Derive capabilities, architecture and acceptance tests from that journey. Pure technical maintenance may remain direct Ticket work; never manufacture product ceremony.
 
+**Agency invariant:** the LLM Actor is the general problem solver; tools, semantic discovery, System-1, registries, skills and codelets support it but never define the set of goals it may attempt. Goal precedes capability. General model knowledge may choose methodology; current-project facts require observed evidence. Discovery failure must degrade efficiency, not competence. For any Actor/discovery/tool-routing change, read `docs/agency-constitution.md` and pass `docs/agency-restoration-plan.md`'s Agency Gate before claiming success.
+
 ## Preferred workflow
 
 1. If given a Ticket, call `resolve_ticket` / `aiwf resolve <ticketId>` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
