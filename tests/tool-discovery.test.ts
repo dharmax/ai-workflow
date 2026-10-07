@@ -160,7 +160,7 @@ describe('semantic tool discovery and surfaces', () => {
             data: {
               mode: ['product'],
               domain: ['ticket'],
-              object: ['next', 'task'],
+              object: ['ticket'],
               action: ['recommend'],
               effect: ['read'],
             },
@@ -190,6 +190,34 @@ describe('semantic tool discovery and surfaces', () => {
       new Set(initial.tools.map(tool => tool.name)),
     )
     expect(recovered?.name).toBe('recommend_next_task')
+  })
+
+  it('J2.1 discovers next-ticket recommendation from ordinary user semantics', async () => {
+    initializeTools()
+    let classifiedText = ''
+    const asker = {
+      json: async (text: string) => {
+        classifiedText = text
+        return {
+          ok: true,
+          data: {
+            mode: ['product'],
+            domain: ['ticket'],
+            object: ['ticket'],
+            action: ['recommend'],
+            effect: ['read'],
+          },
+        }
+      },
+    } as any
+
+    const discovery = new ToolDiscovery(registry, asker)
+    const result = await discovery.discover("what's the next recommended ticket?")
+
+    expect(classifiedText).toBe("what's the next recommended ticket?")
+    expect(result.mode).toBe('product')
+    expect(result.tools.map(tool => tool.name)).toEqual(['recommend_next_task'])
+    expect(semanticsForTool(registry.get('recommend_next_task')!).object).toEqual(['ticket'])
   })
 
   it('resolves canonical multi-key intents to narrow functions across domains', async () => {
