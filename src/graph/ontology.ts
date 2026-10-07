@@ -240,6 +240,9 @@ export class Idea extends WorkflowEntity {
 }
 
 export class Goal extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) }
@@ -248,6 +251,9 @@ export class Goal extends WorkflowEntity {
 }
 
 export class Concept extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) }
@@ -256,6 +262,9 @@ export class Concept extends WorkflowEntity {
 }
 
 export class Flow extends WorkflowEntity {
+  applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
+  assessAspects(store: WorkflowStore) { return assessAspects(this, store); }
+  reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) { return reviewMissingAspects(this, store, options); }
   static template = {
     ...baseTemplate,
     status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
