@@ -4,10 +4,10 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 97 | 0 | None |
+| `root` | project default | 98 | 0 | None |
 | `src/graph` | project default | 1124 | 0 | None |
-| `src/tools` | project default | 503 | 0 | None |
-| `src/actor` | project default | 278 | 0 | None |
+| `src/tools` | project default | 500 | 0 | None |
+| `src/actor` | project default | 276 | 0 | None |
 | `src/mcp` | project default | 36 | 0 | None |
 | `src/shell` | project default | 158 | 0 | None |
 | `src/cli` | project default | 138 | 0 | None |
@@ -21,13 +21,13 @@
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
 | `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
 | `@external/@dharmax/context-manager` | project default | 245 | 0 | None |
-| `@external/@dharmax/llm-utils` | project default | 1404 | 0 | None |
+| `@external/@dharmax/llm-utils` | project default | 1413 | 0 | None |
 | `@external/@dharmax/pubsub` | project default | 66 | 0 | None |
 | `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 127 | 0 | None |
-| `docs` | project default | 315 | 0 | None |
+| `docs` | project default | 316 | 0 | None |
 | `src/product` | project default | 291 | 0 | None |
 | `src/change` | project default | 666 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |

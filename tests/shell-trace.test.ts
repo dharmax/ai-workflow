@@ -22,14 +22,14 @@ describe('Shell failure trace and floating inspection', () => {
   });
   afterEach(() => {store.close(); fs.rmSync(root, {recursive: true, force: true});});
 
-  it('preserves empty-surface failure evidence without repeating unavailable calls', async () => {
+  it('preserves unavailable-call evidence when only discovery is initially exposed', async () => {
     let calls = 0;
     const asker = {json: async () => ({ok: true, data: {thought: 'PRIVATE reasoning must not appear', action: 'tool_call',
       toolCalls: [{callId: String(++calls), name: 'get_product_coverage', parameters: {entityId: 'EPIC-MISSING'}}]}})} as unknown as Asker;
     session.actor = new WorkflowActor({store, projectRoot: root, asker, maxSteps: 3,
       toolDiscovery: {discover: async () => ({query: {}, mode: 'product', tools: []})}});
     const result = await processShellInput("what's the next recommended ticket?", session);
-    expect(result.output).toContain('max_steps_exceeded');
+    expect(result.output).toContain('Repeated unavailable tool calls');
     expect(session.viewport!.getRun().status).toBe('fail');
     expect(output).toContain('✖ Process failed');
     expect(output).not.toContain('✔');
@@ -38,11 +38,11 @@ describe('Shell failure trace and floating inspection', () => {
       const trace = (await processShellInput('trace show', session)).output;
       expect(trace).toContain('Request: what\'s the next recommended ticket?');
       expect(trace).toContain('Mode: PRODUCT');
-      expect(trace).toContain('Available tools: (none)');
-      expect(trace).toContain('Termination: max_steps_exceeded');
+      expect(trace).toContain('Available tools: discover_tools');
+      expect(trace).toContain('Termination: error');
       expect(trace).toContain('Step 1:');
-      expect(trace).toContain('Step budget: 1');
-      expect(calls).toBe(1);
+      expect(trace).toContain('Step budget: 3');
+      expect(calls).toBe(2);
       expect(trace).toContain('EPIC-MISSING');
       expect(trace).toContain('not available for this run');
       expect(trace).not.toContain('PRIVATE');

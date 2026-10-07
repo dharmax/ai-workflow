@@ -90,6 +90,8 @@ kanban-plugin: board
 - [ ] **TKT-RILZ**: Stop stalled implementation navigation
 - [ ] **TKT-GB73**: Reject semantic discovery when a capability constraint has no valid values
   - Summary: Implemented in src/tools/discovery.ts: reject the lookup when a supplied capability dimension has zero valid values; retain valid OR alternatives and optional mode filtering. Focused discovery/Actor tests: 16 pass, 0 fail. Full suite: 211 pass, 2 fail (escalation task reasoning/code and trace viewport). Typecheck blocked by llm-utils maxHistoryChars and missing shell-ui exports. No commit; awaiting repository-wide checks.
+- [ ] **TKT-8D3F**: Enable LLM-led capability discovery and multi-part reasoning
+  - Summary: User rejected query-specific deterministic ranking. Removed all uncommitted rank/includeRanking code. Generic correction: explicitly expose discover_tools in the shared Actor, add discovered canonical tools and schemas directly to its isolated run catalog, remove AIWF guessed-name recovery, let the model recover initial lookup failures, remove PRODUCT restrictions excluding graph evidence, reject empty final answers. The LLM owns comparisons and query decomposition. Protocol tests compose real ticket listing and three-hop product graph evidence. Live qualification remains open: normal qwen2.5-coder:7b falsely claimed no tickets despite seeing three; controlled gpt-4o-mini eventually refused the configured key with Insufficient credits; installed local 14B trial timed out at initial lookup before Actor execution. Do not mark Done from mocked model decisions or green suites.
 
 %% kanban:settings
 ```

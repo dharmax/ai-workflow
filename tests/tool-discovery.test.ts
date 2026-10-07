@@ -184,48 +184,6 @@ describe('semantic tool discovery and surfaces', () => {
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
   })
 
-  it('recovers one missing capability semantically without returning an existing tool', async () => {
-    initializeTools()
-    const asker = {
-      json: async (prompt: string) => {
-        if (prompt.includes('Missing capability requested by actor')) {
-          return {
-            ok: true,
-            data: {
-              mode: ['product'],
-              domain: ['ticket'],
-              object: ['next', 'task'],
-              action: ['recommend'],
-              effect: ['read'],
-            },
-          }
-        }
-        return {
-          ok: true,
-          data: {
-            mode: ['product'],
-            domain: ['ticket'],
-            object: ['ticket'],
-            action: ['list'],
-            effect: ['read'],
-          },
-        }
-      },
-    } as any
-
-    const discovery = new ToolDiscovery(registry, asker)
-    const initial = await discovery.discover('show tickets')
-    expect(initial.tools.map(tool => tool.name)).toEqual(['list_tickets'])
-
-    const recovered = await discovery.recover(
-      'choose the next ticket',
-      'recommend_next_task',
-      {},
-      new Set(initial.tools.map(tool => tool.name)),
-    )
-    expect(recovered?.name).toBe('recommend_next_task')
-  })
-
   it('resolves canonical multi-key intents to narrow functions across domains', async () => {
     initializeTools()
     const cases = [

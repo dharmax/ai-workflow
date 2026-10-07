@@ -65,9 +65,8 @@ Use only the discovered test, graph, git, or other capabilities shown for this r
     defaultLocalModel: 'qwen2.5-coder:7b',
     defaultCloudModel: 'gemini-2.5-flash',
     systemPrompt: `You are a Technical Product Manager in [PRODUCT] mode.
-Your objective is roadmap clarity, Epics, Features, User Stories, acceptance criteria, and Kanban lane hygiene.
-Use only the discovered ticket and planning capabilities shown for this run. Answer the user's actual question from their results; do not expand a read-only question into roadmap creation or inspection of unrelated product artifacts.
-DO NOT automatically generate tickets or implementation tasks during product roadmap decomposition.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Answer the user's full request by reasoning from observed project evidence. Your available tools are a starting set, not the complete capability set; use discover_tools when another part requires evidence you cannot obtain yet. You may compose ticket, graph, product and other relevant capabilities. Keep the user's scope: inspect related artifacts when requested, and make no mutations for read-only questions.
+Treat each tool result as evidence for its actual query and filters. An empty result for one lane or target does not negate evidence from other queries. Finish only after addressing every requested part, or explicitly state the particular part that remains unsupported and the evidence for that limitation. Do not claim a capability is absent before attempting discovery. Do not automatically create implementation work during roadmap decomposition.`
   }
 };
 
@@ -102,7 +101,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
-  toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 }
 
 export class WorkflowActor {
@@ -118,7 +117,7 @@ export class WorkflowActor {
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
-  private toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
+  private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -256,11 +255,8 @@ export class WorkflowActor {
     const config = MODE_CONFIGS[activeMode];
     const selectedNames = new Set(discovery.tools.map(tool => tool.name));
     execOptions?.onDiscovery?.([...selectedNames], activeMode);
-    if (discovery.error) return {
-      ...this.executeFailure(activeMode, events, 'discovery_failed', discovery.error, [{kind: 'tool', source: 'discovery', message: discovery.error}]),
-      discoveredTools: [...selectedNames], stepBudget: 0
-    };
-    const stepBudget = discovery.tools.length ? this.maxSteps : 1;
+    const stepBudget = this.maxSteps;
+    const initialIssues: ActorIssue[] = discovery.error ? [{kind: 'tool', source: 'discovery', message: discovery.error, retryable: true}] : [];
 
     const cfg = loadConfig(this.projectRoot);
     const policy = cfg.escalation?.policy || 'auto';
@@ -317,7 +313,7 @@ export class WorkflowActor {
       const actor = new LLMActor(this.asker, {
         maxSteps: this.maxSteps,
         maxToolCatalogChars: 16_000,
-        system: config.systemPrompt
+        system: config.systemPrompt + (discovery.error ? `\nInitial capability lookup failed: ${discovery.error}. This does not establish that the project has no applicable tools. Use discover_tools to request the specific evidence needed, or state the lookup failure accurately.` : '')
       });
 
       const wrapTool = (tool: ToolDefinition) => ({
@@ -332,9 +328,9 @@ export class WorkflowActor {
       });
 
       const runTools = discovery.tools.map(wrapTool);
-      const recoverTool = this.toolDiscovery?.recover?.bind(this.toolDiscovery);
       let recoveryAttempts = 0;
-      const attemptedRecoveries = new Set<string>();
+      selectedNames.add('discover_tools');
+      execOptions?.onDiscovery?.([...selectedNames], activeMode);
 
       pubsub.trigger('aiwf', 'actor:discovery', {
         mode: activeMode,
@@ -345,23 +341,16 @@ export class WorkflowActor {
       const result = await this.session!.run(actor, rawText, {
         maxSteps: stepBudget,
         tools: runTools,
-        onMissingTool: recoverTool
-          ? async (toolName, parameters) => {
-              if (recoveryAttempts >= 2 || attemptedRecoveries.has(toolName)) return undefined;
-              attemptedRecoveries.add(toolName); recoveryAttempts++;
-              const recovered = await recoverTool(
-                rawText,
-                toolName,
-                parameters,
-                selectedNames,
-                {signal: execOptions?.signal, timeoutMs: this.timeoutMs}
-              );
-              if (!recovered) return undefined;
-              selectedNames.add(recovered.name);
-              execOptions?.onDiscovery?.([...selectedNames], activeMode);
-              return wrapTool(recovered);
-            }
-          : undefined,
+        onDiscoverTools: async request => {
+          if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Answer from existing evidence or explain the remaining gap.');
+          recoveryAttempts++;
+          const found = await this.toolDiscovery!.discover(request, 5, {signal: execOptions?.signal, timeoutMs: this.timeoutMs});
+          if (found.error) throw new Error(found.error);
+          if (!found.tools.length) throw new Error('No applicable capability was discovered for this request.');
+          for (const tool of found.tools) selectedNames.add(tool.name);
+          execOptions?.onDiscovery?.([...selectedNames], activeMode);
+          return found.tools.map(wrapTool);
+        },
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
           preferLocal: preferLocalForRun,
@@ -387,7 +376,7 @@ export class WorkflowActor {
 
       if (!result.ok) {
         return {
-          ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
+          ...this.executeFailure(activeMode, events, result.haltReason, result.error, [...initialIssues, ...result.issues]),
           discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
         };
       }
@@ -401,13 +390,13 @@ export class WorkflowActor {
         escalated: shouldEscalate,
         escalationReason,
         discoveredTools: [...selectedNames],
-        issues: result.issues,
+        issues: [...initialIssues, ...result.issues],
         haltReason: result.haltReason,
         stepBudget
       };
     } catch (err: any) {
       return {
-        ...this.executeFailure(activeMode, events, 'error', err.message, []),
+        ...this.executeFailure(activeMode, events, 'error', err.message, initialIssues),
         discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
       };
     }

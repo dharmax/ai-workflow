@@ -213,24 +213,6 @@ export class ToolDiscovery {
     } catch (error) { return {query, mode, tools: [], error: error instanceof Error ? error.message : String(error)} }
   }
 
-  async recover(
-    goal: string,
-    attemptedToolName: string,
-    attemptedParams: Record<string, unknown>,
-    currentToolNames: ReadonlySet<string>,
-    options: {signal?: AbortSignal; timeoutMs?: number} = {},
-  ): Promise<ToolDefinition | undefined> {
-    const query = [
-      `Goal: ${goal}`,
-      `Missing capability requested by actor: ${attemptedToolName}`,
-      `Arguments: ${JSON.stringify(attemptedParams)}`,
-      'Classify the missing capability requested above, not the original goal. The goal is context only. Select the single registered capability that best satisfies the requested action.',
-    ].join('\n')
-
-    const result = await this.discover(query, 3, options)
-    return result.tools.find(tool => !currentToolNames.has(tool.name))
-  }
-
   private async sync(): Promise<void> {
     for (const tool of this.tools.getAll()) {
       if (this.indexed.has(tool.name)) continue
