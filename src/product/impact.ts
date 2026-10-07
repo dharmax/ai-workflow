@@ -61,8 +61,9 @@ export async function getProductImpact(store: WorkflowStore, entityId: string): 
 }
 
 async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localId: string): Promise<ProductImpact> {
-  const [featurePreds, epicPreds, ticketPreds, testPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
+  const [containsPreds, enablePreds, epicPreds, ticketPreds, testPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
     store.getIncoming(story.id, 'contains'),
+    store.getIncoming(story.id, 'enables'),
     store.getIncoming(story.id, 'targets'),
     store.getIncoming(story.id, 'addresses'),
     store.getIncoming(story.id, 'verifies'),
@@ -71,6 +72,12 @@ async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localI
     store.getOutgoing(story.id, 'depends_on')
   ]);
 
+  const legacyFeaturePreds = [];
+  for (const pred of containsPreds) {
+    const source = await store.getEntity(pred.sourceId);
+    if (source instanceof Feature) legacyFeaturePreds.push(pred);
+  }
+  const featurePreds = [...enablePreds, ...legacyFeaturePreds];
   const features = new Set<string>(featurePreds.map(p => store.localId(p.sourceId)));
   const tickets = new Set<string>(ticketPreds.map(p => store.localId(p.sourceId)));
   const tests = new Set<string>(testPreds.map(p => store.localId(p.sourceId)));
@@ -130,8 +137,9 @@ async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localI
 }
 
 async function getFeatureImpact(store: WorkflowStore, feature: Feature, localId: string): Promise<ProductImpact> {
-  const [epicPreds, storyPreds, directTicketPreds, directTestPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
+  const [epicPreds, enabledStoryPreds, legacyStoryPreds, directTicketPreds, directTestPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
     store.getIncoming(feature.id, 'targets'),
+    store.getOutgoing(feature.id, 'enables'),
     store.getOutgoing(feature.id, 'contains'),
     store.getIncoming(feature.id, 'implements'),
     store.getIncoming(feature.id, 'verifies'),
@@ -139,6 +147,7 @@ async function getFeatureImpact(store: WorkflowStore, feature: Feature, localId:
     store.getIncoming(feature.id, 'blocks'),
     store.getOutgoing(feature.id, 'depends_on')
   ]);
+  const storyPreds = [...enabledStoryPreds, ...legacyStoryPreds];
 
   const epics = new Set<string>();
   for (const ep of epicPreds) {
