@@ -1,6 +1,6 @@
 # AI-Workflow 2.0 — Artifact-First Engineering
 
-AIWF is a Bun-first engineering system built on a durable semantic project graph. Humans and coding agents delegate **Tickets and Product Intent artifacts** to AIWF; AIWF performs bounded investigation, preparation, safe implementation, testing, repair, acceptance verification, and evidence recording. Exact graph/code/change/test primitives remain available for deliberate drill-down.
+AIWF is a Bun-first engineering system built on a durable semantic project graph. Humans and coding agents delegate **Tickets and Product Intent artifacts** to AIWF; AIWF performs bounded investigation, preparation, safe implementation, testing, repair, acceptance verification, and evidence recording. Product meaning is preserved above implementation as Goals, Concepts, actor Flows, narrative Stories and enabling Features. Exact graph/code/change/test primitives remain available for deliberate drill-down.
 
 The graph is backed by `@dharmax/semantika` and exposed through CLI/shell, stdio MCP, and the installed AIWF skill.
 
@@ -28,14 +28,15 @@ Completeness overrides are temporary. Remember a target explicitly with `complet
 
 ## Architecture in one minute
 
-1. **Artifact operations are the normal interface.** `Ticket.investigate()`, `Ticket.prepare()`, `Ticket.resolve()`, and `Epic/Feature/UserStory.process()` own the engineering lifecycle.
-2. **Primitives are the hands underneath.** Exact source/symbol intelligence, graph traversal, safe preview/apply mutation, tests, Git, and Product Intent primitives remain directly callable.
-3. **Truth is evidence-backed.** Completion requires authored acceptance plus material Aspect verification. Ambiguity returns `needs_input`; a real execution/evidence blocker returns `blocked`.
-4. **Cognition is bounded.** Deterministic evidence comes first; System-1/cheap local classification selects capabilities; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools. Natural-language Actor runs begin with at most three functions selected through `@dharmax/semantic-registry`, may add at most two missing functions through targeted semantic recovery, and refuse an oversized serialized tool catalog before any provider call. A semantic miss never expands to the global function registry.
-5. **Tests are graph evidence.** Test files are durable `TestNode` artifacts. Static test imports derive `TestNode --verifies→ FileNode` edges; calls from those tests into imported source derive `TestNode --verifies→ SymbolNode` edges; authored `verifies` links to Features/Stories remain intact. Test executions update pass/fail evidence, so failure triage ranks exercised symbols before their containing files and symbol/file blast-radius analysis finds the verifying tests without another AI call.
-6. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
+1. **Product development starts from actor journeys.** Actor reality and Ideas refine into Goals, Concepts, Flows and narrative UserStories; durable Features enable those Stories. Capabilities and tests are derived from journeys, not substituted for them. Pure technical maintenance may remain direct Ticket work.
+2. **Artifact operations are the normal engineering interface.** `Ticket.investigate()`, `Ticket.prepare()`, `Ticket.resolve()`, and `Epic/Feature/UserStory.process()` own the engineering lifecycle.
+3. **Primitives are the hands underneath.** Exact source/symbol intelligence, graph traversal, safe preview/apply mutation, tests, Git, and Product Intent primitives remain directly callable.
+4. **Truth is evidence-backed.** Completion requires authored acceptance plus material Aspect verification. Ambiguity returns `needs_input`; a real execution/evidence blocker returns `blocked`.
+5. **Cognition is bounded.** Deterministic evidence comes first; System-1/cheap local classification selects capabilities; reasoning models handle semantic judgment; a tool-using Actor is reserved for work that actually requires tools. Natural-language Actor runs begin with at most three functions selected through `@dharmax/semantic-registry`, may add at most two missing functions through targeted semantic recovery, and refuse an oversized serialized tool catalog before any provider call. A semantic miss never expands to the global function registry.
+6. **Tests are graph evidence, but journeys are the product acceptance boundary.** Test files are durable `TestNode` artifacts; graph edges connect tests to source and authored Product Intent. Component tests localize mechanics, while product changes require a realistic actor-journey acceptance path.
+7. **Durable state is project state, not chat state.** Operations are re-entrant over the repository + semantic graph. There are no opaque continuation sessions or a second workflow database.
 
-For artifact semantics, read `docs/artifact-operations.md`; for semantic reconciliation, read `docs/digest.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
+For Product Intent semantics, read `docs/top-level-product-intent.md` and `docs/product-intent-graph.md`; for actor journeys, read `docs/use-story-catalog.md`; for artifact semantics, read `docs/artifact-operations.md`; for semantic reconciliation, read `docs/digest.md`; for agent usage, read `skills/ai-workflow/SKILL.md`.
 
 
 ### Model runtime configuration
@@ -140,12 +141,12 @@ aiwf <command> [options]
 | `next [agentId]` | Algorithmic task selector (Active Lease $\to$ P1 Bugs $\to$ Todo) | `aiwf next` |
 | `tickets [lane]` | List Kanban tickets (Backlog, Todo, In Progress, Done, Blocked) | `aiwf tickets Todo` |
 | `epics [status]` | List epics in the Product Intent Graph | `aiwf epics` |
-| `epic <id>` | Show an Epic with targeted features/stories and contained tickets | `aiwf epic EPIC-001` |
+| `epic <id>` | Show an Epic with targeted Product Intent and contained tickets | `aiwf epic EPIC-001` |
 | `epic-create "<title>"` | Create Epic with semantic decomposition and proposal review | `aiwf epic-create "Calendar invites"` |
 | `features [status]` | List features in the Product Intent Graph | `aiwf features` |
-| `feature <id>` | Show a Feature with containing stories, tickets, and tests | `aiwf feature FEAT-001` |
+| `feature <id>` | Show a Feature with enabled Stories, tickets, and tests | `aiwf feature FEAT-001` |
 | `stories [status]` | List user stories in the Product Intent Graph | `aiwf stories` |
-| `story <id>` | Show/open a user story with feature, tickets, tests, and criteria | `aiwf story STORY-001` |
+| `story <id>` | Show/open a narrative Story with Flow, enabling Features, work and evidence | `aiwf story STORY-001` |
 | `coverage <id>` | Show structural and causal coverage for an Epic, Feature, or Story | `aiwf coverage STORY-001` |
 | `impact <id>` | Show bounded product impact and code anchors | `aiwf impact FEAT-001` |
 | `claim <id> [--agent <a>] [-m <m>]` | Atomically lease a ticket with time-to-live | `aiwf claim TKT-001 --agent alpha -m 45` |
