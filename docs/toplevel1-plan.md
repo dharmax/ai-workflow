@@ -2,16 +2,22 @@
 
 Status: design authority for the `toplevel1` branch. Planning only.
 
-This branch combines two related corrections:
+This branch combines two corrections that share one philosophy but must remain separate mechanisms:
 
-1. **Product meaning must exist above Features/Tickets.**
-2. **The Actor must retain basic compositional competence below specialized semantic tools.**
+1. **Preserve product meaning above implementation work.**
+2. **Preserve basic Actor competence below specialized semantic discovery.**
 
-They share one principle: preserve meaning and let intelligence operate over small, truthful primitives. They must not be fused into one subsystem.
+The common rule is simple:
 
-## 1. Two layers, one product philosophy
+> Keep meaning explicit, keep primitives small and truthful, and let intelligence compose over them.
 
-### Product semantic layer
+No new subsystem is justified unless a concrete actor journey proves the existing graph/tool contracts insufficient.
+
+---
+
+## 1. Product model
+
+### Semantic refinement
 
 ```text
 actor reality / observations / motivations
@@ -39,9 +45,80 @@ actor reality / observations / motivations
               Code / Tests
 ```
 
-This layer explains **why work exists and what actor journey it serves**.
+This is a semantic graph, not a mandatory hierarchy.
 
-### Execution layer
+A Flow may serve several Goals. A Story may need several Features. A Feature may enable many Stories. A Concept may govern many downstream scopes.
+
+### Epic remains orthogonal
+
+```text
+Epic --targets--> Goal | Concept | Flow | UserStory | Feature
+Epic --contains--> Ticket
+```
+
+Epic is temporary initiative/work scope. It does not own durable product meaning.
+
+### Roles
+
+- **Idea** — loose observations, motivations, circumstances, possibilities and undeveloped intent.
+- **Goal** — meaningful outcome worth producing.
+- **Concept** — durable product philosophy, mental model or design principle.
+- **Flow** — coherent actor journey serving Goal(s).
+- **UserStory** — concrete temporal episode inside a Flow.
+- **Feature** — durable capability that enables one or more Stories.
+- **Ticket** — executable engineering work.
+- **Decision** — accepted concrete choice.
+- **Aspect** — cross-cutting concern.
+
+Canonical relation:
+
+```text
+Flow    --contains--> UserStory
+Feature --enables---> UserStory
+```
+
+Legacy `Feature --contains--> UserStory` may be read for compatibility, but new Product Intent must not author it.
+
+---
+
+## 2. Development rule
+
+Product development starts from **actor journeys**, not capability lists.
+
+A journey can be short, but it should identify:
+
+1. actor and circumstances;
+2. intention or goal;
+3. interaction/progression;
+4. material branch/failure when relevant;
+5. observable useful end state.
+
+The actor may be human, coding agent, API client, scheduler, webhook, service or another system actor.
+
+Capabilities, APIs, architecture, Tickets and tests derive from journeys.
+
+Pure technical maintenance with no meaningful product journey may remain direct Ticket work. Do not manufacture ceremony.
+
+Primary branch journeys:
+
+- **J1.1** — add a new product feature from upstream intent;
+- **J1.2** — extend an existing capability without duplicating it;
+- **J1.3** — reject/park a capability with no demonstrated product purpose;
+- **J2.1** — ask what to work on next;
+- **J2.3** — detect product drift while implementing;
+- **J2.4** — answer an unfamiliar project question by composing basic operations;
+- **J3.1** — resolve an ordinary feature Ticket end-to-end;
+- **J4.1** — assess a primary-flow regression at product severity;
+- **J5.1** — expose the same semantic product truth through MCP;
+- **J6.1** — keep pure technical work lightweight.
+
+No implementation work in this branch should be justified only by a capability statement.
+
+---
+
+## 3. Actor execution model
+
+The local Actor needs two capability layers:
 
 ```text
 user request
@@ -59,191 +136,237 @@ user request
         grounded outcome
 ```
 
-This layer explains **how the Actor can obtain evidence and act without requiring every request to have a predesigned tool**.
+### Basic substrate
 
-The layers meet only through existing tool/artifact contracts. Product Intent does not create a second planner; the execution substrate does not become a second semantic graph.
+A minimal set of primitives available from the first Actor step, independently of semantic classification.
 
-## 2. Governing development rule
-
-Product work starts from actor journeys.
-
-A journey may be short, but it must identify the actor/circumstance, intention, progression through the product, and observable end state. Capabilities, architecture and tests derive from it.
-
-Pure technical maintenance may remain direct Ticket work.
-
-For this branch the primary journeys are:
-
-- **J1.1** add a new product feature from upstream intent;
-- **J2.1** ask what to work on next;
-- **J2.3** catch product drift while implementing;
-- **J2.4** compose an unfamiliar project question from basic operations;
-- **J3.1** resolve an ordinary feature Ticket;
-- **J4.1** treat a primary-flow regression with product-level severity;
-- **J5.1** share the same semantic product truth through MCP;
-- **J6.1** keep pure technical work lightweight.
-
-## 3. Product Intent design
-
-Only three new durable semantic concepts are justified now:
-
-- **Goal** — meaningful outcome;
-- **Concept** — durable product idea/philosophy/mental model;
-- **Flow** — coherent actor journey serving Goal(s).
-
-`Idea`, `UserStory`, `Feature`, `Epic`, `Ticket`, `Decision` and `Aspect` remain existing concepts with clarified roles.
-
-Canonical new relations:
+The likely minimum is:
 
 ```text
-Idea    --inspires--> Goal | Concept | Flow
-Goal    --inspires--> Concept
-Flow    --serves----> Goal
-Concept --governs---> Flow | UserStory | Feature | Epic | Ticket
-Flow    --contains--> UserStory
-Feature --enables---> UserStory
-Epic    --targets----> accepted Product Intent
+discover_tools
++ one truthful general executor, probably run_command
 ```
 
-`Feature --contains--> UserStory` is legacy compatibility, not new authoring semantics.
+This is a hypothesis to prove, not an API decision.
 
-The graph remains many-to-many. No mandatory seven-level artifact ceremony.
+### Specialized capabilities
 
-## 4. Derived judgment, not stored pseudo-truth
+Semantic discovery remains responsible for efficient narrow domain capabilities: ticket, graph, product, testing, etc.
 
-AIWF may reason about:
+Discovery is therefore an optimization/specialization mechanism, not the gatekeeper for all useful execution.
 
-- relevance to Goals/Flows/Stories;
-- severity as damage to actor journeys/outcomes;
-- priority as an actionable decision informed by severity, relevance, urgency, dependencies and effort;
-- redundancy, missing journey branches and product drift.
+### Hard constraints
 
-Do not persist opaque model-generated relevance/severity scores. Persist explicit accepted artifacts/relations/priority decisions only.
+- no full-registry fallback;
+- no query-specific ordinal/ranking handlers;
+- no second execution engine;
+- no default `script_eval` while it can reach the global registry;
+- no baseline codelet compilation/execution unless a real journey proves it necessary;
+- public MCP remains a separate intentionally narrow boundary.
 
-## 5. KISS correction to the current branch
+Detailed execution work is governed by `docs/fix-plan-1.md`.
 
-The current branch already contains a broad first implementation of the top-level model. Treat it as **provisional**, not accepted implementation.
+---
 
-Before adding more code, audit the diff against the journeys above and shrink it.
+## 4. Product reasoning
 
-Core likely-needed implementation:
+Once Product Intent exists, existing AIWF reasoning may look upward when relevant:
+
+```text
+Ticket
+  -> Feature / UserStory
+  -> Flow
+  -> Goal
+  + governing Concepts / Decisions / Aspects
+```
+
+This can support:
+
+- relevance to product goals/journeys;
+- severity as damage to actor outcomes;
+- priority recommendations;
+- product drift;
+- missing journey branches;
+- redundant/orphan capabilities.
+
+These are derived judgments.
+
+Do **not** persist opaque model-generated relevance/severity scores. Persist only explicit accepted artifacts, relations and priority decisions.
+
+Keep semantic context bounded to the neighborhood actually relevant to the current artifact/work.
+
+---
+
+## 5. KISS audit of the current branch
+
+The current top-level implementation is provisional. It was intentionally broad enough to explore the design, but the final solution should be smaller.
+
+Before adding new implementation, classify every existing `toplevel1` code change as:
+
+- **KEEP** — required by a named journey;
+- **COMPAT** — only needed to read/preserve existing state;
+- **REMOVE** — speculative, redundant, or not required by a journey.
+
+The audit result should be a short table:
+
+```text
+file / change | journey | reason | KEEP / COMPAT / REMOVE
+```
+
+Likely core:
 
 - `Goal`, `Concept`, `Flow` DCR entities;
-- minimal predicates/validation;
-- Product mutation support;
-- Story-first authoring (`Flow contains Story`, `Feature enables Story`);
-- minimal Product read/create/update/link surfaces;
-- bounded upstream Product Intent context for Product processing/Ticket investigation;
-- story-level acceptance tests.
+- minimal predicates and validation;
+- Product mutation/read support;
+- Story-first authoring;
+- bounded upstream Product Intent context;
+- journey-level acceptance tests.
 
-Changes that must earn their place from a journey before being retained:
+Changes that must specifically earn their place:
 
-- Aspect inheritance changes;
+- Aspect inheritance rewrites;
 - completeness-policy changes;
-- broad coverage/impact semantics;
+- broad coverage/impact changes;
 - projection rewrites;
 - public MCP expansion;
-- any migration machinery beyond reading legacy `Feature contains Story`.
+- migration machinery beyond reading legacy Feature→Story containment.
 
-If removing one of those changes preserves the journeys, remove it. The expected final code delta should be modest.
+If a journey still works after removing one of these, remove it.
 
-## 6. Execution-substrate design
+Expected result: **large conceptual gain, modest code delta**.
 
-TKT-8D3F / J2.4 is a generic foundation and should be completed before relying on increasingly sophisticated Product reasoning.
+---
 
-The preferred shape is:
+## 6. Implementation sequence
 
-```text
-always available:
-  discover_tools
-  + smallest safe basic executor (likely run_command after contract audit)
+### Phase A — clean integrated baseline
 
-initial semantic discovery:
-  0..small specialized tools
+1. `master` is already merged into `toplevel1`; do not create another feature branch.
+2. Run focused tests, full `bun test`, and strict typecheck.
+3. Produce the KEEP / COMPAT / REMOVE audit above.
+4. Remove overreach.
+5. Re-run focused/full tests and typecheck.
 
-later:
-  bounded discover_tools additions
-```
+**Gate A:** mechanically healthy branch + minimal justified Product Intent delta.
 
-Do not expose the full registry. Do not permanently expose `script_eval` while it can access the global registry. Do not make codelet compilation/execution baseline unless live journeys require it.
+No feature is considered accepted merely because Phase A is green.
 
-First make the chosen substrate truthful for cancellation, timeout, failure, output/truncation and isolation; only then expose it by default.
-
-## 7. Implementation order
-
-### Phase A — establish a clean integrated baseline
-
-1. Master is merged into `toplevel1`; do not create another feature branch.
-2. Run focused/full tests and typecheck to establish whether the merged branch is mechanically healthy.
-3. Audit the current top-level Product Intent diff and classify each changed file as:
-   - required by a named journey;
-   - compatibility-only;
-   - speculative/overreach.
-4. Remove speculative changes before building further.
-
-No feature is considered complete in Phase A.
-
-### Phase B — finish J2.4 execution foundation
+### Phase B — J2.4 basic composition foundation
 
 Follow `docs/fix-plan-1.md`:
 
-1. execution-contract audit;
-2. harden smallest basic primitive(s);
-3. expose baseline surface independently of semantic discovery;
-4. give minimal environment guidance;
-5. fix complete observable trace;
-6. deterministic protocol tests;
-7. exact live actor-story acceptance and persisted proof.
+1. audit the execution contract;
+2. harden the smallest useful primitive set;
+3. expose the substrate independently of semantic discovery;
+4. give the Actor minimal environment guidance;
+5. make complete tool composition observable;
+6. run deterministic protocol tests;
+7. run the exact live J2.4 acceptance journeys;
+8. persist proof.
 
 Do not redesign Product Intent in this phase.
 
-### Phase C — establish minimal top-level Product Intent
+**Gate B:** J2.4 succeeds live on the ordinary configured route without query-specific code.
 
-From J1.1/J1.2/J1.3:
+### Phase C — minimal top-level Product Intent
 
-1. keep/add only the minimal Goal/Concept/Flow ontology and relations;
-2. make new Stories narrative and Flow-owned;
-3. author Feature `enables` Story;
-4. allow technical work to bypass fake product ceremony;
-5. reuse existing Product mutation/critic/store contracts.
+Implement only what J1.1/J1.2/J1.3 require:
 
-Acceptance is one real new-feature journey through proposal/review/apply, not merely entity unit tests.
+1. Goal / Concept / Flow ontology and relations;
+2. narrative Stories contained by Flows;
+3. Features enabling Stories;
+4. technical work bypassing fake Product Intent ceremony;
+5. reuse of existing store/mutation/Critic contracts;
+6. legacy Feature→Story containment read compatibility only.
 
-### Phase D — let existing intelligence look upward
+**Gate C:** one real new-feature journey succeeds through proposal → clarification/reuse → accepted Product Intent → derived work.
 
-From J2.3/J3.1/J4.1:
+Entity unit tests are insufficient.
 
-1. Product processing and Ticket investigation receive relevant Story/Flow/Goal/Concept context;
-2. implementation/review can flag Concept or Story conflicts;
-3. severity/relevance/priority recommendations cite graph evidence;
-4. missing branches/orphan capabilities are suggestions, never silent mutations.
+### Phase D — upward reasoning
 
-Keep context bounded to the relevant semantic neighborhood.
+For J2.3/J3.1/J4.1:
 
-### Phase E — product-aware recommendation and external-agent parity
+1. Product processing and Ticket investigation receive relevant upstream meaning;
+2. implementation/review can detect Story/Concept conflicts;
+3. severity/relevance/priority advice cites graph evidence;
+4. missing/orphan intent is suggested, never silently persisted.
 
-From J2.1/J5.1:
+**Gate D:** real resolution/review catches a deliberate semantic conflict and explains it from graph evidence.
 
-1. deterministic board/lease/blocker selection remains authoritative for actionable candidates;
-2. semantic product significance may rank/explain only the bounded candidate set where useful;
-3. shell and MCP observe the same Product Intent truth;
+### Phase E — recommendation + external-agent parity
+
+For J2.1/J5.1:
+
+1. deterministic board/lease/blocker rules determine actionable candidates;
+2. semantic product significance may help rank/explain the bounded set;
+3. shell and MCP see the same Product Intent;
 4. no hidden conversation-only requirements.
 
-### Phase F — dogfood and acceptance
+**Gate E:** shell and MCP reach consistent grounded conclusions over the same project state.
 
-Model AIWF itself with its own Goals, Concepts, Flows and Stories.
+### Phase F — dogfood
 
-Mandatory live journeys include J1.1, J2.1, J2.4, J3.1, J4.1 and J5.1. A green component suite without these representative paths is insufficient.
+Model AIWF itself using its own Goals, Concepts, Flows and narrative Stories.
+
+Mandatory live journeys:
+
+- J1.1;
+- J2.1;
+- J2.4;
+- J3.1;
+- J4.1;
+- J5.1.
+
+A green component suite without representative live journeys does not establish product correctness.
+
+---
+
+## 7. Verification model
+
+Use two distinct test levels.
+
+### Mechanism tests
+
+Unit/integration tests prove:
+
+- graph relations;
+- mutation validation;
+- tool isolation;
+- cancellation/timeouts;
+- trace truth;
+- deterministic selection;
+- compatibility behavior.
+
+### Journey acceptance
+
+Real configured-path tests prove:
+
+- the actor understands and completes the intended journey;
+- multiple components cooperate correctly;
+- no hidden manual rescue is required;
+- the final observable outcome is useful and truthful.
+
+Mocked model decisions are mechanism evidence only.
+
+Every real-use regression becomes a permanent journey acceptance case.
+
+---
 
 ## 8. Stop conditions
 
 Stop and simplify if implementation introduces:
 
 - a second product/requirements database;
-- a ProductDesignManager/planner/orchestration engine;
+- ProductDesignManager / new planner / orchestration engine;
 - query-specific semantic handlers;
 - persisted AI relevance/severity scores;
 - full-registry fallback;
-- mandatory artifact hierarchy for technical work;
-- broad cross-cutting rewrites not required by a named journey.
+- baseline access to global-registry eval;
+- mandatory Goal/Flow/Story hierarchy for technical work;
+- broad cross-cutting rewrites without a named journey;
+- capability-level green tests presented as proof of a user journey.
 
-The desired result is a large conceptual improvement with a small mechanical footprint.
+The intended end state is not “more framework”. It is:
+
+> **AIWF remembers why the product exists, understands the actor journeys work is meant to serve, and still has enough simple truthful execution power to investigate and act when no predesigned capability exactly matches the request.**
