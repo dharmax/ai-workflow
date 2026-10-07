@@ -14,16 +14,16 @@ describe('artifact policy', () => {
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-policy-')); store = new WorkflowStore(root); initializeTools(); });
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
 
-  it('resolves root overrides, explicit descendant targets, Story inheritance, clearing and restart persistence', async () => {
+  it('resolves explicit scope targets without making Feature ownership leak into Story policy', async () => {
     const epic = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic', completenessTarget: 'production' });
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature', completenessTarget: 'poc' });
     const other = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F2', title: 'Other', completenessTarget: 'advanced' });
     const s = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Story' });
     await store.relate(epic, 'targets', f);
-    await store.relate(f, 'contains', s);
-    await store.relate(other, 'contains', s);
+    await store.relate(f, 'enables', s);
+    await store.relate(other, 'enables', s);
     expect((await f.getCompletenessTarget(store)).effective).toBe('poc');
-    expect((await s.getCompletenessTarget(store)).effective).toBe('advanced');
+    expect((await s.getCompletenessTarget(store)).source).toBe('project');
     expect((await f.getCompletenessTarget(store, { override: 'production' })).source).toBe('override');
     expect((await f.getCompletenessTarget(store, { descendant: true, inherited: 'production' })).effective).toBe('poc');
     expect((await s.getCompletenessTarget(store, { descendant: true, inherited: 'functional' })).source).toBe('operation');
