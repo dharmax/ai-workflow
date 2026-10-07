@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import type { Asker } from '@dharmax/llm-utils';
 import { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Decision } from '../graph/ontology.ts';
+import { Goal, Concept, Flow, Epic, Feature, UserStory, Decision } from '../graph/ontology.ts';
 import type { EpicStatus, IntentStatus } from '../graph/types.ts';
 import { loadConfig } from '../config.ts';
 import { createDefaultAsker } from '../model-runtime.ts';
@@ -33,7 +33,7 @@ export interface EpicStructureProposal {
   stories: Array<{
     id: string;
     action: 'reuse' | 'create';
-    featureId: string;
+    featureId?: string;
     title: string;
     actor?: string;
     story?: string;
@@ -59,7 +59,7 @@ export const SemanticFeatureOutputSchema = z.object({
 export const SemanticStoryOutputSchema = z.object({
   action: z.enum(['reuse', 'create']),
   id: z.string().optional().describe('Existing story ID if action=reuse, or optional reference key if create'),
-  featureRef: z.string().describe('Reference to the containing Feature (either existing feature ID or feature title/key)'),
+  featureRef: z.string().optional().describe('Optional reference to a Feature that enables this Story (existing feature ID or proposed feature title/key)'),
   title: z.string().describe('Observable behavior/outcome title'),
   actor: z.string().optional(),
   story: z.string().optional(),
@@ -86,7 +86,10 @@ function generateCandidateId(prefix: string): string {
 }
 
 export async function buildProductIntentContext(store: WorkflowStore): Promise<string> {
-  const [features, stories, decisions, epics] = await Promise.all([
+  const [goals, concepts, flows, features, stories, decisions, epics] = await Promise.all([
+    store.listEntities<Goal>(Goal.dcr),
+    store.listEntities<Concept>(Concept.dcr),
+    store.listEntities<Flow>(Flow.dcr),
     store.listEntities<Feature>(Feature.dcr),
     store.listEntities<UserStory>(UserStory.dcr),
     store.listEntities<Decision>(Decision.dcr),
@@ -98,6 +101,19 @@ export async function buildProductIntentContext(store: WorkflowStore): Promise<s
   const activeEpics = epics.filter(e => (e as any).status === 'active' || (e as any).status === 'planned');
 
   const lines: string[] = ['### Existing Product Intent Graph:'];
+
+  if (goals.length > 0) {
+    lines.push('\nGoals:');
+    for (const item of goals) lines.push(`- [${store.localId(item.id)}] ${item.title}: ${(item as any).body || ''}`);
+  }
+  if (concepts.length > 0) {
+    lines.push('\nProduct Concepts / Philosophy:');
+    for (const item of concepts) lines.push(`- [${store.localId(item.id)}] ${item.title}: ${(item as any).body || ''}`);
+  }
+  if (flows.length > 0) {
+    lines.push('\nActor Flows:');
+    for (const item of flows) lines.push(`- [${store.localId(item.id)}] ${item.title}: ${(item as any).body || ''}`);
+  }
 
   if (activeEpics.length > 0) {
     lines.push('\nActive/Planned Epics:');
@@ -177,15 +193,16 @@ Title: "${draft.title}"
 Description: ${draft.body || 'None provided'}
 
 RULES:
-1. Feature = durable, stable functional capability, NOT a temporary task or grouping.
-2. If an existing Feature or User Story already satisfies or matches the need, you MUST reuse it: set action: "reuse" and provide its exact existing ID.
-3. Only create new Features or Stories if no equivalent exists.
-4. User Stories must describe meaningful, observable end-user behavior with concrete acceptance criteria.
-5. Technical Epics (refactoring, infrastructure, migrations) may legitimately have ZERO user stories. Do NOT invent fake agile ceremonies.
-6. Do NOT invent implementation details (no specific internal code symbols, database tables, or low-level algorithms).
-7. Do NOT create tickets or tasks.
-8. If requirements are ambiguous, contradictory, or missing critical decisions, surface them explicitly in "questions" (set blocking: true if implementation cannot safely proceed without resolution).
-9. Keep the decomposition compact. Avoid story explosion.
+1. Start from actor journeys, not Features. A User Story is a compact temporal episode: starting situation/intention, interaction/progression, and useful observable end state.
+2. Feature = durable stable capability that ENABLES one or more Stories; a Feature does not own or contain a Story.
+3. A Story may reference a Feature that enables it, but do not invent a Feature merely because a Story exists.
+4. If an existing Feature or User Story already satisfies or matches the need, reuse it with its exact existing ID.
+5. Only create new Features or Stories when the Epic's accepted product meaning actually requires them.
+6. Technical Epics (refactoring, infrastructure, migrations) may legitimately have ZERO user stories. Do NOT invent product ceremony.
+7. Respect relevant Goals, Flows, Concepts and Decisions from context. Surface missing upstream meaning as a question rather than guessing.
+8. Do NOT invent implementation details (no specific internal code symbols, database tables, or low-level algorithms) and do not create Tickets/tasks here.
+9. If requirements are ambiguous, contradictory, or missing critical decisions, surface them explicitly in "questions" (blocking when execution cannot safely proceed).
+10. Keep the decomposition compact. Avoid story or capability explosion.
 
 Respond ONLY with valid JSON conforming to the schema.`;
 
@@ -269,26 +286,21 @@ Respond ONLY with valid JSON conforming to the schema.`;
       resolvedId = generateCandidateId('STORY');
     }
 
-    // Match containing feature
-    let targetFeatureId = featureRefMap.get(s.featureRef) || featureRefMap.get(s.featureRef.toLowerCase().trim());
-    if (!targetFeatureId) {
-      // Check if featureRef is directly an existing or candidate feature ID
-      const directMatch = resolvedFeatures.find(rf => rf.id === s.featureRef);
-      if (directMatch) {
-        targetFeatureId = directMatch.id;
-      } else if (resolvedFeatures.length > 0) {
-        targetFeatureId = resolvedFeatures[0].id;
-      } else {
-        // Fallback: create a candidate feature on the fly
-        const autoFeatId = generateCandidateId('FEAT');
-        resolvedFeatures.push({
-          id: autoFeatId,
-          action: 'create',
-          title: s.featureRef,
-          acceptanceCriteria: []
+    // A Feature may enable this Story, but the Story does not require Feature ownership.
+    let targetFeatureId: string | undefined;
+    if (s.featureRef?.trim()) {
+      const featureRef = s.featureRef.trim();
+      targetFeatureId = featureRefMap.get(featureRef) || featureRefMap.get(featureRef.toLowerCase());
+      if (!targetFeatureId) {
+        const directMatch = resolvedFeatures.find(rf => rf.id === featureRef);
+        targetFeatureId = directMatch?.id;
+      }
+      if (!targetFeatureId) {
+        semanticOutput.questions.push({
+          id: `feature-ref-${resolvedId}`,
+          blocking: true,
+          text: `Story '${s.title}' references unknown enabling Feature '${featureRef}'. Reuse or define the intended capability explicitly.`
         });
-        targetFeatureId = autoFeatId;
-        featureRefMap.set(s.featureRef, autoFeatId);
       }
     }
 
