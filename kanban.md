@@ -82,6 +82,8 @@ kanban-plugin: board
   - Summary: Repair shell trace lifecycle, preserve discovery and failure diagnostics, expose complete observable tool calls/results and a floating scrollable viewer via existing shell-ui contracts. Keep routing repair outside this ticket.
 - [x] **TKT-IEG7**: Repair empty tool discovery and repeated unavailable calls for next-ticket requests
   - Summary: Reproduced live: classifier returns domain ticket, object ticket, action recommend, effect read; recommend_next_task was indexed as next/task and did not match. Fix canonical semantic metadata, surface discovery failures before Actor execution, bound unsuccessful recovery and repeated unavailable calls, remove stale PRODUCT instructions advertising unavailable tools. Preserve narrow AND matching and read-only recommendation semantics.
+- [x] **TKT-4K6K**: Repair Actor capability gaps and repeated unchanged observations
+  - Summary: Root-cause audit: semantic tags collapse request constraints, matching was mistaken for capability sufficiency, repeated unchanged successful observations had no runtime guard, and ticket listing omitted authored priority needed for comparison. Qualify candidate descriptions, narrowly rediscover supporting evidence once, enforce bounded read-only progress with replanning, preserve mutation/error/change retries. No least-ticket keyword routing or new ranking tool.
 
 ## Blocked
 

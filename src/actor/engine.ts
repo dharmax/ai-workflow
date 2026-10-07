@@ -11,7 +11,7 @@ import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
 import { registry, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
-import { ToolDiscovery, type DiscoveredTools } from '../tools/discovery.ts';
+import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from '../tools/discovery.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
 import { modelRuntime } from '../model-runtime.ts';
@@ -322,6 +322,7 @@ export class WorkflowActor {
 
       const wrapTool = (tool: ToolDefinition) => ({
         name: tool.name,
+        readOnly: semanticsForTool(tool).effect?.every(effect => effect === 'read') === true,
         description: tool.description,
         parameters: tool.parameters as any,
         execute: async (params: any) => {

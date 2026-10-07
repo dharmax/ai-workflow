@@ -3,6 +3,8 @@ import {
   type RegistryClassifier,
   type RegistryQuery,
   type RegistryStore,
+  type RegistryRefiner,
+  type IRegistryItem,
 } from '@dharmax/semantic-registry'
 import {z, type Asker} from '@dharmax/llm-utils'
 import type {ToolDefinition, ToolRegistry} from './registry.ts'
@@ -153,12 +155,25 @@ export class ToolDiscovery {
   private readonly classifier: AiWorkflowRegistryClassifier
   private readonly index: RegistryStore = new MemoryRegistryStore()
   private readonly indexed = new Set<string>()
+  private readonly refiner: (query: string | RegistryQuery, items: readonly IRegistryItem[], options: {signal?: AbortSignal; timeoutMs?: number}) => Promise<IRegistryItem[]>
 
   constructor(
     private readonly tools: ToolRegistry,
     asker: Asker,
     fallbackAsker?: Asker,
+    refiner?: RegistryRefiner,
   ) {
+    this.refiner = refiner ? (query, items) => refiner.refine(query, items) : async (query, items, options) => {
+      const schema = z.object({ids: z.array(z.string())});
+      const result = await asker.json(JSON.stringify({request: query, candidates: items.map(item => ({id: item.id, description: item.functionalDescription}))}), schema, {
+        system: "Qualify semantic discovery candidates against the FULL request. Return only candidate IDs that actually provide evidence or actions needed for this request. Coarse tag matching is insufficient. Respect direction, scope and constraints: a capability that selects one preferred item does not establish comparative rankings or provide all candidates. Select evidence-gathering tools when reasoning can finish the request from their output or identify the clarification needed to define an ambiguous comparison. Return an empty ids array if no candidate fits. Never substitute an answer to a different question.",
+        temperature: 0, maxTokens: 192, ...options,
+      });
+      if (!result.ok || !result.data) throw new Error(`Capability qualification failed: ${result.failure?.message ?? "No valid qualification returned."}`);
+      const {ids} = schema.parse(result.data);
+      if (ids.some(id => !items.some(item => item.id === id))) throw new Error("Capability qualification selected an undiscovered tool.");
+      return items.filter(item => ids.includes(item.id));
+    };
     this.classifier = new AiWorkflowRegistryClassifier(
       asker,
       () => vocabularyFor(this.tools.getAll()),
@@ -176,12 +191,26 @@ export class ToolDiscovery {
     const searchable = withoutMode(query)
     if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
 
-    const ids = await this.index.search(searchable, limit)
-    const matches = ids
-      .map(id => this.tools.get(id))
-      .filter((tool): tool is ToolDefinition => tool !== undefined)
-
-    return {query, mode, tools: matches, ...(matches.length ? {} : {error: `No registered tools match semantic intent: ${JSON.stringify(searchable)}`})}
+    const candidates = async (intent: RegistryQuery) => (await this.index.search(withoutMode(intent), limit))
+      .map(id => this.tools.get(id)).filter((tool): tool is ToolDefinition => tool !== undefined)
+    const initial = await candidates(query)
+    if (!initial.length) return {query, mode, tools: [], error: `No registered tools match semantic intent: ${JSON.stringify(searchable)}`}
+    const qualify = async (tools: ToolDefinition[]) => {
+      const accepted = await this.refiner(text, tools.map(tool => ({id: tool.name, functionalDescription: tool.description})), options)
+      return tools.filter(tool => accepted.some(item => item.id === tool.name))
+    }
+    try {
+      let matches = await qualify(initial)
+      if (matches.length) return {query, mode, tools: matches}
+      // One constrained rediscovery, with the failed candidate descriptions as evidence.
+      const revised = await this.classifier.classify(`Request: ${text}\nThese candidates do not satisfy the full request: ${JSON.stringify(initial.map(tool => ({name: tool.name, description: tool.description})))}\nCapability to discover: read or list the underlying inputs and evidence needed to independently reason about this request, rather than performing the rejected selection/action. Classify this evidence-gathering capability; the original request is context, not the action to repeat.`, options)
+      if (Object.keys(withoutMode(revised)).length) {
+        const alternatives = (await candidates(revised)).filter(tool => !initial.some(rejected => rejected.name === tool.name))
+        if (alternatives.length) matches = await qualify(alternatives)
+        if (matches.length) return {query: revised, mode, tools: matches}
+      }
+      return {query, mode, tools: [], error: 'No qualified capability satisfies the full request; semantic candidates were insufficient.'}
+    } catch (error) { return {query, mode, tools: [], error: error instanceof Error ? error.message : String(error)} }
   }
 
   async recover(
@@ -195,7 +224,7 @@ export class ToolDiscovery {
       `Goal: ${goal}`,
       `Missing capability requested by actor: ${attemptedToolName}`,
       `Arguments: ${JSON.stringify(attemptedParams)}`,
-      'Select the single registered capability that best satisfies this action.',
+      'Classify the missing capability requested above, not the original goal. The goal is context only. Select the single registered capability that best satisfies the requested action.',
     ].join('\n')
 
     const result = await this.discover(query, 3, options)

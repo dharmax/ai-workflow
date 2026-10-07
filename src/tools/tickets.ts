@@ -152,7 +152,7 @@ export function registerTicketTools() {
 
   registry.register({
     name: 'list_tickets',
-    description: 'List tickets filtered by lane or status.',
+    description: 'List tickets and their authored priority, lane and claim. Filter by lane; use the returned candidate data for comparisons rather than the next-task selector.',
     category: 'ticket',
     parameters: z.object({
       lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional().describe('Filter by lane')
@@ -165,6 +165,7 @@ export function registerTicketTools() {
         title: (t as any).title,
         lane: (t as any).lane,
         status: (t as any).status,
+        priority: (t as any).priority,
         claim: (t as any).claim
       }));
     }

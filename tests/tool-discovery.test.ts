@@ -1,8 +1,15 @@
 import {describe, expect, it} from 'bun:test'
 import {initializeTools, registry} from '../src/tools/index.ts'
-import {ToolDiscovery, semanticsForTool} from '../src/tools/discovery.ts'
+import {ToolDiscovery as ProductionToolDiscovery, semanticsForTool} from '../src/tools/discovery.ts'
 import {getPublicMcpTools} from '../src/tools/surface.ts'
 import type {Asker} from '@dharmax/llm-utils'
+
+// These tests isolate classification/AND matching; qualification has dedicated cases below.
+class ToolDiscovery extends ProductionToolDiscovery {
+  constructor(tools: ConstructorParameters<typeof ProductionToolDiscovery>[0], asker: Asker, fallback?: Asker) {
+    super(tools, asker, fallback, {refine: async (_query, items) => [...items]})
+  }
+}
 
 describe('semantic tool discovery and surfaces', () => {
   it('matches the live classified recommend-ticket tuple to the existing selector', async () => {
@@ -302,4 +309,40 @@ describe('semantic tool discovery and surfaces', () => {
     expect(publicNames.has('script_eval')).toBe(false)
     expect(publicNames.has('compile_codelet')).toBe(false)
   })
+})
+
+it('qualifies candidate descriptions and narrowly rediscovers evidence when coarse tags lose request constraints', async () => {
+  initializeTools()
+  let classifications = 0, qualifications = 0
+  const controller = new AbortController()
+  const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string; signal?: AbortSignal; timeoutMs?: number}) => {
+    expect(options.signal).toBe(controller.signal); expect(options.timeoutMs).toBe(1234)
+    if (options.system?.startsWith('Qualify semantic discovery')) {
+      qualifications++
+      const candidates = JSON.parse(prompt).candidates as Array<{id: string; description: string}>
+      expect(candidates).toHaveLength(1)
+      if (qualifications === 1) {expect(candidates[0]?.description).toContain('prioritizes'); return {ok: true, data: {ids: []}}}
+      expect(candidates[0]?.id).toBe('list_tickets')
+      return {ok: true, data: {ids: ['list_tickets']}}
+    }
+    classifications++
+    if (classifications === 2) expect(prompt).toContain('do not satisfy the full request')
+    return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: [classifications === 1 ? 'recommend' : 'list'], effect: ['read']}}
+  }} as unknown as Asker
+  const result = await new ProductionToolDiscovery(registry, asker).discover('Compare all candidates to find the least justified one', 5, {signal: controller.signal, timeoutMs: 1234})
+  expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
+  expect(result.error).toBeUndefined(); expect(classifications).toBe(2); expect(qualifications).toBe(2)
+})
+
+for (const response of [{ids: []}, {ids: ['non_candidate']}, undefined]) it(`fails closed and bounds qualification for ${JSON.stringify(response)}`, async () => {
+  initializeTools()
+  let classifications = 0, qualifications = 0
+  const asker = {json: async (_prompt: string, _schema: unknown, options: {system?: string}) => {
+    if (options.system?.startsWith('Qualify semantic discovery')) {qualifications++; return response ? {ok: true, data: response} : {ok: false, failure: {message: 'qualification provider unavailable'}}}
+    classifications++
+    return {ok: true, data: {domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}}
+  }} as unknown as Asker
+  const result = await new ProductionToolDiscovery(registry, asker).discover('A request the selector cannot satisfy')
+  expect(result.tools).toEqual([]); expect(result.error).toBeDefined()
+  expect(classifications).toBeLessThanOrEqual(2); expect(qualifications).toBe(1)
 })

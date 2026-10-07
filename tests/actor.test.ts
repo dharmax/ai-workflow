@@ -35,6 +35,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 'P1'});
     let classifierCalls = 0, actorCalls = 0, finalPrompt = '';
     const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
       if (options.system?.includes('Classify one AI-Workflow request')) {
         classifierCalls++;
         return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
@@ -52,6 +53,39 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(finalPrompt).toContain('BUG-NEXT');
     expect(result.answer).toContain('BUG-NEXT');
     expect(classifierCalls).toBe(1); expect(actorCalls).toBe(2);
+  });
+
+  it('replans from an insufficient successful selector to semantic ticket-list recovery', async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 'P1'});
+    await store.upsertEntity(Ticket.dcr, {id: 'OTHER', title: 'Another candidate', lane: 'Backlog', priority: 'P3'});
+    let actorCalls = 0, recoveryCalls = 0, finalPrompt = '';
+    const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
+      if (options.system?.includes('Classify one AI-Workflow request')) {
+        const recovery = prompt.includes('Missing capability requested by actor');
+        if (recovery) {recoveryCalls++; expect(prompt).toContain('Classify the missing capability requested above, not the original goal');}
+        return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: [recovery ? 'list' : 'recommend'], effect: ['read']}};
+      }
+      actorCalls++; finalPrompt = prompt;
+      return {ok: true, data: actorCalls <= 2
+        ? {thought: '', action: 'tool_call', toolCalls: [{name: 'recommend_next_task', parameters: {}}]}
+        : actorCalls === 3 ? {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]}
+        : {thought: '', action: 'final_answer', finalAnswer: 'OTHER is a backlog candidate, but least recommended requires a ranking criterion.'}};
+    }} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute("what's the least recommended ticket?");
+    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(4);
+    expect(result.discoveredTools).toEqual(['recommend_next_task', 'list_tickets']);
+    expect(recoveryCalls).toBe(1); expect(finalPrompt).toContain('OTHER'); expect(finalPrompt).toContain('\"priority\":\"P3\"');
+    expect(result.issues?.some(issue => issue.message.includes('No new evidence'))).toBe(true);
+    expect(result.answer).toContain('requires a ranking criterion');
+  });
+
+  it('terminates a repeated successful selector without exhausting the ten-step budget', async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 'P1'});
+    const asker = {json: async () => ({ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'recommend_next_task', parameters: {}}]}})} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discover(['recommend_next_task'])}).execute('Compare candidates');
+    expect(result.failed).toBe(true); expect(result.haltReason).toBe('error'); expect(result.stepsCount).toBe(3);
+    expect(result.answer).toContain('No new evidence');
   });
 
   it('stops failed discovery before spending an Actor call on invented tools', async () => {
@@ -122,6 +156,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let capturedOptions: any;
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         capturedOptions = options;
         return {
           ok: true,
@@ -155,6 +190,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let classifierCalls = 0
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
           classifierCalls++
           return {
@@ -202,6 +238,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const systems: string[] = []
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         systems.push(options.system ?? '')
         call++
         if (call === 1) {
@@ -250,6 +287,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const systems: string[] = []
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         systems.push(options.system ?? '')
         call++
         if (call === 1) {
@@ -323,6 +361,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
       const mockAsker = {
         json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
           if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
             return {
               ok: true,
@@ -387,6 +426,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let calls = 0
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         seen.push(options)
         calls++
         return calls === 1
@@ -440,6 +480,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     }
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         modelSignal = options.signal
         calls++
         return calls === 1
