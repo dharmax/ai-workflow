@@ -5,7 +5,8 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
-import { Ticket } from '../src/graph/ontology.ts';
+import { Ticket, Epic, Feature, UserStory } from '../src/graph/ontology.ts';
+import type {Asker} from '@dharmax/llm-utils';
 
 const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
   discover: async () => ({
@@ -28,6 +29,93 @@ describe('Cognitive Actor & Mode Switcher', () => {
   afterEach(() => {
     store.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('answers the next-ticket question through actual semantic discovery and selector execution', async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 'P1'});
+    let classifierCalls = 0, actorCalls = 0, finalPrompt = '';
+    const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
+      if (options.system?.includes('Classify one AI-Workflow request')) {
+        classifierCalls++;
+        return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
+      }
+      actorCalls++;
+      if (actorCalls === 1) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{callId: 'next', name: 'recommend_next_task', parameters: {}}]}};
+      finalPrompt = prompt;
+      return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'Work on BUG-NEXT: Fix a demonstrated bug.'}};
+    }} as unknown as Asker;
+    const actor = new WorkflowActor({store, projectRoot: tempDir, asker});
+    const result = await actor.execute("what's the next recommeded ticket?");
+    expect(result.failed).toBeUndefined();
+    expect(result.discoveredTools).toEqual(['recommend_next_task', 'discover_tools']);
+    expect(result.events[0].toolResult).toMatchObject({ticket: {id: 'BUG-NEXT'}});
+    expect(finalPrompt).toContain('BUG-NEXT');
+    expect(result.answer).toContain('BUG-NEXT');
+    expect(classifierCalls).toBe(1); expect(actorCalls).toBe(2);
+  });
+
+  it('terminates a repeated successful selector without exhausting the ten-step budget', async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 'P1'});
+    const asker = {json: async () => ({ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'recommend_next_task', parameters: {}}]}})} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discover(['recommend_next_task'])}).execute('Compare candidates');
+    expect(result.failed).toBe(true); expect(result.haltReason).toBe('error'); expect(result.stepsCount).toBe(3);
+    expect(result.answer).toContain('No new evidence');
+  });
+
+  it('lets the model discover graph evidence and compose a multi-part ticket comparison', async () => {
+    for (const ticket of [{id: 'HIGH', title: 'High priority', lane: 'Todo', priority: 'P1'}, {id: 'LOW', title: 'Low priority', lane: 'Todo', priority: 'P3'}]) await store.upsertEntity(Ticket.dcr, ticket);
+    const epic = await store.upsertEntity(Epic.dcr, {id: 'SHARED', title: 'Shared main initiative'});
+    for (const id of ['HIGH', 'LOW']) {
+      const feature = await store.upsertEntity(Feature.dcr, {id: `FEATURE-${id}`, title: `Feature ${id}`});
+      const story = await store.upsertEntity(UserStory.dcr, {id: `STORY-${id}`, title: `Story ${id}`});
+      await store.relate(epic, 'contains', feature); await store.relate(feature, 'contains', story);
+      await store.relate((await store.getEntity<Ticket>(id, Ticket.dcr))!, 'implements', story);
+    }
+    let actorCalls = 0, discoveries = 0; const toolSnapshots: string[][] = [];
+    const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
+      if (options.system?.includes('Classify one AI-Workflow request')) {
+        discoveries++;
+        return {ok: true, data: discoveries === 1 ? {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['list'], effect: ['read']} : {domain: ['graph'], object: ['graph'], action: ['search'], effect: ['read']}};
+      }
+      actorCalls++;
+      expect(options.system).toContain('discover_tools'); expect(options.system).toContain('every requested part');
+      if (actorCalls === 1) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]}};
+      if (actorCalls === 2) {expect(prompt).toContain('P3'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Search and traverse graph connections for ticket artifact relationships'}}]}};}
+      if (actorCalls === 3) {expect(prompt).toContain('search_graph'); expect(options.system).toContain('maxDepth'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: ['HIGH', 'LOW'].map(id => ({name: 'search_graph', parameters: {sourceId: id, direction: 'both', maxDepth: 3}}))}};}
+      expect(prompt).toContain('SHARED'); expect(prompt).toContain('STORY-HIGH'); expect(prompt).toContain('STORY-LOW');
+      return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'HIGH is most and LOW least by priority; both trace through separate stories and features to SHARED.'}};
+    }} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute('Compare most and least recommended tickets and their main artifacts', undefined, {onDiscovery: tools => toolSnapshots.push(tools)});
+    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(4); expect(discoveries).toBe(2);
+    expect(result.discoveredTools).toEqual(['list_tickets', 'discover_tools', 'search_graph']);
+    expect(toolSnapshots.at(-1)).toEqual(result.discoveredTools); expect(result.answer).toContain('SHARED');
+    expect(result.issues).toEqual([]);
+  });
+
+  it('bounds explicit discovery attempts including unsuccessful searches', async () => {
+    let queries = 0, calls = 0;
+    const asker = {json: async () => ++calls <= 3 ? {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: `missing evidence ${calls}`}}]}} : {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'The requested evidence was not available.'}}} as unknown as Asker;
+    const discovery = {discover: async () => ++queries === 1 ? {query: {}, tools: [registry.get('list_tickets')!]} : {query: {}, tools: [], error: 'No applicable capability'}};
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discovery}).execute('Read unsupported evidence');
+    expect(queries).toBe(3); expect(result.stepsCount).toBe(4);
+    expect(result.issues?.some(issue => issue.message.includes('exhausted after two attempts'))).toBe(true);
+  });
+
+  for (const initialError of ['Initial capability tuple has no match', undefined]) it(`lets the model discover evidence after initial lookup ${initialError ?? 'returns no tools'}`, async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'OBSERVED', title: 'Observed ticket', lane: 'Todo'});
+    let lookups = 0, calls = 0;
+    const asker = {json: async () => {
+      calls++;
+      return {ok: true, data: calls === 1 ? {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'List tickets'}}]} : calls === 2 ? {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]} : {thought: '', action: 'final_answer', finalAnswer: 'Observed ticket OBSERVED exists.'}};
+    }} as unknown as Asker;
+    const discovery = {discover: async () => ++lookups === 1 ? {query: {}, tools: [], error: initialError} : {query: {}, tools: [registry.get('list_tickets')!]}};
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discovery}).execute('Read project ticket evidence');
+    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(3); expect(lookups).toBe(2);
+    expect(result.events[1]?.toolResult).toMatchObject([{id: 'OBSERVED'}]);
+    expect(result.issues?.some(issue => issue.source === 'discovery')).toBe(Boolean(initialError));
+    expect(result.discoveredTools).toEqual(['discover_tools', 'list_tickets']);
   });
 
   it('should accurately classify modes via explicit commands and intent keywords', () => {
@@ -64,6 +152,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let capturedOptions: any;
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         capturedOptions = options;
         return {
           ok: true,
@@ -97,6 +186,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let classifierCalls = 0
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
           classifierCalls++
           return {
@@ -139,70 +229,12 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(actorSystem.length).toBeLessThan(8_000)
   });
 
-  it('J2.1 answers the daily next-ticket journey through real semantic discovery', async () => {
-    await store.upsertEntity(Ticket.dcr, {
-      id: 'TKT-DAILY-NEXT',
-      title: 'Daily next work',
-      lane: 'Todo',
-    })
-
-    let actorCalls = 0
-    const actorSystems: string[] = []
-    const mockAsker = {
-      json: async (_prompt: string, _schema: unknown, options: any) => {
-        if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
-          return {
-            ok: true,
-            data: {
-              mode: ['product'],
-              domain: ['ticket'],
-              object: ['ticket'],
-              action: ['recommend'],
-              effect: ['read'],
-            },
-          }
-        }
-
-        actorCalls++
-        actorSystems.push(options.system ?? '')
-        if (actorCalls === 1) {
-          return {
-            ok: true,
-            data: {
-              thought: 'Use the available recommendation capability.',
-              action: 'tool_call',
-              toolCalls: [{callId: '1', name: 'recommend_next_task', parameters: {}}],
-            },
-          }
-        }
-        return {
-          ok: true,
-          data: {
-            thought: 'Report the recommendation.',
-            action: 'final_answer',
-            finalAnswer: 'The next recommended ticket is TKT-DAILY-NEXT.',
-          },
-        }
-      },
-    } as any
-
-    const actor = new WorkflowActor({store, projectRoot: tempDir, asker: mockAsker})
-    const result = await actor.execute("what's the next recommeded ticket?")
-
-    expect(result.mode).toBe('product')
-    expect(result.answer).toBe('The next recommended ticket is TKT-DAILY-NEXT.')
-    expect(result.discoveredTools).toEqual(['recommend_next_task'])
-    expect(result.events.map(event => event.toolCall?.name).filter(Boolean)).toEqual(['recommend_next_task'])
-    expect(actorCalls).toBe(2)
-    expect(actorSystems[0]).toContain('### Tool: recommend_next_task')
-    expect((actorSystems[0].match(/### Tool:/g) ?? []).length).toBe(1)
-  })
-
   it('should expose only semantically discovered ticket tools to the Actor', async () => {
     let call = 0
     const systems: string[] = []
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         systems.push(options.system ?? '')
         call++
         if (call === 1) {
@@ -237,68 +269,14 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     expect(res.mode).toBe('product')
     expect(res.answer).toBe('There are open tickets.')
-    expect(res.discoveredTools).toEqual(['list_tickets'])
+    expect(res.discoveredTools).toEqual(['list_tickets', 'discover_tools'])
     expect(systems[0]).toContain('list_tickets')
-    expect((systems[0].match(/### Tool:/g) ?? []).length).toBe(1)
+    expect((systems[0].match(/### Tool:/g) ?? []).length).toBe(2)
+    expect(systems[0]).toContain('### Tool: discover_tools')
     expect(systems[0].length).toBeLessThan(8_000)
     expect(systems[0]).not.toContain('run_command')
     expect(systems[0]).not.toContain('compile_codelet')
     expect(systems[0]).not.toContain('resolve_ticket')
-  });
-
-  it('should recover one missing capability through semantic discovery without exposing the registry', async () => {
-    let call = 0
-    const systems: string[] = []
-    const mockAsker = {
-      json: async (_prompt: string, _schema: unknown, options: any) => {
-        systems.push(options.system ?? '')
-        call++
-        if (call === 1) {
-          return {
-            ok: true,
-            data: {
-              thought: 'Need the next-task capability.',
-              action: 'tool_call',
-              toolCalls: [{callId: '1', name: 'recommend_next_task', parameters: {}}],
-            },
-          }
-        }
-        return {
-          ok: true,
-          data: {
-            thought: 'Use the observation.',
-            action: 'final_answer',
-            finalAnswer: 'No pending task.',
-          },
-        }
-      },
-    } as any
-
-    const discovery = {
-      discover: async () => ({
-        query: {domain: ['ticket']},
-        mode: 'product' as const,
-        tools: [registry.get('list_tickets')!],
-      }),
-      recover: async (_goal: string, name: string) =>
-        name === 'recommend_next_task' ? registry.get('recommend_next_task') : undefined,
-    }
-
-    const actor = new WorkflowActor({
-      store,
-      projectRoot: tempDir,
-      asker: mockAsker,
-      toolDiscovery: discovery,
-    })
-
-    const res = await actor.execute('what should I work on?')
-
-    expect(res.answer).toBe('No pending task.')
-    expect(res.events[0]?.toolCall?.name).toBe('recommend_next_task')
-    expect(systems[0]).toContain('list_tickets')
-    expect(systems[0]).not.toContain('recommend_next_task')
-    expect(systems[0]).not.toContain('run_command')
-    expect(systems[1]).toContain('recommend_next_task')
   });
 
   it('composes selected existing capabilities for multi-stage natural language', async () => {
@@ -317,6 +295,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
       const mockAsker = {
         json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
           if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
             return {
               ok: true,
@@ -381,6 +360,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let calls = 0
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         seen.push(options)
         calls++
         return calls === 1
@@ -434,6 +414,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     }
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
+        if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         modelSignal = options.signal
         calls++
         return calls === 1
