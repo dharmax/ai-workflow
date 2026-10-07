@@ -36,7 +36,7 @@ export async function applyEpicStructure(store: WorkflowStore, proposal: EpicStr
       fields: { title: s.title, actor: s.actor || '', story: s.story || '', context: s.context || '',
         acceptanceCriteria: s.acceptanceCriteria || [], status: 'accepted' } });
     mutations.push({ kind: 'product_link', sourceId: proposal.epic.id, predicate: 'targets', targetId: s.id });
-    mutations.push({ kind: 'product_link', sourceId: s.featureId, predicate: 'contains', targetId: s.id });
+    if (s.featureId) mutations.push({ kind: 'product_link', sourceId: s.featureId, predicate: 'enables', targetId: s.id });
   }
   await applyProductMutations(store, mutations);
   return { applied: true, epicId: proposal.epic.id, featureIds: proposal.features.map(f => f.id), storyIds: proposal.stories.map(s => s.id) };
