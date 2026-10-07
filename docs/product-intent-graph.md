@@ -4,113 +4,99 @@ Status: authoritative implemented architectural truth for AIWF Product Intent, i
 
 ## 1. Purpose
 
-AI Workflow should make a software project causally navigable from intent to evidence.
+AI Workflow should make a software project causally navigable from actor reality and product intent down to implementation evidence.
 
-For any meaningful change, the graph should cheaply answer:
+For any meaningful product change, the graph should cheaply help answer:
 
-1. Why does this exist?
-2. Which stable capability does it serve?
-3. Which observable behavior does it provide?
-4. What work implements it?
-5. Which code realizes it?
-6. What proves it works?
-7. What else is affected if it changes?
+1. What actor situation or motivation gave rise to this?
+2. Which Goal makes it worth doing?
+3. Which product Concepts/philosophy shape the solution?
+4. Which actor Flow and concrete Stories realize the Goal?
+5. Which durable Features enable those Stories?
+6. What work/code implements the capability?
+7. What proves it works, and what else changes if it moves?
 
-The Product Intent Graph supplies the missing intent/behavior layers above the existing Ticket → Code graph.
+The detailed top-level semantics are defined in [top-level-product-intent.md](top-level-product-intent.md).
 
-It is not a Scrum framework and not a requirements-management product.
+This is not a Scrum framework and not a requirements-management product. It is semantic lineage from meaning to evidence.
 
-## 2. Frozen conceptual model
+## 2. Conceptual model
 
 ```text
-                    Epic
-                 initiative/work
-                     |
-                   targets
-                     v
-        +--------- Feature ---------+
-        |      stable capability    |
-        |                           |
-        | contains                  | implemented by
-        v                           ^
-    UserStory <----- addresses ----- Ticket
- observable behavior                  ^   |
-        ^                              |   | targets / modifies
-        | verifies              contains  v
-       Test                        Epic   Module / File / Symbol
-
-Decision --governs--> any relevant intent/code node
+actor reality / observations / motivations
+                  │
+                Idea
+                  │ inspires
+                  ▼
+                Goal
+                  │ inspires
+                  ▼
+              Concept
+                  │ governs
+                  ▼
+                Flow ──serves──> Goal
+                  │ contains
+                  ▼
+             UserStory
+                  ▲
+                  │ enables
+               Feature
+                  ▲
+                  │ implements
+               Ticket
+                  │
+              Code / Tests
 ```
 
-An Epic is deliberately **not the owner of a Feature**.
+This is a graph, not a mandatory hierarchy. A Flow may serve several Goals; a Story may require several Features; a Feature may enable many Stories.
 
-Features are durable capabilities. Epics are temporary initiatives that may create, extend, repair, migrate, or refactor the same Feature over time.
-
-Therefore the canonical Epic relation is:
+Epic is deliberately orthogonal. It is temporary initiative/work scope:
 
 ```text
-Epic --targets--> Feature
-Epic --targets--> UserStory   // when the Epic specifically changes/introduces that behavior
-```
-
-not:
-
-```text
-Epic --contains--> Feature
-```
-
-This distinction is essential for long-lived semantic change navigation.
-
-## 3. Entity semantics
-
-### Epic
-
-A substantial initiative/objective/workstream.
-
-Examples:
-
-- Connector first proof
-- Replace legacy persistence layer
-- Add shared calendars
-- Improve scheduler reliability
-
-An Epic is work scope, not a permanent product capability.
-
-Epic scopes its executable work:
-
-```text
+Epic --targets--> Goal | Concept | Flow | UserStory | Feature
 Epic --contains--> Ticket
 ```
 
-An Epic does **not** require a Feature or UserStory if it is genuinely technical.
+Features are durable capabilities; Epics may create, extend, repair, migrate, or refactor them over time.
 
-### Feature
+## 3. Entity semantics
 
-A stable product/system capability that remains meaningful even when its implementation changes.
+### Idea
 
-Examples:
+Loose upstream material: observations, circumstances, motivations, pain, possibilities and undeveloped product ideas. Do not create separate entity classes for every psychological or circumstantial distinction until real query/use cases justify them.
 
-- Calendar event creation
-- Durable scheduled execution
-- Contact search
-- Session history persistence
+### Goal
 
-Minimal intrinsic data:
+A meaningful outcome worth producing for an actor or the product. A Goal answers **why this matters**, not how it will be implemented.
 
-```ts
-interface FeatureData extends BaseEntityData {
-  acceptanceCriteria?: string[]
-  completenessTarget?: CompletenessLevel
-}
+### Concept
+
+A durable product idea, mental model, philosophy or design principle describing **how** Goals should be pursued.
+
+A Concept is not a Decision. A Decision records a concrete accepted choice; a Concept expresses durable product thinking that can govern Flows, Stories, Features and work.
+
+### Flow
+
+A coherent actor journey through the product. A Flow serves one or more Goals and is shaped by Concepts.
+
+A Flow contains one or more concrete UserStories.
+
+### Epic
+
+A substantial temporary initiative/objective/workstream. Epic is work scope, not permanent product meaning.
+
+```text
+Epic --targets--> Goal | Concept | Flow | UserStory | Feature
+Epic --contains--> Ticket
 ```
 
-Do not store Epic IDs, Story IDs, Ticket IDs, code IDs, or Test IDs on the entity. Those are graph relations.
-
-Do not add a feature-kind taxonomy in the first proof.
+A genuinely technical Epic may contain Tickets directly without manufacturing product artifacts.
 
 ### UserStory
 
-An observable behavior or stakeholder outcome belonging to a Feature.
+A concrete temporal episode within a Flow.
+
+A Story has a beginning situation/intention, interaction or progression, and a useful observable end state. It may be very concise. The actor can be a human, coding agent, API client, scheduler, webhook, service, or another system actor.
 
 Existing useful fields remain:
 
@@ -125,32 +111,46 @@ interface UserStoryData extends BaseEntityData {
 }
 ```
 
-The entity is called UserStory, but generated text is not required to use ceremonial “As a … I want …” phrasing.
-
-A UserStory is optional. Never manufacture stories merely to satisfy a hierarchy.
+A capability sentence such as “user can create events” is not by itself a UserStory.
 
 Good:
 
 ```text
-Feature: Calendar event creation
-  Story: User can create a timed event
-  Story: Scheduled agent can create an event after approval
+A user has picked a time and title for a meeting. They submit it in the calendar flow.
+The system validates the input, creates the timed event and shows it in the calendar.
 ```
 
 Also good:
 
 ```text
-Epic: Remove obsolete persistence adapter
-  Ticket → Code
+A scheduled agent has approval to create a reminder event. It sends the request through the API,
+receives the created event ID, and later retrieval shows the same event.
 ```
 
-Bad:
+Technical maintenance with no meaningful actor journey should remain direct Ticket work rather than fake Story ceremony.
+
+### Feature
+
+A stable product/system capability needed to enable one or more Stories.
+
+Canonical relation:
 
 ```text
-Story: As a developer I want to remove an obsolete adapter
+Feature --enables--> UserStory
 ```
 
-when there is no real behavioral contract.
+This intentionally replaces the feature-first conceptual model `Feature --contains--> UserStory`. Existing `contains` edges may be read during migration, but new Product Intent should use `enables`.
+
+Minimal intrinsic data remains:
+
+```ts
+interface FeatureData extends BaseEntityData {
+  acceptanceCriteria?: string[]
+  completenessTarget?: CompletenessLevel
+}
+```
+
+Features do not own Stories. Stories establish actor behavior; Features are derived/reused capabilities that enable that behavior.
 
 ### Aspect
 
