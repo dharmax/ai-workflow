@@ -6,6 +6,9 @@
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import {
+  Goal,
+  Concept,
+  Flow,
   Epic,
   Feature,
   UserStory
@@ -28,6 +31,31 @@ async function requireEntity(ctx: ToolContext, id: string, dcr?: any, kind?: str
   return entity;
 }
 
+async function topLevelIntentView(ctx: ToolContext, entity: Goal | Concept | Flow) {
+  const [incoming, outgoing] = await Promise.all([
+    ctx.store.getIncoming(entity.id),
+    ctx.store.getOutgoing(entity.id)
+  ]);
+  const relation = (edge: any) => ({
+    sourceId: ctx.store.localId(edge.sourceId),
+    predicate: edge.predicateName,
+    targetId: ctx.store.localId(edge.targetId)
+  });
+  return {
+    id: ctx.store.localId(entity.id),
+    kind: entity.typeName(),
+    title: entity.title,
+    body: (entity as any).body || undefined,
+    status: (entity as any).status || 'draft',
+    ...((entity instanceof Flow) ? {
+      actor: (entity as any).actor || undefined,
+      context: (entity as any).context || undefined
+    } : {}),
+    incoming: incoming.map(relation),
+    outgoing: outgoing.map(relation)
+  };
+}
+
 async function epicView(ctx: ToolContext, epic: Epic) {
   const localId = ctx.store.localId(epic.id);
   const [targetPreds, ticketPreds] = await Promise.all([
@@ -35,15 +63,18 @@ async function epicView(ctx: ToolContext, epic: Epic) {
     ctx.store.getOutgoing(epic.id, 'contains')
   ]);
 
+  const targetedGoals: string[] = [];
+  const targetedConcepts: string[] = [];
+  const targetedFlows: string[] = [];
   const targetedFeatures: string[] = [];
   const targetedStories: string[] = [];
   for (const pred of targetPreds) {
     const target = await ctx.store.getEntity(pred.targetId);
-    if (target instanceof Feature) {
-      targetedFeatures.push(ctx.store.localId(target.id));
-    } else if (target instanceof UserStory) {
-      targetedStories.push(ctx.store.localId(target.id));
-    }
+    if (target instanceof Goal) targetedGoals.push(ctx.store.localId(target.id));
+    else if (target instanceof Concept) targetedConcepts.push(ctx.store.localId(target.id));
+    else if (target instanceof Flow) targetedFlows.push(ctx.store.localId(target.id));
+    else if (target instanceof Feature) targetedFeatures.push(ctx.store.localId(target.id));
+    else if (target instanceof UserStory) targetedStories.push(ctx.store.localId(target.id));
   }
 
   const containedTickets = ticketPreds.map(p => ctx.store.localId(p.targetId)).sort();
@@ -54,6 +85,9 @@ async function epicView(ctx: ToolContext, epic: Epic) {
     status: (epic as any).status || 'draft',
     body: (epic as any).body || undefined,
     priority: (epic as any).priority ?? 1,
+    targetedGoals: targetedGoals.sort(),
+    targetedConcepts: targetedConcepts.sort(),
+    targetedFlows: targetedFlows.sort(),
     targetedFeatures: targetedFeatures.sort(),
     targetedStories: targetedStories.sort(),
     containedTickets
@@ -62,13 +96,23 @@ async function epicView(ctx: ToolContext, epic: Epic) {
 
 async function featureView(ctx: ToolContext, feature: Feature) {
   const localId = ctx.store.localId(feature.id);
-  const [epicPreds, storyPreds, ticketPreds, testPreds, decisionPreds] = await Promise.all([
+  const [epicPreds, enabledPreds, legacyStoryPreds, ticketPreds, testPreds, decisionPreds, conceptPreds] = await Promise.all([
     ctx.store.getIncoming(feature.id, 'targets'),
+    ctx.store.getOutgoing(feature.id, 'enables'),
     ctx.store.getOutgoing(feature.id, 'contains'),
     ctx.store.getIncoming(feature.id, 'implements'),
     ctx.store.getIncoming(feature.id, 'verifies'),
+    ctx.store.getIncoming(feature.id, 'governs'),
     ctx.store.getIncoming(feature.id, 'governs')
   ]);
+  const enabledStories = [...new Set([...enabledPreds, ...legacyStoryPreds].map(p => ctx.store.localId(p.targetId)))].sort();
+  const governingConcepts: string[] = [];
+  const governingDecisions: string[] = [];
+  for (const pred of conceptPreds) {
+    const source = await ctx.store.getEntity(pred.sourceId);
+    if (source instanceof Concept) governingConcepts.push(ctx.store.localId(source.id));
+    else governingDecisions.push(ctx.store.localId(pred.sourceId));
+  }
 
   return {
     id: localId,
@@ -77,22 +121,41 @@ async function featureView(ctx: ToolContext, feature: Feature) {
     body: (feature as any).body || undefined,
     acceptanceCriteria: Array.isArray((feature as any).acceptanceCriteria) ? (feature as any).acceptanceCriteria : [],
     targetingEpics: epicPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
-    containedStories: storyPreds.map(p => ctx.store.localId(p.targetId)).sort(),
+    enabledStories,
+    containedStories: enabledStories,
     implementingTickets: ticketPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
     verifyingTests: testPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
-    governingDecisions: decisionPreds.map(p => ctx.store.localId(p.sourceId)).sort()
+    governingConcepts: governingConcepts.sort(),
+    governingDecisions: governingDecisions.sort()
   };
 }
 
 async function storyView(ctx: ToolContext, story: UserStory) {
   const localId = ctx.store.localId(story.id);
-  const [featurePreds, epicPreds, ticketPreds, testPreds, decisionPreds] = await Promise.all([
+  const [containsPreds, enablesPreds, epicPreds, ticketPreds, testPreds, governingPreds] = await Promise.all([
     ctx.store.getIncoming(story.id, 'contains'),
+    ctx.store.getIncoming(story.id, 'enables'),
     ctx.store.getIncoming(story.id, 'targets'),
     ctx.store.getIncoming(story.id, 'addresses'),
     ctx.store.getIncoming(story.id, 'verifies'),
     ctx.store.getIncoming(story.id, 'governs')
   ]);
+
+  const containingFlows: string[] = [];
+  const legacyFeatures: string[] = [];
+  for (const pred of containsPreds) {
+    const source = await ctx.store.getEntity(pred.sourceId);
+    if (source instanceof Flow) containingFlows.push(ctx.store.localId(source.id));
+    else if (source instanceof Feature) legacyFeatures.push(ctx.store.localId(source.id));
+  }
+  const enablingFeatures = [...new Set([...enablesPreds.map(p => ctx.store.localId(p.sourceId)), ...legacyFeatures])].sort();
+  const governingConcepts: string[] = [];
+  const governingDecisions: string[] = [];
+  for (const pred of governingPreds) {
+    const source = await ctx.store.getEntity(pred.sourceId);
+    if (source instanceof Concept) governingConcepts.push(ctx.store.localId(source.id));
+    else governingDecisions.push(ctx.store.localId(pred.sourceId));
+  }
 
   return {
     id: localId,
@@ -103,15 +166,80 @@ async function storyView(ctx: ToolContext, story: UserStory) {
     context: (story as any).context || undefined,
     acceptanceCriteria: Array.isArray((story as any).acceptanceCriteria) ? (story as any).acceptanceCriteria : [],
     sla: (story as any).sla || undefined,
-    containingFeatures: featurePreds.map(p => ctx.store.localId(p.sourceId)).sort(),
+    containingFlows: containingFlows.sort(),
+    enablingFeatures,
+    containingFeatures: enablingFeatures,
     targetingEpics: epicPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
     addressingTickets: ticketPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
     verifyingTests: testPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
-    governingDecisions: decisionPreds.map(p => ctx.store.localId(p.sourceId)).sort()
+    governingConcepts: governingConcepts.sort(),
+    governingDecisions: governingDecisions.sort()
   };
 }
 
 export function registerProductTools() {
+  for (const spec of [
+    { kind: 'Goal' as const, ctor: Goal, prefix: 'goal', idPrefix: 'GOAL', actorFields: false },
+    { kind: 'Concept' as const, ctor: Concept, prefix: 'concept', idPrefix: 'CONCEPT', actorFields: false },
+    { kind: 'Flow' as const, ctor: Flow, prefix: 'flow', idPrefix: 'FLOW', actorFields: true }
+  ]) {
+    const baseFields = {
+      id: z.string().optional(),
+      title: z.string().min(1),
+      body: z.string().optional(),
+      status: z.enum(INTENT_STATUSES).optional()
+    };
+    const createSchema = spec.actorFields
+      ? z.object({ ...baseFields, actor: z.string().optional(), context: z.string().optional() })
+      : z.object(baseFields);
+    registry.register({
+      name: `create_${spec.prefix}`,
+      description: `Create a durable ${spec.kind} in top-level Product Intent.`,
+      category: 'planning',
+      parameters: createSchema,
+      execute: async (params: any, ctx: ToolContext) => {
+        const id = params.id || `${spec.idPrefix}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        const fields = Object.fromEntries(Object.entries({
+          title: params.title, body: params.body || '', status: params.status || 'draft',
+          ...(spec.actorFields ? { actor: params.actor || '', context: params.context || '' } : {})
+        }).filter(([, value]) => value !== undefined));
+        await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: spec.kind, id, fields }]);
+        return topLevelIntentView(ctx, await requireEntity(ctx, id, spec.ctor.dcr, spec.kind));
+      }
+    });
+    registry.register({
+      name: `get_${spec.prefix}`,
+      description: `Get a ${spec.kind} and its semantic relations.`,
+      category: 'planning',
+      parameters: z.object({ id: z.string() }),
+      execute: async ({ id }, ctx: ToolContext) => topLevelIntentView(ctx, await requireEntity(ctx, id, spec.ctor.dcr, spec.kind))
+    });
+    registry.register({
+      name: `list_${spec.prefix}s`,
+      description: `List ${spec.kind} entities.`,
+      category: 'planning',
+      parameters: z.object({ status: z.enum(INTENT_STATUSES).optional() }),
+      execute: async ({ status }, ctx: ToolContext) => {
+        const entities = await ctx.store.listEntities<any>(spec.ctor.dcr);
+        const views = await Promise.all(entities.map(entity => topLevelIntentView(ctx, entity)));
+        return status ? views.filter(view => view.status === status) : views;
+      }
+    });
+    registry.register({
+      name: `update_${spec.prefix}`,
+      description: `Update a ${spec.kind} without changing its semantic relations.`,
+      category: 'planning',
+      parameters: spec.actorFields
+        ? z.object({ id: z.string(), title: z.string().optional(), body: z.string().optional(), status: z.enum(INTENT_STATUSES).optional(), actor: z.string().optional(), context: z.string().optional() })
+        : z.object({ id: z.string(), title: z.string().optional(), body: z.string().optional(), status: z.enum(INTENT_STATUSES).optional() }),
+      execute: async ({ id, ...changes }: any, ctx: ToolContext) => {
+        const fields = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+        await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: spec.kind, id, fields }]);
+        return topLevelIntentView(ctx, await requireEntity(ctx, id, spec.ctor.dcr, spec.kind));
+      }
+    });
+  }
+
   for (const [name, ctor, key] of [['process_epic', Epic, 'epicId'], ['process_feature', Feature, 'featureId'], ['process_story', UserStory, 'storyId']] as const) {
     registry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
       parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string() }),
@@ -148,7 +276,7 @@ export function registerProductTools() {
 
   registry.register({
     name: 'get_epic',
-    description: 'Get an Epic with targeted features/stories and contained tickets.',
+    description: 'Get an Epic with targeted goals/concepts/flows/features/stories and contained tickets.',
     category: 'planning',
     parameters: z.object({ epicId: z.string() }),
     execute: async ({ epicId }, ctx: ToolContext) => {
@@ -215,7 +343,7 @@ export function registerProductTools() {
 
   registry.register({
     name: 'get_feature',
-    description: 'Get a Feature with its containing stories, targeting epics, tickets, and tests.',
+    description: 'Get a Feature with the Stories it enables, targeting epics, tickets, and tests.',
     category: 'planning',
     parameters: z.object({ featureId: z.string() }),
     execute: async ({ featureId }, ctx: ToolContext) => {
@@ -286,7 +414,7 @@ export function registerProductTools() {
 
   registry.register({
     name: 'get_user_story',
-    description: 'Get a user story with its containing feature, targeting epics, tickets, and tests.',
+    description: 'Get a narrative Story with its containing Flow, enabling Features, targeting epics, tickets, and tests.',
     category: 'planning',
     parameters: z.object({ storyId: z.string() }),
     execute: async ({ storyId }, ctx: ToolContext) => {
@@ -307,8 +435,11 @@ export function registerProductTools() {
       let stories = await ctx.store.listEntities<UserStory>(UserStory.dcr);
 
       if (featureId) {
-        const outgoing = await ctx.store.getOutgoing(featureId, 'contains');
-        const allowed = new Set(outgoing.map(p => p.targetId));
+        const [enabled, legacy] = await Promise.all([
+          ctx.store.getOutgoing(featureId, 'enables'),
+          ctx.store.getOutgoing(featureId, 'contains')
+        ]);
+        const allowed = new Set([...enabled, ...legacy].map(p => p.targetId));
         stories = stories.filter(s => allowed.has(s.id));
       }
 
@@ -344,11 +475,11 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   registry.register({
     name: 'link_product',
-    description: 'Connect product entities using strictly allowed canonical relations (Epic targets Feature/Story, Feature contains Story, Epic contains Ticket, Ticket implements Feature, Ticket addresses Story, Test verifies Feature/Story, Decision governs Epic/Feature/Story).',
+    description: 'Connect Product Intent using canonical semantic relations, including Flow serves Goal, Concept governs scopes, Flow contains Story, Feature enables Story, Epic targets intent, and Ticket implements/addresses work.',
     category: 'planning',
     parameters: z.object({
       sourceId: z.string().describe('Source entity ID'),
-      predicate: z.string().describe('Semantic predicate: targets, contains, implements, addresses, verifies, governs'),
+      predicate: z.string().describe('Semantic predicate such as inspires, serves, governs, targets, contains, enables, implements, addresses, verifies'),
       targetId: z.string().describe('Target entity ID')
     }),
     execute: async ({ sourceId, predicate, targetId }, ctx: ToolContext) => {
@@ -375,7 +506,7 @@ export function registerProductTools() {
     category: 'planning',
     parameters: z.object({
       sourceId: z.string().describe('Source entity ID'),
-      predicate: z.string().describe('Semantic predicate: targets, contains, implements, addresses, verifies, governs'),
+      predicate: z.string().describe('Semantic predicate such as inspires, serves, governs, targets, contains, enables, implements, addresses, verifies'),
       targetId: z.string().describe('Target entity ID')
     }),
     execute: async ({ sourceId, predicate, targetId }, ctx: ToolContext) => {
