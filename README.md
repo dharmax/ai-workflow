@@ -206,6 +206,7 @@ aiwf [DEV] > help
   - `/triage` - Switches to failure diagnosis and log distillation.
   - `/product` - Switches to Epics, User Stories, and sprint backlog grooming.
 - **Structured Views**: `ticket`, `epic`, `feature`, `story`, and `aspect` open generic shell-ui Views on an interactive TTY; `edit <id>` enters edit mode. Saves return through AIWF's canonical mutation tools and then sync projections.
+- **Execution Trace**: `trace show` prints the last Actor run; `trace open` or **Alt+O** opens a scrollable floating view. Enter/Escape closes it and preserves any unfinished input. `trace on/off/compact` changes live verbosity. Traces include discovery, available tools, calls/results, elapsed time and termination; failures and thrown errors remain inspectable. The latest run is saved to `.ai-workflow/state/last-shell-trace.txt` and can be inspected after restarting the shell. Trace inspection never invokes the LLM. See [trace behavior and verification](docs/shell-trace.md).
 - **Semantic Cognitive Fallback**: Natural-language input is classified into structured multi-key intent; `@dharmax/semantic-registry` selects at most three initial functions before the bounded Actor runs, with at most two targeted semantic recoveries. Discovery failure never expands to the full registry. `trace on` shows the exact discovered function surface.
 
 ---
