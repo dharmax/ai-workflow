@@ -4,10 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import {
-  Goal,
-  Concept,
-  Flow,
-  Epic,
+   Epic,
   Feature,
   UserStory,
   Ticket,
