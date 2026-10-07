@@ -68,6 +68,8 @@ Use AIWF as the primary engineering and work-management system.
 
 ${PRIME_DIRECTIVE}
 
+Product development starts from actor journeys, not capability lists. Before implementing a product capability, identify the concrete actor situation, intention, interaction/progression and useful end state that give it meaning. The actor may be human, agent, API client, service, scheduler or other system actor. Derive capabilities, architecture and acceptance tests from that journey. Pure technical maintenance may remain direct Ticket work; never manufacture product ceremony.
+
 ## Preferred workflow
 
 1. If given a Ticket, call \`resolve_ticket\` / \`aiwf resolve <ticketId>\` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.

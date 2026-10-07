@@ -11,7 +11,7 @@ export interface AspectAssessment {
   knownGaps: string[];
 }
 
-/** Aspect scope follows real product scope: Flow -> Goal and Story -> Flow; Epic targets and Feature enablement do not imply ownership inheritance. */
+/** Only the defined work scopes participate; Epic targets never flow into Features. */
 export async function applicableAspects(entity: WorkflowEntity, store: WorkflowStore): Promise<Aspect[]> {
   const result = new Map<string, Aspect>();
   const visited = new Set<string>();
@@ -33,22 +33,15 @@ export async function applicableAspects(entity: WorkflowEntity, store: WorkflowS
         // Explicit addressing is mandatory concern evidence, even without an applies_to edge.
         if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status !== 'deprecated') result.set(target.id, target);
       }
-    } else if (scope instanceof Idea || scope instanceof Goal || scope instanceof Concept || scope instanceof Flow
-      || scope instanceof ModuleNode || scope instanceof Epic || scope instanceof Feature || scope instanceof UserStory) {
+    } else if (scope instanceof Idea || scope instanceof Goal || scope instanceof Concept || scope instanceof Flow || scope instanceof ModuleNode || scope instanceof Epic || scope instanceof Feature || scope instanceof UserStory) {
       for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
         const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
         if (aspect && aspect.status !== 'deprecated') result.set(aspect.id, aspect);
       }
       if (scope instanceof UserStory) {
         for (const edge of await store.getIncoming(scope.id, 'contains')) {
-          const parent = await store.getEntity<Flow>(edge.sourceId, Flow.dcr);
+          const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
           if (parent) await visit(parent);
-        }
-      }
-      if (scope instanceof Flow) {
-        for (const edge of await store.getOutgoing(scope.id, 'serves')) {
-          const goal = await store.getEntity<Goal>(edge.targetId, Goal.dcr);
-          if (goal) await visit(goal);
         }
       }
     } else throw new Error(`Applicable Aspects are unsupported for '${scope.typeName()}'.`);

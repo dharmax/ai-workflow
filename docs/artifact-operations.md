@@ -314,7 +314,7 @@ Use the strongest contributing level only as a conservative hint for model/Criti
 
 Completeness inheritance is intentionally constrained rather than generic graph traversal:
 
-- Epic, Feature, UserStory and Module use their own explicit target or project default.
+- Epic, Feature, UserStory and Module use their own explicit target or project default. Legacy Feature `contains` Story retains the established strictest-Feature inheritance for old project state.
 - Feature `enables` Story; it does not own the Story, so Feature completeness does not implicitly become Story completeness.
 - Ticket has no persisted completeness target. It carries a completeness context from the scopes it serves: containing Epic(s), implemented Feature(s), addressed UserStory(ies), explicitly targeted Module(s), plus any operation override and project fallback.
 - A recursive operation may explicitly pass its run target to descendants that have no explicit target. That is operation context, not graph ownership.

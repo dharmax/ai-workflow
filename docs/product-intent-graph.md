@@ -456,7 +456,7 @@ Avoid a second rigid workflow-state enum such as `partially_implemented` / `unve
 
 For an accepted UserStory inspect:
 
-1. **Flow membership** — incoming Flow `contains` Story.
+1. **Flow membership** — incoming Flow `contains` Story; existing Feature `contains` Story satisfies the legacy read contract without creating a Flow.
 2. **Enabling capability** — incoming Feature `enables` Story when a durable Feature is needed; direct technical/behavioral work may legitimately omit one.
 3. **Acceptance contract** — at least one acceptance criterion.
 4. **Implementation work** — incoming Ticket `addresses` Story.

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Aspect, Goal, Flow, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifact, Decision, FileNode } from '../src/graph/ontology.ts';
+import { Aspect, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifact, Decision, FileNode } from '../src/graph/ontology.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProjections, importProjections } from '../src/graph/projections.ts';
@@ -15,23 +15,20 @@ describe('first-class Aspects', () => {
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
   const aspect = (id: string) => Aspect.create(store, { id, title: id, status: 'accepted', acceptanceCriteria: ['Relevant evidence supports the concern'] });
 
-  it('inherits Goal concerns through Flow/Story while keeping Feature concerns capability-scoped', async () => {
-    const goal = await store.upsertEntity<Goal>(Goal.dcr, { id: 'G', title: 'Goal' });
-    const flow = await store.upsertEntity<Flow>(Flow.dcr, { id: 'FL', title: 'Flow', actor: 'Developer' });
+  it('keeps Epic concerns on its work, inherits Feature concerns into Story work, and deduplicates Module/parent paths', async () => {
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic' });
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
-    const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Story' });
+    const s = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Story' });
     const m = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, { id: 'M', title: 'Module' });
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Parent', lane: 'Todo' });
     const c = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'C', title: 'Child', lane: 'Todo' });
-    const initiative = await aspect('initiative'), outcome = await aspect('outcome'), robust = await aspect('robust'), module = await aspect('module');
-    await initiative.applyTo(e, store); await outcome.applyTo(goal, store); await robust.applyTo(f, store); await module.applyTo(m, store);
-    await store.relate(flow, 'serves', goal); await store.relate(flow, 'contains', story); await store.relate(f, 'enables', story);
-    await store.relate(e, 'targets', f); await store.relate(e, 'contains', t);
-    await store.relate(t, 'implements', f); await store.relate(t, 'addresses', story); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
+    const initiative = await aspect('initiative'), robust = await aspect('robust'), module = await aspect('module');
+    await initiative.applyTo(e, store); await robust.applyTo(f, store); await robust.applyTo(s, store); await module.applyTo(m, store);
+    await store.relate(e, 'targets', f); await store.relate(f, 'contains', s); await store.relate(e, 'contains', t);
+    await store.relate(t, 'implements', f); await store.relate(t, 'addresses', s); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
     expect((await f.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect((await story.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['outcome']);
-    expect((await c.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'outcome', 'robust']);
+    expect((await s.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect((await c.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
     await store.relate(c, 'contains', t);
     await expect(c.applicableAspects(store)).rejects.toThrow('containment cycle');
     await expect(robust.applyTo(t, store)).rejects.toThrow('not allowed');

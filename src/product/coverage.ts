@@ -120,7 +120,7 @@ async function getUserStoryCoverage(store: WorkflowStore, story: UserStory, loca
   // Contract: For an accepted Story, report independent structural and causal gaps.
   // Draft/proposed stories return facts without flagging unworked states as failures.
   if (status === 'accepted') {
-    if (flows.length === 0) {
+    if (flows.length === 0 && legacyFeatures.length === 0) {
       gaps.push({
         kind: 'missing_parent',
         message: `Accepted UserStory '${localId}' is not contained by any Flow.`

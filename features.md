@@ -59,7 +59,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 
 Production capability governed by docs/artifact-operations-plan.md.
 
-### User Stories
+### Legacy User Stories (read-only)
 - **STORY-AIWF-INVESTIGATE-TICKET**: Caller can obtain a grounded Ticket dossier without doing repository archaeology itself
 - **STORY-AIWF-PREPARE-TICKET**: Caller can make a broad Ticket executable or receive precise missing-input requirements
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
@@ -97,7 +97,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 
 Production capability governed by docs/artifact-operations-plan.md.
 
-### User Stories
+### Legacy User Stories (read-only)
 - **STORY-AIWF-PROCESS-INTENT**: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 
 ### Implementing Tickets
@@ -117,7 +117,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 
 Production capability governed by docs/artifact-operations-plan.md.
 
-### User Stories
+### Legacy User Stories (read-only)
 - **STORY-AIWF-DELEGATE-WORK**: External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives
 
 ### Implementing Tickets

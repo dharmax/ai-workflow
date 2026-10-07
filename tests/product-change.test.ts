@@ -6,7 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
-import { TestNode, Decision } from '../src/graph/ontology.ts';
+import { TestNode, Decision, Feature, UserStory } from '../src/graph/ontology.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 
@@ -33,7 +33,7 @@ describe('Product Intent Causal Change', () => {
       { kind: 'product_create', entityType: 'UserStory', id: 'S1', fields: { title: 'Story', status: 'accepted' } },
       { kind: 'product_create', entityType: 'Ticket', id: 'T1', fields: { title: 'Ticket', lane: 'Todo' } },
       { kind: 'product_link', sourceId: 'E1', predicate: 'targets', targetId: 'F1' },
-      { kind: 'product_link', sourceId: 'F1', predicate: 'contains', targetId: 'S1' },
+      { kind: 'product_link', sourceId: 'F1', predicate: 'enables', targetId: 'S1' },
       { kind: 'product_link', sourceId: 'E1', predicate: 'contains', targetId: 'T1' },
       { kind: 'product_link', sourceId: 'T1', predicate: 'implements', targetId: 'F1' },
       { kind: 'product_link', sourceId: 'T1', predicate: 'addresses', targetId: 'S1' }
@@ -119,7 +119,7 @@ describe('Product Intent Causal Change', () => {
     await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Test', targetPath: 'a.test.ts' });
     await store.upsertEntity(Decision.dcr, { id: 'ADR', title: 'Decision', decision: 'Use graph' });
     const relations = [
-      ['E', 'targets', 'F'], ['E', 'targets', 'S'], ['F', 'contains', 'S'], ['E', 'contains', 'T'],
+      ['E', 'targets', 'F'], ['E', 'targets', 'S'], ['F', 'enables', 'S'], ['E', 'contains', 'T'],
       ['T', 'implements', 'F'], ['T', 'addresses', 'S'], ['TEST', 'verifies', 'F'],
       ['TEST', 'verifies', 'S'], ['ADR', 'governs', 'E'], ['ADR', 'governs', 'F'], ['ADR', 'governs', 'S']
     ];
@@ -152,6 +152,28 @@ describe('Product Intent Causal Change', () => {
       { kind: 'product_update', entityType: 'Feature', id: 'F', fields: { status: 'active' } }
     ] });
     expect(invalid.blocked).toBe(true);
+  });
+
+  it('rejects new legacy containment through preview while allowing explicit removal of existing state', async () => {
+    const { store, engine } = fixture();
+    const feature = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Existing capability' });
+    const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Existing episode' });
+    await store.relate(feature, 'contains', story);
+    const author: ChangeRequest = { action: 'product_change', mutations: [
+      { kind: 'product_link', sourceId: 'F', predicate: 'contains', targetId: 'S' }
+    ] };
+    const blocked = await engine.previewChange(author);
+    expect(blocked.blocked).toBe(true);
+    expect(blocked.blockReason).toContain('not allowed');
+    expect((await engine.applyChange(author, blocked.fingerprint)).ok).toBe(false);
+    expect(await store.getOutgoing(feature.id, 'contains')).toHaveLength(1);
+    const remove: ChangeRequest = { action: 'product_change', mutations: [
+      { kind: 'product_unlink', sourceId: 'F', predicate: 'contains', targetId: 'S' }
+    ] };
+    const preview = await engine.previewChange(remove);
+    expect(preview.blocked).toBe(false);
+    expect((await engine.applyChange(remove, preview.fingerprint)).verification.passed).toBe(true);
+    expect(await store.getOutgoing(feature.id, 'contains')).toEqual([]);
   });
 
   it('accepts the Product Intent request through public preview_change and apply_change tools', async () => {

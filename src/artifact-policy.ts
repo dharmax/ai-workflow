@@ -72,7 +72,7 @@ export function requireCompletenessScope(entity: WorkflowEntity): asserts entity
   }
 }
 
-/** Persistent completeness is explicit per scope; Product Intent relations do not imply ownership inheritance. */
+/** The only inheritance edge for persistent scopes is Feature contains UserStory. */
 export async function scopeTarget(entity: WorkflowEntity, store: WorkflowStore, options: {
   override?: CompletenessLevel; inherited?: CompletenessLevel; descendant?: boolean;
 } = {}): Promise<CompletenessTarget> {
@@ -81,6 +81,14 @@ export async function scopeTarget(entity: WorkflowEntity, store: WorkflowStore, 
   if (!options.descendant && options.override) return { explicit, effective: CompletenessSchema.parse(options.override), source: 'override' };
   if (explicit) return { explicit, effective: explicit, source: 'explicit' };
   if (options.descendant && options.inherited) return { effective: CompletenessSchema.parse(options.inherited), source: 'operation' };
+  if (entity instanceof UserStory) {
+    const features: ScopeCompleteness[] = [];
+    for (const edge of await store.getIncoming(entity.id, 'contains')) {
+      const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
+      if (parent) features.push({ id: store.localId(parent.id), target: await scopeTarget(parent, store) });
+    }
+    if (features.length) return { effective: strongest(features.map(f => f.target.effective)), source: 'feature', inheritedFrom: features.map(f => f.id).sort() };
+  }
   return { effective: CompletenessSchema.parse(loadConfig(store.root).defaultCompleteness), source: 'project' };
 }
 

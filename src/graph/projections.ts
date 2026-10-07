@@ -153,8 +153,8 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
       ]);
 
       const epicIds = epicPreds.map(p => store.localId(p.sourceId));
-      const storyPreds = [...enabledStoryPreds, ...legacyStoryPreds];
-      const enabledStories = userStories.filter(s => storyPreds.some(p => p.targetId === s.id));
+      const enabledStories = userStories.filter(s => enabledStoryPreds.some(p => p.targetId === s.id));
+      const legacyStories = userStories.filter(s => legacyStoryPreds.some(p => p.targetId === s.id));
       const criteria = Array.isArray((feature as any).acceptanceCriteria) ? (feature as any).acceptanceCriteria : [];
 
       featuresMd += `## ${featLocalId}: ${(feature as any).title || featLocalId}\n\n`;
@@ -182,6 +182,15 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
         for (const story of enabledStories) {
           const sId = store.localId(story.id);
           featuresMd += `- **${sId}**: ${(story as any).title || sId}\n`;
+        }
+        featuresMd += `\n`;
+      }
+
+      if (legacyStories.length > 0) {
+        featuresMd += `### Legacy User Stories (read-only)\n`;
+        for (const story of legacyStories) {
+          const sId = store.localId(story.id);
+          featuresMd += `- **${sId}**: ${story.title || sId}\n`;
         }
         featuresMd += `\n`;
       }
@@ -493,6 +502,8 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         const existingTargets = await store.getOutgoing(epicEntity.id, 'targets');
 
         for (const link of existingTargets) {
+          const target = await store.getEntity(link.targetId);
+          if (!(target instanceof Feature || target instanceof UserStory)) continue;
           const localTarget = store.localId(link.targetId);
           if (!wantedTargetIds.has(localTarget)) {
             await store.unrelate(epicEntity.id, 'targets', link.targetId);
@@ -535,7 +546,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         const enabledStories: string[] = [];
         const bodyLines: string[] = [];
 
-        let currentSection: 'body' | 'criteria' | 'stories' | 'tickets' | 'tests' | 'coverage' = 'body';
+        let currentSection: 'body' | 'criteria' | 'stories' | 'legacy' | 'tickets' | 'tests' | 'coverage' = 'body';
 
         for (const rawLine of lines.slice(1)) {
           const line = rawLine.trim();
@@ -551,6 +562,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
           if (line.startsWith('### Acceptance Criteria')) {
             currentSection = 'criteria';
+            continue;
+          } else if (line.startsWith('### Legacy User Stories')) {
+            currentSection = 'legacy';
             continue;
           } else if (line.startsWith('### User Stories')) {
             currentSection = 'stories';
@@ -596,6 +610,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         // remain readable but are never authored by projections.
         const wantedStories = new Set<string>(enabledStories);
         const existingEnables = await store.getOutgoing(featEntity.id, 'enables');
+        const legacyContains = await store.getOutgoing(featEntity.id, 'contains');
 
         for (const link of existingEnables) {
           const localStory = store.localId(link.targetId);
@@ -606,7 +621,8 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
 
         for (const storyLocalId of wantedStories) {
           const alreadyLinked = existingEnables.some(p => store.localId(p.targetId) === storyLocalId);
-          if (!alreadyLinked) {
+          const legacyLinked = legacyContains.some(p => store.localId(p.targetId) === storyLocalId);
+          if (!alreadyLinked && !legacyLinked) {
             const storyEntity = await store.getEntity<UserStory>(storyLocalId, UserStory.dcr);
             if (storyEntity) await store.relate(featEntity, 'enables', storyEntity);
           }

@@ -35,8 +35,6 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Goal', 'inspires', 'Concept'], ['Flow', 'serves', 'Goal'],
   ['Concept', 'governs', 'Flow'], ['Concept', 'governs', 'UserStory'], ['Concept', 'governs', 'Feature'], ['Concept', 'governs', 'Epic'], ['Concept', 'governs', 'Ticket'],
   ['Flow', 'contains', 'UserStory'], ['Feature', 'enables', 'UserStory'],
-  // Legacy read/write compatibility while old Product Intent is migrated.
-  ['Feature', 'contains', 'UserStory'],
   ['Epic', 'targets', 'Goal'], ['Epic', 'targets', 'Concept'], ['Epic', 'targets', 'Flow'], ['Epic', 'targets', 'Feature'], ['Epic', 'targets', 'UserStory'],
   ['Epic', 'contains', 'Ticket'],
   ['Ticket', 'implements', 'Feature'], ['Ticket', 'addresses', 'UserStory'],
@@ -160,7 +158,9 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     } else {
       const source = await load(mutation.sourceId), target = await load(mutation.targetId);
       if (!source.exists || !target.exists) throw new Error('Relation endpoint was deleted.');
-      validateProductRelation(source.kind, mutation.predicate, target.kind);
+      const legacyUnlink = mutation.kind === 'product_unlink' && source.kind === 'Feature'
+        && mutation.predicate === 'contains' && target.kind === 'UserStory';
+      if (!legacyUnlink) validateProductRelation(source.kind, mutation.predicate, target.kind);
       const edgeKey = key(mutation.sourceId, mutation.predicate, mutation.targetId);
       if (mutation.kind === 'product_link') edges.set(edgeKey, mutation);
       else edges.delete(edgeKey);

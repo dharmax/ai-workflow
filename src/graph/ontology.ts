@@ -53,7 +53,7 @@ const baseTemplate = {
 type ProductMeaning = { entity: WorkflowEntity; provenance: string };
 
 /** Bounded semantic lineage shared by Product processing and Ticket investigation. */
-async function collectProductMeaning(seeds: readonly WorkflowEntity[], store: WorkflowStore): Promise<ProductMeaning[]> {
+async function collectProductMeaning(seeds: readonly WorkflowEntity[], store: WorkflowStore, includeEpicTargets = false): Promise<ProductMeaning[]> {
   const seedIds = new Set(seeds.map(entity => entity.id));
   const seen = new Set(seedIds);
   const queue = [...seeds];
@@ -68,19 +68,7 @@ async function collectProductMeaning(seeds: readonly WorkflowEntity[], store: Wo
   while (queue.length) {
     const item = queue.shift()!;
 
-    if (item instanceof Ticket) {
-      for (const edge of await store.getOutgoing(item.id)) {
-        const target = await store.getEntity<WorkflowEntity>(edge.targetId);
-        if (edge.predicateName === 'implements' && target instanceof Feature) add(target, 'Ticket implemented Feature');
-        if (edge.predicateName === 'addresses' && target instanceof UserStory) add(target, 'Ticket addressed Story');
-      }
-      for (const edge of await store.getIncoming(item.id, 'contains')) {
-        const parent = await store.getEntity<WorkflowEntity>(edge.sourceId);
-        if (parent instanceof Epic) add(parent, 'Ticket containing Epic');
-      }
-    }
-
-    if (item instanceof Epic) {
+    if (item instanceof Epic && includeEpicTargets && seedIds.has(item.id)) {
       for (const edge of await store.getOutgoing(item.id, 'targets')) {
         const target = await store.getEntity<WorkflowEntity>(edge.targetId);
         if (target instanceof Goal || target instanceof Concept || target instanceof Flow || target instanceof Feature || target instanceof UserStory) {
@@ -101,7 +89,7 @@ async function collectProductMeaning(seeds: readonly WorkflowEntity[], store: Wo
       }
     }
 
-    if (item instanceof Feature) {
+    if (item instanceof Feature && seedIds.has(item.id)) {
       for (const predicate of ['enables', 'contains']) {
         for (const edge of await store.getOutgoing(item.id, predicate)) {
           const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr);
@@ -211,7 +199,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
               status: (item as Ticket).status, lane: (item as Ticket).lane, linked: linked.has(item.id) })),
             applicableAspects: aspects.map(a => store.localId(a.id)), candidateAspects: candidates.filter(keep).map(a => ({ id: store.localId(a.id), title: a.title!, criteria: a.acceptanceCriteria ?? [] })),
             coverage: await getCoverage(store, id), impact: await getProductImpact(store, id), aspectAssessment: await assessAspects(entity, store, aspects) };
-          for (const { entity: meaning, provenance } of await collectProductMeaning([entity], store)) {
+          for (const { entity: meaning, provenance } of await collectProductMeaning([entity], store, true)) {
             const meaningId = store.localId(meaning.id);
             if (context.existing.some(item => item.id === meaningId)) continue;
             const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string };
@@ -526,6 +514,14 @@ export class Ticket extends WorkflowEntity {
         || entity instanceof Flow || entity instanceof Goal || entity instanceof Concept
       );
       for (const { entity, provenance } of await collectProductMeaning(semanticSeeds, store)) add(entity, provenance);
+      // Scope verification remains mandatory, including legacy project evidence.
+      for (const item of [...mandatory.values()]) {
+        if (!(item instanceof Epic || item instanceof Feature || item instanceof UserStory || item instanceof Flow)) continue;
+        for (const edge of await store.getIncoming(item.id, 'verifies')) {
+          const test = await store.getEntity<TestNode>(edge.sourceId, TestNode.dcr);
+          if (test) add(test, 'Scope verification');
+        }
+      }
       for (const concern of dossier.aspects.aspects) {
         const aspect = await store.getEntity<Aspect>(concern.id, Aspect.dcr); if (aspect) add(aspect, 'Applicable Aspect');
         for (const evidenceId of [...concern.tests, ...concern.artifacts, ...concern.decisions]) {
@@ -1229,9 +1225,6 @@ export class TraceNode extends WorkflowEntity {
 // Aliases for compatibility
 export {
   Idea as IdeaEntity,
-  Goal as GoalEntity,
-  Concept as ConceptEntity,
-  Flow as FlowEntity,
   Epic as EpicEntity,
   Feature as FeatureEntity,
   UserStory as UserStoryEntity,

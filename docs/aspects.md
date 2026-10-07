@@ -100,12 +100,12 @@ The resolver is constrained, not generic graph inheritance.
 - Idea: direct Aspects applying to the Idea.
 - Goal: direct Aspects applying to the Goal.
 - Concept: direct Aspects applying to the Concept.
-- Flow: direct Aspects plus Aspects applying to Goals the Flow serves.
-- UserStory: direct Aspects plus Aspects inherited through containing Flows.
+- Flow: direct Aspects applying to the Flow. Goal-to-Flow propagation is deferred.
+- UserStory: direct Aspects; legacy containing Features retain their existing inheritance for old project state. Flow-to-Story propagation is deferred.
 - Feature: direct Aspects applying to the Feature; do not inherit from Stories it enables or targeting Epics.
 - Module: direct Aspects applying to the Module.
 - Epic: direct Aspects applying to the Epic.
-- Ticket: derive from containing Epics, implemented Features, addressed Stories (including their Flow/Goal scope), explicitly targeted Modules, and parent Tickets through the same bounded scope resolution.
+- Ticket: derive from containing Epics, implemented Features, addressed Stories (including legacy containing Features), explicitly targeted Modules, and parent Tickets through the same bounded scope resolution.
 
 Deduplicate by Aspect ID and detect Ticket-containment cycles. No unrestricted traversal.
 
