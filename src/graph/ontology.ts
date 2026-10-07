@@ -220,6 +220,32 @@ export class Idea extends WorkflowEntity {
   static readonly dcr = new EntityDcr(Idea, Idea.template, 'Idea');
 }
 
+export class Goal extends WorkflowEntity {
+  static template = {
+    ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) }
+  };
+  static readonly dcr = new EntityDcr(Goal, Goal.template, 'Goal');
+}
+
+export class Concept extends WorkflowEntity {
+  static template = {
+    ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) }
+  };
+  static readonly dcr = new EntityDcr(Concept, Concept.template, 'Concept');
+}
+
+export class Flow extends WorkflowEntity {
+  static template = {
+    ...baseTemplate,
+    status: { validate: (v: any) => ({ value: v ?? 'draft' }) },
+    actor: anyValidator,
+    context: anyValidator
+  };
+  static readonly dcr = new EntityDcr(Flow, Flow.template, 'Flow');
+}
+
 export class Epic extends WorkflowEntity {
   process(store: WorkflowStore, options: ProcessOptions = {}) { return WorkflowEntity.processIntent(this, store, options); }
   applicableAspects(store: WorkflowStore) { return applicableAspects(this, store); }
@@ -1078,6 +1104,9 @@ export class TraceNode extends WorkflowEntity {
 // Aliases for compatibility
 export {
   Idea as IdeaEntity,
+  Goal as GoalEntity,
+  Concept as ConceptEntity,
+  Flow as FlowEntity,
   Epic as EpicEntity,
   Feature as FeatureEntity,
   UserStory as UserStoryEntity,
@@ -1094,6 +1123,9 @@ export {
 export const durableEntityDescriptors = [
   Aspect.dcr,
   Idea.dcr,
+  Goal.dcr,
+  Concept.dcr,
+  Flow.dcr,
   Epic.dcr,
   Feature.dcr,
   UserStory.dcr,
@@ -1139,6 +1171,8 @@ export const semanticPredicates = {
   depends_on: new PredicateDcr('depends_on', [], { target: ['title'] }, predicatePayloadTemplate),
   imports: new PredicateDcr('imports', [], { target: ['title'] }, predicatePayloadTemplate),
   implements: new PredicateDcr('implements', [], { target: ['title'] }, predicatePayloadTemplate),
+  enables: new PredicateDcr('enables', [], { target: ['title'] }, predicatePayloadTemplate),
+  serves: new PredicateDcr('serves', [], { target: ['title'] }, predicatePayloadTemplate),
   addresses: new PredicateDcr('addresses', [], { target: ['title'] }, predicatePayloadTemplate),
   modifies: new PredicateDcr('modifies', [], { target: ['title'] }, predicatePayloadTemplate),
   targets: new PredicateDcr('targets', [], { target: ['title'] }, predicatePayloadTemplate),
