@@ -320,9 +320,11 @@ Use existing predicates. Do not add product-specific predicates unless implement
 
 | Source | Predicate | Target | Meaning |
 | --- | --- | --- | --- |
-| Epic | targets | Feature | Initiative affects/creates/changes capability |
-| Epic | targets | UserStory | Initiative specifically affects behavior |
-| Feature | contains | UserStory | Behavior belongs to stable capability |
+| Flow | serves | Goal | Actor journey advances an outcome |
+| Concept | governs | Flow/UserStory/Feature/Epic/Ticket | Product philosophy constrains downstream design/work |
+| Flow | contains | UserStory | Concrete episode belongs to an actor journey |
+| Feature | enables | UserStory | Durable capability enables behavior |
+| Epic | targets | Goal/Concept/Flow/Feature/UserStory | Initiative affects accepted product intent |
 | Epic | contains | Ticket | Initiative scopes executable work |
 | Ticket | contains | Ticket | Work item decomposes into child work |
 | Ticket | implements | Feature | Ticket directly implements capability |
@@ -454,12 +456,13 @@ Avoid a second rigid workflow-state enum such as `partially_implemented` / `unve
 
 For an accepted UserStory inspect:
 
-1. **Feature membership** — incoming Feature `contains` Story.
-2. **Acceptance contract** — at least one acceptance criterion.
-3. **Implementation work** — incoming Ticket `addresses` Story.
-4. **Code grounding** — at least one addressing Ticket reaches code through `targets` or `modifies`.
-5. **Verification** — incoming Test `verifies` Story.
-6. **Blockers** — incoming active `blocks` relation where applicable.
+1. **Flow membership** — incoming Flow `contains` Story.
+2. **Enabling capability** — incoming Feature `enables` Story when a durable Feature is needed; direct technical/behavioral work may legitimately omit one.
+3. **Acceptance contract** — at least one acceptance criterion.
+4. **Implementation work** — incoming Ticket `addresses` Story.
+5. **Code grounding** — at least one addressing Ticket reaches code through `targets` or `modifies`.
+6. **Verification** — incoming Test `verifies` Story.
+7. **Blockers** — incoming active `blocks` relation where applicable.
 
 Coverage does not require every related Ticket to target code. Design/docs/migration tickets may legitimately be related. It requires at least one real grounded implementation path.
 
@@ -472,19 +475,19 @@ Draft/proposed Stories return the same facts, but callers should not treat their
 Inspect:
 
 1. direct implementing Tickets: Ticket `implements` Feature;
-2. contained accepted Stories;
+2. accepted Stories the Feature `enables`;
 3. addressing Tickets of those Stories;
 4. code grounding through all relevant implementation Tickets;
 5. direct Test `verifies` Feature;
-6. Story verification;
+6. enabled-Story verification;
 7. blockers.
 
-A Feature with no Stories is **not** structurally incomplete merely because Stories are absent.
+A Feature with no Stories is **not** structurally incomplete merely because no Story currently requires it, although product review may flag an unexplained capability as a relevance concern.
 
 Feature verification evidence exists when either:
 
 - an explicit Test verifies the Feature directly; or
-- accepted contained Stories have verification evidence.
+- accepted enabled Stories have verification evidence.
 
 This is **evidence coverage**, not a proof that the Feature's full semantics have been exhausted. Feature-level acceptance criteria that are not represented by Stories may still justify a direct Feature verification Test.
 
@@ -538,12 +541,13 @@ Scope rules are explicit; do not use unrestricted graph traversal.
 
 Include:
 
-- containing Feature(s);
+- containing Flow(s) and their served Goal(s) when product context is requested;
+- enabling Feature(s);
 - active/planned Epics directly targeting that Story;
 - Tickets addressing that Story;
 - code directly targeted/modified by those Tickets;
 - Tests verifying that Story;
-- Decisions governing the Story, its containing Feature(s), or returned code anchors;
+- Concepts/Decisions governing the Story, Flow, enabling Features, or returned code anchors;
 - direct blockers/dependencies attached to the returned work/intent nodes.
 
 Do **not** automatically include sibling Stories.
@@ -552,10 +556,11 @@ Do **not** automatically include sibling Stories.
 
 Include:
 
-- contained accepted Stories;
+- accepted Stories the Feature enables;
+- their containing Flows/Goals when product context is requested;
 - active/planned Epics targeting that Feature;
 - direct Feature-implementing Tickets;
-- Tickets addressing contained accepted Stories;
+- Tickets addressing enabled accepted Stories;
 - direct code anchors of those Tickets;
 - direct Feature/Story verification Tests;
 - governing Decisions;
@@ -767,10 +772,11 @@ Do not maintain the same editable relationship in multiple projections. Choose o
 
 Suggested ownership:
 
-- Epic `targets` Feature/Story: `epics.md`
-- Feature `contains` Story: `features.md`
-- Ticket links remain graph/tool owned, displayed read-only in product projections
-- Test verification links remain graph/tool owned initially, displayed read-only
+- Epic `targets` intent: `epics.md` for currently projected target types; other top-level targets remain graph/tool owned until a projection is justified.
+- Feature `enables` Story: `features.md`
+- Flow `contains` Story and Flow `serves` Goal: graph/tool owned until a top-level projection proves useful.
+- Ticket links remain graph/tool owned, displayed read-only in product projections.
+- Test verification links remain graph/tool owned initially, displayed read-only.
 
 This avoids two Markdown files fighting over one edge.
 
@@ -818,23 +824,28 @@ Do not keep both `stories.ts` and `product.ts` after migration unless there is a
 
 Do not make `link_product_intent` a generic predicate gateway.
 
-The first implementation allows exactly these semantic combinations:
+Canonical Product Intent combinations include:
 
 ```text
-Epic    --targets----> Feature
-Epic    --targets----> UserStory
-Epic    --contains---> Ticket
-Feature --contains---> UserStory
-Ticket  --implements-> Feature
-Ticket  --addresses--> UserStory
-Test    --verifies---> Feature
-Test    --verifies---> UserStory
-Aspect  --applies_to--> Idea | Module | Epic | Feature | UserStory
-Ticket  --addresses---> Aspect
-Test    --verifies----> Aspect
-Artifact--verifies----> Aspect
-Decision--governs----> Epic | Feature | UserStory | Aspect | Ticket
+Idea     --inspires---> Goal | Concept | Flow
+Goal     --inspires---> Concept
+Flow     --serves-----> Goal
+Concept  --governs----> Flow | UserStory | Feature | Epic | Ticket
+Flow     --contains---> UserStory
+Feature  --enables----> UserStory
+Epic     --targets----> Goal | Concept | Flow | Feature | UserStory
+Epic     --contains---> Ticket
+Ticket   --implements-> Feature
+Ticket   --addresses--> UserStory
+Test     --verifies---> Flow | Feature | UserStory
+Aspect   --applies_to--> Idea | Goal | Concept | Flow | Module | Epic | Feature | UserStory
+Ticket   --addresses---> Aspect
+Test     --verifies----> Aspect
+Artifact --verifies----> Aspect
+Decision --governs----> Goal | Concept | Flow | Epic | Feature | UserStory | Aspect | Ticket
 ```
+
+Legacy `Feature --contains--> UserStory` may be read while existing project state is migrated, but new Product Intent authors `Feature --enables--> UserStory`.
 
 Existing generic graph mechanisms continue to own other relations such as `depends_on` and `blocks`.
 
