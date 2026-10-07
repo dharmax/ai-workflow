@@ -1,6 +1,6 @@
 # Toplevel1 integrated design and plan
 
-Status: design authority for the `toplevel1` branch. Planning only.
+Status: integrated Product-Intent design retained on `master`. Phase A is complete. For Actor agency/Phase B, `docs/agency-constitution.md` and `docs/agency-restoration-plan.md` are authoritative.
 
 This branch combines two corrections that share one philosophy but must remain separate mechanisms:
 
@@ -251,22 +251,15 @@ Expected result: **large conceptual gain, modest code delta**.
 
 No feature is considered accepted merely because Phase A is green.
 
-### Phase B — J2.4 basic composition foundation
+### Phase B — J2.4 general agency restoration
 
-Follow `docs/fix-plan-1.md`:
+Follow `docs/agency-constitution.md` and `docs/agency-restoration-plan.md`.
 
-1. audit the execution contract;
-2. harden the smallest useful primitive set;
-3. expose the substrate independently of semantic discovery;
-4. give the Actor minimal environment guidance;
-5. make complete tool composition observable;
-6. run deterministic protocol tests;
-7. run the exact live J2.4 acceptance journeys;
-8. persist proof.
+The earlier composition plan was too tool-centric. Phase B now restores the correct control direction: the Actor understands and pursues the goal; discovery and specialized capabilities are optional means. Establish discovery-independent bootstrap competence, prove temporary self-extension, remove discovery/mode competence walls, and pass the adversarial Agency Gate.
 
 Do not redesign Product Intent in this phase.
 
-**Gate B:** J2.4 succeeds live on the ordinary configured route without query-specific code.
+**Gate B:** J2.4 succeeds on the ordinary configured route **and** with semantic discovery disabled/misleading, without query-specific production code.
 
 ### Phase C — minimal top-level Product Intent
 
