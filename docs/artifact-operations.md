@@ -312,14 +312,14 @@ scopeCompleteness:
 
 Use the strongest contributing level only as a conservative hint for model/Critic strength. Acceptance and Aspect review must preserve the individual scope targets rather than pretending they are one scalar.
 
-Inheritance is intentionally constrained rather than generic graph traversal:
+Completeness inheritance is intentionally constrained rather than generic graph traversal:
 
-- UserStory may inherit from its containing Feature(s); strictest inherited target wins.
+- Epic, Feature, UserStory and Module use their own explicit target or project default.
+- Feature `enables` Story; it does not own the Story, so Feature completeness does not implicitly become Story completeness.
 - Ticket has no persisted completeness target. It carries a completeness context from the scopes it serves: containing Epic(s), implemented Feature(s), addressed UserStory(ies), explicitly targeted Module(s), plus any operation override and project fallback.
-- Feature does not inherit from targeting Epics: Epics do not own durable Features.
-- Epic and Module use their own explicit target or project default.
+- A recursive operation may explicitly pass its run target to descendants that have no explicit target. That is operation context, not graph ownership.
 
-An explicit target on a persistent completeness scope overrides inherited targets, including a deliberate lower target such as a POC Feature inside broader production work.
+An explicit target on a persistent completeness scope overrides an operation-inherited target.
 
 Ticket completion remains governed by its acceptance criteria. Raising a Feature/Module/Epic/Story target does not retroactively reopen verified Tickets; completeness assessment creates/adds new work for newly exposed gaps.
 
@@ -514,6 +514,7 @@ It reads existing state first:
 - Ticket fields/lifecycle/claim;
 - parent Epic and child Tickets;
 - implemented Feature / addressed UserStory;
+- upstream Flow, Goal and governing Product Concepts where linked;
 - blockers and dependencies;
 - governing Decisions;
 - relevant Lessons;
@@ -808,22 +809,26 @@ A temporary operation blocker such as another active lease does not automaticall
 
 One deterministic Ticket-state owner must enforce these combinations. Artifact operations must not hand-write lane/status pairs.
 
-## 8. Small graph extensions
+## 8. Product Intent graph relations
 
-Only two relation corrections are justified now:
+Artifact operations use the Product Intent semantics defined in `top-level-product-intent.md` and `product-intent-graph.md`.
+
+Two relations are especially important to operation semantics:
 
 ~~~
-Ticket   --contains--> Ticket
-Decision --governs---> Ticket
+Flow    --contains--> UserStory
+Feature --enables---> UserStory
 ~~~
 
-Ticket contains Ticket expresses decomposition without another entity type.
+This keeps actor journeys upstream of capabilities. Legacy `Feature --contains--> UserStory` edges may be read during migration but must not be authored as the canonical product model.
 
-Decision governs Ticket is already part of the documented conceptual model and should be accepted by deterministic Product Intent validation.
+Ticket decomposition remains ordinary:
 
-Do not add a new predicate.
+~~~
+Ticket --contains--> Ticket
+```
 
-Do not add Test-verifies-Ticket yet. Verification evidence can be returned/recorded through existing tests, ticket lifecycle, artifacts, and product verification. Add that relation only if real usage proves the graph cannot represent needed evidence cleanly.
+Decision and Concept governance are semantic constraints that investigation/review may carry into downstream work. No second requirements/workflow model is introduced.
 
 ## 9. Primitive quality bar
 
