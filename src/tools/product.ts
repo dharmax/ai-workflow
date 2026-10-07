@@ -96,19 +96,18 @@ async function epicView(ctx: ToolContext, epic: Epic) {
 
 async function featureView(ctx: ToolContext, feature: Feature) {
   const localId = ctx.store.localId(feature.id);
-  const [epicPreds, enabledPreds, legacyStoryPreds, ticketPreds, testPreds, decisionPreds, conceptPreds] = await Promise.all([
+  const [epicPreds, enabledPreds, legacyStoryPreds, ticketPreds, testPreds, governingPreds] = await Promise.all([
     ctx.store.getIncoming(feature.id, 'targets'),
     ctx.store.getOutgoing(feature.id, 'enables'),
     ctx.store.getOutgoing(feature.id, 'contains'),
     ctx.store.getIncoming(feature.id, 'implements'),
     ctx.store.getIncoming(feature.id, 'verifies'),
-    ctx.store.getIncoming(feature.id, 'governs'),
     ctx.store.getIncoming(feature.id, 'governs')
   ]);
   const enabledStories = [...new Set([...enabledPreds, ...legacyStoryPreds].map(p => ctx.store.localId(p.targetId)))].sort();
   const governingConcepts: string[] = [];
   const governingDecisions: string[] = [];
-  for (const pred of conceptPreds) {
+  for (const pred of governingPreds) {
     const source = await ctx.store.getEntity(pred.sourceId);
     if (source instanceof Concept) governingConcepts.push(ctx.store.localId(source.id));
     else governingDecisions.push(ctx.store.localId(pred.sourceId));
