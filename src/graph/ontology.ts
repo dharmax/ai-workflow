@@ -397,7 +397,8 @@ export class Ticket extends WorkflowEntity {
       const add = (entity: WorkflowEntity, provenance: string, required = true) => {
         if (dossier.evidence.some(e => e.id === store.localId(entity.id))) return;
         if (['Ticket', 'Epic', 'Feature', 'UserStory', 'Flow', 'Goal', 'Concept', 'Module', 'Idea', 'Artifact'].includes(entity.typeName())) visitMetricArtifact(store.localId(entity.id));
-        dossier.evidence.push({ id: store.localId(entity.id), kind: entity.typeName(), title: entity.title ?? store.localId(entity.id), body: (entity as WorkflowEntity & { body?: string }).body, mandatory: required, provenance });
+        const narrative = entity as WorkflowEntity & { body?: string; story?: string };
+        dossier.evidence.push({ id: store.localId(entity.id), kind: entity.typeName(), title: entity.title ?? store.localId(entity.id), body: narrative.body || narrative.story, mandatory: required, provenance });
         if (required) mandatory.set(entity.id, entity);
       };
       add(current, 'Ticket contract');
