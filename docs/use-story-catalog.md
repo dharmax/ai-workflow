@@ -42,6 +42,10 @@ A developer returns to a repository with an active lease or in-progress Ticket. 
 
 A developer asks AIWF to resolve a Ticket. During investigation AIWF sees the linked Feature/Story plus upstream Flow, Goal and governing Concepts. The locally obvious implementation conflicts with a product Concept or would violate the Story’s journey. AIWF flags the conflict before applying the change and either chooses an aligned implementation or requests the product decision needed to proceed.
 
+### J2.4 — Compose an unfamiliar project question from basic operations
+
+A developer asks a compound or unusual question about the current project that is not exactly covered by one named AIWF capability. AIWF starts with a small dependable execution surface, gathers real project evidence by composing basic operations and any specialized capabilities it discovers, reasons over the observations, and returns the requested grounded answer. If the needed evidence cannot be obtained, it stops with the concrete missing evidence or execution failure. The developer does not need a query-specific command or for AIWF developers to pre-encode words such as “second”, “least”, or a particular comparison.
+
 ---
 
 # Epic J3 — AIWF owns engineering work to verified completion
