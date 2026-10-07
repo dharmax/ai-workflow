@@ -92,7 +92,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
             featureRef: 'FEAT-CALENDAR-CORE',
             title: 'Add attendee email to event invite',
             actor: 'Organizer',
-            story: 'I want to add attendees so they are notified',
+            story: 'The organizer adds an attendee email to an existing meeting; AIWF validates it, saves the attendee, and the invite is ready to notify them.',
             acceptanceCriteria: ['Validates email syntax']
           }
         ],
@@ -118,8 +118,8 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
     const createdStory = await store.getEntity<UserStory>(result.storyIds[0]);
     expect(createdStory).toBeDefined();
 
-    // Verify contains edge: Feature contains Story
-    const storiesInFeat = await store.getOutgoing(existingFeat.id, 'contains');
+    // Verify capability relation: Feature enables Story
+    const storiesInFeat = await store.getOutgoing(existingFeat.id, 'enables');
     expect(storiesInFeat.map(p => store.localId(p.targetId))).toContain(result.storyIds[0]);
   });
 
@@ -133,7 +133,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
       id: 'STORY-EMAIL-ALERT',
       title: 'Send email alert on update'
     });
-    await store.relate(existingFeat, 'contains', existingStory);
+    await store.relate(existingFeat, 'enables', existingStory);
 
     const proposal = await proposeEpicStructure(store, {
       title: 'Alert Integration Epic'
@@ -168,6 +168,33 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
 
     const allStories = await store.listEntities<UserStory>(UserStory.dcr);
     expect(allStories).toHaveLength(1);
+  });
+
+  it('does not manufacture a Feature when a Story has no enabling capability', async () => {
+    const proposal = await proposeEpicStructure(store, {
+      title: 'Clarify support flow'
+    }, {
+      injectedSemanticOutput: {
+        features: [],
+        stories: [{
+          action: 'create',
+          title: 'Developer gets a precise unsupported-case explanation',
+          actor: 'Developer',
+          story: 'The developer asks for an unsupported operation; AIWF explains the missing capability and leaves project state unchanged.',
+          acceptanceCriteria: ['The unsupported request ends with a truthful explanation']
+        }],
+        questions: []
+      }
+    });
+
+    expect(proposal.features).toHaveLength(0);
+    expect(proposal.stories).toHaveLength(1);
+    expect(proposal.stories[0].featureId).toBeUndefined();
+
+    const result = await applyEpicStructure(store, proposal);
+    expect(result.applied).toBe(true);
+    expect((await store.listEntities<Feature>(Feature.dcr))).toHaveLength(0);
+    expect((await store.getOutgoing(result.storyIds[0], 'contains'))).toHaveLength(0);
   });
 
   // 3. Zero graph mutation during proposal (and abort leaves graph completely untouched)
