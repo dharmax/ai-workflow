@@ -50,6 +50,103 @@ const baseTemplate = {
   updatedAt: anyValidator
 };
 
+type ProductMeaning = { entity: WorkflowEntity; provenance: string };
+
+/** Bounded semantic lineage shared by Product processing and Ticket investigation. */
+async function collectProductMeaning(seeds: readonly WorkflowEntity[], store: WorkflowStore): Promise<ProductMeaning[]> {
+  const seedIds = new Set(seeds.map(entity => entity.id));
+  const seen = new Set(seedIds);
+  const queue = [...seeds];
+  const found: ProductMeaning[] = [];
+  const add = (entity: WorkflowEntity | null, provenance: string) => {
+    if (!entity || seen.has(entity.id)) return;
+    seen.add(entity.id);
+    queue.push(entity);
+    found.push({ entity, provenance });
+  };
+
+  while (queue.length) {
+    const item = queue.shift()!;
+
+    if (item instanceof Ticket) {
+      for (const edge of await store.getOutgoing(item.id)) {
+        const target = await store.getEntity<WorkflowEntity>(edge.targetId);
+        if (edge.predicateName === 'implements' && target instanceof Feature) add(target, 'Ticket implemented Feature');
+        if (edge.predicateName === 'addresses' && target instanceof UserStory) add(target, 'Ticket addressed Story');
+      }
+      for (const edge of await store.getIncoming(item.id, 'contains')) {
+        const parent = await store.getEntity<WorkflowEntity>(edge.sourceId);
+        if (parent instanceof Epic) add(parent, 'Ticket containing Epic');
+      }
+    }
+
+    if (item instanceof Epic) {
+      for (const edge of await store.getOutgoing(item.id, 'targets')) {
+        const target = await store.getEntity<WorkflowEntity>(edge.targetId);
+        if (target instanceof Goal || target instanceof Concept || target instanceof Flow || target instanceof Feature || target instanceof UserStory) {
+          add(target, 'Epic targeted Product Intent');
+        }
+      }
+    }
+
+    if (item instanceof UserStory) {
+      for (const edge of await store.getIncoming(item.id, 'contains')) {
+        const parent = await store.getEntity<WorkflowEntity>(edge.sourceId);
+        if (parent instanceof Flow) add(parent, 'Story containing Flow');
+        else if (parent instanceof Feature) add(parent, 'Legacy Story containing Feature');
+      }
+      for (const edge of await store.getIncoming(item.id, 'enables')) {
+        const feature = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
+        if (feature) add(feature, 'Story enabling Feature');
+      }
+    }
+
+    if (item instanceof Feature) {
+      for (const predicate of ['enables', 'contains']) {
+        for (const edge of await store.getOutgoing(item.id, predicate)) {
+          const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr);
+          if (story) add(story, predicate === 'enables' ? 'Feature enabled Story' : 'Legacy Feature Story');
+        }
+      }
+    }
+
+    if (item instanceof Flow) {
+      for (const edge of await store.getOutgoing(item.id, 'serves')) {
+        const goal = await store.getEntity<Goal>(edge.targetId, Goal.dcr);
+        if (goal) add(goal, 'Flow served Goal');
+      }
+      for (const edge of await store.getIncoming(item.id, 'inspires')) {
+        const idea = await store.getEntity<Idea>(edge.sourceId, Idea.dcr);
+        if (idea) add(idea, 'Idea inspired Flow');
+      }
+    }
+
+    if (item instanceof Goal) {
+      for (const edge of await store.getIncoming(item.id, 'inspires')) {
+        const idea = await store.getEntity<Idea>(edge.sourceId, Idea.dcr);
+        if (idea) add(idea, 'Idea inspired Goal');
+      }
+    }
+
+    if (item instanceof Concept) {
+      for (const edge of await store.getIncoming(item.id, 'inspires')) {
+        const source = await store.getEntity<WorkflowEntity>(edge.sourceId);
+        if (source instanceof Goal || source instanceof Idea) add(source, source instanceof Goal ? 'Goal inspired Concept' : 'Idea inspired Concept');
+      }
+    }
+
+    if (item instanceof Epic || item instanceof Feature || item instanceof UserStory || item instanceof Flow || item instanceof Goal || item instanceof Concept) {
+      for (const edge of await store.getIncoming(item.id, 'governs')) {
+        const source = await store.getEntity<WorkflowEntity>(edge.sourceId);
+        if (source instanceof Concept) add(source, 'Scope governing Concept');
+        else if (source instanceof Decision) add(source, 'Scope governing Decision');
+      }
+    }
+  }
+
+  return found;
+}
+
 // -----------------------------------------------------------------------------
 // Durable Domain Entities (aiwf-durable)
 // -----------------------------------------------------------------------------
@@ -114,6 +211,12 @@ export abstract class WorkflowEntity extends AbstractEntity {
               status: (item as Ticket).status, lane: (item as Ticket).lane, linked: linked.has(item.id) })),
             applicableAspects: aspects.map(a => store.localId(a.id)), candidateAspects: candidates.filter(keep).map(a => ({ id: store.localId(a.id), title: a.title!, criteria: a.acceptanceCriteria ?? [] })),
             coverage: await getCoverage(store, id), impact: await getProductImpact(store, id), aspectAssessment: await assessAspects(entity, store, aspects) };
+          for (const { entity: meaning, provenance } of await collectProductMeaning([entity], store)) {
+            const meaningId = store.localId(meaning.id);
+            if (context.existing.some(item => item.id === meaningId)) continue;
+            const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string };
+            context.existing.push({ id: meaningId, kind: meaning.typeName(), title: meaning.title, body: data.body || data.story, status: data.status, provenance });
+          }
           // Verification and governing evidence is mandatory, never System-1 optional pruning.
           const evidence = new Map<string, Record<string, unknown>>();
           for (const subject of [entity, ...all.filter(item => linked.has(item.id))]) {
@@ -417,55 +520,12 @@ export class Ticket extends WorkflowEntity {
         const entity = await store.getEntity(otherId);
         if (entity && ['contains', 'implements', 'addresses', 'targets', 'modifies', 'governs', 'blocks', 'depends_on', 'verifies'].includes(edge.predicateName)) add(entity, `Ticket ${edge.predicateName}`);
       }
-      // Expand authored Product Intent upward so implementation sees the actor journey and reason behind the work.
-      const productQueue = [...mandatory.values()];
-      const expandedProduct = new Set<string>();
-      while (productQueue.length) {
-        const item = productQueue.shift()!;
-        if (expandedProduct.has(item.id)) continue;
-        expandedProduct.add(item.id);
-        const before = new Set(mandatory.keys());
-
-        if (item instanceof UserStory) {
-          for (const edge of await store.getIncoming(item.id, 'contains')) {
-            const parent = await store.getEntity(edge.sourceId);
-            if (parent instanceof Flow) add(parent, 'Story containing Flow');
-            else if (parent instanceof Feature) add(parent, 'Legacy Story containing Feature');
-          }
-          for (const edge of await store.getIncoming(item.id, 'enables')) {
-            const feature = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
-            if (feature) add(feature, 'Story enabling Feature');
-          }
-        }
-
-        if (item instanceof Feature) {
-          for (const predicate of ['enables', 'contains']) {
-            for (const edge of await store.getOutgoing(item.id, predicate)) {
-              const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr);
-              if (story) add(story, predicate === 'enables' ? 'Feature enabled Story' : 'Legacy Feature Story');
-            }
-          }
-        }
-
-        if (item instanceof Flow) {
-          for (const edge of await store.getOutgoing(item.id, 'serves')) {
-            const goal = await store.getEntity<Goal>(edge.targetId, Goal.dcr);
-            if (goal) add(goal, 'Flow served Goal');
-          }
-        }
-
-        if (item instanceof Epic || item instanceof Feature || item instanceof UserStory || item instanceof Flow || item instanceof Goal || item instanceof Concept) {
-          for (const edge of await store.getIncoming(item.id)) {
-            const entity = await store.getEntity(edge.sourceId);
-            if ((entity instanceof Decision || entity instanceof Concept) && edge.predicateName === 'governs') {
-              add(entity, entity instanceof Concept ? 'Scope governing Concept' : 'Scope governing Decision');
-            }
-            if (entity instanceof TestNode && edge.predicateName === 'verifies') add(entity, 'Scope verification');
-          }
-        }
-
-        for (const [entityId, entity] of mandatory) if (!before.has(entityId)) productQueue.push(entity);
-      }
+      // Expand authored Product Intent so implementation sees the actor journey and reason behind the work.
+      const semanticSeeds = [...mandatory.values()].filter(entity =>
+        entity instanceof Ticket || entity instanceof Epic || entity instanceof Feature || entity instanceof UserStory
+        || entity instanceof Flow || entity instanceof Goal || entity instanceof Concept
+      );
+      for (const { entity, provenance } of await collectProductMeaning(semanticSeeds, store)) add(entity, provenance);
       for (const concern of dossier.aspects.aspects) {
         const aspect = await store.getEntity<Aspect>(concern.id, Aspect.dcr); if (aspect) add(aspect, 'Applicable Aspect');
         for (const evidenceId of [...concern.tests, ...concern.artifacts, ...concern.decisions]) {
