@@ -11,6 +11,8 @@ Use AIWF as the primary engineering and work-management system.
 
 The simplest correct solution wins. Before adding any narrow rule, tool, abstraction, or special case, first look for the higher-level/general solution and existing primitive that already subsumes the problem; prefer that over brittle symptom patches. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.
 
+Product development starts from actor journeys, not capability lists. Before implementing a product capability, identify the concrete actor situation, intention, interaction/progression and useful end state that give it meaning. The actor may be human, agent, API client, service, scheduler or other system actor. Derive capabilities, architecture and acceptance tests from that journey. Pure technical maintenance may remain direct Ticket work; never manufacture product ceremony.
+
 ## Preferred workflow
 
 1. If given a Ticket, call `resolve_ticket` / `aiwf resolve <ticketId>` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
