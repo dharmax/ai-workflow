@@ -55,10 +55,21 @@ describe('entity-owned Product Intent processing', () => {
     expect((await store.getEntity<Feature>('F', Feature.dcr))!.completenessTarget).toBeUndefined();
   });
 
-  it('halts ambiguous identity and malformed/ceremonial layers without mutation', async () => {
+  it('keeps Stories upstream of Features and halts ambiguous or reversed intent', async () => {
     const f = await feature(); await store.upsertEntity(Ticket.dcr, { id: 'A', title: 'Same', body: 'First', acceptanceCriteria: ['a'] }); await store.upsertEntity(Ticket.dcr, { id: 'B', title: 'Same', body: 'Second', acceptanceCriteria: ['b'] });
     const result = await f.process(store, { ...options, propose: async () => empty({ items: [item('C', 'Ticket', 'Same')] }) }); expect(result.status).toBe('needs_input'); expect(await store.getEntity('C')).toBeNull();
-    const s = await story(); const invalid = await s.process(store, { ...options, propose: async () => empty({ items: [item('N', 'Feature')] }) }); expect(invalid.status).toBe('blocked'); expect(await store.getEntity('N')).toBeNull();
+
+    const s = await story();
+    const derived = await s.process(store, { ...options, propose: async context => context.kind === 'UserStory'
+      ? empty({ items: [item('N', 'Feature', 'Roundtrip capability')] })
+      : empty() });
+    expect(derived.status).toBe('complete');
+    const n = await store.getEntity<Feature>('N', Feature.dcr); expect(n).not.toBeNull();
+    expect((await store.getOutgoing(n!.id, 'enables')).map(edge => store.localId(edge.targetId))).toContain('S');
+
+    const reversed = await f.process(store, { ...options, propose: async () => empty({ items: [item('WRONG', 'UserStory' as any)] }) });
+    expect(reversed.status).toBe('blocked'); expect(await store.getEntity('WRONG')).toBeNull();
+
     const unclear = await store.upsertEntity<Feature>(Feature.dcr, { id: 'U', title: 'Unclear' }); expect((await unclear.process(store, options)).status).toBe('needs_input');
   });
 
