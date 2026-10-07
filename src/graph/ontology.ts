@@ -128,7 +128,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
           context.existing.push(...evidence.values());
           const propose = options.propose ?? (async (input: IntentContext, findings: readonly { message: string }[]) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Product reasoning provider unavailable.'); countEngineering('reasoningCalls');
-            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer work for current kind '${kind}'. Permitted child kinds: Epic -> Feature or Ticket; Feature -> UserStory or Ticket; UserStory -> Ticket ONLY (never UserStory). Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const response = await asker.json(`Reconcile Product Intent into ONLY necessary next-layer intent/work for current kind '${kind}'. Permitted kinds: Epic -> existing/new Feature, UserStory, or direct technical Ticket; UserStory -> Feature when a durable capability is needed, or direct Ticket when a Feature would be ceremony; Feature -> Ticket only. Stories are actor journeys and come before Features semantically: never create a UserStory beneath a Feature. Reuse stable existing Features/Stories/Tickets, including work outside this root. Never manufacture Stories for technical work, duplicate work, expand completed work, delete valid work, or add counts to satisfy completeness. Raising completeness adds only real missing contracts/work. Each proposed item must have executable acceptance. Return existing IDs to reuse. aspectIds names existing materially missing Aspects to apply to this scope, never invented IDs. gaps lists actual unresolved semantic concerns, required asks only genuine ambiguities. depth=0 is review only: describe gaps, propose no expansion. This is a read-only proposal; an independent Critic reviews it. Context: ${JSON.stringify(input)} Findings: ${JSON.stringify(findings)}`, IntentProposalSchema, { model: cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
             if (!response.ok) throw new Error(`Product proposal failed: ${response.failure?.message}`); return IntentProposalSchema.parse(response.data);
           });
           let accepted = false, findings: Array<{ message: string }> = [];
@@ -139,7 +139,12 @@ export abstract class WorkflowEntity extends AbstractEntity {
             const mutations: import('../product/mutation.ts').ProductMutation[] = [], childIds: string[] = [], batchCreated: string[] = [], batchReused: string[] = [];
             const batchTitles = new Set<string>();
             for (const item of proposal.items) {
-              if (kind === 'UserStory' && item.kind !== 'Ticket' || kind === 'Feature' && item.kind === 'Feature') throw new Error(`Invalid next layer: ${kind} → ${item.kind}.`);
+              const allowedKinds = kind === 'Epic'
+                ? new Set(['Feature', 'UserStory', 'Ticket'])
+                : kind === 'UserStory'
+                  ? new Set(['Feature', 'Ticket'])
+                  : new Set(['Ticket']);
+              if (!allowedKinds.has(item.kind)) throw new Error(`Invalid next layer: ${kind} → ${item.kind}.`);
               const identity = `${item.kind}:${item.title.trim().toLowerCase()}`;
               if (batchTitles.has(identity)) throw new Error(`Duplicate intent/work contract '${item.title}'.`); batchTitles.add(identity);
               const sameId = await store.getEntity<WorkflowEntity>(item.id);
@@ -154,7 +159,13 @@ export abstract class WorkflowEntity extends AbstractEntity {
                 const criteria = item.acceptanceCriteria?.length ? item.acceptanceCriteria : [item.title];
                 mutations.push({ kind: 'product_create', entityType: item.kind, id: childId, fields: item.kind === 'UserStory' ? { title: item.title, actor: item.actor ?? 'Caller', story: item.story ?? item.body, acceptanceCriteria: criteria, status: 'proposed' } : { title: item.title, body: item.body, acceptanceCriteria: criteria, ...(item.kind === 'Ticket' ? { lane: 'Backlog' as const } : { status: 'proposed' }) } });
               }
-              const link = item.kind === 'Ticket' && kind !== 'Epic' ? { sourceId: childId, predicate: kind === 'Feature' ? 'implements' : 'addresses', targetId: id } : { sourceId: id, predicate: kind === 'Epic' && item.kind !== 'Ticket' ? 'targets' : 'contains', targetId: childId };
+              const link = kind === 'Epic'
+                ? { sourceId: id, predicate: item.kind === 'Ticket' ? 'contains' : 'targets', targetId: childId }
+                : kind === 'Feature'
+                  ? { sourceId: childId, predicate: 'implements', targetId: id }
+                  : item.kind === 'Feature'
+                    ? { sourceId: childId, predicate: 'enables', targetId: id }
+                    : { sourceId: childId, predicate: 'addresses', targetId: id };
               if (!(await store.getOutgoing(link.sourceId, link.predicate)).some(edge => store.localId(edge.targetId) === link.targetId)) mutations.push({ kind: 'product_link', ...link });
             }
             for (const aspectId of proposal.aspectIds) {
@@ -183,7 +194,15 @@ export abstract class WorkflowEntity extends AbstractEntity {
             countEngineering('artifactsCreated', batchCreated.length); countEngineering('artifactsReused', batchReused.length);
             knownGaps.push(...proposal.gaps); reviewInputs.push(reviewInput); processed.push(id); accepted = true;
             const outgoing = await store.getOutgoing(entity.id), incoming = await store.getIncoming(entity.id);
-            const descendants = [...childIds, ...outgoing.filter(e => ['targets', 'contains'].includes(e.predicateName)).map(e => store.localId(e.targetId)), ...incoming.filter(e => e.predicateName === (kind === 'Feature' ? 'implements' : 'addresses')).map(e => store.localId(e.sourceId))];
+            const descendants = [
+              ...childIds,
+              ...outgoing.filter(e => kind === 'Epic' && ['targets', 'contains'].includes(e.predicateName)).map(e => store.localId(e.targetId)),
+              ...incoming.filter(e =>
+                kind === 'Feature' ? e.predicateName === 'implements'
+                  : kind === 'UserStory' ? ['addresses', 'enables'].includes(e.predicateName)
+                    : false
+              ).map(e => store.localId(e.sourceId))
+            ];
             for (const childId of new Set(descendants)) {
               const child = await store.getEntity(childId);
               if (!child || !(child instanceof Feature || child instanceof UserStory || child instanceof Ticket)) continue;
