@@ -224,9 +224,12 @@ function effectForAction(action: string): string {
 }
 
 function normalizeObject(value: string): string {
+  if (value === 'next') return ''
   const canonical: Record<string, string> = {
     user: 'story',
     stories: 'story',
+    task: 'ticket',
+    tasks: 'ticket',
     tickets: 'ticket',
     features: 'feature',
     epics: 'epic',
