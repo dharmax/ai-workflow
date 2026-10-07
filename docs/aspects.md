@@ -51,14 +51,14 @@ If scope-specific criteria differ materially, prefer a narrower Aspect entity (f
 One new semantic predicate is justified:
 
 ~~~
-Aspect --applies_to--> Idea | Module | Epic | Feature | UserStory
+Aspect --applies_to--> Idea | Goal | Concept | Flow | Module | Epic | Feature | UserStory
 ~~~
 
 Aspect deliberately does not apply directly to Ticket. Tickets are executable work and inherit concerns from the scopes they serve.
 
 An Aspect attached to an Epic constrains that initiative's work; it does not become a permanent property of every Feature targeted by the Epic.
 
-An Aspect attached to a Feature is durable with the Feature and flows to its contained Stories and implementing/addressing work.
+An Aspect attached to a Feature is capability-scoped and flows to work implementing that Feature. It does not automatically flow into Stories merely because the Feature enables them. Actor-journey concerns belong on Flow/Goal/Story scopes.
 
 ### Project-wide scope
 
@@ -98,11 +98,14 @@ get_applicable_aspects(entityId)
 The resolver is constrained, not generic graph inheritance.
 
 - Idea: direct Aspects applying to the Idea.
+- Goal: direct Aspects applying to the Goal.
+- Concept: direct Aspects applying to the Concept.
+- Flow: direct Aspects plus Aspects applying to Goals the Flow serves.
+- UserStory: direct Aspects plus Aspects inherited through containing Flows.
+- Feature: direct Aspects applying to the Feature; do not inherit from Stories it enables or targeting Epics.
 - Module: direct Aspects applying to the Module.
 - Epic: direct Aspects applying to the Epic.
-- Feature: direct Aspects applying to the Feature; do not inherit from targeting Epics.
-- UserStory: direct Aspects plus Aspects applying to containing Features.
-- Ticket: derive from containing Epics, implemented Features, addressed Stories (including their containing Features), explicitly targeted Modules, and parent Tickets through the same bounded scope resolution.
+- Ticket: derive from containing Epics, implemented Features, addressed Stories (including their Flow/Goal scope), explicitly targeted Modules, and parent Tickets through the same bounded scope resolution.
 
 Deduplicate by Aspect ID and detect Ticket-containment cycles. No unrestricted traversal.
 
@@ -175,7 +178,7 @@ await aspect.removeFrom(scope)
 await aspect.assess(scope)
 ~~~
 
-Ticket/Feature/UserStory/Epic/Module entities expose their own applicable-Aspect query where that behavior is tightly tied to their graph neighborhood, for example `ticket.applicableAspects()`.
+Goal/Concept/Flow/Ticket/Feature/UserStory/Epic/Module entities expose their own applicable-Aspect query where that behavior is tightly tied to their graph neighborhood, for example `ticket.applicableAspects()`.
 
 Cross-scope resolution may use one small shared helper internally; the helper is not the public domain model.
 
@@ -207,7 +210,7 @@ The mutation layer should distinguish mutable intent entities from valid relatio
 Required relation shapes:
 
 ~~~
-Aspect   --applies_to--> Idea | Module | Epic | Feature | UserStory
+Aspect   --applies_to--> Idea | Goal | Concept | Flow | Module | Epic | Feature | UserStory
 Ticket   --addresses---> Aspect
 Test     --verifies----> Aspect
 Artifact --verifies----> Aspect
