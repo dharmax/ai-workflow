@@ -134,6 +134,43 @@ describe('top-level Product Intent actor journeys', () => {
     expect(evidence.get('CONCEPT-PRIME')?.provenance).toBe('Scope governing Concept')
   })
 
+  it('J1.2 gives Story processing the upstream Goal Concept and Flow context', async () => {
+    const goal = await store.upsertEntity<Goal>(Goal.dcr, {
+      id: 'GOAL-CLEAR', title: 'Keep work clear', body: 'The developer should understand why a change exists.', status: 'accepted'
+    })
+    const concept = await store.upsertEntity<Concept>(Concept.dcr, {
+      id: 'CONCEPT-JOURNEY', title: 'Journey first', body: 'Capabilities derive from actor journeys.', status: 'accepted'
+    })
+    const flow = await store.upsertEntity<Flow>(Flow.dcr, {
+      id: 'FLOW-DESIGN', title: 'Shape a product change', actor: 'Developer',
+      body: 'The developer starts with intent and ends with grounded work.', status: 'accepted'
+    })
+    const story = await store.upsertEntity<UserStory>(UserStory.dcr, {
+      id: 'STORY-SHAPE', title: 'Developer shapes one change', actor: 'Developer',
+      story: 'The developer describes a change, sees how it serves existing intent, and accepts a grounded product shape.',
+      acceptanceCriteria: ['The proposed work preserves its upstream product meaning'], status: 'accepted'
+    })
+    await store.relate(flow, 'serves', goal)
+    await store.relate(concept, 'governs', flow)
+    await store.relate(flow, 'contains', story)
+
+    let context: any
+    const result = await story.process(store, {
+      critic: 'none',
+      systemOne: { assess: async () => null } as any,
+      propose: async input => {
+        context = input
+        return { items: [], aspectIds: [], gaps: [], required: [], rationale: 'No new work in this context test.' }
+      }
+    })
+
+    expect(result.status).toBe('complete')
+    const byId = new Map(context.existing.map((item: any) => [item.id, item]))
+    expect(byId.get('FLOW-DESIGN')?.provenance).toBe('Story containing Flow')
+    expect(byId.get('GOAL-CLEAR')?.provenance).toBe('Flow served Goal')
+    expect(byId.get('CONCEPT-JOURNEY')?.provenance).toBe('Scope governing Concept')
+  })
+
   it('J6.1 leaves pure technical work as a direct Ticket without inventing product ceremony', async () => {
     const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {
       id: 'TKT-TECH',
