@@ -4,7 +4,7 @@
  */
 
 import { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, FileNode, SymbolNode, ModuleNode } from '../graph/ontology.ts';
+import { Epic, Feature, Flow, UserStory, Ticket, TestNode, FileNode, SymbolNode, ModuleNode } from '../graph/ontology.ts';
 
 export type CoverageGapKind =
   | 'missing_parent'
@@ -71,15 +71,23 @@ export async function getCoverage(store: WorkflowStore, entityId: string): Promi
 }
 
 async function getUserStoryCoverage(store: WorkflowStore, story: UserStory, localId: string): Promise<CoverageReport> {
-  const [featurePreds, epicPreds, ticketPreds, testPreds, blockPreds] = await Promise.all([
+  const [containsPreds, enablePreds, epicPreds, ticketPreds, testPreds, blockPreds] = await Promise.all([
     store.getIncoming(story.id, 'contains'),
+    store.getIncoming(story.id, 'enables'),
     store.getIncoming(story.id, 'targets'),
     store.getIncoming(story.id, 'addresses'),
     store.getIncoming(story.id, 'verifies'),
     store.getIncoming(story.id, 'blocks')
   ]);
 
-  const features = featurePreds.map(p => store.localId(p.sourceId)).sort();
+  const flows: string[] = [];
+  const legacyFeatures: string[] = [];
+  for (const pred of containsPreds) {
+    const source = await store.getEntity(pred.sourceId);
+    if (source instanceof Flow) flows.push(store.localId(source.id));
+    else if (source instanceof Feature) legacyFeatures.push(store.localId(source.id));
+  }
+  const features = [...new Set([...enablePreds.map(p => store.localId(p.sourceId)), ...legacyFeatures])].sort();
   const epics = epicPreds.map(p => store.localId(p.sourceId)).sort();
   const tickets = ticketPreds.map(p => store.localId(p.sourceId)).sort();
   const tests = testPreds.map(p => store.localId(p.sourceId)).sort();
@@ -112,10 +120,10 @@ async function getUserStoryCoverage(store: WorkflowStore, story: UserStory, loca
   // Contract: For an accepted Story, report independent structural and causal gaps.
   // Draft/proposed stories return facts without flagging unworked states as failures.
   if (status === 'accepted') {
-    if (features.length === 0) {
+    if (flows.length === 0) {
       gaps.push({
         kind: 'missing_parent',
-        message: `Accepted UserStory '${localId}' is not contained by any Feature.`
+        message: `Accepted UserStory '${localId}' is not contained by any Flow.`
       });
     }
 
@@ -164,16 +172,18 @@ async function getUserStoryCoverage(store: WorkflowStore, story: UserStory, loca
 }
 
 async function getFeatureCoverage(store: WorkflowStore, feature: Feature, localId: string): Promise<CoverageReport> {
-  const [epicPreds, storyPreds, directTicketPreds, directTestPreds, blockPreds] = await Promise.all([
+  const [epicPreds, enabledStoryPreds, legacyStoryPreds, directTicketPreds, directTestPreds, blockPreds] = await Promise.all([
     store.getIncoming(feature.id, 'targets'),
+    store.getOutgoing(feature.id, 'enables'),
     store.getOutgoing(feature.id, 'contains'),
     store.getIncoming(feature.id, 'implements'),
     store.getIncoming(feature.id, 'verifies'),
     store.getIncoming(feature.id, 'blocks')
   ]);
 
+  const storyPreds = [...enabledStoryPreds, ...legacyStoryPreds];
   const epics = epicPreds.map(p => store.localId(p.sourceId)).sort();
-  const stories = storyPreds.map(p => store.localId(p.targetId)).sort();
+  const stories = [...new Set(storyPreds.map(p => store.localId(p.targetId)))].sort();
   const directTickets = directTicketPreds.map(p => store.localId(p.sourceId));
   const directTests = directTestPreds.map(p => store.localId(p.sourceId));
 
@@ -328,11 +338,12 @@ async function getEpicCoverage(store: WorkflowStore, epic: Epic, localId: string
   // Pre-load contained stories for targeted features for behavioral path matching
   const featureContainedStories = new Map<string, Set<string>>();
   for (const fId of targetFeatures) {
-    const outgoing = await store.getOutgoing(fId, 'contains');
+    const [enabled, legacy] = await Promise.all([
+      store.getOutgoing(fId, 'enables'),
+      store.getOutgoing(fId, 'contains')
+    ]);
     const sSet = new Set<string>();
-    for (const p of outgoing) {
-      sSet.add(store.localId(p.targetId));
-    }
+    for (const p of [...enabled, ...legacy]) sSet.add(store.localId(p.targetId));
     featureContainedStories.set(fId, sSet);
   }
 
