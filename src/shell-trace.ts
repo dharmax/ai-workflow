@@ -30,7 +30,7 @@ export function formatShellTrace(session: ShellSession): string {
     `Request: ${instruction}`,
     `Mode: ${mode.toUpperCase()}`,
     `Status: ${run.status} · ${run.elapsedMs} ms · ${session.viewport!.getSteps().length} steps`,
-    `Step budget: ${session.actor.maxSteps}`,
+    `Step budget: ${result?.stepBudget ?? session.actor.maxSteps}`,
     session.trace.discoveryElapsedMs !== undefined ? `Discovery completed at +${session.trace.discoveryElapsedMs} ms` : '',
     session.trace.initialTools ? `Initially discovered tools: ${session.trace.initialTools.length ? session.trace.initialTools.join(', ') : '(none)'}` : '',
     `Available tools: ${tools ? tools.length ? tools.join(', ') : '(none)' : '(discovery did not complete)'}`,

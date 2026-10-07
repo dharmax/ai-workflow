@@ -2,8 +2,35 @@ import {describe, expect, it} from 'bun:test'
 import {initializeTools, registry} from '../src/tools/index.ts'
 import {ToolDiscovery, semanticsForTool} from '../src/tools/discovery.ts'
 import {getPublicMcpTools} from '../src/tools/surface.ts'
+import type {Asker} from '@dharmax/llm-utils'
 
 describe('semantic tool discovery and surfaces', () => {
+  it('matches the live classified recommend-ticket tuple to the existing selector', async () => {
+    initializeTools()
+    const query = {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}
+    const asker = {json: async () => ({ok: true, data: query})} as unknown as Asker
+    const result = await new ToolDiscovery(registry, asker).discover("what's the next recommeded ticket?", 3)
+    expect(result.query).toEqual(query)
+    expect(result.tools.map(tool => tool.name)).toEqual(['recommend_next_task'])
+    expect(result.error).toBeUndefined()
+  })
+
+  it('reports a valid but unmatched AND query without dropping its constraints', async () => {
+    initializeTools()
+    const query = {mode: ['product'], domain: ['ticket'], object: ['epic'], action: ['recommend'], effect: ['read']}
+    const result = await new ToolDiscovery(registry, {json: async () => ({ok: true, data: query})} as unknown as Asker).discover('recommend an epic')
+    expect(result.query).toEqual(query)
+    expect(result.tools).toEqual([])
+    expect(result.error).toContain('No registered tools match')
+  })
+
+  it('retains classifier failure details instead of silently returning an empty surface', async () => {
+    initializeTools()
+    const result = await new ToolDiscovery(registry, {json: async () => ({ok: false, failure: {message: 'classifier provider unavailable'}})} as unknown as Asker).discover('recommend work')
+    expect(result.tools).toEqual([])
+    expect(result.error).toContain('classifier provider unavailable')
+  })
+
   it('selects only the relevant read tool for an open-ticket question with one classifier call', async () => {
     initializeTools()
     let calls = 0

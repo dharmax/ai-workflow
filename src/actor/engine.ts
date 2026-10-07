@@ -66,11 +66,7 @@ Use only the discovered test, graph, git, or other capabilities shown for this r
     defaultCloudModel: 'gemini-2.5-flash',
     systemPrompt: `You are a Technical Product Manager in [PRODUCT] mode.
 Your objective is roadmap clarity, Epics, Features, User Stories, acceptance criteria, and Kanban lane hygiene.
-When creating or structuring an Epic, always follow the causal flow:
-1. Use propose_epic_structure to propose reuse/creation of stable Features and meaningful User Stories (zero graph mutation).
-2. Surface and review unresolved questions.
-3. Use apply_epic_structure to persist the accepted proposal.
-4. Use get_product_coverage to inspect structural and causal coverage.
+Use only the discovered ticket and planning capabilities shown for this run. Answer the user's actual question from their results; do not expand a read-only question into roadmap creation or inspection of unrelated product artifacts.
 DO NOT automatically generate tickets or implementation tasks during product roadmap decomposition.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
   }
 };
@@ -217,6 +213,7 @@ export class WorkflowActor {
     failed?: boolean;
     issues?: ActorIssue[];
     haltReason?: string;
+    stepBudget?: number;
     targetModel?: string;
     escalated?: boolean;
     escalationReason?: string;
@@ -259,6 +256,11 @@ export class WorkflowActor {
     const config = MODE_CONFIGS[activeMode];
     const selectedNames = new Set(discovery.tools.map(tool => tool.name));
     execOptions?.onDiscovery?.([...selectedNames], activeMode);
+    if (discovery.error) return {
+      ...this.executeFailure(activeMode, events, 'discovery_failed', discovery.error, [{kind: 'tool', source: 'discovery', message: discovery.error}]),
+      discoveredTools: [...selectedNames], stepBudget: 0
+    };
+    const stepBudget = discovery.tools.length ? this.maxSteps : 1;
 
     const cfg = loadConfig(this.projectRoot);
     const policy = cfg.escalation?.policy || 'auto';
@@ -330,7 +332,8 @@ export class WorkflowActor {
 
       const runTools = discovery.tools.map(wrapTool);
       const recoverTool = this.toolDiscovery?.recover?.bind(this.toolDiscovery);
-      let recoveredCount = 0;
+      let recoveryAttempts = 0;
+      const attemptedRecoveries = new Set<string>();
 
       pubsub.trigger('aiwf', 'actor:discovery', {
         mode: activeMode,
@@ -339,11 +342,12 @@ export class WorkflowActor {
       });
 
       const result = await this.session!.run(actor, rawText, {
-        maxSteps: this.maxSteps,
+        maxSteps: stepBudget,
         tools: runTools,
         onMissingTool: recoverTool
           ? async (toolName, parameters) => {
-              if (recoveredCount >= 2) return undefined;
+              if (recoveryAttempts >= 2 || attemptedRecoveries.has(toolName)) return undefined;
+              attemptedRecoveries.add(toolName); recoveryAttempts++;
               const recovered = await recoverTool(
                 rawText,
                 toolName,
@@ -354,7 +358,6 @@ export class WorkflowActor {
               if (!recovered) return undefined;
               selectedNames.add(recovered.name);
               execOptions?.onDiscovery?.([...selectedNames], activeMode);
-              recoveredCount++;
               return wrapTool(recovered);
             }
           : undefined,
@@ -384,7 +387,7 @@ export class WorkflowActor {
       if (!result.ok) {
         return {
           ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
-          discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason
+          discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
         };
       }
 
@@ -398,12 +401,13 @@ export class WorkflowActor {
         escalationReason,
         discoveredTools: [...selectedNames],
         issues: result.issues,
-        haltReason: result.haltReason
+        haltReason: result.haltReason,
+        stepBudget
       };
     } catch (err: any) {
       return {
         ...this.executeFailure(activeMode, events, 'error', err.message, []),
-        discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason
+        discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
       };
     }
   }

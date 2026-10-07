@@ -6,8 +6,8 @@
 | :--- | :---: | :---: | :---: | :--- |
 | `root` | project default | 97 | 0 | None |
 | `src/graph` | project default | 1124 | 0 | None |
-| `src/tools` | project default | 465 | 0 | None |
-| `src/actor` | project default | 269 | 0 | None |
+| `src/tools` | project default | 472 | 0 | None |
+| `src/actor` | project default | 274 | 0 | None |
 | `src/mcp` | project default | 36 | 0 | None |
 | `src/shell` | project default | 158 | 0 | None |
 | `src/cli` | project default | 138 | 0 | None |
@@ -15,13 +15,13 @@
 | `src/config` | project default | 50 | 0 | None |
 | `src/doctor` | project default | 60 | 0 | None |
 | `src/setup` | project default | 115 | 0 | None |
-| `tests` | project default | 899 | 0 | None |
+| `tests` | project default | 902 | 0 | None |
 | `skills` | project default | 10 | 0 | None |
 | `src/terminal` | project default | 58 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
 | `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
 | `@external/@dharmax/context-manager` | project default | 245 | 0 | None |
-| `@external/@dharmax/llm-utils` | project default | 1385 | 0 | None |
+| `@external/@dharmax/llm-utils` | project default | 1393 | 0 | None |
 | `@external/@dharmax/pubsub` | project default | 66 | 0 | None |
 | `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |

@@ -50,6 +50,7 @@ export interface DiscoveredTools {
   query: RegistryQuery
   mode?: 'design' | 'dev' | 'triage' | 'product'
   tools: ToolDefinition[]
+  error?: string
 }
 
 type Vocabulary = Readonly<Record<string, readonly string[]>>
@@ -138,8 +139,13 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
       })
     }
 
-    if (!result.ok || !result.data) return {}
-    return constrainQuery(normalizeQuery(result.data), vocabulary)
+    if (!result.ok || !result.data) throw new Error(`Semantic classification failed: ${result.failure?.message ?? 'No valid classification was returned.'}`)
+    const query = normalizeQuery(result.data)
+    const constrained = constrainQuery(query, vocabulary)
+    if (Object.keys(withoutMode(query)).length && !Object.keys(withoutMode(constrained)).length) {
+      throw new Error(`Semantic classification used unsupported capability values: ${JSON.stringify(query)}`)
+    }
+    return constrained
   }
 }
 
@@ -163,7 +169,9 @@ export class ToolDiscovery {
   async discover(text: string, limit = 5, options: {signal?: AbortSignal; timeoutMs?: number} = {}): Promise<DiscoveredTools> {
     await this.sync()
 
-    const query = await this.classifier.classify(text, options)
+    let query: RegistryQuery
+    try { query = await this.classifier.classify(text, options) }
+    catch (error) { return {query: {}, tools: [], error: error instanceof Error ? error.message : String(error)} }
     const mode = readMode(query)
     const searchable = withoutMode(query)
     if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
@@ -173,7 +181,7 @@ export class ToolDiscovery {
       .map(id => this.tools.get(id))
       .filter((tool): tool is ToolDefinition => tool !== undefined)
 
-    return {query, mode, tools: matches}
+    return {query, mode, tools: matches, ...(matches.length ? {} : {error: `No registered tools match semantic intent: ${JSON.stringify(searchable)}`})}
   }
 
   async recover(
@@ -228,6 +236,7 @@ function normalizeObject(value: string): string {
     user: 'story',
     stories: 'story',
     tickets: 'ticket',
+    task: 'ticket',
     features: 'feature',
     epics: 'epic',
     aspects: 'aspect',

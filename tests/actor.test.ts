@@ -6,6 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
 import { Ticket } from '../src/graph/ontology.ts';
+import type {Asker} from '@dharmax/llm-utils';
 
 const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
   discover: async () => ({
@@ -29,6 +30,63 @@ describe('Cognitive Actor & Mode Switcher', () => {
     store.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  it('answers the next-ticket question through actual semantic discovery and selector execution', async () => {
+    await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 'P1'});
+    let classifierCalls = 0, actorCalls = 0, finalPrompt = '';
+    const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.includes('Classify one AI-Workflow request')) {
+        classifierCalls++;
+        return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
+      }
+      actorCalls++;
+      if (actorCalls === 1) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{callId: 'next', name: 'recommend_next_task', parameters: {}}]}};
+      finalPrompt = prompt;
+      return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'Work on BUG-NEXT: Fix a demonstrated bug.'}};
+    }} as unknown as Asker;
+    const actor = new WorkflowActor({store, projectRoot: tempDir, asker});
+    const result = await actor.execute("what's the next recommeded ticket?");
+    expect(result.failed).toBeUndefined();
+    expect(result.discoveredTools).toEqual(['recommend_next_task']);
+    expect(result.events[0].toolResult).toMatchObject({ticket: {id: 'BUG-NEXT'}});
+    expect(finalPrompt).toContain('BUG-NEXT');
+    expect(result.answer).toContain('BUG-NEXT');
+    expect(classifierCalls).toBe(1); expect(actorCalls).toBe(2);
+  });
+
+  it('stops failed discovery before spending an Actor call on invented tools', async () => {
+    let calls = 0;
+    const asker = {json: async () => {calls++; return {ok: false, failure: {message: 'classifier unavailable'}};}} as unknown as Asker;
+    const actor = new WorkflowActor({store, projectRoot: tempDir, asker});
+    const result = await actor.execute('recommend next ticket');
+    expect(result.failed).toBe(true); expect(result.haltReason).toBe('discovery_failed');
+    expect(result.stepsCount).toBe(0); expect(result.stepBudget).toBe(0);
+    expect(result.answer).toContain('classifier unavailable'); expect(calls).toBe(1);
+  });
+
+  it('stops an unmatched capability query before Actor execution', async () => {
+    let calls = 0;
+    const asker = {json: async () => {calls++; return {ok: true, data: {domain: ['ticket'], object: ['epic'], action: ['recommend']}};}} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute('recommend an epic');
+    expect(result.failed).toBe(true); expect(result.stepsCount).toBe(0);
+    expect(result.answer).toContain('No registered tools match'); expect(calls).toBe(1);
+  });
+
+  for (const names of [['request_tool', 'request_tool'], ['missing_a', 'missing_b', 'missing_c']]) {
+    it(`bounds unsuccessful semantic recovery for ${names.join(', ')}`, async () => {
+      let calls = 0; const recoveries: string[] = [];
+      const asker = {json: async () => ++calls === 1
+        ? {ok: true, data: {thought: '', action: 'tool_call', toolCalls: names.map((name, index) => ({callId: String(index), name, parameters: {toolName: `target_${index}`}}))}}
+        : {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'The requested capabilities are unavailable.'}}} as unknown as Asker;
+      const actor = new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: {
+        ...discover(['get_git_status']), recover: async (_goal, name) => {recoveries.push(name); return undefined;}
+      }});
+      const result = await actor.execute('inspect the unavailable capabilities');
+      expect(recoveries).toEqual([...new Set(names)].slice(0, 2));
+      expect(result.stepsCount).toBe(2);
+      expect(result.issues?.filter(issue => issue.kind === 'tool')).toHaveLength(names.length);
+    });
+  }
 
   it('should accurately classify modes via explicit commands and intent keywords', () => {
     // Explicit commands

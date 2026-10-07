@@ -22,7 +22,7 @@ describe('Shell failure trace and floating inspection', () => {
   });
   afterEach(() => {store.close(); fs.rmSync(root, {recursive: true, force: true});});
 
-  it('reproduces empty discovery and repeated unavailable tools with complete failure evidence', async () => {
+  it('preserves empty-surface failure evidence without repeating unavailable calls', async () => {
     let calls = 0;
     const asker = {json: async () => ({ok: true, data: {thought: 'PRIVATE reasoning must not appear', action: 'tool_call',
       toolCalls: [{callId: String(++calls), name: 'get_product_coverage', parameters: {entityId: 'EPIC-MISSING'}}]}})} as unknown as Asker;
@@ -40,7 +40,9 @@ describe('Shell failure trace and floating inspection', () => {
       expect(trace).toContain('Mode: PRODUCT');
       expect(trace).toContain('Available tools: (none)');
       expect(trace).toContain('Termination: max_steps_exceeded');
-      expect(trace).toContain('Step 3:');
+      expect(trace).toContain('Step 1:');
+      expect(trace).toContain('Step budget: 1');
+      expect(calls).toBe(1);
       expect(trace).toContain('EPIC-MISSING');
       expect(trace).toContain('not available for this run');
       expect(trace).not.toContain('PRIVATE');

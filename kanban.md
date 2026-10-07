@@ -80,6 +80,8 @@ kanban-plugin: board
   - Summary: Audit only Ticket.resolve and TestNode integration against the user supplied lifecycle. Correct demonstrated defects using existing helpers; exclude debug/fix and digest.
 - [x] **TKT-LBBL**: Make shell trace reliable and inspectable with a floating view
   - Summary: Repair shell trace lifecycle, preserve discovery and failure diagnostics, expose complete observable tool calls/results and a floating scrollable viewer via existing shell-ui contracts. Keep routing repair outside this ticket.
+- [x] **TKT-IEG7**: Repair empty tool discovery and repeated unavailable calls for next-ticket requests
+  - Summary: Reproduced live: classifier returns domain ticket, object ticket, action recommend, effect read; recommend_next_task was indexed as next/task and did not match. Fix canonical semantic metadata, surface discovery failures before Actor execution, bound unsuccessful recovery and repeated unavailable calls, remove stale PRODUCT instructions advertising unavailable tools. Preserve narrow AND matching and read-only recommendation semantics.
 
 ## Blocked
 
