@@ -11,6 +11,9 @@ import { WorkflowStore } from './store.ts';
 import {
   Ticket,
   Epic,
+  Goal,
+  Concept,
+  Flow,
   Feature,
   UserStory,
   Decision,
@@ -136,22 +139,24 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   await writeFile(path.join(rootDir, 'epics.md'), epicsMd, 'utf8');
   exportedFiles.push('epics.md');
 
-  // 3. features.md (owns Feature --contains--> UserStory)
+  // 3. features.md (owns canonical Feature --enables--> UserStory; reads legacy contains edges)
   let featuresMd = `# Features & Functional Capabilities\n\n`;
   if (features.length === 0) {
     featuresMd += `*No features recorded yet.*\n`;
   } else {
     for (const feature of features) {
       const featLocalId = store.localId(feature.id);
-      const [epicPreds, storyPreds, ticketPreds, testPreds] = await Promise.all([
+      const [epicPreds, enabledStoryPreds, legacyStoryPreds, ticketPreds, testPreds] = await Promise.all([
         store.getIncoming(feature.id, 'targets'),
+        store.getOutgoing(feature.id, 'enables'),
         store.getOutgoing(feature.id, 'contains'),
         store.getIncoming(feature.id, 'implements'),
         store.getIncoming(feature.id, 'verifies')
       ]);
 
       const epicIds = epicPreds.map(p => store.localId(p.sourceId));
-      const containedStories = userStories.filter(s => storyPreds.some(p => p.targetId === s.id));
+      const storyPreds = [...enabledStoryPreds, ...legacyStoryPreds];
+      const enabledStories = userStories.filter(s => storyPreds.some(p => p.targetId === s.id));
       const criteria = Array.isArray((feature as any).acceptanceCriteria) ? (feature as any).acceptanceCriteria : [];
 
       featuresMd += `## ${featLocalId}: ${(feature as any).title || featLocalId}\n\n`;
@@ -174,9 +179,9 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
         featuresMd += `\n`;
       }
 
-      if (containedStories.length > 0) {
+      if (enabledStories.length > 0) {
         featuresMd += `### User Stories\n`;
-        for (const story of containedStories) {
+        for (const story of enabledStories) {
           const sId = store.localId(story.id);
           featuresMd += `- **${sId}**: ${(story as any).title || sId}\n`;
         }
@@ -226,14 +231,22 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   } else {
     for (const story of userStories) {
       const storyLocalId = store.localId(story.id);
-      const [featurePreds, epicPreds, ticketPreds, testPreds] = await Promise.all([
+      const [containsPreds, enablingPreds, epicPreds, ticketPreds, testPreds] = await Promise.all([
         store.getIncoming(story.id, 'contains'),
+        store.getIncoming(story.id, 'enables'),
         store.getIncoming(story.id, 'targets'),
         store.getIncoming(story.id, 'addresses'),
         store.getIncoming(story.id, 'verifies')
       ]);
 
-      const featureIds = featurePreds.map(p => store.localId(p.sourceId));
+      const flowIds: string[] = [];
+      const legacyFeatureIds: string[] = [];
+      for (const pred of containsPreds) {
+        const source = await store.getEntity(pred.sourceId);
+        if (source instanceof Flow) flowIds.push(store.localId(source.id));
+        else if (source instanceof Feature) legacyFeatureIds.push(store.localId(source.id));
+      }
+      const featureIds = [...new Set([...enablingPreds.map(p => store.localId(p.sourceId)), ...legacyFeatureIds])].sort();
       const epicIds = epicPreds.map(p => store.localId(p.sourceId));
       const ticketIds = ticketPreds.map(p => store.localId(p.sourceId));
       const testIds = testPreds.map(p => store.localId(p.sourceId));
@@ -242,7 +255,8 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
       storiesMd += `## ${storyLocalId}: ${(story as any).title || storyLocalId}\n`;
       storiesMd += `- **Status**: \`${(story as any).status || 'draft'}\`\n`;
       if (story.completenessTarget) storiesMd += `- **Completeness Target**: \`${story.completenessTarget}\`\n`;
-      if (featureIds.length > 0) storiesMd += `- **Feature**: ${featureIds.map(id => `\`${id}\``).join(', ')}\n`;
+      if (flowIds.length > 0) storiesMd += `- **Flows**: ${flowIds.sort().map(id => `\`${id}\``).join(', ')}\n`;
+      if (featureIds.length > 0) storiesMd += `- **Enabling Features**: ${featureIds.map(id => `\`${id}\``).join(', ')}\n`;
       if (epicIds.length > 0) storiesMd += `- **Epics**: ${epicIds.map(id => `\`${id}\``).join(', ')}\n`;
       storiesMd += `- **Actor**: ${(story as any).actor || 'User'}\n`;
       storiesMd += `- **Story**: ${(story as any).story || ''}\n`;
@@ -502,7 +516,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
     }
   }
 
-  // 3. Import features.md (owns Feature --contains--> UserStory)
+  // 3. Import features.md (owns canonical Feature --enables--> UserStory)
   if (existsSync(featuresPath)) {
     const fileStat = await stat(featuresPath);
     if (fileStat.mtimeMs > lastExportedAt + 50) {
@@ -520,7 +534,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         let completenessTarget: CompletenessLevel | null = null;
         let status: IntentStatus = 'draft';
         const acceptanceCriteria: string[] = [];
-        const containedStories: string[] = [];
+        const enabledStories: string[] = [];
         const bodyLines: string[] = [];
 
         let currentSection: 'body' | 'criteria' | 'stories' | 'tickets' | 'tests' | 'coverage' = 'body';
@@ -561,7 +575,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
             if (critMatch) acceptanceCriteria.push(critMatch[1].trim());
           } else if (currentSection === 'stories') {
             const storyMatch = line.match(/^-\s+\*\*([A-Z0-9_-]+)\*\*/);
-            if (storyMatch) containedStories.push(storyMatch[1]);
+            if (storyMatch) enabledStories.push(storyMatch[1]);
           } else if (currentSection === 'body') {
             if (!line.startsWith('- **Epics**:')) {
               bodyLines.push(rawLine);
@@ -580,24 +594,23 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           status
         });
 
-        // Reconcile owned relation: Feature --contains--> UserStory
-        const wantedStories = new Set<string>(containedStories);
-        const existingContains = await store.getOutgoing(featEntity.id, 'contains');
+        // Reconcile the canonical capability relation. Legacy Feature --contains--> Story edges
+        // remain readable but are never authored by projections.
+        const wantedStories = new Set<string>(enabledStories);
+        const existingEnables = await store.getOutgoing(featEntity.id, 'enables');
 
-        for (const link of existingContains) {
+        for (const link of existingEnables) {
           const localStory = store.localId(link.targetId);
           if (!wantedStories.has(localStory)) {
-            await store.unrelate(featEntity.id, 'contains', link.targetId);
+            await store.unrelate(featEntity.id, 'enables', link.targetId);
           }
         }
 
         for (const storyLocalId of wantedStories) {
-          const alreadyLinked = existingContains.some(p => store.localId(p.targetId) === storyLocalId);
+          const alreadyLinked = existingEnables.some(p => store.localId(p.targetId) === storyLocalId);
           if (!alreadyLinked) {
             const storyEntity = await store.getEntity<UserStory>(storyLocalId, UserStory.dcr);
-            if (storyEntity) {
-              await store.relate(featEntity, 'contains', storyEntity);
-            }
+            if (storyEntity) await store.relate(featEntity, 'enables', storyEntity);
           }
         }
 
