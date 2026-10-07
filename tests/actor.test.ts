@@ -232,7 +232,12 @@ describe('Cognitive Actor & Mode Switcher', () => {
       toolDiscovery: discovery,
     })
 
-    const res = await actor.execute('what should I work on?')
+    const toolSnapshots: string[][] = [];
+    let streamedSteps = 0;
+    const res = await actor.execute('what should I work on?', undefined, {
+      onDiscovery: tools => toolSnapshots.push(tools),
+      onStep: () => {streamedSteps++;}
+    })
 
     expect(res.answer).toBe('No pending task.')
     expect(res.events[0]?.toolCall?.name).toBe('recommend_next_task')
@@ -240,6 +245,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(systems[0]).not.toContain('recommend_next_task')
     expect(systems[0]).not.toContain('run_command')
     expect(systems[1]).toContain('recommend_next_task')
+    expect(toolSnapshots).toEqual([['list_tickets'], ['list_tickets', 'recommend_next_task']]);
+    expect(streamedSteps).toBe(res.stepsCount);
   });
 
   it('composes selected existing capabilities for multi-stage natural language', async () => {
