@@ -10,6 +10,8 @@ import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
 import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
 import os from 'node:os';
+import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
+import type {ActorStepRecord} from '@dharmax/llm-utils';
 import {
   TtyInputReader,
   SmartCompleter,
@@ -37,7 +39,8 @@ export interface ShellSession {
   prompter?: InteractivePrompter;
   facilitator?: ParameterFacilitator;
   interactive?: boolean;
-  viewport?: ProcessViewport<any>;
+  viewport?: ProcessViewport<ActorStepRecord & {elapsedMs?: number}>;
+  trace?: ShellTrace;
   renderer?: UiRenderer;
   /** Undefined means semantic auto-mode; set by standalone /design|/dev|/triage|/product. */
   modeOverride?: ShellMode;
@@ -184,7 +187,7 @@ Drill-down and project commands:
   doctor                     - Run comprehensive environment & graph diagnostics
   audit                      - Run architecture & graph integrity audit
   metrics [--operation ...]  - Query persisted performance metrics (--ticket, --since, --tag)
-  trace [on|off|show]        - Control/show Actor execution trace without invoking the LLM
+  trace [on|off|show|open]   - Show the last execution; open a scrollable floating view (Alt+O)
   config [get|set key val]   - View or update settings (.ai-workflow/config.json)
   eval <js-code>             - On-the-fly JavaScript evaluation
   model (or /model)          - Show gateway, provider keys, and mode model assignments
@@ -1242,8 +1245,10 @@ Drill-down and project commands:
   }
 
   if (lower === 'trace' || lower.startsWith('trace ')) {
-    if (!session.viewport) return {output: 'Trace viewport unavailable.'}
     const arg = line.slice(5).trim().toLowerCase()
+    if (arg === 'show' || arg === 'last') return {output: formatShellTrace(session)}
+    if (arg === 'open' || arg === 'window') return {output: await openShellTrace(session)}
+    if (!session.viewport) return {output: 'Trace viewport unavailable.'}
     if (!arg) {
       return {output: `Trace mode: ${session.viewport.getMode()}`}
     }
@@ -1259,10 +1264,7 @@ Drill-down and project commands:
       session.viewport.setMode('compact')
       return {output: 'Trace mode: compact'}
     }
-    if (arg === 'show' || arg === 'last') {
-      return {output: session.viewport.formatBoxedTrace()}
-    }
-    return {output: 'Usage: trace [on|off|full|fold|compact|show]'}
+    return {output: 'Usage: trace [on|off|full|fold|compact|show|open]'}
   }
 
   if (lower.startsWith('config')) {
@@ -1301,18 +1303,36 @@ Drill-down and project commands:
   const delegation = artifactCommand(line.split(/\s+/));
   if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
   const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
-  session.viewport?.start('Thinking...');
+  session.viewport ??= new ProcessViewport({mode: 'fold', interactive: false, traceHint: 'trace show · trace open'});
+  session.trace = {instruction: line, mode: session.actor.mode};
+  session.viewport.start('Discovering tools...');
+  const startedAt = Date.now();
   let result;
   try {
     result = await session.actor.execute(
       line,
       inlineMode ? undefined : session.modeOverride,
-      { onStep: step => session.viewport?.onStep(step) }
+      {
+        onDiscovery: (tools, mode) => {
+          session.trace!.initialTools ??= tools;
+          session.trace!.discoveryElapsedMs ??= Date.now() - startedAt;
+          session.trace!.tools = tools; session.trace!.mode = mode;
+        },
+        onStep: ({thought: _privateReasoning, ...step}) => session.viewport!.onStep({...step, thought: '', elapsedMs: Date.now() - startedAt})
+      }
     );
+    const {events: _privateEvents, ...summary} = result;
+    session.trace.result = summary;
+    session.trace.mode = result.mode;
+    session.trace.tools = result.discoveredTools ?? session.trace.tools;
+  } catch (error) {
+    session.trace.error = error instanceof Error ? error.message : String(error);
+    throw error;
   } finally {
-    // The result status is rendered below once known; on thrown errors stop as failed.
+    session.viewport.stop(!result || result.offlineFallback || result.failed ? 'fail' : 'success');
+    try { saveShellTrace(session); }
+    catch (error) { console.error(`Could not save shell trace: ${error instanceof Error ? error.message : String(error)}`); }
   }
-  session.viewport?.stop(result.offlineFallback || result.failed ? 'fail' : 'success');
 
   let prefix = `[${result.mode.toUpperCase()}]`;
   if (result.escalated) {
@@ -1351,7 +1371,7 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       escalate: ['auto', 'local_only', 'prompt', 'sota'],
       '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
       config: ['get', 'set'],
-      trace: ['on', 'off', 'full', 'fold', 'compact', 'show'],
+      trace: ['on', 'off', 'full', 'fold', 'compact', 'show', 'open'],
       radar: ['refresh'],
       '/radar': ['refresh'],
       graph: ['--type', '--pred', '--from', '--to', '--depth']
@@ -1455,7 +1475,8 @@ export async function startShell(options: {
     interactive: tty.getIsTty(),
     viewport: new ProcessViewport({
       mode: 'fold',
-      interactive: tty.getIsTty()
+      interactive: tty.getIsTty(),
+      traceHint: 'Alt+O · trace show · trace open'
     }),
     renderer
   };
@@ -1479,7 +1500,8 @@ export async function startShell(options: {
     const line = await tty.readLine(promptStr, {
       completer,
       history,
-      cwd: session.projectRoot
+      cwd: session.projectRoot,
+      onToggleProcessView: async () => { const output = await openShellTrace(session); if (output) console.log(output); }
     });
 
     if (line === null) {

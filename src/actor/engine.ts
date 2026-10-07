@@ -5,13 +5,13 @@
  * and honest offline failure reporting.
  */
 
-import { LLMActor, LLMSession, Asker, InMemoryMetricsStore, type ActorIssue } from '@dharmax/llm-utils';
+import { LLMActor, LLMSession, Asker, InMemoryMetricsStore, type ActorIssue, type ActorStepRecord } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
 import { registry, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
-import { ToolDiscovery, type DiscoveredTools } from '../tools/discovery.ts';
+import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from '../tools/discovery.ts';
 import { artifactCommand } from '../artifact-command.ts';
 import { loadConfig } from '../config.ts';
 import { modelRuntime } from '../model-runtime.ts';
@@ -65,13 +65,8 @@ Use only the discovered test, graph, git, or other capabilities shown for this r
     defaultLocalModel: 'qwen2.5-coder:7b',
     defaultCloudModel: 'gemini-2.5-flash',
     systemPrompt: `You are a Technical Product Manager in [PRODUCT] mode.
-Your objective is roadmap clarity, Epics, Features, User Stories, acceptance criteria, and Kanban lane hygiene.
-When creating or structuring an Epic, always follow the causal flow:
-1. Use propose_epic_structure to propose reuse/creation of stable Features and meaningful User Stories (zero graph mutation).
-2. Surface and review unresolved questions.
-3. Use apply_epic_structure to persist the accepted proposal.
-4. Use get_product_coverage to inspect structural and causal coverage.
-DO NOT automatically generate tickets or implementation tasks during product roadmap decomposition.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+Answer the user's full request by reasoning from observed project evidence. Your available tools are a starting set, not the complete capability set; use discover_tools when another part requires evidence you cannot obtain yet. You may compose ticket, graph, product and other relevant capabilities. Keep the user's scope: inspect related artifacts when requested, and make no mutations for read-only questions.
+Treat each tool result as evidence for its actual query and filters. An empty result for one lane or target does not negate evidence from other queries. Finish only after addressing every requested part, or explicitly state the particular part that remains unsupported and the evidence for that limitation. Do not claim a capability is absent before attempting discovery. Do not automatically create implementation work during roadmap decomposition.`
   }
 };
 
@@ -106,7 +101,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
-  toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 }
 
 export class WorkflowActor {
@@ -122,7 +117,7 @@ export class WorkflowActor {
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
   private activeGateway: string = 'auto';
-  private toolDiscovery?: Pick<ToolDiscovery, 'discover'> & Partial<Pick<ToolDiscovery, 'recover'>>;
+  private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 
   constructor(options: WorkflowActorOptions) {
     this.store = options.store;
@@ -207,7 +202,7 @@ export class WorkflowActor {
   async execute(
     instruction: string,
     forcedMode?: ShellMode,
-    execOptions?: { forceCloud?: boolean; forceModel?: string; signal?: AbortSignal; onStep?: (step: any) => void }
+    execOptions?: { forceCloud?: boolean; forceModel?: string; signal?: AbortSignal; onStep?: (step: ActorStepRecord) => void | Promise<void>; onDiscovery?: (tools: string[], mode: ShellMode) => void }
   ): Promise<{
     mode: ShellMode;
     stepsCount: number;
@@ -216,6 +211,8 @@ export class WorkflowActor {
     offlineFallback?: boolean;
     failed?: boolean;
     issues?: ActorIssue[];
+    haltReason?: string;
+    stepBudget?: number;
     targetModel?: string;
     escalated?: boolean;
     escalationReason?: string;
@@ -256,6 +253,10 @@ export class WorkflowActor {
     activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
     this.mode = activeMode;
     const config = MODE_CONFIGS[activeMode];
+    const selectedNames = new Set(discovery.tools.map(tool => tool.name));
+    execOptions?.onDiscovery?.([...selectedNames], activeMode);
+    const stepBudget = this.maxSteps;
+    const initialIssues: ActorIssue[] = discovery.error ? [{kind: 'tool', source: 'discovery', message: discovery.error, retryable: true}] : [];
 
     const cfg = loadConfig(this.projectRoot);
     const policy = cfg.escalation?.policy || 'auto';
@@ -312,11 +313,12 @@ export class WorkflowActor {
       const actor = new LLMActor(this.asker, {
         maxSteps: this.maxSteps,
         maxToolCatalogChars: 16_000,
-        system: config.systemPrompt
+        system: config.systemPrompt + (discovery.error ? `\nInitial capability lookup failed: ${discovery.error}. This does not establish that the project has no applicable tools. Use discover_tools to request the specific evidence needed, or state the lookup failure accurately.` : '')
       });
 
       const wrapTool = (tool: ToolDefinition) => ({
         name: tool.name,
+        readOnly: semanticsForTool(tool).effect?.every(effect => effect === 'read') === true,
         description: tool.description,
         parameters: tool.parameters as any,
         execute: async (params: any) => {
@@ -325,10 +327,10 @@ export class WorkflowActor {
         }
       });
 
-      const selectedNames = new Set(discovery.tools.map(tool => tool.name));
       const runTools = discovery.tools.map(wrapTool);
-      const recoverTool = this.toolDiscovery?.recover?.bind(this.toolDiscovery);
-      let recoveredCount = 0;
+      let recoveryAttempts = 0;
+      selectedNames.add('discover_tools');
+      execOptions?.onDiscovery?.([...selectedNames], activeMode);
 
       pubsub.trigger('aiwf', 'actor:discovery', {
         mode: activeMode,
@@ -337,24 +339,18 @@ export class WorkflowActor {
       });
 
       const result = await this.session!.run(actor, rawText, {
-        maxSteps: this.maxSteps,
+        maxSteps: stepBudget,
         tools: runTools,
-        onMissingTool: recoverTool
-          ? async (toolName, parameters) => {
-              if (recoveredCount >= 2) return undefined;
-              const recovered = await recoverTool(
-                rawText,
-                toolName,
-                parameters,
-                selectedNames,
-                {signal: execOptions?.signal, timeoutMs: this.timeoutMs}
-              );
-              if (!recovered) return undefined;
-              selectedNames.add(recovered.name);
-              recoveredCount++;
-              return wrapTool(recovered);
-            }
-          : undefined,
+        onDiscoverTools: async request => {
+          if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Answer from existing evidence or explain the remaining gap.');
+          recoveryAttempts++;
+          const found = await this.toolDiscovery!.discover(request, 5, {signal: execOptions?.signal, timeoutMs: this.timeoutMs});
+          if (found.error) throw new Error(found.error);
+          if (!found.tools.length) throw new Error('No applicable capability was discovered for this request.');
+          for (const tool of found.tools) selectedNames.add(tool.name);
+          execOptions?.onDiscovery?.([...selectedNames], activeMode);
+          return found.tools.map(wrapTool);
+        },
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
           preferLocal: preferLocalForRun,
@@ -362,35 +358,26 @@ export class WorkflowActor {
           timeoutMs: this.timeoutMs
         },
         signal: execOptions?.signal,
-        onStep: execOptions?.onStep
-      });
-
-      // Record steps telemetry
-      if (result.steps && Array.isArray(result.steps)) {
-        for (let i = 0; i < result.steps.length; i++) {
-          const s = result.steps[i];
-          const firstCall = s.toolCalls?.[0];
-          const firstResult = s.toolResults?.[0];
+        onStep: async step => {
           const ev: ActorStepEvent = {
-            step: i + 1,
-            mode: activeMode,
-            thought: s.thought,
-            toolCall: firstCall ? { name: firstCall.toolName, params: firstCall.parameters } : undefined,
-            toolResult: firstResult?.result,
-            finalAnswer: s.finalAnswer
+            step: step.step, mode: activeMode,
+            toolCall: step.toolCalls[0] ? {name: step.toolCalls[0].toolName, params: step.toolCalls[0].parameters} : undefined,
+            toolResult: step.toolResults[0]?.result,
+            finalAnswer: step.finalAnswer
           };
           events.push(ev);
           pubsub.trigger('aiwf', 'actor:step', ev);
+          await execOptions?.onStep?.(step);
         }
-      }
+      });
 
       const lastStep = result.steps?.[result.steps.length - 1];
       const finalAnswer = result.finalText || lastStep?.finalAnswer || (result.ok ? 'Instruction processed.' : 'Unable to complete instruction.');
 
-      if (!result.ok && (!result.finalText && !lastStep?.finalAnswer)) {
+      if (!result.ok) {
         return {
-          ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
-          discoveredTools: [...selectedNames]
+          ...this.executeFailure(activeMode, events, result.haltReason, result.error, [...initialIssues, ...result.issues]),
+          discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
         };
       }
 
@@ -403,12 +390,14 @@ export class WorkflowActor {
         escalated: shouldEscalate,
         escalationReason,
         discoveredTools: [...selectedNames],
-        issues: result.issues
+        issues: [...initialIssues, ...result.issues],
+        haltReason: result.haltReason,
+        stepBudget
       };
     } catch (err: any) {
       return {
-        ...this.executeFailure(activeMode, events, 'error', err.message, []),
-        discoveredTools: discovery.tools.map(tool => tool.name)
+        ...this.executeFailure(activeMode, events, 'error', err.message, initialIssues),
+        discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
       };
     }
   }
@@ -426,6 +415,7 @@ export class WorkflowActor {
     events: ActorStepEvent[];
     failed: true;
     issues: ActorIssue[];
+    haltReason: string;
   } {
     const summary = [...new Set(issues.map(issue =>
       `${issue.kind}${issue.source ? `/${issue.source}` : ''}: ${issue.message}`
@@ -438,6 +428,7 @@ export class WorkflowActor {
       answer: `Execution stopped after ${events.length} step(s) (${haltReason}): ${detail}.${issueText}`,
       events,
       failed: true,
+      haltReason,
       issues
     };
   }
