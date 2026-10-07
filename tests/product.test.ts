@@ -4,6 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import {
+  Goal,
+  Concept,
+  Flow,
   Epic,
   Feature,
   UserStory,
@@ -88,9 +91,26 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     }, ctx);
     expect(l2.success).toBe(true);
 
-    // Permitted: Feature contains UserStory
+    await registry.execute('create_goal', { id: 'GOAL-1', title: 'Goal 1' }, ctx);
+    await registry.execute('create_concept', { id: 'CONCEPT-1', title: 'Concept 1' }, ctx);
+    await registry.execute('create_flow', { id: 'FLOW-1', title: 'Flow 1', actor: 'Developer' }, ctx);
+
+    const g1 = await registry.execute('link_product', {
+      sourceId: 'FLOW-1', predicate: 'serves', targetId: 'GOAL-1'
+    }, ctx);
+    expect(g1.success).toBe(true);
+    const g2 = await registry.execute('link_product', {
+      sourceId: 'CONCEPT-1', predicate: 'governs', targetId: 'FLOW-1'
+    }, ctx);
+    expect(g2.success).toBe(true);
+    const g3 = await registry.execute('link_product', {
+      sourceId: 'FLOW-1', predicate: 'contains', targetId: 'STORY-1'
+    }, ctx);
+    expect(g3.success).toBe(true);
+
+    // Permitted: Feature enables UserStory; it does not own the Story.
     const l3 = await registry.execute('link_product', {
-      sourceId: 'FEAT-1', predicate: 'contains', targetId: 'STORY-1'
+      sourceId: 'FEAT-1', predicate: 'enables', targetId: 'STORY-1'
     }, ctx);
     expect(l3.success).toBe(true);
 
@@ -135,7 +155,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       sourceId: 'TKT-1', predicate: 'implements', targetId: 'EPIC-1'
     }, ctx)).rejects.toThrow('Invalid product relation');
 
-    // Rejected: Epic contains UserStory (Feature owns contains Story)
+    // Rejected: Epic contains UserStory (Flow owns Story containment)
     expect(registry.execute('link_product', {
       sourceId: 'EPIC-1', predicate: 'contains', targetId: 'STORY-1'
     }, ctx)).rejects.toThrow('Invalid product relation');
@@ -188,9 +208,11 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       expect(gapKinds).toContain('missing_work');
       expect(gapKinds).toContain('missing_verification');
 
-      // 2. Add containing Feature and criteria
-      await registry.execute('create_feature', { id: 'FEAT-PARENT', title: 'Parent Feature' }, ctx);
-      await registry.execute('link_product', { sourceId: 'FEAT-PARENT', predicate: 'contains', targetId: 'STORY-GAP' }, ctx);
+      // 2. Add containing Flow, enabling Feature, and criteria
+      await registry.execute('create_flow', { id: 'FLOW-PARENT', title: 'Parent Flow', actor: 'Caller' }, ctx);
+      await registry.execute('create_feature', { id: 'FEAT-PARENT', title: 'Enabling Feature' }, ctx);
+      await registry.execute('link_product', { sourceId: 'FLOW-PARENT', predicate: 'contains', targetId: 'STORY-GAP' }, ctx);
+      await registry.execute('link_product', { sourceId: 'FEAT-PARENT', predicate: 'enables', targetId: 'STORY-GAP' }, ctx);
       await registry.execute('update_user_story', {
         storyId: 'STORY-GAP',
         acceptanceCriteria: ['Valid response returned']
@@ -268,13 +290,13 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   // ===========================================================================
   describe('Bounded Product Impact', () => {
     it('bounds context surgically and excludes sibling stories and unrelated nodes', async () => {
-      // Setup Feature with 2 stories: Target Story and Sibling Story
+      // Setup one capability enabling 2 stories: Target Story and Sibling Story
       await registry.execute('create_feature', { id: 'FEAT-AUTH', title: 'Authentication' }, ctx);
       await registry.execute('create_user_story', { id: 'STORY-LOGIN', title: 'User Login', status: 'accepted' }, ctx);
       await registry.execute('create_user_story', { id: 'STORY-LOGOUT', title: 'User Logout', status: 'accepted' }, ctx);
 
-      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'contains', targetId: 'STORY-LOGIN' }, ctx);
-      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'contains', targetId: 'STORY-LOGOUT' }, ctx);
+      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGIN' }, ctx);
+      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGOUT' }, ctx);
 
       // Active Epic targeting Login
       await registry.execute('create_epic', { id: 'EPIC-AUTH', title: 'Auth Epic', status: 'active' }, ctx);
