@@ -14,7 +14,11 @@ This is a compact invariant sheet for coding agents. Use `SKILL.md` for operatio
 
 ## Product/work semantics
 
-- Product Intent is Epic → Feature/UserStory → Ticket, using the canonical relations in `docs/product-intent-graph.md`.
+- Product work begins from concrete actor journeys. A capability sentence is not a UserStory.
+- Product Intent preserves Goal → Concept/Flow → narrative UserStory → enabling Feature → Ticket meaning; Epics remain temporary work scopes targeting that intent.
+- Before adding a product capability, identify the journey that gives it meaning and derive implementation/tests from that journey.
+- Pure technical maintenance may remain direct Ticket work; do not manufacture Goals/Flows/Stories for ceremony.
+- Use the canonical relations in `docs/product-intent-graph.md` and `docs/top-level-product-intent.md`.
 - Technical work does not require ceremonial User Stories.
 - Completeness controls thoroughness, not artifact counts. Depth controls expansion; `maxArtifacts` bounds breadth.
 - Applicable Aspects are part of completeness.
