@@ -139,6 +139,65 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(actorSystem.length).toBeLessThan(8_000)
   });
 
+  it('J2.1 answers the daily next-ticket journey through real semantic discovery', async () => {
+    await store.upsertEntity(Ticket.dcr, {
+      id: 'TKT-DAILY-NEXT',
+      title: 'Daily next work',
+      lane: 'Todo',
+    })
+
+    let actorCalls = 0
+    const actorSystems: string[] = []
+    const mockAsker = {
+      json: async (_prompt: string, _schema: unknown, options: any) => {
+        if ((options.system ?? '').includes('Classify one AI-Workflow request')) {
+          return {
+            ok: true,
+            data: {
+              mode: ['product'],
+              domain: ['ticket'],
+              object: ['ticket'],
+              action: ['recommend'],
+              effect: ['read'],
+            },
+          }
+        }
+
+        actorCalls++
+        actorSystems.push(options.system ?? '')
+        if (actorCalls === 1) {
+          return {
+            ok: true,
+            data: {
+              thought: 'Use the available recommendation capability.',
+              action: 'tool_call',
+              toolCalls: [{callId: '1', name: 'recommend_next_task', parameters: {}}],
+            },
+          }
+        }
+        return {
+          ok: true,
+          data: {
+            thought: 'Report the recommendation.',
+            action: 'final_answer',
+            finalAnswer: 'The next recommended ticket is TKT-DAILY-NEXT.',
+          },
+        }
+      },
+    } as any
+
+    const actor = new WorkflowActor({store, projectRoot: tempDir, asker: mockAsker})
+    const result = await actor.execute("what's the next recommeded ticket?")
+
+    expect(result.mode).toBe('product')
+    expect(result.answer).toBe('The next recommended ticket is TKT-DAILY-NEXT.')
+    expect(result.discoveredTools).toEqual(['recommend_next_task'])
+    expect(result.events.map(event => event.toolCall?.name).filter(Boolean)).toEqual(['recommend_next_task'])
+    expect(actorCalls).toBe(2)
+    expect(actorSystems[0]).toContain('### Tool: recommend_next_task')
+    expect((actorSystems[0].match(/### Tool:/g) ?? []).length).toBe(1)
+  })
+
   it('should expose only semantically discovered ticket tools to the Actor', async () => {
     let call = 0
     const systems: string[] = []
