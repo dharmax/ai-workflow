@@ -97,7 +97,7 @@ Gate:
 Implement the smallest text-compiler support required for:
 
 A. ephemeral behavior-level helper compilation with generated execution delegated through existing authority/sandbox;  
-B. repository source synthesis for exact symbol/new-file code writing.
+B. repository source synthesis for exact symbol, bounded source-range/block, and new-file code writing.
 
 If text-compiler already has an adequate public source-synthesis API, use it. Otherwise add the smallest generic `compileSource`-style API in text-compiler; keep it independent of AIWF/Tickets/filesystem mutation.
 
@@ -144,7 +144,8 @@ Replace duplicate source producers:
    - keeps navigation/references/inspection;
    - gets `write_code`;
    - gets deterministic mutation operations;
-   - cannot hand-author arbitrary replacement/new source through generic `apply_change`;
+   - may keep bounded generic mutation for non-source configuration/documentation;
+   - cannot hand-author AIWF-generated program source through generic `apply_change`;
 3. repair feeds current failure evidence back through `write_code`;
 4. preserve existing tests/TestNodes/acceptance/lease/proof lifecycle.
 
