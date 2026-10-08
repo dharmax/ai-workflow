@@ -260,6 +260,7 @@ The detailed contract is authoritative in `docs/code-writing-design.md`.
 First version is intentionally narrow:
 
 - exact existing symbol replacement;
+- exact bounded source-range/block replacement using freshly observed old text;
 - explicit new source file.
 
 It does not perform broad target discovery.
@@ -358,13 +359,13 @@ Produce:
 
 ### Phase 1 — shared skill runtime
 
-Integrate skill-manager find/activate only.
+Integrate skill-manager find/activate only, using a small test fixture skill to prove the host integration.
 
-Then add the concise built-in `software-implementation` skill and prove activation/context/capability metadata.
+Do **not** add the production `software-implementation` skill before its required canonical writer exists; avoid shipping guidance that points at a missing capability.
 
 No skill authoring/promotion.
 
-**Gate 1:** skill-guided fixture succeeds; skill absence cannot bypass hard safety.
+**Gate 1:** find/activate works lazily with no duplicate index; skill absence cannot bypass hard safety.
 
 ### Phase 2 — text-compiler boundaries
 
@@ -375,15 +376,19 @@ Do not yet modify Ticket.resolve.
 
 **Gate 2:** helper computation is safe/ephemeral/provenant; source synthesis produces valid bounded source without repository mutation.
 
-### Phase 3 — canonical `write_code`
+### Phase 3 — canonical `write_code` + built-in implementation skill
 
 Register one internal capability using text-compiler + existing source intelligence + CausalChangeEngine.
 
-Test exact symbol, new file, dirty target, cancellation, compiler failure, deterministic control.
+Support exact symbol, exact bounded source range/block and explicit new source file. Mark the capability as a mutation through the existing registry semantics; project-write authority remains mandatory.
 
-Do not expose publicly yet.
+Now add the concise built-in `software-implementation` skill and declare/use the canonical writer without inventing a second capability resolver.
 
-**Gate 3:** source-generation mechanism tests prove one canonical producer.
+Test exact symbol, range/import-block, new file, dirty target, cancellation, compiler failure, deterministic control and skill activation.
+
+Do not expose `write_code` publicly yet.
+
+**Gate 3:** source-generation mechanism tests prove one canonical producer and the production skill points only to real available capabilities.
 
 ### Phase 4 — migrate Ticket.resolve
 
