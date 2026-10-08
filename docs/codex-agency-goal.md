@@ -82,7 +82,7 @@ Classify each failure as tactic selection, missing know-how, missing composition
 
 Integrate `@dharmax/skill-manager` with the smallest explicit source configuration.
 
-Add the concise built-in `software-implementation` instructional skill specified in `docs/code-writing-design.md`.
+Use a fixture skill to prove find/activate. Do **not** ship the production `software-implementation` skill yet because `write_code` does not exist in this phase.
 
 Do not implement durable skill authoring/promotion.
 
@@ -112,7 +112,7 @@ Gate:
 Add one internal AIWF capability following `docs/code-writing-design.md`.
 
 Requirements:
-- grounded exact target only;
+- grounded exact target only (symbol, bounded source range/block, or explicit new source file);
 - fresh target source/context read by the capability;
 - text-compiler generates source;
 - CausalChangeEngine previews/applies;
@@ -123,9 +123,13 @@ Requirements:
 
 Do **not** add `write_code` to public MCP yet.
 
+After the capability exists, add the concise built-in `software-implementation` skill specified in `docs/code-writing-design.md`.
+
 Gate:
 - exact symbol;
+- exact range/import block;
 - new file;
+- production skill activation;
 - deterministic rename control;
 - dirty target;
 - abort;
