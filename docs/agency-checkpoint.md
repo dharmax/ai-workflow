@@ -1,5 +1,7 @@
 # Agency preservation checkpoint — 2026-10-08
 
+> **Historical checkpoint.** Its preserved evidence remains authoritative for what was observed at this point, but its “Stop and resume point” instructions are superseded by `docs/agency-constitution.md`, `docs/code-writing-design.md`, `docs/agency-restoration-plan.md`, and `docs/codex-agency-goal.md`. Do not resume from the old shell-centric sequence.
+
 The checkpoint is a preservation milestone, not general-agency acceptance. The user explicitly authorized stabilizing, committing and pushing the reviewed master changes, then stopping implementation. This checkpoint authorization overrides the constitution's merge prohibition for these preservation commits only; it does not relax the original Agency Gate or authorize skill-manager integration. TKT-8D3F and sibling TKT-GKDN remain In Progress, without Done or restored-agency claims.
 
 ## Retained changes and evidence
