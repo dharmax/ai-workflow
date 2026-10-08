@@ -172,7 +172,9 @@ Do not implement durable skill authoring in the restoration path.
 
 ### Built-in `software-implementation` skill
 
-Add only when the runtime integration exists. It is instructional, not executable.
+Add only when the runtime integration and `write_code` capability exist. It is instructional, not executable.
+
+`resolve_ticket` activates this known skill directly by ID; the general Actor discovers skills semantically. Package/configure the built-in `skills/` source explicitly and read-only rather than depending on cwd/home-directory accidents.
 
 It contains AIWF-specific engineering discipline, not generic programming education:
 
