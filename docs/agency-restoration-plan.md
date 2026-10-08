@@ -1,345 +1,584 @@
-# Agency restoration plan
+# Agency restoration — strategy, skills and compiled composition
 
-**Status:** authoritative implementation plan for restoring general Actor competence on `master`.  
-**Tracking context:** supersedes the discovery-centered implementation direction of `docs/fix-plan-1.md`.  
-**Constitution:** `docs/agency-constitution.md`.
+**Status:** authoritative design + implementation plan for J2.4 on `master`.  
+**Supersedes:** the shell-centric portions of the earlier agency-restoration plan.  
+**Preserve:** the 2026-10-08 checkpoint improvements unless a reproduced defect requires changing them.
 
-The objective is not “better tool discovery”. It is:
+## 0. Actor journey
 
-> **An AIWF Actor understands the user's goal and can pursue it generically using reasoning, observed evidence, universal primitives, specialized capabilities, temporary self-extension and external knowledge where available.**
+### J2.4 — solve an unfamiliar goal without a predeclared workflow
 
-The implementation must remain small. Do not add a planner/orchestrator around the LLM; the LLM Actor already is the planner.
+A developer asks AIWF for an outcome that is not directly represented by one specialized capability. AIWF understands the outcome, cheaply assesses the shape of the work, and chooses useful means rather than guessing a tool name.
 
----
+It may:
 
-## 1. Proven current failure
+- reason directly from already observed evidence;
+- discover a specialized capability;
+- find and activate reusable know-how through skill-manager;
+- compile a bounded one-off deterministic helper when the task is naturally a computation/composition;
+- use general environment execution for inspection and glue;
+- obtain external knowledge when methodology is genuinely missing.
 
-Current `WorkflowActor.execute()` performs semantic discovery **before** the Actor run and constructs the run-local catalog from discovered tools. When discovery is empty/insufficient, the Actor can be left without general project hands.
+The Actor remains responsible for the decision. A cheap System-1 assessment may advise it but cannot permit, forbid, or force a route. If one tactic fails, the Actor can choose another. Current-project conclusions remain grounded in observations.
 
-Additional observed/design defects:
+Observable end state: the requested outcome is produced correctly, or AIWF names a concrete inaccessible/unsafe/unauthorized dependency or unresolved user decision. “No matching tool” is never itself the blocker.
 
-- DEV/DESIGN/TRIAGE prompts explicitly say to use only discovered capabilities.
-- Natural-language mode selection is coupled to discovery; discovery failure can leave a request in an unhelpful mode.
-- `run_command` exists but is not guaranteed in the initial Actor surface.
-- `run_command` does not currently propagate `ctx.signal` and truncates output without explicit truncation metadata.
-- self-extension already exists through `compile_codelet`, `run_codelet` and `promote_codelet`, but those facilities can themselves become unreachable when discovery fails.
-- `script_eval` exposes the global registry and therefore is not an acceptable default bootstrap primitive.
-- the registry has a `web` category but AIWF currently registers no web implementation; do not invent a web subsystem merely to pass the present regression.
-- the shared `LLMActor` already supports run-local tools and dynamic missing-capability recovery. Inspect the **actual local sibling source/API** before editing AIWF; do not assume repository snapshots and installed sibling code are identical.
+### Representative real requests
 
-The real-world regression that exposed the architecture:
+1. “what's on the critical path of this project? what's the goal of the project? what's missing?”
+2. “give me the 2nd most recommended next ticket?”
+3. “give me the most recommended and the least recommended tickets and see if they are related to the same main artifacts”
 
-> “what's on the critical path of this project? what's the goal of the project? what's missing?”
-
-The model already knows the methodology. It only needs project evidence. “No suitable tool” is therefore not a legitimate answer.
+These are acceptance examples, not production keywords.
 
 ---
 
-## 2. Target architecture: goal pursuit, not pre-routing
+## 1. What the stopped implementation proved
 
-The critical path becomes:
+Keep the useful checkpoint work:
+
+- discovery-independent `run_command`;
+- dynamic bounded capability discovery;
+- mode as preference rather than competence wall;
+- truthful cancellation/timeout/stdout/stderr/truncation;
+- read-only project filesystem + writable scratch on supported hosts;
+- complete public tool/discovery trace;
+- progress-loop protection;
+- routing/fallback corrections.
+
+But the remaining failures expose a different bottleneck.
+
+The current Actor is still effectively asked to solve nontrivial analytical programs through:
+
+```text
+LLM step
+ -> shell command
+ -> observation
+ -> LLM step
+ -> shell command
+ -> ...
+```
+
+This is a poor fit for tasks requiring retrieval + filtering + ranking + graph traversal + aggregation + comparison. The Actor burns expensive reasoning steps acting as an interpreter, manually invents helpers, loses provenance, and hits its budget.
+
+**Correction:** `run_command` is universal hands, not the universal strategy.
+
+---
+
+## 2. Existing ecosystem facts
+
+Do not reinvent these.
+
+### skill-manager already provides reusable know-how
+
+Current sibling `@dharmax/skill-manager` supports:
+
+- `retrieve(query)` via semantic-registry;
+- `activate(...)` returning full `SKILL.md` context, declared tool descriptions and required capability IDs;
+- `find_skills` host adapter for mid-run discovery;
+- durable `create(...)` through an optional `SkillAuthor`;
+- `TextCompilerSkillAuthor`, which uses text-compiler to create and test a persistent executable skill.
+
+Important boundary: skill-manager **discovers/describes/activates skills**; it does not automatically resolve capability IDs or execute arbitrary declared MCP tools.
+
+### text-compiler already provides deterministic composition
+
+Current sibling `@dharmax/text-compiler` supports:
+
+- `compileCodelet(intent, options)`;
+- generated/static/dynamic verification machinery;
+- caller-authored acceptance tests;
+- execution of compiled codelets;
+- memory-backed codelet repositories;
+- services/capability hooks and bounded recovery.
+
+This is a substantially stronger foundation than AIWF asking the Actor to hand-write ad-hoc shell scripts.
+
+### AIWF's existing compiler tools are not the desired runtime composition path
+
+`src/tools/compiler.ts` currently asks the Actor itself to supply `sourceCode` and `testSourceCode`, then persists records under `.ai-workflow/codelets`.
+
+That is useful as a low-level facility, but it is the wrong abstraction for J2.4:
+
+- the Actor should request **behavior**, not manufacture source as tool arguments;
+- one-off composition should be ephemeral by default;
+- read-only analysis must not persist project codelets;
+- text-compiler already owns synthesis/repair/testing.
+
+Do not build a second compiler.
+
+---
+
+## 3. Target architecture
 
 ```text
 USER GOAL
-   ↓
-Actor understands desired outcome
-   ↓
-What evidence/actions are needed?
-   ↓
-┌──────────────────────────────────────────┐
-│ use existing observations                │
-│ use a specialized capability if useful  │
-│ inspect/act through universal substrate  │
-│ create a temporary helper if useful      │
-│ obtain external knowledge if available   │
-│ ask user only for a genuine blocker      │
-└──────────────────────────────────────────┘
-   ↓
-observe → replan → verify
-   ↓
+   |
+   +--> bounded System-1 tactical assessment (optional advice)
+   |       - task shape
+   |       - evidence needs
+   |       - promising means
+   |       - uncertainty/risk
+   |
+   v
+GENERAL ACTOR  <-----------------------------------+
+   |                                               |
+   +-- direct reasoning over observations          |
+   +-- specialized capability discovery            |
+   +-- skill discovery -> activation/context       |
+   +-- compiled one-off deterministic composition  |
+   +-- universal environment execution             |
+   +-- external knowledge when genuinely needed    |
+   |                                               |
+   +-------------- observe / replan ----------------+
+   |
+   v
 grounded outcome
 ```
 
-There is **no mandatory semantic-discovery step before cognition**.
+There is no deterministic router selecting one path.
 
-### Bootstrap substrate
-
-First hypothesis:
+The Actor may combine paths. For example:
 
 ```text
-run_command
-+ one explicit bounded capability-discovery mechanism
+critical-path request
+ -> activate project-analysis skill if one exists
+ -> discover graph/ticket evidence capabilities
+ -> compile a small graph calculation if useful
+ -> synthesize grounded explanation
 ```
 
-This hypothesis must be proven by the Agency Gate, not defended architecturally.
+Or, if no skill exists:
 
-Why it may be enough:
-
-- `run_command` can inspect files, invoke AIWF deterministic CLI commands, use standard Unix/Bun tooling, and synthesize/run temporary scripts.
-- capability discovery can expose efficient canonical tools when they exist.
-- the Actor's own model supplies methodology and decomposition.
-
-Do **not** automatically add `compile_codelet`, `run_codelet` or `script_eval` to the baseline. If the Agency Gate proves `run_command` insufficient for self-extension, expose the smallest additional safe primitive. `script_eval` is specifically disallowed as baseline in its current global-registry form.
-
-### Specialized discovery
-
-Discovery moves **inside** goal pursuit.
-
-Preferred order:
-
-1. Actor starts immediately with the bootstrap substrate.
-2. Actor reasons about the goal and evidence/actions needed.
-3. Actor requests specialized capabilities only when useful.
-4. Runtime adds only those capabilities to the isolated current run.
-5. If discovery fails, Actor continues with its bootstrap substrate.
-
-Initial semantic prefetch may be reintroduced later only as a measured optimization that:
-- is non-authoritative;
-- cannot remove baseline tools;
-- cannot delay the Actor materially when slow;
-- cannot determine whether the request is solvable;
-- cannot be required for mode correctness.
-
-Until the Agency Gate is green, remove it from the competence-critical path.
+```text
+ -> System-1 says multi-source graph analysis/computation likely
+ -> Actor gathers evidence
+ -> compiler builds deterministic helper over explicit evidence
+ -> Actor checks result and answers
+```
 
 ---
 
-## 3. Capability acquisition ladder
+## 4. System-1 = tactical advisor, never dispatcher
 
-The Actor should naturally choose among these routes; this is not a deterministic workflow engine.
+Use one cheap/bounded LLM call before the main Actor **only if it stays cheap enough in measurement**.
 
-### A. Native reasoning
+It answers: **“What kind of work is this, what evidence is probably needed, and which means look useful?”**
 
-Use model knowledge to understand the method.
+It must not answer:
 
-Example: the model already knows what a project critical path is and what evidence could establish one.
+- which single tool is mandatory;
+- whether the goal is solvable;
+- whether the Actor may use a capability;
+- the final project answer.
 
-### B. Existing specialized capability
+Suggested compact semantic result:
 
-Use a discovered graph/ticket/product/test/etc. tool when it is a convenient high-level fit.
+```ts
+interface TacticalAssessment {
+  taskShape: string
+  evidenceNeeds: string[]
+  usefulMeans: Array<{
+    kind: 'direct' | 'capability' | 'skill' | 'compile' | 'environment' | 'external-knowledge'
+    reason: string
+    query?: string
+  }>
+  uncertainties: string[]
+}
+```
 
-### C. Universal execution
+This shape is advisory. Multiple `usefulMeans` are normal. The Actor may ignore or revise all of them.
 
-Use `run_command` to inspect the project, invoke `aiwf help` / deterministic CLI operations, read files, combine commands, or run a small calculation.
+### Failure contract
 
-### D. Ephemeral self-extension
+- timeout/error/malformed assessment => continue with the Actor without it;
+- no System-1 output may shrink the available bootstrap surface;
+- no System-1 result becomes a persisted “route”;
+- do not run it repeatedly by default.
 
-When shell composition becomes awkward, construct a temporary helper/script/codelet and execute it.
+A second tactical assessment is allowed only after an objective stuck condition (for example repeated no-progress/tool failures) and is bounded to one re-consult. First implementation should omit this unless the initial gate demonstrates a need.
 
-Default: ephemeral.  
-Promote/persist only when reuse or explicit user intent justifies it.
+### Routing
 
-The architecture must prove this path works even when semantic discovery is disabled.
-
-### E. External knowledge
-
-If methodology is genuinely unknown, use a registered web/docs/knowledge capability or another available environment route. This is an escape hatch, not a requirement for the present critical-path regression.
-
-### F. Genuine blocker
-
-Only after viable routes are exhausted may AIWF stop for:
-- unavailable required evidence;
-- denied authorization/safety boundary;
-- unavailable external dependency that is genuinely necessary;
-- ambiguous user decision that cannot safely be inferred.
-
-The final answer must name that concrete blocker, not “tool limitations” generically.
+Use the existing cheap/fast task route through `llm-utils`; do not create another model router. Explicit model/locality/provider restrictions remain authoritative.
 
 ---
 
-## 4. Implementation phases
+## 5. Bootstrap capabilities
 
-### Phase 0 — falsify before fixing
+The bootstrap should represent four **powers**, not one shell-centric fallback:
 
-Before production changes, create black-box regression fixtures that demonstrate the current architecture failing.
+### A. Environment execution
 
-Do not mock model tool choices for journey acceptance.
+Existing truthful `run_command`.
 
-Record the current traces for the exact live regressions. They are evidence, not expected behavior.
+Use for:
+- inspection;
+- canonical AIWF CLI operations;
+- small glue;
+- executing sandboxed generated artifacts.
 
-**Gate 0:** the failure is reproducible and independently understood.
+### B. Capability discovery
 
-### Phase 1 — make the bootstrap primitive truthful
+Existing bounded semantic capability discovery.
 
-Audit and harden `run_command` before making it universally available.
+Use when an existing high-level AIWF capability is likely useful.
 
-Required contract:
+### C. Skill discovery and activation
 
-- parent `AbortSignal` cancels in-flight execution;
-- timeout and cancellation are distinguishable;
-- exit code is explicit;
-- stdout and stderr are explicit;
-- empty output is distinguishable from failure;
-- truncation is explicit (`stdoutTruncated` / `stderrTruncated` or equivalent);
-- working directory behavior is explicit and tested;
-- failures are observations the Actor can reason from;
-- no second shell executor/wrapper is introduced.
+Integrate skill-manager as a first-class source of reusable know-how.
 
-Do not redesign shell safety in this ticket unless a reproduced defect requires it.
+Minimum runtime surface:
 
-**Gate 1:** primitive-truth mechanism tests pass.
+- `find_skills(query, limit?)` — summary cards only;
+- `activate_skill(id)` — full instructions + declared tools + required capability IDs.
 
-### Phase 2 — remove discovery from the entrance gate
+Activation returns context as an observation; it does not silently mutate the Actor system prompt and does not automatically grant tools.
 
-Change the local Actor so the bootstrap substrate is present from step 1 regardless of discovery outcome.
+If a skill requires capabilities, the Actor may discover them through the ordinary capability mechanism.
 
-The Actor must start even when:
-- semantic classifier throws;
-- classifier returns no match;
-- refiner rejects all candidates;
-- discovery is intentionally disabled.
+Do not author a new durable skill during ordinary J2.4 execution.
 
-Prefer no mandatory pre-Actor discovery. If any prefetch remains temporarily, its result may only add optional tools; it must not define the run catalog.
+### D. Ephemeral compiled composition
 
-The exact dynamic-discovery mechanism should use the smallest contract supported by the **actual local `llm-utils`** (`onMissingTool`, explicit discovery hook/tool, or equivalent). Do not fork a second Actor implementation.
+Expose a thin **behavior-level** adapter over text-compiler, conceptually:
 
-**Gate 2:** discovery-disabled mechanism tests still expose bootstrap competence.
+```text
+compile_and_run_helper(
+  intent,
+  input,
+  optional acceptance contract
+) -> {
+  output,
+  verification,
+  source/trace metadata
+}
+```
 
-### Phase 3 — correct Actor instructions
+The Actor specifies *what deterministic transformation is needed* and the explicit input evidence. It does not provide source code.
 
-Remove instructions equivalent to “use only discovered capabilities”.
+Default properties:
 
-Shared invariant to express in every mode:
+- ephemeral / memory-backed;
+- no `.ai-workflow/codelets` persistence;
+- no promotion;
+- no project write permission;
+- bounded compilation/recovery;
+- explicit verification result;
+- explicit input/output provenance in trace.
 
-> You are responsible for achieving the user's goal. Specialized tools are conveniences, not the boundary of what you may attempt. Use general knowledge to choose methods; ground current-project claims in observed evidence. If a capability is missing, discover, compose or construct an alternative before declaring a blocker.
-
-Modes remain preferences:
-- DEV biases implementation/code evidence;
-- PRODUCT biases Product Intent/work evidence;
-- DESIGN biases architecture;
-- TRIAGE biases failures/tests.
-
-They must not make other generally solvable requests impossible.
-
-Do not encode query-specific procedures.
-
-**Gate 3:** the critical-path journey succeeds while forced to DEV mode.
-
-### Phase 4 — prove self-extension
-
-Do not add a new capability framework.
-
-With specialized discovery disabled, give the Actor a fixture requiring a small computation not directly served by a baseline command/tool. It must use universal execution to create/run a temporary helper and finish correctly.
-
-If this fails because `run_command` is genuinely insufficient, only then expose the smallest existing codelet primitive(s), after fixing their execution/cancellation contract. Do not expose `script_eval` globally.
-
-**Gate 4:** missing specialized capability causes composition/creation, not surrender.
-
-### Phase 5 — complete observability
-
-The existing trace must show the evidence needed to diagnose agency:
-
-- bootstrap tools present at start;
-- discovery requests/results/failures;
-- every tool call/result in multi-call steps;
-- commands/helper executions;
-- errors, timeout/cancellation and truncation;
-- catalog additions;
-- elapsed time and termination;
-- final answer.
-
-No private chain-of-thought.
-
-**Gate 5:** an interrupted/failing run remains completely inspectable.
-
-### Phase 6 — Agency Gate: adversarial black-box acceptance
-
-Use realistic isolated fixtures with independently known truth **and** live runs on the AIWF repository.
-
-#### A. Discovery-off project analysis
-
-Disable semantic discovery.
-
-Ask:
-
-> “what's on the critical path of this project? what's the goal of the project? what's missing?”
-
-Fixture contains an explicit Goal, dependency chain/blocker, active work and a known missing/gap condition. The answer must identify them from observed evidence.
-
-#### B. Hidden ideal capability
-
-Hide the preferred recommendation selector.
-
-Ask:
-
-> “give me the 2nd most recommended next ticket?”
-
-The Actor must obtain underlying candidates/evidence and reason to the answer without query-specific production code.
-
-#### C. Compound comparative reasoning
-
-Ask:
-
-> “give me the most recommended and the least recommended tickets and see if they are related to the same main artifacts”
-
-No specialized comparative/ranking handler may exist.
-
-#### D. Misleading discovery
-
-Return an irrelevant or insufficient specialized capability. The Actor must reject/route around it rather than conclude impossibility.
-
-#### E. Self-extension
-
-Disable discovery and request a novel but locally computable aggregate/transformation with no direct specialized tool. The Actor must construct/run a temporary helper and answer correctly.
-
-#### F. Paraphrase/metamorphic check
-
-Ask semantically equivalent versions of A/B/C using substantially different wording. Correctness must survive wording changes. Tool sequences need not be identical.
-
-#### G. Mode independence
-
-Run a Product-like analysis in forced DEV mode. It must still succeed.
-
-#### H. Discovery failure/latency degradation
-
-Make discovery throw or time out. The Actor must continue through the baseline substrate rather than wait for a full discovery retry chain or surrender.
-
-#### I. No special-case implementation
-
-Acceptance prompt strings/phrase fragments may appear in tests/docs, but production `src/` must contain no query-specific critical-path/ordinal/least/second handlers created to pass the gate.
-
-### Acceptance rule
-
-Mechanism tests may mock models. **Agency Gate journeys may not mock the model's action choices.** They must run through the ordinary configured Actor route.
-
-A green suite without Agency Gate success is failure.
+If later reuse is demonstrated, a separate journey may promote the behavior into a durable skill through skill-manager. Runtime success must not depend on promotion.
 
 ---
 
-## 5. Success criteria
+## 6. Critical safety correction for compiled helpers
 
-The restoration is complete only when all are true:
+Do **not** directly execute generated text-compiler code in the AIWF process for read-only requests merely because the compiler API exposes `execute()`.
 
-- the Actor starts with discovery-independent bootstrap competence;
-- mandatory pre-Actor semantic discovery no longer defines solvability;
-- discovery failure degrades convenience/efficiency, not competence;
-- general model knowledge can determine methodology while project claims remain observed;
-- missing specialized capabilities can be composed/created;
-- mode misclassification does not destroy competence;
-- the three real user regressions succeed generically;
-- adversarial discovery-off/misleading-discovery/self-extension gates pass;
-- no query-specific production handlers were added;
-- focused tests, full `bun test`, strict typecheck and affected sibling tests pass;
-- live trace evidence is retained;
-- latency/tool-call counts are measured before/after rather than guessed.
+Generated JavaScript can potentially reach ambient runtime globals. That would bypass the read-only project boundary established around `run_command`.
+
+The integration must reuse the existing execution authority.
+
+Preferred design:
+
+1. compile behavior with text-compiler;
+2. place generated source + explicit input in the host-provided scratch area;
+3. execute/verify through the existing sandboxed process path under the same `ToolContext.executionAuthority`;
+4. return output + verification + provenance;
+5. remove ephemeral artifacts when the run ends.
+
+If text-compiler's normal verification executes generated source in-process, **do not call that unsafe path under read-only authority**. Either:
+- invoke the compiler/verification in a child process under the existing sandbox, or
+- add/reuse a generation-only contract and run all dynamic verification through the sandbox.
+
+Choose the smallest solution after inspecting actual sibling APIs. Do not introduce a second sandbox/executor.
+
+This is a hard gate, not polish.
 
 ---
 
-## 6. Stop conditions
+## 7. Evidence and provenance model
 
-Stop implementation and redesign if any proposal introduces:
+The previous runs showed that generated scratch records can be mistaken for project facts. Composition must therefore distinguish:
 
-- another planner/orchestrator around `LLMActor`;
-- a deterministic classifier that decides whether the Actor may attempt a goal;
-- a full global tool catalog in the prompt;
-- query-specific ranking/critical-path/ordinal logic;
-- a second tool registry/discovery system;
-- a second shell executor;
-- automatic durable promotion of one-off helpers;
-- baseline `script_eval` with global registry access;
-- mode-specific capability walls;
-- component tests presented as proof of agency.
+1. **Observed source evidence** — repository/AIWF/runtime observations.
+2. **Derived computation** — deterministic output computed from explicitly cited observed inputs.
+3. **Generated examples/tests** — useful for verifying a helper, never evidence about the project.
+4. **Model inference** — explanatory synthesis, clearly dependent on 1/2.
 
-The intended correction is mechanically small:
+A compiled helper may derive facts only from explicit input passed by the Actor. It must not manufacture missing source records and then treat them as observations.
 
-> **Start the existing Actor with universal hands, move specialization inside its reasoning loop, preserve grounding, and prove that discovery can disappear without making the Actor stupid.**
+Trace each compiled run with:
+- intent;
+- input provenance references/summary;
+- generated artifact identity/hash;
+- verification result;
+- execution authority;
+- output;
+- cleanup status.
+
+No private reasoning is recorded.
+
+---
+
+## 8. Skill semantics: know-how, not just more tools
+
+Skill discovery should be attempted when the task looks like a recognizable reusable practice: project analysis, release process, debugging procedure, domain workflow, etc.
+
+Activation may teach the Actor:
+- what evidence to gather;
+- preferred algorithm/procedure;
+- constraints;
+- which capabilities are useful.
+
+This is different from capability discovery:
+
+```text
+skill      = how to approach this class of task
+capability = an operation/evidence source
+codelet    = deterministic computation/composition
+```
+
+Do not collapse them into one registry item type merely for architectural symmetry.
+
+Do not create a skill because a one-off helper happened to work. Durable authoring/promotion requires a separate reuse signal or explicit user intent.
+
+---
+
+## 9. Strategy selection principles
+
+The Actor receives the System-1 assessment plus the four bootstrap powers and remains sovereign.
+
+Useful heuristic, expressed as guidance rather than dispatch code:
+
+- simple evidence lookup/action -> direct/capability;
+- known domain procedure -> skill + capabilities;
+- substantial filtering/ranking/aggregation/graph computation -> compile over observed inputs;
+- environment archaeology/glue -> `run_command`;
+- unknown methodology -> skill/external knowledge;
+- combinations are normal.
+
+There must be **no** production switch such as:
+
+```ts
+if (prompt.includes('critical path')) route = 'compiler'
+```
+
+and no mandatory route enum emitted by System-1.
+
+---
+
+## 10. Implementation plan
+
+### Phase 0 — freeze and audit
+
+No production mutation until this phase reports.
+
+1. Preserve current checkpoint commit and evidence.
+2. Inspect actual local sibling versions of:
+   - skill-manager;
+   - text-compiler;
+   - llm-utils.
+3. Trace exact lifecycle for:
+   - `SkillManager.retrieve/activate`;
+   - text-compiler codelet synthesis/test/execute;
+   - execution authority/cancellation/model routing.
+4. Identify the smallest safe adapter points.
+5. Reproduce at least two stopped failures and classify whether failure is:
+   - wrong tactic selection;
+   - missing know-how;
+   - missing deterministic composition;
+   - model quality;
+   - evidence/provenance;
+   - execution contract.
+
+**Gate 0:** concrete integration map + defect table. No guessed APIs.
+
+### Phase 1 — System-1 tactical assessment
+
+Implement one bounded advisory call.
+
+Requirements:
+- uses existing `Asker`/routing;
+- structured compact result;
+- timeout/error falls through;
+- assessment included in Actor context as advice;
+- cannot remove tools/powers;
+- traced separately from discovery;
+- measured latency/cost/model route.
+
+Tests:
+- computation-heavy request suggests compile as one useful means;
+- recognizable skill-like request suggests skill discovery;
+- simple lookup does not needlessly insist on compilation;
+- malformed/failed System-1 leaves Actor runnable;
+- adversarial wrong advice does not prevent another route.
+
+**Gate 1:** advisory behavior improves route quality without becoming control flow.
+
+### Phase 2 — skill-manager runtime integration
+
+Add the minimum adapters for discovery + activation.
+
+Do not implement skill authoring.
+
+Requirements:
+- configured source(s) explicit; do not invent repository paths;
+- lazy activation; full SKILL context stays cold until requested;
+- capability requirements are surfaced but resolved by existing capability discovery;
+- no duplicate semantic index;
+- recent activated skills may remain available through the current session using skill-manager's existing continuity support where useful.
+
+**Gate 2:** Actor solves a fixture whose method is supplied by a skill but whose actual evidence comes from AIWF capabilities/environment.
+
+### Phase 3 — safe ephemeral compiler integration
+
+Replace manual Actor-authored helper scripts as the preferred path for bounded deterministic composition.
+
+Requirements:
+- thin adapter over `@dharmax/text-compiler`;
+- behavior-level intent + explicit input;
+- memory/scratch only;
+- generated code dynamically executes only under the existing execution authority;
+- bounded compile/repair attempts;
+- cancellation propagates;
+- verification result explicit;
+- generated test/example data never becomes project evidence;
+- cleanup guaranteed;
+- no persistence/promotion.
+
+First acceptance should be a pure transformation over explicit JSON input, then a project-analysis computation over observed structured evidence.
+
+**Gate 3:** the self-extension fixture succeeds through text-compiler, not handwritten shell source, while project bytes remain unchanged.
+
+### Phase 4 — Actor strategy guidance
+
+Simplify `AGENCY_INSTRUCTIONS`.
+
+Remove shell-centric wording such as “compose commands or create/run a temporary helper” as the primary fallback.
+
+Replace with concise hierarchy:
+
+> Understand the outcome and evidence needs. Use specialized capabilities or activated skills when useful. Use compiled deterministic composition for nontrivial transformations over explicit evidence. Use environment execution for inspection/glue. Treat tactic failures as observations and replan. Current-project claims require observed evidence.
+
+Do not teach algorithms for acceptance prompts.
+
+**Gate 4:** actor traces show different sensible tactics for lookup, skill-guided work and computation.
+
+### Phase 5 — acceptance redesign
+
+Retain the three real requests, but stop treating “must solve through shell when discovery is off” as the architectural requirement.
+
+New Agency Gate dimensions:
+
+#### A. Outcome correctness
+The answer is independently correct and grounded.
+
+#### B. Tactic freedom
+No exact tool sequence is required unless the fixture is specifically testing a mechanism.
+
+#### C. Composition challenge
+A fixture deliberately requires enough deterministic computation that compiler use is the expected efficient route. A direct route may still pass if demonstrably correct and within budget; production must contain no phrase-specific handler.
+
+#### D. Skill challenge
+A fixture makes key procedural know-how available only through an activated skill while source facts remain external. The Actor must find/use the skill.
+
+#### E. Wrong System-1 advice
+Inject plausible but bad advice. Actor must recover.
+
+#### F. Discovery unavailable
+Specialized capability discovery fails. Actor may still use skills/compiler/environment.
+
+#### G. Compiler unavailable
+Compiler fails. Actor should fall back when the task remains reasonably solvable; otherwise report the concrete failed dependency.
+
+#### H. Provenance trap
+Provide generated/example data alongside real source data. Final project claims must use only real observed evidence.
+
+#### I. Paraphrase
+Semantically equivalent requests remain successful.
+
+#### J. Budget/efficiency
+Compare against stopped shell-centric traces:
+- Actor reasoning steps;
+- shell calls;
+- model calls;
+- elapsed time.
+Do not require arbitrary numeric wins before measuring baseline, but reject a design that adds layers without reducing wandering or improving acceptance.
+
+**Gate 5:** all mechanism-specific fixtures + the three live requests accepted by independent truth review.
+
+### Phase 6 — only after agency works: durable learning
+
+Separate future journey:
+
+> after a useful one-off procedure repeatedly recurs, AIWF may propose promoting it into a durable skill.
+
+Use existing `SkillManager.create + TextCompilerSkillAuthor`.
+
+Do not implement this during restoration unless repeated live evidence proves it is necessary to satisfy J2.4.
+
+---
+
+## 11. Critique / failure modes to actively prevent
+
+### “System-1 becomes the new discovery gate”
+Failure signature: bad assessment chooses one route and the Actor never sees alternatives.
+
+Countermeasure: advice only; full bootstrap remains available; wrong-advice acceptance test.
+
+### “Everything becomes a codelet”
+Compilation has latency and verification cost. Do not compile trivial lookups or prose synthesis.
+
+Countermeasure: tactic assessment + measured route quality; no mandatory compiler rule.
+
+### “Everything becomes a skill”
+Durable skill creation for one-off tasks pollutes the skill repository.
+
+Countermeasure: retrieve/activate only during restoration; promotion separate.
+
+### “Skill-manager duplicates semantic-registry”
+It already uses semantic-registry. AIWF must consume it, not build another skill index.
+
+### “Compiler bypasses safety”
+In-process generated code under read-only authority is unacceptable.
+
+Countermeasure: same sandbox/execution authority as ordinary environment execution.
+
+### “Compiler output becomes evidence”
+Generated code/tests/examples are not project observations.
+
+Countermeasure: explicit provenance boundary.
+
+### “More orchestration than intelligence”
+Do not add a planner, strategy state machine or deterministic routing pipeline.
+
+Countermeasure: one advisory assessment + existing Actor + four powers.
+
+### “Acceptance overfits routes”
+Do not require compiler merely because a prompt contains ranking or graphs.
+
+Countermeasure: accept correct efficient alternate routes except in isolated mechanism fixtures.
+
+---
+
+## 12. Completion criteria
+
+J2.4 restoration is complete only when:
+
+- System-1 provides useful bounded tactical advice and failure is harmless;
+- Actor retains final tactical authority;
+- skill-manager discovery/activation is available without duplicating registries;
+- text-compiler provides safe ephemeral behavior-level composition;
+- generated execution respects read-only/cancellation boundaries;
+- project evidence and generated/derived data remain distinguishable;
+- no query-specific production handlers exist;
+- the three real requests succeed live and are independently grounded;
+- skill, compiler, discovery-failure and wrong-advice fixtures pass;
+- full AIWF + affected sibling suites and strict typechecks pass;
+- traces demonstrate less wandering or materially higher success than the preserved shell-centric baseline;
+- no durable skill/codelet pollution occurs during one-off analysis.
+
+The target is:
+
+> **A general Actor that can cheaply choose how to think, acquire know-how, acquire operations, compile deterministic computation, and use the environment — without any one mechanism becoming a new gatekeeper.**
