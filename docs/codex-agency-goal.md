@@ -1,76 +1,60 @@
-# Codex/AGY goal — restore AIWF agency
+# Codex/AGY goal — restore strategy + composition agency
 
-Execute the authoritative agency restoration plan on `master`.
+**Do not execute the older shell-centric goal.** This goal follows the stopped checkpoint at `4d25930386ae92c1aa812045163521cdcea120d6`.
 
-Read first, in order:
+Read first:
 
 1. `docs/agency-constitution.md`
 2. `docs/agency-restoration-plan.md`
-3. `docs/use-story-catalog.md` — especially J2.4
-4. `docs/fix-plan-1.md` — only for historical defect details; where it conflicts, the agency plan wins
-5. current `src/actor/engine.ts`, `src/tools/os.ts`, `src/tools/discovery.ts`, `src/tools/compiler.ts`, `src/tools/scripting.ts`
-6. the **actual local sibling** `../llm-utils` Actor/session source and types
+3. `docs/agency-checkpoint.md`
+4. J2.4 in `docs/use-story-catalog.md`
+5. actual local sibling sources for `../skill-manager`, `../text-compiler`, `../llm-utils`
 
 ## Goal
 
-Make AIWF's local Actor a real general problem solver again.
+Restore AIWF as a general Actor by giving it good **strategy selection + know-how acquisition + capability acquisition + deterministic composition**, rather than forcing difficult analytical goals through a long shell/ReAct loop.
 
-The Actor must understand a user goal first, decide what evidence/actions are needed, and pursue the outcome using:
-- its own general reasoning;
-- a tiny discovery-independent bootstrap substrate;
-- specialized discovered capabilities when useful;
-- universal shell/project operations;
-- temporary self-created helpers when needed;
-- external knowledge when available and genuinely required.
+Preserve the useful checkpoint work. Do not revert it wholesale.
 
-Semantic discovery must become an optional specialization/optimization, **not an entrance gate or competence boundary**.
+## Required sequence
+
+1. **Phase 0 only first:** audit the exact sibling APIs and classify the stopped failures. Report before broad implementation if any plan assumption is false.
+2. Add one bounded cheap System-1 tactical assessment using existing llm-utils routing. It is advisory only; failure falls through.
+3. Integrate skill-manager for runtime `find + activate` only. No skill authoring/promotion in restoration.
+4. Integrate text-compiler as a thin behavior-level ephemeral composition facility over explicit input evidence.
+5. Generated code must execute/verify under the same execution authority as `run_command`; no read-only bypass through in-process generated execution.
+6. Simplify Actor guidance so shell is one means, not the fallback architecture.
+7. Redesign/run the Agency Gate exactly as specified in `docs/agency-restoration-plan.md`.
+8. Run the three live acceptance requests and independently review grounding/correctness.
+9. Run focused/full/typecheck and affected sibling verification.
 
 ## Hard constraints
 
-- Work on `master`; do not create a branch.
-- Do not add a planner/orchestrator around the LLM.
-- Do not add query-specific code for critical path, “second”, “least”, ranking, or the acceptance prompts.
-- Do not expose the full registry.
-- Do not make `script_eval` a baseline primitive while it exposes the global registry.
-- Do not add a new web subsystem merely to pass the current regression.
-- Do not claim success from mocked model decisions or green component tests.
-- Preserve current-project grounding: general model knowledge may choose methodology; repository facts require observations.
-
-## Required implementation sequence
-
-1. Reproduce/falsify current behavior with black-box agency regressions before fixing.
-2. Audit/harden `run_command` truthfulness: cancellation, timeout, stdout/stderr, exit status, empty output, truncation metadata.
-3. Make the smallest bootstrap substrate available from Actor step 1 regardless of discovery. First hypothesis: `run_command` + the existing explicit bounded discovery mechanism.
-4. Remove mandatory semantic discovery from the competence-critical entrance path. Discovery may add specialized tools later inside the Actor loop.
-5. Remove mode prompts/instructions that restrict the Actor to discovered tools. Modes are preferences, not competence walls.
-6. Prove ephemeral self-extension with discovery disabled. Use universal execution to create/run a temporary helper. Add baseline codelet primitives only if this cannot be done cleanly with the smaller substrate.
-7. Preserve/repair complete trace observability.
-8. Run the full Agency Gate in `docs/agency-restoration-plan.md`.
-9. Run focused tests, full `bun test --concurrency=1`, strict typecheck, diff check, and affected `llm-utils` tests/typecheck if sibling source changed.
-10. Run the mandatory live requests on the ordinary configured route.
-
-Mandatory real requests:
-
-- “what's on the critical path of this project? what's the goal of the project? what's missing?”
-- “give me the 2nd most recommended next ticket?”
-- “give me the most recommended and the least recommended tickets and see if they are related to the same main artifacts”
-
-Also prove discovery-disabled, misleading-discovery, forced-DEV-mode and missing-capability/self-extension cases from the Agency Gate.
+- Work on `master`; no new branch forest.
+- No new planner/orchestrator/strategy state machine.
+- No deterministic single-route dispatcher.
+- No prompt-specific critical-path/ordinal/ranking handlers.
+- No duplicate skill index or capability registry.
+- No new compiler: use `@dharmax/text-compiler`.
+- No durable skill/codelet creation for ordinary one-off analysis.
+- No baseline `script_eval`.
+- Do not make compiler usage mandatory for prompts that are simpler by another route.
+- Do not treat generated scratch/test/example data as project facts.
+- Do not claim success from HTTP 200, schema validity, component tests, or model self-review.
 
 ## Stop/report contract
 
-Do not proceed to Product Intent Phase C or unrelated cleanup.
+When the revised Agency Gate is genuinely green, stop and report:
 
-When the Agency Gate is genuinely green, stop and report:
+1. proven root causes of the stopped failures;
+2. final strategy architecture in <=10 lines;
+3. exact System-1 assessment contract and measured overhead;
+4. exact skill-manager integration;
+5. exact compiler integration and safety boundary;
+6. changed production files and why;
+7. mechanism + adversarial + live acceptance results;
+8. before/after steps/tool calls/model calls/latency where measured;
+9. full/typecheck/sibling verification;
+10. remaining risks.
 
-1. root cause proven from source/runtime;
-2. final architecture in 5-10 lines;
-3. exact bootstrap substrate and why it is minimal;
-4. production files changed and why;
-5. adversarial Agency Gate results;
-6. exact live-request answers/traces and observed tool routes;
-7. focused/full/typecheck/sibling verification;
-8. measured before/after latency/tool-call effects where available;
-9. remaining risks or blockers.
-
-If a live gate fails, leave the work open and report the failure. Do not weaken the gate, special-case the prompt, or declare success from tests.
+If a gate fails, keep it failed and report the evidence. Do not weaken acceptance or special-case the prompt.
