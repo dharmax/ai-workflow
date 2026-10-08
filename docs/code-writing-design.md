@@ -147,6 +147,15 @@ Normative content:
 
 The skill may declare the canonical writer capability as a requirement once the runtime capability ID is established. Do not invent a second capability resolver merely for this declaration.
 
+Runtime packaging/source rules:
+
+- store the built-in definition under AIWF's existing `skills/` tree (for example `skills/software-implementation/`);
+- add/package that tree deliberately when AIWF is distributed; do not rely on the current working-copy layout accidentally being present;
+- configure the AIWF built-in skill source explicitly and read-only;
+- do not scan arbitrary home directories for skills;
+- `resolve_ticket` already knows this skill is relevant, so activate it directly by ID rather than spending a semantic retrieval call;
+- the general Actor uses normal skill-manager retrieve/activate because relevance is not predetermined there.
+
 ### Guidance precedence
 
 Hard enforcement remains outside the skill:
@@ -261,6 +270,8 @@ Return enough truth for the resolver/Actor to continue, for example:
 ```
 
 Do not persist generated source in aggregate metrics or a parallel codelet store. Existing source control + ChangeEngine result + verification receipt are the durable truth.
+
+Implementation should reuse the existing `compiler` tool category/semantic machinery unless Phase-0 evidence shows that its discovery semantics are actually wrong. Do not add a new registry category merely to make `write_code` look prettier.
 
 ---
 
