@@ -152,9 +152,12 @@ The skill may declare the canonical writer capability as a requirement once the 
 Hard enforcement remains outside the skill:
 
 ```text
-ToolContext / ChangeEngine / leases / acceptance invariants
-    > explicit user + Ticket contract
-    > accepted Decisions / Aspects / Lessons / project AGENTS instructions
+ToolContext / ChangeEngine / lease / dirty-target / acceptance invariants
+    > authored implementation constraints considered together:
+        explicit user + Ticket contract
+        accepted Decisions / Aspects / Lessons / Product Intent
+        project AGENTS/repository instructions
+      (material conflict => needs_input / explicit decision; do not silently choose)
     > built-in software-implementation skill
     > generic model knowledge
 ```
@@ -201,6 +204,8 @@ The exact public schema may use existing `ChangeTarget` shapes where possible; d
 - exact existing symbol, exact bounded source range, or explicit new-file path;
 - caller-provided implementation intent grounded in Ticket/user goal;
 - no unowned dirty target unless already authorized by existing resolver rules.
+
+`write_code` must reuse the current dirty-target protection mechanically. If that logic is only inline in Ticket.resolve, extract the smallest shared guard and reuse it; do not duplicate a safety subsystem. Ticket.resolve remains the lease owner for Ticket work — the writer must not create a second leasing lifecycle.
 
 If target discovery is still needed, return a precise target-needed result. Do not make `write_code` perform broad semantic search.
 
@@ -369,9 +374,12 @@ Current implementation Actor may navigate and send arbitrary generated replaceme
 Target Actor tool surface:
 
 - inspection/navigation tools;
-- `write_code` for any AIWF-generated replacement/new source;
+- `write_code` for any AIWF-generated replacement/new **program source**;
 - deterministic mutation tools for rename/refactor/source-actions;
-- no generic route that lets the Actor bypass `write_code` by stuffing generated source into `replace_symbol/create_file/replace_text`.
+- bounded generic change tools may remain for non-source configuration/documentation;
+- no generic route that lets the Actor bypass `write_code` by stuffing AIWF-generated program source into `replace_symbol/create_file/replace_text`.
+
+Whether a file is program source comes from existing file/index evidence and language metadata, never prompt keywords.
 
 The Actor remains useful for finding targets and ordering multiple changes. It stops being an alternate code generator.
 
@@ -489,7 +497,7 @@ An external MCP agent calls `resolve_ticket`; the internal trace proves canonica
 
 ### Anti-bypass assertion
 
-In the resolver implementation Actor, production traces/tests must prove that generative `replace_symbol`, `create_file` and equivalent arbitrary-source changes cannot be authored directly by the Actor outside `write_code`.
+In the resolver implementation Actor, production traces/tests must prove that AIWF-generated **program source** for `replace_symbol`, source-file `replace_text`, source-file `create_file` and equivalent generative changes cannot be authored directly outside `write_code`. Non-source configuration/documentation changes are not forced through a programming source compiler.
 
 ---
 
