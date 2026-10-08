@@ -62,6 +62,10 @@ AIWF implements a Ticket and a relevant test fails. It preserves the failure evi
 
 A developer asks AIWF to resolve a previously verified Ticket again. AIWF sees that the acceptance contract, relevant source, tests and semantic obligations are unchanged, reuses the existing proof, and completes quickly without another implementation/review cycle. If any material input changed, it invalidates the old proof and resumes real verification.
 
+### J3.4 — Turn grounded implementation intent into verified source
+
+A Ticket resolver or coding Actor has established a concrete implementation outcome and exact source target. AIWF loads concise software-implementation know-how, uses one canonical code-writing capability to generate the smallest required source through text-compiler, applies it only through the existing Causal Change Engine, and verifies the real project. If tests or acceptance fail, fresh failure evidence is fed back through the same writer for bounded repair. If the requested mutation is deterministic, AIWF uses the deterministic language/change primitive instead of generative synthesis. The external agent never has to manufacture replacement source or reproduce this internal choreography.
+
 ---
 
 # Epic J4 — Product meaning guides diagnosis and priority
@@ -107,8 +111,9 @@ The first mandatory live journey regressions are:
 1. **J2.1** through the real shell/NL path, compared with deterministic `next`.
 2. **J2.4** through the real local Actor and the adversarial Agency Gate in `docs/agency-restoration-plan.md`: discovery-disabled, misleading-discovery, missing-capability/self-extension, forced-mode and the three exact live regressions.
 3. **J1.1** through real Product Intent proposal/review/apply boundaries.
-4. **J3.1** through real `resolve_ticket` lifecycle boundaries.
-5. **J4.1** using a defect connected to a primary Flow/Goal.
-6. **J5.1** through the public MCP surface.
+4. **J3.1/J3.4** through real `resolve_ticket` lifecycle boundaries, including a generative source change that proves the canonical writer/text-compiler path and a deterministic-change control that bypasses synthesis.
+5. **J3.2** through a real failing implementation followed by bounded repair through the same canonical writer.
+6. **J4.1** using a defect connected to a primary Flow/Goal.
+7. **J5.1** through the public MCP surface.
 
 Mocked classifier/model/tool selections may support lower-level tests but cannot be the sole proof for these journeys.
