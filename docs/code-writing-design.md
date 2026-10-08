@@ -170,6 +170,7 @@ A missing skill may reduce quality but must not disable hard safety or create an
 First version intentionally supports bounded source generation where the target is already concrete:
 
 - replace an exact function/method/class/interface/symbol;
+- replace an exact bounded source range/block in a known source file (for example an import/declaration block) using fresh old text read by AIWF;
 - create a new source file with an explicit path and bounded purpose.
 
 Do not make the first version a repository-wide autonomous coding service. Multi-file work is composed by the resolver/Actor from multiple grounded writes plus deterministic refactors.
@@ -181,6 +182,7 @@ interface WriteCodeRequest {
   intent: string
   target:
     | { kind: 'symbol'; filePath: string; symbolName: string; containerName?: string }
+    | { kind: 'range'; filePath: string; startLine: number; startCharacter: number; endLine: number; endCharacter: number }
     | { kind: 'new-file'; filePath: string }
 
   acceptance?: string[]
@@ -196,7 +198,7 @@ The exact public schema may use existing `ChangeTarget` shapes where possible; d
 ### Preconditions
 
 - project-write authority for mutation;
-- exact existing symbol or explicit new-file path;
+- exact existing symbol, exact bounded source range, or explicit new-file path;
 - caller-provided implementation intent grounded in Ticket/user goal;
 - no unowned dirty target unless already authorized by existing resolver rules.
 
@@ -214,6 +216,15 @@ For an existing symbol:
 6. Preview through CausalChangeEngine.
 7. Apply through CausalChangeEngine under existing authority/dirty-target/lease rules.
 8. Return applied change + synthesis metadata.
+
+For an exact source range/block:
+
+1. Read the fresh bounded old text from the source file.
+2. Gather only the surrounding context required to preserve syntax/conventions.
+3. Ask text-compiler for replacement source for that exact region.
+4. Construct existing `replace_text` using the freshly observed old text; never ask the Actor to provide the old anchor.
+5. Preview/apply through CausalChangeEngine.
+6. Return applied change + synthesis metadata.
 
 For a new file:
 
@@ -451,7 +462,7 @@ Delete only after usage search + tests prove the path is obsolete.
 ### Mechanism gates
 
 1. Exact-symbol `write_code` uses text-compiler source synthesis and ChangeEngine apply; no direct `asker.json` source producer.
-2. New-file write follows the same canonical path.
+2. Exact-range/import-block and new-file writes follow the same canonical path.
 3. Deterministic rename/refactor does not call text-compiler.
 4. Dirty-target/lease/abort protections remain effective.
 5. text-compiler/source synthesis failure produces a concrete blocker; no hidden direct-LLM fallback.
