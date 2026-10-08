@@ -1,5 +1,7 @@
 # Ticket.resolve / TestNode audit
 
+> **Historical implementation audit.** Its verification/test/lease findings remain useful evidence, but the source-generation mechanism described here is being superseded by `docs/code-writing-design.md` and the integrated `docs/agency-restoration-plan.md`. Do not treat the old direct-synthesis/implementation-Actor producer choice as current design authority.
+
 Scope: Ticket resolution only, on master, owned by TKT-SUPY and follow-up TKT-OCTF. Debug/fix and digest are excluded.
 
 ## Permission and responsibility audit
