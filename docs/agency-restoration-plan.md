@@ -1,185 +1,142 @@
-# Agency restoration — strategy, skills and compiled composition
+# Agency restoration — integrated strategy, skills, compiled composition and canonical code writing
 
-**Status:** authoritative design + implementation plan for J2.4 on `master`.  
-**Supersedes:** the shell-centric portions of the earlier agency-restoration plan.  
+**Status:** authoritative design + implementation plan for J2.4, J3.1, J3.2 and J3.4 on `master`.  
+**Companion design:** `docs/code-writing-design.md`.  
 **Preserve:** the 2026-10-08 checkpoint improvements unless a reproduced defect requires changing them.
 
-## 0. Actor journey
+The full correction is now:
 
-### J2.4 — solve an unfamiliar goal without a predeclared workflow
+> **The Actor understands the goal. System-1 may advise. Skills provide reusable know-how. Capabilities provide operations/evidence. text-compiler provides deterministic composition and source synthesis. CausalChangeEngine is the only repository mutation authority. Tests/acceptance prove the result.**
 
-A developer asks AIWF for an outcome that is not directly represented by one specialized capability. AIWF understands the outcome, cheaply assesses the shape of the work, and chooses useful means rather than guessing a tool name.
-
-It may:
-
-- reason directly from already observed evidence;
-- discover a specialized capability;
-- find and activate reusable know-how through skill-manager;
-- compile a bounded one-off deterministic helper when the task is naturally a computation/composition;
-- use general environment execution for inspection and glue;
-- obtain external knowledge when methodology is genuinely missing.
-
-The Actor remains responsible for the decision. A cheap System-1 assessment may advise it but cannot permit, forbid, or force a route. If one tactic fails, the Actor can choose another. Current-project conclusions remain grounded in observations.
-
-Observable end state: the requested outcome is produced correctly, or AIWF names a concrete inaccessible/unsafe/unauthorized dependency or unresolved user decision. “No matching tool” is never itself the blocker.
-
-### Representative real requests
-
-1. “what's on the critical path of this project? what's the goal of the project? what's missing?”
-2. “give me the 2nd most recommended next ticket?”
-3. “give me the most recommended and the least recommended tickets and see if they are related to the same main artifacts”
-
-These are acceptance examples, not production keywords.
+No one mechanism is allowed to become the new gatekeeper.
 
 ---
 
-## 1. What the stopped implementation proved
+## 1. Prime Directive and actor journeys
 
-Keep the useful checkpoint work:
+All implementation derives from the existing narrative journeys, not capability lists.
 
-- discovery-independent `run_command`;
-- dynamic bounded capability discovery;
-- mode as preference rather than competence wall;
-- truthful cancellation/timeout/stdout/stderr/truncation;
-- read-only project filesystem + writable scratch on supported hosts;
+### J2.4 — unfamiliar project goal
+
+A developer asks AIWF for an outcome not directly represented by one named capability. AIWF understands the outcome/evidence needs, receives optional cheap tactical advice, and chooses/composes useful means: direct reasoning, specialized capabilities, skills, compiled helper computation, environment execution or external knowledge. It replans when a tactic fails and grounds current-project claims in observed/derived evidence.
+
+### J3.4 — grounded intent to verified source
+
+A Ticket resolver or coding Actor already knows the intended implementation and exact source target. AIWF loads concise software-implementation know-how, asks one canonical writer for the smallest source change, applies it through CausalChangeEngine, verifies the real project, and feeds failures back through the same writer for bounded repair. Deterministic refactors bypass generative synthesis.
+
+### J3.1/J3.2 — resolve and repair
+
+`resolve_ticket` owns the full lifecycle: grounded investigation, preparation, target navigation, canonical implementation, project tests, bounded repair, independent acceptance and durable proof.
+
+These stories are the acceptance boundary. Tool-selection tests are not.
+
+---
+
+## 2. What is already worth keeping
+
+The stopped agency implementation produced useful infrastructure:
+
+- discovery-independent truthful `run_command`;
+- bounded dynamic capability discovery;
+- mode as preference, not competence wall;
+- cancellation/timeout/stdout/stderr/truncation truth;
+- read-only project isolation + writable scratch on supported hosts;
 - complete public tool/discovery trace;
-- progress-loop protection;
+- progress/no-evidence loop guards;
 - routing/fallback corrections.
 
-But the remaining failures expose a different bottleneck.
+Do not undo those broadly.
 
-The current Actor is still effectively asked to solve nontrivial analytical programs through:
+But two conceptual defects remain:
+
+1. **General goals are still too often forced through repeated LLM -> shell -> observation loops**, even when the work is naturally a deterministic analytical program.
+2. **Repository source generation is duplicated and ad hoc**: direct LLM exact-target synthesis, Actor-authored replacement text, low-level actor-authored codelets, while text-compiler exists separately.
+
+The integrated plan fixes both.
+
+---
+
+## 3. Semantic roles — keep them distinct
 
 ```text
-LLM step
- -> shell command
- -> observation
- -> LLM step
- -> shell command
- -> ...
+Actor        = general goal pursuit and tactical decisions
+System-1     = cheap tactical advice
+Skill        = reusable know-how / procedure
+Capability   = operation or evidence source
+Codelet      = deterministic executable composition
+write_code   = canonical repository source producer
+text-compiler= text -> code/codelet synthesis + bounded repair machinery
+ChangeEngine = repository mutation/structural verification
+Tests        = execution evidence
+Acceptance   = semantic proof of the actor/Ticket outcome
 ```
 
-This is a poor fit for tasks requiring retrieval + filtering + ranking + graph traversal + aggregation + comparison. The Actor burns expensive reasoning steps acting as an interpreter, manually invents helpers, loses provenance, and hits its budget.
-
-**Correction:** `run_command` is universal hands, not the universal strategy.
+Do not collapse these merely for symmetry.
 
 ---
 
-## 2. Existing ecosystem facts
-
-Do not reinvent these.
-
-### skill-manager already provides reusable know-how
-
-Current sibling `@dharmax/skill-manager` supports:
-
-- `retrieve(query)` via semantic-registry;
-- `activate(...)` returning full `SKILL.md` context, declared tool descriptions and required capability IDs;
-- `find_skills` host adapter for mid-run discovery;
-- durable `create(...)` through an optional `SkillAuthor`;
-- `TextCompilerSkillAuthor`, which uses text-compiler to create and test a persistent executable skill.
-
-Important boundary: skill-manager **discovers/describes/activates skills**; it does not automatically resolve capability IDs or execute arbitrary declared MCP tools.
-
-### text-compiler already provides deterministic composition
-
-Current sibling `@dharmax/text-compiler` supports:
-
-- `compileCodelet(intent, options)`;
-- generated/static/dynamic verification machinery;
-- caller-authored acceptance tests;
-- execution of compiled codelets;
-- memory-backed codelet repositories;
-- services/capability hooks and bounded recovery.
-
-This is a substantially stronger foundation than AIWF asking the Actor to hand-write ad-hoc shell scripts.
-
-### AIWF's existing compiler tools are not the desired runtime composition path
-
-`src/tools/compiler.ts` currently asks the Actor itself to supply `sourceCode` and `testSourceCode`, then persists records under `.ai-workflow/codelets`.
-
-That is useful as a low-level facility, but it is the wrong abstraction for J2.4:
-
-- the Actor should request **behavior**, not manufacture source as tool arguments;
-- one-off composition should be ephemeral by default;
-- read-only analysis must not persist project codelets;
-- text-compiler already owns synthesis/repair/testing.
-
-Do not build a second compiler.
-
----
-
-## 3. Target architecture
+## 4. Target architecture
 
 ```text
 USER GOAL
    |
-   +--> bounded System-1 tactical assessment (optional advice)
-   |       - task shape
-   |       - evidence needs
-   |       - promising means
-   |       - uncertainty/risk
+   +--> optional bounded System-1 assessment
+   |      task shape / evidence needs / promising means / uncertainty
    |
    v
-GENERAL ACTOR  <-----------------------------------+
-   |                                               |
-   +-- direct reasoning over observations          |
-   +-- specialized capability discovery            |
-   +-- skill discovery -> activation/context       |
-   +-- compiled one-off deterministic composition  |
-   +-- universal environment execution             |
-   +-- external knowledge when genuinely needed    |
-   |                                               |
-   +-------------- observe / replan ----------------+
+GENERAL ACTOR  <---------------------------------------------+
+   |                                                         |
+   +-- direct reasoning over observed evidence               |
+   +-- capability discovery                                  |
+   +-- skill discovery + activation                          |
+   +-- ephemeral compiled helper over explicit evidence      |
+   +-- environment execution                                 |
+   +-- write_code for grounded repository source mutation    |
+   +-- external knowledge when methodology is actually absent|
+   |                                                         |
+   +---------------- observe / replan ------------------------+
    |
    v
 grounded outcome
 ```
 
-There is no deterministic router selecting one path.
-
-The Actor may combine paths. For example:
+For Ticket work, `resolve_ticket` is a specialized high-level flow using the same underlying primitives:
 
 ```text
-critical-path request
- -> activate project-analysis skill if one exists
- -> discover graph/ticket evidence capabilities
- -> compile a small graph calculation if useful
- -> synthesize grounded explanation
-```
-
-Or, if no skill exists:
-
-```text
- -> System-1 says multi-source graph analysis/computation likely
- -> Actor gathers evidence
- -> compiler builds deterministic helper over explicit evidence
- -> Actor checks result and answers
+Ticket.resolve
+ -> investigate/prepare/product constraints
+ -> activate software-implementation skill
+ -> exact target?
+      yes -> write_code
+      no  -> bounded Actor navigation -> write_code per grounded target
+ -> deterministic refactors directly through ChangeEngine
+ -> tests/TestNodes
+ -> bounded repair through write_code
+ -> independent acceptance
+ -> verification receipt / Done
 ```
 
 ---
 
-## 4. System-1 = tactical advisor, never dispatcher
+## 5. System-1 — tactical advisor, never dispatcher
 
-Use one cheap/bounded LLM call before the main Actor **only if it stays cheap enough in measurement**.
+One cheap/bounded assessment may run before the general Actor.
 
-It answers: **“What kind of work is this, what evidence is probably needed, and which means look useful?”**
-
-It must not answer:
-
-- which single tool is mandatory;
-- whether the goal is solvable;
-- whether the Actor may use a capability;
-- the final project answer.
-
-Suggested compact semantic result:
+Conceptual shape:
 
 ```ts
 interface TacticalAssessment {
   taskShape: string
   evidenceNeeds: string[]
   usefulMeans: Array<{
-    kind: 'direct' | 'capability' | 'skill' | 'compile' | 'environment' | 'external-knowledge'
+    kind:
+      | 'direct'
+      | 'capability'
+      | 'skill'
+      | 'compile-helper'
+      | 'write-code'
+      | 'environment'
+      | 'external-knowledge'
     reason: string
     query?: string
   }>
@@ -187,398 +144,387 @@ interface TacticalAssessment {
 }
 ```
 
-This shape is advisory. Multiple `usefulMeans` are normal. The Actor may ignore or revise all of them.
+Rules:
 
-### Failure contract
+- multiple means are normal;
+- Actor may ignore or revise every suggestion;
+- no route enum;
+- no solvability judgment;
+- no reduction of available powers;
+- timeout/malformed/error => continue without assessment;
+- use existing llm-utils fast/cheap routing;
+- no repeated assessment by default; at most one bounded re-consult after objective no-progress evidence if later measurement proves useful.
 
-- timeout/error/malformed assessment => continue with the Actor without it;
-- no System-1 output may shrink the available bootstrap surface;
-- no System-1 result becomes a persisted “route”;
-- do not run it repeatedly by default.
-
-A second tactical assessment is allowed only after an objective stuck condition (for example repeated no-progress/tool failures) and is bounded to one re-consult. First implementation should omit this unless the initial gate demonstrates a need.
-
-### Routing
-
-Use the existing cheap/fast task route through `llm-utils`; do not create another model router. Explicit model/locality/provider restrictions remain authoritative.
+Wrong-advice recovery is an acceptance case.
 
 ---
 
-## 5. Bootstrap capabilities
+## 6. Skill-manager integration
 
-The bootstrap should represent four **powers**, not one shell-centric fallback:
+AIWF should consume `@dharmax/skill-manager` rather than inventing a parallel skill registry.
 
-### A. Environment execution
+Minimum runtime operations:
 
-Existing truthful `run_command`.
+- find skills by semantic task query;
+- activate a chosen skill to obtain its bounded context, declared tools and capability requirements.
 
-Use for:
-- inspection;
-- canonical AIWF CLI operations;
-- small glue;
-- executing sandboxed generated artifacts.
+Do not implement durable skill authoring in the restoration path.
 
-### B. Capability discovery
+### Built-in `software-implementation` skill
 
-Existing bounded semantic capability discovery.
+Add only when the runtime integration exists. It is instructional, not executable.
 
-Use when an existing high-level AIWF capability is likely useful.
+It contains AIWF-specific engineering discipline, not generic programming education:
 
-### C. Skill discovery and activation
+- start from accepted actor/Ticket outcome;
+- inspect actual target/conventions;
+- preserve accepted Decisions/Aspects/Lessons/project instructions;
+- prefer smallest correct change and existing abstractions;
+- deterministic refactor when possible;
+- AIWF-generated new/replacement source must use `write_code`;
+- never weaken tests/acceptance;
+- verification failures feed bounded repair;
+- generated examples/tests are not project proof.
 
-Integrate skill-manager as a first-class source of reusable know-how.
+Hard safety remains code-enforced; missing skill cannot bypass it.
 
-Minimum runtime surface:
+### Sources
 
-- `find_skills(query, limit?)` — summary cards only;
-- `activate_skill(id)` — full instructions + declared tools + required capability IDs.
+Use explicit configured skill sources. The AIWF built-in source must be packaged/resolvable deliberately; do not guess user directories. Reuse skill-manager's semantic-registry-backed search. No second index.
 
-Activation returns context as an observation; it does not silently mutate the Actor system prompt and does not automatically grant tools.
+---
 
-If a skill requires capabilities, the Actor may discover them through the ordinary capability mechanism.
+## 7. Two text-compiler roles
 
-Do not author a new durable skill during ordinary J2.4 execution.
+### A. Ephemeral analytical composition
 
-### D. Ephemeral compiled composition
-
-Expose a thin **behavior-level** adapter over text-compiler, conceptually:
+For J2.4 tasks such as filtering/ranking/aggregation/graph computation:
 
 ```text
-compile_and_run_helper(
-  intent,
-  input,
-  optional acceptance contract
-) -> {
-  output,
-  verification,
-  source/trace metadata
-}
+compile_and_run_helper(intent, explicitInput, acceptance?)
+ -> ephemeral codelet
+ -> sandboxed execution
+ -> verified derived output + provenance
 ```
 
-The Actor specifies *what deterministic transformation is needed* and the explicit input evidence. It does not provide source code.
+Properties:
 
-Default properties:
-
-- ephemeral / memory-backed;
-- no `.ai-workflow/codelets` persistence;
-- no promotion;
-- no project write permission;
-- bounded compilation/recovery;
-- explicit verification result;
-- explicit input/output provenance in trace.
-
-If later reuse is demonstrated, a separate journey may promote the behavior into a durable skill through skill-manager. Runtime success must not depend on promotion.
-
----
-
-## 6. Critical safety correction for compiled helpers
-
-Do **not** directly execute generated text-compiler code in the AIWF process for read-only requests merely because the compiler API exposes `execute()`.
-
-Generated JavaScript can potentially reach ambient runtime globals. That would bypass the read-only project boundary established around `run_command`.
-
-The integration must reuse the existing execution authority.
-
-Preferred design:
-
-1. compile behavior with text-compiler;
-2. place generated source + explicit input in the host-provided scratch area;
-3. execute/verify through the existing sandboxed process path under the same `ToolContext.executionAuthority`;
-4. return output + verification + provenance;
-5. remove ephemeral artifacts when the run ends.
-
-If text-compiler's normal verification executes generated source in-process, **do not call that unsafe path under read-only authority**. Either:
-- invoke the compiler/verification in a child process under the existing sandbox, or
-- add/reuse a generation-only contract and run all dynamic verification through the sandbox.
-
-Choose the smallest solution after inspecting actual sibling APIs. Do not introduce a second sandbox/executor.
-
-This is a hard gate, not polish.
-
----
-
-## 7. Evidence and provenance model
-
-The previous runs showed that generated scratch records can be mistaken for project facts. Composition must therefore distinguish:
-
-1. **Observed source evidence** — repository/AIWF/runtime observations.
-2. **Derived computation** — deterministic output computed from explicitly cited observed inputs.
-3. **Generated examples/tests** — useful for verifying a helper, never evidence about the project.
-4. **Model inference** — explanatory synthesis, clearly dependent on 1/2.
-
-A compiled helper may derive facts only from explicit input passed by the Actor. It must not manufacture missing source records and then treat them as observations.
-
-Trace each compiled run with:
-- intent;
-- input provenance references/summary;
-- generated artifact identity/hash;
-- verification result;
-- execution authority;
-- output;
-- cleanup status.
-
-No private reasoning is recorded.
-
----
-
-## 8. Skill semantics: know-how, not just more tools
-
-Skill discovery should be attempted when the task looks like a recognizable reusable practice: project analysis, release process, debugging procedure, domain workflow, etc.
-
-Activation may teach the Actor:
-- what evidence to gather;
-- preferred algorithm/procedure;
-- constraints;
-- which capabilities are useful.
-
-This is different from capability discovery:
-
-```text
-skill      = how to approach this class of task
-capability = an operation/evidence source
-codelet    = deterministic computation/composition
-```
-
-Do not collapse them into one registry item type merely for architectural symmetry.
-
-Do not create a skill because a one-off helper happened to work. Durable authoring/promotion requires a separate reuse signal or explicit user intent.
-
----
-
-## 9. Strategy selection principles
-
-The Actor receives the System-1 assessment plus the four bootstrap powers and remains sovereign.
-
-Useful heuristic, expressed as guidance rather than dispatch code:
-
-- simple evidence lookup/action -> direct/capability;
-- known domain procedure -> skill + capabilities;
-- substantial filtering/ranking/aggregation/graph computation -> compile over observed inputs;
-- environment archaeology/glue -> `run_command`;
-- unknown methodology -> skill/external knowledge;
-- combinations are normal.
-
-There must be **no** production switch such as:
-
-```ts
-if (prompt.includes('critical path')) route = 'compiler'
-```
-
-and no mandatory route enum emitted by System-1.
-
----
-
-## 10. Implementation plan
-
-### Phase 0 — freeze and audit
-
-No production mutation until this phase reports.
-
-1. Preserve current checkpoint commit and evidence.
-2. Inspect actual local sibling versions of:
-   - skill-manager;
-   - text-compiler;
-   - llm-utils.
-3. Trace exact lifecycle for:
-   - `SkillManager.retrieve/activate`;
-   - text-compiler codelet synthesis/test/execute;
-   - execution authority/cancellation/model routing.
-4. Identify the smallest safe adapter points.
-5. Reproduce at least two stopped failures and classify whether failure is:
-   - wrong tactic selection;
-   - missing know-how;
-   - missing deterministic composition;
-   - model quality;
-   - evidence/provenance;
-   - execution contract.
-
-**Gate 0:** concrete integration map + defect table. No guessed APIs.
-
-### Phase 1 — System-1 tactical assessment
-
-Implement one bounded advisory call.
-
-Requirements:
-- uses existing `Asker`/routing;
-- structured compact result;
-- timeout/error falls through;
-- assessment included in Actor context as advice;
-- cannot remove tools/powers;
-- traced separately from discovery;
-- measured latency/cost/model route.
-
-Tests:
-- computation-heavy request suggests compile as one useful means;
-- recognizable skill-like request suggests skill discovery;
-- simple lookup does not needlessly insist on compilation;
-- malformed/failed System-1 leaves Actor runnable;
-- adversarial wrong advice does not prevent another route.
-
-**Gate 1:** advisory behavior improves route quality without becoming control flow.
-
-### Phase 2 — skill-manager runtime integration
-
-Add the minimum adapters for discovery + activation.
-
-Do not implement skill authoring.
-
-Requirements:
-- configured source(s) explicit; do not invent repository paths;
-- lazy activation; full SKILL context stays cold until requested;
-- capability requirements are surfaced but resolved by existing capability discovery;
-- no duplicate semantic index;
-- recent activated skills may remain available through the current session using skill-manager's existing continuity support where useful.
-
-**Gate 2:** Actor solves a fixture whose method is supplied by a skill but whose actual evidence comes from AIWF capabilities/environment.
-
-### Phase 3 — safe ephemeral compiler integration
-
-Replace manual Actor-authored helper scripts as the preferred path for bounded deterministic composition.
-
-Requirements:
-- thin adapter over `@dharmax/text-compiler`;
-- behavior-level intent + explicit input;
+- behavior-level intent; Actor does not manufacture source;
 - memory/scratch only;
-- generated code dynamically executes only under the existing execution authority;
-- bounded compile/repair attempts;
-- cancellation propagates;
-- verification result explicit;
-- generated test/example data never becomes project evidence;
-- cleanup guaranteed;
-- no persistence/promotion.
+- no promotion/persistence;
+- explicit input provenance;
+- generated tests/examples cannot become project facts.
 
-First acceptance should be a pure transformation over explicit JSON input, then a project-analysis computation over observed structured evidence.
+### B. Repository source synthesis
 
-**Gate 3:** the self-extension fixture succeeds through text-compiler, not handwritten shell source, while project bytes remain unchanged.
+For J3.4:
 
-### Phase 4 — Actor strategy guidance
+```text
+write_code(exact intent + target + constraints)
+ -> text-compiler source synthesis
+ -> CodeChangeRequest
+ -> ChangeEngine preview/apply
+```
 
-Simplify `AGENCY_INSTRUCTIONS`.
+Do not misuse `compileCodelet()` for class methods/interfaces/modules if its artifact shape is wrong.
 
-Remove shell-centric wording such as “compose commands or create/run a temporary helper” as the primary fallback.
+If Phase 0 confirms no suitable public text-compiler source-synthesis API, add the **smallest generic sibling extension** (see `docs/code-writing-design.md`): a `compileSource`-style API that returns source text/diagnostics, performs no repository mutation and knows nothing about AIWF Tickets.
 
-Replace with concise hierarchy:
+---
 
-> Understand the outcome and evidence needs. Use specialized capabilities or activated skills when useful. Use compiled deterministic composition for nontrivial transformations over explicit evidence. Use environment execution for inspection/glue. Treat tactic failures as observations and replan. Current-project claims require observed evidence.
+## 8. One generated-code execution authority
 
-Do not teach algorithms for acceptance prompts.
+Generated code must not create a safety side door.
 
-**Gate 4:** actor traces show different sensible tactics for lookup, skill-guided work and computation.
+### Repository source
 
-### Phase 5 — acceptance redesign
+Source synthesis itself should not execute arbitrary generated repository code in the AIWF process. Real verification is:
 
-Retain the three real requests, but stop treating “must solve through shell when discovery is off” as the architectural requirement.
+- ChangeEngine preview/language tooling;
+- project typecheck/build;
+- relevant tests/TestNodes;
+- independent acceptance.
 
-New Agency Gate dimensions:
+### Ephemeral helpers
 
-#### A. Outcome correctness
-The answer is independently correct and grounded.
+Executable generated helpers and their dynamic tests must run through the existing ToolContext execution authority/sandbox, with cancellation and cleanup.
 
-#### B. Tactic freedom
-No exact tool sequence is required unless the fixture is specifically testing a mechanism.
+If text-compiler cannot inject/delegate its probe execution today, add one minimal execution hook in text-compiler. Do not duplicate its verification pipeline or add another sandbox.
 
-#### C. Composition challenge
-A fixture deliberately requires enough deterministic computation that compiler use is the expected efficient route. A direct route may still pass if demonstrably correct and within budget; production must contain no phrase-specific handler.
+---
 
-#### D. Skill challenge
-A fixture makes key procedural know-how available only through an activated skill while source facts remain external. The Actor must find/use the skill.
+## 9. Canonical `write_code` capability
 
-#### E. Wrong System-1 advice
-Inject plausible but bad advice. Actor must recover.
+The detailed contract is authoritative in `docs/code-writing-design.md`.
 
-#### F. Discovery unavailable
-Specialized capability discovery fails. Actor may still use skills/compiler/environment.
+First version is intentionally narrow:
 
-#### G. Compiler unavailable
-Compiler fails. Actor should fall back when the task remains reasonably solvable; otherwise report the concrete failed dependency.
+- exact existing symbol replacement;
+- explicit new source file.
 
-#### H. Provenance trap
-Provide generated/example data alongside real source data. Final project claims must use only real observed evidence.
+It does not perform broad target discovery.
 
-#### I. Paraphrase
-Semantically equivalent requests remain successful.
+Inputs: implementation intent, exact target, acceptance/constraints/guidance/failure feedback.
 
-#### J. Budget/efficiency
-Compare against stopped shell-centric traces:
-- Actor reasoning steps;
+It loads fresh source/context itself, asks text-compiler for source, constructs the existing change request, then preview/applies through CausalChangeEngine under caller authority.
+
+### Critical invariant
+
+> Any nontrivial new/replacement source text **generated by AIWF** must pass through `write_code`.
+
+Deterministic rename/refactor/source actions remain direct ChangeEngine operations.
+
+Do not expose `write_code` on public MCP initially. `resolve_ticket` remains the normal external implementation entrypoint.
+
+---
+
+## 10. Ticket.resolve migration
+
+### Exact target
+
+Delete the current parallel path:
+
+```text
+asker.json -> ExactImplementationSchema -> replacement source
+```
+
+after `write_code` parity is proven.
+
+Target:
+
+```text
+exact target + dossier + software skill guidance
+ -> write_code
+ -> ChangeEngine
+ -> tests/acceptance
+```
+
+### Navigational/multi-target implementation
+
+The implementation Actor remains useful for **navigation and orchestration**, not as a competing code generator.
+
+Its mutation surface should permit:
+
+- `write_code`;
+- deterministic rename/refactor/source actions;
+- navigation/source/reference tools.
+
+It should not have a generic path to hand-author replacement/new source directly into `replace_symbol/create_file/replace_text`.
+
+### Repair
+
+Fresh failing test/acceptance evidence becomes feedback to a new `write_code` invocation against current source.
+
+No hidden fallback to direct source synthesis.
+
+---
+
+## 11. Evidence/provenance
+
+Keep four categories distinct:
+
+1. observed project/runtime evidence;
+2. deterministic derived computation over explicit observed inputs;
+3. generated code/tests/examples;
+4. model inference/synthesis.
+
+Generated examples/tests never establish project facts.
+
+For compiled helpers record intent, input provenance, artifact hash, verification, authority, output and cleanup.
+
+For `write_code` record target, source hash, compiler identity/attempts, ChangeEngine fingerprint/result and changed files. Aggregate metrics must not persist generated source.
+
+Ticket verification receipts remain the durable acceptance truth.
+
+---
+
+## 12. Implementation phases and gates
+
+### Phase 0 — audit, no production mutation
+
+Inspect **actual local sibling versions** of skill-manager, text-compiler and llm-utils.
+
+Produce:
+
+- exact skill-manager find/activate lifecycle;
+- exact text-compiler codelet/source synthesis and execution hooks;
+- exact current Ticket.resolve source-producing paths;
+- call graph/usages of `compile_codelet/run_codelet/promote_codelet`;
+- execution-authority/cancellation boundaries;
+- concrete defect table for at least two stopped J2.4 runs and one J3.1 code-writing route;
+- smallest proposed sibling API delta.
+
+**Gate 0:** no guessed APIs; plan assumptions validated or corrected before coding.
+
+### Phase 1 — shared skill runtime
+
+Integrate skill-manager find/activate only.
+
+Then add the concise built-in `software-implementation` skill and prove activation/context/capability metadata.
+
+No skill authoring/promotion.
+
+**Gate 1:** skill-guided fixture succeeds; skill absence cannot bypass hard safety.
+
+### Phase 2 — text-compiler boundaries
+
+A. Implement/confirm behavior-level ephemeral helper compilation with sandboxed execution.  
+B. Implement/confirm generic source-synthesis API needed by `write_code`.
+
+Do not yet modify Ticket.resolve.
+
+**Gate 2:** helper computation is safe/ephemeral/provenant; source synthesis produces valid bounded source without repository mutation.
+
+### Phase 3 — canonical `write_code`
+
+Register one internal capability using text-compiler + existing source intelligence + CausalChangeEngine.
+
+Test exact symbol, new file, dirty target, cancellation, compiler failure, deterministic control.
+
+Do not expose publicly yet.
+
+**Gate 3:** source-generation mechanism tests prove one canonical producer.
+
+### Phase 4 — migrate Ticket.resolve
+
+1. exact-target branch uses `write_code`;
+2. implementation Actor activates software skill and uses `write_code` for generative source;
+3. deterministic edits remain deterministic;
+4. repair reuses `write_code`;
+5. remove direct source-synthesis prompt path;
+6. remove Actor bypass for arbitrary generated source.
+
+**Gate 4:** realistic J3.4 exact-target + J3.1 multi-change + J3.2 repair + deterministic rename control all pass.
+
+### Phase 5 — System-1 tactical advisor + general Actor powers
+
+Add one bounded advisory assessment.
+
+Expose to the general Actor:
+
+- capability discovery;
+- skill discovery/activation;
+- ephemeral helper compilation;
+- environment execution;
+- `write_code` only when write authority/grounded coding intent makes it relevant.
+
+Simplify shell-centric Actor instructions.
+
+**Gate 5:** different task shapes choose sensible tactics; wrong advice and failed discovery remain recoverable.
+
+### Phase 6 — integrated Agency Gate
+
+#### General-analysis cases
+- three real J2.4 requests;
+- paraphrases;
+- discovery disabled/misleading/slow;
+- wrong System-1 advice;
+- compiler unavailable fallback;
+- skill-only know-how fixture;
+- provenance trap.
+
+#### Coding cases
+- exact-target Ticket through canonical writer;
+- multi-target Actor navigation + writer;
+- failing implementation repaired through writer;
+- deterministic rename without writer;
+- MCP `resolve_ticket` delegation proving internal canonical path;
+- text-compiler failure produces concrete blocker, not direct-LLM bypass.
+
+#### Efficiency
+Measure:
+- Actor steps;
 - shell calls;
 - model calls;
-- elapsed time.
-Do not require arbitrary numeric wins before measuring baseline, but reject a design that adds layers without reducing wandering or improving acceptance.
+- latency;
+- compilation attempts.
 
-**Gate 5:** all mechanism-specific fixtures + the three live requests accepted by independent truth review.
+Do not set arbitrary numeric targets before measuring the preserved baseline, but reject an architecture that adds layers without materially improving success or reducing wandering.
 
-### Phase 6 — only after agency works: durable learning
+**Gate 6:** independently reviewed outcomes are correct/grounded; all mechanism-specific gates hold.
 
-Separate future journey:
+### Phase 7 — cleanup
 
-> after a useful one-off procedure repeatedly recurs, AIWF may propose promoting it into a durable skill.
+Only after Gate 6:
 
-Use existing `SkillManager.create + TextCompilerSkillAuthor`.
+- remove obsolete direct exact-source synthesis;
+- remove resolver Actor source-generation bypass;
+- audit/remove old Actor-authored codelet generation paths superseded by behavior-level ephemeral compilation;
+- retain deterministic ChangeEngine/block-patching functionality still used;
+- update README/current operational docs to describe the actual implemented architecture.
 
-Do not implement this during restoration unless repeated live evidence proves it is necessary to satisfy J2.4.
+No branch forest. Work on `master`; tag a useful rollback point if needed.
 
----
+### Phase 8 — future durable learning, separate journey
 
-## 11. Critique / failure modes to actively prevent
+Only after repeated evidence:
 
-### “System-1 becomes the new discovery gate”
-Failure signature: bad assessment chooses one route and the Actor never sees alternatives.
+> a useful one-off procedure recurs enough to justify durable reuse.
 
-Countermeasure: advice only; full bootstrap remains available; wrong-advice acceptance test.
+Then use existing `SkillManager.create + TextCompilerSkillAuthor`.
 
-### “Everything becomes a codelet”
-Compilation has latency and verification cost. Do not compile trivial lookups or prose synthesis.
-
-Countermeasure: tactic assessment + measured route quality; no mandatory compiler rule.
-
-### “Everything becomes a skill”
-Durable skill creation for one-off tasks pollutes the skill repository.
-
-Countermeasure: retrieve/activate only during restoration; promotion separate.
-
-### “Skill-manager duplicates semantic-registry”
-It already uses semantic-registry. AIWF must consume it, not build another skill index.
-
-### “Compiler bypasses safety”
-In-process generated code under read-only authority is unacceptable.
-
-Countermeasure: same sandbox/execution authority as ordinary environment execution.
-
-### “Compiler output becomes evidence”
-Generated code/tests/examples are not project observations.
-
-Countermeasure: explicit provenance boundary.
-
-### “More orchestration than intelligence”
-Do not add a planner, strategy state machine or deterministic routing pipeline.
-
-Countermeasure: one advisory assessment + existing Actor + four powers.
-
-### “Acceptance overfits routes”
-Do not require compiler merely because a prompt contains ranking or graphs.
-
-Countermeasure: accept correct efficient alternate routes except in isolated mechanism fixtures.
+Do not auto-promote ordinary helpers or implementation snippets during restoration.
 
 ---
 
-## 12. Completion criteria
+## 13. Harsh failure-mode checks
 
-J2.4 restoration is complete only when:
+### System-1 becomes the router
+Reject. Advice may not remove/force means.
 
-- System-1 provides useful bounded tactical advice and failure is harmless;
-- Actor retains final tactical authority;
-- skill-manager discovery/activation is available without duplicating registries;
-- text-compiler provides safe ephemeral behavior-level composition;
-- generated execution respects read-only/cancellation boundaries;
-- project evidence and generated/derived data remain distinguishable;
-- no query-specific production handlers exist;
-- the three real requests succeed live and are independently grounded;
-- skill, compiler, discovery-failure and wrong-advice fixtures pass;
-- full AIWF + affected sibling suites and strict typechecks pass;
-- traces demonstrate less wandering or materially higher success than the preserved shell-centric baseline;
-- no durable skill/codelet pollution occurs during one-off analysis.
+### Skill becomes a giant programming prompt
+Reject. Keep AIWF-specific procedure; model already knows programming.
 
-The target is:
+### write_code becomes a second resolver
+Reject. Exact target/source synthesis only; Ticket lifecycle stays in Ticket.resolve.
 
-> **A general Actor that can cheaply choose how to think, acquire know-how, acquire operations, compile deterministic computation, and use the environment — without any one mechanism becoming a new gatekeeper.**
+### text-compiler becomes a second editor
+Reject. It returns code; CausalChangeEngine owns disk mutation.
+
+### compileCodelet is abused for repository declarations
+Reject. Add the smallest source-synthesis contract instead.
+
+### Actor still writes replacement source through apply_change
+Reject. That preserves duplicate source producers.
+
+### Everything is compiled
+Reject. Deterministic and trivial operations remain deterministic/direct.
+
+### Everything becomes a skill
+Reject. One-off computation stays ephemeral.
+
+### Generated tests become acceptance evidence
+Reject. Project tests/TestNodes + actor/Ticket acceptance remain proof.
+
+### Public MCP grows unnecessarily
+Reject. Keep `resolve_ticket` as the delegation surface until a real external journey requires direct `write_code`.
+
+### Safety rests on prompts/skill
+Reject. Enforcement stays in ToolContext, leases, ChangeEngine and acceptance code.
+
+---
+
+## 14. Completion criteria
+
+Restoration is complete only when:
+
+- Actor remains sovereign over tactics;
+- System-1 is cheap advice only;
+- skill-manager supplies reusable know-how without another index;
+- the built-in software skill is concise and actually useful;
+- ephemeral analytical composition is behavior-level and sandboxed;
+- one canonical `write_code` producer owns AIWF-generated repository source;
+- text-compiler is the synthesis engine for that producer;
+- CausalChangeEngine remains the only repository mutation authority;
+- Ticket.resolve uses the canonical writer internally;
+- deterministic refactors bypass unnecessary synthesis;
+- repair returns through the same writer;
+- generated/example data cannot masquerade as project evidence;
+- J2.4/J3.1/J3.2/J3.4/J5.1 realistic journeys pass;
+- duplicate source-producing paths are removed after proof;
+- full AIWF and affected sibling tests/typechecks pass;
+- no new planner/orchestrator/manager/repository/registry/workflow engine or branch forest is introduced.
+
+Final architectural sentence:
+
+> **Actor decides. System-1 advises. Skill guides. Capabilities provide hands. text-compiler composes/writes. ChangeEngine mutates. Tests and acceptance prove.**
