@@ -11,7 +11,7 @@ This is a compact invariant sheet for coding agents. Use `SKILL.md` for operatio
 5. **Preserve user work.** Never reset, stash, overwrite, or commit unrelated work automatically. Dirty mutation targets require explicit authorization.
 6. **Verify behavior, not activity.** Passing commands are insufficient: authored acceptance and material Aspects require evidence before completion.
 7. **Keep implementation simple.** Prefer entity-owned domain behavior and existing primitives. Do not invent service/manager/repository layers, generic workflow engines, shadow graphs, persisted operation sessions, or duplicate search/context/metrics systems.
-8. **Preserve general agency.** The Actor pursues goals; discovery/tools are means. Never make semantic discovery, mode classification, System-1, registry ranking, a specialized tool, or a capability list the prerequisite for attempting an otherwise solvable goal. General knowledge may choose the method; project claims require evidence. Actor/discovery changes must satisfy `docs/agency-constitution.md` and the adversarial Agency Gate.
+8. **Preserve general agency.** The Actor pursues goals; System-1, skills, discovery, compiled codelets and tools are means. Never make a tactical advisor, mode, registry result, skill, compiler, specialized tool or capability list the prerequisite for attempting an otherwise solvable goal. Keep skills=know-how, capabilities=operations/evidence, codelets=deterministic composition. Generated examples/tests are not project facts. Actor/discovery/skill/compiler changes must satisfy `docs/agency-constitution.md` and the adversarial Agency Gate.
 
 ## Product/work semantics
 
