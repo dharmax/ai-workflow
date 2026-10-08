@@ -16,8 +16,8 @@ export function registerOsTools() {
     category: 'os',
     parameters: z.object({
       command: z.string().describe('Shell command to execute'),
-      cwd: z.string().optional().describe('Optional working directory relative to root'),
-      timeoutMs: z.number().default(30000).describe('Timeout in milliseconds')
+      cwd: z.string().optional().describe('Omit or use "." for the project root. Relative paths resolve from it; absolute paths refer to the filesystem ("/" is the filesystem root).'),
+      timeoutMs: z.number().int().positive().default(30000).describe('Timeout in milliseconds')
     }),
     execute: async ({ command, cwd, timeoutMs }, ctx: ToolContext) => {
       const workingDir = cwd ? path.resolve(ctx.projectRoot, cwd) : ctx.projectRoot;
@@ -25,46 +25,85 @@ export function registerOsTools() {
       const shell = isWindows ? 'cmd.exe' : '/bin/bash';
       const flag = isWindows ? '/c' : '-c';
 
+      let timedOut = false;
+      let cancelled = ctx.signal?.aborted === true;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let proc: Bun.Subprocess<'ignore', 'pipe', 'pipe'> | undefined;
+      let scratchBefore: string | undefined;
+      const scratchSnapshot = (): string | undefined => {
+        if (!ctx.scratchRoot) return undefined;
+        try {
+          const entries = [''];
+          for (let i = 0; i < entries.length; i++) {
+            const entry = path.join(ctx.scratchRoot, entries[i]!);
+            if (!fs.lstatSync(entry).isDirectory()) continue;
+            const directory = fs.opendirSync(entry);
+            try {
+              let child;
+              while ((child = directory.readSync())) {
+                if (entries.length >= 512) return undefined;
+                entries.push(path.join(entries[i]!, child.name));
+              }
+            } finally { directory.closeSync(); }
+          }
+          return JSON.stringify(entries.sort().map(name => {
+            const stat = fs.lstatSync(path.join(ctx.scratchRoot!, name), {bigint: true});
+            return [name, String(stat.ino), String(stat.mode), String(stat.size), String(stat.mtimeNs), String(stat.ctimeNs)];
+          }));
+        } catch { return undefined; }
+      };
+      const stop = () => {
+        if (!proc) return;
+        // A detached POSIX shell owns its descendants; close inherited pipes too.
+        if (!isWindows) {
+          try { process.kill(-proc.pid, 'SIGKILL'); } catch { proc.kill(9); }
+        } else proc.kill();
+      };
+      const abort = () => { cancelled = true; stop(); };
+      const observation = (exitCode: number | null, stdout: string, stderr: string, error?: string) => ({
+        success: exitCode === 0 && !timedOut && !cancelled && !error,
+        exitCode, cwd: workingDir,
+        stdout: stdout.slice(0, 10000), stderr: stderr.slice(0, 5000),
+        stdoutTruncated: stdout.length > 10000, stderrTruncated: stderr.length > 5000,
+        timedOut, cancelled,
+        authority: ctx.executionAuthority ?? 'project-write',
+        scratchRoot: ctx.scratchRoot,
+        observationOnly: ctx.executionAuthority === 'read-only' && scratchBefore !== undefined && scratchSnapshot() === scratchBefore,
+        output: stdout.slice(0, 10000),
+        error: error || (stderr ? stderr.slice(0, 5000) : undefined)
+      });
+      if (cancelled) return observation(null, '', '', 'Command cancelled before execution');
       try {
-        const proc = Bun.spawn([shell, flag, command], {
-          cwd: workingDir,
-          stdout: 'pipe',
-          stderr: 'pipe'
-        });
-
-        let timedOut = false;
-        const timer = setTimeout(() => {
-          timedOut = true;
-          proc.kill();
-        }, timeoutMs);
-
-        const stdout = await new Response(proc.stdout).text();
-        const stderr = await new Response(proc.stderr).text();
-        const exitCode = await proc.exited;
-        clearTimeout(timer);
-
-        if (timedOut) {
-          return {
-            success: false,
-            exitCode: -1,
-            output: stdout.slice(0, 5000),
-            error: `Command timed out after ${timeoutMs}ms`
+        let argv = [shell, flag, command];
+        if (ctx.executionAuthority === 'read-only') {
+          const sandbox = process.platform === 'linux' ? Bun.which('bwrap') : null;
+          if (!sandbox || !ctx.scratchRoot) return observation(null, '', '', 'Read-only execution requires Linux bubblewrap and a host-provided scratch directory; execution denied.');
+          const source = fs.realpathSync(ctx.projectRoot), scratch = fs.realpathSync(ctx.scratchRoot);
+          const overlaps = (parent: string, child: string) => {
+            const relative = path.relative(parent, child);
+            return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
           };
+          if (overlaps(source, scratch) || overlaps(scratch, source)) return observation(null, '', '', 'Scratch and project directories must not overlap; execution denied.');
+          scratchBefore = scratchSnapshot();
+          argv = [sandbox, '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-pid', '--die-with-parent',
+            '--bind', scratch, scratch, '--setenv', 'TMPDIR', scratch, '--setenv', 'XDG_CACHE_HOME', path.join(scratch, 'cache'), ...argv];
         }
-
-        return {
-          success: exitCode === 0,
-          exitCode,
-          output: stdout.slice(0, 10000),
-          error: stderr ? stderr.slice(0, 5000) : undefined
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          exitCode: 1,
-          output: '',
-          error: err.message
-        };
+        proc = Bun.spawn(argv, {
+          cwd: workingDir, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', detached: !isWindows
+        });
+        ctx.signal?.addEventListener('abort', abort, {once: true});
+        if (ctx.signal?.aborted) abort();
+        timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
+        const [stdout, stderr, exitCode] = await Promise.all([
+          new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited
+        ]);
+        return observation(exitCode, stdout, stderr,
+          cancelled ? 'Command cancelled by parent signal' : timedOut ? `Command timed out after ${timeoutMs}ms` : undefined);
+      } catch (err: unknown) {
+        return observation(null, '', '', err instanceof Error ? err.message : String(err));
+      } finally {
+        clearTimeout(timer);
+        ctx.signal?.removeEventListener('abort', abort);
       }
     }
   });

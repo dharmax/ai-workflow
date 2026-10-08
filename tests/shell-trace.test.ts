@@ -22,7 +22,7 @@ describe('Shell failure trace and floating inspection', () => {
   });
   afterEach(() => {store.close(); fs.rmSync(root, {recursive: true, force: true});});
 
-  it('preserves unavailable-call evidence when only discovery is initially exposed', async () => {
+  it('preserves unavailable-call evidence with the tiny bootstrap catalog', async () => {
     let calls = 0;
     const asker = {json: async () => ({ok: true, data: {thought: 'PRIVATE reasoning must not appear', action: 'tool_call',
       toolCalls: [{callId: String(++calls), name: 'get_product_coverage', parameters: {entityId: 'EPIC-MISSING'}}]}})} as unknown as Asker;
@@ -37,8 +37,8 @@ describe('Shell failure trace and floating inspection', () => {
     try {
       const trace = (await processShellInput('trace show', session)).output;
       expect(trace).toContain('Request: what\'s the next recommended ticket?');
-      expect(trace).toContain('Mode: PRODUCT');
-      expect(trace).toContain('Available tools: discover_tools');
+      expect(trace).toContain('Mode: DEV');
+      expect(trace).toContain('Available tools: run_command, discover_tools');
       expect(trace).toContain('Termination: error');
       expect(trace).toContain('Step 1:');
       expect(trace).toContain('Step budget: 3');
@@ -75,15 +75,15 @@ describe('Shell failure trace and floating inspection', () => {
     expect((await processShellInput('trace open', restarted)).output).toBe(trace);
   });
 
-  it('records discovery failure even when no Actor step was reached', async () => {
-    session.actor = new WorkflowActor({store, projectRoot: root, asker: {json: async () => {throw Error('should not run');}} as unknown as Asker,
+  it('records optional discovery failure after cognition and preserves fallback command evidence', async () => {
+    let calls=0;
+    session.actor = new WorkflowActor({store, projectRoot: root, asker: {json: async () => ({ok:true,data:++calls===1?{thought:'PRIVATE',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'Inspect project evidence'}}]}:calls===2?{thought:'PRIVATE',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf fallback'}}]}:{thought:'PRIVATE',action:'final_answer',finalAnswer:'fallback observed'}})} as unknown as Asker,
       toolDiscovery: {discover: async () => {throw Error('classifier response invalid');}}});
-    await expect(processShellInput('recommend next ticket', session)).rejects.toThrow('classifier response invalid');
-    const trace = (await processShellInput('trace show', session)).output;
-    expect(trace).toContain('classifier response invalid');
-    expect(trace).toContain('(discovery did not complete)');
-    expect(trace).toContain('0 steps');
-    expect(session.viewport!.getRun().status).toBe('fail');
+    await processShellInput('inspect project evidence', session);
+    const trace=(await processShellInput('trace show',session)).output;
+    expect(trace).toContain('classifier response invalid');expect(trace).toContain('Capability lookup:');
+    expect(trace).toContain('run_command');expect(trace).toContain('fallback');expect(trace).not.toContain('PRIVATE');
+    expect(session.viewport!.getRun().status).toBe('success');
   });
 
   it('does not turn a failed run with partial final text into successful trace status', async () => {

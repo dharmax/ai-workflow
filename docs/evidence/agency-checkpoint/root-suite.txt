@@ -1,0 +1,380 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/scaffold.test.ts:
+(pass) Greenfield Code Scaffolding (aiwf scaffold) > scaffolds a new typed module paired with a test suite and indexes it [59.38ms]
+(pass) Greenfield Code Scaffolding (aiwf scaffold) > rejects scaffolding over an existing file [2.65ms]
+
+tests/progress.test.ts:
+(pass) ProgressIndicator (ai-workflow Terminal UI) > respects silent mode completely without writing [0.74ms]
+(pass) ProgressIndicator (ai-workflow Terminal UI) > outputs clean newline steps when stream is not a TTY [0.64ms]
+(pass) ProgressIndicator (ai-workflow Terminal UI) > renders progress bar and cleans up cursor in TTY mode [0.25ms]
+
+tests/debugger.test.ts:
+(pass) AIWF Debugger and Triage Facility > parseLocations extracts file:line:col from direct format [0.33ms]
+(pass) AIWF Debugger and Triage Facility > parseLocations extracts frames from raw stack trace and filters node_modules [0.24ms]
+(pass) AIWF Debugger and Triage Facility > extractLineSnippet slices target line with pointer [0.23ms]
+(pass) AIWF Debugger and Triage Facility > extractLineSnippet handles non-existent file gracefully [0.03ms]
+(pass) AIWF Debugger and Triage Facility > diagnoseTarget resolves location and blast radius [34.49ms]
+(pass) AIWF Debugger and Triage Facility > debug_target tool is registered and executable in registry [31.17ms]
+
+tests/radar.test.ts:
+(pass) Model Radar & Pareto Benchmark Engine > should compute correct Pareto Value Scores based on Elo and pricing [0.25ms]
+(pass) Model Radar & Pareto Benchmark Engine > should provide default baseline models and recommendations synchronously [0.38ms]
+(pass) Model Radar & Pareto Benchmark Engine > should cache radar data to disk and respect TTL [0.50ms]
+(pass) Model Radar & Pareto Benchmark Engine > should handle probe gracefully with offline fallback [40.63ms]
+
+tests/kb.test.ts:
+(pass) Content-Addressable Knowledgebase Client & Registry > should compute identical canonical hashes regardless of key order or line endings [1.95ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should search knowledgebase items with filters [0.97ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should verify hash integrity on item retrieval from cache [0.85ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should detect tampered content with hash mismatch [0.49ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should have search_knowledgebase and get_knowledge_item tools registered [465.22ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should retrieve directory bundle skill with embedded sourceCode and verify integrity [0.74ms]
+
+tests/ast-freshness-and-search.test.ts:
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > covers all JS/TS symbol types in AST graph (classes, methods, interfaces, types, enums, destructuring) [37.20ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > keeps AST always up to date using incremental file timestamp comparisons [38.68ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > exposes rich symbol search with exact, regex, kind filter, and container names in MCP tool [12.29ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > exposes graph search API (search_graph) for entity search, predicates, and traversal [17.95ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > supports symbol, graph, callers, and deps commands seamlessly in interactive shell [24.63ms]
+
+tests/change-bridge.test.ts:
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 1. Extract Function Refactor > extracts selected block using TS6 edits, keeps preview zero-mutation, and applies cleanly [1283.47ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 2. Move Declaration to Existing File > moves declaration and updates imports across files via mature TS6 sidecar [1305.72ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 3. Move Declaration to New File > moves declaration to new file and generates new file edits cleanly [1125.42ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 4. Inline Variable Refactor > exercises inline variable refactor via TS6 sidecar [1095.77ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 5. TS7 Preference for Native Operations > proves TS7 is used for rename_symbol and rename_file without invoking TS6 [222.21ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 6. Missing Interactive Argument Handling > returns blocked preview with requiredArguments when move-to-file has no destination [224.34ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 7. Stale Preview Fingerprint Protection on Refactor > rejects applyChange when source file is modified after refactor preview was generated [1249.95ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 8. Product/Causal Graph Continuity > migrates Ticket modifies relation to extracted/moved symbol [1104.74ms]
+
+tests/change-engine.test.ts:
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture A: Exact Symbol Rename & Causal Anchor Continuity > previews with zero disk mutation, updates all imports/calls, and migrates Ticket modifies anchor [258.25ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture B: Stale Preview Fingerprint Protection > rejects applyChange when a file is modified on disk after preview was generated [358.52ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture C: Native File Rename (workspace/willRenameFiles) > renames file and automatically updates static imports across the workspace [236.42ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture D: Unsupported Rich Refactor Probe > safely blocks unsupported native refactors and returns explicit unsupported notice without guessing [1078.25ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture E: Tool Registry Integration (preview_change & apply_change) > executes preview_change and apply_change via registered domain tools [211.74ms]
+
+tests/change-foundation.test.ts:
+(pass) AIWF-CHANGE-FOUNDATION > 1. Stable Code Anchors (Reconciliation Without ID Churn) > preserves Symbol ID and Ticket relations when code lines move due to edits above it [12.87ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > correctly validates 7.x version strings and rejects older versions [2.53ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > prefers project-local TS7 over packaged and host TS7 [3.08ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > falls back to packaged TS7 when project TypeScript is incompatible [2.88ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > provisions host TypeScript 7 globally via Bun when no host TS7 exists [3.99ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > returns an explicit error when no compatible TypeScript 7 can be found or provisioned [2.88ms]
+(pass) AIWF-CHANGE-FOUNDATION > 3. Native TS7 LSP Client & Process Lifecycle > starts tsc --lsp, initializes, caches capabilities, and reuses instance [150.38ms]
+(pass) AIWF-CHANGE-FOUNDATION > 3. Native TS7 LSP Client & Process Lifecycle > resolves exact definitions and references across TS files [215.29ms]
+(pass) AIWF-CHANGE-FOUNDATION > 4. Target Resolution & Ambiguity Handling > resolves exact target from graph entity ID without ambiguity [206.52ms]
+(pass) AIWF-CHANGE-FOUNDATION > 4. Target Resolution & Ambiguity Handling > rejects ambiguous same-name symbols when target context is insufficient [8.22ms]
+
+tests/primitive-truth.test.ts:
+(pass) truthful primitives > returns an entire long declaration, exact references, and replaces only that function through safe preview/apply [257.74ms]
+(pass) truthful primitives > does not write unchanged external dependencies, including after restart, and reuses freshness only within a scope [21.92ms]
+
+tests/ticket-investigation.test.ts:
+(pass) grounded Ticket investigation > returns mandatory scope, Decision, Lesson, Aspect and test evidence without reasoning or semantic changes [63.75ms]
+(pass) grounded Ticket investigation > prunes optional candidates only and escalates low confidence and contradictory routing once [98.35ms]
+(pass) grounded Ticket investigation > preserves authored missing file anchors and reports the exact target [43.71ms]
+(pass) grounded Ticket investigation > retrieves exact linked symbol source and preserves the anchor when the symbol disappears [282.47ms]
+(pass) grounded Ticket investigation > asks for ambiguous ownership without guessing and identifies equivalent existing work [80.88ms]
+(pass) grounded Ticket investigation > centralizes Blocked and rejected states and validates complete mutation batches before writes [18.46ms]
+(pass) grounded Ticket investigation > successfully verifies Aspect creation through the shared Causal Change owner [11.77ms]
+
+tests/ticket-preparation.test.ts:
+(pass) reviewed Ticket preparation > keeps source import cycles separate from Ticket work-cycle validation [10.23ms]
+(pass) reviewed Ticket preparation > keeps an atomic technical Ticket unchanged without a fake Story, Critic call or lease [64.57ms]
+(pass) reviewed Ticket preparation > creates meaningful ordinary children with real ordering, holds a lease only during apply and reuses on rerun [204.45ms]
+(pass) reviewed Ticket preparation > feeds omission findings back to the producer and converges before writing [93.81ms]
+(pass) reviewed Ticket preparation > rejects dependency cycles even with critic none and preserves the entire unapplied batch [82.99ms]
+(pass) reviewed Ticket preparation > stops ceremony, duplicate contracts, exhausted revision and missing inputs before applying [336.91ms]
+(pass) reviewed Ticket preparation > preserves caller-owned leases and refuses a concurrent owner [190.32ms]
+(pass) reviewed Ticket preparation > keeps requirements separate from evidence in the real Critic adapter and refuses unsupported acceptance [14.81ms]
+
+tests/workspace-text.test.ts:
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to package.json [7.91ms]
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to settings.conf [6.26ms]
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to README.md [6.48ms]
+(pass) Consuela ordinary workspace targets > rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets [4.05ms]
+(pass) Consuela ordinary workspace targets > rejects stale content even when oldText still uniquely matches [4.81ms]
+(pass) Consuela ordinary workspace targets > bounds reads and rejects missing files, directories, absolute paths and lexical/symlink escapes [2.83ms]
+
+tests/structured-repair.test.ts:
+(pass) AIWF delegates bounded schema correction to Asker.json > Epic decomposition accepts one schema-aware correction [9.06ms]
+(pass) AIWF delegates bounded schema correction to Asker.json > Epic decomposition fails honestly after an invalid correction [3.61ms]
+(pass) AIWF delegates bounded schema correction to Asker.json > does not repair transport/provider failures [2.99ms]
+
+tests/setup.test.ts:
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should initialize a fresh project with AST indexing and markdown projections [18.46ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should run doctor diagnostics and produce a healthy report on initialized repo [296.19ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should read, update, and persist configuration [0.62ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should execute CLI binary commands end-to-end with zero exit codes [1261.49ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should replace TOML server sections accurately without corrupting adjacent config [0.80ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should distribute canonical 2.0 skills to all detected environments [1.80ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should wire MCP configuration, tool approvals, and rules across all hosts [42.17ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should install and verify global binary symlink in custom directory [1.05ms]
+
+tests/performance-metrics.test.ts:
+(pass) correlated artifact performance telemetry > correlates prepare/investigate with shared System-1 and Asker metrics, survives restart and excludes content [107.71ms]
+(pass) correlated artifact performance telemetry > uses llm-utils Actor events without counting their LLM tokens twice [44.61ms]
+(pass) correlated artifact performance telemetry > reports counters/outcomes and isolates telemetry write failures from engineering results [147.76ms]
+
+tests/compiler.test.ts:
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should compile an atomic codelet and run its verification harness [4.34ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should reject invalid syntax and failing verification tests in compile_codelet [2.78ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should promote a verified codelet dynamically into ToolRegistry and execute it [2.58ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should deterministically patch file blocks and handle negative matching errors [3.41ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should support batch patches across multiple blocks and files [1.98ms]
+
+tests/escalation.test.ts:
+(pass) Cognitive Escalation & Multi-Provider Engine > should resolve cloud credentials from environment variables [1.66ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should register providers based on resolved credentials [2.09ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should not escalate when policy is local_only [6.86ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should auto-escalate in design mode when cloud provider is configured and emit pubsub event [3.07ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > keeps automatic escalation task-routed so configured routes can fall back [2.69ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should auto-escalate when blast radius exceeds threshold [5.29ms]
+
+tests/mcp.test.ts:
+(pass) Stdio MCP Server Bridge > should list all tools including execute_shell_wish and domain facilities [12.56ms]
+(pass) Stdio MCP Server Bridge > should call domain tools through the MCP request handler [8.06ms]
+(pass) Stdio MCP Server Bridge > should export valid MCP JSON tool schemas to disk for host discovery [7.92ms]
+
+tests/shell.test.ts:
+(pass) Interactive Shell REPL Bridge > should handle session control and help [1.87ms]
+(pass) Interactive Shell REPL Bridge > should dynamically switch modes [1.16ms]
+➜ Discovering tools...
+✔ Process completed (0 steps in 1ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should not force the current mode for ordinary input in auto mode [2.25ms]
+➜ Discovering tools...
+✖ Process failed (0 steps in 0ms) [trace show · trace open]
+➜ Discovering tools...
+✖ Process failed (0 steps in 0ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should preserve the selected shell mode for natural-language instructions [1.42ms]
+(pass) Interactive Shell REPL Bridge > should handle trace controls as deterministic shell commands [1.11ms]
+(pass) Interactive Shell REPL Bridge > should report unavailable trace controls without invoking the Actor [0.97ms]
+(pass) Interactive Shell REPL Bridge > should facilitate interactive escalation policy selection [2.13ms]
+(pass) Interactive Shell REPL Bridge > should execute all domain fast-paths without LLM invocation [299.65ms]
+(pass) Interactive Shell REPL Bridge > should open and save Ticket Views through the canonical update tool [25.87ms]
+(pass) Interactive Shell REPL Bridge > should auto-complete shell commands with shellCompleter [11.95ms]
+➜ Discovering tools...
+✖ Process failed (0 steps in 0ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should delegate complex natural language wishes to cognitive actor [3.94ms]
+(pass) Interactive Shell REPL Bridge > should reject missing required parameters with usage info in non-interactive mode [8.29ms]
+(pass) Interactive Shell REPL Bridge > should dynamically complete tickets and lanes with buildSmartCompleter [3.62ms]
+(pass) Interactive Shell REPL Bridge > should interactively facilitate missing parameters via InteractivePrompter [12.52ms]
+
+tests/graph.test.ts:
+(pass) AST+ Semantic Graph (Semantika) > should create and retrieve typed entities with localId resolution [2.06ms]
+(pass) AST+ Semantic Graph (Semantika) > should connect entities via semantic predicates and traverse hops [3.40ms]
+(pass) AST+ Semantic Graph (Semantika) > should atomically lease, reject concurrent leases, and allow expired lease takeover [2.32ms]
+(pass) AST+ Semantic Graph (Semantika) > should export and import markdown projections with real disk mutation reconciliation [11.77ms]
+(pass) AST+ Semantic Graph (Semantika) > should index codebase AST symbols and modules [6.48ms]
+(pass) AST+ Semantic Graph (Semantika) > should index test files as durable graph verification artifacts [19.28ms]
+(pass) AST+ Semantic Graph (Semantika) > should reconcile symbol verification when a test is indexed before its source [14.79ms]
+(pass) AST+ Semantic Graph (Semantika) > should restore test-to-symbol evidence after an incrementally changed source removes and restores a symbol [36.87ms]
+(pass) AST+ Semantic Graph (Semantika) > should discover and index exported symbols from local file: dependencies in package.json [12.94ms]
+
+tests/ticket-resolution.test.ts:
+(pass) Ticket-owned bounded resolution > surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof [591.19ms]
+(pass) Ticket-owned bounded resolution > selects file verifies edges before fallback and producer guesses [412.57ms]
+(pass) Ticket-owned bounded resolution > selects symbol-only verifies edges before fallback and producer guesses [400.04ms]
+(pass) Ticket-owned bounded resolution > uses filename fallback only for an uncovered source and persists its canonical evidence [444.88ms]
+(pass) Ticket-owned bounded resolution > repairs a failing graph obligation even when the producer supplies a passing decoy [554.20ms]
+(pass) Ticket-owned bounded resolution > hashes full-suite TestNodes, rejects changed spec proof, and reuses unchanged full-suite proof [814.65ms]
+(pass) Ticket-owned bounded resolution > invalidates receipt when source changes and repairs formerly Done work [706.57ms]
+(pass) Ticket-owned bounded resolution > rejects later failing TestNode evidence and invalid persisted receipts without false failure [735.90ms]
+(pass) Ticket-owned bounded resolution > preserves authored verifies edges and reproduces derived edges on repeated reconciliation [62.65ms]
+(pass) Ticket-owned bounded resolution > updates authored TestNodes with custom IDs and does not invent full-suite evidence for filtered/no-test runs [29.99ms]
+(pass) Ticket-owned bounded resolution > backfills unchanged legacy indexed tests before discovery and records every full-suite file [461.90ms]
+(pass) Ticket-owned bounded resolution > rejects acceptance proof if its source changes during independent review [394.22ms]
+(pass) Ticket-owned bounded resolution > keeps passing executions distinct from an explicitly unproved criterion [392.35ms]
+(pass) Ticket-owned bounded resolution > rejects contradictory acceptance checks instead of picking the passing duplicate [391.03ms]
+(pass) Ticket-owned bounded resolution > rejects evidence when a test mutates its verified source during execution [394.74ms]
+(pass) Ticket-owned bounded resolution > reverifies a new authored target even when an earlier receipt already hashed it as an import [622.96ms]
+(pass) Ticket-owned bounded resolution > refuses Done when the authored contract changes during independent verification [390.72ms]
+(pass) Ticket-owned bounded resolution > records the actual verifying TestNode when its path contains spaces [430.79ms]
+(pass) Ticket-owned bounded resolution > preserves native authored-symbol migration during an authorized rename and reuses its new proof [546.39ms]
+(pass) Ticket-owned bounded resolution > does not mark a skipped file passing merely because another full-suite file passed [221.42ms]
+AIWF acceptance prompt bytes: 3796
+(pass) Ticket-owned bounded resolution > projects canonical execution evidence into acceptance review without duplicating test files or raw hashes [438.60ms]
+(pass) Ticket-owned bounded resolution > allows and preserves unrelated dirty files but stops before editing a dirty target [567.74ms]
+(pass) Ticket-owned bounded resolution > invalidates Done when the authored test oracle changes [630.51ms]
+(pass) Ticket-owned bounded resolution > reverifies a broader authored source scope instead of reusing narrower proof [581.76ms]
+(pass) Ticket-owned bounded resolution > repairs a real failing test exactly once and never marks failed acceptance Done [662.55ms]
+(pass) Ticket-owned bounded resolution > resolves bounded ordinary children in dependency order and verifies the parent separately [662.53ms]
+(pass) Ticket-owned bounded resolution > runs a safe TypeScript rename through the normal fingerprint boundary and targeted assertions [424.07ms]
+(pass) Ticket-owned bounded resolution > returns precise missing-input and prerequisite/lease/budget blockers without leaked leases [325.03ms]
+(pass) Ticket-owned bounded resolution > creates missing source through Causal Change, refuses overwrite and rejects symlink/path escapes [41.97ms]
+(pass) Ticket-owned bounded resolution > binds synthesis to the exact authored target and uses an independent verification call [448.99ms]
+(pass) Ticket-owned bounded resolution > sends graph-narrowed outlines and snippets, not whole files, to the default verifier [421.87ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: zero [437.56ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: continue [586.12ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: ordinary [332.97ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: limit [646.66ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: error [363.97ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: failed-edit [400.02ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: no-op [428.76ms]
+(pass) Ticket-owned bounded resolution > rejects repeated unchanged navigation and permits re-reading after a real edit [215.03ms]
+(pass) Ticket-owned bounded resolution > stops identical get_file_outline observations after three steps and executes once [158.12ms]
+(pass) Ticket-owned bounded resolution > stops identical read_workspace_file observations after three steps and executes once [151.02ms]
+(pass) Ticket-owned bounded resolution > allows different observations and rejects reordered canonical parameters [154.13ms]
+(pass) Ticket-owned bounded resolution > keeps the three-tranche total across acceptance repair attempts [379.50ms]
+(pass) Ticket-owned bounded resolution > grounds dependency work before edits and sends the complete Actor catalog through Ollama with explicit context [273.58ms]
+(pass) Ticket-owned bounded resolution > treats a missing symbol slice as a recovery observation instead of successful source [201.55ms]
+
+tests/artifact-command.test.ts:
+(pass) artifact-first shell/CLI/Actor delegation > validates the same policy, custom critic IDs and explicit dirty authorization without guessing parameters [5.83ms]
+(pass) artifact-first shell/CLI/Actor delegation > leaves ordinary natural-language delegation to the Actor instead of misparsing it as command options [2.41ms]
+(pass) artifact-first shell/CLI/Actor delegation > routes an explicit natural-language Ticket request through the entity once without outer Actor inference [4.44ms]
+(pass) artifact-first shell/CLI/Actor delegation > persists completeness only on explicit set/clear and keeps help/installed skill artifact-first [11.41ms]
+(pass) artifact-first shell/CLI/Actor delegation > runs documented CLI investigation and completeness commands in a real outside repository [1337.87ms]
+(pass) artifact-first shell/CLI/Actor delegation > advertises delegation and identical policy over the actual MCP protocol [36.97ms]
+
+tests/tools.test.ts:
+(pass) Tool Registry & Deterministic Facilities > should initialize registry with all standard facilities [7.58ms]
+(pass) Tool Registry & Deterministic Facilities > should create, list, lease, prioritize, and transition tickets [18.84ms]
+(pass) Tool Registry & Deterministic Facilities > should query AST symbols, file outlines, and blast radius [248.22ms]
+(pass) Tool Registry & Deterministic Facilities > should run git and os facilities with error handling [31.42ms]
+(pass) Tool Registry & Deterministic Facilities > should propose ADRs and manage scratchpad notes [6.12ms]
+(pass) Tool Registry & Deterministic Facilities > should resolve test targets and triage test runs [51.07ms]
+(pass) Tool Registry & Deterministic Facilities > should localize a failing test through TestNode graph evidence [53.20ms]
+(pass) Tool Registry & Deterministic Facilities > should evaluate custom JS scripts on the fly and catch errors with script_eval [6.93ms]
+
+tests/artifact-policy.test.ts:
+(pass) artifact policy > resolves root overrides, explicit descendant targets, Story inheritance, clearing and restart persistence [16.20ms]
+(pass) artifact policy > keeps Ticket scope targets distinct and rejects persistent Ticket completeness [11.10ms]
+(pass) artifact policy > round trips target fields without changing relations or interpreting operational percentages as maturity [17.28ms]
+(pass) artifact policy > counts depth as expansion edges and stops at breadth without claiming artifact completion [2.97ms]
+(pass) artifact policy > resolves injected and transport Critics without a registry or semantic writes [1.53ms]
+
+tests/aspects.test.ts:
+(pass) first-class Aspects > keeps Epic concerns on its work, inherits Feature concerns into Story work, and deduplicates Module/parent paths [29.14ms]
+(pass) first-class Aspects > accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work [27.48ms]
+(pass) first-class Aspects > uses the same preview/fingerprint boundary for Aspect mutation and rejects invalid later links before writes [10.57ms]
+(pass) first-class Aspects > round trips owned scopes while ignoring edits to rendered evidence [22.03ms]
+(pass) first-class Aspects > shortlists only optional candidates and lets independent review catch omission and ceremony without writes [10.71ms]
+
+tests/actor.test.ts:
+(pass) Cognitive Actor & Mode Switcher > maps configured mode routes to semantic tasks, with task routes authoritative [2.39ms]
+(pass) Cognitive Actor & Mode Switcher > uses enforced shell observation effects to stop repeated reads within read-only authority [39.92ms]
+(pass) Cognitive Actor & Mode Switcher > permits repeated scratch mutations and denies project writes through the same Actor path [57.83ms]
+(pass) Cognitive Actor & Mode Switcher > answers the next-ticket question through actual semantic discovery and selector execution [13.25ms]
+(pass) Cognitive Actor & Mode Switcher > terminates a repeated successful selector without exhausting the ten-step budget [3.90ms]
+(pass) Cognitive Actor & Mode Switcher > lets the model discover graph evidence and compose a multi-part ticket comparison [13.98ms]
+(pass) Cognitive Actor & Mode Switcher > bounds explicit discovery attempts including unsuccessful searches [3.58ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [5.09ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [6.74ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [5.15ms]
+(pass) Cognitive Actor & Mode Switcher > does not advertise a capability that is explicitly disabled [4.70ms]
+(pass) Cognitive Actor & Mode Switcher > bounds stalled discovery and preserves universal execution and every result [39.94ms]
+(pass) Cognitive Actor & Mode Switcher > records failed commands as recoverable errors with complete observations [8.37ms]
+(pass) Cognitive Actor & Mode Switcher > parses explicit mode preferences without linguistic routing [1.03ms]
+(pass) Cognitive Actor & Mode Switcher > should report natural-language LLM unavailability without inventing intent [1.09ms]
+(pass) Cognitive Actor & Mode Switcher > should delegate natural-language intent and model choice to llm-utils [1.55ms]
+(pass) Cognitive Actor & Mode Switcher > starts cognition with a small bootstrap prompt and no classifier call [1.59ms]
+(pass) Cognitive Actor & Mode Switcher > adds explicitly requested ticket tools without losing the bootstrap or exposing the registry [2.67ms]
+(pass) Cognitive Actor & Mode Switcher > composes selected existing capabilities for multi-stage natural language [6.74ms]
+(pass) Cognitive Actor & Mode Switcher > uses timeoutMs per model call instead of inventing a whole-run deadline [2.45ms]
+(pass) Cognitive Actor & Mode Switcher > propagates an explicit cancellation signal through model and tool execution [3.01ms]
+(pass) Cognitive Actor & Mode Switcher > reports partial actor failure instead of claiming execution was not attempted [2.02ms]
+(pass) Cognitive Actor & Mode Switcher > forwards tool cancellation into ticket resolution options [1.42ms]
+(pass) Cognitive Actor & Mode Switcher > should preserve conversational context across shell actor turns [2.53ms]
+(pass) Cognitive Actor & Mode Switcher > should execute a cognitive loop with a mock Asker and emit pubsub events [2.91ms]
+
+tests/shell-trace.test.ts:
+(pass) Shell failure trace and floating inspection > preserves unavailable-call evidence with the tiny bootstrap catalog [4.81ms]
+(pass) Shell failure trace and floating inspection > stops on a thrown error, preserves partial evidence, and reads it after restart [1.88ms]
+(pass) Shell failure trace and floating inspection > records optional discovery failure after cognition and preserves fallback command evidence [7.36ms]
+(pass) Shell failure trace and floating inspection > does not turn a failed run with partial final text into successful trace status [1.79ms]
+(pass) Shell failure trace and floating inspection > keeps full final answers and all calls/results, and replaces only the latest run [1.67ms]
+(pass) Shell failure trace and floating inspection > falls back to trace text when a floating renderer is unavailable or throws [1.47ms]
+
+tests/tool-discovery.test.ts:
+(pass) semantic tool discovery and surfaces > matches the live classified recommend-ticket tuple to the existing selector [3.21ms]
+(pass) semantic tool discovery and surfaces > reports a valid but unmatched AND query without dropping its constraints [0.84ms]
+(pass) semantic tool discovery and surfaces > retains classifier failure details instead of silently returning an empty surface [0.65ms]
+(pass) semantic tool discovery and surfaces > selects only the relevant read tool for an open-ticket question with one classifier call [0.78ms]
+(pass) semantic tool discovery and surfaces > exposes a small composable tool set for a multi-stage intent [0.71ms]
+(pass) semantic tool discovery and surfaces > constrains classifier output to the registry vocabulary before matching [1.00ms]
+(pass) semantic tool discovery and surfaces > propagates execution cancellation and per-call timeout into semantic classification [0.74ms]
+(pass) semantic tool discovery and surfaces > uses the fallback classifier only after the local classifier fails [0.89ms]
+(pass) semantic tool discovery and surfaces > resolves canonical multi-key intents to narrow functions across domains [2.71ms]
+(pass) semantic tool discovery and surfaces > does not broaden a failed multi-key lookup into a category bucket [0.72ms]
+(pass) semantic tool discovery and surfaces > never turns an unclassifiable request into the full registry [0.61ms]
+(pass) semantic tool discovery and surfaces > keeps every registered function semantically distinguishable at the full key tuple [0.31ms]
+(pass) semantic tool discovery and surfaces > keeps the public MCP API smaller than the internal implementation registry [0.12ms]
+(pass) qualifies candidate descriptions and narrowly rediscovers evidence when coarse tags lose request constraints [1.81ms]
+(pass) fails closed and bounds qualification for {"ids":[]} [1.41ms]
+(pass) fails closed and bounds qualification for {"ids":["non_candidate"]} [0.75ms]
+(pass) fails closed and bounds qualification for undefined [0.72ms]
+
+tests/decompose.test.ts:
+(pass) Epic Decomposition & Apply (Ticket 2) > honors project default and task model routes in the shared Asker [1.91ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > reuses existing Feature by ID and does not create duplicate Feature [9.96ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > reuses existing Story by ID without duplicating it [9.77ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > does not manufacture a Feature when a Story has no enabling capability [5.85ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > leaves graph completely untouched during proposal generation [4.74ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > preserves candidate IDs through proposal and apply [9.14ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > throws an error and refuses to apply if proposal contains blocking questions [3.06ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > safely tolerates repeated apply calls without duplicate nodes or broken edges [17.15ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > fails if candidate ID collides with an existing entity of a different type [2.66ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > allows a technical Epic containing only Features with zero Stories [6.52ms]
+
+tests/product-change.test.ts:
+(pass) Product Intent Causal Change > previews a coherent create/link set without writing and verifies coverage and impact after apply [78.53ms]
+(pass) Product Intent Causal Change > rejects an invalid later mutation before any write [6.65ms]
+(pass) Product Intent Causal Change > rejects stale fingerprints and requires explicit unlink before deletion [35.21ms]
+(pass) Product Intent Causal Change > links and unlinks every canonical relation and rejects invalid lifecycle fields [285.70ms]
+(pass) Product Intent Causal Change > rejects new legacy containment through preview while allowing explicit removal of existing state [17.13ms]
+(pass) Product Intent Causal Change > accepts the Product Intent request through public preview_change and apply_change tools [8.10ms]
+
+tests/product-processing.test.ts:
+(pass) entity-owned Product Intent processing > reuses stable Feature/Story identities across Epics without ownership or duplicate creation [116.08ms]
+(pass) entity-owned Product Intent processing > creates direct technical Epic Tickets and useful Story work with executable criteria, then reuses it [157.88ms]
+(pass) entity-owned Product Intent processing > upgrades POC to production by adding only missing work and lowering never deletes valid work [211.83ms]
+(pass) entity-owned Product Intent processing > keeps Stories upstream of Features and halts ambiguous or reversed intent [194.79ms]
+(pass) entity-owned Product Intent processing > depth zero reviews only; depth two processes children once and gives production final cross-layer review [115.06ms]
+(pass) entity-owned Product Intent processing > honors explicit descendant completeness and breadth while Aspect review consumes no depth [151.83ms]
+(pass) entity-owned Product Intent processing > Critic revision precedes canonical apply and rejection leaves graph unchanged [107.08ms]
+(pass) entity-owned Product Intent processing > requires the explicit root contract in final production cross-layer review [35.27ms]
+(pass) entity-owned Product Intent processing > keeps linked verification and governing evidence mandatory even when optional candidates are pruned [45.47ms]
+(pass) entity-owned Product Intent processing > thin registry adapters use the same entity path and preserve read-only completion targets [3.40ms]
+
+tests/product.test.ts:
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > correctly defaults statuses to draft and prevents silent generic implemented inheritance [9.08ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > permits canonical product relations and rejects invalid combinations [60.09ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > returns facts for draft stories without failing as project errors [4.08ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > identifies independent coverage gaps for an accepted UserStory [25.68ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > detects Epic missing_target_path invariant [22.67ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Bounded Product Impact > bounds context surgically and excludes sibling stories and unrelated nodes [32.98ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Single-Owner Round-Trip Projections > round-trips features.md and epics.md while keeping relation ownership strict [41.66ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Ticket 1 Acceptance Fixture (Calendar & Contact Graphs) > proves complete causal coverage and bounded context for the calendar acceptance fixture [10.25ms]
+
+tests/top-level-product-intent.test.ts:
+(pass) top-level Product Intent journey mechanisms > J1.2 extends an actor journey with a reusable capability instead of making the Feature own the Story [30.37ms]
+(pass) top-level Product Intent journey mechanisms > J2.3 carries Goal Concept Flow Story and Feature meaning into Ticket investigation [42.19ms]
+(pass) top-level Product Intent journey mechanisms > J1.2 gives Story processing the upstream Goal Concept and Flow context [40.97ms]
+(pass) top-level Product Intent journey mechanisms > keeps J2.3 investigation inside the addressed journey without expanding sibling capabilities or Epic targets [39.90ms]
+(pass) top-level Product Intent journey mechanisms > preserves legacy state through read and Markdown edit without authoring containment or silently migrating it [23.37ms]
+(pass) top-level Product Intent journey mechanisms > preserves graph-owned top-level Epic targets when the developer edits projected Epic content [11.10ms]
+(pass) top-level Product Intent journey mechanisms > J6.1 leaves pure technical work as a direct Ticket without inventing product ceremony [35.59ms]
+
+tests/os.test.ts:
+(pass) run_command observation contract > distinguishes empty success and nonzero exit with both streams [8.31ms]
+(pass) run_command observation contract > reports truncation independently for both streams [36.37ms]
+(pass) run_command observation contract > resolves working directories and reports spawn failure [10.66ms]
+(pass) run_command observation contract > distinguishes timeout and parent cancellation and terminates descendants [65.77ms]
+(pass) run_command observation contract > does not execute a command after cancellation [1.56ms]
+(pass) run_command observation contract > enforces host read-only project authority while permitting scratch computation [110.15ms]
+(pass) run_command observation contract > rejects overlapping scratch mounts and cannot write project through scratch symlinks [11.45ms]
+(pass) run_command observation contract > blocks dependency installation into a read-only project without command-name rules [23.49ms]
+
+tests/cli-help.test.ts:
+(pass) CLI help has no operation side effects > shows canonical help before executing next --help [343.75ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing init --help [314.66ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing resolve T --help [313.24ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing claim T -h [308.65ms]
+
+ 293 pass
+ 0 fail
+ 1951 expect() calls
+Ran 293 tests across 36 files. [40.76s]

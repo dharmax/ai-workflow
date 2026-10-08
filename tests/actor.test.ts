@@ -6,7 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
 import { Ticket, Epic, Feature, UserStory } from '../src/graph/ontology.ts';
-import type {Asker} from '@dharmax/llm-utils';
+import type {Asker, ZodType} from '@dharmax/llm-utils';
 
 const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
   discover: async () => ({
@@ -31,6 +31,47 @@ describe('Cognitive Actor & Mode Switcher', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it('maps configured mode routes to semantic tasks, with task routes authoritative', () => {
+    const configPath=path.join(tempDir,'.ai-workflow/config.json');
+    fs.mkdirSync(path.dirname(configPath),{recursive:true});
+    for (const taskRoute of [undefined,'openai/gpt-4o-mini']) {
+      fs.writeFileSync(configPath,JSON.stringify({model:'ollama/qwen2.5-coder:7b',modelRoutes:{dev:'openrouter/openai/gpt-4o-mini',...(taskRoute?{code:taskRoute}:{})}}));
+      const actor=new WorkflowActor({store,projectRoot:tempDir,toolDiscovery:null});
+      const asker=(actor as unknown as {asker:Asker}).asker;
+      expect(asker.getRouter().resolve('code',['openai','openrouter','ollama'],true)).toEqual(taskRoute?{providerId:'openai',modelId:'gpt-4o-mini'}:{providerId:'openrouter',modelId:'openai/gpt-4o-mini'});
+      // No concrete cloud target is configured for fast: do not invent a
+      // gateway equivalent for an Ollama-local model when local is unavailable.
+      expect(asker.getRouter().resolve('fast',['openrouter'],true)).toEqual({providerId:'ollama',modelId:'qwen2.5-coder:7b'});
+    }
+  });
+
+  it('uses enforced shell observation effects to stop repeated reads within read-only authority', async () => {
+    const asker = {json: async () => ({ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'ls .'}}]}})} as unknown as Asker;
+    const result = await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null,maxSteps:10}).execute('Inspect project evidence',undefined,{executionAuthority:'read-only'});
+    expect(result.failed).toBe(true);
+    expect(result.haltReason).toBe('error');
+    expect(result.stepsCount).toBe(3);
+    expect(result.events[1]!.toolResults![0]!.error).toContain('No new evidence');
+    const observed=result.events[0]!.toolResults![0]!.result as {authority:string;scratchRoot:string;observationOnly:boolean};
+    expect(observed.authority).toBe('read-only');
+    expect(observed.observationOnly).toBe(true);
+    expect(fs.existsSync(observed.scratchRoot)).toBe(false);
+  });
+
+  it('permits repeated scratch mutations and denies project writes through the same Actor path', async () => {
+    let count=0;
+    const commands=['printf fake > records.json','printf x >> "$TMPDIR/counter"','printf x >> "$TMPDIR/counter"','cat "$TMPDIR/counter"'];
+    fs.writeFileSync(path.join(tempDir,'records.json'),'real');
+    const asker={json:async()=>({ok:true,data:count<commands.length?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:commands[count++]}}]}:{thought:'',action:'final_answer',finalAnswer:'xx from scratch; source unchanged'}})} as unknown as Asker;
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null}).execute('Compute without changing source',undefined,{executionAuthority:'read-only'});
+    expect(result.failed).not.toBe(true);
+    expect(result.events[0]!.toolResults![0]!.isError).toBe(true);
+    expect(result.events[1]!.toolResults![0]!.isError).toBe(false);
+    expect(result.events[2]!.toolResults![0]!.isError).toBe(false);
+    expect((result.events[3]!.toolResults![0]!.result as {stdout:string}).stdout).toBe('xx');
+    expect(fs.readFileSync(path.join(tempDir,'records.json'),'utf8')).toBe('real');
+  });
+
   it('answers the next-ticket question through actual semantic discovery and selector execution', async () => {
     await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 'P1'});
     let classifierCalls = 0, actorCalls = 0, finalPrompt = '';
@@ -41,25 +82,27 @@ describe('Cognitive Actor & Mode Switcher', () => {
         return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
       }
       actorCalls++;
-      if (actorCalls === 1) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{callId: 'next', name: 'recommend_next_task', parameters: {}}]}};
+      if (actorCalls === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'Recommend next ticket'}}]}};
+      if (actorCalls === 2) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{callId: 'next', name: 'recommend_next_task', parameters: {}}]}};
       finalPrompt = prompt;
       return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'Work on BUG-NEXT: Fix a demonstrated bug.'}};
     }} as unknown as Asker;
     const actor = new WorkflowActor({store, projectRoot: tempDir, asker});
     const result = await actor.execute("what's the next recommeded ticket?");
     expect(result.failed).toBeUndefined();
-    expect(result.discoveredTools).toEqual(['recommend_next_task', 'discover_tools']);
-    expect(result.events[0].toolResult).toMatchObject({ticket: {id: 'BUG-NEXT'}});
+    expect(result.discoveredTools).toEqual(['run_command', 'discover_tools', 'recommend_next_task']);
+    expect(result.events[1].toolResult).toMatchObject({ticket: {id: 'BUG-NEXT'}});
     expect(finalPrompt).toContain('BUG-NEXT');
     expect(result.answer).toContain('BUG-NEXT');
-    expect(classifierCalls).toBe(1); expect(actorCalls).toBe(2);
+    expect(classifierCalls).toBe(1); expect(actorCalls).toBe(3);
   });
 
   it('terminates a repeated successful selector without exhausting the ten-step budget', async () => {
     await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 'P1'});
-    const asker = {json: async () => ({ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'recommend_next_task', parameters: {}}]}})} as unknown as Asker;
+    let calls=0;
+    const asker = {json: async () => ({ok: true, data: {thought: '', action: 'tool_call', toolCalls: ++calls===1 ? [{name:'discover_tools',parameters:{request:'Select next ticket'}}] : [{name: 'recommend_next_task', parameters: {}}]}})} as unknown as Asker;
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discover(['recommend_next_task'])}).execute('Compare candidates');
-    expect(result.failed).toBe(true); expect(result.haltReason).toBe('error'); expect(result.stepsCount).toBe(3);
+    expect(result.failed).toBe(true); expect(result.haltReason).toBe('error'); expect(result.stepsCount).toBe(4);
     expect(result.answer).toContain('No new evidence');
   });
 
@@ -81,15 +124,16 @@ describe('Cognitive Actor & Mode Switcher', () => {
       }
       actorCalls++;
       expect(options.system).toContain('discover_tools'); expect(options.system).toContain('every requested part');
-      if (actorCalls === 1) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]}};
-      if (actorCalls === 2) {expect(prompt).toContain('P3'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Search and traverse graph connections for ticket artifact relationships'}}]}};}
-      if (actorCalls === 3) {expect(prompt).toContain('search_graph'); expect(options.system).toContain('maxDepth'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: ['HIGH', 'LOW'].map(id => ({name: 'search_graph', parameters: {sourceId: id, direction: 'both', maxDepth: 3}}))}};}
+      if (actorCalls === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'List ticket candidates'}}]}};
+      if (actorCalls === 2) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]}};
+      if (actorCalls === 3) {expect(prompt).toContain('P3'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Search and traverse graph connections for ticket artifact relationships'}}]}};}
+      if (actorCalls === 4) {expect(prompt).toContain('search_graph'); expect(options.system).toContain('maxDepth'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: ['HIGH', 'LOW'].map(id => ({name: 'search_graph', parameters: {sourceId: id, direction: 'both', maxDepth: 3}}))}};}
       expect(prompt).toContain('SHARED'); expect(prompt).toContain('STORY-HIGH'); expect(prompt).toContain('STORY-LOW');
       return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'HIGH is most and LOW least by priority; both trace through separate stories and features to SHARED.'}};
     }} as unknown as Asker;
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute('Compare most and least recommended tickets and their main artifacts', undefined, {onDiscovery: tools => toolSnapshots.push(tools)});
-    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(4); expect(discoveries).toBe(2);
-    expect(result.discoveredTools).toEqual(['list_tickets', 'discover_tools', 'search_graph']);
+    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(5); expect(discoveries).toBe(2);
+    expect(result.discoveredTools).toEqual(['run_command', 'discover_tools', 'list_tickets', 'search_graph']);
     expect(toolSnapshots.at(-1)).toEqual(result.discoveredTools); expect(result.answer).toContain('SHARED');
     expect(result.issues).toEqual([]);
   });
@@ -99,26 +143,61 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const asker = {json: async () => ++calls <= 3 ? {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: `missing evidence ${calls}`}}]}} : {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'The requested evidence was not available.'}}} as unknown as Asker;
     const discovery = {discover: async () => ++queries === 1 ? {query: {}, tools: [registry.get('list_tickets')!]} : {query: {}, tools: [], error: 'No applicable capability'}};
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discovery}).execute('Read unsupported evidence');
-    expect(queries).toBe(3); expect(result.stepsCount).toBe(4);
+    expect(queries).toBe(2); expect(result.stepsCount).toBe(4);
     expect(result.issues?.some(issue => issue.message.includes('exhausted after two attempts'))).toBe(true);
   });
 
-  for (const initialError of ['Initial capability tuple has no match', undefined]) it(`lets the model discover evidence after initial lookup ${initialError ?? 'returns no tools'}`, async () => {
-    await store.upsertEntity(Ticket.dcr, {id: 'OBSERVED', title: 'Observed ticket', lane: 'Todo'});
-    let lookups = 0, calls = 0;
-    const asker = {json: async () => {
-      calls++;
-      return {ok: true, data: calls === 1 ? {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'List tickets'}}]} : calls === 2 ? {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]} : {thought: '', action: 'final_answer', finalAnswer: 'Observed ticket OBSERVED exists.'}};
+  for (const discovery of [null, {discover: async () => {throw new Error('classifier failure')}}, {discover: async () => ({query:{},tools:[]})}]) it('starts with universal execution before any discovery, including disabled/failed/empty discovery', async () => {
+    let calls=0;
+    const asker={json:async (_prompt:string,_schema:unknown,options:{system?:string})=>{
+      expect(options.system).toContain('### Tool: run_command');
+      expect(options.system).not.toContain('### Tool: script_eval');
+      return {ok:true,data:++calls===1?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf observed'}}]}:{thought:'',action:'final_answer',finalAnswer:'observed'}};
     }} as unknown as Asker;
-    const discovery = {discover: async () => ++lookups === 1 ? {query: {}, tools: [], error: initialError} : {query: {}, tools: [registry.get('list_tickets')!]}};
-    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discovery}).execute('Read project ticket evidence');
-    expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(3); expect(lookups).toBe(2);
-    expect(result.events[1]?.toolResult).toMatchObject([{id: 'OBSERVED'}]);
-    expect(result.issues?.some(issue => issue.source === 'discovery')).toBe(Boolean(initialError));
-    expect(result.discoveredTools).toEqual(['discover_tools', 'list_tickets']);
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:discovery}).execute('Inspect evidence','dev');
+    expect(result.failed).toBeUndefined();expect(result.discoveredTools).toEqual(discovery ? ['run_command','discover_tools'] : ['run_command']);
+    expect(result.events[0].toolResults?.[0].result).toMatchObject({stdout:'observed',success:true});
   });
 
-  it('should accurately classify modes via explicit commands and intent keywords', () => {
+  it('does not advertise a capability that is explicitly disabled', async () => {
+    let calls = 0;
+    const asker = {json: async (_prompt: string, schema: ZodType, options: {system?: string}) => {
+      expect(options.system).not.toContain('### Tool: discover_tools');
+      expect(schema.safeParse({thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'evidence'}}]}).success).toBe(false);
+      return {ok: true, data: ++calls === 1
+        ? {thought: '', action: 'tool_call', toolCalls: [{name: 'run_command', parameters: {command: 'printf observed'}}]}
+        : {thought: '', action: 'final_answer', finalAnswer: 'observed'}};
+    }} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: null}).execute('Inspect evidence');
+    expect(result.discoveredTools).toEqual(['run_command']);
+    expect(result.events[0].toolResults?.[0].result).toMatchObject({stdout: 'observed', success: true});
+  });
+
+  it('bounds stalled discovery and preserves universal execution and every result', async () => {
+    let calls=0;let discoverySignal:AbortSignal|undefined;
+    const asker={json:async()=>({ok:true,data:++calls===1?{thought:'PRIVATE',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'special evidence'}}]}:calls===2?{thought:'PRIVATE',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf one'}},{name:'run_command',parameters:{command:'printf two'}}]}:{thought:'PRIVATE',action:'final_answer',finalAnswer:'one and two'}})} as unknown as Asker;
+    const started=Date.now();
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,timeoutMs:30,toolDiscovery:{discover:async(_request,_limit,options)=>{discoverySignal=options?.signal;return new Promise<never>(()=>{})}}}).execute('Gather evidence');
+    expect(Date.now()-started).toBeLessThan(1000);expect(discoverySignal?.aborted).toBe(true);
+    expect(result.failed).toBeUndefined();expect(result.discoveryEvents?.some(event=>event.status==='failed'&&event.error?.includes('timed out'))).toBe(true);
+    expect(result.events[1].toolCalls).toHaveLength(2);expect(result.events[1].toolResults).toHaveLength(2);
+    expect(result.events[1].toolResults?.map(item=>(item.result as {stdout:string}).stdout)).toEqual(['one','two']);
+    expect(JSON.stringify(result)).not.toContain('PRIVATE');
+  });
+
+  it('records failed commands as recoverable errors with complete observations', async () => {
+    let calls=0;
+    const asker={json:async(prompt:string)=>{
+      if(calls===1){expect(prompt).toContain('RECOVERY / REPLANNING TURN');expect(prompt).toContain('partial');expect(prompt).toContain('compose available primitives')}
+      return {ok:true,data:++calls===1?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf partial; exit 7'}}]}:calls===2?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf recovered'}}]}:{thought:'',action:'final_answer',finalAnswer:'recovered'}};
+    }} as unknown as Asker;
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null}).execute('Obtain evidence');
+    expect(result.failed).toBeUndefined();
+    expect(result.events[0].toolResults?.[0]).toMatchObject({isError:true,result:{success:false,stdout:'partial',exitCode:7}});
+    expect(result.events[1].toolResults?.[0]).toMatchObject({isError:false,result:{success:true,stdout:'recovered',exitCode:0}});
+  });
+
+  it('parses explicit mode preferences without linguistic routing', () => {
     // Explicit commands
     expect(classifyIntentMode('/design what is our database strategy?')).toBe('design');
     expect(classifyIntentMode('/dev create a patch for store.ts')).toBe('dev');
@@ -177,11 +256,11 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(res.answer).toBe('README checked.');
     expect(capturedOptions.task).toBe('code');
     expect(capturedOptions.model).toBeUndefined();
-    expect(capturedOptions.system).toContain('get_git_status');
-    expect(capturedOptions.system).toContain('resolve_test_target');
+    expect(capturedOptions.system).toContain('run_command');
+    expect(capturedOptions.system).not.toContain('### Tool: resolve_test_target');
   });
 
-  it('should keep a real semantic-discovery Actor prompt small for an open-ticket question', async () => {
+  it('starts cognition with a small bootstrap prompt and no classifier call', async () => {
     let actorSystem = ''
     let classifierCalls = 0
     const mockAsker = {
@@ -221,15 +300,15 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     const res = await actor.execute('do we have open tickets?')
 
-    expect(res.mode).toBe('product')
-    expect(classifierCalls).toBe(1)
-    expect(actorSystem).toContain('### Tool: list_tickets')
+    expect(res.mode).toBe('dev')
+    expect(classifierCalls).toBe(0)
+    expect(actorSystem).not.toContain('### Tool: list_tickets')
     expect(actorSystem).not.toContain('### Tool: resolve_ticket')
-    expect(actorSystem).not.toContain('### Tool: run_command')
+    expect(actorSystem).toContain('### Tool: run_command')
     expect(actorSystem.length).toBeLessThan(8_000)
   });
 
-  it('should expose only semantically discovered ticket tools to the Actor', async () => {
+  it('adds explicitly requested ticket tools without losing the bootstrap or exposing the registry', async () => {
     let call = 0
     const systems: string[] = []
     const mockAsker = {
@@ -237,7 +316,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
         if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         systems.push(options.system ?? '')
         call++
-        if (call === 1) {
+        if (call === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'List tickets'}}]}}
+        if (call === 2) {
           return {
             ok: true,
             data: {
@@ -267,14 +347,15 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     const res = await actor.execute('do we have open tickets?')
 
-    expect(res.mode).toBe('product')
+    expect(res.mode).toBe('dev')
     expect(res.answer).toBe('There are open tickets.')
-    expect(res.discoveredTools).toEqual(['list_tickets', 'discover_tools'])
-    expect(systems[0]).toContain('list_tickets')
+    expect(res.discoveredTools).toEqual(['run_command','discover_tools','list_tickets'])
+    expect(systems[0]).not.toContain('### Tool: list_tickets')
+    expect(systems[1]).toContain('### Tool: list_tickets')
     expect((systems[0].match(/### Tool:/g) ?? []).length).toBe(2)
     expect(systems[0]).toContain('### Tool: discover_tools')
     expect(systems[0].length).toBeLessThan(8_000)
-    expect(systems[0]).not.toContain('run_command')
+    expect(systems[0]).toContain('run_command')
     expect(systems[0]).not.toContain('compile_codelet')
     expect(systems[0]).not.toContain('resolve_ticket')
   });
@@ -308,7 +389,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
           }
 
           actorCalls++
-          if (actorCalls === 1) {
+          if (actorCalls === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'Recommend and resolve ticket'}}]}}
+          if (actorCalls === 2) {
             expect(options.system).toContain('### Tool: recommend_next_task')
             expect(options.system).toContain('### Tool: resolve_ticket')
             return {
@@ -320,7 +402,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
               },
             }
           }
-          if (actorCalls === 2) {
+          if (actorCalls === 3) {
             return {
               ok: true,
               data: {
@@ -346,10 +428,11 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
       expect(result.answer).toBe('Resolved TKT-NEXT-ACTOR.')
       expect(result.events.map(event => event.toolCall?.name).filter(Boolean)).toEqual([
+        'discover_tools',
         'recommend_next_task',
         'resolve_ticket',
       ])
-      expect(actorCalls).toBe(3)
+      expect(actorCalls).toBe(4)
     } finally {
       Ticket.prototype.resolve = original
     }
@@ -417,7 +500,8 @@ describe('Cognitive Actor & Mode Switcher', () => {
         if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(_prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
         modelSignal = options.signal
         calls++
-        return calls === 1
+        if (calls===1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'capture signal'}}]}}
+        return calls === 2
           ? {
               ok: true,
               data: {

@@ -5,8 +5,11 @@
  * and honest offline failure reporting.
  */
 
-import { LLMActor, LLMSession, Asker, InMemoryMetricsStore, type ActorIssue, type ActorStepRecord } from '@dharmax/llm-utils';
+import { LLMActor, LLMSession, Asker, parseModelTarget, ToolExecutionError, InMemoryMetricsStore, type ActorIssue, type ActorStepRecord } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { WorkflowStore } from '../graph/store.ts';
 
 export { pubsub };
@@ -29,50 +32,34 @@ export interface ModeRoutingConfig {
 }
 
 
+const AGENCY_INSTRUCTIONS = `Achieve the user's entire goal and address every requested part. Modes are preferences, not competence limits.
+Use general knowledge for methodology; current-project facts require observed evidence. Inspect actual inputs and their format before processing them. Test fixtures/examples are not current project records. Respect recorded status and scope; completed work is not outstanding work. Truncated output is incomplete: retrieve relevant omitted sections before claiming absence or completeness.
+Your bootstrap is run_command plus optional discover_tools. Follow governing project instructions in AGENTS.md when present. Commands run in the project root using Bash (cmd on Windows); Bun executes JavaScript/TypeScript. Use aiwf help to learn the canonical project interface. Consult an interface’s help or documentation before invoking it; library functions are not necessarily executable commands. Keep searches bounded and avoid dependency/build trees unless relevant. Specialized capabilities are conveniences; failed, irrelevant or disabled discovery cannot stop universal execution.
+If a capability is missing, compose commands or create/run a temporary helper; remove one-off helpers afterwards. Preserve project state for read-only requests. After an error, inspect failing inputs and repair the underlying assumption or choose another method.
+Before finishing, check that observed evidence supports every requested conclusion and relevant eligibility/status constraints. State uncertainty when evidence is insufficient. A genuine blocker must name the concrete inaccessible, unsafe, unauthorized dependency or required user decision; tool limitations alone are not a blocker.`;
+
 export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
   design: {
-    mode: 'design',
-    taskClass: 'reasoning',
-    defaultLocalModel: 'qwen2.5-coder:7b',
-    defaultCloudModel: 'claude-3-7-sonnet',
-    systemPrompt: `You are an expert Software Architect in [DESIGN] mode.
-Your objective is architectural clarity, ADR decision making, modular boundaries, and scalable contracts.
-Favor extreme KISS principles. Avoid premature monolithic bloat.
-Use only the discovered graph, planning, knowledge, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+    mode: 'design', taskClass: 'reasoning', defaultLocalModel: 'qwen2.5-coder:7b', defaultCloudModel: 'claude-3-7-sonnet',
+    systemPrompt: AGENCY_INSTRUCTIONS + '\n[DESIGN] preference: architectural clarity, ADRs and modular boundaries when relevant. Favor extreme KISS.'
   },
   dev: {
-    mode: 'dev',
-    taskClass: 'code',
-    defaultLocalModel: 'qwen2.5-coder:7b',
-    defaultCloudModel: 'claude-3-5-sonnet',
-    systemPrompt: `You are an expert Implementation Engineer in [DEV] mode.
-Your objective is writing high-quality code, compiling verified codelets, and surgically patching files.
-Always inspect the blast radius and pair with unit tests.
-Use only the discovered code, graph, change, test, git, or other capabilities shown for this run.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+    mode: 'dev', taskClass: 'code', defaultLocalModel: 'qwen2.5-coder:7b', defaultCloudModel: 'claude-3-5-sonnet',
+    systemPrompt: AGENCY_INSTRUCTIONS + '\n[DEV] preference: code and implementation evidence when relevant. Inspect blast radius and verify tests for code changes.'
   },
   triage: {
-    mode: 'triage',
-    taskClass: 'fast',
-    defaultLocalModel: 'qwen2.5-coder:7b',
-    defaultCloudModel: 'gemini-2.5-flash-lite',
-    systemPrompt: `You are a Quality & Triage Engineer in [TRIAGE] mode.
-Your objective is rapid failure analysis, test suite diagnostics, and preventing regressions.
-Use only the discovered test, graph, git, or other capabilities shown for this run to diagnose failures without massive log waste.\nClaims about the current repository, file contents, recent changes, tests, implementation, or project state must be grounded in tool observations from this run or preserved session observations. Inspect relevant evidence before answering; never infer repository facts from general knowledge alone.`
+    mode: 'triage', taskClass: 'fast', defaultLocalModel: 'qwen2.5-coder:7b', defaultCloudModel: 'gemini-2.5-flash-lite',
+    systemPrompt: AGENCY_INSTRUCTIONS + '\n[TRIAGE] preference: failure diagnosis and test evidence when relevant, with bounded logs.'
   },
   product: {
-    mode: 'product',
-    taskClass: 'creative',
-    defaultLocalModel: 'qwen2.5-coder:7b',
-    defaultCloudModel: 'gemini-2.5-flash',
-    systemPrompt: `You are a Technical Product Manager in [PRODUCT] mode.
-Answer the user's full request by reasoning from observed project evidence. Your available tools are a starting set, not the complete capability set; use discover_tools when another part requires evidence you cannot obtain yet. You may compose ticket, graph, product and other relevant capabilities. Keep the user's scope: inspect related artifacts when requested, and make no mutations for read-only questions.
-Treat each tool result as evidence for its actual query and filters. An empty result for one lane or target does not negate evidence from other queries. Finish only after addressing every requested part, or explicitly state the particular part that remains unsupported and the evidence for that limitation. Do not claim a capability is absent before attempting discovery. Do not automatically create implementation work during roadmap decomposition.`
+    mode: 'product', taskClass: 'creative', defaultLocalModel: 'qwen2.5-coder:7b', defaultCloudModel: 'gemini-2.5-flash',
+    systemPrompt: AGENCY_INSTRUCTIONS + '\n[PRODUCT] preference: Product Intent and work evidence when relevant. Do not automatically create implementation work during roadmap decomposition.'
   }
 };
 
 /**
  * Parses explicit shell mode syntax only. Natural-language mode selection belongs
- * to semantic ToolDiscovery and does not use keyword heuristics.
+ * to the Actor itself; mode is a preference rather than an entrance classifier.
  */
 export function classifyIntentMode(text: string): ShellMode {
   const token = text.trim().split(/\s+/, 1)[0]?.toLowerCase()
@@ -88,7 +75,21 @@ export interface ActorStepEvent {
   thought?: string;
   toolCall?: { name: string; params: any };
   toolResult?: any;
+  toolCalls?: ActorStepRecord['toolCalls'];
+  toolResults?: ActorStepRecord['toolResults'];
   finalAnswer?: string;
+}
+
+export interface CapabilityDiscoveryEvent {
+  mode: ShellMode;
+  tools: string[];
+  request?: string;
+  query?: DiscoveredTools['query'];
+  status?: 'started' | 'completed' | 'failed';
+  bootstrap?: boolean;
+  addedTools?: string[];
+  elapsedMs?: number;
+  error?: string;
 }
 
 export interface WorkflowActorOptions {
@@ -101,7 +102,7 @@ export interface WorkflowActorOptions {
   offline?: boolean;
   timeoutMs?: number;
   radar?: ModelRadar;
-  toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
+  toolDiscovery?: Pick<ToolDiscovery, 'discover'> | null;
 }
 
 export class WorkflowActor {
@@ -116,6 +117,7 @@ export class WorkflowActor {
   private session?: LLMSession;
   private preferLocal: boolean;
   private configuredProviders: string[] = [];
+  private localProviders: string[] = [];
   private activeGateway: string = 'auto';
   private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
 
@@ -133,6 +135,7 @@ export class WorkflowActor {
     this.activeGateway = cfg.gateway || 'auto';
 
     this.configuredProviders = Object.keys(providers).filter((p) => providers[p]?.available);
+    this.localProviders = this.configuredProviders.filter(p => providers[p]?.local);
 
     if (options.offline || options.asker === null) {
       this.asker = undefined;
@@ -140,9 +143,29 @@ export class WorkflowActor {
       this.asker = options.asker;
     } else {
       try {
+        const routes = {...cfg.modelRoutes};
+        const fallbacks: Record<string, string[]> = {};
+        for (const [mode, settings] of Object.entries(MODE_CONFIGS)) {
+          const primary = routes[settings.taskClass] ?? routes[mode] ?? cfg.model;
+          routes[settings.taskClass] = primary;
+          const target = parseModelTarget(primary);
+          // Gateway and origin are equivalent model targets, only when the
+          // corresponding provider was configured by modelRuntime.
+          const equivalent = target.providerId === 'openrouter'
+            ? target.modelId
+            : `openrouter/${target.providerId}/${target.modelId}`;
+          const alternate = parseModelTarget(equivalent);
+          const cloudOrigin = target.providerId === 'openrouter' ? alternate.providerId : target.providerId;
+          fallbacks[settings.taskClass] = [
+            ...(providers[cloudOrigin] && !providers[cloudOrigin]?.local && providers[alternate.providerId] ? [equivalent] : []),
+            cfg.model,
+            `ollama/${settings.defaultLocalModel}`,
+          ];
+        }
         this.asker = new Asker({
           providers,
-          routes: cfg.modelRoutes,
+          routes,
+          fallbacks,
           preferLocal: this.preferLocal,
           defaultModel: cfg.model || MODE_CONFIGS[this.mode].defaultLocalModel
         });
@@ -152,7 +175,9 @@ export class WorkflowActor {
     }
     if (this.asker) {
       this.session = new LLMSession(this.asker, { maxHistoryTurns: 20, maxHistoryChars: 12_000 });
-      if (options.toolDiscovery) {
+      if (options.toolDiscovery === null) {
+        this.toolDiscovery = undefined;
+      } else if (options.toolDiscovery) {
         this.toolDiscovery = options.toolDiscovery;
       } else if (options.asker) {
         // Injected askers (tests/custom hosts) remain the single authority.
@@ -202,7 +227,7 @@ export class WorkflowActor {
   async execute(
     instruction: string,
     forcedMode?: ShellMode,
-    execOptions?: { forceCloud?: boolean; forceModel?: string; signal?: AbortSignal; onStep?: (step: ActorStepRecord) => void | Promise<void>; onDiscovery?: (tools: string[], mode: ShellMode) => void }
+    execOptions?: { forceCloud?: boolean; forceModel?: string; executionAuthority?: ToolContext['executionAuthority']; signal?: AbortSignal; onStep?: (step: ActorStepRecord) => void | Promise<void>; onDiscovery?: (tools: string[], mode: ShellMode) => void }
   ): Promise<{
     mode: ShellMode;
     stepsCount: number;
@@ -217,6 +242,7 @@ export class WorkflowActor {
     escalated?: boolean;
     escalationReason?: string;
     discoveredTools?: string[];
+    discoveryEvents?: CapabilityDiscoveryEvent[];
   }> {
     const modeToken = instruction.trim().split(/\s+/, 1)[0]?.toLowerCase();
     const explicitMode: ShellMode | undefined =
@@ -231,13 +257,23 @@ export class WorkflowActor {
     const ctx: ToolContext = {
       store: this.store,
       projectRoot: this.projectRoot,
+      executionAuthority: execOptions?.executionAuthority,
       signal: execOptions?.signal
     };
 
     const events: ActorStepEvent[] = [];
+    const discoveryEvents: CapabilityDiscoveryEvent[] = [];
+    const recordDiscovery = (event: CapabilityDiscoveryEvent) => {
+      discoveryEvents.push(event);
+      pubsub.trigger('aiwf', 'actor:discovery', event);
+    };
 
     const delegation = artifactCommand(rawText.trim().split(/\s+/));
     if (delegation) {
+      const tool = registry.get(delegation.tool);
+      if (ctx.executionAuthority === 'read-only' && (!tool || !semanticsForTool(tool).effect?.every(effect => effect === 'read'))) {
+        return this.executeFailure(activeMode, events, 'error', 'Read-only authority does not authorize this artifact operation.', []);
+      }
       const result = await registry.execute(delegation.tool, delegation.args, ctx);
       const answer = JSON.stringify(result, null, 2);
       return { mode: activeMode, stepsCount: 1, answer, events: [{ step: 1, mode: activeMode, thought: 'Explicit artifact delegation', toolCall: { name: delegation.tool, params: delegation.args }, toolResult: result, finalAnswer: answer }] };
@@ -247,16 +283,13 @@ export class WorkflowActor {
       return this.executeOfflineFallback(activeMode, 'No LLM provider is configured.');
     }
 
-    const discovery: DiscoveredTools = this.toolDiscovery
-      ? await this.toolDiscovery.discover(rawText, 3, {signal: execOptions?.signal, timeoutMs: this.timeoutMs})
-      : {query: {}, tools: []};
-    activeMode = forcedMode || explicitMode || discovery.mode || this.mode;
     this.mode = activeMode;
     const config = MODE_CONFIGS[activeMode];
-    const selectedNames = new Set(discovery.tools.map(tool => tool.name));
+    const bootstrap = registry.get('run_command');
+    if (!bootstrap) return this.executeFailure(activeMode, events, 'error', 'Bootstrap run_command is not registered.', []);
+    const selectedNames = new Set(['run_command', ...(this.toolDiscovery ? ['discover_tools'] : [])]);
     execOptions?.onDiscovery?.([...selectedNames], activeMode);
     const stepBudget = this.maxSteps;
-    const initialIssues: ActorIssue[] = discovery.error ? [{kind: 'tool', source: 'discovery', message: discovery.error, retryable: true}] : [];
 
     const cfg = loadConfig(this.projectRoot);
     const policy = cfg.escalation?.policy || 'auto';
@@ -292,7 +325,7 @@ export class WorkflowActor {
 
     // Explicit model choices remain authoritative. Otherwise llm-utils selects
     // from persisted advice using the semantic task class and locality preference.
-    const explicitModel = execOptions?.forceModel ?? (shouldEscalate ? cfg.modelRoutes?.[activeMode] : undefined);
+    const explicitModel = execOptions?.forceModel;
     const preferLocalForRun = policy === 'local_only'
       ? true
       : shouldEscalate
@@ -310,57 +343,88 @@ export class WorkflowActor {
     }
 
     try {
+      if (ctx.executionAuthority === 'read-only') ctx.scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-scratch-'));
       const actor = new LLMActor(this.asker, {
         maxSteps: this.maxSteps,
         maxToolCatalogChars: 16_000,
-        system: config.systemPrompt + (discovery.error ? `\nInitial capability lookup failed: ${discovery.error}. This does not establish that the project has no applicable tools. Use discover_tools to request the specific evidence needed, or state the lookup failure accurately.` : '')
+        system: config.systemPrompt + `\nEnvironment observation: the project root is ${this.projectRoot}.` +
+          (ctx.scratchRoot ? `\nExecution authority: read-only project filesystem; writable scratch directory ${ctx.scratchRoot}; TMPDIR points there.` : '')
       });
 
       const wrapTool = (tool: ToolDefinition) => ({
         name: tool.name,
         readOnly: semanticsForTool(tool).effect?.every(effect => effect === 'read') === true,
+        isReadOnlyResult: tool.name === 'run_command' ? (result: {observationOnly?: boolean}) => result?.observationOnly === true : undefined,
         description: tool.description,
         parameters: tool.parameters as any,
         execute: async (params: any) => {
           pubsub.trigger('aiwf', 'actor:tool', { name: tool.name, params });
-          return await tool.execute(params, ctx);
+          if (ctx.executionAuthority === 'read-only' && tool.name !== 'run_command' && !semanticsForTool(tool).effect?.every(effect => effect === 'read')) {
+            throw new ToolExecutionError('Read-only authority does not authorize this capability.', {authority: ctx.executionAuthority, deniedCapability: tool.name});
+          }
+          const result = await tool.execute(params, ctx);
+          if (tool.name === 'run_command' && result.success === false) {
+            throw new ToolExecutionError(result.error || `Command exited with status ${result.exitCode}`, result);
+          }
+          return result;
         }
       });
 
-      const runTools = discovery.tools.map(wrapTool);
+      const runTools = [wrapTool(bootstrap)];
       let recoveryAttempts = 0;
-      selectedNames.add('discover_tools');
-      execOptions?.onDiscovery?.([...selectedNames], activeMode);
-
-      pubsub.trigger('aiwf', 'actor:discovery', {
-        mode: activeMode,
-        query: discovery.query,
-        tools: [...selectedNames]
-      });
+      recordDiscovery({mode: activeMode, query: {}, tools: [...selectedNames], bootstrap: true});
 
       const result = await this.session!.run(actor, rawText, {
         maxSteps: stepBudget,
         tools: runTools,
-        onDiscoverTools: async request => {
-          if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Answer from existing evidence or explain the remaining gap.');
-          recoveryAttempts++;
-          const found = await this.toolDiscovery!.discover(request, 5, {signal: execOptions?.signal, timeoutMs: this.timeoutMs});
-          if (found.error) throw new Error(found.error);
-          if (!found.tools.length) throw new Error('No applicable capability was discovered for this request.');
-          for (const tool of found.tools) selectedNames.add(tool.name);
-          execOptions?.onDiscovery?.([...selectedNames], activeMode);
-          return found.tools.map(wrapTool);
-        },
+        onDiscoverTools: this.toolDiscovery ? async request => {
+          const started = Date.now();
+          recordDiscovery({mode: activeMode, request, status: 'started', tools: [...selectedNames]});
+          try {
+            if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Continue through run_command and existing evidence.');
+            recoveryAttempts++;
+            if (!this.toolDiscovery) throw new Error('Specialized discovery is disabled. Continue through run_command.');
+            const timeoutMs = Math.min(this.timeoutMs, 5000);
+            const deadline = new AbortController();
+            const signal = AbortSignal.any([deadline.signal, ...(execOptions?.signal ? [execOptions.signal] : [])]);
+            const timer = setTimeout(() => deadline.abort(new Error('Specialized discovery timed out; continue through run_command.')), timeoutMs);
+            let rejectAbort: (() => void) | undefined;
+            let found: DiscoveredTools;
+            try {
+              const aborted = new Promise<never>((_, reject) => {
+                rejectAbort = () => reject(signal.reason ?? new Error('Specialized discovery cancelled.'));
+                signal.addEventListener('abort', rejectAbort, {once: true});
+                if (signal.aborted) rejectAbort();
+              });
+              found = await Promise.race([this.toolDiscovery.discover(request, 5, {signal, timeoutMs}), aborted]);
+            } finally {
+              clearTimeout(timer);
+              if (rejectAbort) signal.removeEventListener('abort', rejectAbort);
+            }
+            if (found.error) throw new Error(found.error);
+            if (!found.tools.length) throw new Error('No applicable specialized capability discovered. Continue through run_command.');
+            for (const tool of found.tools) selectedNames.add(tool.name);
+            execOptions?.onDiscovery?.([...selectedNames], activeMode);
+            recordDiscovery({mode: activeMode, request, query: found.query, status: 'completed', addedTools: found.tools.map(tool => tool.name), tools: [...selectedNames], elapsedMs: Date.now() - started});
+            return found.tools.map(wrapTool);
+          } catch (error) {
+            recordDiscovery({mode: activeMode, request, status: 'failed', error: error instanceof Error ? error.message : String(error), tools: [...selectedNames], elapsedMs: Date.now() - started});
+            throw error;
+          }
+        } : undefined,
         askOptions: {
           ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
           preferLocal: preferLocalForRun,
+          ...(policy === 'local_only' ? {allowedProviders: this.localProviders} : {}),
           maxTokens: cfg.llmOutputTokens,
-          timeoutMs: this.timeoutMs
+          timeoutMs: this.timeoutMs,
+          metricsSink: this.metrics
         },
         signal: execOptions?.signal,
         onStep: async step => {
           const ev: ActorStepEvent = {
             step: step.step, mode: activeMode,
+            toolCalls: step.toolCalls, toolResults: step.toolResults,
             toolCall: step.toolCalls[0] ? {name: step.toolCalls[0].toolName, params: step.toolCalls[0].parameters} : undefined,
             toolResult: step.toolResults[0]?.result,
             finalAnswer: step.finalAnswer
@@ -376,8 +440,8 @@ export class WorkflowActor {
 
       if (!result.ok) {
         return {
-          ...this.executeFailure(activeMode, events, result.haltReason, result.error, [...initialIssues, ...result.issues]),
-          discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
+          ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
+          discoveryEvents, discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
         };
       }
 
@@ -389,16 +453,18 @@ export class WorkflowActor {
         targetModel: explicitModel,
         escalated: shouldEscalate,
         escalationReason,
-        discoveredTools: [...selectedNames],
-        issues: [...initialIssues, ...result.issues],
+        discoveryEvents, discoveredTools: [...selectedNames],
+        issues: result.issues,
         haltReason: result.haltReason,
         stepBudget
       };
     } catch (err: any) {
       return {
-        ...this.executeFailure(activeMode, events, 'error', err.message, initialIssues),
-        discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
+        ...this.executeFailure(activeMode, events, 'error', err.message, []),
+        discoveryEvents, discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
       };
+    } finally {
+      if (ctx.scratchRoot) fs.rmSync(ctx.scratchRoot, {recursive: true, force: true});
     }
   }
 

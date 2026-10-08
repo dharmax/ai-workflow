@@ -27,7 +27,8 @@ import { closeAllTs6RefactorClients } from './change/ts6-refactor.ts';
 import { formatBuildInfo } from './version.ts';
 
 const args = process.argv.slice(2);
-const command = args[0] || (process.stdin.isTTY ? 'shell' : 'help');
+const helpRequested = args.includes('--help') || args.includes('-h');
+const command = helpRequested ? 'help' : args[0] || (process.stdin.isTTY ? 'shell' : 'help');
 
 async function main() {
   if (command === 'version' || command === '--version' || command === '-V') {
@@ -43,7 +44,7 @@ async function main() {
   };
   initializeTools();
 
-  const delegation = artifactCommand(args);
+  const delegation = helpRequested ? null : artifactCommand(args);
   if (delegation) {
     const result = await registry.execute(delegation.tool, delegation.args, { store: getStore(), projectRoot: root });
     console.log(JSON.stringify(result, null, 2));

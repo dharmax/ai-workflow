@@ -11,6 +11,8 @@ export interface ToolContext {
   store: WorkflowStore;
   projectRoot: string;
   signal?: AbortSignal;
+  executionAuthority?: 'read-only' | 'project-write';
+  scratchRoot?: string;
   [key: string]: any;
 }
 

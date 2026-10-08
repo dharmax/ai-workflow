@@ -1,0 +1,69 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/actor.test.ts:
+(pass) progress guard uses enforced per-execution observation effects on a general tool [17.26ms]
+(pass) per-execution progress guard permits identical results from repeated mutations [4.72ms]
+(pass) LLMActor stops a repeated unavailable capability after retaining both failed observations [2.09ms]
+(pass) LLMActor still repairs an ordinary failure of an available tool [3.35ms]
+(pass) LLMActor allows a missing capability that successfully recovers on its next attempt [3.66ms]
+(pass) LLMActor registers, retrieves, and unregisters tools [0.22ms]
+(pass) LLMActor.step returns final_answer when model decides goal is achieved [0.98ms]
+(pass) LLMActor.step executes tool and records execution result [2.20ms]
+(pass) LLMActor.run orchestrates multi-turn loop to completion [2.74ms]
+(pass) LLMActor catches and contains tool exceptions without crashing [1.48ms]
+(pass) LLMActor validates tool parameters against Zod schema [2.21ms]
+(pass) LLMActor handles unregistered tool gracefully [0.96ms]
+(pass) LLMActor delegates to onMissingTool when tool is not registered [0.90ms]
+(pass) LLMActor.run halts with max_steps_exceeded when budget is exhausted [2.40ms]
+(pass) LLMActor.run respects AbortSignal [0.22ms]
+(pass) LLMActor.run propagates cancellation into an in-flight model request [23.74ms]
+(pass) LLMActor.run preserves recovered tool failures as structured issues [3.01ms]
+(pass) LLMActor.run parses structured output schema when specified [2.68ms]
+(pass) LLMActor rejects hallucinated tool name before execution and corrects to real tool via retry [1.77ms]
+(pass) LLMActor feeds back real tool failure and actor replans with alternative tool [3.16ms]
+(pass) LLMActor feeds back invalid parameter error and actor repairs arguments on next turn [2.85ms]
+(pass) LLMActor.run uses an exact run-local tool surface without mutating registered tools [1.52ms]
+(pass) LLMActor.run rejects globally registered tools excluded from a run-local surface [0.82ms]
+(pass) LLMActor.run does not expand an exact run-local surface through actor-level onMissingTool [0.87ms]
+(pass) LLMActor.run recovers missing tool on-demand via run-local onMissingTool without mutating global actor [2.57ms]
+(pass) LLMActor.run treats unresolvable run-local missing tools as ordinary tool errors [1.48ms]
+(pass) LLMActor refuses an oversized tool catalog before calling the provider [0.27ms]
+(pass) LLMActor advertises bounded missing-tool recovery only when a resolver exists [0.40ms]
+(pass) LLMActor stops unchanged read observations after one replanning opportunity [2.49ms]
+(pass) unchanged read evidence can replan to a recovered capability and answer its actual goal [2.78ms]
+(pass) read progress guard permits arguments changes [2.67ms]
+(pass) read progress guard permits result changes [2.13ms]
+(pass) read progress guard permits mutation changes [2.69ms]
+(pass) read progress comparison ignores argument and result object key order [2.67ms]
+(pass) alternating unchanged reads cannot evade the progress guard [5.14ms]
+(pass) rejects missing or blank final answers with tool surface  [2.19ms]
+(pass) rejects missing or blank final answers with tool surface available [1.30ms]
+(pass) explicit discovery adds exact schemas to the next turn without leaking capabilities across runs [4.06ms]
+(pass) failed specialization replans through available universal primitives instead of treating a missing specialist as a blocker [1.39ms]
+(pass) recoverable tool failures retain structured observations and allow another method [2.37ms]
+(pass) unchanged failed observations with proven read-only effects replan then stop [2.71ms]
+(pass) a different failed-read recovery input is allowed [2.13ms]
+(pass) LLMActor rejects completion when its requested output schema cannot be repaired [1.50ms]
+(pass) LLMActor preserves a valid false value returned by output repair [1.73ms]
+1048 |     const defaults = {task: 'code', model: 'mock/mock-model', allowedProviders: ['mock'], preferLocal: false}
+1049 |     const result = await new LLMActor(asker as any, {askOptions: defaults}).run('Return typed feature state', {schema: z.object({enabled: z.boolean()})})
+1050 |     expect(result.ok).toBe(true)
+1051 |     expect(asks).toHaveLength(2)
+1052 |     expect(asks[0]).toMatchObject(defaults)
+1053 |     expect(asks[1]).toMatchObject(defaults)
+                           ^
+error: expect(received).toMatchObject(expected)
+
+Matcher error: received value must be a non-null object
+
+      at <anonymous> (/home/dharmax/work/llm-utils/tests/actor.test.ts:1053:21)
+(fail) structured output repair retains Actor routing and hard provider defaults [1.06ms]
+(pass) structured output repair lets per-run routing override Actor defaults [0.99ms]
+
+1 tests failed:
+(fail) structured output repair retains Actor routing and hard provider defaults [1.06ms]
+
+ 45 pass
+ 1 fail
+ 179 expect() calls
+Ran 46 tests across 1 file. [210.00ms]

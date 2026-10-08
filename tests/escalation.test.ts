@@ -147,7 +147,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     expect(escalationEventReceived.preferLocal).toBe(false);
   });
 
-  it('should respect custom modelRoutes overrides', async () => {
+  it('keeps automatic escalation task-routed so configured routes can fall back', async () => {
     process.env.OPENROUTER_API_KEY = 'sk-or-test1234';
     saveConfig(tempDir, {
       modelRoutes: {
@@ -178,9 +178,10 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     });
 
     const res = await actor.execute('/dev write unit test', undefined, {forceCloud: true});
-    expect(res.targetModel).toBe('anthropic/claude-3.7-sonnet');
-    expect(askOptions.model).toBe('anthropic/claude-3.7-sonnet');
-    expect(askOptions.task).toBeUndefined();
+    expect(res.escalated).toBe(true);
+    expect(askOptions.model).toBeUndefined();
+    expect(askOptions.task).toBe('code');
+    expect(askOptions.preferLocal).toBe(false);
   });
 
   it('should auto-escalate when blast radius exceeds threshold', async () => {

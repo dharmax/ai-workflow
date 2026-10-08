@@ -1,0 +1,239 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/structured-output.test.ts:
+(pass) parses direct object and array roots [0.55ms]
+(pass) parses fenced and prose-surrounded JSON [1.66ms]
+(pass) extractJsonCandidate handles fences and outer delimiters correctly [0.05ms]
+(pass) deterministically repairs malformed object-shaped JSON using jsonrepair [1.60ms]
+(pass) rejects unrecoverable JSON, prose, and scalar JSON roots [0.12ms]
+(pass) Zod validation returns detailed error messages on schema failure [2.11ms]
+(pass) zodToJsonSchema converts representable schemas [1.92ms]
+(pass) resolveResponseFormat maps schema to json_schema format [0.23ms]
+(pass) OpenAI, Google, and Ollama format payloads and normalize URLs correctly [1.71ms]
+(pass) Asker.ask performs bounded corrective retry when validation fails [2.75ms]
+(pass) Asker.json carries Ollama context capacity and output budget through schema correction [1.12ms]
+
+tests/examples.test.ts:
+(pass) createDesktopTools returns all 4 standard tools [0.12ms]
+(pass) linuxCommandTool executes echo command successfully [4.15ms]
+(pass) popupMessageTool executes and returns displayed status [27.61ms]
+(pass) webSearchTool returns structured results [0.30ms]
+(pass) ttsTool executes and returns spoken status [3.71ms]
+(pass) createDesktopActor executes multi-turn scenario using desktop tools [44.63ms]
+
+tests/readme-examples.test.ts:
+(pass) README snippet: Public exports alignment [0.11ms]
+(pass) README snippet: Bun & Node Native Usage [0.48ms]
+(pass) README snippet: Plain Text Asks & Task Overrides [0.23ms]
+(pass) README snippet: Typed Structured JSON (asker.json()) with SentimentSchema [1.35ms]
+(pass) README snippet: Custom Local Endpoints (LM Studio / vLLM / llama.cpp) [5.33ms]
+(pass) README snippet: Defining Tools & Running an Autonomous Loop (LLMActor) [5.41ms]
+(pass) README snippet: Step-by-Step Control with actor.step() [2.74ms]
+(pass) README snippet: Multi-Phase Agent Pipelines (LLMPipeline) [12.34ms]
+(pass) README snippet: Pluggable Architecture (Custom Preprocessor & Planner) [2.93ms]
+(pass) README snippet: Happy Path + Exception Wisdom Interceptor [5.44ms]
+(pass) README snippet: Loading Prompt Templates from Filesystem & Typed JSON [5.57ms]
+(pass) README snippet: Context Injection & RAG Protocol [0.71ms]
+(pass) README snippet: Multi-Turn Session Memory (LLMSession) [0.86ms]
+(pass) README snippet: Telemetry & Metrics (LlmMetrics) [0.73ms]
+
+tests/pipeline-transition-edge-cases.test.ts:
+(pass) a skipped stage requires an explicit decision and cannot silently succeed [2.16ms]
+(pass) a skipped prerequisite cannot satisfy dependent work [0.84ms]
+(pass) loop rewind never injects a previous result invalidated by the jump [1.27ms]
+
+tests/pipeline-transition-regressions.test.ts:
+(pass) a skipped stage followed by an explicit next is not successful completion [1.26ms]
+(pass) a fallback is never automatically promoted into success in transition mode [0.59ms]
+(pass) retry clears an unresolved result and uses corrective wisdom [1.19ms]
+(pass) branch callback can reject a claimed success with no observations [0.75ms]
+
+tests/pipeline-transition-while.test.ts:
+(pass) while cursor moves to exact forward goto target and ends after last stage [1.84ms]
+(pass) backward goto reexecutes its target, invalidates downstream and preserves history [1.45ms]
+
+tests/pipeline-transitions.test.ts:
+(pass) without transitions the original happy path remains sequential [1.16ms]
+(pass) switch-style branching executes the chosen path and joins [1.36ms]
+(pass) unknown condition takes an explicit observation path [0.73ms]
+(pass) backward goto loops with bounded visits and chronological history [1.35ms]
+(pass) unbounded conditional cycle stops at the configured stage budget [0.66ms]
+(pass) unknown destinations, skipped prerequisites and duplicate IDs fail closed [0.62ms]
+(pass) transition callback can reject premature success and retry with wisdom [0.92ms]
+(pass) missing assigned tool never exposes the rest of the catalog [0.16ms]
+
+tests/transition-targets.test.ts:
+(pass) callback can enumerate meaningful destinations without guessing IDs or dependencies [3.84ms]
+(pass) target list drops invalidated prerequisites after a backward transition [1.01ms]
+
+tests/live-ollama.test.ts:
+(skip) Live Ollama: Asker.prompt resolves and injects RAG context into templates with live model
+(skip) Live Ollama: LLMActor executes end-to-end RAG + autonomous tool augmentation from natural language
+(skip) Live Ollama: LLMActor chains multi-tool outputs with data dependencies
+(skip) Live Ollama: LLMActor recovers from tool errors and executes conditional fallback
+(skip) Live Ollama: LLMPipeline executes full multi-phase lifecycle end-to-end
+(skip) Live Ollama: LLMPipeline intercepts failure and completes task using onException wisdom
+
+tests/pipeline.test.ts:
+(pass) LLMPipeline preprocessor extracts intent, constraints, and prunes tools [1.05ms]
+(pass) LLMPipeline plans ordered steps with dependencies [0.42ms]
+(pass) LLMPipeline executes full multi-phase pipeline passing dependency memory between steps [4.87ms]
+(pass) LLMPipeline supports custom adapters via Service Adapter Pattern [1.10ms]
+(pass) LLMPipeline onException injects wisdom and recovers on retry [2.23ms]
+(pass) LLMPipeline onException provides fallbackOutput and continues happy path [2.00ms]
+(pass) LLMPipeline onException skips failing step when instructed [1.68ms]
+(pass) LLMPipeline onException cleanly aborts or throws on error with explanation [2.44ms]
+
+tests/request-lifecycle.test.ts:
+(pass) Asker.json executes and validates with an inferred schema result [2.54ms]
+(pass) fatal provider circuits are instance-owned and block future requests [0.29ms]
+(pass) usage cost calculates correctly with pricing rates [0.09ms]
+
+tests/adapter-budgets.test.ts:
+(pass) provider output budgets and finish reasons > honors maxTokens consistently and preserves provider termination reasons [0.75ms]
+(pass) provider output budgets and finish reasons > passes arbitrary Ollama model options while typed controls win [0.20ms]
+(pass) classifies gateway HTTP402 as provider-unavailable payment failure [0.36ms]
+
+tests/api.test.ts:
+(pass) bundled package version matches package metadata [0.30ms]
+(pass) CompletionEngine owns adapters per instance [0.28ms]
+(pass) parseStructuredJson extracts, repairs, and validates model responses [0.86ms]
+(pass) provider HTTP failures preserve typed quota evidence [0.35ms]
+(pass) PromptEngine loads multipart templates, parses JSON frontmatter, and renders variables [0.23ms]
+(pass) PromptEngine parses YAML frontmatter and resolves nested dot-notation paths [0.16ms]
+(pass) FileTemplateSource loads prompt files from disk and integrates with Asker promptsDir [1.52ms]
+(pass) Asker executes direct ask with model routing [0.36ms]
+(pass) Asker.ask infers provider from bare model names and local models [0.59ms]
+(pass) Asker applies provider execution defaults and call overrides [0.33ms]
+(pass) Asker passes typed and provider-specific model parameters to adapters [0.43ms]
+(pass) Asker.json executes, parses, repairs, and returns typed data [0.69ms]
+(pass) Asker.prompt loads template, resolves context, and executes [0.37ms]
+(pass) LLMSession records history and metrics across ask and prompt turns [0.68ms]
+(pass) LlmMetrics aggregates totals, groupings, and pubsub events [0.50ms]
+(pass) ProviderDiscovery auto-detects and normalizes ollama host [0.84ms]
+(pass) ModelRouter honors configured defaults and explicit task routes over local preference [0.26ms]
+(pass) ModelRouter resolves explicit targets, bare models, and custom router functions [0.24ms]
+
+tests/openai-responses.test.ts:
+(pass) OpenAIAdapter Responses routing > uses Responses API for direct OpenAI while preserving execution and structured-output options [0.72ms]
+(pass) OpenAIAdapter Responses routing > keeps custom OpenAI-compatible endpoints on Chat Completions [0.22ms]
+(pass) OpenAIAdapter Responses routing > preserves temperature for direct non-reasoning OpenAI models [0.17ms]
+
+tests/performance-metrics.test.ts:
+(pass) correlated performance metrics > records every actual Asker provider call, including structured repair retries [0.96ms]
+(pass) correlated performance metrics > correlates Actor and child Asker calls without duplicating token accounting [1.14ms]
+(pass) correlated performance metrics > records structured provider termination provenance without parsing error text [0.40ms]
+(pass) correlated performance metrics > records System-1 fallback attempts under one trace without logging inputs [0.77ms]
+(pass) correlated performance metrics > never lets a failing sink fail the measured operation [0.18ms]
+
+tests/system-one.test.ts:
+(pass) SystemOne > preserves batched Laya answers and probabilities [0.32ms]
+(pass) SystemOne > maps Jev through the shared SystemOne contract [0.59ms]
+(pass) SystemOne > preserves the full Jev-compatible System-One question and answer surface [0.28ms]
+(pass) SystemOne > returns null when Jev is unavailable or malformed [0.16ms]
+(pass) SystemOne > returns null when Laya is unavailable or malformed [0.15ms]
+(pass) SystemOne > uses the shared remote protocol and preserves answers [0.62ms]
+(pass) SystemOne > falls back to the next backend only when needed [0.15ms]
+
+tests/model-advice.test.ts:
+(pass) tags discovers actual installed models and show enriches only useful facts [1.69ms]
+(pass) environment separates configuration, verified access and declarations without secrets [1.81ms]
+(pass) remote model listing verifies practical access; rejected credentials stay distinct from entitlement [0.88ms]
+(pass) refresh researches discovered facts/workloads/aggregate metrics and persists economics/provenance [10.68ms]
+(pass) reconstructed router and Asker reuse persistent primary with zero authority/research/pull calls [8.02ms]
+(pass) local preference filters remote advice and Asker.local stays local [3.91ms]
+(pass) explicit targets, bare model overrides and configured task routes outrank advice [3.40ms]
+(pass) deleted primary and unavailable providers fall through ranked choices without rewriting snapshot [5.72ms]
+(pass) missing, corrupt, unusable and disabled advice preserve deterministic fallback [2.43ms]
+(pass) generic workload names and default advice use the existing router without a closed task enum [2.42ms]
+(pass) pull recommendations are inspectable but never routed or installed even when provider exists [2.02ms]
+(pass) malformed authority responses never corrupt previous advice and explicit refresh replaces it [11.76ms]
+(pass) known credentials in authority reasons/evidence and caller workloads are sanitized [1.95ms]
+(pass) basic hardware discovery returns real process host facts without requiring a GPU [6.95ms]
+
+tests/tool-abort-session.test.ts:
+(pass) explicit refusal stops all remaining calls and alternate attempts [1.93ms]
+(pass) ordinary tool failure is visible and remains recoverable [2.73ms]
+(pass) session stores raw input and observations on completed [0.88ms]
+(pass) session stores raw input and observations on error [0.08ms]
+(pass) session stores raw input and observations on aborted [0.04ms]
+
+tests/session.test.ts:
+(pass) LLMSession carries actor tool observations into the next actor turn [1.15ms]
+(pass) LLMSession.appendMessage ingests external messages into session context [0.09ms]
+(pass) LLMSession bounds replayable history by character budget [0.11ms]
+(pass) LLMSession retains structured failed-command observations for follow-up requests [13.64ms]
+
+tests/actor.test.ts:
+(pass) progress guard uses enforced per-execution observation effects on a general tool [4.04ms]
+(pass) per-execution progress guard permits identical results from repeated mutations [3.14ms]
+(pass) LLMActor stops a repeated unavailable capability after retaining both failed observations [2.12ms]
+(pass) LLMActor still repairs an ordinary failure of an available tool [2.24ms]
+(pass) LLMActor allows a missing capability that successfully recovers on its next attempt [2.38ms]
+(pass) LLMActor registers, retrieves, and unregisters tools [0.27ms]
+(pass) LLMActor.step returns final_answer when model decides goal is achieved [1.01ms]
+(pass) LLMActor.step executes tool and records execution result [1.98ms]
+(pass) LLMActor.run orchestrates multi-turn loop to completion [2.50ms]
+(pass) LLMActor catches and contains tool exceptions without crashing [1.26ms]
+(pass) LLMActor validates tool parameters against Zod schema [1.42ms]
+(pass) LLMActor handles unregistered tool gracefully [0.93ms]
+(pass) LLMActor delegates to onMissingTool when tool is not registered [0.80ms]
+(pass) LLMActor.run halts with max_steps_exceeded when budget is exhausted [2.78ms]
+(pass) LLMActor.run respects AbortSignal [0.28ms]
+(pass) LLMActor.run propagates cancellation into an in-flight model request [21.27ms]
+(pass) LLMActor.run preserves recovered tool failures as structured issues [3.07ms]
+(pass) LLMActor.run parses structured output schema when specified [2.03ms]
+(pass) LLMActor rejects hallucinated tool name before execution and corrects to real tool via retry [1.46ms]
+(pass) LLMActor feeds back real tool failure and actor replans with alternative tool [2.12ms]
+(pass) LLMActor feeds back invalid parameter error and actor repairs arguments on next turn [2.54ms]
+(pass) LLMActor.run uses an exact run-local tool surface without mutating registered tools [1.14ms]
+(pass) LLMActor.run rejects globally registered tools excluded from a run-local surface [0.83ms]
+(pass) LLMActor.run does not expand an exact run-local surface through actor-level onMissingTool [0.73ms]
+(pass) LLMActor.run recovers missing tool on-demand via run-local onMissingTool without mutating global actor [2.52ms]
+(pass) LLMActor.run treats unresolvable run-local missing tools as ordinary tool errors [1.43ms]
+(pass) LLMActor refuses an oversized tool catalog before calling the provider [0.48ms]
+(pass) LLMActor advertises bounded missing-tool recovery only when a resolver exists [0.69ms]
+(pass) LLMActor stops unchanged read observations after one replanning opportunity [3.41ms]
+(pass) unchanged read evidence can replan to a recovered capability and answer its actual goal [3.03ms]
+(pass) read progress guard permits arguments changes [2.58ms]
+(pass) read progress guard permits result changes [2.26ms]
+(pass) read progress guard permits mutation changes [3.05ms]
+(pass) read progress comparison ignores argument and result object key order [4.04ms]
+(pass) alternating unchanged reads cannot evade the progress guard [3.80ms]
+(pass) rejects missing or blank final answers with tool surface  [1.29ms]
+(pass) rejects missing or blank final answers with tool surface available [0.83ms]
+(pass) explicit discovery adds exact schemas to the next turn without leaking capabilities across runs [2.90ms]
+(pass) failed specialization replans through available universal primitives instead of treating a missing specialist as a blocker [1.23ms]
+(pass) recoverable tool failures retain structured observations and allow another method [2.52ms]
+(pass) unchanged failed observations with proven read-only effects replan then stop [3.11ms]
+(pass) a different failed-read recovery input is allowed [2.21ms]
+(pass) LLMActor rejects completion when its requested output schema cannot be repaired [0.92ms]
+(pass) LLMActor preserves a valid false value returned by output repair [1.93ms]
+(pass) structured output repair retains Actor routing and hard provider defaults [0.93ms]
+(pass) structured output repair lets per-run routing override Actor defaults [0.80ms]
+
+tests/provider-fallback.test.ts:
+(pass) fatal task-provider failure uses eligible fallback and preserves request and metrics [1.61ms]
+(pass) explicit model and provider override do not silently switch [0.23ms]
+(pass) retryable rate limit uses eligible alternate [0.17ms]
+(pass) nonfatal nonretryable response failure does not trigger provider switching [0.20ms]
+(pass) retryable network failure uses alternate without permanently opening primary circuit [0.20ms]
+(pass) all retryable providers terminate after one failed attempt each [0.14ms]
+(pass) cancellation prevents fallback even when primary reports fatal failure [0.17ms]
+(pass) all fatal providers terminate after one attempt each [0.17ms]
+(pass) configured concrete gateway fallback is eligible before unrelated legacy models [0.33ms]
+(pass) hard provider restrictions reject conflicting explicit choices without transport [0.27ms]
+
+6 tests skipped:
+(skip) Live Ollama: Asker.prompt resolves and injects RAG context into templates with live model
+(skip) Live Ollama: LLMActor executes end-to-end RAG + autonomous tool augmentation from natural language
+(skip) Live Ollama: LLMActor chains multi-tool outputs with data dependencies
+(skip) Live Ollama: LLMActor recovers from tool errors and executes conditional fallback
+(skip) Live Ollama: LLMPipeline executes full multi-phase lifecycle end-to-end
+(skip) Live Ollama: LLMPipeline intercepts failure and completes task using onException wisdom
+
+ 176 pass
+ 6 skip
+ 0 fail
+ 840 expect() calls
+Ran 182 tests across 21 files. [545.00ms]
