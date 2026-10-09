@@ -70,7 +70,7 @@ ${PRIME_DIRECTIVE}
 
 Product development starts from actor journeys, not capability lists. Before implementing a product capability, identify the concrete actor situation, intention, interaction/progression and useful end state that give it meaning. The actor may be human, agent, API client, service, scheduler or other system actor. Derive capabilities, architecture and acceptance tests from that journey. Pure technical maintenance may remain direct Ticket work; never manufacture product ceremony.
 
-**Agency invariant:** the LLM Actor is the general problem solver; tools, semantic discovery, System-1, registries, skills and codelets support it but never define the set of goals it may attempt. Goal precedes capability. General model knowledge may choose methodology; current-project facts require observed evidence. Discovery failure must degrade efficiency, not competence. For any Actor/discovery/tool-routing change, read \`docs/agency-constitution.md\` and pass \`docs/agency-restoration-plan.md\`'s Agency Gate before claiming success.
+**Agency invariant:** the LLM Actor is the general problem solver. Sophisticated goals require an adequate configured reasoning route and flexible execution means; System-1 may advise but never gate. Ordinary tools, discovery, environment execution and ephemeral deterministic composition are optional means chosen by the Actor. Compilation is never the default definition of sophistication. Current-project claims require observed evidence. For Actor/discovery/composition/model-routing changes, follow \`docs/advanced-actor-plan.md\` and prove J2.4/J2.5 through the real host boundary.
 
 ## Preferred workflow
 
