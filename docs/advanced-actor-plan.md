@@ -88,6 +88,72 @@ This avoids putting text-compiler-dependent behavior into `llm-utils`, which wou
 
 ---
 
+## 3.1 Why Codex/AGY can already handle very sophisticated prompts
+
+This design should copy the **capability shape**, not the product implementation.
+
+Codex's public agent architecture confirms several important properties:
+
+- the model stays in a continuous goal-directed tool loop;
+- a general shell/execution environment is available as a basic substrate rather than being semantically preselected for each request;
+- the agent can create and run temporary scripts/programs as part of solving a task;
+- repository instructions/context are injected, while the model itself chooses the next useful action;
+- the harness preserves session state, tool observations, recovery and execution boundaries across many steps.
+
+AGY's internals are not available here, so do not pretend to know its implementation. But its observed behavior has the same important external shape: give it a broad goal plus a capable execution environment and it can investigate, synthesize a temporary procedure/program, execute it, inspect the result and continue.
+
+That exposes the key difference from current AIWF/ai-cli:
+
+```text
+Codex / AGY
+goal
+  -> strong general actor
+  -> always-available general execution substrate
+  -> freely synthesize temporary procedures/scripts
+  -> execute
+  -> observe
+  -> replan
+  -> finish
+
+current AIWF / ai-cli
+goal
+  -> semantic/tool narrowing
+  -> many primitive LLM-mediated calls
+  -> limited convenient deterministic composition
+  -> step/latency/wandering pressure
+  -> sometimes fail despite understanding the goal
+```
+
+The lesson is **not** “add a planner” and not “copy Codex's shell”.
+
+The lesson is:
+
+> A sophisticated Actor needs a cheap way to turn an understood subproblem into an executable temporary procedure without requiring the LLM to micromanage every primitive step.
+
+Codex gets much of this power from arbitrary shell/script generation. Our shared version should provide the same semantic capability in a cleaner, safer and more model-independent form: bounded ephemeral composition over explicit host capabilities.
+
+This is also why text-compiler is promising here. With weaker/cheaper models than Codex may use, we can move a whole deterministic subproblem into one synthesized-and-verified helper instead of requiring the model to remain perfectly coherent over a long tool loop.
+
+### Important consequence for the design
+
+The center of `advanced-actor` is **not System-1**.
+
+System-1 merely notices cheaply that a prompt/subproblem probably has a useful computational shape. The essential new power is:
+
+```text
+understand subproblem
+   -> synthesize temporary executable procedure
+   -> execute it with bounded capabilities
+   -> observe result
+   -> continue reasoning
+```
+
+Therefore `advanced-actor` should remain useful even if System-1 is disabled entirely.
+
+It should also avoid forcing every sophisticated task through text-compiler. Codex succeeds partly because the Actor can choose the right granularity itself: direct reasoning, one tool call, shell command, temporary script, or a longer investigation. Our abstraction must preserve that freedom.
+
+---
+
 ## 4. Module boundary
 
 `advanced-actor` should be small enough to explain in one sentence:
