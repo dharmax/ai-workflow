@@ -184,6 +184,16 @@ export async function initProject(projectRoot: string): Promise<InitResult> {
 
   // 4. Export initial Markdown projections
   const exportRes = await exportProjections(store, projectRoot);
+
+  // 5. Ensure local SOLUTIONS.md contains the AIWF MCP exclusivity protocol
+  const solutionsPath = path.join(projectRoot, 'SOLUTIONS.md');
+  let solutions = fs.existsSync(solutionsPath) ? fs.readFileSync(solutionsPath, 'utf8') : '';
+  if (!solutions.includes('AIWF MCP Exclusivity Protocol')) {
+    const protocolSection = `\n## AIWF MCP Exclusivity Protocol\n- **Rule**: When AIWF MCP tools are available in an ai-workflow workspace, NEVER use native primitives (view_file, replace_file_content, write_to_file) or raw grep/cat.\n- **Edits**: ALWAYS use preview_change -> verify fingerprint -> apply_change.\n- **Discovery**: ALWAYS use find_symbol, get_symbol_source, get_file_outline, search_graph, or read_workspace_file.\n- **Tickets**: ALWAYS use investigate_ticket, claim_ticket, and resolve_ticket.\n`;
+    solutions = (solutions.trim() ? solutions.trimEnd() + '\n' : '# Solutions & Knowledge Ledger\n') + protocolSection;
+    fs.writeFileSync(solutionsPath, solutions, 'utf8');
+  }
+
   store.close();
 
   return {
@@ -399,8 +409,9 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
   }
 
   // 2. Antigravity CLI / Gemini
-  const cliConfigPath = path.join(home, '.gemini', 'config', 'mcp_config.json');
-  if (fs.existsSync(path.join(home, '.gemini')) || fs.existsSync(cliConfigPath)) {
+  const geminiDir = path.join(home, '.gemini');
+  const cliConfigPath = path.join(geminiDir, 'config', 'mcp_config.json');
+  if (fs.existsSync(geminiDir) || fs.existsSync(cliConfigPath)) {
     try {
       let cliConfig: any = { mcpServers: {} };
       if (fs.existsSync(cliConfigPath)) {
@@ -411,6 +422,16 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
       cliConfig.mcpServers = cliConfig.mcpServers || {};
       cliConfig.mcpServers['ai-workflow'] = mcpJsonEntry;
       fs.writeFileSync(cliConfigPath, JSON.stringify(cliConfig, null, 2), 'utf8');
+
+      // Ensure SOLUTIONS.md in ~/.gemini has the AIWF MCP exclusivity protocol
+      const globalSolutionsPath = path.join(geminiDir, 'SOLUTIONS.md');
+      let globalSolutions = fs.existsSync(globalSolutionsPath) ? fs.readFileSync(globalSolutionsPath, 'utf8') : '';
+      if (!globalSolutions.includes('AIWF MCP Exclusivity Protocol')) {
+        const protocolSection = `\n## AIWF MCP Exclusivity Protocol\n- **Rule**: When AIWF MCP tools are available in an ai-workflow workspace, NEVER use native primitives (view_file, replace_file_content, write_to_file) or raw grep/cat.\n- **Edits**: ALWAYS use preview_change -> verify fingerprint -> apply_change.\n- **Discovery**: ALWAYS use find_symbol, get_symbol_source, get_file_outline, search_graph, or read_workspace_file.\n- **Tickets**: ALWAYS use investigate_ticket, claim_ticket, and resolve_ticket.\n`;
+        globalSolutions = (globalSolutions.trim() ? globalSolutions.trimEnd() + '\n' : '# Solutions & Knowledge Ledger\n') + protocolSection;
+        fs.writeFileSync(globalSolutionsPath, globalSolutions, 'utf8');
+      }
+
       hostsUpdated.push('Antigravity CLI');
     } catch {}
   }
