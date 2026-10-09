@@ -94,6 +94,8 @@ kanban-plugin: board
   - Summary: Investigated MCP/client discoverability and scoped navigation. Implemented shared actionable repository guidance, explicit optional projectRoot schemas, correct sibling filePath handling, invalid-root errors and host registration restoration after scoped stores close. Installed only focused Codex skill/rule updates. Acceptance: real ai-cli KnowledgeBase exact 15-line TS-LSP extraction and host preservation verified through fresh SDK MCP; 22 focused and 298 full tests pass, typecheck exits 0, skills validate. Failed baseline/cold-start experiments and limitations retained in docs/client-investigation-guidance.md; current trace in .ai-workflow/state/client-investigation/acceptance.json. No Actor/router changes; independent external-client adoption not claimed.
 - [x] **TKT-ADV-ACTOR-J25**: Dynamic Asker runtime refresh and effective target projection
   - Summary: Fix J2.5 runtime configuration refresh: WorkflowActor retains old Asker after config changes; implement reloadConfig() and getEffectiveRoute() to reflect live router resolution in shell and CLI without restarting processes.
+- [x] **TKT-ADV-ACTOR-J24**: Solve sophisticated compound goals through grounded evidence acquisition (J2.4)
+  - Summary: Fix J2.4 compound goal solving and evidence acquisition: normalize semantic discovery domains and objects (e.g. project, goal, hotspots), guide Actor to governing project records (project.md, kanban.md, epics.md) before inspecting auxiliary data, prevent dummy shell echo note-taking, and verify grounded multi-part answers.
 
 ## Blocked
 

@@ -222,14 +222,31 @@ export class ToolDiscovery {
   }
 }
 
+const DOMAIN_ALIASES: Record<string, readonly string[]> = {
+  project: ['planning', 'ticket', 'graph'],
+  product: ['planning'],
+  dependency: ['graph', 'planning'],
+  dependencies: ['graph', 'planning'],
+  architecture: ['planning', 'graph'],
+  code: ['graph', 'change'],
+  repo: ['git', 'os'],
+  workspace: ['os', 'graph'],
+  system: ['os'],
+}
+
+function normalizeDomain(value: string): string[] {
+  return [...(DOMAIN_ALIASES[value] ?? [value])]
+}
+
 export function semanticsForTool(tool: ToolDefinition): RegistryQuery {
   const parts = tool.name.toLowerCase().split('_').filter(Boolean)
   const verb = parts[0] ?? 'get'
   const objects = [...new Set(parts.slice(1).map(normalizeObject).filter(Boolean))]
   const actions = ACTION_ALIASES[verb] ?? [verb]
+  const domains = normalizeDomain(tool.category)
 
   return {
-    domain: [tool.category],
+    domain: domains.length > 0 ? domains : [tool.category],
     ...(objects.length > 0 ? {object: objects} : {}),
     action: [...actions],
     effect: [effectForAction(verb)],
@@ -260,6 +277,14 @@ function normalizeObject(value: string): string {
     changes: 'change',
     dependencies: 'dependency',
     knowledgebase: 'knowledge',
+    goals: 'goal',
+    concepts: 'concept',
+    flows: 'flow',
+    decisions: 'decision',
+    coverages: 'coverage',
+    impacts: 'impact',
+    hotspots: 'blast',
+    workspace: 'file',
   }
   return canonical[value] ?? value
 }
@@ -295,10 +320,16 @@ function normalizeQuery(query: Record<string, string[]>): RegistryQuery {
   return Object.fromEntries(
     Object.entries(query)
       .filter(([, values]) => Array.isArray(values))
-      .map(([key, values]) => [
-        key.trim().toLowerCase(),
-        [...new Set(values.map(value => String(value).trim().toLowerCase()).filter(Boolean))],
-      ])
+      .map(([key, values]) => {
+        const k = key.trim().toLowerCase()
+        const flatValues = values.flatMap(v => {
+          const val = String(v).trim().toLowerCase()
+          if (k === 'domain') return normalizeDomain(val)
+          if (k === 'object') return [normalizeObject(val)]
+          return [val]
+        }).filter(Boolean)
+        return [k, [...new Set(flatValues)]]
+      })
       .filter(([, values]) => values.length > 0),
   )
 }

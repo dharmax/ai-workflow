@@ -61,16 +61,18 @@ export async function getProductImpact(store: WorkflowStore, entityId: string): 
 }
 
 async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localId: string): Promise<ProductImpact> {
-  const [containsPreds, enablePreds, epicPreds, ticketPreds, testPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
+  const [containsPreds, enablePreds, epicPreds, ticketAddrPreds, ticketImplPreds, testPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
     store.getIncoming(story.id, 'contains'),
     store.getIncoming(story.id, 'enables'),
     store.getIncoming(story.id, 'targets'),
     store.getIncoming(story.id, 'addresses'),
+    store.getIncoming(story.id, 'implements'),
     store.getIncoming(story.id, 'verifies'),
     store.getIncoming(story.id, 'governs'),
     store.getIncoming(story.id, 'blocks'),
     store.getOutgoing(story.id, 'depends_on')
   ]);
+  const ticketPreds = [...ticketAddrPreds, ...ticketImplPreds];
 
   const features = new Set<string>(enablePreds.map(p => store.localId(p.sourceId)));
   for (const pred of containsPreds) {
@@ -135,8 +137,9 @@ async function getUserStoryImpact(store: WorkflowStore, story: UserStory, localI
 }
 
 async function getFeatureImpact(store: WorkflowStore, feature: Feature, localId: string): Promise<ProductImpact> {
-  const [epicPreds, enabledStoryPreds, legacyStoryPreds, directTicketPreds, directTestPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
+  const [epicTargetPreds, epicContainsPreds, enabledStoryPreds, legacyStoryPreds, directTicketPreds, directTestPreds, decisionPreds, blockPreds, depPreds] = await Promise.all([
     store.getIncoming(feature.id, 'targets'),
+    store.getIncoming(feature.id, 'contains'),
     store.getOutgoing(feature.id, 'enables'),
     store.getOutgoing(feature.id, 'contains'),
     store.getIncoming(feature.id, 'implements'),
@@ -145,6 +148,7 @@ async function getFeatureImpact(store: WorkflowStore, feature: Feature, localId:
     store.getIncoming(feature.id, 'blocks'),
     store.getOutgoing(feature.id, 'depends_on')
   ]);
+  const epicPreds = [...epicTargetPreds, ...epicContainsPreds];
   const storyPreds = [...enabledStoryPreds, ...legacyStoryPreds];
 
   const epics = new Set<string>();
@@ -170,13 +174,15 @@ async function getFeatureImpact(store: WorkflowStore, feature: Feature, localId:
       const sLocalId = store.localId(story.id);
       stories.add(sLocalId);
 
-      const [storyTickets, storyTests, storyDecs, sBlocks, sDeps] = await Promise.all([
+      const [storyAddresses, storyImplements, storyTests, storyDecs, sBlocks, sDeps] = await Promise.all([
         store.getIncoming(story.id, 'addresses'),
+        store.getIncoming(story.id, 'implements'),
         store.getIncoming(story.id, 'verifies'),
         store.getIncoming(story.id, 'governs'),
         store.getIncoming(story.id, 'blocks'),
         store.getOutgoing(story.id, 'depends_on')
       ]);
+      const storyTickets = [...storyAddresses, ...storyImplements];
 
       for (const st of storyTickets) tickets.add(store.localId(st.sourceId));
       for (const st of storyTests) tests.add(store.localId(st.sourceId));

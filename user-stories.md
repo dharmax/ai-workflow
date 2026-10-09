@@ -56,3 +56,13 @@
   - [ ] An external coding agent given a Ticket invokes artifact-level AIWF delegation first; consistent policy, explicit target persistence and primitive drill-down remain available.
 - **Coverage**: Complete
 
+## STORY-AIWF-SOPHISTICATED-GOAL: Developer can ask compound goals and receive grounded, truthful answers across all requested parts
+- **Status**: `accepted`
+- **Actor**: External developer
+- **Story**: Developer can ask compound goals and receive grounded, truthful answers across all requested parts
+- **Acceptance Criteria**:
+  - [ ] Compound multi-part goals (e.g. project goal + critical path + missing work) acquire governing evidence, do not exhaust steps echoing notes, and answer every requested part.
+  - [ ] Recommendation and candidate ranking queries (e.g. 2nd recommended ticket, extremes comparison) evaluate eligibility constraints against governing policy without hallucinating or selecting ineligible items.
+  - [ ] Semantic capability discovery on compound queries correctly normalizes domain/object aliases (e.g. "project", "critical path") to valid registered capabilities without unsupported classification errors.
+- **Coverage**: missing_parent, missing_work, missing_verification
+
