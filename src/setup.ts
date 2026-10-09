@@ -16,6 +16,7 @@ import { exportMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
 import { ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
+import {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0, REPOSITORY_INVESTIGATION} from './client-guidance.ts';
 
 export interface SetupTypeScriptResult extends TsProvisionResult {}
 
@@ -49,15 +50,11 @@ export interface ConfigureMcpOptions {
   binaryPath?: string;
 }
 
-export const PRIME_DIRECTIVE =
-  'The simplest correct solution wins. Before adding any narrow rule, tool, abstraction, or special case, first look for the higher-level/general solution and existing primitive that already subsumes the problem; prefer that over brittle symptom patches. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.';
-
-export const MCP_INSTRUCTIONS_2_0 =
-  `Prime Directive: ${PRIME_DIRECTIVE} AIWF: Delegate Ticket work first with resolve_ticket; investigate_ticket and prepare_ticket are grounded alternatives. Process accepted intent with process_epic/process_feature/process_story. Use completeness/depth/maxArtifacts/critic consistently, persist completeness only explicitly. Inspect needs_input/blocked; preserve user work and require acceptance proof. Use primitives only for drill-down or actual blockers. Use recommend_next_task & list_tickets to select work; use claim_ticket before mutating code; use propose_epic_structure, apply_epic_structure, get_product_coverage & get_product_impact for product intent navigation; use find_symbol, search_graph, get_symbol_source, get_file_outline & analyze_blast_radius for surgical context and call/dep graph traversal; use resolve_test_target & triage_test_failures for explicit verification drill-down; use preview_change then apply_change with its fingerprint for deliberate low-level mutations. Delegated Ticket completion belongs to resolve_ticket; do not manually mark it Done.`;
+export {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0} from './client-guidance.ts';
 
 export const CANONICAL_SKILL_MD = `---
 name: ai-workflow
-description: Delegate Ticket and Product Intent work to AIWF; investigate, prepare, resolve and process artifacts before drilling into engineering primitives.
+description: Use AIWF for repository and sibling-source investigation, Ticket implementation, and Product Intent work; prefer scoped graph navigation and exact source over shell reads.
 ---
 
 # AIWF artifact delegation
@@ -79,6 +76,12 @@ Product development starts from actor journeys, not capability lists. Before imp
 3. For accepted intent, use \`process_epic\`, \`process_feature\` or \`process_story\` / \`aiwf process epic|feature|story <id>\`. Reuse meaningful existing work; technical work needs no ceremonial Story.
 4. Inspect \`needs_input\` and \`blocked\`. Resolve the exact question or capability gap and retry against durable graph state. Do not mark Done or weaken acceptance to bypass verification.
 5. Use primitives for explicit drill-down/debugging or an actual delegation blocker. First inspect AIWF's dossier; then use graph/symbol/exact source/references/blast/test evidence surgically. Claim the relevant Ticket before manual edits, preserve unrelated work, verify real acceptance, and sync.
+
+## Repository investigation
+
+${REPOSITORY_INVESTIGATION}
+
+CLI equivalents: \`aiwf symbol <name>\`, \`outline <file>\`, \`slice <file> <symbol>\`, \`callers <symbol>\`, \`graph\`, \`deps\`, \`blast\`. For sibling CLI research, run the same commands from that repository. MCP callers use the optional \`projectRoot\` argument; do not assume siblings are indexed as dependencies of the current project.
 
 ## Policy
 
@@ -111,7 +114,7 @@ When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \
 - **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` to find active priority.
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
 - **Product Intent & Coverage**: Use \`get_product_coverage\`, \`get_product_impact\`, \`list_epics\`, \`list_features\`, \`list_user_stories\` to verify intent and impact before changing features.
-- **Graph & Symbol Navigation**: Use \`find_symbol\`, \`search_graph\`, \`get_symbol_source\`, \`get_file_outline\`, and \`analyze_blast_radius\` instead of dumping large files into context.
+- **Repository investigation**: ${REPOSITORY_INVESTIGATION}
 - **Deterministic Patches**: Use \`apply_block_patch\` or \`aiwf patch\` for AST block replacement.
 - **Verification**: Run \`resolve_test_target\` and \`triage_test_failures\` to verify code changes against test suites.
 - **Complete**: Delegated completion belongs to \`resolve_ticket\`. For genuinely manual recovery after a blocker, mark Done only after acceptance proof, then release and sync.

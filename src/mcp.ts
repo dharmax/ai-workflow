@@ -19,7 +19,19 @@ import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from './tools/surface.ts';
 import { WorkflowActor, type ShellMode } from './actor/engine.ts';
-import { ARTIFACT_HELP } from './artifact-command.ts';
+import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
+import { SemanticPackage } from '@dharmax/semantika';
+
+function withProjectRoot(schema: McpTool['inputSchema']): McpTool['inputSchema'] {
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      projectRoot: {type: 'string', description: 'Optional target project directory, absolute or relative to the MCP server project. Use this for sibling repositories; filePath is relative to this project.'}
+    },
+    ...(Array.isArray(schema.oneOf) ? {oneOf: schema.oneOf.map(branch => withProjectRoot(branch as McpTool['inputSchema']))} : {})
+  };
+}
 
 export interface McpServerOptions {
   store?: WorkflowStore;
@@ -44,7 +56,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
       version: '2.0.0'
     },
     {
-      instructions: 'Delegate Ticket work with resolve_ticket first. Use investigate_ticket/prepare_ticket for grounded evidence/preparation and process_epic/process_feature/process_story for accepted intent. Inspect precise blockers before primitive orchestration.\n' + ARTIFACT_HELP,
+      instructions: MCP_INSTRUCTIONS_2_0,
       capabilities: {
         tools: {
           listChanged: true
@@ -61,7 +73,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
     tools.push({
       name: 'execute_shell_wish',
       description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
-      inputSchema: {
+      inputSchema: withProjectRoot({
         type: 'object',
         properties: {
           wish: {
@@ -75,7 +87,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
           }
         },
         required: ['wish']
-      }
+      })
     });
 
     // Domain facilities from registry
@@ -89,7 +101,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
       tools.push({
         name: t.name,
         description: `[${t.category.toUpperCase()}]: ${t.description}`,
-        inputSchema: schema
+        inputSchema: withProjectRoot(schema)
       });
     }
 
@@ -100,33 +112,35 @@ export function createMcpServer(options: McpServerOptions = {}) {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
-    // Dynamically resolve target project root if caller passed a file/path/target/projectRoot
+    const {projectRoot: requestedRoot, ...toolArgs} = args || {};
     let activeRoot = root;
     let activeStore = store;
-    const potentialPath = (args as any)?.projectRoot || (args as any)?.file || (args as any)?.path || (args as any)?.target;
-    if (typeof potentialPath === 'string' && (path.isAbsolute(potentialPath) || fs.existsSync(potentialPath))) {
-      try {
-        const resolvedPath = path.resolve(potentialPath);
-        const candidateDir = fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()
-          ? resolvedPath
-          : path.dirname(resolvedPath);
-        const found = findProjectRoot(candidateDir);
-        if (found.root !== root) {
-          activeRoot = found.root;
-          activeStore = new WorkflowStore(activeRoot);
-        }
-      } catch {}
-    }
-
-    const ctx: ToolContext = {
-      store: activeStore,
-      projectRoot: activeRoot
-    };
 
     try {
+      if (requestedRoot !== undefined) {
+        if (typeof requestedRoot !== 'string' || !requestedRoot.trim()) throw new Error('projectRoot must be a non-empty directory path.');
+        activeRoot = path.resolve(root, requestedRoot);
+        if (!fs.existsSync(activeRoot) || !fs.statSync(activeRoot).isDirectory()) throw new Error(`Project directory not found: ${requestedRoot}`);
+      } else {
+        const potentialPath = toolArgs.filePath || toolArgs.file || toolArgs.path || toolArgs.target;
+        if (typeof potentialPath === 'string') {
+          const resolvedPath = path.resolve(root, potentialPath);
+          if (fs.existsSync(resolvedPath)) {
+            const candidateDir = fs.statSync(resolvedPath).isDirectory() ? resolvedPath : path.dirname(resolvedPath);
+            activeRoot = findProjectRoot(candidateDir).root;
+            if (toolArgs.filePath === potentialPath) toolArgs.filePath = path.relative(activeRoot, resolvedPath);
+          }
+        }
+      }
+      if (activeRoot !== root) {
+        activeStore = new WorkflowStore(activeRoot);
+        await activeStore.sp.ready();
+      }
+      const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot};
+
       if (name === 'execute_shell_wish') {
-        const wish = String(args?.wish || '');
-        const mode = args?.mode as ShellMode | undefined;
+        const wish = String(toolArgs.wish || '');
+        const mode = toolArgs.mode as ShellMode | undefined;
         const activeActor = activeRoot === root ? actor : new WorkflowActor({
           store: activeStore,
           projectRoot: activeRoot,
@@ -158,7 +172,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
         };
       }
 
-      const result = await registry.execute(name, args || {}, ctx);
+      const result = await registry.execute(name, toolArgs, ctx);
       return {
         content: [
           {
@@ -175,6 +189,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
     } finally {
       if (activeStore !== store) {
         try { activeStore.close(); } catch {}
+        // SemanticArtifact resolves its package by name; do not leave the host bound to a closed sibling store.
+        SemanticPackage.semanticPackages[store.sp.name] = store.sp;
       }
     }
   });
@@ -203,7 +219,7 @@ export function exportMcpSchemas(targetDir: string): string[] {
   const wishSchema = {
     name: 'execute_shell_wish',
     description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
-    parameters: {
+    parameters: withProjectRoot({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
       properties: {
@@ -219,7 +235,7 @@ export function exportMcpSchemas(targetDir: string): string[] {
       },
       required: ['wish'],
       additionalProperties: false
-    }
+    })
   };
   const wishPath = path.join(targetDir, 'execute_shell_wish.json');
   fs.writeFileSync(wishPath, JSON.stringify(wishSchema, null, 2), 'utf8');
@@ -242,7 +258,7 @@ export function exportMcpSchemas(targetDir: string): string[] {
     const toolJson = {
       name: t.name,
       description: `[${t.category.toUpperCase()}]: ${t.description}`,
-      parameters
+      parameters: withProjectRoot(parameters)
     };
     const toolFilePath = path.join(targetDir, `${t.name}.json`);
     fs.writeFileSync(toolFilePath, JSON.stringify(toolJson, null, 2), 'utf8');
