@@ -1,6 +1,6 @@
 # Toplevel1 integrated design and plan
 
-Status: integrated Product-Intent design retained on `master`. Phase A is complete. For Actor agency/Phase B, `docs/agency-constitution.md` and `docs/agency-restoration-plan.md` are authoritative.
+Status: integrated Product-Intent design retained on `master`. Phase A is complete. The separate compound-prompt/Actor work is governed by `docs/advanced-actor-plan.md`.
 
 This branch combines two corrections that share one philosophy but must remain separate mechanisms:
 
@@ -251,15 +251,11 @@ Expected result: **large conceptual gain, modest code delta**.
 
 No feature is considered accepted merely because Phase A is green.
 
-### Phase B — J2.4 general agency restoration
+### Phase B — J2.4 shared compound-prompt execution
 
-Follow `docs/agency-constitution.md` and `docs/agency-restoration-plan.md`.
+Follow `docs/advanced-actor-plan.md`. This phase is intentionally independent of Product Intent. It should reuse the shared AdvancedActor abstraction if Phase 0 proves that boundary, rather than adding AIWF-specific query logic.
 
-The earlier composition plan was too tool-centric. Phase B now restores the correct control direction: the Actor understands and pursues the goal; discovery and specialized capabilities are optional means. Establish discovery-independent bootstrap competence, prove temporary self-extension, remove discovery/mode competence walls, and pass the adversarial Agency Gate.
-
-Do not redesign Product Intent in this phase.
-
-**Gate B:** J2.4 succeeds on the ordinary configured route **and** with semantic discovery disabled/misleading, without query-specific production code.
+**Gate B:** J2.4 succeeds on the ordinary configured route, survives wrong/unavailable tactical advice and insufficient initial discovery, and solves the same class of compound work in ai-cli without query-specific production code.
 
 ### Phase C — minimal top-level Product Intent
 
