@@ -1,2 +1,0 @@
-{"label":"before","ok":true,"haltReason":"completed"}
-{"label":"after","ok":true,"output":false,"haltReason":"completed"}
