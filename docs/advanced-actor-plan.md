@@ -1,615 +1,560 @@
-# Advanced Actor — focused design and implementation plan
+# Sophisticated prompts — robust design and execution plan
 
-**Status:** active plan for J2.4/J2.5 only: reliably solving sophisticated compound prompts, with transparent cognitive-runtime selection and configuration.  
+**Status:** active plan for J2.4/J2.5 only.  
+**Problem:** AIWF and ai-cli should handle genuinely compound user goals without query-specific workflows, excessive LLM/tool micromanagement, or dependence on one execution trick.  
 **Out of scope:** repository code generation, Ticket implementation redesign, durable skill authoring, Product Intent redesign.
 
 ## 1. Actor journeys
 
-### J2.4 — sophisticated goal
+### J2.4 — solve a sophisticated goal
 
-A developer asks a host application a compound question whose answer is not available from one named tool—for example:
+A developer asks a compound question whose answer is not available from one named capability, for example:
 
 > what's on the critical path of this project? what's the goal of the project? what's missing?
 
-The system understands the whole requested outcome, chooses an adequate reasoning model, gathers current evidence, and uses the simplest useful execution granularity: direct reasoning, ordinary tools, discovery, shell/environment execution, or a temporary deterministic helper. It observes results and replans until it can give a grounded answer or name a concrete blocker.
+The system:
 
-The user never needs a query-shaped command or predeclared workflow.
+1. understands the whole requested outcome;
+2. uses an adequate reasoning model;
+3. gathers current evidence;
+4. chooses the simplest useful way to work with that evidence;
+5. observes results and replans when needed;
+6. returns a grounded answer covering every requested part, or names the concrete blocker.
 
-### J2.5 — understandable cognitive runtime
+Possible means include direct reasoning, ordinary tools, capability discovery, environment execution, and temporary deterministic computation.
 
-A developer notices that sophisticated requests are slow or weak. From AIWF's TUI/configuration surface they can see which cognitive resources AIWF actually has—local models, OpenRouter/cloud access, configured task routes and relevant speed/cost/quality guidance—and adjust preferences without editing JSON by hand. AIWF can explain which route/model was selected for a run and why, without exposing credentials or pretending that configuration implies successful inference.
+The user never needs a special command for “critical path”, “least”, “rank”, “second”, or another linguistic shape.
 
-These journeys are the acceptance boundary. The architecture below derives from them.
+### J2.5 — understand and configure the cognitive runtime
 
----
+A developer notices that difficult requests are slow, expensive or weak. From AIWF they can inspect the effective cognitive runtime—local/cloud availability, task routes, current recommendations and observed runtime behavior—and change high-level preferences without editing JSON manually.
 
-## 2. Historical lesson: do not rebuild old AIWF
+After a run AIWF can say which route/model/provider actually executed it and which fallbacks/escalations occurred, without exposing secrets or pretending that configuration alone proves capability.
 
-Earlier AIWF leaned heavily on codelet/text compilation as the supposed universal answer. It did not produce a reliably capable general agent.
-
-That failure is important evidence.
-
-The mistake was not that temporary programs are useless. The mistake was making **compilation the default strategy** instead of one execution means selected by an intelligent Actor.
-
-A compiler cannot compensate for:
-
-- a model that misunderstood the goal;
-- poor evidence selection;
-- bad decomposition;
-- a weak/slow reasoning route;
-- missing or misleading capabilities;
-- inappropriate execution granularity;
-- an Actor that cannot recognize when *not* to compile.
-
-Therefore this plan explicitly rejects:
-
-```text
-sophisticated prompt
-    -> text-compiler
-    -> hope
-```
-
-The target is:
-
-```text
-sophisticated prompt
-    -> adequate executive reasoning
-    -> choose the simplest useful means
-       ├─ answer directly
-       ├─ one/few tools
-       ├─ discover capability
-       ├─ environment/shell
-       └─ temporary deterministic composition
-    -> observe
-    -> replan
-    -> grounded answer
-```
-
-**text-compiler is optional machinery, never the architecture.**
+These journeys are the acceptance boundary. Everything else in this document is subordinate to them.
 
 ---
 
-## 3. Why Codex/AGY are a better reference
+## 2. What we know, and what we do not
 
-The useful lesson from Codex/AGY is not “they can generate scripts”.
+### Observed
 
-Their capability shape is broader:
+- AIWF has failed sophisticated prompts despite having relevant project data and useful primitive capabilities.
+- Long LLM → tool → observation loops can consume steps and latency without converging.
+- Earlier AIWF leaned heavily on text/codelet compilation and still failed badly as a general agent.
+- llm-utils already provides the important shared primitives: LLMActor, task/model routing, failover, System-1, metrics and model advice.
+- AIWF already has OpenRouter, local Ollama, Model Radar, provider diagnostics and configuration machinery.
+- The same general class of compound-prompt problem exists in ai-cli.
 
-1. a strong general model owns the goal;
-2. it has a dependable execution substrate;
-3. it can choose action granularity dynamically;
-4. it can create temporary procedures/scripts when that is actually easier;
-5. it sees observations and continues reasoning;
-6. the harness preserves context, execution boundaries and recovery.
+### Hypotheses to test, not assumptions
 
-That is why sophisticated prompts remain tractable.
+1. **Model adequacy:** some failures are caused mainly by a weak/slow executive model or an inappropriate route.
+2. **Execution granularity:** some failures remain because the Actor must coordinate too many deterministic micro-steps.
+3. **Shared abstraction:** AIWF and ai-cli may share enough behavior to justify @dharmax/advanced-actor.
+4. **System-1 value:** the existing cheap assessment may improve tactic/model choice enough to justify using it.
+5. **Temporary computation value:** text-compiler or another existing mechanism may be useful for some deterministic subproblems.
 
-The important comparison is:
+Any of these hypotheses may be rejected by evidence.
 
-```text
-Codex / AGY
+This is deliberate. The plan must not force implementation of its own guesses.
+
+---
+
+## 3. Core design law
+
+> **Solve cognitive problems at the cognitive layer; use execution mechanisms only when they genuinely simplify the work.**
+
+That means:
+
+~~~text
+goal
+  ↓
+adequate executive reasoning
+  ↓
+choose the simplest useful means
+  ├─ reason directly
+  ├─ use one/few capabilities
+  ├─ discover missing capability
+  ├─ inspect/execute in environment
+  └─ perform temporary deterministic computation
+  ↓
+observe
+  ↓
+replan if necessary
+  ↓
+grounded outcome
+~~~
+
+No mechanism defines “sophisticated”.
+
+In particular:
+
+~~~text
+sophisticated ≠ compile
+sophisticated ≠ use stronger model
+sophisticated ≠ discover more tools
+sophisticated ≠ shell
+~~~
+
+Those are possible means chosen from the actual task/evidence.
+
+---
+
+## 4. Reference behavior: Codex/AGY
+
+The useful lesson from Codex/AGY is **general agency with flexible execution**, not any one tool.
+
+Their externally visible capability shape is:
+
+~~~text
 goal
  -> capable executive model
- -> rich but bounded execution substrate
- -> choose granularity
- -> act / compute / inspect
+ -> dependable execution substrate
+ -> choose useful action granularity
+ -> act / inspect / compute
  -> observe
  -> replan
  -> finish
+~~~
 
-old/current weak AIWF pattern
+A sophisticated request can therefore become one tool call, ten investigative steps, or a temporary program depending on what the problem actually needs.
+
+That is the behavior to reproduce.
+
+The old AIWF mistake was closer to:
+
+~~~text
 goal
- -> narrow/weak route
- -> guessed strategy or compiler/tool bias
- -> many expensive micro-steps
- -> latency / wandering / budget pressure
- -> incomplete answer
-```
+ -> favored mechanism
+ -> force problem through mechanism
+ -> hope generated execution compensates for weak strategy
+~~~
 
-Our design should reproduce the **general agency**, not any one mechanism.
+This plan explicitly prevents that regression.
 
 ---
 
-## 4. The likely shared abstraction
+## 5. Minimal shared contracts
 
-The same defect exists in AIWF and ai-cli, so the preferred boundary is a small shared package:
+Do not start by creating @dharmax/advanced-actor.
 
-```text
-@dharmax/advanced-actor
-```
+First identify the smallest contracts that both hosts actually need.
 
-but package creation remains a Phase-0 hypothesis.
+### 5.1 Cognitive route
 
-Its one-sentence responsibility:
+The Actor needs a task/model route appropriate to the work.
 
-> Run a general LLM Actor with enough runtime self-awareness to choose an adequate reasoning route and enough execution flexibility to solve compound goals without query-specific workflows.
+Advanced behavior may request a semantic class such as fast, reasoning, code, or local, but **never chooses vendor/model names itself**.
 
-Dependency direction:
+llm-utils remains the sole routing authority.
 
-```text
-@dharmax/llm-utils  ← advanced-actor
-@dharmax/text-compiler ← advanced-actor   (optional composition backend)
-advanced-actor ← aiwf / ai-cli
-```
+The host/user configuration determines what reasoning means: local model, OpenRouter model, direct provider, fast/cheap remote route, etc.
 
-It must not become a framework.
+### 5.2 Tactical hint
 
-### It owns
+System-1 may provide a compact assessment of useful task characteristics, for example:
 
-- composing the existing `LLMActor`;
-- consuming one cheap System-1 tactical assessment;
-- selecting an appropriate **task class/reasoning tier**, not hardcoded vendor model names;
-- exposing optional ephemeral deterministic composition;
-- bounded recovery/escalation when objective no-progress is observed;
-- trace metadata explaining tactic/model selection.
-
-### It does not own
-
-- provider credentials/config storage;
-- AIWF graph semantics;
-- ai-cli shell semantics;
-- semantic registries;
-- authorization policy;
-- durable codelets/skills;
-- repository mutation;
-- another planner;
-- another model router.
-
-Existing `llm-utils` remains the model-routing authority.
-
----
-
-## 5. Cognitive adequacy comes before compilation
-
-A sophisticated Actor cannot be better than the model driving the executive loop.
-
-AIWF already has useful foundations:
-
-- `Asker` task routes such as `fast` and `reasoning`;
-- configured `modelRoutes`;
-- provider failover;
-- persisted model advice;
-- OpenRouter support;
-- Model Radar / provider diagnostics;
-- local Ollama support.
-
-Use them. Do not invent another router.
-
-### System-1 assessment
-
-The existing System-1 call should cheaply estimate **two independent things**:
-
-```ts
+~~~ts
 {
-  reasoningDemand: {
-    type: 'score',
-    criteria: ['routine', 'moderate', 'demanding']
-  },
-  deterministicCompositionUseful: {
-    type: 'noul'
-  },
-  compositionShape: {
-    type: 'choice',
-    criteria: {
-      traverse: 'relationship traversal',
-      filter: 'filter/select',
-      aggregate: 'aggregate/count/group',
-      compare: 'rank/compare/select extrema',
-      correlate: 'combine several evidence sets',
-      transform: 'structured deterministic transformation',
-      none: 'no substantial deterministic composition'
-    }
-  }
+  reasoningDemand: 'routine' | 'moderate' | 'demanding'
+  deterministicCompositionLikelyUseful: boolean
+  dominantShape?: 'traverse' | 'filter' | 'aggregate' | 'compare' | 'correlate' | 'transform'
 }
-```
+~~~
 
-These answers are **advice, not gates**.
+This is advisory evidence only.
 
-The two axes must not be collapsed:
+No System-1 result may:
 
-- a task can require strong reasoning but no helper;
-- a task can be conceptually easy yet benefit from deterministic aggregation;
-- some tasks need both.
+- forbid a route;
+- force compilation;
+- declare the task solvable/unsolvable;
+- shrink the Actor's available powers.
 
-### Model selection
+Malformed/unavailable/low-confidence assessment means: continue normally.
 
-Use `reasoningDemand` only to choose a task class / configured route:
+### 5.3 Temporary deterministic computation
 
-```text
-routine/moderate -> existing normal/fast route as configured
-demanding        -> reasoning route
-```
+If real runs prove the need, expose one semantic capability such as:
 
-The host/user controls what `reasoning` means.
+~~~text
+compute(intent, explicit input, explicitly bound capabilities)
+~~~
 
-With OpenRouter this can be a fast, inexpensive but strong remote model rather than a slow local model. Do not hardcode Groq or any provider into AdvancedActor. A user may configure an OpenRouter model/provider optimized for throughput, latency, price or another requirement.
+The Actor supplies behavior, not source code.
 
-Current OpenRouter supports provider-level speed/price/latency preferences, so AIWF should pass such preferences through its existing provider-options/config machinery rather than adding provider-specific code.
+Its implementation may use text-compiler.
 
-### Bounded escalation
+The capability is appropriate only when it reduces a deterministic multi-step subproblem such as traversal, filtering, aggregation, comparison or correlation.
 
-If a run starts on a weaker route and produces objective no-progress evidence—repeated observations, inability to form a viable tactic, malformed decisions, or exhausted useful local options—AdvancedActor may perform **one bounded escalation** to the configured reasoning route with the accumulated observations.
+It is not a general reasoning substitute.
 
-This is not a second planner. It is the same goal and same Actor contract with a more adequate model.
+### 5.4 Runtime profile
 
-Explicit user model restrictions/local-only policies remain authoritative.
+Hosts may expose a small sanitized profile:
 
----
-
-## 6. Temporary computation is one tool, not the default
-
-The optional composition capability should be exposed semantically as something like:
-
-```text
-compute(intent, explicit inputs/capabilities)
-```
-
-not as “please use text-compiler”.
-
-The Actor provides behavioral intent. The backend may use text-compiler to synthesize a temporary helper.
-
-Appropriate cases:
-
-- traverse a relationship graph;
-- filter and aggregate a substantial set;
-- rank/compare candidates;
-- correlate several evidence sets;
-- perform a deterministic transformation that would otherwise take many LLM/tool turns.
-
-Inappropriate cases:
-
-- one or two ordinary tool calls;
-- open-ended reasoning;
-- methodology selection;
-- asking the compiler to compensate for missing evidence;
-- repository code implementation;
-- “all sophisticated prompts”.
-
-### Critical regression against old AIWF
-
-The acceptance suite must contain sophisticated prompts that **do not use the compiler**.
-
-If compound-prompt success becomes correlated with “compiler was invoked”, we have rebuilt the old mistake.
-
----
-
-## 7. Execution authority for temporary helpers
-
-Generated helpers get no ambient power.
-
-Conceptual boundary:
-
-```ts
-interface EphemeralComputation {
-  run(request: {
-    intent: string
-    input: unknown
-    services: readonly BoundReadCapability[]
-    signal?: AbortSignal
-  }): Promise<DerivedResult>
-}
-```
-
-Rules:
-
-- only explicitly bound host-approved capabilities;
-- first implementation read-only;
-- no implicit registry access;
-- no repository mutation;
-- no package installation;
-- cancellation/time limits propagate;
-- service calls stay visible in trace/provenance;
-- result is **derived evidence**, not source evidence;
-- ephemeral by default; no promotion/persistence.
-
-Phase 0 must inspect the current text-compiler execution path. If it forces ambient in-process execution, add only the smallest generic seam required to synthesize/execute under the host's authority. Do not fork text-compiler or build a second compiler.
-
----
-
-## 8. AIWF runtime self-awareness
-
-AIWF must know enough about its cognitive environment to make and explain good choices.
-
-Reuse existing mechanisms rather than inventing state:
-
-- `modelRuntime()` for configured providers;
-- `Asker/ModelRouter` for routes/fallbacks;
-- `ProviderDiscovery` / persisted model advice;
-- Model Radar for recommendations;
-- existing metrics for actual model/latency/success evidence;
-- `doctor` for runtime diagnostics.
-
-The runtime profile exposed to AdvancedActor should be sanitized and small:
-
-```ts
+~~~ts
 interface CognitiveRuntimeProfile {
-  availableTaskRoutes: string[]
+  taskRoutes: readonly string[]
   localAvailable: boolean
   remoteAvailable: boolean
-  reasoningRouteAvailable: boolean
+  observed?: {
+    recentLatencyByRoute?: Record<string, number>
+    recentSuccessByRoute?: Record<string, number>
+  }
   constraints?: {
     localOnly?: boolean
     maxCost?: number
   }
 }
-```
+~~~
 
-Do not give the Actor API keys, full provider configuration or a giant model catalog.
-
-### Truthfulness
-
-AIWF may say:
-
-- “OpenRouter is configured”;
-- “the reasoning route currently resolves to X”;
-- “this run actually used X/Y”;
-- “local inference appears unavailable/slow based on observed metrics”.
-
-It may not infer model quality merely from a configured name or credential.
+No credentials, giant model catalog or raw provider configuration enters the Actor context.
 
 ---
 
-## 9. TUI-aided cognitive configuration
+## 6. Model adequacy and OpenRouter
 
-This is part of J2.5, not an incidental settings screen.
+A sophisticated Actor needs an adequate executive model. This is not optional architecture trivia.
 
-The user should be able to inspect and adjust high-level policy without editing `.ai-workflow/config.json`.
+Reuse existing AIWF/llm-utils machinery:
 
-A small TUI/config panel should expose:
+- Asker;
+- ModelRouter;
+- task routes;
+- configured fallbacks;
+- model advice;
+- OpenRouter;
+- provider options;
+- metrics;
+- Model Radar.
 
-- active gateway: auto / OpenRouter / direct / local-only;
-- configured provider availability, without secrets;
-- default route;
-- `fast` route;
-- `reasoning` route;
-- optional preference: balanced / fastest / cheapest, mapped onto existing provider options where supported;
-- current Model Radar/advice recommendation;
-- observed recent latency/success for configured routes when metrics exist.
+Do not build another router.
 
-It should support:
+### Route policy
 
-1. inspect current effective configuration;
-2. choose/change a route or high-level preference;
-3. validate that the target is actually reachable;
-4. save through the existing configuration system;
-5. immediately show the effective result.
+System-1 or the Actor may indicate that a request is demanding. The host then asks for the configured reasoning route.
 
-Do **not** build another settings store.
+That route can resolve to a fast/cheap/strong OpenRouter model rather than a slow local model.
 
-OpenRouter/Groq-style fast inference is a configuration option, not a new provider abstraction. If the chosen OpenRouter route is served by Groq or another high-throughput provider, AIWF should benefit automatically.
+Provider choice remains configuration, not code. Groq or another high-throughput provider may be preferred through OpenRouter when configured, but no shared module contains Groq/OpenRouter-specific strategy logic.
+
+### Escalation
+
+Escalation is triggered only by **observable no-progress**, not by prompt wording.
+
+Examples of no-progress evidence:
+
+- repeated unchanged observations;
+- repeated inability to select a viable next action;
+- malformed/invalid Actor decisions;
+- exhausted useful local capabilities with unresolved requested outcome;
+- repeated timeout/failure on the selected cognitive route.
+
+The first implementation should test the smallest bounded escalation policy. “One escalation” is a starting experiment, not an architectural invariant.
+
+Explicit local-only/model/provider constraints always win.
 
 ---
 
-## 10. Minimal AdvancedActor surface
+## 7. Temporary computation must earn its existence
 
-Do not freeze the API before Phase 0, but the target should stay this small:
+Earlier AIWF overused compilation. Therefore temporary computation is behind an explicit evidence gate.
 
-```ts
+Before implementing it, prove from preserved runs that:
+
+1. the executive model understood the goal;
+2. relevant evidence/capabilities were available;
+3. the failure came from long deterministic coordination rather than misunderstanding/routing;
+4. collapsing that coordination into one computation is likely to reduce steps or error.
+
+If those conditions are not met, do not add compilation.
+
+### Safety boundary
+
+If implemented, temporary computation is initially read-only and ephemeral:
+
+- only explicitly bound host-approved capabilities;
+- no ambient registry;
+- no repository mutation;
+- no package installation;
+- cancellation/time limits propagate;
+- calls remain traceable;
+- output is derived evidence;
+- no persistence/promotion.
+
+If text-compiler cannot support that boundary cleanly, add the smallest generic seam needed or reject it for v1.
+
+---
+
+## 8. Shared package decision
+
+@dharmax/advanced-actor is created **only if the implementation evidence shows a stable shared core** across AIWF and ai-cli.
+
+The package must satisfy all of these:
+
+1. same behavior is needed by both hosts;
+2. host-specific graph/shell/config semantics remain outside;
+3. extracting it removes meaningful duplication;
+4. its API can be described in one short paragraph;
+5. it does not become another planner/router/framework.
+
+Expected shape, if justified:
+
+~~~ts
 const actor = new AdvancedActor({
   asker,
   systemOne,
   computation
 })
 
-const result = await actor.run(goal, {
+await actor.run(goal, {
   tools,
   discoverTools,
   runtimeProfile,
-  signal,
-  context
+  context,
+  signal
 })
-```
+~~~
 
-Internally:
+Expected responsibility:
 
-```text
-1. cheap tactical assessment
-2. choose configured reasoning task class
-3. run existing LLMActor
-4. Actor chooses direct/tool/discovery/compute
-5. observe + replan
-6. one bounded model escalation only on objective no-progress
-7. final grounded answer
-```
+> compose LLMActor with optional tactical assessment, route adequacy, optional ephemeral computation and bounded evidence-driven recovery.
 
-No plan graph. No state machine beyond the ordinary Actor loop. No persistent strategy object.
+If the real shared core is smaller than this, extract the smaller thing.
 
 ---
 
-## 11. Implementation plan
+## 9. AIWF self-awareness and TUI
 
-### Phase 0 — harsh audit; no production implementation
+J2.5 is an independent product requirement, not a reason to complicate AdvancedActor.
 
-Inspect actual current versions of AIWF, ai-cli, llm-utils and text-compiler.
+Reuse existing AIWF sources of truth:
 
-Produce evidence for:
+- config.ts;
+- model-runtime.ts;
+- doctor.ts;
+- Model Radar;
+- llm-utils model advice/metrics.
 
-- at least two preserved AIWF sophisticated-prompt failures;
-- at least one equivalent ai-cli prompt;
-- at least one historical old-AIWF compiler-heavy path/failure, so we do not repeat it;
-- current System-1 call site and whether one call can be reused;
-- current Actor model/task route on those failures;
-- actual local-model latency;
-- available OpenRouter route(s) and configured provider options;
-- exact text-compiler synthesis/execution contract;
-- current TUI/config/doctor/model-radar surfaces.
+The TUI should expose only useful high-level controls:
 
-For every failed run classify the dominant cause:
+- effective gateway/provider availability;
+- default route;
+- fast route;
+- reasoning route;
+- local-only / auto policy;
+- supported speed/cost preference;
+- current recommendation/advice when available;
+- recent observed latency/success where measured.
 
-```text
-goal understanding
-model adequacy / latency
-evidence acquisition
-tactic selection
-execution granularity
-compiler misuse
-tool/discovery defect
-termination/budget
-```
+Required actions:
 
-**Gate 0:** the plan may change. In particular, if compilation is not a material improvement in real failures, do not make it part of v1.
+1. inspect effective runtime;
+2. change high-level route/preference;
+3. validate target reachability;
+4. save through existing config;
+5. immediately display effective configuration;
+6. show actual model/provider used by the current/recent run.
 
-Also answer whether `@dharmax/advanced-actor` is truly shared enough to justify a package.
+No second settings store. No secrets in the UI.
 
-### Phase 1 — cognitive-route vertical slice
+Configuration is evidence of intent, not proof of successful inference.
 
-Before adding compilation, prove that an adequate configured model materially improves the sophisticated journey.
+---
 
-Implement only the minimum shared behavior needed for:
+## 10. Execution plan
 
-- System-1 reasoning-demand hint;
-- route to existing `fast/reasoning` task classes;
-- truthful trace of selected/actual model;
-- one bounded escalation on objective no-progress.
+### Phase 0 — establish truth, no architecture work
 
-Use existing llm-utils routing and AIWF config.
+Reproduce and preserve:
 
-Test local-only, normal configured route and a fast strong OpenRouter reasoning route.
+- at least two AIWF sophisticated-prompt failures;
+- at least one equivalent ai-cli failure;
+- at least one historical compiler-heavy AIWF failure/path.
 
-**Gate 1:** stronger/appropriate routing improves the real journey without query-specific logic and without changing tools.
+For each run capture:
 
-If this alone solves the problem robustly, stop. Do not add a compiler because the plan expected one.
+~~~text
+requested outcome
+actual model/provider
+route/task class
+System-1 output if any
+tools/capabilities exposed
+tool/discovery sequence
+Actor steps
+timeouts/retries
+latency
+final correctness/grounding
+~~~
 
-### Phase 2 — execution-granularity experiment
+Classify each failure by evidence:
 
-Only if Gate 1 shows remaining failures caused by long deterministic micro-step loops:
+~~~text
+A. goal misunderstanding
+B. inadequate/slow executive model
+C. missing/wrong evidence
+D. poor tactic selection
+E. bad execution granularity
+F. compiler misuse
+G. tool/discovery defect
+H. termination/budget defect
+~~~
 
-Add one **ephemeral read-only computation** capability backed by text-compiler or the smallest suitable existing mechanism.
+Several classes may apply; identify the earliest causal failure rather than the last symptom.
 
-Compare on the same prompts:
+Also inspect the exact current contracts in AIWF, ai-cli, llm-utils and text-compiler.
 
-- no computation capability;
-- computation capability available but not forced;
-- System-1 wrong about composition usefulness.
+**Gate 0:** produce a causal defect matrix. No production architecture is allowed merely because this plan predicts it.
 
-**Gate 2:** the Actor uses computation selectively and it improves correctness/steps/latency on tasks with real deterministic structure. At least one difficult prompt must succeed without it.
+### Phase 1 — cheapest falsification experiments
 
-If it becomes the default hammer, reject the design.
+Run controlled experiments against the same preserved prompts. Change **one dimension at a time** where practical:
 
-### Phase 3 — extract shared AdvancedActor
+1. same tools, stronger/faster configured reasoning route;
+2. same model, corrected/expanded evidence surface if evidence was the defect;
+3. same model/evidence, different execution granularity if micro-step coordination was the defect.
 
-Only now create `@dharmax/advanced-actor` if both AIWF and ai-cli require the same behavior.
+No new shared package yet.
 
-Move only proven shared behavior:
+**Gate 1:** identify which intervention(s) actually improve correctness/grounding and which do not.
 
-- tactical assessment consumption;
-- reasoning-route selection;
-- optional computation capability wiring;
-- bounded escalation;
-- trace metadata.
+A failed experiment is useful evidence and must not be “fixed” by silently combining three more changes.
 
-Host-specific discovery/config/authority remains outside.
+### Phase 2 — implement only proven general correction(s)
 
-**Gate 3:** both hosts use the package with materially less duplicate code than two local implementations.
+Possible outcomes:
 
-### Phase 4 — AIWF self-awareness + TUI
+~~~text
+routing alone fixes the class
+  -> improve route selection/self-awareness; stop there
 
-Complete J2.5 using existing config/model-runtime/radar/doctor infrastructure.
+evidence/discovery contract is the main defect
+  -> repair that contract; stop there
 
-Add the smallest TUI configuration surface necessary to:
+deterministic micro-step coordination remains a material defect
+  -> add optional ephemeral compute
 
-- show effective routes/providers;
-- configure default/fast/reasoning routes;
-- configure supported OpenRouter speed/cost preference;
-- test reachability;
-- show actual selected model for recent/current run.
+several independent defects are real
+  -> fix each at its owning layer; do not hide them behind AdvancedActor
+~~~
 
-Also reconcile installed/canonical AIWF skill text with this plan so setup cannot reintroduce deleted agency-document references.
+Every correction must be general and supported by J2.4/J2.5.
 
-**Gate 4:** a user can configure a fast remote reasoning route from TUI, run the sophisticated prompt, and see which model/provider actually executed it.
+### Phase 3 — cross-host proof
 
-### Phase 5 — adversarial shared gate
+Apply the proven correction(s) to both AIWF and ai-cli with the smallest host-specific integration.
 
-Both AIWF and ai-cli must demonstrate:
+Do not extract a package yet if the two implementations differ materially.
 
-- simple prompt stays simple;
-- difficult reasoning prompt selects adequate route but need not compile;
-- deterministic-heavy prompt may compile selectively;
+**Gate 3:** demonstrate the same conceptual correction solves real sophisticated prompts in both hosts.
+
+### Phase 4 — extract shared module only if earned
+
+If Gate 3 reveals a clean shared core, extract it to @dharmax/advanced-actor (or a smaller/better-named package if that is what the evidence supports).
+
+Move only behavior that is truly shared.
+
+Then rerun both host acceptance journeys unchanged.
+
+### Phase 5 — J2.5 TUI/runtime configuration
+
+Implement the smallest TUI/configuration improvement needed to inspect and control the proven routing behavior.
+
+This phase does not invent new cognitive policy; it exposes the policy already proven in earlier phases.
+
+### Phase 6 — adversarial acceptance
+
+Run a shared matrix including:
+
+- simple prompt;
+- difficult reasoning prompt;
+- deterministic-heavy compound prompt;
+- difficult prompt that should **not** compile;
 - System-1 unavailable;
-- System-1 wrong;
-- local model slow/unavailable;
-- remote reasoning route unavailable/fails over;
+- System-1 misleading;
+- slow/unavailable local model;
+- remote reasoning route unavailable;
 - explicit local-only restriction;
-- misleading/insufficient initial discovery;
-- compiler unavailable;
-- helper cannot mutate;
+- insufficient/misleading discovery;
+- temporary computation unavailable, if implemented;
 - cancellation;
-- paraphrased prompts;
+- paraphrases;
 - exact AIWF critical-path/goal/missing-work regression.
 
 Measure:
 
-- correctness/grounding;
+- correctness and grounding;
+- completion of every requested part;
 - Actor steps;
 - LLM calls;
 - tool calls;
-- helper compilations;
 - actual model/provider;
 - latency;
-- retry/escalation count;
-- approximate cost when metrics support it.
+- retries/escalations;
+- helper invocations, if any;
+- approximate cost when real metrics support it.
 
-No arbitrary performance target. Compare to preserved baseline.
+Compare against preserved baselines. Do not invent arbitrary success numbers.
 
-### Phase 6 — cleanup
+### Phase 7 — cleanup
 
 Only after acceptance:
 
-- delete superseded host-specific agency glue;
-- delete stale prompt clauses/workarounds;
-- keep `LLMActor` small;
+- remove superseded host-specific workarounds;
+- remove stale prompt clauses;
+- update installed/canonical skill text;
+- keep llm-utils small;
 - keep text-compiler generic;
-- keep AdvancedActor narrow;
-- update setup-installed skill/docs;
+- keep any shared package narrow;
 - no branch forest.
 
 ---
 
-## 12. Hard rejection list
+## 11. Anti-brittleness rules
 
-Reject any implementation that introduces:
+These are stronger than any implementation suggestion above.
 
-- compiler-first routing;
-- “sophisticated = compile” logic;
-- a second planner/Actor;
-- a second model router;
-- hardcoded Groq/OpenRouter model names in AdvancedActor;
-- phrase-specific critical-path/rank/ordinal logic;
-- full model or tool catalogs dumped into prompts;
-- persistent helper storage;
-- a second semantic registry;
-- ambient generated-code authority;
-- AIWF graph semantics inside the shared package;
-- a large strategy framework.
+1. **No single tactic is required for all sophisticated prompts.**
+2. **No classification result directly chooses a mechanism.**
+3. **No vendor/model name appears in shared decision logic.**
+4. **No exact step/escalation count is architectural truth; bounds are empirical policy.**
+5. **No package is created before shared behavior is observed.**
+6. **No compiler is added before execution-granularity failure is proven.**
+7. **No routing fix hides an evidence/discovery defect.**
+8. **No stronger model is used to conceal a broken execution contract.**
+9. **No successful tool run counts as successful user outcome.**
+10. **No query wording becomes production logic.**
+11. **Every optimization must fail soft:** removing System-1, model advice, temporary compute or a preferred provider may reduce efficiency, but must not erase otherwise available competence.
+12. **Prefer deletion over orchestration.** If one existing primitive can own the behavior cleanly, use it.
 
 ---
 
-## 13. Definition of done
+## 12. Definition of done
 
 This work is done when:
 
 1. the exact sophisticated AIWF prompt is reliably answered and grounded;
-2. an equivalent sophisticated ai-cli journey succeeds through the same shared behavior;
-3. difficult prompts are driven by an adequate configured model, not accidentally by a slow/weak default;
-4. OpenRouter can supply fast/cheap/strong reasoning through existing routing/config without provider-specific architecture;
-5. temporary computation is selective and demonstrably useful, not the old universal hammer;
-6. sophisticated prompts that need no compiler succeed without one;
-7. System-1 helps cheaply but is never required for correctness;
-8. the user can inspect/configure cognitive routes through AIWF's TUI and see the actual model/provider used;
-9. failure of local, cloud, System-1, discovery or compiler degrades honestly and predictably;
-10. no query-specific workflow was added.
+2. an equivalent sophisticated ai-cli journey succeeds from the same general correction;
+3. simple prompts remain simple;
+4. model selection is adequate, observable and user-configurable through existing routing/config infrastructure;
+5. OpenRouter can provide fast/cheap/strong reasoning without provider-specific architecture;
+6. temporary computation exists only if real evidence proves its value;
+7. difficult prompts that do not benefit from compilation succeed without it;
+8. System-1 is useful only insofar as measured and never a correctness dependency;
+9. the user can inspect/configure the cognitive runtime in AIWF and see the model/provider actually used;
+10. failures degrade truthfully under local/cloud/System-1/discovery/compiler loss;
+11. no query-specific workflow or second planner/router/registry was added;
+12. any extracted shared package is demonstrably smaller and cleaner than duplicated host logic.
 
-The intended abstraction is now:
+The intended outcome is not a predetermined class hierarchy.
 
-```text
-AdvancedActor
- = LLMActor
- + cognitive-route awareness
- + cheap tactical hint
- + optional temporary computation
- + bounded evidence-driven escalation
-```
+It is this behavior:
 
-The decisive principle is:
-
-> **Give the Actor adequate intelligence and flexible means; never mistake one means—especially compilation—for intelligence.**
+~~~text
+strong enough Actor
++ truthful runtime self-awareness
++ flexible bounded means
++ evidence-driven recovery
+= sophisticated goals solved without special-case workflows
+~~~
