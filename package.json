@@ -38,6 +38,7 @@
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/shell-ui": "file:../shell-ui",
     "@dharmax/text-compiler": "file:../text-compiler",
+    "@dharmax/skill-manager": "file:../skill-manager",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "typescript": "^7.0.2",
     "typescript-language-server": "^6.0.1",

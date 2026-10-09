@@ -10,13 +10,16 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
-  - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
+- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Architect and integrate verified code synthesis (functions and non-functions) into Ticket.resolve
+  - Summary: Currently, Ticket.resolve in src/graph/ontology.ts relies on raw string replacement or unverified LLM text generation to author new code. This ticket plans and implements a structured compilation and synthesis facility: 1) Atomic functions/methods compiled and verified pre-flight via @dharmax/text-compiler and SkillAuthor principles; 2) Non-function construct synthesis (types, interfaces, classes, components/modules) via structured AST/schema templates; 3) Clean integration into CausalChangeEngine and resolve_ticket Actor tool catalog.
 
 ## In Progress
 
 - [/] **AIWF-TOPLEVEL1-PHASE-A**: Audit and shrink toplevel1 Phase A baseline
   - Summary: Phase A mechanically complete; awaiting human review before any Phase B authorization. Evidence: docs/toplevel1-phase-a-audit.md. Initial branch: typecheck 3 errors; full 268 pass/2 fail, both branch regressions. Master snapshot: typecheck passed, full 265 pass/0 fail. Final focused 89 pass/0 fail; full 274 pass/0 fail; typecheck and diff check pass. REMOVE changes deleted; canonical authoring rejects legacy containment; existing state preserved. No live journey acceptance claimed, no sibling source changed, no Phase B/TKT-8D3F work.
+- [/] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
+  - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
+  - Claim: leased by @agent-1 until 2026-10-09T16:37:28.980Z
 
 ## Done
 

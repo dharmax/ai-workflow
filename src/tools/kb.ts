@@ -1,11 +1,12 @@
 /**
  * Responsibility: Knowledgebase Search & Retrieval Tools for Agents.
- * Scope: Exposes content-addressable knowledgebase tools to ToolRegistry and LLMActor.
+ * Scope: Exposes content-addressable knowledgebase tools and dynamic SkillManager capabilities to ToolRegistry and LLMActor.
  */
 
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { KnowledgeBaseClient } from '../kb/client.ts';
+import { getAIWFSkillManager } from '../kb/manager.ts';
 
 const kbClient = new KnowledgeBaseClient();
 
@@ -19,18 +20,46 @@ export function registerKnowledgebaseTools() {
       type: z.enum(['service', 'skill', 'pattern']).optional().describe('Filter by item type'),
       tag: z.string().optional().describe('Filter by tag')
     }),
-    execute: async ({ query, type, tag }: any, _ctx: ToolContext) => {
+    execute: async ({ query, type, tag }: any, ctx: ToolContext) => {
+      // 1. Check dynamic skill-manager first if searching for skills or generic query
+      let skillResults: any[] = [];
+      if (!type || type === 'skill') {
+        try {
+          const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
+          await sm.sync();
+          const matches = query ? await sm.retrieve(query) : await sm.list();
+          skillResults = matches.map(s => ({
+            id: s.id,
+            type: 'skill' as const,
+            title: s.name,
+            description: s.description,
+            tags: [...s.keys.primary, ...s.keys.secondary],
+            sha256: s.source?.contentHash ? s.source.contentHash.slice(0, 12) : 'local'
+          }));
+        } catch {}
+      }
+
       const items = await kbClient.search({ query, type, tag });
+      const kbItems = items.map((i) => ({
+        id: i.id,
+        type: i.type,
+        title: i.title,
+        description: i.description,
+        tags: i.tags,
+        sha256: i.sha256.slice(0, 12)
+      }));
+
+      // Deduplicate by ID
+      const seen = new Set<string>();
+      const combined = [...skillResults, ...kbItems].filter(item => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
       return {
-        count: items.length,
-        items: items.map((i) => ({
-          id: i.id,
-          type: i.type,
-          title: i.title,
-          description: i.description,
-          tags: i.tags,
-          sha256: i.sha256.slice(0, 12)
-        }))
+        count: combined.length,
+        items: combined
       };
     }
   });
@@ -40,9 +69,31 @@ export function registerKnowledgebaseTools() {
     description: 'Retrieve verified content and specification of a skill, service recipe, or architecture pattern by its ID.',
     category: 'kb',
     parameters: z.object({
-      id: z.string().describe('Exact item ID (e.g. "patterns/pubsub-event-routing", "services/systemd-ollama")')
+      id: z.string().describe('Exact item ID (e.g. "web-ui-design", "patterns/pubsub-event-routing")')
     }),
-    execute: async ({ id }: any, _ctx: ToolContext) => {
+    execute: async ({ id }: any, ctx: ToolContext) => {
+      // 1. Try resolving via dynamic skill-manager
+      try {
+        const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
+        await sm.sync();
+        const activated = await sm.activate([id]);
+        if (activated.length > 0) {
+          const skill = activated[0];
+          return {
+            id: skill.id,
+            type: 'skill',
+            title: skill.name,
+            description: skill.description,
+            verified: true,
+            sha256: skill.source?.contentHash,
+            tools: skill.tools,
+            requires: skill.requires,
+            content: skill.context || skill.description
+          };
+        }
+      } catch {}
+
+      // 2. Fall back to static KnowledgeBaseClient
       const item = await kbClient.getItem(id);
       if (!item) {
         return { error: `Item '${id}' not found in knowledgebase.` };
@@ -56,6 +107,22 @@ export function registerKnowledgebaseTools() {
         sha256: item.meta.sha256,
         content: item.parsed || item.rawContent
       };
+    }
+  });
+
+  registry.register({
+    name: 'find_skills',
+    description: 'Dynamically discover verified operational skills and tools from @dharmax/skill-manager.',
+    category: 'kb',
+    parameters: z.object({
+      query: z.string().describe('Search query describing the needed capability, component, or task'),
+      limit: z.number().optional().default(5).describe('Maximum skills to return')
+    }),
+    execute: async ({ query, limit }: any, ctx: ToolContext) => {
+      const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
+      await sm.sync();
+      const tool = sm.getFindSkillsTool();
+      return await tool.execute({ query, limit });
     }
   });
 }
