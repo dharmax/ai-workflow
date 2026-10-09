@@ -10,7 +10,8 @@ kanban-plugin: board
 
 ## Todo
 
-- No items
+- [ ] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
+  - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
 
 ## In Progress
 
