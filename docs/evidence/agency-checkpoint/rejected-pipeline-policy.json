@@ -1,9 +1,0 @@
-{
-  "hypothesis": "Default pipefail reveals source pipeline errors without regressing useful bounded reads",
-  "controlFailurePipelineExit": 0,
-  "treatmentFailurePipelineExit": 1,
-  "boundedReadTreatmentExit": 141,
-  "boundedReadOutput": "data",
-  "result": "Rejected global policy change: valid bounded stream becomes failure",
-  "productionEdit": false
-}
