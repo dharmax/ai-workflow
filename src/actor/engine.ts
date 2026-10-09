@@ -5,7 +5,7 @@
  * and honest offline failure reporting.
  */
 
-import { LLMActor, LLMSession, Asker, parseModelTarget, ToolExecutionError, InMemoryMetricsStore, type ActorIssue, type ActorStepRecord } from '@dharmax/llm-utils';
+import { LLMActor, LLMSession, Asker, parseModelTarget, ToolExecutionError, InMemoryMetricsStore, type ActorIssue, type ActorStepRecord, type LlmMetricEvent } from '@dharmax/llm-utils';
 import pubsub from '@dharmax/pubsub';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -120,8 +120,10 @@ export class WorkflowActor {
   private localProviders: string[] = [];
   private activeGateway: string = 'auto';
   private toolDiscovery?: Pick<ToolDiscovery, 'discover'>;
+  private options: WorkflowActorOptions;
 
   constructor(options: WorkflowActorOptions) {
+    this.options = { ...options };
     this.store = options.store;
     this.projectRoot = options.projectRoot;
     this.mode = options.mode || 'dev';
@@ -131,16 +133,20 @@ export class WorkflowActor {
     this.metrics = new InMemoryMetricsStore();
     this.radar = options.radar || new ModelRadar({ projectRoot: this.projectRoot });
 
+    this.initRuntime();
+  }
+
+  private initRuntime(): void {
     const {config: cfg, providers} = modelRuntime(this.projectRoot);
     this.activeGateway = cfg.gateway || 'auto';
 
     this.configuredProviders = Object.keys(providers).filter((p) => providers[p]?.available);
     this.localProviders = this.configuredProviders.filter(p => providers[p]?.local);
 
-    if (options.offline || options.asker === null) {
+    if (this.options.offline || this.options.asker === null) {
       this.asker = undefined;
-    } else if (options.asker) {
-      this.asker = options.asker;
+    } else if (this.options.asker) {
+      this.asker = this.options.asker;
     } else {
       try {
         const routes = {...cfg.modelRoutes};
@@ -175,11 +181,11 @@ export class WorkflowActor {
     }
     if (this.asker) {
       this.session = new LLMSession(this.asker, { maxHistoryTurns: 20, maxHistoryChars: 12_000 });
-      if (options.toolDiscovery === null) {
+      if (this.options.toolDiscovery === null) {
         this.toolDiscovery = undefined;
-      } else if (options.toolDiscovery) {
-        this.toolDiscovery = options.toolDiscovery;
-      } else if (options.asker) {
+      } else if (this.options.toolDiscovery) {
+        this.toolDiscovery = this.options.toolDiscovery;
+      } else if (this.options.asker) {
         // Injected askers (tests/custom hosts) remain the single authority.
         this.toolDiscovery = new ToolDiscovery(registry, this.asker);
       } else {
@@ -205,7 +211,42 @@ export class WorkflowActor {
           discoveryAsker === this.asker ? undefined : this.asker
         );
       }
+    } else {
+      this.session = undefined;
+      this.toolDiscovery = undefined;
     }
+  }
+
+  public reloadConfig(): void {
+    if (this.options.offline || this.options.asker !== undefined) {
+      return;
+    }
+    this.initRuntime();
+  }
+
+  public getAsker(): Asker | undefined {
+    return this.asker;
+  }
+
+  public getEffectiveRoute(modeOrTask: ShellMode | string = this.mode): { providerId: string; modelId: string; target: string } | undefined {
+    if (!this.asker || typeof this.asker.getRouter !== 'function') return undefined;
+    const task = (MODE_CONFIGS as any)[modeOrTask]?.taskClass ?? modeOrTask;
+    const cfg = loadConfig(this.projectRoot);
+    const policy = cfg.escalation?.policy || 'auto';
+    const eligibleProviders = policy === 'local_only' ? this.localProviders : this.configuredProviders;
+    const preferLocal = policy === 'local_only' ? true : (policy === 'sota' ? false : this.preferLocal);
+    const resolved = this.asker.getRouter().resolve(task, eligibleProviders, preferLocal);
+    if (!resolved) return undefined;
+    return {
+      providerId: resolved.providerId,
+      modelId: resolved.modelId,
+      target: `${resolved.providerId}/${resolved.modelId}`
+    };
+  }
+
+  public getLastExecutionMetrics(): LlmMetricEvent | undefined {
+    const events = this.metrics.query({ kind: 'llm', limit: 1 });
+    return (events[0] as LlmMetricEvent) || undefined;
   }
 
   setMode(mode: ShellMode): void {
@@ -437,11 +478,14 @@ export class WorkflowActor {
 
       const lastStep = result.steps?.[result.steps.length - 1];
       const finalAnswer = result.finalText || lastStep?.finalAnswer || (result.ok ? 'Instruction processed.' : 'Unable to complete instruction.');
+      const lastLlm = this.getLastExecutionMetrics();
+      const executedTarget = lastLlm ? `${lastLlm.providerId}/${lastLlm.modelId}` : undefined;
+      const reportedTarget = explicitModel ?? executedTarget ?? this.getEffectiveRoute(activeMode)?.target;
 
       if (!result.ok) {
         return {
           ...this.executeFailure(activeMode, events, result.haltReason, result.error, result.issues),
-          discoveryEvents, discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
+          discoveryEvents, discoveredTools: [...selectedNames], targetModel: reportedTarget, escalated: shouldEscalate, escalationReason, stepBudget
         };
       }
 
@@ -450,7 +494,7 @@ export class WorkflowActor {
         stepsCount: events.length,
         answer: finalAnswer,
         events,
-        targetModel: explicitModel,
+        targetModel: reportedTarget,
         escalated: shouldEscalate,
         escalationReason,
         discoveryEvents, discoveredTools: [...selectedNames],
@@ -459,9 +503,12 @@ export class WorkflowActor {
         stepBudget
       };
     } catch (err: any) {
+      const lastLlm = this.getLastExecutionMetrics();
+      const executedTarget = lastLlm ? `${lastLlm.providerId}/${lastLlm.modelId}` : undefined;
+      const reportedTarget = explicitModel ?? executedTarget ?? this.getEffectiveRoute(activeMode)?.target;
       return {
         ...this.executeFailure(activeMode, events, 'error', err.message, []),
-        discoveryEvents, discoveredTools: [...selectedNames], targetModel: explicitModel, escalated: shouldEscalate, escalationReason, stepBudget
+        discoveryEvents, discoveredTools: [...selectedNames], targetModel: reportedTarget, escalated: shouldEscalate, escalationReason, stepBudget
       };
     } finally {
       if (ctx.scratchRoot) fs.rmSync(ctx.scratchRoot, {recursive: true, force: true});

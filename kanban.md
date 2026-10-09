@@ -92,6 +92,8 @@ kanban-plugin: board
   - Summary: Root-cause audit: semantic tags collapse request constraints, matching was mistaken for capability sufficiency, repeated unchanged successful observations had no runtime guard, and ticket listing omitted authored priority needed for comparison. Qualify candidate descriptions, narrowly rediscover supporting evidence once, enforce bounded read-only progress with replanning, preserve mutation/error/change retries. No least-ticket keyword routing or new ranking tool.
 - [x] **TKT-CLIENT-GRAPH-FIRST**: Make client investigation guidance actionable and graph-first
   - Summary: Investigated MCP/client discoverability and scoped navigation. Implemented shared actionable repository guidance, explicit optional projectRoot schemas, correct sibling filePath handling, invalid-root errors and host registration restoration after scoped stores close. Installed only focused Codex skill/rule updates. Acceptance: real ai-cli KnowledgeBase exact 15-line TS-LSP extraction and host preservation verified through fresh SDK MCP; 22 focused and 298 full tests pass, typecheck exits 0, skills validate. Failed baseline/cold-start experiments and limitations retained in docs/client-investigation-guidance.md; current trace in .ai-workflow/state/client-investigation/acceptance.json. No Actor/router changes; independent external-client adoption not claimed.
+- [x] **TKT-ADV-ACTOR-J25**: Dynamic Asker runtime refresh and effective target projection
+  - Summary: Fix J2.5 runtime configuration refresh: WorkflowActor retains old Asker after config changes; implement reloadConfig() and getEffectiveRoute() to reflect live router resolution in shell and CLI without restarting processes.
 
 ## Blocked
 

@@ -204,8 +204,19 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'model' || lower === '/model') {
+  if (lower === 'model' || lower === '/model' || lower.startsWith('model ') || lower.startsWith('/model ')) {
+    const parts = line.replace(/^\/?model\s*/i, '').trim().split(/\s+/).filter(Boolean);
     const cfg = loadConfig(session.projectRoot);
+
+    if (parts[0] === 'set' && parts[1] && parts[2]) {
+      const mode = parts[1].toLowerCase();
+      const modelTarget = parts[2];
+      const updatedRoutes = { ...(cfg.modelRoutes || {}), [mode]: modelTarget };
+      saveConfig(session.projectRoot, { modelRoutes: updatedRoutes });
+      session.actor.reloadConfig();
+      return { output: `\x1b[1;32m✔ Set model for [${mode.toUpperCase()}] to: ${modelTarget}\x1b[0m` };
+    }
+
     const providers = session.actor.getConfiguredProviders();
     const recs = session.actor.radar.getRecommendations();
     let text = `\x1b[1;36m🤖 AI-Workflow Model & Gateway Configuration\x1b[0m\n`;
@@ -213,10 +224,17 @@ Drill-down and project commands:
     text += `Available Providers: ${providers.map((p) => `\x1b[32m${p}\x1b[0m`).join(', ')}\n`;
     text += `Escalation Policy:   \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m (Blast threshold: ${cfg.escalation?.blastRadiusThreshold ?? 3})\n\n`;
     text += `\x1b[1mMode Routing:\x1b[0m\n`;
-    text += `  [DESIGN]  Local: ${cfg.model} | Cloud: ${recs.design} ${cfg.modelRoutes?.design ? `(Override: ${cfg.modelRoutes.design})` : ''}\n`;
-    text += `  [DEV]     Local: ${cfg.model} | Cloud: ${recs.dev} ${cfg.modelRoutes?.dev ? `(Override: ${cfg.modelRoutes.dev})` : ''}\n`;
-    text += `  [TRIAGE]  Local: ${cfg.model} | Cloud: ${recs.triage} ${cfg.modelRoutes?.triage ? `(Override: ${cfg.modelRoutes.triage})` : ''}\n`;
-    text += `  [PRODUCT] Local: ${cfg.model} | Cloud: ${recs.product} ${cfg.modelRoutes?.product ? `(Override: ${cfg.modelRoutes.product})` : ''}\n`;
+    const modes = ['design', 'dev', 'triage', 'product'] as const;
+    for (const m of modes) {
+      const effective = session.actor.getEffectiveRoute(m)?.target || 'unknown';
+      const rec = recs[m];
+      const override = cfg.modelRoutes?.[m] ? ` (Override: ${cfg.modelRoutes[m]})` : '';
+      text += `  [${m.toUpperCase().padEnd(7)}] Effective: \x1b[1;32m${effective.padEnd(32)}\x1b[0m | Local: ${cfg.model} | Cloud: ${rec}${override}\n`;
+    }
+    const lastCall = session.actor.getLastExecutionMetrics();
+    if (lastCall) {
+      text += `\n\x1b[1mLast Execution:\x1b[0m ${lastCall.providerId}/${lastCall.modelId} (${lastCall.latencyMs}ms, ${lastCall.totalTokens} tokens, success: ${lastCall.success})\n`;
+    }
     return { output: text };
   }
 
@@ -263,6 +281,7 @@ Drill-down and project commands:
           policy: target
         }
       });
+      session.actor.reloadConfig();
       return { output: `✔ Escalation policy updated to: \x1b[1;32m${target}\x1b[0m` };
     }
     return {
@@ -1286,6 +1305,7 @@ Drill-down and project commands:
       else if (!isNaN(Number(val))) parsedVal = Number(val);
 
       const updated = saveConfig(session.projectRoot, { [key]: parsedVal });
+      session.actor.reloadConfig();
       return { output: `Updated config: ${key} = ${(updated as any)[key]}` };
     }
     return { output: 'Usage: config [get|set] [key] [value]' };
@@ -1339,6 +1359,8 @@ Drill-down and project commands:
     prefix += result.targetModel
       ? ` \x1b[35m[Escalated ➜ ${result.targetModel}]\x1b[0m`
       : ` \x1b[35m[Escalated]\x1b[0m`;
+  } else if (result.targetModel) {
+    prefix += ` \x1b[90m[${result.targetModel}]\x1b[0m`;
   }
   const discoveryLine = session.viewport?.getMode() === 'full'
     ? `[DISCOVERY] ${result.discoveredTools?.length ? result.discoveredTools.join(', ') : '(none)'}\n`

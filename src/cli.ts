@@ -995,10 +995,13 @@ async function main() {
         console.log(`Configured Providers: ${providers.map((p) => `\x1b[32m${p}\x1b[0m`).join(', ')}`);
         console.log(`Escalation Policy:    \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m (Blast threshold: ${cfg.escalation?.blastRadiusThreshold ?? 3})\n`);
         console.log(`\x1b[1mMode Routing:\x1b[0m`);
-        console.log(`  [DESIGN]  Local: ${cfg.model} | Cloud: ${recs.design} ${cfg.modelRoutes?.design ? `(Override: ${cfg.modelRoutes.design})` : ''}`);
-        console.log(`  [DEV]     Local: ${cfg.model} | Cloud: ${recs.dev} ${cfg.modelRoutes?.dev ? `(Override: ${cfg.modelRoutes.dev})` : ''}`);
-        console.log(`  [TRIAGE]  Local: ${cfg.model} | Cloud: ${recs.triage} ${cfg.modelRoutes?.triage ? `(Override: ${cfg.modelRoutes.triage})` : ''}`);
-        console.log(`  [PRODUCT] Local: ${cfg.model} | Cloud: ${recs.product} ${cfg.modelRoutes?.product ? `(Override: ${cfg.modelRoutes.product})` : ''}`);
+        const modes = ['design', 'dev', 'triage', 'product'] as const;
+        for (const m of modes) {
+          const effective = actor.getEffectiveRoute(m)?.target || 'unknown';
+          const rec = recs[m];
+          const override = cfg.modelRoutes?.[m] ? ` (Override: ${cfg.modelRoutes[m]})` : '';
+          console.log(`  [${m.toUpperCase().padEnd(7)}] Effective: \x1b[1;32m${effective.padEnd(32)}\x1b[0m | Local: ${cfg.model} | Cloud: ${rec}${override}`);
+        }
         break;
       }
 
