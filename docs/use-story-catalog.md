@@ -46,6 +46,10 @@ A developer asks AIWF to resolve a Ticket. During investigation AIWF sees the li
 
 A developer asks a compound question about the current project that is not covered by one named capability—for example, to determine the project's goal, critical path and missing work from several kinds of evidence. AIWF understands the requested outcome, gathers the needed evidence through ordinary capabilities/discovery, and may use ephemeral deterministic composition when the task is naturally a small program rather than a long sequence of LLM-mediated tool calls. Cheap System-1 assessment may advise that composition is likely useful, but the Actor remains free to ignore it or recover from wrong advice. Current-project claims are grounded in observed evidence; deterministic helper output is derived evidence. If one tactic fails, AIWF replans rather than surrendering. The developer does not need a query-specific command, predeclared workflow, or production logic coupled to words such as “second”, “least”, “rank”, or “critical path”.
 
+### J2.5 — Configure an understandable cognitive runtime
+
+A developer notices that sophisticated requests are slow, expensive or weak. From AIWF's interactive configuration surface they can inspect which cognitive resources are actually available—local models, OpenRouter/cloud access, effective task routes and relevant observed/recommended speed/cost/quality information—without exposing credentials. They adjust high-level routing preferences such as the default, fast and reasoning routes and supported speed/cost preferences, validate reachability, and save through AIWF's existing configuration system. On later runs AIWF can explain which route/model/provider was actually used. A configured credential or model name is never treated as proof of successful inference or quality.
+
 ---
 
 # Epic J3 — AIWF owns engineering work to verified completion
