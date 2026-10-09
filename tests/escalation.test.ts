@@ -97,7 +97,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     expect(askOptions.preferLocal).toBe(true);
   });
 
-  it('should auto-escalate in design mode when cloud provider is configured and emit pubsub event', async () => {
+  it('should auto-escalate upon observable no-progress when cloud provider is configured and emit pubsub event', async () => {
     process.env.OPENROUTER_API_KEY = 'sk-or-test1234';
     saveConfig(tempDir, {
       escalation: {
@@ -112,16 +112,24 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       escalationEventReceived = ev.data;
     });
 
-    let askOptions: any;
+    const recordedAskOptions: any[] = [];
     const mockAsker = {
       json: async (_prompt: string, _schema: unknown, options: any) => {
-        askOptions = options;
+        recordedAskOptions.push(options);
+        // On initial attempt with local preference, simulate observable no-progress (e.g. model failure / stall)
+        if (options.preferLocal) {
+          return {
+            ok: false,
+            failure: { message: 'Local model exhausted context without viable action' }
+          };
+        }
+        // On escalated attempt (after observable no-progress triggers escalation), conclude successfully
         return {
           ok: true,
           data: {
-            thought: 'Conclude design',
+            thought: 'Deep reasoning concludes the task',
             action: 'final_answer',
-            finalAnswer: 'Frontier architecture designed'
+            finalAnswer: 'Escalated reasoning completed successfully'
           }
         };
       }
@@ -130,21 +138,29 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     const actor = new WorkflowActor({
       store,
       projectRoot: tempDir,
-      asker: mockAsker,
       toolDiscovery: noTools()
     });
+    // Inject mockAsker directly onto actor instance so options.asker is not set
+    (actor as any).asker = mockAsker;
+    (actor as any).session = new (await import('@dharmax/llm-utils')).LLMSession(mockAsker);
 
-    const res = await actor.execute('/design propose system architecture');
+    const res = await actor.execute('/dev resolve complex state issue');
 
     expect(res.escalated).toBe(true);
-    expect(res.escalationReason).toContain('Design mode');
-    expect(res.targetModel).toBeUndefined();
-    expect(askOptions.task).toBe('reasoning');
-    expect(askOptions.preferLocal).toBe(false);
+    expect(res.escalationReason).toBeDefined();
+    expect(res.answer).toContain('Escalated reasoning completed');
     expect(escalationEventReceived).not.toBeNull();
-    expect(escalationEventReceived.mode).toBe('design');
+    expect(escalationEventReceived.mode).toBe('dev');
     expect(escalationEventReceived.taskClass).toBe('reasoning');
     expect(escalationEventReceived.preferLocal).toBe(false);
+
+    // Initial attempts were on 'code' task with local preference
+    expect(recordedAskOptions[0].task).toBe('code');
+    expect(recordedAskOptions[0].preferLocal).toBe(true);
+    // Escalated attempt was on 'reasoning' task with remote allowance
+    const lastAsk = recordedAskOptions[recordedAskOptions.length - 1];
+    expect(lastAsk.task).toBe('reasoning');
+    expect(lastAsk.preferLocal).toBe(false);
   });
 
   it('keeps automatic escalation task-routed so configured routes can fall back', async () => {
@@ -184,35 +200,35 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     expect(askOptions.preferLocal).toBe(false);
   });
 
-  it('should auto-escalate when blast radius exceeds threshold', async () => {
+  it('should not escalate upon observable no-progress when policy is local_only', async () => {
     process.env.OPENROUTER_API_KEY = 'sk-or-test1234';
     saveConfig(tempDir, {
       escalation: {
-        policy: 'auto',
-        blastRadiusThreshold: 1,
+        policy: 'local_only',
+        blastRadiusThreshold: 3,
         testRetryThreshold: 2
       }
     });
 
-    // Create and save a file entity in store
-    await store.upsertEntity<FileNode>(FileNode.dcr, {
-      id: 'src/core.ts',
-      name: 'src/core.ts',
-      path: 'src/core.ts',
-      size: 100,
-      lastModified: Date.now()
+    let escalationTriggered = false;
+    pubsub.on('actor:escalate', () => {
+      escalationTriggered = true;
     });
 
-    let askOptions: any;
+    let callCount = 0;
     const mockAsker = {
-      json: async (_prompt: string, _schema: unknown, options: any) => {
-        askOptions = options;
+      json: async (_prompt: string, _schema: unknown, _options: any) => {
+        callCount++;
         return {
           ok: true,
           data: {
-            thought: 'Conclude',
-            action: 'final_answer',
-            finalAnswer: 'Blast radius mutation concluded'
+            thought: 'Repeating observation',
+            action: 'tool_call',
+            toolCalls: [{
+              callId: `call_${callCount}`,
+              name: 'run_command',
+              parameters: { command: 'echo local_stall' }
+            }]
           }
         };
       }
@@ -225,13 +241,10 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       toolDiscovery: noTools()
     });
 
-    const res = await actor.execute('Refactor src/core.ts and update all callers');
-    expect(res.escalated).toBe(true);
-    expect(res.escalationReason).toContain('Blast radius');
-    expect(res.targetModel).toBeUndefined();
-    // Escalation changes locality, while the dev task remains code generation.
-    expect(res.mode).toBe('dev');
-    expect(askOptions.task).toBe('code');
-    expect(askOptions.preferLocal).toBe(false);
+    const res = await actor.execute('/dev attempt stall in local-only');
+    expect(res.escalated).toBeFalsy();
+    expect(escalationTriggered).toBe(false);
+    expect(res.failed).toBe(true);
   });
 });
+

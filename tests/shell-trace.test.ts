@@ -7,12 +7,14 @@ import {LLMSession, type Asker, type ActorStepRecord} from '@dharmax/llm-utils';
 import {FakeRenderer, ProcessViewport} from '@dharmax/shell-ui';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {WorkflowActor} from '../src/actor/engine.ts';
+import {initializeTools} from '../src/tools/index.ts';
 import {processShellInput, type ShellSession} from '../src/shell.ts';
 import {shellTracePath} from '../src/shell-trace.ts';
 
 describe('Shell failure trace and floating inspection', () => {
   let root: string, store: WorkflowStore, session: ShellSession, output: string;
   beforeEach(() => {
+    initializeTools();
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-trace-'));
     store = new WorkflowStore(root, true);
     output = '';

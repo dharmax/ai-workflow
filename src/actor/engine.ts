@@ -345,30 +345,13 @@ export class WorkflowActor {
       if (policy === 'sota' || execOptions?.forceCloud) {
         shouldEscalate = true;
         escalationReason = 'SOTA / forceCloud requested';
-      } else if (policy === 'auto') {
-        // Design mode heuristic: architecture & ADR synthesis requires deep reasoning
-        if (activeMode === 'design') {
-          shouldEscalate = true;
-          escalationReason = 'Design mode requires frontier reasoning';
-        }
-        // Blast radius heuristic: multi-file mutations require strong reasoning
-        const fileMatch = rawText.match(/([a-zA-Z0-9_\-\.\/]+\.(?:ts|js|tsx|jsx|json))/);
-        if (fileMatch) {
-          try {
-            const blast = await analyzeBlastRadius(this.store, fileMatch[1], this.projectRoot);
-            if (blast.affectedFiles.length >= (cfg.escalation?.blastRadiusThreshold ?? 3)) {
-              shouldEscalate = true;
-              escalationReason = `Blast radius (${blast.affectedFiles.length} files) >= threshold (${cfg.escalation?.blastRadiusThreshold ?? 3})`;
-            }
-          } catch {}
-        }
       }
     }
 
     // Explicit model choices remain authoritative. Otherwise llm-utils selects
     // from persisted advice using the semantic task class and locality preference.
     const explicitModel = execOptions?.forceModel;
-    const preferLocalForRun = policy === 'local_only'
+    let preferLocalForRun = policy === 'local_only'
       ? true
       : shouldEscalate
         ? false
@@ -416,66 +399,96 @@ export class WorkflowActor {
       let recoveryAttempts = 0;
       recordDiscovery({mode: activeMode, query: {}, tools: [...selectedNames], bootstrap: true});
 
-      const result = await this.session!.run(actor, rawText, {
-        maxSteps: stepBudget,
-        tools: runTools,
-        onDiscoverTools: this.toolDiscovery ? async request => {
-          const started = Date.now();
-          recordDiscovery({mode: activeMode, request, status: 'started', tools: [...selectedNames]});
-          try {
-            if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Continue through run_command and existing evidence.');
-            recoveryAttempts++;
-            if (!this.toolDiscovery) throw new Error('Specialized discovery is disabled. Continue through run_command.');
-            const timeoutMs = Math.min(this.timeoutMs, 5000);
-            const deadline = new AbortController();
-            const signal = AbortSignal.any([deadline.signal, ...(execOptions?.signal ? [execOptions.signal] : [])]);
-            const timer = setTimeout(() => deadline.abort(new Error('Specialized discovery timed out; continue through run_command.')), timeoutMs);
-            let rejectAbort: (() => void) | undefined;
-            let found: DiscoveredTools;
+      const runOnce = (taskClass: 'reasoning' | 'code' | 'fast' | 'creative', preferLocal: boolean) =>
+        this.session!.run(actor, rawText, {
+          maxSteps: stepBudget,
+          tools: runTools,
+          onDiscoverTools: this.toolDiscovery ? async request => {
+            const started = Date.now();
+            recordDiscovery({mode: activeMode, request, status: 'started', tools: [...selectedNames]});
             try {
-              const aborted = new Promise<never>((_, reject) => {
-                rejectAbort = () => reject(signal.reason ?? new Error('Specialized discovery cancelled.'));
-                signal.addEventListener('abort', rejectAbort, {once: true});
-                if (signal.aborted) rejectAbort();
-              });
-              found = await Promise.race([this.toolDiscovery.discover(request, 5, {signal, timeoutMs}), aborted]);
-            } finally {
-              clearTimeout(timer);
-              if (rejectAbort) signal.removeEventListener('abort', rejectAbort);
+              if (recoveryAttempts >= 2) throw new Error('Bounded capability discovery exhausted after two attempts. Continue through run_command and existing evidence.');
+              recoveryAttempts++;
+              if (!this.toolDiscovery) throw new Error('Specialized discovery is disabled. Continue through run_command.');
+              const timeoutMs = Math.min(this.timeoutMs, 5000);
+              const deadline = new AbortController();
+              const signal = AbortSignal.any([deadline.signal, ...(execOptions?.signal ? [execOptions.signal] : [])]);
+              const timer = setTimeout(() => deadline.abort(new Error('Specialized discovery timed out; continue through run_command.')), timeoutMs);
+              let rejectAbort: (() => void) | undefined;
+              let found: DiscoveredTools;
+              try {
+                const aborted = new Promise<never>((_, reject) => {
+                  rejectAbort = () => reject(signal.reason ?? new Error('Specialized discovery cancelled.'));
+                  signal.addEventListener('abort', rejectAbort, {once: true});
+                  if (signal.aborted) rejectAbort();
+                });
+                found = await Promise.race([this.toolDiscovery.discover(request, 5, {signal, timeoutMs}), aborted]);
+              } finally {
+                clearTimeout(timer);
+                if (rejectAbort) signal.removeEventListener('abort', rejectAbort);
+              }
+              if (found.error) throw new Error(found.error);
+              if (!found.tools.length) throw new Error('No applicable specialized capability discovered. Continue through run_command.');
+              for (const tool of found.tools) selectedNames.add(tool.name);
+              execOptions?.onDiscovery?.([...selectedNames], activeMode);
+              recordDiscovery({mode: activeMode, request, query: found.query, status: 'completed', addedTools: found.tools.map(tool => tool.name), tools: [...selectedNames], elapsedMs: Date.now() - started});
+              return found.tools.map(wrapTool);
+            } catch (error) {
+              recordDiscovery({mode: activeMode, request, status: 'failed', error: error instanceof Error ? error.message : String(error), tools: [...selectedNames], elapsedMs: Date.now() - started});
+              throw error;
             }
-            if (found.error) throw new Error(found.error);
-            if (!found.tools.length) throw new Error('No applicable specialized capability discovered. Continue through run_command.');
-            for (const tool of found.tools) selectedNames.add(tool.name);
-            execOptions?.onDiscovery?.([...selectedNames], activeMode);
-            recordDiscovery({mode: activeMode, request, query: found.query, status: 'completed', addedTools: found.tools.map(tool => tool.name), tools: [...selectedNames], elapsedMs: Date.now() - started});
-            return found.tools.map(wrapTool);
-          } catch (error) {
-            recordDiscovery({mode: activeMode, request, status: 'failed', error: error instanceof Error ? error.message : String(error), tools: [...selectedNames], elapsedMs: Date.now() - started});
-            throw error;
+          } : undefined,
+          askOptions: {
+            ...(explicitModel ? {model: explicitModel} : {task: taskClass}),
+            preferLocal,
+            ...(policy === 'local_only' ? {allowedProviders: this.localProviders} : {}),
+            maxTokens: cfg.llmOutputTokens,
+            timeoutMs: this.timeoutMs,
+            metricsSink: this.metrics
+          },
+          signal: execOptions?.signal,
+          onStep: async step => {
+            const ev: ActorStepEvent = {
+              step: step.step, mode: activeMode,
+              toolCalls: step.toolCalls, toolResults: step.toolResults,
+              toolCall: step.toolCalls[0] ? {name: step.toolCalls[0].toolName, params: step.toolCalls[0].parameters} : undefined,
+              toolResult: step.toolResults[0]?.result,
+              finalAnswer: step.finalAnswer
+            };
+            events.push(ev);
+            pubsub.trigger('aiwf', 'actor:step', ev);
+            await execOptions?.onStep?.(step);
           }
-        } : undefined,
-        askOptions: {
-          ...(explicitModel ? {model: explicitModel} : {task: config.taskClass}),
+        });
+
+      let currentTaskClass = config.taskClass;
+      let result = await runOnce(currentTaskClass, preferLocalForRun);
+
+      // Observable no-progress cognitive escalation (§6):
+      // Triggered only by observable no-progress (halted without success, stall, or capability failure).
+      // Explicit local_only policy, lack of cloud providers, or already-escalated runs inhibit escalation.
+      const isNoProgress = !result.ok &&
+        policy === 'auto' &&
+        hasCloud &&
+        !this.options.asker &&
+        !shouldEscalate;
+      if (isNoProgress) {
+        shouldEscalate = true;
+        escalationReason = result.error || (result.issues.find(i => i.kind === 'tool')?.message) || 'Observable no-progress: execution stalled on initial route';
+        preferLocalForRun = false;
+        currentTaskClass = 'reasoning';
+
+        pubsub.trigger('aiwf', 'actor:escalate', {
+          mode: activeMode,
+          targetModel: explicitModel,
+          taskClass: currentTaskClass,
           preferLocal: preferLocalForRun,
-          ...(policy === 'local_only' ? {allowedProviders: this.localProviders} : {}),
-          maxTokens: cfg.llmOutputTokens,
-          timeoutMs: this.timeoutMs,
-          metricsSink: this.metrics
-        },
-        signal: execOptions?.signal,
-        onStep: async step => {
-          const ev: ActorStepEvent = {
-            step: step.step, mode: activeMode,
-            toolCalls: step.toolCalls, toolResults: step.toolResults,
-            toolCall: step.toolCalls[0] ? {name: step.toolCalls[0].toolName, params: step.toolCalls[0].parameters} : undefined,
-            toolResult: step.toolResults[0]?.result,
-            finalAnswer: step.finalAnswer
-          };
-          events.push(ev);
-          pubsub.trigger('aiwf', 'actor:step', ev);
-          await execOptions?.onStep?.(step);
-        }
-      });
+          reason: escalationReason
+        });
+
+        // Run escalated attempt
+        result = await runOnce(currentTaskClass, preferLocalForRun);
+      }
 
       const lastStep = result.steps?.[result.steps.length - 1];
       const finalAnswer = result.finalText || lastStep?.finalAnswer || (result.ok ? 'Instruction processed.' : 'Unable to complete instruction.');
