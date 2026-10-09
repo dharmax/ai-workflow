@@ -14,7 +14,7 @@
 | `src/index` | project default | 0 | 0 | None |
 | `src/config` | project default | 50 | 0 | None |
 | `src/doctor` | project default | 60 | 0 | None |
-| `src/setup` | project default | 115 | 0 | None |
+| `src/setup` | project default | 121 | 0 | None |
 | `tests` | project default | 1014 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 58 | 0 | None |
