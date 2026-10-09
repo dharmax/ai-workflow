@@ -164,7 +164,7 @@ Discovery is therefore an optimization/specialization mechanism, not the gatekee
 - no baseline codelet compilation/execution unless a real journey proves it necessary;
 - public MCP remains a separate intentionally narrow boundary.
 
-Detailed execution work is governed by `docs/fix-plan-1.md`.
+Compound-prompt execution work is governed by `docs/advanced-actor-plan.md`.
 
 ---
 
