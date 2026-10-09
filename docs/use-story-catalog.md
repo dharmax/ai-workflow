@@ -42,9 +42,9 @@ A developer returns to a repository with an active lease or in-progress Ticket. 
 
 A developer asks AIWF to resolve a Ticket. During investigation AIWF sees the linked Feature/Story plus upstream Flow, Goal and governing Concepts. The locally obvious implementation conflicts with a product Concept or would violate the Story’s journey. AIWF flags the conflict before applying the change and either chooses an aligned implementation or requests the product decision needed to proceed.
 
-### J2.4 — Solve an unfamiliar project goal without a predeclared workflow
+### J2.4 — Solve an unfamiliar compound project goal without a predeclared workflow
 
-A developer asks a compound or unusual question about the current project that is not exactly covered by one named AIWF capability. AIWF first understands the desired outcome and evidence/action needs. A cheap tactical assessment may suggest promising means but never controls the Actor. The Actor may combine specialized capability discovery, reusable know-how from skill-manager, ephemeral deterministic composition through text-compiler, universal environment execution, and external knowledge when methodology is genuinely missing. Current-project claims are grounded in observed evidence; generated tests/examples are never treated as source facts. If one tactic fails, AIWF replans rather than surrendering. It stops only on a concrete inaccessible/unsafe/unauthorized dependency or genuine missing user decision, and names that blocker precisely. The developer does not need a query-specific command, predeclared workflow, or production logic coupled to words such as “second”, “least”, or “critical path”.
+A developer asks a compound question about the current project that is not covered by one named capability—for example, to determine the project's goal, critical path and missing work from several kinds of evidence. AIWF understands the requested outcome, gathers the needed evidence through ordinary capabilities/discovery, and may use ephemeral deterministic composition when the task is naturally a small program rather than a long sequence of LLM-mediated tool calls. Cheap System-1 assessment may advise that composition is likely useful, but the Actor remains free to ignore it or recover from wrong advice. Current-project claims are grounded in observed evidence; deterministic helper output is derived evidence. If one tactic fails, AIWF replans rather than surrendering. The developer does not need a query-specific command, predeclared workflow, or production logic coupled to words such as “second”, “least”, “rank”, or “critical path”.
 
 ---
 
@@ -109,7 +109,7 @@ A maintainer needs to remove an obsolete persistence adapter with no change to o
 The first mandatory live journey regressions are:
 
 1. **J2.1** through the real shell/NL path, compared with deterministic `next`.
-2. **J2.4** through the real local Actor and the adversarial Agency Gate in `docs/agency-restoration-plan.md`: discovery-disabled, misleading-discovery, missing-capability/self-extension, forced-mode and the three exact live regressions.
+2. **J2.4** through the real local Actor and the shared compound-prompt gate in `docs/advanced-actor-plan.md`, including simple-vs-compound controls, wrong/unavailable System-1, bounded discovery, compiler failure, cancellation and the exact live regression.
 3. **J1.1** through real Product Intent proposal/review/apply boundaries.
 4. **J3.1/J3.4** through real `resolve_ticket` lifecycle boundaries, including a generative source change that proves the canonical writer/text-compiler path and a deterministic-change control that bypasses synthesis.
 5. **J3.2** through a real failing implementation followed by bounded repair through the same canonical writer.
