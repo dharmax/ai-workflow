@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 112 | 0 | None |
+| `root` | project default | 114 | 0 | None |
 | `src/graph` | project default | 1171 | 0 | None |
 | `src/tools` | project default | 553 | 0 | None |
 | `src/actor` | project default | 376 | 0 | None |
@@ -26,7 +26,7 @@
 | `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
-| `src/kb` | project default | 140 | 0 | None |
+| `src/kb` | project default | 142 | 0 | None |
 | `docs` | project default | 392 | 0 | None |
 | `src/product` | project default | 312 | 0 | None |
 | `src/change` | project default | 666 | 0 | None |
