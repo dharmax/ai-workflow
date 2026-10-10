@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 104 | 0 | None |
+| `root` | project default | 102 | 0 | None |
 | `src/graph` | project default | 1173 | 0 | None |
 | `src/tools` | project default | 553 | 0 | None |
 | `src/actor` | project default | 376 | 0 | None |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 73 | 0 | None |
 | `src/doctor` | project default | 62 | 0 | None |
 | `src/setup` | project default | 133 | 0 | None |
-| `tests` | project default | 1147 | 0 | None |
+| `tests` | project default | 1149 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |

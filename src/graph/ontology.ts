@@ -772,14 +772,14 @@ export class Ticket extends WorkflowEntity {
         }
         return null;
       };
-      const apply = async (request: import('../change/types.ts').ChangeRequest, fingerprint?: string) => {
+      const apply = async (request: import('../change/types.ts').ChangeRequest) => {
         const leaseError = await lease(executingTicket); if (leaseError) throw new Error(leaseError);
         if (request.action === 'product_change') throw new Error('Implementation cannot mutate Product/Ticket semantics through code tools.');
         const engine = new CausalChangeEngine(ctx), preview = await engine.previewChange(request);
-        if (preview.blocked) throw new ToolExecutionError(preview.blockReason ?? 'Change preview blocked.', undefined, 'safety_preview');
+        if (preview.blocked) throw new ToolExecutionError(`Change preview blocked: ${preview.blockReason ?? preview.summary}. For replace_text, replace an existing anchor that occurs exactly once in the current file; read current source before retrying.`, undefined, 'safety_preview');
         const conflict = guardFiles(preview.affectedFiles); if (conflict) throw new Error(`Dirty target requires input: ${conflict}`);
         await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id: store.localId(executingTicket.id), fields: { lane: 'In Progress' } }]);
-        const result = await engine.applyChange(request, fingerprint ?? preview.fingerprint);
+        const result = await engine.applyChange(request, preview.fingerprint);
         anchorMigrations.push(...result.migratedAnchors);
         for (const file of [...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])]) {
           ownedFiles.add(file); allFiles.add(file);
@@ -916,7 +916,7 @@ export class Ticket extends WorkflowEntity {
                   const target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
                   return { changes: [{ action: 'replace_symbol' as const, target, replacement: candidate.source }], testCommands: proposedTests };
                 }
-                const names = ['find_symbol', 'get_symbol_source', 'get_file_outline', 'search_graph', 'get_exact_references', 'read_workspace_file', 'preview_change', 'apply_change'];
+                const names = ['find_symbol', 'get_symbol_source', 'get_file_outline', 'search_graph', 'get_exact_references', 'read_workspace_file', 'safe_change'];
                 let currentDossier = input;
                 while (actorTranches < 3) {
                   const tranche = actorTranches++, changesBefore = successfulChanges;
@@ -924,20 +924,19 @@ export class Ticket extends WorkflowEntity {
                   const trancheSignal = combineSignals(options.signal, controller.signal);
                   let duplicateAttempts = 0;
                   const workspaceFiles = (await store.listEntities<FileNode>(FileNode.dcr)).map(file => store.localId(file.id)).filter(file => !file.startsWith('@') && !file.startsWith('node_modules/')).sort((a, b) => Number(/\.[cm]?[jt]sx?$/.test(b)) - Number(/\.[cm]?[jt]sx?$/.test(a)) || a.localeCompare(b)).slice(0, 64);
-                  const actor = new LLMActor(asker, { maxSteps: 16, system: `Implement only Ticket ${currentDossier.ticket.id}: ${currentDossier.ticket.title}. Required outcomes: ${JSON.stringify(currentDossier.ticket.acceptanceCriteria)}. Parent intent constrains this task; do not execute other tickets. Keep thought to one short sentence; put replacement code only in tool parameters. Do not repeat an identical read/search on unchanged disk. Empty search results mean no match, not a reason to repeat the search. Inspect existing files and use concrete preview_change/apply_change edits to satisfy the authored contract. preview_change is read-only: nothing changes until apply_change succeeds. After a safe preview, apply the identical request with its returned fingerprint before moving to the next change. Preserve authored dependency paths; never invent package versions. For a local sibling dependency, follow the existing file:../ dependency convention when present; never substitute a registry version. Navigate surgically, read_workspace_file for ordinary files, then use preview_change/apply_change for edits (replace_text requires unique existing text). Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.` });
+                  const actor = new LLMActor(asker, { maxSteps: 16, system: `Implement only Ticket ${currentDossier.ticket.id}: ${currentDossier.ticket.title}. Required outcomes: ${JSON.stringify(currentDossier.ticket.acceptanceCriteria)}. Parent intent constrains this task; do not execute other tickets. Keep thought to one short sentence; put replacement code only in tool parameters. Do not repeat an identical read/search on unchanged disk. Empty search results mean no match, not a reason to repeat the search. Inspect existing files and use safe_change with one direct code ChangeRequest to satisfy the authored contract. AIWF checks the lease, previews and applies safely; do not construct fingerprints, wrap the request or call public preview/apply tools. Preserve authored dependency paths; never invent package versions. For a local sibling dependency, follow the existing file:../ dependency convention when present; never substitute a registry version. Navigate surgically, read_workspace_file for ordinary files, then use safe_change for edits (replace_text requires unique existing text). Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.` });
                   for (const name of names) {
-                    const tool = registry.get(name); if (!tool) continue;
-                    actor.registerTool({ name, description: tool.description, parameters: name === 'preview_change' ? CodeChangeRequestSchema : name === 'apply_change' ? z.object({ request: CodeChangeRequestSchema, fingerprint: z.string().min(1) }) : tool.parameters, execute: async params => {
+                    const tool = name === 'safe_change' ? {name, description: 'Safely apply one direct code ChangeRequest. AIWF handles preview/fingerprint/apply, lease, dirty-target and verification checks.', parameters: CodeChangeRequestSchema} : registry.get(name); if (!tool) continue;
+                    actor.registerTool({ name, description: tool.description, parameters: tool.parameters, execute: async params => {
                       if (controller.signal.aborted) throw new Error('Stalled navigation: implementation tranche terminated.');
-                      if (name === 'apply_change') {
+                      if (name === 'safe_change') {
                         countEngineering('toolCalls');
-                        const value = params as { request: import('../change/types.ts').ChangeRequest; fingerprint: string };
                         const epochBefore = successfulChanges;
-                        const result = await apply(value.request, value.fingerprint);
+                        const result = await apply(params as import('../change/types.ts').ChangeRequest);
                         if (successfulChanges > epochBefore) duplicateAttempts = 0;
                         return result;
                       }
-                      // Every non-mutating tool is an observation, including change previews.
+                      // Every navigation tool is an observation; safe changes are handled above.
                       const key = canonical([name, params, successfulChanges]);
                       if (observations.has(key)) {
                         if (++duplicateAttempts >= 2) controller.abort();
@@ -950,19 +949,13 @@ export class Ticket extends WorkflowEntity {
                       const result = await registry.execute(name, params, ctx);
                       if (name === 'find_symbol' && Array.isArray(result) && result.length === 0) throw new ToolExecutionError('No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.', undefined, 'not_found');
                       if (name === 'get_symbol_source' && result.code === null) throw new ToolExecutionError(`Symbol '${result.symbolName}' was not found in '${result.filePath}'. Use get_file_outline for actual declaration names or read_workspace_file for existing file contents.`, undefined, 'not_found');
-                      if (name === 'preview_change' && result.blocked) throw new ToolExecutionError(`Change preview blocked: ${result.summary}. For replace_text, oldText must be literal text already present exactly once. To insert missing text, replace an existing anchor with that anchor plus the addition.`, undefined, 'safety_preview');
-                      if (name === 'preview_change') return {
-                        applied: false, summary: result.summary, blocked: result.blocked,
-                        warnings: result.warnings, affectedFiles: result.affectedFiles,
-                        nextCall: { toolName: 'apply_change', parameters: { request: params, fingerprint: result.fingerprint } }
-                      };
                       return result;
                     } });
                   }
-                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics({phase: attempt ? 'repair' : 'implementation_actor'}), signal: trancheSignal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics({phase: attempt ? 'repair' : 'implementation_actor'}), signal: trancheSignal, schema: ResolutionProposalSchema, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
                   if (options.signal?.aborted) options.signal.throwIfAborted();
                   if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps).`);
-                  if (output.ok) return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
+                  if (output.ok) return ResolutionProposalSchema.parse(output.output);
                   const successfulEdits = successfulChanges - changesBefore;
                   if (output.haltReason !== 'max_steps_exceeded' || !successfulEdits || tranche === 2) {
                     const observations = output.steps.slice(-3).map(step => ({ step: step.step, calls: step.toolCalls.map(call => ({ tool: call.toolName, filePath: call.parameters.filePath, symbolName: call.parameters.symbolName })), errors: step.toolResults.filter(result => result.isError).map(result => result.error) }));

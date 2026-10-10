@@ -532,9 +532,9 @@ describe('Ticket-owned bounded resolution', () => {
       else {
         let name = 'read_workspace_file', parameters: Record<string, unknown> = { filePath: targetFile };
         if (step >= 3 || mode === 'zero') { name = 'find_symbol'; parameters = { name: `distinct_observation_${step}` }; }
-        if (mode !== 'zero' && step === 1) { name = 'preview_change'; parameters = request; }
+        if (mode !== 'zero' && step === 1) { name = 'safe_change'; parameters = request; }
         if (mode !== 'zero' && step === 2) {
-          name = 'apply_change'; parameters = { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint };
+          name = 'find_symbol'; parameters = { name: `distinct_observation_${step}` };
         }
         decision = { thought: 'Bounded fixture work', action: 'tool_call', toolCalls: [{ name, parameters }] };
       }
@@ -567,19 +567,17 @@ describe('Ticket-owned bounded resolution', () => {
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
       const step = calls++;
       if (step === 2) expect(prompt).toContain('Stalled navigation: this identical observation');
-      if (step === 5) {
+      if (step === 4) {
         expect(prompt).toContain('return a + b');
         return { model, ok: true, text: JSON.stringify({ thought: 'Done', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) }) };
       }
-      const name = step === 2 ? 'preview_change' : step === 3 ? 'apply_change' : 'read_workspace_file';
-      const parameters = step === 2 ? request : step === 3
-        ? { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint }
-        : { filePath: 'src/add.ts' };
+      const name = step === 2 ? 'safe_change' : 'read_workspace_file';
+      const parameters = step === 2 ? request : { filePath: 'src/add.ts' };
       return { model, ok: true, text: JSON.stringify({ thought: 'Inspect or edit', action: 'tool_call', toolCalls: [{ name, parameters }] }) };
     });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
-      expect(result.status).toBe('complete'); expect(calls).toBe(6);
+      expect(result.status).toBe('complete'); expect(calls).toBe(5);
       expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b');
     } finally { completion.mockRestore(); }
   }, 30000);
@@ -658,30 +656,26 @@ describe('Ticket-owned bounded resolution', () => {
       expect(body.options.num_ctx).toBe(32768);
       const system = body.messages.find(message => message.role === 'system')!.content;
       const goal = body.messages.find(message => message.role === 'user')!.content;
-      expect(system).not.toContain('product_change'); expect(system).not.toContain('ProductMutation');
+      expect(system).toContain('safe_change'); expect(system).not.toContain('preview_change'); expect(system).not.toContain('apply_change'); expect(system).not.toContain('product_change'); expect(system).not.toContain('ProductMutation');
       expect(system).toContain('"$defs"'); expect(system.length).toBeLessThan(30000);
       expect(goal).toContain(root); expect(goal).toContain('"package.json"'); expect(goal).toContain('a package that needs adding will not yet have indexed symbols');
       if (calls === 2) { expect(goal).toContain('RECOVERY / REPLANNING TURN'); expect(goal).toContain('contents are not indexed symbols: use read_workspace_file'); }
       if (calls === 4) { expect(goal).toContain('RECOVERY / REPLANNING TURN'); expect(goal).toContain('Change preview blocked'); expect(goal).toContain('replace an existing anchor'); }
       let decision: unknown;
-      if (calls === 7) {
+      if (calls === 6) {
         const observations = [...goal.matchAll(/- read_workspace_file\(.*\) -> Result: (.*)/g)];
         expect(JSON.parse(observations.at(-1)![1]!).content).toContain('"@dharmax/context-manager":"file:../context-manager"');
         decision = { thought: 'Completed dependency edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/package.test.ts']] }) };
       }
-      else if (calls === 6) decision = { thought: 'Verify current disk after the apply', action: 'tool_call', toolCalls: [{ name: 'read_workspace_file', parameters: { filePath: 'package.json' } }] };
       else if (calls === 5) {
-        const observation = JSON.parse([...goal.matchAll(/- preview_change\(.*\) -> Result: (.*)/g)].at(-1)![1]!);
-        expect(observation.applied).toBe(false); expect(observation.blocked).toBe(false);
-        expect(observation.nextCall).toMatchObject({ toolName: 'apply_change', parameters: { request } });
-        expect(observation.nextCall.parameters.fingerprint).toMatch(/^[a-f0-9]{64}$/);
-        expect(observation.mutations).toBeUndefined(); expect(observation.originalHashes).toBeUndefined();
-        expect(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).toBe('{"dependencies":{}}');
-        decision = { thought: 'The preview has not applied anything; execute its next call', action: 'tool_call', toolCalls: [{ name: observation.nextCall.toolName, parameters: observation.nextCall.parameters }] };
+        const observation = JSON.parse([...goal.matchAll(/- safe_change\(.*\) -> Result: (.*)/g)].at(-1)![1]!);
+        expect(observation.ok).toBe(true); expect(observation.verification.passed).toBe(true);
+        expect(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).toContain('file:../context-manager');
+        decision = { thought: 'Verify current disk after safe change', action: 'tool_call', toolCalls: [{ name: 'read_workspace_file', parameters: { filePath: 'package.json' } }] };
       }
-      else if (calls === 3) decision = { thought: 'Incorrect insertion anchor', action: 'tool_call', toolCalls: [{ name: 'preview_change', parameters: { ...request, oldText: '"@dharmax/context-manager":"file:../context-manager"' } }] };
+      else if (calls === 3) decision = { thought: 'Incorrect insertion anchor', action: 'tool_call', toolCalls: [{ name: 'safe_change', parameters: { ...request, oldText: '"@dharmax/context-manager":"file:../context-manager"' } }] };
       else decision = { thought: 'Use the existing relative target', action: 'tool_call', toolCalls: [{
-        name: calls === 1 ? 'find_symbol' : calls === 2 ? 'read_workspace_file' : 'preview_change',
+        name: calls === 1 ? 'find_symbol' : calls === 2 ? 'read_workspace_file' : 'safe_change',
         parameters: calls === 1 ? { name: '@dharmax/context-manager', filePath: 'package.json' } : calls === 2 ? { filePath: 'package.json' } : request
       }] };
       return Response.json({ message: { content: JSON.stringify(decision) } });
@@ -689,9 +683,39 @@ describe('Ticket-owned bounded resolution', () => {
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
-      expect(result.status).toBe('complete'); expect(calls).toBe(7);
+      expect(result.status).toBe('complete'); expect(calls).toBe(6);
       expect(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies['@dharmax/context-manager']).toBe('file:../context-manager');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
+  }, 30000);
+
+  it('uses one guarded safe change after parameter repair and validates a free-text final proposal', async () => {
+    const t = await ticket(); let calls = 0;
+    const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'};
+    const originalApply = CausalChangeEngine.prototype.applyChange;
+    const applies = spyOn(CausalChangeEngine.prototype, 'applyChange').mockImplementation(function(this: CausalChangeEngine, ...args) { return originalApply.apply(this, args); });
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model, _provider, options) => {
+      calls++;
+      if (calls === 1) {
+        expect(options?.system).toContain('safe_change');
+        expect(options?.system).not.toContain('preview_change'); expect(options?.system).not.toContain('apply_change');
+      }
+      if (calls === 2) { expect(prompt).toContain('RECOVERY / REPLANNING TURN'); expect(applies).toHaveBeenCalledTimes(0); }
+      if (calls === 4) {
+        expect(prompt).toContain('complete');
+        expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b');
+        return {model, ok: true, text: JSON.stringify({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
+      }
+      return {model, ok: true, text: JSON.stringify(calls === 3
+        ? {thought: 'Done', action: 'final_answer', finalAnswer: 'complete'}
+        : {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: calls === 1 ? {request, fingerprint: 'invented'} : request}]})};
+    });
+    try {
+      const result = await t.resolve(store, {systemOne, critic: 'none', verify, maxRepairs: 0});
+      expect(result.status).toBe('complete'); expect(calls).toBe(4); expect(applies).toHaveBeenCalledTimes(1);
+      expect(applies.mock.calls[0][0]).toEqual(request);
+      expect(applies.mock.calls[0][1]).toMatch(/^[a-f0-9]{64}$/);
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({lane: 'Done', claim: null});
+    } finally { completion.mockRestore(); applies.mockRestore(); }
   }, 30000);
 
   it('treats a missing symbol slice as a recovery observation instead of successful source', async () => {
@@ -704,14 +728,14 @@ describe('Ticket-owned bounded resolution', () => {
         expect(prompt).toContain("Symbol 'InventedTarget' was not found in 'src/add.ts'");
         expect(prompt).toContain('Use get_file_outline for actual declaration names');
       }
-      const name = calls === 1 ? 'get_symbol_source' : calls === 2 ? 'get_file_outline' : calls === 3 ? 'preview_change' : 'apply_change';
-      const parameters = calls === 1 ? { filePath: 'src/add.ts', symbolName: 'InventedTarget' } : calls === 2 ? { filePath: 'src/add.ts' } : calls === 3 ? request : { request, fingerprint: (await new CausalChangeEngine({ store, projectRoot: root }).previewChange(request)).fingerprint };
-      const decision = calls === 5 ? { thought: 'Verified tool edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) } : { thought: 'Use grounded observations', action: 'tool_call', toolCalls: [{ name, parameters }] };
+      const name = calls === 1 ? 'get_symbol_source' : calls === 2 ? 'get_file_outline' : 'safe_change';
+      const parameters = calls === 1 ? { filePath: 'src/add.ts', symbolName: 'InventedTarget' } : calls === 2 ? { filePath: 'src/add.ts' } : request;
+      const decision = calls === 4 ? { thought: 'Verified tool edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) } : { thought: 'Use grounded observations', action: 'tool_call', toolCalls: [{ name, parameters }] };
       return { model, ok: true, text: JSON.stringify(decision) };
     });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
-      expect(result.status).toBe('complete'); expect(calls).toBe(5);
+      expect(result.status).toBe('complete'); expect(calls).toBe(4);
     } finally { completion.mockRestore(); }
   }, 30000);
 
