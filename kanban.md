@@ -10,8 +10,8 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Architect and integrate verified code synthesis (functions and non-functions) into Ticket.resolve
-  - Summary: Currently, Ticket.resolve in src/graph/ontology.ts relies on raw string replacement or unverified LLM text generation to author new code. This ticket plans and implements a structured compilation and synthesis facility: 1) Atomic functions/methods compiled and verified pre-flight via @dharmax/text-compiler and SkillAuthor principles; 2) Non-function construct synthesis (types, interfaces, classes, components/modules) via structured AST/schema templates; 3) Clean integration into CausalChangeEngine and resolve_ticket Actor tool catalog.
+- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Graph-grounded source synthesis for Ticket.resolve
+  - Summary: Implement J3.4 from docs/graph-aware-code-synthesis-architecture.md. Build a small provenance-bearing synthesis context from Ticket/Product/Decision/Aspect graph evidence plus exact TypeScript/LSP facts; route generative source through one backend-neutral SourceSynthesizer boundary; emit only ordinary concrete mutations (replace_symbol/create_file) through the existing CausalChangeEngine; verify against the real project and use refreshed graph/LSP evidence for bounded repair. Deterministic changes bypass synthesis. Do not add synthesize_* ChangeRequests, construct-specific generation architecture, or make text-compiler mandatory before comparison proves it.
 
 ## In Progress
 
