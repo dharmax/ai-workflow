@@ -18,8 +18,10 @@ import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WorkflowActor } from './actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
-import { initProject, installGlobalBinary, configureMcp, setupTypeScript } from './setup.ts';
-import { loadConfig, saveConfig, inspectConfig } from './config.ts';
+import { initProject } from './setup.ts';
+import {runSetupCommand, formatSetupResult} from './setup-command.ts';
+import { loadConfig, saveConfig } from './config.ts';
+import {runConfigCommand, formatConfigResult} from './config-command.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';
@@ -160,46 +162,9 @@ async function main() {
     }
 
     case 'setup': {
-      const isGlobal = args.includes('--global') || args.includes('-g') || args.includes('--link') || args.length === 1;
-      const isMcp = args.includes('--mcp') || args.length === 1;
-
-      console.log(`⚙️  Running AI-Workflow Setup...`);
-      const tsSetup = await setupTypeScript(root);
-      if (tsSetup.ts7.provisioned) {
-        console.log(`📦 Provisioned TypeScript 7 v${tsSetup.ts7.version} at Bun global scope: ${tsSetup.ts7.executablePath}`);
-      } else if (tsSetup.ts7.error) {
-        console.warn(`⚠️  TypeScript 7 provisioning warning: ${tsSetup.ts7.error}`);
-      } else if (tsSetup.ts7.executablePath) {
-        console.log(`⚡ Verified compatible TypeScript 7 v${tsSetup.ts7.version}: ${tsSetup.ts7.executablePath}`);
-      }
-
-      if (tsSetup.ts6.provisioned) {
-        console.log(`📦 Provisioned TypeScript 6 Refactor Sidecar: ${tsSetup.ts6.executablePath} (v${tsSetup.ts6.version})`);
-      } else if (tsSetup.ts6.error) {
-        console.warn(`⚠️  TypeScript 6 sidecar warning: ${tsSetup.ts6.error}`);
-      } else if (tsSetup.ts6.executablePath) {
-        console.log(`⚡ Verified TypeScript 6 Refactor Sidecar: ${tsSetup.ts6.executablePath} (v${tsSetup.ts6.version})`);
-      }
-
-      if (isGlobal) {
-        const binRes = installGlobalBinary();
-        console.log(`🔗 Symlinked CLI: ${binRes.symlinkTarget} -> ${binRes.binaryPath}`);
-        if (!binRes.pathIncluded) {
-          console.log(`ℹ️  Note: Ensure '${path.dirname(binRes.symlinkTarget)}' is in your $PATH.`);
-        }
-      }
-
-      if (isMcp) {
-        const mcpRes = configureMcp();
-        console.log(mcpRes.steps.map(step => `[${step.state}] ${step.id}: ${step.message}`).join('\n'));
-        if (mcpRes.steps.some(step => step.state === 'failed')) process.exitCode = 1;
-        if (mcpRes.skillsSynced && mcpRes.skillsSynced.length > 0) {
-          console.log(`🧠 Synchronized skills to: ${mcpRes.skillsSynced.join(', ')}`);
-        }
-        console.log(`📄 Exported ${mcpRes.schemasCount} tool schema(s) to ${mcpRes.schemasDir}`);
-      }
-
-      console.log(`✨ Setup pass complete. Run 'aiwf doctor' to verify the runtime and detected integrations.`);
+      const steps = await runSetupCommand(root, args.slice(1));
+      console.log(formatSetupResult(steps));
+      if (steps.some(step => step.state === 'failed')) process.exitCode = 1;
       break;
     }
 
@@ -914,27 +879,8 @@ async function main() {
     }
 
     case 'config': {
-      const action = args[1] || 'get';
-      if (action === 'get') {
-        const rows = inspectConfig(root, args[2]);
-        console.log(rows.map(row => `${row.key} = ${JSON.stringify(row.value)} (${row.source})`).join('\n'));
-      } else if (action === 'set') {
-        const key = args[2];
-        const val = args[3];
-        if (!key || val === undefined) {
-          console.error(`Usage: aiwf config set <key> <value>`);
-          process.exit(1);
-        }
-        let parsedVal: any = val;
-        if (val === 'true') parsedVal = true;
-        else if (val === 'false') parsedVal = false;
-        else if (!isNaN(Number(val))) parsedVal = Number(val);
-
-        const updated = saveConfig(root, { [key]: parsedVal });
-        console.log(`✅ Updated config: ${key} = ${(updated as any)[key]}`);
-      } else {
-        console.error(`Usage: aiwf config [get|set] [key] [value]`);
-      }
+      const result = await runConfigCommand(root, args.slice(1));
+      if (result) console.log(formatConfigResult(result));
       break;
     }
 

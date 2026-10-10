@@ -29,7 +29,9 @@ import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
-import { loadConfig, saveConfig, inspectConfig } from './config.ts';
+import { loadConfig, saveConfig } from './config.ts';
+import {runConfigCommand, formatConfigResult, configView} from './config-command.ts';
+import {runSetupCommand, formatSetupResult, setupView} from './setup-command.ts';
 import { buildEntityView, resolveEntityViewKind, saveEntityView, type EntityViewKind } from './entity-view.ts';
 
 export interface ShellSession {
@@ -138,7 +140,7 @@ export async function processShellInput(
     projectRoot: session.projectRoot
   };
 
-  const facilitator = session.facilitator || new ParameterFacilitator(session.prompter);
+  const facilitator = session.facilitator || new ParameterFacilitator(session.renderer || session.prompter);
   const isInteractive = session.interactive ?? (session.prompter ? session.prompter.getIsTty() : false);
 
   // 1. Session Control & Mode Switching
@@ -1286,27 +1288,37 @@ Drill-down and project commands:
     return {output: 'Usage: trace [on|off|full|fold|compact|show|open]'}
   }
 
-  if (lower.startsWith('config')) {
-    const parts = line.slice(6).trim().split(/\s+/);
-    const action = parts[0] || 'get';
-    if (action === 'get') {
-      const rows = inspectConfig(session.projectRoot, parts[1]);
-      return {output: rows.map(row => `${row.key} = ${JSON.stringify(row.value)} (${row.source})`).join('\n')};
-    }
-    if (action === 'set') {
-      const key = parts[1];
-      const val = parts[2];
-      if (!key || val === undefined) return { output: 'Usage: config set <key> <value>' };
-      let parsedVal: any = val;
-      if (val === 'true') parsedVal = true;
-      else if (val === 'false') parsedVal = false;
-      else if (!isNaN(Number(val))) parsedVal = Number(val);
+  if (lower === 'setup' || lower.startsWith('setup ')) {
+    try {
+      const tokens = line.slice(5).trim().split(/\s+/).filter(Boolean);
+      if (isInteractive && session.renderer && !tokens.includes('--check')) {
+        const inspected = await runSetupCommand(session.projectRoot, [...tokens, '--check']);
+        if (inspected.some(step => step.state === 'needed')) {
+          const review = await session.renderer.review({id: 'setup:apply', title: 'Review setup changes', content: formatSetupResult(inspected), actions: ['accept', 'cancel']});
+          if (review.status !== 'accepted') return {output: 'Cancelled.'};
+        }
+      }
+      const steps = await runSetupCommand(session.projectRoot, tokens);
+      if (isInteractive && session.renderer && !tokens.includes('--check')) {
+        const viewed = await session.renderer.view(setupView(steps));
+        if (viewed.status !== 'unavailable') return {output: ''};
+      }
+      return {output: formatSetupResult(steps)};
+    } catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
+  }
 
-      const updated = saveConfig(session.projectRoot, { [key]: parsedVal });
-      session.actor.reloadConfig();
-      return { output: `Updated config: ${key} = ${(updated as any)[key]}` };
-    }
-    return { output: 'Usage: config [get|set] [key] [value]' };
+  if (lower === 'config' || lower.startsWith('config ')) {
+    try {
+      const tokens = line.slice(6).trim().split(/\s+/).filter(Boolean);
+      const result = await runConfigCommand(session.projectRoot, tokens, isInteractive ? facilitator : undefined);
+      if (!result) return {output: 'Cancelled.'};
+      if (result.mutated) session.actor.reloadConfig();
+      if (!result.mutated && isInteractive && session.renderer) {
+        const viewed = await session.renderer.view(configView(result));
+        if (viewed.status !== 'unavailable') return {output: ''};
+      }
+      return {output: formatConfigResult(result)};
+    } catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
   }
 
   if (lower.startsWith('eval ')) {

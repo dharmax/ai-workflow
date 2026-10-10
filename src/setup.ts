@@ -15,7 +15,7 @@ import { saveConfig } from './config.ts';
 import { buildMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
-import { ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
+import { checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime, ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
 import {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0, REPOSITORY_INVESTIGATION} from './client-guidance.ts';
 
 export interface SetupTypeScriptResult extends TsProvisionResult {}
@@ -456,6 +456,57 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
  * Ensures compatible host-level TypeScript 7 is available for runtime semantic operations,
  * and provisions the TS6 refactor compatibility sidecar as needed.
  */
+export interface SetupOptions extends ConfigureMcpOptions {
+  global?: boolean;
+  mcp?: boolean;
+  seams?: TsResolverSeams;
+}
+/** Concrete setup steps shared by shell and CLI; check mode only probes and reads. */
+export async function runSetup(projectRoot: string, options: SetupOptions = {}): Promise<SetupStepResult[]> {
+  const steps: SetupStepResult[] = [];
+  const home = options.homeDir || process.env.HOME || os.homedir();
+  const seams = {...options.seams, homeDir: home};
+  try {
+    if (options.check) {
+      const ts7 = await checkHostTypeScriptCompatibility(seams);
+      steps.push({id: 'TypeScript 7', state: ts7.compatible ? 'satisfied' : 'needed', message: ts7.compatible ? `Verified v${ts7.version} at ${ts7.path}` : 'Compatible host TypeScript 7 required'});
+    } else {
+      const ts7 = await ensureHostTypeScript7(seams);
+      steps.push({id: 'TypeScript 7', state: ts7.error ? 'failed' : ts7.provisioned ? 'changed' : 'satisfied', message: ts7.error || `Verified v${ts7.version} at ${ts7.executablePath}`});
+    }
+  } catch (error) { steps.push({id: 'TypeScript 7', state: 'failed', message: String(error)}); }
+  try {
+    if (options.check) {
+      const ts6 = await resolveTs6RefactorRuntime(projectRoot, seams);
+      steps.push({id: 'TypeScript 6 sidecar', state: ts6.isAvailable ? 'satisfied' : 'needed', message: ts6.isAvailable ? `Verified v${ts6.ts6Version} at ${ts6.tsserverPath}` : ts6.error || 'Refactor sidecar required'});
+    } else {
+      const ts6 = await ensureTs6RefactorRuntime(projectRoot, seams);
+      steps.push({id: 'TypeScript 6 sidecar', state: ts6.error ? 'failed' : ts6.provisioned ? 'changed' : 'satisfied', message: ts6.error || `Verified ${ts6.version} at ${ts6.executablePath}`});
+    }
+  } catch (error) { steps.push({id: 'TypeScript 6 sidecar', state: 'failed', message: String(error)}); }
+  const target = path.join(home, '.local', 'bin', 'aiwf');
+  if (options.global !== false) {
+    try {
+      const compiled = !['bun', 'bun.exe'].includes(path.basename(process.execPath));
+      const source = path.resolve(options.cliPath || (compiled ? process.execPath : path.join(__dirname, 'cli.ts')));
+      let satisfied = false;
+      if (fs.existsSync(target)) {
+        if (!fs.statSync(target).isFile()) throw new Error(`Installation target is not a regular file: ${target}`);
+        const same = fs.realpathSync(source) === fs.realpathSync(target) || (compiled && fs.readFileSync(source).equals(fs.readFileSync(target)));
+        try { fs.accessSync(target, fs.constants.X_OK); satisfied = same; } catch { /* An executable bit is an inspectable required change. */ }
+      }
+      if (satisfied) steps.push({id: 'CLI installation', state: 'satisfied', message: `Verified executable ${target}`});
+      else if (options.check) steps.push({id: 'CLI installation', state: 'needed', message: `Install executable at ${target}`});
+      else {
+        const result = installGlobalBinary(options.cliPath, home);
+        steps.push({id: 'CLI installation', state: 'changed', message: `Verified ${result.symlinkTarget}${result.pathIncluded ? '' : '; add its directory to PATH'}`});
+      }
+    } catch (error) { steps.push({id: 'CLI installation', state: 'failed', message: String(error)}); }
+  }
+  if (options.mcp !== false) steps.push(...configureMcp({...options, homeDir: home, binaryPath: options.binaryPath || target}).steps);
+  return steps;
+}
+
 export async function setupTypeScript(
   projectRoot: string = process.cwd(),
   seams?: TsResolverSeams
