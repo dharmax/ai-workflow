@@ -11,7 +11,7 @@ import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
 import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
-import { getExactSymbolSource } from '../change/symbol-source.ts';
+import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbol-source.ts';
 import { getTsLspClient } from '../change/ts-lsp.ts';
 import { resolveCodeTarget } from '../change/target-resolver.ts';
 
@@ -373,6 +373,14 @@ export function registerGraphTools() {
       }
 
       try {
+        const candidates = await findExactSymbolCandidates(ctx.projectRoot, fullPath, symbolName);
+        if (candidates.length > 1) {
+          return {
+            filePath, symbolName, exact: false, ambiguous: true,
+            candidates: candidates.map(candidate => ({ fullName: candidate.fullName, kind: candidate.kind, range: candidate.range })),
+            startLine: null, lineCount: 0, code: null
+          };
+        }
         const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
         return {
           filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
