@@ -947,6 +947,7 @@ export class Ticket extends WorkflowEntity {
                       if (name === 'read_workspace_file') countEngineering('sourceReads');
                       const result = await registry.execute(name, params, ctx);
                       if (name === 'find_symbol' && Array.isArray(result) && result.length === 0) throw new Error('No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.');
+                      if (name === 'get_symbol_source' && result.ambiguous) return result;
                       if (name === 'get_symbol_source' && result.code === null) throw new Error(`Symbol '${result.symbolName}' was not found in '${result.filePath}'. Use get_file_outline for actual declaration names or read_workspace_file for existing file contents.`);
                       if (name === 'preview_change' && result.blocked) throw new Error(`Change preview blocked: ${result.summary}. For replace_text, oldText must be literal text already present exactly once. To insert missing text, replace an existing anchor with that anchor plus the addition.`);
                       if (name === 'preview_change') return {
