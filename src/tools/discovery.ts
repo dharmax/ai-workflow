@@ -277,6 +277,7 @@ function normalizeObject(value: string): string {
     changes: 'change',
     dependencies: 'dependency',
     knowledgebase: 'knowledge',
+    skills: 'skill',
     goals: 'goal',
     concepts: 'concept',
     flows: 'flow',
