@@ -20,8 +20,10 @@ import { WorkflowActor } from './actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { initProject } from './setup.ts';
 import {runSetupCommand, formatSetupResult} from './setup-command.ts';
-import { loadConfig, saveConfig } from './config.ts';
+import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult} from './config-command.ts';
+import {runTicketCommand} from './ticket-command.ts';
+import {buildEntityView, formatEntityView} from './entity-view.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';
@@ -206,21 +208,13 @@ async function main() {
       break;
     }
 
-    case 'epic': {
-      const epicId = args[1];
-      if (!epicId) {
-        console.error('Usage: aiwf epic <epicId>');
-        process.exit(1);
-      }
-      const store = getStore();
-      const e = await registry.execute('get_epic', { epicId }, { store, projectRoot: root });
-      console.log(`${e.id}: ${e.title}`);
-      console.log(`Status:   ${e.status}`);
-      console.log(`Priority: ${e.priority}`);
-      if (e.body) console.log(`Body:     ${e.body}`);
-      console.log(`Features: ${e.targetedFeatures.join(', ') || 'None'}`);
-      console.log(`Stories:  ${e.targetedStories.join(', ') || 'None'}`);
-      console.log(`Tickets:  ${e.containedTickets.join(', ') || 'None'}`);
+    case 'ticket':
+    case 'epic':
+    case 'feature':
+    case 'story': {
+      const id = args[1];
+      if (!id || args.length !== 2) throw new Error(`Usage: aiwf ${command} <entityId>`);
+      console.log(formatEntityView(await buildEntityView({store: getStore(), projectRoot: root}, command, id)));
       break;
     }
 
@@ -237,27 +231,7 @@ async function main() {
       break;
     }
 
-    case 'feature': {
-      const featureId = args[1];
-      if (!featureId) {
-        console.error('Usage: aiwf feature <featureId>');
-        process.exit(1);
-      }
-      const store = getStore();
-      const f = await registry.execute('get_feature', { featureId }, { store, projectRoot: root });
-      console.log(`${f.id}: ${f.title}`);
-      console.log(`Status:   ${f.status}`);
-      if (f.body) console.log(`Body:     ${f.body}`);
-      console.log(`Epics:    ${f.targetingEpics.join(', ') || 'None'}`);
-      console.log(`Stories:  ${f.containedStories.join(', ') || 'None'}`);
-      console.log(`Tickets:  ${f.implementingTickets.join(', ') || 'None'}`);
-      console.log(`Tests:    ${f.verifyingTests.join(', ') || 'None'}`);
-      if (f.acceptanceCriteria.length > 0) {
-        console.log('Criteria:');
-        for (const c of f.acceptanceCriteria) console.log(`  - ${c}`);
-      }
-      break;
-    }
+
 
     case 'stories': {
       const store = getStore();
@@ -272,30 +246,7 @@ async function main() {
       break;
     }
 
-    case 'story': {
-      const storyId = args[1];
-      if (!storyId) {
-        console.error('Usage: aiwf story <storyId>');
-        process.exit(1);
-      }
-      const store = getStore();
-      const s = await registry.execute('get_user_story', { storyId }, { store, projectRoot: root });
-      console.log(`${s.id}: ${s.title}`);
-      console.log(`Status:   ${s.status}`);
-      console.log(`Actor:    ${s.actor || 'User'}`);
-      console.log(`Story:    ${s.story || ''}`);
-      if (s.context) console.log(`Context:  ${s.context}`);
-      if (s.sla) console.log(`SLA:      ${s.sla}`);
-      console.log(`Features: ${s.containingFeatures.join(', ') || 'None'}`);
-      console.log(`Epics:    ${s.targetingEpics.join(', ') || 'None'}`);
-      console.log(`Tickets:  ${s.addressingTickets.join(', ') || 'None'}`);
-      console.log(`Tests:    ${s.verifyingTests.join(', ') || 'None'}`);
-      if (s.acceptanceCriteria.length > 0) {
-        console.log('Criteria:');
-        for (const c of s.acceptanceCriteria) console.log(`  - ${c}`);
-      }
-      break;
-    }
+
 
     case 'coverage': {
       const entityId = args[1];
@@ -479,72 +430,12 @@ async function main() {
       break;
     }
 
-    case 'claim': {
-      const ticketId = args[1];
-      if (!ticketId) {
-        console.error(`Usage: aiwf claim <ticketId> [--agent <id>] [--minutes <n>]`);
-        process.exit(1);
-      }
-      let agentId = 'human-operator';
-      let durationMinutes = 30;
-      const agentIdx = args.indexOf('--agent') !== -1 ? args.indexOf('--agent') : args.indexOf('-a');
-      if (agentIdx !== -1 && args[agentIdx + 1]) agentId = args[agentIdx + 1];
-      const minIdx = args.indexOf('--minutes') !== -1 ? args.indexOf('--minutes') : args.indexOf('-m');
-      if (minIdx !== -1 && args[minIdx + 1]) durationMinutes = Number(args[minIdx + 1]);
-
-      const store = getStore();
-      const res = await registry.execute('claim_ticket', { ticketId, agentId, durationMinutes }, { store, projectRoot: root });
-      if (res.success) {
-        console.log(`✅ Claimed ticket '${ticketId}' for ${durationMinutes} minutes by '${agentId}'.`);
-      } else {
-        console.error(`❌ Failed to claim ticket: ${res.message}`);
-        process.exit(1);
-      }
-      break;
-    }
-
-    case 'release': {
-      const ticketId = args[1];
-      if (!ticketId) {
-        console.error(`Usage: aiwf release <ticketId>`);
-        process.exit(1);
-      }
-      const store = getStore();
-      const res = await registry.execute('release_ticket', { ticketId }, { store, projectRoot: root });
-      if (res.success) {
-        console.log(`✅ Released lease on ticket '${ticketId}'.`);
-      } else {
-        console.error(`❌ Ticket '${ticketId}' not found or has no active lease.`);
-        process.exit(1);
-      }
-      break;
-    }
-
+    case 'claim':
+    case 'release':
+    case 'move':
     case 'done': {
-      const ticketId = args[1];
-      if (!ticketId) {
-        console.error(`Usage: aiwf done <ticketId>`);
-        process.exit(1);
-      }
-      const store = getStore();
-      await registry.execute('update_ticket_state', { ticketId, lane: 'Done' }, { store, projectRoot: root });
-      await registry.execute('release_ticket', { ticketId }, { store, projectRoot: root });
-      await exportProjections(store, root);
-      console.log(`✅ Marked ticket '${ticketId}' as Done and synced Kanban.`);
-      break;
-    }
-
-    case 'move': {
-      const ticketId = args[1];
-      const lane = args[2] as any;
-      if (!ticketId || !lane) {
-        console.error(`Usage: aiwf move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>`);
-        process.exit(1);
-      }
-      const store = getStore();
-      await registry.execute('update_ticket_state', { ticketId, lane }, { store, projectRoot: root });
-      await exportProjections(store, root);
-      console.log(`✅ Moved ticket '${ticketId}' to lane '${lane}'.`);
+      const result = await runTicketCommand(command, args.slice(1), {store: getStore(), projectRoot: root});
+      if (result.success) console.log(result.output); else { console.error(result.output); process.exitCode = 1; }
       break;
     }
 
@@ -923,62 +814,9 @@ async function main() {
     }
 
     case 'model': {
-      const sub = args[1] || 'list';
-      const cfg = loadConfig(root);
-      const store = getStore();
-      const actor = new WorkflowActor({ store, projectRoot: root });
-      const radar = actor.radar;
-
-      if (sub === 'list') {
-        const providers = actor.getConfiguredProviders();
-        const recs = radar.getRecommendations();
-        console.log(`\x1b[1;36m🤖 AI-Workflow Model & Gateway Status\x1b[0m`);
-        console.log(`Active Gateway:       \x1b[1m${cfg.gateway}\x1b[0m`);
-        console.log(`Configured Providers: ${providers.map((p) => `\x1b[32m${p}\x1b[0m`).join(', ')}`);
-        console.log(`Escalation Policy:    \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m (Blast threshold: ${cfg.escalation?.blastRadiusThreshold ?? 3})\n`);
-        console.log(`\x1b[1mMode Routing:\x1b[0m`);
-        const modes = ['design', 'dev', 'triage', 'product'] as const;
-        for (const m of modes) {
-          const effective = actor.getEffectiveRoute(m)?.target || 'unknown';
-          const rec = recs[m];
-          const override = cfg.modelRoutes?.[m] ? ` (Override: ${cfg.modelRoutes[m]})` : '';
-          console.log(`  [${m.toUpperCase().padEnd(7)}] Effective: \x1b[1;32m${effective.padEnd(32)}\x1b[0m | Local: ${cfg.model} | Cloud: ${rec}${override}`);
-        }
-        break;
-      }
-
-      if (sub === 'radar') {
-        const force = args.includes('--refresh') || args.includes('-r');
-        let data = radar.getData();
-        if (force) {
-          const progress = new ProgressIndicator();
-          progress.start('Probing SOTA benchmark metadata from OpenRouter...');
-          data = await radar.probe(true);
-          progress.stop('Model Radar refreshed', 'success');
-        }
-        console.log(`\n\x1b[1;36m📡 SOTA Model Radar (Source: ${data.source.toUpperCase()}, Updated: ${new Date(data.lastUpdated).toLocaleDateString()})\x1b[0m`);
-        console.log(`\x1b[90mPareto Score = (Coding Elo - 1000)² / ln(Blended Cost + 1)\x1b[0m\n`);
-        console.log(`  \x1b[1m${'Model Target'.padEnd(32)} ${'Elo'.padEnd(6)} ${'$/1M (in/out)'.padEnd(16)} ${'Pareto'.padEnd(8)} Recommended\x1b[0m`);
-        console.log(`  ${'─'.repeat(75)}`);
-        for (const m of data.models) {
-          const priceStr = m.promptPricePer1M === 0 ? 'FREE' : `$${m.promptPricePer1M}/$${m.completionPricePer1M}`;
-          const best = m.bestFor.map((b) => `[${b.toUpperCase()}]`).join(' ');
-          console.log(`  ${m.id.padEnd(32)} ${String(m.codingElo).padEnd(6)} ${priceStr.padEnd(16)} \x1b[1;32m${String(m.paretoScore).padEnd(8)}\x1b[0m ${best}`);
-        }
-        console.log(`\nRun 'aiwf model radar --refresh' to fetch live metadata from OpenRouter.`);
-        break;
-      }
-
-      if (sub === 'set' && args[2] && args[3]) {
-        const mode = args[2].toLowerCase();
-        const modelTarget = args[3];
-        const updatedRoutes = { ...(cfg.modelRoutes || {}), [mode]: modelTarget };
-        saveConfig(root, { modelRoutes: updatedRoutes });
-        console.log(`\x1b[1;32m✔ Set model for [${mode.toUpperCase()}] to: ${modelTarget}\x1b[0m`);
-        break;
-      }
-
-      console.log(`Usage: aiwf model [list | radar [--refresh] | set <mode> <modelTarget>]`);
+      const actor = new WorkflowActor({store: getStore(), projectRoot: root});
+      const result = await runModelCommand(root, actor, args.slice(1));
+      if (result) console.log(result.output);
       break;
     }
 

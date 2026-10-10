@@ -1,4 +1,4 @@
-import type {ViewRequest} from '@dharmax/shell-ui'
+import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
 import {Aspect, Epic, Feature, Ticket, UserStory} from './graph/ontology.ts'
 import type {ToolContext} from './tools/index.ts'
 import {registry} from './tools/index.ts'
@@ -45,6 +45,20 @@ export async function resolveEntityViewKind(ctx: ToolContext, id: string): Promi
   if (entity instanceof UserStory) return 'story'
   if (entity instanceof Aspect) return 'aspect'
   throw new Error(`Unsupported editable entity '${id}'.`)
+}
+
+export async function facilitateEntityId(ctx: ToolContext, kind: EntityViewKind, facilitator: ParameterFacilitator): Promise<string | null> {
+  const tool = {ticket: 'list_tickets', epic: 'list_epics', feature: 'list_features', story: 'list_user_stories', aspect: 'list_aspects'}[kind];
+  const entities: Array<{id: string}> = await registry.execute(tool, {}, ctx);
+  const choices = entities.map(entity => entity.id);
+  if (!choices.length) throw new Error(`No ${kind} entities available.`);
+  const values = await facilitator.facilitate({entityId: {type: 'select', description: `${kind} ID`, choices}}, {}, {interactive: true});
+  if (typeof values.entityId !== 'string') return null;
+  if (!choices.includes(values.entityId)) throw new Error(`Invalid ${kind} selection.`);
+  return values.entityId;
+}
+export function formatEntityView(view: ViewRequest): string {
+  return [view.title || view.id, ...Object.entries(view.fields).map(([key, field]) => `${field.label || key}: ${Array.isArray(field.value) ? field.value.join(', ') : field.value}`.trimEnd())].join('\n');
 }
 
 export async function buildEntityView(

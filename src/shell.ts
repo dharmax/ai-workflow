@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
-import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
+import { artifactCommand, facilitateArtifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
 import os from 'node:os';
 import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
 import type {ActorStepRecord} from '@dharmax/llm-utils';
@@ -30,9 +30,11 @@ import { exportProjections, importProjections } from './graph/projections.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { loadConfig, saveConfig } from './config.ts';
+import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult, configView} from './config-command.ts';
+import {runTicketCommand, TICKET_COMMANDS, type TicketCommand} from './ticket-command.ts';
 import {runSetupCommand, formatSetupResult, setupView} from './setup-command.ts';
-import { buildEntityView, resolveEntityViewKind, saveEntityView, type EntityViewKind } from './entity-view.ts';
+import { buildEntityView, resolveEntityViewKind, saveEntityView, facilitateEntityId, formatEntityView, type EntityViewKind } from './entity-view.ts';
 
 export interface ShellSession {
   store: WorkflowStore;
@@ -55,9 +57,10 @@ async function presentEntityView(
   id: string,
   mode: 'readonly' | 'edit',
 ): Promise<string | null> {
-  if (!session.renderer) return null
-  const result = await session.renderer.view(await buildEntityView(ctx, kind, id, mode))
-  if (result.status === 'unavailable') return null
+  const view = await buildEntityView(ctx, kind, id, mode)
+  if (!session.renderer || session.interactive === false) return mode === 'readonly' ? formatEntityView(view) : null
+  const result = await session.renderer.view(view)
+  if (result.status === 'unavailable') return mode === 'readonly' ? formatEntityView(view) : null
   if (result.status === 'submitted') {
     await saveEntityView(ctx, kind, id, result.values)
     await exportProjections(session.store, session.projectRoot)
@@ -206,57 +209,18 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'model' || lower === '/model' || lower.startsWith('model ') || lower.startsWith('/model ')) {
-    const parts = line.replace(/^\/?model\s*/i, '').trim().split(/\s+/).filter(Boolean);
-    const cfg = loadConfig(session.projectRoot);
-
-    if (parts[0] === 'set' && parts[1] && parts[2]) {
-      const mode = parts[1].toLowerCase();
-      const modelTarget = parts[2];
-      const updatedRoutes = { ...(cfg.modelRoutes || {}), [mode]: modelTarget };
-      saveConfig(session.projectRoot, { modelRoutes: updatedRoutes });
-      session.actor.reloadConfig();
-      return { output: `\x1b[1;32m✔ Set model for [${mode.toUpperCase()}] to: ${modelTarget}\x1b[0m` };
-    }
-
-    const providers = session.actor.getConfiguredProviders();
-    const recs = session.actor.radar.getRecommendations();
-    let text = `\x1b[1;36m🤖 AI-Workflow Model & Gateway Configuration\x1b[0m\n`;
-    text += `Active Gateway:     \x1b[1m${cfg.gateway}\x1b[0m\n`;
-    text += `Available Providers: ${providers.map((p) => `\x1b[32m${p}\x1b[0m`).join(', ')}\n`;
-    text += `Escalation Policy:   \x1b[1;33m${cfg.escalation?.policy || 'auto'}\x1b[0m (Blast threshold: ${cfg.escalation?.blastRadiusThreshold ?? 3})\n\n`;
-    text += `\x1b[1mMode Routing:\x1b[0m\n`;
-    const modes = ['design', 'dev', 'triage', 'product'] as const;
-    for (const m of modes) {
-      const effective = session.actor.getEffectiveRoute(m)?.target || 'unknown';
-      const rec = recs[m];
-      const override = cfg.modelRoutes?.[m] ? ` (Override: ${cfg.modelRoutes[m]})` : '';
-      text += `  [${m.toUpperCase().padEnd(7)}] Effective: \x1b[1;32m${effective.padEnd(32)}\x1b[0m | Local: ${cfg.model} | Cloud: ${rec}${override}\n`;
-    }
-    const lastCall = session.actor.getLastExecutionMetrics();
-    if (lastCall) {
-      text += `\n\x1b[1mLast Execution:\x1b[0m ${lastCall.providerId}/${lastCall.modelId} (${lastCall.latencyMs}ms, ${lastCall.totalTokens} tokens, success: ${lastCall.success})\n`;
-    }
-    return { output: text };
-  }
-
-  if (lower.startsWith('radar') || lower.startsWith('/radar')) {
-    const force = lower.includes('refresh') || lower.includes('--refresh');
-    let data = session.actor.radar.getData();
-    if (force) {
-      data = await session.actor.radar.probe(true);
-    }
-    let text = `\x1b[1;36m📡 SOTA Model Radar (Source: ${data.source.toUpperCase()}, Updated: ${new Date(data.lastUpdated).toLocaleDateString()})\x1b[0m\n`;
-    text += `\x1b[90mPareto Score = (Coding Elo - 1000)² / ln(Blended Cost + 1)\x1b[0m\n\n`;
-    text += `  \x1b[1m${'Model Target'.padEnd(32)} ${'Elo'.padEnd(6)} ${'$/1M (in/out)'.padEnd(16)} ${'Pareto'.padEnd(8)} Recommended\x1b[0m\n`;
-    text += `  ${'─'.repeat(75)}\n`;
-    for (const m of data.models) {
-      const priceStr = m.promptPricePer1M === 0 ? 'FREE' : `$${m.promptPricePer1M}/$${m.completionPricePer1M}`;
-      const best = m.bestFor.map((b) => `[${b.toUpperCase()}]`).join(' ');
-      text += `  ${m.id.padEnd(32)} ${String(m.codingElo).padEnd(6)} ${priceStr.padEnd(16)} \x1b[1;32m${String(m.paretoScore).padEnd(8)}\x1b[0m ${best}\n`;
-    }
-    text += `\nType 'radar refresh' to fetch live metadata from OpenRouter.`;
-    return { output: text };
+  if (lower === 'model' || lower === '/model' || lower.startsWith('model ') || lower.startsWith('/model ') || lower === 'radar' || lower === '/radar' || lower.startsWith('radar ') || lower.startsWith('/radar ')) {
+    try {
+      const radar = /^\/?radar(?:\s|$)/i.test(line);
+      const tokens = line.replace(/^\/?(?:model|radar)\s*/i, '').trim().split(/\s+/).filter(Boolean);
+      const result = await runModelCommand(session.projectRoot, session.actor, radar ? ['radar', ...tokens] : tokens, isInteractive ? facilitator : undefined);
+      if (!result) return {output: 'Cancelled.'};
+      if (result.view && isInteractive && session.renderer) {
+        const viewed = await session.renderer.view(result.view);
+        if (viewed.status !== 'unavailable') return {output: ''};
+      }
+      return {output: result.output};
+    } catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
   }
 
   if (lower.startsWith('escalate') || lower.startsWith('/escalate')) {
@@ -333,98 +297,11 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'claim' || lower.startsWith('claim ')) {
-    const rawTokens = line.replace(/^claim\s*/i, '').trim().split(/\s+/).filter(Boolean);
-    const rawArgs: Record<string, any> = {};
-    if (rawTokens[0]) rawArgs.ticketId = rawTokens[0];
-    if (rawTokens[1]) rawArgs.agentId = rawTokens[1];
-    if (rawTokens[2]) rawArgs.durationMinutes = rawTokens[2];
-
-    let args: any;
+  const ticketVerb = line.split(/\s+/)[0]!.toLowerCase();
+  if (TICKET_COMMANDS.includes(ticketVerb as TicketCommand)) {
     try {
-      args = await facilitator.facilitate(
-        {
-          id: 'claim',
-          description: 'Atomically lease a ticket',
-          inputs: {
-            ticketId: {
-              type: 'string',
-              required: true,
-              description: 'Ticket ID to claim (e.g. TKT-1)',
-              choices: async () => {
-                try {
-                  const tickets = await session.store.listEntities(Ticket.dcr);
-                  return tickets.map((t: any) => t.id);
-                } catch {
-                  return [];
-                }
-              }
-            },
-            agentId: {
-              type: 'string',
-              default: 'human-operator',
-              description: 'Agent ID leasing the ticket'
-            },
-            durationMinutes: {
-              type: 'number',
-              default: 30,
-              description: 'Lease duration in minutes'
-            }
-          }
-        },
-        rawArgs,
-        { interactive: isInteractive }
-      );
-    } catch {
-      return { output: 'Usage: claim <ticketId> [agent] [minutes]' };
-    }
-
-    const res = await registry.execute(
-      'claim_ticket',
-      {
-        ticketId: args.ticketId,
-        agentId: args.agentId || 'human-operator',
-        durationMinutes: args.durationMinutes || 30
-      },
-      ctx
-    );
-    if (res.success) return { output: `Claimed ticket ${args.ticketId} for ${args.durationMinutes}m by '${args.agentId}'.` };
-    return { output: `Failed to claim: ${res.message}` };
-  }
-
-  if (lower === 'release' || lower.startsWith('release ')) {
-    const ticketId = line.replace(/^release\s*/i, '').trim();
-    let args: any;
-    try {
-      args = await facilitator.facilitate(
-        {
-          id: 'release',
-          description: 'Release active ticket lease',
-          inputs: {
-            ticketId: {
-              type: 'string',
-              required: true,
-              description: 'Ticket ID to release',
-              choices: async () => {
-                try {
-                  const claims = await session.store.getActiveClaims();
-                  return claims.map((c: any) => c.ticketId);
-                } catch {
-                  return [];
-                }
-              }
-            }
-          }
-        },
-        ticketId ? { ticketId } : {},
-        { interactive: isInteractive }
-      );
-    } catch {
-      return { output: 'Usage: release <ticketId>' };
-    }
-
-    const res = await registry.execute('release_ticket', { ticketId: args.ticketId }, ctx);
-    return { output: res.success ? `Released ticket ${args.ticketId}.` : `Ticket '${args.ticketId}' not found or lease inactive.` };
+      return await runTicketCommand(ticketVerb as TicketCommand, line.split(/\s+/).slice(1), ctx, isInteractive ? facilitator : undefined);
+    } catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
   }
 
   if (lower === 'create' || lower === 'new' || lower.startsWith('create ') || lower.startsWith('new ')) {
@@ -456,92 +333,7 @@ Drill-down and project commands:
     return { output: `Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.` };
   }
 
-  if (lower === 'done' || lower.startsWith('done ')) {
-    const ticketId = line.replace(/^done\s*/i, '').trim();
-    let args: any;
-    try {
-      args = await facilitator.facilitate(
-        {
-          id: 'done',
-          description: 'Mark ticket as Done, release lease, and sync Kanban',
-          inputs: {
-            ticketId: {
-              type: 'string',
-              required: true,
-              description: 'Ticket ID to mark Done',
-              choices: async () => {
-                try {
-                  const tickets = await session.store.listEntities(Ticket.dcr);
-                  return tickets.filter((t: any) => t.lane !== 'Done').map((t: any) => t.id);
-                } catch {
-                  return [];
-                }
-              }
-            }
-          }
-        },
-        ticketId ? { ticketId } : {},
-        { interactive: isInteractive }
-      );
-    } catch {
-      return { output: 'Usage: done <ticketId>' };
-    }
 
-    await registry.execute('update_ticket_state', { ticketId: args.ticketId, lane: 'Done' }, ctx);
-    await registry.execute('release_ticket', { ticketId: args.ticketId }, ctx);
-    await exportProjections(session.store, session.projectRoot);
-    return { output: `Marked ticket '${args.ticketId}' as Done and synced Kanban.` };
-  }
-
-  if (lower === 'move' || lower.startsWith('move ')) {
-    const parts = line.replace(/^move\s*/i, '').trim().split(/\s+/).filter(Boolean);
-    const rawArgs: Record<string, any> = {};
-    if (parts[0]) rawArgs.ticketId = parts[0];
-    if (parts.length > 1) rawArgs.lane = parts.slice(1).join(' ');
-
-    let args: any;
-    try {
-      args = await facilitator.facilitate(
-        {
-          id: 'move',
-          description: 'Move ticket to lane',
-          inputs: {
-            ticketId: {
-              type: 'string',
-              required: true,
-              description: 'Ticket ID to move (e.g. TKT-1)',
-              choices: async () => {
-                try {
-                  const tickets = await session.store.listEntities(Ticket.dcr);
-                  return tickets.map((t: any) => t.id);
-                } catch {
-                  return [];
-                }
-              }
-            },
-            lane: {
-              type: 'string',
-              required: true,
-              description: 'Target lane',
-              choices: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']
-            }
-          }
-        },
-        rawArgs,
-        { interactive: isInteractive }
-      );
-    } catch {
-      return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
-    }
-
-    if (!args.ticketId || !args.lane) {
-      return { output: 'Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>' };
-    }
-
-    await registry.execute('update_ticket_state', { ticketId: args.ticketId, lane: args.lane }, ctx);
-    await exportProjections(session.store, session.projectRoot);
-    return { output: `Moved ticket '${args.ticketId}' to '${args.lane}'.` };
-  }
 
   if (lower === 'edit' || lower.startsWith('edit ')) {
     const entityId = line.replace(/^edit\s*/i, '').trim();
@@ -555,29 +347,19 @@ Drill-down and project commands:
     }
   }
 
-  if (lower === 'ticket' || lower.startsWith('ticket ')) {
-    const ticketId = line.replace(/^ticket\s*/i, '').trim();
-    if (!ticketId) return { output: 'Usage: ticket <ticketId>' };
+  const entityKind = line.split(/\s+/)[0]!.toLowerCase();
+  if (['ticket', 'epic', 'feature', 'story', 'aspect'].includes(entityKind)) {
     try {
-      const rendered = await presentEntityView(session, ctx, 'ticket', ticketId, 'readonly');
-      if (rendered !== null) return { output: rendered };
-      const ticket = await session.store.getEntity<Ticket>(ticketId, Ticket.dcr) as any;
-      if (!ticket) return { output: `Ticket '${ticketId}' not found.` };
-      return {
-        output: [
-          `${ticketId}: ${ticket.title || ''}`,
-          `Lane:     ${ticket.lane || ''}`,
-          `Priority: ${ticket.priority || ''}`,
-          `Status:   ${ticket.status || ''}`,
-          ticket.body ? `Body:     ${ticket.body}` : null,
-          ticket.acceptanceCriteria?.length
-            ? `Criteria:\n${ticket.acceptanceCriteria.map((item: string) => `  - ${item}`).join('\n')}`
-            : null
-        ].filter(Boolean).join('\n')
-      };
-    } catch (err: any) {
-      return { output: err.message || String(err) };
-    }
+      const kind = entityKind as EntityViewKind;
+      let id = line.slice(entityKind.length).trim();
+      if (!id && isInteractive) {
+        const selected = await facilitateEntityId(ctx, kind, facilitator);
+        if (!selected) return {output: 'Cancelled.'};
+        id = selected;
+      }
+      if (!id) return {output: `Usage: ${kind} <entityId>`};
+      return {output: (await presentEntityView(session, ctx, kind, id, 'readonly')) || ''};
+    } catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
   }
 
   if (lower.startsWith('tickets') || lower === 'list') {
@@ -599,28 +381,7 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'epic' || lower.startsWith('epic ')) {
-    const epicId = line.replace(/^epic\s*/i, '').trim();
-    if (!epicId) return { output: 'Usage: epic <epicId>' };
-    try {
-      const rendered = await presentEntityView(session, ctx, 'epic', epicId, 'readonly');
-      if (rendered !== null) return { output: rendered };
-      const e = await registry.execute('get_epic', { epicId }, ctx);
-      return {
-        output: [
-          `${e.id}: ${e.title}`,
-          `Status:   ${e.status}`,
-          `Priority: ${e.priority}`,
-          e.body ? `Body:     ${e.body}` : null,
-          `Features: ${e.targetedFeatures.join(', ') || 'None'}`,
-          `Stories:  ${e.targetedStories.join(', ') || 'None'}`,
-          `Tickets:  ${e.containedTickets.join(', ') || 'None'}`
-        ].filter(Boolean).join('\n')
-      };
-    } catch (err: any) {
-      return { output: err.message || String(err) };
-    }
-  }
+
 
   if (lower === 'epic-create' || lower.startsWith('epic-create ') || lower === 'epic-add' || lower.startsWith('epic-add ')) {
     const rest = line.replace(/^(epic-create|epic-add)\s*/i, '').trim();
@@ -750,29 +511,7 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'feature' || lower.startsWith('feature ')) {
-    const featureId = line.replace(/^feature\s*/i, '').trim();
-    if (!featureId) return { output: 'Usage: feature <featureId>' };
-    try {
-      const rendered = await presentEntityView(session, ctx, 'feature', featureId, 'readonly');
-      if (rendered !== null) return { output: rendered };
-      const f = await registry.execute('get_feature', { featureId }, ctx);
-      return {
-        output: [
-          `${f.id}: ${f.title}`,
-          `Status:   ${f.status}`,
-          f.body ? `Body:     ${f.body}` : null,
-          `Epics:    ${f.targetingEpics.join(', ') || 'None'}`,
-          `Stories:  ${f.containedStories.join(', ') || 'None'}`,
-          `Tickets:  ${f.implementingTickets.join(', ') || 'None'}`,
-          `Tests:    ${f.verifyingTests.join(', ') || 'None'}`,
-          f.acceptanceCriteria.length > 0 ? `Criteria:\n${f.acceptanceCriteria.map((c: string) => `  - ${c}`).join('\n')}` : null
-        ].filter(Boolean).join('\n')
-      };
-    } catch (err: any) {
-      return { output: err.message || String(err) };
-    }
-  }
+
 
   if (lower === 'stories' || lower.startsWith('stories ')) {
     const status = line.split(/\s+/)[1] as any;
@@ -783,45 +522,9 @@ Drill-down and project commands:
     };
   }
 
-  if (lower === 'story' || lower.startsWith('story ')) {
-    const storyId = line.replace(/^story\s*/i, '').trim();
-    if (!storyId) return { output: 'Usage: story <storyId>' };
-    try {
-      const rendered = await presentEntityView(session, ctx, 'story', storyId, 'readonly');
-      if (rendered !== null) return { output: rendered };
-      const s = await registry.execute('get_user_story', { storyId }, ctx);
-      return {
-        output: [
-          `${s.id}: ${s.title}`,
-          `Status:   ${s.status}`,
-          `Actor:    ${s.actor || 'User'}`,
-          `Story:    ${s.story || ''}`,
-          s.context ? `Context:  ${s.context}` : null,
-          s.sla ? `SLA:      ${s.sla}` : null,
-          `Features: ${s.containingFeatures.join(', ') || 'None'}`,
-          `Epics:    ${s.targetingEpics.join(', ') || 'None'}`,
-          `Tickets:  ${s.addressingTickets.join(', ') || 'None'}`,
-          `Tests:    ${s.verifyingTests.join(', ') || 'None'}`,
-          s.acceptanceCriteria.length > 0 ? `Criteria:\n${s.acceptanceCriteria.map((c: string) => `  - ${c}`).join('\n')}` : null
-        ].filter(Boolean).join('\n')
-      };
-    } catch (err: any) {
-      return { output: err.message || String(err) };
-    }
-  }
 
-  if (lower === 'aspect' || lower.startsWith('aspect ')) {
-    const aspectId = line.replace(/^aspect\s*/i, '').trim();
-    if (!aspectId) return { output: 'Usage: aspect <aspectId>' };
-    try {
-      const rendered = await presentEntityView(session, ctx, 'aspect', aspectId, 'readonly');
-      if (rendered !== null) return { output: rendered };
-      const aspect = await registry.execute('get_aspect', { id: aspectId }, ctx);
-      return { output: JSON.stringify(aspect, null, 2) };
-    } catch (err: any) {
-      return { output: err.message || String(err) };
-    }
-  }
+
+
 
   if (lower === 'coverage' || lower.startsWith('coverage ')) {
     const entityId = line.replace(/^coverage\s*/i, '').trim();
@@ -1330,7 +1033,9 @@ Drill-down and project commands:
   }
 
   // 3. Autonomous Cognitive Fallback
-  const delegation = artifactCommand(line.split(/\s+/));
+  const artifactTokens = isInteractive ? await facilitateArtifactCommand(line.split(/\s+/), ctx, facilitator) : line.split(/\s+/);
+  if (!artifactTokens) return {output: 'Cancelled.'};
+  const delegation = artifactCommand(artifactTokens);
   if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
   const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
   session.viewport ??= new ProcessViewport({mode: 'fold', interactive: false, traceHint: 'trace show · trace open'});
