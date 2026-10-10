@@ -79,6 +79,8 @@ export const AcceptanceVerificationSchema = z.object({
 export type AcceptanceVerification = z.infer<typeof AcceptanceVerificationSchema>;
 export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[]; testNodes: Awaited<ReturnType<typeof import('./graph/test-artifacts.ts').currentTestEvidence>> }
 export interface ResolutionOptions extends PreparationOptions {
+  /** Cumulative implementation Actor budget across continuation and repair tranches. */
+  maxActorTokens?: number;
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
   implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;
   verify?: (input: ResolutionVerificationInput) => Promise<AcceptanceVerification>;

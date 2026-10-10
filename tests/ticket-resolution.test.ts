@@ -538,10 +538,10 @@ describe('Ticket-owned bounded resolution', () => {
         }
         decision = { thought: 'Bounded fixture work', action: 'tool_call', toolCalls: [{ name, parameters }] };
       }
-      return { model, ok: true, text: JSON.stringify(decision) };
+      return { model, ok: true, text: JSON.stringify(decision), usage: {available: true, promptTokens: Math.ceil(prompt.length / 4), completionTokens: 128, totalTokens: Math.ceil(prompt.length / 4) + 128} };
     });
     try {
-      const result = await t.resolve(store, { systemOne: interactive, critic: 'none', verify, maxRepairs: 0 });
+      const result = await t.resolve(store, { systemOne: interactive, critic: 'none', verify, maxRepairs: 0, maxActorTokens: 500000 });
       expect(result.status).toBe(completes ? 'complete' : 'blocked');
       expect(calls).toBe(completes ? 20 : mode === 'limit' ? 48 : mode === 'error' ? 1 : 16);
       if (mode === 'ordinary') {
@@ -569,7 +569,7 @@ describe('Ticket-owned bounded resolution', () => {
       if (step === 2) expect(prompt).toContain('Stalled navigation: this identical observation');
       if (step === 4) {
         expect(prompt).toContain('return a + b');
-        return { model, ok: true, text: JSON.stringify({ thought: 'Done', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) }) };
+        return { model, ok: true, usage: {available: true, promptTokens: Math.ceil(prompt.length / 4), completionTokens: 128, totalTokens: Math.ceil(prompt.length / 4) + 128}, text: JSON.stringify({ thought: 'Done', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) }) };
       }
       const name = step === 2 ? 'safe_change' : 'read_workspace_file';
       const parameters = step === 2 ? request : { filePath: 'src/add.ts' };
@@ -705,7 +705,7 @@ describe('Ticket-owned bounded resolution', () => {
         expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b');
         return {model, ok: true, text: JSON.stringify({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
       }
-      return {model, ok: true, text: JSON.stringify(calls === 3
+      return {model, ok: true, usage: {available: true, promptTokens: Math.ceil(prompt.length / 4), completionTokens: 128, totalTokens: Math.ceil(prompt.length / 4) + 128}, text: JSON.stringify(calls === 3
         ? {thought: 'Done', action: 'final_answer', finalAnswer: 'complete'}
         : {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: calls === 1 ? {request, fingerprint: 'invented'} : request}]})};
     });
@@ -731,7 +731,7 @@ describe('Ticket-owned bounded resolution', () => {
       const name = calls === 1 ? 'get_symbol_source' : calls === 2 ? 'get_file_outline' : 'safe_change';
       const parameters = calls === 1 ? { filePath: 'src/add.ts', symbolName: 'InventedTarget' } : calls === 2 ? { filePath: 'src/add.ts' } : request;
       const decision = calls === 4 ? { thought: 'Verified tool edit', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) } : { thought: 'Use grounded observations', action: 'tool_call', toolCalls: [{ name, parameters }] };
-      return { model, ok: true, text: JSON.stringify(decision) };
+      return { model, ok: true, text: JSON.stringify(decision), usage: {available: true, promptTokens: Math.ceil(prompt.length / 4), completionTokens: 128, totalTokens: Math.ceil(prompt.length / 4) + 128} };
     });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
