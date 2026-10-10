@@ -83,3 +83,22 @@ planner or persistence system. No implementation or plan rewrite performed.
 Phase 0 inspection/reproduction deliverables are recorded. Gate 0 remains failed
 pending correction of the safety baseline and mutation-path plan. Full Agency
 Gate, full suites, typechecks and phases 1–7 have not been run or claimed.
+
+
+## Subsequent design disposition — 2026-10-10
+
+The design correction requested by this audit is now captured in docs/graph-aware-code-synthesis-architecture.md.
+
+The corrected direction is narrower than the earlier code-writing architecture:
+
+- generative source synthesis is upstream of CausalChangeEngine;
+- CCE remains the sole concrete preview/apply mutation boundary and does not gain synthesize_* actions;
+- AIWF builds bounded provenance-bearing synthesis context from the Ticket/Product/Decision/Aspect graph plus exact TypeScript/LSP evidence;
+- one backend-neutral SourceSynthesizer boundary replaces duplicate generative source producers only after a vertical slice proves it;
+- text-compiler is a candidate backend, not architectural truth;
+- generated tests are candidate-sanity evidence, not behavioral acceptance;
+- deterministic TypeScript/LSP changes bypass synthesis;
+- verification failures refresh the relevant graph/LSP context before bounded repair;
+- no function/type/class/component generation taxonomy is introduced.
+
+This addendum does not retroactively change the audit evidence. Its original Gate-0 STOP remains the correct historical finding against the superseded assumptions. The new design must satisfy its own phased gates before production implementation is considered proven.
