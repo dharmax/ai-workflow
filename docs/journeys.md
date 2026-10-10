@@ -107,3 +107,21 @@ The most important live regression boundaries are:
 - J5.1 through the public MCP surface.
 
 Mocked classifier/model/tool decisions are useful mechanism tests, not sufficient journey proof.
+
+## J6 — Operate AIWF from the human shell
+
+### J6.1 — Set up a supported workspace
+
+A developer inspects `aiwf setup --check`, applies `aiwf setup`, then reads `aiwf doctor`. Setup distinguishes missing runtimes, required host changes, absent hosts and failures. Repetition reports already satisfied files without rewriting registrations. Doctor distinguishes local reachability, configured cloud credentials and runtime construction failures.
+
+### J6.2 — Understand configuration inheritance
+
+A maintainer sets global model X, sets project model Y, then resets the project model. Effective configuration returns to X while the project file contains no copied global value. Config inspection displays the effective value and source without credentials. Malformed configuration is actionable rather than silently overwritten.
+
+### J6.3 — Choose only missing human input
+
+In the interactive shell, `claim` offers eligible tickets and `move TKT-42` asks only for its lane. Complete commands execute immediately. Cancelling selection or setup review changes no domain state. Entity inspection uses structured views when available; plain mode has a compact text equivalent.
+
+### J6.4 — Use the same work truth from every adapter
+
+Shell and CLI ticket flow share argument handling and registry mutations. Artifact delegation retains the canonical parser/operation and returns grounded completion, needs-input or blocked results. MCP sees the same graph and leases; shell convenience introduces no hidden state.

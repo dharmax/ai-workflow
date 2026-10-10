@@ -93,6 +93,23 @@ describe('shared config and setup commands', () => {
     expect(calls.some(cmd => cmd[0] === 'bun')).toBe(true);
     expect(steps.every(step => step.message.includes('provisioning denied'))).toBe(true);
   });
+  it('uses shell-ui process presentation on the real plain CLI indexing path', async () => {
+    fs.writeFileSync(path.join(root, 'sample.ts'), 'export const answer = 42;\n');
+    const result = await execCli(['index']);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('1 symbol(s)');
+    expect(result.stderr).toContain('Scanning codebase');
+    expect(result.stderr).not.toContain('\x1b[');
+  });
+  it('reports detected setup failure as nonzero on the real inspect-only CLI', async () => {
+    fs.mkdirSync(path.join(process.env.HOME!, '.cursor'));
+    const filePath = path.join(process.env.HOME!, '.cursor', 'mcp.json');
+    fs.writeFileSync(filePath, '{broken');
+    const result = await execCli(['setup', '--check']);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain('[failed] Cursor');
+    expect(fs.readFileSync(filePath, 'utf8')).toBe('{broken');
+  });
   it('shares core validation without accepting an unknown option or secret', async () => {
     await expect(runConfigCommand(root, ['set', 'model', 'x', '--invalid'])).rejects.toThrow('Usage');
     await expect(runConfigCommand(root, ['get', 'openrouterApiKey'])).rejects.toThrow('sensitive');

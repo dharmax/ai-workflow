@@ -196,3 +196,31 @@ Stop and correct course when an agent:
 - continues to the next Ticket after being asked for a bounded repair.
 
 AIWF is supposed to reduce uncertainty and work. If using it creates process theater, the workflow is being used incorrectly.
+
+## 13. Shell configuration and setup
+
+Use complete commands for the fastest deterministic path:
+
+```sh
+aiwf setup --check                 # inspect only; no writes or prompts
+aiwf setup                         # provision runtimes, install CLI, configure detected hosts
+aiwf setup --mcp                   # runtimes and detected MCP hosts
+aiwf config get                    # effective values with provenance; no credentials
+aiwf config set model X --global
+aiwf config set model Y            # explicit project override
+aiwf config reset model            # remove project override and reveal X
+aiwf config reset model --global   # remove global override
+aiwf model set dev ollama/qwen2.5-coder:7b
+aiwf claim TKT-42 --agent operator --minutes 30
+aiwf release TKT-42
+aiwf move TKT-42 "In Progress"
+aiwf ticket TKT-42
+```
+
+Config settings use their declared string, boolean, number or JSON-object type. `config get` lists supported setting IDs. Unknown settings and credential settings are rejected. Global writes preserve unrelated credential/provider structures; project writes never copy inherited defaults or global values. Legacy global `providers.ollama.host` and `plannerModel` remain readable, and an explicit top-level update/reset removes the corresponding legacy alias.
+
+Setup reports each step as satisfied, needed, changed, skipped or failed. `--check` exits nonzero for detected failures and performs no mutation. Applying setup also exits nonzero when a required step fails. Existing host files are backed up once as `.bak`; repeated unchanged setup preserves file contents and modification times. An absent host is skipped. Repair a malformed detected JSON/TOML file before retrying; setup preserves its original contents.
+
+Launch `aiwf` or `aiwf shell` for the interactive shell. `claim`, `release`, `move`, entity inspection and artifact operations can facilitate missing identifiers using bounded graph choices. `config set` can facilitate a missing setting/value. Config/model/entity inspection uses shell-ui views when available. Interactive setup reviews needed changes before application; cancellation changes nothing. `setup --check` remains noninteractive even inside the shell.
+
+Plain shell sessions and ordinary CLI calls never prompt. Claim accepts both `--agent`/`--minutes` and the shell's positional agent/minutes syntax. The configured default agent and lease duration apply consistently. Complete commands skip elicitation. Model/provider inspection describes configuration, not proven reachability; doctor separately probes local Ollama and reports construction failures.

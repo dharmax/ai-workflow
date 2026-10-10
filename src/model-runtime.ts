@@ -12,7 +12,7 @@ export function modelRuntime(projectRoot: string): ModelRuntime {
   const credentials = resolveCloudCredentials()
   const providers: Record<string, ProviderConfig> = {}
 
-  const ollamaHost = process.env.OLLAMA_HOST || config.ollamaUrl || 'http://localhost:11434'
+  const ollamaHost = config.ollamaUrl
   providers.ollama = {
     id: 'ollama',
     host: ollamaHost,
@@ -24,7 +24,7 @@ export function modelRuntime(projectRoot: string): ModelRuntime {
   }
 
   const gateway = config.gateway || 'auto'
-  const openrouterApiKey = config.openrouterApiKey || credentials.openrouterApiKey
+  const openrouterApiKey = credentials.openrouterApiKey
   if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
     providers.openrouter = {
       id: 'openrouter',

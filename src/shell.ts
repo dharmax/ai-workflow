@@ -112,6 +112,7 @@ export const SHELL_COMMANDS = [
   'metrics',
   'trace',
   'config',
+  'setup',
   'eval',
   'model',
   '/model',
@@ -193,9 +194,10 @@ Drill-down and project commands:
   audit                      - Run architecture & graph integrity audit
   metrics [--operation ...]  - Query persisted performance metrics (--ticket, --since, --tag)
   trace [on|off|show|open]   - Show the last execution; open a scrollable floating view (Alt+O)
-  config [get|set key val]   - View or update settings (.ai-workflow/config.json)
+  config [get|set|reset] [key] [value] [--global] - Inspect provenance or change overrides
+  setup [--check]            - Inspect or apply verified setup steps
   eval <js-code>             - On-the-fly JavaScript evaluation
-  model (or /model)          - Show gateway, provider keys, and mode model assignments
+  model (or /model)          - Show configured providers and effective task routes
   radar [refresh]            - View SOTA model benchmark rankings & Pareto scores
   escalate [policy]          - View or toggle escalation policy (auto|local_only|prompt|sota)
   /design                    - Switch mode to [DESIGN] (Architecture & ADRs)
@@ -1036,7 +1038,15 @@ Drill-down and project commands:
   const artifactTokens = isInteractive ? await facilitateArtifactCommand(line.split(/\s+/), ctx, facilitator) : line.split(/\s+/);
   if (!artifactTokens) return {output: 'Cancelled.'};
   const delegation = artifactCommand(artifactTokens);
-  if (delegation) return { output: JSON.stringify(await registry.execute(delegation.tool, delegation.args, ctx), null, 2) };
+  if (delegation) {
+    const progress = session.viewport || new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''});
+    progress.start(`Running ${delegation.tool}...`);
+    try {
+      const result = await registry.execute(delegation.tool, delegation.args, ctx);
+      progress.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
+      return {output: JSON.stringify(result, null, 2)};
+    } catch (error) { progress.stop('fail'); throw error; }
+  }
   const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
   session.viewport ??= new ProcessViewport({mode: 'fold', interactive: false, traceHint: 'trace show · trace open'});
   session.trace = {instruction: line, mode: session.actor.mode};
@@ -1107,7 +1117,8 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       tickets: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
       escalate: ['auto', 'local_only', 'prompt', 'sota'],
       '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
-      config: ['get', 'set'],
+      config: ['get', 'set', 'reset'],
+      setup: ['--check', '--global', '--mcp', '--link'],
       trace: ['on', 'off', 'full', 'fold', 'compact', 'show', 'open'],
       radar: ['refresh'],
       '/radar': ['refresh'],
@@ -1223,7 +1234,7 @@ export async function startShell(options: {
   console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Shell (Developer Supreme)\x1b[0m`);
   console.log(`Type 'help' for commands or write any instruction. Tab completion active.\n`);
 
-  const historyDir = path.join(os.homedir(), '.local', 'share', 'ai-workflow');
+  const historyDir = path.join(process.env.HOME || os.homedir(), '.local', 'share', 'ai-workflow');
   const historyFile = path.join(historyDir, 'history');
   let history: string[] = [];
   try {
@@ -1233,7 +1244,7 @@ export async function startShell(options: {
   } catch {}
 
   while (true) {
-    const promptStr = `aiwf [${session.actor.mode.toUpperCase()}] > `;
+    const promptStr = session.modeOverride ? `aiwf/${session.modeOverride}> ` : 'aiwf> ';
     const line = await tty.readLine(promptStr, {
       completer,
       history,

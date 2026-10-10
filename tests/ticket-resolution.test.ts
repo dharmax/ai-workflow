@@ -431,7 +431,7 @@ describe('Ticket-owned bounded resolution', () => {
       const reply = prompt.includes('AIWF Grounded Source Synthesizer') ? { source: 'export function add(a: number, b: number) { return a + b; }' } : { criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'tests/add.test.ts asserts 5 and 1; command passed' }], aspects: [] };
       return Response.json({ message: { content: JSON.stringify(reply) }, prompt_eval_count: 10, eval_count: 5 });
     } });
-    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', testCommands: [['bun', 'test', 'tests/add.test.ts']] });
       expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
@@ -461,7 +461,7 @@ describe('Ticket-owned bounded resolution', () => {
       const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;
       return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Current add implementation and graph-selected test assertion passed' }], aspects: [] }) } });
     } });
-    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', implement: async () => ({ changes: [], testCommands: [] }), testCommands: [['bun', 'test', 'tests/add.test.ts']] });
       if (result.status !== 'complete') throw Error(JSON.stringify(result));
@@ -663,7 +663,7 @@ describe('Ticket-owned bounded resolution', () => {
       }] };
       return Response.json({ message: { content: JSON.stringify(decision) } });
     } });
-    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
       expect(result.status).toBe('complete'); expect(calls).toBe(7);

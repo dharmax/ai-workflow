@@ -99,7 +99,7 @@ describe('reviewed Ticket preparation', () => {
       return Response.json({ message: { content: JSON.stringify({ criteria: [{ criterion: 'Restart retains jobs', covered: true, evidence: 'Persist jobs child' }], aspects: [], review: { verdict: 'accept' } }) } });
     } });
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString();
-    saveConfig(root, { model: 'ollama/fixture' });
+    saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const result = await new AiArtifactCritic('auto', root).review({ artifactId: 'P', intent: 'Persist jobs and migrate records.', neighborhood: [], proposal: [{ title: 'Persist jobs' }], applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 1, acceptanceCriteria: ['Restart retains jobs', 'Old records migrate safely'], evidence: [] });
       expect(result.verdict).toBe('revise'); if (result.verdict === 'revise') expect(result.findings[0].message).toContain('Old records migrate safely');

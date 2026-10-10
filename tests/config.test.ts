@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {modelRuntime} from '../src/model-runtime.ts';
 import {getConfigPath, getGlobalConfigPath, loadConfig, saveConfig, setConfigOverride, resetConfigOverride, inspectConfig, resolveCloudCredentials} from '../src/config.ts';
 
 describe('configuration layers', () => {
@@ -65,6 +66,21 @@ describe('configuration layers', () => {
     expect(loadConfig(root).openrouterApiKey).toBeUndefined();
     expect(JSON.stringify(inspectConfig(root))).not.toContain('legacy-secret');
     expect(() => inspectConfig(root, 'openrouterApiKey')).toThrow();
+  });
+  it('constructs providers from the same effective URL shown by configuration', () => {
+    const oldHost = process.env.OLLAMA_HOST;
+    try {
+      process.env.OLLAMA_HOST = 'http://environment:11434';
+      setConfigOverride(root, 'ollamaUrl', 'http://global:11434', 'global');
+      setConfigOverride(root, 'ollamaUrl', 'http://project:11434');
+      expect(modelRuntime(root).providers.ollama?.host).toBe('http://project:11434');
+      resetConfigOverride(root, 'ollamaUrl');
+      expect(modelRuntime(root).providers.ollama?.host).toBe('http://global:11434');
+      resetConfigOverride(root, 'ollamaUrl', 'global');
+      expect(modelRuntime(root).providers.ollama?.host).toBe('http://environment:11434');
+    } finally {
+      if (oldHost === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = oldHost;
+    }
   });
   it('merges nested options from both explicit layers', () => {
     setConfigOverride(root, 'modelRadar', '{"enabled":false}', 'global');

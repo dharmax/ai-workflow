@@ -59,6 +59,7 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
   let tool = verb ? aliases[verb] : undefined;
   if (verb === 'process') {
     const kind = words.shift()?.toLowerCase();
+    if (!kind || kind.startsWith('--')) throw new Error('Usage: process epic|feature|story <id>');
     if (!['epic', 'feature', 'story'].includes(kind ?? '')) return null;
     tool = `process_${kind}`;
   }

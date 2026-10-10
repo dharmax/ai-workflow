@@ -132,7 +132,7 @@ Run `aiwf help` for the current command surface. Important groups are:
 - diagnostics: `doctor`, `audit`, `metrics`;
 - cognition: `exec`, model configuration, traces and project knowledge/skills.
 
-The interactive shell adds structured views, semantic natural-language execution and inspectable execution traces.
+The interactive shell adds structured views, semantic natural-language execution and inspectable execution traces. Complete commands execute immediately; missing interactive identifiers can be facilitated. Config supports explicit project/global overrides and reset, and `aiwf setup --check` inspects without writes or prompts. See [operational commands](docs/operations.md#13-shell-configuration-and-setup).
 
 ### MCP
 

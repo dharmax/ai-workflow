@@ -223,3 +223,13 @@ Stop and simplify if a change introduces:
 - persistent audit/plan documents that merely duplicate AIWF state or Git history.
 
 The target is not a larger framework. It is a small system that remembers why work exists, finds the relevant evidence, makes the smallest justified change, and proves the result.
+
+## Human command adapters and configuration ownership
+
+Config, setup, ticket flow and model commands use shared family-specific functions from the CLI and shell. `artifactCommand` remains the canonical artifact parser; the shell only supplies missing identifiers before invoking it. Entity inspection uses `buildEntityView` in both adapters, with one plain-text fallback. Complete inputs bypass facilitation. Ordinary CLI and plain shell inputs never acquire missing arguments interactively.
+
+AIWF owns settings, raw override layers, setup steps and graph operations. `@dharmax/shell-ui` owns facilitation, View/Review interaction and process presentation. No command bus, second registry or configuration/setup database exists. Source/graph commands with little duplicated behavior remain ordinary registry adapters.
+
+Configuration resolves defaults/environment, global overrides, then project overrides. Nested radar/escalation/routes/provider-option maps merge in that order. Global legacy Ollama host/planner-model aliases remain readable. Writes change only the selected raw layer; reset removes an override and reveals inheritance. Configuration inspection reports effective values and their layer, excludes credential settings and redacts sensitive option fields. Credentials resolve from environment and global credential structures. Malformed relevant configuration fails with its path rather than becoming defaults.
+
+Setup uses concrete step results: satisfied, needed, changed, skipped and failed. Inspection computes required changes without writes. Application backs up existing host files once, replaces only changed content, and verifies writes. Absent hosts remain skipped; MCP schema export is applicable only to a detected Antigravity/Gemini environment. Provider construction errors propagate separately from missing providers; configured credentials never prove connectivity.

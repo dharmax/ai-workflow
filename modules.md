@@ -4,12 +4,12 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 103 | 0 | None |
+| `root` | project default | 104 | 0 | None |
 | `src/graph` | project default | 1171 | 0 | None |
 | `src/tools` | project default | 553 | 0 | None |
 | `src/actor` | project default | 376 | 0 | None |
 | `src/mcp` | project default | 38 | 0 | None |
-| `src/shell` | project default | 147 | 0 | None |
+| `src/shell` | project default | 148 | 0 | None |
 | `src/cli` | project default | 110 | 0 | None |
 | `src/index` | project default | 0 | 0 | None |
 | `src/config` | project default | 73 | 0 | None |
@@ -17,7 +17,7 @@
 | `src/setup` | project default | 133 | 0 | None |
 | `tests` | project default | 1141 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
-| `src/terminal` | project default | 58 | 0 | None |
+| `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
 | `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
 | `@external/@dharmax/context-manager` | project default | 245 | 0 | None |
@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 58 | 0 | None |
+| `docs` | project default | 65 | 0 | None |
 | `src/product` | project default | 312 | 0 | None |
 | `src/change` | project default | 666 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |

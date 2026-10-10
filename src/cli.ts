@@ -24,7 +24,7 @@ import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult} from './config-command.ts';
 import {runTicketCommand} from './ticket-command.ts';
 import {buildEntityView, formatEntityView} from './entity-view.ts';
-import { ProgressIndicator } from './terminal/progress.ts';
+import {ProcessViewport} from '@dharmax/shell-ui';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from './change/ts6-refactor.ts';
@@ -50,7 +50,13 @@ async function main() {
 
   const delegation = helpRequested ? null : artifactCommand(args);
   if (delegation) {
-    const result = await registry.execute(delegation.tool, delegation.args, { store: getStore(), projectRoot: root });
+    const progress = process.stderr.isTTY ? new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''}) : undefined;
+    progress?.start(`Running ${delegation.tool}...`);
+    let result;
+    try {
+      result = await registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root});
+      progress?.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
+    } catch (error) { progress?.stop('fail'); throw error; }
     console.log(JSON.stringify(result, null, 2));
     if (result?.status === 'blocked' || result?.status === 'needs_input') process.exitCode = 2;
     getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients();
@@ -153,10 +159,10 @@ async function main() {
 
     case 'init': {
       console.log(`🚀 Initializing AI-Workflow in ${root}...`);
-      const progress = new ProgressIndicator();
+      const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: Boolean(process.stderr.isTTY)});
       progress.start('Scaffolding project and indexing AST graph...');
       const initRes = await initProject(root);
-      progress.stop('Initialization complete', 'success');
+      progress.stop('success');
       console.log(`✅ Indexed ${initRes.filesIndexed} file(s), ${initRes.symbolsIndexed} symbol(s), ${initRes.notesIndexed} note(s).`);
       console.log(`✅ Generated projections: ${initRes.projectionsExported.join(', ')}`);
       console.log(`✨ Ready! Run 'aiwf shell' or 'aiwf status' to begin.`);
@@ -675,14 +681,15 @@ async function main() {
     case 'index': {
       console.log(`🔄 Indexing AST symbols across codebase...`);
       const store = getStore();
-      const progress = new ProgressIndicator();
+      const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: Boolean(process.stderr.isTTY)});
       progress.start('Scanning codebase for source files...');
       const res = await indexCodebase(store, root, {
         onProgress: (current, total, file) => {
-          progress.renderBar(current, total, file);
+          progress.onStep({step: current, action: `${current}/${total} ${file}`, toolCalls: [], toolResults: []});
         }
       });
-      progress.stop(`Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.testsCount} test artifact(s), ${res.notesCount} note(s).`, 'success');
+      progress.stop('success');
+      console.log(`Indexed ${res.filesCount} file(s), ${res.symbolsCount} symbol(s), ${res.testsCount} test artifact(s), ${res.notesCount} note(s).`);
       break;
     }
 
@@ -782,15 +789,17 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const progress = new ProgressIndicator();
+      const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: Boolean(process.stderr.isTTY)});
       progress.start(`Executing: "${wish.slice(0, 35)}..."`);
       try {
         const actor = new WorkflowActor({ store, projectRoot: root, preferLocal: true });
         const res = await actor.execute(wish);
-        progress.stop(`Executed in ${res.mode.toUpperCase()} mode`, 'success');
+        progress.stop('success');
+        console.log(`Executed in ${res.mode.toUpperCase()} mode`);
         console.log(`\n[${res.mode.toUpperCase()}] ${res.answer}`);
       } catch (err: any) {
-        progress.stop(`Execution failed: ${err.message || err}`, 'fail');
+        progress.stop('fail');
+        console.error(`Execution failed: ${err.message || err}`);
         process.exit(1);
       }
       break;
@@ -826,10 +835,11 @@ async function main() {
 
       if (sub === 'sync') {
         const force = args.includes('--force') || args.includes('-f');
-        const progress = new ProgressIndicator();
+        const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: Boolean(process.stderr.isTTY)});
         progress.start('Syncing manifest from dharmax/knowledgebase...');
         const res = await kb.sync(force);
-        progress.stop(`Synced ${res.count} item(s) [Source: ${res.source.toUpperCase()}]`, 'success');
+        progress.stop('success');
+        console.log(`Synced ${res.count} item(s) [Source: ${res.source.toUpperCase()}]`);
         break;
       }
 
@@ -921,6 +931,7 @@ Drill-down and project commands:
   sync                                   Synchronize SQLite Graph bi-directionally with Markdown Projections
   next [agentId]                         Algorithmic task selector: active lease -> P1 bugs -> Todo tasks
   tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
+  ticket <id>                            Inspect a Ticket through the shared entity view
   epics [status]                         List epics in the Product Intent Graph
   epic <epicId>                          Show epic details, targeted features/stories, and tickets
   epic-create "<title>" [options]        Create Epic with semantic decomposition and proposal review
@@ -959,8 +970,8 @@ Diagnostics & Health:
 
 Configuration & Execution:
   init                                   Zero-config project initialization in current directory
-  setup [--global] [--mcp]               Install global symlink (~/.local/bin/aiwf) and configure MCP
-  config [get|set] [key] [val]           Inspect or update settings in .ai-workflow/config.json
+  setup [--check] [--global|--mcp|--link] Inspect or apply verified setup steps
+  config [get|set|reset] [key] [val] [--global] Inspect values/provenance or change explicit overrides
   model [list|radar|set]                 Inspect gateway, Pareto radar rankings, or configure mode routes
   kb [sync|list|search|show]             Search, inspect, and sync content-addressed skills & patterns
   eval "<code>"                          Evaluate short TypeScript/JS code against live store

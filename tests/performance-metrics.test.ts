@@ -19,7 +19,7 @@ describe('correlated artifact performance telemetry', () => {
       if (new URL(request.url).pathname === '/classify') return Response.json({ backendId: 'fixture', quality: 'high', answers: Object.fromEntries(Object.entries({ workKind: 'code', atomicity: 'atomic', scope: 'grounded', context: 'none', depth: 'deterministic' }).map(([id, choice]) => [id, { choice, probabilities: { [choice]: 1 } }])) });
       return Response.json({ message: { content: JSON.stringify({ disposition: 'needs_preparation', rationale: 'Missing authored acceptance', acceptanceCriteria: ['Restart retains jobs'] }) }, prompt_eval_count: 11, eval_count: 7 });
     } });
-    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
+    const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
       const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Persist jobs', body: secret, lane: 'Todo' });
       const result = await t.prepare(store, { tags: { variant: 'aiwf' }, systemOne: new RemoteSystemOne({ url: server.url.toString() }), critic: 'none', propose: async dossier => ({ rationale: 'Confirm missing criteria', acceptanceCriteria: dossier.proposedEnrichments.acceptanceCriteria, children: [] }) });
