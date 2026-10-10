@@ -94,20 +94,30 @@ See [Architecture](docs/architecture.md) for the complete model.
 
 ## Install and initialize
 
-From the AIWF repository:
+AIWF is currently developed as part of the Dharmax sibling-repository workspace: its package manifest still uses local `file:../...` dependencies and is marked private. Do not treat it as an independently installable npm package yet.
+
+From the AIWF checkout in that workspace:
 
 ```bash
-aiwf setup
+bun install
+bun run setup
 ```
 
-Inside a project:
+`setup` provisions the required TypeScript runtimes, installs the `aiwf` command under `~/.local/bin`, configures detected supported coding-agent hosts for MCP, and synchronizes the AIWF skill. Ensure `~/.local/bin` is on `$PATH`, then verify the installation with:
 
 ```bash
+aiwf doctor
+```
+
+To initialize a repository:
+
+```bash
+cd /path/to/project
 aiwf init
 aiwf doctor
 ```
 
-`init` creates the `.ai-workflow/` state/configuration area, indexes source/test structure into the semantic graph, and creates human-readable projections. `doctor` checks the runtime, Git state, graph, projections, leases, model configuration and MCP integration.
+`init` creates the `.ai-workflow/` state/configuration area, indexes source/test structure into the semantic graph, and creates human-readable projections. `doctor` verifies the runtime, Git state, graph, projections, leases, model configuration and MCP integration. Re-running `setup` is the supported way to refresh the global CLI/MCP/skill wiring.
 
 ## Interfaces
 

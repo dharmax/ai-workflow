@@ -214,6 +214,11 @@ approval_mode = "approve"`;
 
     const claudeSkill = fs.readFileSync(path.join(mockHome, '.claude', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
     expect(claudeSkill).toBe(CANONICAL_SKILL_MD);
+
+    // The checked-in skill is the human-visible source and must never drift from
+    // the setup payload distributed to coding-agent hosts.
+    const repositorySkill = fs.readFileSync(path.resolve('skills', 'ai-workflow', 'SKILL.md'), 'utf8');
+    expect(repositorySkill).toBe(CANONICAL_SKILL_MD);
   });
 
   it('should wire MCP configuration, tool approvals, and rules across all hosts', () => {
