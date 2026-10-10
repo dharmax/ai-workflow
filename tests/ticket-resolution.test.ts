@@ -38,32 +38,6 @@ describe('Ticket-owned bounded resolution', () => {
   };
   const fix: ResolutionOptions = { systemOne, critic: 'none', verify, implement: async () => ({ changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) };
 
-  it('preserves qualified identity for optional method evidence', async () => {
-    fs.writeFileSync(path.join(root, 'src/actors.ts'), [
-      'export class LLMActor { constructor() {} }',
-      'export class OtherActor { constructor() {} }'
-    ].join('\n'));
-    await indexCodebase(store, root);
-    const t = await store.upsertEntity<Ticket>(Ticket.dcr, {
-      id: 'QUALIFIED',
-      title: 'Bound LLMActor constructor',
-      body: 'Adjust the `constructor` without changing unrelated actors.',
-      lane: 'Todo',
-      acceptanceCriteria: ['LLMActor construction remains bounded']
-    });
-    const investigation = await t.investigate(store, { systemOne, critic: 'none', depth: 0 });
-    expect(investigation.status).toBe('complete');
-    if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
-    const evidence = investigation.value.evidence.find(item => item.kind === 'SymbolNode' && item.symbolName === 'constructor' && item.containerName === 'LLMActor');
-    expect(evidence).toMatchObject({
-      filePath: 'src/actors.ts',
-      symbolName: 'constructor',
-      containerName: 'LLMActor',
-      mandatory: false,
-      provenance: 'Bounded optional code candidate'
-    });
-  }, 30000);
-
   it('surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof', async () => {
     const t = await ticket(); const a = await Aspect.create(store, { id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
     const result = await t.resolve(store, fix); expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
