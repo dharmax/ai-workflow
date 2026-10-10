@@ -68,7 +68,7 @@ A developer asks AIWF to resolve a previously verified Ticket again. AIWF sees t
 
 ### J3.4 — Turn grounded implementation intent into verified source
 
-A Ticket resolver or coding Actor has established a concrete implementation outcome and exact source target. AIWF loads concise software-implementation know-how, uses one canonical code-writing capability to generate the smallest required source through text-compiler, applies it only through the existing Causal Change Engine, and verifies the real project. If tests or acceptance fail, fresh failure evidence is fed back through the same writer for bounded repair. If the requested mutation is deterministic, AIWF uses the deterministic language/change primitive instead of generative synthesis. The external agent never has to manufacture replacement source or reproduce this internal choreography.
+A Ticket resolver or coding Actor has established a concrete implementation outcome and an exact existing source target, or a bounded destination for one new source artifact. AIWF builds a small provenance-bearing synthesis context from the Ticket/Product/Decision/Aspect graph plus exact language evidence from TypeScript/LSP. That context identifies the behavior required, the source being changed, relevant reusable implementation, material caller/dependency contracts and the proof expected. One backend-neutral generative source boundary produces a candidate. AIWF performs cheap candidate sanity checks, converts the candidate into an ordinary concrete change such as replace_symbol or create_file, applies it only through the existing Causal Change Engine, and verifies the real project. If verification fails, AIWF preserves the concrete failure, refreshes only the relevant graph/LSP neighborhood and performs bounded repair through the same synthesis boundary. Generated tests may help candidate sanity but never certify their own behavioral oracle. If the requested mutation is deterministic, AIWF uses the mature deterministic language/change primitive instead of generative synthesis. The external agent never has to gather repository context, manufacture replacement source or reproduce this internal choreography.
 
 ---
 
@@ -115,8 +115,8 @@ The first mandatory live journey regressions are:
 1. **J2.1** through the real shell/NL path, compared with deterministic `next`.
 2. **J2.4** through the real local Actor and the shared compound-prompt gate in `docs/advanced-actor-plan.md`, including simple-vs-compound controls, wrong/unavailable System-1, bounded discovery, compiler failure, cancellation and the exact live regression.
 3. **J1.1** through real Product Intent proposal/review/apply boundaries.
-4. **J3.1/J3.4** through real `resolve_ticket` lifecycle boundaries, including a generative source change that proves the canonical writer/text-compiler path and a deterministic-change control that bypasses synthesis.
-5. **J3.2** through a real failing implementation followed by bounded repair through the same canonical writer.
+4. **J3.1/J3.4** through real `resolve_ticket` lifecycle boundaries, including a graph/LSP-grounded generative source change through the canonical backend-neutral synthesis boundary and a deterministic-change control that bypasses synthesis.
+5. **J3.2** through a real failing implementation followed by bounded repair that refreshes relevant evidence and reuses the same synthesis boundary.
 6. **J4.1** using a defect connected to a primary Flow/Goal.
 7. **J5.1** through the public MCP surface.
 
