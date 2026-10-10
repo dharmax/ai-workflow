@@ -10,16 +10,13 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Graph-grounded source synthesis for Ticket.resolve
-  - Summary: Implement J3.4 from docs/graph-aware-code-synthesis-architecture.md. Build a small provenance-bearing synthesis context from Ticket/Product/Decision/Aspect graph evidence plus exact TypeScript/LSP facts; route generative source through one backend-neutral SourceSynthesizer boundary; emit only ordinary concrete mutations (replace_symbol/create_file) through the existing CausalChangeEngine; verify against the real project and use refreshed graph/LSP evidence for bounded repair. Deterministic changes bypass synthesis. Do not add synthesize_* ChangeRequests, construct-specific generation architecture, or make text-compiler mandatory before comparison proves it.
+- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Architect and integrate verified code synthesis (functions and non-functions) into Ticket.resolve
+  - Summary: Currently, Ticket.resolve in src/graph/ontology.ts relies on raw string replacement or unverified LLM text generation to author new code. This ticket plans and implements a structured compilation and synthesis facility: 1) Atomic functions/methods compiled and verified pre-flight via @dharmax/text-compiler and SkillAuthor principles; 2) Non-function construct synthesis (types, interfaces, classes, components/modules) via structured AST/schema templates; 3) Clean integration into CausalChangeEngine and resolve_ticket Actor tool catalog.
 
 ## In Progress
 
 - [/] **AIWF-TOPLEVEL1-PHASE-A**: Audit and shrink toplevel1 Phase A baseline
   - Summary: Phase A mechanically complete; awaiting human review before any Phase B authorization. Evidence: docs/toplevel1-phase-a-audit.md. Initial branch: typecheck 3 errors; full 268 pass/2 fail, both branch regressions. Master snapshot: typecheck passed, full 265 pass/0 fail. Final focused 89 pass/0 fail; full 274 pass/0 fail; typecheck and diff check pass. REMOVE changes deleted; canonical authoring rejects legacy containment; existing state preserved. No live journey acceptance claimed, no sibling source changed, no Phase B/TKT-8D3F work.
-- [/] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
-  - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
-  - Claim: leased by @agent-1 until 2026-10-09T16:37:28.980Z
 
 ## Done
 
@@ -100,6 +97,8 @@ kanban-plugin: board
   - Summary: Fix J2.5 runtime configuration refresh: WorkflowActor retains old Asker after config changes; implement reloadConfig() and getEffectiveRoute() to reflect live router resolution in shell and CLI without restarting processes.
 - [x] **TKT-ADV-ACTOR-J24**: Solve sophisticated compound goals through grounded evidence acquisition (J2.4)
   - Summary: Fix J2.4 compound goal solving and evidence acquisition: normalize semantic discovery domains and objects (e.g. project, goal, hotspots), guide Actor to governing project records (project.md, kanban.md, epics.md) before inspecting auxiliary data, prevent dummy shell echo note-taking, and verify grounded multi-part answers.
+- [x] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
+  - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
 
 ## Blocked
 
