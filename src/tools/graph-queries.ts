@@ -11,7 +11,7 @@ import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
 import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
-import { getExactSymbolSource } from '../change/symbol-source.ts';
+import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbol-source.ts';
 import { getTsLspClient } from '../change/ts-lsp.ts';
 import { resolveCodeTarget } from '../change/target-resolver.ts';
 
@@ -335,7 +335,7 @@ export function registerGraphTools() {
     category: 'graph',
     parameters: z.object({
       filePath: z.string().describe('Relative path to the source file'),
-      symbolName: z.string().describe('Name of the symbol to slice (e.g. WorkflowStore or WorkflowStore.claimTicket)')
+      symbolName: z.string().describe('Exact symbol identity to slice. For methods and constructors, use the qualified Container.member name from dossier evidence when available (e.g. LLMActor.constructor), because bare member names may be ambiguous.')
     }),
     execute: async ({ filePath, symbolName }, ctx: ToolContext) => {
       await ensureAstFresh(ctx.store, ctx.projectRoot);
@@ -352,6 +352,26 @@ export function registerGraphTools() {
 
       const content = fs.readFileSync(fullPath, 'utf8');
       const lines = content.split('\n');
+
+      if (/\.[cm]?[jt]sx?$/.test(fullPath)) {
+        const candidates = await findExactSymbolCandidates(ctx.projectRoot, fullPath, symbolName);
+        if (candidates.length > 1) {
+          return {
+            filePath, symbolName, exact: false, ambiguous: true,
+            candidates: candidates.map(candidate => ({ fullName: candidate.fullName, kind: candidate.kind, range: candidate.range })),
+            startLine: null, lineCount: 0, code: null
+          };
+        }
+        if (candidates.length === 1) {
+          const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
+          return {
+            filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
+            startLine: exact.range.start.line + 1, endLine: exact.range.end.line + 1,
+            lineCount: exact.code.split('\n').length, code: exact.code
+          };
+        }
+        return { filePath, symbolName, startLine: null, lineCount: 0, code: null };
+      }
 
       const symbols = await ctx.store.listEntities<SymbolNode>(SymbolNode.dcr);
       const sym = symbols.find(s => {
@@ -370,17 +390,6 @@ export function registerGraphTools() {
           lineCount: 0,
           code: null
         };
-      }
-
-      try {
-        const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
-        return {
-          filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
-          startLine: exact.range.start.line + 1, endLine: exact.range.end.line + 1,
-          lineCount: exact.code.split('\n').length, code: exact.code
-        };
-      } catch (error) {
-        if (/\.[cm]?[jt]sx?$/.test(fullPath)) throw error;
       }
 
       const startLine = (sym as any).line ? Math.max(1, (sym as any).line) : 1;
