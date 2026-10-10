@@ -353,6 +353,26 @@ export function registerGraphTools() {
       const content = fs.readFileSync(fullPath, 'utf8');
       const lines = content.split('\n');
 
+      if (/\.[cm]?[jt]sx?$/.test(fullPath)) {
+        const candidates = await findExactSymbolCandidates(ctx.projectRoot, fullPath, symbolName);
+        if (candidates.length > 1) {
+          return {
+            filePath, symbolName, exact: false, ambiguous: true,
+            candidates: candidates.map(candidate => ({ fullName: candidate.fullName, kind: candidate.kind, range: candidate.range })),
+            startLine: null, lineCount: 0, code: null
+          };
+        }
+        if (candidates.length === 1) {
+          const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
+          return {
+            filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
+            startLine: exact.range.start.line + 1, endLine: exact.range.end.line + 1,
+            lineCount: exact.code.split('\n').length, code: exact.code
+          };
+        }
+        return { filePath, symbolName, startLine: null, lineCount: 0, code: null };
+      }
+
       const symbols = await ctx.store.listEntities<SymbolNode>(SymbolNode.dcr);
       const sym = symbols.find(s => {
         const fileMatches = ((s as any).filePath || '').endsWith(filePath);
@@ -370,25 +390,6 @@ export function registerGraphTools() {
           lineCount: 0,
           code: null
         };
-      }
-
-      try {
-        const candidates = await findExactSymbolCandidates(ctx.projectRoot, fullPath, symbolName);
-        if (candidates.length > 1) {
-          return {
-            filePath, symbolName, exact: false, ambiguous: true,
-            candidates: candidates.map(candidate => ({ fullName: candidate.fullName, kind: candidate.kind, range: candidate.range })),
-            startLine: null, lineCount: 0, code: null
-          };
-        }
-        const exact = await getExactSymbolSource(ctx.projectRoot, fullPath, symbolName);
-        return {
-          filePath, symbolName, exact: true, source: 'typescript-lsp', range: exact.range,
-          startLine: exact.range.start.line + 1, endLine: exact.range.end.line + 1,
-          lineCount: exact.code.split('\n').length, code: exact.code
-        };
-      } catch (error) {
-        if (/\.[cm]?[jt]sx?$/.test(fullPath)) throw error;
       }
 
       const startLine = (sym as any).line ? Math.max(1, (sym as any).line) : 1;
