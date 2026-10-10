@@ -10,8 +10,7 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-CODE-SYNTHESIS-ENGINE**: Graph-grounded source synthesis for Ticket.resolve
-  - Summary: Implement J3.4 from docs/graph-aware-code-synthesis-architecture.md. Build a small provenance-bearing synthesis context from Ticket/Product/Decision/Aspect graph evidence plus exact TypeScript/LSP facts; route generative source through one backend-neutral SourceSynthesizer boundary; emit only ordinary concrete mutations (replace_symbol/create_file) through the existing CausalChangeEngine; verify against the real project and use refreshed graph/LSP evidence for bounded repair. Deterministic changes bypass synthesis. Do not add synthesize_* ChangeRequests, construct-specific generation architecture, or make text-compiler mandatory before comparison proves it.
+- No items
 
 ## In Progress
 
@@ -99,6 +98,8 @@ kanban-plugin: board
   - Summary: Fix J2.4 compound goal solving and evidence acquisition: normalize semantic discovery domains and objects (e.g. project, goal, hotspots), guide Actor to governing project records (project.md, kanban.md, epics.md) before inspecting auxiliary data, prevent dummy shell echo note-taking, and verify grounded multi-part answers.
 - [x] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
   - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
+- [x] **TKT-CODE-SYNTHESIS-ENGINE**: Graph-grounded source synthesis for Ticket.resolve
+  - Summary: Implement J3.4 from docs/graph-aware-code-synthesis-architecture.md. Build a small provenance-bearing synthesis context from Ticket/Product/Decision/Aspect graph evidence plus exact TypeScript/LSP facts; route generative source through one backend-neutral SourceSynthesizer boundary; emit only ordinary concrete mutations (replace_symbol/create_file) through the existing CausalChangeEngine; verify against the real project and use refreshed graph/LSP evidence for bounded repair. Deterministic changes bypass synthesis. Do not add synthesize_* ChangeRequests, construct-specific generation architecture, or make text-compiler mandatory before comparison proves it.
 
 ## Blocked
 

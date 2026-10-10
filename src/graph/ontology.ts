@@ -732,6 +732,7 @@ export class Ticket extends WorkflowEntity {
       const { loadConfig } = await import('../config.ts');
       const { applyProductMutations } = await import('../product/mutation.ts');
       const { initializeTools, registry } = await import('../tools/index.ts');
+      const { buildSynthesisContext, HostSourceSynthesizer } = await import('../synthesis/index.ts');
       const { z } = await import('zod');
       const { LLMActor } = await import('@dharmax/llm-utils');
       const fs = await import('node:fs'), path = await import('node:path');
@@ -901,10 +902,17 @@ export class Ticket extends WorkflowEntity {
                 const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
                 if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
                   countEngineering('reasoningCalls');
-                  const response = await asker.json(`Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Dossier: ${JSON.stringify(input)} Verification feedback: ${JSON.stringify(findings)}`, ExactImplementationSchema, { model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
-                  if (!response.ok) throw new Error(`Implementation synthesis failed: ${response.failure?.message}`);
-                  const proposal = ExactImplementationSchema.parse(response.data), target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
-                  return { changes: [proposal.action === 'replace_symbol' ? { action: proposal.action, target, replacement: proposal.replacement } : { action: proposal.action, target, newName: proposal.newName }], testCommands: proposal.testCommands };
+                  const synthesisCtx = buildSynthesisContext({ store, dossier: input });
+                  const synthesizer = new HostSourceSynthesizer(asker);
+                  const candidate = await synthesizer.synthesize(synthesisCtx, {
+                    model,
+                    timeoutMs: 60000,
+                    signal: options.signal,
+                    feedback: findings.map(f => ({ stage: 'project_compatibility' as const, message: f })),
+                    ...cognitionMetrics()
+                  });
+                  const target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
+                  return { changes: [{ action: 'replace_symbol' as const, target, replacement: candidate.source }], testCommands: candidate.testCommands && candidate.testCommands.length ? candidate.testCommands : proposedTests };
                 }
                 const names = ['find_symbol', 'get_symbol_source', 'get_file_outline', 'search_graph', 'get_exact_references', 'read_workspace_file', 'preview_change', 'apply_change'];
                 let currentDossier = input;
