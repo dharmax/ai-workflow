@@ -253,7 +253,7 @@ export function installGlobalBinary(sourceCliPath?: string, homeDir?: string): G
   } catch {}
 
   const currentPath = process.env.PATH || '';
-  const pathIncluded = currentPath.split(':').includes(binDir);
+  const pathIncluded = currentPath.split(path.delimiter).includes(binDir);
 
   return {
     binaryPath: resolvedSource,

@@ -5,6 +5,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { WorkflowStore } from './graph/store.ts';
 import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
 import { loadConfig, resolveCloudCredentials } from './config.ts';
@@ -254,8 +255,8 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     checks.push({
       category: 'Cognitive',
       name: 'LLM Host (Ollama)',
-      status: 'ok',
-      message: `Offline grounded mode active (${config.ollamaUrl} not reached)`
+      status: 'warn',
+      message: `Ollama not reached at ${config.ollamaUrl}; LLM-backed operations may require another configured provider`
     });
   }
 
@@ -278,7 +279,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     category: 'Routing',
     name: 'Model Gateway & Providers',
     status: 'ok',
-    message: `Gateway: ${config.gateway} | Escalation: ${config.escalation?.policy || 'auto'} | Active providers: ${configuredProviders.join(', ')}`,
+    message: `Gateway: ${config.gateway} | Escalation: ${config.escalation?.policy || 'auto'} | Configured providers: ${configuredProviders.join(', ')}`,
     details: {
       gateway: config.gateway,
       policy: config.escalation?.policy,
@@ -308,29 +309,43 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
   });
 
   // 9. MCP Integrations
-  const home = process.env.HOME || '~';
-  const ideMcp = path.join(home, '.config', 'Antigravity IDE', 'User', 'mcp_config.json');
-  const cliMcp = path.join(home, '.gemini', 'config', 'mcp_config.json');
-  let mcpInstalled = false;
+  const home = process.env.HOME || os.homedir();
+  const jsonHosts: Array<[string, string]> = [
+    ['Antigravity IDE', path.join(home, '.config', 'Antigravity IDE', 'User', 'mcp_config.json')],
+    ['Antigravity CLI', path.join(home, '.gemini', 'config', 'mcp_config.json')],
+    ['Claude Code', path.join(home, '.claude.json')],
+    ['Cursor', path.join(home, '.cursor', 'mcp.json')],
+    ['Windsurf', path.join(home, '.codeium', 'windsurf', 'mcp_config.json')],
+  ];
+  const installedHosts: string[] = [];
 
-  if (fs.existsSync(ideMcp)) {
+  for (const [name, configPath] of jsonHosts) {
+    if (!fs.existsSync(configPath)) continue;
     try {
-      const parsed = JSON.parse(fs.readFileSync(ideMcp, 'utf8'));
-      if (parsed.mcpServers?.['ai-workflow']) mcpInstalled = true;
-    } catch {}
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (parsed.mcpServers?.['ai-workflow']) installedHosts.push(name);
+    } catch {
+      // Malformed host config is not proof that AIWF is registered there.
+    }
   }
-  if (!mcpInstalled && fs.existsSync(cliMcp)) {
+
+  const codexConfig = path.join(home, '.codex', 'config.toml');
+  if (fs.existsSync(codexConfig)) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(cliMcp, 'utf8'));
-      if (parsed.mcpServers?.['ai-workflow']) mcpInstalled = true;
-    } catch {}
+      if (fs.readFileSync(codexConfig, 'utf8').includes('[mcp_servers.aiwf-mcp]')) installedHosts.push('OpenAI Codex');
+    } catch {
+      // Unreadable host config is reported as not detected.
+    }
   }
 
   checks.push({
     category: 'MCP',
     name: 'IDE/CLI Integration',
-    status: mcpInstalled ? 'ok' : 'warn',
-    message: mcpInstalled ? 'Registered in Antigravity MCP hosts' : 'Not registered in Antigravity MCP. Run `aiwf setup`'
+    status: installedHosts.length > 0 ? 'ok' : 'warn',
+    message: installedHosts.length > 0
+      ? `Registered in: ${installedHosts.join(', ')}`
+      : 'No supported MCP host registration detected. Run `aiwf setup`',
+    details: { hosts: installedHosts }
   });
 
   const healthy = !checks.some(c => c.status === 'error');

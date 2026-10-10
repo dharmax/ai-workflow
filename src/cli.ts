@@ -198,7 +198,7 @@ async function main() {
         console.log(`📄 Exported ${mcpRes.schemasCount} tool schema(s) to ${mcpRes.schemasDir}`);
       }
 
-      console.log(`✨ Setup complete! 'aiwf' is ready globally and wired into all AI environments.`);
+      console.log(`✨ Setup pass complete. Run 'aiwf doctor' to verify the runtime and detected integrations.`);
       break;
     }
 
