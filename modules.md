@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 112 | 0 | None |
+| `root` | project default | 114 | 0 | None |
 | `src/graph` | project default | 1171 | 0 | None |
 | `src/tools` | project default | 553 | 0 | None |
 | `src/actor` | project default | 376 | 0 | None |
