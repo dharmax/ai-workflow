@@ -335,7 +335,7 @@ export function registerGraphTools() {
     category: 'graph',
     parameters: z.object({
       filePath: z.string().describe('Relative path to the source file'),
-      symbolName: z.string().describe('Name of the symbol to slice (e.g. WorkflowStore or WorkflowStore.claimTicket)')
+      symbolName: z.string().describe('Exact symbol identity to slice. For methods and constructors, use the qualified Container.member name from dossier evidence when available (e.g. LLMActor.constructor), because bare member names may be ambiguous.')
     }),
     execute: async ({ filePath, symbolName }, ctx: ToolContext) => {
       await ensureAstFresh(ctx.store, ctx.projectRoot);
