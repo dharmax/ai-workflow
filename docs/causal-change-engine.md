@@ -32,6 +32,26 @@ The invariant is:
 
 > Mature engines own domain mechanics. aiwf owns intent, causal context, orchestration, preview, safety, graph continuity, and verification.
 
+### Source synthesis boundary
+
+Generative source synthesis is **upstream** of this engine.
+
+For an AIWF-managed repository, graph-grounded synthesis may produce candidate source from Ticket/Product/Decision/Aspect context plus exact TypeScript/LSP evidence. The candidate must then be expressed as an ordinary concrete ChangeRequest such as replace_symbol or create_file.
+
+The Change Engine must not grow synthesize_function, synthesize_construct, generate_component or similar actions. It mutates safely; it does not invent implementation source.
+
+Canonical composition:
+
+~~~text
+grounded implementation intent
+→ bounded source synthesis
+→ concrete mutation request
+→ CausalChangeEngine preview/apply
+→ project verification
+~~~
+
+See docs/graph-aware-code-synthesis-architecture.md.
+
 ## 2. Ownership boundaries
 
 ### aiwf owns
@@ -476,6 +496,8 @@ Do not build:
 - embeddings/RAG for change discovery
 - TypeScript 6 compatibility machinery in this phase
 - unsupported extract/inline/move-symbol algorithms just to match IDE feature lists
+- generative source synthesis inside ChangeRequest or CausalChangeEngine
+- construct-specific generate/synthesize mutation actions
 
 ## 15. Engineering rule
 
