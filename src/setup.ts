@@ -227,14 +227,13 @@ export function installGlobalBinary(sourceCliPath?: string, homeDir?: string): G
 
   const symlinkTarget = path.join(binDir, 'aiwf');
 
-  try {
-    if (fs.existsSync(symlinkTarget) || fs.lstatSync(symlinkTarget).isSymbolicLink()) {
-      fs.unlinkSync(symlinkTarget);
-    }
-  } catch {}
-
-  // If source is the target itself (e.g. executed in place in ~/.local/bin/aiwf), nothing to link
+  // If source is the target itself (e.g. executed in place in ~/.local/bin/aiwf),
+  // preserve the running installation rather than unlinking it.
   if (resolvedSource !== symlinkTarget) {
+    if (!fs.existsSync(resolvedSource)) {
+      throw new Error(`AIWF CLI source does not exist: ${resolvedSource}`);
+    }
+
     try {
       if (fs.existsSync(symlinkTarget) || fs.lstatSync(symlinkTarget).isSymbolicLink()) {
         fs.unlinkSync(symlinkTarget);

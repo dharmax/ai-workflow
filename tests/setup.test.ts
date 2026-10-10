@@ -308,6 +308,19 @@ approval_mode = "approve"`;
     expect(codexTomlProd).toContain('args = ["mcp"]');
   });
 
+  it('should preserve an existing installation when the running CLI is already the target', () => {
+    const mockHome = path.join(tempDir, 'userhome_in_place');
+    const target = path.join(mockHome, '.local', 'bin', 'aiwf');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, '#!/usr/bin/env bun\nconsole.log("existing");\n', 'utf8');
+
+    const res = installGlobalBinary(target, mockHome);
+
+    expect(res.symlinkTarget).toBe(target);
+    expect(fs.existsSync(target)).toBe(true);
+    expect(fs.readFileSync(target, 'utf8')).toContain('existing');
+  });
+
   it('should install and verify global binary symlink in custom directory', () => {
     const mockHome = path.join(tempDir, 'userhome_bin');
     const fakeCli = path.join(tempDir, 'fake-cli.ts');
