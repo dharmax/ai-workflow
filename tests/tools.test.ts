@@ -216,6 +216,33 @@ export class Calculator {
     expect(blast.affectedFiles).toContain('src/sample.ts');
   });
 
+  it('should surface qualified candidates for ambiguous member source lookups', async () => {
+    const srcDir = path.join(tempDir, 'src');
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ESNext', module: 'ESNext' }, include: ['src/**/*.ts'] }));
+    fs.writeFileSync(path.join(srcDir, 'actors.ts'), [
+      'export class LLMActor { constructor() {} }',
+      'export class OtherActor { constructor() {} }'
+    ].join('\n'));
+
+    const ambiguous = await registry.execute('get_symbol_source', {
+      filePath: 'src/actors.ts',
+      symbolName: 'constructor'
+    }, ctx);
+    expect(ambiguous).toMatchObject({ exact: false, ambiguous: true, code: null });
+    expect(ambiguous.candidates.map((candidate: any) => candidate.fullName).sort()).toEqual([
+      'LLMActor.constructor',
+      'OtherActor.constructor'
+    ]);
+
+    const exact = await registry.execute('get_symbol_source', {
+      filePath: 'src/actors.ts',
+      symbolName: 'LLMActor.constructor'
+    }, ctx);
+    expect(exact).toMatchObject({ exact: true, source: 'typescript-lsp' });
+    expect(exact.code).toContain('constructor()');
+  });
+
   it('should run git and os facilities with error handling', async () => {
     const envInfo = await registry.execute('get_environment_info', {}, ctx);
     expect(envInfo.root).toBe(tempDir);
