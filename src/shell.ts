@@ -29,7 +29,7 @@ import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
-import { loadConfig, saveConfig } from './config.ts';
+import { loadConfig, saveConfig, inspectConfig } from './config.ts';
 import { buildEntityView, resolveEntityViewKind, saveEntityView, type EntityViewKind } from './entity-view.ts';
 
 export interface ShellSession {
@@ -1290,10 +1290,8 @@ Drill-down and project commands:
     const parts = line.slice(6).trim().split(/\s+/);
     const action = parts[0] || 'get';
     if (action === 'get') {
-      const cfg = loadConfig(session.projectRoot);
-      const key = parts[1];
-      if (key) return { output: `${key} = ${(cfg as any)[key] ?? 'undefined'}` };
-      return { output: JSON.stringify(cfg, null, 2) };
+      const rows = inspectConfig(session.projectRoot, parts[1]);
+      return {output: rows.map(row => `${row.key} = ${JSON.stringify(row.value)} (${row.source})`).join('\n')};
     }
     if (action === 'set') {
       const key = parts[1];

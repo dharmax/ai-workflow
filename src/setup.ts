@@ -12,7 +12,7 @@ import { indexCodebase } from './graph/indexer.ts';
 import { exportProjections } from './graph/projections.ts';
 import { Ticket, Epic } from './graph/ontology.ts';
 import { saveConfig } from './config.ts';
-import { exportMcpSchemas } from './mcp.ts';
+import { buildMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
 import { ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
@@ -35,7 +35,53 @@ export interface GlobalInstallResult {
   pathIncluded: boolean;
 }
 
+export type SetupState = 'satisfied' | 'needed' | 'changed' | 'skipped' | 'failed';
+export interface SetupStepResult { id: string; state: SetupState; message: string }
+interface SetupFile { filePath: string; content: string }
+function readSetupFile(filePath: string): string {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+}
+/** Replace only changed files, preserve the previous file once, and verify the write. */
+function applySetupFile(file: SetupFile): void {
+  fs.mkdirSync(path.dirname(file.filePath), {recursive: true});
+  const previous = readSetupFile(file.filePath);
+  if (previous === file.content) return;
+  if (fs.existsSync(file.filePath) && !fs.existsSync(`${file.filePath}.bak`)) fs.copyFileSync(file.filePath, `${file.filePath}.bak`);
+  const temporary = `${file.filePath}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temporary, file.content, {mode: fs.existsSync(file.filePath) ? fs.statSync(file.filePath).mode & 0o777 : 0o600});
+    fs.renameSync(temporary, file.filePath);
+    if (readSetupFile(file.filePath) !== file.content) throw new Error(`Setup write verification failed: ${file.filePath}`);
+  } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
+}
+function setupFiles(id: string, applicable: boolean, check: boolean, files: () => SetupFile[]): SetupStepResult {
+  if (!applicable) return {id, state: 'skipped', message: 'Host absent / not applicable'};
+  try {
+    const changes = files().filter(file => readSetupFile(file.filePath) !== file.content);
+    if (!changes.length) return {id, state: 'satisfied', message: 'Verified current files'};
+    if (check) return {id, state: 'needed', message: `${changes.length} file(s) require changes`};
+    for (const file of changes) applySetupFile(file);
+    return {id, state: 'changed', message: `Verified ${changes.length} changed file(s)`};
+  } catch (error) {
+    return {id, state: 'failed', message: error instanceof Error ? error.message : String(error)};
+  }
+}
+function jsonHostFile(filePath: string, entry: Record<string, unknown>): SetupFile {
+  let config: Record<string, unknown> = {};
+  if (fs.existsSync(filePath)) {
+    try {
+      const parsed: unknown = JSON.parse(readSetupFile(filePath));
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+      config = parsed as Record<string, unknown>;
+      if (config.mcpServers !== undefined && (!config.mcpServers || typeof config.mcpServers !== 'object' || Array.isArray(config.mcpServers))) throw new Error();
+    } catch { throw new Error(`Invalid JSON host configuration at ${filePath}; repair it before setup.`); }
+  }
+  config.mcpServers = {...config.mcpServers as Record<string, unknown> | undefined, 'ai-workflow': entry};
+  return {filePath, content: JSON.stringify(config, null, 2)};
+}
+
 export interface McpSetupResult {
+  steps: SetupStepResult[];
   hostsUpdated: string[];
   schemasCount: number;
   schemasDir: string;
@@ -43,6 +89,7 @@ export interface McpSetupResult {
 }
 
 export interface ConfigureMcpOptions {
+  check?: boolean;
   cliPath?: string;
   mcpPath?: string;
   homeDir?: string;
@@ -212,53 +259,27 @@ export async function initProject(projectRoot: string): Promise<InitResult> {
 export function installGlobalBinary(sourceCliPath?: string, homeDir?: string): GlobalInstallResult {
   const home = homeDir || process.env.HOME || os.homedir();
   const binDir = path.join(home, '.local', 'bin');
-  fs.mkdirSync(binDir, { recursive: true });
-
-  let resolvedSource: string;
-  const isCompiled = !process.execPath.endsWith('bun') && !process.execPath.endsWith('bun.exe');
-
-  if (sourceCliPath) {
-    resolvedSource = path.resolve(sourceCliPath);
-  } else if (isCompiled) {
-    resolvedSource = process.execPath;
-  } else {
-    resolvedSource = path.resolve(__dirname, 'cli.ts');
-  }
-
-  const symlinkTarget = path.join(binDir, 'aiwf');
-
-  // If source is the target itself (e.g. executed in place in ~/.local/bin/aiwf),
-  // preserve the running installation rather than unlinking it.
-  if (resolvedSource !== symlinkTarget) {
-    if (!fs.existsSync(resolvedSource)) {
-      throw new Error(`AIWF CLI source does not exist: ${resolvedSource}`);
-    }
-
-    try {
-      if (fs.existsSync(symlinkTarget) || fs.lstatSync(symlinkTarget).isSymbolicLink()) {
-        fs.unlinkSync(symlinkTarget);
-      }
-    } catch {}
-
-    if (isCompiled) {
-      fs.copyFileSync(resolvedSource, symlinkTarget);
-    } else {
-      fs.symlinkSync(resolvedSource, symlinkTarget);
+  const compiled = !['bun', 'bun.exe'].includes(path.basename(process.execPath));
+  const source = path.resolve(sourceCliPath || (compiled ? process.execPath : path.join(__dirname, 'cli.ts')));
+  const target = path.join(binDir, 'aiwf');
+  if (!fs.existsSync(source)) throw new Error(`AIWF CLI source does not exist: ${source}`);
+  fs.mkdirSync(binDir, {recursive: true});
+  if (source !== target) {
+    let alreadyLinked = false;
+    try { alreadyLinked = fs.realpathSync(target) === fs.realpathSync(source); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    if (!alreadyLinked) {
+      const temporary = `${target}.${process.pid}.tmp`;
+      try {
+        if (compiled) fs.copyFileSync(source, temporary); else fs.symlinkSync(source, temporary);
+        fs.chmodSync(temporary, 0o755);
+        fs.renameSync(temporary, target);
+      } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
     }
   }
-
-  try {
-    fs.chmodSync(symlinkTarget, 0o755);
-  } catch {}
-
-  const currentPath = process.env.PATH || '';
-  const pathIncluded = currentPath.split(path.delimiter).includes(binDir);
-
-  return {
-    binaryPath: resolvedSource,
-    symlinkTarget,
-    pathIncluded
-  };
+  fs.chmodSync(target, 0o755);
+  fs.accessSync(target, fs.constants.X_OK);
+  return {binaryPath: source, symlinkTarget: target, pathIncluded: (process.env.PATH || '').split(path.delimiter).includes(binDir)};
 }
 
 /**
@@ -306,7 +327,7 @@ export function replaceTomlServerSection(
 /**
  * Distributes the canonical AI-Workflow 2.0 SKILL.md across all supported AI environments.
  */
-export function syncSkills(home: string): string[] {
+export function syncSkills(home: string, steps: SetupStepResult[] = [], check = false): string[] {
   const synced: string[] = [];
   const targets = [
     {
@@ -340,14 +361,10 @@ export function syncSkills(home: string): string[] {
     }
   ];
 
-  for (const t of targets) {
-    if (t.condition()) {
-      try {
-        fs.mkdirSync(t.dir, { recursive: true });
-        fs.writeFileSync(path.join(t.dir, 'SKILL.md'), CANONICAL_SKILL_MD, 'utf8');
-        synced.push(t.name);
-      } catch {}
-    }
+  for (const target of targets) {
+    const step = setupFiles(`Skill: ${target.name}`, target.condition(), check, () => [{filePath: path.join(target.dir, 'SKILL.md'), content: CANONICAL_SKILL_MD}]);
+    steps.push(step);
+    if (step.state === 'changed' || step.state === 'satisfied') synced.push(target.name);
   }
 
   return synced;
@@ -358,217 +375,81 @@ export function syncSkills(home: string): string[] {
  * Codex, Claude Code, Cursor, Windsurf, Antigravity IDE, and Antigravity CLI.
  */
 export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): McpSetupResult {
-  const options: ConfigureMcpOptions =
-    typeof optionsOrCliPath === 'string'
-      ? { cliPath: optionsOrCliPath }
-      : optionsOrCliPath || {};
-
+  const options = typeof optionsOrCliPath === 'string' ? {cliPath: optionsOrCliPath} : optionsOrCliPath || {};
   const home = options.homeDir || process.env.HOME || os.homedir();
+  const check = options.check === true;
   const pkgRoot = path.resolve(__dirname, '..');
-  const resolvedMcp = options.mcpPath
-    ? path.resolve(options.mcpPath)
-    : path.resolve(__dirname, 'mcp.ts');
-
+  const resolvedMcp = options.mcpPath ? path.resolve(options.mcpPath) : path.resolve(__dirname, 'mcp.ts');
   initializeTools();
   const allToolNames = ['execute_shell_wish', ...getPublicMcpTools(registry).map(t => t.name)];
-
-  const hostsUpdated: string[] = [];
-
-  const isLink = !!options.link;
-  const installedAiWf = options.binaryPath || options.cliPath || path.join(home, '.local', 'bin', 'aiwf');
-  const execBasename = path.basename(process.execPath, '.exe');
-  const isBunRuntime = execBasename === 'bun';
-  const useBinary = !isLink && (options.binaryPath || options.cliPath || fs.existsSync(installedAiWf) || !isBunRuntime);
-  const binaryTarget = options.binaryPath || options.cliPath || (fs.existsSync(installedAiWf) ? installedAiWf : (!isBunRuntime ? process.execPath : 'aiwf'));
-
-  const mcpCommand = useBinary ? binaryTarget : 'bun';
-  const mcpArgs = useBinary ? ['mcp'] : ['run', resolvedMcp];
-
-  const mcpJsonEntry = {
-    command: mcpCommand,
-    args: mcpArgs,
-    instructions: MCP_INSTRUCTIONS_2_0
-  };
-
-  // 1. Antigravity IDE
-  const ideConfigPath = path.join(home, '.config', 'Antigravity IDE', 'User', 'mcp_config.json');
-  if (fs.existsSync(path.join(home, '.config', 'Antigravity IDE')) || fs.existsSync(ideConfigPath)) {
-    try {
-      let ideConfig: any = { mcpServers: {} };
-      if (fs.existsSync(ideConfigPath)) {
-        ideConfig = JSON.parse(fs.readFileSync(ideConfigPath, 'utf8'));
-      } else {
-        fs.mkdirSync(path.dirname(ideConfigPath), { recursive: true });
+  const installed = options.binaryPath || options.cliPath || path.join(home, '.local', 'bin', 'aiwf');
+  const isBunRuntime = path.basename(process.execPath, '.exe') === 'bun';
+  const useBinary = !options.link && (options.binaryPath || options.cliPath || fs.existsSync(installed) || !isBunRuntime);
+  const command = useBinary ? options.binaryPath || options.cliPath || (fs.existsSync(installed) ? installed : process.execPath) : 'bun';
+  const args = useBinary ? ['mcp'] : ['run', resolvedMcp];
+  const entry = {command, args, instructions: MCP_INSTRUCTIONS_2_0};
+  const steps: SetupStepResult[] = [];
+  const hosts = [
+    {id: 'Antigravity IDE', dir: path.join(home, '.config', 'Antigravity IDE'), filePath: path.join(home, '.config', 'Antigravity IDE', 'User', 'mcp_config.json')},
+    {id: 'Antigravity CLI', dir: path.join(home, '.gemini'), filePath: path.join(home, '.gemini', 'config', 'mcp_config.json')},
+    {id: 'Claude Code', dir: path.join(home, '.claude'), filePath: path.join(home, '.claude.json')},
+    {id: 'Cursor', dir: path.join(home, '.cursor'), filePath: path.join(home, '.cursor', 'mcp.json')},
+    {id: 'Windsurf', dir: path.join(home, '.codeium', 'windsurf'), filePath: path.join(home, '.codeium', 'windsurf', 'mcp_config.json')},
+  ];
+  for (const host of hosts) {
+    const applicable = fs.existsSync(host.dir) || fs.existsSync(host.filePath) || (host.id === 'Windsurf' && fs.existsSync(path.join(home, '.config', 'Windsurf')));
+    steps.push(setupFiles(host.id, applicable, check, () => {
+      const files = [jsonHostFile(host.filePath, host.id === 'Claude Code' ? {command, args} : entry)];
+      if (host.id === 'Antigravity CLI') {
+        const filePath = path.join(host.dir, 'SOLUTIONS.md');
+        const content = readSetupFile(filePath);
+        if (!content.includes('AIWF MCP Exclusivity Protocol')) files.push({filePath, content: (content.trim() ? content.trimEnd() + '\n' : '# Solutions & Knowledge Ledger\n') + `\n## AIWF MCP Exclusivity Protocol\n- **Rule**: When AIWF MCP tools are available in an ai-workflow workspace, use AIWF for investigation and mutation.\n- **Edits**: ALWAYS use preview_change -> verify fingerprint -> apply_change.\n- **Discovery**: ALWAYS use find_symbol, get_symbol_source, get_file_outline, search_graph, or read_workspace_file.\n- **Tickets**: ALWAYS use investigate_ticket, claim_ticket, and resolve_ticket.\n`});
       }
-      ideConfig.mcpServers = ideConfig.mcpServers || {};
-      ideConfig.mcpServers['ai-workflow'] = mcpJsonEntry;
-      fs.writeFileSync(ideConfigPath, JSON.stringify(ideConfig, null, 2), 'utf8');
-      hostsUpdated.push('Antigravity IDE');
-    } catch {}
+      return files;
+    }));
   }
-
-  // 2. Antigravity CLI / Gemini
-  const geminiDir = path.join(home, '.gemini');
-  const cliConfigPath = path.join(geminiDir, 'config', 'mcp_config.json');
-  if (fs.existsSync(geminiDir) || fs.existsSync(cliConfigPath)) {
-    try {
-      let cliConfig: any = { mcpServers: {} };
-      if (fs.existsSync(cliConfigPath)) {
-        cliConfig = JSON.parse(fs.readFileSync(cliConfigPath, 'utf8'));
-      } else {
-        fs.mkdirSync(path.dirname(cliConfigPath), { recursive: true });
-      }
-      cliConfig.mcpServers = cliConfig.mcpServers || {};
-      cliConfig.mcpServers['ai-workflow'] = mcpJsonEntry;
-      fs.writeFileSync(cliConfigPath, JSON.stringify(cliConfig, null, 2), 'utf8');
-
-      // Ensure SOLUTIONS.md in ~/.gemini has the AIWF MCP exclusivity protocol
-      const globalSolutionsPath = path.join(geminiDir, 'SOLUTIONS.md');
-      let globalSolutions = fs.existsSync(globalSolutionsPath) ? fs.readFileSync(globalSolutionsPath, 'utf8') : '';
-      if (!globalSolutions.includes('AIWF MCP Exclusivity Protocol')) {
-        const protocolSection = `\n## AIWF MCP Exclusivity Protocol\n- **Rule**: When AIWF MCP tools are available in an ai-workflow workspace, NEVER use native primitives (view_file, replace_file_content, write_to_file) or raw grep/cat.\n- **Edits**: ALWAYS use preview_change -> verify fingerprint -> apply_change.\n- **Discovery**: ALWAYS use find_symbol, get_symbol_source, get_file_outline, search_graph, or read_workspace_file.\n- **Tickets**: ALWAYS use investigate_ticket, claim_ticket, and resolve_ticket.\n`;
-        globalSolutions = (globalSolutions.trim() ? globalSolutions.trimEnd() + '\n' : '# Solutions & Knowledge Ledger\n') + protocolSection;
-        fs.writeFileSync(globalSolutionsPath, globalSolutions, 'utf8');
-      }
-
-      hostsUpdated.push('Antigravity CLI');
-    } catch {}
-  }
-
-  // 3. OpenAI Codex (config.toml, default.rules, AGENTS.md, instructions.md)
-  const codexDir = path.join(home, '.codex');
-  if (fs.existsSync(codexDir)) {
-    try {
-      const configTomlPath = path.join(codexDir, 'config.toml');
-      let rawToml = fs.existsSync(configTomlPath) ? fs.readFileSync(configTomlPath, 'utf8') : '';
-
-      // Backup config.toml
-      if (fs.existsSync(configTomlPath)) {
-        try {
-          fs.writeFileSync(`${configTomlPath}.bak`, rawToml, 'utf8');
-        } catch {}
-      }
-
-      // Generate clean 2.0 tool approvals block
-      const codexArgsToml = JSON.stringify(mcpArgs);
-      let codexServerBlock = `[mcp_servers.aiwf-mcp]\ncommand = "${mcpCommand}"\nargs = ${codexArgsToml}\nenv = { AI_WORKFLOW_TOOLKIT_ROOT = "${pkgRoot}" }`;
-      for (const tool of allToolNames) {
-        codexServerBlock += `\n\n[mcp_servers.aiwf-mcp.tools.${tool}]\napproval_mode = "approve"`;
-      }
-
-      const updatedToml = replaceTomlServerSection(rawToml, 'aiwf-mcp', codexServerBlock);
-      fs.writeFileSync(configTomlPath, updatedToml, 'utf8');
-
-      // Update default.rules with execution permissions for aiwf
-      const rulesDir = path.join(codexDir, 'rules');
-      const rulesPath = path.join(rulesDir, 'default.rules');
-      fs.mkdirSync(rulesDir, { recursive: true });
-      let rules = fs.existsSync(rulesPath) ? fs.readFileSync(rulesPath, 'utf8') : '';
-      let rulesChanged = false;
-      if (!rules.includes('pattern=["aiwf"]')) {
-        rules = rules.trimEnd() + (rules.trim() ? '\n' : '') + 'prefix_rule(pattern=["aiwf"], decision="allow")\n';
-        rulesChanged = true;
-      }
-      if (!rules.includes('pattern=["ai-workflow"]')) {
-        rules = rules.trimEnd() + (rules.trim() ? '\n' : '') + 'prefix_rule(pattern=["ai-workflow"], decision="allow")\n';
-        rulesChanged = true;
-      }
-      if (rulesChanged) {
-        fs.writeFileSync(rulesPath, rules, 'utf8');
-      }
-
-      // Update AI-WORKFLOW.md & AGENTS.md
-      const aiwfMdPath = path.join(codexDir, 'AI-WORKFLOW.md');
-      fs.writeFileSync(aiwfMdPath, CODEX_AGENT_RULES, 'utf8');
-
-      const agentsMdPath = path.join(codexDir, 'AGENTS.md');
-      let agentsMd = fs.existsSync(agentsMdPath) ? fs.readFileSync(agentsMdPath, 'utf8') : '';
-      if (!agentsMd.includes('@AI-WORKFLOW.md')) {
-        agentsMd = agentsMd.trimEnd() + (agentsMd.trim() ? '\n' : '') + '@AI-WORKFLOW.md\n';
-        fs.writeFileSync(agentsMdPath, agentsMd, 'utf8');
-      }
-
-      // Update instructions.md if present
-      const instructionsMdPath = path.join(codexDir, 'instructions.md');
-      if (fs.existsSync(instructionsMdPath)) {
-        let inst = fs.readFileSync(instructionsMdPath, 'utf8');
-        if (!inst.includes('ai-workflow-rules')) {
-          inst = inst.trimEnd() + '\n\n' + CODEX_AGENT_RULES;
-          fs.writeFileSync(instructionsMdPath, inst, 'utf8');
-        }
-      }
-
-      hostsUpdated.push('OpenAI Codex');
-    } catch {}
-  }
-
-  // 4. Claude Code (~/.claude.json)
-  const claudeConfigPath = path.join(home, '.claude.json');
-  if (fs.existsSync(claudeConfigPath) || fs.existsSync(path.join(home, '.claude'))) {
-    try {
-      let claudeConfig: any = { mcpServers: {} };
-      if (fs.existsSync(claudeConfigPath)) {
-        claudeConfig = JSON.parse(fs.readFileSync(claudeConfigPath, 'utf8'));
-      }
-      claudeConfig.mcpServers = claudeConfig.mcpServers || {};
-      claudeConfig.mcpServers['ai-workflow'] = {
-        command: mcpCommand,
-        args: mcpArgs
-      };
-      fs.writeFileSync(claudeConfigPath, JSON.stringify(claudeConfig, null, 2), 'utf8');
-      hostsUpdated.push('Claude Code');
-    } catch {}
-  }
-
-  // 5. Cursor (~/.cursor/mcp.json)
-  const cursorDir = path.join(home, '.cursor');
-  const cursorMcpPath = path.join(cursorDir, 'mcp.json');
-  if (fs.existsSync(cursorDir) || fs.existsSync(cursorMcpPath)) {
-    try {
-      let cursorConfig: any = { mcpServers: {} };
-      if (fs.existsSync(cursorMcpPath)) {
-        cursorConfig = JSON.parse(fs.readFileSync(cursorMcpPath, 'utf8'));
-      } else {
-        fs.mkdirSync(cursorDir, { recursive: true });
-      }
-      cursorConfig.mcpServers = cursorConfig.mcpServers || {};
-      cursorConfig.mcpServers['ai-workflow'] = mcpJsonEntry;
-      fs.writeFileSync(cursorMcpPath, JSON.stringify(cursorConfig, null, 2), 'utf8');
-      hostsUpdated.push('Cursor');
-    } catch {}
-  }
-
-  // 6. Windsurf (~/.codeium/windsurf/mcp_config.json)
-  const windsurfDir = path.join(home, '.codeium', 'windsurf');
-  const windsurfMcpPath = path.join(windsurfDir, 'mcp_config.json');
-  if (fs.existsSync(windsurfDir) || fs.existsSync(path.join(home, '.config', 'Windsurf'))) {
-    try {
-      let windsurfConfig: any = { mcpServers: {} };
-      if (fs.existsSync(windsurfMcpPath)) {
-        windsurfConfig = JSON.parse(fs.readFileSync(windsurfMcpPath, 'utf8'));
-      } else {
-        fs.mkdirSync(windsurfDir, { recursive: true });
-      }
-      windsurfConfig.mcpServers = windsurfConfig.mcpServers || {};
-      windsurfConfig.mcpServers['ai-workflow'] = mcpJsonEntry;
-      fs.writeFileSync(windsurfMcpPath, JSON.stringify(windsurfConfig, null, 2), 'utf8');
-      hostsUpdated.push('Windsurf');
-    } catch {}
-  }
-
-  // 7. Sync Skills across all environments
-  const skillsSynced = syncSkills(home);
-
-  // 8. Export MCP Tool Schemas for Lazy Loading (Antigravity)
+  const codex = path.join(home, '.codex');
+  steps.push(setupFiles('OpenAI Codex', fs.existsSync(codex), check, () => {
+    const filePath = path.join(codex, 'config.toml');
+    const raw = readSetupFile(filePath);
+    try { Bun.TOML.parse(raw); } catch { throw new Error(`Invalid TOML host configuration at ${filePath}; repair it before setup.`); }
+    let block = `[mcp_servers.aiwf-mcp]\ncommand = ${JSON.stringify(command)}\nargs = ${JSON.stringify(args)}\nenv = { AI_WORKFLOW_TOOLKIT_ROOT = ${JSON.stringify(pkgRoot)} }`;
+    for (const tool of allToolNames) block += `\n\n[mcp_servers.aiwf-mcp.tools.${tool}]\napproval_mode = "approve"`;
+    const files: SetupFile[] = [{filePath, content: replaceTomlServerSection(raw, 'aiwf-mcp', block)}];
+    const rulesPath = path.join(codex, 'rules', 'default.rules');
+    let rules = readSetupFile(rulesPath);
+    for (const executable of ['aiwf', 'ai-workflow']) {
+      if (!rules.includes(`pattern=["${executable}"]`)) rules = rules.trimEnd() + (rules.trim() ? '\n' : '') + `prefix_rule(pattern=["${executable}"], decision="allow")\n`;
+    }
+    files.push({filePath: rulesPath, content: rules}, {filePath: path.join(codex, 'AI-WORKFLOW.md'), content: CODEX_AGENT_RULES});
+    const agentsPath = path.join(codex, 'AGENTS.md');
+    const agents = readSetupFile(agentsPath);
+    if (!agents.includes('@AI-WORKFLOW.md')) files.push({filePath: agentsPath, content: agents.trimEnd() + (agents.trim() ? '\n' : '') + '@AI-WORKFLOW.md\n'});
+    const instructionsPath = path.join(codex, 'instructions.md');
+    if (fs.existsSync(instructionsPath)) {
+      const instructions = readSetupFile(instructionsPath);
+      if (!instructions.includes('ai-workflow-rules')) files.push({filePath: instructionsPath, content: instructions.trimEnd() + '\n\n' + CODEX_AGENT_RULES});
+    }
+    return files;
+  }));
+  const skillsSynced = syncSkills(home, steps, check);
   const schemasDir = path.join(home, '.gemini', 'antigravity-cli', 'mcp', 'ai-workflow');
-  const exported = exportMcpSchemas(schemasDir);
-
-  return {
-    hostsUpdated,
-    schemasCount: exported.length,
-    schemasDir,
-    skillsSynced
-  };
+  const schemas = buildMcpSchemas();
+  const schemaStep = setupFiles('MCP schemas', fs.existsSync(path.join(home, '.gemini')), check, () => Object.entries(schemas).map(([name, content]) => ({filePath: path.join(schemasDir, name), content})));
+  if (schemaStep.state !== 'failed' && fs.existsSync(schemasDir)) {
+    const stale = fs.readdirSync(schemasDir).filter(name => name.endsWith('.json') && !Object.hasOwn(schemas, name));
+    if (stale.length) {
+      if (check) { schemaStep.state = 'needed'; schemaStep.message += `; ${stale.length} obsolete schema(s)`; }
+      else {
+        try {
+          for (const name of stale) fs.unlinkSync(path.join(schemasDir, name));
+          schemaStep.state = 'changed';
+        } catch (error) { schemaStep.state = 'failed'; schemaStep.message = String(error); }
+      }
+    }
+  }
+  steps.push(schemaStep);
+  return {hostsUpdated: steps.filter(step => hosts.some(host => host.id === step.id) || step.id === 'OpenAI Codex').filter(step => step.state === 'changed').map(step => step.id), schemasCount: schemaStep.state === 'skipped' ? 0 : Object.keys(schemas).length, schemasDir, skillsSynced, steps};
 }
 
 /**

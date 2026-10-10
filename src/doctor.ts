@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from './graph/store.ts';
 import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
+import {createDefaultAsker} from './model-runtime.ts';
 import { loadConfig, resolveCloudCredentials } from './config.ts';
 import { ModelRadar } from './actor/radar.ts';
 import { resolveTypeScriptRuntime, checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime } from './typescript-runtime.ts';
@@ -28,8 +29,13 @@ export interface DiagnosticReport {
 }
 
 export async function runDiagnostics(store: WorkflowStore, projectRoot: string): Promise<DiagnosticReport> {
-  const config = loadConfig(projectRoot);
   const checks: DiagnosticCheck[] = [];
+  let config: ReturnType<typeof loadConfig>;
+  try { config = loadConfig(projectRoot); resolveCloudCredentials(); }
+  catch (error) {
+    checks.push({category: 'Configuration', name: 'Effective configuration', status: 'error', message: error instanceof Error ? error.message : String(error)});
+    return {timestamp: new Date().toISOString(), projectRoot, healthy: false, checks};
+  }
 
   // 1. Runtime Environment (Bun)
   const bunVersion = typeof Bun !== 'undefined' ? Bun.version : 'unknown';
@@ -294,6 +300,13 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     }
   });
 
+  try {
+    const asker = createDefaultAsker(projectRoot);
+    checks.push({category: 'Cognitive', name: 'Provider runtime construction', status: asker ? 'ok' : 'warn', message: asker ? 'Runtime constructed; cloud provider reachability has not been probed' : 'No provider configured'});
+  } catch (error) {
+    checks.push({category: 'Cognitive', name: 'Provider runtime construction', status: 'error', message: error instanceof Error ? error.message : String(error)});
+  }
+
   // 8. Model Radar & SOTA Benchmark Cache
   checks.push({
     category: 'Radar',
@@ -325,16 +338,18 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
       const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       if (parsed.mcpServers?.['ai-workflow']) installedHosts.push(name);
     } catch {
-      // Malformed host config is not proof that AIWF is registered there.
+      checks.push({category: 'MCP', name, status: 'error', message: `Cannot parse detected host configuration: ${configPath}`});
     }
   }
 
   const codexConfig = path.join(home, '.codex', 'config.toml');
   if (fs.existsSync(codexConfig)) {
     try {
-      if (fs.readFileSync(codexConfig, 'utf8').includes('[mcp_servers.aiwf-mcp]')) installedHosts.push('OpenAI Codex');
+      const raw = fs.readFileSync(codexConfig, 'utf8');
+      Bun.TOML.parse(raw);
+      if (raw.includes('[mcp_servers.aiwf-mcp]')) installedHosts.push('OpenAI Codex');
     } catch {
-      // Unreadable host config is reported as not detected.
+      checks.push({category: 'MCP', name: 'OpenAI Codex', status: 'error', message: `Cannot parse detected host configuration: ${codexConfig}`});
     }
   }
 

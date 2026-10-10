@@ -19,7 +19,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { WorkflowActor } from './actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { initProject, installGlobalBinary, configureMcp, setupTypeScript } from './setup.ts';
-import { loadConfig, saveConfig } from './config.ts';
+import { loadConfig, saveConfig, inspectConfig } from './config.ts';
 import { ProgressIndicator } from './terminal/progress.ts';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';
@@ -191,7 +191,8 @@ async function main() {
 
       if (isMcp) {
         const mcpRes = configureMcp();
-        console.log(`🔌 Configured MCP hosts: ${mcpRes.hostsUpdated.join(', ') || 'None'}`);
+        console.log(mcpRes.steps.map(step => `[${step.state}] ${step.id}: ${step.message}`).join('\n'));
+        if (mcpRes.steps.some(step => step.state === 'failed')) process.exitCode = 1;
         if (mcpRes.skillsSynced && mcpRes.skillsSynced.length > 0) {
           console.log(`🧠 Synchronized skills to: ${mcpRes.skillsSynced.join(', ')}`);
         }
@@ -915,13 +916,8 @@ async function main() {
     case 'config': {
       const action = args[1] || 'get';
       if (action === 'get') {
-        const cfg = loadConfig(root);
-        const key = args[2];
-        if (key) {
-          console.log(`${key} = ${(cfg as any)[key] ?? 'undefined'}`);
-        } else {
-          console.log(JSON.stringify(cfg, null, 2));
-        }
+        const rows = inspectConfig(root, args[2]);
+        console.log(rows.map(row => `${row.key} = ${JSON.stringify(row.value)} (${row.source})`).join('\n'));
       } else if (action === 'set') {
         const key = args[2];
         const val = args[3];

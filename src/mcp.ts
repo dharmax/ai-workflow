@@ -201,19 +201,9 @@ export function createMcpServer(options: McpServerOptions = {}) {
 /**
  * Generates lazy-loaded JSON tool schema definitions for MCP hosts (e.g. ~/.gemini/antigravity-cli/mcp/ai-workflow/).
  */
-export function exportMcpSchemas(targetDir: string): string[] {
-  fs.mkdirSync(targetDir, { recursive: true });
+export function buildMcpSchemas(): Record<string, string> {
   initializeTools();
-
-  // This directory is AIWF-owned. Remove obsolete schemas so a reduced public
-  // surface cannot leave stale internal tools advertised by previous setups.
-  for (const entry of fs.readdirSync(targetDir)) {
-    if (entry.endsWith('.json')) {
-      try { fs.unlinkSync(path.join(targetDir, entry)); } catch {}
-    }
-  }
-
-  const exportedFiles: string[] = [];
+  const schemas: Record<string, string> = {};
 
   // 1. Wish tool
   const wishSchema = {
@@ -237,9 +227,7 @@ export function exportMcpSchemas(targetDir: string): string[] {
       additionalProperties: false
     })
   };
-  const wishPath = path.join(targetDir, 'execute_shell_wish.json');
-  fs.writeFileSync(wishPath, JSON.stringify(wishSchema, null, 2), 'utf8');
-  exportedFiles.push('execute_shell_wish.json');
+  schemas['execute_shell_wish.json'] = JSON.stringify(wishSchema, null, 2);
 
   // 2. All domain tools
   for (const t of getPublicMcpTools(registry)) {
@@ -260,12 +248,10 @@ export function exportMcpSchemas(targetDir: string): string[] {
       description: `[${t.category.toUpperCase()}]: ${t.description}`,
       parameters: withProjectRoot(parameters)
     };
-    const toolFilePath = path.join(targetDir, `${t.name}.json`);
-    fs.writeFileSync(toolFilePath, JSON.stringify(toolJson, null, 2), 'utf8');
-    exportedFiles.push(`${t.name}.json`);
+    schemas[`${t.name}.json`] = JSON.stringify(toolJson, null, 2);
   }
 
-  return exportedFiles;
+  return schemas;
 }
 
 // Standalone execution entrypoint
@@ -273,4 +259,17 @@ if (import.meta.main) {
   const { server } = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+export function exportMcpSchemas(targetDir: string): string[] {
+  const schemas = buildMcpSchemas();
+  fs.mkdirSync(targetDir, {recursive: true});
+  for (const name of fs.readdirSync(targetDir)) {
+    if (name.endsWith('.json') && !Object.hasOwn(schemas, name)) fs.unlinkSync(path.join(targetDir, name));
+  }
+  for (const [name, content] of Object.entries(schemas)) {
+    const filePath = path.join(targetDir, name);
+    if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf8') !== content) fs.writeFileSync(filePath, content, 'utf8');
+  }
+  return Object.keys(schemas);
 }

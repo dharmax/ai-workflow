@@ -47,13 +47,10 @@ export function modelRuntime(projectRoot: string): ModelRuntime {
 
 export function createDefaultAsker(projectRoot: string = process.cwd()): Asker | undefined {
   const {config, providers} = modelRuntime(projectRoot)
+  if (!Object.keys(providers).length) return undefined
   try {
-    return new Asker({
-      providers,
-      routes: config.modelRoutes,
-      defaultModel: config.model,
-    })
-  } catch {
-    return undefined
+    return new Asker({providers, routes: config.modelRoutes, defaultModel: config.model})
+  } catch (error) {
+    throw new Error('Provider runtime construction failed; check model/provider configuration.', {cause: error})
   }
 }
