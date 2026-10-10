@@ -28,6 +28,7 @@ export function modelRuntime(projectRoot: string): ModelRuntime {
   if ((gateway === 'auto' || gateway === 'openrouter') && openrouterApiKey) {
     providers.openrouter = {
       id: 'openrouter',
+      local: false,
       apiKey: openrouterApiKey,
       baseUrl: 'https://openrouter.ai/api/v1',
       available: true,
@@ -37,9 +38,9 @@ export function modelRuntime(projectRoot: string): ModelRuntime {
   }
 
   if (gateway === 'auto' || gateway === 'direct') {
-    if (credentials.openaiApiKey) providers.openai = {id: 'openai', apiKey: credentials.openaiApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.openai}
-    if (credentials.anthropicApiKey) providers.anthropic = {id: 'anthropic', apiKey: credentials.anthropicApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.anthropic}
-    if (credentials.geminiApiKey) providers.google = {id: 'google', apiKey: credentials.geminiApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.google}
+    if (credentials.openaiApiKey) providers.openai = {id: 'openai', local: false, apiKey: credentials.openaiApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.openai}
+    if (credentials.anthropicApiKey) providers.anthropic = {id: 'anthropic', local: false, apiKey: credentials.anthropicApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.anthropic}
+    if (credentials.geminiApiKey) providers.google = {id: 'google', local: false, apiKey: credentials.geminiApiKey, available: true, maxTokens: config.llmOutputTokens, providerOptions: config.providerOptions?.google}
   }
 
   return {config, providers}

@@ -44,9 +44,30 @@ describe('Ticket-owned bounded resolution', () => {
     expect(result.value).toMatchObject({ verification: true, resolved: ['T'], repairs: 0 }); expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b');
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null });
     expect(await store.getEntity('VERIFY-T')).not.toBeNull(); expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].verification).toBe(true);
+    expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].resolution?.outcome).toBe('implemented');
     const rerun = await t.resolve(store, { ...fix, implement: async () => { throw Error('must reuse verified work'); } }); expect(rerun.status).toBe('complete');
     expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[1].counters.artifactsReused).toBe(1);
+    expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[1].resolution?.outcome).toBe('proof_reused');
   }, 30000);
+
+  for (const stage of ['implementation', 'verification'] as const) it(`records a blocker at the actual ${stage} stage`, async () => {
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, maxRepairs: 0, implement: async () => {
+      if (stage === 'implementation') throw Error('Fixture implementation failure');
+      return {changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]};
+    }});
+    expect(result.status).toBe('blocked');
+    expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'T'}).rows[0].resolution).toEqual({stage, outcome: `blocked_${stage}`});
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+  });
+  it('distinguishes newly verified unchanged source from reused proof', async () => {
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
+    git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'correct source');
+    const t = await ticket();
+    const result = await t.resolve(store, {...fix, implement: async () => ({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})});
+    expect(result.status).toBe('complete');
+    expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'T'}).rows[0].resolution?.outcome).toBe('verified_no_change');
+  });
 
   const graphOracle = async (target: FileNode | SymbolNode, file = 'tests/contract.spec.ts') => {
     fs.writeFileSync(path.join(root, file), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("signed addition contract",()=>{expect(add(2,3)).toBe(5); expect(add(-2,3)).toBe(1)});');
@@ -336,6 +357,7 @@ describe('Ticket-owned bounded resolution', () => {
     const u = await ticket('U', 'Verify a new unsupported outcome'); await store.upsertEntity(Ticket.dcr, { id: 'U', acceptanceCriteria: ['Unproved outcome'] });
     const unverified = await u.resolve(store, { ...fix, maxRepairs: 0, allowDirtyTargets: ['src/add.ts'], implement: async () => ({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }), verify: async () => ({ criteria: [], aspects: [] }) });
     expect(unverified.status).toBe('blocked'); expect((await store.getEntity<Ticket>('U', Ticket.dcr))!.lane).not.toBe('Done');
+    expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'U'}).rows[0].resolution).toEqual({stage: 'acceptance', outcome: 'blocked_acceptance'});
   }, 30000);
 
   it('resolves bounded ordinary children in dependency order and verifies the parent separately', async () => {
@@ -362,6 +384,7 @@ describe('Ticket-owned bounded resolution', () => {
     expect(required.status).toBe('needs_input'); expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
     const other = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'OTHER', title: 'Prerequisite', body: 'Define rounding', acceptanceCriteria: ['Rounding defined'], lane: 'Todo' }); await store.relate(t, 'depends_on', other);
     const dependency = await t.resolve(store, fix); expect(dependency.status).toBe('blocked'); if (dependency.status === 'blocked') expect(dependency.blockers[0].reason).toContain('Unresolved prerequisite');
+    expect(queryPerformance(root, {operation: 'resolve_ticket'}).rows.at(-1)?.resolution).toEqual({stage: 'preparation', outcome: 'blocked_preparation'});
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
     await store.unrelate(t.id, 'depends_on', other.id); await store.claimTicket('T', 'other-agent', 30, false);
     expect((await t.resolve(store, { ...fix, agentId: 'resolver' })).status).toBe('blocked'); expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim!.agentId).toBe('other-agent');

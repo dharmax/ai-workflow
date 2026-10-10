@@ -17,7 +17,7 @@ import type { WorkflowStore } from './store.ts';
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts';
 
 import type { InvestigationOptions, TicketDossier, OperationResult, PreparationOptions, PreparedTicket, ResolutionOptions, ResolvedTicket, ResolutionVerificationInput } from '../ticket-operation-types.ts';
-import { withArtifactMetrics, cognitionMetrics, countEngineering, visitMetricArtifact, recordMetricCompleteness } from '../performance-metrics.ts';
+import { withArtifactMetrics, cognitionMetrics, countEngineering, visitMetricArtifact, recordMetricCompleteness, recordResolutionStage } from '../performance-metrics.ts';
 import type { ProcessOptions, ProcessedIntent, IntentContext } from '../product/process-types.ts';
 
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) };
@@ -723,6 +723,7 @@ export class Ticket extends WorkflowEntity {
   async resolve(store: WorkflowStore, options: ResolutionOptions = {}): Promise<OperationResult<ResolvedTicket>> {
     options.signal?.throwIfAborted();
     return withArtifactMetrics(store.root, 'resolve_ticket', store.localId(this.id), { ...options, depth: options.depth ?? 'all' }, async () => {
+      recordResolutionStage('preparation');
       const { ResolutionProposalSchema, ExactImplementationSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature } = await import('../ticket-operation-types.ts');
       const { ArtifactBudget } = await import('../artifact-policy.ts');
       const { CausalChangeEngine } = await import('../change/engine.ts');
@@ -734,7 +735,7 @@ export class Ticket extends WorkflowEntity {
       const { initializeTools, registry } = await import('../tools/index.ts');
       const { buildSynthesisContext, HostSourceSynthesizer } = await import('../synthesis/index.ts');
       const { z } = await import('zod');
-      const { LLMActor } = await import('@dharmax/llm-utils');
+      const { LLMActor, ToolExecutionError } = await import('@dharmax/llm-utils');
       const fs = await import('node:fs'), path = await import('node:path');
       const crypto = await import('node:crypto');
       const { ensureAstFresh } = await import('./indexer.ts');
@@ -744,7 +745,7 @@ export class Ticket extends WorkflowEntity {
       const cfg = loadConfig(store.root), agentId = options.agentId ?? cfg.defaultAgentId, rootId = store.localId(this.id);
       const acquired = new Set<string>(), ownedFiles = new Set<string>(), allFiles = new Set<string>(), resolved: string[] = [];
       const ownedHashes = new Map<string, string>();
-      let executingTicket: Ticket = this, successfulChanges = 0;
+      let executingTicket: Ticket = this, successfulChanges = 0, reusedProofs = 0;
       let anchorMigrations: import('../change/types.ts').ChangeApplyResult['migratedAnchors'] = [];
       const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
       const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
@@ -775,7 +776,7 @@ export class Ticket extends WorkflowEntity {
         const leaseError = await lease(executingTicket); if (leaseError) throw new Error(leaseError);
         if (request.action === 'product_change') throw new Error('Implementation cannot mutate Product/Ticket semantics through code tools.');
         const engine = new CausalChangeEngine(ctx), preview = await engine.previewChange(request);
-        if (preview.blocked) throw new Error(preview.blockReason ?? 'Change preview blocked.');
+        if (preview.blocked) throw new ToolExecutionError(preview.blockReason ?? 'Change preview blocked.', undefined, 'safety_preview');
         const conflict = guardFiles(preview.affectedFiles); if (conflict) throw new Error(`Dirty target requires input: ${conflict}`);
         await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id: store.localId(executingTicket.id), fields: { lane: 'In Progress' } }]);
         const result = await engine.applyChange(request, fingerprint ?? preview.fingerprint);
@@ -844,7 +845,7 @@ export class Ticket extends WorkflowEntity {
               acceptance = AcceptanceVerificationSchema.parse(proof.acceptance);
               acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id));
               for (const file of Object.keys(proof.hashes)) allFiles.add(file);
-              resolved.push(id); countEngineering('artifactsReused'); continue;
+              resolved.push(id); reusedProofs++; countEngineering('artifactsReused'); continue;
             }
           }
           if (ticket.lane === 'Done') await applyProductMutations(store, [{ kind: 'product_update', entityType: 'Ticket', id, fields: { lane: 'In Progress' } }]);
@@ -878,13 +879,14 @@ export class Ticket extends WorkflowEntity {
               throw new Error(`Acceptance verification context exceeds 80000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`);
             }
             countEngineering('sourceReads', verificationContext.files.reduce((count, file) => count + file.snippets.length, 0)); countEngineering('reasoningCalls');
-            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. code contains graph-derived current file outlines and relevant source/test snippets AFTER implementation; tests/testNodes contain compact successful execution evidence. Use those, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete snippet/assertion/result for each claim. Do not accept a producer's completion statement. Context: ${serializedContext}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics() });
+            const response = await asker.json(`Independently verify EVERY required Ticket acceptance criterion and EVERY material applicable Aspect. Copy each exact authored criterion string verbatim into its criterion field, and each exact Aspect ID into its id field; never paraphrase identifiers. Requirements are not evidence. code contains graph-derived current file outlines and relevant source/test snippets AFTER implementation; tests/testNodes contain compact successful execution evidence. Use those, not original investigation snapshots. If proof is absent mark passed=false. Cite the concrete snippet/assertion/result for each claim. Do not accept a producer's completion statement. Context: ${serializedContext}`, AcceptanceVerificationSchema, { model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model, temperature: 0, timeoutMs: 60000, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics({phase: 'acceptance_verification'}) });
             if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`); return AcceptanceVerificationSchema.parse(response.data);
           });
           let feedback: string[] = [], actorTranches = 0;
           for (let attempt = 0; attempt <= maxRepairs; attempt++) {
             options.signal?.throwIfAborted();
             if (attempt) { repairs++; countEngineering('repairs'); }
+            recordResolutionStage('implementation');
             const current = attempt ? await ticket.investigate(store, options) : null;
             if (current && current.status !== 'complete') return current;
             const implementationDossier = current?.status === 'complete' ? current.value : dossier;
@@ -909,7 +911,7 @@ export class Ticket extends WorkflowEntity {
                     timeoutMs: 60000,
                     signal: options.signal,
                     feedback: findings.map(f => ({ stage: 'project_compatibility' as const, message: f })),
-                    ...cognitionMetrics()
+                    ...cognitionMetrics({phase: attempt ? 'repair' : 'synthesis'})
                   });
                   const target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
                   return { changes: [{ action: 'replace_symbol' as const, target, replacement: candidate.source }], testCommands: proposedTests };
@@ -939,16 +941,16 @@ export class Ticket extends WorkflowEntity {
                       const key = canonical([name, params, successfulChanges]);
                       if (observations.has(key)) {
                         if (++duplicateAttempts >= 2) controller.abort();
-                        throw new Error('Stalled navigation: this identical observation already ran in the current workspace mutation epoch. Replan using existing evidence, a different observation, or a concrete change; two consecutive duplicate attempts terminate this tranche.');
+                        throw new ToolExecutionError('Stalled navigation: this identical observation already ran in the current workspace mutation epoch. Replan using existing evidence, a different observation, or a concrete change; two consecutive duplicate attempts terminate this tranche.', undefined, 'stalled');
                       }
                       observations.add(key);
                       duplicateAttempts = 0;
                       if (name === 'get_symbol_source') { countEngineering('sourceReads'); countEngineering('exactSymbolReads'); }
                       if (name === 'read_workspace_file') countEngineering('sourceReads');
                       const result = await registry.execute(name, params, ctx);
-                      if (name === 'find_symbol' && Array.isArray(result) && result.length === 0) throw new Error('No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.');
-                      if (name === 'get_symbol_source' && result.code === null) throw new Error(`Symbol '${result.symbolName}' was not found in '${result.filePath}'. Use get_file_outline for actual declaration names or read_workspace_file for existing file contents.`);
-                      if (name === 'preview_change' && result.blocked) throw new Error(`Change preview blocked: ${result.summary}. For replace_text, oldText must be literal text already present exactly once. To insert missing text, replace an existing anchor with that anchor plus the addition.`);
+                      if (name === 'find_symbol' && Array.isArray(result) && result.length === 0) throw new ToolExecutionError('No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.', undefined, 'not_found');
+                      if (name === 'get_symbol_source' && result.code === null) throw new ToolExecutionError(`Symbol '${result.symbolName}' was not found in '${result.filePath}'. Use get_file_outline for actual declaration names or read_workspace_file for existing file contents.`, undefined, 'not_found');
+                      if (name === 'preview_change' && result.blocked) throw new ToolExecutionError(`Change preview blocked: ${result.summary}. For replace_text, oldText must be literal text already present exactly once. To insert missing text, replace an existing anchor with that anchor plus the addition.`, undefined, 'safety_preview');
                       if (name === 'preview_change') return {
                         applied: false, summary: result.summary, blocked: result.blocked,
                         warnings: result.warnings, affectedFiles: result.affectedFiles,
@@ -957,7 +959,7 @@ export class Ticket extends WorkflowEntity {
                       return result;
                     } });
                   }
-                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics(), signal: trancheSignal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
+                  const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(currentDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics({phase: attempt ? 'repair' : 'implementation_actor'}), signal: trancheSignal, askOptions: { model, timeoutMs: 60000, maxTokens: cfg.llmOutputTokens } });
                   if (options.signal?.aborted) options.signal.throwIfAborted();
                   if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps).`);
                   if (output.ok) return ResolutionProposalSchema.parse(JSON.parse(output.finalText));
@@ -991,6 +993,7 @@ export class Ticket extends WorkflowEntity {
               if (changeBlocked) continue;
               if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands;
             }
+            recordResolutionStage('verification');
             await ensureAstFresh(store, store.root);
             const graphTests = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), [...scopeFiles, ...allFiles]);
             // Graph obligations cannot be replaced by a producer's suggested passing test.
@@ -1045,6 +1048,7 @@ export class Ticket extends WorkflowEntity {
             const testNodes = await currentTestEvidence(store, [...executedNodes]);
             if (!testNodes.length || testNodes.some(test => !test.passed) || graphTests.tests.some(required => !testNodes.some(test => test.id === store.localId(required.id)))) { feedback = ['No current passing TestNode execution proves this verification scope.']; continue; }
             const verificationHashes = hashFiles(store.root, [...allFiles, ...scopeFiles, ...testNodes.flatMap(test => Object.keys(test.hashes))]);
+            recordResolutionStage('acceptance');
             acceptance = AcceptanceVerificationSchema.parse(await verify({ dossier: implementationDossier, files: [...allFiles], tests: currentTests, testNodes, children }));
             if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes)))) { feedback = ['Source or test changed during independent acceptance verification.']; continue; }
             acceptance.criteria = acceptance.criteria.filter(check => dossier.ticket.acceptanceCriteria.includes(check.criterion));
@@ -1063,6 +1067,7 @@ export class Ticket extends WorkflowEntity {
           }
           if (!resolved.includes(id)) return blocked(`Bounded repair exhausted for '${id}': ${feedback.join('\n')}`);
         }
+        recordResolutionStage('acceptance', successfulChanges > 0 ? 'implemented' : reusedProofs === resolved.length ? 'proof_reused' : 'verified_no_change');
         return { status: 'complete', artifactId: rootId, value: { verification: true, resolved, files: [...allFiles], repairs, acceptance } };
       } catch (error) {
         const message = String(error);

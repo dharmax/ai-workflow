@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import fs from 'node:fs';
 import path from 'node:path';
-import { InMemoryMetricsStore, LlmMetrics, LLM_UTILS_VERSION, childMetricsContext, type MetricsContext, type MetricsSink } from '@dharmax/llm-utils';
+import { InMemoryMetricsStore, LlmMetrics, LLM_UTILS_VERSION, childMetricsContext, type MetricsContext, type MetricsSink, type ExecutionUsage } from '@dharmax/llm-utils';
 import packageJson from '../package.json' with { type: 'json' };
 
 declare const AIWF_BUILD_REVISION: string;
@@ -12,6 +12,7 @@ import { loadConfig } from './config.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
 export type EngineeringCounter = 'artifactVisits' | 'artifactsCreated' | 'artifactsReused' | 'toolCalls' | 'sourceReads' | 'exactSymbolReads' | 'codeEdits' | 'filesTouched' | 'testsRun' | 'testFailures' | 'repairs' | 'criticRounds' | 'criticRevisions' | 'systemOneCalls' | 'reasoningCalls' | 'optionalCandidates' | 'optionalSelected' | 'humanInterventions';
+export type ResolutionStage = 'preparation' | 'implementation' | 'verification' | 'acceptance'
 export interface OperationSummary {
   traceId: string; spanId?: string; parentSpanId?: string; operation: string; artifactId: string;
   startedAt: string; durationMs: number; outcome: string;
@@ -22,6 +23,7 @@ export interface OperationSummary {
   counters: Partial<Record<EngineeringCounter, number>>;
   cognition: {
     llm: ReturnType<LlmMetrics['totals']>; costAvailable: boolean; structuredRepairs: number; models: string[];
+    byModel?: ReturnType<LlmMetrics['byModel']>;
     modelConfigs: Array<{
       providerId: string
       modelId: string
@@ -31,16 +33,17 @@ export interface OperationSummary {
       providerOptionKeys?: string[]
       providerOptionsHash?: string
     }>;
-    phases: Record<string, { calls: number; totalTokens: number; latencyMs: number }>;
+    phases: Record<string, ReturnType<LlmMetrics['totals']>>;
     systemOne: { calls: number; latencyMs: number; unavailable: number; backends: string[] };
-    actor: { runs: number; steps: number; toolCalls: number; toolFailures: number; missingToolRecoveries: number };
+    actor: { runs: number; steps: number; toolCalls: number; toolFailures: number; toolFailureCategories?: Record<string, number>; missingToolRecoveries: number };
     termination: { llmFailureKinds: Record<string, number>; finishReasons: Record<string, number>; actorHaltReasons: Record<string, number> };
   };
+  resolution?: { stage: ResolutionStage; outcome: string };
   verification?: boolean;
   acceptance?: { criteriaPassed: number; criteriaTotal: number; aspectsPassed: number; aspectsTotal: number };
   completenessContext?: TicketCompletenessContext;
 }
-interface MetricScope { root: string; context: MetricsContext; sink: MetricsSink; store: InMemoryMetricsStore; counters: OperationSummary['counters']; visited: Set<string>; completenessContext?: TicketCompletenessContext; parent?: MetricScope }
+interface MetricScope { root: string; context: MetricsContext; sink: MetricsSink; store: InMemoryMetricsStore; counters: OperationSummary['counters']; visited: Set<string>; completenessContext?: TicketCompletenessContext; resolution?: OperationSummary['resolution']; parent?: MetricScope }
 const active = new AsyncLocalStorage<MetricScope>();
 
 function aiwfBuildEvidence(): {revision: string; dirty: boolean} {
@@ -75,11 +78,18 @@ function countValues(values: Array<string | undefined>): Record<string, number> 
 export function cognitionMetrics(tags?: Record<string, string | number | boolean>): { metrics?: MetricsContext; metricsSink?: MetricsSink } {
   const scope = active.getStore();
   if (!scope) return {};
-  if (!tags || !Object.keys(tags).length) return { metrics: scope.context, metricsSink: scope.sink };
+  const phase = scope.context.taskClass === 'investigate_ticket' ? 'investigation' : scope.context.taskClass === 'prepare_ticket' ? 'preparation' : undefined;
+  tags = {...(phase ? {phase} : {}), ...tags};
+  if (!Object.keys(tags).length) return { metrics: scope.context, metricsSink: scope.sink };
   const metrics = childMetricsContext(scope.context);
   metrics.tags = { ...scope.context.tags, ...tags };
   return { metrics, metricsSink: scope.sink };
 }
+export function recordResolutionStage(stage: ResolutionStage, outcome = ''): void {
+  const scope = active.getStore();
+  if (scope) scope.resolution = {stage, outcome};
+}
+
 export function countEngineering(name: EngineeringCounter, amount = 1): void {
   for (let scope = active.getStore(); scope; scope = scope.parent) scope.counters[name] = (scope.counters[name] ?? 0) + amount;
 }
@@ -150,21 +160,18 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
             ...(providerOptionsHash ? {providerOptionsHash} : {})
           }] as const;
         })).values()];
-        const phases = llmEvents.reduce<Record<string, { calls: number; totalTokens: number; latencyMs: number }>>((all, event) => {
-          const phase = typeof event.tags?.phase === 'string' ? event.tags.phase : undefined;
-          if (!phase) return all;
-          const row = all[phase] ?? { calls: 0, totalTokens: 0, latencyMs: 0 };
-          row.calls += 1; row.totalTokens += event.totalTokens; row.latencyMs += event.latencyMs; all[phase] = row;
-          return all;
-        }, {});
+        const phases = Object.fromEntries([...new Set(llmEvents.map(event => event.tags?.phase).filter((phase): phase is string => typeof phase === 'string'))].map(phase => [phase,
+          new LlmMetrics(new InMemoryMetricsStore({initialEvents: llmEvents.filter(event => event.tags?.phase === phase)})).totals()
+        ]));
         const summary: OperationSummary = { ...context, operation, artifactId, startedAt, durationMs: performance.now() - start, outcome,
           policy: { completeness: options.completeness, depth: options.depth ?? 1, maxArtifacts: options.maxArtifacts ?? cfg.maxArtifacts, critic: typeof options.critic === 'object' ? options.critic.id : options.critic ?? 'auto' },
           tags: context.tags ?? {}, version: packageJson.version, aiwfRevision: engineBefore.revision, aiwfDirty: engineBefore.dirty, llmUtilsVersion: LLM_UTILS_VERSION, llmUtilsRevision: llmUtilsBefore.revision, llmUtilsDirty: llmUtilsBefore.dirty,
           project: { revisionBefore: projectBefore.revision, revisionAfter: projectAfter.revision, branch: projectBefore.branch, dirtyBefore: projectBefore.dirty, dirtyAfter: projectAfter.dirty },
           runtime: { bun: Bun.version, platform: process.platform },
-          counters: scope.counters, verification, acceptance, completenessContext: scope.completenessContext,
+          counters: scope.counters, verification, acceptance,
+          ...(scope.resolution ? {resolution: {...scope.resolution, outcome: scope.resolution.outcome || `${outcome}_${scope.resolution.stage}`}} : {}), completenessContext: scope.completenessContext,
           cognition: {
-            llm: llm.totals(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => event.costUsd !== undefined), structuredRepairs: llmEvents.filter(event => (event.attempt ?? 1) > 1).length, models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
+            llm: llm.totals(), byModel: llm.byModel(), costAvailable: llmEvents.length > 0 && llmEvents.every(event => typeof event.costUsd === 'number' && Number.isFinite(event.costUsd) && event.costUsd >= 0), structuredRepairs: llmEvents.filter(event => (event.attempt ?? 1) > 1).length, models: [...new Set(llm.list().map(event => `${event.providerId}/${event.modelId}`))],
             modelConfigs,
             phases,
             systemOne: { calls: systemOne.length, latencyMs: systemOne.reduce((sum, event) => sum + event.latencyMs, 0), unavailable: systemOne.filter(event => !event.available).length, backends: [...new Set(systemOne.map(event => `${event.backendId}/${event.quality}`))] },
@@ -173,6 +180,11 @@ export async function withArtifactMetrics<T>(root: string, operation: string, ar
               steps: actors.reduce((sum, event) => sum + event.steps, 0),
               toolCalls: actors.reduce((sum, event) => sum + event.toolCalls, 0),
               toolFailures: actors.reduce((sum, event) => sum + event.toolFailures, 0),
+              toolFailureCategories: actors.reduce<Record<string, number>>((counts, event) => {
+                const categories = event.toolFailureCategories ?? {unclassified: event.toolFailures};
+                for (const [category, count] of Object.entries(categories)) counts[category] = (counts[category] ?? 0) + count;
+                return counts;
+              }, {}),
               missingToolRecoveries: actors.reduce((sum, event) => sum + event.missingToolRecoveries, 0)
             },
             termination: {
@@ -207,6 +219,21 @@ export function performanceQueryArgs(args: string[]): PerformanceQuery {
   }
   return query;
 }
+function sumUsage(usage: ExecutionUsage[]): ExecutionUsage {
+  return usage.reduce((sum, row) => ({calls: sum.calls + row.calls, promptTokens: sum.promptTokens + row.promptTokens,
+    completionTokens: sum.completionTokens + row.completionTokens, totalTokens: sum.totalTokens + row.totalTokens,
+    totalLatencyMs: sum.totalLatencyMs + row.totalLatencyMs, knownCostUsd: sum.knownCostUsd + row.knownCostUsd,
+    costKnownCalls: sum.costKnownCalls + row.costKnownCalls, unknownCostTokens: sum.unknownCostTokens + row.unknownCostTokens}),
+    {calls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, totalLatencyMs: 0, knownCostUsd: 0, costKnownCalls: 0, unknownCostTokens: 0});
+}
+
+function legacyUsage(row: OperationSummary): ExecutionUsage {
+  const llm = row.cognition.llm;
+  return {calls: llm.calls, promptTokens: llm.promptTokens, completionTokens: llm.completionTokens, totalTokens: llm.totalTokens,
+    totalLatencyMs: llm.totalLatencyMs, knownCostUsd: row.cognition.costAvailable ? llm.totalCostUsd ?? 0 : 0,
+    costKnownCalls: row.cognition.costAvailable ? llm.calls : 0, unknownCostTokens: row.cognition.costAvailable ? 0 : llm.totalTokens};
+}
+
 export function queryPerformance(root: string, query: PerformanceQuery = {}) {
   const file = path.join(root, '.ai-workflow/metrics.jsonl');
   const since = query.since && /^\d+d$/.test(query.since) ? Date.now() - Number(query.since.slice(0, -1)) * 86400000 : query.since ? Date.parse(query.since) : undefined;
@@ -230,14 +257,41 @@ export function queryPerformance(root: string, query: PerformanceQuery = {}) {
     for (const [key, value] of Object.entries(select(row))) all[key] = (all[key] ?? 0) + value;
     return all;
   }, {});
+  const execution = Object.fromEntries((['local', 'remote', 'unknown'] as const).map(locality => [locality, sumUsage(rows.map(row => {
+    if (row.cognition.llm.execution) return row.cognition.llm.execution[locality];
+    if (locality !== 'unknown') return sumUsage([]);
+    return legacyUsage(row);
+  }))])) as Record<'local' | 'remote' | 'unknown', ExecutionUsage>;
+  const models = new Map<string, {providerId: string; modelId: string; usage: ExecutionUsage[]}>();
+  const phases = new Map<string, ExecutionUsage[]>();
+  for (const row of rows) {
+    const measuredModels = row.cognition.byModel?.map(model => ({providerId: model.providerId, modelId: model.modelId, usage: sumUsage(Object.values(model.metrics.execution))}));
+    const soleModel = row.cognition.models.length === 1 ? row.cognition.models[0].split('/') : [];
+    const attributable = measuredModels ?? (soleModel.length > 1 ? [{providerId: soleModel[0], modelId: soleModel.slice(1).join('/'), usage: legacyUsage(row)}] : []);
+    for (const model of attributable) {
+      const key = `${model.providerId}/${model.modelId}`, group = models.get(key) ?? {providerId: model.providerId, modelId: model.modelId, usage: []};
+      group.usage.push(model.usage); models.set(key, group);
+    }
+    for (const [phase, usage] of Object.entries(row.cognition.phases ?? {})) if (usage.execution) {
+      const group = phases.get(phase) ?? []; group.push(sumUsage(Object.values(usage.execution))); phases.set(phase, group);
+    }
+  }
   return {
+    execution,
+    byPhase: Object.fromEntries([...phases].map(([phase, usage]) => [phase, sumUsage(usage)])),
+    byModel: [...models.values()].map(({providerId, modelId, usage}) => ({providerId, modelId, ...sumUsage(usage)})),
+    legacyUnattributedModelTokens: rows.filter(row => !row.cognition.byModel && row.cognition.models.length !== 1).reduce((sum, row) => sum + row.cognition.llm.totalTokens, 0),
+    knownRemoteCostUsd: execution.remote.costKnownCalls ? execution.remote.knownCostUsd : null,
+    unknownPriceRemoteTokens: execution.remote.unknownCostTokens,
+    resolutionOutcomes: rows.reduce<Record<string, number>>((counts, row) => { if (row.resolution) counts[row.resolution.outcome] = (counts[row.resolution.outcome] ?? 0) + 1; return counts; }, {}),
+    toolFailureCategories: mergeCounts(row => row.cognition.actor.toolFailureCategories ?? {unclassified: row.cognition.actor.toolFailures}),
     runs: rows.length, medianMs: percentile(0.5), p95Ms: percentile(0.95),
     outcomes: rows.reduce<Record<string, number>>((counts, row) => { counts[row.outcome] = (counts[row.outcome] ?? 0) + 1; return counts; }, {}),
     totalTokens: rows.reduce((total, row) => total + row.cognition.llm.totalTokens, 0),
     totalCostUsd: rows.length > 0 && rows.every(row => row.cognition.costAvailable)
-      ? rows.reduce((total, row) => total + row.cognition.llm.totalCostUsd, 0)
+      ? rows.reduce((total, row) => total + (row.cognition.llm.totalCostUsd ?? 0), 0)
       : null,
-    knownCostUsd: rows.filter(row => row.cognition.costAvailable).reduce((total, row) => total + row.cognition.llm.totalCostUsd, 0),
+    knownCostUsd: rows.some(row => row.cognition.llm.costKnownCalls || row.cognition.costAvailable) ? rows.reduce((total, row) => total + (row.cognition.llm.knownCostUsd ?? (row.cognition.costAvailable ? row.cognition.llm.totalCostUsd ?? 0 : 0)), 0) : null,
     costAvailableRuns: rows.filter(row => row.cognition.costAvailable).length,
     structuredRepairs: rows.reduce((total, row) => total + row.cognition.structuredRepairs, 0),
     repairs: sum('repairs'), criticRounds: sum('criticRounds'), criticRevisions: sum('criticRevisions'),

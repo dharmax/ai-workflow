@@ -224,3 +224,11 @@ Setup reports each step as satisfied, needed, changed, skipped or failed. `--che
 Launch `aiwf` or `aiwf shell` for the interactive shell. `claim`, `release`, `move`, entity inspection and artifact operations can facilitate missing identifiers using bounded graph choices. `config set` can facilitate a missing setting/value. Config/model/entity inspection uses shell-ui views when available. Interactive setup reviews needed changes before application; cancellation changes nothing. `setup --check` remains noninteractive even inside the shell.
 
 Plain shell sessions and ordinary CLI calls never prompt. Claim accepts both `--agent`/`--minutes` and the shell's positional agent/minutes syntax. The configured default agent and lease duration apply consistently. Complete commands skip elicitation. Model/provider inspection describes configuration, not proven reachability; doctor separately probes local Ollama and reports construction failures.
+
+## 14. Execution economics and resolution diagnostics
+
+`aiwf metrics --since 7d` reports recorded input/output/total tokens and latency separately for local, remote and unclassified historical execution. `byModel` retains attributable provider/model calls and usage; `byPhase` groups measured investigation, preparation, synthesis, implementation Actor, review, acceptance and repair calls. Remote execution does not imply payment.
+
+`totalCostUsd: null` means the recorded calls are not all priced. `knownRemoteCostUsd: null` means no remote call has a known cost; `unknownPriceRemoteTokens` reports remote tokens without known pricing. An explicitly reported or configured zero price remains zero. Provider configuration's `local` fact is preserved; old events without that fact stay unclassified. A legacy run with only one recorded model retains attributable model totals; mixed-model legacy totals cannot be apportioned retrospectively.
+
+Resolution summaries retain the ordinary complete/blocked/needs-input status plus a stage/outcome: preparation, implementation, verification or acceptance; implemented, proof reused or newly verified with no change. Actor failures distinguish malformed parameters, not-found observations, safety previews, unavailable tools, cancellation, stalled navigation and execution failures. Persisted summaries contain counts and categories rather than arguments, prompts or source.
