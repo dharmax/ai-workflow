@@ -1,10 +1,9 @@
 /**
  * Responsibility: Build bounded, provenance-bearing SynthesisContext from Ticket intent,
- * graph evidence, Aspects, Decisions, and exact TypeScript/LSP facts.
+ * authoritative investigated TicketDossier evidence, Aspects, and Decisions.
  * Scope: Host-owned context construction for J3.4.
  */
 
-import type { WorkflowStore } from '../graph/store.ts';
 import type { TicketDossier } from '../ticket-operation-types.ts';
 import type {
   SynthesisContext,
@@ -14,10 +13,8 @@ import type {
 } from './types.ts';
 
 export interface BuildSynthesisContextOptions {
-  store: WorkflowStore;
   dossier: TicketDossier;
   target?: SynthesisTarget;
-  projectRoot?: string;
 }
 
 /**
@@ -34,9 +31,10 @@ export function buildSynthesisContext(options: BuildSynthesisContextOptions): Sy
     target = explicitTarget;
   } else {
     // Locate exact target from dossier evidence
-    const exactEvidence = dossier.evidence.find(
-      (e: any) => e.exact && e.filePath && e.symbolName && e.source
+    const exactTargets = dossier.evidence.filter(
+      e => e.exact && e.mandatory && e.filePath && e.symbolName && e.source
     );
+    const exactEvidence = exactTargets.length === 1 ? exactTargets[0] : undefined;
 
     if (exactEvidence) {
       target = {
@@ -47,12 +45,7 @@ export function buildSynthesisContext(options: BuildSynthesisContextOptions): Sy
         existingSource: exactEvidence.source!
       };
     } else {
-      // Find mandatory file or fallback
-      const primaryFile = dossier.evidence.find((e: any) => e.filePath)?.filePath ?? 'src/index.ts';
-      target = {
-        kind: 'new_source',
-        filePath: primaryFile
-      };
+      throw new Error('Source synthesis blocked: no exact synthesis target in the Ticket dossier.');
     }
   }
 

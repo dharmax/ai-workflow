@@ -6,12 +6,13 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } from '../src/graph/ontology.ts';
 import { saveConfig } from '../src/config.ts';
-import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence } from '../src/graph/test-artifacts.ts';
+import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence, verifyingTestsForTargets } from '../src/graph/test-artifacts.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
 import type { ResolutionVerificationInput, ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';
+import { buildVerificationContext } from '../src/verification-context.ts';
 import { registry } from '../src/tools/registry.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 
@@ -377,13 +378,57 @@ describe('Ticket-owned bounded resolution', () => {
     expect((await engine.previewChange({ ...request, filePath: 'outside/escape.ts' })).blocked).toBe(true);
   }, 30000);
 
+  it('reviews the complete authored checkout test while retaining broader regression executions', async () => {
+    const t = await ticket();
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }');
+    const storySource = 'import {test,expect} from "bun:test"; import {add} from "../src/add"; test("checkout surcharge and discount",()=>{expect(add(100,20)).toBe(120);expect(add(100,-15)).toBe(85);});';
+    fs.writeFileSync(path.join(root, 'tests/checkout.test.ts'), storySource);
+    fs.writeFileSync(path.join(root, 'tests/infrastructure.test.ts'), 'import {test,expect} from "bun:test"; test("infrastructure",()=>expect(true).toBe(true));\n//' + 'UNRELATED-INFRASTRUCTURE'.repeat(4000));
+    await indexCodebase(store, root);
+    const story = (await store.getEntity<TestNode>('test:tests/checkout.test.ts', TestNode.dcr))!;
+    const regression = (await store.getEntity<TestNode>('test:tests/infrastructure.test.ts', TestNode.dcr))!;
+    await store.relate(story, 'verifies', t, {state: 'authored'});
+    const command = ['bun', 'test', 'tests/checkout.test.ts', 'tests/infrastructure.test.ts'];
+    const run = Bun.spawnSync(command, {cwd: root});
+    expect(run.success).toBe(true);
+    await recordTestExecution(store, root, command, {passed: run.success, output: run.stdout.toString() + run.stderr.toString(), exitCode: run.exitCode, durationMs: 0});
+    const executed = await currentTestEvidence(store, [story.id, regression.id]);
+    expect(executed).toHaveLength(2);
+    expect(executed.every(test => test.passed)).toBe(true);
+    const investigation = await t.investigate(store, {systemOne, critic: 'none', depth: 0});
+    if (investigation.status !== 'complete') throw new Error(JSON.stringify(investigation));
+    const context = await buildVerificationContext(store, root, {dossier: investigation.value, files: [], testNodes: executed});
+    expect(context.files.find(file => file.file === 'tests/checkout.test.ts')!.snippets[0].source).toBe(storySource);
+    expect(JSON.stringify(context)).not.toContain('UNRELATED-INFRASTRUCTURE');
+    await expect(buildVerificationContext(store, root, {dossier: investigation.value, files: [], testNodes: executed.filter(test => test.id !== store.localId(story.id))})).rejects.toThrow('Authored acceptance tests lack current execution evidence');
+  }, 30000);
+
+  it('keeps exact-symbol verification separate from neighboring file obligations', async () => {
+    fs.appendFileSync(path.join(root, 'src/add.ts'), '\nexport function multiply(a: number, b: number) { return a * b; }\n');
+    fs.writeFileSync(path.join(root, 'tests/multiply.test.ts'), 'import {test,expect} from "bun:test"; import {multiply} from "../src/add"; test("multiply",()=>expect(multiply(2,3)).toBe(6));');
+    await indexCodebase(store, root);
+    const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr);
+    const add = symbols.find(s => s.filePath === 'src/add.ts' && s.title === 'add')!;
+    const multiply = symbols.find(s => s.filePath === 'src/add.ts' && s.title === 'multiply')!;
+    const addTest = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
+    const multiplyTest = (await store.getEntity<TestNode>('test:tests/multiply.test.ts', TestNode.dcr))!;
+    await store.relate(addTest, 'verifies', add, {state: 'authored'});
+    await store.relate(multiplyTest, 'verifies', multiply, {state: 'authored'});
+    const exact = await verifyingTestsForTargets(store, [add.id], ['src/add.ts']);
+    expect(exact.tests.map(t => t.filePath)).toEqual(['tests/add.test.ts']);
+    const wholeFile = await verifyingTestsForTargets(store, [add.id, 'src/add.ts'], ['src/add.ts']);
+    expect(wholeFile.tests.map(t => t.filePath).sort()).toEqual(['tests/add.test.ts', 'tests/multiply.test.ts']);
+  }, 30000);
+
   it('binds synthesis to the exact authored target and uses an independent verification call', async () => {
     const t = await ticket();
     const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')!; await store.relate(t, 'modifies', symbol);
     const prompts: string[] = [];
     const server = Bun.serve({ port: 0, fetch: async request => {
-      const body = await request.json() as { messages: Array<{ content: string }> }; const prompt = body.messages[0].content; prompts.push(prompt);
-      const reply = prompt.startsWith('Implement the one exact') ? { action: 'replace_symbol', replacement: 'export function add(a: number, b: number) { return a + b; }', testCommands: [['bun', 'test', 'tests/add.test.ts']] } : { criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'tests/add.test.ts asserts 5 and 1; command passed' }], aspects: [] };
+      const body = await request.json() as { messages: Array<{ role: string; content: string }> };
+      const prompt = body.messages.map(message => message.content).join('\n'); prompts.push(prompt);
+      if (prompts.length === 1) expect(body.messages.find(message => message.role === 'system')?.content).toContain('AIWF Grounded Source Synthesizer');
+      const reply = prompt.includes('AIWF Grounded Source Synthesizer') ? { source: 'export function add(a: number, b: number) { return a + b; }' } : { criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'tests/add.test.ts asserts 5 and 1; command passed' }], aspects: [] };
       return Response.json({ message: { content: JSON.stringify(reply) }, prompt_eval_count: 10, eval_count: 5 });
     } });
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString(); saveConfig(root, { model: 'ollama/fixture' });
@@ -395,8 +440,10 @@ describe('Ticket-owned bounded resolution', () => {
       expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].cognition.llm.calls).toBe(2);
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
-  it('sends graph-narrowed outlines and snippets, not whole files, to the default verifier', async () => {
+  it('sends current graph proof rather than unrelated files or prior acceptance receipts to the default verifier', async () => {
     const t = await ticket();
+    const priorReceipt = await store.upsertEntity<Artifact>(Artifact.dcr, {id: 'VERIFY-T', body: 'OLD-ACCEPTANCE-RECEIPT' + 'x'.repeat(90_000), status: 'verified'});
+    await store.relate(priorReceipt, 'verifies', t);
     const irrelevant = 'IRRELEVANT-CONTEXT-' + 'x'.repeat(12_000);
     fs.writeFileSync(path.join(root, 'src/add.ts'), `export function add(a: number, b: number) { return a + b; }\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
     fs.appendFileSync(path.join(root, 'tests/add.test.ts'), `\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
@@ -404,6 +451,11 @@ describe('Ticket-owned bounded resolution', () => {
     const target = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/add.ts' && symbol.title === 'add')!;
     const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
     await store.relate(test, 'verifies', target, {state: 'authored'});
+    // A referenced fixture helper is not part of this Ticket's production scope.
+    fs.writeFileSync(path.join(root, 'src/fixture.ts'), `export function fixtureSetup() { return '${'FIXTURE-INFRASTRUCTURE'.repeat(4000)}'; }`);
+    await indexCodebase(store, root);
+    const fixture = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/fixture.ts' && symbol.title === 'fixtureSetup')!;
+    await store.relate(test, 'verifies', fixture, {state: 'inferred'});
     let prompt = '';
     const server = Bun.serve({ port: 0, fetch: async request => {
       const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;
@@ -420,6 +472,9 @@ describe('Ticket-owned bounded resolution', () => {
       expect(prompt).toContain('export function add(a: number, b: number) { return a + b; }');
       expect(prompt).toContain('test usage/assertion context');
       expect(prompt).not.toContain('IRRELEVANT-CONTEXT-');
+      expect(prompt).not.toContain('OLD-ACCEPTANCE-RECEIPT');
+      expect(prompt).not.toContain('FIXTURE-INFRASTRUCTURE');
+      expect(prompt).not.toContain('"file":"src/fixture.ts"');
       expect(prompt).not.toContain('"testSources":');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);

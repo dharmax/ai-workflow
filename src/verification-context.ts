@@ -108,8 +108,22 @@ export async function buildVerificationContext(
     wantedSourceSymbols.set(file, names)
   }
 
+  const exactScope = new Map([...wantedSourceSymbols].map(([file, names]) => [file, new Set(names)]))
+  // A test's fixture/import references are not additional Ticket implementation scope.
+  const scopeFiles = new Set([
+    ...input.files,
+    ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!),
+  ].map(file => relativeFile(root, file)))
+  const authoredTests = new Set(input.dossier.evidence
+    .filter(item => item.kind === 'TestNode' && item.provenance === 'Ticket verifies')
+    .map(item => store.localId(item.id)))
+  // All regression results remain in the review; source proof follows authored acceptance tests.
+  const proofTests = authoredTests.size
+    ? input.testNodes.filter(test => authoredTests.has(store.localId(test.id)))
+    : input.testNodes
+  if (authoredTests.size && proofTests.length !== authoredTests.size) throw new Error('Authored acceptance tests lack current execution evidence.')
   const testNeedles = new Map<string, Set<string>>()
-  for (const test of input.testNodes) {
+  for (const test of proofTests) {
     if (!test.filePath) continue
     const testFile = relativeFile(root, test.filePath)
     ensureFile(testFile)
@@ -122,8 +136,11 @@ export async function buildVerificationContext(
       const target = await store.getEntity<SymbolNode>(targetId, SymbolNode.dcr)
       if (!target?.filePath) continue
       const sourceFile = relativeFile(root, target.filePath)
+      if (!scopeFiles.has(sourceFile)) continue
+      const name = target.containerName ? `${target.containerName}.${target.title}` : target.title ?? store.localId(target.id)
+      if (exactScope.has(sourceFile) && !exactScope.get(sourceFile)!.has(name)) continue
       const names = wantedSourceSymbols.get(sourceFile) ?? new Set<string>()
-      names.add(target.containerName ? `${target.containerName}.${target.title}` : target.title ?? store.localId(target.id))
+      names.add(name)
       wantedSourceSymbols.set(sourceFile, names)
       if (target.title) needles.add(target.title)
     }
@@ -152,12 +169,19 @@ export async function buildVerificationContext(
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue
     const source = fs.readFileSync(fullPath, 'utf8')
     const context = ensureFile(file)
+    if (proofTests.some(test => authoredTests.has(store.localId(test.id)) && test.filePath && relativeFile(root, test.filePath) === file)) {
+      context.outline = [] // The complete authored test already contains its declarations.
+      context.snippets.push({label: 'authored acceptance test', startLine: 1, endLine: source.split('\n').length, source})
+      continue
+    }
     for (const excerpt of excerptAroundNeedles(source, [...needles])) {
       context.snippets.push({label: 'test usage/assertion context', ...excerpt})
     }
   }
 
   for (const context of contexts.values()) {
+    const names = wantedSourceSymbols.get(context.file)
+    if (names?.size) context.outline = context.outline.filter(symbol => names.has(symbol.containerName ? `${symbol.containerName}.${symbol.name}` : symbol.name))
     if (context.snippets.length) continue
     const fullPath = path.resolve(root, context.file)
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue

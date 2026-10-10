@@ -4,6 +4,8 @@ AIWF is a Bun-first engineering system built on a durable semantic project graph
 
 The graph is backed by `@dharmax/semantika` and exposed through CLI/shell, stdio MCP, and the installed AIWF skill.
 
+SkillManager lookups use a fresh manager for the requested project root. Automatic discovery reads only that project's `skills/<id>/skill.json` and `SKILL.md` layout; additional source repositories require explicit `extraSources` configuration in the bridge API. Sibling checkouts and host-specific global directories are not discovered. An absent project skills directory is optional; sync and runtime failures are reported to the caller.
+
 ---
 
 ## Start here: delegate artifact work

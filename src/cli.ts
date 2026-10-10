@@ -1055,8 +1055,8 @@ async function main() {
 
       if (sub === 'list') {
         const typeFilter = args[2] as any;
-        const items = await kb.search({ type: typeFilter });
-        console.log(`\n\x1b[1;36m📚 Knowledgebase Catalog (${items.length} items from dharmax/knowledgebase)\x1b[0m\n`);
+        const { items } = await registry.execute('search_knowledgebase', { type: typeFilter }, { store: getStore(), projectRoot: root });
+        console.log(`\n\x1b[1;36m📚 Knowledgebase Catalog (${items.length} items)\x1b[0m\n`);
         console.log(`  \x1b[1m${'Type'.padEnd(10)} ${'Item ID'.padEnd(34)} ${'Hash'.padEnd(14)} Title & Tags\x1b[0m`);
         console.log(`  ${'─'.repeat(80)}`);
         for (const item of items) {
@@ -1075,7 +1075,7 @@ async function main() {
           console.error('Usage: aiwf kb search <query>');
           process.exit(1);
         }
-        const items = await kb.search({ query });
+        const { items } = await registry.execute('search_knowledgebase', { query }, { store: getStore(), projectRoot: root });
         console.log(`\n\x1b[1;36m🔍 Knowledgebase Search for "${query}" (${items.length} match(es))\x1b[0m\n`);
         for (const item of items) {
           console.log(`  \x1b[1m[${item.type.toUpperCase()}] ${item.id}\x1b[0m (${item.title})`);
@@ -1091,19 +1091,19 @@ async function main() {
           console.error('Usage: aiwf kb show <itemId>');
           process.exit(1);
         }
-        const item = await kb.getItem(id);
-        if (!item) {
-          console.error(`❌ Item '${id}' not found in knowledgebase.`);
+        const item = await registry.execute('get_knowledge_item', { id }, { store: getStore(), projectRoot: root });
+        if (item.error) {
+          console.error(item.error);
           process.exit(1);
         }
-        console.log(`\n\x1b[1;36m📄 ${item.meta.title}\x1b[0m [${item.meta.type.toUpperCase()}]`);
-        console.log(`ID:          ${item.meta.id}`);
-        console.log(`Integrity:   ${item.verified ? '\x1b[32mVERIFIED SHA-256 ✅\x1b[0m' : '\x1b[31mHASH MISMATCH ❌\x1b[0m'}`);
-        console.log(`SHA-256:     ${item.meta.sha256}`);
-        console.log(`Description: ${item.meta.description}`);
-        console.log(`Tags:        ${item.meta.tags.join(', ')}\n`);
+        console.log(`\n\x1b[1;36m📄 ${item.title}\x1b[0m [${item.type.toUpperCase()}]`);
+        console.log(`ID:          ${item.id}`);
+        console.log(`Integrity:   ${item.verified ? '\x1b[32mVERIFIED ✅\x1b[0m' : '\x1b[31mUNVERIFIED\x1b[0m'}`);
+        console.log(`SHA-256:     ${item.sha256}`);
+        console.log(`Description: ${item.description}`);
+        if (item.tools?.length) console.log(`Tools:       ${item.tools.map((tool: { name: string }) => tool.name).join(', ')}`);
         console.log(`\x1b[1m─── Content ───\x1b[0m`);
-        console.log(item.rawContent.trim());
+        console.log(typeof item.content === 'string' ? item.content.trim() : JSON.stringify(item.content, null, 2));
         break;
       }
 

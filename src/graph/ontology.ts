@@ -852,7 +852,7 @@ export class Ticket extends WorkflowEntity {
           const children = (await store.getOutgoing(ticket.id, 'contains')).filter(edge => work.has(store.localId(edge.targetId))).map(edge => store.localId(edge.targetId));
           const verify = options.verify ?? (async (input: ResolutionVerificationInput) => {
             const asker = createDefaultAsker(store.root); if (!asker) throw new Error('Independent acceptance verifier unavailable.');
-            const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.map(({ source: _beforeImplementation, ...evidence }) => evidence) };
+            const reviewDossier = { ...input.dossier, evidence: input.dossier.evidence.filter(evidence => store.localId(evidence.id) !== `VERIFY-${id}`).map(({ source: _beforeImplementation, ...evidence }) => evidence) };
             const verificationContext = await buildVerificationContext(store, store.root, {
               dossier: input.dossier,
               files: input.files,
@@ -902,7 +902,7 @@ export class Ticket extends WorkflowEntity {
                 const model = mechanism?.quality === 'high' && mechanism.answers.modelTier?.choice === 'stronger' ? cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model : cfg.modelRoutes?.dev ?? cfg.model;
                 if (exact.length === 1 && !(mechanism?.quality === 'high' && mechanism.answers.mechanism?.choice === 'interactive')) {
                   countEngineering('reasoningCalls');
-                  const synthesisCtx = buildSynthesisContext({ store, dossier: input });
+                  const synthesisCtx = buildSynthesisContext({ dossier: input });
                   const synthesizer = new HostSourceSynthesizer(asker);
                   const candidate = await synthesizer.synthesize(synthesisCtx, {
                     model,
@@ -912,7 +912,7 @@ export class Ticket extends WorkflowEntity {
                     ...cognitionMetrics()
                   });
                   const target = { type: 'symbol' as const, filePath: exact[0].filePath!, symbolName: exact[0].symbolName!, containerName: exact[0].containerName };
-                  return { changes: [{ action: 'replace_symbol' as const, target, replacement: candidate.source }], testCommands: candidate.testCommands && candidate.testCommands.length ? candidate.testCommands : proposedTests };
+                  return { changes: [{ action: 'replace_symbol' as const, target, replacement: candidate.source }], testCommands: proposedTests };
                 }
                 const names = ['find_symbol', 'get_symbol_source', 'get_file_outline', 'search_graph', 'get_exact_references', 'read_workspace_file', 'preview_change', 'apply_change'];
                 let currentDossier = input;

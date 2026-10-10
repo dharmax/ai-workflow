@@ -12,19 +12,11 @@ import type {
   SourceSynthesizerOptions
 } from './types.ts';
 
-const CandidateResponseSchema = z.union([
-  z.object({
-    source: z.string().describe('The complete synthesized replacement source code for the exact target'),
-    assumptions: z.array(z.string()).optional().default([]),
-    unresolvedBlocker: z.string().optional()
-  }),
-  z.object({
-    action: z.literal('replace_symbol'),
-    replacement: z.string().min(1),
-    testCommands: z.array(z.array(z.string()).min(1)).optional().default([]),
-    assumptions: z.array(z.string()).optional().default([])
-  })
-]);
+const CandidateResponseSchema = z.object({
+  source: z.string().describe('The complete synthesized source code for the exact target'),
+  assumptions: z.array(z.string()).optional().default([]),
+  unresolvedBlocker: z.string().optional()
+});
 
 export class HostSourceSynthesizer implements SourceSynthesizer {
   constructor(private readonly asker: Asker) {}
@@ -32,7 +24,7 @@ export class HostSourceSynthesizer implements SourceSynthesizer {
   async synthesize(
     context: SynthesisContext,
     options: SourceSynthesizerOptions = {}
-  ): Promise<SynthesisCandidate & { testCommands?: string[][] }> {
+  ): Promise<SynthesisCandidate> {
     const { target, intent, evidence, verification } = context;
 
     const systemPrompt = `You are the AIWF Grounded Source Synthesizer.
@@ -41,6 +33,7 @@ Rules:
 1. Target Identity:
    - Target kind: ${target.kind}
    - Target file: ${target.filePath}
+   - Keep the supplied target identity; preserve an existing symbol's name and signature.
    ${target.kind === 'existing_symbol' ? `- Target symbol: ${target.symbolName}\n   - Existing source:\n\`\`\`ts\n${target.existingSource}\n\`\`\`` : ''}
 2. Grounded Truth:
    - Respect all mandatory evidence, Constraints, Decisions, and Aspects.
@@ -68,15 +61,13 @@ Rules:
       verificationFeedback: options.feedback
     };
 
-    const userPrompt = target.kind === 'existing_symbol'
-      ? `Implement the one exact authored function/method target. Use replace_symbol to change its body while preserving its name/signature unless the Ticket explicitly requests a rename. For an explicit rename use rename_symbol. The existing target identity is fixed by AIWF; do not invent another target or alter tests to weaken assertions. Return only action, replacement or newName, and targeted test command argument arrays. Target info: {"filePath":"${target.filePath}","symbolName":"${target.symbolName}"} Context: ${JSON.stringify(payload)}`
-      : JSON.stringify(payload);
+    const userPrompt = JSON.stringify(payload);
 
     const response = await this.asker.json(
       userPrompt,
       CandidateResponseSchema,
       {
-        ...(target.kind === 'existing_symbol' ? {} : { system: systemPrompt }),
+        system: systemPrompt,
         model: options.model,
         temperature: 0,
         timeoutMs: options.timeoutMs ?? 60000,
@@ -97,9 +88,7 @@ Rules:
       throw new Error(`Synthesis halted on unresolved blocker: ${parsed.unresolvedBlocker}`);
     }
 
-    const rawCode = 'source' in parsed ? parsed.source : parsed.replacement;
-    const testCommands = 'testCommands' in parsed ? parsed.testCommands : undefined;
-    const cleanedSource = rawCode.trim();
+    const cleanedSource = parsed.source.trim();
     if (!cleanedSource) {
       throw new Error('Synthesis candidate sanity failed: empty source code produced.');
     }
@@ -107,8 +96,7 @@ Rules:
     return {
       source: cleanedSource,
       assumptions: parsed.assumptions ?? [],
-      target,
-      testCommands
+      target
     };
   }
 }

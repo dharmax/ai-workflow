@@ -15,7 +15,7 @@
 | `src/config` | project default | 50 | 0 | None |
 | `src/doctor` | project default | 60 | 0 | None |
 | `src/setup` | project default | 121 | 0 | None |
-| `tests` | project default | 1035 | 0 | None |
+| `tests` | project default | 1083 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 58 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -26,8 +26,8 @@
 | `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
-| `src/kb` | project default | 142 | 0 | None |
-| `docs` | project default | 420 | 0 | None |
+| `src/kb` | project default | 140 | 0 | None |
+| `docs` | project default | 421 | 0 | None |
 | `src/product` | project default | 312 | 0 | None |
 | `src/change` | project default | 666 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
@@ -42,11 +42,11 @@
 | `scripts` | project default | 62 | 0 | None |
 | `src/entity-view` | project default | 16 | 0 | None |
 | `@external/@dharmax/semantic-registry` | project default | 67 | 0 | None |
-| `src/verification-context` | project default | 47 | 0 | None |
+| `src/verification-context` | project default | 52 | 0 | None |
 | `src/shell-trace` | project default | 21 | 0 | None |
 | `src/client-guidance` | project default | 3 | 0 | None |
 | `@external/@dharmax/skill-manager` | project default | 357 | 0 | None |
-| `src/synthesis` | project default | 65 | 0 | None |
+| `src/synthesis` | project default | 63 | 0 | None |
 
 ## Dependency Diagram
 

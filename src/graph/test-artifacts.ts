@@ -160,9 +160,13 @@ export async function verifyingTestsForTargets(
   }
   for (const id of targetIds) await add(id)
   const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr)
+  const exactTargets = symbols.filter(symbol => targetIds.some(id => store.localId(id) === store.localId(symbol.id)))
   const uncoveredFiles: string[] = []
   for (const file of new Set(files.map(normalizeTestPath))) {
-    const ids = [file, ...symbols.filter(symbol => symbol.filePath === file && symbol.status !== 'deprecated').map(symbol => symbol.id)]
+    const anchored = exactTargets.filter(symbol => symbol.filePath === file)
+    const fileIsAuthored = targetIds.some(id => store.localId(id) === file)
+    const fileSymbols = anchored.length && !fileIsAuthored ? anchored : symbols.filter(symbol => symbol.filePath === file && symbol.status !== 'deprecated')
+    const ids = anchored.length && !fileIsAuthored ? anchored.map(symbol => symbol.id) : [file, ...fileSymbols.map(symbol => symbol.id)]
     let covered = false
     for (const id of ids) {
       const entity = await store.getEntity(id)

@@ -59,8 +59,17 @@ describe('Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1)', () => {
     if (res.status !== 'complete') return;
     const dossier = res.value;
 
+    expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [] } })).toThrow('no exact synthesis target');
+    expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [{
+      id: 'file', title: 'bonus.ts', kind: 'FileNode', filePath: 'src/bonus.ts', mandatory: true, provenance: 'authored'
+    }] } })).toThrow('no exact synthesis target');
+
+    const exactTarget = { id: 'bonus', title: 'bonus', kind: 'SymbolNode', filePath: 'src/bonus.ts',
+      symbolName: 'bonus', source: 'export function bonus() { return 0; }', exact: true, mandatory: true, provenance: 'authored' };
+    expect(buildSynthesisContext({ dossier: { ...dossier, evidence: [exactTarget] } }).target.kind).toBe('existing_symbol');
+    expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [exactTarget, { ...exactTarget, id: 'other', symbolName: 'other' }] } })).toThrow('no exact synthesis target');
+
     const ctx = buildSynthesisContext({
-      store,
       dossier,
       target: {
         kind: 'existing_symbol',
@@ -95,8 +104,10 @@ describe('Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1)', () => {
         acceptanceCriteria: ['calculateBonus returns salary * rate for positive rate, 0 otherwise']
       },
       target: {
-        kind: 'new_source' as const,
-        filePath: 'src/bonus.ts'
+        kind: 'existing_symbol' as const,
+        filePath: 'src/bonus.ts',
+        symbolName: 'calculateBonus',
+        existingSource: 'export function calculateBonus(salary: number, rate: number): number { return 0; }'
       },
       evidence: [
         {
@@ -121,6 +132,21 @@ describe('Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1)', () => {
     expect(candidate.assumptions).toContain('salary and rate are non-negative floats');
     expect(candidate.target.filePath).toBe('src/bonus.ts');
     expect(recorded.lastSystemPrompt).toContain('You are the AIWF Grounded Source Synthesizer');
+    expect(recorded.lastSystemPrompt).toContain('Existing source:');
+    expect(recorded.lastUserPrompt).not.toContain('rename_symbol');
+    expect(recorded.lastUserPrompt).not.toContain('replace_symbol');
+    expect(candidate).not.toHaveProperty('action');
+    expect(candidate).not.toHaveProperty('replacement');
+    expect(candidate).not.toHaveProperty('testCommands');
+  });
+
+  it('rejects mutation responses instead of synthesizing source', async () => {
+    const { asker } = createMockAsker({ action: 'replace_symbol', replacement: 'export const guessed = 1;' });
+    await expect(new HostSourceSynthesizer(asker).synthesize({
+      intent: { summary: 'Implement bonus', acceptanceCriteria: [] },
+      target: { kind: 'existing_symbol', filePath: 'src/bonus.ts', symbolName: 'bonus', existingSource: 'export function bonus() { return 0; }' },
+      evidence: [], verification: []
+    })).rejects.toThrow();
   });
 
   it('halts with error when synthesizer returns unresolved blocker', async () => {

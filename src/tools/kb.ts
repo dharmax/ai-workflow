@@ -24,19 +24,16 @@ export function registerKnowledgebaseTools() {
       // 1. Check dynamic skill-manager first if searching for skills or generic query
       let skillResults: any[] = [];
       if (!type || type === 'skill') {
-        try {
-          const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
-          await sm.sync();
-          const matches = query ? await sm.retrieve(query) : await sm.list();
-          skillResults = matches.map(s => ({
-            id: s.id,
-            type: 'skill' as const,
-            title: s.name,
-            description: s.description,
-            tags: [...s.keys.primary, ...s.keys.secondary],
-            sha256: s.source?.contentHash ? s.source.contentHash.slice(0, 12) : 'local'
-          }));
-        } catch {}
+        const sm = await getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
+        const matches = query ? await sm.retrieve(query) : await sm.list();
+        skillResults = matches.map(s => ({
+          id: s.id,
+          type: 'skill' as const,
+          title: s.name,
+          description: s.description,
+          tags: [...s.keys.primary, ...s.keys.secondary],
+          sha256: s.source?.contentHash ? s.source.contentHash.slice(0, 12) : 'local'
+        }));
       }
 
       const items = await kbClient.search({ query, type, tag });
@@ -73,25 +70,22 @@ export function registerKnowledgebaseTools() {
     }),
     execute: async ({ id }: any, ctx: ToolContext) => {
       // 1. Try resolving via dynamic skill-manager
-      try {
-        const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
-        await sm.sync();
-        const activated = await sm.activate([id]);
-        if (activated.length > 0) {
-          const skill = activated[0];
-          return {
-            id: skill.id,
-            type: 'skill',
-            title: skill.name,
-            description: skill.description,
-            verified: true,
-            sha256: skill.source?.contentHash,
-            tools: skill.tools,
-            requires: skill.requires,
-            content: skill.context || skill.description
-          };
-        }
-      } catch {}
+      const sm = await getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
+      const activated = await sm.activate([id]);
+      if (activated.length > 0) {
+        const skill = activated[0];
+        return {
+          id: skill.id,
+          type: 'skill',
+          title: skill.name,
+          description: skill.description,
+          verified: true,
+          sha256: skill.source?.contentHash,
+          tools: skill.tools,
+          requires: skill.requires,
+          content: skill.context || skill.description
+        };
+      }
 
       // 2. Fall back to static KnowledgeBaseClient
       const item = await kbClient.getItem(id);
@@ -119,8 +113,7 @@ export function registerKnowledgebaseTools() {
       limit: z.number().optional().default(5).describe('Maximum skills to return')
     }),
     execute: async ({ query, limit }: any, ctx: ToolContext) => {
-      const sm = getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
-      await sm.sync();
+      const sm = await getAIWFSkillManager({ projectRoot: ctx?.projectRoot });
       const tool = sm.getFindSkillsTool();
       return await tool.execute({ query, limit });
     }
