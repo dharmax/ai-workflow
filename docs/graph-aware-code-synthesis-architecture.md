@@ -288,7 +288,7 @@ interface SynthesisCandidate {
 The synthesizer:
 
 - receives bounded grounded context;
-- returns candidate source;
+- returns candidate source or a concrete inability/ambiguity result;
 - does not mutate the repository;
 - does not own Git;
 - does not own Tickets;
@@ -296,6 +296,10 @@ The synthesizer:
 - does not own CausalChangeEngine;
 - does not own project verification;
 - does not decide Product Intent truth.
+
+A candidate may report assumptions for traceability, but a material unresolved assumption about behavior, target identity, API contract or destructive effect must become needs_input/blocked before apply. “The model guessed correctly” is not an acceptance mode.
+
+“One generative source boundary” is a responsibility boundary, not a demand for one model, one prompt shape, or one-file architecture. The first proof is deliberately single-target because that is the smallest falsifiable slice.
 
 ### Backend choice
 
@@ -665,6 +669,8 @@ Prove that repair uses new relevant evidence rather than simply repeating the or
 
 Only after exact-symbol replacement is sound, add a bounded new_source case.
 
+Multi-file generative orchestration is intentionally not part of the first architecture. If real leaf Tickets repeatedly require coordinated multi-file source invention that cannot be handled by decomposition plus existing concrete mutations, preserve those cases and extend the synthesis contract from evidence rather than predesigning a multi-file planner.
+
 Use existing create_file through CCE.
 
 Do not introduce function/class/component-specific mutation APIs.
@@ -702,6 +708,7 @@ Prove at least:
 - material Aspect survives;
 - irrelevant graph neighborhood is absent;
 - target ambiguity stops rather than guessing;
+- material unresolved synthesis assumptions stop rather than being silently accepted;
 - stale graph anchor is reconciled through exact LSP evidence;
 - generated test cannot self-certify wrong behavior;
 - verification failure refines context;
@@ -764,9 +771,11 @@ This work is complete when:
 9. failed verification causes relevant context refinement rather than blind reprompting;
 10. existing reusable source is preferred when the evidence supports reuse;
 11. no construct taxonomy/framework is required for function replacement or one new source artifact;
-12. cancellation/authority/dirty-work rules remain truthful;
-13. the final implementation is smaller than the two source-producing paths it replaces or clearly earns any added code;
-14. the design remains usable as the AIWF side of a future AIWF/Semantic Studio shared synthesis seam without coupling the products.
+12. material unresolved assumptions become needs_input/blocked rather than source guesses;
+13. cancellation/authority/dirty-work rules remain truthful;
+14. the final implementation is smaller than the two source-producing paths it replaces or clearly earns any added code;
+15. multi-file synthesis is not added until real accepted journeys require it;
+16. the design remains usable as the AIWF side of a future AIWF/Semantic Studio shared synthesis seam without coupling the products.
 
 The intended architecture is:
 
