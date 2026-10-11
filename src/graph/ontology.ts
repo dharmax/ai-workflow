@@ -960,12 +960,25 @@ export class Ticket extends WorkflowEntity {
                   const actorDossier = {...currentDossier, evidence: currentDossier.evidence.map(item => ({...item, ...(item.source && item.source.length > 2048 ? {source: undefined, sourceOmitted: 'Read current source with the registered navigation tools.'} : {})}))};
                   const output = await actor.run(`Workspace root: ${store.root}. Every filePath is relative to this root. Workspace file paths (bounded index): ${JSON.stringify(workspaceFiles)}. Read package.json to check current dependencies; a package that needs adding will not yet have indexed symbols. Use search_graph with entityType FileNode to discover further paths. Do not guess file or symbol names. Parent intent is constraints, not additional work to execute. Ticket dossier: ${JSON.stringify(actorDossier)} Verification feedback: ${JSON.stringify(findings)}`, { ...cognitionMetrics({phase: attempt ? 'repair' : 'implementation_actor'}), signal: trancheSignal, schema: ResolutionProposalSchema, askOptions: { model, maxTokens: cfg.llmOutputTokens, tokenBudget: actorTokenBudget } });
                   if (options.signal?.aborted) options.signal.throwIfAborted();
-                  if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps).`);
+                  const recentObservations = output.steps.slice(-3).map(step => ({
+                    step: step.step,
+                    calls: step.toolCalls.slice(0, 4).map(call => ({
+                      tool: call.toolName,
+                      parameters: Object.fromEntries(['filePath', 'symbolName', 'name', 'entityType'].flatMap(key =>
+                        typeof call.parameters[key] === 'string' ? [[key, call.parameters[key].slice(0, 200)]] : []))
+                    })),
+                    outcomes: step.toolResults.slice(0, 4).map(result => ({
+                      tool: result.toolName,
+                      outcome: result.isError ? 'error' : 'success',
+                      ...(result.isError ? { error: result.error?.slice(0, 500) } : {})
+                    }))
+                  }));
+                  const observationReport = `mutation epoch ${successfulChanges}; recent observations: ${JSON.stringify(recentObservations)}`;
+                  if (controller.signal.aborted) throw new Error(`Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps); ${observationReport}`);
                   if (output.ok) return ResolutionProposalSchema.parse(output.output);
                   const successfulEdits = successfulChanges - changesBefore;
                   if (output.haltReason !== 'max_steps_exceeded' || !successfulEdits || tranche === 2) {
-                    const observations = output.steps.slice(-3).map(step => ({ step: step.step, calls: step.toolCalls.map(call => ({ tool: call.toolName, filePath: call.parameters.filePath, symbolName: call.parameters.symbolName })), errors: step.toolResults.filter(result => result.isError).map(result => result.error) }));
-                    throw new Error(`Implementation Actor halted: ${output.haltReason}: ${output.error}; tranche ${tranche + 1}/3, successful edits ${successfulEdits}; recent observations: ${JSON.stringify(observations)}`);
+                    throw new Error(`Implementation Actor halted: ${output.haltReason}: ${output.error}; tranche ${tranche + 1}/3, successful edits ${successfulEdits}; ${observationReport}`);
                   }
                   const refreshed = await executingTicket.investigate(store, options);
                   if (refreshed.status !== 'complete') throw new Error(`Implementation continuation investigation failed: ${JSON.stringify(refreshed)}`);

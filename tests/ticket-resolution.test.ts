@@ -599,10 +599,44 @@ describe('Ticket-owned bounded resolution', () => {
         const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
         expect(result.status).toBe('blocked'); expect(JSON.stringify(result)).toContain('Stalled navigation');
         expect(calls).toBe(3); expect(executions).toBe(1);
+        if (result.status !== 'blocked') throw Error(JSON.stringify(result));
+        const reason = result.blockers[0].reason;
+        expect(reason).toContain('mutation epoch 0; recent observations:');
+        const observations = JSON.parse(reason.split('recent observations: ')[1]);
+        expect(observations).toHaveLength(3);
+        expect(observations[0].calls).toEqual([{ tool: name, parameters: { filePath: 'src/add.ts' } }]);
+        expect(observations[0].outcomes).toEqual([{ tool: name, outcome: 'success' }]);
+        expect(observations[2].outcomes[0]).toMatchObject({ tool: name, outcome: 'error' });
+        expect(observations[2].outcomes[0].error).toContain('Stalled navigation');
+        expect(reason).not.toContain('return a - b');
         expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a - b');
       } finally { completion.mockRestore(); execution.mockRestore(); }
     }, 30000);
   }
+
+  it('bounds stalled report arguments and errors and omits arbitrary parameters', async () => {
+    const t = await ticket();
+    const symbolName = 'missing_' + 'x'.repeat(2000);
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => ({
+      model, ok: true, text: JSON.stringify({
+        thought: 'Inspect', action: 'tool_call',
+        toolCalls: [{ name: 'get_symbol_source', parameters: { filePath: 'src/add.ts', symbolName, credential: 'PRIVATE-PARAMETER' } }]
+      })
+    }));
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('blocked');
+      if (result.status !== 'blocked') throw Error(JSON.stringify(result));
+      const reason = result.blockers[0].reason;
+      const observations = JSON.parse(reason.split('recent observations: ')[1]);
+      expect(observations).toHaveLength(3);
+      expect(observations[0].calls[0].parameters.symbolName).toBe(symbolName.slice(0, 200));
+      expect(observations[0].outcomes[0].error).toHaveLength(500);
+      expect(reason.length).toBeLessThan(5000);
+      expect(reason).not.toContain('PRIVATE-PARAMETER');
+      expect(reason).not.toContain('return a - b');
+    } finally { completion.mockRestore(); }
+  }, 30000);
 
   it('allows different observations and rejects reordered canonical parameters', async () => {
     const t = await ticket(); let calls = 0, reads = 0;
