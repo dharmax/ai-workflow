@@ -13,6 +13,7 @@ import {
 import { canonical } from '../kb/canonical.ts';
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from '../artifact-policy.ts';
 import type { WorkflowStore } from './store.ts';
+import { createActorTokenBudgetPolicy } from '../actor-budget-policy.ts';
 
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts';
 
@@ -924,18 +925,8 @@ export class Ticket extends WorkflowEntity {
                   const trancheSignal = combineSignals(options.signal, controller.signal);
                   let duplicateAttempts = 0;
                   const workspaceFiles = (await store.listEntities<FileNode>(FileNode.dcr)).map(file => store.localId(file.id)).filter(file => !file.startsWith('@') && !file.startsWith('node_modules/')).sort((a, b) => Number(/\.[cm]?[jt]sx?$/.test(b)) - Number(/\.[cm]?[jt]sx?$/.test(a)) || a.localeCompare(b)).slice(0, 64);
-                  let grantedActorTokens = 0;
                   const actor = new LLMActor(asker, { maxSteps: 16, maxRunTokens: maxActorTokens,
-                    onTokenBudgetRequest: request => {
-                      // An explicit per-operation override is a hard cap. Otherwise local inference may
-                      // adapt once, bounded by one additional baseline budget; remote spend never auto-expands.
-                      if (options.maxActorTokens !== undefined || !request.local) return 0;
-                      const availableGrant = Math.max(0, maxActorTokens - grantedActorTokens);
-                      const deficit = Math.max(0, request.requiredTokens - request.remainingTokens);
-                      const grant = Math.min(availableGrant, deficit);
-                      grantedActorTokens += grant;
-                      return grant;
-                    },
+                    onTokenBudgetRequest: createActorTokenBudgetPolicy(maxActorTokens, options.maxActorTokens !== undefined),
                     system: `Implement only Ticket ${currentDossier.ticket.id}: ${currentDossier.ticket.title}. Required outcomes: ${JSON.stringify(currentDossier.ticket.acceptanceCriteria)}. Parent intent constrains this task; do not execute other tickets. Keep thought to one short sentence; put replacement code only in tool parameters. Do not repeat an identical read/search on unchanged disk. Empty search results mean no match, not a reason to repeat the search. Inspect existing files and use safe_change with one direct code ChangeRequest to satisfy the authored contract. AIWF checks the lease, previews and applies safely; do not construct fingerprints, wrap the request or call public preview/apply tools. Preserve authored dependency paths; never invent package versions. For a local sibling dependency, follow the existing file:../ dependency convention when present; never substitute a registry version. Navigate surgically. When get_symbol_source reports qualified candidates for an ambiguous member, retry once with the relevant qualified candidate (for example LLMActor.constructor) before broader reads. Use read_workspace_file for ordinary files, then safe_change for edits (replace_text requires unique existing text). Never modify unrelated files or canonical Ticket/Product semantics. Return finalAnswer as JSON matching {changes:[],testCommands:[["bun","test","tests/target.test.ts"]]} after tool edits; propose unexecuted changes only in changes. Return required inputs when uncertain.` });
                   for (const name of names) {
                     const tool = name === 'safe_change' ? {name, description: 'Safely apply one direct code ChangeRequest. AIWF handles preview/fingerprint/apply, lease, dirty-target and verification checks.', parameters: CodeChangeRequestSchema} : registry.get(name); if (!tool) continue;
