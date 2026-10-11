@@ -749,7 +749,7 @@ export class Ticket extends WorkflowEntity {
       let executingTicket: Ticket = this, successfulChanges = 0, reusedProofs = 0;
       let anchorMigrations: import('../change/types.ts').ChangeApplyResult['migratedAnchors'] = [];
       const maxRepairs = z.number().int().min(0).max(3).parse(options.maxRepairs ?? 2);
-      const maxActorTokens = z.number().int().positive().parse(options.maxActorTokens ?? cfg.maxActorTokens);
+      const maxActorTokens = z.number().int().positive().parse(options.maxActorTokens ?? cfg.actorTokenBudget);
       const budget = new ArtifactBudget(options, 'all', cfg.maxArtifacts), work = new Map<string, Ticket>(), dossiers = new Map<string, TicketDossier>();
       let repairs = 0, acceptance: import('../ticket-operation-types.ts').AcceptanceVerification = { criteria: [], aspects: [] };
       const ctx = { store, projectRoot: store.root, signal: options.signal };
