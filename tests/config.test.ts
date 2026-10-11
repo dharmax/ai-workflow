@@ -83,10 +83,10 @@ describe('configuration layers', () => {
     }
   });
   it('exposes the Actor token budget as an overridable baseline', () => {
-    expect(loadConfig(root).maxActorTokens).toBe(64000);
-    setConfigOverride(root, 'maxActorTokens', '96000');
-    expect(loadConfig(root).maxActorTokens).toBe(96000);
-    expect(() => setConfigOverride(root, 'maxActorTokens', '0')).toThrow();
+    expect(loadConfig(root).actorTokenBudget).toBe(64000);
+    setConfigOverride(root, 'actorTokenBudget', '96000');
+    expect(loadConfig(root).actorTokenBudget).toBe(96000);
+    expect(() => setConfigOverride(root, 'actorTokenBudget', '0')).toThrow();
   });
   it('merges nested options from both explicit layers', () => {
     setConfigOverride(root, 'modelRadar', '{"enabled":false}', 'global');
