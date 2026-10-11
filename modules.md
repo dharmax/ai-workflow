@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 80 | 0 | None |
+| `docs` | project default | 97 | 0 | None |
 | `src/product` | project default | 312 | 0 | None |
 | `src/change` | project default | 673 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
@@ -47,7 +47,7 @@
 | `src/client-guidance` | project default | 3 | 0 | None |
 | `@external/@dharmax/skill-manager` | project default | 356 | 0 | None |
 | `src/synthesis` | project default | 63 | 0 | None |
-| `plans` | project default | 65 | 0 | None |
+| `plans` | project default | 75 | 0 | None |
 | `src/config-command` | project default | 14 | 0 | None |
 | `src/setup-command` | project default | 6 | 0 | None |
 | `src/ticket-command` | project default | 22 | 0 | None |
