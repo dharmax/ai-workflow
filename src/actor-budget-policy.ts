@@ -1,5 +1,3 @@
-import type {TokenBudgetExtensionRequest} from '@dharmax/llm-utils'
-
 /**
  * AIWF policy for optional Actor budget growth.
  * Mechanism lives in llm-utils; this host policy stays explicit, bounded and replaceable.
@@ -7,7 +5,15 @@ import type {TokenBudgetExtensionRequest} from '@dharmax/llm-utils'
 export function createActorTokenBudgetPolicy(
   baselineTokens: number,
   hardCap = false,
-): (request: TokenBudgetExtensionRequest) => number {
+): (request: {
+  requiredTokens: number
+  remainingTokens: number
+  estimatedInputTokens: number
+  maxOutputTokens: number
+  providerId: string
+  modelId: string
+  local: boolean
+}) => number {
   if (!Number.isSafeInteger(baselineTokens) || baselineTokens <= 0)
     throw new Error('Actor token budget baseline must be a positive safe integer.')
 
