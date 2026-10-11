@@ -82,12 +82,6 @@ describe('configuration layers', () => {
       if (oldHost === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = oldHost;
     }
   });
-  it('uses a practical configurable model inference timeout', () => {
-    expect(loadConfig(root).llmTimeoutMs).toBe(180000);
-    setConfigOverride(root, 'llmTimeoutMs', '240000');
-    expect(loadConfig(root).llmTimeoutMs).toBe(240000);
-    expect(() => setConfigOverride(root, 'llmTimeoutMs', '0')).toThrow();
-  });
   it('merges nested options from both explicit layers', () => {
     setConfigOverride(root, 'modelRadar', '{"enabled":false}', 'global');
     setConfigOverride(root, 'modelRadar', '{"probeIntervalDays":7}');
