@@ -3,6 +3,16 @@
 ## Prime Directive
 The simplest correct solution wins. Reuse existing contracts and primitives before adding abstractions. Code should be no more complex than the problem. No duplicate or shadow systems, speculative compatibility layers, or branch proliferation. Make the smallest safe change, preserve working behavior, prove it, and merge/delete temporary branches at the first stable opportunity.
 
+**The am-i-allowed standard applies to every touched artifact, down to a variable or statement—not just the patch or its tests.** Before and after changing code, review the entire touched method and its immediate contracts:
+1. **Responsibility and existence:** Can its purpose be stated precisely? Does it have one clear owner, without scattered, overlapping or fragmented responsibility? Does it earn its existence, or belong in an existing artifact?
+2. **Placement:** Is it in the right method, class, module and file, with the right dependencies?
+3. **Tightness:** Is every variable, character, statement and syntactic construct necessary and the clearest correct expression? Remove redundant branches, indirection, duplication and obsolete workarounds.
+4. **Generality and modularity:** Is the abstraction no broader or narrower than its actual contract? Does it serve legitimate library consumers without hard-coded assumptions or unnecessary constraints?
+5. **Algorithm and flow:** Is there one clear owner and purpose? Account for states, transitions, invariants, failures, cancellation, retries and boundary cases as applicable; avoid accidental or contradictory flows.
+6. **API:** Export only what consumers need. Give public interfaces precise semantics, types, names and failure contracts; keep implementation details private.
+
+**Leave each touched scope better than found; never increase avoidable technical debt.** Improve directly related defects while there; if cleanup changes unrelated behavior or expands risk, record and defer it rather than smuggling it into the patch. Passing tests is necessary but cannot excuse a confused responsibility, misplaced code or needless complexity. Verify behavior and inspect the final entire touched scope, not only diff lines.
+
 ## Project Structure & Module Organization
 The TypeScript sources live under `src/`:
 - `cli.ts`: Entry point for the `aiwf` CLI binary.
