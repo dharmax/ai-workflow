@@ -1,6 +1,10 @@
 /**
  * AIWF policy for optional Actor budget growth.
- * Mechanism lives in llm-utils; this host policy stays explicit, bounded and replaceable.
+ * llm-utils owns accounting; AIWF decides whether an execution may continue.
+ *
+ * Local inference has deterministic outer bounds (Actor steps/tranches), so the
+ * configured token budget is a soft baseline: grant only the deficit needed for
+ * the next call. Explicit per-operation caps and remote inference remain hard.
  */
 export function createActorTokenBudgetPolicy(
   baselineTokens: number,
@@ -17,13 +21,8 @@ export function createActorTokenBudgetPolicy(
   if (!Number.isSafeInteger(baselineTokens) || baselineTokens <= 0)
     throw new Error('Actor token budget baseline must be a positive safe integer.')
 
-  let grantedTokens = 0
   return request => {
     if (hardCap || !request.local) return 0
-    const available = Math.max(0, baselineTokens - grantedTokens)
-    const deficit = Math.max(0, request.requiredTokens - request.remainingTokens)
-    const grant = Math.min(available, deficit)
-    grantedTokens += grant
-    return grant
+    return Math.max(0, request.requiredTokens - request.remainingTokens)
   }
 }
