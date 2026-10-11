@@ -51,7 +51,10 @@ async function main() {
   const delegation = helpRequested ? null : artifactCommand(args);
   if (delegation) {
     const progress = process.stderr.isTTY ? new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''}) : undefined;
-    progress?.start(`Running ${delegation.tool}...`);
+    const progressMessage = delegation.tool === 'resolve_ticket'
+      ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
+      : `Running ${delegation.tool}...`;
+    progress?.start(progressMessage);
     let result;
     try {
       result = await registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root});
