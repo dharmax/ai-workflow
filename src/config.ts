@@ -40,6 +40,8 @@ export interface ProjectConfig {
   ollamaUrl: string;
   ollamaContextWindow: number;
   llmOutputTokens: number;
+  /** Baseline cumulative token budget for one implementation Actor run. */
+  maxActorTokens: number;
   model: string;
   autoSync: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
@@ -59,6 +61,7 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
   ollamaContextWindow: 32768,
   llmOutputTokens: 4096,
+  maxActorTokens: 64000,
   model: process.env.AIWF_MODEL || 'qwen2.5-coder:7b',
   autoSync: true,
   logLevel: 'info',
@@ -90,6 +93,7 @@ export const CONFIG_SETTINGS = {
   ollamaUrl: { schema: z.url(), description: 'Ollama server URL', type: 'string' },
   ollamaContextWindow: { schema: positiveInt, description: 'Ollama context window', type: 'number' },
   llmOutputTokens: { schema: positiveInt, description: 'Maximum model output tokens', type: 'number' },
+  maxActorTokens: { schema: positiveInt, description: 'Baseline implementation Actor token budget per run', type: 'number' },
   model: { schema: z.string().min(1), description: 'Default model', type: 'string' },
   autoSync: { schema: z.boolean(), description: 'Synchronize projections automatically', type: 'boolean' },
   logLevel: { schema: z.enum(['debug', 'info', 'warn', 'error']), description: 'Log verbosity', type: 'string' },
