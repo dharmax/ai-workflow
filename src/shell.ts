@@ -1040,7 +1040,9 @@ Drill-down and project commands:
   const delegation = artifactCommand(artifactTokens);
   if (delegation) {
     const progress = session.viewport || new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''});
-    progress.start(`Running ${delegation.tool}...`);
+    progress.start(delegation.tool === 'resolve_ticket'
+      ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
+      : `Running ${delegation.tool}...`);
     try {
       const result = await registry.execute(delegation.tool, delegation.args, ctx);
       progress.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
