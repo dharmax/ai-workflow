@@ -40,7 +40,7 @@ export interface ProjectConfig {
   ollamaUrl: string;
   ollamaContextWindow: number;
   llmOutputTokens: number;
-  /** Baseline cumulative token budget for one implementation Actor run. */
+  /** Baseline cumulative token budget for implementation Actor inference during one resolution. */
   actorTokenBudget: number;
   model: string;
   autoSync: boolean;
@@ -93,7 +93,7 @@ export const CONFIG_SETTINGS = {
   ollamaUrl: { schema: z.url(), description: 'Ollama server URL', type: 'string' },
   ollamaContextWindow: { schema: positiveInt, description: 'Ollama context window', type: 'number' },
   llmOutputTokens: { schema: positiveInt, description: 'Maximum model output tokens', type: 'number' },
-  actorTokenBudget: { schema: positiveInt, description: 'Baseline implementation Actor token budget per run', type: 'number' },
+  actorTokenBudget: { schema: positiveInt, description: 'Baseline implementation Actor token budget per resolution', type: 'number' },
   model: { schema: z.string().min(1), description: 'Default model', type: 'string' },
   autoSync: { schema: z.boolean(), description: 'Synchronize projections automatically', type: 'boolean' },
   logLevel: { schema: z.enum(['debug', 'info', 'warn', 'error']), description: 'Log verbosity', type: 'string' },
