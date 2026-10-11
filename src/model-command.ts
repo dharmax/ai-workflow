@@ -28,11 +28,11 @@ export async function runModelCommand(projectRoot: string, actor: WorkflowActor,
   }
   if (action !== 'list' || tokens.length > 1) throw new Error('Usage: model [list|radar [--refresh]|set <task> <modelTarget>]');
   const config = loadConfig(projectRoot);
-  const providers = actor.getConfiguredProviders();
+  const providers = actor.configuredProviders;
   const recommendations = actor.radar.getRecommendations();
   const routes = ['design', 'dev', 'triage', 'product'] as const;
-  const routeLines = routes.map(task => `[${task.toUpperCase()}] Effective: ${actor.getEffectiveRoute(task)?.target || 'unknown'} | Local: ${config.model} | Cloud: ${recommendations[task]}${config.modelRoutes?.[task] ? ` (Override: ${config.modelRoutes[task]})` : ''}`);
-  const last = actor.getLastExecutionMetrics();
+  const routeLines = routes.map(task => `[${task.toUpperCase()}] Effective: ${actor.resolveRoute(task)?.target || 'unknown'} | Local: ${config.model} | Cloud: ${recommendations[task]}${config.modelRoutes?.[task] ? ` (Override: ${config.modelRoutes[task]})` : ''}`);
+  const last = actor.lastExecutionMetrics;
   const output = [`Model & Gateway Status`, `Active Gateway: ${config.gateway}`, `Configured Providers: ${providers.join(', ')} (reachability not probed)`, `Escalation Policy: ${config.escalation.policy} (Blast threshold: ${config.escalation.blastRadiusThreshold})`, 'Mode Routing:', ...routeLines, ...(last ? [`Last Execution: ${last.providerId}/${last.modelId} (${last.latencyMs}ms, ${last.totalTokens} tokens, success: ${last.success})`] : [])].join('\n');
   const fields = {gateway: config.gateway, providers: providers.join(', '), escalation: config.escalation.policy, ...Object.fromEntries(routes.map((task, index) => [task, routeLines[index]!]))};
   return {output, view: {id: 'model', title: 'Model & Gateway Status', mode: 'readonly', fields: Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, {type: 'text', mode: 'readonly', label: key, value}]))}};

@@ -32,18 +32,18 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
 
   it('resolves initial effective route based on configured providers and routes', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null });
-    const effectiveDev = actor.getEffectiveRoute('dev');
+    const effectiveDev = actor.resolveRoute('dev');
     expect(effectiveDev).toBeDefined();
     expect(effectiveDev?.target).toBe('ollama/qwen2.5-coder:7b');
 
-    const effectiveDesign = actor.getEffectiveRoute('design');
+    const effectiveDesign = actor.resolveRoute('design');
     expect(effectiveDesign).toBeDefined();
     expect(effectiveDesign?.target).toBe('openai/o3-mini');
   });
 
   it('updates resolved routes dynamically after saveConfig and reloadConfig on the same instance', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null });
-    expect(actor.getEffectiveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
+    expect(actor.resolveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
 
     // Update config on disk
     saveConfig(root, {
@@ -54,13 +54,13 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     });
 
     // Before reloadConfig, same actor still sees old route
-    expect(actor.getEffectiveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
+    expect(actor.resolveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
 
     // Trigger runtime reload
     actor.reloadConfig();
 
     // Now the same actor instance reflects the new target
-    expect(actor.getEffectiveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
+    expect(actor.resolveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
   });
 
   it('preserves injected mock askers during reloadConfig', () => {
@@ -71,7 +71,7 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     } as any;
 
     const actor = new WorkflowActor({ store, projectRoot: root, asker: mockAsker });
-    expect(actor.getAsker()).toBe(mockAsker);
+    expect(actor.asker).toBe(mockAsker);
 
     saveConfig(root, {
       modelRoutes: { dev: 'some/other-model' }
@@ -79,7 +79,7 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     actor.reloadConfig();
 
     // Injected mock asker remains untouched
-    expect(actor.getAsker()).toBe(mockAsker);
+    expect(actor.asker).toBe(mockAsker);
   });
 
   it('displays Effective routes and reloads runtime on /model set in interactive shell', async () => {
@@ -100,7 +100,7 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     expect(setOut.output).toContain('Set model for [DEV] to: openrouter/anthropic/claude-sonnet-4.6');
 
     // 3. session.actor has been reloaded dynamically
-    expect(session.actor.getEffectiveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
+    expect(session.actor.resolveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
 
     // 4. Subsequent /model reflects updated effective target
     const modelOut2 = await processShellInput('model', session);
@@ -108,9 +108,9 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     expect(modelOut2.output).toContain('openrouter/anthropic/claude-sonnet-4.6');
   });
 
-  it('records and retrieves execution metrics accurately via getLastExecutionMetrics', () => {
+  it('records and retrieves execution metrics through the lastExecutionMetrics property', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null });
-    expect(actor.getLastExecutionMetrics()).toBeUndefined();
+    expect(actor.lastExecutionMetrics).toBeUndefined();
 
     // Simulate metric recording
     actor.metrics.append({
@@ -125,7 +125,7 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
       totalTokens: 75
     });
 
-    const last = actor.getLastExecutionMetrics();
+    const last = actor.lastExecutionMetrics;
     expect(last).toBeDefined();
     expect(last?.providerId).toBe('openrouter');
     expect(last?.modelId).toBe('anthropic/claude-sonnet-4.6');

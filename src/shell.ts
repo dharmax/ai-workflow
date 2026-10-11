@@ -259,22 +259,22 @@ Drill-down and project commands:
 
   if (lower === '/design') {
     session.modeOverride = 'design';
-    session.actor.setMode('design');
+    session.actor.mode = 'design';
     return { output: 'Locked mode to [DESIGN] (Reasoning & Architecture)', newMode: 'design' };
   }
   if (lower === '/dev') {
     session.modeOverride = 'dev';
-    session.actor.setMode('dev');
+    session.actor.mode = 'dev';
     return { output: 'Locked mode to [DEV] (Implementation & Patching)', newMode: 'dev' };
   }
   if (lower === '/triage') {
     session.modeOverride = 'triage';
-    session.actor.setMode('triage');
+    session.actor.mode = 'triage';
     return { output: 'Locked mode to [TRIAGE] (Diagnostics & Test Triage)', newMode: 'triage' };
   }
   if (lower === '/product') {
     session.modeOverride = 'product';
-    session.actor.setMode('product');
+    session.actor.mode = 'product';
     return { output: 'Locked mode to [PRODUCT] (Roadmap & Story Grooming)', newMode: 'product' };
   }
   if (lower === '/auto') {

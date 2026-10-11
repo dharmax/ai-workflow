@@ -1,0 +1,1 @@
+Execution authority: read-only project filesystem; writable scratch directory {{scratchRoot}}; TMPDIR points there.

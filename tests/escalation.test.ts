@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import type { Asker } from "@dharmax/llm-utils"
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -52,7 +53,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       preferLocal: false
     });
 
-    const providers = actor.getConfiguredProviders();
+    const providers = actor.configuredProviders;
     expect(providers).toContain('ollama');
     expect(providers).toContain('openrouter');
     expect(providers).toContain('anthropic');
@@ -141,7 +142,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       toolDiscovery: noTools()
     });
     // Inject mockAsker directly onto actor instance so options.asker is not set
-    (actor as any).asker = mockAsker;
+    (actor as unknown as {_asker: Asker})._asker = mockAsker;
     (actor as any).session = new (await import('@dharmax/llm-utils')).LLMSession(mockAsker);
 
     const res = await actor.execute('/dev resolve complex state issue');
