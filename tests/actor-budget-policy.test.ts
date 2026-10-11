@@ -13,11 +13,11 @@ const request = (overrides: Partial<Parameters<ReturnType<typeof createActorToke
 })
 
 describe('Actor token budget policy', () => {
-  it('grants only the deficit for local inference and stays bounded by one baseline', () => {
+  it('grants only the current deficit for local inference, repeatedly when bounded execution still progresses', () => {
     const policy = createActorTokenBudgetPolicy(1000)
     expect(policy(request())).toBe(500)
-    expect(policy(request({requiredTokens: 1100, remainingTokens: 400}))).toBe(500)
-    expect(policy(request())).toBe(0)
+    expect(policy(request({requiredTokens: 1100, remainingTokens: 400}))).toBe(700)
+    expect(policy(request({requiredTokens: 650, remainingTokens: 600}))).toBe(50)
   })
 
   it('does not auto-expand remote inference', () => {
