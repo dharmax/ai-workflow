@@ -82,6 +82,12 @@ describe('configuration layers', () => {
       if (oldHost === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = oldHost;
     }
   });
+  it('exposes the Actor token budget as an overridable baseline', () => {
+    expect(loadConfig(root).maxActorTokens).toBe(64000);
+    setConfigOverride(root, 'maxActorTokens', '96000');
+    expect(loadConfig(root).maxActorTokens).toBe(96000);
+    expect(() => setConfigOverride(root, 'maxActorTokens', '0')).toThrow();
+  });
   it('merges nested options from both explicit layers', () => {
     setConfigOverride(root, 'modelRadar', '{"enabled":false}', 'global');
     setConfigOverride(root, 'modelRadar', '{"probeIntervalDays":7}');
