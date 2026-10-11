@@ -561,6 +561,40 @@ describe('Ticket-owned bounded resolution', () => {
     } finally { completion.mockRestore(); }
   }, 30000);
 
+  it('hands test execution to the resolver instead of treating source actions as test commands', async () => {
+    const t = await ticket()
+    const originalTest = fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')
+    let calls = 0, reviews = 0
+    const execution = spyOn(registry, 'execute')
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model, _config, options) => {
+      const step = calls++
+      const phaseOwned = options?.system?.includes('AIWF runs testCommands and independently verifies acceptance')
+      let decision: unknown
+      if (step === 0) decision = { action: 'tool_call', toolCalls: [{ name: 'read_workspace_file', parameters: { filePath: 'src/add.ts' } }] }
+      else if (step === 1) decision = { action: 'tool_call', toolCalls: [{ name: 'safe_change', parameters: { action: 'replace_text', filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b' } }] }
+      else if (phaseOwned) decision = { action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) }
+      // Replay the observed phase confusion: source.fixAll cannot execute tests, then identical test reads stall.
+      else decision = { action: 'tool_call', toolCalls: [{ name: step === 2 ? 'safe_change' : 'read_workspace_file', parameters: step === 2
+        ? { action: 'source_action', filePath: 'tests/add.test.ts', actionKind: 'source.fixAll' }
+        : { filePath: 'tests/add.test.ts' } }] }
+      return { model, ok: true, text: JSON.stringify({ thought: 'Implement then hand off tests', ...decision as object }) }
+    })
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', maxRepairs: 0, verify: async input => {
+        reviews++
+        expect(input.tests.some(test => test.command.includes('tests/add.test.ts') && test.passed)).toBe(true)
+        return verify(input)
+      } })
+      expect(result.status).toBe('complete')
+      expect(calls).toBe(3)
+      expect(reviews).toBe(1)
+      expect(execution.mock.calls.some(([name, params]) => name === 'preview_change' && params.action === 'source_action')).toBe(false)
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b')
+      expect(fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')).toBe(originalTest)
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null })
+    } finally { completion.mockRestore(); execution.mockRestore() }
+  }, 30000)
+
   it('rejects repeated unchanged navigation and permits re-reading after a real edit', async () => {
     const t = await ticket(); let calls = 0;
     const request = { action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b' };
