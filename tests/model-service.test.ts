@@ -1,3 +1,8 @@
+/**
+ * Responsibility: Verify configuration-backed model selection.
+ * Scope: Default, local and cloud models, semantic routes and runtime refresh.
+ */
+
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import fs from "node:fs"
 import os from "node:os"

@@ -873,7 +873,8 @@ async function main() {
         for (const item of items) {
           console.log(`  \x1b[1m[${item.type.toUpperCase()}] ${item.id}\x1b[0m (${item.title})`);
           console.log(`  \x1b[90m${item.description}\x1b[0m`);
-          console.log(`  Tags: ${item.tags.join(', ')} | Hash: ${item.sha256.slice(0, 12)}\n`);
+          console.log(`  Tags: ${item.tags.join(", ")} | Hash: ${item.sha256.slice(0, 12)}`)
+          console.log(`  Inspect: aiwf kb show ${item.id}\n`)
         }
         break;
       }

@@ -199,13 +199,8 @@ export class WorkflowActor {
         return new ToolDiscovery(registry, discoveryAsker, this._asker)
     }
 
-    private locality(policy: string, escalated = policy === "sota"): boolean {
-        switch (policy) {
-            case "local_only":
-                return true
-            default:
-                return escalated ? false : this.preferLocal
-        }
+    private locality(policy: string, escalated = false): boolean {
+        return policy === "local_only" || (policy !== "sota" && !escalated && this.preferLocal)
     }
 
     public reloadConfig(): void {
@@ -394,6 +389,7 @@ export class WorkflowActor {
         this.recordEscalation(state, "reasoning", reason)
         return this.session!.run(actor, text, {
             ...options,
+            onDiscoverTools: this.discoveryHandler(state),
             askOptions: { ...options.askOptions, task: "reasoning", preferLocal: false },
         })
     }

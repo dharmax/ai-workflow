@@ -94,7 +94,10 @@ export class ModelService {
     }
 
     get localModel(): ModelTarget | undefined {
-        return this.resolveModel("local", true)
+        const { config, providers } = this.runtime
+        const target = parseModelTarget(config.modelRoutes?.local ?? config.model)
+        const provider = providers[target.providerId]
+        return provider?.available && provider.local ? target : undefined
     }
 
     get cloudModel(): ModelTarget | undefined {
@@ -102,7 +105,12 @@ export class ModelService {
     }
 
     public resolveModel(task: string, local?: boolean): ModelTarget | undefined {
-        const { providers } = this.runtime
+        const { config, providers } = this.runtime
+        if (local === true && !this.localModel) {
+            const configured = config.modelRoutes?.[task]
+            if (!configured) return undefined
+            task = configured
+        }
         const eligible = Object.keys(providers).filter(
             (id) => providers[id]?.available && (local === undefined || !!providers[id]?.local === local),
         )
