@@ -55,6 +55,34 @@ describe('reviewed Ticket preparation', () => {
     expect(calls).toBe(1); expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(3);
   });
 
+  it('reuses an existing equivalent child and redirects dependencies to its durable identity', async () => {
+    const ticket = await parent()
+    const planned = proposal()
+    const persistence = planned.children[0]
+    await store.upsertEntity(Ticket.dcr, {
+      id: 'EXISTING',
+      title: persistence.title,
+      body: persistence.body,
+      acceptanceCriteria: persistence.acceptanceCriteria,
+      lane: 'Backlog'
+    })
+
+    const result = await ticket.prepare(store, {
+      systemOne: split,
+      critic: accept,
+      propose: async () => planned
+    })
+
+    expect(result.status).toBe('complete')
+    if (result.status !== 'complete') throw new Error(JSON.stringify(result))
+    expect(result.value.created).toEqual(['P/migrate'])
+    expect(result.value.reused).toEqual(['EXISTING'])
+    expect(result.value.children.sort()).toEqual(['EXISTING', 'P/migrate'])
+    expect((await store.getOutgoing('P/migrate', 'depends_on')).map(edge => store.localId(edge.targetId))).toEqual(['EXISTING'])
+    expect(await store.getEntity('P/persist')).toBeNull()
+    expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(3)
+  })
+
   it('feeds omission findings back to the producer and converges before writing', async () => {
     const t = await parent(); let reviews = 0, proposals = 0;
     const result = await t.prepare(store, { systemOne: split, critic: { id: 'independent', review: async input => { reviews++; expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(1); return input.proposal.filter(m => m.kind === 'product_create').length === 1 ? { verdict: 'revise', findings: [{ message: 'Migration acceptance is omitted.' }] } : { verdict: 'accept' }; } }, propose: async (_dossier, findings) => { proposals++; const p = proposal(); if (!findings.length) p.children.pop(); else expect(findings[0].message).toContain('Migration'); return p; } });

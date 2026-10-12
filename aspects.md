@@ -13,7 +13,7 @@
 - [ ] Method-level review finds the smallest implementation that meets acceptance.
 
 ### Evidence (read-only)
-- Tickets: None
+- Tickets: TKT-RESOLVE-RECOVERY-R3, TKT-RILZ
 - Tests: None
 - Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
 - Decisions: None
