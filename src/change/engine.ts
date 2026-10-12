@@ -870,7 +870,6 @@ export class CausalChangeEngine {
 
     // 8. Verification checks
     const verificationErrors: string[] = [];
-    let diagnosticsOk = true;
 
     // Check expected definition in TS7 LSP
     if (preview.verification.graphChecks.expectedDefinition && preview.resolvedTarget) {
@@ -878,7 +877,6 @@ export class CausalChangeEngine {
         const defs = await this.lspClient.getDefinition(preview.resolvedTarget.filePath, preview.resolvedTarget.position);
         if (defs.length === 0) {
           verificationErrors.push(`Post-change verification: definition for '${preview.verification.graphChecks.expectedDefinition}' could not be resolved.`);
-          diagnosticsOk = false;
         }
       } catch (err: any) {
         verificationErrors.push(`Post-change LSP probe failed: ${err.message}`);
@@ -897,7 +895,6 @@ export class CausalChangeEngine {
       migratedAnchors,
       verification: {
         passed,
-        diagnosticsOk,
         errors: verificationErrors
       }
     };

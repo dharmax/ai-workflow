@@ -107,6 +107,10 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       expect(applyRes.ok).toBe(true);
       expect(applyRes.filesTouched.length).toBe(3);
       expect(applyRes.verification.passed).toBe(true);
+      // applyChange checked its own edit/graph invariants, not compiler diagnostics or project tests.
+      expect(applyRes.verification.diagnosticsOk).toBeUndefined()
+      expect(applyRes.verification.typecheckOk).toBeUndefined()
+      expect(applyRes.verification.testsOk).toBeUndefined()
 
       // Verify disk files were cleanly rewritten by TS7 LSP
       expect(fs.readFileSync(aFile, 'utf8')).toContain('export function parseSafeInt');

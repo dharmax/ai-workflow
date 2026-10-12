@@ -166,8 +166,10 @@ export interface ChangeApplyResult {
   reindexedFiles: string[];
   migratedAnchors: Array<{ oldId: string; newId: string }>;
   verification: {
+    /** Only the checks performed by applyChange; not proof of typechecking or behavior. */
     passed: boolean;
-    diagnosticsOk: boolean;
+    /** Omitted when diagnostics were not actually checked. */
+    diagnosticsOk?: boolean;
     typecheckOk?: boolean;
     testsOk?: boolean;
     errors: string[];
