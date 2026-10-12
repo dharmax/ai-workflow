@@ -599,10 +599,44 @@ describe('Ticket-owned bounded resolution', () => {
         const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
         expect(result.status).toBe('blocked'); expect(JSON.stringify(result)).toContain('Stalled navigation');
         expect(calls).toBe(3); expect(executions).toBe(1);
+        if (result.status !== 'blocked') throw Error(JSON.stringify(result));
+        const reason = result.blockers[0].reason;
+        expect(reason).toContain('mutation epoch 0; recent observations:');
+        const observations = JSON.parse(reason.split('recent observations: ')[1]);
+        expect(observations).toHaveLength(3);
+        expect(observations[0].calls).toEqual([{ tool: name, parameters: { filePath: 'src/add.ts' } }]);
+        expect(observations[0].outcomes).toEqual([{ tool: name, outcome: 'success' }]);
+        expect(observations[2].outcomes[0]).toMatchObject({ tool: name, outcome: 'error' });
+        expect(observations[2].outcomes[0].error).toContain('Stalled navigation');
+        expect(reason).not.toContain('return a - b');
         expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a - b');
       } finally { completion.mockRestore(); execution.mockRestore(); }
     }, 30000);
   }
+
+  it('bounds stalled report arguments and errors and omits arbitrary parameters', async () => {
+    const t = await ticket();
+    const symbolName = 'missing_' + 'x'.repeat(2000);
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => ({
+      model, ok: true, text: JSON.stringify({
+        thought: 'Inspect', action: 'tool_call',
+        toolCalls: [{ name: 'get_symbol_source', parameters: { filePath: 'src/add.ts', symbolName, credential: 'PRIVATE-PARAMETER' } }]
+      })
+    }));
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', verify, maxRepairs: 0 });
+      expect(result.status).toBe('blocked');
+      if (result.status !== 'blocked') throw Error(JSON.stringify(result));
+      const reason = result.blockers[0].reason;
+      const observations = JSON.parse(reason.split('recent observations: ')[1]);
+      expect(observations).toHaveLength(3);
+      expect(observations[0].calls[0].parameters.symbolName).toBe(symbolName.slice(0, 200));
+      expect(observations[0].outcomes[0].error).toHaveLength(500);
+      expect(reason.length).toBeLessThan(5000);
+      expect(reason).not.toContain('PRIVATE-PARAMETER');
+      expect(reason).not.toContain('return a - b');
+    } finally { completion.mockRestore(); }
+  }, 30000);
 
   it('allows different observations and rejects reordered canonical parameters', async () => {
     const t = await ticket(); let calls = 0, reads = 0;
@@ -688,35 +722,71 @@ describe('Ticket-owned bounded resolution', () => {
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
 
-  it('uses one guarded safe change after parameter repair and validates a free-text final proposal', async () => {
-    const t = await ticket(); let calls = 0;
-    const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'};
-    const originalApply = CausalChangeEngine.prototype.applyChange;
-    const applies = spyOn(CausalChangeEngine.prototype, 'applyChange').mockImplementation(function(this: CausalChangeEngine, ...args) { return originalApply.apply(this, args); });
+  it('uses one guarded safe change after parameter repair and parses a structured final proposal', async () => {
+    const t = await ticket()
+    let calls = 0
+    const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}
+    const applies = spyOn(CausalChangeEngine.prototype, 'applyChange')
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model, _provider, options) => {
-      calls++;
+      calls++
       if (calls === 1) {
-        expect(options?.system).toContain('safe_change');
-        expect(options?.system).not.toContain('preview_change'); expect(options?.system).not.toContain('apply_change');
+        expect(options?.system).toContain('safe_change')
+        expect(options?.system).not.toContain('preview_change')
+        expect(options?.system).not.toContain('apply_change')
       }
-      if (calls === 2) { expect(prompt).toContain('RECOVERY / REPLANNING TURN'); expect(applies).toHaveBeenCalledTimes(0); }
-      if (calls === 4) {
-        expect(prompt).toContain('complete');
-        expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b');
-        return {model, ok: true, text: JSON.stringify({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
+      if (calls === 2) {
+        expect(prompt).toContain('RECOVERY / REPLANNING TURN')
+        expect(applies).toHaveBeenCalledTimes(0)
       }
-      return {model, ok: true, usage: {available: true, promptTokens: Math.ceil(prompt.length / 4), completionTokens: 128, totalTokens: Math.ceil(prompt.length / 4) + 128}, text: JSON.stringify(calls === 3
-        ? {thought: 'Done', action: 'final_answer', finalAnswer: 'complete'}
-        : {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: calls === 1 ? {request, fingerprint: 'invented'} : request}]})};
-    });
+      const decision = calls === 3
+        ? {thought: 'Done', action: 'final_answer', finalAnswer: JSON.stringify({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})}
+        : {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: calls === 1 ? {request, fingerprint: 'invented'} : request}]}
+      return {model, ok: true, text: JSON.stringify(decision)}
+    })
     try {
-      const result = await t.resolve(store, {systemOne, critic: 'none', verify, maxRepairs: 0});
-      expect(result.status).toBe('complete'); expect(calls).toBe(4); expect(applies).toHaveBeenCalledTimes(1);
-      expect(applies.mock.calls[0][0]).toEqual(request);
-      expect(applies.mock.calls[0][1]).toMatch(/^[a-f0-9]{64}$/);
-      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({lane: 'Done', claim: null});
-    } finally { completion.mockRestore(); applies.mockRestore(); }
-  }, 30000);
+      const result = await t.resolve(store, {systemOne, critic: 'none', verify, maxRepairs: 0})
+      expect(result.status).toBe('complete')
+      expect(calls).toBe(3)
+      expect(applies).toHaveBeenCalledTimes(1)
+      expect(applies.mock.calls[0]?.[0]).toEqual(request)
+      expect(applies.mock.calls[0]?.[1]).toMatch(/^[a-f0-9]{64}$/)
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b')
+      expect(await store.getEntity<Ticket>('T', Ticket.dcr)).toMatchObject({lane: 'Done', claim: null})
+    } finally {
+      completion.mockRestore()
+      applies.mockRestore()
+    }
+  }, 30000)
+
+  it('keeps an actual Actor edit unaccepted when final prose supplies no structured proposal', async () => {
+    const t = await ticket()
+    let calls = 0
+    let acceptanceCalls = 0
+    const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
+      calls++
+      const decision = calls === 1
+        ? {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: request}]}
+        : {thought: 'Done', action: 'final_answer', finalAnswer: 'The implementation is complete.'}
+      return {model, ok: true, text: JSON.stringify(decision)}
+    })
+    try {
+      const result = await t.resolve(store, {systemOne, critic: 'none', maxRepairs: 0, verify: async input => {
+        acceptanceCalls++
+        return verify(input)
+      }})
+      expect(result.status).toBe('blocked')
+      expect(calls).toBe(2)
+      expect(acceptanceCalls).toBe(0)
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b')
+      expect(await store.getEntity('VERIFY-T')).toBeNull()
+      const current = await store.getEntity<Ticket>('T', Ticket.dcr)
+      expect(current?.lane).not.toBe('Done')
+      expect(current?.claim).toBeNull()
+    } finally {
+      completion.mockRestore()
+    }
+  }, 30000)
 
   it('treats a missing symbol slice as a recovery observation instead of successful source', async () => {
     const t = await ticket(); let calls = 0;

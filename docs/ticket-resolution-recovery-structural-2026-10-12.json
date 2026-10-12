@@ -1,0 +1,78 @@
+{
+  "responsibility": "Record the structural recovery audit and its verified boundary.",
+  "scope": "Existing ontology extraction; autonomous quality recovery remains separate and unaccepted.",
+  "date": "2026-10-12",
+  "ticket": "TKT-RILZ",
+  "instructionsRead": [
+    "/home/dharmax/AGENTS.md",
+    "/home/dharmax/.codex/AGENTS.md",
+    "/home/dharmax/.codex/AI-WORKFLOW.md",
+    "/home/dharmax/work/ai-workflow/AGENTS.md",
+    "/home/dharmax/work/ai-workflow/skills/ai-workflow/AGENTS.md",
+    "/home/dharmax/work/ai-workflow/skills/ai-workflow/SKILL.md",
+    "/home/dharmax/.codex/skills/ai-workflow/SKILL.md",
+    "/home/dharmax/.codex/skills/lean-ctx/SKILL.md",
+    "docs/architecture.md",
+    "docs/journeys.md",
+    "plans/AIWF-recovery-final-quality-acceptance.md"
+  ],
+  "instructionLimits": {
+    "GUIDELINES": "No GUIDELINES.md found in the bounded repository/instruction searches or subsequent home-directory filename search. Operator explicitly directed continuation and deferred locating it.",
+    "nested": "No additional AGENTS.md, GUIDELINES.md or AI-WORKFLOW.md under src, tests or plans.",
+    "staleSkillReference": "Installed AIWF skill references absent docs/advanced-actor-plan.md; current project skill directs docs/architecture.md and docs/journeys.md, both read.",
+    "archive": "Read legacy-reference/docs/project-guidelines.md as historical context; it is not substituted for current governing instructions."
+  },
+  "architecture": {
+    "ontology": "Entity APIs, descriptors, predicates and persistence defaults; Product and Ticket operations delegate lazily through preserved public APIs.",
+    "product": "Shared authored lineage and context selection; bounded reviewed Product reconciliation.",
+    "ticket": "Investigation, preparation, resolution host, implementation mechanism, check execution and independent acceptance have explicit cohesive owners.",
+    "prompts": "Six original substantial prompts use existing llm-utils PromptEngine text templates; typed runtime renderers preserve exact instructions."
+  },
+  "corrections": [
+    "Removed inherited statement semicolons and chained statements; reviewed entire resulting methods and immediate contracts.",
+    "Removed obsolete imports and custom abort-signal composition; kept native AbortSignal.any.",
+    "Fixed extraction-induced child-reuse callback shadowing; regression proves reuse of existing work and dependency redirection.",
+    "Reused existing hashFiles instead of duplicate hashing; retained dirty-target and intervening-edit checks.",
+    "Replaced any validator input and navigation-result casts with unknown or explicit result types.",
+    "Consolidated repeated optional selection and budget invariant allocation; removed redundant aliases.",
+    "Ensured check timeout and abort-listener cleanup also occurs when output collection rejects."
+  ],
+  "primeDirectiveReview": {
+    "responsibility": "Each operation owns its phase, not a service framework; shared lineage is one implementation.",
+    "existence": "Existing public entity entrypoints and private implementation context earn their presence; no shadow state or compatibility system added.",
+    "placement": "Graph descriptors remain graph-owned; runtime instructions live in templates; model machinery remains llm-utils-owned.",
+    "tightness": "Removed obsolete imports, repeated filters/hashing, custom signal plumbing, loose types and extraction shadowing.",
+    "generality": "No historical constructor matcher, fixture-specific quality rule, new judge or routing framework.",
+    "flow": "Reviewed leases, bounded work/dependencies, mutation ownership/epochs, stagnation, shared token budget, injected callbacks, checks, bounded repair, signature/hash invariants, receipts and projection cleanup.",
+    "api": "Existing public entity APIs and descriptor aliases preserved; new exports have actual workflow consumers."
+  },
+  "primitives": {
+    "supported": "AIWF extraction, semantic rename, relocation, import removal and exact source mutations used with preview fingerprints and safe apply.",
+    "gaps": [
+      "Instance-method extraction left an unbound this; explicit receiver extraction used existing create_file/replace_symbol.",
+      "Long-lived language servers produced stale relocations; fresh frozen AIWF CLI processes used for language operations.",
+      "No public format action: an existing local Prettier installation generated formatting candidates, applied through AIWF preview/apply. No formatter dependency or parallel refactoring engine added."
+    ]
+  },
+  "validation": {
+    "fullTests": {
+      "pass": 383,
+      "skip": 2,
+      "fail": 0,
+      "assertions": 2410,
+      "files": 51
+    },
+    "childReuseRegression": "Public Ticket.prepare regression passed; 9 preparation tests, 57 assertions.",
+    "typecheck": "Passed after final structural source changes.",
+    "build": "bun run pack passed; build850, llm-utils f8222aaa155a0b86f50b7cacbe0701ed29d86840.",
+    "promptParity": "All six templates match original inline rendering exactly for ordinary and escaped values, including nested placeholder-like data.",
+    "diffCheck": "Passed."
+  },
+  "acceptanceBoundary": {
+    "R1": "Preserved completed.",
+    "R2S": "Preserved completed evidence.",
+    "R2R3": "Not accepted; current existing quality reviewer routes have not rejected the actual historical defect.",
+    "CodeMutator": "Deferred.",
+    "targetImplementation": "Codex did not author a fresh target implementation; no new full historical run launched."
+  }
+}

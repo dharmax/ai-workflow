@@ -4,8 +4,8 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 101 | 0 | None |
-| `src/graph` | project default | 1173 | 0 | None |
+| `root` | project default | 103 | 0 | None |
+| `src/graph` | project default | 762 | 0 | None |
 | `src/tools` | project default | 554 | 0 | None |
 | `src/actor` | project default | 388 | 0 | None |
 | `src/mcp` | project default | 38 | 0 | None |
@@ -15,20 +15,20 @@
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 62 | 0 | None |
 | `src/setup` | project default | 133 | 0 | None |
-| `tests` | project default | 1199 | 0 | None |
+| `tests` | project default | 1205 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
 | `@external/@dharmax/codebase-parser` | project default | 2 | 0 | None |
 | `@external/@dharmax/context-manager` | project default | 245 | 0 | None |
-| `@external/@dharmax/llm-utils` | project default | 1523 | 0 | None |
+| `@external/@dharmax/llm-utils` | project default | 1522 | 0 | None |
 | `@external/@dharmax/pubsub` | project default | 66 | 0 | None |
 | `@external/@dharmax/semantika` | project default | 1298 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 66 | 0 | None |
-| `src/product` | project default | 312 | 0 | None |
+| `docs` | project default | 205 | 0 | None |
+| `src/product` | project default | 403 | 0 | None |
 | `src/change` | project default | 673 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
@@ -47,12 +47,13 @@
 | `src/client-guidance` | project default | 3 | 0 | None |
 | `@external/@dharmax/skill-manager` | project default | 356 | 0 | None |
 | `src/synthesis` | project default | 63 | 0 | None |
-| `plans` | project default | 52 | 0 | None |
+| `plans` | project default | 91 | 0 | None |
 | `src/config-command` | project default | 14 | 0 | None |
 | `src/setup-command` | project default | 6 | 0 | None |
 | `src/ticket-command` | project default | 22 | 0 | None |
 | `src/model-command` | project default | 14 | 0 | None |
 | `src/actor-budget-policy` | project default | 1 | 0 | None |
+| `src/ticket` | project default | 258 | 0 | None |
 
 ## Dependency Diagram
 
