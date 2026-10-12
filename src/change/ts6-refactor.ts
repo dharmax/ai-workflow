@@ -46,7 +46,7 @@ export class Ts6RefactorClient {
   private initPromise: Promise<void> | null = null;
   private isClosed = false;
   private interceptedWorkspaceEdit: WorkspaceEditLike | null = null;
-  private openDocuments = new Set<string>();
+  private openDocuments = new Map<string, { text: string; version: number }>();
 
   constructor(options: Ts6RefactorClientOptions) {
     this.projectRoot = path.resolve(options.projectRoot);
@@ -69,6 +69,7 @@ export class Ts6RefactorClient {
     if (this.initPromise) return this.initPromise;
 
     this.initPromise = (async () => {
+      this.openDocuments.clear(); // A new server has no copies of the previous session's open documents.
       const runtime = await resolveTs6RefactorRuntime(this.projectRoot);
       if (!runtime.isAvailable || !runtime.tslsBinPath || !runtime.tsserverPath) {
         throw new Error(runtime.error || 'TypeScript 6 refactor sidecar is not available. Run `aiwf setup`.');
@@ -159,27 +160,38 @@ export class Ts6RefactorClient {
     }
   }
 
-  /**
-   * Notifies tsserver that a document is open.
-   */
+  /** Keep every open TS6 document synchronized with disk before requesting refactor positions. */
   async ensureDocumentOpen(filePath: string): Promise<void> {
     await this.ensureStarted();
+    for (const [uri, previous] of this.openDocuments) {
+      const file = this.fromUri(uri);
+      if (!fs.existsSync(file)) {
+        this.connection!.sendNotification('textDocument/didClose', { textDocument: { uri } });
+        this.openDocuments.delete(uri);
+        continue;
+      }
+      const text = fs.readFileSync(file, 'utf8');
+      if (text === previous.text) continue;
+      const lines = previous.text.split('\\n');
+      const version = previous.version + 1;
+      this.connection!.sendNotification('textDocument/didChange', {
+        textDocument: { uri, version },
+        contentChanges: [{
+          range: { start: { line: 0, character: 0 }, end: { line: lines.length - 1, character: lines.at(-1)!.length } },
+          text
+        }]
+      });
+      this.openDocuments.set(uri, { text, version });
+    }
+
     const absPath = path.isAbsolute(filePath) ? filePath : path.resolve(this.projectRoot, filePath);
     const uri = this.toUri(absPath);
-    if (this.openDocuments.has(uri)) return;
-
-    if (fs.existsSync(absPath)) {
-      const text = fs.readFileSync(absPath, 'utf8');
-      this.connection!.sendNotification('textDocument/didOpen', {
-        textDocument: {
-          uri,
-          languageId: 'typescript',
-          version: 1,
-          text
-        }
-      });
-      this.openDocuments.add(uri);
-    }
+    if (this.openDocuments.has(uri) || !fs.existsSync(absPath)) return;
+    const text = fs.readFileSync(absPath, 'utf8');
+    this.connection!.sendNotification('textDocument/didOpen', {
+      textDocument: { uri, languageId: /\\.[cm]?tsx?$/.test(absPath) ? 'typescript' : 'javascript', version: 1, text }
+    });
+    this.openDocuments.set(uri, { text, version: 1 });
   }
 
   /**
