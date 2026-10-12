@@ -172,7 +172,7 @@ export class Ts6RefactorClient {
       }
       const text = fs.readFileSync(file, 'utf8');
       if (text === previous.text) continue;
-      const lines = previous.text.split('\\n');
+      const lines = previous.text.split('\n');
       const version = previous.version + 1;
       this.connection!.sendNotification('textDocument/didChange', {
         textDocument: { uri, version },
@@ -189,7 +189,7 @@ export class Ts6RefactorClient {
     if (this.openDocuments.has(uri) || !fs.existsSync(absPath)) return;
     const text = fs.readFileSync(absPath, 'utf8');
     this.connection!.sendNotification('textDocument/didOpen', {
-      textDocument: { uri, languageId: /\\.[cm]?tsx?$/.test(absPath) ? 'typescript' : 'javascript', version: 1, text }
+      textDocument: { uri, languageId: /\.[cm]?tsx?$/.test(absPath) ? 'typescript' : 'javascript', version: 1, text }
     });
     this.openDocuments.set(uri, { text, version: 1 });
   }
