@@ -120,21 +120,34 @@ export class RuleStore {
   /**
    * Folds candidates for a single logical ruleId into an effective ResolvedRule.
    * Rules:
-   * 1. Precedence: module > project > universal.
-   * 2. Draft rules cannot shadow active inherited rules (drafts are ignored if an active lower layer exists).
-   * 3. Disabled rules represent explicit suppression and shadow lower layers with isDisabled = true.
+   * 1. Language applicability: candidates with explicit language restrictions must match context.language
+   *    before participating in scope folding, so a language-specific override (e.g., Python-only) does not
+   *    suppress an otherwise applicable inherited rule in another language context (e.g., TypeScript).
+   * 2. Precedence: module > project > universal.
+   * 3. Draft rules cannot shadow active inherited rules (drafts are ignored if an active lower layer exists).
+   * 4. Disabled rules represent explicit suppression and shadow lower layers with isDisabled = true.
    */
   static foldRuleLayers(
     ruleId: string,
     candidates: RuleModel[],
-    context: { moduleId?: string } = {}
+    context: { moduleId?: string; language?: string } = {}
   ): ResolvedRule | null {
     if (candidates.length === 0) return null;
 
-    const universal = candidates.find(r => r.scope.kind === 'universal');
-    const project = candidates.find(r => r.scope.kind === 'project');
+    // Filter candidates by language applicability BEFORE scope folding
+    const languageApplicable = candidates.filter(r => {
+      if (!context.language || !r.languages || r.languages.length === 0) {
+        return true;
+      }
+      return r.languages.includes(context.language);
+    });
+
+    if (languageApplicable.length === 0) return null;
+
+    const universal = languageApplicable.find(r => r.scope.kind === 'universal');
+    const project = languageApplicable.find(r => r.scope.kind === 'project');
     const moduleCandidate = context.moduleId
-      ? candidates.find(r => r.scope.kind === 'module' && r.scope.moduleId === context.moduleId)
+      ? languageApplicable.find(r => r.scope.kind === 'module' && r.scope.moduleId === context.moduleId)
       : undefined;
 
     const layers: RuleModel[] = [];
@@ -178,7 +191,7 @@ export class RuleStore {
   /**
    * Resolves the effective rule definition for a given ruleId and target scope context.
    */
-  async resolveRule(ruleId: string, context: { moduleId?: string } = {}): Promise<ResolvedRule | null> {
+  async resolveRule(ruleId: string, context: { moduleId?: string; language?: string } = {}): Promise<ResolvedRule | null> {
     const all = await this.listAllRules();
     const candidates = all.filter(r => r.ruleId === ruleId);
     return RuleStore.foldRuleLayers(ruleId, candidates, context);
@@ -213,13 +226,6 @@ export class RuleStore {
       // When resolving for governance (Actors/Verifiers), standalone draft rules do not enforce
       if (forGovernance && res.effective.status === 'draft') {
         continue;
-      }
-
-      // Filter by language if specified on the effective rule
-      if (context.language && res.effective.languages && res.effective.languages.length > 0) {
-        if (!res.effective.languages.includes(context.language)) {
-          continue;
-        }
       }
 
       resolved.push(res);
@@ -283,15 +289,24 @@ export class RuleStore {
   }
 
   /**
-   * Ensure bundled defaults are installed or upgraded in the graph.
-   * Strictly preserves any existing project or module overrides, and refuses to silently
-   * overwrite customized universal records.
+   * Ensure bundled defaults are installed in the graph.
+   * Strictly preserves any existing universal, project, or module rules.
+   * Does NOT perform destructive automatic upgrades on existing universal records;
+   * reports available updates and conflicts instead. Full governed import/upgrade
+   * is deferred to Gate 4.
    */
-  async installDefaults(): Promise<{ installed: number; upgraded: number; skipped: number; customizedConflicts: string[] }> {
+  async installDefaults(): Promise<{
+    installed: number;
+    upgraded: number;
+    skipped: number;
+    availableUpdates: string[];
+    customizedConflicts: string[];
+  }> {
     const pack = RulePackSchema.parse(defaultsData);
     let installed = 0;
     let upgraded = 0;
     let skipped = 0;
+    const availableUpdates: string[] = [];
     const customizedConflicts: string[] = [];
 
     for (const rule of pack.rules) {
@@ -299,17 +314,16 @@ export class RuleStore {
       if (!existing) {
         await this.saveRule({ ...rule, scope: { kind: 'universal' }, provenance: 'bundled-default' });
         installed++;
-      } else if (existing.provenance !== 'bundled-default') {
-        customizedConflicts.push(rule.ruleId);
-        skipped++;
-      } else if (existing.revision < rule.revision) {
-        await this.saveRule({ ...rule, scope: { kind: 'universal' }, provenance: 'bundled-default' });
-        upgraded++;
       } else {
         skipped++;
+        if (existing.provenance !== 'bundled-default') {
+          customizedConflicts.push(rule.ruleId);
+        } else if (existing.revision < rule.revision) {
+          availableUpdates.push(rule.ruleId);
+        }
       }
     }
 
-    return { installed, upgraded, skipped, customizedConflicts };
+    return { installed, upgraded, skipped, availableUpdates, customizedConflicts };
   }
 }

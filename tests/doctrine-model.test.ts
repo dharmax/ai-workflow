@@ -557,4 +557,77 @@ describe('Doctrine Gate 1: Native Rule Model & Scoped Overrides', () => {
     expect(current?.title).toBe('User Customized KISS Doctrine');
     expect(current?.provenance).toBe('local-customization');
   });
+
+  it('evaluates language applicability before scope folding so language-specific overrides do not suppress inherited rules in other languages', async () => {
+    const ruleId = 'coding.type-safety';
+
+    // 1. Universal rule applicable to all languages (no explicit languages restriction)
+    await ruleStore.saveRule({
+      id: ruleId,
+      ruleId,
+      title: 'Universal Type Safety',
+      type: 'coding',
+      scope: { kind: 'universal' },
+      importance: 7,
+      rule: 'Enforce type safety across all languages.',
+      status: 'active',
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'bundled-default'
+    });
+
+    // 2. Module-level override that is PYTHON-ONLY
+    await ruleStore.saveRule({
+      id: ruleId,
+      ruleId,
+      title: 'Python Only Strict Typing Override',
+      type: 'coding',
+      scope: { kind: 'module', moduleId: 'src/analytics' },
+      importance: 10,
+      rule: 'Use Python typing, mypy, and type hints strictly.',
+      status: 'active',
+      languages: ['python'],
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 2,
+      provenance: 'module-override'
+    });
+
+    // Case A: Evaluated in a Python context -> Module override applies
+    const pyResolved = await ruleStore.resolveRule(ruleId, {
+      moduleId: 'src/analytics',
+      language: 'python'
+    });
+    expect(pyResolved).not.toBeNull();
+    expect(pyResolved?.effective.title).toBe('Python Only Strict Typing Override');
+    expect(pyResolved?.effective.importance).toBe(10);
+    expect(pyResolved?.effective.languages).toEqual(['python']);
+    expect(pyResolved?.isOverridden).toBe(true);
+
+    // Case B: Evaluated in a TypeScript context -> Python-only module override MUST NOT participate
+    // or suppress the universal rule! The universal rule remains effective.
+    const tsResolved = await ruleStore.resolveRule(ruleId, {
+      moduleId: 'src/analytics',
+      language: 'typescript'
+    });
+    expect(tsResolved).not.toBeNull();
+    expect(tsResolved?.effective.title).toBe('Universal Type Safety');
+    expect(tsResolved?.effective.importance).toBe(7);
+    expect(tsResolved?.effective.scope.kind).toBe('universal');
+    expect(tsResolved?.isOverridden).toBe(false);
+
+    // Verify resolveAllRules behaves identically
+    const allTs = await ruleStore.resolveAllRules({ moduleId: 'src/analytics', language: 'typescript' });
+    const tsRule = allTs.find(r => r.ruleId === ruleId);
+    expect(tsRule).toBeDefined();
+    expect(tsRule?.effective.title).toBe('Universal Type Safety');
+
+    const allPy = await ruleStore.resolveAllRules({ moduleId: 'src/analytics', language: 'python' });
+    const pyRule = allPy.find(r => r.ruleId === ruleId);
+    expect(pyRule).toBeDefined();
+    expect(pyRule?.effective.title).toBe('Python Only Strict Typing Override');
+  });
 });
