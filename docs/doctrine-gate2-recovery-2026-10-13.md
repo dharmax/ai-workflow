@@ -1,6 +1,6 @@
 # Gate 2 recovery — 2026-10-13
 
-Gate 2 source corrections are validated; lifecycle acceptance is blocked. Gate 3 has not started.
+Gate 2 is complete: the existing Ticket is Done/verified through AIWF's independent OpenRouter acceptance, with a current durable receipt and released lease. Gate 3 has not started. Earlier failed attempts remain recorded below.
 
 ## Repository truth and preservation
 
@@ -34,9 +34,9 @@ aiwf resolve TKT-DOCTRINE-G2-CONTEXT --agent codex-g2-recovery --max-repairs 0 e
 
 AIWF investigation delivered the real Ticket dossier and installed effective Rule text/examples. Outline, symbol, caller and blast queries bounded the source audit. Exact slicing failed for applicableAspects despite a valid outline; only that small source file required a bounded native read. All recovery edits used AIWF preview_change, original hashes/fingerprints and apply_change; each application verified and reindexed the affected scope. The existing Ticket was claimed before edits. Guarded Product mutations linked the three changed source files and the exact investigateTicket symbol as implementation scope. The existing doctrine producer TestNode now verifies the Ticket as its authored acceptance test. The three changed test files were removed from modifies scope and remain test execution evidence; this preserves their actual responsibility rather than treating test fixtures/imports as implementation scope.
 
-The Ticket is truthfully Blocked, has no verification receipt, and its lease is released. AIWF sync exported current Markdown projections. It was never manually marked Done. Code/test success is not independent lifecycle acceptance.
+At the earlier recovery checkpoint the Ticket was truthfully Blocked, had no verification receipt, and its lease was released. AIWF sync exported current Markdown projections. It was never manually marked Done. The later OpenRouter closure below supplies the missing independent lifecycle acceptance.
 
-To close Gate 2, restore credits for the approved direct OpenAI credential, then rerun bounded existing Ticket resolution and inspect its durable receipt. No further credential approval is needed. Only then may Gate 2 be described as verified/Done. Stop before Gate 3.
+The earlier direct OpenAI credit blocker was superseded by the successful OpenRouter diagnosis and acceptance below. No credit purchase or new credential was required. Gate 2 is verified/Done; stop before Gate 3.
 
 ## Approved direct-provider acceptance attempt
 
@@ -44,4 +44,18 @@ Used AIWF script_eval via aiwf eval to call the existing Ticket.resolve with max
 
 The first attempt passed its checks but refused a large ungrounded regression-file snippet. One bounded correction authored the existing doctrine TestNode's verifies edge, retained source scope and added the exact investigateTicket anchor. The second attempt reached independent provider acceptance after AIWF-owned checks; the provider refused it for exhausted credits. There was no acceptance response to interpret, no passing criterion assessment and no VERIFY receipt. AIWF metrics report one remote acceptance_verification call on openai/gpt-4o-mini and zero verified runs.
 
-The exact second OperationResult is preserved in docs/doctrine-gate2-acceptance-2026-10-13.json. Passed TestNode execution evidence remains in the existing graph. Ticket status is Blocked/blocked, its lease is released, and projections are synchronized. No source changes were made during this acceptance attempt; the previously observed 401-pass suite, unchanged TypeScript diagnostics and passing package build remain applicable.
+The exact failed second OperationResult is preserved in docs/doctrine-gate2-acceptance-2026-10-13.json. At that checkpoint the Ticket was Blocked/blocked, its lease was released, and projections were synchronized. No source changes were made during acceptance attempts; the previously observed 401-pass suite, unchanged TypeScript diagnostics and passing package build remain applicable.
+
+## OpenRouter diagnosis and successful Gate 2 closure
+
+Direct authenticated requests used native fetch, bypassing AIWF's provider integration. The inherited OPENROUTER_API_KEY and stored global credential differ. AIWF's independently checked selection equals the inherited environment credential, following its environment-first contract. That credential has the expected format and no surrounding whitespace, but both GET /api/v1/key and GET /api/v1/credits return HTTP 401, "User not found." The response does not identify whether it was revoked, expired or belongs to an unavailable account.
+
+The existing credential in /home/dharmax/.ai-workflow/config.json returns HTTP 200 on both endpoints. At diagnosis it had a remaining per-key limit of $49.136089059, account credits purchased of $75 and usage of $25.957797766 (about $49.04 available); expiry is 2027-01-01. The model catalog lists openai/gpt-4o-mini. A direct POST /api/v1/chat/completions with that model, a tiny prompt and max_tokens=2 succeeded with HTTP 200 and 12 total tokens. No credential values or key/account identifiers were disclosed, and no credentials or credits were created/purchased.
+
+The cause was a stale inherited credential shadowing a working stored credential, not a demonstrated provider integration bug. This run explicitly used env -u OPENROUTER_API_KEY aiwf eval. resolveCloudCredentials was checked to select the stored key. Persistent credential storage and modelRoutes were unchanged; there was no silent fallback or alternate provider. Future commands launched with the stale variable must clear it explicitly or remove its stale export from the launching environment. No export was found in the checked shell startup, Codex config or environment.d files; its upstream injection source was not established.
+
+The existing Ticket.resolve ran with maxRepairs=0 and a 180-second bound. Its supported implementation callback reported no pending source changes for the already committed implementation. The unchanged default verifyTicketAcceptance used the configured openrouter/openai/gpt-4o-mini route; no acceptance callback supplied synthetic verdicts. AIWF executed graph-required tests plus the bounded five-suite command and recorded current passing TestNodes before real independent model review.
+
+All four exact authored Ticket criteria passed. AIWF itself wrote VERIFY-TKT-DOCTRINE-G2-CONTEXT, marked the Ticket Done/verified, released the lease and exported projections. A read-only audit verified the receipt schema, current contract signature, all 83 recorded file hashes, and all eight current passing TestNodes. The OperationResult, direct diagnosis and completion metadata, receipt signature/digest and audit are preserved in docs/doctrine-gate2-openrouter-acceptance-2026-10-13.json; the complete receipt remains in the existing graph.
+
+This closes Gate 2 producer context integration under the existing acceptance contract. It does not claim Gate 3 Rule enforcement or governance-bound receipt extensions. Unrelated recovery JSON files and existing database backups remain byte-identical; Gate 3 remains untouched.

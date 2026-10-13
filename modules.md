@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 214 | 0 | None |
+| `docs` | project default | 221 | 0 | None |
 | `src/product` | project default | 408 | 0 | None |
 | `src/change` | project default | 680 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |

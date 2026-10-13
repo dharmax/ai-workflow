@@ -1,0 +1,244 @@
+{
+  "directDiagnostic": {
+    "checkedAt": "2026-10-13T17:29:57.687Z",
+    "credentialLoading": {
+      "globalConfigPath": "/home/dharmax/.ai-workflow/config.json",
+      "environmentCredentialPresent": true,
+      "storedCredentialPresent": true,
+      "selectedOrigin": "environment",
+      "independentSelectionMatchesAIWF": true,
+      "environmentAndStoredMatch": false,
+      "credentialFormatLooksOpenRouter": true,
+      "surroundingWhitespace": false,
+      "gateway": "auto",
+      "routes": {
+        "critic": "openrouter/openai/gpt-4o-mini",
+        "design": "openrouter/openai/gpt-4o-mini",
+        "dev": "openrouter/openai/gpt-4o-mini"
+      }
+    },
+    "directRequests": [
+      {
+        "origin": "environment",
+        "endpoint": "key",
+        "httpStatus": 401,
+        "errorCode": 401,
+        "errorMessage": "User not found."
+      },
+      {
+        "origin": "environment",
+        "endpoint": "credits",
+        "httpStatus": 401,
+        "errorCode": 401,
+        "errorMessage": "User not found."
+      },
+      {
+        "origin": "alternate-globalConfig",
+        "endpoint": "key",
+        "httpStatus": 200,
+        "data": {
+          "limit": 50,
+          "limit_remaining": 49.136089059,
+          "usage": 0.863910941,
+          "is_free_tier": false,
+          "expires_at": "2027-01-01T12:37:00.000Z"
+        }
+      },
+      {
+        "origin": "alternate-globalConfig",
+        "endpoint": "credits",
+        "httpStatus": 200,
+        "data": {
+          "total_credits": 75,
+          "total_usage": 25.957797766
+        }
+      }
+    ],
+    "modelCatalogHttpStatus": 200,
+    "routing": [
+      {
+        "task": "critic",
+        "route": "openrouter/openai/gpt-4o-mini",
+        "provider": "openrouter",
+        "modelId": "openai/gpt-4o-mini",
+        "catalogAvailable": true
+      },
+      {
+        "task": "design",
+        "route": "openrouter/openai/gpt-4o-mini",
+        "provider": "openrouter",
+        "modelId": "openai/gpt-4o-mini",
+        "catalogAvailable": true
+      },
+      {
+        "task": "dev",
+        "route": "openrouter/openai/gpt-4o-mini",
+        "provider": "openrouter",
+        "modelId": "openai/gpt-4o-mini",
+        "catalogAvailable": true
+      }
+    ]
+  },
+  "directCompletion": {
+    "checkedAt": "2026-10-13T17:30:42.224Z",
+    "credentialOrigin": "globalConfig",
+    "endpoint": "chat/completions",
+    "requestedModel": "openai/gpt-4o-mini",
+    "httpStatus": 200,
+    "respondedModel": "openai/gpt-4o-mini",
+    "completionReceived": true,
+    "usage": {
+      "promptTokens": 10,
+      "completionTokens": 2,
+      "totalTokens": 12
+    }
+  },
+  "resolution": {
+    "status": "complete",
+    "artifactId": "TKT-DOCTRINE-G2-CONTEXT",
+    "value": {
+      "verification": true,
+      "resolved": [
+        "TKT-DOCTRINE-G2-CONTEXT"
+      ],
+      "files": [],
+      "repairs": 0,
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "investigate_ticket and buildIntentContext deliver applicable resolved rules",
+            "passed": true,
+            "evidence": "The test 'resolves applicable Doctrine rules and inline examples into Ticket investigation evidence' verifies that applicable rules are delivered into the Ticket investigation evidence."
+          },
+          {
+            "criterion": "Decision operative fields (decision, context, consequences) are fully captured in dossier evidence",
+            "passed": true,
+            "evidence": "The test 'delivers Decision operative fields (decision, context, consequences) into Ticket dossier evidence' confirms that decision fields are captured in the dossier evidence."
+          },
+          {
+            "criterion": "Aspect status handling respects actual schema and criteria without spurious material checks",
+            "passed": true,
+            "evidence": "The test 'builds SynthesisContext delivering accepted Aspects and Rule constraints with examples' ensures that only accepted aspects are included in the synthesis context."
+          },
+          {
+            "criterion": "Regression tests verify delivery to LLMActor and synthesis context",
+            "passed": true,
+            "evidence": "The test 'delivers real Ticket governance to implementation and synthesis payloads without promoting candidates' confirms that regression tests verify the delivery to the synthesis context."
+          }
+        ],
+        "aspects": []
+      }
+    }
+  },
+  "durableVerification": {
+    "summary": {
+      "lane": "Done",
+      "status": "verified",
+      "activeLease": false,
+      "receiptId": "VERIFY-TKT-DOCTRINE-G2-CONTEXT",
+      "receiptStatus": "verified",
+      "signatureMatches": true,
+      "allRecordedFileHashesMatch": true,
+      "allTestNodesCurrentAndPassing": true,
+      "criteria": [
+        {
+          "criterion": "investigate_ticket and buildIntentContext deliver applicable resolved rules",
+          "passed": true,
+          "evidence": "The test 'resolves applicable Doctrine rules and inline examples into Ticket investigation evidence' verifies that applicable rules are delivered into the Ticket investigation evidence."
+        },
+        {
+          "criterion": "Decision operative fields (decision, context, consequences) are fully captured in dossier evidence",
+          "passed": true,
+          "evidence": "The test 'delivers Decision operative fields (decision, context, consequences) into Ticket dossier evidence' confirms that decision fields are captured in the dossier evidence."
+        },
+        {
+          "criterion": "Aspect status handling respects actual schema and criteria without spurious material checks",
+          "passed": true,
+          "evidence": "The test 'builds SynthesisContext delivering accepted Aspects and Rule constraints with examples' ensures that only accepted aspects are included in the synthesis context."
+        },
+        {
+          "criterion": "Regression tests verify delivery to LLMActor and synthesis context",
+          "passed": true,
+          "evidence": "The test 'delivers real Ticket governance to implementation and synthesis payloads without promoting candidates' confirms that regression tests verify the delivery to the synthesis context."
+        }
+      ],
+      "tests": [
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/doctrine-producer-context.test.ts"
+          ],
+          "passed": true
+        },
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/source-synthesis.test.ts"
+          ],
+          "passed": true
+        },
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/aspects.test.ts"
+          ],
+          "passed": true
+        },
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/doctrine-producer-context.test.ts",
+            "tests/ticket-investigation.test.ts",
+            "tests/ticket-preparation.test.ts",
+            "tests/aspects.test.ts",
+            "tests/source-synthesis.test.ts"
+          ],
+          "passed": true
+        }
+      ],
+      "testNodeCount": 8
+    },
+    "receiptSignature": "c30ce0d300bcba216a6b3aecdf9fa5cfa1640d863653a8da8651974b966490c0",
+    "verifiedAt": "2026-10-13T17:31:28.736Z",
+    "hashedFileCount": 83,
+    "receiptCanonicalSha256": "390fe6994c1ec5da5c9bc375781e3974224cd65107232427e764cfb6d4c7ee6c"
+  },
+  "acceptanceRuntime": {
+    "byModel": [
+      {
+        "providerId": "openrouter",
+        "modelId": "openai/gpt-4o-mini",
+        "calls": 1,
+        "promptTokens": 15422,
+        "completionTokens": 353,
+        "totalTokens": 15775,
+        "totalLatencyMs": 8756.886320000001,
+        "knownCostUsd": 0.0025251,
+        "costKnownCalls": 1,
+        "unknownCostTokens": 0
+      }
+    ],
+    "byPhase": {
+      "acceptance_verification": {
+        "calls": 1,
+        "promptTokens": 15422,
+        "completionTokens": 353,
+        "totalTokens": 15775,
+        "totalLatencyMs": 8756.886320000001,
+        "knownCostUsd": 0.0025251,
+        "costKnownCalls": 1,
+        "unknownCostTokens": 0
+      }
+    },
+    "verifiedRuns": 1,
+    "resolutionOutcomes": {
+      "verified_no_change": 1
+    },
+    "llmFailureKinds": {}
+  },
+  "executionCredentialSelection": "env -u OPENROUTER_API_KEY aiwf eval: explicit stored OpenRouter credential selection; persistent configuration unchanged"
+}
