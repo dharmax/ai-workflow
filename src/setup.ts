@@ -229,6 +229,11 @@ export async function initProject(projectRoot: string): Promise<InitResult> {
     await store.relate(ticket, 'implements', epic);
   }
 
+  // 3b. Install bundled engineering doctrine defaults if missing
+  const { RuleStore } = await import('./rules/store.ts');
+  const ruleStore = new RuleStore(store);
+  await ruleStore.installDefaults();
+
   // 4. Export initial Markdown projections
   const exportRes = await exportProjections(store, projectRoot);
 

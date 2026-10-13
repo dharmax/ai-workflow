@@ -462,6 +462,40 @@ export class Artifact extends WorkflowEntity {
     static readonly dcr = new EntityDcr(Artifact, Artifact.template, "Artifact")
 }
 
+export class Rule extends WorkflowEntity {
+    declare ruleId: string
+    declare type: string
+    declare scope: any
+    declare importance: number
+    declare rule: string
+    declare status: "active" | "draft" | "disabled"
+    declare disableReason?: string
+    declare languages?: string[]
+    declare examples?: any[]
+    declare references?: any[]
+    declare test?: any
+    declare revision: number
+    declare provenance: string
+
+    static template = {
+        ...baseTemplate,
+        ruleId: passthroughValidator,
+        type: { validate: (v: unknown) => ({ value: v ?? "universal" }) },
+        scope: { validate: (v: unknown) => ({ value: v ?? { kind: "universal" } }) },
+        importance: { validate: (v: unknown) => ({ value: typeof v === "number" ? v : 5 }) },
+        rule: passthroughValidator,
+        status: { validate: (v: unknown) => ({ value: v ?? "active" }) },
+        disableReason: passthroughValidator,
+        languages: passthroughValidator,
+        examples: { validate: (v: unknown) => ({ value: Array.isArray(v) ? v : [] }) },
+        references: { validate: (v: unknown) => ({ value: Array.isArray(v) ? v : [] }) },
+        test: { validate: (v: unknown) => ({ value: v ?? { kind: "llm" } }) },
+        revision: { validate: (v: unknown) => ({ value: typeof v === "number" ? v : 1 }) },
+        provenance: { validate: (v: unknown) => ({ value: v ?? "bundled-default" }) }
+    }
+    static readonly dcr = new EntityDcr(Rule, Rule.template, "Rule")
+}
+
 // -----------------------------------------------------------------------------
 // Ephemeral In-Memory Entities (aiwf-ephemeral)
 // -----------------------------------------------------------------------------
@@ -521,7 +555,8 @@ export const durableEntityDescriptors = [
     TestNode.dcr,
     Decision.dcr,
     Lesson.dcr,
-    Artifact.dcr
+    Artifact.dcr,
+    Rule.dcr
 ]
 
 export const ephemeralEntityDescriptors = [CallSite.dcr, TraceNode.dcr]

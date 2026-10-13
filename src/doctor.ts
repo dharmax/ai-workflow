@@ -177,6 +177,27 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
       message: `${tickets.length} tickets, ${epics.length} epics, ${features.length} features, ${stories.length} user stories, ${files.length} indexed files, ${symbols.length} symbols`,
       details: { tickets: tickets.length, epics: epics.length, features: features.length, stories: stories.length, files: files.length, symbols: symbols.length }
     });
+
+    const { RuleStore } = await import('./rules/store.ts');
+    const ruleStore = new RuleStore(store);
+    const defaultsCheck = await ruleStore.checkDefaultsInstalled();
+    if (!defaultsCheck.complete) {
+      checks.push({
+        category: 'Doctrine',
+        name: 'Engineering Rules',
+        status: 'warn',
+        message: `Incomplete default doctrine: ${defaultsCheck.installedCount}/${defaultsCheck.expectedCount} installed. Missing: ${defaultsCheck.missingRuleIds.join(', ')}.`,
+        details: defaultsCheck
+      });
+    } else {
+      checks.push({
+        category: 'Doctrine',
+        name: 'Engineering Rules',
+        status: 'ok',
+        message: `All ${defaultsCheck.installedCount} bundled doctrine rules installed`,
+        details: defaultsCheck
+      });
+    }
   } catch (err: any) {
     checks.push({
       category: 'Graph',

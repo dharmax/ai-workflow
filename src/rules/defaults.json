@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "packName": "aiwf-core-doctrine",
+  "rules": [
+    {
+      "id": "engineering.abstraction-placement",
+      "ruleId": "engineering.abstraction-placement",
+      "title": "Abstraction Placement",
+      "type": "architecture",
+      "scope": { "kind": "universal" },
+      "importance": 10,
+      "rule": "Introduce abstractions wherever genuinely justified and nowhere else; first inspect existing owners and simpler alternatives.",
+      "status": "active",
+      "examples": [
+        {
+          "kind": "negative",
+          "description": "Creating a new registry for a responsibility already owned by the current registry.",
+          "lesson": "Duplication is not an abstraction improvement."
+        }
+      ],
+      "references": [],
+      "test": {
+        "kind": "llm",
+        "instruction": "Review each touched artifact and immediate contracts. Identify justified and unjustified abstractions, alternatives already available, and exact evidence. Report pass, fail, not_applicable or inconclusive per rule."
+      },
+      "revision": 1,
+      "provenance": "bundled-default"
+    },
+    {
+      "id": "engineering.kiss-simplicity",
+      "ruleId": "engineering.kiss-simplicity",
+      "title": "Extreme KISS Simplicity",
+      "type": "coding",
+      "scope": { "kind": "universal" },
+      "importance": 9,
+      "rule": "If a solution is not super-simple, it is totally wrong. Avoid complex wrapper abstractions and bypasses when native platform and existing contracts exist.",
+      "status": "active",
+      "examples": [
+        {
+          "kind": "negative",
+          "description": "Adding intermediate caching layers or shadow stores when the direct store already owns persistence.",
+          "lesson": "Prefer direct, native single-owner contracts."
+        }
+      ],
+      "references": [],
+      "test": {
+        "kind": "llm",
+        "instruction": "Verify that the implementation chooses the simplest correct expression without unnecessary layers."
+      },
+      "revision": 1,
+      "provenance": "bundled-default"
+    },
+    {
+      "id": "engineering.single-responsibility-tightness",
+      "ruleId": "engineering.single-responsibility-tightness",
+      "title": "Single Responsibility & Tightness",
+      "type": "architecture",
+      "scope": { "kind": "universal" },
+      "importance": 9,
+      "rule": "Every touched artifact must earn its existence with one clear owner and responsibility. Tighten statements and remove redundant branches or obsolete workarounds.",
+      "status": "active",
+      "examples": [
+        {
+          "kind": "positive",
+          "description": "Placing domain operations in their owning domain tool module rather than scattering across general utilities.",
+          "lesson": "Keep responsibility cohesive."
+        }
+      ],
+      "references": [],
+      "test": {
+        "kind": "llm",
+        "instruction": "Assess whether touched methods have scattered or fragmented responsibilities."
+      },
+      "revision": 1,
+      "provenance": "bundled-default"
+    }
+  ]
+}

@@ -30,7 +30,8 @@ import {
   Decision,
   Lesson,
   Artifact,
-  Idea
+  Idea,
+  Rule
 } from './ontology.ts';
 import type {
   TicketClaim,
