@@ -1,0 +1,9 @@
+{
+  "status": "blocked",
+  "artifactId": "TKT-DOCTRINE-G2-CONTEXT",
+  "blockers": [
+    {
+      "reason": "Ticket resolution failed: Error: Acceptance verification failed: You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/."
+    }
+  ]
+}
