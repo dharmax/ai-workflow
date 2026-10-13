@@ -197,6 +197,14 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
         message: `Outdated default doctrine: ${defaultsCheck.outdatedRuleIds.length} rule(s) have newer bundled revisions (${defaultsCheck.outdatedRuleIds.join(', ')}). Run 'aiwf init' or update rules.`,
         details: defaultsCheck
       });
+    } else if (defaultsCheck.hasCustomizedConflicts) {
+      checks.push({
+        category: 'Doctrine',
+        name: 'Engineering Rules',
+        status: 'warn',
+        message: `Customized doctrine rules detected: ${defaultsCheck.customizedRuleIds.join(', ')} (universal defaults preserved/not overwritten).`,
+        details: defaultsCheck
+      });
     } else {
       checks.push({
         category: 'Doctrine',

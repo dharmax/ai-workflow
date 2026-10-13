@@ -50,15 +50,71 @@ describe('Doctrine Gate 1: Native Rule Model & Scoped Overrides', () => {
     expect(() => RuleStore.validateRule({ ...valid, type: 'nonexistent-type' })).toThrow();
   });
 
-  it('generates lossless collision-free entity IDs for complex rule and module IDs', () => {
-    const id1 = RuleStore.entityIdForScope('rule:a.b-c', { kind: 'universal' });
-    const id2 = RuleStore.entityIdForScope('rule:a.b-c', { kind: 'project' });
-    const id3 = RuleStore.entityIdForScope('rule:a.b-c', { kind: 'module', moduleId: 'src/core/auth.service.ts' });
-    const id4 = RuleStore.entityIdForScope('rule:a.b-c', { kind: 'module', moduleId: 'src/core/auth-service.ts' });
+  it('generates lossless collision-free entity IDs surviving WorkflowStore.formatId()', async () => {
+    // Two identifiers that would previously collide after formatId() converts '_' to '-'
+    const r1 = 'rule_auth_check';
+    const r2 = 'rule-auth-check';
 
-    expect(id1).toBe('rule:a.b-c__universal');
-    expect(id2).toBe('rule:a.b-c__project');
-    expect(id3).not.toBe(id4); // Different module paths produce distinct IDs without lossy hyphen substitution
+    const id1 = RuleStore.entityIdForScope(r1, { kind: 'universal' });
+    const id2 = RuleStore.entityIdForScope(r2, { kind: 'universal' });
+    const id3 = RuleStore.entityIdForScope(r1, { kind: 'module', moduleId: 'src/core:auth_v1' });
+    const id4 = RuleStore.entityIdForScope(r1, { kind: 'module', moduleId: 'src/core-auth-v1' });
+
+    // Hex-encoded JSON tuple guarantees distinct IDs containing only [0-9a-f] and hyphens
+    expect(id1).not.toBe(id2);
+    expect(id3).not.toBe(id4);
+
+    // Survives WorkflowStore.formatId() without mutation or underscore collision
+    const formatted1 = store.formatId(Rule.dcr, id1);
+    const formatted2 = store.formatId(Rule.dcr, id2);
+    expect(formatted1).not.toBe(formatted2);
+    expect(store.localId(formatted1)).toBe(id1);
+    expect(store.localId(formatted2)).toBe(id2);
+
+    // Demonstrate actual persistence and retrieval of formerly colliding identifiers
+    await ruleStore.saveRule({
+      id: r1,
+      ruleId: r1,
+      title: 'Underscore Auth Check',
+      type: 'coding',
+      scope: { kind: 'universal' },
+      importance: 7,
+      rule: 'Underscores rule',
+      status: 'active',
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'unit-test'
+    });
+
+    await ruleStore.saveRule({
+      id: r2,
+      ruleId: r2,
+      title: 'Hyphen Auth Check',
+      type: 'coding',
+      scope: { kind: 'universal' },
+      importance: 9,
+      rule: 'Hyphens rule',
+      status: 'active',
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'unit-test'
+    });
+
+    const get1 = await ruleStore.getRule(r1, { kind: 'universal' });
+    const get2 = await ruleStore.getRule(r2, { kind: 'universal' });
+
+    expect(get1).not.toBeNull();
+    expect(get2).not.toBeNull();
+    expect(get1?.ruleId).toBe(r1);
+    expect(get2?.ruleId).toBe(r2);
+    expect(get1?.importance).toBe(7);
+    expect(get2?.importance).toBe(9);
+    expect(get1?.title).toBe('Underscore Auth Check');
+    expect(get2?.title).toBe('Hyphen Auth Check');
   });
 
   it('persists and retrieves individual Rule entities in Semantika WorkflowStore', async () => {
@@ -86,7 +142,7 @@ describe('Doctrine Gate 1: Native Rule Model & Scoped Overrides', () => {
 
     const saved = await ruleStore.saveRule(model);
     expect(saved).toBeDefined();
-    expect(saved.id).toContain('engineering.test-persist');
+    expect(saved.id).toContain('rule-');
 
     const retrieved = await ruleStore.getRule('engineering.test-persist', { kind: 'universal' });
     expect(retrieved).not.toBeNull();
@@ -424,5 +480,81 @@ describe('Doctrine Gate 1: Native Rule Model & Scoped Overrides', () => {
     const pyRules = await ruleStore.resolveAllRules({ language: 'python' });
     expect(pyRules.some(r => r.ruleId === 'rule.python-only')).toBe(true);
     expect(pyRules.some(r => r.ruleId === 'rule.ts-only')).toBe(false);
+  });
+
+  it('keeps standalone draft rules visible to management while excluding them from governance results', async () => {
+    const draftRuleId = 'engineering.wip-experimental-draft';
+
+    await ruleStore.saveRule({
+      id: draftRuleId,
+      ruleId: draftRuleId,
+      title: 'WIP Experimental Rule',
+      type: 'coding',
+      scope: { kind: 'universal' },
+      importance: 8,
+      rule: 'Under development rule.',
+      status: 'draft',
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'unit-test'
+    });
+
+    // 1. Management visibility: getRule and listAllRules MUST find the draft rule
+    const retrieved = await ruleStore.getRule(draftRuleId, { kind: 'universal' });
+    expect(retrieved).not.toBeNull();
+    expect(retrieved?.status).toBe('draft');
+
+    const allManagementRules = await ruleStore.listAllRules();
+    expect(allManagementRules.some(r => r.ruleId === draftRuleId)).toBe(true);
+
+    // 2. Governance exclusion: resolveAllRules({ forGovernance: true }) (the default) excludes standalone draft
+    const governanceRules = await ruleStore.resolveAllRules({ forGovernance: true });
+    expect(governanceRules.some(r => r.ruleId === draftRuleId)).toBe(false);
+
+    // When explicitly querying for non-governance inspection (forGovernance: false), it is present
+    const nonGovRules = await ruleStore.resolveAllRules({ forGovernance: false });
+    expect(nonGovRules.some(r => r.ruleId === draftRuleId)).toBe(true);
+  });
+
+  it('distinguishes authentic bundled defaults, outdated defaults, and customized universal conflicts without silent overwrite', async () => {
+    // 1. Install official bundled defaults
+    const initialInstall = await ruleStore.installDefaults();
+    expect(initialInstall.installed).toBeGreaterThan(0);
+
+    const firstRuleId = 'engineering.kiss-simplicity';
+
+    // 2. Intentionally customize one universal rule locally (detach provenance from 'bundled-default')
+    await ruleStore.saveRule({
+      id: firstRuleId,
+      ruleId: firstRuleId,
+      title: 'User Customized KISS Doctrine',
+      type: 'architecture',
+      scope: { kind: 'universal' },
+      importance: 10,
+      rule: 'Customized organization-specific doctrine.',
+      status: 'active',
+      examples: [],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'local-customization'
+    });
+
+    // 3. checkDefaultsInstalled must report customized conflicts distinctly
+    const check = await ruleStore.checkDefaultsInstalled();
+    expect(check.hasCustomizedConflicts).toBe(true);
+    expect(check.customizedRuleIds).toContain(firstRuleId);
+
+    // 4. installDefaults must NOT silently overwrite the customized universal rule!
+    const secondInstall = await ruleStore.installDefaults();
+    expect(secondInstall.customizedConflicts).toContain(firstRuleId);
+    expect(secondInstall.upgraded).toBe(0);
+
+    // Verify the customized rule remained unchanged
+    const current = await ruleStore.getRule(firstRuleId, { kind: 'universal' });
+    expect(current?.title).toBe('User Customized KISS Doctrine');
+    expect(current?.provenance).toBe('local-customization');
   });
 });
