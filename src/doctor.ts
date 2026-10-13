@@ -189,12 +189,20 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
         message: `Incomplete default doctrine: ${defaultsCheck.installedCount}/${defaultsCheck.expectedCount} installed. Missing: ${defaultsCheck.missingRuleIds.join(', ')}.`,
         details: defaultsCheck
       });
+    } else if (!defaultsCheck.upToDate) {
+      checks.push({
+        category: 'Doctrine',
+        name: 'Engineering Rules',
+        status: 'warn',
+        message: `Outdated default doctrine: ${defaultsCheck.outdatedRuleIds.length} rule(s) have newer bundled revisions (${defaultsCheck.outdatedRuleIds.join(', ')}). Run 'aiwf init' or update rules.`,
+        details: defaultsCheck
+      });
     } else {
       checks.push({
         category: 'Doctrine',
         name: 'Engineering Rules',
         status: 'ok',
-        message: `All ${defaultsCheck.installedCount} bundled doctrine rules installed`,
+        message: `All ${defaultsCheck.installedCount} bundled doctrine rules installed and up-to-date`,
         details: defaultsCheck
       });
     }

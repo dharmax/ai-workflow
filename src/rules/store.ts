@@ -19,14 +19,20 @@ export class RuleStore {
   constructor(public readonly store: WorkflowStore) {}
 
   /**
-   * Generates a stable graph entity ID for a Rule layer: <ruleId>__<scopeKind>__<scopeId>
-   * This guarantees that default, project, and module overrides never share the same database key.
+   * Generates a collision-free graph entity ID for a Rule layer:
+   * <ruleId>__<scopeKind>[__<base64urlEncodedScopeId>]
+   * Preserves exact ruleId and moduleId characters without lossy regex sanitization.
    */
   static entityIdForScope(ruleId: string, scope: RuleScope): string {
-    const scopeId = scope.kind === 'universal' ? 'universal' : scope.kind === 'project' ? scope.projectId : scope.moduleId;
-    const sanitizedRuleId = ruleId.replace(/[^a-zA-Z0-9.-]/g, '-');
-    const sanitizedScopeId = scopeId.replace(/[^a-zA-Z0-9.-]/g, '-');
-    return `${sanitizedRuleId}__${scope.kind}__${sanitizedScopeId}`;
+    if (scope.kind === 'universal') {
+      return `${ruleId}__universal`;
+    }
+    if (scope.kind === 'project') {
+      return `${ruleId}__project`;
+    }
+    const encodedModule = Buffer.from(scope.moduleId, 'utf8')
+      .toString('base64url');
+    return `${ruleId}__module__${encodedModule}`;
   }
 
   /**
@@ -75,9 +81,11 @@ export class RuleStore {
    * Converts a Semantika Rule entity to a validated RuleModel.
    */
   private entityToModel(entity: Rule): RuleModel {
+    const localId = this.store.localId(entity.id);
+    const defaultRuleId = entity.ruleId || localId.split('__')[0];
     return RuleSchema.parse({
-      id: this.store.localId(entity.id),
-      ruleId: entity.ruleId || this.store.localId(entity.id).split('__')[0],
+      id: localId,
+      ruleId: defaultRuleId,
       title: entity.title,
       type: entity.type,
       scope: entity.scope,
@@ -95,19 +103,22 @@ export class RuleStore {
   }
 
   /**
-   * Resolves the effective rule definition for a given ruleId and target scope context.
-   * Precedence order: module scope > project scope > universal default.
+   * Folds candidates for a single logical ruleId into an effective ResolvedRule.
+   * Rules:
+   * 1. Precedence: module > project > universal.
+   * 2. Draft rules cannot shadow active inherited rules (drafts are ignored if an active lower layer exists).
+   * 3. Disabled rules represent explicit suppression and shadow lower layers with isDisabled = true.
    */
-  async resolveRule(ruleId: string, context: { projectId?: string; moduleId?: string } = {}): Promise<ResolvedRule | null> {
-    const all = await this.listAllRules();
-    const candidates = all.filter(r => r.ruleId === ruleId);
+  static foldRuleLayers(
+    ruleId: string,
+    candidates: RuleModel[],
+    context: { moduleId?: string } = {}
+  ): ResolvedRule | null {
     if (candidates.length === 0) return null;
 
-    let universal = candidates.find(r => r.scope.kind === 'universal');
-    let project = context.projectId
-      ? candidates.find(r => r.scope.kind === 'project' && r.scope.projectId === context.projectId)
-      : candidates.find(r => r.scope.kind === 'project');
-    let moduleCandidate = context.moduleId
+    const universal = candidates.find(r => r.scope.kind === 'universal');
+    const project = candidates.find(r => r.scope.kind === 'project');
+    const moduleCandidate = context.moduleId
       ? candidates.find(r => r.scope.kind === 'module' && r.scope.moduleId === context.moduleId)
       : undefined;
 
@@ -116,12 +127,25 @@ export class RuleStore {
     if (project) layers.push(project);
     if (moduleCandidate) layers.push(moduleCandidate);
 
-    const effective = moduleCandidate ?? project ?? universal;
-    if (!effective) return null;
+    if (layers.length === 0) return null;
 
-    const inheritedFrom = moduleCandidate
+    // Evaluate candidates from most specific to least specific:
+    // [moduleCandidate, project, universal]
+    const candidatesDesc = [moduleCandidate, project, universal].filter((r): r is RuleModel => Boolean(r));
+
+    // Draft rules cannot shadow active inherited rules.
+    // If the top layer is 'draft', find if there is an active/disabled inherited layer.
+    let effective = candidatesDesc[0];
+    if (effective.status === 'draft') {
+      const activeOrDisabled = candidatesDesc.find(r => r.status === 'active' || r.status === 'disabled');
+      if (activeOrDisabled) {
+        effective = activeOrDisabled;
+      }
+    }
+
+    const inheritedFrom = effective === moduleCandidate
       ? (project ? 'project' : universal ? 'universal' : undefined)
-      : (project && universal ? 'universal' : undefined);
+      : (effective === project && universal ? 'universal' : undefined);
 
     const isOverridden = layers.length > 1;
     const isDisabled = effective.status === 'disabled';
@@ -137,18 +161,38 @@ export class RuleStore {
   }
 
   /**
-   * Resolves all active effective rules applicable to a given target context.
+   * Resolves the effective rule definition for a given ruleId and target scope context.
    */
-  async resolveAllRules(context: { projectId?: string; moduleId?: string; language?: string } = {}): Promise<ResolvedRule[]> {
+  async resolveRule(ruleId: string, context: { moduleId?: string } = {}): Promise<ResolvedRule | null> {
     const all = await this.listAllRules();
-    const ruleIds = [...new Set(all.map(r => r.ruleId))].sort();
+    const candidates = all.filter(r => r.ruleId === ruleId);
+    return RuleStore.foldRuleLayers(ruleId, candidates, context);
+  }
+
+  /**
+   * Resolves all effective rules applicable to a given target context.
+   * Performs ONE single collection read across all stored rules.
+   */
+  async resolveAllRules(context: { moduleId?: string; language?: string } = {}): Promise<ResolvedRule[]> {
+    const all = await this.listAllRules();
+    
+    // Group all rules by ruleId in memory
+    const grouped = new Map<string, RuleModel[]>();
+    for (const rule of all) {
+      const list = grouped.get(rule.ruleId) ?? [];
+      list.push(rule);
+      grouped.set(rule.ruleId, list);
+    }
 
     const resolved: ResolvedRule[] = [];
-    for (const ruleId of ruleIds) {
-      const res = await this.resolveRule(ruleId, context);
+    const sortedRuleIds = [...grouped.keys()].sort();
+
+    for (const ruleId of sortedRuleIds) {
+      const candidates = grouped.get(ruleId) ?? [];
+      const res = RuleStore.foldRuleLayers(ruleId, candidates, context);
       if (!res) continue;
 
-      // Filter by language if specified on the rule
+      // Filter by language if specified on the effective rule
       if (context.language && res.effective.languages && res.effective.languages.length > 0) {
         if (!res.effective.languages.includes(context.language)) {
           continue;
@@ -162,34 +206,53 @@ export class RuleStore {
   }
 
   /**
-   * Verify whether bundled defaults are installed.
+   * Verify whether bundled defaults are installed and up-to-date.
+   * Detects missing or outdated universal defaults without touching local overrides.
    */
-  async checkDefaultsInstalled(): Promise<{ complete: boolean; missingRuleIds: string[]; installedCount: number; expectedCount: number }> {
+  async checkDefaultsInstalled(): Promise<{
+    complete: boolean;
+    upToDate: boolean;
+    missingRuleIds: string[];
+    outdatedRuleIds: string[];
+    installedCount: number;
+    expectedCount: number;
+  }> {
     const pack = RulePackSchema.parse(defaultsData);
     const existing = await this.listAllRules();
-    const existingUniversalIds = new Set(
-      existing.filter(r => r.scope.kind === 'universal').map(r => r.ruleId)
+    const existingUniversal = new Map(
+      existing.filter(r => r.scope.kind === 'universal').map(r => [r.ruleId, r])
     );
 
-    const missingRuleIds = pack.rules
-      .map(r => r.ruleId)
-      .filter(id => !existingUniversalIds.has(id));
+    const missingRuleIds: string[] = [];
+    const outdatedRuleIds: string[] = [];
+
+    for (const rule of pack.rules) {
+      const current = existingUniversal.get(rule.ruleId);
+      if (!current) {
+        missingRuleIds.push(rule.ruleId);
+      } else if (current.revision < rule.revision) {
+        outdatedRuleIds.push(rule.ruleId);
+      }
+    }
 
     return {
       complete: missingRuleIds.length === 0,
+      upToDate: missingRuleIds.length === 0 && outdatedRuleIds.length === 0,
       missingRuleIds,
+      outdatedRuleIds,
       installedCount: pack.rules.length - missingRuleIds.length,
       expectedCount: pack.rules.length
     };
   }
 
   /**
-   * Ensure bundled defaults are installed in the graph.
-   * Preserves any existing project or module overrides.
+   * Ensure bundled defaults are installed or upgraded in the graph.
+   * Strictly preserves any existing project or module overrides.
    */
-  async installDefaults(): Promise<{ installed: number; skipped: number }> {
+  async installDefaults(): Promise<{ installed: number; upgraded: number; skipped: number }> {
     const pack = RulePackSchema.parse(defaultsData);
     let installed = 0;
+    let upgraded = 0;
     let skipped = 0;
 
     for (const rule of pack.rules) {
@@ -197,11 +260,15 @@ export class RuleStore {
       if (!existing) {
         await this.saveRule({ ...rule, scope: { kind: 'universal' }, provenance: 'bundled-default' });
         installed++;
+      } else if (existing.revision < rule.revision && existing.provenance === 'bundled-default') {
+        // Upgrade universal default if bundled revision is newer and it has not been detached
+        await this.saveRule({ ...rule, scope: { kind: 'universal' }, provenance: 'bundled-default' });
+        upgraded++;
       } else {
         skipped++;
       }
     }
 
-    return { installed, skipped };
+    return { installed, upgraded, skipped };
   }
 }

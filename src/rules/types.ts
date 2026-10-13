@@ -18,7 +18,7 @@ export type RuleType = z.infer<typeof RuleTypeSchema>;
 
 export const RuleScopeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('universal') }),
-  z.object({ kind: z.literal('project'), projectId: z.string().min(1).default('default') }),
+  z.object({ kind: z.literal('project') }),
   z.object({ kind: z.literal('module'), moduleId: z.string().min(1) })
 ]);
 export type RuleScope = z.infer<typeof RuleScopeSchema>;
