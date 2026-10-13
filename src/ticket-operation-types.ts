@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { canonical } from './kb/canonical.ts';
 import type { WorkflowStore } from './graph/store.ts';
-import type { Ticket } from './graph/ontology.ts';
+import type { Ticket, WorkflowEntity } from './graph/ontology.ts';
 import type { CompletenessLevel } from './artifact-policy.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
@@ -31,6 +31,7 @@ export interface TicketDossier {
   evidence: TicketEvidence[];
   completeness: TicketCompletenessContext;
   aspects: AspectAssessment;
+  governance?: TicketGovernance;
   proposedEnrichments: { acceptanceCriteria?: string[]; relations: Array<{ sourceId: string; predicate: string; targetId: string }> };
   provenance: { systemOne: { backendId: string; quality: string } | null; reasoningUsed: boolean; optionalCandidates: number; optionalSelected: number; freshnessReconciliations: number };
 }
@@ -68,11 +69,18 @@ export const ExactImplementationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('replace_symbol'), replacement: z.string().min(1), testCommands: z.array(z.array(z.string()).min(1)).default([]) }),
   z.object({ action: z.literal('rename_symbol'), newName: z.string().min(1), testCommands: z.array(z.array(z.string()).min(1)).default([]) })
 ]);
+export const RuleEvaluationSchema = z.object({
+  ruleId: z.string().min(1), revision: z.number().int().positive(), fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  verdict: z.enum(['pass', 'fail', 'not_applicable', 'inconclusive']),
+  evidence: z.string().trim().min(1), evidenceIds: z.array(z.string().trim().min(1)).min(1),
+  limitations: z.array(z.string()).default([])
+});
 export const AcceptanceVerificationSchema = z.object({
   criteria: z.array(z.object({ criterion: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
-  aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) }))
+  aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
+  rules: z.array(RuleEvaluationSchema).default([])
 }).superRefine((value, ctx) => {
-  for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)]] as const) {
+  for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)], ['rules', value.rules.map(check => check.ruleId)]] as const) {
     if (new Set(keys).size !== keys.length) ctx.addIssue({code: 'custom', path: [field], message: 'Acceptance checks must identify each requirement exactly once.'});
   }
 });
@@ -83,12 +91,14 @@ export interface ResolutionOptions extends PreparationOptions {
   maxActorTokens?: number;
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
   implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;
-  verify?: (input: ResolutionVerificationInput) => Promise<AcceptanceVerification>;
+  verify?: (input: ResolutionVerificationInput) => Promise<z.input<typeof AcceptanceVerificationSchema>>;
 }
 export interface ResolvedTicket { verification: boolean; resolved: string[]; files: string[]; repairs: number; acceptance: AcceptanceVerification }
 
 // Receipts are untrusted persisted data. Invalid/legacy receipts trigger verification.
+export const DOCTRINE_VERIFIER_VERSION = 1;
 export const VerificationReceiptSchema = z.object({
+  governanceVersion: z.literal(DOCTRINE_VERIFIER_VERSION), governanceFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   signature: z.string(), hashes: z.record(z.string(), z.string()), acceptance: AcceptanceVerificationSchema,
   tests: z.array(z.object({command: z.array(z.string()), passed: z.boolean()})),
   testNodes: z.array(z.object({id: z.string(), hashes: z.record(z.string(), z.string())})).min(1)
@@ -100,7 +110,126 @@ export function readVerificationReceipt(body: unknown) {
   } catch { return null; }
 }
 
-/** Fingerprint the authored contract, including scope rather than incidental imported bytes. */
+export interface TicketGovernance {
+  fingerprint: string;
+  rules: Array<import('./rules/types.ts').RuleModel & { fingerprint: string }>;
+  decisions: Array<{ id: string; decision?: string; context?: string; consequences?: string; body?: string; status?: string }>;
+}
+
+/** One effective Ticket governance view for investigation, production, verification and proof reuse. */
+export async function resolveTicketGovernance(store: WorkflowStore, ticket: Ticket): Promise<TicketGovernance> {
+  const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./graph/ontology.ts');
+  const { RuleStore } = await import('./rules/store.ts');
+  const { collectProductMeaning } = await import('./product/context.ts');
+  const { loadConfig } = await import('./config.ts');
+  const { ensureAstFresh } = await import('./graph/indexer.ts');
+  const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
+  await ensureAstFresh(store);
+  const neighbors = [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)];
+  const entities: WorkflowEntity[] = [];
+  for (const edge of neighbors) {
+    if (!['contains', 'implements', 'addresses', 'targets', 'modifies', 'governs', 'verifies'].includes(edge.predicateName)) continue;
+    const entity = await store.getEntity(edge.sourceId === ticket.id ? edge.targetId : edge.sourceId);
+    if (entity) entities.push(entity);
+  }
+  const meaning = await collectProductMeaning([ticket, ...entities], store);
+  const aspects = await ticket.assessAspects(store);
+  const decisions = new Map<string, TicketGovernance['decisions'][number]>();
+  for (const entity of [...entities, ...meaning.map(item => item.entity),
+    ...await Promise.all(aspects.aspects.flatMap(aspect => aspect.decisions).map(id => store.getEntity(id)))]) {
+    if (!(entity instanceof Decision)) continue;
+    const data = entity as import('./graph/ontology.ts').Decision & { body?: string; status?: string };
+    decisions.set(store.localId(entity.id), { id: store.localId(entity.id), decision: data.decision,
+      context: data.context, consequences: data.consequences, body: data.body, status: data.status });
+  }
+  const explicitModules = entities.filter(entity => entity instanceof ModuleNode).map(entity => store.localId(entity.id));
+  const contexts = new Map<string, { moduleId?: string; language?: string }>();
+  for (const entity of entities) {
+    if (!(entity instanceof FileNode || entity instanceof SymbolNode)) continue;
+    const filePath = entity instanceof SymbolNode ? entity.filePath! : store.localId(entity.id);
+    const file = await store.getEntity(filePath, FileNode.dcr);
+    const language = /\.[cm]?tsx?$/.test(filePath) ? 'typescript' : /\.[cm]?jsx?$/.test(filePath) ? 'javascript'
+      : /\.py$/.test(filePath) ? 'python' : /\.rs$/.test(filePath) ? 'rust' : /\.go$/.test(filePath) ? 'go'
+      : /\.md$/.test(filePath) ? 'markdown' : /\.txt$/.test(filePath) ? 'text'
+      : /\.json$/.test(filePath) ? 'json' : (file as (import('./graph/ontology.ts').FileNode & { language?: string }) | null)?.language;
+    const modules = new Set(explicitModules);
+    if (file) {
+      for (const edge of await store.getIncoming(file.id, 'contains')) {
+        const owner = await store.getEntity(edge.sourceId);
+        if (owner instanceof ModuleNode) modules.add(store.localId(owner.id));
+      }
+    }
+    for (const moduleId of modules.size ? [...modules].sort() : [undefined]) {
+      const context = { moduleId, language };
+      contexts.set(canonical(context), context);
+    }
+  }
+  if (!contexts.size) {
+    for (const moduleId of explicitModules.length ? explicitModules.sort() : [undefined])
+      contexts.set(canonical({ moduleId }), { moduleId });
+  }
+  const cfg = loadConfig(store.root);
+  const checker = { version: DOCTRINE_VERIFIER_VERSION, model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model,
+    promptFingerprint: createHash('sha256').update(renderAcceptancePrompt('')).digest('hex') };
+  const ruleStore = new RuleStore(store);
+  const rules = new Map<string, TicketGovernance['rules'][number]>();
+  for (const context of contexts.values()) {
+    for (const resolved of await ruleStore.resolveAllRules({ ...context, forGovernance: true })) {
+      if (resolved.isDisabled) continue;
+      const rule = resolved.effective;
+      if (rule.importance >= 8 && rule.languages?.length && !context.language)
+        throw new Error(`Specify the target language for mandatory Rule '${rule.ruleId}'.`);
+      const fingerprint = createHash('sha256').update(canonical({
+        ruleId: rule.ruleId, scope: rule.scope, type: rule.type, languages: rule.languages,
+        importance: rule.importance, status: rule.status, revision: rule.revision,
+        rule: rule.rule, examples: rule.examples, test: rule.test, checker
+      })).digest('hex');
+      const prior = rules.get(rule.ruleId);
+      if (prior && prior.fingerprint !== fingerprint && Math.max(prior.importance, rule.importance) >= 8)
+        throw new Error(`Ambiguous mandatory Rule '${rule.ruleId}' across authored scopes; split or clarify the Ticket scope.`);
+      if (!prior) rules.set(rule.ruleId, { ...rule, fingerprint });
+    }
+  }
+  const selectedRules = [...rules.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+  const selectedDecisions = [...decisions.values()].sort((a, b) => a.id.localeCompare(b.id));
+  const fingerprint = createHash('sha256').update(canonical({
+    checker, rules: selectedRules.filter(rule => rule.importance >= 8).map(rule => ({ ruleId: rule.ruleId, fingerprint: rule.fingerprint })),
+    decisions: selectedDecisions, aspects: aspects.aspects.map(aspect => ({ id: aspect.id, status: aspect.status, criteria: aspect.criteria }))
+  })).digest('hex');
+  return { fingerprint, rules: selectedRules, decisions: selectedDecisions };
+}
+
+
+/** A required Rule assessment failed; the existing resolver may perform its bounded repair. */
+export class RuleAcceptanceError extends Error {
+  constructor(readonly failures: string[]) { super(failures.join('\n')); }
+}
+
+/** Assessments must name the pinned Rule and cite current source or executed tests. */
+export function ruleAcceptanceFailures(
+  governance: TicketGovernance, acceptance: AcceptanceVerification, evidenceIds: readonly string[]
+): string[] {
+  const required = governance.rules.filter(rule => rule.importance >= 8);
+  const failures = acceptance.rules.filter(check => !required.some(rule => rule.ruleId === check.ruleId))
+    .map(check => `Unknown Rule assessment '${check.ruleId}'.`);
+  for (const rule of required) {
+    const check = acceptance.rules.find(item => item.ruleId === rule.ruleId);
+    if (!check) {
+      failures.push(`Mandatory Rule '${rule.ruleId}' lacks an independent assessment.`);
+      continue;
+    }
+    if (check.revision !== rule.revision || check.fingerprint !== rule.fingerprint)
+      failures.push(`Mandatory Rule '${rule.ruleId}' assessment does not match the pinned effective Rule.`);
+    const unknownEvidence = check.evidenceIds.filter(id => !evidenceIds.includes(id));
+    if (unknownEvidence.length)
+      failures.push(`Mandatory Rule '${rule.ruleId}' cites unknown or unsupplied evidence: ${unknownEvidence.join(', ')}.`);
+    if (!['pass', 'not_applicable'].includes(check.verdict))
+      failures.push(`Mandatory Rule '${rule.ruleId}': ${check.verdict}: ${check.evidence}`);
+  }
+  return failures;
+}
+
+/** Fingerprint the authored contract and applicable governance, not unrelated advisory records. */
 export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = []) {
   const {FileNode, SymbolNode} = await import('./graph/ontology.ts');
   const targets = new Set<string>();
@@ -117,6 +246,7 @@ export async function ticketVerificationSignature(store: WorkflowStore, ticket: 
   const aspects = (await ticket.assessAspects(store)).aspects.map(aspect => ({id: aspect.id, criteria: aspect.criteria})).sort((a, b) => a.id.localeCompare(b.id));
   return createHash('sha256').update(canonical({
     ticket: {title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria},
-    targets: [...targets].sort(), aspects, completeness: await ticket.getCompletenessContext(store, completeness)
+    targets: [...targets].sort(), aspects, completeness: await ticket.getCompletenessContext(store, completeness),
+    governance: (await resolveTicketGovernance(store, ticket)).fingerprint
   })).digest('hex');
 }

@@ -19,10 +19,10 @@ import {
     SymbolNode,
     Lesson,
     Decision,
-    ModuleNode
+    Artifact
 } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
-import type { InvestigationOptions, TicketDossier, OperationResult } from "../ticket-operation-types.ts"
+import { resolveTicketGovernance, readVerificationReceipt, type InvestigationOptions, type TicketDossier, type OperationResult } from "../ticket-operation-types.ts"
 import {
     withArtifactMetrics,
     cognitionMetrics,
@@ -91,6 +91,8 @@ export async function investigateTicket(
                     provenance = required ? "Governing Aspect" : "Applicable Aspect (candidate)"
                 }
                 const narrative = entity as WorkflowEntity & { body?: string; story?: string; decision?: string; context?: string; consequences?: string }
+                if (entity instanceof Artifact && store.localId(entity.id) === `VERIFY-${id}` && !readVerificationReceipt(narrative.body))
+                    provenance = "Historical acceptance receipt (legacy/unassessed)"
                 const body = entity instanceof Decision
                     ? [narrative.decision, narrative.context ? `Context: ${narrative.context}` : "", narrative.consequences ? `Consequences: ${narrative.consequences}` : "", narrative.body]
                           .filter(Boolean)
@@ -201,36 +203,19 @@ export async function investigateTicket(
             for (const lesson of await store.listEntities<Lesson>(Lesson.dcr)) {
                 if (codePaths.has((lesson as Lesson & { filePath?: string }).filePath ?? "")) add(lesson, "Lesson on authored code target")
             }
-            // Applicable Engineering Doctrine rules are mandatory governance constraints.
-            const { RuleStore } = await import("../rules/store.ts")
-            const ruleStore = new RuleStore(store)
-            let targetLanguage: string | undefined
-            for (const p of codePaths) {
-                if (/\.[cm]?[jt]sx?$/.test(p)) targetLanguage = "typescript"
-                else if (/\.py$/.test(p)) targetLanguage = "python"
-                else if (/\.rs$/.test(p)) targetLanguage = "rust"
-                else if (/\.go$/.test(p)) targetLanguage = "go"
-                if (targetLanguage) break
-            }
-            const targetModule = [...mandatory.values()].find(e => e instanceof ModuleNode)
-            const targetModuleId = targetModule ? store.localId(targetModule.id) : undefined
-            const resolvedRules = await ruleStore.resolveAllRules({
-                moduleId: targetModuleId,
-                language: targetLanguage,
-                forGovernance: true
-            })
-            for (const rule of resolvedRules) {
-                if (rule.isDisabled) continue
-                const examplesBody = rule.effective.examples?.length
-                    ? ["\nExamples:", ...rule.effective.examples.map(ex => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join("\n")
+            // The same effective snapshot reaches producers, acceptance and proof closure.
+            dossier.governance = await resolveTicketGovernance(store, current)
+            for (const rule of dossier.governance.rules) {
+                const examplesBody = rule.examples.length
+                    ? ["\nExamples:", ...rule.examples.map(ex => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join("\n")
                     : ""
                 dossier.evidence.push({
                     id: rule.ruleId,
                     kind: "Rule",
-                    title: rule.effective.title ?? rule.ruleId,
-                    body: `${rule.effective.rule}${examplesBody}`,
-                    mandatory: rule.effective.importance >= 8,
-                    provenance: `Engineering Doctrine (${rule.effective.scope.kind})`
+                    title: rule.title ?? rule.ruleId,
+                    body: `${rule.rule}${examplesBody}`,
+                    mandatory: rule.importance >= 8,
+                    provenance: `Engineering Doctrine (${rule.scope.kind})`
                 })
             }
             const blockers = neighbors.filter(e => e.predicateName === "blocks" && e.targetId === current.id)

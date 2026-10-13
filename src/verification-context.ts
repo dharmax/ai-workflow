@@ -108,11 +108,14 @@ export async function buildVerificationContext(
     wantedSourceSymbols.set(file, names)
   }
 
-  const exactScope = new Map([...wantedSourceSymbols].map(([file, names]) => [file, new Set(names)]))
+  const wholeFileTargets = new Set(input.dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath)
+    .map(item => relativeFile(root, item.filePath!)))
+  const exactScope = new Map([...wantedSourceSymbols].filter(([file]) => !wholeFileTargets.has(file))
+    .map(([file, names]) => [file, new Set(names)]))
   // A test's fixture/import references are not additional Ticket implementation scope.
   const scopeFiles = new Set([
     ...input.files,
-    ...input.dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!),
+    ...input.dossier.evidence.filter(item => item.mandatory && item.kind !== 'TestNode' && item.filePath).map(item => item.filePath!),
   ].map(file => relativeFile(root, file)))
   const authoredTests = new Set(input.dossier.evidence
     .filter(item => item.kind === 'TestNode' && item.provenance === 'Ticket verifies')
@@ -147,7 +150,7 @@ export async function buildVerificationContext(
     testNeedles.set(testFile, needles)
   }
 
-  for (const file of new Set([...input.files.map(file => relativeFile(root, file)), ...wantedSourceSymbols.keys()])) ensureFile(file)
+  for (const file of new Set([...scopeFiles, ...wantedSourceSymbols.keys()])) ensureFile(file)
 
   for (const [file, names] of wantedSourceSymbols) {
     const context = ensureFile(file)
@@ -181,18 +184,29 @@ export async function buildVerificationContext(
 
   for (const context of contexts.values()) {
     const names = wantedSourceSymbols.get(context.file)
-    if (names?.size) context.outline = context.outline.filter(symbol => names.has(symbol.containerName ? `${symbol.containerName}.${symbol.name}` : symbol.name))
-    if (context.snippets.length) continue
+    if (names?.size && exactScope.has(context.file)) context.outline = context.outline.filter(symbol => names.has(symbol.containerName ? `${symbol.containerName}.${symbol.name}` : symbol.name))
+    const wholeFileScope = scopeFiles.has(context.file) && !exactScope.has(context.file)
+    if (context.snippets.length && !wholeFileScope) continue
     const fullPath = path.resolve(root, context.file)
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue
     const source = fs.readFileSync(fullPath, 'utf8')
     if (source.length <= SMALL_FILE_CHARS) {
-      context.snippets.push({label: 'small-file fallback', startLine: 1, endLine: source.split('\n').length, source})
+      const snippet = {label: wholeFileScope ? 'complete authored file' : 'small-file fallback',
+        startLine: 1, endLine: source.split('\n').length, source}
+      if (wholeFileScope) {
+        context.outline = [] // Complete source proves both presence and absence of declarations.
+        context.snippets = [snippet]
+      } else context.snippets.push(snippet)
       continue
     }
+    if (context.snippets.length) continue
     throw new Error(`No graph-derived verification snippet for large relevant file '${context.file}'. Add/repair symbol or verification edges instead of sending the whole file.`)
   }
 
+  for (const context of contexts.values()) {
+    context.outline = context.outline.filter(symbol => !context.snippets.some(snippet =>
+      snippet.label === (symbol.containerName ? `${symbol.containerName}.${symbol.name}` : symbol.name)))
+  }
   const files = [...contexts.values()].sort((a, b) => a.file.localeCompare(b.file))
   const serialized = JSON.stringify(files)
   if (serialized.length > maxChars) {

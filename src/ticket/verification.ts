@@ -4,7 +4,7 @@
  */
 
 import { renderAcceptancePrompt } from "./prompts.ts"
-import { TestNode } from "../graph/ontology.ts"
+import { TestNode, Ticket } from "../graph/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets } from "../graph/test-artifacts.ts"
 import { registry } from "../tools/registry.ts"
 import { canonical } from "../kb/canonical.ts"
@@ -12,6 +12,9 @@ import type { TicketDossier, OperationResult } from "../ticket-operation-types.t
 import type { WorkflowStore } from "../graph/store.ts"
 import {
     AcceptanceVerificationSchema,
+    RuleAcceptanceError,
+    ruleAcceptanceFailures,
+    resolveTicketGovernance,
     type AcceptanceVerification,
     type ResolutionVerificationInput,
     type ResolutionOptions
@@ -150,10 +153,18 @@ export async function verifyTicketAcceptance(
     options: ResolutionOptions,
     cfg: ReturnType<typeof loadConfig>
 ): Promise<AcceptanceVerification> {
+    const ticket = await store.getEntity<Ticket>(input.dossier.ticket.id, Ticket.dcr)
+    if (!ticket) throw new Error("Acceptance requires an existing Ticket.")
+    const governance = input.dossier.governance ?? await resolveTicketGovernance(store, ticket)
+    for (const rule of governance.rules.filter(rule => rule.importance >= 8)) {
+        if (rule.test.kind === "codelet")
+            throw new Error(`Mandatory Rule '${rule.ruleId}' requires an unsupported codelet checker '${rule.test.codeletName ?? "missing"}'.`)
+    }
     const asker = createDefaultAsker(store.root)
     if (!asker) throw new Error("Independent acceptance verifier unavailable.")
     const reviewDossier = {
         ...input.dossier,
+        governance: { ...governance, rules: governance.rules.filter(rule => rule.importance >= 8) },
         evidence: input.dossier.evidence
             .filter(evidence => store.localId(evidence.id) !== `VERIFY-${input.dossier.ticket.id}`)
             .map(({ source: _beforeImplementation, ...evidence }) => evidence)
@@ -163,6 +174,8 @@ export async function verifyTicketAcceptance(
         files: input.files,
         testNodes: input.testNodes
     })
+    const reviewScope = new Set([...reviewDossier.evidence.filter(item => item.mandatory).map(item => store.localId(item.id)),
+        ...verificationContext.files.map(file => file.file)])
     const reviewContext = {
         dossier: reviewDossier,
         files: input.files,
@@ -173,7 +186,7 @@ export async function verifyTicketAcceptance(
             filePath: test.filePath,
             passed: test.passed,
             command: test.command,
-            verifies: test.verifies,
+            verifies: test.verifies.filter(id => reviewScope.has(store.localId(id))),
             ...(test.passed ? {} : { failureOutput: test.output.slice(-2000) })
         })),
         code: verificationContext.files
@@ -198,5 +211,13 @@ export async function verifyTicketAcceptance(
         ...cognitionMetrics({ phase: "acceptance_verification" })
     })
     if (!response.ok) throw new Error(`Acceptance verification failed: ${response.failure?.message}`)
-    return AcceptanceVerificationSchema.parse(response.data)
+    const acceptance = AcceptanceVerificationSchema.parse(response.data)
+    const failures = ruleAcceptanceFailures(governance, acceptance, [
+        ...verificationContext.files.map(file => file.file),
+        ...reviewDossier.evidence.filter(item => item.mandatory && item.kind === 'SymbolNode' &&
+            verificationContext.files.some(file => file.file === item.filePath)).map(item => store.localId(item.id)),
+        ...input.testNodes.map(test => test.id)
+    ])
+    if (failures.length) throw new RuleAcceptanceError(failures)
+    return acceptance
 }

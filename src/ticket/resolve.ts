@@ -15,6 +15,7 @@ import type {
     ResolutionVerificationInput
 } from "../ticket-operation-types.ts"
 import { canonical } from "../kb/canonical.ts"
+import path from "node:path"
 import { createActorTokenBudgetPolicy } from "../actor-budget-policy.ts"
 import {
     withArtifactMetrics,
@@ -37,7 +38,7 @@ export async function resolveTicket(
         { ...options, depth: options.depth ?? "all" },
         async () => {
             recordResolutionStage("preparation")
-            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature } =
+            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature, resolveTicketGovernance, ruleAcceptanceFailures, RuleAcceptanceError, DOCTRINE_VERIFIER_VERSION } =
                 await import("../ticket-operation-types.ts")
             const { ArtifactBudget } = await import("../artifact-policy.ts")
             const { CausalChangeEngine } = await import("../change/engine.ts")
@@ -82,8 +83,9 @@ export async function resolveTicket(
                 work = new Map<string, Ticket>(),
                 dossiers = new Map<string, TicketDossier>()
             let repairs = 0,
-                acceptance: import("../ticket-operation-types.ts").AcceptanceVerification = { criteria: [], aspects: [] }
+                acceptance: import("../ticket-operation-types.ts").AcceptanceVerification = { criteria: [], aspects: [], rules: [] }
             const ctx = { store, projectRoot: store.root, signal: options.signal }
+            const statePath = path.join(".ai-workflow", "state")
             const blocked = (reason: string): OperationResult<ResolvedTicket> => ({
                 status: "blocked",
                 artifactId: rootId,
@@ -139,6 +141,11 @@ export async function resolveTicket(
                         undefined,
                         "safety_preview"
                     )
+                if (preview.affectedFiles.some(file => {
+                    const relative = workspacePath(store.root, file)
+                    return relative === statePath || relative.startsWith(statePath + path.sep)
+                }))
+                    throw new Error("Implementation cannot mutate canonical workflow/governance state through source changes.")
                 const conflict = guardFiles(preview.affectedFiles)
                 if (conflict) throw new Error(`Dirty target requires input: ${conflict}`)
                 await applyProductMutations(store, [
@@ -223,6 +230,9 @@ export async function resolveTicket(
                     recordMetricCompleteness(dossier.completeness)
                     const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
                     await ensureAstFresh(store, store.root)
+                    const governance = structuredClone(dossier.governance ?? await resolveTicketGovernance(store, ticket))
+                    if (governance.fingerprint !== (await resolveTicketGovernance(store, ticket)).fingerprint)
+                        return needs("Review changed governance and retry.", "Governance changed after preparation.", "Ticket governance")
                     const signature = await ticketVerificationSignature(store, ticket, options.completeness)
                     const graphScope = await verifyingTestsForTargets(
                         store,
@@ -277,9 +287,15 @@ export async function resolveTicket(
                             ) &&
                             dossier.aspects.aspects.every(aspect =>
                                 proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed)
-                            )
+                            ) &&
+                            !ruleAcceptanceFailures(governance, proof.acceptance, [
+                                ...Object.keys(proof.hashes), ...dossier.evidence.filter(item => item.mandatory &&
+                                    item.kind === 'SymbolNode' && item.filePath && item.filePath in proof.hashes)
+                                    .map(item => store.localId(item.id)), ...testNodes.map(test => test.id)
+                            ]).length
                         if (
                             proof.signature === signature &&
+                            proof.governanceFingerprint === governance.fingerprint &&
                             currentProof &&
                             verifiedContract &&
                             expectedFiles.every(file => file in proof.hashes) &&
@@ -322,6 +338,8 @@ export async function resolveTicket(
                         recordResolutionStage("implementation")
                         const current = attempt ? await ticket.investigate(store, options) : null
                         if (current && current.status !== "complete") return current
+                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                            return needs("Review changed governance and retry.", "Pinned governance changed during resolution.", "Ticket governance")
                         const implementationDossier = current?.status === "complete" ? current.value : dossier
                         let proposedTests = [...(options.testCommands ?? [])]
                         if (!children.length && (ticket.lane !== "Done" || attempt > 0)) {
@@ -357,6 +375,8 @@ export async function resolveTicket(
                             if (changeBlocked) continue
                             if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands
                         }
+                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                            return needs("Review changed governance and retry.", "Governance changed during implementation; self-weakening cannot proceed.", "Ticket governance")
                         recordResolutionStage("verification")
                         await ensureAstFresh(store, store.root)
                         const checked = await executeTicketChecks(
@@ -383,9 +403,21 @@ export async function resolveTicket(
                             ...testNodes.flatMap(test => Object.keys(test.hashes))
                         ])
                         recordResolutionStage("acceptance")
-                        acceptance = AcceptanceVerificationSchema.parse(
-                            await verify({ dossier: implementationDossier, files: [...allFiles], tests: currentTests, testNodes, children })
-                        )
+                        let rejectedRules: string[] | undefined
+                        try {
+                            acceptance = AcceptanceVerificationSchema.parse(
+                                await verify({ dossier: implementationDossier, files: [...allFiles], tests: currentTests, testNodes, children })
+                            )
+                        } catch (error) {
+                            if (!(error instanceof RuleAcceptanceError)) throw error
+                            rejectedRules = error.failures
+                        }
+                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                            return needs("Review changed governance and retry.", "Governance changed during independent acceptance.", "Ticket governance")
+                        if (rejectedRules) {
+                            feedback = rejectedRules
+                            continue
+                        }
                         if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes)))) {
                             feedback = ["Source or test changed during independent acceptance verification."]
                             continue
@@ -404,8 +436,13 @@ export async function resolveTicket(
                                 .map(aspect => aspect.id)
                                 .filter(aspect => !acceptance.aspects.some(check => check.id === aspect && check.passed))
                         ]
-                        if (missing.length) {
-                            feedback = missing.map(item => `Unverified required acceptance/Aspect: ${item}`)
+                        const ruleFailures = ruleAcceptanceFailures(governance, acceptance, [
+                            ...Object.keys(verificationHashes), ...dossier.evidence.filter(item => item.mandatory &&
+                                item.kind === 'SymbolNode' && item.filePath && item.filePath in verificationHashes)
+                                .map(item => store.localId(item.id)), ...testNodes.map(test => test.id)
+                        ])
+                        if (missing.length || ruleFailures.length) {
+                            feedback = [...missing.map(item => `Unverified required acceptance/Aspect: ${item}`), ...ruleFailures]
                             continue
                         }
                         const currentTicket = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!
@@ -415,13 +452,17 @@ export async function resolveTicket(
                                 "The acceptance contract changed during implementation or independent verification.",
                                 "Ticket verification contract"
                             )
-                        const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness)
                         const leaseError = await lease(ticket)
                         if (leaseError) return blocked(leaseError)
+                        if ((await resolveTicketGovernance(store, currentTicket)).fingerprint !== governance.fingerprint)
+                            return needs("Review changed governance and retry.", "Governance changed before proof closure.", "Ticket governance")
+                        const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness)
                         const proof = await store.upsertEntity<Artifact>(Artifact.dcr, {
                             id: `VERIFY-${id}`,
                             title: `Verified acceptance for ${id}`,
                             body: JSON.stringify({
+                                governanceVersion: DOCTRINE_VERIFIER_VERSION,
+                                governanceFingerprint: governance.fingerprint,
                                 signature: verifiedSignature,
                                 hashes: verificationHashes,
                                 acceptance,
