@@ -59,7 +59,7 @@ export function buildSynthesisContext(options: BuildSynthesisContextOptions): Sy
       role: 'aspect',
       fact: `${aspect.id}: ${aspect.title}`,
       provenance: `Governing Aspect ${aspect.id}`,
-      mandatory: aspect.status === 'material'
+      mandatory: aspect.status === 'accepted' || (aspect as any).material === true
     });
   }
 

@@ -431,6 +431,9 @@ export class TestNode extends WorkflowEntity {
 }
 
 export class Decision extends WorkflowEntity {
+    declare decision?: string
+    declare context?: string
+    declare consequences?: string
     static template = {
         ...baseTemplate,
         decision: passthroughValidator,

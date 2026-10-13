@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 111 | 0 | None |
+| `root` | project default | 106 | 0 | None |
 | `src/graph` | project default | 777 | 0 | None |
 | `src/tools` | project default | 554 | 0 | None |
 | `src/actor` | project default | 388 | 0 | None |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | None |
 | `src/setup` | project default | 135 | 0 | None |
-| `tests` | project default | 1237 | 0 | None |
+| `tests` | project default | 1277 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -28,7 +28,7 @@
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
 | `docs` | project default | 205 | 0 | None |
-| `src/product` | project default | 403 | 0 | None |
+| `src/product` | project default | 408 | 0 | None |
 | `src/change` | project default | 680 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
@@ -53,8 +53,8 @@
 | `src/ticket-command` | project default | 22 | 0 | None |
 | `src/model-command` | project default | 14 | 0 | None |
 | `src/actor-budget-policy` | project default | 1 | 0 | None |
-| `src/ticket` | project default | 258 | 0 | None |
-| `src/rules` | project default | 136 | 0 | None |
+| `src/ticket` | project default | 266 | 0 | None |
+| `src/rules` | project default | 165 | 0 | None |
 
 ## Dependency Diagram
 

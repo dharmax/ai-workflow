@@ -17,7 +17,9 @@ import {
     TestNode,
     FileNode,
     SymbolNode,
-    Lesson
+    Lesson,
+    Decision,
+    ModuleNode
 } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type { InvestigationOptions, TicketDossier, OperationResult } from "../ticket-operation-types.ts"
@@ -84,12 +86,17 @@ export async function investigateTicket(
                     )
                 )
                     visitMetricArtifact(store.localId(entity.id))
-                const narrative = entity as WorkflowEntity & { body?: string; story?: string }
+                const narrative = entity as WorkflowEntity & { body?: string; story?: string; decision?: string; context?: string; consequences?: string }
+                const body = entity instanceof Decision
+                    ? [narrative.decision, narrative.context ? `Context: ${narrative.context}` : "", narrative.consequences ? `Consequences: ${narrative.consequences}` : "", narrative.body]
+                          .filter(Boolean)
+                          .join("\n\n")
+                    : narrative.body || narrative.story
                 dossier.evidence.push({
                     id: store.localId(entity.id),
                     kind: entity.typeName(),
                     title: entity.title ?? store.localId(entity.id),
-                    body: narrative.body || narrative.story,
+                    body,
                     mandatory: required,
                     provenance
                 })
@@ -185,6 +192,38 @@ export async function investigateTicket(
             // Lessons on linked files are mandatory; optional candidates can never prune them.
             for (const lesson of await store.listEntities<Lesson>(Lesson.dcr)) {
                 if (codePaths.has((lesson as Lesson & { filePath?: string }).filePath ?? "")) add(lesson, "Lesson on authored code target")
+            }
+            // Applicable Engineering Doctrine rules are mandatory governance constraints.
+            const { RuleStore } = await import("../rules/store.ts")
+            const ruleStore = new RuleStore(store)
+            let targetLanguage: string | undefined
+            for (const p of codePaths) {
+                if (/\.[cm]?[jt]sx?$/.test(p)) targetLanguage = "typescript"
+                else if (/\.py$/.test(p)) targetLanguage = "python"
+                else if (/\.rs$/.test(p)) targetLanguage = "rust"
+                else if (/\.go$/.test(p)) targetLanguage = "go"
+                if (targetLanguage) break
+            }
+            const targetModule = [...mandatory.values()].find(e => e instanceof ModuleNode)
+            const targetModuleId = targetModule ? store.localId(targetModule.id) : undefined
+            const resolvedRules = await ruleStore.resolveAllRules({
+                moduleId: targetModuleId,
+                language: targetLanguage,
+                forGovernance: true
+            })
+            for (const rule of resolvedRules) {
+                if (rule.isDisabled) continue
+                const examplesBody = rule.effective.examples?.length
+                    ? ["\nExamples:", ...rule.effective.examples.map(ex => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join("\n")
+                    : ""
+                dossier.evidence.push({
+                    id: rule.ruleId,
+                    kind: "Rule",
+                    title: rule.effective.title ?? rule.ruleId,
+                    body: `${rule.effective.rule}${examplesBody}`,
+                    mandatory: rule.effective.importance >= 8,
+                    provenance: `Engineering Doctrine (${rule.effective.scope.kind})`
+                })
             }
             const blockers = neighbors.filter(e => e.predicateName === "blocks" && e.targetId === current.id)
             if (blockers.length)

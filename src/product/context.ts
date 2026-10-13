@@ -110,12 +110,17 @@ export async function buildIntentContext(
     for (const { entity: meaning, provenance } of await collectProductMeaning([entity], store, true)) {
         const meaningId = store.localId(meaning.id)
         if (context.existing.some(item => item.id === meaningId)) continue
-        const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string }
+        const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string; decision?: string; context?: string; consequences?: string }
+        const body = meaning instanceof Decision
+            ? [data.decision, data.context ? `Context: ${data.context}` : "", data.consequences ? `Consequences: ${data.consequences}` : "", data.body]
+                  .filter(Boolean)
+                  .join("\n\n")
+            : data.body || data.story
         context.existing.push({
             id: meaningId,
             kind: meaning.typeName(),
             title: meaning.title,
-            body: data.body || data.story,
+            body,
             status: data.status,
             provenance
         })
@@ -127,12 +132,17 @@ export async function buildIntentContext(
             if (!["verifies", "governs"].includes(edge.predicateName)) continue
             const record = await store.getEntity<WorkflowEntity>(edge.sourceId)
             if (!(record instanceof TestNode || record instanceof Artifact || record instanceof Decision)) continue
-            const data = record as WorkflowEntity & { body?: string; filePath?: string; status?: string }
+            const data = record as WorkflowEntity & { body?: string; filePath?: string; status?: string; decision?: string; context?: string; consequences?: string }
+            const body = record instanceof Decision
+                ? [data.decision, data.context ? `Context: ${data.context}` : "", data.consequences ? `Consequences: ${data.consequences}` : "", data.body]
+                      .filter(Boolean)
+                      .join("\n\n")
+                : data.body
             evidence.set(store.localId(record.id), {
                 id: store.localId(record.id),
                 kind: record.typeName(),
                 title: record.title,
-                body: data.body,
+                body,
                 filePath: data.filePath,
                 status: data.status,
                 verifies: store.localId(subject.id)
@@ -140,6 +150,25 @@ export async function buildIntentContext(
         }
     }
     context.existing.push(...evidence.values())
+    // Applicable Engineering Doctrine rules ground Product Intent in architectural constraints
+    const { RuleStore } = await import("../rules/store.ts")
+    const ruleStore = new RuleStore(store)
+    const activeRules = await ruleStore.resolveAllRules({ forGovernance: true })
+    for (const rule of activeRules) {
+        if (rule.isDisabled) continue
+        const examplesBody = rule.effective.examples?.length
+            ? ["\nExamples:", ...rule.effective.examples.map(ex => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join("\n")
+            : ""
+        context.existing.push({
+            id: rule.ruleId,
+            kind: "Rule",
+            title: rule.effective.title ?? rule.ruleId,
+            body: `${rule.effective.rule}${examplesBody}`,
+            scope: rule.effective.scope.kind,
+            mandatory: rule.effective.importance >= 8,
+            status: rule.effective.status
+        })
+    }
     return { context, all, aspects, candidates }
 }
 
