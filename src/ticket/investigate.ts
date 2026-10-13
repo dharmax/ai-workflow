@@ -86,9 +86,17 @@ export async function investigateTicket(
                     )
                 )
                     visitMetricArtifact(store.localId(entity.id))
+                if (entity instanceof Aspect) {
+                    required = entity.status === "accepted"
+                    provenance = required ? "Governing Aspect" : "Applicable Aspect (candidate)"
+                }
                 const narrative = entity as WorkflowEntity & { body?: string; story?: string; decision?: string; context?: string; consequences?: string }
                 const body = entity instanceof Decision
                     ? [narrative.decision, narrative.context ? `Context: ${narrative.context}` : "", narrative.consequences ? `Consequences: ${narrative.consequences}` : "", narrative.body]
+                          .filter(Boolean)
+                          .join("\n\n")
+                    : entity instanceof Aspect
+                    ? [narrative.body, entity.acceptanceCriteria?.length ? `Acceptance Criteria:\n${entity.acceptanceCriteria.map(c => `- ${c}`).join("\n")}` : ""]
                           .filter(Boolean)
                           .join("\n\n")
                     : narrative.body || narrative.story

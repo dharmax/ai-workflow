@@ -30,13 +30,13 @@ export async function applicableAspects(entity: WorkflowEntity, store: WorkflowS
         if ((edge.predicateName === 'implements' && target instanceof Feature)
           || (edge.predicateName === 'addresses' && target instanceof UserStory)
           || (edge.predicateName === 'targets' && target instanceof ModuleNode)) await visit(target);
-        // Explicit addressing is mandatory concern evidence, even without an applies_to edge.
-        if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status !== 'deprecated') result.set(target.id, target);
+        // Only accepted concerns govern explicit addressing, even without an applies_to edge.
+        if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status === 'accepted') result.set(target.id, target);
       }
     } else if (scope instanceof Idea || scope instanceof Goal || scope instanceof Concept || scope instanceof Flow || scope instanceof ModuleNode || scope instanceof Epic || scope instanceof Feature || scope instanceof UserStory) {
       for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
         const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
-        if (aspect && aspect.status !== 'deprecated') result.set(aspect.id, aspect);
+        if (aspect && aspect.status === 'accepted') result.set(aspect.id, aspect);
       }
       if (scope instanceof UserStory) {
         for (const edge of await store.getIncoming(scope.id, 'contains')) {

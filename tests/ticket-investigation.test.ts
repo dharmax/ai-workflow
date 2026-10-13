@@ -25,7 +25,7 @@ describe('grounded Ticket investigation', () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Queue', completenessTarget: 'production' });
     const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Recover jobs' });
     const d = await store.upsertEntity<Decision>(Decision.dcr, { id: 'D', title: 'Preserve ordering' });
-    const a = await Aspect.create(store, { id: 'A', title: 'Robustness', acceptanceCriteria: ['Preserve jobs'] });
+    const a = await Aspect.create(store, { id: 'A', title: 'Robustness', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] });
     const test = await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST', title: 'Recovery regression' });
     await store.upsertEntity<Lesson>(Lesson.dcr, { id: 'L', title: 'Do not discard jobs', filePath: 'queue.ts' });
     await store.relate(f, 'contains', story); await store.relate(t, 'addresses', story); await store.relate(t, 'modifies', file);

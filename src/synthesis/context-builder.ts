@@ -54,12 +54,16 @@ export function buildSynthesisContext(options: BuildSynthesisContextOptions): Sy
 
   // Project intent / Decisions / Aspects
   for (const aspect of dossier.aspects?.aspects ?? []) {
+    const isAccepted = aspect.status === 'accepted';
+    const criteriaLines = aspect.criteria?.length
+      ? `\nCriteria:\n${aspect.criteria.map(c => `- ${c}`).join('\n')}`
+      : '';
     evidence.push({
       id: `aspect:${aspect.id}`,
       role: 'aspect',
-      fact: `${aspect.id}: ${aspect.title}`,
-      provenance: `Governing Aspect ${aspect.id}`,
-      mandatory: aspect.status === 'accepted' || (aspect as any).material === true
+      fact: `${aspect.id}: ${aspect.title}${criteriaLines}`,
+      provenance: isAccepted ? `Governing Aspect ${aspect.id}` : `Advisory Aspect Candidate ${aspect.id}`,
+      mandatory: isAccepted
     });
   }
 
@@ -101,6 +105,19 @@ export function buildSynthesisContext(options: BuildSynthesisContextOptions): Sy
     mandatory: true,
     provenance: `Ticket acceptance criterion ${idx + 1}`
   }));
+
+  for (const aspect of dossier.aspects?.aspects ?? []) {
+    if (aspect.status === 'accepted' && aspect.criteria?.length) {
+      for (let idx = 0; idx < aspect.criteria.length; idx++) {
+        verification.push({
+          id: `aspect-${aspect.id}-cr-${idx + 1}`,
+          criterion: aspect.criteria[idx],
+          mandatory: true,
+          provenance: `Governing Aspect ${aspect.id} criterion ${idx + 1}`
+        });
+      }
+    }
+  }
 
   return {
     intent: {

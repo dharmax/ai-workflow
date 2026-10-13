@@ -9,6 +9,9 @@ import { buildSynthesisContext } from '../src/synthesis/context-builder.ts';
 import { buildIntentContext } from '../src/product/context.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import type { TicketDossier } from '../src/ticket-operation-types.ts';
+import type { Asker } from '@dharmax/llm-utils';
+import type { SynthesisEvidence, VerificationExpectation } from '../src/synthesis/types.ts';
+import { renderImplementationGoal } from '../src/ticket/prompts.ts';
 
 describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery', () => {
   let tmpDir: string;
@@ -261,11 +264,19 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
     const synthesisCtx = buildSynthesisContext({ dossier });
     expect(synthesisCtx).toBeDefined();
 
-    // Check that aspect is delivered as mandatory because status is 'accepted'
+    // Check that aspect is delivered as mandatory because status is 'accepted' and includes criteria
     const aspectEvidence = synthesisCtx.evidence.find(e => e.id === 'aspect:ASP-FINANCIAL-ACCURACY');
     expect(aspectEvidence).toBeDefined();
     expect(aspectEvidence!.mandatory).toBe(true);
     expect(aspectEvidence!.role).toBe('aspect');
+    expect(aspectEvidence!.fact).toContain('Criteria:\n- All monetary math is tested against precision edge cases');
+
+    // Check that accepted Aspect criteria are delivered to verification expectations
+    const aspectVerification = synthesisCtx.verification.find(v => v.id === 'aspect-ASP-FINANCIAL-ACCURACY-cr-1');
+    expect(aspectVerification).toBeDefined();
+    expect(aspectVerification!.mandatory).toBe(true);
+    expect(aspectVerification!.criterion).toBe('All monetary math is tested against precision edge cases');
+    expect(aspectVerification!.provenance).toBe('Governing Aspect ASP-FINANCIAL-ACCURACY criterion 1');
 
     // Check that Rule is delivered with role 'constraint' and carries inline examples
     const ruleEvidence = synthesisCtx.evidence.find(e => e.id === 'rule.tax-precision');
@@ -275,5 +286,234 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
     expect(ruleEvidence!.fact).toContain('Examples:');
     expect(ruleEvidence!.fact).toContain('[positive] round(amount * 0.20, 2) -> Lesson: No floating point drift');
     expect(ruleEvidence!.mandatory).toBe(true);
+  });
+
+  it('delivers real Ticket governance to implementation and synthesis payloads without promoting candidates', async () => {
+    const { HostSourceSynthesizer } = await import('../src/synthesis/synthesizer.ts');
+
+    // 1. Author source file with exact target
+    const targetFile = 'calc.ts';
+    const initialSource = 'export function addTax(subtotal: number): number {\n  return subtotal * 1.2;\n}\n';
+    fs.writeFileSync(path.join(tmpDir, targetFile), initialSource);
+    const fileNode = await store.upsertEntity<FileNode>(FileNode.dcr, {
+      id: targetFile,
+      title: targetFile
+    });
+
+    // 2. Author mandatory Rule with positive & negative inline examples
+    await ruleStore.saveRule({
+      id: 'rule-test-rounding',
+      ruleId: 'fin.rounding',
+      title: 'Financial Rounding Precision',
+      type: 'architecture',
+      scope: { kind: 'universal' },
+      importance: 9,
+      rule: 'All tax operations must use round-half-even arithmetic to two decimal places.',
+      status: 'active',
+      examples: [
+        {
+          kind: 'positive',
+          description: 'Use roundHalfEven(subtotal * 1.2, 2)',
+          lesson: 'Avoids cumulative upward rounding bias.'
+        },
+        {
+          kind: 'negative',
+          description: 'Math.round(subtotal * 1.2)',
+          lesson: 'Biases final ledger totals.'
+        }
+      ],
+      references: [],
+      test: { kind: 'llm' },
+      revision: 1,
+      provenance: 'doctrine'
+    });
+
+    // 3. Author an accepted Aspect with criteria, and a draft Aspect with criteria
+    const acceptedAspect = await store.upsertEntity<Aspect>(Aspect.dcr, {
+      id: 'ASP-GOV-1',
+      title: 'Monetary Integrity',
+      body: 'Guarantees strict auditability and rounding compliance.',
+      status: 'accepted',
+      acceptanceCriteria: [
+        'All calculations round to 2 decimal places',
+        'Negative subtotals throw an InvalidTaxInputError'
+      ]
+    });
+
+    const draftAspect = await store.upsertEntity<Aspect>(Aspect.dcr, {
+      id: 'ASP-DRAFT-2',
+      title: 'Telemetry & Latency Tracking',
+      body: 'Experimental telemetry aspect.',
+      status: 'draft',
+      acceptanceCriteria: [
+        'Log calculation duration in microseconds'
+      ]
+    });
+
+    const proposedAspect = await Aspect.create(store, {
+      id: 'ASP-PROPOSED', title: 'Proposed caching', status: 'proposed',
+      acceptanceCriteria: ['Cache every tax calculation']
+    });
+    const feature = await store.upsertEntity<Feature>(Feature.dcr, {
+      id: 'FEAT-TAX', title: 'Tax calculation'
+    });
+    await acceptedAspect.applyTo(feature, store);
+    await draftAspect.applyTo(feature, store);
+    await proposedAspect.applyTo(feature, store);
+    const decision = await store.upsertEntity<Decision>(Decision.dcr, {
+      id: 'DEC-TAX', title: 'Tax arithmetic',
+      decision: 'Use decimal arithmetic for tax calculations.',
+      context: 'Ledger totals must be auditable.',
+      consequences: 'Binary floating point arithmetic is unsuitable.'
+    });
+    await store.relate(decision, 'governs', acceptedAspect);
+
+    // 4. Author Ticket with relations
+    const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {
+      id: 'TKT-CALC-TAX',
+      title: 'Apply precision tax calculation',
+      body: 'Update addTax to strictly enforce rounding and error bounds.',
+      lane: 'In Progress',
+      acceptanceCriteria: ['addTax returns rounded sum with exactly two decimals']
+    });
+
+    await store.relate(ticket, 'modifies', fileNode);
+    await store.relate(ticket, 'addresses', acceptedAspect);
+    await store.relate(ticket, 'addresses', draftAspect);
+    await store.relate(ticket, 'addresses', proposedAspect);
+    await store.relate(ticket, 'implements', feature);
+    await store.relate(decision, 'governs', ticket);
+
+    // 5. Investigate Ticket via native AIWF investigation
+    const invResult = await ticket.investigate(store);
+    expect(invResult.status).toBe('complete');
+    if (invResult.status !== 'complete') throw new Error(JSON.stringify(invResult));
+    const dossier = invResult.value;
+    expect((await ticket.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['ASP-GOV-1']);
+    expect(dossier.aspects.aspects.map(a => a.id)).toEqual(['ASP-GOV-1']);
+    expect(dossier.evidence.find(e => e.id === 'ASP-PROPOSED')).toMatchObject({ mandatory: false });
+    const operativeDecision = [
+      decision.decision!, `Context: ${decision.context}`, `Consequences: ${decision.consequences}`
+    ];
+    const actorGoal = renderImplementationGoal(tmpDir, [targetFile], dossier, []);
+    const actorDossier: TicketDossier = JSON.parse(
+      actorGoal.split('Ticket dossier: ')[1].split(' Verification feedback: ')[0]
+    );
+    expect(actorDossier.evidence.find(e => e.id === 'ASP-GOV-1')).toMatchObject({
+      mandatory: true, provenance: 'Governing Aspect'
+    });
+    for (const criterion of acceptedAspect.acceptanceCriteria!) expect(actorGoal).toContain(criterion);
+    expect(actorDossier.aspects.aspects.map(a => a.id)).toEqual(['ASP-GOV-1']);
+    for (const candidateId of ['ASP-DRAFT-2', 'ASP-PROPOSED']) {
+      expect(actorDossier.evidence.find(e => e.id === candidateId)).toMatchObject({
+        mandatory: false, provenance: 'Applicable Aspect (candidate)'
+      });
+    }
+    for (const field of operativeDecision) expect(actorGoal).toContain(field);
+    expect(actorDossier.evidence.find(e => e.id === 'DEC-TAX')?.mandatory).toBe(true);
+    expect(actorDossier.evidence.find(e => e.id === 'fin.rounding')).toMatchObject({ mandatory: true });
+    expect(actorGoal).toContain('[positive] Use roundHalfEven(subtotal * 1.2, 2)');
+    expect(actorGoal).toContain('[negative] Math.round(subtotal * 1.2)');
+
+    // Verify dossier aspects & rules
+    const acceptedAspectEvidence = dossier.evidence.find(e => e.id === 'ASP-GOV-1');
+    expect(acceptedAspectEvidence).toBeDefined();
+    expect(acceptedAspectEvidence!.mandatory).toBe(true);
+    expect(acceptedAspectEvidence!.provenance).toBe('Governing Aspect');
+    expect(acceptedAspectEvidence!.body).toContain('Acceptance Criteria:');
+    expect(acceptedAspectEvidence!.body).toContain('- All calculations round to 2 decimal places');
+
+    const draftAspectEvidence = dossier.evidence.find(e => e.id === 'ASP-DRAFT-2');
+    expect(draftAspectEvidence).toBeDefined();
+    expect(draftAspectEvidence!.mandatory).toBe(false);
+    expect(draftAspectEvidence!.provenance).toBe('Applicable Aspect (candidate)');
+
+    const ruleEvidence = dossier.evidence.find(e => e.id === 'fin.rounding');
+    expect(ruleEvidence).toBeDefined();
+    expect(ruleEvidence!.mandatory).toBe(true);
+    expect(ruleEvidence!.body).toContain('round-half-even arithmetic');
+    expect(ruleEvidence!.body).toContain('[positive] Use roundHalfEven(subtotal * 1.2, 2)');
+
+    // 6. Build synthesis context from the real dossier (with explicit target)
+    const synthCtx = buildSynthesisContext({
+      dossier,
+      target: {
+        kind: 'existing_symbol',
+        filePath: targetFile,
+        symbolName: 'addTax',
+        existingSource: initialSource
+      }
+    });
+
+    // Verify verification expectations in synthesis context:
+    // Ticket AC + accepted Aspect criteria (draft Aspect criteria must NOT be mandatory verification expectations)
+    const verifExpectations = synthCtx.verification;
+    expect(verifExpectations.some(v => v.id === 'ac-1' && v.mandatory)).toBe(true);
+    expect(verifExpectations.some(v => v.id === 'aspect-ASP-GOV-1-cr-1' && v.mandatory)).toBe(true);
+    expect(verifExpectations.some(v => v.id === 'aspect-ASP-GOV-1-cr-2' && v.mandatory)).toBe(true);
+    expect(verifExpectations.some(v => v.id.includes('ASP-DRAFT-2'))).toBe(false);
+
+    // 7. Execute HostSourceSynthesizer with a mock asker and inspect the captured user prompt payload
+    let capturedUserPrompt = '';
+    let capturedSystemPrompt = '';
+    const mockAsker = {
+      json: async (prompt: string, _schema: unknown, options?: { system?: string }) => {
+        capturedUserPrompt = prompt;
+        capturedSystemPrompt = options?.system ?? '';
+        return {
+          ok: true,
+          data: {
+            source: 'export function addTax(subtotal: number): number {\n  return Number((subtotal * 1.2).toFixed(2));\n}',
+            assumptions: ['Rounding uses standard banking precision']
+          }
+        };
+      }
+    };
+
+    const synthesizer = new HostSourceSynthesizer(mockAsker as unknown as Asker);
+    const candidate = await synthesizer.synthesize(synthCtx);
+    expect(candidate.source).toContain('addTax');
+
+    // Parse the captured payload JSON
+    expect(capturedSystemPrompt).toContain('Respect all mandatory evidence');
+    const payload: {
+      target: { filePath: string; symbolName: string };
+      evidence: Array<Pick<SynthesisEvidence, 'id' | 'role' | 'mandatory' | 'fact'>>;
+      verification: Array<Pick<VerificationExpectation, 'id' | 'criterion'>>;
+    } = JSON.parse(capturedUserPrompt);
+    const decisionPayload = payload.evidence.find(e => e.id === 'DEC-TAX')!;
+    expect(decisionPayload).toMatchObject({ role: 'decision', mandatory: true });
+    for (const field of operativeDecision) expect(decisionPayload.fact).toContain(field);
+    expect(payload.target.filePath).toBe(targetFile);
+    expect(payload.target.symbolName).toBe('addTax');
+
+    // Assert governing evidence payload includes accepted Aspect and mandatory Rule with examples
+    const govAspectInPayload = payload.evidence.find(e => e.id === 'aspect:ASP-GOV-1')!;
+    expect(govAspectInPayload).toBeDefined();
+    expect(govAspectInPayload.mandatory).toBe(true);
+    expect(govAspectInPayload.fact).toContain('Criteria:');
+    expect(govAspectInPayload.fact).toContain('All calculations round to 2 decimal places');
+
+    // Draft Aspect in payload is advisory only
+    expect(payload.evidence.some(e => e.id === 'aspect:ASP-DRAFT-2')).toBe(false);
+    expect(payload.evidence.find(e => e.id === 'ASP-PROPOSED')?.mandatory).toBe(false);
+    const draftAspectInPayload = payload.evidence.find(e => e.id === 'ASP-DRAFT-2')!;
+    expect(draftAspectInPayload).toBeDefined();
+    expect(draftAspectInPayload.mandatory).toBe(false);
+
+    // Mandatory Rule in payload carries text and examples
+    const ruleInPayload = payload.evidence.find(e => e.id === 'fin.rounding')!;
+    expect(ruleInPayload).toBeDefined();
+    expect(ruleInPayload.mandatory).toBe(true);
+    expect(ruleInPayload.fact).toContain('round-half-even arithmetic');
+    expect(ruleInPayload.fact).toContain('[positive] Use roundHalfEven(subtotal * 1.2, 2)');
+    expect(ruleInPayload.fact).toContain('[negative] Math.round(subtotal * 1.2)');
+
+    // Assert verification criteria in payload includes ticket AC and accepted Aspect criteria
+    const verifCriteria = payload.verification.map(v => v.criterion);
+    expect(verifCriteria).toContain('addTax returns rounded sum with exactly two decimals');
+    expect(verifCriteria).toContain('All calculations round to 2 decimal places');
+    expect(verifCriteria).toContain('Negative subtotals throw an InvalidTaxInputError');
+    expect(verifCriteria).not.toContain('Log calculation duration in microseconds');
   });
 });
