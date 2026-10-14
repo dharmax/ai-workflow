@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-14",
+  "ticket": "TKT-DOCTRINE-G5-RELEASE",
+  "status": "blocked",
+  "releaseAcceptance": false,
+  "baselineHead": "9b3f78734216",
+  "structuralFinding": {
+    "id": "PD-01",
+    "severity": "critical",
+    "status": "open",
+    "rootCause": "Governance is pinned from authored Ticket graph neighbors; the resolver tracks actual file mutations separately and never resolves governing scope from those impacts. Completion and reuse fingerprint only the authored governance.",
+    "affectedMethods": [
+      "resolveTicketGovernance",
+      "resolveTicket",
+      "ticketVerificationSignature",
+      "verifyTicketAcceptance",
+      "buildIntentContext"
+    ],
+    "requiredCorrection": "One owned, graph-grounded applicability contract must connect authored intent, real preview/apply impacts, producing context, independent verification and proof reuse, without a second registry or another compensating guard."
+  },
+  "fixedFindings": [
+    {
+      "id": "PD-02",
+      "rootCause": "Rule preview mistook a persisted draft layer for effective active authority.",
+      "fix": "Resolve active inherited authority when the prior layer is not active."
+    },
+    {
+      "id": "PD-03",
+      "rootCause": "The small-file fallback threshold silently determined the completeness of an authored whole-file review.",
+      "fix": "Provide complete whole-file source under the existing total context budget; avoid redundant exact-source reads for whole-file targets."
+    },
+    {
+      "id": "PD-04",
+      "rootCause": "Failed required exact-source acquisition was silently swallowed, allowing partial evidence.",
+      "fix": "Propagate an identified source failure and its cause."
+    },
+    {
+      "id": "PD-05",
+      "rootCause": "Rule membership was conflated with mandatory blocking severity; expected checks were omitted or called unknown.",
+      "fix": "Deliver expected checks to the default verifier, retain their nonblocking deviations, recognize all known Rule IDs, and invalidate receipts when applicable expected normative content changes."
+    }
+  ],
+  "verifierVersion": 2,
+  "validation": {
+    "typecheck": {
+      "baselineCount": 19,
+      "currentCount": 19,
+      "newCount": 0,
+      "diagnostics": [
+        "src/actor/engine.ts(593,13): error TS2322",
+        "src/artifact-critic.ts(27,26): error TS2589",
+        "src/artifact-critic.ts(27,988): error TS2345",
+        "src/change/engine.ts(883,9): error TS2304",
+        "src/product/decompose.ts(211,28): error TS2589",
+        "src/product/decompose.ts(211,47): error TS2345",
+        "src/product/process.ts(97,52): error TS2589",
+        "src/product/process.ts(97,102): error TS2345",
+        "src/ticket/implementation.ts(151,17): error TS2322",
+        "src/ticket/implementation.ts(209,30): error TS2589",
+        "src/ticket/implementation.ts(212,13): error TS2322",
+        "src/ticket/investigate.ts(400,52): error TS2589",
+        "src/ticket/investigate.ts(400,97): error TS2345",
+        "src/ticket/prepare.ts(68,44): error TS2589",
+        "src/ticket/prepare.ts(79,25): error TS2345",
+        "src/ticket/verification.ts(205,28): error TS2589",
+        "src/ticket/verification.ts(205,82): error TS2345",
+        "tests/actor-engine-boundaries.test.ts(123,52): error TS2322",
+        "tests/actor-engine-boundaries.test.ts(141,52): error TS2322"
+      ]
+    },
+    "testSummary": [
+      "",
+      " 443 pass",
+      " 4 skip",
+      " 0 fail",
+      " 2791 expect() calls",
+      "Ran 447 tests across 59 files. [60.81s]",
+      ""
+    ],
+    "build": "$ bun scripts/build.ts\nBuilt AIWF 2.0.0 build 864 @ 9b3f78734216 (dirty), updated 2026-10-14T16:22:53+03:00; llm-utils @ f8222aaa155a0b86f50b7cacbe0701ed29d86840\n",
+    "logHashes": {
+      "tests-final4": "d753ecb0de4554fa16e4ef9300c1a44f31a21f8c46b640c828108df6be06117a",
+      "typecheck-final4": "0f90109277f29989215e5530c3174ed09e866ef0d0a1c2c419396e1382463292",
+      "build-final4": "c5f3b05d90a8165d3f218e0844d4222e02a6c01e51f2a78654dd4cc1146f9a15"
+    }
+  },
+  "probe": {
+    "command": "Run the following source with bun -e from the repository root.",
+    "source": "\nimport fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';\nimport {WorkflowStore} from './src/graph/store.ts';\nimport {Ticket,FileNode,ModuleNode,Artifact} from './src/graph/ontology.ts';\nimport {RuleStore} from './src/rules/store.ts';\nimport {indexCodebase} from './src/graph/indexer.ts';\nimport {closeAllTsLspClients} from './src/change/ts-lsp.ts';\nimport {resolveTicketGovernance,ruleAcceptanceFailures,readVerificationReceipt} from './src/ticket-operation-types.ts';\nconst root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-prime-scope-'));\nlet store;\ntry {\n fs.mkdirSync(path.join(root,'src')); fs.mkdirSync(path.join(root,'tests'));\n fs.symlinkSync(path.resolve('node_modules'),path.join(root,'node_modules'));\n fs.writeFileSync(path.join(root,'.gitignore'),'node_modules\\n.ai-workflow\\n*.md\\n');\n fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a:number,b:number){return a+b;}\\n');\n fs.writeFileSync(path.join(root,'src/other.ts'),'export function other(){return 1;}\\n');\n fs.writeFileSync(path.join(root,'tests/add.test.ts'),'import {test,expect} from \"bun:test\"; import {add} from \"../src/add\"; test(\"sum\",()=>expect(add(2,3)).toBe(5));\\n');\n fs.writeFileSync(path.join(root,'tsconfig.json'),JSON.stringify({compilerOptions:{target:'ESNext',module:'ESNext',moduleResolution:'bundler',types:['bun'],skipLibCheck:true}}));\n for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture']]){\n  const p=Bun.spawnSync(['git',...args],{cwd:root,stderr:'pipe'});if(!p.success)throw Error(p.stderr.toString());\n }\n store=new WorkflowStore(root);await indexCodebase(store,root);\n const rs=new RuleStore(store);\n const owner=await store.upsertEntity(ModuleNode.dcr,{id:'OTHER',title:'Other module'});\n await store.relate(owner,'contains',(await store.getEntity('src/other.ts',FileNode.dcr)));\n const rule={id:'scope-rule',ruleId:'scope-rule',scope:{kind:'module',moduleId:'OTHER'},type:'coding',importance:10,rule:'other must return one.',status:'active',revision:1,provenance:'fixture',examples:[],references:[],test:{kind:'llm'}};\n await rs.saveRule(rule);\n const t=await store.upsertEntity(Ticket.dcr,{id:'T',title:'Keep addition direct',body:'Preserve signed addition.',lane:'Todo',acceptanceCriteria:['sum is correct']});\n await store.relate(t,'modifies',(await store.getEntity('src/add.ts',FileNode.dcr)));\n let suppliedRules;\n const opts={systemOne:{assess:async()=>null},critic:'none',maxRepairs:0,testCommands:[['bun','test','tests/add.test.ts']],\n implement:async()=>({changes:[{action:'replace_text',filePath:'src/other.ts',oldText:'return 1',newText:'return 2'}],testCommands:[]}),\n verify:async input=>{suppliedRules=input.dossier.governance.rules.map(r=>r.ruleId);return {criteria:[{criterion:'sum is correct',passed:true,evidence:'The actual addition test passed.'}],aspects:[],rules:[]};}};\n const result=await t.resolve(store,opts);\n const receipt=await store.getEntity('VERIFY-T',Artifact.dcr);\n await rs.saveRule({...rule,revision:2,rule:'other must remain at one; changes require independent evidence.'});\n const reuse=await t.resolve(store,{...opts,implement:async()=>{throw Error('Must re-review changed scope governance');},verify:async()=>{throw Error('Must independently reassess changed Rule');}});\n const after=await resolveTicketGovernance(store,t);\n const anchored=await store.upsertEntity(Ticket.dcr,{id:'TARGET',title:'Other target',body:'Keep other fixed.',acceptanceCriteria:['other returns one']});\n await store.relate(anchored,'modifies',(await store.getEntity('src/other.ts',FileNode.dcr)));\n const expected=await resolveTicketGovernance(store,anchored);\n const evidence={status:result.status,reuseAfterRuleChange:reuse.status,lane:(await store.getEntity('T',Ticket.dcr)).lane,changedFile:fs.readFileSync(path.join(root,'src/other.ts'),'utf8'),suppliedRules,afterRules:after.rules.map(r=>r.ruleId),rulesForActualChangedFile:expected.rules.map(r=>r.ruleId),receipt:receipt?readVerificationReceipt(receipt.body):null};\n console.log(JSON.stringify(evidence));\n const advisory={...expected,rules:expected.rules.map(r=>({...r,importance:6}))};\n const check={ruleId:'scope-rule',revision:1,fingerprint:expected.rules[0].fingerprint,verdict:'fail',evidence:'Expected rule violated.',evidenceIds:['src/other.ts'],limitations:[]};\n console.log(JSON.stringify({expectedRuleAssessmentFailures:ruleAcceptanceFailures(advisory,{criteria:[],aspects:[],rules:[check]},['src/other.ts'])}));\n}finally{await closeAllTsLspClients();store?.close();fs.rmSync(root,{recursive:true,force:true});}\n",
+    "observations": [
+      {
+        "status": "complete",
+        "reuseAfterRuleChange": "complete",
+        "lane": "Done",
+        "changedFile": "export function other(){return 2;}\n",
+        "suppliedRules": [],
+        "afterRules": [],
+        "rulesForActualChangedFile": [
+          "scope-rule"
+        ],
+        "receipt": {
+          "governanceVersion": 2,
+          "governanceFingerprint": "5724ae89d774b5e598df894fdfbaf1918ad6bb862742fd7d18317962c9980392",
+          "signature": "0535b19dee897012ff137c5ebc9010ea3ce0b5e0643c2a3e0f7ee3df42d3aa42",
+          "hashes": {
+            "src/other.ts": "25fb6f7886666471d6f6c61ec737746cb68e1f9742795d76e5486bcdcde45b27",
+            "src/add.ts": "c5295b3848d97b4966e883456aaa717fa91c41e05da1bbbdd1b0219fb70ce1c3",
+            "tests/add.test.ts": "243ca3c444ed4b2657fb1f6a8e78003fed87dbe537469d90f5398daf39d683eb"
+          },
+          "acceptance": {
+            "criteria": [
+              {
+                "criterion": "sum is correct",
+                "passed": true,
+                "evidence": "The actual addition test passed."
+              }
+            ],
+            "aspects": [],
+            "rules": []
+          },
+          "tests": [
+            {
+              "command": [
+                "bun",
+                "test",
+                "tests/add.test.ts"
+              ],
+              "passed": true
+            }
+          ],
+          "testNodes": [
+            {
+              "id": "test:tests/add.test.ts",
+              "hashes": {
+                "tests/add.test.ts": "243ca3c444ed4b2657fb1f6a8e78003fed87dbe537469d90f5398daf39d683eb",
+                "src/add.ts": "c5295b3848d97b4966e883456aaa717fa91c41e05da1bbbdd1b0219fb70ce1c3",
+                "src/other.ts": "25fb6f7886666471d6f6c61ec737746cb68e1f9742795d76e5486bcdcde45b27"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "expectedRuleAssessmentFailures": []
+      }
+    ],
+    "limits": "Injected typed verifier hooks exercise controller contracts; the probe does not claim live semantic model acceptance. Git, AST indexing, guarded mutation, actual Bun test execution, persistence and proof reuse are real."
+  },
+  "releaseLimits": [
+    "Structural governance defect remains open.",
+    "Four opt-in live tests were skipped; no new live Gate 5 semantic acceptance was performed.",
+    "Current typecheck fails with 19 diagnostics reproduced on an untouched HEAD archive, with no additional diagnostics.",
+    "Existing user-owned dirty files were preserved; no commit or push was made."
+  ],
+  "auditStop": "This is a documented structural stop with bounded local repairs, not a Gate 5 completion certificate."
+}

@@ -1,0 +1,1 @@
+Title: Shell fails to resolve contextual entity references\nReproduction: edit last ticket\nActual: Unsupported editable entity \"last ticket\".\nExpected: Resolve the reference to the most recently created/referenced ticket and open it for editing.
