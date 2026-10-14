@@ -213,7 +213,7 @@ export async function investigateTicket(
                     id: rule.ruleId,
                     kind: "Rule",
                     title: rule.title ?? rule.ruleId,
-                    body: `${rule.rule}${examplesBody}`,
+                    body: `${rule.rule}${examplesBody}${rule.references.length ? '\n' + (await import('../rules/references.ts')).renderRuleReferences(rule.references) : ''}`,
                     mandatory: rule.importance >= 8,
                     provenance: `Engineering Doctrine (${rule.scope.kind})`
                 })

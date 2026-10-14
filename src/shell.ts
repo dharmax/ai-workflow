@@ -32,6 +32,7 @@ import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { loadConfig, saveConfig } from './config.ts';
 import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult, configView} from './config-command.ts';
+import {runRuleCommand} from './rule-command.ts';
 import {runTicketCommand, TICKET_COMMANDS, type TicketCommand} from './ticket-command.ts';
 import {runSetupCommand, formatSetupResult, setupView} from './setup-command.ts';
 import { buildEntityView, resolveEntityViewKind, saveEntityView, facilitateEntityId, formatEntityView, type EntityViewKind } from './entity-view.ts';
@@ -62,7 +63,12 @@ async function presentEntityView(
   const result = await session.renderer.view(view)
   if (result.status === 'unavailable') return mode === 'readonly' ? formatEntityView(view) : null
   if (result.status === 'submitted') {
-    await saveEntityView(ctx, kind, id, result.values)
+    await saveEntityView(ctx, kind, id, result.values, async preview => {
+      const facilitator = new ParameterFacilitator(session.renderer || session.prompter);
+      const answer = await facilitator.facilitate({approval: {type: 'select', description: 'Review Rule diff: ' + JSON.stringify(preview),
+        choices: ['cancel', 'apply']}}, {}, {interactive: true});
+      return answer.approval === 'apply';
+    })
     await exportProjections(session.store, session.projectRoot)
     return `Saved ${kind} '${id}'.`
   }
@@ -349,8 +355,12 @@ Drill-down and project commands:
     }
   }
 
+  if (/^rule\s+(list|get|export|preview|apply|resolve)(\s|$)/i.test(line)) {
+    try { return {output: await runRuleCommand(line.split(/\s+/).slice(1), ctx)}; }
+    catch (error) { return {output: error instanceof Error ? error.message : String(error)}; }
+  }
   const entityKind = line.split(/\s+/)[0]!.toLowerCase();
-  if (['ticket', 'epic', 'feature', 'story', 'aspect'].includes(entityKind)) {
+  if (['ticket', 'epic', 'feature', 'story', 'aspect', 'rule'].includes(entityKind)) {
     try {
       const kind = entityKind as EntityViewKind;
       let id = line.slice(entityKind.length).trim();

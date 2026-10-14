@@ -4,7 +4,10 @@
  */
 
 import { WorkflowStore } from '../graph/store.ts';
-import { Rule } from '../graph/ontology.ts';
+import { Rule, Artifact, ModuleNode } from '../graph/ontology.ts';
+import { createHash } from 'node:crypto';
+import { canonical } from '../kb/canonical.ts';
+import { validateReferenceSnapshot, resolveRuleReference } from './references.ts';
 import {
   RuleSchema,
   RulePackSchema,
@@ -69,6 +72,112 @@ export class RuleStore {
     };
 
     return this.store.upsertEntity<Rule>(Rule.dcr, payload);
+  }
+
+  /**
+   * Persist a prevalidated Rule batch through Semantika's native synchronous commit.
+   * A native entity version (not the logical Rule revision) protects every record.
+   * Entity instances are created only after the entire batch commits.
+   */
+  async saveBatch(changes: ReadonlyArray<{ rule: RuleModel; expectedVersion: number | null; remove?: boolean }>, audit?: { reason: string; before: Array<RuleModel | null> }): Promise<Rule[]> {
+    const validated = changes.map(change => ({ ...change, rule: RuleStore.validateRule(change.rule) }));
+    await this.store.sp.collectionForEntityType(Rule.dcr);
+    const records = validated.map(({ rule, expectedVersion, remove }) => ({
+      collectionName: this.store.sp.name + '_' + (Rule.dcr.collectionName || Rule.dcr.name),
+      id: this.store.formatId(Rule.dcr, RuleStore.entityIdForScope(rule.ruleId, rule.scope)),
+      expectedVersion,
+      record: remove ? null : { ...rule, title: rule.title ?? rule.ruleId }
+    }));
+    const auditRecords = [];
+    if (audit) {
+      await this.store.sp.collectionForEntityType(Artifact.dcr);
+      auditRecords.push({
+        collectionName: this.store.sp.name + '_' + (Artifact.dcr.collectionName || Artifact.dcr.name),
+        id: this.store.formatId(Artifact.dcr, 'RULE-AUDIT-' + crypto.randomUUID()), expectedVersion: null,
+        record: {title: 'Authorized Rule change', status: 'accepted',
+          body: JSON.stringify({reason: audit.reason, before: audit.before, after: changes, at: new Date().toISOString()})}
+      });
+    }
+    const rows = this.store.sqliteStore.applyBatch([...records, ...auditRecords]);
+    return rows.slice(0, changes.filter(change => !change.remove).length)
+      .map(row => this.store.sp.makeEntity<Rule>(Rule.dcr, row._id as string, row));
+  }
+
+
+  /** Export explicit portable snapshots only; local layers retain their originating project. */
+  async exportPack(): Promise<RulePack & {projectOrigin: string; schemaVersion: number; defaultsVersion: number}> {
+    const rules = await this.listAllRules();
+    return {version: 1, schemaVersion: 1, defaultsVersion: RulePackSchema.parse(defaultsData).version,
+      packName: 'Authored Rule export', projectOrigin: this.store.root,
+      rules: rules.map(rule => ({...rule, references: rule.references.map(reference => ({
+        ...reference, snapshot: reference.snapshot?.approved && reference.snapshot.exportable ? reference.snapshot : undefined
+      }))}))};
+  }
+
+  /** Preview is deterministic and side-effect free. Its full before/after diff is the approval payload. */
+  async previewPack(raw: unknown, options: {
+    reason: string; allowWeakening?: boolean; approveReferences?: boolean; authorizedRepositories?: Record<string, string>;
+    remove?: Array<{ruleId: string; scope: RuleScope}>;
+  }) {
+    if (!options.reason.trim()) throw Error('An operator reason is required.');
+    const pack = RulePackSchema.parse(raw);
+    const origin = (raw as {projectOrigin?: string}).projectOrigin;
+    const changes: Array<{rule: RuleModel; expectedVersion: number | null; remove?: boolean}> = [];
+    const before: Array<RuleModel | null> = [];
+    const identities = new Set<string>();
+    const requests = [...pack.rules.map(rule => ({rule, remove: false})),
+      ...await Promise.all((options.remove ?? []).map(async item => {
+        const rule = await this.getRule(item.ruleId, item.scope);
+        if (!rule) throw Error('Rule layer to delete does not exist.');
+        return {rule, remove: true};
+      }))];
+    for (const request of requests) {
+      const rule = request.rule;
+      const id = RuleStore.entityIdForScope(rule.ruleId, rule.scope);
+      if (identities.has(id)) throw Error('Duplicate Rule layer in import.');
+      identities.add(id);
+      if (rule.scope.kind !== 'universal' && origin !== this.store.root)
+        throw Error('Project/module Rules cannot move to another originating project.');
+      if (rule.scope.kind === 'module' && !await this.store.getEntity(rule.scope.moduleId, ModuleNode.dcr))
+        throw Error('Rule module is not graph-grounded.');
+      const prior = await this.getRule(rule.ruleId, rule.scope);
+      const entity = await this.store.getEntity<Rule>(id, Rule.dcr);
+      if (request.remove && entity && ((await this.store.getIncoming(entity.id)).length || (await this.store.getOutgoing(entity.id)).length))
+        throw Error('Unlink Rule graph relationships explicitly before deleting this layer.');
+      const governing = prior ?? (await this.resolveRule(rule.ruleId, {moduleId: rule.scope.kind === 'module' ? rule.scope.moduleId : undefined}))?.effective;
+      if (governing && governing.importance >= 8 && (request.remove || rule.importance < governing.importance ||
+          rule.rule !== governing.rule || rule.status !== 'active' || canonical(rule.test) !== canonical(governing.test) ||
+          canonical(rule.languages) !== canonical(governing.languages) || canonical(rule.references) !== canonical(governing.references)) &&
+          !options.allowWeakening) throw Error('Mandatory Rule change requires explicit weakening authorization.');
+      const references = await Promise.all(rule.references.map(async reference => {
+        if (!reference.snapshot) return reference;
+        const snapshot = validateReferenceSnapshot(reference.snapshot);
+        if (snapshot.revision !== reference.revision) throw Error('Reference revision does not match its pinned snapshot.');
+        const retained = prior?.references.some(old => canonical(old) === canonical(reference) && old.snapshot?.approved);
+        if (options.approveReferences && !retained) {
+          const resolved = await resolveRuleReference(reference, options.authorizedRepositories?.[reference.locator] ?? reference.locator);
+          const unsigned = (value: typeof snapshot) => ({...value, approved: false, exportable: false});
+          if (canonical(unsigned(resolved.snapshot!)) !== canonical(unsigned(snapshot)))
+            throw Error('Supplied reference evidence differs from verified pinned source.');
+        }
+        return {...reference, snapshot: {...snapshot, approved: Boolean(retained || options.approveReferences)}};
+      }));
+      if (!request.remove && rule.status === 'active' && rule.importance >= 8 &&
+          references.some(reference => reference.required && !reference.snapshot?.approved))
+        throw Error('Mandatory required reference lacks approved evidence.');
+      before.push(prior);
+      changes.push({rule: {...rule, id, revision: (prior?.revision ?? 0) + 1, references,
+        provenance: 'operator-approved'}, expectedVersion: entity?.version ?? null, remove: request.remove});
+    }
+    const approval = {reason: options.reason, before, changes};
+    const fingerprint = createHash('sha256').update(canonical(approval)).digest('hex');
+    return {...approval, fingerprint};
+  }
+
+  async applyPack(raw: unknown, options: Parameters<RuleStore['previewPack']>[1], fingerprint: string): Promise<Rule[]> {
+    const preview = await this.previewPack(raw, options);
+    if (preview.fingerprint !== fingerprint) throw Error('Stale Rule preview; inspect and approve the current diff.');
+    return this.saveBatch(preview.changes, {reason: preview.reason, before: preview.before});
   }
 
   /**

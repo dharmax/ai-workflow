@@ -19,6 +19,7 @@ import { registerKnowledgebaseTools } from './kb.ts';
 import { registerChangeTools } from './change.ts';
 import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { registerAspectTools } from './aspects.ts';
+import { registerRuleTools } from './rules.ts';
 
 let initialized = false;
 
@@ -39,6 +40,7 @@ export function initializeTools(): ToolRegistry {
     registerChangeTools();
     registerArtifactPolicyTools();
     registerAspectTools();
+    registerRuleTools();
     initialized = true;
   }
   return registry;

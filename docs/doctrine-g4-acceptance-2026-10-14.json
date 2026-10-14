@@ -1,0 +1,928 @@
+{
+  "ticket": {
+    "lane": "Done",
+    "status": "verified",
+    "claimed": false
+  },
+  "receipt": {
+    "governanceVersion": 1,
+    "governanceFingerprint": "7b7f784f33fdd3132fc3dec4f72604ae024e0294dc6527c213fa47813b9205b7",
+    "signature": "674d341db0d30a39dce0523a1321f17d5712c830cc40fa2038b0a89195f2e283",
+    "hashes": {
+      "node_modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts": "25a54bad1c75365d654f5b97f656d430a0142ea3ebb5065e80d08fdd551ac954",
+      "src/entity-view.ts": "eec3e6e56b5402825be04ea03038d0be721f50fbf78295d7c6d002b9e8a0493e",
+      "src/rule-command.ts": "2fea329d825e5620803642cddeb6b7dd75699799fe2de7f3a0966523556782d9",
+      "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+      "src/rules/store.ts": "c763ba064ccc9848971f1ee8bdae301016384c513905bae870f04efa25d971a5",
+      "src/shell.ts": "de12a5a8381c70a5541fbd1f333b36985af86eace4f73609d682f84bf0d0165e",
+      "src/ticket-operation-types.ts": "cf415551897a497b45826ac60878df4fd7d838a6967ab680f599c61d22ca392c",
+      "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+      "tests/doctrine-management-live.test.ts": "da1bd76fa3f31a7fc090a50aed5de51ff734a386c95b29ba6928b1ae5520344a",
+      "src/change/ts-lsp.ts": "3038cf0c846eec6a49ddff0ce98959363642bdba491d3250a141bdf2038b0636",
+      "src/config.ts": "d17a2d507973571c5c41aad7585aae326491236de0ee9baccc80b1664e3000d2",
+      "src/graph/indexer.ts": "a5a42156c52ea279230c6d87a7aaf44a0acaa7fa8e1c436f1852ecc022705b47",
+      "src/graph/ontology.ts": "399286fb5022549da9c4e8a446fc1cc790b171cfd02bd6ae6f90307e10e87d4a",
+      "src/graph/store.ts": "7eaf3f07628d6ef8a2aa83144172c631388a9cf993707dc25fc4a083f03003b0",
+      "src/graph/test-artifacts.ts": "398cf13fc34a9c1ffb342fdcc3378bae082b304f80c9b5b0972d285d8675cddb",
+      "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+      "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+      "src/artifact-policy.ts": "2155e90b7cc888cc88555bd548370abb23ee8ae2b2a04b34ebdf0cbe0abdd529",
+      "src/aspects.ts": "3023eb3c2bdb9e42bcef1940d03f01b3b42cb0b8bdafeb79ac170460155aef4a",
+      "src/graph/types.ts": "5efff0bfa27af016eb5c0c9e7cbf4f2a42f5112eade5924e14628a650a463f73",
+      "src/product/mutation.ts": "c67a4f6ec4eea9d1393016e60a917779342f5661ab08645223bd95487b4d85d8",
+      "src/product/process-types.ts": "42288a159714d26f9da0d12a4e3f0bbe0c545827358ba511e0e5f795aad232ba",
+      "src/product/process.ts": "59208bdbb959e62b7a6d2ea884f2423fecf1c0bc19e2aca4d41f31f5eb6c8e02",
+      "src/ticket/investigate.ts": "684bcdcd8e5e56d3ecbac8a10f45941108c360daf8a137476775ab48f73e4a0f",
+      "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+      "src/ticket/resolve.ts": "d538401928c4bd339f93dd83be8dcccdf18026af38f33ea834dc6f606c497c7b",
+      "src/graph/ticket-state.ts": "d1a1d567f5e56eca84b3802504be706a81c3b293893cb36b50ffdbf8a73df342",
+      "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+      "package.json": "c6d4f8b0c5ea8d60bb539758a749e21e617fbf13b60c45d9cb6c25ab0289bbfc",
+      "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+      "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+      "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+      "src/product/context.ts": "a638528100dc55b4fa5caf210e1257791479b743b223f8af145909c708798b06",
+      "src/ticket/prompts.ts": "4e0d6ebd5f7b4a447e2fbf7f19125f29bda037cce50ddd3c53ccc3da494b97da",
+      "src/tools/change.ts": "0a6889a7df715d9ade8a194678597378fbcf510ec8432f26a9bc92714754c6b4",
+      "src/artifact-critic.ts": "ac9228f73d5e9ec98530cea94f8370d0ef419caa1d7e94be515e135cdb4a6c04",
+      "src/change/engine.ts": "0d6ba0a511bcdc763456aefb26bc1abdd67133cdd6e775e614a080541cadf6d4",
+      "src/graph/projections.ts": "048a70675dc29e5a410a010ae0b95e084c3aad495d074f032faddad172aa6f27",
+      "src/model-runtime.ts": "f85a1c1f4c67a092c3e1c0da221e2bda37deaaf66bf926c42013aadf093ff4cf",
+      "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+      "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+      "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+      "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+      "src/change/types.ts": "7009118c69c6c3e2084c264bf25db38f0f2fcafbd3139835f7266ad4a028ccfc",
+      "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+      "src/ticket/implementation.ts": "5dc9764f59ade71905608e4b9735b13e295023747b08b1e528b0ff269be6845a",
+      "src/ticket/verification.ts": "84b9e107cc2df89ff0c7edf99c8936cb23baa5500c5980a108b0d0574da8bbcf",
+      "src/tools/index.ts": "ee9f6e2659fb2df03c903062fa762c8392bff01b25832d828509a84cbb851b7d",
+      "src/ticket/prompts/goal.txt": "f6d52c3f7f44538ce3465946e632d35e35b5994e092bcbad8e70a679eab488b7",
+      "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+      "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+      "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+      "src/tools/registry.ts": "530baf315d5ecae85dde694bb101d20aa3b8268d30ed8219783f4de25307f35b",
+      "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+      "src/change/ts6-refactor.ts": "f555a33630bc66ee4e41513678f9bdaf5d409563940a3b12ad057cf3a0cb4815",
+      "src/graph/aspect-projections.ts": "2745b32dab5b757901138664809064ca473a3e7e2bb64e0aa76bc5edd3350269",
+      "src/product/prompts/process.txt": "b322abc22c9ba87fcf5f56dee269c38003b5e8a11b8bf6d0e5db3cd9147b0cbe",
+      "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88",
+      "src/verification-context.ts": "e6c81678fb67045a54ff4379c418445488af4edd7f36663e12b9902d1fcf7df4",
+      "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+      "src/tools/aspects.ts": "ecbf51a47dcbb761ba82b46963f97a390307d2be7195cf82759dd7fb7a7b4b72",
+      "src/tools/compiler.ts": "7e396029157b95c126e75296590b6596a6ba1e549944d5fcd890c67bbd1497e9",
+      "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+      "src/tools/git.ts": "e513f213fba6d5ca8d32c58554b6c524b67ea852c39e14050ea64581ebbbc474",
+      "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+      "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+      "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+      "src/tools/planning.ts": "ac491fcd0eec1fe0ca8ae0fd756617277661a6fe1521ea7e20b0c92d4dbb943c",
+      "src/tools/product.ts": "074b3ab4a653280410af8045d6a040addf221e8163984d6c815aaec6ec8fe467",
+      "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+      "src/tools/scripting.ts": "0b36112c01ecb1fef1032366e83eb73b4dadcadf39ec5fe55d995042b8ffe692",
+      "src/tools/test-runner.ts": "b12355e05749dfe4d7f45173564053d52eb5f855d75131c8a445457962d505aa",
+      "src/tools/tickets.ts": "8964221ad5459aad029b924375e08edb2d2d4654528f50f175cbdc84d16c61e8",
+      "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+      "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+      "src/product/apply.ts": "f2c75a465157b2c8922fe460d3ed19314f029f95fa95630bf7822d3c8e41aeb7",
+      "src/product/decompose.ts": "a598f100be1be61fb81eb3911aed4a807d01252c2174caad62b42dfcceeddfaf",
+      "tests/doctrine-management.test.ts": "0002fe8c44fc53ecf29f70a78a636a43d97028dcbf74c1de38252f1a2a15935c",
+      "src/tools/surface.ts": "70446a880adf7f419fe11ff798f86f53459417aef97513636aa6852f1d99e329",
+      "tests/doctrine-batch.test.ts": "caa1204541e621bd4227640ac62d891ad9c074453aa148b38678d2a5835fafd6",
+      "tests/actor-runtime-refresh.test.ts": "da2322ccbe5275d452478a15b7dad4f55dfc62ec6281a663a6bd5cf762781461",
+      "src/actor/engine.ts": "c18ba54fadf88dc1d04885e2e87074956c1fcefc5ae646fed46eed41956b3c5f",
+      "src/actor/radar.ts": "67a17862e2db01308d62899ced2d01e64bf67a316bfe7bcbb0799bf1b8e5cf0d",
+      "src/artifact-command.ts": "6de307c9749415cb8de167674a20175d07ff98b1f3a8da6191e1cfe938dd770a",
+      "src/tools/discovery.ts": "da96551282c20d0baa5cfdcf11c6929a35f24080a58ce03854da1a17a4c54d20",
+      "src/doctor.ts": "3107498f201e931477a5f962b4ec6d24f83d1e1777e0329e0e5bc9957e1d2eae",
+      "src/shell-trace.ts": "c0a373deb45ab5da40ba0c6ddf0d48368df9870847ff53a56cb7724a61c9e5f9",
+      "src/config-command.ts": "4bce1f36d50d05359178c90e84bd849ae3ce830a339975325a449cdb125ee310",
+      "src/model-command.ts": "43bc5b6e58b8dd1aee17290b2a5049cf23defc505c1f24fbeee9b5b50e2ecd90",
+      "src/setup-command.ts": "de5799f297252410d142ad1a592e7e67a4db608db0731963fd080b09a75de91a",
+      "src/ticket-command.ts": "02329ce0a107fcd3539907465a5a0df6d431c41bb75e3a7038424ffb7dfd3e48",
+      "src/setup.ts": "190d6c7f08b1c98f940ccec4d929ab2b432acd6a231e3ba24b22bc5f725eb55d",
+      "src/client-guidance.ts": "56802e4c1803d249d7cf50858cd9cee83abd6edad1fcec4d75a3f11acb36ca91",
+      "src/mcp.ts": "b04c635dc8805e26ca65b80a6eaaaf8014ecfa90c97408bda79ca1262ed12afe",
+      "tests/actor-engine-boundaries.test.ts": "233762e9fa0fbee539c6d7222e6482a983ac0d427dfbf8c308903651f487aef9",
+      "tests/user-story-j24-sophisticated-goal.test.ts": "4a590e6af8f6e61b4dc15b7066301c9bbb45d75e598264e6b5fe2fd1e491a46f",
+      "tests/model-service.test.ts": "eb928334e9e195ca8758cc4318c928993492ec2a6b319d3ade01c4a4795539ab",
+      "src/actor/prompts.ts": "bb1c7e404e9257697f49cd242d5912fec7983f13db7f6b692ba271cb135be4f2",
+      "src/actor/prompts/actor.txt": "1f98a64c065cd93e000c22fa0ab872ab6e58fc3099c63092210e77b0183a67be",
+      "src/actor/prompts/read-only.txt": "20713905c14b12ab949c11a078ad3fd6f72b6c77871e95d5d5bf251db06d5250",
+      "tests/artifact-command.test.ts": "24b658d89e1b4f80cd030e298875b65e9a313f02c9318259c051ff5663c77727",
+      "tests/ast-freshness-and-search.test.ts": "928853fe2b8270909b98cce38824156102b9247a0826358f55b1ee655a161c0d",
+      "tests/helper": "missing",
+      "tests/logger": "missing",
+      "tests/moduleB": "missing",
+      "tests/shell-config-setup.test.ts": "6bfee34f81a48088136509c9829b0d4f147f44d7e1ec93df6baca45420fc3c2b",
+      "tests/shell-daily.test.ts": "4ec81dbe5e6dc0c17786ac44fc855620f863eb4e40c534e2368b8ac3aae0a094",
+      "tests/shell-trace.test.ts": "b37960c7669a037311622ce3824ee35016e185e63894e79d103446109468caa7",
+      "tests/shell.test.ts": "7c93b4ccdc36836a16e19c9075e15b044863600fe442b2245b5d6647df633b1b",
+      "tests/doctrine-producer-context.test.ts": "89e516232f99b50fd3b862f52899ad8b3ee92ea4c43d98d3cf1de38f31f1a77e",
+      "src/synthesis/context-builder.ts": "cc7e1b00599cf2ccaa330e3f07eae017d9a75d90af628a7950bbb5c0a5946338",
+      "src/synthesis/synthesizer.ts": "caf7a6a3f35f830212460b429a8e02b519c6bd45f917d806e473bbc86fad7fc7",
+      "src/synthesis/types.ts": "34b9703dddde2ac60755ed8d9ff51e91f005b3871abe21dab912fa3eb557bb3e",
+      "src/ticket/prompts/acceptance.txt": "cba795aec9eea67082b387201fe01e1a876bac451dffd86c1aeca1b21489379a",
+      "tests/ticket-investigation.test.ts": "5c8c455cde9af76dd850054cd1877a69e577ba10c0f2a7bb879a6e999de2ca06",
+      "tests/ticket-preparation.test.ts": "9b49316aa5e4e23ca71627c13e3fd52310ae77f00dc72e38c54741e9e6b4d83b",
+      "tests/ticket-resolution.test.ts": "ca7a6d640a668e5ac3b556ef39abc23045fb66d65c11db1234605c0f1b615946",
+      "src/cli.ts": "40484a5a135c09709e13f2324cb06e95f085517c3821c462fd43b31bc9dc9980",
+      "tests/cli-help.test.ts": "b3b930a2b48dfc3b434243e4827883651e4fd6078b2f23d651d79fcb3a4fc666",
+      "tests/doctrine-verifier.test.ts": "5aba66325f2f318161339903196067df22e10f4d3513f3d9f1c98f96ec3ff678"
+    },
+    "acceptance": {
+      "criteria": [
+        {
+          "criterion": "Typed reference selectors resolve immutable pinned Git revisions with honest inventory vs sampling",
+          "passed": true,
+          "evidence": "resolveRuleReference (src/rules/references.ts#resolveRuleReference:24:1) resolves HEAD to a full 40-char SHA via git rev-parse, verifies clean checkout, builds per-file inventory with declarations, limits exemplars to 8, sets coverage='all' vs 'bounded', and marks approved=false. Test in tests/doctrine-management.test.ts ('typed pinned references distinguish complete inventory from bounded exemplars and remain unapproved') asserts reference.revision===git('rev-parse','HEAD'), coverage==='all', exemplars.length===2, approved===false, and that dirty/unauthorized/unsupported revisions throw. Test passed (test:tests/doctrine-management.test.ts)."
+        },
+        {
+          "criterion": "Governed import/export executes atomic batch persistence with zero partial state on injected failure",
+          "passed": true,
+          "evidence": "RuleStore.saveBatch (src/rules/store.ts#RuleStore.saveBatch:79:3) calls this.store.sqliteStore.applyBatch([...records, ...auditRecords]) which uses a SQLite SAVEPOINT with ROLLBACK TO SAVEPOINT on error (node_modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5). Test 'Rule and audit persistence roll back together on real injected SQL failure' in tests/doctrine-management.test.ts installs a BEFORE INSERT trigger on aiwf_Artifact that raises ABORT, then calls applyPack and asserts it throws 'audit unavailable' and that listAllRules()==[] and listEntities(Artifact.dcr)==[]. Test passed (test:tests/doctrine-management.test.ts)."
+        },
+        {
+          "criterion": "Unified management operations exposed across CLI, MCP, and shell-ui entity view",
+          "passed": true,
+          "evidence": "CLI: runRuleCommand (src/rule-command.ts#runRuleCommand:4:1) exposes list/get/export/preview/apply/resolve verbs. MCP: registerRuleTools (src/tools/rules.ts#registerRuleTools:13:1) registers list_rules, get_rule, export_rules, preview_rule_change, apply_rule_change, resolve_rule_reference; getPublicMcpTools verified to contain 'apply_rule_change'. Shell-UI: buildEntityView/saveEntityView (src/entity-view.ts) and presentEntityView (src/shell.ts#presentEntityView:44:1) expose rule view/edit with confirmation. Test 'CLI adapter, MCP tools and existing entity form share graph truth and explicit approval' in tests/doctrine-management.test.ts asserts all three surfaces and passed (test:tests/doctrine-management.test.ts)."
+        }
+      ],
+      "aspects": [],
+      "rules": [
+        {
+          "ruleId": "engineering.abstraction-placement",
+          "revision": 1,
+          "fingerprint": "2495a131454a28737108cccb49962fedba2f884138f564d6de61bea1dc38f475",
+          "verdict": "pass",
+          "evidence": "Each new symbol has a justified, non-duplicated owner: resolveRuleReference/validateReferenceSnapshot/renderRuleReferences live in src/rules/references.ts (reference domain); saveBatch/exportPack/previewPack/applyPack live in src/rules/store.ts (Rule persistence domain); runRuleCommand in src/rule-command.ts (CLI adapter); registerRuleTools in src/tools/rules.ts (MCP surface); buildEntityView/saveEntityView in src/entity-view.ts (view layer); presentEntityView in src/shell.ts (shell session). No duplicate registry or shadow store was introduced. The atomic batch delegates directly to the existing SqliteStore.applyBatch (node_modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5) rather than creating a new persistence layer.",
+          "evidenceIds": [
+            "src/rules/references.ts#resolveRuleReference:24:1",
+            "src/rules/references.ts#validateReferenceSnapshot:14:1",
+            "src/rules/references.ts#renderRuleReferences:103:1",
+            "src/rules/store.ts#RuleStore.saveBatch:79:3",
+            "src/rules/store.ts#RuleStore.exportPack:108:3",
+            "src/rules/store.ts#RuleStore.previewPack:117:3",
+            "src/rules/store.ts#RuleStore.applyPack:166:3",
+            "src/rule-command.ts#runRuleCommand:4:1",
+            "src/tools/rules.ts#registerRuleTools:13:1",
+            "src/entity-view.ts#buildEntityView:50:1",
+            "src/entity-view.ts#saveEntityView:171:1",
+            "src/shell.ts#presentEntityView:44:1",
+            "node-modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5"
+          ],
+          "limitations": []
+        },
+        {
+          "ruleId": "engineering.kiss-simplicity",
+          "revision": 1,
+          "fingerprint": "3f19833a6d8a9081e88fdedb96a5f494762e5ed9b577859d7b5a826a4ef76ca4",
+          "verdict": "pass",
+          "evidence": "Atomic persistence is achieved by passing a flat array of change records directly to the existing SqliteStore.applyBatch SAVEPOINT mechanism — no intermediate cache, shadow store, or async transaction wrapper. resolveRuleReference uses Bun.spawnSync git calls directly without an abstraction layer. previewPack/applyPack are a two-step preview-then-apply pattern with no intermediate state object beyond the fingerprint. The CLI adapter (runRuleCommand) is a thin switch over registry.execute calls. No unnecessary layers were introduced.",
+          "evidenceIds": [
+            "src/rules/store.ts#RuleStore.saveBatch:79:3",
+            "src/rules/store.ts#RuleStore.applyPack:166:3",
+            "src/rules/references.ts#resolveRuleReference:24:1",
+            "src/rule-command.ts#runRuleCommand:4:1",
+            "node-modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5"
+          ],
+          "limitations": []
+        },
+        {
+          "ruleId": "engineering.single-responsibility-tightness",
+          "revision": 1,
+          "fingerprint": "592b62e0303cba20242dd1d636a5c5116a9ce4b91ff9b890dfb14315e3ac0d20",
+          "verdict": "pass",
+          "evidence": "src/rules/references.ts owns only reference resolution/validation/rendering. src/rules/store.ts owns only Rule persistence (saveBatch, exportPack, previewPack, applyPack). src/rule-command.ts owns only CLI dispatch. src/tools/rules.ts owns only MCP tool registration. src/entity-view.ts owns only entity view construction/saving. src/shell.ts#presentEntityView owns only shell session presentation. No method has scattered responsibilities; each touched artifact has one clear owner. Tests confirm each surface independently (test:tests/doctrine-management.test.ts, test:tests/doctrine-batch.test.ts, test:tests/doctrine-management-live.test.ts).",
+          "evidenceIds": [
+            "src/rules/references.ts#resolveRuleReference:24:1",
+            "src/rules/references.ts#validateReferenceSnapshot:14:1",
+            "src/rules/references.ts#renderRuleReferences:103:1",
+            "src/rules/store.ts#RuleStore.saveBatch:79:3",
+            "src/rules/store.ts#RuleStore.exportPack:108:3",
+            "src/rules/store.ts#RuleStore.previewPack:117:3",
+            "src/rules/store.ts#RuleStore.applyPack:166:3",
+            "src/rule-command.ts#runRuleCommand:4:1",
+            "src/tools/rules.ts#registerRuleTools:13:1",
+            "src/entity-view.ts#buildEntityView:50:1",
+            "src/entity-view.ts#saveEntityView:171:1",
+            "src/shell.ts#presentEntityView:44:1",
+            "test:tests/doctrine-management.test.ts",
+            "test:tests/doctrine-batch.test.ts",
+            "test:tests/doctrine-management-live.test.ts"
+          ],
+          "limitations": []
+        }
+      ]
+    },
+    "verifiedAt": "2026-10-14T13:11:36.309Z"
+  },
+  "rootMetrics": {
+    "outcome": {
+      "stage": "acceptance",
+      "outcome": "verified_no_change"
+    },
+    "models": [
+      "openrouter/anthropic/claude-sonnet-4.6"
+    ],
+    "usage": {
+      "calls": 1,
+      "successes": 1,
+      "failures": 0,
+      "successRate": 100,
+      "promptTokens": 24917,
+      "completionTokens": 2022,
+      "totalTokens": 26939,
+      "totalLatencyMs": 37760.306624000004,
+      "avgLatencyMs": 37760,
+      "avgPromptTokens": 24917,
+      "avgCompletionTokens": 2022,
+      "avgTotalTokens": 26939,
+      "totalCostUsd": 0.105081,
+      "avgCostUsd": 0.105081,
+      "knownCostUsd": 0.105081,
+      "costKnownCalls": 1,
+      "unknownCostTokens": 0,
+      "execution": {
+        "local": {
+          "calls": 0,
+          "promptTokens": 0,
+          "completionTokens": 0,
+          "totalTokens": 0,
+          "totalLatencyMs": 0,
+          "knownCostUsd": 0,
+          "costKnownCalls": 0,
+          "unknownCostTokens": 0
+        },
+        "remote": {
+          "calls": 1,
+          "promptTokens": 24917,
+          "completionTokens": 2022,
+          "totalTokens": 26939,
+          "totalLatencyMs": 37760.306624000004,
+          "knownCostUsd": 0.105081,
+          "costKnownCalls": 1,
+          "unknownCostTokens": 0
+        },
+        "unknown": {
+          "calls": 0,
+          "promptTokens": 0,
+          "completionTokens": 0,
+          "totalTokens": 0,
+          "totalLatencyMs": 0,
+          "knownCostUsd": 0,
+          "costKnownCalls": 0,
+          "unknownCostTokens": 0
+        }
+      }
+    }
+  },
+  "criteria": [
+    "Typed reference selectors resolve immutable pinned Git revisions with honest inventory vs sampling",
+    "Governed import/export executes atomic batch persistence with zero partial state on injected failure",
+    "Unified management operations exposed across CLI, MCP, and shell-ui entity view"
+  ],
+  "resolution": {
+    "status": "complete",
+    "artifactId": "TKT-DOCTRINE-G4-REFS-SURFACE",
+    "value": {
+      "verification": true,
+      "resolved": [
+        "TKT-DOCTRINE-G4-REFS-SURFACE"
+      ],
+      "files": [],
+      "repairs": 0,
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "Typed reference selectors resolve immutable pinned Git revisions with honest inventory vs sampling",
+            "passed": true,
+            "evidence": "resolveRuleReference (src/rules/references.ts#resolveRuleReference:24:1) resolves HEAD to a full 40-char SHA via git rev-parse, verifies clean checkout, builds per-file inventory with declarations, limits exemplars to 8, sets coverage='all' vs 'bounded', and marks approved=false. Test in tests/doctrine-management.test.ts ('typed pinned references distinguish complete inventory from bounded exemplars and remain unapproved') asserts reference.revision===git('rev-parse','HEAD'), coverage==='all', exemplars.length===2, approved===false, and that dirty/unauthorized/unsupported revisions throw. Test passed (test:tests/doctrine-management.test.ts)."
+          },
+          {
+            "criterion": "Governed import/export executes atomic batch persistence with zero partial state on injected failure",
+            "passed": true,
+            "evidence": "RuleStore.saveBatch (src/rules/store.ts#RuleStore.saveBatch:79:3) calls this.store.sqliteStore.applyBatch([...records, ...auditRecords]) which uses a SQLite SAVEPOINT with ROLLBACK TO SAVEPOINT on error (node_modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5). Test 'Rule and audit persistence roll back together on real injected SQL failure' in tests/doctrine-management.test.ts installs a BEFORE INSERT trigger on aiwf_Artifact that raises ABORT, then calls applyPack and asserts it throws 'audit unavailable' and that listAllRules()==[] and listEntities(Artifact.dcr)==[]. Test passed (test:tests/doctrine-management.test.ts)."
+          },
+          {
+            "criterion": "Unified management operations exposed across CLI, MCP, and shell-ui entity view",
+            "passed": true,
+            "evidence": "CLI: runRuleCommand (src/rule-command.ts#runRuleCommand:4:1) exposes list/get/export/preview/apply/resolve verbs. MCP: registerRuleTools (src/tools/rules.ts#registerRuleTools:13:1) registers list_rules, get_rule, export_rules, preview_rule_change, apply_rule_change, resolve_rule_reference; getPublicMcpTools verified to contain 'apply_rule_change'. Shell-UI: buildEntityView/saveEntityView (src/entity-view.ts) and presentEntityView (src/shell.ts#presentEntityView:44:1) expose rule view/edit with confirmation. Test 'CLI adapter, MCP tools and existing entity form share graph truth and explicit approval' in tests/doctrine-management.test.ts asserts all three surfaces and passed (test:tests/doctrine-management.test.ts)."
+          }
+        ],
+        "aspects": [],
+        "rules": [
+          {
+            "ruleId": "engineering.abstraction-placement",
+            "revision": 1,
+            "fingerprint": "2495a131454a28737108cccb49962fedba2f884138f564d6de61bea1dc38f475",
+            "verdict": "pass",
+            "evidence": "Each new symbol has a justified, non-duplicated owner: resolveRuleReference/validateReferenceSnapshot/renderRuleReferences live in src/rules/references.ts (reference domain); saveBatch/exportPack/previewPack/applyPack live in src/rules/store.ts (Rule persistence domain); runRuleCommand in src/rule-command.ts (CLI adapter); registerRuleTools in src/tools/rules.ts (MCP surface); buildEntityView/saveEntityView in src/entity-view.ts (view layer); presentEntityView in src/shell.ts (shell session). No duplicate registry or shadow store was introduced. The atomic batch delegates directly to the existing SqliteStore.applyBatch (node_modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5) rather than creating a new persistence layer.",
+            "evidenceIds": [
+              "src/rules/references.ts#resolveRuleReference:24:1",
+              "src/rules/references.ts#validateReferenceSnapshot:14:1",
+              "src/rules/references.ts#renderRuleReferences:103:1",
+              "src/rules/store.ts#RuleStore.saveBatch:79:3",
+              "src/rules/store.ts#RuleStore.exportPack:108:3",
+              "src/rules/store.ts#RuleStore.previewPack:117:3",
+              "src/rules/store.ts#RuleStore.applyPack:166:3",
+              "src/rule-command.ts#runRuleCommand:4:1",
+              "src/tools/rules.ts#registerRuleTools:13:1",
+              "src/entity-view.ts#buildEntityView:50:1",
+              "src/entity-view.ts#saveEntityView:171:1",
+              "src/shell.ts#presentEntityView:44:1",
+              "node-modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.kiss-simplicity",
+            "revision": 1,
+            "fingerprint": "3f19833a6d8a9081e88fdedb96a5f494762e5ed9b577859d7b5a826a4ef76ca4",
+            "verdict": "pass",
+            "evidence": "Atomic persistence is achieved by passing a flat array of change records directly to the existing SqliteStore.applyBatch SAVEPOINT mechanism — no intermediate cache, shadow store, or async transaction wrapper. resolveRuleReference uses Bun.spawnSync git calls directly without an abstraction layer. previewPack/applyPack are a two-step preview-then-apply pattern with no intermediate state object beyond the fingerprint. The CLI adapter (runRuleCommand) is a thin switch over registry.execute calls. No unnecessary layers were introduced.",
+            "evidenceIds": [
+              "src/rules/store.ts#RuleStore.saveBatch:79:3",
+              "src/rules/store.ts#RuleStore.applyPack:166:3",
+              "src/rules/references.ts#resolveRuleReference:24:1",
+              "src/rule-command.ts#runRuleCommand:4:1",
+              "node-modules/@dharmax/semantika/src/storage/sqlite-store/sqlite-store.ts#SqliteStore.applyBatch:76:5"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.single-responsibility-tightness",
+            "revision": 1,
+            "fingerprint": "592b62e0303cba20242dd1d636a5c5116a9ce4b91ff9b890dfb14315e3ac0d20",
+            "verdict": "pass",
+            "evidence": "src/rules/references.ts owns only reference resolution/validation/rendering. src/rules/store.ts owns only Rule persistence (saveBatch, exportPack, previewPack, applyPack). src/rule-command.ts owns only CLI dispatch. src/tools/rules.ts owns only MCP tool registration. src/entity-view.ts owns only entity view construction/saving. src/shell.ts#presentEntityView owns only shell session presentation. No method has scattered responsibilities; each touched artifact has one clear owner. Tests confirm each surface independently (test:tests/doctrine-management.test.ts, test:tests/doctrine-batch.test.ts, test:tests/doctrine-management-live.test.ts).",
+            "evidenceIds": [
+              "src/rules/references.ts#resolveRuleReference:24:1",
+              "src/rules/references.ts#validateReferenceSnapshot:14:1",
+              "src/rules/references.ts#renderRuleReferences:103:1",
+              "src/rules/store.ts#RuleStore.saveBatch:79:3",
+              "src/rules/store.ts#RuleStore.exportPack:108:3",
+              "src/rules/store.ts#RuleStore.previewPack:117:3",
+              "src/rules/store.ts#RuleStore.applyPack:166:3",
+              "src/rule-command.ts#runRuleCommand:4:1",
+              "src/tools/rules.ts#registerRuleTools:13:1",
+              "src/entity-view.ts#buildEntityView:50:1",
+              "src/entity-view.ts#saveEntityView:171:1",
+              "src/shell.ts#presentEntityView:44:1",
+              "test:tests/doctrine-management.test.ts",
+              "test:tests/doctrine-batch.test.ts",
+              "test:tests/doctrine-management-live.test.ts"
+            ],
+            "limitations": []
+          }
+        ]
+      }
+    }
+  },
+  "live": {
+    "violating": {
+      "status": "blocked",
+      "artifactId": "LIVE-G4",
+      "blockers": [
+        {
+          "reason": "Bounded repair exhausted for 'LIVE-G4': Mandatory Rule 'engineering.one-owner': fail: src/add.ts (lines 1-2) contains both the direct add function AND an AdditionRegistry class whose calculate method forwards to add: 'export class AdditionRegistry { calculate(a: number, b: number) { return add(a,b); } }'. The rule explicitly prohibits an AdditionRegistry forwarding to add as an unjustified duplicate owner, even if tests pass. AdditionRegistry is not referenced by any test (tests/add.test.ts only imports and calls add directly) and has no justified independent purpose, making it a prohibited duplicate owner."
+        }
+      ]
+    },
+    "tests": [
+      {
+        "id": "test:tests/add.test.ts",
+        "passed": true
+      }
+    ],
+    "repaired": {
+      "status": "complete",
+      "artifactId": "LIVE-G4",
+      "value": {
+        "verification": true,
+        "resolved": [
+          "LIVE-G4"
+        ],
+        "files": [
+          "src/add.ts"
+        ],
+        "repairs": 0,
+        "acceptance": {
+          "criteria": [
+            {
+              "criterion": "add returns signed sums",
+              "passed": true,
+              "evidence": "tests/add.test.ts asserts expect(add(2,3)).toBe(5) and expect(add(-2,3)).toBe(1); test node test:tests/add.test.ts passed=true confirms both positive and negative (signed) sum cases execute correctly."
+            }
+          ],
+          "aspects": [],
+          "rules": [
+            {
+              "ruleId": "engineering.one-owner",
+              "revision": 1,
+              "fingerprint": "053cc5499e2a01c50ad1226f6d71fe96b3665dbbba0534d1db3e1d0057c62520",
+              "verdict": "pass",
+              "evidence": "src/add.ts contains exactly one exported function `add` that directly computes and returns `a + b` (source: 'export function add(a: number, b: number) { return a + b; }'). There is no AdditionRegistry class, no forwarding wrapper, and no duplicate owner of the addition logic anywhere in the file. The single direct function is the sole owner of addition.",
+              "evidenceIds": [
+                "src/add.ts",
+                "test:tests/add.test.ts"
+              ],
+              "limitations": [
+                "Analysis is bounded to the files provided in the dossier (src/add.ts and tests/add.test.ts). No repository-wide scan was performed; if additional files exist outside the provided context they were not inspected."
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "receipt": {
+      "governanceVersion": 1,
+      "governanceFingerprint": "ae643f4ce23fab65b24e43f24748a285a3e1e328b1b7529dc782192bb4e9cc4f",
+      "signature": "595e2b1ff645104f781d865bccc0149c713c92c1ae361bba4765a914d24d0fe6",
+      "hashes": {
+        "src/add.ts": "d0ea6f33d17132678d4ecd944c2a2dd48dc55a7f7063c21c10d19320645bd2c4",
+        "tests/add.test.ts": "d8f886bef58b3bc94c1db417262e6da0c3e4a9b5c56a265faddea75d4c107bb2"
+      },
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "add returns signed sums",
+            "passed": true,
+            "evidence": "tests/add.test.ts asserts expect(add(2,3)).toBe(5) and expect(add(-2,3)).toBe(1); test node test:tests/add.test.ts passed=true confirms both positive and negative (signed) sum cases execute correctly."
+          }
+        ],
+        "aspects": [],
+        "rules": [
+          {
+            "ruleId": "engineering.one-owner",
+            "revision": 1,
+            "fingerprint": "053cc5499e2a01c50ad1226f6d71fe96b3665dbbba0534d1db3e1d0057c62520",
+            "verdict": "pass",
+            "evidence": "src/add.ts contains exactly one exported function `add` that directly computes and returns `a + b` (source: 'export function add(a: number, b: number) { return a + b; }'). There is no AdditionRegistry class, no forwarding wrapper, and no duplicate owner of the addition logic anywhere in the file. The single direct function is the sole owner of addition.",
+            "evidenceIds": [
+              "src/add.ts",
+              "test:tests/add.test.ts"
+            ],
+            "limitations": [
+              "Analysis is bounded to the files provided in the dossier (src/add.ts and tests/add.test.ts). No repository-wide scan was performed; if additional files exist outside the provided context they were not inspected."
+            ]
+          }
+        ]
+      },
+      "tests": [
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/add.test.ts"
+          ],
+          "passed": true
+        }
+      ],
+      "testNodes": [
+        {
+          "id": "test:tests/add.test.ts",
+          "hashes": {
+            "tests/add.test.ts": "d8f886bef58b3bc94c1db417262e6da0c3e4a9b5c56a265faddea75d4c107bb2",
+            "src/add.ts": "d0ea6f33d17132678d4ecd944c2a2dd48dc55a7f7063c21c10d19320645bd2c4"
+          }
+        }
+      ]
+    },
+    "metrics": [
+      {
+        "models": [
+          "openrouter/anthropic/claude-sonnet-4.6"
+        ],
+        "usage": {
+          "calls": 1,
+          "successes": 1,
+          "failures": 0,
+          "successRate": 100,
+          "promptTokens": 2594,
+          "completionTokens": 350,
+          "totalTokens": 2944,
+          "totalLatencyMs": 8204.323929,
+          "avgLatencyMs": 8204,
+          "avgPromptTokens": 2594,
+          "avgCompletionTokens": 350,
+          "avgTotalTokens": 2944,
+          "totalCostUsd": 0.013032,
+          "avgCostUsd": 0.013032,
+          "knownCostUsd": 0.013032,
+          "costKnownCalls": 1,
+          "unknownCostTokens": 0,
+          "execution": {
+            "local": {
+              "calls": 0,
+              "promptTokens": 0,
+              "completionTokens": 0,
+              "totalTokens": 0,
+              "totalLatencyMs": 0,
+              "knownCostUsd": 0,
+              "costKnownCalls": 0,
+              "unknownCostTokens": 0
+            },
+            "remote": {
+              "calls": 1,
+              "promptTokens": 2594,
+              "completionTokens": 350,
+              "totalTokens": 2944,
+              "totalLatencyMs": 8204.323929,
+              "knownCostUsd": 0.013032,
+              "costKnownCalls": 1,
+              "unknownCostTokens": 0
+            },
+            "unknown": {
+              "calls": 0,
+              "promptTokens": 0,
+              "completionTokens": 0,
+              "totalTokens": 0,
+              "totalLatencyMs": 0,
+              "knownCostUsd": 0,
+              "costKnownCalls": 0,
+              "unknownCostTokens": 0
+            }
+          }
+        },
+        "outcome": {
+          "stage": "acceptance",
+          "outcome": "blocked_acceptance"
+        }
+      },
+      {
+        "models": [
+          "openrouter/anthropic/claude-sonnet-4.6"
+        ],
+        "usage": {
+          "calls": 1,
+          "successes": 1,
+          "failures": 0,
+          "successRate": 100,
+          "promptTokens": 2569,
+          "completionTokens": 323,
+          "totalTokens": 2892,
+          "totalLatencyMs": 6979.829393,
+          "avgLatencyMs": 6980,
+          "avgPromptTokens": 2569,
+          "avgCompletionTokens": 323,
+          "avgTotalTokens": 2892,
+          "totalCostUsd": 0.012552,
+          "avgCostUsd": 0.012552,
+          "knownCostUsd": 0.012552,
+          "costKnownCalls": 1,
+          "unknownCostTokens": 0,
+          "execution": {
+            "local": {
+              "calls": 0,
+              "promptTokens": 0,
+              "completionTokens": 0,
+              "totalTokens": 0,
+              "totalLatencyMs": 0,
+              "knownCostUsd": 0,
+              "costKnownCalls": 0,
+              "unknownCostTokens": 0
+            },
+            "remote": {
+              "calls": 1,
+              "promptTokens": 2569,
+              "completionTokens": 323,
+              "totalTokens": 2892,
+              "totalLatencyMs": 6979.829393,
+              "knownCostUsd": 0.012552,
+              "costKnownCalls": 1,
+              "unknownCostTokens": 0
+            },
+            "unknown": {
+              "calls": 0,
+              "promptTokens": 0,
+              "completionTokens": 0,
+              "totalTokens": 0,
+              "totalLatencyMs": 0,
+              "knownCostUsd": 0,
+              "costKnownCalls": 0,
+              "unknownCostTokens": 0
+            }
+          }
+        },
+        "outcome": {
+          "stage": "acceptance",
+          "outcome": "implemented"
+        }
+      }
+    ],
+    "completed": {
+      "noMocks": true,
+      "approvedPinnedReference": true,
+      "upstreamOffline": true,
+      "injectionRejected": true
+    }
+  },
+  "diagnostics": {
+    "baselineHeaders": [
+      [
+        "src/actor/engine.ts",
+        "593",
+        "13",
+        "TS2322",
+        "Type 'import(\"/home/dharmax/work/ai-workflow/node_modules/zod/v4/classic/schemas\").ZodType<unknown, unknown, import(\"/home/dharmax/work/ai-workflow/node_modules/zod/v4/core/schemas\").$ZodTypeInternals<unknown, unknown>>' is not assignable to type 'import(\"/home/dharmax/work/llm-utils/node_modules/zod/v4/classic/schemas\").ZodType<unknown, unknown, import(\"/home/dharmax/work/llm-utils/node_modules/zod/v4/core/schemas\").$ZodTypeInternals<unknown, unknown>>'."
+      ],
+      [
+        "src/artifact-critic.ts",
+        "27",
+        "26",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/artifact-critic.ts",
+        "27",
+        "988",
+        "TS2345",
+        "Argument of type 'ZodObject<{ criteria: ZodArray<ZodObject<{ criterion: ZodString; covered: ZodBoolean; evidence: ZodString; }, $strip>>; aspects: ZodArray<...>; review: ZodObject<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ criteria: { criterion: string; covered: boolean; evidence: string; }[]; aspects: { id: string; covered: boolean; evidence: string; }[]; review: { verdict: \"accept\" | \"needs_input\" | \"reject\" | \"revise\"; findings: { ...; }[]; required: { ...; }[]; }; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/change/engine.ts",
+        "883",
+        "9",
+        "TS2304",
+        "Cannot find name 'diagnosticsOk'."
+      ],
+      [
+        "src/product/decompose.ts",
+        "211",
+        "28",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/product/decompose.ts",
+        "211",
+        "47",
+        "TS2345",
+        "Argument of type 'ZodObject<{ features: ZodDefault<ZodArray<ZodObject<{ action: ZodEnum<{ create: \"create\"; reuse: \"reuse\"; }>; id: ZodOptional<ZodString>; title: ZodString; body: ZodOptional<ZodString>; acceptanceCriteria: ZodDefault<...>; }, $strip>>>; stories: ZodDefault<...>; questions: ZodDefault<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ features: { action: \"create\" | \"reuse\"; id?: string | undefined; title: string; body?: string | undefined; acceptanceCriteria: string[]; }[]; stories: { action: \"create\" | \"reuse\"; id?: string | undefined; ... 5 more ...; acceptanceCriteria: string[]; }[]; questions: { ...; }[]; } | undefined, unknown, $Zo...'."
+      ],
+      [
+        "src/product/process.ts",
+        "97",
+        "52",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/product/process.ts",
+        "97",
+        "102",
+        "TS2345",
+        "Argument of type 'ZodObject<{ items: ZodDefault<ZodArray<ZodObject<{ id: ZodString; kind: ZodEnum<{ Feature: \"Feature\"; Ticket: \"Ticket\"; UserStory: \"UserStory\"; }>; title: ZodString; body: ZodDefault<ZodString>; actor: ZodOptional<...>; story: ZodOptional<...>; acceptanceCriteria: ZodDefault<...>; }, $strip>>>; aspectIds: ZodDefault...' is not assignable to parameter of type 'ZodType<{ items: { id: string; kind: \"Feature\" | \"Ticket\" | \"UserStory\"; title: string; body: string; actor?: string | undefined; story?: string | undefined; acceptanceCriteria: string[]; }[]; aspectIds: string[]; gaps: string[]; required: { ...; }[]; rationale: string; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "151",
+        "17",
+        "TS2322",
+        "Type 'ZodDiscriminatedUnion<[ZodObject<{ action: ZodLiteral<\"replace_text\">; filePath: ZodString; oldText: ZodString; newText: ZodString; }, $strip>, ... 5 more ..., ZodObject<...>], \"action\"> | ZodType<...>' is not assignable to type 'ZodType<any, unknown, $ZodTypeInternals<any, unknown>>'."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "209",
+        "30",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "212",
+        "13",
+        "TS2322",
+        "Type 'ZodObject<{ changes: ZodDefault<ZodArray<ZodDiscriminatedUnion<[ZodObject<{ action: ZodLiteral<\"replace_text\">; filePath: ZodString; oldText: ZodString; newText: ZodString; }, $strip>, ... 6 more ..., ZodObject<...>], \"action\">>>; testCommands: ZodDefault<...>; required: ZodOptional<...>; }, $strip>' is not assignable to type 'ZodType<{ changes: ({ action: \"replace_text\"; filePath: string; oldText: string; newText: string; } | { action: \"create_file\"; filePath: string; content: string; productContextEntityId?: string | undefined; } | ... 5 more ... | { ...; })[]; testCommands: string[][]; required?: { ...; }[] | undefined; } | undefined, ...'."
+      ],
+      [
+        "src/ticket/investigate.ts",
+        "400",
+        "52",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/investigate.ts",
+        "400",
+        "97",
+        "TS2345",
+        "Argument of type 'ZodObject<{ disposition: ZodEnum<{ needs_preparation: \"needs_preparation\"; ready: \"ready\"; rejectable: \"rejectable\"; }>; rationale: ZodString; acceptanceCriteria: ZodOptional<ZodArray<ZodString>>; required: ZodOptional<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ disposition: \"needs_preparation\" | \"ready\" | \"rejectable\"; rationale: string; acceptanceCriteria?: string[] | undefined; required?: { question: string; why: string; target: string; choices?: string[] | undefined; }[] | undefined; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/ticket/prepare.ts",
+        "68",
+        "44",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/prepare.ts",
+        "79",
+        "25",
+        "TS2345",
+        "Argument of type 'ZodObject<{ rationale: ZodString; acceptanceCriteria: ZodOptional<ZodArray<ZodString>>; children: ZodDefault<ZodArray<ZodObject<{ id: ZodString; title: ZodString; body: ZodString; acceptanceCriteria: ZodArray<...>; relations: ZodDefault<...>; dependsOn: ZodDefault<...>; }, $strip>>>; }, $strip>' is not assignable to parameter of type 'ZodType<{ rationale: string; acceptanceCriteria?: string[] | undefined; children: { id: string; title: string; body: string; acceptanceCriteria: string[]; relations: { predicate: \"addresses\" | \"implements\" | \"modifies\" | \"targets\"; targetId: string; }[]; dependsOn: string[]; }[]; } | undefined, unknown, $ZodTypeInte...'."
+      ],
+      [
+        "src/ticket/verification.ts",
+        "205",
+        "28",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/verification.ts",
+        "205",
+        "82",
+        "TS2345",
+        "Argument of type 'ZodObject<{ criteria: ZodArray<ZodObject<{ criterion: ZodString; passed: ZodBoolean; evidence: ZodString; }, $strip>>; aspects: ZodArray<...>; rules: ZodDefault<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ criteria: { criterion: string; passed: boolean; evidence: string; }[]; aspects: { id: string; passed: boolean; evidence: string; }[]; rules: { ruleId: string; revision: number; fingerprint: string; verdict: \"fail\" | ... 2 more ... | \"pass\"; evidence: string; evidenceIds: string[]; limitations: string[]; }[...'."
+      ],
+      [
+        "tests/actor-engine-boundaries.test.ts",
+        "123",
+        "52",
+        "TS2322",
+        "Type 'Promise<{ query: {}; tools: { name: string; description: string; category: \"os\"; parameters: ZodObject<{ value: ZodPipe<ZodString, ZodTransform<string, string>>; }, $strip>; execute: (params: { ...; }) => string[]; }[]; }>' is not assignable to type 'Promise<DiscoveredTools>'."
+      ],
+      [
+        "tests/actor-engine-boundaries.test.ts",
+        "141",
+        "52",
+        "TS2322",
+        "Type 'Promise<{ query: {}; tools: { name: string; description: string; category: \"os\"; parameters: ZodObject<{}, $strip>; execute: () => {}; }[]; }>' is not assignable to type 'Promise<DiscoveredTools>'."
+      ]
+    ],
+    "finalHeaders": [
+      [
+        "src/actor/engine.ts",
+        "593",
+        "13",
+        "TS2322",
+        "Type 'import(\"/home/dharmax/work/ai-workflow/node_modules/zod/v4/classic/schemas\").ZodType<unknown, unknown, import(\"/home/dharmax/work/ai-workflow/node_modules/zod/v4/core/schemas\").$ZodTypeInternals<unknown, unknown>>' is not assignable to type 'import(\"/home/dharmax/work/llm-utils/node_modules/zod/v4/classic/schemas\").ZodType<unknown, unknown, import(\"/home/dharmax/work/llm-utils/node_modules/zod/v4/core/schemas\").$ZodTypeInternals<unknown, unknown>>'."
+      ],
+      [
+        "src/artifact-critic.ts",
+        "27",
+        "26",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/artifact-critic.ts",
+        "27",
+        "988",
+        "TS2345",
+        "Argument of type 'ZodObject<{ criteria: ZodArray<ZodObject<{ criterion: ZodString; covered: ZodBoolean; evidence: ZodString; }, $strip>>; aspects: ZodArray<...>; review: ZodObject<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ criteria: { criterion: string; covered: boolean; evidence: string; }[]; aspects: { id: string; covered: boolean; evidence: string; }[]; review: { verdict: \"accept\" | \"needs_input\" | \"reject\" | \"revise\"; findings: { ...; }[]; required: { ...; }[]; }; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/change/engine.ts",
+        "883",
+        "9",
+        "TS2304",
+        "Cannot find name 'diagnosticsOk'."
+      ],
+      [
+        "src/product/decompose.ts",
+        "211",
+        "28",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/product/decompose.ts",
+        "211",
+        "47",
+        "TS2345",
+        "Argument of type 'ZodObject<{ features: ZodDefault<ZodArray<ZodObject<{ action: ZodEnum<{ create: \"create\"; reuse: \"reuse\"; }>; id: ZodOptional<ZodString>; title: ZodString; body: ZodOptional<ZodString>; acceptanceCriteria: ZodDefault<...>; }, $strip>>>; stories: ZodDefault<...>; questions: ZodDefault<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ features: { action: \"create\" | \"reuse\"; id?: string | undefined; title: string; body?: string | undefined; acceptanceCriteria: string[]; }[]; stories: { action: \"create\" | \"reuse\"; id?: string | undefined; ... 5 more ...; acceptanceCriteria: string[]; }[]; questions: { ...; }[]; } | undefined, unknown, $Zo...'."
+      ],
+      [
+        "src/product/process.ts",
+        "97",
+        "52",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/product/process.ts",
+        "97",
+        "102",
+        "TS2345",
+        "Argument of type 'ZodObject<{ items: ZodDefault<ZodArray<ZodObject<{ id: ZodString; kind: ZodEnum<{ Feature: \"Feature\"; Ticket: \"Ticket\"; UserStory: \"UserStory\"; }>; title: ZodString; body: ZodDefault<ZodString>; actor: ZodOptional<...>; story: ZodOptional<...>; acceptanceCriteria: ZodDefault<...>; }, $strip>>>; aspectIds: ZodDefault...' is not assignable to parameter of type 'ZodType<{ items: { id: string; kind: \"Feature\" | \"Ticket\" | \"UserStory\"; title: string; body: string; actor?: string | undefined; story?: string | undefined; acceptanceCriteria: string[]; }[]; aspectIds: string[]; gaps: string[]; required: { ...; }[]; rationale: string; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "151",
+        "17",
+        "TS2322",
+        "Type 'ZodDiscriminatedUnion<[ZodObject<{ action: ZodLiteral<\"replace_text\">; filePath: ZodString; oldText: ZodString; newText: ZodString; }, $strip>, ... 5 more ..., ZodObject<...>], \"action\"> | ZodType<...>' is not assignable to type 'ZodType<any, unknown, $ZodTypeInternals<any, unknown>>'."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "209",
+        "30",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/implementation.ts",
+        "212",
+        "13",
+        "TS2322",
+        "Type 'ZodObject<{ changes: ZodDefault<ZodArray<ZodDiscriminatedUnion<[ZodObject<{ action: ZodLiteral<\"replace_text\">; filePath: ZodString; oldText: ZodString; newText: ZodString; }, $strip>, ... 6 more ..., ZodObject<...>], \"action\">>>; testCommands: ZodDefault<...>; required: ZodOptional<...>; }, $strip>' is not assignable to type 'ZodType<{ changes: ({ action: \"replace_text\"; filePath: string; oldText: string; newText: string; } | { action: \"create_file\"; filePath: string; content: string; productContextEntityId?: string | undefined; } | ... 5 more ... | { ...; })[]; testCommands: string[][]; required?: { ...; }[] | undefined; } | undefined, ...'."
+      ],
+      [
+        "src/ticket/investigate.ts",
+        "400",
+        "52",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/investigate.ts",
+        "400",
+        "97",
+        "TS2345",
+        "Argument of type 'ZodObject<{ disposition: ZodEnum<{ needs_preparation: \"needs_preparation\"; ready: \"ready\"; rejectable: \"rejectable\"; }>; rationale: ZodString; acceptanceCriteria: ZodOptional<ZodArray<ZodString>>; required: ZodOptional<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ disposition: \"needs_preparation\" | \"ready\" | \"rejectable\"; rationale: string; acceptanceCriteria?: string[] | undefined; required?: { question: string; why: string; target: string; choices?: string[] | undefined; }[] | undefined; } | undefined, unknown, $ZodTypeInternals<...>>'."
+      ],
+      [
+        "src/ticket/prepare.ts",
+        "68",
+        "44",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/prepare.ts",
+        "79",
+        "25",
+        "TS2345",
+        "Argument of type 'ZodObject<{ rationale: ZodString; acceptanceCriteria: ZodOptional<ZodArray<ZodString>>; children: ZodDefault<ZodArray<ZodObject<{ id: ZodString; title: ZodString; body: ZodString; acceptanceCriteria: ZodArray<...>; relations: ZodDefault<...>; dependsOn: ZodDefault<...>; }, $strip>>>; }, $strip>' is not assignable to parameter of type 'ZodType<{ rationale: string; acceptanceCriteria?: string[] | undefined; children: { id: string; title: string; body: string; acceptanceCriteria: string[]; relations: { predicate: \"addresses\" | \"implements\" | \"modifies\" | \"targets\"; targetId: string; }[]; dependsOn: string[]; }[]; } | undefined, unknown, $ZodTypeInte...'."
+      ],
+      [
+        "src/ticket/verification.ts",
+        "205",
+        "28",
+        "TS2589",
+        "Type instantiation is excessively deep and possibly infinite."
+      ],
+      [
+        "src/ticket/verification.ts",
+        "205",
+        "82",
+        "TS2345",
+        "Argument of type 'ZodObject<{ criteria: ZodArray<ZodObject<{ criterion: ZodString; passed: ZodBoolean; evidence: ZodString; }, $strip>>; aspects: ZodArray<...>; rules: ZodDefault<...>; }, $strip>' is not assignable to parameter of type 'ZodType<{ criteria: { criterion: string; passed: boolean; evidence: string; }[]; aspects: { id: string; passed: boolean; evidence: string; }[]; rules: { ruleId: string; revision: number; fingerprint: string; verdict: \"fail\" | ... 2 more ... | \"pass\"; evidence: string; evidenceIds: string[]; limitations: string[]; }[...'."
+      ],
+      [
+        "tests/actor-engine-boundaries.test.ts",
+        "123",
+        "52",
+        "TS2322",
+        "Type 'Promise<{ query: {}; tools: { name: string; description: string; category: \"os\"; parameters: ZodObject<{ value: ZodPipe<ZodString, ZodTransform<string, string>>; }, $strip>; execute: (params: { ...; }) => string[]; }[]; }>' is not assignable to type 'Promise<DiscoveredTools>'."
+      ],
+      [
+        "tests/actor-engine-boundaries.test.ts",
+        "141",
+        "52",
+        "TS2322",
+        "Type 'Promise<{ query: {}; tools: { name: string; description: string; category: \"os\"; parameters: ZodObject<{}, $strip>; execute: () => {}; }[]; }>' is not assignable to type 'Promise<DiscoveredTools>'."
+      ]
+    ],
+    "baselineCount": 19,
+    "finalCount": 19,
+    "sameFileColumnCodeMultiset": true
+  },
+  "baselineCommit": "56fb827a623829efa406d71f96315eb6b0108577",
+  "semantikaCommit": "0d395ee2b2cef6a03a7cdee23b3a23fe9073e575",
+  "semantikaFeatureCommit": "11adc8b",
+  "checks": {
+    "groundingFocusedPassed": 47,
+    "finalFocusedPassed": 11,
+    "finalPassed": 437,
+    "finalSkipped": 4,
+    "finalFailed": 0,
+    "assertions": 2776,
+    "semantikaPassed": 46,
+    "semantikaFailed": 0,
+    "semantikaBuild": "passed",
+    "aiwfPack": "passed, build 863 before final commit"
+  },
+  "method": "Read-only grounding, assisted AIWF guarded implementation, native Ticket.resolve checks and real independent OpenRouter acceptance. No renewed broad producer run.",
+  "rootCause": "Consumer wiring referenced nonexistent WorkflowStore exports and used unrelated CLI sync. The prior Ticket lacked code-target edges; textual safe_change did not verify import linkage. Exact model internal reasoning is not retained.",
+  "limits": [
+    "Only explicitly authorized clean local Git checkouts; no clone or fetch.",
+    "Full structural inventories limited to 32 supported TS/JS files; at most eight 8000-character exemplars. Excluded/unsupported coverage is explicit; no repository-wide quality certification.",
+    "New source approval is revalidated against the pinned checkout; an existing approved saved snapshot remains usable offline. Private snapshots are omitted from exports unless explicitly exportable.",
+    "Nested Rule data uses the existing JSON form fields, with list filtering through shared commands; no new UI framework.",
+    "Atomic batch guarantee is SQLite-specific; the separate generic storage-session design remains unimplemented.",
+    "Managed Ticket mutation/acceptance is enforced; unrestricted host shell/native database edits remain outside that boundary.",
+    "Nineteen existing TypeScript diagnostics remain; no introduced diagnostic identities."
+  ],
+  "preservation": {
+    "gate2ReceiptBodyUnchanged": true,
+    "gate3ReceiptBodyUnchanged": true,
+    "gate5Untouched": true,
+    "unrelatedFilesPreserved": true
+  }
+}

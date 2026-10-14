@@ -1,9 +1,9 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
-import {Aspect, Epic, Feature, Ticket, UserStory} from './graph/ontology.ts'
+import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from './graph/ontology.ts'
 import type {ToolContext} from './tools/index.ts'
 import {registry} from './tools/index.ts'
 
-export type EntityViewKind = 'ticket' | 'epic' | 'feature' | 'story' | 'aspect'
+export type EntityViewKind = 'ticket' | 'epic' | 'feature' | 'story' | 'aspect' | 'rule'
 
 const choiceOptions = (values: readonly string[]) =>
   values.map(value => ({id: value, label: value}))
@@ -44,11 +44,12 @@ export async function resolveEntityViewKind(ctx: ToolContext, id: string): Promi
   if (entity instanceof Feature) return 'feature'
   if (entity instanceof UserStory) return 'story'
   if (entity instanceof Aspect) return 'aspect'
+  if (entity instanceof Rule) return 'rule'
   throw new Error(`Unsupported editable entity '${id}'.`)
 }
 
 export async function facilitateEntityId(ctx: ToolContext, kind: EntityViewKind, facilitator: ParameterFacilitator): Promise<string | null> {
-  const tool = {ticket: 'list_tickets', epic: 'list_epics', feature: 'list_features', story: 'list_user_stories', aspect: 'list_aspects'}[kind];
+  const tool = {ticket: 'list_tickets', epic: 'list_epics', feature: 'list_features', story: 'list_user_stories', aspect: 'list_aspects', rule: 'list_rules'}[kind];
   const entities: Array<{id: string}> = await registry.execute(tool, {}, ctx);
   const choices = entities.map(entity => entity.id);
   if (!choices.length) throw new Error(`No ${kind} entities available.`);
@@ -67,6 +68,19 @@ export async function buildEntityView(
   id: string,
   mode: 'readonly' | 'edit' = 'readonly',
 ): Promise<ViewRequest> {
+  if (kind === 'rule') {
+    const result = await registry.execute('get_rule', {ruleId: id}, ctx)
+    if (!result.rule) throw Error("Rule layer not found.")
+    return {id: 'rule:' + id, title: 'Rule · ' + result.rule.ruleId, mode, fields: {
+      id: text(id, 'readonly', {label: 'Layer ID'}),
+      revision: text(result.rule.revision, 'readonly', {label: 'Revision'}),
+      effective: text(JSON.stringify(result.effective, null, 2), 'readonly', {label: 'Effective rule / inheritance'}),
+      payload: text(JSON.stringify(result.rule, null, 2), 'edit', {label: 'Rule JSON (examples, references, checker)', multiline: true, grow: true}),
+      reason: text('', 'edit', {label: 'Reason'}),
+      allowWeakening: choice('no', ['no', 'yes'], {label: 'Authorize mandatory Rule change'}),
+      approveReferences: choice('no', ['no', 'yes'], {label: 'Approve supplied reference evidence'})
+    }}
+  }
   if (kind === 'ticket') {
     const ticket = await ctx.store.getEntity<Ticket>(id, Ticket.dcr)
     if (!ticket) throw new Error(`Ticket '${id}' not found.`)
@@ -187,7 +201,21 @@ export async function saveEntityView(
   kind: EntityViewKind,
   id: string,
   values: Record<string, unknown>,
+  confirmRuleChange?: (preview: unknown) => Promise<boolean>,
 ): Promise<void> {
+  if (kind === 'rule') {
+    const current = await registry.execute('get_rule', {ruleId: id}, ctx)
+    const rule = JSON.parse(String(values.payload))
+    if (!current.rule || rule.ruleId !== current.rule.ruleId || JSON.stringify(rule.scope) !== JSON.stringify(current.rule.scope))
+      throw Error('Rule editor cannot change layer identity.')
+    if (rule.revision !== current.rule.revision) throw Error('Stale Rule editor revision; reload before editing.')
+    const request = {pack: {version: 1, packName: 'Entity editor', projectOrigin: ctx.store.root, rules: [rule]},
+      reason: values.reason, allowWeakening: values.allowWeakening === 'yes', approveReferences: values.approveReferences === 'yes'}
+    const preview = await registry.execute('preview_rule_change', request, ctx)
+    if (!confirmRuleChange || !await confirmRuleChange(preview)) throw Error('Rule change not approved; graph unchanged.')
+    await registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, ctx)
+    return
+  }
   if (kind === 'ticket') {
     await registry.execute('update_ticket', {
       ticketId: id,

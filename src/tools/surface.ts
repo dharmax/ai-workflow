@@ -5,6 +5,7 @@ import type {ToolDefinition, ToolRegistry} from './registry.ts'
  * and to semantic Actor discovery without being advertised to every host.
  */
 export const PUBLIC_MCP_TOOL_NAMES = new Set([
+  'list_rules', 'get_rule', 'export_rules', 'preview_rule_change', 'apply_rule_change', 'resolve_rule_reference',
   'resolve_ticket',
   'prepare_ticket',
   'investigate_ticket',

@@ -8,8 +8,6 @@ kanban-plugin: board
 
 - [ ] **TKT-DOGFOOD-CODE-MUTATOR**: Dogfood: rename CausalChangeEngine to CodeMutator
   - Summary: Separate follow-up requested after the recovery batch; do not execute during recovery. Rename CausalChangeEngine (currently src/change/engine.ts) to CodeMutator and consider proposed location src/services/code-mutator/code-mutator.ts. Initial responsibility inspection: previewChange uses AST snapshot/buildPreview; code actions resolve exact LSP targets, build edits, hash/fingerprint previews, materialize writes/renames with rollback, reindex, migrate durable anchors and verify. The same class also previews/applies product_change canonical graph mutations. Consumers include Ticket resolve, change tools and code/Product/Aspect tests. This is a rename/move dogfood task, not permission for a new service wrapper, duplicate class, Product split or unrelated refactor. Proposed location remains provisional: inspect exact responsibilities/dependencies and confirm ownership before finalizing the move. Use semantic rename/move primitives, remove superseded paths/imports, preserve current contracts and safeguards. Execute only after R3 is independently verified; use an immutable runner outside source being changed.
-- [ ] **TKT-DOCTRINE-G4-REFS-SURFACE**: Gate 4: Grounded Pinned References, Governed Import/Export & Management Surfaces
-  - Summary: Implement resolvable gitRepo references with typed selectors and verified inventory. Implement governed JSON import/export with Semantika atomic batch persistence and failure-injection tests. Expose CLI/MCP/shell management surfaces.
 - [ ] **TKT-DOCTRINE-G5-RELEASE**: Gate 5: Release Audit & Whole-Method Prime Directive Review
   - Summary: Execute full regression test suite, typecheck, build, DB migration tests, and live configured end-to-end acceptance journey. Perform am-i-allowed whole-method audit across all touched code.
 
@@ -125,6 +123,8 @@ kanban-plugin: board
   - Summary: Deliver resolved applicable rules and inline examples into Ticket investigation, synthesis, and actor prompts. Fix Decision operative fields and Aspect status handling with regression tests.
 - [x] **TKT-DOCTRINE-G3-VERIFIER**: Gate 3: Independent Post-Change Verifier & Proof Closure
   - Summary: Extend independent acceptance schema and ticket verification signature with per-rule verdicts. Enforce mandatory rules on post-change source and block Done on violations. Demonstrate adversarial Ticket failure.
+- [x] **TKT-DOCTRINE-G4-REFS-SURFACE**: Gate 4: Grounded Pinned References, Governed Import/Export & Management Surfaces
+  - Summary: Implement resolvable gitRepo references with typed selectors and verified inventory. Implement governed JSON import/export with Semantika atomic batch persistence and failure-injection tests. Expose CLI/MCP/shell management surfaces.
 - [x] **TKT-DOCTRINE-G1-REVISION**: Gate 1 Correction: Scope Contract, Lossless Identifiers & Override Semantics
   - Summary: Correct Gate 1 implementation: eliminate lossy rule entity ID normalization, derive project identity directly from WorkflowStore context, enforce that drafts cannot shadow active inherited rules while disabled rules explicitly suppress, remove redundant full-collection reads in resolveAllRules, and detect outdated/incomplete bundled defaults without overwriting local customizations. Include database restart and partial default regression tests.
 

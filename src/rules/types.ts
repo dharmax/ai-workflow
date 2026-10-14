@@ -50,12 +50,33 @@ export const RuleReferenceSelectorSchema = z.discriminatedUnion('kind', [
 ]);
 export type RuleReferenceSelector = z.infer<typeof RuleReferenceSelectorSchema>;
 
+export const RuleReferenceSnapshotSchema = z.object({
+  revision: z.string().regex(/^[a-f0-9]{40}([a-f0-9]{24})?$/),
+  manifestHash: z.string().regex(/^[a-f0-9]{64}$/),
+  coverage: z.enum(['all', 'bounded']),
+  inventory: z.array(z.object({
+    path: z.string(), hash: z.string().regex(/^[a-f0-9]{64}$/),
+    declarations: z.array(z.object({name: z.string(), kind: z.string(), startLine: z.number().int(), endLine: z.number().int()}))
+  })),
+  excluded: z.array(z.string()),
+  exemplars: z.array(z.object({
+    path: z.string(), symbol: z.string(), source: z.string().max(8000),
+    sourceHash: z.string().regex(/^[a-f0-9]{64}$/)
+  })).max(8),
+  limitations: z.array(z.string()),
+  approved: z.boolean().default(false),
+  exportable: z.boolean().default(false)
+});
+export type RuleReferenceSnapshot = z.infer<typeof RuleReferenceSnapshotSchema>;
+
 export const RuleReferenceSchema = z.object({
   sourceType: z.literal('gitRepo'),
   locator: z.string().min(1),
   revision: z.string().min(1),
   selector: RuleReferenceSelectorSchema,
-  purpose: z.string().min(1)
+  purpose: z.string().min(1),
+  required: z.boolean().optional(),
+  snapshot: RuleReferenceSnapshotSchema.optional()
 });
 export type RuleReference = z.infer<typeof RuleReferenceSchema>;
 

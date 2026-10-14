@@ -23,6 +23,7 @@ import {runSetupCommand, formatSetupResult} from './setup-command.ts';
 import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult} from './config-command.ts';
 import {runTicketCommand} from './ticket-command.ts';
+import {runRuleCommand} from './rule-command.ts';
 import {buildEntityView, formatEntityView} from './entity-view.ts';
 import {ProcessViewport} from '@dharmax/shell-ui';
 import { KnowledgeBaseClient } from './kb/client.ts';
@@ -779,6 +780,11 @@ async function main() {
       break;
     }
 
+    case 'rule': {
+      console.log(await runRuleCommand(args.slice(1), {store: getStore(), projectRoot: root}));
+      break;
+    }
+
     case 'config': {
       const result = await runConfigCommand(root, args.slice(1));
       if (result) console.log(formatConfigResult(result));
@@ -975,6 +981,7 @@ Diagnostics & Health:
 Configuration & Execution:
   init                                   Zero-config project initialization in current directory
   setup [--check] [--global|--mcp|--link] Inspect or apply verified setup steps
+  rule list|get|export|preview|apply|resolve  Manage canonical Rules with preview approval
   config [get|set|reset] [key] [val] [--global] Inspect values/provenance or change explicit overrides
   model [list|radar|set]                 Inspect gateway, Pareto radar rankings, or configure mode routes
   kb [sync|list|search|show]             Search, inspect, and sync content-addressed skills & patterns

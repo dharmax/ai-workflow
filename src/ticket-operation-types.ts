@@ -124,6 +124,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Tick
   const { loadConfig } = await import('./config.ts');
   const { ensureAstFresh } = await import('./graph/indexer.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
+  const { renderRuleReferences } = await import('./rules/references.ts');
   await ensureAstFresh(store);
   const neighbors = [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)];
   const entities: WorkflowEntity[] = [];
@@ -176,13 +177,22 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Tick
   for (const context of contexts.values()) {
     for (const resolved of await ruleStore.resolveAllRules({ ...context, forGovernance: true })) {
       if (resolved.isDisabled) continue;
-      const rule = resolved.effective;
+      const storedRule = resolved.effective;
+      if (storedRule.importance >= 8 && storedRule.references.some(reference => reference.required && !reference.snapshot?.approved))
+        throw new Error(`Mandatory Rule '${storedRule.ruleId}' requires approved reference evidence.`);
+      const rule = {...storedRule, references: storedRule.references.map(reference =>
+        reference.snapshot?.approved ? reference : {...reference, snapshot: undefined})};
+      for (const reference of rule.references) if (reference.snapshot && reference.revision !== reference.snapshot.revision)
+        throw new Error('Reference does not match its pinned revision.');
+      const approvedReferences = rule.references.filter(reference => reference.snapshot?.approved);
+      const referenceEvidence = renderRuleReferences(approvedReferences);
       if (rule.importance >= 8 && rule.languages?.length && !context.language)
         throw new Error(`Specify the target language for mandatory Rule '${rule.ruleId}'.`);
       const fingerprint = createHash('sha256').update(canonical({
         ruleId: rule.ruleId, scope: rule.scope, type: rule.type, languages: rule.languages,
         importance: rule.importance, status: rule.status, revision: rule.revision,
-        rule: rule.rule, examples: rule.examples, test: rule.test, checker
+        rule: rule.rule, examples: rule.examples, test: rule.test, checker,
+        ...(approvedReferences.length ? {referenceEvidence} : {})
       })).digest('hex');
       const prior = rules.get(rule.ruleId);
       if (prior && prior.fingerprint !== fingerprint && Math.max(prior.importance, rule.importance) >= 8)
