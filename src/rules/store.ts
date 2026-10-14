@@ -144,7 +144,8 @@ export class RuleStore {
       const entity = await this.store.getEntity<Rule>(id, Rule.dcr);
       if (request.remove && entity && ((await this.store.getIncoming(entity.id)).length || (await this.store.getOutgoing(entity.id)).length))
         throw Error('Unlink Rule graph relationships explicitly before deleting this layer.');
-      const governing = prior ?? (await this.resolveRule(rule.ruleId, {moduleId: rule.scope.kind === 'module' ? rule.scope.moduleId : undefined}))?.effective;
+      const governing = prior?.status === 'active' ? prior
+        : (await this.resolveRule(rule.ruleId, {moduleId: rule.scope.kind === 'module' ? rule.scope.moduleId : undefined}))?.effective;
       if (governing && governing.importance >= 8 && (request.remove || rule.importance < governing.importance ||
           rule.rule !== governing.rule || rule.status !== 'active' || canonical(rule.test) !== canonical(governing.test) ||
           canonical(rule.languages) !== canonical(governing.languages) || canonical(rule.references) !== canonical(governing.references)) &&

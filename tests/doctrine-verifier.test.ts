@@ -10,7 +10,7 @@ import { RuleStore } from '../src/rules/store.ts';
 import type { RuleModel } from '../src/rules/types.ts';
 import { loadConfig, saveConfig } from '../src/config.ts';
 import {
-  AcceptanceVerificationSchema, readVerificationReceipt, resolveTicketGovernance,
+  AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt, resolveTicketGovernance,
   ticketVerificationSignature, type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput
 } from '../src/ticket-operation-types.ts';
 import { verifyTicketAcceptance } from '../src/ticket/verification.ts';
@@ -102,7 +102,8 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     expect((await ticket.resolve(store, { ...options(), verify: async input => assessments(input) })).status).toBe('complete');
     const receipt = (await store.getEntity<Artifact & { body: string }>('VERIFY-T', Artifact.dcr))!;
     const proof = readVerificationReceipt(receipt.body)!;
-    expect(proof.governanceVersion).toBe(1);
+    expect(proof.governanceVersion).toBe(DOCTRINE_VERIFIER_VERSION);
+    expect(readVerificationReceipt(JSON.stringify({...proof, governanceVersion: DOCTRINE_VERIFIER_VERSION - 1}))).toBeNull();
     expect(proof.governanceFingerprint).toBe((await resolveTicketGovernance(store, ticket)).fingerprint);
     expect(proof.acceptance.rules[0]).toMatchObject({ ruleId: rule.ruleId, verdict: 'pass' });
     const reuse = await ticket.resolve(store, { ...options(), verify: async () => { throw Error('Current proof must be reused'); } });
@@ -275,6 +276,34 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
   });
 
 
+  it('supplies the entire authored file even when a linked test provides only one symbol', async () => {
+    fs.appendFileSync(path.join(root, 'src/add.ts'), '\n' + '// padding\n'.repeat(900) + 'export class HiddenRegistry {}\n');
+    await indexCodebase(store, root);
+    const investigation = await ticket.investigate(store, options());
+    if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+    const tests = [(await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!];
+    const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(item => item.filePath === 'src/add.ts' && item.title === 'add')!;
+    await store.relate(tests[0], 'verifies', symbol);
+    const context = await buildVerificationContext(store, root, {dossier: investigation.value, files: [], testNodes: tests});
+    const file = context.files.find(item => item.file === 'src/add.ts')!;
+    expect(file.snippets).toHaveLength(1);
+    expect(file.snippets[0].source).toBe(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8'));
+    await expect(buildVerificationContext(store, root, {dossier: investigation.value, files: [], testNodes: tests}, 8000))
+      .rejects.toThrow('Verification context exceeds');
+  });
+
+  it('fails when one of several required exact declarations cannot be supplied', async () => {
+    const investigation = await ticket.investigate(store, options());
+    if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+    const dossier = {...investigation.value, evidence: investigation.value.evidence.filter(item => item.kind !== 'FileNode')};
+    for (const symbolName of ['add', 'missing']) dossier.evidence.push({
+      id: symbolName, kind: 'SymbolNode', title: symbolName, mandatory: true,
+      provenance: 'Ticket modifies', filePath: 'src/add.ts', symbolName
+    });
+    await expect(buildVerificationContext(store, root, {dossier, files: [], testNodes: []}))
+      .rejects.toThrow('Required verification symbol');
+  });
+
   it('uses JavaScript applicability instead of silently treating JavaScript targets as TypeScript', async () => {
     fs.writeFileSync(path.join(root, 'src/worker.js'), 'export function work() { return 1; }\n');
     await indexCodebase(store, root);
@@ -283,6 +312,69 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     await rules.saveRule({ ...rule, languages: ['javascript'] });
     expect((await resolveTicketGovernance(store, js)).rules.map(item => item.ruleId)).toContain(rule.ruleId);
     expect((await resolveTicketGovernance(store, ticket)).rules.map(item => item.ruleId)).not.toContain(rule.ruleId);
+  });
+
+  it('surfaces an expected Rule violation without treating it as unknown or blocking completion', async () => {
+    await rules.saveRule({...rule, id: 'expected', ruleId: 'engineering.expected', importance: 6});
+    const result = await ticket.resolve(store, {...options(), verify: async input => {
+      const acceptance = assessments(input);
+      const expected = input.dossier.governance!.rules.find(item => item.ruleId === 'engineering.expected')!;
+      acceptance.rules.push({
+        ruleId: expected.ruleId, revision: expected.revision, fingerprint: expected.fingerprint,
+        verdict: 'fail', evidence: 'Expected improvement is not satisfied; this deviation is nonblocking.',
+        evidenceIds: ['src/add.ts'], limitations: []
+      });
+      return acceptance;
+    }});
+    expect(result.status).toBe('complete');
+    const receipt = (await store.getEntity<Artifact & {body: string}>('VERIFY-T', Artifact.dcr))!;
+    expect(readVerificationReceipt(receipt.body)!.acceptance.rules.find(item => item.ruleId === 'engineering.expected')!.verdict).toBe('fail');
+  });
+
+  it('invalidates a receipt when an applicable expected Rule changes', async () => {
+    const expected = {...rule, id: 'expected', ruleId: 'engineering.expected', importance: 6};
+    await rules.saveRule(expected);
+    expect((await ticket.resolve(store, {...options(), verify: async input => assessments(input)})).status).toBe('complete');
+    await rules.saveRule({...expected, revision: 2, rule: expected.rule + ' Keep error ownership explicit.'});
+    let reviews = 0;
+    const result = await ticket.resolve(store, {...options(), verify: async input => {
+      reviews++;
+      return assessments(input);
+    }});
+    expect(result.status).toBe('complete');
+    expect(reviews).toBe(1);
+  });
+
+  it('delivers expected Rules to the default verifier and retains their nonblocking deviations', async () => {
+    await rules.saveRule({...rule, id: 'expected', ruleId: 'engineering.expected', importance: 6});
+    let prompt = '';
+    let acceptance: AcceptanceVerification;
+    const server = Bun.serve({port: 0, fetch: async request => {
+      const body = await request.json() as {messages: Array<{content: string}>};
+      prompt = body.messages[0].content;
+      return Response.json({message: {content: JSON.stringify(acceptance)}});
+    }});
+    const previous = process.env.OLLAMA_HOST;
+    process.env.OLLAMA_HOST = server.url.toString();
+    try {
+      saveConfig(root, {model: 'ollama/fixture', modelRoutes: {critic: 'ollama/fixture'}, ollamaUrl: server.url.toString()});
+      const investigation = await ticket.investigate(store, options());
+      if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+      const input = {dossier: investigation.value, files: [], tests: [], testNodes: [], children: []};
+      acceptance = assessments(input);
+      const expected = input.dossier.governance!.rules.find(item => item.ruleId === 'engineering.expected')!;
+      acceptance.rules.push({
+        ruleId: expected.ruleId, revision: expected.revision, fingerprint: expected.fingerprint,
+        verdict: 'fail', evidence: 'Nonblocking fixture deviation.',
+        evidenceIds: ['src/add.ts'], limitations: []
+      });
+      const result = await verifyTicketAcceptance(store, input, options(), loadConfig(root));
+      expect(prompt).toContain('engineering.expected');
+      expect(result.rules.find(item => item.ruleId === expected.ruleId)!.verdict).toBe('fail');
+    } finally {
+      server.stop(true);
+      if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous;
+    }
   });
 
   it('requires exact Rule identifiers and nonempty cited evidence in the schema', () => {

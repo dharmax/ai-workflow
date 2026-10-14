@@ -96,7 +96,7 @@ export interface ResolutionOptions extends PreparationOptions {
 export interface ResolvedTicket { verification: boolean; resolved: string[]; files: string[]; repairs: number; acceptance: AcceptanceVerification }
 
 // Receipts are untrusted persisted data. Invalid/legacy receipts trigger verification.
-export const DOCTRINE_VERIFIER_VERSION = 1;
+export const DOCTRINE_VERIFIER_VERSION = 2;
 export const VerificationReceiptSchema = z.object({
   governanceVersion: z.literal(DOCTRINE_VERIFIER_VERSION), governanceFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   signature: z.string(), hashes: z.record(z.string(), z.string()), acceptance: AcceptanceVerificationSchema,
@@ -203,7 +203,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Tick
   const selectedRules = [...rules.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId));
   const selectedDecisions = [...decisions.values()].sort((a, b) => a.id.localeCompare(b.id));
   const fingerprint = createHash('sha256').update(canonical({
-    checker, rules: selectedRules.filter(rule => rule.importance >= 8).map(rule => ({ ruleId: rule.ruleId, fingerprint: rule.fingerprint })),
+    checker, rules: selectedRules.filter(rule => rule.importance >= 5).map(rule => ({ ruleId: rule.ruleId, fingerprint: rule.fingerprint })),
     decisions: selectedDecisions, aspects: aspects.aspects.map(aspect => ({ id: aspect.id, status: aspect.status, criteria: aspect.criteria }))
   })).digest('hex');
   return { fingerprint, rules: selectedRules, decisions: selectedDecisions };
@@ -220,7 +220,7 @@ export function ruleAcceptanceFailures(
   governance: TicketGovernance, acceptance: AcceptanceVerification, evidenceIds: readonly string[]
 ): string[] {
   const required = governance.rules.filter(rule => rule.importance >= 8);
-  const failures = acceptance.rules.filter(check => !required.some(rule => rule.ruleId === check.ruleId))
+  const failures = acceptance.rules.filter(check => !governance.rules.some(rule => rule.ruleId === check.ruleId))
     .map(check => `Unknown Rule assessment '${check.ruleId}'.`);
   for (const rule of required) {
     const check = acceptance.rules.find(item => item.ruleId === rule.ruleId);

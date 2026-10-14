@@ -164,7 +164,7 @@ export async function verifyTicketAcceptance(
     if (!asker) throw new Error("Independent acceptance verifier unavailable.")
     const reviewDossier = {
         ...input.dossier,
-        governance: { ...governance, rules: governance.rules.filter(rule => rule.importance >= 8) },
+        governance: { ...governance, rules: governance.rules.filter(rule => rule.importance >= 5) },
         evidence: input.dossier.evidence
             .filter(evidence => store.localId(evidence.id) !== `VERIFY-${input.dossier.ticket.id}`)
             .map(({ source: _beforeImplementation, ...evidence }) => evidence)

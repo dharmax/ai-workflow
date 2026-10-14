@@ -153,6 +153,7 @@ export async function buildVerificationContext(
   for (const file of new Set([...scopeFiles, ...wantedSourceSymbols.keys()])) ensureFile(file)
 
   for (const [file, names] of wantedSourceSymbols) {
+    if (wholeFileTargets.has(file)) continue
     const context = ensureFile(file)
     for (const name of names) {
       try {
@@ -163,7 +164,9 @@ export async function buildVerificationContext(
           endLine: exact.range.end.line + 1,
           source: exact.code,
         })
-      } catch {}
+      } catch (cause) {
+        throw new Error(`Required verification symbol '${name}' in '${file}' cannot be supplied.`, {cause})
+      }
     }
   }
 
@@ -190,7 +193,7 @@ export async function buildVerificationContext(
     const fullPath = path.resolve(root, context.file)
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue
     const source = fs.readFileSync(fullPath, 'utf8')
-    if (source.length <= SMALL_FILE_CHARS) {
+    if (wholeFileScope || source.length <= SMALL_FILE_CHARS) {
       const snippet = {label: wholeFileScope ? 'complete authored file' : 'small-file fallback',
         startLine: 1, endLine: source.split('\n').length, source}
       if (wholeFileScope) {
@@ -199,7 +202,6 @@ export async function buildVerificationContext(
       } else context.snippets.push(snippet)
       continue
     }
-    if (context.snippets.length) continue
     throw new Error(`No graph-derived verification snippet for large relevant file '${context.file}'. Add/repair symbol or verification edges instead of sending the whole file.`)
   }
 

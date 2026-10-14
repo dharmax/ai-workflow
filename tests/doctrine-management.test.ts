@@ -47,6 +47,19 @@ test('lower scoped overrides cannot weaken inherited mandatory governance silent
   await expect(rules.previewPack(pack({...model(), scope: {kind: 'project'}, importance: 1}), {reason: 'Override'})).rejects.toThrow('weakening authorization');
   await expect(rules.previewPack({...pack({...model(), scope: {kind: 'project'}}), projectOrigin: 'another project'}, {reason: 'Import'})).rejects.toThrow('originating project');
 });
+test('activating a draft override cannot bypass inherited mandatory change authorization', async () => {
+  await rules.saveRule(model());
+  const draft = {...model(), scope: {kind: 'project' as const}, status: 'draft' as const, importance: 1};
+  await rules.saveRule(draft);
+  await expect(rules.previewPack(pack({...draft, status: 'active'}), {reason: 'Activate draft'}))
+    .rejects.toThrow('weakening authorization');
+  expect((await rules.resolveRule(draft.ruleId))!.effective.importance).toBe(10);
+  const options = {reason: 'Explicitly authorize weaker override', allowWeakening: true};
+  const preview = await rules.previewPack(pack({...draft, status: 'active'}), options);
+  await rules.applyPack(pack({...draft, status: 'active'}), options, preview.fingerprint);
+  expect((await rules.resolveRule(draft.ruleId))!.effective.importance).toBe(1);
+});
+
 test('deletion preserves graph invariants and requires explicit mandatory change approval', async () => {
   const entity = await rules.saveRule(model());
   const artifact = await store.upsertEntity(Artifact.dcr, {id: 'attached', title: 'Rule relationship', body: 'Authored context'});

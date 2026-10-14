@@ -472,6 +472,8 @@ describe('Ticket-owned bounded resolution', () => {
     fs.appendFileSync(path.join(root, 'tests/add.test.ts'), `\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
     await indexCodebase(store, root);
     const target = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/add.ts' && symbol.title === 'add')!;
+    await store.unrelate(t.id, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!.id);
+    await store.relate(t, 'modifies', target);
     const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
     await store.relate(test, 'verifies', target, {state: 'authored'});
     // A referenced fixture helper is not part of this Ticket's production scope.
