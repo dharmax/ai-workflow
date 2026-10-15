@@ -24,8 +24,8 @@ describe('AIWF Debugger and Triage Facility', () => {
   test('parseLocations extracts frames from raw stack trace and filters node_modules', () => {
     const rawTrace = `
 Error: Test assertion failure
-    at runTest (/home/dharmax/work/ai-workflow/src/cli.ts:120:5)
-    at Object.<anonymous> (/home/dharmax/work/ai-workflow/node_modules/bun/test.js:10:2)
+    at runTest (${root}/src/cli.ts:120:5)
+    at Object.<anonymous> (${root}/node_modules/bun/test.js:10:2)
     at processTicksAndRejections (src/tools/debugger.ts:45:12)
 `;
     const res = parseLocations(rawTrace, root);
