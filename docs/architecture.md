@@ -2,6 +2,8 @@
 
 This document describes the durable architecture of AIWF: what owns what, how work flows through the system, and which boundaries must remain simple. It is intentionally about current architectural truth rather than the history of how the design was reached.
 
+**Design authority / target:** [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md). **Staged implementation:** [plan](../plans/AIWF-DHARMAX-WAY-PLAN.md). This document distinguishes pushed/current behavior from future target behavior. A plan is not proof of implementation or Gate 5 acceptance.
+
 ## 1. What AIWF owns
 
 AIWF turns product and engineering intent into verified repository changes while preserving the evidence needed to explain what happened.
@@ -22,32 +24,21 @@ If AIWF starts reimplementing one of those responsibilities, that is normally an
 
 ## 2. Product intent and work
 
-For product behavior, the useful chain is:
+The governing relationship is **not** an immutable hierarchy or a mandate to generate artifacts mechanically:
 
 ```text
-Goal
- ├─ Concepts / Decisions / Aspects
- ↓
-Flow
- ↓
-User Story
- ↓
-Feature
- ↓
-Ticket
- ↓
-source + tests + evidence
+Developer intent → Goals / Concepts / Features / authoritative Aspects
+                 → complete User/Actor Stories (Intent, State, Action, Result)
+                 → reviewed Epic (delivery grouping), Tickets and Story tests
+                 → Architecture / execution Flow / Implementation
+                 → observed public behavior and current evidence
 ```
 
-These are semantic relationships, not a mandatory bureaucracy.
+Corrections may flow backward to existing definitions. Feature = product functionality. Epic = delivery organization. Ticket = bounded engineering action. Product `Flow` is an existing optional entity for larger actor journeys; it is not the engineering call-flow analysis. Pure technical maintenance can use a direct Ticket grounded in existing behavior without a fabricated product hierarchy.
 
-A **Goal** says what outcome matters. A **Concept** captures durable product meaning or philosophy. A **Flow** describes an actor's larger path. A **User Story** is a narrative slice of that path. A **Feature** is durable capability that enables one or more Stories. A **Ticket** is executable work.
+An **Aspect** is one authoritative reusable policy, e.g. Persistency, applied explicitly to supported artifacts. Consumers obtain applicable policy via graph relationships rather than copying its text; changing it exposes exact known dependents and honest uncertainty, not an automatic project rewrite. Rules continue to govern engineering action separately.
 
-Technical maintenance may begin directly with a Ticket and architectural evidence. AIWF must not invent Goals or Stories simply to satisfy a hierarchy.
-
-Cross-cutting **Aspects** express obligations that apply across artifacts. They matter when they materially constrain implementation or acceptance; they are not a reason to inflate every operation with global context.
-
-Product meaning should flow downward as bounded context. Evidence and implementation facts flow upward as proof. AI-generated relevance or severity scores are not durable truth unless explicitly accepted as product decisions.
+**Current pushed model:** Goal/Concept/Flow/Feature/Aspect/UserStory/Epic/Ticket/TestNode already exist. Legacy Story fields (`actor`, `story`, `context`, `acceptanceCriteria`) do not yet enforce complete scenario form. Current `processIntent()` applies critic-approved proposals without a separate developer acceptance step. Canonical product-edit atomicity, complete Story testing and UI editing are staged corrections, not present-tense claims. See S1–S5 of the plan.
 
 ## 3. Artifact operations
 
@@ -75,15 +66,15 @@ A resolution may reuse still-valid proof when the acceptance contract and releva
 
 ### Process
 
-Epic/Feature/Story processing moves accepted intent toward useful lower-level work. Depth and breadth are bounded. Artifact count is never treated as completeness.
+The current Epic/Feature/Story processor expands bounded candidate work; its current auto-application is a known product defect relative to Dharmax-way. The target is inert, editable AI proposals followed by explicit developer-approved canonical mutation. Depth and breadth remain bounded. Artifact count is never completeness.
 
 ## 4. Evidence and verification
 
-AIWF distinguishes mechanism evidence from product acceptance.
+AIWF distinguishes structural graph coverage, intended Story behavior and **currently observed** Story results. A complete relationship graph is not behavioral acceptance.
 
-**Mechanism tests** prove exact machinery: graph relations, mutation validation, tool isolation, parsing, timeouts, deterministic selection and compatibility.
+The ordinary test is derived from an accepted User/Actor Story: establish its actual initial state, perform the action through a real public interface, and assert observable result and material exceptions/Aspects. Keep the Story's related outcomes together. An exceptional isolated unit test is justified by a genuinely complex mechanism (e.g. cross-process atomic batch). Raw internal pass counts never prove the product.
 
-**Journey acceptance** proves that the real configured path produces the intended actor outcome across components.
+The planned lifecycle is: accepted Story → runnable test (skipped only before its work begins) → activate and establish expected red → guarded implementation → real green → independent current acceptance. Existing implemented work may be verified as it stands; do not invent a historical red phase. This lifecycle is **target** until stages S4–S7 pass.
 
 A model saying “done” is not evidence. A generated test cannot certify its own behavioral oracle. Verification should inspect authored acceptance and material product obligations independently of the implementation attempt.
 
