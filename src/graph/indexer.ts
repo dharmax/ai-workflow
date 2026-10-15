@@ -74,7 +74,7 @@ export async function indexSingleFile(
   const parsed = parseIndexedFile({ filePath: relPath, content });
 
   const modName = resolveModulePath(relPath);
-  const modEntity = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
+  const modEntity = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr) ?? await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
     id: `mod:${modName}`,
     title: modName,
     path: modName,

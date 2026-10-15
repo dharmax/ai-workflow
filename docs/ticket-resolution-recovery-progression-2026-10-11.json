@@ -1,0 +1,125 @@
+{
+  "status": "R2/R3 remain Blocked. R1 and R2-S preserved. CodeMutator deferred.",
+  "date": "2026-10-11",
+  "revisions": {
+    "aiwf": "9574638",
+    "llmUtils": "f8222aaa155a0b86f50b7cacbe0701ed29d86840",
+    "frozenAiwf": "d636bc75940e",
+    "historicalTarget": "248594af692bf8d46252a32a1f70048c16798a55",
+    "implementationIdentity": "git diff d636bc7 HEAD -- src tests is empty; current llm-utils HEAD equals frozen embedded revision."
+  },
+  "diagnosis": {
+    "firstDivergence": "Committed postedit trace inference 3 chooses get_symbol_source(LLMActor.constructor) again after complete correct constructor reached that request. No contradictory transport evidence found; observation transport not reinvestigated.",
+    "owner": "Provider/model action selection on the demonstrated Qwen 7B route; not a demonstrated host-contract loss. Model attention/internal cause and universal incapability cannot be inferred from wire evidence.",
+    "ownership": [
+      {
+        "artifact": "Ticket.resolve",
+        "responsibility": "Own the durable work closure, leases, dirty-target guards, safe changes, mutation epoch, verification commands, independent acceptance, hashes and receipt; blocked OperationResult is distinct from Kanban lane.",
+        "assessment": "Coherent staged ownership. Model produces implementation proposal; controller executes graph-required tests even if producer suggests weaker tests. Contract/signature/hash checks precede durable Done."
+      },
+      {
+        "artifact": "LLMActor.run / executeStep",
+        "responsibility": "Own run-local decision loop and completed ActorStepRecord observations; execute declared tools, validate arguments, retain errors/results, enforce abort/budgets, validate final output.",
+        "assessment": "History stays in steps and reaches next turn. Successful observations require the model to choose a new action. No separate host progress plan or shadow history needed."
+      },
+      {
+        "artifact": "buildSystemPrompt / buildTurnPrompt / renderToolCatalog / createActorDecisionSchema",
+        "responsibility": "Expose exact available tools, legal decision envelope and current history; request grounded whole-goal decisions and replanning after errors.",
+        "assessment": "Already prohibit repeated successful observations and request recovery. Tool-call versus final-answer states are explicit. Decision schema and ResolutionProposalSchema have different purposes: action decision versus implementation handoff."
+      },
+      {
+        "artifact": "ResolutionProposalSchema / parseStructuredJsonResult",
+        "responsibility": "Mechanically parse the observed implementation handoff. changes are unapplied proposals; tests are suggestions, not proof.",
+        "assessment": "R2-S fails closed with original text/history on invalid final prose. Reintroducing another inference would undo the verified correction."
+      },
+      {
+        "artifact": "ToolDefinition / ToolInvocation / ToolExecutionResult / ActorRunOptions / ActorRunResult",
+        "responsibility": "Describe runtime capabilities, correlate calls/results, declare host-proven read-only effects, expose halt/issue/output contracts.",
+        "assessment": "Necessary execution representations, not independent progress owners. Read-only metadata enables the generic library guard, but AIWF local wrappers do not declare it."
+      },
+      {
+        "artifact": "Ticket.resolve observations / successfulChanges / duplicateAttempts / controller / actorTranches",
+        "responsibility": "Prevent duplicate host navigation within an actual workspace mutation epoch; abort after two consecutive duplicate attempts; bound continuation after successful edits.",
+        "assessment": "Local set suppresses duplicate execution; generic LLMActor guard compares repeated executed results for host-declared read-only tools. Responsibilities overlap, but library guard is inactive for these wrappers. The local error gives one next-inference recovery opportunity using existing evidence, another observation or a concrete edit. It bounds failed progression; it cannot supply the model decision. No threshold changes justified."
+      },
+      {
+        "artifact": "apply / ownedFiles / ownedHashes / anchorMigrations / verification receipt",
+        "responsibility": "Track actual host-owned modifications, prevent overwriting unrelated/intervening edits, preserve authored scope and bind proof to current files/contract.",
+        "assessment": "Safety/lifecycle state has different semantics from model observation history; deleting it as duplicated progress would weaken guarantees."
+      },
+      {
+        "artifact": "safe_change and navigation definitions",
+        "responsibility": "Source inspection versus one guarded direct code ChangeRequest.",
+        "assessment": "Descriptions accurately state reading and editing; source.fixAll is enumerated under source_action and cannot execute tests. Model intent to run tests via source.fixAll/read_workspace_file contradicts available tools. Whole-goal implementation versus controller-owned tests can be clearer, but prior genuine wording experiment failed and was not installed; phase ambiguity is not a qualified correction."
+      },
+      {
+        "artifact": "ModelService.createAsker / modelRuntime / Asker.ask / Ticket.resolve model selection",
+        "responsibility": "Use configured providers/routes with bounded generation, schema retries and token/runtime budgets.",
+        "assessment": "Resolver selects explicit dev route (or design on existing high-quality System-1 hint); explicit model disables provider fallback. Configured escalation/radar is not automatic semantic stall recovery here. Existing modelRoutes permit qualification without another coordinator or recovery mechanism."
+      }
+    ],
+    "flow": "Success observation -> retained history -> next model decision. Mutation -> lease/preview/fingerprint/dirty checks -> tracked hashes/epoch -> subsequent decisions. Ordinary tool errors -> retained observations and replanning. Repeated navigation -> one informative failed attempt -> abort on second consecutive duplicate. Final answer -> observed schema parsing -> apply unapplied proposals -> graph-required tests -> independent critic -> unchanged contract/hash gates -> receipt/Done. Failed tests/acceptance -> bounded existing repair; cancellation -> abort/release/export. Tranche continuation occurs only after max-step exhaustion with successful edits, not as a blind stall retry.",
+    "quality": "Whole Ticket.resolve, LLMActor.run, executeStep, prompts, schemas, provider construction/routing and immediate registered bridges reviewed against all six am-i-allowed dimensions. No production method touched. No unnecessary artifact is causally demonstrated; guard overlap and any-typed legacy boundaries recorded as debt, not patched to compensate for model choice."
+  },
+  "correction": {
+    "sourcePatch": null,
+    "reason": "No navigation/handoff source defect supported by available trace. Do not manufacture a regression-only patch.",
+    "routing": "Attempted qualification of current configured OpenRouter dev route, then one distinct installed larger local model, on independent historical fixtures only. Neither passed qualification. Production config unchanged.",
+    "debtRemoved": [],
+    "debtAdded": [],
+    "deferred": "Guard overlap/read-only metadata, broad Ticket.resolve internal phases, any-typed tool/result edges and phase wording remain audit findings. None shown to cause the observed repeated successful read."
+  },
+  "runner": {
+    "path": "/tmp/aiwf-r2s-checks-aI7krH/runner/aiwf",
+    "sha256": "f797d4b673b4eb40156882632e4922b419d3e12c71f003562eeee25d48ebcdbe",
+    "isolation": "Verified native ELF, 545 manifest inputs and compiled output imports []; dependencies embedded; source-identical current src/tests. No loaded engine/dependency edited. Fresh native process per route, registered resolve_ticket through native script_eval with passive fetch capture; no mocked decisions/tools/proposals."
+  },
+  "checks": {
+    "actor": "Codex: bun test tests/actor-output-contract.test.ts tests/actor.test.ts — 52 pass, 0 fail.",
+    "host": "Codex: bun test tests/ticket-resolution.test.ts — 53 pass, 0 fail.",
+    "limits": "105 existing focused regressions are safety/contract evidence, not live autonomous progression. No new regression established successful progression. Prior full test/typecheck/build at same implementation revisions remain separately cited in R2-S report; not rerun or relabeled autonomous."
+  },
+  "runs": [
+    {
+      "path": "/tmp/aiwf-r2-progression-jznd9gob",
+      "route": "openrouter/openai/gpt-4o-mini",
+      "firstDivergence": "HTTP 401 User not found before first Actor decision.",
+      "operation": "blocked",
+      "requests": 1,
+      "toolCalls": 0,
+      "sourceChanges": 0,
+      "autonomousTests": 0,
+      "independentAcceptance": 0,
+      "receipt": null
+    },
+    {
+      "path": "/tmp/aiwf-r2-local-route-5pi1hw6k",
+      "route": "ollama/qwen2.5:14b-instruct-q3_K_M",
+      "firstDivergence": "First provider request timed out at existing 180000 ms local limit; no response or Actor decision.",
+      "operation": "blocked",
+      "requests": 1,
+      "toolCalls": 0,
+      "sourceChanges": 0,
+      "autonomousTests": 0,
+      "independentAcceptance": 0,
+      "receipt": null
+    }
+  ],
+  "durableState": {
+    "native": "Both isolated Tickets remained Todo/planned, claim:null, receipt:null. OperationResult blocked does not automatically assign Kanban Blocked; documented registered API contract.",
+    "operator": "Codex captured native state, then canonically normalized isolated fixtures to Blocked and synced. Original production source/Ticket untouched; R2/R3 remain blocked in canonical ai-workflow graph.",
+    "hashes": {
+      "sourceBeforeAfter": "0bac2e89a3e2367b77c1e6ce7c02b5556bea0e169c4376eaad647430ef75a4fa",
+      "oracleBeforeAfter": "0ff8f065dccd7da67b13224052d672279cad2f15462b57acd907ffe3e9c1436c"
+    }
+  },
+  "remainingBlocker": "An adequately capable route must be reachable and complete the actual progression/implementation/test/independent-acceptance/receipt gate. Configured cloud credential is rejected; larger installed local route did not respond within existing limit. Neither attempted route establishes or disproves semantic progression. Stop instead of speculative patches, more routes, extended timeouts or unqualified closure.",
+  "operatorEvidence": "Codex performed architecture diagnosis, frozen-runner inventory, historical fixture copies/SQLite backups, isolated config selection, passive request capture and native launch. Only AIWF owns live decisions/implementation; neither live attempt reached a decision.",
+  "governingGap": "Referenced AI-WORKFLOW.md absent at repository and searched ancestor locations; current AGENTS.md and installed ai-workflow SKILL.md were available and obeyed. No subagents used.",
+  "qualityComparison": {
+    "productionMethodsTouched": 0,
+    "beforeAfterComplexity": "unchanged",
+    "supersededMachineryRemoved": "None: no supported source correction. R1 and R2-S machinery preserved.",
+    "sixDimensions": "Execution history belongs in generic Actor; project safety/lifecycle in Ticket.resolve. Existing representations have precise separate purposes and legitimate consumers. Methods/state remain at existing owners. Source-action APIs represent edits, not tests. Repeated-observation failure is already observable and gives a recovery decision; no missing host decision transition is evidenced."
+  }
+}

@@ -151,7 +151,7 @@ Completion covers declared and attributable actual changes, all applicable Rule 
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Establish Gate 5 Semantika selection/completion contract
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [In Progress]: Prove atomic admission assertions and coherent completion contract
 - **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
 
 ### Coverage

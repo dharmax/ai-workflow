@@ -1,0 +1,454 @@
+{
+  "date": "2026-10-12",
+  "objective": "Trustworthy autonomous engineering quality",
+  "gate0": "Complete under explicit operator decision to retain working keys; canonical local-containment audit supersedes revocation prerequisite. Remote transcript residual exposure remains.",
+  "gate1": {
+    "owner": "Authored recovery work contract / isolated fixture acceptance setup",
+    "earliestProvenGap": "Prior historical fixture Ticket had only three functional criteria, zero Aspect entities/links and no AGENTS.md. Actor dossier and verifier dossier faithfully carried that contract, without method-level engineering-quality obligation.",
+    "criticDisposition": "Verifier received complete22line generated constructor, approved functional criteria, and emitted extra invented Aspect IDs that host discarded; no evidence it violated a supplied design-quality obligation.",
+    "defect": "Numeric equality identifies one budget among shared values; repeated field-specific check in generic iteration is avoidable and couples minimum validation to other budget traversal. Specific bound belongs to its named configuration field once, preserving general positive-safe-integer check. This is needless complexity, not a demonstrated functional failure.",
+    "existingCorrection": "Reuse accepted ASP-AIWF-KISS at canonical Aspect/addresses owner; its existing method-level smallest-implementation criterion is explicit, applicable and carried by investigation to author and verifier. Do not patch global library, instructions, judging or test engine.",
+    "repairFlow": "Missing/failed Aspect becomes existing feedback and consumes bounded repair; verified receipt not written unless all required criteria and AspectIDs pass. Signature includes applicable Aspect criteria.",
+    "sourceToolGap": "get_symbol_source applicableAspects returned ambiguous top-level function and object property; used bounded38line shell slice after failed exact tool lookup."
+  },
+  "gate2": {
+    "status": "blocked_unqualified_critic",
+    "correction": "Canonical TKT-RILZ and TKT-RESOLVE-RECOVERY-R3 now address existing accepted ASP-AIWF-KISS; no production source, prompt, judge, test oracle or target implementation changed.",
+    "regression": "Identical signed-addition tests pass both simple and redundant-branch variants. Existing verifier prompt and schema unchanged. GPT-4o, GPT-4o-mini and GPT-4.1 approve both despite explicit quality Aspect. Sonnet 4.6 and Opus 4.6 reject redundant branch, but both approve prior actual constructor, grounding approval in minimal diff rather than minimal implementation.",
+    "preciseGate": "No tested route demonstrates substantive rejection of the actual established defect under the existing applicable quality contract. Model decision quality remains unproven; another prompt or production patch lacks causal justification.",
+    "decisions": [
+      {
+        "source": "review-regression.json",
+        "model": {
+          "providerId": "openrouter",
+          "modelId": "openai/gpt-4o"
+        },
+        "qualityApplicable": false,
+        "variant": "simple",
+        "elapsedMs": 2961,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test file 'add.test.ts' contains a test case that verifies the addition function with signed inputs. The test checks various combinations of positive, negative, and zero values, ensuring that the function returns the correct signed result. The test passed successfully, as indicated by the testNodes data."
+            }
+          ],
+          "aspects": []
+        },
+        "failure": null
+      },
+      {
+        "source": "review-regression.json",
+        "model": {
+          "providerId": "openrouter",
+          "modelId": "openai/gpt-4o"
+        },
+        "qualityApplicable": false,
+        "variant": "complex",
+        "elapsedMs": 2108,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test file 'add.test.ts' contains a test labeled 'signed addition' which verifies the function 'add' from 'add.ts'. The test checks various signed inputs including positive, negative, zero, NaN, and Infinity, ensuring the result matches the expected signed arithmetic output using 'Object.is(add(a,b),a+b)'. The test execution was successful as indicated by the 'passed' status of the test node 'test:add.test.ts'."
+            }
+          ],
+          "aspects": []
+        },
+        "failure": null
+      },
+      {
+        "source": "review-regression.json",
+        "model": {
+          "providerId": "openrouter",
+          "modelId": "openai/gpt-4o"
+        },
+        "qualityApplicable": true,
+        "variant": "simple",
+        "elapsedMs": 1966,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test snippet in 'add.test.ts' verifies signed addition for various cases, including positive, negative, zero, NaN, and Infinity inputs. The assertion `expect(Object.is(add(a,b),a+b)).toBe(true)` confirms the function returns the correct signed result."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation in 'add.ts' is a single line function `export function add(a: number, b: number) { return a + b }`, which meets the criteria for entity-owned behavior and thin adapters without unnecessary complexity. The method-level review confirms it is the smallest implementation that meets the acceptance criteria."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "review-regression.json",
+        "model": {
+          "providerId": "openrouter",
+          "modelId": "openai/gpt-4o"
+        },
+        "qualityApplicable": true,
+        "variant": "complex",
+        "elapsedMs": 2456,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test file 'add.test.ts' contains a test case that verifies the addition of signed numbers. The test case iterates over pairs of numbers, including positive, negative, and zero values, and checks if the result of the 'add' function matches the expected sum using 'Object.is'. The test passed successfully, confirming the criterion."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation in 'add.ts' is straightforward and minimal, consisting of a single function 'add' that directly returns the sum of two numbers. There are no unnecessary abstractions or complex structures, aligning with the KISS principle. The test file 'add.test.ts' confirms the functionality with a simple test case, supporting the aspect's criteria."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "mini-critic-qualification.json",
+        "model": "openrouter/openai/gpt-4o-mini",
+        "qualityApplicable": true,
+        "variant": "simple",
+        "elapsedMs": 2006,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test case verifies that for various signed inputs, the addition function returns the expected result: `expect(Object.is(add(a,b),a+b)).toBe(true)`."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation of the add function is straightforward and meets the KISS principle: `export function add(a: number, b: number) { return a + b }`."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "mini-critic-qualification.json",
+        "model": "openrouter/openai/gpt-4o-mini",
+        "qualityApplicable": true,
+        "variant": "complex",
+        "elapsedMs": 3377,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test verifies that for various signed inputs, the addition function returns the expected result: `expect(Object.is(add(a,b),a+b)).toBe(true)`."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation of the add function is straightforward and does not involve unnecessary complexity, adhering to the KISS principle. The method-level review confirms that the implementation is minimal and meets the acceptance criteria."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "critic-qualification.json",
+        "model": "openrouter/openai/gpt-4.1",
+        "qualityApplicable": true,
+        "variant": "simple",
+        "elapsedMs": 1919,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test in add.test.ts: test(\"signed addition\",()=>{ for(const [a,b] of [[2,3],[-2,3],[-2,-3],[0,0],[-0,-0],[NaN,1],[Infinity,1]]) expect(Object.is(add(a,b),a+b)).toBe(true) }); passed successfully, verifying that add(a, b) returns a + b for a variety of signed inputs."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation in add.ts: export function add(a: number, b: number) { return a + b } is the smallest possible implementation that meets the acceptance criterion, with no service wrappers, shadow graph, or generic workflow infrastructure. The function is entity-owned and there are no adapters."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "critic-qualification.json",
+        "model": "openrouter/openai/gpt-4.1",
+        "qualityApplicable": true,
+        "variant": "complex",
+        "elapsedMs": 2033,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test in add.test.ts: test(\"signed addition\",()=>{ for(const [a,b] of [[2,3],[-2,3],[-2,-3],[0,0],[-0,-0],[NaN,1],[Infinity,1]]) expect(Object.is(add(a,b),a+b)).toBe(true) }); passed successfully, verifying that add(a, b) returns a + b for various signed inputs."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation in add.ts: export function add(a: number, b: number) { if (a >= 0) return a + b; return a + b } is a single function with no service wrappers, shadow graph, or generic workflow infrastructure, and is the smallest implementation that meets acceptance."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "critic-qualification.json",
+        "model": "openrouter/openai/gpt-4.1",
+        "qualityApplicable": true,
+        "variant": "prior-Actor-constructor",
+        "elapsedMs": 4086,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "The LLMActor constructor rejects maxToolResultBytes values below 128 bytes with an actionable error.",
+              "passed": true,
+              "evidence": "tests/actor-byte-ceiling.test.ts: test('tool-result ceilings must represent their structured diagnostic', () => { for (const limit of [1, 64, 127]) expect(() => new LLMActor(asker, {maxToolResultBytes: limit})).toThrow(/128/); });\n\nsrc/actor.ts: LLMActor.constructor: if (limit === this.maxToolResultBytes && limit < 128) throw new Error('maxToolResultBytes must be at least 128 bytes.');\n\nTest passed: test:tests/actor-byte-ceiling.test.ts"
+            },
+            {
+              "criterion": "The 128-byte boundary and default configuration remain valid.",
+              "passed": true,
+              "evidence": "tests/actor-byte-ceiling.test.ts: test('representable boundary and defaults remain valid', () => { expect(() => new LLMActor(asker, {maxToolResultBytes: 128})).not.toThrow(); expect(() => new LLMActor(asker)).not.toThrow(); });\n\nTest passed: test:tests/actor-byte-ceiling.test.ts"
+            },
+            {
+              "criterion": "Existing positive safe integer budget validation remains intact and authored regression and Actor tests pass.",
+              "passed": true,
+              "evidence": "tests/actor-byte-ceiling.test.ts: test('existing positive-safe-integer budget validation is preserved', () => { for (const limit of [0, -1, 1.5, NaN, Infinity]) { expect(() => new LLMActor(asker, {maxInputBytes: limit})).toThrow(); expect(() => new LLMActor(asker, {maxRunTokens: limit})).toThrow(); expect(() => new LLMActor(asker, {maxToolResultBytes: limit})).toThrow(); } });\n\nsrc/actor.ts: LLMActor.constructor: if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error('Actor budgets must be positive safe integers.');\n\nTest passed: test:tests/actor-byte-ceiling.test.ts\nTest passed: test:tests/actor.test.ts"
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "src/actor.ts: Only the LLMActor constructor is changed, with a single additional check for maxToolResultBytes < 128. No new abstractions, wrappers, or unrelated logic introduced. Implementation is minimal and method-level review confirms smallest change."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "sonnet-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-sonnet-4.6",
+        "qualityApplicable": true,
+        "variant": "simple",
+        "elapsedMs": 7628,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "add.ts snippet: `export function add(a: number, b: number) { return a + b }`. The test in add.test.ts iterates over signed pairs [[2,3],[-2,3],[-2,-3],[0,0],[-0,-0],[NaN,1],[Infinity,1]] and asserts `Object.is(add(a,b), a+b)` is true for each. testNodes confirms the test passed (passed:true)."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The entire implementation is a single one-line exported function `export function add(a: number, b: number) { return a + b }` with no service wrappers, shadow graph, workflow infrastructure, or adapters. It is the smallest possible implementation that satisfies the acceptance criterion."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "sonnet-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-sonnet-4.6",
+        "qualityApplicable": true,
+        "variant": "complex",
+        "elapsedMs": 5684,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "add.ts snippet: `export function add(a: number, b: number) { if (a >= 0) return a + b; return a + b }` — both branches return `a + b`. The test in add.test.ts iterates over signed pairs [[2,3],[-2,3],[-2,-3],[0,0],[-0,-0],[NaN,1],[Infinity,1]] and asserts `Object.is(add(a,b), a+b)` is true for each. testNodes confirms the test suite passed (`\"passed\":true`)."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": false,
+              "evidence": "The implementation in add.ts contains a dead branch: `if (a >= 0) return a + b; return a + b` — both branches are identical, making the conditional entirely redundant. The smallest correct implementation is simply `return a + b` with no conditional. This superfluous branch fails the 'smallest implementation that meets acceptance' criterion of KISS, even though it produces correct results."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "sonnet-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-sonnet-4.6",
+        "qualityApplicable": true,
+        "variant": "prior-actor-constructor",
+        "elapsedMs": 11386,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "The LLMActor constructor rejects maxToolResultBytes values below 128 bytes with an actionable error.",
+              "passed": true,
+              "evidence": "src/actor.ts lines 250-251: the constructor loop checks `if (limit === this.maxToolResultBytes && limit < 128) throw new Error('maxToolResultBytes must be at least 128 bytes.');`. The authored test (actor-byte-ceiling.test.ts lines 4-6) asserts `for (const limit of [1, 64, 127]) expect(() => new LLMActor(asker, {maxToolResultBytes: limit})).toThrow(/128/)` and the testNode reports passed=true for the combined run."
+            },
+            {
+              "criterion": "The 128-byte boundary and default configuration remain valid.",
+              "passed": true,
+              "evidence": "actor-byte-ceiling.test.ts lines 7-10: `expect(() => new LLMActor(asker, {maxToolResultBytes: 128})).not.toThrow()` and `expect(() => new LLMActor(asker)).not.toThrow()`. The default in the constructor is `options.maxToolResultBytes ?? 4_096` (line 247), well above 128. TestNode passed=true confirms both assertions pass."
+            },
+            {
+              "criterion": "Existing positive safe integer budget validation remains intact and authored regression and Actor tests pass.",
+              "passed": true,
+              "evidence": "src/actor.ts lines 249-251: the loop over [maxInputBytes, maxRunTokens, maxToolResultBytes] still throws `'Actor budgets must be positive safe integers.'` for any value where `!Number.isSafeInteger(limit) || limit <= 0`. actor-byte-ceiling.test.ts lines 11-17 tests 0, -1, 1.5, NaN, Infinity for all three budget fields and expects throws. Both testNodes (actor-byte-ceiling.test.ts and actor.test.ts) report passed=true in the combined bun test run, and bun run typecheck also passed=true."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The change is confined to a single guard line (src/actor.ts line 251) inside the existing budget-validation loop — no new abstractions, no service wrappers, no shadow graph, no new methods or classes. The constructor outline shows only the existing `constructor` entry; the snippet confirms the smallest possible addition (one `if` inside the existing `for` loop) that satisfies all acceptance criteria."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "opus-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-opus-4.6",
+        "qualityApplicable": true,
+        "variant": "simple",
+        "elapsedMs": 5770,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "add.ts implements `export function add(a: number, b: number) { return a + b }`. The test in add.test.ts exercises signed pairs including [2,3], [-2,3], [-2,-3], [0,0], [-0,-0], [NaN,1], [Infinity,1] and asserts `Object.is(add(a,b), a+b)` is true for each. The test node test:add.test.ts passed=true, confirming correct signed arithmetic."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation is a single one-line exported function (`export function add(a: number, b: number) { return a + b }`) with no service wrappers, shadow graph, generic workflow infrastructure, or adapters. The test file is equally minimal. This is the smallest possible implementation that meets the acceptance criterion."
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "opus-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-opus-4.6",
+        "qualityApplicable": true,
+        "variant": "complex",
+        "elapsedMs": 6025,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "Addition returns a + b for signed inputs.",
+              "passed": true,
+              "evidence": "The test in add.test.ts exercises signed pairs [[2,3],[-2,3],[-2,-3],[0,0],[-0,-0],[NaN,1],[Infinity,1]] and asserts Object.is(add(a,b),a+b) for each. The test suite passed (testNodes show passed:true). The implementation in add.ts (line 1) returns a + b for all paths, satisfying signed arithmetic."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": false,
+              "evidence": "The implementation in add.ts contains an unnecessary branch: 'if (a >= 0) return a + b; return a + b'. Both branches return the identical expression 'a + b', so the if-guard is dead logic. The smallest implementation that meets acceptance is simply 'return a + b'. This violates the KISS criterion 'Method-level review finds the smallest implementation that meets acceptance.'"
+            }
+          ]
+        },
+        "failure": null
+      },
+      {
+        "source": "opus-critic-qualification.json",
+        "model": "openrouter/anthropic/claude-opus-4.6",
+        "qualityApplicable": true,
+        "variant": "prior-actor-constructor",
+        "elapsedMs": 11014,
+        "ok": true,
+        "decision": {
+          "criteria": [
+            {
+              "criterion": "The LLMActor constructor rejects maxToolResultBytes values below 128 bytes with an actionable error.",
+              "passed": true,
+              "evidence": "In src/actor.ts lines 249-251, the constructor loop checks `if (limit === this.maxToolResultBytes && limit < 128) throw new Error('maxToolResultBytes must be at least 128 bytes.');`. The authored test (actor-byte-ceiling.test.ts line 5) confirms values 1, 64, and 127 all throw matching /128/. Test passed: testNodes show test:tests/actor-byte-ceiling.test.ts passed=true."
+            },
+            {
+              "criterion": "The 128-byte boundary and default configuration remain valid.",
+              "passed": true,
+              "evidence": "The authored test (actor-byte-ceiling.test.ts lines 7-9) asserts `expect(() => new LLMActor(asker, {maxToolResultBytes: 128})).not.toThrow()` and `expect(() => new LLMActor(asker)).not.toThrow()`. Both pass as confirmed by testNodes showing test:tests/actor-byte-ceiling.test.ts passed=true. The constructor default is 4096 (line 247: `this.maxToolResultBytes = options.maxToolResultBytes ?? 4_096`), which is ≥128."
+            },
+            {
+              "criterion": "Existing positive safe integer budget validation remains intact and authored regression and Actor tests pass.",
+              "passed": true,
+              "evidence": "The constructor retains the generic check at line 249: `if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error('Actor budgets must be positive safe integers.');` applied to maxInputBytes, maxRunTokens, and maxToolResultBytes. The authored test (lines 11-16) verifies 0, -1, 1.5, NaN, Infinity all throw for each budget. Both tests/actor-byte-ceiling.test.ts and tests/actor.test.ts passed (testNodes confirm both passed=true), and typecheck passed."
+            }
+          ],
+          "aspects": [
+            {
+              "id": "ASP-AIWF-KISS",
+              "passed": true,
+              "evidence": "The implementation adds exactly two lines inside the existing constructor loop: one condition checking `limit === this.maxToolResultBytes && limit < 128` and one throw. No new abstractions, service wrappers, shadow graph, or generic workflow infrastructure were introduced. The change is the smallest possible implementation that meets acceptance criteria—a single conditional guard added to the existing budget validation loop in src/actor.ts constructor (lines 249-251)."
+            }
+          ]
+        },
+        "failure": null
+      }
+    ]
+  },
+  "gate3": {
+    "status": "not_launched",
+    "reason": "Gate 2 readiness unproven. Clean historical baseline prepared only; Codex did not author target implementation."
+  },
+  "validation": {
+    "affectedTests": {
+      "pass": 58,
+      "fail": 0,
+      "assertions": 378
+    },
+    "fullTests": {
+      "pass": 382,
+      "skip": 2,
+      "fail": 0,
+      "assertions": 2403
+    },
+    "typecheck": "passed",
+    "build": "AIWF 2.0.0 build850 @61b21638fc8d dirty; llm-utils f8222aaa155a0b86f50b7cacbe0701ed29d86840"
+  },
+  "state": {
+    "R1": "completed_preserved",
+    "R2-S": "completed_preserved",
+    "R2": "Blocked",
+    "R3": "Blocked",
+    "CodeMutator": "deferred"
+  },
+  "evidenceRoot": ".ai-workflow/state/evidence/recovery-2026-10-12/final-quality"
+}

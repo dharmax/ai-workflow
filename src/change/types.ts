@@ -165,6 +165,8 @@ export interface ChangeApplyResult {
   filesRenamed: Array<{ from: string; to: string }>;
   reindexedFiles: string[];
   migratedAnchors: Array<{ oldId: string; newId: string }>;
+  /** Exact guarded filesystem effect; absent for Product mutations. Missing files use the evidence sentinel. */
+  effects?: {before: Record<string, string>; after: Record<string, string>; edits: Array<{filePath: string; edits: LspTextEdit[]}>};
   verification: {
     /** Only the checks performed by applyChange; not proof of typechecking or behavior. */
     passed: boolean;

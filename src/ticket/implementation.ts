@@ -38,7 +38,7 @@ export async function implementTicket(
     context: ImplementationContext
 ): Promise<ResolutionProposal> {
     const { store, ticket, options, cfg, applyChange, ownedFiles, tokenBudget, testCommands, repair } = context
-    const ctx = { store, projectRoot: store.root, signal: options.signal }
+    const ctx = { store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const }
     const asker = createDefaultAsker(store.root)
     if (!asker) throw new Error("Implementation provider unavailable.")
     const exact = input.evidence.filter(item => item.source && item.exact && [6, 12].includes(item.symbolKind ?? 0))
@@ -206,7 +206,7 @@ export async function implementTicket(
                     : {})
             }))
         }
-        const output = await actor.run(renderImplementationGoal(store.root, workspaceFiles, actorDossier, findings), {
+        const output = await actor.run(renderImplementationGoal(store.root, workspaceFiles, actorDossier, findings, testCommands), {
             ...cognitionMetrics({ phase: repair ? "repair" : "implementation_actor" }),
             signal: trancheSignal,
             schema: ResolutionProposalSchema,

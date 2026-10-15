@@ -167,7 +167,10 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
       implement: async () => { if (stage === 'implementation') await rules.saveRule({ ...rule, importance: 1 }); return { changes: [], testCommands: [] }; },
       verify: async input => { reviews++; const result = assessments(input); if (stage === 'acceptance') await rules.saveRule({ ...rule, status: 'disabled' }); return result; }
     });
-    expect(result.status).toBe('needs_input');
+    expect(result.status).toBe('blocked');
+    expect(JSON.stringify(result)).toContain('Governance admission conflict');
+    expect((await rules.getRule(rule.ruleId, rule.scope))!.importance).toBe(10);
+    expect((await rules.getRule(rule.ruleId, rule.scope))!.status).toBe('active');
     if (stage === 'implementation') expect(reviews).toBe(0);
     expect(await store.getEntity('VERIFY-T', Artifact.dcr)).toBeNull();
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
@@ -217,7 +220,7 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).not.toContain('AdditionRegistry');
   });
 
-  it('rejects unknown mandatory applicability and conflicting module overrides rather than choosing one', async () => {
+  it('rejects unknown mandatory language and preserves distinct module obligations', async () => {
     const unknown = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'UNKNOWN', title: 'Unanchored work', body: 'Target undecided', acceptanceCriteria: ['Work is defined'] });
     await rules.saveRule({ ...rule, languages: ['typescript'] });
     await expect(resolveTicketGovernance(store, unknown)).rejects.toThrow('Specify the target language');
@@ -225,7 +228,14 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     const module = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, { id: 'OTHER', title: 'Other owner' });
     await store.relate(ticket, 'targets', module);
     await rules.saveRule({ ...rule, scope: { kind: 'module', moduleId: 'OTHER' }, rule: 'Use a different owner.' });
-    await expect(resolveTicketGovernance(store, ticket)).rejects.toThrow('Ambiguous mandatory Rule');
+    const governance = await resolveTicketGovernance(store, ticket);
+    expect(governance.rules.filter(item => item.ruleId === rule.ruleId)).toHaveLength(2);
+    expect(new Set(governance.rules.map(item => item.fingerprint)).size).toBe(2);
+    const input = {criteria: [], aspects: [], rules: [{ruleId: rule.ruleId, revision: rule.revision,
+      fingerprint: governance.rules[0].fingerprint, verdict: 'pass' as const,
+      evidence: 'One context checked', evidenceIds: ['src/add.ts'], limitations: []}]};
+    const {ruleAcceptanceFailures} = await import('../src/ticket-operation-types.ts');
+    expect(ruleAcceptanceFailures(governance, input, ['src/add.ts'])).toHaveLength(1);
   });
 
   it('refuses an unavailable mandatory codelet checker before requesting an LLM verdict', async () => {

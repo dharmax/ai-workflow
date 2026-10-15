@@ -35,7 +35,9 @@ test('management uses approved fingerprints, stable IDs, durable audit and atomi
   await expect(registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('Read-only');
   await registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root});
   expect((await rules.listAllRules())[0].id).toBe(RuleStore.entityIdForScope('test.rule', {kind: 'universal'}));
-  expect(await store.listEntities(Artifact.dcr)).toHaveLength(1);
+  const artifacts = await store.listEntities<Artifact & {body:string}>(Artifact.dcr);
+  expect(artifacts.filter(artifact => store.localId(artifact.id).startsWith('RULE-AUDIT-'))).toHaveLength(1);
+  expect(JSON.parse(artifacts.find(artifact => store.localId(artifact.id) === 'GOVERNANCE-ADMISSION')!.body)).toEqual([]);
   const update = {pack: pack({...model(), rule: 'An explicit authorized replacement.'}), reason: 'Revise', allowWeakening: true};
   const stale = await rules.previewPack(update.pack, update);
   await rules.saveRule({...model(), revision: 2, rule: 'Concurrent editor'});

@@ -20,7 +20,7 @@ async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket
 export function registerTicketTools() {
   registry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
-    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
+    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId);
       return ticket.resolve(ctx.store, { ...options, signal: ctx.signal });

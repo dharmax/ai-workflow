@@ -14,7 +14,7 @@ export const ARTIFACT_HELP = `Delegate artifact work first:
 
 Operation options: --completeness <level> --depth <N|all> --max-artifacts <N>
                    --critic <auto|none|configured-id> --tag <key=value> (repeatable)
-Resolution options: --agent <id> --max-repairs <0..3> --allow-dirty-target <path>
+Resolution options: --agent <id> --max-repairs <0..3> --allow-dirty-target <path> --authorize-file <ticketId=path>
 Completeness on an operation is temporary. Persist it only with completeness set.
 needs_input/blocked are results to inspect; Done requires explicit acceptance proof.
 Use symbol/graph/slice/blast/change/test primitives for explicit drill-down.`;
@@ -77,12 +77,19 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
   const id = words.shift(); if (!id || id.startsWith('--')) throw new Error(`${verb} requires an artifact ID.`);
   if (words.length && !words[0]!.startsWith('--')) return null;
   const options: Record<string, unknown> = {};
-  const flags: Record<string, string> = { '--completeness': 'completeness', '--depth': 'depth', '--max-artifacts': 'maxArtifacts', '--maxArtifacts': 'maxArtifacts', '--critic': 'critic', '--tag': 'tags', '--agent': 'agentId', '--max-repairs': 'maxRepairs', '--allow-dirty-target': 'allowDirtyTargets' };
+  const flags: Record<string, string> = { '--completeness': 'completeness', '--depth': 'depth', '--max-artifacts': 'maxArtifacts', '--maxArtifacts': 'maxArtifacts', '--critic': 'critic', '--tag': 'tags', '--agent': 'agentId', '--max-repairs': 'maxRepairs', '--allow-dirty-target': 'allowDirtyTargets', '--authorize-file': 'authorizedFiles' };
   while (words.length) {
     const flag = words.shift()!, key = flags[flag], value = words.shift();
     if (!key || !value || value.startsWith('--')) throw new Error(`Invalid or missing operation option '${flag}'.`);
-    if (['agentId', 'maxRepairs', 'allowDirtyTargets'].includes(key) && tool !== 'resolve_ticket') throw new Error(`${flag} applies only to resolution.`);
+    if (['agentId', 'maxRepairs', 'allowDirtyTargets', 'authorizedFiles'].includes(key) && tool !== 'resolve_ticket') throw new Error(`${flag} applies only to resolution.`);
     if (key === 'allowDirtyTargets') options[key] = [...(options[key] as string[] ?? []), value];
+    else if (key === 'authorizedFiles') {
+      const split = value.indexOf('=');
+      if (split <= 0 || split === value.length - 1) throw Error('--authorize-file requires ticketId=path.');
+      const ticketId = value.slice(0, split), file = value.slice(split + 1);
+      const authorized = (options.authorizedFiles as Record<string, string[]> | undefined) ?? {};
+      options.authorizedFiles = {...authorized, [ticketId]: [...(authorized[ticketId] ?? []), file]};
+    }
     else if (key === 'tags') {
       const split = value.indexOf('=');
       if (split <= 0 || split === value.length - 1) throw new Error('--tag requires key=value.');
@@ -94,7 +101,7 @@ export function artifactCommand(tokens: string[]): { tool: string; args: Record<
     else if (key === 'critic') options[key] = ['auto', 'none'].includes(value) ? value : { id: value };
     else options[key] = value;
   }
-  const schema = ArtifactTransportOptionsSchema.extend({ agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional() }).strict();
+  const schema = ArtifactTransportOptionsSchema.extend({ agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional() }).strict();
   const key = tool.endsWith('_ticket') ? 'ticketId' : tool === 'process_epic' ? 'epicId' : tool === 'process_feature' ? 'featureId' : 'storyId';
   return { tool, args: { [key]: id, ...schema.parse(options) } };
 }

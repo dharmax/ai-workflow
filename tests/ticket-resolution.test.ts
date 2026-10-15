@@ -69,6 +69,47 @@ describe('Ticket-owned bounded resolution', () => {
     expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'T'}).rows[0].resolution?.outcome).toBe('verified_no_change');
   });
 
+
+  it('Story: resolves already implemented narrow work using caller evidence through the public lifecycle', async () => {
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
+    const t = await ticket();
+    const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    const commands = [['bun', 'test', oracle.filePath!]];
+    const source = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
+    const calls: string[] = [];
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      if (prompt.includes('Independently verify EVERY')) {
+        calls.push('acceptance');
+        expect(prompt).toContain('return a + b');
+        expect(prompt).toContain('"passed":true');
+        return { model, ok: true, text: JSON.stringify({
+          criteria: [{ criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Current signed addition source and executed contract assertions agree.' }],
+          aspects: [], rules: []
+        }) };
+      }
+      expect(prompt).toContain('Caller-supplied verification commands: ' + JSON.stringify(commands));
+      calls.push('implementation');
+      const decision = calls.length === 1
+        ? { thought: 'Inspect the supplied behavioral evidence', action: 'tool_call', toolCalls: [{ name: 'read_workspace_file', parameters: { filePath: oracle.filePath! } }] }
+        : { thought: 'Existing implementation satisfies the assertions; request independent verification', action: 'final_answer', finalAnswer: JSON.stringify({ changes: [], testCommands: commands }) };
+      if (calls.length === 2) expect(prompt).toContain('signed addition contract');
+      return { model, ok: true, text: JSON.stringify(decision) };
+    });
+    try {
+      const result = await t.resolve(store, { systemOne, critic: 'none', testCommands: commands, maxRepairs: 0 });
+      expect(result.status).toBe('complete');
+      if (result.status !== 'complete') throw Error(JSON.stringify(result));
+      expect(calls).toEqual(['implementation', 'implementation', 'acceptance']);
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(source);
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null });
+      const receipt = await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr);
+      expect(receipt).not.toBeNull();
+      expect(JSON.parse(receipt!.body!).tests).toContainEqual({ command: commands[0], passed: true });
+      expect((await currentTestEvidence(store, [oracle.id]))[0].passed).toBe(true);
+      expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].resolution?.outcome).toBe('verified_no_change');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
   const graphOracle = async (target: FileNode | SymbolNode, file = 'tests/contract.spec.ts') => {
     fs.writeFileSync(path.join(root, file), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("signed addition contract",()=>{expect(add(2,3)).toBe(5); expect(add(-2,3)).toBe(1)});');
     await indexCodebase(store, root);
@@ -279,7 +320,7 @@ describe('Ticket-owned bounded resolution', () => {
     await store.unrelate(t.id, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!.id);
     const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')!;
     await store.relate(t, 'modifies', symbol);
-    const options = {...fix, maxRepairs: 0, implement: async () => ({changes: [{action: 'rename_symbol' as const, target: {type: 'symbol' as const, filePath: 'src/add.ts', symbolName: 'add'}, newName: 'sum'}], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
+    const options = {...fix, authorizedFiles: {T: ['tests/add.test.ts']}, maxRepairs: 0, implement: async () => ({changes: [{action: 'rename_symbol' as const, target: {type: 'symbol' as const, filePath: 'src/add.ts', symbolName: 'add'}, newName: 'sum'}], testCommands: [['bun', 'test', 'tests/add.test.ts']]})};
     expect((await t.resolve(store, options)).status).toBe('complete');
     const current = (await store.getOutgoing(t.id, 'modifies'))[0]!;
     expect((await store.getEntity<SymbolNode>(current.targetId, SymbolNode.dcr))!.title).toBe('sum');
@@ -374,7 +415,7 @@ describe('Ticket-owned bounded resolution', () => {
   it('runs a safe TypeScript rename through the normal fingerprint boundary and targeted assertions', async () => {
     fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n'); git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'correct arithmetic');
     const t = await ticket();
-    const result = await t.resolve(store, { ...fix, implement: async () => ({ changes: [{ action: 'rename_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, newName: 'sum' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }), verify: async input => { expect(fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')).toContain('sum'); return verify(input); } });
+    const result = await t.resolve(store, { ...fix, authorizedFiles: {T: ['tests/add.test.ts']}, implement: async () => ({ changes: [{ action: 'rename_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, newName: 'sum' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }), verify: async input => { expect(fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')).toContain('sum'); return verify(input); } });
     expect(result.status).toBe('complete'); expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('function sum');
   }, 30000);
 
@@ -684,6 +725,7 @@ describe('Ticket-owned bounded resolution', () => {
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'dependency fixture');
     await indexCodebase(store, root);
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'DEPENDENCY', title: 'Add context-manager dependency', body: 'The package is not installed yet. Add the existing local sibling as a dependency in package.json.', lane: 'Todo', acceptanceCriteria: ['The package references the local context-manager sibling'] });
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>('package.json', FileNode.dcr))!);
     let calls = 0;
     const request = { action: 'replace_text' as const, filePath: 'package.json', oldText: '"dependencies":{}', newText: '"dependencies":{"@dharmax/context-manager":"file:../context-manager"}' };
     const server = Bun.serve({ port: 0, fetch: async incoming => {

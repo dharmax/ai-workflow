@@ -38,7 +38,7 @@ export async function resolveTicket(
         { ...options, depth: options.depth ?? "all" },
         async () => {
             recordResolutionStage("preparation")
-            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, ticketVerificationSignature, resolveTicketGovernance, ruleAcceptanceFailures, RuleAcceptanceError, DOCTRINE_VERIFIER_VERSION } =
+            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, VerificationReceiptSchema, ticketVerificationSignature, resolveTicketGovernance, ruleAcceptanceFailures, RuleAcceptanceError, DOCTRINE_VERIFIER_VERSION } =
                 await import("../ticket-operation-types.ts")
             const { ArtifactBudget } = await import("../artifact-policy.ts")
             const { CausalChangeEngine } = await import("../change/engine.ts")
@@ -59,7 +59,6 @@ export async function resolveTicket(
                 ownedFiles = new Set<string>(),
                 allFiles = new Set<string>(),
                 resolved: string[] = []
-            const ownedHashes = new Map<string, string>()
             let executingTicket: Ticket = rootTicket,
                 successfulChanges = 0,
                 reusedProofs = 0
@@ -84,7 +83,18 @@ export async function resolveTicket(
                 dossiers = new Map<string, TicketDossier>()
             let repairs = 0,
                 acceptance: import("../ticket-operation-types.ts").AcceptanceVerification = { criteria: [], aspects: [], rules: [] }
-            const ctx = { store, projectRoot: store.root, signal: options.signal }
+            const immutable = <T>(value: T): T => {
+                if (value && typeof value === 'object') {
+                    for (const child of Object.values(value)) immutable(child)
+                    Object.freeze(value)
+                }
+                return value
+            }
+            let admission: string | undefined
+            let scope: import('../ticket-operation-types.ts').GovernedChangeScope
+            let effectEpoch = 0
+            const ctx = { store, projectRoot: store.root, signal: options.signal,
+                get governedAdmission() { return admission } }
             const statePath = path.join(".ai-workflow", "state")
             const blocked = (reason: string): OperationResult<ResolvedTicket> => ({
                 status: "blocked",
@@ -99,13 +109,10 @@ export async function resolveTicket(
             const lease = async (ticket: Ticket) => {
                 const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!,
                     active = fresh.claim && Date.parse(fresh.claim.expiresAt) > Date.now()
-                if (active)
-                    return fresh.claim!.agentId === agentId
-                        ? null
-                        : `Ticket '${store.localId(ticket.id)}' is leased by '${fresh.claim!.agentId}'.`
+                if (active && fresh.claim!.agentId !== agentId) return `Ticket '${store.localId(ticket.id)}' is leased by '${fresh.claim!.agentId}'.`
                 const claim = await store.claimTicket(store.localId(ticket.id), agentId, cfg.defaultLeaseMinutes, false)
                 if (claim.success) {
-                    acquired.add(store.localId(ticket.id))
+                    if (!active) acquired.add(store.localId(ticket.id))
                     return null
                 }
                 return claim.message ?? "Lease unavailable."
@@ -123,12 +130,14 @@ export async function resolveTicket(
                 for (const file of files) {
                     const relative = workspacePath(store.root, file)
                     const currentHash = hashFiles(store.root, [relative])[relative]
-                    if (ownedHashes.has(relative) && ownedHashes.get(relative) !== currentHash) return relative
+                    const expected = [...scope.effects.slice(effectEpoch)].reverse().find(effect => relative in effect.after)?.after[relative] ?? scope.baselines[relative]
+                    if (expected !== currentHash) throw Error(`Unexpected concurrent source modification: ${relative}`)
                     if (dirty.has(relative) && !ownedFiles.has(relative) && !options.allowDirtyTargets?.includes(relative)) return relative
                 }
                 return null
             }
             const apply = async (request: import("../change/types.ts").ChangeRequest) => {
+                await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
                 const leaseError = await lease(executingTicket)
                 if (leaseError) throw new Error(leaseError)
                 if (request.action === "product_change")
@@ -146,27 +155,62 @@ export async function resolveTicket(
                     return relative === statePath || relative.startsWith(statePath + path.sep)
                 }))
                     throw new Error("Implementation cannot mutate canonical workflow/governance state through source changes.")
+                await store.governanceAssertion(admission!)
+                const unauthorized = preview.affectedFiles.filter(file => !scope.authorizedFiles.includes(workspacePath(store.root, file)) && !scope.authoredFiles.includes(workspacePath(store.root, file)))
+                if (unauthorized.length) throw new Error(`Scope expansion requires input: ${unauthorized.join(', ')}; authorize these exact paths for Ticket '${scope.ticketId}'.`)
+                for (const file of preview.affectedFiles.filter(file => !scope.authorizedFiles.includes(file))) {
+                    const targets = scope.authoredTargets.filter(target => target.kind === 'SymbolNode' && target.filePath === file)
+                    let authorized = false
+                    for (const target of targets) {
+                        let targetId = target.id
+                        for (const migration of anchorMigrations) if (store.localId(migration.oldId) === store.localId(targetId)) targetId = migration.newId
+                        const symbol = await store.getEntity<import('../graph/ontology.ts').SymbolNode>(targetId, 'SymbolNode')
+                        if (!symbol || symbol.status === 'deprecated') continue
+                        if (preview.resolvedTarget?.graphEntityId === symbol.id) { authorized = true; break }
+                        if (request.action === 'replace_text' && request.filePath === file) {
+                            const {getExactSymbolSource} = await import('../change/symbol-source.ts')
+                            const source = await getExactSymbolSource(store.root, path.resolve(store.root, file), symbol.containerName ? `${symbol.containerName}.${symbol.title}` : symbol.title!)
+                            if (source.code.includes(request.oldText)) { authorized = true; break }
+                        }
+                    }
+                    if (!authorized) throw Error(`Scope expansion requires input: ${file}; this effect is outside its authored exact symbol. Authorize the file explicitly.`)
+                }
+                const proposedGovernance = await resolveTicketGovernance(store, executingTicket, scope.files, scope.governance)
+                if (proposedGovernance.fingerprint !== scope.governance.fingerprint)
+                    throw Error('Applicable obligations changed; producer must receive a fresh governed scope before applying.')
                 const conflict = guardFiles(preview.affectedFiles)
                 if (conflict) throw new Error(`Dirty target requires input: ${conflict}`)
                 await applyProductMutations(store, [
                     { kind: "product_update", entityType: "Ticket", id: store.localId(executingTicket.id), fields: { lane: "In Progress" } }
                 ])
                 const result = await engine.applyChange(request, preview.fingerprint)
+                const observed = [...new Set([...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])])].sort()
+                if (observed.some(file => !preview.affectedFiles.includes(file)))
+                    throw Error('Observed effects exceed the authorized preview; independent acceptance cannot proceed.')
+                if (!result.effects || canonical(result.effects.after) !== canonical(hashFiles(store.root, Object.keys(result.effects.after))))
+                    throw Error('Observed filesystem state differs from attributable guarded effects.')
+                const after = result.effects.after
+                scope = immutable({...scope, revision: scope.revision + 1, effects: Object.freeze([...scope.effects,
+                    Object.freeze({fingerprint: preview.fingerprint, edits: result.effects.edits,
+                        before: Object.freeze({...result.effects.before}),
+                        after: Object.freeze(after), renames: Object.freeze(result.filesRenamed.map(rename => Object.freeze({...rename})))})])})
+                await store.saveGovernedScope(scope.ticketId, agentId, admission!, scope)
                 anchorMigrations.push(...result.migratedAnchors)
                 for (const file of [...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])]) {
                     ownedFiles.add(file)
                     allFiles.add(file)
-                    ownedHashes.set(file, hashFiles(store.root, [file])[file])
                 }
                 countEngineering("codeEdits")
                 countEngineering("filesTouched", result.filesTouched.length)
                 if (!result.ok || !result.verification.passed)
                     throw new Error(`Change verification failed: ${JSON.stringify(result.verification)}`)
-                if (result.filesRenamed.length || result.filesTouched.some(file => ownedHashes.get(file) !== preview.originalHashes[file]))
+                if (result.filesRenamed.length || result.filesTouched.some(file => result.effects!.after[file] !== preview.originalHashes[file]))
                     successfulChanges++
                 return result
             }
             try {
+                await ensureAstFresh(store, store.root)
+                admission = await store.admitGovernance('governed', cfg.defaultLeaseMinutes)
                 // Prepare a bounded closure first, then execute a single dependency order.
                 const queue: Array<{ ticket: Ticket; depth: number }> = [{ ticket: rootTicket, depth: 0 }]
                 while (queue.length) {
@@ -230,10 +274,27 @@ export async function resolveTicket(
                     recordMetricCompleteness(dossier.completeness)
                     const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
                     await ensureAstFresh(store, store.root)
-                    const governance = structuredClone(dossier.governance ?? await resolveTicketGovernance(store, ticket))
-                    if (governance.fingerprint !== (await resolveTicketGovernance(store, ticket)).fingerprint)
-                        return needs("Review changed governance and retry.", "Governance changed after preparation.", "Ticket governance")
-                    const signature = await ticketVerificationSignature(store, ticket, options.completeness)
+                    const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
+                    const proof = receipt && readVerificationReceipt((receipt as Artifact & { body: string }).body)
+                    const cached = VerificationReceiptSchema.shape.scope.safeParse((ticket as Ticket & {metadata?: Record<string, unknown>}).metadata?.governedScope)
+                    const pending = cached.success && cached.data.ticketId === id ? cached.data : undefined
+                    const previousScope = pending ?? proof?.scope
+                    const sameIntent = previousScope && canonical(previousScope.intent) === canonical({title: dossier.ticket.title, body: dossier.ticket.body, acceptanceCriteria: dossier.ticket.acceptanceCriteria})
+                    const authorized = [...new Set([...dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath).map(item => item.filePath!), ...(options.authorizedFiles?.[id] ?? []),
+                        ...(sameIntent ? previousScope.authorizedFiles : [])].map(file => workspacePath(store.root, file)))].sort()
+                    const files = [...new Set([...scopeFiles, ...authorized, ...(previousScope?.files ?? [])])].sort()
+                    const governance = await resolveTicketGovernance(store, ticket, files, previousScope?.governance)
+                    scope = immutable({ticketId: id, intent: {title: dossier.ticket.title, body: dossier.ticket.body, acceptanceCriteria: dossier.ticket.acceptanceCriteria},
+                        authoredTargets: dossier.evidence.filter(item => item.mandatory && ['FileNode', 'SymbolNode'].includes(item.kind))
+                            .map(({id, kind, filePath, symbolName}) => ({id, kind, filePath, symbolName})), revision: (pending?.revision ?? -1) + 1, authoredFiles: Object.freeze([...new Set(scopeFiles)].sort()),
+                        authorizedFiles: Object.freeze(authorized), files: Object.freeze(files), baselines: hashFiles(store.root, files), effects: Object.freeze(sameIntent && pending ? pending.effects : []), governance})
+                    effectEpoch = scope.effects.length
+                    for (const effect of scope.effects) for (const [file, hash] of Object.entries(effect.after))
+                        if (hashFiles(store.root, [file])[file] === hash) ownedFiles.add(file)
+                    dossier.governance = scope.governance
+                    dossier.aspects = scope.governance.aspects
+                    dossier.scope = scope
+                    const signature = await ticketVerificationSignature(store, ticket, options.completeness, [], scope.governance)
                     const graphScope = await verifyingTestsForTargets(
                         store,
                         dossier.evidence.filter(item => item.mandatory).map(item => item.id),
@@ -249,8 +310,6 @@ export async function resolveTicket(
                                 mandatory: true,
                                 provenance: "Graph verifies code target"
                             })
-                    const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
-                    const proof = receipt && readVerificationReceipt((receipt as Artifact & { body: string }).body)
                     if (ticket.lane === "Done" && ticket.status === "verified" && proof) {
                         const testNodes = await currentTestEvidence(
                             store,
@@ -258,7 +317,7 @@ export async function resolveTicket(
                         )
                         const expectedFiles = [
                             ...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root)),
-                            ...scopeFiles,
+                            ...scope.files,
                             ...graphScope.tests.map(test => test.filePath || test.targetPath!)
                         ]
                         const fullSuite = proof.tests.some(test => canonical(test.command) === canonical(["bun", "test"]))
@@ -276,10 +335,12 @@ export async function resolveTicket(
                             requestedChecks &&
                             Boolean(proof.testNodes?.length) &&
                             testNodes.length === proof.testNodes!.length &&
+                            graphScope.tests.every(test => proof.testNodes!.some(node => node.id === store.localId(test.id))) &&
                             testNodes.every(
                                 test =>
                                     test.passed &&
-                                    canonical(test.hashes) === canonical(proof.testNodes!.find(old => old.id === test.id)?.hashes)
+                                    canonical(proof.testNodes!.find(old => old.id === test.id)!.hashes) ===
+                                      canonical(hashFiles(store.root, Object.keys(proof.testNodes!.find(old => old.id === test.id)!.hashes)))
                             )
                         const verifiedContract =
                             dossier.ticket.acceptanceCriteria.every(criterion =>
@@ -312,6 +373,8 @@ export async function resolveTicket(
                             continue
                         }
                     }
+                    await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
+                    await store.saveGovernedScope(id, agentId, admission!, scope)
                     if (ticket.lane === "Done")
                         await applyProductMutations(store, [
                             { kind: "product_update", entityType: "Ticket", id, fields: { lane: "In Progress" } }
@@ -338,9 +401,10 @@ export async function resolveTicket(
                         recordResolutionStage("implementation")
                         const current = attempt ? await ticket.investigate(store, options) : null
                         if (current && current.status !== "complete") return current
-                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                        if ((await resolveTicketGovernance(store, ticket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Pinned governance changed during resolution.", "Ticket governance")
-                        const implementationDossier = current?.status === "complete" ? current.value : dossier
+                        const implementationDossier = {...(current?.status === 'complete' ? current.value : dossier),
+                            scope, governance: scope.governance, aspects: scope.governance.aspects}
                         let proposedTests = [...(options.testCommands ?? [])]
                         if (!children.length && (ticket.lane !== "Done" || attempt > 0)) {
                             const implementation =
@@ -366,7 +430,7 @@ export async function resolveTicket(
                                 try {
                                     await apply(request)
                                 } catch (error) {
-                                    if (String(error).includes("Dirty target requires input:")) throw error
+                                    if (String(error).includes("Dirty target requires input:") || String(error).includes("Scope expansion requires input:")) throw error
                                     feedback = [String(error)]
                                     changeBlocked = true
                                     break
@@ -375,14 +439,17 @@ export async function resolveTicket(
                             if (changeBlocked) continue
                             if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands
                         }
-                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                        const attributableState = Object.assign({...scope.baselines}, ...scope.effects.slice(effectEpoch).map(effect => effect.after))
+                        if (canonical(attributableState) !== canonical(hashFiles(store.root, Object.keys(attributableState))))
+                            throw Error('Unexpected source modification outside guarded effects; preserve user work and retry with fresh baselines.')
+                        if ((await resolveTicketGovernance(store, ticket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Governance changed during implementation; self-weakening cannot proceed.", "Ticket governance")
                         recordResolutionStage("verification")
                         await ensureAstFresh(store, store.root)
                         const checked = await executeTicketChecks(
                             store,
                             dossier,
-                            [...scopeFiles, ...allFiles],
+                            [...scope.files],
                             proposedTests,
                             options.signal,
                             rootId
@@ -398,21 +465,20 @@ export async function resolveTicket(
                             continue
                         }
                         const verificationHashes = hashFiles(store.root, [
-                            ...allFiles,
-                            ...scopeFiles,
+                            ...scope.files,
                             ...testNodes.flatMap(test => Object.keys(test.hashes))
                         ])
                         recordResolutionStage("acceptance")
                         let rejectedRules: string[] | undefined
                         try {
                             acceptance = AcceptanceVerificationSchema.parse(
-                                await verify({ dossier: implementationDossier, files: [...allFiles], tests: currentTests, testNodes, children })
+                                await verify({ dossier: {...implementationDossier, scope}, files: [...scope.files], tests: currentTests, testNodes, children })
                             )
                         } catch (error) {
                             if (!(error instanceof RuleAcceptanceError)) throw error
                             rejectedRules = error.failures
                         }
-                        if ((await resolveTicketGovernance(store, ticket)).fingerprint !== governance.fingerprint)
+                        if ((await resolveTicketGovernance(store, ticket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Governance changed during independent acceptance.", "Ticket governance")
                         if (rejectedRules) {
                             feedback = rejectedRules
@@ -445,22 +511,34 @@ export async function resolveTicket(
                             feedback = [...missing.map(item => `Unverified required acceptance/Aspect: ${item}`), ...ruleFailures]
                             continue
                         }
+                        for (const childId of children) {
+                            const child = await store.getEntity<Ticket>(childId, Ticket.dcr)
+                            const record = await store.getEntity<Artifact>(`VERIFY-${childId}`, Artifact.dcr)
+                            const childProof = record && readVerificationReceipt(record.body)
+                            const evidence = childProof ? await currentTestEvidence(store, childProof.testNodes.map(test => test.id)) : []
+                            if (!child || child.lane !== 'Done' || child.status !== 'verified' || !childProof ||
+                                childProof.signature !== await ticketVerificationSignature(store, child, options.completeness, [],
+                                  await resolveTicketGovernance(store, child, childProof.scope.files, childProof.scope.governance)) ||
+                                canonical(childProof.hashes) !== canonical(hashFiles(store.root, Object.keys(childProof.hashes))) ||
+                                evidence.length !== childProof.testNodes.length || evidence.some(test => !test.passed))
+                                throw Error(`Child '${childId}' no longer has current independently accepted proof.`)
+                        }
+                        const leaseError = await lease(ticket)
+                        if (leaseError) return blocked(leaseError)
                         const currentTicket = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!
-                        if ((await ticketVerificationSignature(store, currentTicket, options.completeness, anchorMigrations)) !== signature)
+                        if ((await ticketVerificationSignature(store, currentTicket, options.completeness, anchorMigrations, scope.governance)) !== signature)
                             return needs(
                                 "Review the changed Ticket contract or authored scope and retry resolution.",
                                 "The acceptance contract changed during implementation or independent verification.",
                                 "Ticket verification contract"
                             )
-                        const leaseError = await lease(ticket)
-                        if (leaseError) return blocked(leaseError)
-                        if ((await resolveTicketGovernance(store, currentTicket)).fingerprint !== governance.fingerprint)
+                        if ((await resolveTicketGovernance(store, currentTicket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Governance changed before proof closure.", "Ticket governance")
-                        const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness)
-                        const proof = await store.upsertEntity<Artifact>(Artifact.dcr, {
-                            id: `VERIFY-${id}`,
-                            title: `Verified acceptance for ${id}`,
-                            body: JSON.stringify({
+                        const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness, [], scope.governance)
+                        if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes))))
+                            throw Error('Source or test changed before coherent completion.')
+                        await store.completeTicket(currentTicket, agentId, admission!, JSON.stringify({
+                                scope,
                                 governanceVersion: DOCTRINE_VERIFIER_VERSION,
                                 governanceFingerprint: governance.fingerprint,
                                 signature: verifiedSignature,
@@ -470,13 +548,7 @@ export async function resolveTicket(
                                 tests: currentTests.map(test => ({ command: test.command, passed: test.passed })),
                                 children,
                                 verifiedAt: new Date().toISOString()
-                            }),
-                            status: "verified"
-                        })
-                        await store.relate(proof, "verifies", ticket)
-                        await applyProductMutations(store, [
-                            { kind: "product_update", entityType: "Ticket", id, fields: { lane: "Done", status: "verified" } }
-                        ])
+                            }))
                         resolved.push(id)
                         break
                     }
@@ -495,8 +567,11 @@ export async function resolveTicket(
                 const message = String(error)
                 if (message.includes("Dirty target requires input:"))
                     return needs(message, "The Actor selected a target with existing uncommitted work.", "Operation allowDirtyTargets")
+                if (message.includes("Scope expansion requires input:"))
+                    return needs(message, 'The preview includes effects outside this Ticket authorization.', 'Operation authorizedFiles')
                 return blocked(`Ticket resolution failed: ${message}`)
             } finally {
+                if (admission) await store.releaseGovernance(admission)
                 for (const id of acquired) await store.releaseTicket(id)
                 const { exportProjections } = await import("../graph/projections.ts")
                 await exportProjections(store)

@@ -41,6 +41,7 @@ const baseTemplate = {
 
 export abstract class WorkflowEntity extends AbstractEntity {
     declare title?: string
+    declare body?: string
     static readonly dcr: EntityDcr
 
     override typeName(): string {
@@ -363,6 +364,7 @@ export class ModuleNode extends WorkflowEntity {
 }
 
 export class FileNode extends WorkflowEntity {
+    declare language?: string
     static template = {
         ...baseTemplate,
         path: passthroughValidator,
@@ -377,7 +379,7 @@ export class FileNode extends WorkflowEntity {
 
 export class SymbolNode extends WorkflowEntity {
     declare title?: string
-    body?: string
+    declare body?: string
     status?: string
     filePath?: string
     kind?: string

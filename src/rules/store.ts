@@ -98,9 +98,9 @@ export class RuleStore {
           body: JSON.stringify({reason: audit.reason, before: audit.before, after: changes, at: new Date().toISOString()})}
       });
     }
-    const rows = this.store.sqliteStore.applyBatch([...records, ...auditRecords]);
+    const rows = await this.store.commitGovernance([...records, ...auditRecords]);
     return rows.slice(0, changes.filter(change => !change.remove).length)
-      .map(row => this.store.sp.makeEntity<Rule>(Rule.dcr, row._id as string, row));
+      .map(row => this.store.makeEntity<Rule>(Rule.dcr, row._id as string, row));
   }
 
 

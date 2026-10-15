@@ -92,12 +92,16 @@ it.skipIf(process.env.AIWF_DOCTRINE_LIVE !== '1')('OpenRouter rejects a real red
     const race = await ticket.resolve(store, { ...options, implement: async () => ({ changes: [], testCommands: [] }),
       verify: async input => {
         const pending = verifyTicketAcceptance(activeStore, input, options, loadConfig(root));
-        await rules.saveRule({ ...stronger, revision: 4, importance: 1 });
+        try { await rules.saveRule({ ...stronger, revision: 4, importance: 1 }); }
+        catch (error) { await pending; throw error; }
         return pending;
       }
     });
     record('race', race);
-    expect(race.status).toBe('needs_input');
+    expect(race.status).toBe('blocked');
+    expect(JSON.stringify(race)).toContain('Governance admission conflict');
+    expect((await rules.getRule(rule.ruleId, rule.scope))!.revision).toBe(3);
+    expect((await rules.getRule(rule.ruleId, rule.scope))!.importance).toBe(10);
     expect((await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!.lane).not.toBe('Done');
     expect((await store.getEntity<Artifact & { body: string }>('VERIFY-LIVE-G3', Artifact.dcr))!.body).toBe(renewedBody);
     const metrics = queryPerformance(root, { operation: 'resolve_ticket' });

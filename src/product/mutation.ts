@@ -193,7 +193,7 @@ export async function applyProductMutations(store: WorkflowStore, mutations: Pro
       const entity = await resolveProductEntity(store, mutation.id);
       const state = mutation.entityType === 'Ticket' && (mutation.fields.lane || mutation.fields.status)
         ? ticketState(mutation.fields.lane ?? (entity as Ticket).lane, mutation.fields.status) : {};
-      await entity.update({ ...mutation.fields, ...state, updatedAt: new Date().toISOString() }, true, false);
+      await store.upsertEntity(entity.descriptor, {id: entity.id, ...mutation.fields, ...state});
     } else if (mutation.kind === 'product_delete') {
       await store.deleteEntity(mutation.id);
     } else {

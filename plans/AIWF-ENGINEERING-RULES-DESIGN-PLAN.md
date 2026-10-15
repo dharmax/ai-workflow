@@ -172,6 +172,22 @@ Rule data updates should be transactional and optimistically revision-checked. A
 
 No free-form rule scripting language; no rule-generation/chat-memory automation; no autonomous permanent upstream watch; no clone-all-repositories job; no blanket indexing of unrelated private projects; no universal security guarantee over ungoverned native host/OS writes; no independent design-flow orchestrator; no new web app; no bulk conversion of Aspects/Decisions/Lessons to Rules. External semantic compliance is evidence-based and probabilistic, not a mathematical correctness theorem. An inability to access a particular source or configured verifier is an explicit input/capability blocker, not permission to fabricate success.
 
+## 12. Gate 5 amendment — 14 October 2026
+
+The approved A–E decisions supersede the older concurrent-selection proposal. Current baseline is master `f928971`. The original audit remains historical evidence; PD-01 reproduces on this HEAD.
+
+Ticket.resolve owns one immutable GovernedChangeScope per revision: authored intent, authorized targets, attributable preview/apply effects including rename endpoints, graph ownership, effective governance and required evidence. Children retain separate scopes. Execution-wide files serve reporting only. CausalChangeEngine retains filesystem ownership and preview/fingerprint/apply. Resolution checks authorization and dirty baselines, supplies expanded obligations to the producer before mutation, compares actual effects and delivers final scope to independent acceptance. Managed tools expose guarded writes only; independent OS processes remain outside this boundary.
+
+WorkflowStore owns project-wide admission using canonical Artifact state, public Semantika conditional batches and expiring leases. Compatible governed work coexists; governance changes exclude governed work. Rule text, Decisions, Aspects and applicability relationships participate. No SQL transaction remains open during model work. Semantika already supplies atomic conditional multi-collection writes and rollback. The narrow missing public capability is assertion-only batch entries, needed to condition completion and governance commits without rewriting unrelated state. Prove it, cross-process admission, rollback and restart through contract tests; StorageSession is not a consistency guarantee.
+
+VERIFY-${id} remains the replaceable current Artifact. Its scope, governance and evidence identify the accepted result. Artifact, verifies relationship and Done/verified commit together, conditional on Ticket/claim and admission revisions. Check source state before DB commit. No journal, receipt chain or automatic historical Ticket reopening. Migration adds admission Artifact state and bumps verification schema; existing entities and Gate 4 approval provenance survive.
+
+Reuse RuleStore, indexer, change engine and context/verifier primitives. Remove authored-versus-actual applicability divergence, ruleId-only collapse across contexts, execution-wide child verification, separate intent Rule rendering, and separately persisted completion writes. Whole-method review and PD-02–PD-05 regression checks remain required.
+
+Actor acceptance paths: unauthorized unlinked edits are refused; authorized expansion supplies its module Rule to producer/verifier and violations block Done. Explicit dirty edits preserve user work and concurrent drift is refused. Fresh processes prove governed/governance exclusion and expired-lease recovery. Actual tests plus configured live independent verification prove final scope, replaceable proof and coherent completion under injected SQL failure and source changes during acceptance. Also cover module/language obligations, creation, rename, child attribution, restart and CLI/shell/MCP parity.
+
+Gate 5 remains Blocked until all mandatory journeys and the original release checklist pass.
+
 ## 12. Handoff instructions
 
 Use this file as the design target, not as proof of current implementation. Run Gate 0 FIRST and present observed deviations and a concise concrete work breakdown. For subsequent work, reuse existing AIWF Ticket workflow, keep all changes on current master via small safe commits, no permanent extra branches. At each gate present: actual files touched, whole-method responsibility audit, real tests/typecheck/build, migration/rollback result, user-journey evidence, unresolved risks. Never silently modify acceptance contracts to make failing work pass. Do not assert work is complete until Gate 5 including an actual independent verifier journey passes.

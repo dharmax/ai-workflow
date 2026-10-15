@@ -11,20 +11,60 @@ import { LLMSession, ToolAbortError, z, type Asker } from "@dharmax/llm-utils"
 import { WorkflowActor, classifyIntentMode } from "../src/actor/engine.ts"
 import { saveConfig } from "../src/config.ts"
 import { WorkflowStore } from "../src/graph/store.ts"
-import { initializeTools, registry } from "../src/tools/index.ts"
+import { initializeTools, registry, type ToolDefinition } from "../src/tools/index.ts"
 describe("WorkflowActor execution boundaries", () => {
     let root: string
     let store: WorkflowStore
+    const originalTools = new Map<string, ToolDefinition>()
+    const overrideTool = (tool: ToolDefinition) => {
+        if (!originalTools.has(tool.name)) originalTools.set(tool.name, registry.get(tool.name)!)
+        registry.register(tool)
+    }
     beforeEach(() => {
         root = fs.mkdtempSync(path.join(os.tmpdir(), "aiwf-engine-boundaries-"))
         store = new WorkflowStore(root, true)
         initializeTools()
+        originalTools.clear()
     })
     afterEach(() => {
-        initializeTools()
+        for (const tool of originalTools.values()) registry.register(tool)
         store.close()
         fs.rmSync(root, { recursive: true, force: true })
     })
+    const probeOriginals = new Map<string, ToolDefinition>()
+    if (process.env.AIWF_OVERRIDE_CLEANUP_PROBE === "1") {
+        it("override cleanup probe: intentional failure", () => {
+            for (const name of ["run_command", "resolve_ticket"]) {
+                const tool = registry.get(name)!
+                probeOriginals.set(name, tool)
+                overrideTool({ ...tool, execute: () => { throw new ToolAbortError("Leaked override") } })
+                expect(() => registry.get(name)!.execute({}, { store, projectRoot: root })).toThrow("Leaked override")
+                overrideTool({ ...tool, execute: () => { throw new ToolAbortError("Repeated override") } })
+            }
+            expect("intentional cleanup probe").toBe("failure")
+        })
+        it("override cleanup probe: subsequent test uses production tool", async () => {
+            for (const [name, original] of probeOriginals) expect(registry.get(name)).toBe(original)
+            expect(probeOriginals.size).toBe(2)
+            const result = await registry.execute("run_command", { command: "printf restored-production-tool" }, { store, projectRoot: root })
+            expect(result.success).toBe(true)
+            expect(result.stdout).toBe("restored-production-tool")
+            console.log("override-cleanup-confirmed")
+        })
+    }
+    it("restores temporary tool overrides even after a failed test", async () => {
+        const child = Bun.spawn(["bun", "test", import.meta.path, "--test-name-pattern", "override cleanup probe"], {
+            cwd: root, env: { ...process.env, AIWF_OVERRIDE_CLEANUP_PROBE: "1" }, stdout: "pipe", stderr: "pipe"
+        })
+        const [stdout, stderr, exit] = await Promise.all([
+            new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited
+        ])
+        expect(exit).toBe(1)
+        expect(stdout).toContain("override-cleanup-confirmed")
+        expect(stderr).toContain("1 pass")
+        expect(stderr).toContain("1 fail")
+        expect(stderr).not.toContain("error: Leaked override")
+    }, 30000)
     const answer = (text = "done") => ({ ok: true, data: { thought: "", action: "final_answer", finalAnswer: text } })
     const call = (name: string, parameters = {}) => ({ ok: true, data: { thought: "", action: "tool_call", toolCalls: [{ name, parameters }] } })
     // Exercise the ordinary escalation branch without making provider calls.
@@ -59,7 +99,7 @@ describe("WorkflowActor execution boundaries", () => {
     it("denies cancelled explicit delegation before invoking a mutating capability", async () => {
         let calls = 0
         const tool = registry.get("resolve_ticket")!
-        registry.register({ ...tool, execute: () => {
+        overrideTool({ ...tool, execute: () => {
                 calls++
                 return { status: "complete" }
             } })
@@ -74,7 +114,7 @@ describe("WorkflowActor execution boundaries", () => {
     it("denies read-only explicit delegation before invoking a mutating capability", async () => {
         let calls = 0
         const tool = registry.get("resolve_ticket")!
-        registry.register({ ...tool, execute: () => {
+        overrideTool({ ...tool, execute: () => {
                 calls++
                 return { status: "complete" }
             } })
@@ -86,7 +126,7 @@ describe("WorkflowActor execution boundaries", () => {
     })
     it("returns explicit delegation errors as execution failures", async () => {
         const tool = registry.get("resolve_ticket")!
-        registry.register({ ...tool, execute: () => {
+        overrideTool({ ...tool, execute: () => {
                 throw "delegation failed"
             } })
         const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T")
@@ -95,7 +135,7 @@ describe("WorkflowActor execution boundaries", () => {
     })
     it("preserves an explicit tool abort returned by artifact delegation", async () => {
         const tool = registry.get("resolve_ticket")!
-        registry.register({ ...tool, execute: () => {
+        overrideTool({ ...tool, execute: () => {
                 throw new ToolAbortError("User refused execution")
             } })
         const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T")
@@ -145,7 +185,7 @@ describe("WorkflowActor execution boundaries", () => {
     })
     it("does not retry a tool abort through cognitive escalation", async () => {
         const command = registry.get("run_command")!
-        registry.register({ ...command, execute: () => {
+        overrideTool({ ...command, execute: () => {
                 throw new ToolAbortError("User refused execution")
             } })
         let calls = 0

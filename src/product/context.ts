@@ -150,25 +150,16 @@ export async function buildIntentContext(
         }
     }
     context.existing.push(...evidence.values())
-    // Applicable Engineering Doctrine rules ground Product Intent in architectural constraints
-    const { RuleStore } = await import("../rules/store.ts")
-    const ruleStore = new RuleStore(store)
-    const activeRules = await ruleStore.resolveAllRules({ forGovernance: true })
-    for (const rule of activeRules) {
-        if (rule.isDisabled) continue
-        const examplesBody = rule.effective.examples?.length
-            ? ["\nExamples:", ...rule.effective.examples.map(ex => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join("\n")
-            : ""
-        context.existing.push({
-            id: rule.ruleId,
-            kind: "Rule",
-            title: rule.effective.title ?? rule.ruleId,
-            body: `${rule.effective.rule}${examplesBody}`,
-            scope: rule.effective.scope.kind,
-            mandatory: rule.effective.importance >= 8,
-            status: rule.effective.status
-        })
+    const {resolveTicketGovernance} = await import('../ticket-operation-types.ts')
+    const {renderRuleReferences} = await import('../rules/references.ts')
+    const governance = await resolveTicketGovernance(store, entity)
+    for (const rule of governance.rules) {
+        const examples = rule.examples.map(example => `[${example.kind}] ${example.description} -> Lesson: ${example.lesson}`).join('\n')
+        context.existing.push({id: governance.rules.filter(item => item.ruleId === rule.ruleId).length === 1 ? rule.ruleId : rule.id, kind: 'Rule', title: rule.title ?? rule.ruleId,
+            body: [rule.rule, examples, renderRuleReferences(rule.references.filter(reference => reference.snapshot?.approved))].filter(Boolean).join('\n\n'),
+            scope: rule.scope.kind, mandatory: rule.importance >= 8, status: rule.status})
     }
+
     return { context, all, aspects, candidates }
 }
 

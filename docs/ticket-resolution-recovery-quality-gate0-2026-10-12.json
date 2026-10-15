@@ -1,0 +1,176 @@
+{
+  "gate": "0",
+  "status": "complete_local_containment_operator_retains_keys",
+  "head": "61b21638fc8d1ec3e4281f9eeb67daaea2f506de",
+  "exposed": [
+    {
+      "service": "openai",
+      "sha256Prefix": "38fc4c480b6a"
+    },
+    {
+      "service": "openrouter",
+      "sha256Prefix": "ad82e5c392a8"
+    }
+  ],
+  "exposure": "Nested provider credentials printed in prior tool output; entered Codex conversation/model context and its local rollout JSONL. Other operators/viewers and hosted retention cannot be determined from repository. No secret-bearing remote inference initiated this turn.",
+  "localContainment": {
+    "redactedOccurrences": 4,
+    "logPath": "/home/dharmax/.codex/sessions/2026/10/12/rollout-2026-10-12T07-43-23-01a12e6c-2cee-7fb3-a558-be1e46616063.jsonl",
+    "mode": "0600",
+    "exactMatchesAfter": 0,
+    "originalLogSha256": "2e8321d566cf174c4cd38fed0f3eedcb46758ff1ff7ddeee556b5eb0e478da01",
+    "redactedPrefixSha256": "0ab16e9df536a3f96d983f3c810f4c0842498fa3f9ea508931a95ee7b1e02017"
+  },
+  "trackedArtifactsExactMatches": 0,
+  "reachableHistory": {
+    "blobsScanned": 3946,
+    "matches": []
+  },
+  "recoveryDocsAndEvidenceExactMatches": 0,
+  "credentialState": "Exposed OpenRouter provider key still authenticates HTTP200 and is_management_key:false; OpenAI key revocation state unverified. Global config remains0600. Environment key differs; no admin/management key env present and installed tools expose no revocation operation.",
+  "requiredExternalAction": null,
+  "recoveryState": "Gate0 local cleanup/prevention verified under operator retained-key decision. Resume Gate1; R2/R3 remain Blocked until engineering-quality acceptance.",
+  "officialRevocationRequirements": {
+    "openrouter": "https://openrouter.ai/docs/api/api-reference/api-keys/delete-keys",
+    "openai": "https://platform.openai.com/docs/api-reference/admin-api-keys"
+  },
+  "operatorDecision": "Operator explicitly does not authorize revocation or rotation. Preserve legitimate configuration and working credentials; keys retained. Revocation is not a prerequisite.",
+  "originalDisclosureLocations": {
+    "commandRecordLine": 59,
+    "outputRecordLines": [
+      61,
+      65
+    ],
+    "sessionPath": "/home/dharmax/.codex/sessions/2026/10/12/rollout-2026-10-12T07-43-23-01a12e6c-2cee-7fb3-a558-be1e46616063.jsonl",
+    "provider": "openai (recorded session model_provider)",
+    "externalTransmission": "The tool output was provided to subsequent Codex model reasoning; session provider is OpenAI. Hosted transcript copies are beyond local deletion authority. No evidence of credential values in independent AIWF/OpenRouter prompts or stored inference request bodies."
+  },
+  "additionalCleanup": {
+    "logs": [
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/06/rollout-2026-04-06T12-34-39-019d6224-ea72-7642-b7d8-26b62bccdcb1.jsonl",
+        "removedOccurrences": 60
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/09/rollout-2026-04-09T14-53-35-019d7217-3166-71c2-a282-fe584c7bd32a.jsonl",
+        "removedOccurrences": 2
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/09/rollout-2026-04-09T15-37-33-019d723f-70e9-7882-8c2c-513b4d0371e9.jsonl",
+        "removedOccurrences": 8
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/09/rollout-2026-04-09T20-49-18-019d735c-da25-7600-8b8f-b7ae1632cf0b.jsonl",
+        "removedOccurrences": 19
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/10/rollout-2026-04-10T15-31-45-019d7760-7eb9-7bd3-96c2-6bbdc63b86b4.jsonl",
+        "removedOccurrences": 16
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/18/rollout-2026-04-18T08-39-07-019d9f19-9614-7c80-8e1d-49c60429e53a.jsonl",
+        "removedOccurrences": 6
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/18/rollout-2026-04-18T15-31-16-019da092-ebf3-7e60-a76f-bd7fc62936ea.jsonl",
+        "removedOccurrences": 15
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/19/rollout-2026-04-19T07-47-03-019da410-4784-7a20-bc50-bc73d2d0c22b.jsonl",
+        "removedOccurrences": 3
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/19/rollout-2026-04-19T15-10-33-019da5a6-4f49-75e1-a1cf-1cad13a64172.jsonl",
+        "removedOccurrences": 13
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/04/25/rollout-2026-04-25T22-58-12-019dc638-9d2b-72f1-981f-35090d59c691.jsonl",
+        "removedOccurrences": 11
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/05/07/rollout-2026-05-07T14-59-33-019e024e-b7ae-7da1-9bc6-0f6f31b4233b.jsonl",
+        "removedOccurrences": 1
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/05/10/rollout-2026-05-10T17-54-24-019e1261-dfe1-7840-84c3-91cedca076a5.jsonl",
+        "removedOccurrences": 8
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/05/13/rollout-2026-05-13T20-29-27-019e2262-e7b8-79a3-9721-7dbcbb99758f.jsonl",
+        "removedOccurrences": 5
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/05/15/rollout-2026-05-15T10-59-09-019e2aa5-7f83-7c10-8862-c9cc4350fa1a.jsonl",
+        "removedOccurrences": 15
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/06/30/rollout-2026-06-30T14-18-51-019f1840-d986-7281-a562-92d36c12e055.jsonl",
+        "removedOccurrences": 4
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/10/03/rollout-2026-10-03T20-05-38-01a102ba-7e1d-77a0-940c-6ced208ca5b9.jsonl",
+        "removedOccurrences": 4
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/10/04/rollout-2026-10-04T21-06-14-01a10818-52f0-7e10-a827-60c987a0b046.jsonl",
+        "removedOccurrences": 4
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/10/07/rollout-2026-10-07T18-29-24-01a116fb-d2d1-7fa3-ba06-c8564ebc0abf.jsonl",
+        "removedOccurrences": 4
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/10/10/rollout-2026-10-10T18-19-28-01a12665-ccd1-7b81-88b3-88340c911087.jsonl",
+        "removedOccurrences": 6
+      }
+    ],
+    "generatedArtifacts": [
+      "/tmp/aiwf-agency-Dn7eHy/.ai-workflow/config.json",
+      "/tmp/aiwf-agency-nuoOsZ/.ai-workflow/config.json",
+      "/home/dharmax/work/ai-workflow/.ai-workflow/generated/ab-jHN4UT/A/.ai-workflow/config.json",
+      "/home/dharmax/work/ai-workflow/.ai-workflow/generated/ab-jHN4UT/B/.ai-workflow/config.json"
+    ],
+    "preservedConfiguration": [
+      "/home/dharmax/.ai-workflow/config.json",
+      "/home/dharmax/work/ai-workflow/.ai-workflow/config.json"
+    ],
+    "cacheFilesDeleted": [
+      "/home/dharmax/.cache/tracker3/files/meta.db",
+      "/home/dharmax/.cache/tracker3/files/meta.db-wal",
+      "/home/dharmax/.cache/tracker3/files/meta.db-shm"
+    ],
+    "largeLogs": [
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/03/07/rollout-2026-03-07T19-32-39-019cc95b-c20f-74b0-9f3a-707281e0e9a8.jsonl",
+        "redactedOccurrences": 0
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/03/11/rollout-2026-03-11T21-38-46-019cde68-a7a5-77e2-92fa-596215a1b5cb.jsonl",
+        "redactedOccurrences": 0
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/03/27/rollout-2026-03-27T15-45-30-019d2f54-0a79-7900-b911-e7733dea6cc4.jsonl",
+        "redactedOccurrences": 0
+      },
+      {
+        "path": "/home/dharmax/.codex/sessions/2026/03/30/rollout-2026-03-30T17-29-08-019d3f26-02ba-7573-8a57-e28372bf2f37.jsonl",
+        "redactedOccurrences": 0
+      }
+    ]
+  },
+  "scanScope": {
+    "filesScanned": 241584,
+    "initialSizeLimitedSkipped": 1590,
+    "largeSessionLogsSubsequentlyScanned": true,
+    "notes": "All found log/cache/generated copies removed or redacted. Legitimate global/project configs preserved. No claim of erasing hosted transcripts or uninspectable locations."
+  },
+  "prevention": {
+    "defectOwner": "One-off Codex Python configuration inspection; shallow top-level comprehension passed nested providers values directly to print. Production recursive redaction already exists.",
+    "replacementCommand": "aiwf config get",
+    "rawInspectionOwner": "src/config.ts redactConfig, applied before JSON serialization; no ad hoc shallow redaction.",
+    "checks": "Actual nested provider secrets absent from recursive sanitized serialization; synthetic nested-object/array secrets redacted, ordinary fields preserved. Existing config CLI prints only public settings through inspectConfig/redactConfig.",
+    "productionPatch": false
+  },
+  "legitimateConfigurationHashUnchanged": true,
+  "residualRisk": "Local redaction/deletion is not revocation and cannot erase remote model transcripts, prior viewer copies, or provider backups. Operator explicitly retains working keys with this residual exposure recorded."
+}

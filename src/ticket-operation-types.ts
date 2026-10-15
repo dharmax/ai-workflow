@@ -32,6 +32,7 @@ export interface TicketDossier {
   completeness: TicketCompletenessContext;
   aspects: AspectAssessment;
   governance?: TicketGovernance;
+  scope?: GovernedChangeScope;
   proposedEnrichments: { acceptanceCriteria?: string[]; relations: Array<{ sourceId: string; predicate: string; targetId: string }> };
   provenance: { systemOne: { backendId: string; quality: string } | null; reasoningUsed: boolean; optionalCandidates: number; optionalSelected: number; freshnessReconciliations: number };
 }
@@ -80,7 +81,7 @@ export const AcceptanceVerificationSchema = z.object({
   aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
   rules: z.array(RuleEvaluationSchema).default([])
 }).superRefine((value, ctx) => {
-  for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)], ['rules', value.rules.map(check => check.ruleId)]] as const) {
+  for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)], ['rules', value.rules.map(check => canonical([check.ruleId, check.fingerprint]))]] as const) {
     if (new Set(keys).size !== keys.length) ctx.addIssue({code: 'custom', path: [field], message: 'Acceptance checks must identify each requirement exactly once.'});
   }
 });
@@ -90,15 +91,26 @@ export interface ResolutionOptions extends PreparationOptions {
   /** Cumulative implementation Actor token budget override. Explicit values are treated as hard caps. */
   maxActorTokens?: number;
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
+  /** Explicit per-Ticket authorization for files outside authored source targets, including new/rename endpoints. */
+  authorizedFiles?: Record<string, string[]>;
   implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;
   verify?: (input: ResolutionVerificationInput) => Promise<z.input<typeof AcceptanceVerificationSchema>>;
 }
 export interface ResolvedTicket { verification: boolean; resolved: string[]; files: string[]; repairs: number; acceptance: AcceptanceVerification }
 
 // Receipts are untrusted persisted data. Invalid/legacy receipts trigger verification.
-export const DOCTRINE_VERIFIER_VERSION = 2;
+export const DOCTRINE_VERIFIER_VERSION = 3;
 export const VerificationReceiptSchema = z.object({
   governanceVersion: z.literal(DOCTRINE_VERIFIER_VERSION), governanceFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  scope: z.object({ticketId: z.string(), intent: z.object({title: z.string(), body: z.string(), acceptanceCriteria: z.array(z.string())}),
+    authoredTargets: z.array(z.object({id: z.string(), kind: z.string(), filePath: z.string().optional(), symbolName: z.string().optional()})),
+    governance: z.object({targets: z.array(z.object({filePath: z.string(), moduleIds: z.array(z.string()), language: z.string().optional(), exists: z.boolean()})),
+      decisions: z.array(z.object({id: z.string()}))}), revision: z.number().int().nonnegative(),
+    authoredFiles: z.array(z.string()), authorizedFiles: z.array(z.string()), files: z.array(z.string()), baselines: z.record(z.string(), z.string()),
+    effects: z.array(z.object({fingerprint: z.string(), edits: z.array(z.object({filePath: z.string(), edits: z.array(z.object({
+      range: z.object({start: z.object({line: z.number(), character: z.number()}), end: z.object({line: z.number(), character: z.number()})}), newText: z.string()}))})),
+      before: z.record(z.string(), z.string().nullable()),
+      after: z.record(z.string(), z.string().nullable()), renames: z.array(z.object({from: z.string(), to: z.string()}))}))}),
   signature: z.string(), hashes: z.record(z.string(), z.string()), acceptance: AcceptanceVerificationSchema,
   tests: z.array(z.object({command: z.array(z.string()), passed: z.boolean()})),
   testNodes: z.array(z.object({id: z.string(), hashes: z.record(z.string(), z.string())})).min(1)
@@ -110,19 +122,38 @@ export function readVerificationReceipt(body: unknown) {
   } catch { return null; }
 }
 
+/** One value per Ticket/revision, coordinated by resolve; no separate persisted tracker. */
+export interface GovernedChangeScope {
+  readonly ticketId: string;
+  readonly intent: Readonly<Pick<TicketDossier['ticket'], 'title' | 'body' | 'acceptanceCriteria'>>;
+  readonly authoredTargets: readonly Pick<TicketEvidence, 'id' | 'kind' | 'filePath' | 'symbolName'>[];
+  readonly revision: number;
+  readonly authoredFiles: readonly string[];
+  readonly authorizedFiles: readonly string[];
+  readonly files: readonly string[];
+  readonly baselines: Readonly<Record<string, string>>;
+  readonly effects: readonly {fingerprint: string; edits: readonly {filePath: string; edits: readonly import('./change/types.ts').LspTextEdit[]}[]; before: Readonly<Record<string, string | null>>;
+    after: Readonly<Record<string, string | null>>; renames: readonly {from: string; to: string}[]}[];
+  readonly governance: TicketGovernance;
+}
+
 export interface TicketGovernance {
   fingerprint: string;
   rules: Array<import('./rules/types.ts').RuleModel & { fingerprint: string }>;
   decisions: Array<{ id: string; decision?: string; context?: string; consequences?: string; body?: string; status?: string }>;
+  aspects: import('./aspects.ts').AspectAssessment;
+  targets: Array<{filePath: string; moduleIds: string[]; language?: string; exists: boolean}>;
 }
 
 /** One effective Ticket governance view for investigation, production, verification and proof reuse. */
-export async function resolveTicketGovernance(store: WorkflowStore, ticket: Ticket): Promise<TicketGovernance> {
+export async function resolveTicketGovernance(store: WorkflowStore, ticket: WorkflowEntity, files: readonly string[] = [],
+  prior?: Pick<TicketGovernance, 'targets' | 'decisions'>): Promise<TicketGovernance> {
   const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./graph/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
   const { loadConfig } = await import('./config.ts');
-  const { ensureAstFresh } = await import('./graph/indexer.ts');
+  const { ensureAstFresh, resolveModulePath } = await import('./graph/indexer.ts');
+  const { applicableAspects, assessAspects } = await import('./aspects.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
   const { renderRuleReferences } = await import('./rules/references.ts');
   await ensureAstFresh(store);
@@ -133,42 +164,82 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Tick
     const entity = await store.getEntity(edge.sourceId === ticket.id ? edge.targetId : edge.sourceId);
     if (entity) entities.push(entity);
   }
-  const meaning = await collectProductMeaning([ticket, ...entities], store);
-  const aspects = await ticket.assessAspects(store);
+  for (const filePath of files) {
+    const file = await store.getEntity<import('./graph/ontology.ts').FileNode>(filePath, FileNode.dcr);
+    if (file && !entities.some(entity => entity.id === file.id)) entities.push(file);
+  }
+  const owners = new Map<string, import('./graph/ontology.ts').ModuleNode>();
+  const ownership = new Map<string, string[]>();
+  const sourceFiles = new Map<string, import('./graph/ontology.ts').FileNode | null>();
+  for (const entity of entities) if (entity instanceof FileNode || entity instanceof SymbolNode) {
+    const filePath = entity instanceof FileNode ? store.localId(entity.id) : entity.filePath!;
+    sourceFiles.set(filePath, entity instanceof FileNode ? entity : await store.getEntity(filePath, FileNode.dcr));
+  }
+  for (const filePath of files) if (!sourceFiles.has(filePath)) sourceFiles.set(filePath, await store.getEntity(filePath, FileNode.dcr));
+  for (const [filePath, file] of sourceFiles) {
+    const modules: string[] = [];
+    if (file) for (const edge of await store.getIncoming(file.id, 'contains')) {
+      const owner = await store.getEntity<import('./graph/ontology.ts').ModuleNode>(edge.sourceId, ModuleNode.dcr);
+      if (owner) { owners.set(owner.id, owner); modules.push(store.localId(owner.id)); }
+    }
+    else {
+      // Retain the original ownership of attributable deletion/rename endpoints; resolve Rules live.
+      for (const moduleId of prior?.targets.find(target => target.filePath === filePath)?.moduleIds ?? [`mod:${resolveModulePath(filePath)}`]) {
+        const owner = await store.getEntity<import('./graph/ontology.ts').ModuleNode>(moduleId, ModuleNode.dcr);
+        if (!owner && prior?.targets.some(target => target.exists && target.filePath === filePath && target.moduleIds.includes(moduleId)))
+          throw Error(`Governed endpoint owner '${moduleId}' disappeared.`);
+        if (owner) owners.set(owner.id, owner);
+        modules.push(moduleId);
+      }
+    }
+    ownership.set(filePath, [...new Set(modules)].sort());
+  }
+  const subjects = [ticket, ...entities, ...owners.values()];
+  const meaning = await collectProductMeaning(subjects, store);
+  const selectedAspects = new Map<string, import('./graph/ontology.ts').Aspect>();
+  for (const subject of [ticket, ...owners.values()])
+    for (const aspect of await applicableAspects(subject, store)) selectedAspects.set(aspect.id, aspect);
+  const aspects = await assessAspects(ticket, store, [...selectedAspects.values()].sort((a, b) => a.id.localeCompare(b.id)));
+  const codeSubjects = [...entities];
+  for (const file of sourceFiles.values()) if (file) for (const edge of await store.getOutgoing(file.id, 'contains')) {
+    const symbol = await store.getEntity<import('./graph/ontology.ts').SymbolNode>(edge.targetId, SymbolNode.dcr);
+    if (symbol) codeSubjects.push(symbol);
+  }
+  for (const retained of prior?.decisions ?? []) {
+    const decision = await store.getEntity<import('./graph/ontology.ts').Decision>(retained.id, Decision.dcr);
+    if (!decision) throw Error(`Governing Decision '${retained.id}' disappeared.`);
+    entities.push(decision);
+  }
+  for (const subject of [...codeSubjects, ...owners.values()]) for (const edge of await store.getIncoming(subject.id, 'governs')) {
+    const decision = await store.getEntity<import('./graph/ontology.ts').Decision>(edge.sourceId, Decision.dcr);
+    if (decision) entities.push(decision);
+  }
   const decisions = new Map<string, TicketGovernance['decisions'][number]>();
   for (const entity of [...entities, ...meaning.map(item => item.entity),
     ...await Promise.all(aspects.aspects.flatMap(aspect => aspect.decisions).map(id => store.getEntity(id)))]) {
-    if (!(entity instanceof Decision)) continue;
+    if (!(entity instanceof Decision) || ['draft', 'proposed', 'deprecated', 'disabled'].includes(String((entity as {status?: string}).status))) continue;
     const data = entity as import('./graph/ontology.ts').Decision & { body?: string; status?: string };
     decisions.set(store.localId(entity.id), { id: store.localId(entity.id), decision: data.decision,
       context: data.context, consequences: data.consequences, body: data.body, status: data.status });
   }
   const explicitModules = entities.filter(entity => entity instanceof ModuleNode).map(entity => store.localId(entity.id));
-  const contexts = new Map<string, { moduleId?: string; language?: string }>();
-  for (const entity of entities) {
-    if (!(entity instanceof FileNode || entity instanceof SymbolNode)) continue;
-    const filePath = entity instanceof SymbolNode ? entity.filePath! : store.localId(entity.id);
-    const file = await store.getEntity(filePath, FileNode.dcr);
-    const language = /\.[cm]?tsx?$/.test(filePath) ? 'typescript' : /\.[cm]?jsx?$/.test(filePath) ? 'javascript'
-      : /\.py$/.test(filePath) ? 'python' : /\.rs$/.test(filePath) ? 'rust' : /\.go$/.test(filePath) ? 'go'
-      : /\.md$/.test(filePath) ? 'markdown' : /\.txt$/.test(filePath) ? 'text'
-      : /\.json$/.test(filePath) ? 'json' : (file as (import('./graph/ontology.ts').FileNode & { language?: string }) | null)?.language;
-    const modules = new Set(explicitModules);
-    if (file) {
-      for (const edge of await store.getIncoming(file.id, 'contains')) {
-        const owner = await store.getEntity(edge.sourceId);
-        if (owner instanceof ModuleNode) modules.add(store.localId(owner.id));
-      }
-    }
-    for (const moduleId of modules.size ? [...modules].sort() : [undefined]) {
-      const context = { moduleId, language };
+  const contexts = new Map<string, {moduleId?: string; language?: string}>();
+  const targets: TicketGovernance['targets'] = [];
+  const languages: Record<string, string> = {ts: 'typescript', tsx: 'typescript', mts: 'typescript', cts: 'typescript',
+    js: 'javascript', jsx: 'javascript', mjs: 'javascript', cjs: 'javascript', py: 'python', rs: 'rust', go: 'go',
+    md: 'markdown', txt: 'text', json: 'json'};
+  for (const [filePath, file] of sourceFiles) {
+    const language = languages[filePath.split('.').at(-1)!] ?? file?.language;
+    const moduleIds = ownership.get(filePath)!;
+    targets.push({filePath, moduleIds, language, exists: file !== null});
+    for (const moduleId of moduleIds.length ? moduleIds : [undefined]) {
+      const context = {moduleId, language};
       contexts.set(canonical(context), context);
     }
   }
-  if (!contexts.size) {
-    for (const moduleId of explicitModules.length ? explicitModules.sort() : [undefined])
-      contexts.set(canonical({ moduleId }), { moduleId });
-  }
+  for (const moduleId of explicitModules) if (![...contexts.values()].some(context => context.moduleId === moduleId))
+    contexts.set(canonical({moduleId}), {moduleId});
+  if (!contexts.size) contexts.set('{}', {});
   const cfg = loadConfig(store.root);
   const checker = { version: DOCTRINE_VERIFIER_VERSION, model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model,
     promptFingerprint: createHash('sha256').update(renderAcceptancePrompt('')).digest('hex') };
@@ -194,19 +265,17 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Tick
         rule: rule.rule, examples: rule.examples, test: rule.test, checker,
         ...(approvedReferences.length ? {referenceEvidence} : {})
       })).digest('hex');
-      const prior = rules.get(rule.ruleId);
-      if (prior && prior.fingerprint !== fingerprint && Math.max(prior.importance, rule.importance) >= 8)
-        throw new Error(`Ambiguous mandatory Rule '${rule.ruleId}' across authored scopes; split or clarify the Ticket scope.`);
-      if (!prior) rules.set(rule.ruleId, { ...rule, fingerprint });
+      // Equal effective layers deduplicate; distinct scoped/language obligations coexist.
+      rules.set(fingerprint, { ...rule, fingerprint });
     }
   }
-  const selectedRules = [...rules.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+  const selectedRules = [...rules.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId) || a.fingerprint.localeCompare(b.fingerprint));
   const selectedDecisions = [...decisions.values()].sort((a, b) => a.id.localeCompare(b.id));
   const fingerprint = createHash('sha256').update(canonical({
     checker, rules: selectedRules.filter(rule => rule.importance >= 5).map(rule => ({ ruleId: rule.ruleId, fingerprint: rule.fingerprint })),
     decisions: selectedDecisions, aspects: aspects.aspects.map(aspect => ({ id: aspect.id, status: aspect.status, criteria: aspect.criteria }))
   })).digest('hex');
-  return { fingerprint, rules: selectedRules, decisions: selectedDecisions };
+  return { fingerprint, rules: selectedRules, decisions: selectedDecisions, aspects, targets: targets.sort((a, b) => a.filePath.localeCompare(b.filePath)) };
 }
 
 
@@ -220,10 +289,10 @@ export function ruleAcceptanceFailures(
   governance: TicketGovernance, acceptance: AcceptanceVerification, evidenceIds: readonly string[]
 ): string[] {
   const required = governance.rules.filter(rule => rule.importance >= 8);
-  const failures = acceptance.rules.filter(check => !governance.rules.some(rule => rule.ruleId === check.ruleId))
+  const failures = acceptance.rules.filter(check => !governance.rules.some(rule => rule.ruleId === check.ruleId && rule.fingerprint === check.fingerprint))
     .map(check => `Unknown Rule assessment '${check.ruleId}'.`);
   for (const rule of required) {
-    const check = acceptance.rules.find(item => item.ruleId === rule.ruleId);
+    const check = acceptance.rules.find(item => item.ruleId === rule.ruleId && item.fingerprint === rule.fingerprint);
     if (!check) {
       failures.push(`Mandatory Rule '${rule.ruleId}' lacks an independent assessment.`);
       continue;
@@ -240,7 +309,7 @@ export function ruleAcceptanceFailures(
 }
 
 /** Fingerprint the authored contract and applicable governance, not unrelated advisory records. */
-export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = []) {
+export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = [], governance?: TicketGovernance) {
   const {FileNode, SymbolNode} = await import('./graph/ontology.ts');
   const targets = new Set<string>();
   for (const edge of [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)]) {
@@ -253,10 +322,9 @@ export async function ticketVerificationSignature(store: WorkflowStore, ticket: 
       targets.add(id);
     }
   }
-  const aspects = (await ticket.assessAspects(store)).aspects.map(aspect => ({id: aspect.id, criteria: aspect.criteria})).sort((a, b) => a.id.localeCompare(b.id));
   return createHash('sha256').update(canonical({
     ticket: {title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria},
-    targets: [...targets].sort(), aspects, completeness: await ticket.getCompletenessContext(store, completeness),
-    governance: (await resolveTicketGovernance(store, ticket)).fingerprint
+    targets: [...targets].sort(), completeness: await ticket.getCompletenessContext(store, completeness),
+    governance: (governance ?? await resolveTicketGovernance(store, ticket)).fingerprint
   })).digest('hex');
 }

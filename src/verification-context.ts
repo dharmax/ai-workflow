@@ -108,8 +108,10 @@ export async function buildVerificationContext(
     wantedSourceSymbols.set(file, names)
   }
 
-  const wholeFileTargets = new Set(input.dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath)
-    .map(item => relativeFile(root, item.filePath!)))
+  const wholeFileTargets = new Set([
+    ...input.dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath).map(item => relativeFile(root, item.filePath!)),
+    ...(input.dossier.scope?.effects.flatMap(effect => Object.keys(effect.after)) ?? []).map(file => relativeFile(root, file)),
+  ])
   const exactScope = new Map([...wantedSourceSymbols].filter(([file]) => !wholeFileTargets.has(file))
     .map(([file, names]) => [file, new Set(names)]))
   // A test's fixture/import references are not additional Ticket implementation scope.

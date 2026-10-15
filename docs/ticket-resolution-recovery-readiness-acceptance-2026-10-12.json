@@ -1,0 +1,249 @@
+{
+  "date": "2026-10-12",
+  "outcome": "Autonomous pipeline completed on faithful historical fixture; required artifact quality failed, so R2/R3 remain Blocked. No second acceptance run or production patch.",
+  "stageA": {
+    "head": "42ca6314a948688d58171074a5023d9efbbcf702",
+    "llmUtilsHead": "f8222aaa155a0b86f50b7cacbe0701ed29d86840",
+    "productionSourceClean": true,
+    "installedExecutable": "/home/dharmax/work/ai-workflow/src/cli.ts (source-backed; not used for acceptance)",
+    "retainedWarmEvidenceAllRecordedHashesMatch": true,
+    "ownership": [
+      "provider decision",
+      "host registered tool execution and guarded change",
+      "Actor valid ResolutionProposalSchema proposal",
+      "host bounded tests and TestNode evidence",
+      "separate acceptance inference",
+      "host signature/hash receipt, ticket verification and lease release"
+    ],
+    "remainingDecision": "Actual request3 retained complete constructor read and successful safe_change observation; expected grounded final proposal with test commands, not Actor test execution.",
+    "currentOriginalTicket": "Todo/planned, unclaimed, but current source and oracle no longer contain historical contract; historical equivalent required."
+  },
+  "stageB": {
+    "auth": "Environment OPENROUTER_API_KEY rejected HTTP401; existing global providers.openrouter.apiKey authenticated HTTP200. Reused only in isolated subprocess environment. No key stored in report or config edits to production.",
+    "local": "Exact post-edit input on qwen2.5-coder:7b with original schema/options and 180s deadline timed out at180.107s.",
+    "mini": "Two actual-adapter-shaped post-edit decisions in2.782s/150tokens and2.135s/162tokens confused inspection/source.fixAll with test execution; not qualified.",
+    "qualified": "Existing openrouter/openai/gpt-4o: two decisions at1.932s/97tokens and1.608s/122tokens returned final_answer with changes:[] and authored test commands; both passed existing parseStructuredJsonResult and ResolutionProposalSchema.",
+    "limits": "Asker owns default local180000ms/cloud60000ms request deadlines. AIWF config owns4096 output tokens/32768 local context; no deadline, prompt, guard or output setting increased.",
+    "operatorProbeError": "Initial external probe incorrectly set strict:true and received400; discarded as operator error. Actual adapter defaults non-strict and was used for qualification."
+  },
+  "stageC": {
+    "productionPatch": false,
+    "reason": "No transport/tool/schema flow defect established; coherent contract qualified on existing authenticated stronger route.",
+    "productionDebt": "No production method added or changed; no source debt added or removed."
+  },
+  "stageD": {
+    "runner": {
+      "aiwfHead": "42ca6314a948688d58171074a5023d9efbbcf702",
+      "llmUtilsHead": "f8222aaa155a0b86f50b7cacbe0701ed29d86840",
+      "runnerHash": "1a64a23b643f545c65f3e34a8025dc5d8b0ff9b99f0986dcf473411b3fdfd697",
+      "note": "Current supported compiled build copied after production tests/typecheck; source matches d636bc7; manifest input list from previous proven compiled build. No source/dependency edits during acceptance.",
+      "fullProvenancePath": "/tmp/aiwf-readiness-20261012/runner/provenance.json"
+    },
+    "fixture": "/tmp/aiwf-readiness-20261012/acceptance/llm-utils",
+    "historicalSource": "248594af692bf8d46252a32a1f70048c16798a55",
+    "baseline": {
+      "source": "0bac2e89a3e2367b77c1e6ce7c02b5556bea0e169c4376eaad647430ef75a4fa",
+      "oracle": "0ff8f065dccd7da67b13224052d672279cad2f15462b57acd907ffe3e9c1436c"
+    },
+    "model": "openrouter/openai/gpt-4o",
+    "provider": "OpenRouter, actual provider recorded in raw responses",
+    "oneRun": {
+      "exitCode": 0,
+      "elapsedSeconds": 42.736753570032306
+    },
+    "actor": [
+      "get_symbol_source LLMActor.constructor",
+      "safe_change replace_text src/actor.ts",
+      "final_answer valid structured proposal"
+    ],
+    "hostTests": [
+      {
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-byte-ceiling.test.ts"
+        ],
+        "passed": true
+      },
+      {
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-byte-ceiling.test.ts",
+          "tests/actor.test.ts"
+        ],
+        "passed": true
+      },
+      {
+        "command": [
+          "bun",
+          "run",
+          "typecheck"
+        ],
+        "passed": true
+      }
+    ],
+    "hostTestCount": "49 pass, 0 fail across2files; typecheck pass",
+    "independentVerifier": "Separate fourth provider request, all3 authored acceptance criteria passed, no applicable Aspects in historical graph.",
+    "nativeDurableState": {
+      "lane": "Done",
+      "status": "verified",
+      "claim": null,
+      "receipt": "VERIFY-TKT-GKDN-C-BYTE-CEILING"
+    },
+    "receipt": {
+      "signature": "37302d655323a4454330698e5b047de8b37da1e3d02ca383a08d2daf53e1ba71",
+      "hashes": {
+        "src/actor.ts": "df7d7e3c7acf248d6679491e399817cb0a6789b6f96085a63bd59935d81c6111",
+        "tests/actor-byte-ceiling.test.ts": "0ff8f065dccd7da67b13224052d672279cad2f15462b57acd907ffe3e9c1436c",
+        "src/index.ts": "5b346ec81979050fe1e3aef1a59b12412085f74535aebde2cf2649a79ab6c98e",
+        "src/asker.ts": "ca640f635dda6bbc5d7b8d17aad8dfc4160c413c58bc1c685e8227bb8512f99b",
+        "src/context.ts": "4d5667458aa31046817037a72fdd339c1aa95ac55a9ec4b8516861adcad8cff9",
+        "src/metrics.ts": "5ba78ade908fa326130311a5aa3023943a1268c3380a14043b8436381b557939",
+        "src/structured-json.ts": "421ad7c2908f85c145cf87d86fcb87b219286e026a9f87863eb218b00bd9bd79",
+        "src/types.ts": "94367cf3f829e49df1d8fce8fe5d005c7ced48b92b7e81091d7f37d94a1bbca7",
+        "src/completion.ts": "8b8e1f5314e882b89334ef3bfe31ed752398f16e519eac1a0e47ea9f2f4011ee",
+        "src/discovery.ts": "44e1c3f665b8439b317eff14a6e41c5eb69e446f212b83abeb09fb7c83d647b8",
+        "src/prompts.ts": "096ffd227fd58cc8818b935393b187f2e871d9106fd970365c29bdca320e25e7",
+        "src/provider-circuit.ts": "3edff9febd6434f3f850bbec5cf2fe40c24f4fc3e6725393d01a3bdd863ce254",
+        "src/routing.ts": "96f81610393ec440f3a458c20ed84e298ab29744df81a5d584dbbaaf27f47ac0",
+        "src/model-advice.ts": "f6a329d3b99518b80e3821cf5700ab830c273d1960dd254a1fd64eb9b60d1dec",
+        "tests/actor.test.ts": "5c6f36de0a2574b296d52035306aabe2f9f0150854baf838e4fac410310641c1"
+      },
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "The LLMActor constructor rejects maxToolResultBytes values below 128 bytes with an actionable error.",
+            "passed": true,
+            "evidence": "The constructor in src/actor.ts throws an error for maxToolResultBytes < 128: `if (limit === this.maxToolResultBytes && limit < 128) throw new Error('maxToolResultBytes must be at least 128 bytes.');`"
+          },
+          {
+            "criterion": "The 128-byte boundary and default configuration remain valid.",
+            "passed": true,
+            "evidence": "The test in tests/actor-byte-ceiling.test.ts confirms 128-byte boundary validity: `expect(() => new LLMActor(asker, {maxToolResultBytes: 128})).not.toThrow();`"
+          },
+          {
+            "criterion": "Existing positive safe integer budget validation remains intact and authored regression and Actor tests pass.",
+            "passed": true,
+            "evidence": "The test in tests/actor-byte-ceiling.test.ts confirms positive-safe-integer validation: `for (const limit of [0, -1, 1.5, NaN, Infinity]) { expect(() => new LLMActor(asker, {maxInputBytes: limit})).toThrow(); }`"
+          }
+        ],
+        "aspects": []
+      },
+      "testNodes": [
+        {
+          "id": "test:tests/actor-byte-ceiling.test.ts",
+          "filePath": "tests/actor-byte-ceiling.test.ts",
+          "passed": true,
+          "lastRun": "2026-10-12T04:51:17.523Z",
+          "command": [
+            "bun",
+            "test",
+            "tests/actor-byte-ceiling.test.ts",
+            "tests/actor.test.ts"
+          ],
+          "hashes": {
+            "tests/actor-byte-ceiling.test.ts": "0ff8f065dccd7da67b13224052d672279cad2f15462b57acd907ffe3e9c1436c",
+            "src/index.ts": "5b346ec81979050fe1e3aef1a59b12412085f74535aebde2cf2649a79ab6c98e",
+            "src/actor.ts": "df7d7e3c7acf248d6679491e399817cb0a6789b6f96085a63bd59935d81c6111",
+            "src/asker.ts": "ca640f635dda6bbc5d7b8d17aad8dfc4160c413c58bc1c685e8227bb8512f99b",
+            "src/context.ts": "4d5667458aa31046817037a72fdd339c1aa95ac55a9ec4b8516861adcad8cff9",
+            "src/metrics.ts": "5ba78ade908fa326130311a5aa3023943a1268c3380a14043b8436381b557939",
+            "src/structured-json.ts": "421ad7c2908f85c145cf87d86fcb87b219286e026a9f87863eb218b00bd9bd79",
+            "src/types.ts": "94367cf3f829e49df1d8fce8fe5d005c7ced48b92b7e81091d7f37d94a1bbca7",
+            "src/completion.ts": "8b8e1f5314e882b89334ef3bfe31ed752398f16e519eac1a0e47ea9f2f4011ee",
+            "src/discovery.ts": "44e1c3f665b8439b317eff14a6e41c5eb69e446f212b83abeb09fb7c83d647b8",
+            "src/prompts.ts": "096ffd227fd58cc8818b935393b187f2e871d9106fd970365c29bdca320e25e7",
+            "src/provider-circuit.ts": "3edff9febd6434f3f850bbec5cf2fe40c24f4fc3e6725393d01a3bdd863ce254",
+            "src/routing.ts": "96f81610393ec440f3a458c20ed84e298ab29744df81a5d584dbbaaf27f47ac0",
+            "src/model-advice.ts": "f6a329d3b99518b80e3821cf5700ab830c273d1960dd254a1fd64eb9b60d1dec"
+          },
+          "output": "tests/actor-byte-ceiling.test.ts:\n(pass) tool-result ceilings must represent their structured diagnostic [0.78ms]\n(pass) representable boundary and defaults remain valid [0.08ms]\n(pass) existing positive-safe-integer budget validation is preserved [0.16ms]\n\n 49 pass\n 0 fail\n 199 expect() calls\nRan 49 tests across 2 files. [233.00ms]\n",
+          "verifies": [
+            "src/index.ts",
+            "src/actor.ts#LLMActor.constructor:239:5"
+          ]
+        },
+        {
+          "id": "test:tests/actor.test.ts",
+          "filePath": "tests/actor.test.ts",
+          "passed": true,
+          "lastRun": "2026-10-12T04:51:17.523Z",
+          "command": [
+            "bun",
+            "test",
+            "tests/actor-byte-ceiling.test.ts",
+            "tests/actor.test.ts"
+          ],
+          "hashes": {
+            "tests/actor.test.ts": "5c6f36de0a2574b296d52035306aabe2f9f0150854baf838e4fac410310641c1",
+            "src/actor.ts": "df7d7e3c7acf248d6679491e399817cb0a6789b6f96085a63bd59935d81c6111"
+          },
+          "output": "tests/actor.test.ts:\n(pass) progress guard uses enforced per-execution observation effects on a general tool [17.47ms]\n(pass) per-execution progress guard permits identical results from repeated mutations [5.12ms]\n(pass) LLMActor stops a repeated unavailable capability after retaining both failed observations [2.38ms]\n(pass) LLMActor still repairs an ordinary failure of an available tool [3.61ms]\n(pass) LLMActor allows a missing capability that successfully recovers on its next attempt [3.42ms]\n(pass) LLMActor registers, retrieves, and unregisters tools [0.30ms]\n(pass) LLMActor.step returns final_answer when model decides goal is achieved [1.37ms]\n(pass) LLMActor.step executes tool and records execution result [2.59ms]\n(pass) LLMActor.run orchestrates multi-turn loop to completion [3.61ms]\n(pass) LLMActor catches and contains tool exceptions without crashing [1.65ms]\n(pass) LLMActor validates tool parameters against Zod schema [3.63ms]\n(pass) LLMActor handles unregistered tool gracefully [1.63ms]\n(pass) LLMActor delegates to onMissingTool when tool is not registered [1.54ms]\n(pass) LLMActor.run halts with max_steps_exceeded when budget is exhausted [3.51ms]\n(pass) LLMActor.run respects AbortSignal [0.31ms]\n(pass) LLMActor.run propagates cancellation into an in-flight model request [23.18ms]\n(pass) LLMActor.run preserves recovered tool failures as structured issues [2.79ms]\n(pass) LLMActor.run parses structured output schema when specified [2.37ms]\n(pass) LLMActor rejects hallucinated tool name before execution and corrects to real tool via retry [1.92ms]\n(pass) LLMActor feeds back real tool failure and actor replans with alternative tool [3.43ms]\n(pass) LLMActor feeds back invalid parameter error and actor repairs arguments on next turn [3.50ms]\n(pass) LLMActor.run uses an exact run-local tool surface without mutating registered tools [1.80ms]\n(pass) LLMActor.run rejects globally registered tools excluded from a run-local surface [1.09ms]\n(pass) LLMActor.run does not expand an exact run-local surface through actor-level onMissingTool [0.98ms]\n(pass) LLMActor.run recovers missing tool on-demand via run-local onMissingTool without mutating global actor [2.75ms]\n(pass) LLMActor.run treats unresolvable run-local missing tools as ordinary tool errors [1.43ms]\n(pass) LLMActor refuses an oversized tool catalog before calling the provider [0.30ms]\n(pass) LLMActor advertises bounded missing-tool recovery only when a resolver exists [0.55ms]\n(pass) LLMActor stops unchanged read observations after one replanning opportunity [2.90ms]\n(pass) unchanged read evidence can replan to a recovered capability and answer its actual goal [2.95ms]\n(pass) read progress guard permits arguments changes [2.78ms]\n(pass) read progress guard permits result changes [3.06ms]\n(pass) read progress guard permits mutation changes [3.28ms]\n(pass) read progress comparison ignores argument and result object key order [3.52ms]\n(pass) alternating unchanged reads cannot evade the progress guard [4.70ms]\n(pass) rejects missing or blank final answers with tool surface  [1.75ms]\n(pass) rejects missing or blank final answers with tool surface available [0.93ms]\n(pass) explicit discovery adds exact schemas to the next turn without leaking capabilities across runs [3.65ms]\n(pass) failed specialization replans through available universal primitives instead of treating a missing specialist as a blocker [1.51ms]\n(pass) recoverable tool failures retain structured observations and allow another method [3.30ms]\n(pass) unchanged failed observations with proven read-only effects replan then stop [3.24ms]\n(pass) a different failed-read recovery input is allowed [2.67ms]\n(pass) LLMActor rejects completion when its requested output schema cannot be repaired [1.73ms]\n(pass) LLMActor preserves a valid false value returned by output repair [1.94ms]\n(pass) structured output repair retains Actor routing and hard provider defaults [1.30ms]\n(pass) structured output repair lets per-run routing override Actor defaults [1.07ms]\n",
+          "verifies": []
+        }
+      ],
+      "tests": [
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/actor-byte-ceiling.test.ts"
+          ],
+          "passed": true
+        },
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/actor-byte-ceiling.test.ts",
+            "tests/actor.test.ts"
+          ],
+          "passed": true
+        },
+        {
+          "command": [
+            "bun",
+            "run",
+            "typecheck"
+          ],
+          "passed": true
+        }
+      ],
+      "children": [],
+      "verifiedAt": "2026-10-12T04:51:22.195Z"
+    },
+    "externalReceiptHashCheck": true,
+    "externalReceiptSignatureCheck": true,
+    "sourceDiff": "diff --git a/src/actor.ts b/src/actor.ts\nindex 4ea49db..408f170 100644\n--- a/src/actor.ts\n+++ b/src/actor.ts\n@@ -245,8 +245,10 @@ export class LLMActor {\n         this.maxInputBytes = options.maxInputBytes ?? 48_000\n         this.maxRunTokens = options.maxRunTokens ?? 64_000\n         this.maxToolResultBytes = options.maxToolResultBytes ?? 4_096\n-        for (const limit of [this.maxInputBytes, this.maxRunTokens, this.maxToolResultBytes])\n-            if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error('Actor budgets must be positive safe integers.')\n+        for (const limit of [this.maxInputBytes, this.maxRunTokens, this.maxToolResultBytes]) {\n+            if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error('Actor budgets must be positive safe integers.');\n+            if (limit === this.maxToolResultBytes && limit < 128) throw new Error('maxToolResultBytes must be at least 128 bytes.');\n+        }\n         this.system = options.system\n         this.defaultAskOptions = options.askOptions\n         this.onStep = options.onStep\n",
+    "qualityReview": {
+      "scope": "Entire generated22line LLMActor.constructor and immediate budget contract, obtained through exact source tool after runner exit.",
+      "functional": "Authored oracle passes; positive safe integer validation and its general error preserved, boundary/defaults valid.",
+      "failedPrimeDirective": "Field-specific lower bound is repeated in the shared three-budget loop and identifies its subject by numeric equality (limit === this.maxToolResultBytes), rather than direct field validation at the existing constructor owner. Adds avoidable loop braces and unnecessary semicolons. Not the simplest correct solution; no production promotion.",
+      "firstDivergence": "Actor edit decision2 introduced avoidable complexity. Host verifier accepted functional criteria but had no authored quality Aspect; persisted receipt proves those criteria only.",
+      "operatorDisposition": "Native Done/verified and valid receipt retained as evidence before separate canonical fixture normalization to Blocked. R2/R3 stay Blocked; R1/R2-S preserved; CodeMutator deferred."
+    }
+  },
+  "codexChecks": {
+    "aiwfTests": "382 pass, 2 skip, 0 fail across51files",
+    "typecheck": "pass",
+    "supportedPack": "pass build847@42ca631 with embedded llm-utils f8222aa",
+    "gitDiffCheck": "pass",
+    "notAIWFWork": "Readiness probes, production tests/build, external code/receipt review; historical source implementation and fixture verification were AIWF-owned."
+  },
+  "remainingGate": "Artifact quality; do not infer R3 success from valid functional receipt. Corrective work must stay at existing constructor owner and be authored/finished by Actor, with independent host acceptance. No automatic second run in this batch.",
+  "rawEvidenceRoot": "/tmp/aiwf-readiness-20261012",
+  "durableEvidenceArchive": ".ai-workflow/state/evidence/recovery-2026-10-12",
+  "credentialIncident": "One configuration inspection accidentally printed nested credentials to tool output; no credentials copied into report. Further reads recursively redacted or presence/auth-status only.",
+  "evidenceHashes": {
+    "runner/provenance.json": "d5d8d5be74a9a18977621674b98d323410ee8d1801a9833615ea0cebf8d3a7ea",
+    "acceptance/provider.jsonl": "6dbb68a2f9d1fa5b8d9a61dbccda604551265cd6b47f68025966e28ca42bec98",
+    "acceptance/result.json": "ea41206204a4f678aacd899e6a52c7143582c339568069d2783578f23a278c47",
+    "acceptance/aiwf_Ticket-native.json": "ba1dce8800b2492d45f457bf198a4bcc90959848f08a1fd2d477f313eed66cfb",
+    "acceptance/aiwf_Artifact-native.json": "042d7bae08fe7b373e896497958298415f6f1a2528593762e717dc378d7f53a4",
+    "acceptance/aiwf_TestNode-native.json": "2929a761d0abe8aa7f3cb7fe7f754f520c0a6d90ea57949863b6991bcde95145",
+    "aiwf-tests.log": "02bbbfac5049b3738f5b856cc8c0d773eb5358da4f89a789a18a0c88d44a184a",
+    "aiwf-typecheck.log": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+    "aiwf-pack.log": "310323a7641a8b3940a82fc1566a0ef622685a43ca5fb97248f452006ca9b37f"
+  }
+}

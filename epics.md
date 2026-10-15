@@ -56,7 +56,7 @@ Narrow Semantika prerequisite and the EXISTING TKT-DOCTRINE-G5-RELEASE: governed
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Contained Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Establish Gate 5 Semantika selection/completion contract
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [In Progress]: Prove atomic admission assertions and coherent completion contract
 
 ### Coverage
 - **Complete**: No

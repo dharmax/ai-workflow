@@ -39,11 +39,13 @@ export function renderImplementationGoal(
     projectRoot: string,
     workspaceFiles: readonly string[],
     dossier: TicketDossier,
-    feedback: readonly string[]
+    feedback: readonly string[],
+    testCommands: readonly string[][] = []
 ): string {
     return prompts.render(goal.trim(), {
         projectRoot,
         workspaceFiles: JSON.stringify(workspaceFiles),
+        testCommands: JSON.stringify(testCommands),
         dossier: JSON.stringify(dossier),
         feedback: JSON.stringify(feedback)
     })

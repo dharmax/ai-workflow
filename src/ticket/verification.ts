@@ -3,6 +3,9 @@
  * Scope: TestNode evidence and semantic acceptance from post-edit source.
  */
 
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { renderAcceptancePrompt } from "./prompts.ts"
 import { TestNode, Ticket } from "../graph/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets } from "../graph/test-artifacts.ts"
@@ -84,66 +87,53 @@ export async function executeTicketChecks(
     const hashesBefore = Object.fromEntries(
         beforeExecution.map(test => [store.formatId(TestNode.dcr, test.id), { ...test.hashes, ...sourceHashesBefore }])
     )
-    for (const command of commands) {
-        const playwright = command[0] === "bunx" && command[1] === "playwright" && command[2] === "test"
-        if (
-            !playwright &&
-            (command[0] !== "bun" ||
-                !["test", "run"].includes(command[1] ?? "") ||
-                (command[1] === "run" && !["typecheck", "build"].includes(command[2] ?? "")))
-        )
-            return needs(
-                `Supply a project test/typecheck/build command for '${id}'.`,
-                "Verification commands must be bounded engineering checks.",
-                "Operation testCommands"
-            )
-        signal?.throwIfAborted()
-        const process = Bun.spawn(command, { cwd: store.root, stdout: "pipe", stderr: "pipe" })
-        let timedOut = false,
-            aborted = false
-        const onAbort = () => {
-            aborted = true
-            process.kill()
+    const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-checks-'))
+    const quote = (value: string) => "'" + value.replaceAll("'", "'\"'\"'") + "'"
+    try {
+        for (const command of commands) {
+            const playwright = command[0] === "bunx" && command[1] === "playwright" && command[2] === "test"
+            if (!playwright && (command[0] !== "bun" || !["test", "run"].includes(command[1] ?? "") ||
+                command[1] === "run" && !["typecheck", "build"].includes(command[2] ?? "")))
+                return needs(`Supply a project test/typecheck/build command for '${id}'.`, "Verification commands must be bounded engineering checks.", "Operation testCommands")
+            signal?.throwIfAborted()
+            const stdoutPath = path.join(scratchRoot, 'stdout'), stderrPath = path.join(scratchRoot, 'stderr')
+            fs.rmSync(stdoutPath, {force: true}); fs.rmSync(stderrPath, {force: true})
+            const startedAt = Date.now()
+            const commandResult = await registry.execute('run_command', {
+                command: command.map(quote).join(' ') + ' > ' + quote(stdoutPath) + ' 2> ' + quote(stderrPath), timeoutMs: 60000
+            }, {...ctx, executionAuthority: 'read-only', scratchRoot}) as {
+                success: boolean; exitCode: number | null; timedOut: boolean; cancelled: boolean; error?: string; stderr: string
+            }
+            if (commandResult.cancelled) signal?.throwIfAborted()
+            if (!fs.existsSync(stdoutPath) || !fs.existsSync(stderrPath))
+                return needs('Provide the existing read-only engineering-check environment.', commandResult.error ?? commandResult.stderr, 'Linux bubblewrap')
+            const stdout = fs.readFileSync(stdoutPath, 'utf8'), stderr = fs.readFileSync(stderrPath, 'utf8')
+            const timedOut = commandResult.timedOut
+            const passed = commandResult.success
+            countEngineering("testsRun")
+            if (!passed) countEngineering("testFailures")
+            const fullOutput = stdout + "\n" + stderr + (timedOut ? "\nVerification command timed out." : "")
+            const output = fullOutput.slice(-16000)
+            if (command[1] === "test" || playwright) {
+                const execution = await recordTestExecution(store, store.root, command, {
+                    passed,
+                    output: fullOutput,
+                    exitCode: commandResult.exitCode ?? undefined,
+                    durationMs: Date.now() - startedAt,
+                    hashesBefore
+                })
+                for (const test of indexedTests)
+                    if (execution.testFiles.includes(test.filePath || test.targetPath || "")) executedNodes.add(test.id)
+            }
+            currentTests.push({ command, passed, output })
         }
-        signal?.addEventListener("abort", onAbort, { once: true })
-        const timeout = setTimeout(() => {
-            timedOut = true
-            process.kill()
-        }, 60000)
-        const startedAt = Date.now()
-        const [stdout, stderr, exit] = await Promise.all([
-            new Response(process.stdout).text(),
-            new Response(process.stderr).text(),
-            process.exited
-        ]).finally(() => {
-            clearTimeout(timeout)
-            signal?.removeEventListener("abort", onAbort)
-        })
-        if (aborted) signal?.throwIfAborted()
-        const passed = exit === 0 && !timedOut
-        countEngineering("testsRun")
-        if (!passed) countEngineering("testFailures")
-        const fullOutput = stdout + "\n" + stderr + (timedOut ? "\nVerification command timed out." : "")
-        const output = fullOutput.slice(-16000)
-        if (command[1] === "test" || playwright) {
-            const execution = await recordTestExecution(store, store.root, command, {
-                passed,
-                output: fullOutput,
-                exitCode: exit,
-                durationMs: Date.now() - startedAt,
-                hashesBefore
-            })
-            for (const test of indexedTests)
-                if (execution.testFiles.includes(test.filePath || test.targetPath || "")) executedNodes.add(test.id)
-        }
-        currentTests.push({ command, passed, output })
-    }
-    const testNodes = currentTests.some(test => !test.passed) ? [] : await currentTestEvidence(store, [...executedNodes])
-    const evidenceComplete =
-        testNodes.length > 0 &&
-        testNodes.every(test => test.passed) &&
-        graphTests.tests.every(required => testNodes.some(test => test.id === store.localId(required.id)))
-    return { status: "complete", artifactId, value: { tests: currentTests, testNodes, evidenceComplete } }
+        const testNodes = currentTests.some(test => !test.passed) ? [] : await currentTestEvidence(store, [...executedNodes])
+        const evidenceComplete =
+            testNodes.length > 0 &&
+            testNodes.every(test => test.passed) &&
+            graphTests.tests.every(required => testNodes.some(test => test.id === store.localId(required.id)))
+        return { status: "complete", artifactId, value: { tests: currentTests, testNodes, evidenceComplete } }
+    } finally { fs.rmSync(scratchRoot, {recursive: true, force: true}) }
 }
 
 /** Independent acceptance uses current graph-narrowed source, not producer history. */

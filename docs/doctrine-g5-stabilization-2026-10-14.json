@@ -1,0 +1,373 @@
+{
+  "date": "2026-10-14",
+  "recordedAt": "2026-10-14T20:16:24Z",
+  "status": "Blocked",
+  "scope": "One bounded stabilization slice; no release certification",
+  "heads": {
+    "aiwf": "f928971c22576d18a136f290f642de1723fb790a",
+    "semantika": "0d395ee2b2cef6a03a7cdee23b3a23fe9073e575"
+  },
+  "thisSlice": {
+    "codeFiles": [
+      "tests/actor-engine-boundaries.test.ts",
+      "src/graph/store.ts",
+      "tests/doctrine-scope.test.ts"
+    ],
+    "providerChanges": [],
+    "newEvidenceFiles": [
+      "docs/doctrine-g5-stabilization-2026-10-14.md",
+      "docs/doctrine-g5-stabilization-2026-10-14.json"
+    ],
+    "projectionWork": false
+  },
+  "findings": [
+    {
+      "id": "registry-isolation",
+      "before": "afterEach calls initializeTools; its once-only lifecycle cannot restore registered overrides; 55 failures in subsequent resolution/doctrine/scope tests",
+      "after": "Fixture snapshots registered definitions and restores them in afterEach. A fresh subprocess deliberately fails with temporary overrides, then successfully executes the production tool in the next test. Original production restrictions and assertions retained."
+    },
+    {
+      "id": "indexing-authority-lifetime",
+      "before": "Detached async descendant successfully creates a Module after its index callback has returned",
+      "after": "Callback-scoped active authority is revoked in finally, files are copied, and persistence rechecks activity after admission awaits. Regression rejects the mutation and confirms no Module was persisted."
+    },
+    {
+      "id": "admission-duplication",
+      "before": "Three CAS retry loops for admit, renew and release",
+      "after": "One private canonical admission-row update loop; no generalized lock framework. Expired leases are pruned. Renewal rejects invalid durations and cannot revive abandoned owners."
+    }
+  ],
+  "review": {
+    "admission": "One canonical Artifact and one conditional CAS owner. No SQL transaction across model work. Fresh-process exclusion, restart recovery, stale-owner renewal/refusal and idempotent release pass.",
+    "scope": "One in-progress scope on canonical Ticket metadata; independently accepted VERIFY remains authoritative current proof. Restart retains pending scope after failed completion; successful completion clears it atomically. No parallel tracker or journal.",
+    "completion": "Conditional public batch includes admission assertion, Ticket/claim revision, current proof replacement and verifies link. Injected SQL failure/restart tests pass; source validation remains resolver/change-engine responsibility, not a SQLite filesystem transaction.",
+    "limits": "Trusted host owns indexing callback access. Truly independent OS processes remain outside managed tool permission enforcement. This narrow review is not the full Gate 5 whole-method release audit."
+  },
+  "checks": [
+    {
+      "id": "focused-before",
+      "commandDescription": "bun test tests/actor-engine-boundaries.test.ts tests/ticket-resolution.test.ts tests/doctrine-verifier.test.ts tests/doctrine-scope.test.ts",
+      "exitCode": 1,
+      "counts": {
+        "pass": 49,
+        "fail": 55,
+        "skip": 1
+      },
+      "log": "/tmp/g5-stabilization-before.log",
+      "sha256": "a42c2fcac1992eb74707db52e0d28f5c01d24a5471f91707887398b3bc0b6ede",
+      "tail": [
+        "(fail) Doctrine Gate 3 deterministic enforcement contracts > keeps Rule failure feedback in the existing bounded repair loop [179.50ms]",
+        "(fail) Doctrine Gate 3 deterministic enforcement contracts > surfaces an expected Rule violation without treating it as unknown or blocking completion [160.89ms]",
+        "(fail) Doctrine Gate 3 deterministic enforcement contracts > invalidates a receipt when an applicable expected Rule changes [167.73ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > authorized expansion supplies module Rule, Decision and Aspect to producer and verifier; violation prevents Done [230.01ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > explicit dirty authorization preserves user bytes and attributes only guarded effects; unexpected edit is refused [210.45ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > injected SQL failure rolls back proof, relationship and Done together, and restart preserves that result [191.82ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > new files receive their index-derived module obligations before creation and real assertions verify them [199.61ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > file rename discovers both endpoints and secondary LSP edits; persisted evidence identifies the attributable rename [478.83ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > child attribution remains separate from parent reporting and parent acceptance [287.25ms]",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > a failed acceptance cannot forget the original module after guarded file relocation on retry [628.70ms]",
+        "",
+        " 49 pass",
+        " 1 skip",
+        " 55 fail",
+        " 417 expect() calls",
+        "Ran 105 tests across 4 files. [26.67s]"
+      ]
+    },
+    {
+      "id": "focused-after",
+      "commandDescription": "same focused combination after isolation and authority repair",
+      "exitCode": 0,
+      "counts": {
+        "pass": 106,
+        "fail": 0,
+        "skip": 1
+      },
+      "log": "/tmp/g5-stabilization-focused-final.log",
+      "sha256": "4c69b6d67a6b58675d20b4b88a2b1017b1711c3031a0ffec0093cb1a4d329559",
+      "tail": [
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > injected SQL failure rolls back proof, relationship and Done together, and restart preserves that result [854.47ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > shared command adapter and MCP registry preserve per-Ticket expansion authorization [45.72ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > new files receive their index-derived module obligations before creation and real assertions verify them [340.54ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > file rename discovers both endpoints and secondary LSP edits; persisted evidence identifies the attributable rename [702.60ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > child attribution remains separate from parent reporting and parent acceptance [436.95ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > a failed acceptance cannot forget the original module after guarded file relocation on retry [662.65ms]",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        "1 tests skipped:",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        " 106 pass",
+        " 1 skip",
+        " 0 fail",
+        " 616 expect() calls",
+        "Ran 107 tests across 4 files. [34.61s]"
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "commandDescription": "bun test tests/actor-engine-boundaries.test.ts tests/doctrine-scope.test.ts",
+      "exitCode": 0,
+      "counts": {
+        "pass": 23,
+        "fail": 0,
+        "skip": 1
+      },
+      "log": "/tmp/g5-stabilization-lifecycle.log",
+      "sha256": "8e5ccb8a12ee2667168a100d7f4712bdb1850c54aadde5866910294d8ad2218f",
+      "tail": [
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > injected SQL failure rolls back proof, relationship and Done together, and restart preserves that result [981.28ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > shared command adapter and MCP registry preserve per-Ticket expansion authorization [39.80ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > new files receive their index-derived module obligations before creation and real assertions verify them [335.62ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > file rename discovers both endpoints and secondary LSP edits; persisted evidence identifies the attributable rename [776.16ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > child attribution remains separate from parent reporting and parent acceptance [480.24ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > a failed acceptance cannot forget the original module after guarded file relocation on retry [717.81ms]",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        "1 tests skipped:",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        " 23 pass",
+        " 1 skip",
+        " 0 fail",
+        " 146 expect() calls",
+        "Ran 24 tests across 2 files. [5.48s]"
+      ]
+    },
+    {
+      "id": "full",
+      "commandDescription": "bun test",
+      "exitCode": 0,
+      "counts": {
+        "pass": 456,
+        "fail": 0,
+        "skip": 5
+      },
+      "log": "/tmp/g5-stabilization-full.log",
+      "sha256": "8d874ec61667d1a7590c33070b30fb8dc77c4f16b46ef0afc896d51e13601a15",
+      "tail": [
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > child attribution remains separate from parent reporting and parent acceptance [503.75ms]",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > a failed acceptance cannot forget the original module after guarded file relocation on retry [715.29ms]",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        "5 tests skipped:",
+        "(skip) Skill and synthesis production journeys > a developer gets a checkout stylesheet grounded in the project design skill",
+        "(skip) Skill and synthesis production journeys > a maintainer repairs checkout surcharges and discounts through the exact authored ticket",
+        "(skip) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race",
+        "(skip) real OpenRouter rejects a violation despite passing tests and hostile approved reference comments, then accepts repair offline",
+        "(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair",
+        "",
+        " 456 pass",
+        " 5 skip",
+        " 0 fail",
+        " 2914 expect() calls",
+        "Ran 461 tests across 60 files. [64.13s]"
+      ]
+    },
+    {
+      "id": "typecheck",
+      "commandDescription": "bun run typecheck",
+      "exitCode": 0,
+      "counts": {},
+      "log": "/tmp/g5-stabilization-typecheck.log",
+      "sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tail": [
+        "$ tsc --noEmit"
+      ]
+    },
+    {
+      "id": "build",
+      "commandDescription": "bun run pack",
+      "exitCode": 0,
+      "counts": {},
+      "log": "/tmp/g5-stabilization-build.log",
+      "sha256": "35ef0cc7a3622b8c9ba3847e01c3b24a24ad7e689adcc84af46bb2c137ed3b64",
+      "tail": [
+        "$ bun scripts/build.ts",
+        "Built AIWF 2.0.0 build 867 @ f928971c2257 (dirty), updated 2026-10-14T19:45:12+03:00; llm-utils @ f8222aaa155a0b86f50b7cacbe0701ed29d86840"
+      ]
+    },
+    {
+      "id": "provider-tests",
+      "commandDescription": "bun test (Semantika)",
+      "exitCode": 0,
+      "counts": {
+        "pass": 49,
+        "fail": 0
+      },
+      "log": "/tmp/g5-stabilization-semantika-tests.log",
+      "sha256": "9177650f3668070ac98e711f1895565fc07576ce842f1ddc30318c98c36aadc6",
+      "tail": [
+        "",
+        "tests/sqlite-batch.spec.ts:",
+        "(pass) batch commits fresh records with optimistic versions and preserves supplied objects [1.29ms]",
+        "(pass) real database failure rolls back all entities, versions and unique-index state [1.32ms]",
+        "(pass) stale concurrent revisions reject the entire batch [0.53ms]",
+        "(pass) unique-index violations roll back earlier deletes and updates [0.51ms]",
+        "(pass) nested transactions cannot expose uncommitted batch results [0.34ms]",
+        "(pass) duplicate identities and invalid revisions fail before any writes [0.45ms]",
+        "(pass) assertion-only entries condition a multi-collection outcome without rewriting the asserted row [0.71ms]",
+        "(pass) public entity and predicate collection names identify the actual SQLite batch collections [1.30ms]",
+        "(pass) entities keep their owning package instance when another project uses the same package name [1.55ms]",
+        "",
+        " 49 pass",
+        " 0 fail",
+        " 294 expect() calls",
+        "Ran 49 tests across 6 files. [739.00ms]"
+      ]
+    },
+    {
+      "id": "provider-build",
+      "commandDescription": "bun run build (Semantika)",
+      "exitCode": 0,
+      "counts": {},
+      "log": "/tmp/g5-stabilization-semantika-build.log",
+      "sha256": "5ac71a99decf5b92dbfe798066cbe8ea317395f8f764f5a8879fd3511ca99454",
+      "tail": [
+        "$ tsc"
+      ]
+    },
+    {
+      "id": "live",
+      "commandDescription": "env -u OPENROUTER_API_KEY AIWF_G5_LIVE=1 AIWF_DOCTRINE_LIVE=1 AIWF_G4_LIVE=1 bun test tests/doctrine-scope.test.ts tests/doctrine-enforcement-live.test.ts tests/doctrine-management-live.test.ts --test-name-pattern configured-live-independent-or-OpenRouter",
+      "exitCode": 0,
+      "counts": {
+        "pass": 3,
+        "fail": 0,
+        "filtered out": 12
+      },
+      "log": "/tmp/g5-stabilization-live.log",
+      "sha256": "50457548eb0d52aef7edaf87ee97822f1caa0e32c9e4bed0bd7706501eab210c",
+      "tail": [
+        "Live doctrine evidence recorded: race",
+        "Live doctrine evidence recorded: metrics",
+        "Live doctrine evidence recorded: completed",
+        "(pass) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race [31788.55ms]",
+        "",
+        "tests/doctrine-management-live.test.ts:",
+        "(pass) real OpenRouter rejects a violation despite passing tests and hostile approved reference comments, then accepts repair offline [16987.94ms]",
+        "",
+        "tests/doctrine-scope.test.ts:",
+        "(pass) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair [19790.35ms]",
+        "",
+        " 3 pass",
+        " 12 filtered out",
+        " 0 fail",
+        " 32 expect() calls",
+        "Ran 3 tests across 3 files. [68.73s]"
+      ]
+    },
+    {
+      "id": "authority-before",
+      "commandDescription": "bun test tests/doctrine-scope.test.ts --test-name-pattern index-derived-authority-ends",
+      "exitCode": 1,
+      "counts": {
+        "pass": 0,
+        "fail": 1,
+        "filtered out": 12
+      },
+      "log": "/tmp/g5-index-authority-before.log",
+      "sha256": "a5927f0d33395ed1a0f367148c85de553bd2cd136c1c6870ebd668bedd88f8a8",
+      "tail": [
+        "132 |       resume();",
+        "133 |       await expect(descendant).rejects.toThrow('Governance admission conflict');",
+        "                                             ^",
+        "error: ",
+        "",
+        "Expected promise that rejects",
+        "Received promise that resolved: Promise { <resolved> }",
+        "",
+        "      at <anonymous> (/home/dharmax/work/ai-workflow/tests/doctrine-scope.test.ts:133:40)",
+        "(fail) Gate 5 Actor Stories through public Ticket and governance operations > index-derived authority ends with its callback, including detached asynchronous descendants [67.93ms]",
+        "",
+        " 0 pass",
+        " 12 filtered out",
+        " 1 fail",
+        " 1 expect() calls",
+        "Ran 1 test across 1 file. [235.00ms]"
+      ]
+    }
+  ],
+  "live": {
+    "critic": "openrouter/anthropic/claude-sonnet-4.6",
+    "results": [
+      "Gate 3 rejection/guarded repair/stale-proof/governance-race journey passed",
+      "Gate 4 hostile-reference violation rejected; guarded repair accepted, offline proof reuse passed",
+      "Gate 5 actual unlinked violation rejected despite passing tests; real managed Actor guarded repair independently accepted and persisted across restart"
+    ],
+    "latestScopeEvidence": "/tmp/g5-live-acceptance.json",
+    "priorScopeEvidenceBackup": "/tmp/g5-live-acceptance-before-stabilization.json",
+    "skippedLocalJourneys": "No retry of two Qwen skill/exact-source journeys previously blocked by 60-second inference timeouts; historical log /tmp/g5-all-live-final.log retains 15 pass, 2 fail, 1 skip. This slice selected only the three relevant doctrine journeys."
+  },
+  "pd01": {
+    "priorOriginalExecutableResult": {
+      "status": "needs_input",
+      "reuseAfterRuleChange": "blocked",
+      "lane": "Todo",
+      "changedFile": "export function other(){return 1;}\n",
+      "afterRules": [],
+      "rulesForActualChangedFile": [
+        "scope-rule"
+      ],
+      "receipt": null
+    },
+    "note": "Original audit reproduction was rerun in the preceding implementation slice. Not rerun in this stabilization slice; current public scope and configured live journeys passed."
+  },
+  "remaining": [
+    "Full Gate 5 whole-method audit and original release checklist beyond this narrow slice",
+    "Canonical end-to-end release acceptance and final dated evidence/status reconciliation; earlier canonical resolves were bounded-dependency or Actor-budget blocked",
+    "Two nonselected local Qwen live journeys remain unqualified, not silently passed"
+  ],
+  "commitCandidates": [
+    {
+      "repository": "semantika",
+      "title": "fix: make SQLite conditional batches and package ownership reliable",
+      "files": [
+        "src/storage/sqlite-store/sqlite-store.ts",
+        "src/artifact-collection.ts",
+        "src/semantic-artifact.ts",
+        "tests/sqlite-batch.spec.ts"
+      ]
+    },
+    {
+      "repository": "ai-workflow",
+      "title": "test: restore Actor boundary tools after failed tests",
+      "files": [
+        "tests/actor-engine-boundaries.test.ts"
+      ]
+    },
+    {
+      "repository": "ai-workflow",
+      "title": "fix: govern attributable Ticket effects and complete acceptance atomically",
+      "dependency": "Semantika contract commit first",
+      "files": [
+        "plans/AIWF-ENGINEERING-RULES-DESIGN-PLAN.md",
+        "src/artifact-command.ts",
+        "src/change/engine.ts",
+        "src/change/types.ts",
+        "src/graph/indexer.ts",
+        "src/graph/ontology.ts",
+        "src/graph/store.ts",
+        "src/product/context.ts",
+        "src/product/mutation.ts",
+        "src/rules/store.ts",
+        "src/ticket-operation-types.ts",
+        "src/ticket/implementation.ts",
+        "src/ticket/prompts/acceptance.txt",
+        "src/ticket/prompts/goal.txt",
+        "src/ticket/resolve.ts",
+        "src/ticket/verification.ts",
+        "src/tools/tickets.ts",
+        "src/verification-context.ts",
+        "tests/doctrine-enforcement-live.test.ts",
+        "tests/doctrine-management.test.ts",
+        "tests/doctrine-verifier.test.ts",
+        "tests/ticket-resolution.test.ts",
+        "tests/doctrine-scope.test.ts",
+        "docs/doctrine-g5-stabilization-2026-10-14.md",
+        "docs/doctrine-g5-stabilization-2026-10-14.json"
+      ]
+    }
+  ],
+  "gitActions": "None: no commit, push, reset, revert, stash or branch creation; unrelated existing files preserved."
+}

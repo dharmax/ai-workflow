@@ -21,7 +21,7 @@ import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
-import { SymbolNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
+import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
 import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
@@ -38,6 +38,7 @@ import type {
 } from './types.ts';
 
 export interface ChangeEngineOptions {
+  governedAdmission?: string;
   store: WorkflowStore;
   projectRoot: string;
   lspClient?: TsLspClient;
@@ -124,6 +125,11 @@ export function normalizeWorkspaceEdit(
           from: path.relative(projectRoot, fromAbs),
           to: path.relative(projectRoot, toAbs)
         });
+      } else if ('kind' in docChange) {
+        if (docChange.kind !== 'create') throw Error('Workspace file deletion is unsupported; refusing partial effects.');
+        const relative = path.relative(projectRoot, lspClient.fromUri(docChange.uri));
+        if (fs.existsSync(path.resolve(projectRoot, relative))) throw Error(`Workspace creation would overwrite '${relative}'.`);
+        if (!fileEdits.has(relative)) fileEdits.set(relative, []);
       } else if ('textDocument' in docChange) {
         const absPath = lspClient.fromUri(docChange.textDocument.uri);
         const relPath = path.relative(projectRoot, absPath);
@@ -134,6 +140,8 @@ export function normalizeWorkspaceEdit(
     }
   }
 
+  if (fileRenames.some(rename => fileEdits.has(rename.to)))
+    throw Error('Editing a rename destination in the same workspace edit is unsupported; refusing partial effects.');
   return { fileEdits, fileRenames };
 }
 
@@ -206,12 +214,14 @@ export function computeChangeFingerprint(
 
 export class CausalChangeEngine {
   public readonly store: WorkflowStore;
+  private readonly governedAdmission?: string;
   public readonly projectRoot: string;
   public readonly lspClient: TsLspClient;
   public readonly ts6Client: Ts6RefactorClient;
 
   constructor(options: ChangeEngineOptions) {
     this.store = options.store;
+    this.governedAdmission = options.governedAdmission;
     this.projectRoot = path.resolve(options.projectRoot);
     this.lspClient = options.lspClient || getTsLspClient(this.projectRoot);
     this.ts6Client = options.ts6Client || getTs6RefactorClient(this.projectRoot);
@@ -532,6 +542,12 @@ export class CausalChangeEngine {
       }
     }
 
+    // Include every secondary edit, creation and both rename endpoints before authorization/fingerprinting.
+    for (const mutation of mutations) if (mutation.kind === 'workspace_edit') {
+      const normalized = normalizeWorkspaceEdit(mutation.edit, this.lspClient, this.projectRoot);
+      for (const file of normalized.fileEdits.keys()) affectedFilesSet.add(file);
+      for (const rename of normalized.fileRenames) { affectedFilesSet.add(rename.from); affectedFilesSet.add(rename.to); }
+    }
     const affectedFiles = Array.from(affectedFilesSet).sort();
     try { for (const file of affectedFiles) workspacePath(this.projectRoot, file); }
     catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
@@ -542,7 +558,7 @@ export class CausalChangeEngine {
       if (fs.existsSync(abs)) {
         const content = fs.readFileSync(abs, 'utf8');
         originalHashes[f] = computeFileSha256(content);
-      }
+      } else originalHashes[f] = 'missing';
     }
 
     const verification: VerificationPlan = {
@@ -717,6 +733,10 @@ export class CausalChangeEngine {
     // 2. Validate current disk hashes against preview original hashes
     for (const [relPath, expectedHash] of Object.entries(preview.originalHashes)) {
       const absPath = path.resolve(this.projectRoot, relPath);
+      if (expectedHash === 'missing') {
+        if (fs.existsSync(absPath)) throw Error(`File '${relPath}' appeared after preview. Aborting apply.`);
+        continue;
+      }
       if (!fs.existsSync(absPath)) {
         throw new Error(`File '${relPath}' was removed after preview was computed.`);
       }
@@ -760,6 +780,21 @@ export class CausalChangeEngine {
       materializedFiles.set(absPath, updated);
     }
 
+    const expectedAfter = {...preview.originalHashes};
+    for (const [absolute, content] of materializedFiles)
+      expectedAfter[path.relative(this.projectRoot, absolute)] = computeFileSha256(content);
+    for (const rename of combinedRenames) {
+      expectedAfter[rename.to] = expectedAfter[rename.from];
+      expectedAfter[rename.from] = 'missing';
+    }
+    // Admission may await; revalidate source once more immediately before synchronous filesystem writes.
+    if (this.governedAdmission) await this.store.governanceAssertion(this.governedAdmission);
+    for (const [file, expected] of Object.entries(preview.originalHashes)) {
+      const absolute = path.resolve(this.projectRoot, file);
+      const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
+      if (actual !== expected) throw Error(`File '${file}' changed before guarded commit.`);
+    }
+
     // 5. Commit phase with best-effort rollback on filesystem error
     const writtenFiles: string[] = [];
     const executedRenames: Array<{ from: string; to: string }> = [];
@@ -800,26 +835,32 @@ export class CausalChangeEngine {
       throw new Error(`Failed to commit change to disk; rolled back touches: ${err.message}`);
     }
 
-    // 6a. Snapshot durable incoming relations for anchor migration before re-indexing deletes old symbol
-    const durableRelationsSnapshot: Array<{ sourceId: string; predicate: string }> = [];
-    let oldAnchorId: string | undefined;
-    const isAnchorMigratingAction = request.action === 'rename_symbol' ||
-      (request.action === 'refactor' && (request.refactorKind.toLowerCase().includes('move') || request.refactorKind.toLowerCase().includes('extract')));
-
-    if (preview.resolvedTarget?.graphEntityId && isAnchorMigratingAction) {
-      oldAnchorId = preview.resolvedTarget.graphEntityId;
-      const durablePredicates = ['modifies', 'targets', 'governs'];
-      for (const pred of durablePredicates) {
-        const incoming = await this.store.getIncoming(oldAnchorId, pred);
-        for (const edge of incoming) {
-          durableRelationsSnapshot.push({ sourceId: edge.sourceId, predicate: pred });
-        }
-      }
+    // Preserve durable source-anchor identities and provenance before re-indexing.
+    const anchorSources: Array<{oldId: string; symbol?: SymbolNode; relations: Array<{sourceId: string; predicate: string}>}> = [];
+    const renameFile = request.action === 'rename_file';
+    const migrating = renameFile || request.action === 'rename_symbol' ||
+      (request.action === 'refactor' && /move|extract/i.test(request.refactorKind));
+    const anchors: Array<FileNode | SymbolNode> = [];
+    if (renameFile) {
+      const file = await this.store.getEntity<FileNode>(workspacePath(this.projectRoot, request.oldPath), FileNode.dcr);
+      if (file) anchors.push(file);
+      anchors.push(...(await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: workspacePath(this.projectRoot, request.oldPath)}))
+        .filter(symbol => symbol.status !== 'deprecated'));
+    } else if (migrating && preview.resolvedTarget?.graphEntityId) {
+      const symbol = await this.store.getEntity<SymbolNode>(preview.resolvedTarget.graphEntityId, SymbolNode.dcr);
+      if (symbol) anchors.push(symbol);
+    }
+    for (const anchor of anchors) {
+      const relations: Array<{sourceId: string; predicate: string}> = [];
+      for (const predicate of ['modifies', 'targets', 'governs'])
+        for (const edge of await this.store.getIncoming(anchor.id, predicate)) relations.push({sourceId: edge.sourceId, predicate});
+      if (relations.length) anchorSources.push({oldId: anchor.id, symbol: anchor instanceof SymbolNode ? anchor : undefined, relations});
     }
 
     // 6b. Re-index touched files
     const reindexedFiles: string[] = [];
     const filesToReindex = new Set<string>([...preview.affectedFiles, ...combinedFileEdits.keys()]);
+    const reindex = async () => {
     for (const f of filesToReindex) {
       const abs = path.resolve(this.projectRoot, f);
       if (fs.existsSync(abs)) {
@@ -827,46 +868,30 @@ export class CausalChangeEngine {
         reindexedFiles.push(f);
       }
     }
-    for (const r of executedRenames) {
-      const toAbs = path.resolve(this.projectRoot, r.to);
-      if (fs.existsSync(toAbs)) {
-        await indexSingleFile(this.store, toAbs, r.to, this.projectRoot);
-        reindexedFiles.push(r.to);
+    };
+    if (this.governedAdmission) await this.store.withGovernedIndexing(this.governedAdmission, preview.affectedFiles, reindex);
+    else await reindex();
+
+    // Migrate only existing durable authority; failures cannot silently lose source obligations.
+    const migratedAnchors: Array<{oldId: string; newId: string}> = [];
+    for (const anchor of anchorSources) {
+      let target: FileNode | SymbolNode | null = null;
+      if (renameFile && !anchor.symbol) target = await this.store.getEntity<FileNode>(workspacePath(this.projectRoot, request.newPath), FileNode.dcr);
+      else {
+        const title = request.action === 'rename_symbol' ? request.newName : anchor.symbol!.title;
+        const candidates = (await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {title}))
+          .filter(symbol => symbol.status !== 'deprecated' && symbol.containerName === anchor.symbol!.containerName &&
+            filesToReindex.has(symbol.filePath!) && (!renameFile || symbol.filePath === workspacePath(this.projectRoot, request.newPath)));
+        if (candidates.length === 1) target = candidates[0];
       }
+      if (!target) throw Error(`Durable anchor '${anchor.oldId}' lacks an unambiguous post-change target.`);
+      for (const relation of anchor.relations)
+        await this.store.migrateCodeAnchor(relation.sourceId, relation.predicate, anchor.oldId, target, this.governedAdmission);
+      migratedAnchors.push({oldId: anchor.oldId, newId: target.id});
     }
-
-    // 7. Migrate durable semantic graph anchors (Ticket modifies, Decision governs, etc.)
-    const migratedAnchors: Array<{ oldId: string; newId: string }> = [];
-    if (preview.resolvedTarget?.graphEntityId && oldAnchorId && durableRelationsSnapshot.length > 0) {
-      const targetSymbolName = request.action === 'rename_symbol' ? request.newName : preview.resolvedTarget.symbolName;
-
-      // Locate newly reconciled symbol node across touched files
-      let newAnchor: SymbolNode | null = null;
-      for (const f of filesToReindex) {
-        const syms = (await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {
-          filePath: f,
-          title: targetSymbolName
-        })).filter(symbol => symbol.status !== 'deprecated');
-        if (syms.length === 1) {
-          newAnchor = syms[0];
-          break;
-        }
-      }
-
-      if (newAnchor && oldAnchorId) {
-        const newAnchorId = newAnchor.id;
-        for (const snap of durableRelationsSnapshot) {
-          try {
-            const source = await this.store.getEntity(snap.sourceId);
-            if (source) {
-              await this.store.relate(source, snap.predicate, newAnchor);
-              if (oldAnchorId !== newAnchorId) await this.store.unrelate(source.id, snap.predicate, oldAnchorId);
-            }
-          } catch {}
-        }
-        migratedAnchors.push({ oldId: oldAnchorId, newId: newAnchorId });
-      }
-    }
+    const refresh = () => ensureAstFresh(this.store, this.projectRoot);
+    if (this.governedAdmission) await this.store.withGovernedIndexing(this.governedAdmission, preview.affectedFiles, refresh);
+    else await refresh();
 
     // 8. Verification checks
     const verificationErrors: string[] = [];
@@ -880,10 +905,14 @@ export class CausalChangeEngine {
         }
       } catch (err: any) {
         verificationErrors.push(`Post-change LSP probe failed: ${err.message}`);
-        diagnosticsOk = false;
       }
     }
 
+    for (const [file, expected] of Object.entries(expectedAfter)) {
+      const absolute = path.resolve(this.projectRoot, file);
+      const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
+      if (actual !== expected) verificationErrors.push(`Observed effect for '${file}' differs from the guarded preview.`);
+    }
     const passed = verificationErrors.length === 0;
 
     return {
@@ -893,6 +922,8 @@ export class CausalChangeEngine {
       filesRenamed: executedRenames,
       reindexedFiles,
       migratedAnchors,
+      effects: {before: preview.originalHashes, after: expectedAfter,
+        edits: [...combinedFileEdits].map(([filePath, edits]) => ({filePath, edits}))},
       verification: {
         passed,
         errors: verificationErrors
