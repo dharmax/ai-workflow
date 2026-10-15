@@ -1,5 +1,17 @@
 # Operating AIWF
 
+**Governing design:** [Dharmax-way](../plans/AIWF-DHARMAX-WAY-DESIGN.md). **Authorized staged work:** [implementation plan](../plans/AIWF-DHARMAX-WAY-PLAN.md). The commands below describe the *current* pushed CLI unless explicitly marked as a future stage. AIWF's Story editor, proposal approval, Story-first lifecycle and portable DB import/export are planned work, not already available commands.
+
+## Current engineering rule for changes
+
+1. Name the concrete user/actor intention, initial State, Action and Expected Result; locate the existing Feature/Aspect/Story where applicable. Pure technical maintenance can use its own bounded Ticket without a fictitious Feature.
+2. Inspect actual Concepts → Architecture (owner/API/type) → execution Flow (callers, data, errors and bounds) → whole affected Implementation. Use existing graph and code tools to narrow source, not to tour the repository.
+3. For a new behavior, define the corresponding public Story test before implementing; when work starts, activate and establish attributable expected red, then make the smallest guarded change and prove observed green. Legacy implemented work requires truthful current verification, not a fictional red history.
+4. AI suggestions are proposals. Do not treat critic approval or automatically generated Markdown as developer acceptance. Until S2 changes the current `processIntent` semantics, use it only with awareness of its current auto-application behavior and explicit developer authorization.
+5. Changes to governing Aspects must identify affected entities through real relations and show unknowns; they do not authorize a blanket rewrite. Structural `coverage` is not current Story satisfaction.
+6. Execute **only the currently authorized stage** of the plan. Preserve existing Gate 5 safety and keep its actual canonical Blocked state until independent acceptance genuinely succeeds.
+
+
 This is the practical companion to the architecture. It describes how humans and coding agents should use AIWF without bypassing its state, duplicating its workflow, or turning investigation into an endless repository scan.
 
 ## 1. Default workflow
@@ -123,6 +135,9 @@ Use traces to find the **earliest evidenced defect**. A later timeout or malform
 Do not persist one-off trace narratives as permanent design documents. Durable conclusions belong in code, tests, AIWF state or the small architecture documentation.
 
 ## 8. Testing
+
+The ordinary product test emulates an approved Story via a real public UI, CLI, MCP or API: establish the initial state, perform the action and inspect the expected observable result. Test cases for material failure paths belong with the Story. Specialized isolated unit tests are warranted for genuine internal complexity/atomicity, not as substitutes for public Story behavior. A runnable skipped Story test is not a passing Story; a structural graph link is not an executed test. Distinguish provider/fixture failures from expected red.
+
 
 During implementation:
 
