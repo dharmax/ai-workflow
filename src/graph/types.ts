@@ -54,12 +54,19 @@ export interface AspectData extends BaseEntityData {
 }
 
 export interface FeatureData extends BaseEntityData {
+  priority?: number;
   completenessTarget?: CompletenessLevel | null;
   status?: IntentStatus;
   acceptanceCriteria?: string[];
 }
 
 export interface UserStoryData extends BaseEntityData {
+  intent?: string;
+  initialState?: string;
+  action?: string;
+  expectedResult?: string;
+  exceptions?: string;
+  bounds?: string;
   completenessTarget?: CompletenessLevel | null;
   status?: IntentStatus;
   actor?: string;

@@ -30,7 +30,9 @@ describe('Product Intent Causal Change', () => {
     const request: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic', status: 'planned' } },
       { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature', status: 'accepted' } },
-      { kind: 'product_create', entityType: 'UserStory', id: 'S1', fields: { title: 'Story', status: 'accepted' } },
+      { kind: 'product_create', entityType: 'UserStory', id: 'S1', fields: { title: 'Story', status: 'accepted',
+        actor: 'Developer', intent: 'Inspect feature work', initialState: 'Feature and Ticket exist',
+        action: 'Request product impact for the Feature', expectedResult: 'The linked Ticket is returned' } },
       { kind: 'product_create', entityType: 'Ticket', id: 'T1', fields: { title: 'Ticket', lane: 'Todo' } },
       { kind: 'product_link', sourceId: 'E1', predicate: 'targets', targetId: 'F1' },
       { kind: 'product_link', sourceId: 'F1', predicate: 'enables', targetId: 'S1' },

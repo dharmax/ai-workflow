@@ -108,11 +108,13 @@ description: Use AIWF for repository and sibling-source investigation, Ticket im
 
 Use AIWF as the primary engineering and work-management system.
 
+**Governing AIWF development contract:** [../../plans/AIWF-DHARMAX-WAY-DESIGN.md](../../plans/AIWF-DHARMAX-WAY-DESIGN.md); execute only the explicitly authorized stage in [../../plans/AIWF-DHARMAX-WAY-PLAN.md](../../plans/AIWF-DHARMAX-WAY-PLAN.md). Features describe functionality; Epics organize delivery; Aspects are authoritative shared definitions; User/Actor Stories require Intent, Initial State, Action and Expected Observable Result. The developer reviews AI proposals. The ordinary test emulates an accepted Story through the actual public interface. Current tools below remain *current implementation* instructions until the corresponding stages are genuinely accepted; do not claim that target UI/import-export/test-first capabilities already exist.
+
 ## Prime Directive
 
 ${PRIME_DIRECTIVE}
 
-Product development starts from actor journeys, not capability lists. Before implementing a product capability, identify the concrete actor situation, intention, interaction/progression and useful end state that give it meaning. The actor may be human, agent, API client, service, scheduler or other system actor. Derive capabilities, architecture and acceptance tests from that journey. Pure technical maintenance may remain direct Ticket work; never manufacture product ceremony.
+Product development starts with developer-owned intent (Goals/Concepts/Features/Aspects) and complete, explicitly reviewed User/Actor Stories. A Story title is not its body: include Intent, Initial State, Action and Expected Observable Result, with material exceptions/bounds. Propose coherent Epics/Tickets/test specifications for review; never let AI critic approval silently substitute for developer acceptance. Test new product behavior before implementation (activate and establish expected red when work begins). Preserve pure technical maintenance as direct grounded Ticket work without fabricated product ceremony.
 
 **Agency invariant:** the LLM Actor is the general problem solver. Sophisticated goals require an adequate configured reasoning route and flexible execution means; System-1 may advise but never gate. Ordinary tools, discovery, environment execution and ephemeral deterministic composition are optional means chosen by the Actor. Compilation is never the default definition of sophistication. Current-project claims require observed evidence. For Actor/discovery/composition/model-routing changes, follow \`docs/architecture.md\` and prove J2.4/J2.5 from \`docs/journeys.md\` through the real host boundary.
 

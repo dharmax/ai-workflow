@@ -29,9 +29,11 @@ describe('first-class Aspects', () => {
     expect((await f.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
     expect((await s.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
     expect((await c.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
+    await robust.applyTo(t, store);
+    expect((await robust.view(store)).scopes).toContain('T');
     await store.relate(c, 'contains', t);
     await expect(c.applicableAspects(store)).rejects.toThrow('containment cycle');
-    await expect(robust.applyTo(t, store)).rejects.toThrow('not allowed');
+    await expect(robust.applyTo(t, store)).rejects.toThrow('cycle');
   });
 
   it('accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work', async () => {
@@ -53,11 +55,11 @@ describe('first-class Aspects', () => {
   });
 
   it('uses the same preview/fingerprint boundary for Aspect mutation and rejects invalid later links before writes', async () => {
-    await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Work', lane: 'Todo' });
+    await store.upsertEntity<Decision>(Decision.dcr, { id: 'D', title: 'Engineering decision' });
     const engine = new CausalChangeEngine({ store, projectRoot: root });
     const bad = { action: 'product_change' as const, mutations: [
       { kind: 'product_create' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Concern', status: 'accepted' } },
-      { kind: 'product_link' as const, sourceId: 'A', predicate: 'applies_to', targetId: 'T' }
+      { kind: 'product_link' as const, sourceId: 'A', predicate: 'applies_to', targetId: 'D' }
     ] };
     expect((await engine.previewChange(bad)).blocked).toBe(true);
     expect(await store.getEntity('A', Aspect.dcr)).toBeNull();

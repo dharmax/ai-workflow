@@ -48,6 +48,10 @@ describe('top-level Product Intent journey mechanisms', () => {
       title: 'Developer asks what to work on next',
       actor: 'Developer',
       context: 'There are several open work items.',
+      intent: 'Choose useful work to start',
+      initialState: 'Several open Tickets have priorities and prerequisites',
+      action: 'Ask AIWF what to work on next',
+      expectedResult: 'An actionable Ticket recommendation includes a concise reason',
       story: 'The developer asks for the next recommended ticket; AIWF returns an actionable recommendation with a concise reason and the developer can continue immediately.',
       acceptanceCriteria: ['The recommendation is actionable and grounded in current project state'],
       status: 'accepted'

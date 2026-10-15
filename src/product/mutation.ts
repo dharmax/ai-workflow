@@ -16,6 +16,8 @@ const ticketPriority = z.enum(['P0', 'P1', 'P2', 'P3']);
 const fields = z.object({
   title: z.string().min(1), body: z.string(), status: z.string(), priority: z.union([z.number(), ticketPriority]),
   acceptanceCriteria: z.array(z.string()), actor: z.string(), story: z.string(), context: z.string(),
+  intent: z.string(), initialState: z.string(), action: z.string(), expectedResult: z.string(),
+  exceptions: z.string(), bounds: z.string(),
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
 }).partial().strict();
 
@@ -29,7 +31,7 @@ export const ProductMutationSchema = z.discriminatedUnion('kind', [
 export type ProductMutation = z.infer<typeof ProductMutationSchema> & { source?: never };
 
 const relations: Array<[ProductKind, string, ProductKind]> = [
-  ...(['Idea', 'Goal', 'Concept', 'Flow', 'Module', 'Epic', 'Feature', 'UserStory'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
+  ...(['Idea', 'Goal', 'Concept', 'Flow', 'Module', 'Epic', 'Feature', 'UserStory', 'File', 'Symbol', 'Ticket', 'Test', 'Artifact'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
   ['Ticket', 'addresses', 'Aspect'], ['Test', 'verifies', 'Aspect'], ['Artifact', 'verifies', 'Aspect'], ['Decision', 'governs', 'Aspect'],
   ['Idea', 'inspires', 'Goal'], ['Idea', 'inspires', 'Concept'], ['Idea', 'inspires', 'Flow'],
   ['Goal', 'inspires', 'Concept'], ['Flow', 'serves', 'Goal'],
@@ -68,15 +70,15 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
   return found[0];
 }
 
-function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean): void {
+function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean, previous: Record<string, unknown> = {}): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
     Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Goal: ['title', 'body', 'status'],
     Concept: ['title', 'body', 'status'], Flow: ['title', 'body', 'status', 'actor', 'context'],
     Artifact: [], File: [], Symbol: [],
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
-    Feature: ['title', 'body', 'status', 'acceptanceCriteria', 'completenessTarget'],
-    UserStory: ['title', 'status', 'actor', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
+    Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget'],
+    UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
     Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: [], Decision: [], Module: ['completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
@@ -86,7 +88,17 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     if (kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
-  if (kind === 'Epic' && input.priority !== undefined) z.number().parse(input.priority);
+  if (kind === 'UserStory') {
+    const next = { ...previous, ...input };
+    const semanticFields = ['actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla'];
+    // Historical acceptance survives metadata edits; accepting or revising its meaning requires a complete scenario.
+    if (next.status === 'accepted' && (create || input.status === 'accepted' || semanticFields.some(key => key in input))) {
+      const missing = ['actor', 'intent', 'initialState', 'action', 'expectedResult']
+        .filter(key => typeof next[key] !== 'string' || !(next[key] as string).trim());
+      if (missing.length) throw new Error(`Accepted UserStory requires complete Story fields: ${missing.join(', ')}.`);
+    }
+  }
+  if ((kind === 'Epic' || kind === 'Feature') && input.priority !== undefined) z.number().parse(input.priority);
   if (kind === 'Ticket' && input.priority !== undefined) ticketPriority.parse(input.priority);
 }
 
@@ -102,7 +114,7 @@ export async function productDependents(store: WorkflowStore, id: string) {
 export async function validateProductMutations(store: WorkflowStore, mutations: ProductMutation[]) {
   if (!mutations.length) throw new Error('Product change requires at least one mutation.');
   mutations.forEach(mutation => ProductMutationSchema.parse(mutation));
-  const state = new Map<string, { kind: ProductKind; exists: boolean; lane?: TicketLane }>();
+  const state = new Map<string, { kind: ProductKind; exists: boolean; lane?: TicketLane; fields: Record<string, unknown> }>();
   const edges = new Map<string, { sourceId: string; predicate: string; targetId: string }>();
   const snapshot: Record<string, unknown> = {};
   const key = (s: string, p: string, t: string) => JSON.stringify([s, p, t]);
@@ -110,8 +122,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     if (state.has(id)) return state.get(id)!;
     const entity = await resolveProductEntity(store, id);
     const kind = productKind(entity)!;
-    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
-    state.set(id, { kind, exists: true, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
+    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const incoming = await store.getIncoming(entity.id);
     const outgoing = await store.getOutgoing(entity.id);
     snapshot[id] = { kind, fields, incoming: incoming.map(e => [e.sourceId, e.predicateName, e.targetId]).sort(), outgoing: outgoing.map(e => [e.sourceId, e.predicateName, e.targetId]).sort() };
@@ -140,13 +152,14 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
       validateFields(mutation.entityType, mutation.fields, true);
       if (mutation.entityType === 'Ticket') ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status);
-      state.set(mutation.id, { kind: mutation.entityType, exists: true, lane: mutation.entityType === 'Ticket' ? mutation.fields.lane ?? 'Todo' : undefined });
+      state.set(mutation.id, { kind: mutation.entityType, exists: true, fields: { status: 'draft', ...mutation.fields }, lane: mutation.entityType === 'Ticket' ? mutation.fields.lane ?? 'Todo' : undefined });
       snapshot[mutation.id] = null;
     } else if (mutation.kind === 'product_update' || mutation.kind === 'product_delete') {
       const entity = await load(mutation.id);
       if (!entity.exists || entity.kind !== mutation.entityType) throw new Error(`${mutation.entityType} '${mutation.id}' is unavailable.`);
       if (mutation.kind === 'product_update') {
-        validateFields(entity.kind, mutation.fields, false);
+        validateFields(entity.kind, mutation.fields, false, entity.fields);
+        entity.fields = { ...entity.fields, ...mutation.fields };
         if (entity.kind === 'Ticket' && (mutation.fields.lane || mutation.fields.status)) {
           const next = ticketState(mutation.fields.lane ?? entity.lane ?? 'Todo', mutation.fields.status);
           entity.lane = next.lane;

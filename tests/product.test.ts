@@ -194,6 +194,8 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       await registry.execute('create_user_story', {
         id: 'STORY-GAP',
         title: 'Gapped story',
+        actor: 'API client', intent: 'Get a valid response', initialState: 'Handler is available',
+        action: 'Send a request', expectedResult: 'A valid response is returned',
         status: 'accepted',
         acceptanceCriteria: []
       }, ctx);
@@ -290,8 +292,8 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     it('bounds context surgically and excludes sibling stories and unrelated nodes', async () => {
       // Setup one capability enabling 2 stories: Target Story and Sibling Story
       await registry.execute('create_feature', { id: 'FEAT-AUTH', title: 'Authentication' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-LOGIN', title: 'User Login', status: 'accepted' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-LOGOUT', title: 'User Logout', status: 'accepted' }, ctx);
+      await registry.execute('create_user_story', { id: 'STORY-LOGIN', title: 'User Login', status: 'accepted', actor: 'User', intent: 'Sign in', initialState: 'Signed out with valid credentials', action: 'Submit credentials', expectedResult: 'An authenticated session starts' }, ctx);
+      await registry.execute('create_user_story', { id: 'STORY-LOGOUT', title: 'User Logout', status: 'accepted', actor: 'User', intent: 'End my session', initialState: 'Signed in', action: 'Activate Log out', expectedResult: 'Session ends' }, ctx);
 
       await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGIN' }, ctx);
       await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGOUT' }, ctx);
@@ -323,7 +325,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
       // Unrelated Subgraph
       await registry.execute('create_feature', { id: 'FEAT-BILLING', title: 'Billing' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-INVOICE', title: 'Invoice', status: 'accepted' }, ctx);
+      await registry.execute('create_user_story', { id: 'STORY-INVOICE', title: 'Invoice', status: 'accepted', actor: 'Account owner', intent: 'Read an invoice', initialState: 'An invoice exists', action: 'Open invoice', expectedResult: 'Invoice details display' }, ctx);
 
       // Calculate Impact for STORY-LOGIN
       const impact = await getProductImpact(store, 'STORY-LOGIN');

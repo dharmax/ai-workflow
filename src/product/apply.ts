@@ -31,10 +31,11 @@ export async function applyEpicStructure(store: WorkflowStore, proposal: EpicStr
   }
   for (const s of proposal.stories) {
     const existing = await store.getEntity(s.id);
-    if (s.action === 'reuse' && !(existing instanceof UserStory)) throw new Error(`Reused UserStory '${s.id}' does not exist in graph as a UserStory.`);
-    mutations.push({ kind: existing ? 'product_update' : 'product_create', entityType: 'UserStory', id: s.id,
+    if ((s.action === 'reuse' || existing) && !(existing instanceof UserStory)) throw new Error(`UserStory '${s.id}' is unavailable as a UserStory.`);
+    // Decomposition is not developer acceptance of a Story or permission to rewrite a reused definition.
+    if (!existing) mutations.push({ kind: 'product_create', entityType: 'UserStory', id: s.id,
       fields: { title: s.title, actor: s.actor || '', story: s.story || '', context: s.context || '',
-        acceptanceCriteria: s.acceptanceCriteria || [], status: 'accepted' } });
+        acceptanceCriteria: s.acceptanceCriteria || [], status: 'proposed' } });
     mutations.push({ kind: 'product_link', sourceId: proposal.epic.id, predicate: 'targets', targetId: s.id });
     if (s.featureId) mutations.push({ kind: 'product_link', sourceId: s.featureId, predicate: 'enables', targetId: s.id });
   }

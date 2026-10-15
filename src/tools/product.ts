@@ -115,9 +115,11 @@ async function featureView(ctx: ToolContext, feature: Feature) {
 
   return {
     id: localId,
-    title: (feature as any).title,
+    version: feature.version,
+    title: feature.title,
     status: (feature as any).status || 'draft',
     body: (feature as any).body || undefined,
+    priority: feature.priority,
     acceptanceCriteria: Array.isArray((feature as any).acceptanceCriteria) ? (feature as any).acceptanceCriteria : [],
     targetingEpics: epicPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
     enabledStories,
@@ -158,13 +160,21 @@ async function storyView(ctx: ToolContext, story: UserStory) {
 
   return {
     id: localId,
-    title: (story as any).title,
+    version: story.version,
+    title: story.title,
     status: (story as any).status || 'draft',
-    actor: (story as any).actor || undefined,
-    story: (story as any).story || undefined,
-    context: (story as any).context || undefined,
-    acceptanceCriteria: Array.isArray((story as any).acceptanceCriteria) ? (story as any).acceptanceCriteria : [],
-    sla: (story as any).sla || undefined,
+    actor: story.actor,
+    story: story.story,
+    context: story.context,
+    acceptanceCriteria: Array.isArray(story.acceptanceCriteria) ? story.acceptanceCriteria : [],
+    sla: story.sla,
+    intent: story.intent,
+    initialState: story.initialState,
+    action: story.action,
+    expectedResult: story.expectedResult,
+    exceptions: story.exceptions,
+    bounds: story.bounds,
+    definitionReview: story.definitionReview,
     containingFlows: containingFlows.sort(),
     enablingFeatures,
     containingFeatures: enablingFeatures,
@@ -328,13 +338,14 @@ export function registerProductTools() {
       id: z.string().optional().describe('Optional stable feature ID (e.g. FEAT-001)'),
       title: z.string().describe('Feature capability title'),
       body: z.string().optional().describe('Feature scope and description'),
+      priority: z.number().optional().describe('Feature priority, using the existing numeric product priority convention'),
       acceptanceCriteria: z.array(z.string()).optional().describe('High-level feature acceptance criteria'),
       status: z.enum(INTENT_STATUSES).optional().describe('Intent lifecycle status (default: draft)')
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `FEAT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Feature', id,
-        fields: { title: params.title, body: params.body || '', acceptanceCriteria: params.acceptanceCriteria || [], status: params.status || 'draft' } }]);
+        fields: { title: params.title, body: params.body || '', priority: params.priority, acceptanceCriteria: params.acceptanceCriteria || [], status: params.status || 'draft' } }]);
       const feature = await requireEntity(ctx, id, Feature.dcr, 'Feature');
       return await featureView(ctx, feature);
     }
@@ -374,6 +385,7 @@ export function registerProductTools() {
       featureId: z.string(),
       title: z.string().optional(),
       body: z.string().optional(),
+      priority: z.number().optional(),
       acceptanceCriteria: z.array(z.string()).optional(),
       status: z.enum(INTENT_STATUSES).optional()
     }),
@@ -394,7 +406,13 @@ export function registerProductTools() {
     parameters: z.object({
       id: z.string().optional().describe('Optional stable story ID (e.g. STORY-001)'),
       title: z.string().describe('Short behavior/outcome title'),
-      actor: z.string().optional().describe('User or stakeholder experiencing the behavior'),
+      actor: z.string().optional().describe('Human or system actor experiencing the behavior'),
+      intent: z.string().optional(),
+      initialState: z.string().optional(),
+      action: z.string().optional(),
+      expectedResult: z.string().optional().describe('Expected observable result through the public interface'),
+      exceptions: z.string().optional(),
+      bounds: z.string().optional(),
       story: z.string().optional().describe('Desired behavior/outcome'),
       context: z.string().optional().describe('Why or when this behavior matters'),
       acceptanceCriteria: z.array(z.string()).optional().describe('Observable acceptance criteria'),
@@ -404,7 +422,9 @@ export function registerProductTools() {
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `STORY-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'UserStory', id,
-        fields: { title: params.title, actor: params.actor || '', story: params.story || '', context: params.context || '',
+        fields: { title: params.title, actor: params.actor || '', intent: params.intent, initialState: params.initialState,
+          action: params.action, expectedResult: params.expectedResult, exceptions: params.exceptions, bounds: params.bounds,
+          story: params.story || '', context: params.context || '',
           acceptanceCriteria: params.acceptanceCriteria || [], sla: params.sla || '', status: params.status || 'draft' } }]);
       const story = await requireEntity(ctx, id, UserStory.dcr, 'UserStory');
       return await storyView(ctx, story);
@@ -456,6 +476,12 @@ export function registerProductTools() {
       storyId: z.string(),
       title: z.string().optional(),
       actor: z.string().optional(),
+      intent: z.string().optional(),
+      initialState: z.string().optional(),
+      action: z.string().optional(),
+      expectedResult: z.string().optional(),
+      exceptions: z.string().optional(),
+      bounds: z.string().optional(),
       story: z.string().optional(),
       context: z.string().optional(),
       acceptanceCriteria: z.array(z.string()).optional(),

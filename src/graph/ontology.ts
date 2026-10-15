@@ -164,6 +164,7 @@ export class Epic extends WorkflowEntity {
 }
 
 export class Feature extends WorkflowEntity {
+    declare priority?: number
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
     }
@@ -187,12 +188,31 @@ export class Feature extends WorkflowEntity {
         ...baseTemplate,
         completenessTarget: completenessValidator,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
+        priority: passthroughValidator,
         acceptanceCriteria: passthroughValidator
     }
     static readonly dcr = new EntityDcr(Feature, Feature.template, "Feature")
 }
 
 export class UserStory extends WorkflowEntity {
+    declare actor?: string
+    declare intent?: string
+    declare initialState?: string
+    declare action?: string
+    declare expectedResult?: string
+    declare exceptions?: string
+    declare bounds?: string
+    declare story?: string
+    declare context?: string
+    declare acceptanceCriteria?: string[]
+    declare sla?: string
+
+    /** Read-time migration: retain historical acceptance and never guess missing scenario content. */
+    get definitionReview() {
+        const missingFields = (["actor", "intent", "initialState", "action", "expectedResult"] as const)
+            .filter(field => typeof this[field] !== "string" || !this[field]?.trim())
+        return { status: missingFields.length ? "needs_review" as const : "complete" as const, missingFields }
+    }
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
     }
@@ -220,6 +240,12 @@ export class UserStory extends WorkflowEntity {
         completenessTarget: completenessValidator,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
         actor: passthroughValidator,
+        intent: passthroughValidator,
+        initialState: passthroughValidator,
+        action: passthroughValidator,
+        expectedResult: passthroughValidator,
+        exceptions: passthroughValidator,
+        bounds: passthroughValidator,
         story: passthroughValidator,
         context: passthroughValidator,
         acceptanceCriteria: passthroughValidator,
@@ -266,6 +292,7 @@ export class Aspect extends WorkflowEntity {
         const scopes = (await store.getOutgoing(this.id, "applies_to")).map(e => store.localId(e.targetId)).sort()
         return {
             id: store.localId(this.id),
+            version: this.version,
             title: this.title,
             body: this.body,
             status: this.status,

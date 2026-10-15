@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { LayaSystemOne, type SystemOne } from '@dharmax/llm-utils';
 import type { WorkflowStore } from './graph/store.ts';
-import { Aspect, Idea, Goal, Concept, Flow, Epic, Feature, UserStory, ModuleNode, Ticket, TestNode, Artifact, Decision, type WorkflowEntity } from './graph/ontology.ts';
+import { Aspect, Epic, Feature, UserStory, Ticket, TestNode, Artifact, Decision, type WorkflowEntity } from './graph/ontology.ts';
 import type { ArtifactCritic, CompletenessLevel } from './artifact-policy.ts';
 import { loadConfig } from './config.ts';
 
@@ -11,8 +11,14 @@ export interface AspectAssessment {
   knownGaps: string[];
 }
 
-/** Only the defined work scopes participate; Epic targets never flow into Features. */
+/**
+ * Direct applies_to is exact for supported product and engineering artifacts.
+ * Stories inherit enabling Features (and legacy containing Features).
+ * Tickets inherit parent Tickets/Epics and implemented/addressed/targeted scopes.
+ * File/Symbol/Test/Artifact tags are direct only; evidence and Epic targets never propagate policy.
+ */
 export async function applicableAspects(entity: WorkflowEntity, store: WorkflowStore): Promise<Aspect[]> {
+  const { productKind, validateProductRelation } = await import('./product/mutation.ts');
   const result = new Map<string, Aspect>();
   const visited = new Set<string>();
   const active = new Set<string>();
@@ -20,6 +26,13 @@ export async function applicableAspects(entity: WorkflowEntity, store: WorkflowS
     if (active.has(scope.id)) throw new Error(`Ticket containment cycle at '${store.localId(scope.id)}'.`);
     if (visited.has(scope.id)) return;
     visited.add(scope.id); active.add(scope.id);
+    const kind = productKind(scope);
+    if (!kind) throw new Error(`Applicable Aspects are unsupported for '${scope.typeName()}'.`);
+    validateProductRelation('Aspect', 'applies_to', kind);
+    for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
+      const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
+      if (aspect && aspect.status === 'accepted') result.set(aspect.id, aspect);
+    }
     if (scope instanceof Ticket) {
       for (const edge of await store.getIncoming(scope.id, 'contains')) {
         const parent = await store.getEntity(edge.sourceId);
@@ -29,22 +42,20 @@ export async function applicableAspects(entity: WorkflowEntity, store: WorkflowS
         const target = await store.getEntity(edge.targetId);
         if ((edge.predicateName === 'implements' && target instanceof Feature)
           || (edge.predicateName === 'addresses' && target instanceof UserStory)
-          || (edge.predicateName === 'targets' && target instanceof ModuleNode)) await visit(target);
+          || (['targets', 'modifies'].includes(edge.predicateName) && ['Module', 'File', 'Symbol'].includes(productKind(target) ?? ''))) {
+          if (target) await visit(target);
+        }
         // Only accepted concerns govern explicit addressing, even without an applies_to edge.
         if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status === 'accepted') result.set(target.id, target);
       }
-    } else if (scope instanceof Idea || scope instanceof Goal || scope instanceof Concept || scope instanceof Flow || scope instanceof ModuleNode || scope instanceof Epic || scope instanceof Feature || scope instanceof UserStory) {
-      for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
-        const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
-        if (aspect && aspect.status === 'accepted') result.set(aspect.id, aspect);
-      }
-      if (scope instanceof UserStory) {
-        for (const edge of await store.getIncoming(scope.id, 'contains')) {
+    } else if (scope instanceof UserStory) {
+      for (const predicate of ['enables', 'contains']) {
+        for (const edge of await store.getIncoming(scope.id, predicate)) {
           const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
           if (parent) await visit(parent);
         }
       }
-    } else throw new Error(`Applicable Aspects are unsupported for '${scope.typeName()}'.`);
+    }
     active.delete(scope.id);
   }
   await visit(entity);
