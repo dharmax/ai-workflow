@@ -4,23 +4,23 @@
 
 AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface is high-level artifact delegation; exact graph, source, change, test, Git, and knowledge primitives remain available for deliberate drill-down.
 
+## Governing design and current status
+
+**Dharmax-way** is the governing product/engineering workflow. Read the [canonical design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged implementation plan](plans/AIWF-DHARMAX-WAY-PLAN.md) before changing product/workflow semantics. [Documentation index](docs/README.md) distinguishes current code, target Stories and historical evidence. The plan is **not yet implemented**. Execute only one approved stage at a time; existing Gate 5 remains Blocked until its actual canonical release criteria succeed. Earlier plans are preserved in [docs/archive/plans](docs/archive/plans/README.md).
+
 ## The idea
 
 A Ticket is not merely a task description. AIWF can connect it upward to the product reason for the work and downward to the code and proof that implement it:
 
 ```text
-Goal / Concepts
-      ↓
-     Flow
-      ↓
- User Story
-      ↓
-   Feature
-      ↓
-    Ticket
-      ↓
-source / tests / evidence
+Developer-approved product intent → Goals / Concepts / Features / Aspects
+                               → concrete User/Actor Stories
+                               → reviewed Epic / Tickets / Story tests
+                               → architecture / execution flow / implementation
+                               → observed public behavior and current evidence
 ```
+
+This is the **target product workflow**, not an assertion that the current `processIntent` or UI already implements it. An Epic organizes delivery; a Feature describes functionality. Stories state Intent, Initial State, Action and Expected Observable Result. Pure technical maintenance may start from a direct Ticket without invented product ceremony.
 
 Pure technical work may start directly at a Ticket. AIWF does not manufacture product ceremony where none is useful.
 
@@ -72,7 +72,7 @@ AIWF returns truthfully: complete, needs input, or blocked. It does not call a t
 5. **One execution stack.** AIWF composes shared ecosystem packages rather than growing parallel registries, routers, persistence layers or execution engines.
 6. **Deterministic work stays deterministic.** LLMs handle semantic judgment and synthesis; exact graph, language, mutation and verification machinery handles exact work.
 7. **Generated source is only a candidate.** Source synthesis is grounded in investigated evidence, becomes an ordinary safe change, and is accepted only by real verification.
-8. **Tests are evidence; journeys are acceptance.** Unit tests prove mechanisms. Product behavior requires realistic actor-journey proof.
+8. **Stories define acceptance.** Tests emulate complete approved User/Actor Stories through public interfaces; isolated unit tests are exceptional for genuinely complex mechanisms. Counts and graph links do not prove product behavior.
 9. **Failure must remain visible.** Missing evidence, tool failure, skill failure and verification failure must not quietly become absence or success.
 10. **Keep it small.** Prefer deletion and composition over new abstractions. No process theater.
 
@@ -158,13 +158,7 @@ A green component suite is not proof of a product journey. Conversely, a model's
 
 ## Documentation
 
-There are intentionally only three durable design documents:
-
-- [Architecture](docs/architecture.md) — boundaries, graph model, cognition, change, synthesis and verification.
-- [Actor journeys](docs/journeys.md) — the product behavior AIWF itself is expected to satisfy.
-- [Operations](docs/operations.md) — practical use, investigation, debugging, traces, metrics and failure handling.
-
-Historical audits, implementation plans and experiment reports belong in Git/AIWF evidence, not in the permanent documentation surface.
+The governing files are [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
 
 ## License
 
