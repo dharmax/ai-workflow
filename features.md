@@ -152,7 +152,7 @@ Completion covers declared and attributable actual changes, all applicable Rule 
 
 ### Implementing Tickets
 - **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [In Progress]: Prove atomic admission assertions and coherent completion contract
-- **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
+- **TKT-TRANSACTION-PRODUCT-BATCH** [In Progress]: Make guarded Product batches atomic through Semantika
 
 ### Coverage
 - **Complete**: Yes

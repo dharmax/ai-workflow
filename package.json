@@ -59,6 +59,7 @@
   "devDependencies": {
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.2",
-    "happy-dom": "^20.14.5"
+    "happy-dom": "^20.14.5",
+    "playwright": "1.60.0-alpha-2026-04-14"
   }
 }

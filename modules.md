@@ -4,18 +4,18 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 189 | 0 | None |
+| `root` | project default | 188 | 0 | None |
 | `src/graph` | project default | 901 | 0 | None |
 | `src/tools` | project default | 560 | 0 | None |
 | `src/actor` | project default | 388 | 0 | None |
 | `src/mcp` | project default | 38 | 0 | None |
 | `src/shell` | project default | 149 | 0 | None |
-| `src/cli` | project default | 111 | 0 | None |
+| `src/cli` | project default | 110 | 0 | None |
 | `src/index` | project default | 0 | 0 | None |
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | None |
 | `src/setup` | project default | 135 | 0 | None |
-| `tests` | project default | 1514 | 0 | None |
+| `tests` | project default | 1568 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -27,9 +27,9 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 463 | 0 | None |
-| `src/product` | project default | 410 | 0 | None |
-| `src/change` | project default | 700 | 0 | None |
+| `docs` | project default | 469 | 0 | None |
+| `src/product` | project default | 438 | 0 | None |
+| `src/change` | project default | 701 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
 | `src/aspects` | project default | 35 | 0 | None |

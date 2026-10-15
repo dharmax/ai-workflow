@@ -901,6 +901,25 @@ async function main() {
       break;
     }
 
+    case 'workspace': {
+      if (args.length > 2 || args[1] !== undefined && !/^\d+$/.test(args[1]))
+        throw new Error('Usage: aiwf workspace [port]');
+      const port = args[1] === undefined ? 0 : Number(args[1]);
+      if (port > 65535) throw new Error('Workspace port must be between 0 and 65535.');
+      const { startWorkspace } = await import('./workspace/server.ts');
+      const workspace = startWorkspace({store: getStore(), projectRoot: root}, port);
+      console.log('AIWF Workspace: ' + workspace.url);
+      console.log('Local developer session. Press Ctrl+C to stop.');
+      await new Promise<void>(resolve => {
+        const stop = () => {
+          process.off('SIGINT', stop); process.off('SIGTERM', stop);
+          workspace.server.stop(true); getStore().close(); resolve();
+        };
+        process.once('SIGINT', stop); process.once('SIGTERM', stop);
+      });
+      break;
+    }
+
     case 'shell': {
       const store = getStore();
       await startShell({ store, projectRoot: root });
@@ -978,6 +997,7 @@ Configuration & Execution:
   kb [sync|list|search|show]             Search, inspect, and sync content-addressed skills & patterns
   eval "<code>"                          Evaluate short TypeScript/JS code against live store
   exec "<wish>"                          Execute one-off autonomous task or query via Workflow Actor
+  workspace [port]                       Open local product/Story editors and reviewed proposals
   shell                                  Launch interactive dual-nature Terminal REPL (<5ms fast-paths)
   mcp                                    Run Stdio MCP server for Antigravity IDE, Claude Code, Cursor
   help                                   Show this help manual

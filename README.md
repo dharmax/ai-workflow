@@ -134,6 +134,16 @@ Run `aiwf help` for the current command surface. Important groups are:
 
 The interactive shell adds structured views, semantic natural-language execution and inspectable execution traces. Complete commands execute immediately; missing interactive identifiers can be facilitated. Config supports explicit project/global overrides and reset, and `aiwf setup --check` inspects without writes or prompts. See [operational commands](docs/operations.md#13-shell-configuration-and-setup).
 
+### Workspace
+
+Run `aiwf workspace` (or `bun src/cli.ts workspace`) and open the printed local URL. An optional port is supported: `aiwf workspace 4317`. Ctrl+C closes the session.
+
+Search canonical product and work definitions; create or edit Features, Aspects and complete Stories. Choose a Feature in the Story form, or add/remove links under **Manage relationships**. **Review changes** shows the diff; **Accept and save** commits through the same reviewed Product operation used by CLI/MCP. Cancel/reject writes nothing. A conflicting editor keeps your unsaved text and refuses overwriting; copy that text before reloading canonical data.
+
+**Review proposal** accepts a Product change request or an S2 preview copied from CLI/MCP. Edit Feature/Aspect/Story fields directly, or expand **Edit complete proposal request** for relationships, removals and other supported mutations. Update review after editing. Proposals are local to the browser session until accepted; this stage does not generate or execute implementation work.
+
+Keyboard: Ctrl/⌘ K searches, Ctrl/⌘ S prepares review, Escape cancels review. Acceptance approves definitions, not implementation or Story satisfaction. The Workspace uses the canonical DB; existing Markdown synchronization remains supported until S8.
+
 ### MCP
 
 The public MCP surface is intentionally smaller than AIWF's internal registry. External coding agents should delegate artifact work first—especially `resolve_ticket`—and use primitive tools only for deliberate investigation or a concrete blocker.
@@ -151,6 +161,8 @@ bun test
 bun run typecheck
 bun run pack
 ```
+
+The Workspace Story tests run real Chromium. After installing dependencies, run `bunx playwright install chromium` once (and install Playwright's OS browser prerequisites if needed). Run them with `bun test tests/dharmax-s3.test.ts`; no model credentials are required.
 
 Use focused tests first while developing, then the repository gates. Opt-in live acceptance tests are reserved for journeys that genuinely require the configured model/runtime.
 

@@ -74,7 +74,7 @@ After Doctrine closure, extend only demonstrated ecosystem transaction requireme
 - **FEAT-AIWF-GOVERNED-COMPLETION**: Governed source completion and current proof
 
 ### Contained Tickets
-- **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
+- **TKT-TRANSACTION-PRODUCT-BATCH** [In Progress]: Make guarded Product batches atomic through Semantika
 
 ### Coverage
 - **Complete**: Yes

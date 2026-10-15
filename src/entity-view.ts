@@ -162,6 +162,13 @@ export async function buildEntityView(
         title: text(s.title, 'edit', {label: 'Title'}),
         status: choice(s.status, ['draft', 'proposed', 'accepted', 'deprecated'], {label: 'Status'}),
         actor: text(s.actor, 'edit', {label: 'Actor'}),
+        intent: text(s.intent, 'readonly', {label: 'Intent', multiline: true}),
+        initialState: text(s.initialState, 'readonly', {label: 'Initial State', multiline: true}),
+        action: text(s.action, 'readonly', {label: 'Action', multiline: true}),
+        expectedResult: text(s.expectedResult, 'readonly', {label: 'Expected Result', multiline: true}),
+        exceptions: text(s.exceptions, 'readonly', {label: 'Exceptions', multiline: true}),
+        bounds: text(s.bounds, 'readonly', {label: 'Bounds', multiline: true}),
+        definitionReview: text(s.definitionReview, 'readonly', {label: 'Definition review'}),
         story: text(s.story, 'edit', {label: 'Story', multiline: true, grow: true}),
         context: text(s.context, 'edit', {label: 'Context', multiline: true}),
         acceptanceCriteria: text((s.acceptanceCriteria ?? []).join('\n'), 'edit', {
