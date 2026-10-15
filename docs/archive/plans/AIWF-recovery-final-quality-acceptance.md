@@ -1,0 +1,42 @@
+# AIWF recovery — final quality and closure gate (2026-10-12)
+
+**Execution contract.** Read current `AGENTS.md`, actual local `docs/ticket-resolution-recovery-readiness-acceptance-2026-10-12.json`, R1/R2-S records, source and canonical graph first. This brief supersedes earlier *next-step* instructions where they conflict. Do not infer current local status from this remotely authored file. No extra planning documents or duplicate tickets.
+
+## Goal, at all levels
+- **Product:** `aiwf resolve` completes a legitimate ticket autonomously, reliably and truthfully.
+- **Behavior:** grounded scope/target → Actor-owned safe source modification and valid structured completion → host-owned tests/typecheck and TestNode evidence → independent verification of authored contract and applicable engineering quality → durable valid receipt, signature/hashes, ticket and lease/projection state.
+- **Architecture:** keep implementation with Actor, execution of checks and receipt with `Ticket.resolve` host, quality policy within its existing governing instructions/Aspect or acceptance contracts and their review boundary. Do not invent a second judge or shadow workflow.
+- **Engineering:** both AIWF changes and code produced by AIWF meet the full am-i-allowed Prime Directive: every artifact's responsibility, owner, existence, placement, tightness, modularity/generality, state/edge flow and exported API are warranted; directly related debt falls, never rises.
+- **Evidence:** Codex activities are preparation and independent observation, not autonomous implementation. Tests, signed hashes and receipt establish *which code was accepted*, not necessarily that code is well designed.
+
+## State to preserve
+The reported isolated historical run completed in 42.74s: Actor implemented and returned; AIWF host passed 49 tests and typecheck; independent verifier approved; receipt signature and 15 hashes were validated; leases released. **The complete functional pipeline worked on that fixture.** Independent source review nevertheless found repeated field-specific checking inside a shared budget loop using numeric equality. This code-quality judgment requires inspection of the actual source and acceptance contract, not a guess at the ideal replacement. Production source unchanged. R1 diagnostics and R2-S mechanical structured parser remain completed; R2/R3 blocked; CodeMutator dogfood deferred.
+
+## Gate 0 — Contain configuration disclosure (bounded security prerequisite)
+A previous config inspection exposed nested credentials in tool output. Do not print or paste raw config/secrets again. Determine which credentials were exposed, to which model/provider/logs/operators, and relevant retention, using identifiers and redacted evidence only. Check for copies in committed artifacts and logs. Rotate/revoke affected credentials where exposure warrants it; if operator action is required, specify *which secret/service and safe action*, never its value. Do not claim reports alone eliminate exposure. Resume remote inference only when credentials in use are safe. Avoid unrelated security framework changes.
+
+## Gate 1 — Adjudicate ONE actual quality defect, no edit
+Inspect historical fixture, authored ticket/Aspects, exact before/after constructor, Actor decision/tool request, applicable project instructions, verifier prompt/context/schema/response, and persisted proof. State precisely why the repeated check/numeric equality is incorrect or needlessly complex, with invariants and a minimal conceptual design criterion, not desired code text. Examine **both** producer and independent reviewer contracts:
+- Did the Actor receive applicable project engineering rules?
+- Did the current authored criterion or applicable Aspect obligate reviewer to assess this design quality? If not, was that omission in ticket preparation, project instruction propagation, applicable-Aspect selection or verifier construction? Do not assert the critic violated a criterion it never received.
+- If quality was explicitly included with sufficient post-edit source and still passed, establish reviewer decision defect rather than invent an upstream one.
+- Determine how the existing repair feedback loop handles an unsatisfied criterion/Aspect; whether a source-quality failure can block verified closure via the *existing* contract. Inspect what source the verifier actually saw; an outline alone cannot establish simplicity.
+- Is this a general ownership/contract gap or merely a single inadequate model-authored edit? Do not patch a general library to encode one fixture's preferred syntax.
+
+Deliver a short causal finding identifying the earliest proven broken boundary and one owner. If evidence cannot distinguish alternatives, collect exactly the missing evidence and stop; do not apply a speculative prompt.
+
+## Gate 2 — Smallest owned correction, only if Gate 1 establishes one
+Correct *one* demonstrated failure at the existing owner (author instruction grounding, applicable-Aspect/acceptance setup, post-edit verification evidence or review/feedback contract). A proper quality obligation must be explicit, grounded and applicable to the touched scope, so failure feeds specific observations into the existing bounded repair path and prevents a false verified receipt. Avoid generic untestable claims of perfection, a second reviewer, new policy subsystem, blanket prompt inflation, brittle text/syntax matcher, ticket-specific code requirement, or major resolver refactor. If current contracts are adequate but a model authored/approved poor code, treat as model-quality issue and qualify existing configured author/critic routes with bounded evidence. No forced source patch.
+
+Before/after review the entire directly touched method and immediate contracts under `AGENTS.md`; justify each relevant artifact down to state variable, where it belongs, all state transitions and public API. Remove directly related redundancy; preserve proven test/receipt and navigation safety. Regression must first demonstrate actual contract gap and then its absence: an independently reviewed simple/complex variant with same passing functional tests should not both silently receive verified acceptance when quality is an applicable requirement. Tests must not assert one exact constructor or use a fixture-specific style heuristic. Run affected suites/typecheck/build and inspect entire touched scope, not just diff.
+
+## Gate 3 — One clean AIWF-owned rerun
+Freeze and identify runner, dependent package versions, model route, clean independent historical fixture and applicable contract. Stop current runners before touching their dependencies. Codex may prepare and observe but **may not write the target implementation**. AIWF Actor makes the source change and valid final proposal. AIWF host runs required checks, independent verifier assesses *actual post-edit source*, including applicable quality obligation, and writes validated receipt/signature/hashes only for passing code. Independently inspect produced source under Prime Directive: no repeated unnecessary field-specific logic or hidden debt. Check no unrelated source changes, correct ticket/lease state and canonical projected Kanban. If quality feedback triggers an Actor-authored repair, observe its existing bounded flow rather than having Codex supply the code. If any gate fails, save earliest divergence, keep R2/R3 blocked and do not chain guesses or repeat expensive runs blindly.
+
+## Closure
+Only mark R2/R3 complete when real autonomous progression, correct authored code, host verification, substantively grounded independent quality acceptance, receipt/hash/signature, safe credentials and durable graph/lease/projected state are all shown. The 42.74-second previous run is evidence of pipeline success but is not retrospectively a quality pass. CodeMutator rename remains separate and subsequent.
+
+Report concisely: credential exposure disposition; exact actual root cause and owner (or unproven); minimal correction/debt removed (or none); Codex versus AIWF operations; tests plus independently inspected code quality; receipt/lease/status; remaining blocker. No secret values in outputs.
+
+## Launch instruction
+Read this file after current `AGENTS.md` and the latest local evidence. Execute Gate 0 then Gate 1, and proceed through Gates 2–3 *only on supported findings*. Do the work using existing AIWF canonical graph and commands, not hand-edited Kanban or another planning cycle. No premature closure or CodeMutator rename.
