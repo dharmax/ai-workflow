@@ -7,7 +7,7 @@
  */
 
 import type { ProductImpact } from '../product/impact.ts';
-import type { ProductMutation } from '../product/mutation.ts';
+import type { ProductMutation, ProductRevision } from '../product/mutation.ts';
 
 export interface LspPosition {
   line: number;      // 0-based
@@ -96,7 +96,7 @@ export type ChangeTarget =
 export type ChangeRequest =
   | { action: 'replace_text'; filePath: string; oldText: string; newText: string }
   | { action: 'create_file'; filePath: string; content: string; productContextEntityId?: string }
-  | { action: 'product_change'; mutations: ProductMutation[] }
+  | { action: 'product_change'; mutations: ProductMutation[]; basis?: ProductRevision[]; originalRequest?: string }
   | { action: 'replace_symbol'; target: ChangeTarget; replacement: string; productContextEntityId?: string }
   | {
       action: 'rename_symbol';

@@ -486,7 +486,8 @@ export class WorkflowStore {
     if (!targetEntity) throw new Error(`Target entity not found: ${typeof target === 'string' ? target : target.id}`);
 
     const governanceEdge = ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory']
-      .includes(sourceEntity.typeName()) || ['Rule', 'Decision', 'Aspect'].includes(targetEntity.typeName()) ||
+      .includes(sourceEntity.typeName()) || sourceEntity instanceof Ticket ||
+      ['Rule', 'Decision', 'Aspect', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(targetEntity.typeName()) ||
       predicateName === 'contains' && (sourceEntity instanceof FileNode || sourceEntity instanceof SymbolNode) && targetEntity instanceof SymbolNode;
     if (governanceEdge) {
       const collection = await this.sp.predicateCollection(pDcr);
@@ -530,7 +531,7 @@ export class WorkflowStore {
     const src = await this.getEntity(sourceId);
     const tgt = await this.getEntity(targetId);
     const query = {sourceId: src?.id || sourceId, predicateName, targetId: tgt?.id || targetId};
-    if ([src, tgt].some(entity => entity && ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName())) ||
+    if (src instanceof Ticket || [src, tgt].some(entity => entity && ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName())) ||
       predicateName === 'contains' && (src instanceof FileNode || src instanceof SymbolNode) && tgt instanceof SymbolNode) {
       const rows = await pCol.findSome<{_id: string; _version: number}>(query);
       if (!rows.length) return 0;

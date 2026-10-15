@@ -13,6 +13,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { computeHash } from '../kb/canonical.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { getTsLspClient, TsLspClient } from './ts-lsp.ts';
 import { getTs6RefactorClient, Ts6RefactorClient } from './ts6-refactor.ts';
@@ -601,7 +602,7 @@ export class CausalChangeEngine {
 
   private async previewProductChange(request: Extract<ChangeRequest, { action: 'product_change' }>): Promise<ChangePreview> {
     try {
-      const { snapshot } = await validateProductMutations(this.store, request.mutations);
+      const { snapshot } = await validateProductMutations(this.store, request.mutations, request.basis);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
       const affected = new Set<string>();
@@ -616,7 +617,7 @@ export class CausalChangeEngine {
           productImpacts.push(await getProductImpact(this.store, id));
         }
       }
-      const fingerprint = computeFileSha256(JSON.stringify({ request, snapshot }));
+      const fingerprint = computeHash({ request, snapshot });
       return {
         fingerprint, summary: `${request.mutations.length} Product Intent mutation(s): ${[...affected].sort().join(', ')}`,
         request, mutations: request.mutations, affectedFiles: [], originalHashes: {},
@@ -694,7 +695,7 @@ export class CausalChangeEngine {
     }
 
     if (request.action === 'product_change') {
-      await applyProductMutations(this.store, request.mutations);
+      await applyProductMutations(this.store, request.mutations, {request, fingerprint});
       const errors: string[] = [];
       const finalRelations = new Map<string, boolean>();
       for (const mutation of request.mutations) {

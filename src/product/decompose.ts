@@ -10,10 +10,13 @@ import { WorkflowStore } from '../graph/store.ts';
 import { Goal, Concept, Flow, Epic, Feature, UserStory, Decision } from '../graph/ontology.ts';
 import type { EpicStatus, IntentStatus } from '../graph/types.ts';
 import { loadConfig } from '../config.ts';
+import type { ProductRevision } from './mutation.ts';
 import { createDefaultAsker } from '../model-runtime.ts';
 export { createDefaultAsker } from '../model-runtime.ts';
 
 export interface EpicStructureProposal {
+  basis?: ProductRevision[];
+  originalRequest?: string;
   epic: {
     id: string;
     action: 'create' | 'existing';
@@ -171,6 +174,11 @@ export async function proposeEpicStructure(
     injectedSemanticOutput?: SemanticDecompositionInput;
   }
 ): Promise<EpicStructureProposal> {
+  const basis: ProductRevision[] = [];
+  for (const ctor of [Goal, Concept, Flow, Epic, Feature, UserStory, Decision]) {
+    for (const entity of await store.listEntities(ctor.dcr))
+      basis.push({id: store.localId(entity.id), entityType: entity.typeName(), version: entity.version});
+  }
   let semanticOutput: SemanticDecompositionOutput;
 
   if (options?.injectedSemanticOutput) {
@@ -223,20 +231,11 @@ Respond ONLY with valid JSON conforming to the schema.`;
 
   // Map of temporary/model feature identifier -> candidate/existing ID
   const featureRefMap = new Map<string, string>();
-  // Index existing graph features & stories by ID and lowercase title for robust semantic reuse matching
+  // Titles are labels; reuse requires a stable existing identity.
   const [existingFeatures, existingStories] = await Promise.all([
     store.listEntities<Feature>(Feature.dcr),
     store.listEntities<UserStory>(UserStory.dcr)
   ]);
-  const existingFeatByTitle = new Map<string, string>();
-  for (const ef of existingFeatures) {
-    existingFeatByTitle.set((ef as any).title.toLowerCase().trim(), store.localId(ef.id));
-  }
-  const existingStoryByTitle = new Map<string, string>();
-  for (const es of existingStories) {
-    existingStoryByTitle.set((es as any).title.toLowerCase().trim(), store.localId(es.id));
-  }
-
   const existingFeatIds = new Set(existingFeatures.map(ef => store.localId(ef.id)));
   const existingStoryIds = new Set(existingStories.map(es => store.localId(es.id)));
 
@@ -244,14 +243,11 @@ Respond ONLY with valid JSON conforming to the schema.`;
   for (const f of semanticOutput.features) {
     let resolvedId: string;
     if (f.action === 'reuse') {
-      const candidateKey = (f.id || '').trim();
-      const titleKey = (f.title || '').trim();
-      const matched = (candidateKey && existingFeatIds.has(candidateKey))
-        ? candidateKey
-        : (existingFeatIds.has(titleKey)
-          ? titleKey
-          : (existingFeatByTitle.get(titleKey.toLowerCase()) || existingFeatByTitle.get(candidateKey.toLowerCase())));
-      resolvedId = matched || f.id || generateCandidateId('FEAT');
+      resolvedId = f.id?.trim() || generateCandidateId('FEAT');
+      if (!existingFeatIds.has(resolvedId)) semanticOutput.questions.push({
+        id: 'identity-' + resolvedId, blocking: true,
+        text: 'Choose an explicit existing Feature ID for reuse; a title is not an identity.'
+      });
     } else {
       resolvedId = generateCandidateId('FEAT');
     }
@@ -274,14 +270,11 @@ Respond ONLY with valid JSON conforming to the schema.`;
   for (const s of semanticOutput.stories) {
     let resolvedId: string;
     if (s.action === 'reuse') {
-      const candidateKey = (s.id || '').trim();
-      const titleKey = (s.title || '').trim();
-      const matched = (candidateKey && existingStoryIds.has(candidateKey))
-        ? candidateKey
-        : (existingStoryIds.has(titleKey)
-          ? titleKey
-          : (existingStoryByTitle.get(titleKey.toLowerCase()) || existingStoryByTitle.get(candidateKey.toLowerCase())));
-      resolvedId = matched || s.id || generateCandidateId('STORY');
+      resolvedId = s.id?.trim() || generateCandidateId('STORY');
+      if (!existingStoryIds.has(resolvedId)) semanticOutput.questions.push({
+        id: 'identity-' + resolvedId, blocking: true,
+        text: 'Choose an explicit existing UserStory ID for reuse; a title is not an identity.'
+      });
     } else {
       resolvedId = generateCandidateId('STORY');
     }
@@ -317,6 +310,8 @@ Respond ONLY with valid JSON conforming to the schema.`;
   }
 
   return {
+    basis,
+    originalRequest: draft.body || draft.title,
     epic: {
       id: epicId,
       action: epicAction,

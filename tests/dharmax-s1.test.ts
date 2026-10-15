@@ -70,7 +70,7 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   it('DW-02 keeps generated Stories proposed and reuses reviewed definitions without rewriting them', async () => {
     await call('create_user_story', { id: 'REVIEWED', title: 'Save avatar', ...scenario, status: 'accepted' });
     const before = await call('get_user_story', { storyId: 'REVIEWED' });
-    await applyEpicStructure(store, {
+    const pending = await applyEpicStructure(store, {
       epic: { id: 'E', action: 'create', title: 'Avatar delivery', status: 'planned' },
       features: [],
       stories: [
@@ -79,6 +79,8 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
       ],
       questions: []
     });
+    expect(await store.getEntity('NEW')).toBeNull();
+    await call('apply_change', {request: pending.preview.request, fingerprint: pending.preview.fingerprint, decision: 'accept'});
     expect((await call('get_user_story', { storyId: 'NEW' })).status).toBe('proposed');
     expect((await call('get_user_story', { storyId: 'NEW' })).definitionReview.status).toBe('needs_review');
     const after = await call('get_user_story', { storyId: 'REVIEWED' });

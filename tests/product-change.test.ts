@@ -187,7 +187,7 @@ describe('Product Intent Causal Change', () => {
     ] };
     const preview = await registry.execute('preview_change', request, ctx);
     expect(preview.blocked).toBe(false);
-    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint }, ctx);
+    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx);
     expect(result.verification.passed).toBe(true);
     expect(await store.getEntity('PUBLIC-E')).not.toBeNull();
   });

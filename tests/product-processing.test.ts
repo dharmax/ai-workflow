@@ -10,6 +10,17 @@ import { initializeTools, registry } from '../src/tools/index.ts';
 
 const empty = (patch: Partial<IntentProposal> = {}): IntentProposal => ({ items: [], aspectIds: [], gaps: [], required: [], rationale: 'Only necessary work', ...patch });
 const item = (id: string, kind: 'Feature' | 'UserStory' | 'Ticket', title = id) => ({ id, kind, title, body: 'Concrete behavior', acceptanceCriteria: ['Concrete outcome has regression proof'] });
+async function reviewAndAccept(entity: Epic | Feature | UserStory, store: WorkflowStore, options: ProcessOptions) {
+  const result = await entity.process(store, options);
+  if (result.status === 'complete') {
+    initializeTools();
+    for (const preview of result.value.proposals) {
+      const applied = await registry.execute('apply_change', {request: preview.request, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root});
+      expect(applied.ok).toBe(true);
+    }
+  }
+  return result;
+}
 describe('entity-owned Product Intent processing', () => {
   let root: string, store: WorkflowStore;
   const reviews: CriticInput[] = [];
@@ -23,8 +34,8 @@ describe('entity-owned Product Intent processing', () => {
 
   it('reuses stable Feature/Story identities across Epics without ownership or duplicate creation', async () => {
     const e = await epic(), f = await feature(), s = await story();
-    const propose = async () => empty({ items: [item('new-f', 'Feature', 'Storage'), item('new-s', 'UserStory', 'Caller stores data')] });
-    const result = await e.process(store, { ...options, propose }); expect(result.status).toBe('complete');
+    const propose = async () => empty({ items: [item('F', 'Feature', 'Storage'), item('S', 'UserStory', 'Caller stores data')] });
+    const result = await reviewAndAccept(e, store, { ...options, propose }); expect(result.status).toBe('complete');
     if (result.status === 'complete') { expect(result.value.created).toEqual([]); expect(result.value.reused).toEqual(['F', 'S']); expect(result.value.artifactComplete).toBe(false); expect(result.value.stoppedAtDepth).toBe(true); }
     expect((await store.getOutgoing(e.id, 'targets')).length).toBe(2); expect(await store.getOutgoing(e.id, 'contains')).toEqual([]);
     expect((await e.process(store, { ...options, propose })).status).toBe('complete');
@@ -34,12 +45,12 @@ describe('entity-owned Product Intent processing', () => {
 
   it('creates direct technical Epic Tickets and useful Story work with executable criteria, then reuses it', async () => {
     const e = await epic(), s = await story();
-    const technical = await e.process(store, { ...options, propose: async () => empty({ items: [item('T', 'Ticket', 'Migrate storage')] }) });
+    const technical = await reviewAndAccept(e, store, { ...options, propose: async () => empty({ items: [item('T', 'Ticket', 'Migrate storage')] }) });
     expect(technical.status).toBe('complete'); expect((await store.listEntities(UserStory.dcr)).length).toBe(1);
     expect((await store.getOutgoing(e.id, 'contains')).length).toBe(1);
     const propose = async () => empty({ items: [item('R', 'Ticket', 'Roundtrip regression')] });
-    expect((await s.process(store, { ...options, propose })).status).toBe('complete');
-    expect((await s.process(store, { ...options, propose })).status).toBe('complete');
+    expect((await reviewAndAccept(s, store, { ...options, propose })).status).toBe('complete');
+    expect((await reviewAndAccept(s, store, { ...options, propose })).status).toBe('complete');
     const r = (await store.getEntity<Ticket>('R', Ticket.dcr))!; expect(r.acceptanceCriteria?.length).toBe(1); expect(r.lane).toBe('Backlog');
     expect((await store.getOutgoing(r.id, 'addresses')).map(edge => edge.targetId)).toEqual([s.id]);
     expect(reviews.some(review => review.artifactId === 'S')).toBe(true);
@@ -48,8 +59,8 @@ describe('entity-owned Product Intent processing', () => {
   it('upgrades POC to production by adding only missing work and lowering never deletes valid work', async () => {
     const f = await feature();
     const propose: ProcessOptions['propose'] = async context => empty({ items: context.completeness === 'production' ? [item('B', 'Ticket', 'Restart regression')] : [item('A', 'Ticket', 'Basic roundtrip')] });
-    await f.process(store, { ...options, completeness: 'poc', propose });
-    const upgrade = await f.process(store, { ...options, completeness: 'production', propose }); expect(upgrade.status).toBe('complete');
+    await reviewAndAccept(f, store, { ...options, completeness: 'poc', propose });
+    const upgrade = await reviewAndAccept(f, store, { ...options, completeness: 'production', propose }); expect(upgrade.status).toBe('complete');
     await f.process(store, { ...options, completeness: 'production', propose }); await f.process(store, { ...options, completeness: 'poc', propose });
     expect((await store.listEntities(Ticket.dcr)).length).toBe(2); expect((await store.getIncoming(f.id, 'implements')).length).toBe(2);
     expect((await store.getEntity<Feature>('F', Feature.dcr))!.completenessTarget).toBeUndefined();
@@ -60,7 +71,7 @@ describe('entity-owned Product Intent processing', () => {
     const result = await f.process(store, { ...options, propose: async () => empty({ items: [item('C', 'Ticket', 'Same')] }) }); expect(result.status).toBe('needs_input'); expect(await store.getEntity('C')).toBeNull();
 
     const s = await story();
-    const derived = await s.process(store, { ...options, propose: async context => context.kind === 'UserStory'
+    const derived = await reviewAndAccept(s, store, { ...options, propose: async context => context.kind === 'UserStory'
       ? empty({ items: [item('N', 'Feature', 'Roundtrip capability')] })
       : empty() });
     expect(derived.status).toBe('complete');
@@ -77,6 +88,7 @@ describe('entity-owned Product Intent processing', () => {
     const e = await epic(); let calls: string[] = [];
     const propose: ProcessOptions['propose'] = async context => { calls.push(context.id); return empty({ items: [item(context.kind === 'Epic' ? 'F' : 'T', context.kind === 'Epic' ? 'Feature' : 'Ticket')] }); };
     const zero = await e.process(store, { ...options, depth: 0, propose }); expect(zero.status).toBe('complete'); expect(await store.getEntity('F')).toBeNull();
+    await reviewAndAccept(e, store, {...options, propose});
     calls = []; const deep = await e.process(store, { ...options, completeness: 'production', depth: 2, propose }); expect(deep.status).toBe('complete'); expect(calls).toEqual(['E', 'F']);
     expect(reviews.at(-1)?.artifactId).toBe('E'); expect(reviews.at(-1)?.neighborhood.length).toBe(2);
     if (deep.status === 'complete') { expect(deep.value.remaining).toContain('T'); expect(deep.value.artifactComplete).toBe(false); }
@@ -86,7 +98,7 @@ describe('entity-owned Product Intent processing', () => {
     const e = await epic(), f = await feature(); await store.upsertEntity(Feature.dcr, { id: 'F', completenessTarget: 'poc' }); await store.relate(e, 'targets', f);
     const a = await Aspect.create(store, { id: 'A', title: 'Durability', acceptanceCriteria: ['Restart safe'] });
     const targets: string[] = [];
-    const result = await e.process(store, { ...options, completeness: 'production', depth: 2, propose: async context => { targets.push(`${context.id}:${context.completeness}`); return empty({ aspectIds: context.id === 'E' ? ['A'] : [] }); } });
+    const result = await reviewAndAccept(e, store, { ...options, completeness: 'production', depth: 2, propose: async context => { targets.push(`${context.id}:${context.completeness}`); return empty({ aspectIds: context.id === 'E' ? ['A'] : [] }); } });
     expect(result.status).toBe('complete'); expect(targets).toEqual(['E:production', 'F:poc']); expect((await store.getOutgoing(a.id, 'applies_to')).length).toBe(1);
     const limited = await e.process(store, { ...options, maxArtifacts: 1, propose: async () => empty({ items: [item('X', 'Ticket')] }) }); expect(limited.status).toBe('complete'); expect(await store.getEntity('X')).toBeNull();
     if (limited.status === 'complete') { expect(limited.value.stoppedAtMaxArtifacts).toBe(true); expect(limited.value.remaining).toContain('X'); }
@@ -94,7 +106,7 @@ describe('entity-owned Product Intent processing', () => {
 
   it('Critic revision precedes canonical apply and rejection leaves graph unchanged', async () => {
     const s = await story(); let rounds = 0;
-    const revised = await s.process(store, { ...options, critic: { id: 'revise', review: async () => ++rounds === 1 ? { verdict: 'revise', findings: [{ message: 'Missing restart proof' }] } : { verdict: 'accept' } }, propose: async (_context, findings) => empty({ items: [item(findings.length ? 'GOOD' : 'BAD', 'Ticket')] }) });
+    const revised = await reviewAndAccept(s, store, { ...options, critic: { id: 'revise', review: async () => ++rounds === 1 ? { verdict: 'revise', findings: [{ message: 'Missing restart proof' }] } : { verdict: 'accept' } }, propose: async (_context, findings) => empty({ items: [item(findings.length ? 'GOOD' : 'BAD', 'Ticket')] }) });
     expect(revised.status).toBe('complete'); expect(await store.getEntity('BAD')).toBeNull(); expect(await store.getEntity('GOOD')).not.toBeNull();
     const reject = await s.process(store, { ...options, critic: { id: 'reject', review: async () => ({ verdict: 'reject', findings: [{ message: 'Duplicate ceremony' }] }) }, propose: async () => empty({ items: [item('NO', 'Ticket')] }) });
     expect(reject.status).toBe('blocked'); expect(await store.getEntity('NO')).toBeNull();

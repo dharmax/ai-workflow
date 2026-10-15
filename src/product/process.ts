@@ -1,6 +1,6 @@
 /**
  * Responsibility: Reconcile accepted Product Intent through reviewed graph mutations.
- * Scope: Bounded expansion, identity reuse, critic repair and synchronized completion.
+ * Scope: Bounded, inert proposals with source revisions, stable identity reuse and advisory critique.
  */
 
 import { renderIntentProposal } from "./prompts.ts"
@@ -35,8 +35,8 @@ export function processIntent(
             const { createDefaultAsker } = await import("../model-runtime.ts")
             const cfg = loadConfig(store.root),
                 budget = new ArtifactBudget(options, 1, cfg.maxArtifacts)
-            const created = new Set<string>(),
-                reused = new Set<string>(),
+            const proposals: import('../change/types.ts').ChangePreview[] = []
+            const reused = new Set<string>(),
                 processed: string[] = [],
                 knownGaps: string[] = []
             const queue: Array<{ entity: Epic | Feature | UserStory; depth: number; inherited?: CompletenessLevel }> = [
@@ -68,7 +68,7 @@ export function processIntent(
                         acceptanceCriteria?: string[]
                         status?: string
                     }
-                    if (!entity.title?.trim() || !(fields.body?.trim() || fields.story?.trim() || fields.acceptanceCriteria?.length))
+                    if (!entity.title?.trim() || !(entity instanceof UserStory && entity.definitionReview.status === "complete" || fields.body?.trim() || fields.story?.trim() || fields.acceptanceCriteria?.length))
                         return {
                             status: "needs_input",
                             artifactId: rootId,
@@ -88,6 +88,12 @@ export function processIntent(
                         depth,
                         cfg.maxArtifacts
                     )
+                    const basis: import('./mutation.ts').ProductRevision[] = []
+                    const sources = new Map([entity, ...all, ...aspects, ...candidates].map(source => [store.localId(source.id), source]))
+                    for (const sourceId of new Set([id, ...context.existing.map(item => String(item.id)), ...aspects.map(a => store.localId(a.id)), ...candidates.map(a => store.localId(a.id))])) {
+                        const source = sources.get(sourceId) ?? await store.getEntity(sourceId)
+                        if (source) basis.push({id: sourceId, entityType: source.typeName(), version: source.version})
+                    }
                     const propose =
                         options.propose ??
                         (async (input: IntentContext, findings: readonly { message: string }[]) => {
@@ -107,7 +113,7 @@ export function processIntent(
                     const allowedKinds = new Set(
                         kind === "Epic" ? ["Feature", "UserStory", "Ticket"] : kind === "UserStory" ? ["Feature", "Ticket"] : ["Ticket"]
                     )
-                    let accepted = false,
+                    let reviewed = false,
                         findings: Array<{ message: string }> = []
                     for (let attempt = 0; attempt < 3; attempt++) {
                         const beforeProposal = new Set(budget.visited)
@@ -115,14 +121,12 @@ export function processIntent(
                         if (proposal.required.length) return { status: "needs_input", artifactId: rootId, required: proposal.required }
                         const mutations: import("../product/mutation.ts").ProductMutation[] = [],
                             childIds: string[] = [],
-                            batchCreated: string[] = [],
                             batchReused: string[] = []
-                        const batchTitles = new Set<string>()
+                        const batchIds = new Set<string>()
                         for (const item of proposal.items) {
                             if (!allowedKinds.has(item.kind)) throw new Error(`Invalid next layer: ${kind} → ${item.kind}.`)
-                            const identity = `${item.kind}:${item.title.trim().toLowerCase()}`
-                            if (batchTitles.has(identity)) throw new Error(`Duplicate intent/work contract '${item.title}'.`)
-                            batchTitles.add(identity)
+                            if (batchIds.has(item.id)) throw new Error(`Duplicate proposed identity '${item.id}'.`)
+                            batchIds.add(item.id)
                             const sameId = await store.getEntity<WorkflowEntity>(item.id)
                             const matches = all.filter(
                                 existing =>
@@ -130,10 +134,8 @@ export function processIntent(
                                     existing.title?.trim().toLowerCase() === item.title.trim().toLowerCase()
                             )
                             if (
-                                matches.length > 1 ||
-                                (sameId &&
-                                    (sameId.typeName() !== item.kind ||
-                                        sameId.title?.trim().toLowerCase() !== item.title.trim().toLowerCase()))
+                                (!sameId && matches.length > 0) ||
+                                (sameId && sameId.typeName() !== item.kind)
                             )
                                 return {
                                     status: "needs_input",
@@ -146,17 +148,14 @@ export function processIntent(
                                         }
                                     ]
                                 }
-                            const match = sameId ?? matches[0],
-                                childId = match ? store.localId(match.id) : item.id
+                            const childId = sameId ? store.localId(sameId.id) : item.id
                             if (!budget.visit(childId, depth + 1)) {
                                 knownGaps.push(`Expansion budget stopped '${childId}'.`)
                                 continue
                             }
                             childIds.push(childId)
-                            if (match) batchReused.push(childId)
+                            if (sameId) batchReused.push(childId)
                             else {
-                                batchCreated.push(childId)
-                                const criteria = item.acceptanceCriteria?.length ? item.acceptanceCriteria : [item.title]
                                 mutations.push({
                                     kind: "product_create",
                                     entityType: item.kind,
@@ -165,15 +164,21 @@ export function processIntent(
                                         item.kind === "UserStory"
                                             ? {
                                                   title: item.title,
-                                                  actor: item.actor ?? "Caller",
-                                                  story: item.story ?? item.body,
-                                                  acceptanceCriteria: criteria,
+                                                  actor: item.actor,
+                                                  story: item.story,
+                                                  intent: item.intent,
+                                                  initialState: item.initialState,
+                                                  action: item.action,
+                                                  expectedResult: item.expectedResult,
+                                                  exceptions: item.exceptions,
+                                                  bounds: item.bounds,
+                                                  acceptanceCriteria: item.acceptanceCriteria,
                                                   status: "proposed"
                                               }
                                             : {
                                                   title: item.title,
                                                   body: item.body,
-                                                  acceptanceCriteria: criteria,
+                                                  acceptanceCriteria: item.acceptanceCriteria,
                                                   ...(item.kind === "Ticket" ? { lane: "Backlog" as const } : { status: "proposed" })
                                               }
                                 })
@@ -239,20 +244,17 @@ export function processIntent(
                         }
                         if (mutations.length) {
                             const engine = new CausalChangeEngine({ store, projectRoot: store.root }),
-                                request = { action: "product_change" as const, mutations }
+                                request = { action: "product_change" as const, mutations, basis, originalRequest: options.originalRequest ?? context.body }
                             const preview = await engine.previewChange(request)
                             if (preview.blocked) throw new Error(preview.blockReason)
-                            const result = await engine.applyChange(request, preview.fingerprint)
-                            if (!result.ok || !result.verification.passed) throw new Error("Product batch verification failed.")
+                            proposals.push(preview)
                         }
-                        batchCreated.forEach(child => created.add(child))
                         batchReused.forEach(child => reused.add(child))
-                        countEngineering("artifactsCreated", batchCreated.length)
                         countEngineering("artifactsReused", batchReused.length)
                         knownGaps.push(...proposal.gaps)
                         reviewInputs.push(reviewInput)
                         processed.push(id)
-                        accepted = true
+                        reviewed = true
                         const outgoing = await store.getOutgoing(entity.id),
                             incoming = await store.getIncoming(entity.id)
                         const descendants = [
@@ -272,7 +274,8 @@ export function processIntent(
                         ]
                         for (const childId of new Set(descendants)) {
                             const child = await store.getEntity(childId)
-                            if (!child || !(child instanceof Feature || child instanceof UserStory || child instanceof Ticket)) continue
+                            if (!child) { budget.remaining.add(childId); continue }
+                            if (!(child instanceof Feature || child instanceof UserStory || child instanceof Ticket)) continue
                             if (!budget.visit(childId, depth + 1)) continue
                             if (child instanceof Ticket) {
                                 if (child.lane !== "Done" || child.status !== "verified") budget.remaining.add(childId)
@@ -285,7 +288,7 @@ export function processIntent(
                         }
                         break
                     }
-                    if (!accepted)
+                    if (!reviewed)
                         return {
                             status: "blocked",
                             artifactId: rootId,
@@ -329,13 +332,14 @@ export function processIntent(
                     status: "complete",
                     artifactId: rootId,
                     value: {
-                        created: [...created],
+                        proposals,
+                        created: [],
                         reused: [...reused],
                         processed,
                         remaining: [...budget.remaining],
                         stoppedAtDepth: budget.stoppedAtDepth,
                         stoppedAtMaxArtifacts: budget.stoppedAtMaxArtifacts,
-                        artifactComplete: !knownGaps.length && !budget.remaining.size,
+                        artifactComplete: !proposals.length && !knownGaps.length && !budget.remaining.size,
                         knownGaps,
                         coverage: await getCoverage(store, rootId),
                         impact: await getProductImpact(store, rootId),
@@ -344,9 +348,6 @@ export function processIntent(
                 }
             } catch (error) {
                 return { status: "blocked", artifactId: rootId, blockers: [{ reason: `Product processing failed: ${String(error)}` }] }
-            } finally {
-                const { exportProjections } = await import("../graph/projections.ts")
-                await exportProjections(store)
             }
         }
     )

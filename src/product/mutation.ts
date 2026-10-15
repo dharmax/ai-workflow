@@ -4,10 +4,14 @@ import type { WorkflowStore } from '../graph/store.ts';
 import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import { ticketState } from '../graph/ticket-state.ts';
+import { canonical, computeHash } from '../kb/canonical.ts';
+import type { ChangeRequest } from '../change/types.ts';
 import type { TicketLane } from '../graph/types.ts';
 
 const kinds = { Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;
+export const ProductRevisionSchema = z.object({ id: z.string().min(1), entityType: z.string().min(1), version: z.number().int().positive() });
+export type ProductRevision = z.infer<typeof ProductRevisionSchema>;
 const entityKind = z.enum(['Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
@@ -111,17 +115,25 @@ export async function productDependents(store: WorkflowStore, id: string) {
   })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 }
 
-export async function validateProductMutations(store: WorkflowStore, mutations: ProductMutation[]) {
+export async function validateProductMutations(store: WorkflowStore, mutations: ProductMutation[], basis: ProductRevision[] = []) {
   if (!mutations.length) throw new Error('Product change requires at least one mutation.');
   mutations.forEach(mutation => ProductMutationSchema.parse(mutation));
   const state = new Map<string, { kind: ProductKind; exists: boolean; lane?: TicketLane; fields: Record<string, unknown> }>();
   const edges = new Map<string, { sourceId: string; predicate: string; targetId: string }>();
   const snapshot: Record<string, unknown> = {};
+  const identities = new Map<string, string>();
+  const rememberIdentity = (id: string, kind: ProductKind) => {
+    const local = store.localId(store.formatId(kinds[kind].dcr, id));
+    if (identities.has(local) && identities.get(local) !== id)
+      throw new Error(`Ambiguous Product identity spellings for '${local}'. Use one canonical ID.`);
+    identities.set(local, id);
+  };
   const key = (s: string, p: string, t: string) => JSON.stringify([s, p, t]);
   async function load(id: string) {
     if (state.has(id)) return state.get(id)!;
     const entity = await resolveProductEntity(store, id);
     const kind = productKind(entity)!;
+    rememberIdentity(id, kind);
     const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const incoming = await store.getIncoming(entity.id);
@@ -132,6 +144,13 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       edges.set(key(sourceId, edge.predicateName, targetId), { sourceId, predicate: edge.predicateName, targetId });
     }
     return state.get(id)!;
+  }
+  for (const revision of basis) {
+    ProductRevisionSchema.parse(revision);
+    const entity = await store.getEntity(revision.id, revision.entityType);
+    if (!entity || entity.typeName() !== revision.entityType || entity.version !== revision.version)
+      throw new Error(`Stale product source revision '${revision.id}'.`);
+    if (productKind(entity)) await load(revision.id);
   }
   const deleted: string[] = [];
   // Work containment and prerequisites share execution direction. Inspect their
@@ -149,6 +168,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   }
   for (const mutation of mutations) {
     if (mutation.kind === 'product_create') {
+      rememberIdentity(mutation.id, mutation.entityType);
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
       validateFields(mutation.entityType, mutation.fields, true);
       if (mutation.entityType === 'Ticket') ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status);
@@ -192,28 +212,95 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     visiting.delete(id); visited.add(id);
   }
   for (const edge of edges.values()) if (workEdge(edge)) visit(edge.sourceId);
-  return { snapshot, dependents };
+  return { snapshot, dependents, state, edges };
 }
 
-export async function applyProductMutations(store: WorkflowStore, mutations: ProductMutation[]): Promise<void> {
-  await validateProductMutations(store, mutations);
-  for (const mutation of mutations) {
-    if (mutation.kind === 'product_create') {
-      await store.upsertEntity(kinds[mutation.entityType].dcr, { id: mutation.id, ...mutation.fields,
-        status: mutation.fields.status ?? (mutation.entityType === 'Ticket' ? 'planned' : 'draft'),
-        ...(mutation.entityType === 'Ticket' ? { ...ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status), priority: mutation.fields.priority ?? 'P2' } : {}) });
-    } else if (mutation.kind === 'product_update') {
-      const entity = await resolveProductEntity(store, mutation.id);
-      const state = mutation.entityType === 'Ticket' && (mutation.fields.lane || mutation.fields.status)
-        ? ticketState(mutation.fields.lane ?? (entity as Ticket).lane, mutation.fields.status) : {};
-      await store.upsertEntity(entity.descriptor, {id: entity.id, ...mutation.fields, ...state});
-    } else if (mutation.kind === 'product_delete') {
-      await store.deleteEntity(mutation.id);
-    } else {
-      const source = await resolveProductEntity(store, mutation.sourceId);
-      const target = await resolveProductEntity(store, mutation.targetId);
-      if (mutation.kind === 'product_link') await store.relate(source, mutation.predicate, target);
-      else await store.unrelate(source.id, mutation.predicate, target.id);
+export async function applyProductMutations(
+  store: WorkflowStore,
+  mutations: ProductMutation[],
+  reviewed?: { request: Extract<ChangeRequest, {action: 'product_change'}>; fingerprint: string }
+): Promise<void> {
+  // Validate once before admission so malformed/rejected input cannot mutate even admission state.
+  await validateProductMutations(store, mutations, reviewed?.request.basis);
+  const workOnly = mutations.every(m => (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket');
+  const token = await store.admitGovernance(workOnly ? 'governed' : 'governance');
+  try {
+    const { snapshot, state, edges } = await validateProductMutations(store, mutations, reviewed?.request.basis);
+    if (reviewed && computeHash({request: reviewed.request, snapshot}) !== reviewed.fingerprint)
+      throw new Error('Stale change preview: fingerprint mismatch at Product commit.');
+    type Entry = Parameters<typeof store.sqliteStore.applyBatch>[0][number];
+    const batch = new Map<string, Entry>();
+    const put = (entry: Entry) => batch.set(JSON.stringify([entry.collectionName, entry.id]), entry);
+    const changed = new Set(mutations.flatMap(m => 'id' in m ? [m.id] : []));
+    for (const [id, entity] of state) {
+      const dcr = kinds[entity.kind].dcr, fullId = store.formatId(dcr, id);
+      const collection = await store.sp.collectionForEntityType(dcr);
+      const old = await collection.findById<Record<string, unknown> & {_version: number}>(fullId);
+      const original = snapshot[id] as {fields: {version: number}} | null;
+      if ((old?._version ?? null) !== (original?.fields.version ?? null)) throw new Error('Stale product entity revision.');
+      put({collectionName: collection.name, id: fullId, expectedVersion: old?._version ?? null});
+      if (!changed.has(id)) continue;
+      if (!entity.exists) {
+        if (old) put({collectionName: collection.name, id: fullId, expectedVersion: old._version, record: null});
+        continue;
+      }
+      const data: Record<string, unknown> = {...old};
+      for (const mutation of mutations) {
+        if (!('id' in mutation) || mutation.id !== id || mutation.kind === 'product_delete') continue;
+        Object.assign(data, Object.fromEntries(Object.entries(mutation.fields).filter(([, value]) => value !== undefined)));
+        if (mutation.kind === 'product_create') {
+          data.status ??= entity.kind === 'Ticket' ? 'planned' : 'draft';
+          if (entity.kind === 'Ticket') { data.lane ??= 'Todo'; data.priority ??= 'P2'; }
+        }
+        if (entity.kind === 'Ticket' && (mutation.kind === 'product_create' || mutation.fields.lane || mutation.fields.status))
+          Object.assign(data, ticketState(data.lane as TicketLane, mutation.fields.status));
+      }
+      if (old && Object.entries(data).every(([key, value]) => canonical(old[key]) === canonical(value))) continue;
+      const now = new Date().toISOString();
+      put({collectionName: collection.name, id: fullId, expectedVersion: old?._version ?? null,
+        record: {...data, createdAt: old?.createdAt ?? now, updatedAt: now}});
+      // A local ID is unique across kinds, including when a concurrent client created a different kind.
+      if (!old) for (const ctor of Object.values(kinds)) {
+        if (ctor.dcr === dcr) continue;
+        const other = await store.sp.collectionForEntityType(ctor.dcr);
+        put({collectionName: other.name, id: store.formatId(ctor.dcr, id), expectedVersion: null});
+      }
     }
-  }
+    const predicates = await store.sp.predicateCollection(store.sp.ontology.pdcr('applies_to'));
+    const existing = new Map<string, Record<string, unknown> & {_id: string; _version: number}>();
+    for (const [id, entity] of state) {
+      if (snapshot[id] === null) continue;
+      const fullId = store.formatId(kinds[entity.kind].dcr, id);
+      for (const query of [{sourceId: fullId}, {targetId: fullId}]) {
+        for (const row of await predicates.findSome<Record<string, unknown> & {_id: string; _version: number; sourceId: string; targetId: string; predicateName: string}>(query)) {
+          const key = JSON.stringify([store.localId(row.sourceId), row.predicateName, store.localId(row.targetId)]);
+          existing.set(key, row);
+          put({collectionName: predicates.name, id: row._id, expectedVersion: row._version});
+        }
+      }
+    }
+    const touched = new Set(mutations.flatMap(m => 'sourceId' in m ? [JSON.stringify([m.sourceId, m.predicate, m.targetId])] : []));
+    for (const key of touched) {
+      const old = existing.get(key), edge = edges.get(key);
+      if (old && !edge) put({collectionName: predicates.name, id: old._id, expectedVersion: old._version, record: null});
+      if (!old && edge) {
+        const source = state.get(edge.sourceId)!, target = state.get(edge.targetId)!;
+        const id = predicates.createId();
+        put({collectionName: predicates.name, id, expectedVersion: null, record: {
+          sourceId: store.formatId(kinds[source.kind].dcr, edge.sourceId), sourceType: kinds[source.kind].dcr.name,
+          targetId: store.formatId(kinds[target.kind].dcr, edge.targetId), targetType: kinds[target.kind].dcr.name,
+          predicateName: edge.predicate, timestamp: Date.now()
+        }});
+      }
+    }
+    // Basis can include Rule/Decision context even when it is not a mutable Product kind.
+    for (const revision of reviewed?.request.basis ?? []) {
+      const collection = await store.sp.collectionForEntityType(store.sp.ontology.edcr(revision.entityType));
+      const id = store.formatId(revision.entityType, revision.id);
+      if (!batch.has(JSON.stringify([collection.name, id])))
+        put({collectionName: collection.name, id, expectedVersion: revision.version});
+    }
+    const assertion = await store.governanceAssertion(token);
+    store.sqliteStore.applyBatch([assertion, ...batch.values()]);
+  } finally { await store.releaseGovernance(token); }
 }

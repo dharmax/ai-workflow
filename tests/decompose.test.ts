@@ -13,7 +13,13 @@ import {
 import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
 import { createDefaultAsker, proposeEpicStructure, type EpicStructureProposal } from '../src/product/decompose.ts';
 import { saveConfig } from '../src/config.ts';
-import { applyEpicStructure } from '../src/product/apply.ts';
+import { applyEpicStructure as prepareEpicStructure } from '../src/product/apply.ts';
+async function applyEpicStructure(store: WorkflowStore, proposal: EpicStructureProposal) {
+  const prepared = await prepareEpicStructure(store, proposal);
+  const result = await registry.execute('apply_change', {request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root});
+  if (!result.ok) throw new Error(result.error);
+  return {...prepared, applied: true};
+}
 
 describe('Epic Decomposition & Apply (Ticket 2)', () => {
   let tempDir: string;

@@ -251,7 +251,7 @@ export function registerProductTools() {
 
   for (const [name, ctor, key] of [['process_epic', Epic, 'epicId'], ['process_feature', Feature, 'featureId'], ['process_story', UserStory, 'storyId']] as const) {
     registry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
-      parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string() }),
+      parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string(), originalRequest: z.string().optional() }),
       execute: async (params, ctx) => {
         const { [key]: id, ...options } = params;
         const entity = await ctx.store.getEntity(String(id), ctor.dcr) as Epic | Feature | UserStory | null;
@@ -600,7 +600,7 @@ export function registerProductTools() {
 
   registry.register({
     name: 'apply_epic_structure',
-    description: 'Apply an accepted EpicStructureProposal deterministically and idempotently to the Product Intent Graph.',
+    description: 'Prepare an inert, versioned change preview from Epic decomposition. Review it and use apply_change with decision=accept to commit; reused definitions are preserved.',
     category: 'planning',
     parameters: z.object({
       proposal: z.any().describe('The validated EpicStructureProposal object to apply')

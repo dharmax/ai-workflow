@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ChangePreview } from '../change/types.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, CompletenessLevel } from '../artifact-policy.ts';
 
@@ -6,6 +7,8 @@ export const IntentProposalSchema = z.object({
   items: z.array(z.object({
     id: z.string().min(1), kind: z.enum(['Feature', 'UserStory', 'Ticket']), title: z.string().min(1),
     body: z.string().default(''), actor: z.string().optional(), story: z.string().optional(),
+    intent: z.string().optional(), initialState: z.string().optional(), action: z.string().optional(),
+    expectedResult: z.string().optional(), exceptions: z.string().optional(), bounds: z.string().optional(),
     acceptanceCriteria: z.array(z.string().min(1)).default([])
   })).default([]),
   aspectIds: z.array(z.string()).default([]), gaps: z.array(z.string()).default([]),
@@ -20,10 +23,12 @@ export interface IntentContext {
   coverage: unknown; impact: unknown; aspectAssessment: unknown;
 }
 export interface ProcessOptions extends ArtifactOperationOptions {
+  originalRequest?: string;
   systemOne?: SystemOne;
   propose?: (context: IntentContext, findings: readonly { message: string }[]) => Promise<IntentProposal>;
 }
 export interface ProcessedIntent {
+  proposals: ChangePreview[];
   created: string[]; reused: string[]; processed: string[]; remaining: string[];
   stoppedAtDepth: boolean; stoppedAtMaxArtifacts: boolean; artifactComplete: boolean;
   knownGaps: string[]; coverage: unknown; impact: unknown; aspectAssessment: unknown;

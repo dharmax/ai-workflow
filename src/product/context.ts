@@ -86,7 +86,12 @@ export async function buildIntentContext(
         id,
         kind,
         title: entity.title!,
-        body: fields.body || fields.story || "",
+        body: entity instanceof UserStory && entity.definitionReview.status === "complete"
+            ? [["Actor", entity.actor], ["Intent", entity.intent], ["Initial State", entity.initialState],
+                ["Action", entity.action], ["Expected Observable Result", entity.expectedResult],
+                ["Exceptions", entity.exceptions], ["Bounds", entity.bounds]]
+                .filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`).join("\n")
+            : fields.body || fields.story || "",
         acceptanceCriteria: fields.acceptanceCriteria ?? [],
         completeness,
         depth,

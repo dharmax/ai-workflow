@@ -142,6 +142,20 @@ async function main() {
       break;
     }
 
+    case 'product-change': {
+      const action = args[1], file = args[2];
+      if (!file || args.length !== 3 || !['preview', 'accept', 'reject', 'cancel'].includes(action))
+        throw new Error('Usage: aiwf product-change preview <request.json> | accept|reject|cancel <preview.json>');
+      const input: unknown = JSON.parse(fs.readFileSync(path.resolve(root, file), 'utf8'));
+      const ctx = {store: getStore(), projectRoot: root};
+      const result = action === 'preview'
+        ? await registry.execute('preview_change', input, ctx)
+        : await registry.execute('apply_change', {...(input as Record<string, unknown>), decision: action}, ctx);
+      console.log(JSON.stringify(result, null, 2));
+      if (result.blocked || action === 'accept' && !result.ok) process.exitCode = 1;
+      break;
+    }
+
     case 'metrics': {
       if (args[1] === 'export') {
         const output = args[2];
@@ -317,7 +331,8 @@ async function main() {
       const prioIdx = args.indexOf('--priority');
       const priority = prioIdx !== -1 ? parseInt(args[prioIdx + 1], 10) : 1;
       const noDecompose = args.includes('--no-decompose');
-      const autoApply = args.includes('--apply');
+      if (args.includes('--apply') && !noDecompose)
+        throw new Error('Generated decomposition requires review. Generate a preview, then use product-change accept <preview.json>.');
 
       const store = getStore();
 
@@ -370,34 +385,9 @@ async function main() {
         break;
       }
 
-      if (autoApply || !process.stdout.isTTY) {
-        if (!autoApply) {
-          console.log(`\n(Non-interactive mode. Run with --apply to persist structure to the graph.)`);
-          break;
-        }
-      } else {
-        const readline = await import('node:readline/promises');
-        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-        const answer = await rl.question('\nApply this structure to graph? [y/N]: ');
-        rl.close();
-        if (answer.trim().toLowerCase() !== 'y' && answer.trim().toLowerCase() !== 'yes') {
-          console.log('Aborted. Graph unchanged.');
-          break;
-        }
-      }
-
-      const applied = await registry.execute('apply_epic_structure', { proposal }, { store, projectRoot: root });
-      await exportProjections(store, root);
-      console.log(`\n✅ Applied Epic structure to graph and synced projections:`);
-      console.log(`  Epic:     ${applied.epicId}`);
-      console.log(`  Features: ${applied.featureIds.join(', ') || 'None'}`);
-      console.log(`  Stories:  ${applied.storyIds.join(', ') || 'None'}`);
-
-      const cov = await registry.execute('get_product_coverage', { entityId: applied.epicId }, { store, projectRoot: root });
-      console.log(`\nStructural Coverage for ${applied.epicId}: ${cov.complete ? 'COMPLETE ✅' : 'IN PROGRESS (gaps present)'}`);
-      if (cov.gaps.length > 0) {
-        for (const g of cov.gaps) console.log(`  - [${g.kind}] ${g.message}`);
-      }
+      const prepared = await registry.execute('apply_epic_structure', { proposal }, {store, projectRoot: root});
+      console.log('\nReview this inert change preview; accept its exact request/fingerprint with product-change accept <preview.json>:');
+      console.log(JSON.stringify(prepared.preview, null, 2));
       break;
     }
 
@@ -981,6 +971,7 @@ Diagnostics & Health:
 Configuration & Execution:
   init                                   Zero-config project initialization in current directory
   setup [--check] [--global|--mcp|--link] Inspect or apply verified setup steps
+  product-change preview|accept|reject|cancel <json>  Review and atomically edit canonical product intent
   rule list|get|export|preview|apply|resolve  Manage canonical Rules with preview approval
   config [get|set|reset] [key] [val] [--global] Inspect values/provenance or change explicit overrides
   model [list|radar|set]                 Inspect gateway, Pareto radar rankings, or configure mode routes
