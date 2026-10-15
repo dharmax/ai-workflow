@@ -11,13 +11,32 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 describe('S3 Workspace public developer journeys', () => {
   let root: string, store: WorkflowStore, browser: Browser;
-  let workspace: Awaited<ReturnType<typeof import('../src/workspace/server.ts').startWorkspace>>;
+  let workspace: {url: string; stop: () => Promise<void>};
+  const binary = process.env.AIWF_WORKSPACE_BINARY ? path.resolve(process.env.AIWF_WORKSPACE_BINARY) : undefined;
   const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, {store, projectRoot: root});
   const scenario = { Actor: 'Signed-in user', Intent: 'Keep my filtered avatar', 'Initial State': 'Unsaved filtered preview; previous saved avatar exists',
     Action: 'Activate Save', 'Expected Result': 'Saved avatar matches preview after reload', Exceptions: 'Failure preserves the previous avatar', Bounds: 'Current account only' };
   const start = async () => {
-    const {startWorkspace} = await import('../src/workspace/server.ts');
-    workspace = startWorkspace({store, projectRoot: root}, 0);
+    if (binary) {
+      const proc = Bun.spawn([binary, 'workspace'], {cwd:root, stdout:'pipe', stderr:'pipe'});
+      workspace = {url:'', stop:async () => { proc.kill('SIGTERM'); await proc.exited; }};
+      const reader = proc.stdout.getReader();
+      let output = '';
+      try {
+        while (!output.includes('\n')) {
+          const chunk = await reader.read();
+          if (chunk.done) throw new Error('Compiled Workspace exited before printing its URL: ' + await new Response(proc.stderr).text());
+          output += new TextDecoder().decode(chunk.value);
+        }
+      } finally { reader.releaseLock(); }
+      const line = output.split('\n').find(line => line.startsWith('AIWF Workspace: '));
+      if (!line) throw new Error('Compiled Workspace did not print a session URL: ' + output);
+      workspace.url = line.slice('AIWF Workspace: '.length).trim();
+    } else {
+      const {startWorkspace} = await import('../src/workspace/server.ts');
+      const local = startWorkspace({store, projectRoot: root}, 0);
+      workspace = {url:local.url, stop:async () => { local.server.stop(true); }};
+    }
     return workspace.url;
   };
   const setup = async () => {
@@ -47,7 +66,7 @@ describe('S3 Workspace public developer journeys', () => {
   const snapshot = () => Object.fromEntries((store.db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {name:string}[])
     .map(({name}) => [name, store.db.query('SELECT * FROM "' + name + '" ORDER BY rowid').all()]));
   afterEach(async () => {
-    await browser?.close(); workspace?.server.stop(true); store?.close();
+    await browser?.close(); await workspace?.stop(); store?.close();
     if (root) fs.rmSync(root, {recursive:true, force:true});
   });
 
@@ -71,7 +90,7 @@ describe('S3 Workspace public developer journeys', () => {
     expect(await page.getByTestId('diff').innerText()).toContain('Activate Save after preview');
     await page.getByRole('button', {name:'Accept and save',exact:true}).click();
     await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
-    workspace.server.stop(true); store.close(); store = new WorkflowStore(root);
+    await workspace.stop(); store.close(); store = new WorkflowStore(root);
     const url = await start(); await page.goto(url);
     await page.getByLabel('Search product', {exact:true}).fill('Save filtered');
     await page.getByRole('button', {name:'Save filtered avatar',exact:true}).click();
@@ -79,12 +98,12 @@ describe('S3 Workspace public developer journeys', () => {
       expect(await page.getByLabel(label,{exact:true}).inputValue()).toBe(value);
     expect(await page.getByLabel('Feature',{exact:true}).inputValue()).toBe('F');
     if (process.env.AIWF_S3_EVIDENCE_DIR) await page.screenshot({path:path.join(process.env.AIWF_S3_EVIDENCE_DIR,'story-desktop.png'),fullPage:true});
-    const cli = Bun.spawn(['bun', path.resolve(import.meta.dir,'../src/cli.ts'), 'story','S'], {cwd:root,stdout:'pipe',stderr:'pipe'});
+    const cli = Bun.spawn([...(binary ? [binary] : ['bun', path.resolve(import.meta.dir,'../src/cli.ts')]), 'story','S'], {cwd:root,stdout:'pipe',stderr:'pipe'});
     const stdout = await new Response(cli.stdout).text(); expect(await cli.exited).toBe(0);
     expect(stdout).toContain('Activate Save after preview');
     const client = new Client({name:'workspace-story-proof',version:'1'});
     try {
-      await client.connect(new StdioClientTransport({command:'bun',args:[path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe'}));
+      await client.connect(new StdioClientTransport({command:binary || 'bun',args:binary ? ['mcp'] : [path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe'}));
       const result = await client.callTool({name:'get_user_story', arguments:{storyId:'S'}});
       expect(result.isError).not.toBe(true);
       const content = result.content as {type:string;text?:string}[];
