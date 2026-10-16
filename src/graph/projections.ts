@@ -345,6 +345,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
 }
 
 export async function importProjections(store: WorkflowStore, rootDir: string = store.root): Promise<{ importedChanges: number }> {
+  store.assertCanWrite();
   let importedChanges = 0;
   const kanbanPath = path.join(rootDir, 'kanban.md');
   const epicsPath = path.join(rootDir, 'epics.md');

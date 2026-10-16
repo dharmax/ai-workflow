@@ -138,8 +138,6 @@ export function registerChangeTools() {
         if (decision !== 'accept') return {ok: false, fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
           verification: {passed: false, errors: []}, error: `Product proposal ${decision === 'reject' ? 'rejected' : 'cancelled'}; no changes applied.`};
       }
-      if (ctx.executionAuthority === 'read-only') throw new Error('Cannot apply a change with read-only authority.');
-      ctx.signal?.throwIfAborted();
       const engine = new CausalChangeEngine({
         store: ctx.store,
         projectRoot: ctx.projectRoot

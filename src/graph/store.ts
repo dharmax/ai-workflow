@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
-import { ticketState } from './ticket-state.ts';
+import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
 import {
   SemanticPackage,
   SqliteStore,
@@ -69,10 +69,48 @@ type BatchEntry = Parameters<SqliteStore['applyBatch']>[0][number];
 type AdmissionLease = z.infer<typeof admissionSchema>[number];
 
 export class WorkflowStore {
+  private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean}>();
+
+  /** Host context is inherited by every canonical writer, including legacy adapters. */
+  async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>): Promise<T> {
+    const parent = this.execution.getStore();
+    const context = {
+      authority: parent && (!parent.active || parent.authority === 'read-only') ? 'read-only' as const : authority,
+      signal: parent?.signal && signal ? AbortSignal.any([parent.signal, signal]) : parent?.signal ?? signal,
+      active: true
+    };
+    try { return await this.execution.run(context, work); }
+    finally { context.active = false; }
+  }
+
+  assertCanWrite(): void {
+    const context = this.execution.getStore();
+    context?.signal?.throwIfAborted();
+    if (this.testWrites.getStore()?.active === false) throw Error('Test proof authority expired with its owning operation.');
+    if (context && (!context.active || context.authority !== 'project-write'))
+      throw Error('Canonical mutation requires project-write authority; read-only execution cannot write.');
+  }
+
+  private readonly testWrites = new AsyncLocalStorage<{id: string; active: boolean}>();
+
+  /** Internal Test owners bind authority to one identity for the callback lifetime. Never a tool argument. */
+  async withTestArtifactWrite<T>(id: string, work: () => Promise<T>): Promise<T> {
+    const scope = {id: this.formatId(TestNode.dcr, id), active: true};
+    try { return await this.testWrites.run(scope, work); }
+    finally { scope.active = false; }
+  }
+
+  assertTestArtifactWrite(id: string): void {
+    const scope = this.testWrites.getStore();
+    if (!scope?.active || scope.id !== this.formatId(TestNode.dcr, id))
+      throw Error('Test proof is owned by Story-test and test-execution operations.');
+  }
+
   private readonly indexing = new AsyncLocalStorage<{token: string; files: readonly string[]; active: boolean}>();
 
   /** Project-wide shared/exclusive admission. The public conditional batch is the atomic boundary. */
   async admitGovernance(mode: 'governed' | 'governance', durationMinutes = 30): Promise<string> {
+    this.assertCanWrite();
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) throw Error('Admission requires a positive lease duration.');
     const token = crypto.randomUUID();
     await this.updateGovernanceAdmission(leases => {
@@ -102,8 +140,11 @@ export class WorkflowStore {
   }
 
   async releaseGovernance(token: string): Promise<void> {
-    await this.updateGovernanceAdmission(leases => leases.some(lease => lease.token === token)
-      ? leases.filter(lease => lease.token !== token) : undefined);
+    const context = this.execution.getStore();
+    if (context && (!context.active || context.authority !== 'project-write')) this.assertCanWrite();
+    // Cancellation must still release this exact admission; it grants no new authority.
+    await this.execution.exit(() => this.updateGovernanceAdmission(leases => leases.some(lease => lease.token === token)
+      ? leases.filter(lease => lease.token !== token) : undefined));
   }
 
   /** One CAS owner for the canonical admission row; abandoned leases never become active again. */
@@ -174,6 +215,20 @@ export class WorkflowStore {
     this.db.exec('PRAGMA busy_timeout = 5000;');
 
     this.sqliteStore = new SqliteStore(this.db);
+    const applyBatch = this.sqliteStore.applyBatch.bind(this.sqliteStore);
+    this.sqliteStore.applyBatch = changes => { this.assertCanWrite(); return applyBatch(changes); };
+    const makeBasicCollection = this.sqliteStore.makeBasicCollection.bind(this.sqliteStore);
+    this.sqliteStore.makeBasicCollection = (physical, initialize) => {
+      const collection = makeBasicCollection(physical, initialize);
+      for (const name of ['append','updateDocument','updateDocumentUnsafe','deleteById','deleteByQuery','findOneAndModify']) {
+        const write = Reflect.get(collection, name) as (...args: unknown[]) => unknown;
+        Object.defineProperty(collection, name, {value: (...args: unknown[]) => {
+          this.assertCanWrite();
+          return Reflect.apply(write, collection, args);
+        }});
+      }
+      return collection;
+    };
     this.sp = new SemanticPackage('aiwf', graphOntology, this.sqliteStore);
   }
 
@@ -234,14 +289,46 @@ export class WorkflowStore {
     return this.ownEntity(this.sp.makeEntity<T>(dcr, id, record));
   }
 
-  /** Returned governance entities retain their public update/erase API without bypassing this store. */
+  private assertEntityWrite(type: string, id: string | undefined, fields: Record<string, unknown>, previous?: Record<string, unknown>): void {
+    this.assertCanWrite();
+    if (type === 'Ticket') assertTicketAuthoring(fields, previous);
+    if (type === 'Artifact' && id && /^(?:VERIFY-|GOVERNANCE-ADMISSION$)/.test(this.localId(id)))
+      throw Error('Verification receipts and admission records are owner-managed.');
+    if (type === 'Decision' &&
+        (!previous || Object.entries(fields).some(([key, value]) => !['id','_id'].includes(key) && canonical(previous[key]) !== canonical(value))))
+      throw Error('Decision acceptance requires reviewed authoring, deferred to PC2.');
+    if (type === 'TestNode' && Object.keys(fields).some(key =>
+        ['lastRun','passed','failure','exitCode','durationMs','command','output','executionHashes','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash','fixturePath','interfaceName'].includes(key) ||
+        key === 'status' && ['verified','failing'].includes(String(fields[key]))))
+      this.assertTestArtifactWrite(id!);
+  }
+
+  /** Returned entities retain their public update/erase API without bypassing canonical admission. */
   private ownEntity<T extends AbstractEntity>(entity: T): T {
     const governed = ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName());
     if (!governed) {
-      if (!(entity instanceof FileNode || entity instanceof SymbolNode)) return entity;
+      if (!(entity instanceof FileNode || entity instanceof SymbolNode)) {
+        const nativeUpdate = entity.update.bind(entity), nativeErase = entity.erase.bind(entity);
+        Object.defineProperty(entity, 'update', {configurable: true, value: async (fields: Record<string, unknown>, superSet = false, cutExtra = false, rawOperations = {}) => {
+          if (Object.keys(rawOperations).length) throw Error('Canonical mutations do not support raw storage operations.');
+          const collection = await this.sp.collectionForEntityType(entity.descriptor);
+          const previous = await collection.findById<Record<string, unknown>>(entity.id);
+          this.assertEntityWrite(entity.typeName(), entity.id, fields, previous);
+          return nativeUpdate(entity instanceof Ticket && ('lane' in fields || 'status' in fields)
+            ? {...fields, ...ticketState((fields.lane ?? previous.lane) as TicketLane, fields.status as string | undefined)}
+            : fields, superSet, cutExtra, rawOperations);
+        }});
+        Object.defineProperty(entity, 'erase', {configurable: true, value: () => {
+          this.assertEntityWrite(entity.typeName(), entity.id, {}, entity as unknown as Record<string, unknown>);
+          if (entity instanceof TestNode) this.assertTestArtifactWrite(entity.id);
+          return nativeErase();
+        }});
+        return entity;
+      }
       const nativeUpdate = entity.update.bind(entity);
       Object.defineProperty(entity, 'erase', {configurable: true, value: () => this.deleteEntity(entity.id, entity.version)});
       Object.defineProperty(entity, 'update', {configurable: true, value: async (fields: Record<string, unknown>, superSet = false, cutExtra = false, rawOperations = {}) => {
+        this.assertCanWrite();
         if (!Object.entries(fields).some(([key, value]) => ['path', 'filePath', 'language'].includes(key) && canonical((entity as unknown as Record<string, unknown>)[key]) !== canonical(value)))
           return nativeUpdate(fields, superSet, cutExtra, rawOperations);
         if (Object.keys(rawOperations).length) throw Error('Applicability changes do not support raw storage operations.');
@@ -333,11 +420,13 @@ export class WorkflowStore {
     data: Record<string, any>,
     expectedVersion?: number
   ): Promise<T> {
+    this.assertCanWrite();
     const dcr = this.getDescriptor(typeOrDcr);
     const rawId = data.id || data._id;
     const formattedId = rawId ? this.formatId(dcr, rawId) : undefined;
-    if (dcr.name === 'Artifact' && formattedId === this.formatId(Artifact.dcr, 'GOVERNANCE-ADMISSION'))
-      throw Error('Admission state is owned by governance admission operations.');
+    const previous = formattedId ? await this.getEntity(formattedId, dcr) : null;
+    if (expectedVersion !== undefined && previous?.version !== expectedVersion) throw Error('Stale governance entity revision.');
+    this.assertEntityWrite(dcr.name, formattedId, data, previous as unknown as Record<string, unknown> | undefined);
     if (['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(dcr.name)) {
       if (!formattedId) throw Error('Governance entities require an explicit identity.');
       const collection = await this.sp.collectionForEntityType(dcr);
@@ -357,17 +446,15 @@ export class WorkflowStore {
       return this.ownEntity(this.sp.makeEntity<T>(dcr, formattedId, rows[0]));
     }
 
-    if (formattedId) {
-      const existing = await this.getEntity<T>(formattedId, dcr);
-      if (existing) {
-        const state = dcr.name === 'Ticket' && (data.lane || data.status)
-          ? ticketState(data.lane ?? (existing as unknown as Ticket).lane, data.status) : {};
-        const updatePayload: Record<string, any> = { ...data, ...state, updatedAt: new Date().toISOString() };
-        delete updatePayload.id;
-        delete updatePayload._id;
-        await existing.update(updatePayload, true, false);
-        return existing;
-      }
+    if (previous) {
+      const existing = previous as T;
+      const state = dcr.name === 'Ticket' && (data.lane || data.status)
+        ? ticketState(data.lane ?? (existing as unknown as Ticket).lane, data.status) : {};
+      const updatePayload: Record<string, any> = { ...data, ...state, updatedAt: new Date().toISOString() };
+      delete updatePayload.id;
+      delete updatePayload._id;
+      await existing.update(updatePayload, true, false);
+      return existing;
     }
 
     const defaultStatus = (dcr.name === 'Epic' || dcr.name === 'Feature' || dcr.name === 'UserStory')
@@ -427,8 +514,10 @@ export class WorkflowStore {
    * Deletes an entity and all its connected predicates.
    */
   async deleteEntity(id: string, expectedVersion?: number): Promise<boolean> {
+    this.assertCanWrite();
     const entity = await this.getEntity(id);
-    if (entity?.id === this.formatId(Artifact.dcr, 'GOVERNANCE-ADMISSION')) throw Error('Admission state cannot be deleted.');
+    if (entity) this.assertEntityWrite(entity.typeName(), entity.id, {});
+    if (entity instanceof TestNode) this.assertTestArtifactWrite(entity.id);
     if (entity) {
       if (expectedVersion !== undefined && entity.version !== expectedVersion) throw Error('Stale governance entity revision.');
       if (['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'FileNode', 'SymbolNode'].includes(entity.typeName())) {
@@ -475,6 +564,8 @@ export class WorkflowStore {
     target: AbstractEntity | string,
     payload?: Record<string, any>
   ): Promise<Predicate> {
+    this.assertCanWrite();
+    if (predicateName === 'verifies') this.assertTestArtifactWrite(typeof source === 'string' ? source : source.id);
     const pDcr = (semanticPredicates as Record<string, PredicateDcr>)[predicateName] ||
       this.sp.ontology.pdcr(predicateName);
     if (!pDcr) throw new Error(`Unknown predicate: ${predicateName}`);
@@ -527,6 +618,8 @@ export class WorkflowStore {
     predicateName: string,
     targetId: string
   ): Promise<number> {
+    this.assertCanWrite();
+    if (predicateName === 'verifies') this.assertTestArtifactWrite(sourceId);
     const pCol = await this.sp.predicateCollection((semanticPredicates as Record<string, PredicateDcr>)[predicateName]);
     const src = await this.getEntity(sourceId);
     const tgt = await this.getEntity(targetId);

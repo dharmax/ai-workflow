@@ -29,7 +29,7 @@ describe('truthful primitives', () => {
     const declaration = `export function compute(value: number): number {\n${Array.from({ length: 65 }, (_, i) => `  // comment ${i} with } and {`).join('\n')}\n  return value + 1;\n}`;
     fs.writeFileSync(path.join(root, 'unit.ts'), `${declaration}\nexport function neighbor() { return 99; }\n`);
     fs.writeFileSync(path.join(root, 'caller.ts'), 'import { compute } from "./unit"; export const answer = compute(1);\n');
-    const ctx = { store, projectRoot: root };
+    const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
     const source = await registry.execute('get_symbol_source', { filePath: 'unit.ts', symbolName: 'compute' }, ctx);
     expect(source.exact).toBe(true);
     expect(source.code).toBe(declaration);

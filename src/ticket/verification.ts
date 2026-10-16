@@ -43,7 +43,7 @@ export async function executeTicketChecks(
     }>
 > {
     const id = dossier.ticket.id
-    const ctx = { store, projectRoot: store.root, signal }
+    const ctx = { store, projectRoot: store.root, signal, executionAuthority: 'project-write' as const }
     const needs = (question: string, why: string, target: string): OperationResult<never> => ({
         status: "needs_input",
         artifactId,

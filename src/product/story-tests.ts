@@ -119,9 +119,9 @@ export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:s
       if(!currentTest) throw new Error('Activated Story-test identity disappeared; preserve the source and reconcile this same TestNode.');
       const engine=new CausalChangeEngine({store,projectRoot:store.root});
       const request:ChangeRequest={action:'product_change',basis:[{id:store.localId(currentTest.id),entityType:'TestNode',version:currentTest.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Activate reviewed Story test for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(test.id),fields:{testState:'not-run',testStateReason:'Ticket started; run this active Story test before implementation.',testSourceHash:computeHash(activeSource),storyVersion:story.version,storyBasisHash:basis.hash}}]};
-      const preview=await engine.previewChange(request);
+      const preview=await store.withTestArtifactWrite(test.id,()=>engine.previewChange(request));
       if(preview.blocked) throw new Error(preview.blockReason||'Canonical Story-test activation was blocked.');
-      const result=await apply(preview);
+      const result=await store.withTestArtifactWrite(test.id,()=>apply(preview));
       if(!result.ok) throw new Error(result.error||'Canonical Story-test activation failed after source activation. Reconcile the same Story and TestNode.');
       activated.push(store.localId(test.id));
     }
@@ -142,6 +142,7 @@ export async function requireStoryTests(store:WorkflowStore,ticket:Ticket) {
 
 /** Run the existing targeted runner and classify only current public-interface assertion failures as expected red. */
 export async function runStoryTest(store:WorkflowStore,storyId:string,run:(command:string)=>Promise<unknown>,apply:(preview:ChangePreview)=>Promise<ChangeApplyResult>) {
+  store.assertCanWrite();
   const story=await store.getEntity<UserStory>(storyId,UserStory.dcr);
   if(!story || (story as UserStory & {status:string}).status!=='accepted' || story.definitionReview.status!=='complete') throw new Error('Only a complete accepted Story can run its Story test.');
   const tests=[];
@@ -177,9 +178,9 @@ export async function runStoryTest(store:WorkflowStore,storyId:string,run:(comma
   const reason=state==='green'?'Existing Bun runner passed the active public-interface Story test.':state==='expected-red'?'Current reviewed fixture failed a test assertion before implementation.':current.passed===false?'Test failed without attributable product assertion evidence; fixture, syntax, infrastructure or runner failure is blocked.':'Runner outcome is unknown.';
   const engine=new CausalChangeEngine({store,projectRoot:store.root});
   const request:ChangeRequest={action:'product_change',basis:[{id:store.localId(current.id),entityType:'TestNode',version:current.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Classify current Story-test execution for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(current.id),fields:{testState:state,testStateReason:reason,testSourceHash:computeHash(source),fixtureHash,storyVersion:story.version,storyBasisHash:basis.hash}}]};
-  const preview=await engine.previewChange(request);
+  const preview=await store.withTestArtifactWrite(current.id,()=>engine.previewChange(request));
   if(preview.blocked) return {status:'blocked',reason:'Execution was recorded but classification could not be applied: '+preview.blockReason,testId:store.localId(current.id),lastRun:current.lastRun};
-  const applied=await apply(preview);
+  const applied=await store.withTestArtifactWrite(current.id,()=>apply(preview));
   if(!applied.ok) return {status:'blocked',reason:'Execution was recorded but canonical classification failed: '+(applied.error||'unknown apply failure'),testId:store.localId(current.id),lastRun:current.lastRun};
   return {status:state,reason,testId:store.localId(current.id),lastRun:current.lastRun,passed:current.passed===true,output:current.output||''};
 }
@@ -261,7 +262,7 @@ export async function prepareStoryTest(store:WorkflowStore,specification:StoryTe
       storyVersion:story.version,testState,testStateReason,testSourceHash,fixtureHash,storyBasisHash:currentBasis.hash}},
     {kind:'product_link',sourceId:spec.testId,predicate:'verifies',targetId:spec.storyId}
   ]};
-  const linkPreview=await engine.previewChange(request);
+  const linkPreview=await store.withTestArtifactWrite(spec.testId,()=>engine.previewChange(request));
   if(linkPreview.blocked) return {status:'uncovered' as const,reason:linkPreview.blockReason};
   return {status:'review' as const,specification:supplied,content,testState,fixtureHash,sourcePreview,linkPreview,
     fingerprint:computeHash(canonical({spec,source:sourcePreview?.fingerprint,link:linkPreview.fingerprint,testSourceHash,fixtureHash}))};
@@ -273,6 +274,7 @@ export async function applyStoryTest(
   apply:(preview:ChangePreview)=>Promise<ChangeApplyResult>
 ) {
   if(decision!=='accept') return {status:decision==='reject'?'rejected':'cancelled',fileMaterialized:false};
+  store.assertCanWrite();
   const testId=testArtifactId(normalizeTestPath(specification.filePath));
   const preview=await prepareStoryTest(store,specification);
   if(preview.status!=='review') return preview;
@@ -291,7 +293,7 @@ export async function applyStoryTest(
     if(computeHash(fs.readFileSync(path.join(store.root,specification.filePath),'utf8'))!==computeHash(preview.content)
       ||computeHash(fs.readFileSync(path.join(store.root,specification.fixturePath),'utf8'))!==preview.fixtureHash)
       throw new Error('Source or fixture changed before canonical linking.');
-    const linked=await apply(preview.linkPreview);
+    const linked=await store.withTestArtifactWrite(testId,()=>apply(preview.linkPreview));
     if(!linked.ok) throw new Error(linked.error||'Canonical linking failed.');
     return {status:'linked',fileMaterialized:true,testState:preview.testState,testId};
   } catch(error) {

@@ -28,7 +28,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-product-test-'));
     store = new WorkflowStore(tempDir, true);
     initializeTools();
-    ctx = { store, projectRoot: tempDir };
+    ctx = { store, projectRoot: tempDir, executionAuthority: 'project-write' as const };
   });
 
   afterEach(() => {
@@ -75,7 +75,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     await registry.execute('create_user_story', { id: 'STORY-1', title: 'Story 1' }, ctx);
     await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'TKT-1', title: 'Ticket 1', lane: 'Todo' });
     await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST-1', title: 'Test 1', targetPath: 't.ts' });
-    await store.upsertEntity<Decision>(Decision.dcr, { id: 'ADR-1', title: 'ADR 1', decision: 'Decided' });
+    await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR-1"),_id:store.formatId(Decision.dcr,"ADR-1"), title: 'ADR 1', decision: 'Decided' },true,false);
 
     // Permitted: Epic targets Feature
     const l1 = await registry.execute('link_product', {
@@ -131,15 +131,15 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     expect(l6.success).toBe(true);
 
     // Permitted: Test verifies Feature
-    const l7 = await registry.execute('link_product', {
+    const l7 = await store.withTestArtifactWrite('TEST-1',()=>registry.execute('link_product', {
       sourceId: 'TEST-1', predicate: 'verifies', targetId: 'FEAT-1'
-    }, ctx);
+    }, ctx));
     expect(l7.success).toBe(true);
 
     // Permitted: Test verifies UserStory
-    const l8 = await registry.execute('link_product', {
+    const l8 = await store.withTestArtifactWrite('TEST-1',()=>registry.execute('link_product', {
       sourceId: 'TEST-1', predicate: 'verifies', targetId: 'STORY-1'
-    }, ctx);
+    }, ctx));
     expect(l8.success).toBe(true);
 
     // Permitted: Decision governs Epic/Feature/Story
@@ -245,7 +245,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       const test = await store.upsertEntity<TestNode>(TestNode.dcr, {
         id: 'TEST-HANDLER', title: 'Handler test', targetPath: 'tests/handler.test.ts'
       });
-      await registry.execute('link_product', { sourceId: 'TEST-HANDLER', predicate: 'verifies', targetId: 'STORY-GAP' }, ctx);
+      await store.withTestArtifactWrite('TEST-HANDLER',()=>registry.execute('link_product', { sourceId: 'TEST-HANDLER', predicate: 'verifies', targetId: 'STORY-GAP' }, ctx));
 
       cov = await getCoverage(store, 'STORY-GAP');
       expect(cov.complete).toBe(true);
@@ -307,7 +307,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       await registry.execute('link_product', { sourceId: 'EPIC-OLD', predicate: 'targets', targetId: 'STORY-LOGIN' }, ctx);
 
       // Work & Code for Login
-      await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'TKT-LOGIN', title: 'Login Tkt', lane: 'Done' });
+      await store.sp.createEntity<Ticket>(Ticket.dcr, { id: store.formatId(Ticket.dcr,'TKT-LOGIN'), _id: store.formatId(Ticket.dcr,'TKT-LOGIN'), title: 'Login Tkt', lane: 'Done', status:'verified' },true,false);
       await registry.execute('link_product', { sourceId: 'TKT-LOGIN', predicate: 'addresses', targetId: 'STORY-LOGIN' }, ctx);
 
       const codeSym = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
@@ -317,10 +317,10 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
       // Test for Login
       await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST-LOGIN', title: 'Login test', targetPath: 't.ts' });
-      await registry.execute('link_product', { sourceId: 'TEST-LOGIN', predicate: 'verifies', targetId: 'STORY-LOGIN' }, ctx);
+      await store.withTestArtifactWrite('TEST-LOGIN',()=>registry.execute('link_product', { sourceId: 'TEST-LOGIN', predicate: 'verifies', targetId: 'STORY-LOGIN' }, ctx));
 
       // Decision governing containing Feature
-      await store.upsertEntity<Decision>(Decision.dcr, { id: 'ADR-JWT', title: 'JWT Tokens', decision: 'Use JWT' });
+      await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR-JWT"),_id:store.formatId(Decision.dcr,"ADR-JWT"), title: 'JWT Tokens', decision: 'Use JWT' },true,false);
       await registry.execute('link_product', { sourceId: 'ADR-JWT', predicate: 'governs', targetId: 'FEAT-AUTH' }, ctx);
 
       // Unrelated Subgraph
@@ -464,15 +464,15 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
         id: 'FLOW-CALENDAR', title: 'Create and share a calendar event', actor: 'Calendar user',
         body: 'The user creates an event and may invite attendees.', status: 'accepted'
       });
-      const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {
-        id: 'TKT-CONTRACT', title: 'Implement attendee contract', lane: 'Done'
-      });
+      const ticket = await store.sp.createEntity<Ticket>(Ticket.dcr, {
+        id: store.formatId(Ticket.dcr,'TKT-CONTRACT'), _id: store.formatId(Ticket.dcr,'TKT-CONTRACT'), title: 'Implement attendee contract', lane: 'Done', status:'verified'
+      },true,false);
       const testAttendees = await store.upsertEntity<TestNode>(TestNode.dcr, {
         id: 'TEST-ATTENDEES', title: 'Attendee test', targetPath: 'tests/attendees.test.ts'
       });
-      const adr = await store.upsertEntity<Decision>(Decision.dcr, {
-        id: 'ADR-CALENDAR', title: 'Calendar schema design', decision: 'RFC 5545 format'
-      });
+      const adr = await store.sp.createEntity<Decision>(Decision.dcr, {
+        id:store.formatId(Decision.dcr,"ADR-CALENDAR"),_id:store.formatId(Decision.dcr,"ADR-CALENDAR"), title: 'Calendar schema design', decision: 'RFC 5545 format'
+      },true,false);
       const codeInput = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
         id: 'CalendarCreateInput', title: 'CalendarCreateInput', filePath: 'src/calendar/types.ts',
         kind: 'type', line: 15, column: 0
@@ -498,7 +498,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       await store.relate(ticket, 'modifies', codeInput);
 
       // TEST-ATTENDEES verifies STORY-ATTENDEES
-      await store.relate(testAttendees, 'verifies', storyAttendees);
+      await store.withTestArtifactWrite(testAttendees.id,()=>store.relate(testAttendees, 'verifies', storyAttendees));
 
       // ADR-CALENDAR governs FEAT-EVENT-CREATE
       await store.relate(adr, 'governs', feat);

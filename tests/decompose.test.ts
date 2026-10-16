@@ -16,7 +16,7 @@ import { saveConfig } from '../src/config.ts';
 import { applyEpicStructure as prepareEpicStructure } from '../src/product/apply.ts';
 async function applyEpicStructure(store: WorkflowStore, proposal: EpicStructureProposal) {
   const prepared = await prepareEpicStructure(store, proposal);
-  const result = await registry.execute('apply_change', {request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root});
+  const result = await registry.execute('apply_change', {request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root, executionAuthority: 'project-write'});
   if (!result.ok) throw new Error(result.error);
   return {...prepared, applied: true};
 }
@@ -30,7 +30,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-decompose-test-'));
     store = new WorkflowStore(tempDir, true);
     initializeTools();
-    ctx = { store, projectRoot: tempDir };
+    ctx = { store, projectRoot: tempDir, executionAuthority: 'project-write' as const };
   });
 
   afterEach(() => {

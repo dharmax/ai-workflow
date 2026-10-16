@@ -147,7 +147,8 @@ export async function processShellInput(
   const lower = line.toLowerCase();
   const ctx: ToolContext = {
     store: session.store,
-    projectRoot: session.projectRoot
+    projectRoot: session.projectRoot,
+    executionAuthority: 'project-write'
   };
 
   const facilitator = session.facilitator || new ParameterFacilitator(session.renderer || session.prompter);
@@ -1070,6 +1071,7 @@ Drill-down and project commands:
       line,
       inlineMode ? undefined : session.modeOverride,
       {
+        executionAuthority: 'project-write',
         onDiscovery: (tools, mode) => {
           session.trace!.initialTools ??= tools;
           session.trace!.discoveryElapsedMs ??= Date.now() - startedAt;

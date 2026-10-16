@@ -120,7 +120,9 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     const historical: Record<string, unknown> = JSON.parse(receipt.body);
     delete historical.governanceVersion; delete historical.governanceFingerprint;
     const legacyBody = JSON.stringify(historical);
-    await store.upsertEntity(Artifact.dcr, { id: receipt.id, body: legacyBody });
+    // Historical fixture injection deliberately bypasses authoring; production receipt writes remain owner-only.
+    const artifacts = await store.sp.collectionForEntityType(Artifact.dcr);
+    await artifacts.updateDocument(receipt.id, {body: legacyBody}, receipt.version);
     expect(readVerificationReceipt(legacyBody)).toBeNull();
     const investigation = await ticket.investigate(store, options());
     expect(investigation.status).toBe('complete');
@@ -146,10 +148,10 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
       expect(await ticketVerificationSignature(store, ticket)).not.toBe(baseline);
       await rules.saveRule(rule);
     }
-    const decision = await store.upsertEntity<Decision>(Decision.dcr, { id: 'D', title: 'Arithmetic owner', decision: 'Use the add function.', context: 'Preserve one owner.', consequences: 'No second registry.' });
+    const decision = await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Arithmetic owner', decision: 'Use the add function.', context: 'Preserve one owner.', consequences: 'No second registry.' },true,false);
     await store.relate(decision, 'governs', ticket);
     const governed = await ticketVerificationSignature(store, ticket);
-    await store.upsertEntity(Decision.dcr, { id: decision.id, consequences: 'Reject redundant registries explicitly.' });
+    await (await store.sp.collectionForEntityType(Decision.dcr)).updateDocument(decision.id,{consequences:'Reject redundant registries explicitly.'},decision.version);
     expect(await ticketVerificationSignature(store, ticket)).not.toBe(governed);
     const aspect = await Aspect.create(store, { id: 'A', title: 'Signed arithmetic', status: 'accepted', acceptanceCriteria: ['Signed inputs remain supported'] });
     await store.relate(ticket, 'addresses', aspect);
@@ -293,7 +295,7 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
     const tests = [(await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!];
     const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(item => item.filePath === 'src/add.ts' && item.title === 'add')!;
-    await store.relate(tests[0], 'verifies', symbol);
+    await store.withTestArtifactWrite(tests[0].id,()=>store.relate(tests[0], 'verifies', symbol));
     const context = await buildVerificationContext(store, root, {dossier: investigation.value, files: [], testNodes: tests});
     const file = context.files.find(item => item.file === 'src/add.ts')!;
     expect(file.snippets).toHaveLength(1);

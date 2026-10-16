@@ -263,7 +263,7 @@ export class WorkflowActor {
         const ctx: ToolContext = {
             store: this.store,
             projectRoot: this.projectRoot,
-            executionAuthority: options.executionAuthority,
+            executionAuthority: options.executionAuthority ?? 'read-only',
             signal: options.signal,
         }
         const delegation = artifactCommand(text.trim().split(/\s+/))
@@ -570,7 +570,8 @@ export class WorkflowActor {
     ): Promise<unknown> {
         this.assertExecutionAllowed(tool, ctx)
         pubsub.trigger("aiwf", "actor:tool", { name: tool.name, params })
-        const result = await tool.execute(params, ctx)
+        const result = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal,
+            () => Promise.resolve(tool.execute(params, ctx)))
         if (
             tool.name === "run_command" &&
             result &&

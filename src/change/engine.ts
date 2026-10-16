@@ -675,6 +675,7 @@ export class CausalChangeEngine {
    * Safely applies the previewed change.
    */
   async applyChange(request: ChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
+    this.store.assertCanWrite();
     // 1. Recompute preview immediately and assert fingerprint matches
     const preview = await this.previewChange(request);
     if (preview.blocked) {

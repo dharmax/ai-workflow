@@ -216,7 +216,7 @@ export const initTimeout = 5000;
       'utf8'
     );
 
-    const ctx = { store, projectRoot: tmpDir };
+    const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
     // 1. Substring search matches all 3
     const allInit = await registry.execute('find_symbol', { name: 'init' }, ctx);
@@ -264,7 +264,7 @@ export function utilB() { return 123; }
     );
 
     await indexCodebase(store, tmpDir);
-    const ctx = { store, projectRoot: tmpDir };
+    const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
     // 1. Entity search
     const entitySearch = await registry.execute('search_graph', { query: 'runA' }, ctx);

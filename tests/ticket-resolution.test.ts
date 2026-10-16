@@ -114,7 +114,7 @@ describe('Ticket-owned bounded resolution', () => {
     fs.writeFileSync(path.join(root, file), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("signed addition contract",()=>{expect(add(2,3)).toBe(5); expect(add(-2,3)).toBe(1)});');
     await indexCodebase(store, root);
     const test = (await store.getEntity<TestNode>(`test:${file}`, TestNode.dcr))!;
-    await store.relate(test, 'verifies', target, {state: 'authored', note: 'Explicit behavioral contract'});
+    await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', target, {state: 'authored', note: 'Explicit behavioral contract'}));
     return test;
   };
 
@@ -189,14 +189,14 @@ describe('Ticket-owned bounded resolution', () => {
     await recordTestExecution(store, root, ['bun', 'test', 'tests/add.test.ts'], {passed: false, exitCode: 1, output: 'environment regression'});
     let reviews = 0; const options = {...fix, verify: async (input: ResolutionVerificationInput) => {reviews++; return verify(input)}};
     expect((await t.resolve(store, options)).status).toBe('complete'); expect(reviews).toBe(1);
-    const receipt = (await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr))!; await receipt.update({body: '{broken JSON'}, true, false);
+    const receipt = (await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr))!; await (await store.sp.collectionForEntityType(Artifact.dcr)).updateDocument(receipt.id,{body:'{broken JSON'},receipt.version);
     expect((await t.resolve(store, options)).status).toBe('complete'); expect(reviews).toBe(2);
   }, 30000);
 
   it('preserves authored verifies edges and reproduces derived edges on repeated reconciliation', async () => {
     const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
     const file = (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!;
-    await store.unrelate(test.id, 'verifies', file.id); await store.relate(test, 'verifies', file, {state: 'authored', note: 'Manual contract'});
+    await store.withTestArtifactWrite(test.id,()=>store.unrelate(test.id, 'verifies', file.id)); await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', file, {state: 'authored', note: 'Manual contract'}));
     await reconcileTestVerificationEdges(store); await reconcileTestVerificationEdges(store);
     const edges = await store.getOutgoing(test.id, 'verifies');
     expect((edges.find(edge => edge.targetId === file.id) as unknown as {payload: {state: string; note: string}}).payload).toMatchObject({state: 'authored', note: 'Manual contract'});
@@ -205,7 +205,7 @@ describe('Ticket-owned bounded resolution', () => {
     expect((await store.getOutgoing(test.id, 'verifies')).map(edge => ({target: edge.targetId, payload: (edge as unknown as {payload: unknown}).payload}))).toEqual(before);
     const derived = await graphOracle(file, 'tests/derived.test.ts');
     fs.writeFileSync(path.join(root, 'tests/derived.test.ts'), 'import {test,expect} from "bun:test";\nimport {add} from "../src/add";\ntest("addition",()=>expect(add(2,3)).toBe(5));');
-    await store.unrelate(derived.id, 'verifies', file.id); await indexCodebase(store, root);
+    await store.withTestArtifactWrite(derived.id,()=>store.unrelate(derived.id, 'verifies', file.id)); await indexCodebase(store, root);
     await reconcileTestVerificationEdges(store);
     expect((await store.getOutgoing(derived.id, 'verifies')).some(edge => (edge as unknown as {payload?: {state?: string}}).payload?.state === 'derived')).toBe(true);
   });
@@ -221,8 +221,8 @@ describe('Ticket-owned bounded resolution', () => {
   it('backfills unchanged legacy indexed tests before discovery and records every full-suite file', async () => {
     const t = await ticket();
     await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
-    await store.deleteEntity((await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!.id);
-    await store.deleteEntity((await store.getEntity<TestNode>('test:tests/contract.spec.ts', TestNode.dcr))!.id);
+    await store.withTestArtifactWrite('test:tests/add.test.ts',async()=>store.deleteEntity((await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!.id));
+    await store.withTestArtifactWrite('test:tests/contract.spec.ts',async()=>store.deleteEntity((await store.getEntity<TestNode>('test:tests/contract.spec.ts', TestNode.dcr))!.id));
     const original = registry.execute.bind(registry); let fallbacks = 0;
     const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => {if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx)});
     try {
@@ -333,7 +333,7 @@ describe('Ticket-owned bounded resolution', () => {
     const disabled = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!, 'tests/disabled.spec.ts');
     fs.writeFileSync(path.join(root, 'tests/disabled.spec.ts'), 'import {test,expect} from "bun:test"; test.skip("unproved behavior",()=>expect(1).toBe(99));');
     await indexCodebase(store, root);
-    await store.upsertEntity(TestNode.dcr, {id: disabled.id, passed: false, lastRun: '2000-01-01T00:00:00.000Z'});
+    await store.withTestArtifactWrite(disabled.id,()=>store.upsertEntity(TestNode.dcr, {id: disabled.id, passed: false, lastRun: '2000-01-01T00:00:00.000Z'}));
     const process = Bun.spawn(['bun', 'test'], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
     const [stdout, stderr, exitCode] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
     expect(exitCode).toBe(0);
@@ -451,7 +451,7 @@ describe('Ticket-owned bounded resolution', () => {
     await indexCodebase(store, root);
     const story = (await store.getEntity<TestNode>('test:tests/checkout.test.ts', TestNode.dcr))!;
     const regression = (await store.getEntity<TestNode>('test:tests/infrastructure.test.ts', TestNode.dcr))!;
-    await store.relate(story, 'verifies', t, {state: 'authored'});
+    await store.withTestArtifactWrite(story.id,()=>store.relate(story, 'verifies', t, {state: 'authored'}));
     const command = ['bun', 'test', 'tests/checkout.test.ts', 'tests/infrastructure.test.ts'];
     const run = Bun.spawnSync(command, {cwd: root});
     expect(run.success).toBe(true);
@@ -476,8 +476,8 @@ describe('Ticket-owned bounded resolution', () => {
     const multiply = symbols.find(s => s.filePath === 'src/add.ts' && s.title === 'multiply')!;
     const addTest = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
     const multiplyTest = (await store.getEntity<TestNode>('test:tests/multiply.test.ts', TestNode.dcr))!;
-    await store.relate(addTest, 'verifies', add, {state: 'authored'});
-    await store.relate(multiplyTest, 'verifies', multiply, {state: 'authored'});
+    await store.withTestArtifactWrite(addTest.id,()=>store.relate(addTest, 'verifies', add, {state: 'authored'}));
+    await store.withTestArtifactWrite(multiplyTest.id,()=>store.relate(multiplyTest, 'verifies', multiply, {state: 'authored'}));
     const exact = await verifyingTestsForTargets(store, [add.id], ['src/add.ts']);
     expect(exact.tests.map(t => t.filePath)).toEqual(['tests/add.test.ts']);
     const wholeFile = await verifyingTestsForTargets(store, [add.id, 'src/add.ts'], ['src/add.ts']);
@@ -506,8 +506,8 @@ describe('Ticket-owned bounded resolution', () => {
   }, 30000);
   it('sends current graph proof rather than unrelated files or prior acceptance receipts to the default verifier', async () => {
     const t = await ticket();
-    const priorReceipt = await store.upsertEntity<Artifact>(Artifact.dcr, {id: 'VERIFY-T', body: 'OLD-ACCEPTANCE-RECEIPT' + 'x'.repeat(90_000), status: 'verified'});
-    await store.relate(priorReceipt, 'verifies', t);
+    const priorReceipt = await store.sp.createEntity<Artifact>(Artifact.dcr, {id:store.formatId(Artifact.dcr,'VERIFY-T'),_id:store.formatId(Artifact.dcr,'VERIFY-T'), body: 'OLD-ACCEPTANCE-RECEIPT' + 'x'.repeat(90_000), status: 'verified'},true,false);
+    await store.sp.createPredicate(priorReceipt,store.sp.ontology.pdcr('verifies'),t);
     const irrelevant = 'IRRELEVANT-CONTEXT-' + 'x'.repeat(12_000);
     fs.writeFileSync(path.join(root, 'src/add.ts'), `export function add(a: number, b: number) { return a + b; }\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
     fs.appendFileSync(path.join(root, 'tests/add.test.ts'), `\n\n\n\n\n\n\n\n\n\n\n\n/*${irrelevant}*/\n`);
@@ -516,12 +516,12 @@ describe('Ticket-owned bounded resolution', () => {
     await store.unrelate(t.id, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!.id);
     await store.relate(t, 'modifies', target);
     const test = (await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!;
-    await store.relate(test, 'verifies', target, {state: 'authored'});
+    await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', target, {state: 'authored'}));
     // A referenced fixture helper is not part of this Ticket's production scope.
     fs.writeFileSync(path.join(root, 'src/fixture.ts'), `export function fixtureSetup() { return '${'FIXTURE-INFRASTRUCTURE'.repeat(4000)}'; }`);
     await indexCodebase(store, root);
     const fixture = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/fixture.ts' && symbol.title === 'fixtureSetup')!;
-    await store.relate(test, 'verifies', fixture, {state: 'inferred'});
+    await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', fixture, {state: 'inferred'}));
     let prompt = '';
     const server = Bun.serve({ port: 0, fetch: async request => {
       const body = await request.json() as { messages: Array<{ content: string }> }; prompt = body.messages[0].content;

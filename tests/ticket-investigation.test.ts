@@ -24,12 +24,12 @@ describe('grounded Ticket investigation', () => {
     const file = await store.upsertEntity<FileNode>(FileNode.dcr, { id: 'queue.ts', title: 'queue.ts' });
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Queue', completenessTarget: 'production' });
     const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Recover jobs' });
-    const d = await store.upsertEntity<Decision>(Decision.dcr, { id: 'D', title: 'Preserve ordering' });
+    const d = await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Preserve ordering' },true,false);
     const a = await Aspect.create(store, { id: 'A', title: 'Robustness', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] });
     const test = await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST', title: 'Recovery regression' });
     await store.upsertEntity<Lesson>(Lesson.dcr, { id: 'L', title: 'Do not discard jobs', filePath: 'queue.ts' });
     await store.relate(f, 'contains', story); await store.relate(t, 'addresses', story); await store.relate(t, 'modifies', file);
-    await store.relate(d, 'governs', f); await store.relate(test, 'verifies', a); await a.applyTo(f, store);
+    await store.relate(d, 'governs', f); await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', a)); await a.applyTo(f, store);
     const before = JSON.stringify({ lane: t.lane, criteria: t.acceptanceCriteria, claim: t.claim, edges: await store.getOutgoing(t.id) });
     let calls = 0;
     const result = await t.investigate(store, { systemOne: unavailable, reason: async () => { calls++; throw Error('unnecessary'); } });
@@ -112,18 +112,18 @@ describe('grounded Ticket investigation', () => {
 
   it('centralizes Blocked and rejected states and validates complete mutation batches before writes', async () => {
     const t = await ticket();
-    const ctx = { store, projectRoot: root };
+    const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
     await registry.execute('update_ticket_state', { ticketId: 'T', lane: 'Blocked' }, ctx);
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.status).toBe('blocked');
-    await store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' });
-    expect((await store.getEntity<Ticket>('R', Ticket.dcr))!.status).toBe('rejected');
+    await expect(store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' })).rejects.toThrow('independent Ticket completion');
+    expect(await store.getEntity('R', Ticket.dcr)).toBeNull();
     const engine = new CausalChangeEngine(ctx);
     const preview = await engine.previewChange({ action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Ticket', id: 'NEW', fields: { title: 'New' } },
       { kind: 'product_update', entityType: 'Ticket', id: 'T', fields: { lane: 'Blocked', status: 'planned' } }
     ] });
     expect(preview.blocked).toBe(true); expect(await store.getEntity('NEW')).toBeNull();
-    await expect(store.upsertEntity(Ticket.dcr, { id: 'T', lane: 'Todo', status: 'verified' })).rejects.toThrow('Incoherent');
+    await expect(store.upsertEntity(Ticket.dcr, { id: 'T', lane: 'Todo', status: 'verified' })).rejects.toThrow('independent Ticket completion');
     expect((await store.getEntity<Ticket>(t.id, Ticket.dcr))!.lane).toBe('Blocked');
   });
 

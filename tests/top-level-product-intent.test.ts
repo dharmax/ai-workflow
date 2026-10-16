@@ -17,7 +17,7 @@ describe('top-level Product Intent journey mechanisms', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-top-level-'))
     store = new WorkflowStore(root)
     initializeTools()
-    ctx = { store, projectRoot: root }
+    ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const }
   })
 
   afterEach(() => {

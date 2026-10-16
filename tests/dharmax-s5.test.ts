@@ -11,7 +11,7 @@ import {startWorkspace} from '../src/workspace/server.ts';
 
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
- const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root});
+ const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  afterEach(async()=>{await browser?.close();host?.server.stop(true);store?.close();if(root)fs.rmSync(root,{recursive:true,force:true});});
  it('DW-04 activates and executes the same reviewed public-interface TestNode through Workspace',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s5-'));store=new WorkflowStore(root);initializeTools();
@@ -44,7 +44,7 @@ describe('S5 Story test-first lifecycle',()=>{
   expect((changed as any).lane).toBe('In Progress');
   expect(fs.readFileSync(path.join(root,specification.filePath),'utf8')).not.toContain('it.skip');
   let test=await store.getEntity<TestNode>(stableId,TestNode.dcr);expect(test?.testState).toBe('not-run');
-  host=startWorkspace({store,projectRoot:root});browser=await chromium.launch({headless:true});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(5000);await page.goto(host.url);
   await page.getByRole('button',{name:'Save filtered avatar',exact:true}).click();
   await page.getByRole('button',{name:'Specify Story test',exact:true}).click();

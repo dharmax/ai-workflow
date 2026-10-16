@@ -15,7 +15,7 @@ async function reviewAndAccept(entity: Epic | Feature | UserStory, store: Workfl
   if (result.status === 'complete') {
     initializeTools();
     for (const preview of result.value.proposals) {
-      const applied = await registry.execute('apply_change', {request: preview.request, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root});
+      const applied = await registry.execute('apply_change', {request: preview.request, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root, executionAuthority: 'project-write'});
       expect(applied.ok).toBe(true);
     }
   }
@@ -123,10 +123,10 @@ describe('entity-owned Product Intent processing', () => {
   });
 
   it('keeps linked verification and governing evidence mandatory even when optional candidates are pruned', async () => {
-    const f = await feature(); const t = await store.upsertEntity(Ticket.dcr, { id: 'T', title: 'Verified implementation', acceptanceCriteria: ['Durable operations work'], lane: 'Done', status: 'verified' }); await store.relate(t, 'implements', f);
-    const report = await store.upsertEntity(Artifact.dcr, { id: 'PROOF', title: 'Restart proof', body: 'Actual restart regression and typecheck passed', status: 'verified' }); await store.relate(report, 'verifies', t);
-    const test = await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Durability regression', filePath: 'tests/storage.test.ts', status: 'verified' }); await store.relate(test, 'verifies', f);
-    const decision = await store.upsertEntity(Decision.dcr, { id: 'DECISION', title: 'Preserve durable contract', body: 'Do not weaken restart behavior' }); await store.relate(decision, 'governs', f);
+    const f = await feature(); const t = await store.sp.createEntity(Ticket.dcr, { id:store.formatId(Ticket.dcr,'T'), _id:store.formatId(Ticket.dcr,'T'), title: 'Verified implementation', acceptanceCriteria: ['Durable operations work'], lane: 'Done', status: 'verified' },true,false); await store.relate(t, 'implements', f);
+    const report = await store.upsertEntity(Artifact.dcr, { id: 'PROOF', title: 'Restart proof', body: 'Actual restart regression and typecheck passed', status: 'verified' }); await store.sp.createPredicate(report,store.sp.ontology.pdcr('verifies'),t);
+    const test = await store.withTestArtifactWrite('TEST',()=>store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Durability regression', filePath: 'tests/storage.test.ts', status: 'verified' })); await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', f));
+    const decision = await store.sp.createEntity(Decision.dcr, { id:store.formatId(Decision.dcr,"DECISION"),_id:store.formatId(Decision.dcr,"DECISION"), title: 'Preserve durable contract', body: 'Do not weaken restart behavior' },true,false); await store.relate(decision, 'governs', f);
     const result = await f.process(store, { ...options, propose: async context => { expect(context.existing.map(item => item.id)).toContain('PROOF'); return empty(); }, critic: { id: 'evidence', review: async input => {
       expect(input.neighborhood.map(item => item.id)).toEqual(expect.arrayContaining(['PROOF', 'TEST', 'DECISION'])); expect(input.neighborhood.find(item => item.id === 'PROOF')?.body).toContain('Actual restart regression'); return { verdict: 'accept' };
     } } }); expect(result.status).toBe('complete');
@@ -135,7 +135,7 @@ describe('entity-owned Product Intent processing', () => {
   it('thin registry adapters use the same entity path and preserve read-only completion targets', async () => {
     const s = await story(); initializeTools(); const original = UserStory.prototype.process;
     try { UserStory.prototype.process = async function (_store, opts) { expect(this.id).toBe(s.id); expect(opts).toMatchObject({ completeness: 'production', depth: 0, critic: 'none' }); return { status: 'blocked', artifactId: 'S', blockers: [{ reason: 'adapter proof' }] }; };
-      const result = await registry.execute('process_story', { storyId: 'S', completeness: 'production', depth: 0, critic: 'none' }, { store, projectRoot: root }); expect(result.status).toBe('blocked');
+      const result = await registry.execute('process_story', { storyId: 'S', completeness: 'production', depth: 0, critic: 'none' }, { store, projectRoot: root, executionAuthority: 'project-write' }); expect(result.status).toBe('blocked');
     } finally { UserStory.prototype.process = original; }
   });
 });

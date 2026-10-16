@@ -266,7 +266,7 @@ export const sample = () => add(1, 2)
         id: 'FEAT-MATH',
         title: 'Math behavior'
       });
-      const existingTest = await diskStore.upsertEntity<TestNode>(TestNode.dcr, {
+      const existingTest = await diskStore.withTestArtifactWrite('test:tests/math.test.ts',()=>diskStore.upsertEntity<TestNode>(TestNode.dcr, {
         id: 'test:tests/math.test.ts',
         title: 'math.test.ts',
         filePath: 'tests/math.test.ts',
@@ -275,8 +275,8 @@ export const sample = () => add(1, 2)
         passed: false,
         failure: 'previous failure',
         lastRun: '2026-10-05T00:00:00.000Z'
-      });
-      await diskStore.relate(existingTest, 'verifies', feature);
+      }));
+      await diskStore.withTestArtifactWrite(existingTest.id,()=>diskStore.relate(existingTest, 'verifies', feature));
 
       const result = await indexCodebase(diskStore, tmpDir);
       expect(result.testsCount).toBe(1);

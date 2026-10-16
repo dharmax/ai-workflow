@@ -91,6 +91,7 @@ export function registerTestTools() {
       testCommand: z.string().default('bun test').describe('Test runner command to execute')
     }),
     execute: async ({testCommand}, ctx: ToolContext) => {
+      ctx.store.assertCanWrite()
       const started = Date.now()
       await ensureAstFresh(ctx.store, ctx.projectRoot)
       const targetedPaths = testPathsFromCommand(testCommand, ctx.projectRoot)
@@ -174,6 +175,7 @@ export function registerTestTools() {
       createBugOnFailure: z.boolean().default(false).describe('Automatically create a P1 Bug ticket on failure')
     }),
     execute: async ({specPath, createBugOnFailure}, ctx: ToolContext) => {
+      ctx.store.assertCanWrite()
       await ensureAstFresh(ctx.store, ctx.projectRoot)
       const cmd = ['bunx', 'playwright', 'test']
       if (specPath) cmd.push(specPath)

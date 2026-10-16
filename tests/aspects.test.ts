@@ -40,12 +40,15 @@ describe('first-class Aspects', () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const a = await aspect('robust'); await a.applyTo(f, store);
     const entities = [
-      await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Existing work', lane: 'Done' }),
+      await store.sp.createEntity<Ticket>(Ticket.dcr, { id:store.formatId(Ticket.dcr,'T'), _id:store.formatId(Ticket.dcr,'T'), title: 'Existing work', lane: 'Done', status:'verified' },true,false),
       await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST', title: 'Regression' }),
       await store.upsertEntity<Artifact>(Artifact.dcr, { id: 'REPORT', title: 'Benchmark', artifactKind: 'report' }),
-      await store.upsertEntity<Decision>(Decision.dcr, { id: 'DEC', title: 'Constraint' })
+      await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"DEC"),_id:store.formatId(Decision.dcr,"DEC"), title: 'Constraint' },true,false)
     ];
-    for (let i = 0; i < entities.length; i++) await registry.execute('link_product', { sourceId: store.localId(entities[i].id), predicate: ['addresses', 'verifies', 'verifies', 'governs'][i], targetId: 'robust' }, { store, projectRoot: root });
+    // Existing proof is fixture state, not permission for generic authoring to mint it.
+    await store.withTestArtifactWrite(entities[1].id,()=>store.relate(entities[1],'verifies',a));
+    await store.sp.createPredicate(entities[2],store.sp.ontology.pdcr('verifies'),a);
+    for (const i of [0,3]) await registry.execute('link_product', {sourceId:store.localId(entities[i].id),predicate:i===0?'addresses':'governs',targetId:'robust'}, {store,projectRoot:root,executionAuthority:'project-write'});
     const code = await store.upsertEntity<FileNode>(FileNode.dcr, { id: 'src/unit.ts', title: 'unit.ts' });
     await store.relate(entities[0], 'modifies', code);
     const assessment = await f.assessAspects(store);
@@ -55,7 +58,7 @@ describe('first-class Aspects', () => {
   });
 
   it('uses the same preview/fingerprint boundary for Aspect mutation and rejects invalid later links before writes', async () => {
-    await store.upsertEntity<Decision>(Decision.dcr, { id: 'D', title: 'Engineering decision' });
+    await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Engineering decision' },true,false);
     const engine = new CausalChangeEngine({ store, projectRoot: root });
     const bad = { action: 'product_change' as const, mutations: [
       { kind: 'product_create' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Concern', status: 'accepted' } },

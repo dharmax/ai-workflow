@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
-import { ticketState } from '../graph/ticket-state.ts';
+import { ticketState, assertTicketAuthoring } from '../graph/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
 import type { TicketLane } from '../graph/types.ts';
@@ -94,6 +94,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     if (kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
+  if (kind === 'Ticket') assertTicketAuthoring(input, create ? undefined : previous);
   if (kind === 'UserStory') {
     const next = { ...previous, ...input };
     const semanticFields = ['actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla'];
@@ -134,6 +135,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   async function load(id: string) {
     if (state.has(id)) return state.get(id)!;
     const entity = await resolveProductEntity(store, id);
+    if (entity instanceof Artifact && /^(VERIFY-|GOVERNANCE-ADMISSION$)/.test(store.localId(entity.id)))
+      throw Error('Verification receipts and admission records are owner-managed.');
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
     const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
@@ -169,6 +172,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     }
   }
   for (const mutation of mutations) {
+    if ('entityType' in mutation && mutation.entityType === 'Test') store.assertTestArtifactWrite(mutation.id);
+    if ('predicate' in mutation && mutation.predicate === 'verifies') store.assertTestArtifactWrite(mutation.sourceId);
     if (mutation.kind === 'product_create') {
       rememberIdentity(mutation.id, mutation.entityType);
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
@@ -222,6 +227,7 @@ export async function applyProductMutations(
   mutations: ProductMutation[],
   reviewed?: { request: Extract<ChangeRequest, {action: 'product_change'}>; fingerprint: string }
 ): Promise<void> {
+  store.assertCanWrite();
   // Validate once before admission so malformed/rejected input cannot mutate even admission state.
   await validateProductMutations(store, mutations, reviewed?.request.basis);
   const workOnly = mutations.every(m => (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket');

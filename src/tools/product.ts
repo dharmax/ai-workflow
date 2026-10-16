@@ -197,10 +197,6 @@ export function registerProductTools() {
   registry.register({name:'apply_story_test',category:'planning',description:'Approve guarded test source materialization, then separately link its canonical Test. Reports partial outcomes.',
     parameters:z.object({specification:StoryTestSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}),
     execute:async({specification,fingerprint,decision},ctx)=>{
-      if(decision==='accept') {
-        if(ctx.executionAuthority==='read-only') throw new Error('Cannot apply a Story test with read-only authority.');
-        ctx.signal?.throwIfAborted();
-      }
       return applyStoryTest(ctx.store,specification,fingerprint,decision,preview=>
         registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx));
     }});

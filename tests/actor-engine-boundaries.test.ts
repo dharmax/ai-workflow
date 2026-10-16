@@ -38,7 +38,7 @@ describe("WorkflowActor execution boundaries", () => {
                 const tool = registry.get(name)!
                 probeOriginals.set(name, tool)
                 overrideTool({ ...tool, execute: () => { throw new ToolAbortError("Leaked override") } })
-                expect(() => registry.get(name)!.execute({}, { store, projectRoot: root })).toThrow("Leaked override")
+                expect(() => registry.get(name)!.execute({}, { store, projectRoot: root, executionAuthority: 'project-write' })).toThrow("Leaked override")
                 overrideTool({ ...tool, execute: () => { throw new ToolAbortError("Repeated override") } })
             }
             expect("intentional cleanup probe").toBe("failure")
@@ -46,7 +46,7 @@ describe("WorkflowActor execution boundaries", () => {
         it("override cleanup probe: subsequent test uses production tool", async () => {
             for (const [name, original] of probeOriginals) expect(registry.get(name)).toBe(original)
             expect(probeOriginals.size).toBe(2)
-            const result = await registry.execute("run_command", { command: "printf restored-production-tool" }, { store, projectRoot: root })
+            const result = await registry.execute("run_command", { command: "printf restored-production-tool" }, { store, projectRoot: root, executionAuthority: 'project-write' })
             expect(result.success).toBe(true)
             expect(result.stdout).toBe("restored-production-tool")
             console.log("override-cleanup-confirmed")
@@ -129,7 +129,7 @@ describe("WorkflowActor execution boundaries", () => {
         overrideTool({ ...tool, execute: () => {
                 throw "delegation failed"
             } })
-        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T")
+        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",undefined,{executionAuthority:"project-write"})
         expect(result.failed).toBe(true)
         expect(result.answer).toContain("delegation failed")
     })
@@ -138,7 +138,7 @@ describe("WorkflowActor execution boundaries", () => {
         overrideTool({ ...tool, execute: () => {
                 throw new ToolAbortError("User refused execution")
             } })
-        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T")
+        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",undefined,{executionAuthority:"project-write"})
         expect(result.failed).toBe(true)
         expect(result.haltReason).toBe("aborted")
         expect(result.answer).toContain("User refused execution")
@@ -161,7 +161,7 @@ describe("WorkflowActor execution boundaries", () => {
         const result = await new WorkflowActor({
             store, projectRoot: root, asker,
             toolDiscovery: { discover: async () => ({ query: {}, tools: [tool] }) }
-        }).execute("Use the custom host capability")
+        }).execute("Use the custom host capability",undefined,{executionAuthority:"project-write"})
         expect(result.failed).toBeUndefined()
         expect(value).toBe("input!")
         expect(result.events[1]!.toolResult).toEqual(["observed"])

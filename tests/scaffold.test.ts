@@ -15,7 +15,7 @@ describe('Greenfield Code Scaffolding (aiwf scaffold)', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-scaffold-test-'));
     store = new WorkflowStore(tempDir);
-    ctx = { store, projectRoot: tempDir };
+    ctx = { store, projectRoot: tempDir, executionAuthority: 'project-write' as const };
   });
 
   afterEach(() => {

@@ -37,6 +37,7 @@ export interface McpServerOptions {
   store?: WorkflowStore;
   projectRoot?: string;
   actor?: WorkflowActor;
+  executionAuthority?: ToolContext['executionAuthority'];
 }
 
 export function createMcpServer(options: McpServerOptions = {}) {
@@ -136,7 +137,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
         activeStore = new WorkflowStore(activeRoot);
         await activeStore.sp.ready();
       }
-      const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot};
+      const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
+        executionAuthority: options.executionAuthority ?? (process.env.AIWF_EXECUTION_AUTHORITY === 'project-write' ? 'project-write' : 'read-only')};
 
       if (name === 'execute_shell_wish') {
         const wish = String(toolArgs.wish || '');
@@ -146,7 +148,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
           projectRoot: activeRoot,
           preferLocal: true
         });
-        const res = await activeActor.execute(wish, mode);
+        const res = await activeActor.execute(wish, mode, {executionAuthority: ctx.executionAuthority});
 
         let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
         if (res.stepsCount > 0) {

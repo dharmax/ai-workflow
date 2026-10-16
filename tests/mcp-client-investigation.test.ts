@@ -27,7 +27,7 @@ describe('Client investigation through MCP', () => {
     fs.writeFileSync(path.join(sibling, 'src/knowledge.ts'), 'export class KnowledgeBase { getContextSource() { return "sibling evidence"; } }');
     store = new WorkflowStore(project, true);
     await store.sp.ready();
-    server = createMcpServer({store, projectRoot: project, actor: new WorkflowActor({store, projectRoot: project, offline: true})}).server;
+    server = createMcpServer({store, projectRoot: project, executionAuthority:'project-write', actor: new WorkflowActor({store, projectRoot: project, offline: true})}).server;
     client = new Client({name: 'investigation-client', version: '1'});
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);

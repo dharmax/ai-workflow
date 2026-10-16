@@ -205,7 +205,8 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(moveRes.output).toContain("Moved ticket 'TKT-SHELL-1' to 'In Progress'");
 
     const doneRes = await processShellInput('done TKT-SHELL-1', session);
-    expect(doneRes.output).toContain("Marked ticket 'TKT-SHELL-1' as Done and synced Kanban");
+    expect(doneRes.output).toContain("independent Ticket completion");
+    expect(await store.getEntity('TKT-SHELL-1')).toMatchObject({lane:'In Progress'});
 
     // 4. Config Get & Set
     const cfgGet = await processShellInput('config get defaultAgentId', session);
@@ -235,7 +236,7 @@ describe('Interactive Shell REPL Bridge', () => {
       lane: 'Todo',
       priority: 'P2',
       body: 'Original body'
-    }, { store, projectRoot: tempDir });
+    }, { store, projectRoot: tempDir, executionAuthority: 'project-write' });
 
     const renderer = new TestViewRenderer({
       status: 'submitted',

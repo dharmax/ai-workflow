@@ -23,12 +23,12 @@ describe('Consuela ordinary workspace targets', () => {
   ]) it(`previews and safely applies a deterministic edit to ${filePath}`, async () => {
     fs.writeFileSync(path.join(root, filePath), before);
     const request = { action: 'replace_text' as const, filePath, oldText, newText };
-    const preview = await registry.execute('preview_change', request, { store, projectRoot: root });
+    const preview = await registry.execute('preview_change', request, { store, projectRoot: root, executionAuthority: 'project-write' });
     expect(preview.blocked).toBe(false); expect(preview.originalHashes[filePath]).toMatch(/^[a-f0-9]{64}$/);
     expect((await engine.previewChange(request)).fingerprint).toBe(preview.fingerprint);
     expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(before);
-    expect(await registry.execute('read_workspace_file', { filePath }, { store, projectRoot: root })).toEqual({ filePath, content: before });
-    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint }, { store, projectRoot: root });
+    expect(await registry.execute('read_workspace_file', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' })).toEqual({ filePath, content: before });
+    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint }, { store, projectRoot: root, executionAuthority: 'project-write' });
     expect(result.ok && result.verification.passed).toBe(true); expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(after);
   });
 
@@ -55,9 +55,9 @@ describe('Consuela ordinary workspace targets', () => {
       fs.writeFileSync(path.join(outside, 'secret'), 'outside'); fs.symlinkSync(path.join(outside, 'secret'), path.join(root, 'escape'));
       fs.writeFileSync(path.join(root, 'large'), 'x'.repeat(65537)); fs.writeFileSync(path.join(root, 'limit'), 'x'.repeat(65536));
       for (const filePath of ['missing', '.ai-workflow', '../outside', 'escape', 'large', path.join(root, 'limit')]) {
-        await expect(registry.execute('read_workspace_file', { filePath }, { store, projectRoot: root })).rejects.toThrow();
+        await expect(registry.execute('read_workspace_file', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' })).rejects.toThrow();
       }
-      expect((await registry.execute('read_workspace_file', { filePath: 'limit' }, { store, projectRoot: root })).content.length).toBe(65536);
+      expect((await registry.execute('read_workspace_file', { filePath: 'limit' }, { store, projectRoot: root, executionAuthority: 'project-write' })).content.length).toBe(65536);
       expect((await engine.previewChange({ action: 'replace_text', filePath: 'escape', oldText: 'outside', newText: 'changed' })).blocked).toBe(true);
       expect(fs.readFileSync(path.join(outside, 'secret'), 'utf8')).toBe('outside');
     } finally { fs.rmSync(outside, { recursive: true, force: true }); }

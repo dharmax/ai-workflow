@@ -48,7 +48,11 @@ export class ToolRegistry {
     if (!tool) throw new Error(`Tool '${name}' not found in registry.`);
     const parsed = tool.parameters.parse(params);
     countEngineering('toolCalls');
-    return await tool.execute(parsed, ctx);
+    const authority = ctx.executionAuthority ?? 'read-only';
+    if (authority === 'read-only' && tool.category === 'script')
+      throw Error('Arbitrary script execution requires project-write authority; read-only execution cannot evaluate code.');
+    return await ctx.store.withExecutionContext(authority, ctx.signal, () =>
+      Promise.resolve(tool.execute(parsed, {...ctx, executionAuthority: authority})));
   }
 }
 

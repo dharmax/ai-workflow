@@ -39,7 +39,7 @@ describe("actor prompt templates at the model boundary", () => {
 
     const modes: ShellMode[] = ["design", "dev", "triage", "product"]
     it.each(modes)("renders %s guidance and environment through the real Actor", async (mode) => {
-        const result = await actor.execute("Answer this fixture.", mode)
+        const result = await actor.execute("Answer this fixture.", mode, {executionAuthority:"project-write"})
         expect(result.failed).not.toBe(true)
         expect(system).toContain("Achieve the user's entire goal and address every requested part.")
         expect(system).toContain(`[${mode.toUpperCase()}] preference:`)

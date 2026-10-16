@@ -27,7 +27,7 @@ describe('artifact policy', () => {
     expect((await f.getCompletenessTarget(store, { override: 'production' })).source).toBe('override');
     expect((await f.getCompletenessTarget(store, { descendant: true, inherited: 'production' })).effective).toBe('poc');
     expect((await s.getCompletenessTarget(store, { descendant: true, inherited: 'functional' })).source).toBe('operation');
-    const ctx = { store, projectRoot: root };
+    const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
     await registry.execute('set_completeness_target', { entityId: 'F', level: null }, ctx);
     expect((await registry.execute('get_completeness_target', { entityId: 'F' }, ctx)).effective).toBe('functional');
     store.close(); store = new WorkflowStore(root);
@@ -42,14 +42,14 @@ describe('artifact policy', () => {
     const m = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, { id: 'M', title: 'Module', path: 'src', completenessTarget: 'production' });
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic', completenessTarget: 'advanced' });
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Work', lane: 'Todo' });
-    await registry.execute('link_product', { sourceId: 'T', predicate: 'targets', targetId: 'M' }, { store, projectRoot: root });
+    await registry.execute('link_product', { sourceId: 'T', predicate: 'targets', targetId: 'M' }, { store, projectRoot: root, executionAuthority: 'project-write' });
     await store.relate(t, 'implements', f); await store.relate(e, 'contains', t);
     const context = await t.getCompletenessContext(store, 'functional');
     expect(context.feature[0].target.effective).toBe('poc');
     expect(context.module[0].target.effective).toBe('production');
     expect(context.epic[0].target.effective).toBe('advanced');
     expect(context.runOverride).toBe('functional'); expect(context.criticStrength).toBe('production');
-    await expect(registry.execute('set_completeness_target', { entityId: 'T', level: 'production' }, { store, projectRoot: root })).rejects.toThrow('Only Epic');
+    await expect(registry.execute('set_completeness_target', { entityId: 'T', level: 'production' }, { store, projectRoot: root, executionAuthority: 'project-write' })).rejects.toThrow('Only Epic');
   });
 
   it('round trips target fields without changing relations or interpreting operational percentages as maturity', async () => {

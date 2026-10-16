@@ -40,13 +40,13 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
       acceptanceCriteria: ['Tokens are signed with RSA-256']
     });
 
-    const d = await store.upsertEntity<Decision>(Decision.dcr, {
-      id: 'DEC-1',
+    const d = await store.sp.createEntity<Decision>(Decision.dcr, {
+      id:store.formatId(Decision.dcr,"DEC-1"),_id:store.formatId(Decision.dcr,"DEC-1"),
       title: 'Use Stateless JWT',
       decision: 'We will use asymmetric RSA-256 signed JWT tokens.',
       context: 'Microservices need to verify identity without a central session DB.',
       consequences: 'Token revocation requires short lifespans or a public blocklist.'
-    });
+    },true,false);
 
     await store.relate(t, 'governs', d);
 
@@ -143,13 +143,13 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
       body: 'Durable user authentication subsystem'
     });
 
-    const d = await store.upsertEntity<Decision>(Decision.dcr, {
-      id: 'DEC-PROD-1',
+    const d = await store.sp.createEntity<Decision>(Decision.dcr, {
+      id:store.formatId(Decision.dcr,"DEC-PROD-1"),_id:store.formatId(Decision.dcr,"DEC-PROD-1"),
       title: 'OAuth2 Authorization Code Flow',
       decision: 'Adopt PKCE for all authorization code grants.',
       context: 'Native and SPA clients cannot securely store client secrets.',
       consequences: 'All clients must calculate code_verifier and code_challenge.'
-    });
+    },true,false);
 
     await store.relate(d, 'governs', f);
 
@@ -360,12 +360,12 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
     await acceptedAspect.applyTo(feature, store);
     await draftAspect.applyTo(feature, store);
     await proposedAspect.applyTo(feature, store);
-    const decision = await store.upsertEntity<Decision>(Decision.dcr, {
-      id: 'DEC-TAX', title: 'Tax arithmetic',
+    const decision = await store.sp.createEntity<Decision>(Decision.dcr, {
+      id:store.formatId(Decision.dcr,"DEC-TAX"),_id:store.formatId(Decision.dcr,"DEC-TAX"), title: 'Tax arithmetic',
       decision: 'Use decimal arithmetic for tax calculations.',
       context: 'Ledger totals must be auditable.',
       consequences: 'Binary floating point arithmetic is unsuitable.'
-    });
+    },true,false);
     await store.relate(decision, 'governs', acceptedAspect);
 
     // 4. Author Ticket with relations

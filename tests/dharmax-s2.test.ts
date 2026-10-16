@@ -12,7 +12,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 
 describe('Dharmax S2 reviewed canonical product edits', () => {
   let root: string, store: WorkflowStore;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root });
+  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = { actor: 'Signed-in user', intent: 'Keep my filtered avatar', initialState: 'Unsaved filtered preview and previous saved avatar exist', action: 'Activate Save', expectedResult: 'Saved avatar matches preview after reload', exceptions: 'Failure preserves previous avatar', bounds: 'Current account' };
   const snapshot = (admission = true) => Object.fromEntries(
     (store.db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{name: string}>)
@@ -70,7 +70,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const stale = await invoke('accept', 'review.json'); expect(stale.code).not.toBe(0);
     const client = new Client({name: 's2-reviewer', version: '1'});
     try {
-      await client.connect(new StdioClientTransport({command: 'bun', args: [path.resolve(import.meta.dir, '../src/mcp.ts')], cwd: root, stderr: 'pipe'}));
+      await client.connect(new StdioClientTransport({command: 'bun', args: [path.resolve(import.meta.dir, '../src/mcp.ts')], cwd: root, stderr: 'pipe', env: {...process.env, AIWF_EXECUTION_AUTHORITY:'project-write'}}));
       const rpc = async (name: string, args: Record<string, unknown>) => {
         const response = await client.callTool({name, arguments: args});
         expect(response.isError).not.toBe(true);

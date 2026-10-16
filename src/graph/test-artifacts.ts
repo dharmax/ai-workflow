@@ -237,7 +237,7 @@ export async function reconcileTestVerificationEdges(
     const authored = new Set<string>()
     for (const edge of await store.getOutgoing(test.id, 'verifies')) {
       if ((edge as {payload?: {state?: string}}).payload?.state !== 'derived') { authored.add(edge.targetId); continue }
-      try { await store.unrelate(test.id, 'verifies', edge.targetId) } catch {}
+      try { await store.withTestArtifactWrite(test.id,()=>store.unrelate(test.id, 'verifies', edge.targetId)) } catch {}
     }
 
     const testPath = normalizeTestPath(test.filePath || test.targetPath || '')
@@ -252,10 +252,10 @@ export async function reconcileTestVerificationEdges(
       const targetPath = normalizeTestPath((target as any).path || store.localId(target.id))
       verifiedFiles.add(targetPath)
       try {
-        if (!authored.has(target.id)) await store.relate(test, 'verifies', target, {
+        if (!authored.has(target.id)) await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', target, {
           state: 'derived',
           note: 'Static test import',
-        })
+        }))
       } catch {}
     }
 
@@ -285,10 +285,10 @@ export async function reconcileTestVerificationEdges(
 
       if (!resolved.filePath || !verifiedFiles.has(normalizeTestPath(resolved.filePath))) continue
       try {
-        if (!authored.has(resolved.id)) await store.relate(test, 'verifies', resolved, {
+        if (!authored.has(resolved.id)) await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', resolved, {
           state: 'derived',
           note: 'Static test call into imported source',
-        })
+        }))
       } catch {}
     }
   }
@@ -331,7 +331,7 @@ export async function recordTestOutcome(
     if (!paths.has(filePath)) continue
     const output = outcome.output || ''
     const testOutput = sections.get(filePath) ?? output.slice(-4000)
-    await test.update({
+    await store.withTestArtifactWrite(test.id,async()=>test.update({
       lastRun,
       passed: outcome.passed,
       failure: outcome.passed ? '' : outcome.failure ?? '',
@@ -341,7 +341,7 @@ export async function recordTestOutcome(
       output: testOutput.slice(-16000),
       executionHashes: outcome.hashesBefore?.[test.id] ?? await testEvidenceHashes(store, test),
       status: outcome.passed ? 'verified' : 'failing',
-    }, true, false)
+    }, true, false))
   }
 }
 

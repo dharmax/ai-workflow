@@ -119,7 +119,7 @@ describe('Product Intent Causal Change', () => {
       await engine.applyChange(request, preview.fingerprint);
     }
     await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Test', targetPath: 'a.test.ts' });
-    await store.upsertEntity(Decision.dcr, { id: 'ADR', title: 'Decision', decision: 'Use graph' });
+    await store.sp.createEntity(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR"),_id:store.formatId(Decision.dcr,"ADR"), title: 'Decision', decision: 'Use graph' },true,false);
     const relations = [
       ['E', 'targets', 'F'], ['E', 'targets', 'S'], ['F', 'enables', 'S'], ['E', 'contains', 'T'],
       ['T', 'implements', 'F'], ['T', 'addresses', 'S'], ['TEST', 'verifies', 'F'],
@@ -130,6 +130,7 @@ describe('Product Intent Causal Change', () => {
         { kind: 'product_link', sourceId, predicate, targetId }
       ] };
       const preview = await engine.previewChange(link);
+      if (predicate === 'verifies') { expect(preview.blocked).toBe(true); continue; }
       expect(preview.blocked).toBe(false);
       expect((await engine.applyChange(link, preview.fingerprint)).verification.passed).toBe(true);
     }
@@ -138,6 +139,7 @@ describe('Product Intent Causal Change', () => {
         { kind: 'product_unlink', sourceId, predicate, targetId }
       ] };
       const preview = await engine.previewChange(unlink);
+      if (predicate === 'verifies') { expect(preview.blocked).toBe(true); continue; }
       expect(preview.blocked).toBe(false);
       expect((await engine.applyChange(unlink, preview.fingerprint)).verification.passed).toBe(true);
     }
@@ -181,7 +183,7 @@ describe('Product Intent Causal Change', () => {
   it('accepts the Product Intent request through public preview_change and apply_change tools', async () => {
     const { store } = fixture();
     initializeTools();
-    const ctx = { store, projectRoot: store.root };
+    const ctx = { store, projectRoot: store.root, executionAuthority: 'project-write' as const };
     const request = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'PUBLIC-E', fields: { title: 'Public Epic' } }
     ] };

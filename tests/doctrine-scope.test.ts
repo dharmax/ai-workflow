@@ -61,7 +61,11 @@ describe('Gate 5 Actor Stories through public Ticket and governance operations',
 
   test('authorized expansion supplies module Rule, Decision and Aspect to producer and verifier; violation prevents Done', async () => {
     const owner=(await store.getEntity('OTHER',ModuleNode.dcr))!;
-    const decision=await store.upsertEntity(Decision.dcr,{id:'D',title:'Preserve other',decision:'Return one',context:'The existing consumer requires it',consequences:'Two breaks the contract',status:'accepted'});
+    // Seed a pre-existing accepted Decision; generic authoring cannot mint acceptance.
+    const decisions=await store.sp.collectionForEntityType(Decision.dcr);
+    store.sqliteStore.applyBatch([{collectionName:decisions.name,id:store.formatId(Decision.dcr,'D'),expectedVersion:null,
+      record:{title:'Preserve other',decision:'Return one',context:'The existing consumer requires it',consequences:'Two breaks the contract',status:'accepted'}}]);
+    const decision=(await store.getEntity('D',Decision.dcr))!;
     await store.relate(decision,'governs',owner);
     const aspect=await Aspect.create(store,{id:'A',title:'Other contract',status:'accepted',acceptanceCriteria:['other returns one']});
     await store.relate(aspect,'applies_to',owner);

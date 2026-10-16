@@ -13,7 +13,7 @@ describe('S3 Workspace public developer journeys', () => {
   let root: string, store: WorkflowStore, browser: Browser;
   let workspace: {url: string; stop: () => Promise<void>};
   const binary = process.env.AIWF_WORKSPACE_BINARY ? path.resolve(process.env.AIWF_WORKSPACE_BINARY) : undefined;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, {store, projectRoot: root});
+  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, {store, projectRoot: root, executionAuthority: 'project-write' as const});
   const scenario = { Actor: 'Signed-in user', Intent: 'Keep my filtered avatar', 'Initial State': 'Unsaved filtered preview; previous saved avatar exists',
     Action: 'Activate Save', 'Expected Result': 'Saved avatar matches preview after reload', Exceptions: 'Failure preserves the previous avatar', Bounds: 'Current account only' };
   const start = async () => {
@@ -34,7 +34,7 @@ describe('S3 Workspace public developer journeys', () => {
       workspace.url = line.slice('AIWF Workspace: '.length).trim();
     } else {
       const {startWorkspace} = await import('../src/workspace/server.ts');
-      const local = startWorkspace({store, projectRoot: root}, 0);
+      const local = startWorkspace({store, projectRoot: root, executionAuthority: 'project-write' as const}, 0);
       workspace = {url:local.url, stop:async () => { local.server.stop(true); }};
     }
     return workspace.url;
@@ -103,7 +103,7 @@ describe('S3 Workspace public developer journeys', () => {
     expect(stdout).toContain('Activate Save after preview');
     const client = new Client({name:'workspace-story-proof',version:'1'});
     try {
-      await client.connect(new StdioClientTransport({command:binary || 'bun',args:binary ? ['mcp'] : [path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe'}));
+      await client.connect(new StdioClientTransport({command:binary || 'bun',args:binary ? ['mcp'] : [path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe',env:{...process.env,AIWF_EXECUTION_AUTHORITY:'project-write'}}));
       const result = await client.callTool({name:'get_user_story', arguments:{storyId:'S'}});
       expect(result.isError).not.toBe(true);
       const content = result.content as {type:string;text?:string}[];

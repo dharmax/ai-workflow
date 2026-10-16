@@ -529,7 +529,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       },
     })
 
-    const result = await actor.execute('run the selected capability', undefined, {signal: controller.signal})
+    const result = await actor.execute('run the selected capability', undefined, {signal: controller.signal,executionAuthority:'project-write'})
 
     expect(result.answer).toBe('done')
     expect(modelSignal).toBe(controller.signal)

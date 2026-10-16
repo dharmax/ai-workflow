@@ -15,6 +15,7 @@ export function registerScriptingTools() {
       code: z.string().describe('JavaScript code to evaluate (can be async or sync)')
     }),
     execute: async ({ code }, ctx: ToolContext) => {
+      ctx.store.assertCanWrite();
       try {
         const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const trimmed = code.trim();

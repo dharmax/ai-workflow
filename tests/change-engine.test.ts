@@ -231,7 +231,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       fs.writeFileSync(fooFile, 'export function calculateValue(): number { return 100; }\n');
       await indexSingleFile(store, fooFile, 'foo.ts', tmpDir);
 
-      const ctx = { store, projectRoot: tmpDir };
+      const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
       // Tool call: preview_change
       const preview: any = await registry.execute('preview_change', {

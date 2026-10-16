@@ -8,7 +8,7 @@ describe('run_command observation contract',()=>{
  let root:string,store:WorkflowStore;
  beforeEach(()=>{root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-os-'));store=new WorkflowStore(root,true);initializeTools()});
  afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true})});
- const run=(command:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>registry.execute('run_command',{command,...extra},{projectRoot:root,store,signal});
+ const run=(command:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>registry.execute('run_command',{command,...extra},{projectRoot:root,store,signal,executionAuthority:'project-write'});
  it('distinguishes empty success and nonzero exit with both streams',async()=>{
   expect(await run('true')).toMatchObject({success:true,exitCode:0,stdout:'',stderr:'',stdoutTruncated:false,stderrTruncated:false});
   expect(await run('printf out; printf err >&2; exit 7')).toMatchObject({success:false,exitCode:7,stdout:'out',stderr:'err',timedOut:false,cancelled:false});

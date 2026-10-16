@@ -10,7 +10,7 @@ import { applyEpicStructure } from '../src/product/apply.ts';
 
 describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   let root: string, store: WorkflowStore;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root });
+  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = {
     actor: 'signed-in user', intent: 'keep the previewed avatar',
     initialState: 'Preview is open with an unsaved filter and an existing saved avatar',
@@ -131,7 +131,7 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
 
   it('DW-05 rejects invalid scope links and keeps proposed conflicting policy ineffective', async () => {
     await call('create_feature', { id: 'F', title: 'Avatar filters' });
-    await store.upsertEntity(Decision.dcr, { id: 'D', title: 'Engineering instruction' });
+    await store.sp.createEntity(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Engineering instruction' },true,false);
     await call('create_aspect', { id: 'P', title: 'Persistency', body: 'Save survives reload', status: 'accepted' });
     await call('create_aspect', { id: 'OTHER', title: 'Proposed ephemeral storage', body: 'Discard on reload', status: 'proposed' });
     await call('link_aspect', { aspectId: 'P', scopeId: 'F' });

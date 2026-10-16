@@ -19,7 +19,7 @@ describe('Tool Registry & Deterministic Facilities', () => {
     store = new WorkflowStore(tempDir, true);
     ctx = {
       store,
-      projectRoot: tempDir
+      projectRoot: tempDir, executionAuthority: 'project-write' as const
     };
   });
 
@@ -102,11 +102,9 @@ describe('Tool Registry & Deterministic Facilities', () => {
     expect(nextTaskBug.ticket!.id).toBe('BUG-001');
     expect(nextTaskBug.reason).toContain('High-priority bug fix');
 
-    // 6. Mark bug as Done
-    await registry.execute('update_ticket_state', {
-      ticketId: 'BUG-001',
-      lane: 'Done'
-    }, ctx);
+    // Generic completion is denied. A blocked bug is also excluded from recommendations.
+    await expect(registry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Done'}, ctx)).rejects.toThrow('independent Ticket completion');
+    await registry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Blocked'}, ctx);
 
     // 7. Now recommend_next_task selects the normal Todo task
     const nextTaskTodo = await registry.execute('recommend_next_task', {}, ctx);
@@ -339,7 +337,7 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     });
     const indexedTest = await store.getEntity<TestNode>('test:tests/math.test.ts', TestNode.dcr);
     expect(indexedTest).not.toBeNull();
-    await store.relate(indexedTest!, 'verifies', feature);
+    await store.withTestArtifactWrite(indexedTest!.id,()=>store.relate(indexedTest!, 'verifies', feature));
 
     const blast = await registry.execute('analyze_blast_radius', {
       target: 'src/math.ts'

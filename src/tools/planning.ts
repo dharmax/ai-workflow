@@ -1,6 +1,6 @@
 /**
  * Responsibility: Architectural Decision Records (ADRs) and Scratchpad Planning Facility.
- * Scope: Creating and reading ADR decisions and agent notes.
+ * Scope: Inert ADR proposals and shared agent notes.
  */
 
 import path from 'node:path';
@@ -8,7 +8,6 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import { queryPerformance } from '../performance-metrics.ts';
 import { registry, type ToolContext } from './registry.ts';
-import { Decision } from '../graph/ontology.ts';
 
 export function registerPlanningTools() {
   registry.register({ name: 'get_performance_metrics', description: 'Query compact persisted engineering performance summaries; root runs by default avoid nested token duplication.', category: 'planning',
@@ -16,31 +15,19 @@ export function registerPlanningTools() {
     execute: (query, ctx) => queryPerformance(ctx.projectRoot, query) });
   registry.register({
     name: 'propose_decision',
-    description: 'Record a new Architectural Decision Record (ADR) in the graph.',
+    description: 'Return an inert Architectural Decision proposal without changing canonical state.',
     category: 'planning',
     parameters: z.object({
       id: z.string().optional().describe('Decision identifier (e.g. ADR-001)'),
       title: z.string().describe('Short title of the architectural decision'),
-      decision: z.string().describe('What was decided'),
+      decision: z.string().describe('Proposed architectural choice'),
       context: z.string().optional().describe('Problem statement and context'),
       consequences: z.string().optional().describe('Impact and trade-offs of the decision')
     }),
-    execute: async (params, ctx: ToolContext) => {
+    execute: (params) => {
       const id = params.id || `ADR-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const dec = await ctx.store.upsertEntity<Decision>(Decision.dcr, {
-        id,
-        title: params.title,
-        decision: params.decision,
-        context: params.context || '',
-        consequences: params.consequences || '',
-        status: 'accepted'
-      });
-
-      return {
-        id: ctx.store.localId(dec.id),
-        title: params.title,
-        status: 'accepted'
-      };
+      return {...params, id, status: 'proposed', persisted: false,
+        next: 'Decision authoring and reviewed acceptance are deferred to PC2.'};
     }
   });
 
@@ -68,6 +55,7 @@ export function registerPlanningTools() {
       note: z.string().describe('Note text to append')
     }),
     execute: async ({ note }, ctx: ToolContext) => {
+      ctx.store.assertCanWrite();
       const scratchDir = path.join(ctx.projectRoot, '.ai-workflow');
       fs.mkdirSync(scratchDir, { recursive: true });
       const scratchFile = path.join(scratchDir, 'scratchpad.md');

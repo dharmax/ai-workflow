@@ -27,9 +27,12 @@ describe('daily shared shell commands', () => {
     renderer = new FakeRenderer();
     session = {store, actor: new WorkflowActor({store, projectRoot: root, offline: true}), projectRoot: root, renderer, interactive: true};
     for (const [id, lane] of [['T', 'Todo'], ['FINISHED', 'Done'], ['BLOCKED', 'Blocked'], ['LEASED', 'Todo']] as const) {
-      await registry.execute('create_ticket', {id, title: id, lane}, {store, projectRoot: root});
+      if(lane==='Done') {
+        // A historical completed row is fixture state, never generic creation.
+        await store.sp.createEntity(Ticket.dcr,{id:store.formatId(Ticket.dcr,id),_id:store.formatId(Ticket.dcr,id),title:id,lane,status:'verified'},true,false);
+      } else await registry.execute('create_ticket', {id, title: id, lane}, {store, projectRoot: root, executionAuthority: 'project-write'});
     }
-    await registry.execute('claim_ticket', {ticketId: 'LEASED', agentId: 'other'}, {store, projectRoot: root});
+    await registry.execute('claim_ticket', {ticketId: 'LEASED', agentId: 'other'}, {store, projectRoot: root, executionAuthority: 'project-write'});
   });
   afterEach(() => {
     store.close();
@@ -63,13 +66,14 @@ describe('daily shared shell commands', () => {
     renderer.answer('parameter:ticketId', 'T');
     expect((await processShellInput('claim', session)).output).toContain('Claimed ticket T');
   });
-  it('facilitates only a missing lane, validates plain commands, and done releases the lease', async () => {
+  it('facilitates only a missing lane, validates plain commands, and refuses unsafe done', async () => {
     await processShellInput('claim T', session);
     renderer.answer('parameter:lane', 'In Progress');
     expect((await processShellInput('move T', session)).output).toContain("to 'In Progress'");
     expect(renderer.requests.map(request => request.id)).toEqual(['parameter:lane']);
-    await processShellInput('done T', session);
-    expect((await store.getEntity<Ticket & {claim: unknown; lane: string}>('T'))).toMatchObject({claim: null, lane: 'Done'});
+    expect((await processShellInput('done T', session)).output).toContain('independent Ticket completion');
+    expect((await store.getEntity<Ticket & {claim: {agentId:string}; lane: string}>('T'))).toMatchObject({lane: 'In Progress'});
+    expect((await store.getEntity<Ticket>('T'))!.claim).toBeTruthy();
     session.interactive = false;
     renderer.requests.length = 0;
     expect((await processShellInput('move', session)).output).toContain('Usage');
@@ -78,7 +82,7 @@ describe('daily shared shell commands', () => {
   });
   it('uses the existing artifact parser after facilitating only missing identifiers', async () => {
     const facilitator = new ParameterFacilitator(renderer);
-    const ctx = {store, projectRoot: root};
+    const ctx = {store, projectRoot: root, executionAuthority: 'project-write' as const};
     renderer.answer('parameter:entityId', 'T');
     const tokens = await facilitateArtifactCommand(['resolve', '--depth', '0'], ctx, facilitator);
     expect(artifactCommand(tokens!)).toEqual({tool: 'resolve_ticket', args: {ticketId: 'T', depth: 0}});

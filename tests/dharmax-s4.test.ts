@@ -10,14 +10,14 @@ import {chromium,type Browser} from 'playwright';
 import {startWorkspace} from '../src/workspace/server.ts';
 describe('S4 reviewed derivation through Workspace',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
- const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root});
+ const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  afterEach(async()=>{await browser?.close();host?.server.stop(true);store?.close();if(root)fs.rmSync(root,{recursive:true,force:true});});
  it('DW-03 proposes complete reviewed Stories, Epic and scoped work without mutations',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-'));store=new WorkflowStore(root);initializeTools();
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(file:string,value:string){return {file,value}}");
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await call('create_feature',{id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted',priority:1});
-  host=startWorkspace({store,projectRoot:root});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});
   browser=await chromium.launch({headless:true});const page=await browser.newPage();page.setDefaultTimeout(3000);
   await page.goto(host.url);await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
   await page.getByRole('button',{name:'Derive work',exact:true}).click();
@@ -139,7 +139,7 @@ export function createAvatar(file:string) {
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),'export function saveAvatar(value:string){return value}');
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await call('create_feature',{id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
-  host=startWorkspace({store,projectRoot:root});browser=await chromium.launch({headless:true});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(3000);await page.goto(host.url);
   await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
   await page.getByRole('button',{name:'Derive work',exact:true}).click();
