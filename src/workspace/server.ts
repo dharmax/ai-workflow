@@ -62,6 +62,8 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
           return json({storyTests,entity:{...entity,kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
         }
+        if (req.method === 'POST' && url.pathname === '/api/run-story-test')
+          return json(await call('run_story_test',z.object({storyId:z.string().min(1)}).parse(await req.json())));
         if (req.method === 'POST' && ['/api/prepare-story-test','/api/apply-story-test'].includes(url.pathname)) {
           const name=url.pathname==='/api/prepare-story-test'?'prepare_story_test':'apply_story_test';
           return json(await call(name,await req.json()));

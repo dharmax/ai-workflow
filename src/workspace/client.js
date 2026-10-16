@@ -300,6 +300,12 @@ export function workspaceClient() {
       $('forms').lastElementChild.dataset.mutation=String(i);
     }
   }
+  $('run-story-test').onclick=()=>run(async()=>{
+    const result=await api('run-story-test',{storyId:current.entity.id});
+    $('story-test-source').textContent=JSON.stringify(result,null,2);
+    say('Story test '+result.status+': '+result.reason,result.status==='blocked');
+    current=await api('entity?'+new URLSearchParams({kind:current.entity.kind,id:current.entity.id}));context();
+  });
   $('story-test').onclick=()=>run(()=>{
     if(dirty) throw new Error('Save or discard Story edits before specifying its test.');
     $('story-test-panel').hidden=false;testPreview=null;

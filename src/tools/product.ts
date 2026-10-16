@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { IntentProposalSchema } from '../product/process-types.ts';
-import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus} from '../product/story-tests.ts';
+import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus,runStoryTest} from '../product/story-tests.ts';
 import { registry, type ToolContext } from './registry.ts';
 import {
   Goal,
@@ -190,6 +190,7 @@ async function storyView(ctx: ToolContext, story: UserStory) {
 
 export function registerProductTools() {
   registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
+  registry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>registry.execute('triage_test_failures',{testCommand:command},ctx),preview=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx))});
   registry.register({name:'prepare_story_test',category:'planning',description:'Preview a reviewed executable public-interface Story suite; missing fixtures remain uncovered.',
     parameters:z.object({specification:StoryTestSpecificationSchema}),
     execute:({specification},ctx)=>prepareStoryTest(ctx.store,specification)});

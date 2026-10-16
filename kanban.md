@@ -52,6 +52,7 @@ kanban-plugin: board
 - [/] **TKT-DW-S3**: S3: Usable Workspace for canonical product and Story editing
   - Summary: Authorized S3 only. Concepts: developer edits canonical definitions and reviews inert proposals. Architecture: thin Workspace presentation over S2 operations; inspect shell-ui first. Flow: explore/search -> form -> preview/edit -> explicit save/accept or cancel -> reload. Prove actual browser create/edit/save/reload, reject/cancel, stale concurrency, Aspect revision, CLI/MCP consistency. Preserve Gate 5 and dirty Semantika; no S4.
 - [/] **TKT-RF0W**: S4: Derive and reconcile reviewed work and executable Story tests
+- [/] **TKT-7MI2**: S5: Activate and execute reviewed Story tests before implementation
 
 ## Done
 

@@ -444,9 +444,11 @@ export class TestNode extends WorkflowEntity {
     declare fixturePath?: string
     declare interfaceName?: string
     declare storyVersion?: number
-    declare testState?: 'skipped' | 'not-run'
+    declare testState?: 'skipped' | 'not-run' | 'expected-red' | 'green' | 'blocked'
+    declare testStateReason?: string
     declare testSourceHash?: string
     declare fixtureHash?: string
+    declare storyBasisHash?: string
 
     static template = {
         ...baseTemplate,
@@ -465,8 +467,10 @@ export class TestNode extends WorkflowEntity {
         interfaceName: passthroughValidator,
         storyVersion: passthroughValidator,
         testState: passthroughValidator,
+        testStateReason: passthroughValidator,
         testSourceHash: passthroughValidator,
-        fixtureHash: passthroughValidator
+        fixtureHash: passthroughValidator,
+        storyBasisHash: passthroughValidator
     }
     static readonly dcr = new EntityDcr(TestNode, TestNode.template, "TestNode")
 }

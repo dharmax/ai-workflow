@@ -23,7 +23,7 @@ const fields = z.object({
   intent: z.string(), initialState: z.string(), action: z.string(), expectedResult: z.string(),
   exceptions: z.string(), bounds: z.string(),
   filePath: z.string(), framework: z.string(), command: z.array(z.string()), fixturePath: z.string(), interfaceName: z.string(),
-  storyVersion: z.number().int().positive(), testState: z.enum(['skipped','not-run']), testSourceHash: z.string(), fixtureHash: z.string(),
+  storyVersion: z.number().int().positive(), testState: z.enum(['skipped','not-run','expected-red','green','blocked']), testStateReason: z.string(), testSourceHash: z.string(), fixtureHash: z.string(), storyBasisHash: z.string(),
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
 }).partial().strict();
 
@@ -85,7 +85,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testSourceHash','fixtureHash'], Decision: [], Module: ['completenessTarget']
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [], Module: ['completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
@@ -136,7 +136,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     const entity = await resolveProductEntity(store, id);
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
-    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testSourceHash', 'fixtureHash', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const incoming = await store.getIncoming(entity.id);
     const outgoing = await store.getOutgoing(entity.id);

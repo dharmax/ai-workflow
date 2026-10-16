@@ -10,6 +10,7 @@ import { registry, type ToolContext } from './registry.ts';
 import { Ticket } from '../graph/ontology.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
+import { activateStoryTestsForTicket } from '../product/story-tests.ts';
 
 async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket> {
   const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
@@ -117,6 +118,10 @@ export function registerTicketTools() {
     execute: async ({ ticketId, lane, ...changes }, ctx: ToolContext) => {
       const ticket = await requireTicket(ctx, ticketId) as any;
       const fields = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+      if (lane === 'In Progress' && ticket.lane !== 'In Progress') {
+        await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
+          registry.execute('apply_change', { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx));
+      }
       if (lane) Object.assign(fields, ticketState(lane));
       await applyProductMutations(ctx.store, [{
         kind: 'product_update',
@@ -147,7 +152,12 @@ export function registerTicketTools() {
       status: z.string().optional().describe('Optional lifecycle status')
     }),
     execute: async ({ ticketId, lane, status }, ctx: ToolContext) => {
-      if (!await ctx.store.getEntity(ticketId, Ticket.dcr)) throw new Error(`Ticket ${ticketId} not found.`);
+      const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
+      if (!ticket) throw new Error(`Ticket ${ticketId} not found.`);
+      if (lane === 'In Progress' && ticket.lane !== 'In Progress') {
+        await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
+          registry.execute('apply_change', { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx));
+      }
       await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Ticket', id: ticketId,
         fields: ticketState(lane, status) }]);
       return {
