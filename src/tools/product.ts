@@ -4,6 +4,8 @@
  */
 
 import { z } from 'zod';
+import { IntentProposalSchema } from '../product/process-types.ts';
+import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus} from '../product/story-tests.ts';
 import { registry, type ToolContext } from './registry.ts';
 import {
   Goal,
@@ -187,6 +189,21 @@ async function storyView(ctx: ToolContext, story: UserStory) {
 }
 
 export function registerProductTools() {
+  registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
+  registry.register({name:'prepare_story_test',category:'planning',description:'Preview a reviewed executable public-interface Story suite; missing fixtures remain uncovered.',
+    parameters:z.object({specification:StoryTestSpecificationSchema}),
+    execute:({specification},ctx)=>prepareStoryTest(ctx.store,specification)});
+  registry.register({name:'apply_story_test',category:'planning',description:'Approve guarded test source materialization, then separately link its canonical Test. Reports partial outcomes.',
+    parameters:z.object({specification:StoryTestSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}),
+    execute:async({specification,fingerprint,decision},ctx)=>{
+      if(decision==='accept') {
+        if(ctx.executionAuthority==='read-only') throw new Error('Cannot apply a Story test with read-only authority.');
+        ctx.signal?.throwIfAborted();
+      }
+      return applyStoryTest(ctx.store,specification,fingerprint,decision,preview=>
+        registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx));
+    }});
+
   for (const spec of [
     { kind: 'Goal' as const, ctor: Goal, prefix: 'goal', idPrefix: 'GOAL', actorFields: false },
     { kind: 'Concept' as const, ctor: Concept, prefix: 'concept', idPrefix: 'CONCEPT', actorFields: false },
@@ -251,12 +268,12 @@ export function registerProductTools() {
 
   for (const [name, ctor, key] of [['process_epic', Epic, 'epicId'], ['process_feature', Feature, 'featureId'], ['process_story', UserStory, 'storyId']] as const) {
     registry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
-      parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string(), originalRequest: z.string().optional() }),
+      parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string(), originalRequest: z.string().optional(), proposal: IntentProposalSchema.optional() }),
       execute: async (params, ctx) => {
         const { [key]: id, ...options } = params;
         const entity = await ctx.store.getEntity(String(id), ctor.dcr) as Epic | Feature | UserStory | null;
         if (!entity) throw new Error(`${ctor.name} '${id}' not found.`);
-        return entity.process(ctx.store, options);
+        return entity.process(ctx.store, {...options, ...(entity instanceof Feature ? {requireWorkScope:true} : {})});
       }
     });
   }

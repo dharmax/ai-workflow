@@ -4,6 +4,7 @@
  */
 
 import { implementTicket } from "./implementation.ts"
+import {requireStoryTests} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance } from "./verification.ts"
 import { Ticket, TestNode, Artifact } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
@@ -407,6 +408,7 @@ export async function resolveTicket(
                             scope, governance: scope.governance, aspects: scope.governance.aspects}
                         let proposedTests = [...(options.testCommands ?? [])]
                         if (!children.length && (ticket.lane !== "Done" || attempt > 0)) {
+                            await requireStoryTests(store,ticket)
                             const implementation =
                                 options.implement ??
                                 ((input: TicketDossier, findings: readonly string[]) =>

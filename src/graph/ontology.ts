@@ -441,6 +441,12 @@ export class TestNode extends WorkflowEntity {
     declare command?: string[]
     declare output?: string
     declare executionHashes?: Record<string, string>
+    declare fixturePath?: string
+    declare interfaceName?: string
+    declare storyVersion?: number
+    declare testState?: 'skipped' | 'not-run'
+    declare testSourceHash?: string
+    declare fixtureHash?: string
 
     static template = {
         ...baseTemplate,
@@ -454,7 +460,13 @@ export class TestNode extends WorkflowEntity {
         durationMs: passthroughValidator,
         command: passthroughValidator,
         output: passthroughValidator,
-        executionHashes: passthroughValidator
+        executionHashes: passthroughValidator,
+        fixturePath: passthroughValidator,
+        interfaceName: passthroughValidator,
+        storyVersion: passthroughValidator,
+        testState: passthroughValidator,
+        testSourceHash: passthroughValidator,
+        fixtureHash: passthroughValidator
     }
     static readonly dcr = new EntityDcr(TestNode, TestNode.template, "TestNode")
 }

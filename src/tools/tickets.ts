@@ -18,6 +18,14 @@ async function requireTicket(ctx: ToolContext, ticketId: string): Promise<Ticket
 }
 
 export function registerTicketTools() {
+  registry.register({name:'get_ticket',category:'ticket',description:'Read the canonical Ticket definition and revision.',
+    parameters:z.object({ticketId:z.string().min(1)}),
+    execute:async({ticketId},ctx)=>{
+      const ticket=await requireTicket(ctx,ticketId);
+      return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,status:ticket.status,
+        priority:(ticket as Ticket & {priority:string}).priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
+    }});
+
   registry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),

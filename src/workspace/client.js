@@ -8,6 +8,7 @@ export function workspaceClient() {
   const labels = {title:'Title',body:'Description',priority:'Priority',acceptanceCriteria:'Acceptance criteria',actor:'Actor',intent:'Intent',
     initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
   const editable = ['Feature','Aspect','UserStory'];
+  let testPreview=null;
   const say = (message, error=false) => {
     $('notice').textContent = message; $('notice').setAttribute('role',error?'alert':'status');
     $('notice').className = error ? 'error' : 'notice';
@@ -73,6 +74,15 @@ export function workspaceClient() {
     for(const key of fieldsFor(data.kind,data)) field(form,key,data[key],index);
     if(data.kind==='UserStory') {
       el('p',data.definitionReview==='needs_review'?'Legacy Story needs review: complete the explicit scenario before accepting.':'Acceptance approves this definition. Story satisfaction remains unverified without execution evidence.',section,{className:'hint'});
+      if(imported && create) button('Reject Story '+data.id,section,async()=>{
+        const request=collect();
+        const exclusiveTickets=request.mutations.filter(m=>m.kind==='product_link'&&m.predicate==='addresses'&&m.targetId===data.id)
+          .map(m=>m.sourceId).filter(id=>!request.mutations.some(m=>m.kind==='product_link'&&m.predicate==='addresses'&&m.sourceId===id&&m.targetId!==data.id));
+        const rejected=new Set([data.id,...exclusiveTickets]);
+        request.mutations=request.mutations.filter(m=>'id' in m?!rejected.has(m.id):!rejected.has(m.sourceId)&&!rejected.has(m.targetId));
+        if(!request.mutations.length) {reset();say('Story rejected. No work saved.');return;}
+        invalidate();renderProposal(request);await review(request);
+      });
       if(!imported) {
         const lbl=el('label','Feature',form);
         const select=el('select',undefined,lbl,{name:'feature',ariaLabel:'Feature'});
@@ -90,6 +100,8 @@ export function workspaceClient() {
     $('proposal-import').hidden=true; $('context').hidden=true; $('editor').hidden=false;
     $('review-button').hidden=false; $('update').hidden=true; $('accept').disabled=true;
     $('advanced-editor').hidden=true; advancedDirty=false;
+    $('derive-panel').hidden=true; $('derive-work').hidden=true;
+    $('story-test-panel').hidden=true; $('story-test').hidden=true; testPreview=null;
   }
   async function refresh() {
     const result=await api('catalog'); catalog=result.entities; $('project').textContent=result.projectRoot;
@@ -119,7 +131,9 @@ export function workspaceClient() {
       $('review-button').hidden=true;
     }
     $('context').hidden=false;
-    context(); say('Loaded '+id+' · canonical revision '+detail.entity.version);
+    context(); $('derive-work').hidden=!['Feature','UserStory','Epic'].includes(kind);
+    $('story-test').hidden=kind!=='UserStory';
+    say('Loaded '+id+' · canonical revision '+detail.entity.version);
   }
   function create(kind) {
     if(!canLeave()) return; reset(); current=null;
@@ -134,6 +148,7 @@ export function workspaceClient() {
     for(const aspect of aspects) {
       el('h4',aspect.title+' · '+aspect.id,$('aspects')); el('p',aspect.body||'No definition text',$('aspects'));
     }
+    if(current?.storyTests) el('p','Story test specification: '+JSON.stringify(current.storyTests),$('related'));
     const relations=current?.relations||[];
     if(!relations.length) el('p','No linked objects. Unlinked effects are unknown.',$('related'));
     for(const edge of relations) {
@@ -285,6 +300,44 @@ export function workspaceClient() {
       $('forms').lastElementChild.dataset.mutation=String(i);
     }
   }
+  $('story-test').onclick=()=>run(()=>{
+    if(dirty) throw new Error('Save or discard Story edits before specifying its test.');
+    $('story-test-panel').hidden=false;testPreview=null;
+    $('accept-story-test').hidden=true; $('reject-story-test').hidden=true; $('story-test-source').textContent='';
+    $('story-test-json').value=JSON.stringify({storyId:current.entity.id,
+      filePath:'tests/'+current.entity.id.toLowerCase()+'.test.ts',fixturePath:'',interfaceName:'',body:''},null,2);
+  });
+  $('story-test-json').oninput=()=>{testPreview=null;dirty=true;$('accept-story-test').hidden=true;};
+  $('prepare-story-test').onclick=()=>run(async()=>{
+    const specification=JSON.parse($('story-test-json').value);
+    const result=await api('prepare-story-test',{specification});
+    if(result.status!=='review') {say('Story uncovered: '+result.reason,true);return;}
+    testPreview=result;dirty=true;
+    $('story-test-source').textContent=result.content+'\n'+JSON.stringify({state:result.testState,source:result.sourcePreview,link:result.linkPreview},null,2);
+    $('accept-story-test').hidden=false;$('reject-story-test').hidden=false;say('Executable test ready for developer review. No file or link saved.');
+  });
+  for(const [id,decision] of [['accept-story-test','accept'],['reject-story-test','reject']]) $(id).onclick=()=>run(async()=>{
+    if(!testPreview) throw new Error('Review the executable test first.');
+    const reviewed=testPreview; testPreview=null; $('accept-story-test').hidden=true;
+    const result=await api('apply-story-test',{specification:reviewed.specification,fingerprint:reviewed.fingerprint,decision});
+    $('story-test-source').textContent=JSON.stringify(result,null,2);
+    dirty=result.status==='file-created-unlinked';
+    say(result.status==='linked'?'Story test linked · '+result.testState:result.status+': '+(result.reason||'No changes saved.'),!['linked','rejected'].includes(result.status));
+  });
+  $('derive-work').onclick=()=>run(()=>{
+    if(dirty) throw new Error('Save or discard definition edits before deriving work.');
+    $('derive-panel').hidden=false; $('work-json').value=''; $('derive-request').value='';
+  });
+  $('prepare-work').onclick=()=>run(async()=>{
+    if(!current) throw new Error('Select accepted intent first.');
+    const result=await api('derive',{kind:current.entity.kind,id:current.entity.id,originalRequest:$('derive-request').value,
+      ...($('work-json').value.trim()?{proposal:JSON.parse($('work-json').value)}:{})});
+    if(result.status!=='complete') throw new Error(JSON.stringify(result.required||result.blockers));
+    if(!result.value.proposals.length) {say('Existing definitions reused. No changes proposed.');return;}
+    if(result.value.proposals.length!==1) throw new Error('Review one bounded proposal at a time.');
+    const proposal=result.value.proposals[0]; reset(); renderProposal(proposal.request);dirty=true;
+    await review(proposal.request,proposal);
+  });
   $('search').oninput=list; $('kind-filter').onchange=list;
   for(const [id,kind] of [['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect']]) $(id).onclick=()=>run(()=>create(kind));
   $('review-button').onclick=()=>run(()=>review());

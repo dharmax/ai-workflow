@@ -33,8 +33,7 @@ kanban-plugin: board
 
 ## Todo
 
-- [ ] **TKT-DW-S3**: S3: Usable Workspace for canonical product and Story editing
-  - Summary: Authorized S3 only. Concepts: developer edits canonical definitions and reviews inert proposals. Architecture: thin Workspace presentation over S2 operations; inspect shell-ui first. Flow: explore/search -> form -> preview/edit -> explicit save/accept or cancel -> reload. Prove actual browser create/edit/save/reload, reject/cancel, stale concurrency, Aspect revision, CLI/MCP consistency. Preserve Gate 5 and dirty Semantika; no S4.
+- No items
 
 ## In Progress
 
@@ -50,6 +49,9 @@ kanban-plugin: board
   - Summary: Observed AIWF applyProductMutations validates then applies sequentially; a guarded preview is not all-or-nothing persistence. Integrate the public Semantika contract for canonical Product graph and coherent audit. Scope only demonstrated batch failure/concurrency requirements; do not add an AIWF transaction manager.  S2 implementation evidence (2026-10-15; developer acceptance pending): docs/dharmax-s2-2026-10-15.md. Reused this Ticket under explicit S2 authorization after bounded resolve stopped at the preserved Gate 5 prerequisite. Inert process/decomposition proposals; explicit reviewed public application via the existing change engine; source-revision and fingerprint checks under existing admission; one native Semantika conditional entity/edge batch. Reused Features/Stories are preserved. Actual CLI and stdio MCP journeys, stale and rejection/cancellation cases, real SQL rollback, native-link admission and S1 Story context are covered. Final: 475 pass, 0 fail, 5 existing live skips; typecheck/build green; Semantika batch contracts 9 pass. Raw evidence: /home/dharmax/.local/state/aiwf/evidence/dharmax-s2-20261015/. Protected records/21 relationships, live product definitions and Semantika hashes unchanged. No duplicate Ticket, synthetic VERIFY receipt, Gate 5 closure, S3 work, commit or push. Original prerequisites and acceptance criteria retained.
 - [/] **TKT-DW-S1**: S1: Canonical Story semantics and authoritative Aspect applicability
   - Summary: S1 implementation complete for developer acceptance; stopped before S2. Evidence: docs/dharmax-s1-2026-10-15.md; raw logs/source hashes at /home/dharmax/.local/state/aiwf/evidence/dharmax-s1-20261015/. Baseline guidance suites 15 pass/0 fail after both known failures reproduced. Final bun test 463 pass/0 fail/5 skipped, typecheck and pack pass; Semantika batch contracts 9 pass. Six DW-02/DW-05 public Story cases pass with attributable expected-red evidence. All 12 legacy S0 Story rows survive disposable reopen unchanged and are accurately needs_review. Protected Tickets/21 relationships and Semantika source/installed hashes unchanged. No Gate 5 closure, VERIFY receipt, commit, push or S2 work claimed. Retain In Progress pending developer acceptance rather than infer autonomous acceptance from manual tests.
+- [/] **TKT-DW-S3**: S3: Usable Workspace for canonical product and Story editing
+  - Summary: Authorized S3 only. Concepts: developer edits canonical definitions and reviews inert proposals. Architecture: thin Workspace presentation over S2 operations; inspect shell-ui first. Flow: explore/search -> form -> preview/edit -> explicit save/accept or cancel -> reload. Prove actual browser create/edit/save/reload, reject/cancel, stale concurrency, Aspect revision, CLI/MCP consistency. Preserve Gate 5 and dirty Semantika; no S4.
+- [/] **TKT-RF0W**: S4: Derive and reconcile reviewed work and executable Story tests
 
 ## Done
 

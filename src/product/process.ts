@@ -95,7 +95,7 @@ export function processIntent(
                         if (source) basis.push({id: sourceId, entityType: source.typeName(), version: source.version})
                     }
                     const propose =
-                        options.propose ??
+                        (options.proposal ? async () => options.proposal! : options.propose) ??
                         (async (input: IntentContext, findings: readonly { message: string }[]) => {
                             const asker = createDefaultAsker(store.root)
                             if (!asker) throw new Error("Product reasoning provider unavailable.")
@@ -111,7 +111,7 @@ export function processIntent(
                             return IntentProposalSchema.parse(response.data)
                         })
                     const allowedKinds = new Set(
-                        kind === "Epic" ? ["Feature", "UserStory", "Ticket"] : kind === "UserStory" ? ["Feature", "Ticket"] : ["Ticket"]
+                        kind === "Epic" ? ["Feature", "UserStory", "Ticket"] : kind === "UserStory" ? ["Feature", "Ticket"] : ["Epic", "UserStory", "Ticket"]
                     )
                     let reviewed = false,
                         findings: Array<{ message: string }> = []
@@ -125,6 +125,8 @@ export function processIntent(
                         const batchIds = new Set<string>()
                         for (const item of proposal.items) {
                             if (!allowedKinds.has(item.kind)) throw new Error(`Invalid next layer: ${kind} → ${item.kind}.`)
+                            if (entity instanceof Feature && ["Epic","UserStory"].includes(item.kind) && fields.status !== "accepted")
+                                throw new Error("Accept the Feature before deriving delivery Stories and Epic.")
                             if (batchIds.has(item.id)) throw new Error(`Duplicate proposed identity '${item.id}'.`)
                             batchIds.add(item.id)
                             const sameId = await store.getEntity<WorkflowEntity>(item.id)
@@ -148,6 +150,8 @@ export function processIntent(
                                         }
                                     ]
                                 }
+                            if (item.kind === "UserStory" && !sameId && ["actor","intent","initialState","action","expectedResult"].some(key => !String(item[key as keyof typeof item] ?? "").trim()))
+                                return {status:"needs_input",artifactId:rootId,required:[{question:`Complete the public scenario for '${item.id}'.`,why:"A title or unknown interface cannot define a Story test.",target:item.id}]}
                             const childId = sameId ? store.localId(sameId.id) : item.id
                             if (!budget.visit(childId, depth + 1)) {
                                 knownGaps.push(`Expansion budget stopped '${childId}'.`)
@@ -155,9 +159,9 @@ export function processIntent(
                             }
                             childIds.push(childId)
                             if (sameId) batchReused.push(childId)
-                            else {
+                            if (!sameId || item.revise) {
                                 mutations.push({
-                                    kind: "product_create",
+                                    kind: sameId ? "product_update" : "product_create",
                                     entityType: item.kind,
                                     id: childId,
                                     fields:
@@ -173,13 +177,14 @@ export function processIntent(
                                                   exceptions: item.exceptions,
                                                   bounds: item.bounds,
                                                   acceptanceCriteria: item.acceptanceCriteria,
-                                                  status: "proposed"
+                                                  status: sameId instanceof UserStory ? (sameId as UserStory & {status:string}).status : "proposed"
                                               }
                                             : {
                                                   title: item.title,
                                                   body: item.body,
-                                                  acceptanceCriteria: item.acceptanceCriteria,
-                                                  ...(item.kind === "Ticket" ? { lane: "Backlog" as const } : { status: "proposed" })
+                                                  ...(item.kind !== "Epic" ? { acceptanceCriteria: item.acceptanceCriteria } : {}),
+                                                  ...(item.priority !== undefined ? {priority:item.priority} : {}),
+                                                  ...(sameId ? {} : item.kind === "Ticket" ? { lane: "Backlog" as const } : { status: item.kind === "Epic" ? "draft" : "proposed" })
                                               }
                                 })
                             }
@@ -187,7 +192,9 @@ export function processIntent(
                                 kind === "Epic"
                                     ? { sourceId: id, predicate: item.kind === "Ticket" ? "contains" : "targets", targetId: childId }
                                     : kind === "Feature"
-                                      ? { sourceId: childId, predicate: "implements", targetId: id }
+                                      ? item.kind === "Epic" ? {sourceId:childId,predicate:"targets",targetId:id}
+                                        : item.kind === "UserStory" ? {sourceId:id,predicate:"enables",targetId:childId}
+                                        : { sourceId: childId, predicate: "implements", targetId: id }
                                       : item.kind === "Feature"
                                         ? { sourceId: childId, predicate: "enables", targetId: id }
                                         : { sourceId: childId, predicate: "addresses", targetId: id }
@@ -197,6 +204,25 @@ export function processIntent(
                                 )
                             )
                                 mutations.push({ kind: "product_link", ...link })
+                        }
+                        for (const item of proposal.items.filter(item => childIds.includes(item.id))) {
+                            if (item.kind !== "Ticket") continue
+                            for (const storyId of item.storyIds ?? []) {
+                                const proposed = proposal.items.find(candidate => candidate.id === storyId && candidate.kind === "UserStory")
+                                if (!proposed && !(await store.getEntity(storyId, UserStory.dcr)))
+                                    throw new Error(`Unknown Story '${storyId}'.`)
+                                mutations.push({kind:"product_link",sourceId:item.id,predicate:"addresses",targetId:storyId})
+                            }
+                            for (const scopeId of item.scopeIds ?? []) {
+                                const scope = await store.getEntity(scopeId)
+                                if (!scope || (options.requireWorkScope ? !["ModuleNode","FileNode","SymbolNode"].includes(scope.typeName()) : !["Feature","ModuleNode","FileNode","SymbolNode"].includes(scope.typeName())))
+                                    throw new Error(`Unknown or unsupported work scope '${scopeId}'.`)
+                                basis.push({id:scopeId,entityType:scope.typeName(),version:scope.version})
+                                mutations.push({kind:"product_link",sourceId:item.id,predicate:scope instanceof Feature ? "implements" : "targets",targetId:scopeId})
+                            }
+                            const epics = proposal.items.filter(candidate => candidate.kind === "Epic" && childIds.includes(candidate.id))
+                            if (epics.length > 1) throw new Error("Choose one delivery Epic for the proposed Tickets.")
+                            if (epics[0]) mutations.push({kind:"product_link",sourceId:epics[0].id,predicate:"contains",targetId:item.id})
                         }
                         for (const aspectId of proposal.aspectIds) {
                             if (aspects.some(a => store.localId(a.id) === aspectId)) continue

@@ -4,6 +4,7 @@ import { registry, initializeTools } from '../tools/index.ts';
 import type { ToolContext } from '../tools/registry.ts';
 import { ProductMutationSchema, ProductRevisionSchema } from '../product/mutation.ts';
 import { workspacePage } from './page.ts';
+import { IntentProposalSchema } from '../product/process-types.ts';
 
 const reads = {
   Feature: ['list_features', 'get_feature', 'featureId'],
@@ -58,7 +59,20 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
             sourceId:ctx.store.localId(edge.sourceId),predicate:edge.predicateName,targetId:ctx.store.localId(edge.targetId)
           }])).values()];
           const aspects = kind === 'Aspect' ? [] : await call('get_applicable_aspects',{entityId:id});
-          return json({entity:{...entity,kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
+          const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
+          return json({storyTests,entity:{...entity,kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
+        }
+        if (req.method === 'POST' && ['/api/prepare-story-test','/api/apply-story-test'].includes(url.pathname)) {
+          const name=url.pathname==='/api/prepare-story-test'?'prepare_story_test':'apply_story_test';
+          return json(await call(name,await req.json()));
+        }
+        if (req.method === 'POST' && url.pathname === '/api/derive') {
+          const input = z.object({kind:z.enum(['Feature','UserStory','Epic']),id:z.string().min(1),originalRequest:z.string().optional(),proposal:IntentProposalSchema.optional()}).strict().parse(await req.json());
+          const key = input.kind === 'Feature' ? 'featureId' : input.kind === 'UserStory' ? 'storyId' : 'epicId';
+          return json(await call('process_' + (input.kind === 'UserStory' ? 'story' : input.kind.toLowerCase()),{
+            [key]:input.id,originalRequest:input.originalRequest,proposal:input.proposal,
+            ...(input.proposal ? {critic:'none'} : {}),depth:1
+          }));
         }
         if (req.method === 'POST' && url.pathname === '/api/preview') {
           const request = requestSchema.parse(await req.json());

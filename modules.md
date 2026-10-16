@@ -10,12 +10,12 @@
 | `src/actor` | project default | 388 | 0 | None |
 | `src/mcp` | project default | 38 | 0 | None |
 | `src/shell` | project default | 149 | 0 | None |
-| `src/cli` | project default | 110 | 0 | None |
+| `src/cli` | project default | 114 | 0 | None |
 | `src/index` | project default | 0 | 0 | None |
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | None |
 | `src/setup` | project default | 135 | 0 | None |
-| `tests` | project default | 1568 | 0 | None |
+| `tests` | project default | 1617 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -27,8 +27,8 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 469 | 0 | None |
-| `src/product` | project default | 438 | 0 | None |
+| `docs` | project default | 476 | 0 | None |
+| `src/product` | project default | 485 | 0 | None |
 | `src/change` | project default | 701 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
@@ -57,6 +57,7 @@
 | `src/rules` | project default | 271 | 0 | None |
 | `src/rule-command` | project default | 8 | 0 | None |
 | `node_modules` | project default | 79 | 0 | None |
+| `src/workspace` | project default | 102 | 0 | None |
 
 ## Dependency Diagram
 

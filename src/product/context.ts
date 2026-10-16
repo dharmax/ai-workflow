@@ -35,13 +35,13 @@ export async function buildIntentContext(
     completeness: CompletenessLevel,
     depth: number,
     maxArtifacts: number
-): Promise<{ context: IntentContext; all: Array<Feature | UserStory | Ticket>; aspects: Aspect[]; candidates: Aspect[] }> {
+): Promise<{ context: IntentContext; all: Array<Epic | Feature | UserStory | Ticket>; aspects: Aspect[]; candidates: Aspect[] }> {
     const id = store.localId(entity.id)
     const kind = entity instanceof Epic ? "Epic" : entity instanceof Feature ? "Feature" : "UserStory"
     const fields = entity as WorkflowEntity & { body?: string; story?: string; acceptanceCriteria?: string[]; status?: string }
-    const all: Array<Feature | UserStory | Ticket> = []
-    for (const ctor of [Feature, UserStory, Ticket])
-        all.push(...((await store.listEntities(ctor.dcr)) as Array<Feature | UserStory | Ticket>))
+    const all: Array<Epic | Feature | UserStory | Ticket> = []
+    for (const ctor of [Epic, Feature, UserStory, Ticket])
+        all.push(...((await store.listEntities(ctor.dcr)) as Array<Epic | Feature | UserStory | Ticket>))
     const edges = [...(await store.getOutgoing(entity.id)), ...(await store.getIncoming(entity.id))]
     const linked = new Set(edges.map(edge => (edge.sourceId === entity.id ? edge.targetId : edge.sourceId)))
     const optional = all.filter(item => !linked.has(item.id) && item.id !== entity.id).slice(0, maxArtifacts)
@@ -95,10 +95,14 @@ export async function buildIntentContext(
         acceptanceCriteria: fields.acceptanceCriteria ?? [],
         completeness,
         depth,
+        originalRequest: options.originalRequest,
+        priority: (entity as WorkflowEntity & {priority?:number}).priority,
         existing: selected.map(item => ({
             id: store.localId(item.id),
             kind: item.typeName(),
             title: item.title,
+            priority: (item as WorkflowEntity & {priority?:number|string}).priority,
+            ...(item instanceof UserStory ? {actor:item.actor,intent:item.intent,initialState:item.initialState,action:item.action,expectedResult:item.expectedResult,exceptions:item.exceptions,bounds:item.bounds} : {}),
             ...((item as Ticket).acceptanceCriteria?.length
                 ? { acceptanceCriteria: (item as Ticket).acceptanceCriteria }
                 : { body: (item as Ticket).body }),
