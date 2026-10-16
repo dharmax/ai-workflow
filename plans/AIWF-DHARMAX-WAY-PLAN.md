@@ -94,7 +94,13 @@ Companion specification: `AIWF-DHARMAX-WAY-DESIGN.md` (read first; it owns defin
 
 **Gate**: developer sees exact Story/test status and can identify why it is skipped, red, green, blocked or stale; successful run is actual public behavior, not generated assertion of its own spec string.
 
+### S5 postcondition — Product Operability (mandatory before S6)
+
+The published S5 test-lifecycle scope stands; its acceptance is **not** the acceptance of AIWF's everyday product-management experience. Before S6 may be authorized, complete the separate bounded postcondition [design](AIWF-S5-POSTCONDITION-DESIGN.md) and [plan](AIWF-S5-POSTCONDITION-PLAN.md), PC0 → PC5, each with its own observed gate and explicit developer authorization for advancement. Cover product/architecture intention, a compact topic-oriented CLI and typed MCP façade, one governed `link` operation, first-class Bug UX on existing Ticket ownership, cross-surface usability and independent public-journey evidence. The postcondition is not a replacement implementation subsystem, nor permission to bypass S2/S5, Gate 5 or the S8 migration boundary. Its specification being published does **not** establish its acceptance or authorize execution. **S6 remains blocked on PC5 independent acceptance plus a fresh developer decision.**
+
 ### S6 — Align governed implementation and resolution; preserve Gate 5 protections
+
+**Entry prerequisite:** accepted S5 Product Operability postcondition (PC0–PC5) and separate explicit S6 authorization. A published postcondition design/plan alone is insufficient.
 
 **Owners**: existing `ticket/{resolve,implementation,verification}.ts`, `ticket-operation-types.ts`, `verification-context.ts`, `change/engine.ts`, `graph/store.ts`, public tools, not a replacement executor.
 

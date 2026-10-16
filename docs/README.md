@@ -2,6 +2,7 @@
 
 **Governing design:** [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md).  
 **Execution stages:** [Dharmax-way plan](../plans/AIWF-DHARMAX-WAY-PLAN.md).  
+**Required S5→S6 postcondition:** [Product Operability design](../plans/AIWF-S5-POSTCONDITION-DESIGN.md) and [PC0–PC5 plan](../plans/AIWF-S5-POSTCONDITION-PLAN.md).  
 Read both before modifying AIWF's product workflow. Their target capabilities are staged work, **not claims about today's implementation**.
 
 - [Architecture](architecture.md) — existing owners, current execution, intended boundaries and explicitly identified changes.

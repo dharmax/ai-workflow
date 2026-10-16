@@ -2,6 +2,8 @@
 
 Document role: **authoritative design/engineering constraints for AI execution**, not a completion report or instruction to implement all stages at once. Companion: `AIWF-DHARMAX-WAY-PLAN.md`. Revision: 2026-10-15. Do not automatically copy this file over existing project rules or replace approved product definitions. Apply approved changes through AIWF.
 
+**2026-10-16 roadmap amendment:** S5's Story-test lifecycle acceptance is distinct from the [S5 Product Operability postcondition](AIWF-S5-POSTCONDITION-DESIGN.md) and its [bounded PC0–PC5 plan](AIWF-S5-POSTCONDITION-PLAN.md). This postcondition must be independently accepted before S6 is authorized. It does not add a runtime subsystem or retroactively change S5's accepted scope. Publication alone does not authorize execution.
+
 ## 0. Foundation and source baseline
 
 Dharmax-way governs AIWF's **actual workflow** and how its code is designed/reviewed. It does not authorize overriding user-approved product decisions, current safety constraints or truthful acceptance just because an implementation stage is inconvenient. It is the operational meaning of the Prime Directive, not an extra optional doctrine, framework, persona or ceremonial document. Product intent is owned by the developer; AI assists in clarifying, proposing and engineering it. Work must yield actual working product behavior, not a structurally complete graph or a large passing internal suite.

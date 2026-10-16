@@ -6,7 +6,7 @@ AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface is hi
 
 ## Governing design and current status
 
-**Dharmax-way** is the governing product/engineering workflow. Read the [canonical design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged implementation plan](plans/AIWF-DHARMAX-WAY-PLAN.md) before changing product/workflow semantics. [Documentation index](docs/README.md) distinguishes current code, target Stories and historical evidence. The plan is **not yet implemented**. Execute only one approved stage at a time; existing Gate 5 remains Blocked until its actual canonical release criteria succeed. Earlier plans are preserved in [docs/archive/plans](docs/archive/plans/README.md).
+**Dharmax-way** is the governing product/engineering workflow. Read the [canonical design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged implementation plan](plans/AIWF-DHARMAX-WAY-PLAN.md) before changing product/workflow semantics. [Documentation index](docs/README.md) distinguishes current code, target Stories and historical evidence. The full plan is **not yet implemented**. Before S6, the [S5 Product Operability postcondition](plans/AIWF-S5-POSTCONDITION-DESIGN.md) must pass its [PC0–PC5 acceptance plan](plans/AIWF-S5-POSTCONDITION-PLAN.md); publishing these documents is not acceptance. Execute only one approved checkpoint at a time; existing Gate 5 remains Blocked until its actual canonical release criteria succeed. Earlier plans are preserved in [docs/archive/plans](docs/archive/plans/README.md).
 
 ## The idea
 
