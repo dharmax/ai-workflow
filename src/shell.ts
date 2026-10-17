@@ -8,8 +8,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
-import { artifactCommand, facilitateArtifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
+import { CommanderError } from 'commander';
+import { parseCommand, lexCommand, isExplicitCommand, facilitateArtifactCommand, type NormalizedCommand } from './artifact-command.ts';
 import os from 'node:os';
+import {reviewLink} from './product/links.ts';
 import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
 import type {ActorStepRecord} from '@dharmax/llm-utils';
 import {
@@ -76,6 +78,7 @@ async function presentEntityView(
 }
 
 export const SHELL_COMMANDS = [
+  'link', 'links', 'unlink',
   'resolve', 'prepare', 'investigate', 'process', 'completeness',
   'resolve_ticket', 'prepare_ticket', 'investigate_ticket', 'process_epic', 'process_feature', 'process_story',
   'status',
@@ -154,68 +157,50 @@ export async function processShellInput(
   const facilitator = session.facilitator || new ParameterFacilitator(session.renderer || session.prompter);
   const isInteractive = session.interactive ?? (session.prompter ? session.prompter.getIsTty() : false);
 
+  // Covered explicit commands are lexed once, before legacy dispatch or Actor fallback.
+  if (isExplicitCommand(line) && lower !== 'help') {
+    try {
+      const tokens=lexCommand(line);
+      let command: NormalizedCommand;
+      try {
+        command=await parseCommand(tokens);
+      } catch(error) {
+        if(!isInteractive || !(error instanceof CommanderError) || !['commander.missingArgument','commander.help'].includes(error.code)) throw error;
+        const facilitated=await facilitateArtifactCommand(tokens,ctx,facilitator);
+        if(!facilitated) return {output:'Cancelled.'};
+        command=await parseCommand(facilitated);
+      }
+      if(command?.family==='help') return {output:command.args.text};
+      if(command?.family==='link') {
+        const confirm=isInteractive?async(preview:unknown)=>{
+          const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact link change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});
+          return answer.approval==='apply';
+        }:undefined;
+        return {output:JSON.stringify(await reviewLink(command.args,ctx,command.yes,confirm,command.yes?preview=>console.error(JSON.stringify(preview,null,2)):undefined),null,2)};
+      }
+      if (command.family === 'artifact') {
+        const progress = session.viewport || new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''});
+        progress.start(command.tool === 'resolve_ticket'
+          ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
+          : `Running ${command.tool}...`);
+        try {
+          const result = await registry.execute(command.tool, command.args, ctx);
+          progress.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
+          return {output: JSON.stringify(result, null, 2)};
+        } catch (error) { progress.stop('fail'); throw error; }
+      }
+
+    } catch(error) {return {output:'Error: '+(error instanceof Error?error.message:String(error))};}
+  }
+
   // 1. Session Control & Mode Switching
   if (lower === 'exit' || lower === 'quit' || lower === '/exit') {
     return { output: 'Goodbye!', exit: true };
   }
 
   if (lower === '/help' || lower === 'help') {
-    return {
-      output: `
-\x1b[1;36m🏛️  AI-Workflow 2.0 Terminal REPL\x1b[0m
-
-${ARTIFACT_HELP}
-
-Drill-down and project commands:
-  status                     - Working tree git status & active ticket leases
-  next                       - Algorithmic recommendation for next task
-  claim <ticketId> [agent]   - Atomically lease a ticket (default 30m)
-  release <ticketId>         - Release active ticket lease
-  done <ticketId>            - Mark ticket as Done, release lease, and sync Kanban
-  move <ticketId> <lane>     - Move ticket to lane (Backlog|Todo|In Progress|Done|Blocked)
-  create <title>             - Create ticket in Todo lane
-  tickets [lane]             - List Kanban tickets (Backlog|Todo|In Progress|Done|Blocked)
-  ticket <ticketId>           - Open ticket View (interactive shell)
-  edit <entityId>             - Open Ticket/Epic/Feature/Story/Aspect directly in edit mode
-  epics [status]             - List epics in the Product Intent Graph
-  epic <epicId>              - Show epic details, targeted features/stories, and tickets
-  epic-create <title>        - Create Epic with semantic decomposition and proposal review
-  features [status]          - List features in the Product Intent Graph
-  feature <featureId>        - Show feature details, containing stories, and tickets
-  stories [status]           - List user stories in the Product Intent Graph
-  story <storyId>            - Show story details, containing feature, tickets, tests
-  aspect <aspectId>           - Open Aspect View (interactive shell)
-  coverage <entityId>        - Show structural and causal coverage for an Epic, Feature, or Story
-  impact <entityId>          - Show bounded product impact and code anchors
-  sync                       - Bi-directional sync between SQLite Graph and Markdown
-  diff                       - Display uncommitted git diff
-  symbol <name>              - Find symbol in AST+ semantic graph (supports --exact, --kind)
-  graph [query]              - Search/traverse AST+ knowledge graph entities & relations
-  callers <symbol>           - Find all call sites invoking a symbol
-  deps <fileOrModule>        - List static dependencies and imports for a target
-  slice <file> <symbol>      - Slice and extract source code of a symbol
-  outline <file>             - Display AST symbol outline for a file
-  blast <target>             - Analyze blast radius of file or symbol
-  index                      - Re-index codebase AST symbols and modules into graph
-  doctor                     - Run comprehensive environment & graph diagnostics
-  audit                      - Run architecture & graph integrity audit
-  metrics [--operation ...]  - Query persisted performance metrics (--ticket, --since, --tag)
-  trace [on|off|show|open]   - Show the last execution; open a scrollable floating view (Alt+O)
-  config [get|set|reset] [key] [value] [--global] - Inspect provenance or change overrides
-  setup [--check]            - Inspect or apply verified setup steps
-  eval <js-code>             - On-the-fly JavaScript evaluation
-  model (or /model)          - Show configured providers and effective task routes
-  radar [refresh]            - View SOTA model benchmark rankings & Pareto scores
-  escalate [policy]          - View or toggle escalation policy (auto|local_only|prompt|sota)
-  /design                    - Switch mode to [DESIGN] (Architecture & ADRs)
-  /dev                       - Switch mode to [DEV] (Code authoring & patching)
-  /triage                    - Switch mode to [TRIAGE] (Diagnostics & Test Triage)
-  /product                   - Lock mode to [PRODUCT] (Roadmap & Story Grooming)
-  /auto                      - Return to semantic automatic mode selection
-  exit                       - Exit shell
-  <any natural instruction>  - Autonomous cognitive execution via Workflow Actor
-`
-    };
+    const help=await parseCommand(['--help']);
+    return {output:'AI-Workflow 2.0 Terminal REPL\n'+(help.family==='help'?help.args.text:'')};
   }
 
   if (lower === 'model' || lower === '/model' || lower.startsWith('model ') || lower.startsWith('/model ') || lower === 'radar' || lower === '/radar' || lower.startsWith('radar ') || lower.startsWith('/radar ')) {
@@ -1046,20 +1031,6 @@ Drill-down and project commands:
   }
 
   // 3. Autonomous Cognitive Fallback
-  const artifactTokens = isInteractive ? await facilitateArtifactCommand(line.split(/\s+/), ctx, facilitator) : line.split(/\s+/);
-  if (!artifactTokens) return {output: 'Cancelled.'};
-  const delegation = artifactCommand(artifactTokens);
-  if (delegation) {
-    const progress = session.viewport || new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''});
-    progress.start(delegation.tool === 'resolve_ticket'
-      ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
-      : `Running ${delegation.tool}...`);
-    try {
-      const result = await registry.execute(delegation.tool, delegation.args, ctx);
-      progress.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
-      return {output: JSON.stringify(result, null, 2)};
-    } catch (error) { progress.stop('fail'); throw error; }
-  }
   const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
   session.viewport ??= new ProcessViewport({mode: 'fold', interactive: false, traceHint: 'trace show · trace open'});
   session.trace = {instruction: line, mode: session.actor.mode};

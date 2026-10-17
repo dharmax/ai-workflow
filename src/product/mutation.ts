@@ -27,16 +27,23 @@ const fields = z.object({
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
 }).partial().strict();
 
+export const LinkPayloadSchema = z.object({note: z.string().max(4000).optional()}).strict();
+export type LinkPayload = z.infer<typeof LinkPayloadSchema>;
+export function normalizeLinkPayload(payload: LinkPayload): LinkPayload {
+  LinkPayloadSchema.parse(payload);
+  return payload.note ? {note: payload.note} : {};
+}
+
 export const ProductMutationSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('product_create'), entityType: entityKind, id: z.string().min(1), fields }),
   z.object({ kind: z.literal('product_update'), entityType: entityKind, id: z.string().min(1), fields }),
   z.object({ kind: z.literal('product_delete'), entityType: entityKind, id: z.string().min(1) }),
-  z.object({ kind: z.literal('product_link'), sourceId: z.string().min(1), predicate: z.string().min(1), targetId: z.string().min(1) }),
-  z.object({ kind: z.literal('product_unlink'), sourceId: z.string().min(1), predicate: z.string().min(1), targetId: z.string().min(1) })
+  z.object({ kind: z.literal('product_link'), sourceId: z.string().min(1), predicate: z.string().min(1), targetId: z.string().min(1), payload: LinkPayloadSchema.optional() }).strict(),
+  z.object({ kind: z.literal('product_unlink'), sourceId: z.string().min(1), predicate: z.string().min(1), targetId: z.string().min(1) }).strict()
 ]);
 export type ProductMutation = z.infer<typeof ProductMutationSchema> & { source?: never };
 
-const relations: Array<[ProductKind, string, ProductKind]> = [
+const relationTriples: Array<[ProductKind, string, ProductKind]> = [
   ...(['Idea', 'Goal', 'Concept', 'Flow', 'Module', 'Epic', 'Feature', 'UserStory', 'File', 'Symbol', 'Ticket', 'Test', 'Artifact'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
   ['Ticket', 'addresses', 'Aspect'], ['Test', 'verifies', 'Aspect'], ['Artifact', 'verifies', 'Aspect'], ['Decision', 'governs', 'Aspect'],
   ['Idea', 'inspires', 'Goal'], ['Idea', 'inspires', 'Concept'], ['Idea', 'inspires', 'Flow'],
@@ -56,12 +63,48 @@ const relations: Array<[ProductKind, string, ProductKind]> = [
   ['Decision', 'governs', 'Ticket']
 ];
 
+/** One authorship policy; ontology registration alone never grants human authorship. */
+export const PRODUCT_RELATIONS = [
+  ...relationTriples.map(([sourceKind, predicate, targetKind]) => ({sourceKind, predicate, targetKind,
+    mode: predicate === 'verifies' ? 'O' as const : 'H' as const,
+    owner: predicate === 'verifies' ? 'Story-test, test-execution or independent completion owner' : 'Reviewed Product change'})),
+  {sourceKind:'Feature',predicate:'contains',targetKind:'UserStory',mode:'L',owner:'Legacy relation; remove only'},
+  {sourceKind:'Module',predicate:'serves',targetKind:'Goal',mode:'H',owner:'Reviewed Product change'},
+  {sourceKind:'Concept',predicate:'governs',targetKind:'Module',mode:'H',owner:'Reviewed Product change'},
+  // Discoverable future endpoint, deliberately not a Product entity/CRUD implementation in PC1b.
+  {sourceKind:'Product',predicate:'contains',targetKind:'Goal',mode:'H',owner:'Product endpoint requires PC2'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Concept',mode:'H',owner:'Product endpoint requires PC2'},
+  {sourceKind:'Aspect',predicate:'applies_to',targetKind:'Product',mode:'H',owner:'Product endpoint requires PC2'}
+] as const;
+export function productRelation(sourceKind: string, predicate: string, targetKind: string) {
+  return PRODUCT_RELATIONS.find(row => row.sourceKind === sourceKind && row.predicate === predicate && row.targetKind === targetKind);
+}
+
+export interface ProductEdgeRow extends Record<string, unknown> {
+  _id: string;
+  _version: number;
+  sourceId: string;
+  sourceType: string;
+  targetId: string;
+  targetType: string;
+  predicateName: string;
+  payload?: Record<string, unknown>;
+}
+/** Native predicate identity, revision and all payload are the optimistic basis. */
+export async function productEdgeRows(store: WorkflowStore, entityId: string): Promise<ProductEdgeRow[]> {
+  const predicates = await store.sp.predicateCollection(store.sp.ontology.pdcr('applies_to'));
+  const rows = [...await predicates.findSome<ProductEdgeRow>({sourceId:entityId}),
+    ...await predicates.findSome<ProductEdgeRow>({targetId:entityId})];
+  return [...new Map(rows.map(row => [row._id,row])).values()].sort((a,b)=>a._id.localeCompare(b._id));
+}
+
 export function productKind(entity: unknown): ProductKind | undefined {
   for (const [kind, ctor] of Object.entries(kinds)) if (entity instanceof ctor) return kind as ProductKind;
 }
 
 export function validateProductRelation(source: ProductKind, predicate: string, target: ProductKind): void {
-  if (!relations.some(([s, p, t]) => s === source && p === predicate && t === target)) {
+  const relation=productRelation(source,predicate,target);
+  if (!relation || relation.mode === 'L') {
     throw new Error(`Invalid product relation: '${source} ${predicate} ${target}' is not allowed.`);
   }
 }
@@ -122,7 +165,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   if (!mutations.length) throw new Error('Product change requires at least one mutation.');
   mutations.forEach(mutation => ProductMutationSchema.parse(mutation));
   const state = new Map<string, { kind: ProductKind; exists: boolean; lane?: TicketLane; fields: Record<string, unknown> }>();
-  const edges = new Map<string, { sourceId: string; predicate: string; targetId: string }>();
+  const edges = new Map<string, { sourceId: string; predicate: string; targetId: string; payload?: LinkPayload }>();
   const snapshot: Record<string, unknown> = {};
   const identities = new Map<string, string>();
   const rememberIdentity = (id: string, kind: ProductKind) => {
@@ -141,12 +184,15 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     rememberIdentity(id, kind);
     const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
-    const incoming = await store.getIncoming(entity.id);
-    const outgoing = await store.getOutgoing(entity.id);
-    snapshot[id] = { kind, fields, incoming: incoming.map(e => [e.sourceId, e.predicateName, e.targetId]).sort(), outgoing: outgoing.map(e => [e.sourceId, e.predicateName, e.targetId]).sort() };
-    for (const edge of [...incoming, ...outgoing]) {
+    const rows = await productEdgeRows(store, entity.id);
+    snapshot[id] = { kind, fields, relations: rows };
+    const triples = new Map<string, ProductEdgeRow>();
+    for (const edge of rows) {
       const sourceId = store.localId(edge.sourceId), targetId = store.localId(edge.targetId);
-      edges.set(key(sourceId, edge.predicateName, targetId), { sourceId, predicate: edge.predicateName, targetId });
+      const triple = key(sourceId, edge.predicateName, targetId);
+      if (triples.has(triple)) throw Error(`Duplicate relation rows: ${triples.get(triple)!._id}@${triples.get(triple)!._version}, ${edge._id}@${edge._version}.`);
+      triples.set(triple, edge);
+      edges.set(triple, { sourceId, predicate: edge.predicateName, targetId });
     }
     return state.get(id)!;
   }
@@ -198,12 +244,21 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     } else {
       const source = await load(mutation.sourceId), target = await load(mutation.targetId);
       if (!source.exists || !target.exists) throw new Error('Relation endpoint was deleted.');
-      const legacyUnlink = mutation.kind === 'product_unlink' && source.kind === 'Feature'
-        && mutation.predicate === 'contains' && target.kind === 'UserStory';
-      if (!legacyUnlink) validateProductRelation(source.kind, mutation.predicate, target.kind);
+      if (mutation.sourceId === mutation.targetId) throw Error('Self-links are not allowed.');
+      const relation = productRelation(source.kind, mutation.predicate, target.kind);
+      if (!relation) throw Error(`Invalid product relation: '${source.kind} ${mutation.predicate} ${target.kind}' is not allowed.`);
+      if (relation.mode === 'O') {
+        store.assertTestArtifactWrite(mutation.sourceId);
+        if ('payload' in mutation) throw Error('Owner-managed proof does not accept human payload.');
+      }
+      if (relation.mode === 'L' && mutation.kind !== 'product_unlink') throw Error('New legacy relation authorship is not allowed; existing edges are removal-only.');
       const edgeKey = key(mutation.sourceId, mutation.predicate, mutation.targetId);
-      if (mutation.kind === 'product_link') edges.set(edgeKey, mutation);
-      else edges.delete(edgeKey);
+      if (mutation.kind === 'product_link' && !edges.has(edgeKey) && [source,target].some(entity=>entity.fields.status === 'deprecated'))
+        throw Error('New links to retired endpoints are refused.');
+      if (mutation.kind === 'product_link') {
+        const payload = mutation.payload === undefined ? undefined : normalizeLinkPayload(mutation.payload);
+        if (payload === undefined || payload.note || edges.has(edgeKey)) edges.set(edgeKey, {...mutation, payload:payload ?? edges.get(edgeKey)?.payload});
+      } else edges.delete(edgeKey);
     }
   }
   const dependents = deleted.flatMap(id => [...edges.values()].filter(e => e.sourceId === id || e.targetId === id));
@@ -226,7 +281,7 @@ export async function applyProductMutations(
   store: WorkflowStore,
   mutations: ProductMutation[],
   reviewed?: { request: Extract<ChangeRequest, {action: 'product_change'}>; fingerprint: string }
-): Promise<void> {
+) {
   store.assertCanWrite();
   // Validate once before admission so malformed/rejected input cannot mutate even admission state.
   await validateProductMutations(store, mutations, reviewed?.request.basis);
@@ -275,29 +330,39 @@ export async function applyProductMutations(
       }
     }
     const predicates = await store.sp.predicateCollection(store.sp.ontology.pdcr('applies_to'));
-    const existing = new Map<string, Record<string, unknown> & {_id: string; _version: number}>();
+    const existing = new Map<string, ProductEdgeRow>();
     for (const [id, entity] of state) {
       if (snapshot[id] === null) continue;
       const fullId = store.formatId(kinds[entity.kind].dcr, id);
-      for (const query of [{sourceId: fullId}, {targetId: fullId}]) {
-        for (const row of await predicates.findSome<Record<string, unknown> & {_id: string; _version: number; sourceId: string; targetId: string; predicateName: string}>(query)) {
-          const key = JSON.stringify([store.localId(row.sourceId), row.predicateName, store.localId(row.targetId)]);
-          existing.set(key, row);
-          put({collectionName: predicates.name, id: row._id, expectedVersion: row._version});
-        }
+      const rows = await productEdgeRows(store, fullId);
+      if (canonical(rows) !== canonical((snapshot[id] as {relations: ProductEdgeRow[]}).relations))
+        throw Error('Stale product relation revision.');
+      for (const row of rows) {
+        const key = JSON.stringify([store.localId(row.sourceId), row.predicateName, store.localId(row.targetId)]);
+        if (existing.has(key) && existing.get(key)!._id !== row._id) throw Error('Duplicate relation rows.');
+        existing.set(key, row);
+        put({collectionName: predicates.name, id: row._id, expectedVersion: row._version});
       }
     }
+
     const touched = new Set(mutations.flatMap(m => 'sourceId' in m ? [JSON.stringify([m.sourceId, m.predicate, m.targetId])] : []));
     for (const key of touched) {
       const old = existing.get(key), edge = edges.get(key);
       if (old && !edge) put({collectionName: predicates.name, id: old._id, expectedVersion: old._version, record: null});
+      if (old && edge && edge.payload !== undefined) {
+        const payload = {...old.payload};
+        delete payload.note;
+        Object.assign(payload, edge.payload);
+        if (canonical(old.payload ?? {}) !== canonical(payload))
+          put({collectionName: predicates.name, id: old._id, expectedVersion: old._version, record: {...old, payload}});
+      }
       if (!old && edge) {
         const source = state.get(edge.sourceId)!, target = state.get(edge.targetId)!;
         const id = predicates.createId();
         put({collectionName: predicates.name, id, expectedVersion: null, record: {
           sourceId: store.formatId(kinds[source.kind].dcr, edge.sourceId), sourceType: kinds[source.kind].dcr.name,
           targetId: store.formatId(kinds[target.kind].dcr, edge.targetId), targetType: kinds[target.kind].dcr.name,
-          predicateName: edge.predicate, timestamp: Date.now()
+          predicateName: edge.predicate, payload: edge.payload ?? {}, timestamp: Date.now()
         }});
       }
     }
@@ -310,5 +375,6 @@ export async function applyProductMutations(
     }
     const assertion = await store.governanceAssertion(token);
     store.sqliteStore.applyBatch([assertion, ...batch.values()]);
+    return {edges};
   } finally { await store.releaseGovernance(token); }
 }

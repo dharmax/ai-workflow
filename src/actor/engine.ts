@@ -26,7 +26,7 @@ import path from "node:path"
 import type { WorkflowStore } from "../graph/store.ts"
 import { registry, type ToolContext, type ToolDefinition } from "../tools/registry.ts"
 import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from "../tools/discovery.ts"
-import { artifactCommand } from "../artifact-command.ts"
+import { lexCommand, isExplicitCommand, artifactCommand } from "../artifact-command.ts"
 import { loadConfig } from "../config.ts"
 import { ModelService } from "../model-runtime.ts"
 import { ModelRadar } from "./radar.ts"
@@ -266,7 +266,8 @@ export class WorkflowActor {
             executionAuthority: options.executionAuthority ?? 'read-only',
             signal: options.signal,
         }
-        const delegation = artifactCommand(text.trim().split(/\s+/))
+        const delegation = /^\/(design|dev|triage|product|auto)(?=\s|$)/i.test(instruction.trim()) ? null
+            : await artifactCommand(isExplicitCommand(text) ? lexCommand(text) : text.trim().split(/\s+/))
         if (delegation) return this.executeDelegation(mode, delegation, ctx)
         if (!this._asker) return this.executeOfflineFallback(mode, "No LLM provider is configured.")
         this.mode = mode
@@ -284,7 +285,7 @@ export class WorkflowActor {
 
     private async executeDelegation(
         mode: ShellMode,
-        delegation: NonNullable<ReturnType<typeof artifactCommand>>,
+        delegation: NonNullable<Awaited<ReturnType<typeof artifactCommand>>>,
         ctx: ToolContext,
     ): Promise<WorkflowExecutionResult> {
         try {

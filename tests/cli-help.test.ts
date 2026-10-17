@@ -12,7 +12,7 @@ describe('CLI help has no operation side effects', () => {
     it(`shows canonical help before executing ${args.join(' ')}`, () => {
       const result = Bun.spawnSync([process.execPath, path.resolve(import.meta.dir, '../src/cli.ts'), ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
       expect(result.success).toBe(true);
-      expect(result.stdout.toString()).toContain('Usage: aiwf <command> [options]');
+      expect(result.stdout.toString()).toContain('Usage: aiwf '+args[0]);
       expect(result.stdout.toString()).not.toContain('Recommended Task:');
       expect(fs.readdirSync(root)).toEqual([]);
     });

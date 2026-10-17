@@ -1,0 +1,478 @@
+[
+  {
+    "file": "tests/actor-budget-policy.test.ts",
+    "exit": 0,
+    "pass": 3,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/actor-engine-boundaries.test.ts",
+    "exit": 0,
+    "pass": 11,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/actor-prompts.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/actor-review-regressions.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/actor-runtime-refresh.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/actor.test.ts",
+    "exit": 0,
+    "pass": 25,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/artifact-command.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/artifact-policy.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/aspects.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/ast-freshness-and-search.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/change-bridge.test.ts",
+    "exit": 0,
+    "pass": 8,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/change-engine.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/change-foundation.test.ts",
+    "exit": 0,
+    "pass": 10,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/cli-help.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/compiler.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/config.test.ts",
+    "exit": 0,
+    "pass": 7,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/debugger.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/decompose.test.ts",
+    "exit": 0,
+    "pass": 10,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/dharmax-s1.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/dharmax-s2.test.ts",
+    "exit": 0,
+    "pass": 12,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/dharmax-s3.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/dharmax-s4.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/dharmax-s5.test.ts",
+    "exit": 0,
+    "pass": 1,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-batch.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-enforcement-live.test.ts",
+    "exit": 0,
+    "pass": 0,
+    "skip": 1,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-management-live.test.ts",
+    "exit": 0,
+    "pass": 0,
+    "skip": 1,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-management.test.ts",
+    "exit": 0,
+    "pass": 8,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-model.test.ts",
+    "exit": 0,
+    "pass": 12,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-producer-context.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-scope.test.ts",
+    "exit": 0,
+    "pass": 12,
+    "skip": 1,
+    "fail": 0
+  },
+  {
+    "file": "tests/doctrine-verifier.test.ts",
+    "exit": 0,
+    "pass": 30,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/escalation.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/execution-economics.test.ts",
+    "exit": 0,
+    "pass": 2,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/graph.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/kb.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/mcp-client-investigation.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/mcp.test.ts",
+    "exit": 0,
+    "pass": 3,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/model-service.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/os.test.ts",
+    "exit": 0,
+    "pass": 8,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/pc1a-safety.test.ts",
+    "exit": 0,
+    "pass": 19,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/performance-metrics.test.ts",
+    "exit": 0,
+    "pass": 3,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/primitive-truth.test.ts",
+    "exit": 0,
+    "pass": 2,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/product-change.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/product-operability-commands.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/product-operability-links.test.ts",
+    "exit": 0,
+    "pass": 12,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/product-processing.test.ts",
+    "exit": 0,
+    "pass": 10,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/product.test.ts",
+    "exit": 0,
+    "pass": 8,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/radar.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/scaffold.test.ts",
+    "exit": 0,
+    "pass": 2,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/setup-truth.test.ts",
+    "exit": 0,
+    "pass": 5,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/setup.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/shell-config-setup.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/shell-daily.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/shell-trace.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/shell.test.ts",
+    "exit": 0,
+    "pass": 14,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/skill-manager-bridge.test.ts",
+    "exit": 0,
+    "pass": 7,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/skill-synthesis-acceptance.test.ts",
+    "exit": 0,
+    "pass": 2,
+    "skip": 2,
+    "fail": 0
+  },
+  {
+    "file": "tests/source-synthesis.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/structured-repair.test.ts",
+    "exit": 0,
+    "pass": 3,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/ticket-investigation.test.ts",
+    "exit": 0,
+    "pass": 7,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/ticket-preparation.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/ticket-resolution.test.ts",
+    "exit": 0,
+    "pass": 54,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/tool-discovery.test.ts",
+    "exit": 0,
+    "pass": 17,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/tools.test.ts",
+    "exit": 0,
+    "pass": 9,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/top-level-product-intent.test.ts",
+    "exit": 0,
+    "pass": 7,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/ts6-refactor-sync.test.ts",
+    "exit": 0,
+    "pass": 1,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/user-story-j24-sophisticated-goal.test.ts",
+    "exit": 0,
+    "pass": 4,
+    "skip": 0,
+    "fail": 0
+  },
+  {
+    "file": "tests/workspace-text.test.ts",
+    "exit": 0,
+    "pass": 6,
+    "skip": 0,
+    "fail": 0
+  }
+]

@@ -424,7 +424,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       } as any
 
       const actor = new WorkflowActor({store, projectRoot: tempDir, asker: mockAsker})
-      const result = await actor.execute('please resolve next open or in-progress ticket')
+      const result = await actor.execute('find and resolve the next open or in-progress ticket')
 
       expect(result.answer).toBe('Resolved TKT-NEXT-ACTOR.')
       expect(result.events.map(event => event.toolCall?.name).filter(Boolean)).toEqual([

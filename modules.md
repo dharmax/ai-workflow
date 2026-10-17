@@ -4,18 +4,18 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 189 | 0 | None |
+| `root` | project default | 190 | 0 | None |
 | `src/graph` | project default | 929 | 0 | None |
 | `src/tools` | project default | 563 | 0 | None |
-| `src/actor` | project default | 389 | 0 | None |
+| `src/actor` | project default | 392 | 0 | None |
 | `src/mcp` | project default | 39 | 0 | None |
-| `src/shell` | project default | 149 | 0 | None |
-| `src/cli` | project default | 114 | 0 | None |
+| `src/shell` | project default | 151 | 0 | None |
+| `src/cli` | project default | 115 | 0 | None |
 | `src/index` | project default | 0 | 0 | None |
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | None |
 | `src/setup` | project default | 135 | 0 | None |
-| `tests` | project default | 1674 | 0 | None |
+| `tests` | project default | 1750 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -27,8 +27,8 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 501 | 0 | None |
-| `src/product` | project default | 512 | 0 | None |
+| `docs` | project default | 509 | 0 | None |
+| `src/product` | project default | 561 | 0 | None |
 | `src/change` | project default | 702 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
@@ -36,7 +36,7 @@
 | `src/ticket-operation-types` | project default | 195 | 0 | None |
 | `src/artifact-critic` | project default | 31 | 0 | None |
 | `src/performance-metrics` | project default | 167 | 0 | None |
-| `src/artifact-command` | project default | 23 | 0 | None |
+| `src/artifact-command` | project default | 52 | 0 | None |
 | `src/model-runtime` | project default | 58 | 0 | None |
 | `src/version` | project default | 16 | 0 | None |
 | `scripts` | project default | 62 | 0 | None |

@@ -696,14 +696,8 @@ export class CausalChangeEngine {
     }
 
     if (request.action === 'product_change') {
-      await applyProductMutations(this.store, request.mutations, {request, fingerprint});
+      const committed = await applyProductMutations(this.store, request.mutations, {request, fingerprint});
       const errors: string[] = [];
-      const finalRelations = new Map<string, boolean>();
-      for (const mutation of request.mutations) {
-        if (mutation.kind === 'product_link' || mutation.kind === 'product_unlink') {
-          finalRelations.set(JSON.stringify([mutation.sourceId, mutation.predicate, mutation.targetId]), mutation.kind === 'product_link');
-        }
-      }
       for (const mutation of request.mutations) {
         if (mutation.kind === 'product_delete') {
           if (await this.store.getEntity(mutation.id)) errors.push(`Deleted entity '${mutation.id}' remains.`);
@@ -718,12 +712,11 @@ export class CausalChangeEngine {
           }
         } else {
           const key = JSON.stringify([mutation.sourceId, mutation.predicate, mutation.targetId]);
-          if (finalRelations.get(key) !== (mutation.kind === 'product_link')) continue;
           const source = await this.store.getEntity(mutation.sourceId);
           const target = await this.store.getEntity(mutation.targetId);
           const outgoing = source ? await this.store.getOutgoing(source.id, mutation.predicate) : [];
           const linked = outgoing.some(edge => edge.targetId === target?.id);
-          if (linked !== finalRelations.get(key)) errors.push(`Relation '${mutation.sourceId} ${mutation.predicate} ${mutation.targetId}' verification failed.`);
+          if (linked !== committed.edges.has(key)) errors.push(`Relation '${mutation.sourceId} ${mutation.predicate} ${mutation.targetId}' verification failed.`);
         }
       }
       return {

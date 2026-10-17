@@ -35,16 +35,17 @@
     "@dharmax/context-manager": "file:../context-manager",
     "@dharmax/llm-utils": "file:../llm-utils",
     "@dharmax/pubsub": "file:../pubsub",
+    "@dharmax/semantic-registry": "file:../semantic-registry",
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/shell-ui": "file:../shell-ui",
-    "@dharmax/text-compiler": "file:../text-compiler",
     "@dharmax/skill-manager": "file:../skill-manager",
+    "@dharmax/text-compiler": "file:../text-compiler",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "commander": "15.0.0",
     "typescript": "^7.0.2",
     "typescript-language-server": "^6.0.1",
     "vscode-jsonrpc": "^9.0.3",
-    "zod": "^4.6.5",
-    "@dharmax/semantic-registry": "file:../semantic-registry"
+    "zod": "4.6.6"
   },
   "overrides": {
     "@dharmax/shell-ui": "file:../shell-ui",

@@ -6,8 +6,10 @@
  */
 
 import path from 'node:path';
+import {createInterface} from 'node:readline/promises';
+import {reviewLink} from './product/links.ts';
 import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
-import { artifactCommand, ARTIFACT_HELP } from './artifact-command.ts';
+import { parseCommand } from './artifact-command.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
@@ -29,18 +31,12 @@ import {ProcessViewport} from '@dharmax/shell-ui';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from './change/ts6-refactor.ts';
-import { formatBuildInfo } from './version.ts';
 
-const args = process.argv.slice(2);
-const helpRequested = args.includes('--help') || args.includes('-h');
-const command = helpRequested ? 'help' : args[0] || (process.stdin.isTTY ? 'shell' : 'help');
+const argv = process.argv.slice(2);
 
 async function main() {
-  if (command === 'version' || command === '--version' || command === '-V') {
-    console.log(formatBuildInfo('AIWF'));
-    return;
-  }
-
+  const parsed = await parseCommand(argv.length ? argv : [process.stdin.isTTY ? 'shell' : '--help']);
+  if (parsed.family === 'help') { console.log(parsed.args.text); return; }
   const root = findProjectRoot().root;
   let storeInstance: WorkflowStore | null = null;
   const getStore = () => {
@@ -49,7 +45,20 @@ async function main() {
   };
   initializeTools();
 
-  const delegation = helpRequested ? null : artifactCommand(args);
+  if (parsed?.family === 'link') {
+    try {
+      const confirm = process.stdin.isTTY ? async (preview: unknown) => {
+        console.log(JSON.stringify(preview, null, 2));
+        const reader=createInterface({input:process.stdin,output:process.stdout});
+        try { return (await reader.question('Apply this exact link change? [y/N] ')).toLowerCase()==='y'; }
+        finally { reader.close(); }
+      } : undefined;
+      const result=await reviewLink(parsed.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},parsed.yes,confirm,parsed.yes?preview=>console.error(JSON.stringify(preview,null,2)):undefined);
+      console.log(JSON.stringify(result,null,2));
+    } finally {getStore().close();await closeAllTsLspClients();await closeAllTs6RefactorClients();}
+    return;
+  }
+  const delegation = parsed.family === 'artifact' ? parsed : null;
   if (delegation) {
     const progress = process.stderr.isTTY ? new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''}) : undefined;
     const progressMessage = delegation.tool === 'resolve_ticket'
@@ -67,6 +76,8 @@ async function main() {
     return;
   }
 
+  if(parsed.family !== 'legacy') throw Error('Unexpected command intent.');
+  const command=parsed.command,args=[command,...parsed.tokens];
   switch (command) {
     case 'sync': {
       console.log(`🔄 Synchronizing AST+ Graph with Markdown Projections in ${root}...`);
@@ -934,76 +945,7 @@ async function main() {
       break;
     }
 
-    case 'help':
-    case '--help':
-    case '-h':
-    default: {
-      console.log(`
-\x1b[1;36m🏛️  AI-Workflow 2.0 (developer supreme)\x1b[0m
-
-Usage: aiwf <command> [options]
-
-${ARTIFACT_HELP}
-
-Drill-down and project commands:
-  status                                 Show working tree, active ticket leases, and project status
-  sync                                   Synchronize SQLite Graph bi-directionally with Markdown Projections
-  next [agentId]                         Algorithmic task selector: active lease -> P1 bugs -> Todo tasks
-  tickets [lane]                         List tickets (Backlog, Todo, In Progress, Done, Blocked)
-  ticket <id>                            Inspect a Ticket through the shared entity view
-  epics [status]                         List epics in the Product Intent Graph
-  epic <epicId>                          Show epic details, targeted features/stories, and tickets
-  epic-create "<title>" [options]        Create Epic with semantic decomposition and proposal review
-  features [status]                      List features in the Product Intent Graph
-  feature <featureId>                    Show feature details, containing stories, and tickets
-  stories [status]                       List user stories in the Product Intent Graph
-  story <storyId>                        Show user story details and relations
-  coverage <entityId>                    Show structural and causal coverage for an Epic, Feature, or Story
-  impact <entityId>                      Show bounded product impact and code anchors
-  claim <ticketId> [--agent <a>] [-m <m>] Atomically lease a ticket with TTL
-  release <ticketId>                     Release active ticket lease
-  create "<title>" [-p <P0-P3>] [--lane] Create a new Kanban ticket
-  done <ticketId>                        Mark ticket as Done, release lease, and sync Kanban
-  move <ticketId> <lane>                 Move ticket to lane (Backlog, Todo, In Progress, Done, Blocked)
-
-Intelligence & Code Navigation:
-  diff                                   Show uncommitted git diff cleanly
-  symbol <name> [-e] [-r] [-k <kind>]    Locate symbol across codebase (supports --exact, --regex, --kind, --file)
-  graph [query] [--type] [--pred]        Search/traverse AST+ knowledge graph entities & semantic predicates
-  callers <symbolName>                   Find all callers and call sites invoking a symbol
-  deps <fileOrModule>                    List all static dependencies and imports for a file or module
-  slice <filePath> <symbolName>          Extract exact source code snippet of a symbol
-  outline <filePath>                     Print AST symbol outline for a file
-  blast <targetFilePathOrSymbol>         Analyze blast radius, affected files, and recommended tests
-  debug <symbol|file:line|trace>         Diagnose target with snippet slicing and blast analysis
-  index                                  Re-index codebase AST symbols and modules into graph
-  patch <file> <search> <replace>        Apply deterministic AST block patch via block-patcher
-  scaffold <filePath> [description]      Scaffold typed source file paired with unit test harness
-
-Diagnostics & Health:
-  doctor                                 Run comprehensive environment, graph, LLM, and MCP diagnostics
-  audit                                  Audit architecture and graph integrity
-  triage [testCommand]                   Run tests and extract compact failure triage report
-  metrics [--operation ...]              Query persisted performance (--ticket, --trace, --since, --tag)
-  metrics export <path> [filters]         Export sanitized benchmark evidence inside the workspace
-
-Configuration & Execution:
-  init                                   Zero-config project initialization in current directory
-  setup [--check] [--global|--mcp|--link] Inspect or apply verified setup steps
-  product-change preview|accept|reject|cancel <json>  Review and atomically edit canonical product intent
-  rule list|get|export|preview|apply|resolve  Manage canonical Rules with preview approval
-  config [get|set|reset] [key] [val] [--global] Inspect values/provenance or change explicit overrides
-  model [list|radar|set]                 Inspect gateway, Pareto radar rankings, or configure mode routes
-  kb [sync|list|search|show]             Search, inspect, and sync content-addressed skills & patterns
-  eval "<code>"                          Evaluate short TypeScript/JS code against live store
-  exec "<wish>"                          Execute one-off autonomous task or query via Workflow Actor
-  workspace [port]                       Open local product/Story editors and reviewed proposals
-  shell                                  Launch interactive dual-nature Terminal REPL (<5ms fast-paths)
-  mcp                                    Run Stdio MCP server for Antigravity IDE, Claude Code, Cursor
-  help                                   Show this help manual
-`);
-      break;
-    }
+    default: throw Error(`Unhandled specialist '${command}'.`);
   }
 }
 

@@ -22,6 +22,12 @@ import { WorkflowActor, type ShellMode } from './actor/engine.ts';
 import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
 import { SemanticPackage } from '@dharmax/semantika';
 
+function toolInputSchema(tool: NonNullable<ReturnType<typeof registry.get>>): McpTool['inputSchema'] {
+  const converted=zodToJsonSchema(tool.parameters);
+  if(!converted.ok) throw Error(`Cannot expose MCP tool '${tool.name}': ${converted.reason}`);
+  return withProjectRoot({...converted.schema,type:'object'});
+}
+
 function withProjectRoot(schema: McpTool['inputSchema']): McpTool['inputSchema'] {
   return {
     ...schema,
@@ -93,16 +99,10 @@ export function createMcpServer(options: McpServerOptions = {}) {
 
     // Domain facilities from registry
     for (const t of getPublicMcpTools(registry)) {
-      let schema: any = { type: 'object' };
-      try {
-        const conv = zodToJsonSchema(t.parameters as any);
-        if (conv.ok && conv.schema) schema = { ...conv.schema, type: 'object' };
-      } catch {}
-
       tools.push({
         name: t.name,
         description: `[${t.category.toUpperCase()}]: ${t.description}`,
-        inputSchema: withProjectRoot(schema)
+        inputSchema: toolInputSchema(t)
       });
     }
 
@@ -174,6 +174,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
         };
       }
 
+      toolInputSchema(tool);
       const result = await registry.execute(name, toolArgs, ctx);
       return {
         content: [
@@ -233,22 +234,12 @@ export function buildMcpSchemas(): Record<string, string> {
 
   // 2. All domain tools
   for (const t of getPublicMcpTools(registry)) {
-    let parameters: any = { type: 'object' };
-    try {
-      const conv = zodToJsonSchema(t.parameters as any);
-      if (conv.ok && conv.schema) {
-        parameters = {
-          $schema: 'https://json-schema.org/draft/2020-12/schema',
-          ...conv.schema,
-          type: 'object'
-        };
-      }
-    } catch {}
+    const parameters = {$schema:'https://json-schema.org/draft/2020-12/schema',...toolInputSchema(t)};
 
     const toolJson = {
       name: t.name,
       description: `[${t.category.toUpperCase()}]: ${t.description}`,
-      parameters: withProjectRoot(parameters)
+      parameters
     };
     schemas[`${t.name}.json`] = JSON.stringify(toolJson, null, 2);
   }

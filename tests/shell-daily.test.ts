@@ -85,7 +85,7 @@ describe('daily shared shell commands', () => {
     const ctx = {store, projectRoot: root, executionAuthority: 'project-write' as const};
     renderer.answer('parameter:entityId', 'T');
     const tokens = await facilitateArtifactCommand(['resolve', '--depth', '0'], ctx, facilitator);
-    expect(artifactCommand(tokens!)).toEqual({tool: 'resolve_ticket', args: {ticketId: 'T', depth: 0}});
+    expect((await artifactCommand(tokens!))).toEqual({tool: 'resolve_ticket', args: {ticketId: 'T', depth: 0}});
     renderer.requests.length = 0;
     expect(await facilitateArtifactCommand(['resolve', 'T'], ctx, facilitator)).toEqual(['resolve', 'T']);
     expect(renderer.requests).toEqual([]);

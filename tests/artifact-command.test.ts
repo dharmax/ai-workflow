@@ -17,24 +17,22 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
   let root: string, store: WorkflowStore;
   beforeEach(async () => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-command-')); store = new WorkflowStore(root); initializeTools(); await store.upsertEntity(Ticket.dcr, { id: 'T', title: 'Concrete task', body: 'Preserve an authored API', acceptanceCriteria: ['API remains compatible'], lane: 'Todo' }); await store.upsertEntity(Feature.dcr, { id: 'F', title: 'Capability', body: 'Stable behavior' }); });
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
-  it('validates the same policy, custom critic IDs and explicit dirty authorization without guessing parameters', () => {
-    expect(artifactCommand('resolve T --completeness production --depth all --max-artifacts 12 --critic strict --tag study=consuela --tag variant=aiwf --max-repairs 1 --allow-dirty-target src/a.ts'.split(' '))).toEqual({ tool: 'resolve_ticket', args: { ticketId: 'T', completeness: 'production', depth: 'all', maxArtifacts: 12, critic: { id: 'strict' }, tags: { study: 'consuela', variant: 'aiwf' }, maxRepairs: 1, allowDirtyTargets: ['src/a.ts'] } });
-    expect(artifactCommand(['process', 'story', 'S', '--depth', '0'])?.args).toEqual({ storyId: 'S', depth: 0 });
-    expect(() => artifactCommand(['resolve', 'T', '--depth', '-1'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--max-artifacts', 'NaN'])).toThrow(); expect(() => artifactCommand(['process', 'feature', 'F', '--agent', 'a'])).toThrow();
-    expect(() => artifactCommand(['resolve', 'T', '--unknown', 'x'])).toThrow(); expect(() => artifactCommand(['resolve', 'T', '--tag', 'broken'])).toThrow(); expect(artifactCommand(['inspect', 'something'])).toBeNull();
+  it('validates the same policy, custom critic IDs and explicit dirty authorization without guessing parameters', async () => {
+    expect((await artifactCommand('resolve T --completeness production --depth all --max-artifacts 12 --critic strict --tag study=consuela --tag variant=aiwf --max-repairs 1 --allow-dirty-target src/a.ts'.split(' ')))).toEqual({ tool: 'resolve_ticket', args: { ticketId: 'T', completeness: 'production', depth: 'all', maxArtifacts: 12, critic: { id: 'strict' }, tags: { study: 'consuela', variant: 'aiwf' }, maxRepairs: 1, allowDirtyTargets: ['src/a.ts'] } });
+    expect((await artifactCommand(['process', 'story', 'S', '--depth', '0']))?.args).toEqual({ storyId: 'S', depth: 0 });
+    await expect(artifactCommand(['resolve', 'T', '--depth', '-1'])).rejects.toThrow(); await expect(artifactCommand(['resolve', 'T', '--max-artifacts', 'NaN'])).rejects.toThrow(); await expect(artifactCommand(['process', 'feature', 'F', '--agent', 'a'])).rejects.toThrow();
+    await expect(artifactCommand(['resolve', 'T', '--unknown', 'x'])).rejects.toThrow(); await expect(artifactCommand(['resolve', 'T', '--tag', 'broken'])).rejects.toThrow(); expect((await artifactCommand(['inspect', 'something']))).toBeNull();
   });
-  it('leaves ordinary natural-language delegation to the Actor instead of misparsing it as command options', () => {
-    expect(artifactCommand('resolve next open or in-progress ticket'.split(' '))).toBeNull();
-    expect(artifactCommand('please resolve next open or in-progress ticket'.split(' '))).toBeNull();
-    expect(artifactCommand('please resolve the next suitable ticket'.split(' '))).toBeNull();
-    expect(artifactCommand('process the next useful ticket'.split(' '))).toBeNull();
-    expect(artifactCommand('completeness of the current epic'.split(' '))).toBeNull();
+  it('refuses malformed explicit command prefixes before any Actor fallback', async () => {
+    for (const text of ['resolve next open or in-progress ticket','please resolve next open or in-progress ticket','please resolve the next suitable ticket','process the next useful ticket','completeness of the current epic'])
+      await expect(artifactCommand(text.split(' '))).rejects.toThrow();
+    expect((await artifactCommand('inspect the next suitable ticket'.split(' ')))).toBeNull();
 
-    expect(artifactCommand('resolve T --critic auto'.split(' '))).toEqual({
+    expect((await artifactCommand('resolve T --critic auto'.split(' ')))).toEqual({
       tool: 'resolve_ticket',
       args: {ticketId: 'T', critic: 'auto'},
     });
-    expect(() => artifactCommand('resolve T --unknown x'.split(' '))).toThrow();
+    await expect(artifactCommand('resolve T --unknown x'.split(' '))).rejects.toThrow();
   });
   it('routes an explicit natural-language Ticket request through the entity once without outer Actor inference', async () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true }); let calls = 0;
@@ -48,7 +46,7 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true });
     await processShellInput('completeness set F production', { store, projectRoot: root, actor }); expect((await store.getEntity<Feature>('F', Feature.dcr))!.completenessTarget).toBe('production');
     await processShellInput('completeness set F clear', { store, projectRoot: root, actor }); expect((await store.getEntity<Feature>('F', Feature.dcr))!.completenessTarget).toBeNull();
-    const help = (await processShellInput('help', { store, projectRoot: root, actor })).output; expect(help.indexOf('resolve <')).toBeLessThan(help.indexOf('symbol <'));
+    const help = (await processShellInput('help', { store, projectRoot: root, actor })).output; expect(help.indexOf('resolve <')).toBeLessThan(help.indexOf('symbol [args'));
     expect(fs.readFileSync(path.resolve(import.meta.dir, '../skills/ai-workflow/SKILL.md'), 'utf8')).toBe(CANONICAL_SKILL_MD);
     expect(MCP_INSTRUCTIONS_2_0).toContain('Delegate Ticket work first');
   });

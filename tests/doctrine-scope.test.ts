@@ -182,10 +182,10 @@ describe('Gate 5 Actor Stories through public Ticket and governance operations',
   });
 
   test('shared command adapter and MCP registry preserve per-Ticket expansion authorization', async () => {
-    initializeTools();const command=artifactCommand(['resolve','T','--authorize-file','T=src/other.ts','--authorize-file','CHILD=src/new.ts'])!;
+    initializeTools();const command=(await artifactCommand(['resolve','T','--authorize-file','T=src/other.ts','--authorize-file','CHILD=src/new.ts']))!;
     expect(command.args.authorizedFiles).toEqual({T:['src/other.ts'],CHILD:['src/new.ts']});
     expect(registry.get('resolve_ticket')!.parameters.parse(command.args)).toMatchObject({authorizedFiles:{T:['src/other.ts'],CHILD:['src/new.ts']}});
-    expect(()=>artifactCommand(['prepare','T','--authorize-file','T=src/other.ts'])).toThrow('only to resolution');
+    await expect(artifactCommand(['prepare','T','--authorize-file','T=src/other.ts'])).rejects.toThrow('unknown option');
   });
 
   test('new files receive their index-derived module obligations before creation and real assertions verify them', async () => {
