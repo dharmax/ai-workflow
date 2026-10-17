@@ -35,7 +35,8 @@ import {
   Lesson,
   Artifact,
   Idea,
-  Rule
+  Rule,
+  Product
 } from './ontology.ts';
 import type {
   TicketClaim,
@@ -305,7 +306,7 @@ export class WorkflowStore {
 
   /** Returned entities retain their public update/erase API without bypassing canonical admission. */
   private ownEntity<T extends AbstractEntity>(entity: T): T {
-    const governed = ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName());
+    const governed = ['Product', 'Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName());
     if (!governed) {
       if (!(entity instanceof FileNode || entity instanceof SymbolNode)) {
         const nativeUpdate = entity.update.bind(entity), nativeErase = entity.erase.bind(entity);
@@ -427,12 +428,12 @@ export class WorkflowStore {
     const previous = formattedId ? await this.getEntity(formattedId, dcr) : null;
     if (expectedVersion !== undefined && previous?.version !== expectedVersion) throw Error('Stale governance entity revision.');
     this.assertEntityWrite(dcr.name, formattedId, data, previous as unknown as Record<string, unknown> | undefined);
-    if (['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(dcr.name)) {
+    if (['Product', 'Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(dcr.name)) {
       if (!formattedId) throw Error('Governance entities require an explicit identity.');
       const collection = await this.sp.collectionForEntityType(dcr);
       const old = await collection.findById<Record<string, unknown> & {_version: number}>(formattedId);
       if (expectedVersion !== undefined && old?._version !== expectedVersion) throw Error('Stale governance entity revision.');
-      const payload = {...old, ...data, title: data.title ?? old?.title, status: data.status ?? old?.status ?? (['Epic', 'Feature', 'UserStory'].includes(dcr.name) ? 'draft' : 'implemented'),
+      const payload = {...old, ...data, title: data.title ?? old?.title, status: data.status ?? old?.status ?? (['Product', 'Epic', 'Feature', 'UserStory'].includes(dcr.name) ? 'draft' : 'implemented'),
         updatedAt: new Date().toISOString(), createdAt: old?.createdAt ?? new Date().toISOString()};
       if (old && Object.entries(data).every(([key, value]) => ['id', '_id'].includes(key) || canonical(old[key]) === canonical(value)))
         return this.ownEntity(this.sp.makeEntity<T>(dcr, formattedId, old));

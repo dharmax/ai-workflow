@@ -42,6 +42,7 @@ const baseTemplate = {
 export abstract class WorkflowEntity extends AbstractEntity {
     declare title?: string
     declare body?: string
+    declare status?: string
     static readonly dcr: EntityDcr
 
     override typeName(): string {
@@ -134,6 +135,31 @@ export class Flow extends WorkflowEntity {
     static readonly dcr = new EntityDcr(Flow, Flow.template, "Flow")
 }
 
+export class Product extends WorkflowEntity {
+    declare purpose?: string
+    declare actors?: string[]
+    declare scope?: string
+    declare nonGoals?: string[]
+    declare bounds?: string
+
+    applicableAspects(store: WorkflowStore) {
+        return applicableAspects(this, store)
+    }
+    assessAspects(store: WorkflowStore) {
+        return assessAspects(this, store)
+    }
+    static template = {
+        ...baseTemplate,
+        status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
+        purpose: passthroughValidator,
+        actors: passthroughValidator,
+        scope: passthroughValidator,
+        nonGoals: passthroughValidator,
+        bounds: passthroughValidator
+    }
+    static readonly dcr = new EntityDcr(Product, Product.template, "Product")
+}
+
 export class Epic extends WorkflowEntity {
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
@@ -165,6 +191,11 @@ export class Epic extends WorkflowEntity {
 
 export class Feature extends WorkflowEntity {
     declare priority?: number
+    declare outcomes?: string[]
+    declare scope?: string
+    declare boundaries?: string
+    declare behavioralRules?: string[]
+    declare acceptanceCriteria?: string[]
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
     }
@@ -189,7 +220,11 @@ export class Feature extends WorkflowEntity {
         completenessTarget: completenessValidator,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
         priority: passthroughValidator,
-        acceptanceCriteria: passthroughValidator
+        acceptanceCriteria: passthroughValidator,
+        outcomes: passthroughValidator,
+        scope: passthroughValidator,
+        boundaries: passthroughValidator,
+        behavioralRules: passthroughValidator
     }
     static readonly dcr = new EntityDcr(Feature, Feature.template, "Feature")
 }
@@ -363,6 +398,9 @@ export class Ticket extends WorkflowEntity {
 }
 
 export class ModuleNode extends WorkflowEntity {
+    declare responsibilities?: string[]
+    declare boundaries?: string
+    declare intentStatus?: "draft" | "proposed" | "accepted" | "deprecated"
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }
@@ -385,7 +423,10 @@ export class ModuleNode extends WorkflowEntity {
     static template = {
         ...baseTemplate,
         completenessTarget: completenessValidator,
-        path: passthroughValidator
+        path: passthroughValidator,
+        responsibilities: passthroughValidator,
+        boundaries: passthroughValidator,
+        intentStatus: passthroughValidator
     }
     static readonly dcr = new EntityDcr(ModuleNode, ModuleNode.template, "ModuleNode")
 }
@@ -407,7 +448,7 @@ export class FileNode extends WorkflowEntity {
 export class SymbolNode extends WorkflowEntity {
     declare title?: string
     declare body?: string
-    status?: string
+    declare status?: string
     filePath?: string
     kind?: string
     exported?: boolean
@@ -573,6 +614,7 @@ export class TraceNode extends WorkflowEntity {
 
 // Aliases for compatibility
 export {
+    Product as ProductEntity,
     Artifact as ArtifactEntity,
     Decision as DecisionEntity,
     Epic as EpicEntity,
@@ -588,6 +630,7 @@ export {
 }
 
 export const durableEntityDescriptors = [
+    Product.dcr,
     Aspect.dcr,
     Idea.dcr,
     Goal.dcr,

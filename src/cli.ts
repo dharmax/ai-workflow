@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
+import { exportProductManifest, exportAuthoredState } from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { startShell } from './shell.ts';
 import { createMcpServer } from './mcp.ts';
@@ -91,6 +92,16 @@ async function main() {
       console.log(`✅ Reconciled ${imp.importedChanges} disk change(s).`);
       console.log(`✅ Code index: ${freshness.updatedFiles.length} updated, ${freshness.deletedFiles.length} deleted.`);
       console.log(`✅ Exported ${exp.exportedFiles.length} file(s): ${exp.exportedFiles.join(', ')}`);
+      break;
+    }
+
+    case 'product-export': {
+      console.log(`📦 Exporting Product Manifest and Authored State Snapshot in ${root}...`);
+      const store = getStore();
+      const manifestPath = await exportProductManifest(store, root);
+      const snapshotPath = await exportAuthoredState(store, root);
+      console.log(`✅ Product Manifest exported to ${path.relative(root, manifestPath)}`);
+      console.log(`✅ Authored State Snapshot exported to ${path.relative(root, snapshotPath)}`);
       break;
     }
 

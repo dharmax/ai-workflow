@@ -8,6 +8,7 @@ import { IntentProposalSchema } from '../product/process-types.ts';
 import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus,runStoryTest} from '../product/story-tests.ts';
 import { registry, type ToolContext } from './registry.ts';
 import {
+  Product,
   Goal,
   Concept,
   Flow,
@@ -116,6 +117,16 @@ async function featureView(ctx: ToolContext, feature: Feature) {
     else governingDecisions.push(ctx.store.localId(pred.sourceId));
   }
 
+  let parentProduct: string | undefined;
+  const incomingContains = await ctx.store.getIncoming(feature.id, 'contains');
+  for (const pred of incomingContains) {
+    const source = await ctx.store.getEntity(pred.sourceId);
+    if (source instanceof Product) {
+      parentProduct = ctx.store.localId(source.id);
+      break;
+    }
+  }
+
   return {
     id: localId,
     version: feature.version,
@@ -124,6 +135,11 @@ async function featureView(ctx: ToolContext, feature: Feature) {
     body: (feature as any).body || undefined,
     priority: feature.priority,
     acceptanceCriteria: Array.isArray((feature as any).acceptanceCriteria) ? (feature as any).acceptanceCriteria : [],
+    outcomes: feature.outcomes,
+    scope: feature.scope,
+    boundaries: feature.boundaries,
+    behavioralRules: feature.behavioralRules,
+    parentProduct,
     targetingEpics: epicPreds.map(p => ctx.store.localId(p.sourceId)).sort(),
     enabledStories,
     containedStories: enabledStories,
@@ -623,6 +639,115 @@ export function registerProductTools() {
     }),
     execute: async ({ proposal }, ctx: ToolContext) => {
       return await applyEpicStructure(ctx.store, proposal);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Product Charter Singleton Tools
+  // ---------------------------------------------------------------------------
+  registry.register({
+    name: 'get_product',
+    description: 'Get the top-level Product charter singleton if defined.',
+    category: 'planning',
+    parameters: z.object({}),
+    execute: async (_params: unknown, ctx: ToolContext) => {
+      const product = await ctx.store.getEntity<Product>('PRODUCT', Product.dcr);
+      if (!product) return { defined: false, product: null, features: [] };
+      const outgoing = await ctx.store.getOutgoing(product.id, 'contains');
+      const featureIds = new Set(outgoing.map(e => ctx.store.localId(e.targetId)));
+      const allFeatures = await ctx.store.listEntities<Feature>(Feature.dcr);
+      const features = await Promise.all(
+        allFeatures
+          .filter(f => featureIds.has(ctx.store.localId(f.id)))
+          .map(f => featureView(ctx, f))
+      );
+      return {
+        defined: true,
+        product: {
+          id: 'PRODUCT',
+          version: product.version,
+          title: product.title,
+          purpose: product.purpose,
+          actors: product.actors ?? [],
+          scope: product.scope,
+          nonGoals: product.nonGoals ?? [],
+          bounds: product.bounds,
+          status: product.status || 'draft'
+        },
+        features
+      };
+    }
+  });
+
+  registry.register({
+    name: 'define_product',
+    description: 'Define the initial Product charter singleton.',
+    category: 'planning',
+    parameters: z.object({
+      title: z.string().min(1),
+      purpose: z.string().optional(),
+      actors: z.array(z.string()).optional(),
+      scope: z.string().optional(),
+      nonGoals: z.array(z.string()).optional(),
+      bounds: z.string().optional(),
+      status: z.enum(INTENT_STATUSES).optional()
+    }),
+    execute: async (params, ctx: ToolContext) => {
+      const fields = Object.fromEntries(Object.entries({
+        title: params.title,
+        purpose: params.purpose,
+        actors: params.actors,
+        scope: params.scope,
+        nonGoals: params.nonGoals,
+        bounds: params.bounds,
+        status: params.status || 'draft'
+      }).filter(([, v]) => v !== undefined));
+      await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Product', id: 'PRODUCT', fields }]);
+      const p = (await ctx.store.getEntity<Product>('PRODUCT', Product.dcr))!;
+      return {
+        defined: true,
+        id: 'PRODUCT',
+        version: p.version,
+        title: p.title,
+        purpose: p.purpose,
+        actors: p.actors ?? [],
+        scope: p.scope,
+        nonGoals: p.nonGoals ?? [],
+        bounds: p.bounds,
+        status: p.status || 'draft'
+      };
+    }
+  });
+
+  registry.register({
+    name: 'update_product',
+    description: 'Update the Product charter singleton.',
+    category: 'planning',
+    parameters: z.object({
+      title: z.string().optional(),
+      purpose: z.string().optional(),
+      actors: z.array(z.string()).optional(),
+      scope: z.string().optional(),
+      nonGoals: z.array(z.string()).optional(),
+      bounds: z.string().optional(),
+      status: z.enum(INTENT_STATUSES).optional()
+    }),
+    execute: async (params, ctx: ToolContext) => {
+      const fields = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined));
+      await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Product', id: 'PRODUCT', fields }]);
+      const p = (await ctx.store.getEntity<Product>('PRODUCT', Product.dcr))!;
+      return {
+        defined: true,
+        id: 'PRODUCT',
+        version: p.version,
+        title: p.title,
+        purpose: p.purpose,
+        actors: p.actors ?? [],
+        scope: p.scope,
+        nonGoals: p.nonGoals ?? [],
+        bounds: p.bounds,
+        status: p.status || 'draft'
+      };
     }
   });
 }

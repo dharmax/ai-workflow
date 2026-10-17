@@ -22,6 +22,7 @@ import type { TicketLane, EpicStatus, IntentStatus } from './types.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { exportAspectProjection, importAspectProjection } from './aspect-projections.ts';
 import { ticketState } from './ticket-state.ts';
+import { exportProductManifest, exportAuthoredState } from '../product/manifest.ts';
 
 const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
 
@@ -325,10 +326,41 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
     }
   }
   modulesMd += `\`\`\`\n`;
+
+  // Module Intent section
+  const modulesWithIntent = (await store.listEntities<ModuleNode>(ModuleNode.dcr))
+    .filter(m => m.body || m.responsibilities?.length || m.boundaries || m.intentStatus);
+
+  if (modulesWithIntent.length > 0) {
+    modulesMd += `\n## Module Intent\n\n`;
+    for (const m of modulesWithIntent) {
+      const mid = store.localId(m.id);
+      modulesMd += `### \`${mid}\`\n\n`;
+      if (m.intentStatus) modulesMd += `- **Status**: \`${m.intentStatus}\`\n`;
+      if (m.body) modulesMd += `- **Purpose**: ${m.body}\n`;
+      if (m.boundaries) modulesMd += `- **Boundaries**: ${m.boundaries}\n`;
+      if (m.responsibilities && m.responsibilities.length > 0) {
+        modulesMd += `- **Responsibilities**:\n${m.responsibilities.map(r => `  - ${r}`).join('\n')}\n`;
+      }
+      modulesMd += `\n`;
+    }
+  }
+
   await writeFile(path.join(rootDir, 'modules.md'), modulesMd, 'utf8');
   exportedFiles.push('modules.md');
   await exportAspectProjection(store, rootDir);
   exportedFiles.push('aspects.md');
+
+  // Explicit product manifest and authored state snapshot
+  try {
+    await exportProductManifest(store, rootDir);
+    exportedFiles.push('product-manifest.md');
+  } catch {}
+
+  try {
+    await exportAuthoredState(store, rootDir);
+    exportedFiles.push('.ai-workflow/authored-snapshot.json');
+  } catch {}
 
   // Record export timestamp in sync-state.json
   const stateDir = path.join(rootDir, '.ai-workflow', 'state');

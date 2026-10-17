@@ -1,18 +1,18 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
+import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import { ticketState, assertTicketAuthoring } from '../graph/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
 import type { TicketLane } from '../graph/types.ts';
 
-const kinds = { Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
+const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;
 export const ProductRevisionSchema = z.object({ id: z.string().min(1), entityType: z.string().min(1), version: z.number().int().positive() });
 export type ProductRevision = z.infer<typeof ProductRevisionSchema>;
-const entityKind = z.enum(['Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test']);
+const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test', 'Module']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
 const ticketLane = z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']);
@@ -22,6 +22,9 @@ const fields = z.object({
   acceptanceCriteria: z.array(z.string()), actor: z.string(), story: z.string(), context: z.string(),
   intent: z.string(), initialState: z.string(), action: z.string(), expectedResult: z.string(),
   exceptions: z.string(), bounds: z.string(),
+  purpose: z.string(), actors: z.array(z.string()), scope: z.string(), nonGoals: z.array(z.string()),
+  outcomes: z.array(z.string()), boundaries: z.string(), behavioralRules: z.array(z.string()),
+  responsibilities: z.array(z.string()), intentStatus: intentStatus,
   filePath: z.string(), framework: z.string(), command: z.array(z.string()), fixturePath: z.string(), interfaceName: z.string(),
   storyVersion: z.number().int().positive(), testState: z.enum(['skipped','not-run','expected-red','green','blocked']), testStateReason: z.string(), testSourceHash: z.string(), fixtureHash: z.string(), storyBasisHash: z.string(),
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
@@ -71,10 +74,10 @@ export const PRODUCT_RELATIONS = [
   {sourceKind:'Feature',predicate:'contains',targetKind:'UserStory',mode:'L',owner:'Legacy relation; remove only'},
   {sourceKind:'Module',predicate:'serves',targetKind:'Goal',mode:'H',owner:'Reviewed Product change'},
   {sourceKind:'Concept',predicate:'governs',targetKind:'Module',mode:'H',owner:'Reviewed Product change'},
-  // Discoverable future endpoint, deliberately not a Product entity/CRUD implementation in PC1b.
-  {sourceKind:'Product',predicate:'contains',targetKind:'Goal',mode:'H',owner:'Product endpoint requires PC2'},
-  {sourceKind:'Product',predicate:'contains',targetKind:'Concept',mode:'H',owner:'Product endpoint requires PC2'},
-  {sourceKind:'Aspect',predicate:'applies_to',targetKind:'Product',mode:'H',owner:'Product endpoint requires PC2'}
+  {sourceKind:'Product',predicate:'contains',targetKind:'Goal',mode:'H',owner:'Reviewed Product change'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Concept',mode:'H',owner:'Reviewed Product change'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Feature',mode:'H',owner:'Reviewed Product change'},
+  {sourceKind:'Aspect',predicate:'applies_to',targetKind:'Product',mode:'H',owner:'Reviewed Product change'}
 ] as const;
 export function productRelation(sourceKind: string, predicate: string, targetKind: string) {
   return PRODUCT_RELATIONS.find(row => row.sourceKind === sourceKind && row.predicate === predicate && row.targetKind === targetKind);
@@ -122,20 +125,43 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
 function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean, previous: Record<string, unknown> = {}): void {
   fields.parse(input);
   const allowed: Record<ProductKind, string[]> = {
+    Product: ['title', 'purpose', 'actors', 'scope', 'nonGoals', 'bounds', 'status'],
     Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Goal: ['title', 'body', 'status'],
     Concept: ['title', 'body', 'status'], Flow: ['title', 'body', 'status', 'actor', 'context'],
     Artifact: [], File: [], Symbol: [],
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
-    Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget'],
+    Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget', 'outcomes', 'scope', 'boundaries', 'behavioralRules'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [], Module: ['completenessTarget']
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [],
+    Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
+  if (kind === 'Module' && create) throw new Error("Module cannot be created via product_create. Edit an indexed module instead.");
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
   if (input.status !== undefined) {
     if (kind === 'Epic') epicStatus.parse(input.status);
-    if (kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
+    if (kind === 'Product' || kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
+  }
+  if (kind === 'Product') {
+    const next = { ...previous, ...input };
+    if (next.status === 'accepted') {
+      const purpose = typeof next.purpose === 'string' ? next.purpose.trim() : '';
+      const scope = typeof next.scope === 'string' ? next.scope.trim() : '';
+      const actors = Array.isArray(next.actors) ? next.actors.filter(a => typeof a === 'string' && a.trim()) : [];
+      if (!purpose || !scope || actors.length === 0) {
+        throw new Error("Accepted Product requires purpose, scope, and at least one actor.");
+      }
+    }
+  }
+  if (kind === 'Module') {
+    const next = { ...previous, ...input };
+    if (next.intentStatus === 'accepted') {
+      const purpose = typeof next.body === 'string' ? next.body.trim() : '';
+      if (!purpose) {
+        throw new Error("Accepted Module intent requires a nonblank purpose (body).");
+      }
+    }
   }
   if (kind === 'Ticket') assertTicketAuthoring(input, create ? undefined : previous);
   if (kind === 'UserStory') {
@@ -182,7 +208,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       throw Error('Verification receipts and admission records are owner-managed.');
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
-    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const rows = await productEdgeRows(store, entity.id);
     snapshot[id] = { kind, fields, relations: rows };
@@ -221,6 +247,9 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     if ('entityType' in mutation && mutation.entityType === 'Test') store.assertTestArtifactWrite(mutation.id);
     if ('predicate' in mutation && mutation.predicate === 'verifies') store.assertTestArtifactWrite(mutation.sourceId);
     if (mutation.kind === 'product_create') {
+      if (mutation.entityType === 'Product' && mutation.id !== 'PRODUCT') {
+        throw new Error("Product entity ID must be 'PRODUCT'.");
+      }
       rememberIdentity(mutation.id, mutation.entityType);
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
       validateFields(mutation.entityType, mutation.fields, true);
@@ -238,6 +267,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
           entity.lane = next.lane;
         }
       } else {
+        if (entity.kind === 'Product') throw new Error("Physical deletion of Product singleton is not allowed. Use retire (status: deprecated) instead.");
+        if (entity.kind === 'Module') throw new Error("Physical deletion of Module is not allowed.");
         entity.exists = false;
         deleted.push(mutation.id);
       }

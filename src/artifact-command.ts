@@ -194,9 +194,18 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .action((id:string,opts:{incoming?:boolean;outgoing?:boolean;predicate?:string;limit?:number;cursor?:string})=>
       emit(linkIntent({action:'inspect',id,idMatch:'human',direction:opts.incoming?'incoming':opts.outgoing?'outgoing':'both',
         ...(opts.predicate!==undefined?{predicate:opts.predicate}:{}),...(opts.limit!==undefined?{limit:opts.limit}:{}),...(opts.cursor!==undefined?{cursor:opts.cursor}:{})})));
-  root.command('product').description('Read existing Product definitions')
-    .command('goal').description('Existing Goal reader').command('show <id>')
+  const productCmd = root.command('product').description('Read or export Product definitions');
+  productCmd.command('show').description('Show Product charter definition')
+    .action(() => emit({family: 'artifact', tool: 'get_product', args: {}}));
+  productCmd.command('export').description('Export product manifest and authored snapshot')
+    .action(() => emit({family: 'legacy', command: 'product-export', tokens: []}));
+  productCmd.command('goal').description('Existing Goal reader').command('show <id>')
     .action((id:string)=>emit({family:'artifact',tool:'get_goal',args:{id}}));
+  const productFeature = productCmd.command('feature').description('Product Feature operations');
+  productFeature.command('show <id>').description('Show detailed Feature definition')
+    .action((id:string)=>emit({family:'artifact',tool:'get_feature',args:{featureId:id}}));
+  productFeature.command('list').description('List Features')
+    .action(()=>emit({family:'artifact',tool:'list_features',args:{}}));
   // Commander owns syntax for ordinary reads/lifecycle entrypoints too.
   for(const signature of ['sync','status','doctor','audit','init','diff','index','shell','mcp',
     'tickets [lane]','epics [status]','ticket <id>','epic <id>','feature <id>','story <id>',

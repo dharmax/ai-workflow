@@ -5,6 +5,7 @@
 
 import {
     WorkflowEntity,
+    Product,
     Epic,
     Goal,
     Concept,
@@ -119,12 +120,14 @@ export async function buildIntentContext(
     for (const { entity: meaning, provenance } of await collectProductMeaning([entity], store, true)) {
         const meaningId = store.localId(meaning.id)
         if (context.existing.some(item => item.id === meaningId)) continue
-        const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string; decision?: string; context?: string; consequences?: string }
+        const data = meaning as WorkflowEntity & { body?: string; story?: string; status?: string; decision?: string; context?: string; consequences?: string; purpose?: string; scope?: string; actors?: string[] }
         const body = meaning instanceof Decision
             ? [data.decision, data.context ? `Context: ${data.context}` : "", data.consequences ? `Consequences: ${data.consequences}` : "", data.body]
                   .filter(Boolean)
                   .join("\n\n")
-            : data.body || data.story
+            : meaning instanceof Product
+                ? [data.purpose ? `Purpose: ${data.purpose}` : "", data.scope ? `Scope: ${data.scope}` : "", data.actors?.length ? `Actors: ${data.actors.join(", ")}` : ""].filter(Boolean).join("\n")
+                : data.body || data.story
         context.existing.push({
             id: meaningId,
             kind: meaning.typeName(),
@@ -267,6 +270,13 @@ export async function collectProductMeaning(
                 const source = await store.getEntity<WorkflowEntity>(edge.sourceId)
                 if (source instanceof Concept) add(source, "Scope governing Concept")
                 else if (source instanceof Decision) add(source, "Scope governing Decision")
+            }
+        }
+
+        if (item instanceof Feature || item instanceof Goal || item instanceof Concept) {
+            for (const edge of await store.getIncoming(item.id, "contains")) {
+                const source = await store.getEntity<WorkflowEntity>(edge.sourceId)
+                if (source instanceof Product) add(source, "Product charter")
             }
         }
     }
