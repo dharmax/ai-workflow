@@ -234,7 +234,23 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       expect(incompletePreview.blocked).toBe(true);
       expect(incompletePreview.blockReason).toContain('requires purpose, scope, and at least one actor');
 
-      // c) Physical deletion of Product is refused
+      // c) Accepted Feature requires nonblank responsibility (body)
+      const incompleteFeatReq: ChangeRequest = {
+        action: 'product_change',
+        mutations: [
+          {
+            kind: 'product_create',
+            entityType: 'Feature',
+            id: 'feat:incomplete',
+            fields: { title: 'Incomplete Feature', status: 'accepted', body: '' }
+          }
+        ]
+      };
+      const incompleteFeatPreview = await call('preview_change', incompleteFeatReq);
+      expect(incompleteFeatPreview.blocked).toBe(true);
+      expect(incompleteFeatPreview.blockReason).toContain('Accepted Feature requires nonblank responsibility (body)');
+
+      // d) Physical deletion of Product is refused
       const deleteProductReq: ChangeRequest = {
         action: 'product_change',
         mutations: [
@@ -249,7 +265,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       expect(deletePreview.blocked).toBe(true);
       expect(deletePreview.blockReason).toContain('Physical deletion of Product singleton is not allowed');
 
-      // d) Stale revision basis refusal
+      // e) Stale revision basis refusal
       const staleReq: ChangeRequest = {
         action: 'product_change',
         basis: [
@@ -268,6 +284,46 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       expect(stalePreview.blocked).toBe(true);
       expect(stalePreview.blockReason).toContain('Stale product source revision');
 
+      // f) Explicit rejection of a proposed Feature leaves canonical store unchanged
+      const rejectReq: ChangeRequest = {
+        action: 'product_change',
+        mutations: [
+          {
+            kind: 'product_create',
+            entityType: 'Feature',
+            id: 'feat:rejected',
+            fields: { title: 'Rejected Feature', body: 'Proposed then rejected', status: 'draft' }
+          }
+        ]
+      };
+      const rejectPreview = await call('preview_change', rejectReq);
+      expect(rejectPreview.blocked).toBe(false);
+      const rejectRes = await call('apply_change', {
+        request: rejectReq,
+        fingerprint: rejectPreview.fingerprint,
+        decision: 'reject'
+      });
+      expect(rejectRes.ok).toBe(false);
+      expect(rejectRes.error).toContain('rejected');
+      expect(await store.getEntity('feat:rejected', Feature.dcr)).toBeNull();
+
+      // g) An unreferenced Feature appears under Other Features in manifest rather than silent promotion
+      const unlinkedReq: ChangeRequest = {
+        action: 'product_change',
+        mutations: [
+          {
+            kind: 'product_create',
+            entityType: 'Feature',
+            id: 'feat:standalone',
+            fields: { title: 'Standalone Feature', body: 'Not part of top-level charter', status: 'draft' }
+          }
+        ]
+      };
+      const unlinkedPreview = await call('preview_change', unlinkedReq);
+      await call('apply_change', { request: unlinkedReq, fingerprint: unlinkedPreview.fingerprint, decision: 'accept' });
+      const manifestWithStandalone = await generateProductManifest(store);
+      expect(manifestWithStandalone).toContain('## Other Features (Unlinked)');
+      expect(manifestWithStandalone).toContain('**feat:standalone**: Standalone Feature');
     });
   });
 

@@ -101,6 +101,13 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
   expect((await processShellInput('product goal show',session)).output).toContain('Error:');
   expect((await processShellInput('link E1 TO G1 AS targets --yes --YES',session)).output).toContain('Duplicate');
   expect(calls).toBe(0);reopen();expect((await store.getEntity('G1',Goal.dcr))!.version).toBe(before);
+
+  const { Feature } = await import('../src/graph/ontology.ts');
+  await store.upsertEntity(Feature.dcr, { id: 'F1', title: 'Feature One', body: 'Owns feature responsibility' });
+  const featSpace = run('product', 'feature', 'show', 'F1'), featColon = run('product:feature', 'show', 'F1');
+  expect(featSpace.success).toBe(true);expect(featColon.success).toBe(true);
+  expect(JSON.parse(featColon.stdout.toString()).title).toBe('Feature One');
+  expect((await processShellInput('product:feature show F1', { ...session, store })).output).toContain('Feature One');
  });
  it('rejects fixed-word changes, duplicate scalars and discovery mutation flags',()=>{
   for(const args of [

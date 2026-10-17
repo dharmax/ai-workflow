@@ -154,6 +154,15 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
       }
     }
   }
+  if (kind === 'Feature') {
+    const next = { ...previous, ...input };
+    if (next.status === 'accepted') {
+      const responsibility = typeof next.body === 'string' ? next.body.trim() : '';
+      if (!responsibility) {
+        throw new Error("Accepted Feature requires nonblank responsibility (body).");
+      }
+    }
+  }
   if (kind === 'Module') {
     const next = { ...previous, ...input };
     if (next.intentStatus === 'accepted') {
