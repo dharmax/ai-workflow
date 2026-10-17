@@ -143,4 +143,27 @@ describe('PC1b governed relation public proof',()=>{
   try {registry.register({...tool,parameters:z.custom()});expect(()=>buildMcpSchemas()).toThrow();}
   finally {registry.register({...tool,parameters:original});}
  });
+ it('distinguishes clean application from committed mutation whose verification failed and reports recovery guidance',async()=>{
+  const {reviewLink}=await import('../src/product/links.ts');
+  const applyChange=registry.get('apply_change')!;
+  const originalExecute=applyChange.execute;
+  try {
+   applyChange.execute=async(args,ctx)=>{
+    const res=await originalExecute(args,ctx);
+    return {...res,verification:{passed:false,errors:['Simulated post-commit verification failure: relation check mismatch']}};
+   };
+   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
+   const result=await reviewLink({action:'preview_add',sourceId:'E1',targetId:'G1',predicate:'targets',payload:{note:'partial'}},ctx,true);
+   expect(result.status).toBe('committed-verification-failed');
+   expect((result as any).warning).toContain('Do not retry blind application');
+   expect((result as any).warning).toContain('Simulated post-commit verification failure');
+   expect((result as any).result.ok).toBe(true);
+   reopen();
+   const edges=await rows();
+   expect(edges).toHaveLength(1);
+   expect(edges[0]!.payload).toEqual({note:'partial'});
+  } finally {
+   applyChange.execute=originalExecute;
+  }
+ });
 });

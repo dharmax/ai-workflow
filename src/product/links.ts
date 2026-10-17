@@ -84,5 +84,13 @@ export async function reviewLink(args:LinkAction,ctx:ToolContext,yes:boolean,con
  if(!yes&&!await confirm!(preview)) return {status:'cancelled',preview};
  const applied=await registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
  if(!applied.ok) throw Error(applied.error??'Link application failed.');
+ if(applied.verification&&!applied.verification.passed) {
+  return {
+   status:'committed-verification-failed',
+   preview,
+   result:applied,
+   warning:`Change was committed to canonical store, but subsequent verification failed: ${applied.verification.errors.join('; ')}. Do not retry blind application (the entity is already modified). Inspect entity or run aiwf sync.`
+  };
+ }
  return {status:preview.unchanged?'unchanged':'applied',preview,result:applied};
 }

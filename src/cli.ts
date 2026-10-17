@@ -55,6 +55,9 @@ async function main() {
       } : undefined;
       const result=await reviewLink(parsed.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},parsed.yes,confirm,parsed.yes?preview=>console.error(JSON.stringify(preview,null,2)):undefined);
       console.log(JSON.stringify(result,null,2));
+      if (result.status === 'committed-verification-failed' || result.result?.verification?.passed === false) {
+        process.exitCode = 1;
+      }
     } finally {getStore().close();await closeAllTsLspClients();await closeAllTs6RefactorClients();}
     return;
   }

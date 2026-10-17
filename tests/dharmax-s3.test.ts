@@ -66,8 +66,10 @@ describe('S3 Workspace public developer journeys', () => {
   const snapshot = () => Object.fromEntries((store.db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {name:string}[])
     .map(({name}) => [name, store.db.query('SELECT * FROM "' + name + '" ORDER BY rowid').all()]));
   afterEach(async () => {
-    await browser?.close(); await workspace?.stop(); store?.close();
-    if (root) fs.rmSync(root, {recursive:true, force:true});
+    await browser?.close(); browser = undefined as any;
+    await workspace?.stop(); workspace = undefined as any;
+    store?.close(); store = undefined as any;
+    if (root) { fs.rmSync(root, {recursive:true, force:true}); root = undefined as any; }
   });
 
   it('DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP', async () => {

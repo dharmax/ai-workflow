@@ -11,7 +11,12 @@ import {startWorkspace} from '../src/workspace/server.ts';
 describe('S4 reviewed derivation through Workspace',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
- afterEach(async()=>{await browser?.close();host?.server.stop(true);store?.close();if(root)fs.rmSync(root,{recursive:true,force:true});});
+ afterEach(async()=>{
+  await browser?.close();browser=undefined as any;
+  host?.server.stop(true);host=undefined as any;
+  store?.close();store=undefined as any;
+  if(root){fs.rmSync(root,{recursive:true,force:true});root=undefined as any;}
+ });
  it('DW-03 proposes complete reviewed Stories, Epic and scoped work without mutations',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-'));store=new WorkflowStore(root);initializeTools();
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(file:string,value:string){return {file,value}}");
@@ -105,7 +110,7 @@ export function createAvatar(file:string) {
   await page.getByRole('status').filter({hasText:'Story test linked · skipped'}).waitFor();
   expect((await store.getEntity<TestNode>('test:tests/save.test.ts',TestNode.dcr))?.command).toEqual(['bun','test','tests/save.test.ts']);
   expect((await call('get_story_test_status',{storyId:'S'})).status).toBe('materialized');
-  host.server.stop(true);store.close();store=new WorkflowStore(root);
+  host.server.stop(true);host=undefined as any;await browser?.close();browser=undefined as any;store.close();store=new WorkflowStore(root);
   expect((await store.getEntity<TestNode>('test:tests/save.test.ts',TestNode.dcr))?.storyVersion).toBe((await store.getEntity<UserStory>('S',UserStory.dcr))?.version);
   expect((await store.listEntities(Ticket.dcr)).length).toBe(1);
  });
@@ -128,7 +133,8 @@ export function createAvatar(file:string) {
   expect(applied.status).toBe('linked');expect(applied.testState).toBe('skipped');
   expect((await store.getEntity<TestNode>('test:tests/save.test.ts',TestNode.dcr))?.testState).toBe('skipped');
   const command=Bun.spawn(['bun','test','tests/save.test.ts'],{cwd:root,stdout:'pipe',stderr:'pipe'});
-  const output=await new Response(command.stderr).text();expect(await command.exited).toBe(0);expect(output).toContain('1 skip');
+  const [out,err]=await Promise.all([new Response(command.stdout).text(),new Response(command.stderr).text()]);
+  const output=out+'\n'+err;expect(await command.exited).toBe(0);expect(output).toContain('1 skip');
   const repeated=await call('prepare_story_test',{specification});
   expect((await call('apply_story_test',{specification,fingerprint:repeated.fingerprint,decision:'accept'})).status).toBe('linked');
   expect((await store.getIncoming('S','verifies')).filter(e=>store.localId(e.sourceId)==='test:tests/save.test.ts')).toHaveLength(1);
@@ -139,6 +145,7 @@ export function createAvatar(file:string) {
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),'export function saveAvatar(value:string){return value}');
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await call('create_feature',{id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
+  await browser?.close();
   host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(3000);await page.goto(host.url);
   await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
@@ -156,6 +163,7 @@ export function createAvatar(file:string) {
   await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
   expect(await store.getEntity('S')).toBeNull();expect(await store.getEntity('T')).toBeNull();
   expect(await store.listEntities(Ticket.dcr)).toHaveLength(0);
+  host.server.stop(true);host=undefined as any;await browser?.close();browser=undefined as any;
  });
 
  it('reconciles an edited accepted Story, retains authoritative Aspects, and returns identity/scenario ambiguity',async()=>{

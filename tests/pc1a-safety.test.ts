@@ -178,14 +178,15 @@ describe('PC1a canonical safety through public tools',()=>{
   it('real stdio MCP defaults to read-only and accepts writes only from explicit host authority',async()=>{
     for(const authority of ['read-only','project-write']) {
       const client=new Client({name:'pc1a-public-host',version:'1'});
+      const transport=new StdioClientTransport({command:'bun',args:[path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,
+        env:authority==='project-write'?{...process.env,AIWF_EXECUTION_AUTHORITY:authority}:Object.fromEntries(Object.entries(process.env).filter(([key])=>key!=='AIWF_EXECUTION_AUTHORITY')) as Record<string,string>,stderr:'pipe'});
       try {
-        await client.connect(new StdioClientTransport({command:'bun',args:[path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,
-          env:authority==='project-write'?{...process.env,AIWF_EXECUTION_AUTHORITY:authority}:Object.fromEntries(Object.entries(process.env).filter(([key])=>key!=='AIWF_EXECUTION_AUTHORITY')) as Record<string,string>,stderr:'pipe'}));
+        await client.connect(transport);
         const response=await client.callTool({name:'create_ticket',arguments:{id:authority==='read-only'?'DENIED':'ALLOWED',title:'Public MCP creation',executionAuthority:'project-write'}});
         expect(response.isError===true).toBe(authority==='read-only');
         const done=await client.callTool({name:'create_ticket',arguments:{id:'FORGED',title:'Public MCP completion',lane:'Done'}});
         expect(done.isError).toBe(true);
-      } finally {await client.close();}
+      } finally {await client.close();await transport.close();}
     }
     reopen();
     expect(await store.getEntity('DENIED',Ticket.dcr)).toBeNull();

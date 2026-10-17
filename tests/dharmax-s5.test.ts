@@ -12,7 +12,12 @@ import {startWorkspace} from '../src/workspace/server.ts';
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
- afterEach(async()=>{await browser?.close();host?.server.stop(true);store?.close();if(root)fs.rmSync(root,{recursive:true,force:true});});
+ afterEach(async()=>{
+  await browser?.close();browser=undefined as any;
+  host?.server.stop(true);host=undefined as any;
+  store?.close();store=undefined as any;
+  if(root){fs.rmSync(root,{recursive:true,force:true});root=undefined as any;}
+ });
  it('DW-04 activates and executes the same reviewed public-interface TestNode through Workspace',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s5-'));store=new WorkflowStore(root);initializeTools();
   fs.mkdirSync(path.join(root,'src'),{recursive:true});
@@ -72,7 +77,7 @@ describe('S5 Story test-first lifecycle',()=>{
   await call('apply_change',{request:(repair as any).request,fingerprint:(repair as any).fingerprint,decision:'accept'});
   await page.getByRole('button',{name:'Run active Story test',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Story test green'}).waitFor();
-  host.server.stop(true);host=undefined as any;store.close();store=new WorkflowStore(root);
+  host.server.stop(true);host=undefined as any;await browser?.close();browser=undefined as any;store.close();store=new WorkflowStore(root);
   test=await store.getEntity<TestNode>(stableId,TestNode.dcr);
   expect(test?.testState).toBe('green');expect(test?.lastRun).toBeTruthy();expect(test?.executionHashes).toBeTruthy();
   expect((await (call('get_story_test_status',{storyId:'S'}) as Promise<any>)).tests[0].id).toBe(stableId);
