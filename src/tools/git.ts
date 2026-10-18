@@ -43,6 +43,19 @@ export function registerGitTools() {
           else if (code[0] !== ' ' && code[0] !== '?') staged.push(file);
         }
 
+        const manifestPath = path.join(ctx.projectRoot, 'product-manifest.md');
+        const snapshotPath = path.join(ctx.projectRoot, '.ai-workflow', 'authored-snapshot.json');
+        const manifestExists = fs.existsSync(manifestPath);
+        const snapshotExists = fs.existsSync(snapshotPath);
+        const manifestUncommitted = modified.includes('product-manifest.md') || untracked.includes('product-manifest.md') || staged.includes('product-manifest.md');
+        const snapshotUncommitted = modified.includes('.ai-workflow/authored-snapshot.json') || untracked.includes('.ai-workflow/authored-snapshot.json') || staged.includes('.ai-workflow/authored-snapshot.json');
+
+        const publication = {
+          manifestCurrent: manifestExists && !manifestUncommitted,
+          snapshotCurrent: snapshotExists && !snapshotUncommitted,
+          clean: manifestExists && snapshotExists && !manifestUncommitted && !snapshotUncommitted
+        };
+
         return {
           isGit: true,
           branch,
@@ -51,7 +64,8 @@ export function registerGitTools() {
           modifiedFiles: modified,
           untracked,
           staged,
-          totalChanges: modified.length + untracked.length + staged.length
+          totalChanges: modified.length + untracked.length + staged.length,
+          publication
         };
       } catch (err: any) {
         return { isGit: false, message: err.message };

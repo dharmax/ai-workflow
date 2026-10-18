@@ -7,7 +7,7 @@
 
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
-import {reviewLink} from './product/links.ts';
+import {reviewLink, reviewDefinition} from './product/links.ts';
 import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
 import { parseCommand } from './artifact-command.ts';
 import fs from 'node:fs';
@@ -60,6 +60,28 @@ async function main() {
         process.exitCode = 1;
       }
     } finally {getStore().close();await closeAllTsLspClients();await closeAllTs6RefactorClients();}
+    return;
+  }
+  if (parsed?.family === 'definition') {
+    try {
+      const confirm = process.stdin.isTTY ? async (preview: unknown) => {
+        console.log(JSON.stringify(preview, null, 2));
+        const reader = createInterface({ input: process.stdin, output: process.stdout });
+        try { return (await reader.question('Apply this definition change? [y/N] ')).toLowerCase() === 'y'; }
+        finally { reader.close(); }
+      } : undefined;
+      const result = await reviewDefinition(
+        parsed.input,
+        { store: getStore(), projectRoot: root, executionAuthority: 'project-write' },
+        parsed.yes,
+        confirm,
+        parsed.yes ? preview => console.error(JSON.stringify(preview, null, 2)) : undefined
+      );
+      console.log(JSON.stringify(result, null, 2));
+      if (result.status === 'committed-verification-failed' || ('result' in result && result.result?.verification?.passed === false)) {
+        process.exitCode = 1;
+      }
+    } finally { getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients(); }
     return;
   }
   const delegation = parsed.family === 'artifact' ? parsed : null;

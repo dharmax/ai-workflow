@@ -21,7 +21,7 @@ export const LinkActionSchema=z.discriminatedUnion('action',[
 ]);
 export type LinkAction=z.infer<typeof LinkActionSchema>;
 
-async function endpoint(store:WorkflowStore,id:string,match:'exact'|'human'='exact') {
+export async function endpoint(store:WorkflowStore,id:string,match:'exact'|'human'='exact') {
  try {return await resolveProductEntity(store,id);} catch(error) {
   if(match==='exact' || !String(error).includes('not found')) throw error;
  }
@@ -92,5 +92,72 @@ export async function reviewLink(args:LinkAction,ctx:ToolContext,yes:boolean,con
    warning:`Change was committed to canonical store, but subsequent verification failed: ${applied.verification.errors.join('; ')}. Do not retry blind application (the entity is already modified). Inspect entity or run aiwf sync.`
   };
  }
- return {status:preview.unchanged?'unchanged':'applied',preview,result:applied};
+  return {status:preview.unchanged?'unchanged':'applied',preview,result:applied};
+}
+
+export interface DefinitionReviewInput {
+  kind: 'Product' | 'Goal' | 'Concept' | 'Flow' | 'Feature' | 'UserStory' | 'Aspect' | 'Decision' | 'Module';
+  id: string;
+  create: boolean;
+  fields: Record<string, unknown>;
+}
+
+export async function previewDefinitionChange(ctx: ToolContext, input: DefinitionReviewInput) {
+  const basis: Array<{ id: string; entityType: string; version: number }> = [];
+  if (!input.create) {
+    const existing = await resolveProductEntity(ctx.store, input.id);
+    basis.push({ id: ctx.store.localId(existing.id), entityType: existing.typeName(), version: existing.version });
+  }
+
+  const request: Extract<ChangeRequest, { action: 'product_change' }> = {
+    action: 'product_change',
+    mutations: [
+      input.create
+        ? { kind: 'product_create', entityType: input.kind as any, id: input.id, fields: input.fields }
+        : { kind: 'product_update', entityType: input.kind as any, id: input.id, fields: input.fields }
+    ],
+    ...(basis.length ? { basis } : {})
+  };
+
+  const engine = new CausalChangeEngine({ store: ctx.store, projectRoot: ctx.projectRoot });
+  const preview = await engine.previewChange(request);
+  return {
+    ...preview,
+    status: preview.blocked ? 'blocked' : 'preview',
+    definitionDiff: {
+      kind: input.kind,
+      id: input.id,
+      operation: input.create ? 'create' : 'update',
+      fields: input.fields
+    }
+  };
+}
+
+export async function reviewDefinition(
+  input: DefinitionReviewInput,
+  ctx: ToolContext,
+  yes: boolean,
+  confirm?: (preview: unknown) => Promise<boolean>,
+  present?: (preview: unknown) => void
+) {
+  const preview = await previewDefinitionChange(ctx, input);
+  if (preview.blocked) throw new Error(preview.blockReason ?? 'Definition preview blocked.');
+  present?.(preview);
+  if (!yes && !confirm) return preview;
+  if (!yes && !(await confirm!(preview))) return { status: 'cancelled', preview };
+  const applied = await registry.execute(
+    'apply_change',
+    { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' },
+    ctx
+  );
+  if (!applied.ok) throw new Error(applied.error ?? 'Definition application failed.');
+  if (applied.verification && !applied.verification.passed) {
+    return {
+      status: 'committed-verification-failed',
+      preview,
+      result: applied,
+      warning: `Change was committed to canonical store, but subsequent verification failed: ${applied.verification.errors.join('; ')}.`
+    };
+  }
+  return { status: 'applied', preview, result: applied };
 }

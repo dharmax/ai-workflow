@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
-import {LinkActionSchema,type LinkAction} from './product/links.ts';
+import {LinkActionSchema,type LinkAction,type DefinitionReviewInput} from './product/links.ts';
 import {normalizeLinkPayload} from './product/mutation.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';
 import type {ToolContext} from './tools/index.ts';
@@ -94,6 +94,7 @@ export function isExplicitCommand(input:string):boolean {
 
 export type NormalizedCommand =
   | {family:'link';tool:'link';args:LinkAction;yes:boolean}
+  | {family:'definition';input:DefinitionReviewInput;yes:boolean}
   | {family:'help';tool:'help';args:{text:string}}
   | {family:'artifact';tool:string;args:Record<string,unknown>}
   | {family:'legacy';command:string;tokens:string[]};
@@ -194,18 +195,134 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .action((id:string,opts:{incoming?:boolean;outgoing?:boolean;predicate?:string;limit?:number;cursor?:string})=>
       emit(linkIntent({action:'inspect',id,idMatch:'human',direction:opts.incoming?'incoming':opts.outgoing?'outgoing':'both',
         ...(opts.predicate!==undefined?{predicate:opts.predicate}:{}),...(opts.limit!==undefined?{limit:opts.limit}:{}),...(opts.cursor!==undefined?{cursor:opts.cursor}:{})})));
-  const productCmd = root.command('product').description('Read or export Product definitions');
+  const productCmd = root.command('product').description('Read, author, or export Product definitions');
   productCmd.command('show').description('Show Product charter definition')
     .action(() => emit({family: 'artifact', tool: 'get_product', args: {}}));
+  productCmd.command('define').description('Define Product charter')
+    .option('--title <text>', 'Product title')
+    .option('--purpose <text>', 'Product purpose')
+    .option('--scope <text>', 'Product scope')
+    .option('--actor <name>', 'Add actor', (v, prev: string[] = []) => [...prev, v])
+    .option('--non-goal <text>', 'Add non-goal', (v, prev: string[] = []) => [...prev, v])
+    .option('--bounds <text>', 'Product bounds')
+    .option('--status <status>', 'Product status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((opts: any) => {
+      const { yes, actor, nonGoal, ...rest } = opts;
+      const fields: Record<string, unknown> = { ...rest };
+      if (actor) fields.actors = actor;
+      if (nonGoal) fields.nonGoals = nonGoal;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Product', id: 'PRODUCT', create: true, fields }
+      });
+    });
+  productCmd.command('edit').description('Edit Product charter')
+    .option('--title <text>', 'Product title')
+    .option('--purpose <text>', 'Product purpose')
+    .option('--scope <text>', 'Product scope')
+    .option('--actor <name>', 'Add actor', (v, prev: string[] = []) => [...prev, v])
+    .option('--non-goal <text>', 'Add non-goal', (v, prev: string[] = []) => [...prev, v])
+    .option('--bounds <text>', 'Product bounds')
+    .option('--status <status>', 'Product status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((opts: any) => {
+      const { yes, actor, nonGoal, ...rest } = opts;
+      const fields: Record<string, unknown> = { ...rest };
+      if (actor) fields.actors = actor;
+      if (nonGoal) fields.nonGoals = nonGoal;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Product', id: 'PRODUCT', create: false, fields }
+      });
+    });
   productCmd.command('export').description('Export product manifest and authored snapshot')
     .action(() => emit({family: 'legacy', command: 'product-export', tokens: []}));
-  productCmd.command('goal').description('Existing Goal reader').command('show <id>')
+
+  const productGoal = productCmd.command('goal').description('Goal operations');
+  productGoal.command('show <id>').description('Existing Goal reader')
     .action((id:string)=>emit({family:'artifact',tool:'get_goal',args:{id}}));
+  productGoal.command('new').description('Create a new Goal')
+    .requiredOption('--id <id>', 'Goal ID')
+    .requiredOption('--title <text>', 'Goal title')
+    .option('--body <text>', 'Goal rationale')
+    .option('--status <status>', 'Goal status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((opts: any) => {
+      const { id, yes, ...fields } = opts;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Goal', id, create: true, fields }
+      });
+    });
+  productGoal.command('edit <id>').description('Edit an existing Goal')
+    .option('--title <text>', 'Goal title')
+    .option('--body <text>', 'Goal rationale')
+    .option('--status <status>', 'Goal status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((id: string, opts: any) => {
+      const { yes, ...fields } = opts;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Goal', id, create: false, fields }
+      });
+    });
+
   const productFeature = productCmd.command('feature').description('Product Feature operations');
   productFeature.command('show <id>').description('Show detailed Feature definition')
     .action((id:string)=>emit({family:'artifact',tool:'get_feature',args:{featureId:id}}));
   productFeature.command('list').description('List Features')
     .action(()=>emit({family:'artifact',tool:'list_features',args:{}}));
+  productFeature.command('new').description('Create a new Feature')
+    .requiredOption('--id <id>', 'Feature ID')
+    .requiredOption('--title <text>', 'Feature title')
+    .option('--body <text>', 'Feature responsibility')
+    .option('--status <status>', 'Feature status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((opts: any) => {
+      const { id, yes, ...fields } = opts;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Feature', id, create: true, fields }
+      });
+    });
+  productFeature.command('edit <id>').description('Edit an existing Feature')
+    .option('--title <text>', 'Feature title')
+    .option('--body <text>', 'Feature responsibility')
+    .option('--status <status>', 'Feature status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((id: string, opts: any) => {
+      const { yes, ...fields } = opts;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Feature', id, create: false, fields }
+      });
+    });
+
+  const archCmd = root.command('arch').description('Architecture operations');
+  const archModule = archCmd.command('module').description('Architecture module operations');
+  archModule.command('edit <id>').description('Edit Module Intent')
+    .option('--body <text>', 'Module purpose')
+    .option('--responsibility <text>', 'Add responsibility', (v, prev: string[] = []) => [...prev, v])
+    .option('--boundaries <text>', 'Module boundaries')
+    .option('--status <status>', 'Module intent status')
+    .option('--yes', 'Confirm and apply definition change directly')
+    .action((id: string, opts: any) => {
+      const { yes, responsibility, ...rest } = opts;
+      const fields: Record<string, unknown> = { ...rest };
+      if (responsibility) fields.responsibilities = responsibility;
+      emit({
+        family: 'definition',
+        yes: Boolean(yes),
+        input: { kind: 'Module', id, create: false, fields }
+      });
+    });
   // Commander owns syntax for ordinary reads/lifecycle entrypoints too.
   for(const signature of ['sync','status','doctor','audit','init','diff','index','shell','mcp',
     'tickets [lane]','epics [status]','ticket <id>','epic <id>','feature <id>','story <id>',

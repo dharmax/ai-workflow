@@ -352,15 +352,11 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   exportedFiles.push('aspects.md');
 
   // Explicit product manifest and authored state snapshot
-  try {
-    await exportProductManifest(store, rootDir);
-    exportedFiles.push('product-manifest.md');
-  } catch {}
+  await exportProductManifest(store, rootDir);
+  exportedFiles.push('product-manifest.md');
 
-  try {
-    await exportAuthoredState(store, rootDir);
-    exportedFiles.push('.ai-workflow/authored-snapshot.json');
-  } catch {}
+  await exportAuthoredState(store, rootDir);
+  exportedFiles.push('.ai-workflow/authored-snapshot.json');
 
   // Record export timestamp in sync-state.json
   const stateDir = path.join(rootDir, '.ai-workflow', 'state');

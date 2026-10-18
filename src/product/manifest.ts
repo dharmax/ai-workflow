@@ -12,6 +12,7 @@ import {
   Feature,
   Goal,
   Concept,
+  Flow,
   UserStory,
   Aspect,
   Decision,
@@ -236,6 +237,22 @@ export async function exportAuthoredState(store: WorkflowStore, rootDir: string 
     });
   }
 
+  // Export Flows
+  const flows = await store.listEntities<Flow>(Flow.dcr);
+  for (const fl of flows) {
+    authoredEntities.push({
+      id: store.localId(fl.id),
+      kind: 'Flow',
+      fields: {
+        title: fl.title,
+        body: fl.body,
+        status: fl.status,
+        actor: (fl as any).actor,
+        context: (fl as any).context
+      }
+    });
+  }
+
   // Export UserStories
   const stories = await store.listEntities<UserStory>(UserStory.dcr);
   for (const s of stories) {
@@ -361,10 +378,13 @@ export async function restoreAuthoredState(
   snapshot: AuthoredSnapshot
 ): Promise<{ restoredEntities: number; restoredRelations: number }> {
   store.assertCanWrite();
+  if (!snapshot || snapshot.version !== 1) {
+    throw new Error(`Unsupported snapshot version: ${snapshot?.version}`);
+  }
+
   let restoredEntities = 0;
   let restoredRelations = 0;
 
-  // Restore entities
   for (const item of snapshot.entities) {
     if (item.kind === 'Product') {
       await store.upsertEntity(Product.dcr, {
@@ -386,6 +406,12 @@ export async function restoreAuthoredState(
       restoredEntities++;
     } else if (item.kind === 'Concept') {
       await store.upsertEntity(Concept.dcr, {
+        id: item.id,
+        ...item.fields
+      });
+      restoredEntities++;
+    } else if (item.kind === 'Flow') {
+      await store.upsertEntity(Flow.dcr, {
         id: item.id,
         ...item.fields
       });
