@@ -72,3 +72,15 @@ Canonical TKT-EXT-SURFACE-10 remains **Blocked**, with the demonstrated assisted
 D1 remains unresolved. External-host review UI/delegation and general cross-surface acceptance are not claimed. Local deterministic CLI and Workspace review are the demonstrated host paths. This delivery does not accept PC2 as a whole, PC4, S6 or Gate 5.
 
 Publication procedure: retain the canonical Blocked status; release the lease; run `aiwf sync` for the supported projections and authored snapshot; commit the bounded correction on master; validate its detached pristine source checkout; fast-forward push master; compare local HEAD with `git ls-remote --heads origin master`. The final delivery response records the actual published commit and validation outcome.
+
+
+## Pristine checkout outcome and remaining aggregate blocker
+
+Detached clean AIWF source at implementation commit `7bc53d01a17f72e478140e73ec6879fbec6e3d4b`, path `/tmp/aiwf-ext-surface-10-pristine.PHYfIY`:
+
+- Typecheck, pack and `git diff --check` passed; tracked working state stayed clean.
+- Full aggregate: **540 pass / 5 opt-in skips / 1 fail**, 3,649 assertions, 110.45 seconds. Failure: `tests/change-engine.test.ts`, “Unsupported Rich Refactor Probe”, a 10-second beforeEach/afterEach hook timeout; two dangling processes were killed. Log: `/tmp/ext-pristine-full.log`. No isolated run or retry replaces this result.
+- The synchronous beforeEach creates only fixture files/store. The asynchronous afterEach awaits `closeAllTsLspClients()`, then `closeAllTs6RefactorClients()`. Both existing `close()` methods await an unbounded `sendRequest('shutdown')` before connection disposal/child termination. All body assertions completed; the retained trace does not distinguish which server failed to answer shutdown. This is a native-client teardown blocker, not demonstrated acceptance of a pristine aggregate. A shutdown-behavior change belongs to that separate owner and was deferred rather than folded into Product authority work.
+- Independently required packed public routes on that pristine build: **23 pass / 0 fail**, 260 assertions, 3.15 seconds. Log: `/tmp/ext-pristine-packed-public.log`. This is separate evidence and does not turn the failing full aggregate green.
+
+The subsequent evidence-only commit changes this report, canonical Blocked-state projections and publication metadata; implementation/test/package inputs remain identical to `7bc53d0`. Ticket acceptance remains blocked by the pristine aggregate, configured independent-resolution authentication, and unresolved D1 external-host trust policy. No clean/pristine whole-release acceptance is claimed.
