@@ -1,0 +1,1538 @@
+{
+  "version": 1,
+  "exportedAt": "2026-10-18T12:49:45.438Z",
+  "entities": [
+    {
+      "id": "ASP-AIWF-EFFICIENCY",
+      "kind": "Aspect",
+      "fields": {
+        "title": "Execution efficiency / token attention",
+        "body": "",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Bounded retrieval and freshness reuse avoid unnecessary writes/source exposure.",
+          "Token savings are claimed only when measured; deterministic operation timings and result sizes are recorded."
+        ]
+      }
+    },
+    {
+      "id": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "kind": "Aspect",
+      "fields": {
+        "title": "Bounded, proportional and measured autonomous acceptance",
+        "body": "Complements existing KISS, truthfulness and efficiency Aspects with the new roadmap's execution/acceptance obligations. Applies to downstream slices, not a new enforcement subsystem.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Scale investigation, retrieval and verification to demonstrated impact; mandatory governance remains mandatory and evidence reuse requires current validity.",
+          "At acceptance record baseline and outcome for at least one of capability, correctness, architectural simplicity or operational efficiency; demonstrate no unjustified regression in the others.",
+          "Repeated failure without new evidence stops execution, preserves recoverable state/evidence and reports the exact blocker; no threshold escalation or repetitive repository scans.",
+          "Inspect actual touched methods, callers, public contracts, ownership and failure paths; consequential defects, silent failures and invalid verification block release despite green tests.",
+          "Use existing leases, preview fingerprints, guarded mutations, tests, independent acceptance, receipts and projection sync under the user workflow; minimize manual bookkeeping without weakening guarantees."
+        ]
+      }
+    },
+    {
+      "id": "ASP-AIWF-KISS",
+      "kind": "Aspect",
+      "fields": {
+        "title": "Maintainability / KISS",
+        "body": "",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Entity-owned behavior and thin adapters; no service wrappers, shadow graph or generic workflow infrastructure.",
+          "Method-level review finds the smallest implementation that meets acceptance."
+        ]
+      }
+    },
+    {
+      "id": "ASP-AIWF-TRUTH",
+      "kind": "Aspect",
+      "fields": {
+        "title": "Robustness / truthfulness",
+        "body": "",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Exact facts use language tooling; heuristic facts and excerpts are labelled.",
+          "Completion requires verified acceptance; missing capability or evidence returns a truthful blocker."
+        ]
+      }
+    },
+    {
+      "id": "CONCEPT-AIWF-GOVERNED-SCOPE",
+      "kind": "Concept",
+      "fields": {
+        "title": "GovernedChangeScope ownership and Semantika consumer boundary",
+        "body": "Accepted requirements, not approval of unreviewed implementation details: one authoritative immutable scope joins declared targets, attributable observed guarded effects, applicable Rule layer identities/versions and relevant evidence. Ticket.resolve coordinates; existing change engine owns effects/attribution; RuleStore owns effective governance; existing verifier owns independent acceptance; Semantika owns consistency/atomicity. Verification and receipt issuance consume the same snapshot; scope, applicable governance and relevant evidence changes invalidate it. Distinguish execution-owned changes from unrelated pre-existing dirty state; preserve child boundaries and distinct Rule layers. Fail closed on unknown authoritative scope. Reuse Git, graph and guarded changes; no parallel tracker, duplicated scope calculations or compatibility scaffolding. Existing Gate 5 TKT-DOCTRINE-G5-RELEASE remains Blocked; fields/evidence untouched. Reuse its architecture audit, rather than create a competing implementation ticket. Outstanding Semantika question: public consistent multi-collection governance selection/read set including newly applicable Rules/ownership relationships, tied to atomic conditional receipt+completion. Public atomic batch CAS does not by itself establish that selection guarantee; StorageSession contract is ambiguous. Read public API/README/contract tests first. Record ambiguity as documentation/API issue; inspect internals only for a concrete defect with a stated reason. No Semantika refactoring or AIWF persistence compensation is authorized. Proposed detailed scope design still requires review.",
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "CONCEPT-AIWF-ROADMAP",
+      "kind": "Concept",
+      "fields": {
+        "title": "Roadmap execution and acceptance policy",
+        "body": "Implement only graph-ready, small independently verifiable slices. Required order: narrow Semantika public transaction contract -> existing Gate 5 governed scope and independent acceptance/Doctrine closure -> specific Transaction Integrity and Consumer Contract slices -> necessary Workflow Efficiency foundation -> existing CodeMutator plus explicit go/no-go -> Continuous Product Verification -> evidence-backed Engineering Intelligence. Configuration/interface work overlaps only when its actual prerequisites are verified. Never depend on an entire epic where a specific capability suffices. No independent planner, shadow transaction manager, second test database, scheduler or generic coding-agent subsystem. Routine workflow: Investigate -> Plan (existing preparation) -> Execute -> Verify -> Done. Historical R3 and its R2/R1 dependencies remain real obligations. CodeMutator is not delayed by optional improvements. Consequential structural defects at dogfood stop CPV; minor nonblocking improvements enter backlog.",
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-ARTIFACT-POLICY",
+      "kind": "Feature",
+      "fields": {
+        "title": "Completeness/depth/critic operation policy",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-ASPECTS",
+      "kind": "Feature",
+      "fields": {
+        "title": "First-class cross-cutting Aspects",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-BUG-LIFECYCLE",
+      "kind": "Feature",
+      "fields": {
+        "title": "Typed Bug identity and governed lifecycle",
+        "body": "A reporter retains reproducible defects as Bugs; execution and reopening remain evidence-governed.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Explicit Bug identity/classification and Bug-lane semantics replace title-substring guesses while preserving existing Ticket identities/history.",
+          "Bugs retain exact reproduction, expected/actual behavior and relevant source/test evidence.",
+          "One failure is not necessarily one Bug; one passing test does not automatically close a Bug."
+        ]
+      }
+    },
+    {
+      "id": "FEAT-AIWF-CONSUMER-CONTRACTS",
+      "kind": "Feature",
+      "fields": {
+        "title": "Usable public ecosystem contracts",
+        "body": "Consumers can use sibling libraries from public contracts and verified examples.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Critical contracts identify owners, invariants, failures, concurrency and backend limits.",
+          "Consumer examples compile/run without speculative wrappers, nonexistent imports or routine internal inspection.",
+          "Semantika gaps are documented at the dependency boundary, not compensated inside AIWF."
+        ]
+      }
+    },
+    {
+      "id": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "kind": "Feature",
+      "fields": {
+        "title": "Bidirectional product-to-reality verification",
+        "body": "Maintain relationships between enduring product guarantees and observed execution.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Both failure-to-product and product-to-current-evidence journeys work on real examples.",
+          "Stable suite/individual-test identities, evidence provenance and many-to-many Bug/Story/source mappings remain canonical.",
+          "Stale evidence, unverified claims and release gaps are explicit; facts/inferences/proposals are distinguishable."
+        ]
+      }
+    },
+    {
+      "id": "FEAT-AIWF-ENGINEERING-INTELLIGENCE",
+      "kind": "Feature",
+      "fields": {
+        "title": "Evidence-backed engineering insights",
+        "body": "Use current verification graph to identify demonstrated maintenance/product readiness needs.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "A bounded use case has observed user value and measured accuracy/cost.",
+          "Recommendations cite current facts and disclose inference/uncertainty.",
+          "No speculative autonomous housekeeping or duplicate graph/evidence state."
+        ]
+      }
+    },
+    {
+      "id": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "kind": "Feature",
+      "fields": {
+        "title": "Governed source completion and current proof",
+        "body": "Completion covers declared and attributable actual changes, all applicable Rule layers and current evidence.",
+        "status": "accepted",
+        "acceptanceCriteria": [
+          "Producer-authored links never prune actual governed changes.",
+          "Verification/receipt scope and Rule identity/version match; relevant races invalidate proof.",
+          "Dirty-tree attribution, child boundaries, old receipts and unknown scope have explicit truthful behavior."
+        ]
+      }
+    },
+    {
+      "id": "FEAT-AIWF-PERFORMANCE-METRICS",
+      "kind": "Feature",
+      "fields": {
+        "title": "Correlated AIWF + llm-utils performance telemetry",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "kind": "Feature",
+      "fields": {
+        "title": "High-level shell/MCP delegation surface",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-PRODUCT-PROCESSING",
+      "kind": "Feature",
+      "fields": {
+        "title": "Story/Feature/Epic semantic processing",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-TICKET-OPS",
+      "kind": "Feature",
+      "fields": {
+        "title": "Ticket investigation, preparation and end-to-end resolution",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "FEAT-AIWF-TRUTHFUL-PRIMITIVES",
+      "kind": "Feature",
+      "fields": {
+        "title": "Truthful, efficient code intelligence/change primitives",
+        "body": "Production capability governed by docs/artifact-operations-plan.md.",
+        "status": "accepted",
+        "acceptanceCriteria": [],
+        "completenessTarget": "production"
+      }
+    },
+    {
+      "id": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "kind": "Goal",
+      "fields": {
+        "title": "Increasingly autonomous, grounded engineering",
+        "body": "An engineering system understands enduring product intent through capabilities, actor behavior, requirements, governance, source symbols, tests and observed execution. Every phase improves capability, correctness, architectural clarity or efficiency without unjustified regression. Canonical graph is authoritative; epics.md/kanban.md are projections. This registration is planning only; no implementation authorization. Existing verified work and receipts remain historical evidence.",
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "STORY-AIWF-CLAIM-TO-EVIDENCE",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Release actor can inspect evidence and gaps for a product claim",
+        "status": "accepted",
+        "actor": "Human release reviewer or autonomous verifier",
+        "story": "Before relying on a capability or Actor Story, I can inspect its current supporting evidence, stale evidence and meaningful verification gaps.",
+        "acceptanceCriteria": [
+          "Capability -> enduring Story/requirements -> source/tests -> current execution evidence is navigable.",
+          "Changed source/governance/test evidence invalidates affected support; historical receipts remain readable.",
+          "Release output distinguishes unsupported claims, current observations and inferences; green tests alone do not certify readiness."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-CONTEXTUAL-EDIT",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Developer can edit a contextually referenced Ticket",
+        "status": "accepted",
+        "actor": "Human developer",
+        "story": "When I request edit last ticket, AIWF resolves the relevant creation/reference context and opens the canonical entity, or asks only the missing disambiguation question.",
+        "acceptanceCriteria": [
+          "Literal last ticket is never treated as an entity ID.",
+          "Most-recently-created and most-recently-referenced semantics are defined; ambiguous/no-context cases fail explicitly.",
+          "Explicit-ID editing, CLI/plain-shell/TTY behavior and unrelated records remain unchanged."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-DELEGATE-WORK",
+      "kind": "UserStory",
+      "fields": {
+        "title": "External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives",
+        "status": "accepted",
+        "actor": "External caller",
+        "story": "External coding agent can delegate artifact work to AIWF instead of orchestrating dozens of primitives",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "An external coding agent given a Ticket invokes artifact-level AIWF delegation first; consistent policy, explicit target persistence and primitive drill-down remain available."
+        ],
+        "completenessTarget": null
+      }
+    },
+    {
+      "id": "STORY-AIWF-EVIDENCE-BACKED-INSIGHT",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Maintainer receives useful evidence-backed engineering recommendations",
+        "status": "accepted",
+        "actor": "Maintainer",
+        "story": "With a current product verification graph, I can request one demonstrated engineering insight with cited evidence, uncertainty and measured benefit.",
+        "acceptanceCriteria": [
+          "A real use case is justified by CPV evidence before implementation.",
+          "Accuracy/false-positive costs and effort improvement are measured.",
+          "No autonomous repair/housekeeping is implied by a recommendation."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-FAILURE-TO-PRODUCT",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Maintainer can trace a failure to affected product behavior",
+        "status": "accepted",
+        "actor": "Maintainer or autonomous monitor",
+        "story": "When execution fails, I can trace the evidence through tests/source/governance to affected Actor Stories, requirements and capabilities, with attribution uncertainty explicit.",
+        "acceptanceCriteria": [
+          "A real failing Bun execution links to affected enduring Stories and capability/requirements.",
+          "Failure clusters can relate to multiple Bugs or no confirmed Bug; proposals are not promoted to facts.",
+          "Recovery preserves verification history and does not automatically close related Bugs."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-INVESTIGATE-TICKET",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Caller can obtain a grounded Ticket dossier without doing repository archaeology itself",
+        "status": "accepted",
+        "actor": "External caller",
+        "story": "Caller can obtain a grounded Ticket dossier without doing repository archaeology itself",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "Caller obtains a grounded read-only Ticket dossier with mandatory acceptance, Aspect and exact code evidence or precise missing-input requirements.",
+          "System-1 unavailable still yields correct behavior by retaining all mandatory evidence and falling back safely without failing engineering work."
+        ],
+        "completenessTarget": null
+      }
+    },
+    {
+      "id": "STORY-AIWF-PREPARE-TICKET",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Caller can make a broad Ticket executable or receive precise missing-input requirements",
+        "status": "accepted",
+        "actor": "External caller",
+        "story": "Caller can make a broad Ticket executable or receive precise missing-input requirements",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "Caller makes a broad Ticket executable through reviewed ordinary Ticket children or receives precise missing-input requirements; rerun creates no duplicates."
+        ],
+        "completenessTarget": null
+      }
+    },
+    {
+      "id": "STORY-AIWF-PROCESS-INTENT",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts",
+        "status": "accepted",
+        "actor": "External caller",
+        "story": "Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "Caller processes Story/Feature/Epic into necessary reviewed next-layer intent/work, reusing stable artifacts without ceremonial Stories or duplicate Tickets."
+        ],
+        "completenessTarget": null
+      }
+    },
+    {
+      "id": "STORY-AIWF-PUBLIC-CONTRACT-CONSUMER",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Producer can ground dependency calls through public contracts",
+        "status": "accepted",
+        "actor": "Autonomous engineering producer",
+        "story": "When generating or reviewing code, I can resolve real exported operations, callers, invariants and failure semantics from public contracts before proposing mutations.",
+        "acceptanceCriteria": [
+          "Required operations and imports are real and scope-grounded; ambiguous contracts produce an exact blocker.",
+          "Examples and measurements show fewer first-attempt failures and repeated retrieval without weakening governance."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-REPORT-BUG",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Reporter can register and retain a reproducible Bug",
+        "status": "accepted",
+        "actor": "Human or automated reporter",
+        "story": "When observed behavior differs from an accepted requirement, I can register/reuse a typed Bug with reproducible evidence and governed lifecycle, without losing its identity in generic feature work.",
+        "acceptanceCriteria": [
+          "Bug identity and lane semantics are explicit, not inferred from fix/bug substrings.",
+          "Duplicate reports and multiple failed tests reconcile without assuming one-to-one mapping.",
+          "Resolution/reopening cites current evidence and does not follow one passing test automatically."
+        ]
+      }
+    },
+    {
+      "id": "STORY-AIWF-RESOLVE-TICKET",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Caller can delegate a Ticket and receive verified completion / needs-input / blocked",
+        "status": "accepted",
+        "actor": "External caller",
+        "story": "Caller can delegate a Ticket and receive verified completion / needs-input / blocked",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "Caller delegates a Ticket and receives explicitly verified completion, needs_input or blocked, with safe edits, bounded repair and truthful leases."
+        ],
+        "completenessTarget": null
+      }
+    },
+    {
+      "id": "STORY-AIWF-SOPHISTICATED-GOAL",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Developer can ask compound goals and receive grounded, truthful answers across all requested parts",
+        "status": "accepted",
+        "actor": "External developer",
+        "story": "Developer can ask compound goals and receive grounded, truthful answers across all requested parts",
+        "context": "",
+        "sla": "",
+        "acceptanceCriteria": [
+          "Compound multi-part goals (e.g. project goal + critical path + missing work) acquire governing evidence, do not exhaust steps echoing notes, and answer every requested part.",
+          "Recommendation and candidate ranking queries (e.g. 2nd recommended ticket, extremes comparison) evaluate eligibility constraints against governing policy without hallucinating or selecting ineligible items.",
+          "Semantic capability discovery on compound queries correctly normalizes domain/object aliases (e.g. \"project\", \"critical path\") to valid registered capabilities without unsupported classification errors."
+        ],
+        "completenessTarget": null
+      }
+    }
+  ],
+  "relations": [
+    {
+      "sourceId": "AIWF-ASPECTS",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-ASPECTS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-FINAL-DOGFOOD-AUDIT",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-FINAL-DOGFOOD-AUDIT/PROCESS-VERIFICATION-EVIDENCE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-FINAL-DOGFOOD-AUDIT",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-FINAL-DOGFOOD-AUDIT/ROOT-REVIEW-CONTRACT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-FINAL-DOGFOOD-AUDIT",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-FINAL-DOGFOOD-AUDIT/VERIFIER-SOURCES",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-OPERATION-POLICY",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-ARTIFACT-POLICY",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-PERFORMANCE-METRICS",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-PERFORMANCE-METRICS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-PRIMARY-INTERFACE",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-DELEGATE-WORK",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "AIWF-PRIMARY-INTERFACE",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-PRIMARY-INTERFACE/MCP-OBJECT-SCHEMA",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-PRIMARY-INTERFACE",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-PRIMITIVE-TRUTH",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-TRUTHFUL-PRIMITIVES",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-PRODUCT-PROCESSING",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-PROCESS-INTENT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "AIWF-PRODUCT-PROCESSING",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-PRODUCT-PROCESSING/PROOF-ANCHORS",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-PRODUCT-PROCESSING",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "AIWF-PRODUCT-PROCESSING/TICKET-CYCLE-SCOPE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "AIWF-PRODUCT-PROCESSING",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-PRODUCT-PROCESSING",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-TICKET-INVESTIGATION",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-INVESTIGATE-TICKET",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "AIWF-TICKET-INVESTIGATION",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-TICKET-PREPARATION",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-PREPARE-TICKET",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "AIWF-TICKET-PREPARATION",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "AIWF-TICKET-RESOLUTION-FIRST-PROOF",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-RESOLVE-TICKET",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "AIWF-TICKET-RESOLUTION-FIRST-PROOF",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ARTIFACT-OPS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "ASP-AIWF-EFFICIENCY",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-EXECUTION-ACCEPTANCE",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ARTIFACT-OPS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-KISS",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ARTIFACT-OPS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "ASP-AIWF-TRUTH",
+      "sourceKind": "Aspect",
+      "predicate": "applies_to",
+      "targetId": "FEAT-AIWF-TRUTHFUL-PRIMITIVES",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-GOVERNED-SCOPE",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-DOCTRINE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "CONCEPT-AIWF-ROADMAP",
+      "sourceKind": "Concept",
+      "predicate": "governs",
+      "targetId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "targetKind": "Epic"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-ASPECTS",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-FINAL-DOGFOOD-AUDIT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-OPERATION-POLICY",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-PERFORMANCE-METRICS",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-PRIMITIVE-TRUTH",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-PRODUCT-PROCESSING",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-TICKET-INVESTIGATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-TICKET-PREPARATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "AIWF-TICKET-RESOLUTION-FIRST-PROOF",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-ARTIFACT-POLICY",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-ASPECTS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-PERFORMANCE-METRICS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-PRODUCT-PROCESSING",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-TRUTHFUL-PRIMITIVES",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ARTIFACT-OPS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-CONSUMER-CRITICAL-CONTRACTS",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONSUMER-CONTRACTS",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-CPV-REPRESENTATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-DOCTRINE",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-DOCTRINE",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-DOCTRINE",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-DOCTRINE",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "STORY-AIWF-RESOLVE-TICKET",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-INTELLIGENCE-FIRST-USECASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-ENGINEERING-INTELLIGENCE",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-1585",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-BUG-CONTEXTUAL-EDIT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-BUG-SYNC-MODULE-DRIFT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-BUG-TYPE-LANE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-SHELL-DOGFOOD-F",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-BUG-LIFECYCLE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-INTERFACE-CONSOLIDATION",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "STORY-AIWF-CONTEXTUAL-EDIT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-TRANSACTION-PRODUCT-BATCH",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-TRANSACTION-INTEGRITY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-CODEMUTATOR-GO-NOGO",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-DOGFOOD-CODE-MUTATOR",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-WORKFLOW-BASELINE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "contains",
+      "targetId": "TKT-WORKFLOW-FOUNDATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-PERFORMANCE-METRICS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "FEAT-AIWF-TRUTHFUL-PRIMITIVES",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "GOAL-AIWF-AUTONOMOUS-ENGINEERING",
+      "targetKind": "Goal"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "STORY-AIWF-DELEGATE-WORK",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "EPIC-AIWF-WORKFLOW-EFFICIENCY",
+      "sourceKind": "Epic",
+      "predicate": "targets",
+      "targetId": "STORY-AIWF-PUBLIC-CONTRACT-CONSUMER",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-BUG-LIFECYCLE",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-REPORT-BUG",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-CONSUMER-CONTRACTS",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-PUBLIC-CONTRACT-CONSUMER",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-CLAIM-TO-EVIDENCE",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-FAILURE-TO-PRODUCT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-ENGINEERING-INTELLIGENCE",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-EVIDENCE-BACKED-INSIGHT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-RESOLVE-TICKET",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "sourceKind": "Feature",
+      "predicate": "enables",
+      "targetId": "STORY-AIWF-CONTEXTUAL-EDIT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "TKT-1585",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-BUG-CONTEXTUAL-EDIT",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-CONTEXTUAL-EDIT",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "TKT-BUG-CONTEXTUAL-EDIT",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-BUG-TYPE-LANE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-BUG-CONTEXTUAL-EDIT",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-PRIMARY-INTERFACE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-BUG-SYNC-MODULE-DRIFT",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "STORY-AIWF-REPORT-BUG",
+      "targetKind": "UserStory"
+    },
+    {
+      "sourceId": "TKT-BUG-SYNC-MODULE-DRIFT",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-BUG-TYPE-LANE",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-BUG-TYPE-LANE",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-BUG-LIFECYCLE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-CODEMUTATOR-GO-NOGO",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOGFOOD-CODE-MUTATOR",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-CONSUMER-CRITICAL-CONTRACTS",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-CONSUMER-CRITICAL-CONTRACTS",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-CONSUMER-CONTRACTS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-CPV-REPRESENTATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-CPV-REPRESENTATION",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-BUG-TYPE-LANE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-CPV-REPRESENTATION",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-CODEMUTATOR-GO-NOGO",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-CPV-REPRESENTATION",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-CONTINUOUS-VERIFICATION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-DOCTRINE-G5-RELEASE",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-DOGFOOD-CODE-MUTATOR",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-DOGFOOD-CODE-MUTATOR",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-WORKFLOW-FOUNDATION",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-INTELLIGENCE-FIRST-USECASE",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-INTELLIGENCE-FIRST-USECASE",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-ENGINEERING-INTELLIGENCE",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-RESOLVE-RECOVERY-R3",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "ASP-AIWF-KISS",
+      "targetKind": "Aspect"
+    },
+    {
+      "sourceId": "TKT-RESOLVE-RECOVERY-R3",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-RILZ",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-RILZ",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "ASP-AIWF-KISS",
+      "targetKind": "Aspect"
+    },
+    {
+      "sourceId": "TKT-RILZ",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-RESOLVE-RECOVERY-R1",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-SHELL-DOGFOOD-F",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-TRANSACTION-PRODUCT-BATCH",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-TRANSACTION-PRODUCT-BATCH",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-GOVERNED-COMPLETION",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-BASELINE",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-DOCTRINE-G5-RELEASE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-BASELINE",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-PERFORMANCE-METRICS",
+      "targetKind": "Feature"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-FOUNDATION",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-CONSUMER-CRITICAL-CONTRACTS",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-FOUNDATION",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-TRANSACTION-PRODUCT-BATCH",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-FOUNDATION",
+      "sourceKind": "Ticket",
+      "predicate": "depends_on",
+      "targetId": "TKT-WORKFLOW-BASELINE",
+      "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-WORKFLOW-FOUNDATION",
+      "sourceKind": "Ticket",
+      "predicate": "implements",
+      "targetId": "FEAT-AIWF-TICKET-OPS",
+      "targetKind": "Feature"
+    }
+  ]
+}

@@ -92,11 +92,11 @@ kanban-plugin: board
 - [/] **TKT-RF0W**: S4: Derive and reconcile reviewed work and executable Story tests
 - [/] **TKT-7MI2**: S5: Activate and execute reviewed Story tests before implementation
 - [/] **TKT-PC1B**: PC1b: normalized commands and reviewed governed links
+- [/] **TKT-EXT-SURFACE-10**: BUG: close public Product mutation authority bypass
+  - Summary: [EXT-SURFACE-10] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: bug. Priority: P0, prerequisite to ANY exposed Product/Link writing, including EXT-SURFACE-03 and -08.  Observed: direct public writers including define_product/update_product use applyProductMutations independently of the separately available S2 preview/apply review boundary. Investigate actual host execution context and full direct callers first; patch at the canonical owner, not a cosmetic tool allowlist.
 
 ## Done
 
-- [x] **TKT-EXT-SURFACE-10**: BUG: close public Product mutation authority bypass
-  - Summary: [EXT-SURFACE-10] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: bug. Priority: P0, prerequisite to ANY exposed Product/Link writing, including EXT-SURFACE-03 and -08. Closed unreviewed public bypass by eliminating direct mutators (define_product, update_product) from the public MCP surface and verifying that read-only callers cannot apply changes even with decision: accept.
 - [x] **TKT-001**: Explore codebase and run diagnostics
   - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
 - [x] **TKT-UWR1**: DBG-001: Implement aiwf debug and triage CLI facilities
