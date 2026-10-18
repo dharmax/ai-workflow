@@ -11,6 +11,7 @@ import { buildIntentContext, collectProductMeaning } from '../src/product/contex
 import { exportProjections, importProjections } from '../src/graph/projections.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
+import { PUBLIC_MCP_TOOL_NAMES } from '../src/tools/surface.ts';
 
 const binary = process.env.AIWF_PUBLIC_BINARY;
 const cli = path.resolve(import.meta.dir, '../src/cli.ts');
@@ -324,6 +325,33 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       const manifestWithStandalone = await generateProductManifest(store);
       expect(manifestWithStandalone).toContain('## Other Features (Unlinked)');
       expect(manifestWithStandalone).toContain('**feat:standalone**: Standalone Feature');
+
+      // h) TKT-EXT-SURFACE-10: Public MCP surface does not expose direct bypass mutators (define_product, update_product)
+      expect(PUBLIC_MCP_TOOL_NAMES.has('define_product')).toBe(false);
+      expect(PUBLIC_MCP_TOOL_NAMES.has('update_product')).toBe(false);
+      expect(PUBLIC_MCP_TOOL_NAMES.has('link')).toBe(true);
+      expect(PUBLIC_MCP_TOOL_NAMES.has('get_product')).toBe(true);
+
+      // i) TKT-EXT-SURFACE-10: Read-only / external agent without project-write authority cannot apply changes even with decision: accept
+      const unauthorizedReq: ChangeRequest = {
+        action: 'product_change',
+        mutations: [
+          {
+            kind: 'product_create',
+            entityType: 'Feature',
+            id: 'feat:unauthorized',
+            fields: { title: 'Unauthorized Feature', body: 'Should not write', status: 'draft' }
+          }
+        ]
+      };
+      const unauthPreview = await call('preview_change', unauthorizedReq);
+      expect(unauthPreview.blocked).toBe(false);
+      await expect(call('apply_change', {
+        request: unauthorizedReq,
+        fingerprint: unauthPreview.fingerprint,
+        decision: 'accept'
+      }, 'read-only')).rejects.toThrow(/project-write/);
+      expect(await store.getEntity('feat:unauthorized', Feature.dcr)).toBeNull();
     });
   });
 
