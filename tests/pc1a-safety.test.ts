@@ -1,3 +1,4 @@
+import {createProduct} from './product-review.ts';
 import {afterEach,beforeEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -100,7 +101,7 @@ describe('PC1a canonical safety through public tools',()=>{
 
   it('denies legacy content, lease, relation and state writes with the canonical rows unchanged',async()=>{
     await call('create_ticket',{id:'T',title:'Original'});
-    await call('create_user_story',{id:'S',title:'Draft story'});
+    await createProduct(store,'UserStory',{id:'S',title:'Draft story'});
     const before=snapshot();
     for(const [name,params] of [
       ['update_ticket',{ticketId:'T',title:'Unauthorized'}],
@@ -160,7 +161,7 @@ describe('PC1a canonical safety through public tools',()=>{
 
   it('abort at the atomic commit leaves no partial accepted records and releases admission',async()=>{
     const request={action:'product_change',mutations:[
-      {kind:'product_create',entityType:'Feature',id:'F',fields:{title:'Feature',status:'accepted'}},
+      {kind:'product_create',entityType:'Feature',id:'F',fields:{title:'Feature',body:'Deliver the reviewed capability',status:'accepted'}},
       {kind:'product_create',entityType:'Ticket',id:'T',fields:{title:'Task'}}
     ]};
     const preview=await call('preview_change',request),abort=new AbortController();
@@ -169,7 +170,7 @@ describe('PC1a canonical safety through public tools',()=>{
       if(entries.some(entry=>entry.collectionName==='aiwf_Feature'&&entry.record)) abort.abort();
       return apply(entries);
     });
-    try {await expect(call('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},'project-write',abort.signal)).rejects.toThrow();}
+    try {await expect(store.withExecutionContext('project-write',abort.signal,()=>call('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},'project-write',abort.signal),preview.fingerprint)).rejects.toThrow();}
     finally {spy.mockRestore();}
     reopen();
     expect(await store.getEntity('F')).toBeNull();expect(await store.getEntity('T')).toBeNull();

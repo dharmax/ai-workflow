@@ -159,6 +159,8 @@ export interface ChangePreview {
 }
 
 export interface ChangeApplyResult {
+  status?: 'review_required';
+  preview?: ChangePreview;
   ok: boolean;
   fingerprint: string;
   filesTouched: string[];

@@ -1,3 +1,4 @@
+import {createAspect} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import { CompletionEngine } from '@dharmax/llm-utils';
 import fs from 'node:fs';
@@ -39,7 +40,7 @@ describe('Ticket-owned bounded resolution', () => {
   const fix: ResolutionOptions = { systemOne, critic: 'none', verify, implement: async () => ({ changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) };
 
   it('surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof', async () => {
-    const t = await ticket(); const a = await Aspect.create(store, { id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
+    const t = await ticket(); const a = await createAspect(store,{ id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
     const result = await t.resolve(store, fix); expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
     expect(result.value).toMatchObject({ verification: true, resolved: ['T'], repairs: 0 }); expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b');
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null });

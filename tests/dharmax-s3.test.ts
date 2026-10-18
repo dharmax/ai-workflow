@@ -1,3 +1,4 @@
+import {createProduct,acceptProduct} from './product-review.ts';
 import { describe, it, expect, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -126,7 +127,7 @@ describe('S3 Workspace public developer journeys', () => {
     expect(snapshot()).toEqual(before);
     await page.getByRole('button',{name:'Review proposal',exact:true}).click();
     await page.getByLabel('Proposal JSON',{exact:true}).fill(JSON.stringify({action:'product_change',originalRequest:'Avatar filters',mutations:[
-      {kind:'product_create',entityType:'Feature',id:'P',fields:{title:'Proposed filters',status:'proposed'}}
+      {kind:'product_create',entityType:'Feature',id:'P',fields:{title:'Proposed filters',body:'Preview and save filtered avatars',status:'proposed'}}
     ]}));
     await page.getByRole('button',{name:'Load proposal',exact:true}).click();
     await page.getByLabel('Title',{exact:true}).fill('Reviewed filters');
@@ -185,10 +186,10 @@ describe('S3 Workspace public developer journeys', () => {
 
   it('DW-02 edits a Story without dropping its other existing Feature relationships', async () => {
     const page=await setup();
-    await call('create_feature',{id:'F',title:'Avatar Filters'});
-    await call('create_feature',{id:'G',title:'Avatar Profile'});
-    await call('create_user_story',{id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Preview persists',status:'accepted'});
-    for(const sourceId of ['F','G']) await call('link_product',{sourceId,predicate:'enables',targetId:'S'});
+    await createProduct(store, "Feature", {id:'F',title:'Avatar Filters'});
+    await createProduct(store, "Feature", {id:'G',title:'Avatar Profile'});
+    await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Preview persists',status:'accepted'});
+    for(const sourceId of ['F','G']) await acceptProduct(store, [{kind:"product_link",sourceId,predicate:'enables',targetId:'S'}]);
     await page.getByRole('button',{name:'Reload canonical data',exact:true}).click();
     await page.getByRole('button',{name:'Save avatar',exact:true}).click();
     await page.getByRole('status').filter({hasText:'Loaded S'}).waitFor();

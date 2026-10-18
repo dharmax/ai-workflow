@@ -1,3 +1,5 @@
+import {reviewedApply} from './product-review.ts';
+import {createAspect} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -15,7 +17,7 @@ async function reviewAndAccept(entity: Epic | Feature | UserStory, store: Workfl
   if (result.status === 'complete') {
     initializeTools();
     for (const preview of result.value.proposals) {
-      const applied = await registry.execute('apply_change', {request: preview.request, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root, executionAuthority: 'project-write'});
+      const applied = await reviewedApply(store, {request: preview.request, fingerprint: preview.fingerprint, decision: 'accept'});
       expect(applied.ok).toBe(true);
     }
   }
@@ -96,7 +98,7 @@ describe('entity-owned Product Intent processing', () => {
 
   it('honors explicit descendant completeness and breadth while Aspect review consumes no depth', async () => {
     const e = await epic(), f = await feature(); await store.upsertEntity(Feature.dcr, { id: 'F', completenessTarget: 'poc' }); await store.relate(e, 'targets', f);
-    const a = await Aspect.create(store, { id: 'A', title: 'Durability', acceptanceCriteria: ['Restart safe'] });
+    const a = await createAspect(store,{ id: 'A', title: 'Durability', acceptanceCriteria: ['Restart safe'] });
     const targets: string[] = [];
     const result = await reviewAndAccept(e, store, { ...options, completeness: 'production', depth: 2, propose: async context => { targets.push(`${context.id}:${context.completeness}`); return empty({ aspectIds: context.id === 'E' ? ['A'] : [] }); } });
     expect(result.status).toBe('complete'); expect(targets).toEqual(['E:production', 'F:poc']); expect((await store.getOutgoing(a.id, 'applies_to')).length).toBe(1);

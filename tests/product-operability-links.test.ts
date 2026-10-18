@@ -1,3 +1,4 @@
+import {acceptProduct} from './product-review.ts';
 import {afterEach,beforeEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -20,7 +21,7 @@ describe('PC1b governed relation public proof',()=>{
  let root:string,store:WorkflowStore;
  const call=(name:string,args:unknown,authority:'project-write'|'read-only'='project-write')=>registry.execute(name,args,{store,projectRoot:root,executionAuthority:authority});
  const preview=(extra:Record<string,unknown>={})=>call('link',{action:'preview_add',sourceId:'E1',targetId:'G1',predicate:'targets',...extra});
- const accept=(p:any,decision='accept',authority:'project-write'|'read-only'='project-write')=>call('apply_change',{request:p.request,fingerprint:p.fingerprint,decision},authority);
+ const accept=(p:any,decision='accept',authority:'project-write'|'read-only'='project-write')=>store.withExecutionContext(authority,undefined,()=>call('apply_change',{request:p.request,fingerprint:p.fingerprint,decision},authority),p.fingerprint);
  const rows=async()=>productEdgeRows(store,(await store.getEntity('E1',Epic.dcr))!.id);
  const reopen=()=>{store.close();store=new WorkflowStore(root);};
  beforeEach(async()=>{root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-pc1b-proof-'));store=new WorkflowStore(root);initializeTools();
@@ -69,7 +70,7 @@ describe('PC1b governed relation public proof',()=>{
   await expect(preview({sourceId:'G1',targetId:'E1'})).rejects.toThrow('Ambiguous');
   expect((await preview({sourceId:'g1',targetId:'E1'})).blocked).toBe(true);
   for(const id of ['T1','T2','T3']) await store.upsertEntity(Ticket.dcr,{id,title:id,lane:'Todo'});
-  await call('link_product',{sourceId:'T1',predicate:'depends_on',targetId:'T2'});await call('link_product',{sourceId:'T2',predicate:'contains',targetId:'T3'});
+  await acceptProduct(store, [{kind:"product_link",sourceId:'T1',predicate:'depends_on',targetId:'T2'}]);await acceptProduct(store, [{kind:"product_link",sourceId:'T2',predicate:'contains',targetId:'T3'}]);
   expect((await preview({sourceId:'T3',targetId:'T1',predicate:'depends_on'})).blocked).toBe(true);
   expect((await preview({sourceId:'T1',targetId:'T1',predicate:'depends_on'})).blocked).toBe(true);
  });
@@ -127,7 +128,7 @@ describe('PC1b governed relation public proof',()=>{
   const incoming=await call('link',{action:'inspect',id:'G1',direction:'incoming'});expect(incoming.links[0].direction).toBe('incoming');
  });
  it('runs strict typed discovery/preview and refusal over real stdio MCP and reopens',async()=>{
-  const transport=new StdioClientTransport({command:binary??'bun',args:binary?['mcp']:[cli,'mcp'],cwd:root,env:{...process.env,AIWF_EXECUTION_AUTHORITY:'read-only'} as Record<string,string>,stderr:'pipe'});
+  const transport=new StdioClientTransport({command:binary??'bun',args:binary?['mcp']:[cli,'mcp'],cwd:root,env:{...process.env,AIWF_EXECUTION_AUTHORITY:'read-only'} as Record<string,string>,stderr:'inherit'});
   const client=new Client({name:'pc1b-proof',version:'1'});
   try {await client.connect(transport);const tools=await client.listTools();const schema=tools.tools.find(t=>t.name==='link')!.inputSchema;expect(schema.oneOf??schema.anyOf).toBeArray();
    const rpc=async(args:any)=>{const response=await client.callTool({name:'link',arguments:args});return {response,value:response.isError?null:JSON.parse((response.content as Array<{text:string}>)[0]!.text)};};

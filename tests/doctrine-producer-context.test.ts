@@ -1,3 +1,4 @@
+import {createAspect,acceptProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -350,16 +351,16 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
       ]
     });
 
-    const proposedAspect = await Aspect.create(store, {
+    const proposedAspect = await createAspect(store,{
       id: 'ASP-PROPOSED', title: 'Proposed caching', status: 'proposed',
       acceptanceCriteria: ['Cache every tax calculation']
     });
     const feature = await store.upsertEntity<Feature>(Feature.dcr, {
       id: 'FEAT-TAX', title: 'Tax calculation'
     });
-    await acceptedAspect.applyTo(feature, store);
-    await draftAspect.applyTo(feature, store);
-    await proposedAspect.applyTo(feature, store);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(acceptedAspect.id),predicate:"applies_to",targetId:store.localId(feature.id)}]);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(draftAspect.id),predicate:"applies_to",targetId:store.localId(feature.id)}]);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(proposedAspect.id),predicate:"applies_to",targetId:store.localId(feature.id)}]);
     const decision = await store.sp.createEntity<Decision>(Decision.dcr, {
       id:store.formatId(Decision.dcr,"DEC-TAX"),_id:store.formatId(Decision.dcr,"DEC-TAX"), title: 'Tax arithmetic',
       decision: 'Use decimal arithmetic for tax calculations.',

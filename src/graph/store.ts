@@ -70,18 +70,27 @@ type BatchEntry = Parameters<SqliteStore['applyBatch']>[0][number];
 type AdmissionLease = z.infer<typeof admissionSchema>[number];
 
 export class WorkflowStore {
-  private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean}>();
+  private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean; productFingerprint?: string}>();
 
   /** Host context is inherited by every canonical writer, including legacy adapters. */
-  async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>): Promise<T> {
+  async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>, productFingerprint?: string): Promise<T> {
     const parent = this.execution.getStore();
+    let active = true;
     const context = {
       authority: parent && (!parent.active || parent.authority === 'read-only') ? 'read-only' as const : authority,
       signal: parent?.signal && signal ? AbortSignal.any([parent.signal, signal]) : parent?.signal ?? signal,
-      active: true
+      get active() { return active && (!parent || parent.active); },
+      // Only host code can supply review context; tool arguments never reach it.
+      productFingerprint: parent ? parent.productFingerprint : productFingerprint
     };
     try { return await this.execution.run(context, work); }
-    finally { context.active = false; }
+    finally { active = false; }
+  }
+
+  /** Project-write grants execution, not approval of Product meaning. */
+  canReviewProduct(fingerprint: string): boolean {
+    const context = this.execution.getStore();
+    return !context || context.active && context.productFingerprint === fingerprint;
   }
 
   assertCanWrite(): void {
@@ -292,6 +301,13 @@ export class WorkflowStore {
 
   private assertEntityWrite(type: string, id: string | undefined, fields: Record<string, unknown>, previous?: Record<string, unknown>): void {
     this.assertCanWrite();
+    if (this.execution.getStore() && ['Product','Goal','Concept','Flow','Epic','Feature','UserStory','Aspect'].includes(type) &&
+        !(previous && 'completenessTarget' in fields && Object.keys(fields).every(key => ['id','_id','completenessTarget'].includes(key))))
+      throw Error('Product definitions require reviewed preview/apply; direct tool authoring cannot bypass review.');
+    if (this.execution.getStore() && type === 'ModuleNode' &&
+        (['body','responsibilities','boundaries','intentStatus'].some(key => key in fields) ||
+          Object.keys(fields).length === 0 && previous?.body))
+      throw Error('Module intention requires reviewed Product preview/apply.');
     if (type === 'Ticket') assertTicketAuthoring(fields, previous);
     if (type === 'Artifact' && id && /^(?:VERIFY-|GOVERNANCE-ADMISSION$)/.test(this.localId(id)))
       throw Error('Verification receipts and admission records are owner-managed.');
@@ -556,9 +572,15 @@ export class WorkflowStore {
     return docs.map(doc => this.ownEntity(this.sp.makeEntity<T>(dcr, doc._id || doc.id, doc)));
   }
 
-  /**
-   * Connects two entities via a semantic predicate.
-   */
+  private assertProductRelationWrite(source: AbstractEntity | null, target: AbstractEntity | null, predicate: string): void {
+    if (!this.execution.getStore()) return;
+    const definitions = ['Product','Goal','Concept','Flow','Epic','Feature','UserStory','Aspect'];
+    if (source && definitions.includes(source.typeName()) ||
+        target && definitions.includes(target.typeName()) && !(source instanceof TestNode && predicate === 'verifies'))
+      throw Error('Product relations require reviewed preview/apply; direct tool authoring cannot bypass review.');
+  }
+
+  /** Connect two entities via a semantic predicate. */
   async relate(
     source: AbstractEntity | string,
     predicateName: SemanticPredicateName | string,
@@ -577,6 +599,7 @@ export class WorkflowStore {
     if (!sourceEntity) throw new Error(`Source entity not found: ${typeof source === 'string' ? source : source.id}`);
     if (!targetEntity) throw new Error(`Target entity not found: ${typeof target === 'string' ? target : target.id}`);
 
+    this.assertProductRelationWrite(sourceEntity, targetEntity, predicateName);
     const governanceEdge = ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory']
       .includes(sourceEntity.typeName()) || sourceEntity instanceof Ticket ||
       ['Rule', 'Decision', 'Aspect', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(targetEntity.typeName()) ||
@@ -624,6 +647,7 @@ export class WorkflowStore {
     const pCol = await this.sp.predicateCollection((semanticPredicates as Record<string, PredicateDcr>)[predicateName]);
     const src = await this.getEntity(sourceId);
     const tgt = await this.getEntity(targetId);
+    this.assertProductRelationWrite(src, tgt, predicateName);
     const query = {sourceId: src?.id || sourceId, predicateName, targetId: tgt?.id || targetId};
     if (src instanceof Ticket || [src, tgt].some(entity => entity && ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName())) ||
       predicateName === 'contains' && (src instanceof FileNode || src instanceof SymbolNode) && tgt instanceof SymbolNode) {

@@ -23,7 +23,7 @@ import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/index
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
 import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
-import { validateProductMutations, applyProductMutations, productDependents } from '../product/mutation.ts';
+import { validateProductMutations, applyProductMutations, ProductReviewRequired, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
   ChangeRequest,
@@ -696,7 +696,13 @@ export class CausalChangeEngine {
     }
 
     if (request.action === 'product_change') {
-      const committed = await applyProductMutations(this.store, request.mutations, {request, fingerprint});
+      let committed: Awaited<ReturnType<typeof applyProductMutations>>;
+      try { committed = await applyProductMutations(this.store, request.mutations, {request, fingerprint}); }
+      catch (error) {
+        if (!(error instanceof ProductReviewRequired)) throw error;
+        return {ok: false, status: 'review_required', fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
+          verification: {passed: false, errors: []}, error: error.message, preview};
+      }
       const errors: string[] = [];
       for (const mutation of request.mutations) {
         if (mutation.kind === 'product_delete') {

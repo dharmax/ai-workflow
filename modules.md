@@ -4,9 +4,9 @@
 
 | Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |
 | :--- | :---: | :---: | :---: | :--- |
-| `root` | project default | 193 | 0 | None |
-| `src/graph` | project default | 939 | 0 | None |
-| `src/tools` | project default | 569 | 0 | None |
+| `root` | project default | 209 | 0 | None |
+| `src/graph` | project default | 947 | 0 | None |
+| `src/tools` | project default | 576 | 0 | None |
 | `src/actor` | project default | 392 | 0 | None |
 | `src/mcp` | project default | 39 | 0 | None |
 | `src/shell` | project default | 151 | 0 | None |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 74 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | None |
 | `src/setup` | project default | 135 | 0 | None |
-| `tests` | project default | 1831 | 0 | None |
+| `tests` | project default | 1883 | 0 | None |
 | `skills` | project default | 11 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | None |
@@ -27,16 +27,16 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | None |
 | `src/kb` | project default | 140 | 0 | None |
-| `docs` | project default | 509 | 0 | None |
-| `src/product` | project default | 626 | 0 | None |
-| `src/change` | project default | 702 | 0 | None |
+| `docs` | project default | 515 | 0 | None |
+| `src/product` | project default | 638 | 0 | None |
+| `src/change` | project default | 703 | 0 | None |
 | `src/typescript-runtime` | project default | 76 | 0 | None |
 | `src/artifact-policy` | project default | 86 | 0 | None |
 | `src/aspects` | project default | 35 | 0 | None |
 | `src/ticket-operation-types` | project default | 195 | 0 | None |
 | `src/artifact-critic` | project default | 31 | 0 | None |
 | `src/performance-metrics` | project default | 167 | 0 | None |
-| `src/artifact-command` | project default | 54 | 0 | None |
+| `src/artifact-command` | project default | 64 | 0 | None |
 | `src/model-runtime` | project default | 58 | 0 | None |
 | `src/version` | project default | 16 | 0 | None |
 | `scripts` | project default | 62 | 0 | None |
@@ -47,7 +47,7 @@
 | `src/client-guidance` | project default | 3 | 0 | None |
 | `@external/@dharmax/skill-manager` | project default | 356 | 0 | None |
 | `src/synthesis` | project default | 66 | 0 | None |
-| `plans` | project default | 75 | 0 | None |
+| `plans` | project default | 104 | 0 | None |
 | `src/config-command` | project default | 14 | 0 | None |
 | `src/setup-command` | project default | 6 | 0 | None |
 | `src/ticket-command` | project default | 22 | 0 | None |

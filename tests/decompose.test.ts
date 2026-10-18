@@ -1,3 +1,4 @@
+import {reviewedApply} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,7 +17,7 @@ import { saveConfig } from '../src/config.ts';
 import { applyEpicStructure as prepareEpicStructure } from '../src/product/apply.ts';
 async function applyEpicStructure(store: WorkflowStore, proposal: EpicStructureProposal) {
   const prepared = await prepareEpicStructure(store, proposal);
-  const result = await registry.execute('apply_change', {request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept'}, {store, projectRoot: store.root, executionAuthority: 'project-write'});
+  const result = await reviewedApply(store, {request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept'});
   if (!result.ok) throw new Error(result.error);
   return {...prepared, applied: true};
 }

@@ -1,3 +1,4 @@
+import {createProduct,acceptProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -26,24 +27,24 @@ describe('top-level Product Intent journey mechanisms', () => {
   })
 
   it('J1.2 extends an actor journey with a reusable capability instead of making the Feature own the Story', async () => {
-    await registry.execute('create_goal', {
+    await createProduct(ctx.store, "Goal", {
       id: 'GOAL-TRUST',
       title: 'Keep daily engineering work trustworthy',
       body: 'A developer should be able to delegate routine work without reconstructing repository state.'
-    }, ctx)
-    await registry.execute('create_concept', {
+    })
+    await createProduct(ctx.store, "Concept", {
       id: 'CONCEPT-ARTIFACT',
       title: 'Artifact-first engineering',
       body: 'Durable project artifacts and evidence are authoritative; chat is not project state.'
-    }, ctx)
-    await registry.execute('create_flow', {
+    })
+    await createProduct(ctx.store, "Flow", {
       id: 'FLOW-DAILY',
       title: 'Choose and execute daily work',
       actor: 'Developer',
       context: 'The developer opens AIWF in an existing repository.',
       body: 'The developer asks what to do next, understands why it matters, delegates the work, and sees verified completion.'
-    }, ctx)
-    await registry.execute('create_user_story', {
+    })
+    await createProduct(ctx.store, "UserStory", {
       id: 'STORY-NEXT',
       title: 'Developer asks what to work on next',
       actor: 'Developer',
@@ -55,19 +56,19 @@ describe('top-level Product Intent journey mechanisms', () => {
       story: 'The developer asks for the next recommended ticket; AIWF returns an actionable recommendation with a concise reason and the developer can continue immediately.',
       acceptanceCriteria: ['The recommendation is actionable and grounded in current project state'],
       status: 'accepted'
-    }, ctx)
-    await registry.execute('create_feature', {
+    })
+    await createProduct(ctx.store, "Feature", {
       id: 'FEAT-RECOMMEND',
       title: 'Work recommendation',
       body: 'Select and explain the next actionable work item.',
       acceptanceCriteria: ['Recommendation respects current actionable project state'],
       status: 'accepted'
-    }, ctx)
+    })
 
-    await registry.execute('link_product', { sourceId: 'FLOW-DAILY', predicate: 'serves', targetId: 'GOAL-TRUST' }, ctx)
-    await registry.execute('link_product', { sourceId: 'CONCEPT-ARTIFACT', predicate: 'governs', targetId: 'FLOW-DAILY' }, ctx)
-    await registry.execute('link_product', { sourceId: 'FLOW-DAILY', predicate: 'contains', targetId: 'STORY-NEXT' }, ctx)
-    await registry.execute('link_product', { sourceId: 'FEAT-RECOMMEND', predicate: 'enables', targetId: 'STORY-NEXT' }, ctx)
+    await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-DAILY',predicate: 'serves',targetId: 'GOAL-TRUST'}])
+    await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'CONCEPT-ARTIFACT',predicate: 'governs',targetId: 'FLOW-DAILY'}])
+    await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-DAILY',predicate: 'contains',targetId: 'STORY-NEXT'}])
+    await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-RECOMMEND',predicate: 'enables',targetId: 'STORY-NEXT'}])
 
     const story = await registry.execute('get_user_story', { storyId: 'STORY-NEXT' }, ctx)
     const feature = await registry.execute('get_feature', { featureId: 'FEAT-RECOMMEND' }, ctx)
@@ -217,7 +218,7 @@ describe('top-level Product Intent journey mechanisms', () => {
     expect((await store.getEntity<Feature>('F-OLD', Feature.dcr))!.title).toBe('Renamed capability')
     expect(await store.getOutgoing(feature.id, 'enables')).toEqual([])
     expect(await store.getOutgoing(feature.id, 'contains')).toHaveLength(1)
-    await registry.execute('unlink_product', { sourceId: 'F-OLD', predicate: 'contains', targetId: 'S-OLD' }, ctx)
+    await acceptProduct(ctx.store, [{kind:"product_unlink",sourceId: 'F-OLD',predicate: 'contains',targetId: 'S-OLD'}])
     expect(await store.getOutgoing(feature.id, 'contains')).toEqual([])
   })
 

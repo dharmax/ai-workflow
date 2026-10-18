@@ -1,3 +1,5 @@
+import {createAspect,updateProduct} from './product-review.ts';
+import {acceptProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,7 +15,7 @@ describe('first-class Aspects', () => {
   let root: string, store: WorkflowStore;
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-aspects-')); store = new WorkflowStore(root); initializeTools(); });
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
-  const aspect = (id: string) => Aspect.create(store, { id, title: id, status: 'accepted', acceptanceCriteria: ['Relevant evidence supports the concern'] });
+  const aspect = (id: string) => createAspect(store,{ id, title: id, status: 'accepted', acceptanceCriteria: ['Relevant evidence supports the concern'] });
 
   it('keeps Epic concerns on its work, inherits Feature concerns into Story work, and deduplicates Module/parent paths', async () => {
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic' });
@@ -23,22 +25,22 @@ describe('first-class Aspects', () => {
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Parent', lane: 'Todo' });
     const c = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'C', title: 'Child', lane: 'Todo' });
     const initiative = await aspect('initiative'), robust = await aspect('robust'), module = await aspect('module');
-    await initiative.applyTo(e, store); await robust.applyTo(f, store); await robust.applyTo(s, store); await module.applyTo(m, store);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(initiative.id),predicate:"applies_to",targetId:store.localId(e.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(f.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(s.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(module.id),predicate:"applies_to",targetId:store.localId(m.id)}]);
     await store.relate(e, 'targets', f); await store.relate(f, 'contains', s); await store.relate(e, 'contains', t);
     await store.relate(t, 'implements', f); await store.relate(t, 'addresses', s); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
     expect((await f.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
     expect((await s.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
     expect((await c.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
-    await robust.applyTo(t, store);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}]);
     expect((await robust.view(store)).scopes).toContain('T');
     await store.relate(c, 'contains', t);
     await expect(c.applicableAspects(store)).rejects.toThrow('containment cycle');
-    await expect(robust.applyTo(t, store)).rejects.toThrow('cycle');
+    await expect(acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}])).rejects.toThrow('cycle');
   });
 
   it('accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
-    const a = await aspect('robust'); await a.applyTo(f, store);
+    const a = await aspect('robust'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const entities = [
       await store.sp.createEntity<Ticket>(Ticket.dcr, { id:store.formatId(Ticket.dcr,'T'), _id:store.formatId(Ticket.dcr,'T'), title: 'Existing work', lane: 'Done', status:'verified' },true,false),
       await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST', title: 'Regression' }),
@@ -48,7 +50,7 @@ describe('first-class Aspects', () => {
     // Existing proof is fixture state, not permission for generic authoring to mint it.
     await store.withTestArtifactWrite(entities[1].id,()=>store.relate(entities[1],'verifies',a));
     await store.sp.createPredicate(entities[2],store.sp.ontology.pdcr('verifies'),a);
-    for (const i of [0,3]) await registry.execute('link_product', {sourceId:store.localId(entities[i].id),predicate:i===0?'addresses':'governs',targetId:'robust'}, {store,projectRoot:root,executionAuthority:'project-write'});
+    for (const i of [0,3]) await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(entities[i].id),predicate:i===0?'addresses':'governs',targetId:'robust'}]);
     const code = await store.upsertEntity<FileNode>(FileNode.dcr, { id: 'src/unit.ts', title: 'unit.ts' });
     await store.relate(entities[0], 'modifies', code);
     const assessment = await f.assessAspects(store);
@@ -69,13 +71,13 @@ describe('first-class Aspects', () => {
     const a = await aspect('A');
     const request = { action: 'product_change' as const, mutations: [{ kind: 'product_update' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Updated concern' } }] };
     const preview = await engine.previewChange(request);
-    await a.revise(store, { body: 'Concurrent change' });
+    await updateProduct(store, "Aspect", {id:store.localId(a.id),body: 'Concurrent change'});
     await expect(engine.applyChange(request, preview.fingerprint)).rejects.toThrow('fingerprint');
   });
 
   it('round trips owned scopes while ignoring edits to rendered evidence', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
-    const a = await aspect('A'); await a.applyTo(f, store);
+    const a = await aspect('A'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Existing work', lane: 'Todo' });
     await store.relate(t, 'addresses', a); await exportProjections(store, root);
     const file = path.join(root, 'aspects.md');
@@ -90,7 +92,7 @@ describe('first-class Aspects', () => {
 
   it('shortlists only optional candidates and lets independent review catch omission and ceremony without writes', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Reliable persistent queue' });
-    const a = await aspect('mandatory'); await a.applyTo(f, store);
+    const a = await aspect('mandatory'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const systemOne: SystemOne = { assess: async () => ({ answers: { persistence: { choice: 'omit' }, localization: { choice: 'consider' } }, backendId: 'fixture', quality: 'high', latencyMs: 0 }) };
     const result = await f.reviewMissingAspects(store, { completeness: 'production', systemOne,
       candidates: [{ id: 'mandatory', title: 'Required concern' }, { id: 'persistence', title: 'Persistence' }, { id: 'localization', title: 'Localization' }],

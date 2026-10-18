@@ -1,3 +1,4 @@
+import {createAspect} from './product-review.ts';
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -67,7 +68,7 @@ describe('Gate 5 Actor Stories through public Ticket and governance operations',
       record:{title:'Preserve other',decision:'Return one',context:'The existing consumer requires it',consequences:'Two breaks the contract',status:'accepted'}}]);
     const decision=(await store.getEntity('D',Decision.dcr))!;
     await store.relate(decision,'governs',owner);
-    const aspect=await Aspect.create(store,{id:'A',title:'Other contract',status:'accepted',acceptanceCriteria:['other returns one']});
+    const aspect=await createAspect(store,{id:'A',title:'Other contract',status:'accepted',acceptanceCriteria:['other returns one']});
     await store.relate(aspect,'applies_to',owner);
     let producers=0,reviews=0;
     const result=await ticket.resolve(store,{...options(),authorizedFiles:{T:['src/other.ts']},implement:async dossier=>{

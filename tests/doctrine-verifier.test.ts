@@ -1,3 +1,4 @@
+import {createAspect,updateProduct} from './product-review.ts';
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -153,10 +154,10 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     const governed = await ticketVerificationSignature(store, ticket);
     await (await store.sp.collectionForEntityType(Decision.dcr)).updateDocument(decision.id,{consequences:'Reject redundant registries explicitly.'},decision.version);
     expect(await ticketVerificationSignature(store, ticket)).not.toBe(governed);
-    const aspect = await Aspect.create(store, { id: 'A', title: 'Signed arithmetic', status: 'accepted', acceptanceCriteria: ['Signed inputs remain supported'] });
+    const aspect = await createAspect(store,{ id: 'A', title: 'Signed arithmetic', status: 'accepted', acceptanceCriteria: ['Signed inputs remain supported'] });
     await store.relate(ticket, 'addresses', aspect);
     const concerned = await ticketVerificationSignature(store, ticket);
-    await aspect.revise(store, { acceptanceCriteria: ['Also support zero'] });
+    await updateProduct(store, "Aspect", {id:store.localId(aspect.id),acceptanceCriteria: ['Also support zero']});
     expect(await ticketVerificationSignature(store, ticket)).not.toBe(concerned);
     const checked = await ticketVerificationSignature(store, ticket);
     saveConfig(root, { modelRoutes: { critic: 'openrouter/changed-checker' } });

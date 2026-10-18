@@ -1,3 +1,4 @@
+import {createProduct,acceptProduct,updateProduct,reviewedApply} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -24,25 +25,25 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
 
   it('DW-02 creates, edits and reopens a complete accepted Story under the same identity', async () => {
-    await call('create_feature', { id: 'F', title: 'Avatar filters', priority: 1 });
+    await createProduct(store, "Feature", { id: 'F', title: 'Avatar filters', priority: 1 });
     expect((await call('get_feature', { featureId: 'F' })).priority).toBe(1);
-    const created = await call('create_user_story', { id: 'S', title: 'Save filtered avatar', ...scenario, status: 'proposed' });
+    const created = await createProduct(store, "UserStory", { id: 'S', title: 'Save filtered avatar', ...scenario, status: 'proposed' });
     expect(created).toMatchObject({ ...scenario, status: 'proposed', definitionReview: { status: 'complete', missingFields: [] } });
-    await call('link_product', { sourceId: 'F', predicate: 'enables', targetId: 'S' });
-    await call('update_user_story', { storyId: 'S', status: 'accepted' });
-    await call('update_user_story', { storyId: 'S', action: 'Activate Save once' });
+    await acceptProduct(store, [{kind:"product_link",sourceId: 'F',predicate: 'enables',targetId: 'S'}]);
+    await updateProduct(store, "UserStory", { id: 'S', status: 'accepted' });
+    await updateProduct(store, "UserStory", { id: 'S', action: 'Activate Save once' });
     store.close(); store = new WorkflowStore(root);
     const reopened = await call('get_user_story', { storyId: 'S' });
     expect(reopened).toMatchObject({ id: 'S', ...scenario, action: 'Activate Save once', status: 'accepted', enablingFeatures: ['F'] });
     expect((await call('list_user_stories', {})).length).toBe(1);
-    await expect(call('update_user_story', { storyId: 'S', expectedResult: '  ' })).rejects.toThrow('expectedResult');
+    await expect(updateProduct(store, "UserStory", { id: 'S', expectedResult: '  ' })).rejects.toThrow('expectedResult');
     expect((await call('get_user_story', { storyId: 'S' })).expectedResult).toBe(scenario.expectedResult);
   });
 
   it('DW-02 refuses title-only acceptance through public tools and guarded product changes', async () => {
-    await expect(call('create_user_story', { id: 'BAD', title: 'Save', status: 'accepted' })).rejects.toThrow('Story');
+    await expect(createProduct(store, "UserStory", { id: 'BAD', title: 'Save', status: 'accepted' })).rejects.toThrow('Story');
     expect(await store.getEntity('BAD')).toBeNull();
-    await call('create_user_story', { id: 'S', title: 'Save', status: 'proposed' });
+    await createProduct(store, "UserStory", { id: 'S', title: 'Save', status: 'proposed' });
     const engine = new CausalChangeEngine({ store, projectRoot: root });
     const preview = await engine.previewChange({ action: 'product_change', mutations: [
       { kind: 'product_update', entityType: 'UserStory', id: 'S', fields: { status: 'accepted' } }
@@ -60,15 +61,15 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
     expect(view).toMatchObject({ ...old, definitionReview: { status: 'needs_review', missingFields: ['intent', 'initialState', 'action', 'expectedResult'] } });
     expect(view.initialState).toBeUndefined();
     expect((await store.getEntity<UserStory>('OLD', UserStory.dcr))!.version).toBe(before!.version);
-    await call('update_user_story', { storyId: 'OLD', title: 'Save avatar' });
-    await expect(call('update_user_story', { storyId: 'OLD', story: 'Invented replacement' })).rejects.toThrow('Story');
-    await call('update_user_story', { storyId: 'OLD', ...scenario });
+    await updateProduct(store, "UserStory", { id: 'OLD', title: 'Save avatar' });
+    await expect(updateProduct(store, "UserStory", { id: 'OLD', story: 'Invented replacement' })).rejects.toThrow('Story');
+    await updateProduct(store, "UserStory", { id: 'OLD', ...scenario });
     expect((await call('get_user_story', { storyId: 'OLD' })).definitionReview.status).toBe('complete');
     expect((await call('get_user_story', { storyId: 'OLD' })).story).toBe('Save');
   });
 
   it('DW-02 keeps generated Stories proposed and reuses reviewed definitions without rewriting them', async () => {
-    await call('create_user_story', { id: 'REVIEWED', title: 'Save avatar', ...scenario, status: 'accepted' });
+    await createProduct(store, "UserStory", { id: 'REVIEWED', title: 'Save avatar', ...scenario, status: 'accepted' });
     const before = await call('get_user_story', { storyId: 'REVIEWED' });
     const pending = await applyEpicStructure(store, {
       epic: { id: 'E', action: 'create', title: 'Avatar delivery', status: 'planned' },
@@ -80,12 +81,12 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
       questions: []
     });
     expect(await store.getEntity('NEW')).toBeNull();
-    await call('apply_change', {request: pending.preview.request, fingerprint: pending.preview.fingerprint, decision: 'accept'});
+    await reviewedApply(store, {request: pending.preview.request, fingerprint: pending.preview.fingerprint, decision: 'accept'});
     expect((await call('get_user_story', { storyId: 'NEW' })).status).toBe('proposed');
     expect((await call('get_user_story', { storyId: 'NEW' })).definitionReview.status).toBe('needs_review');
     const after = await call('get_user_story', { storyId: 'REVIEWED' });
     expect(after).toMatchObject({ ...scenario, title: before.title, status: 'accepted', version: before.version });
-    await call('create_feature', { id: 'COLLISION', title: 'Existing capability' });
+    await createProduct(store, "Feature", { id: 'COLLISION', title: 'Existing capability' });
     await expect(applyEpicStructure(store, {
       epic: { id: 'E2', action: 'create', title: 'Another delivery', status: 'planned' },
       features: [], stories: [{ id: 'COLLISION', action: 'create', title: 'Wrong kind', acceptanceCriteria: [] }], questions: []
@@ -94,9 +95,9 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   });
 
   it('DW-05 resolves one authoritative definition over direct engineering tags and defined inherited paths', async () => {
-    await call('create_feature', { id: 'F', title: 'Avatar filters' });
-    await call('create_user_story', { id: 'S', title: 'Save', ...scenario });
-    await call('link_product', { sourceId: 'F', predicate: 'enables', targetId: 'S' });
+    await createProduct(store, "Feature", { id: 'F', title: 'Avatar filters' });
+    await createProduct(store, "UserStory", { id: 'S', title: 'Save', ...scenario });
+    await acceptProduct(store, [{kind:"product_link",sourceId: 'F',predicate: 'enables',targetId: 'S'}]);
     const targets = [
       await store.upsertEntity(FileNode.dcr, { id: 'FILE', title: 'avatar.ts', path: 'src/avatar.ts' }),
       await store.upsertEntity(SymbolNode.dcr, { id: 'SYM', title: 'save', filePath: 'src/avatar.ts', kind: 'function' }),
@@ -104,38 +105,38 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
       await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Save through API' }),
       await store.upsertEntity(Artifact.dcr, { id: 'REPORT', title: 'Save results' })
     ];
-    await call('create_aspect', { id: 'P', title: 'Persistency', status: 'accepted', body: 'Save survives reload', acceptanceCriteria: ['Read after restart returns saved avatar'] });
+    await createProduct(store, "Aspect", { id: 'P', title: 'Persistency', status: 'accepted', body: 'Save survives reload', acceptanceCriteria: ['Read after restart returns saved avatar'] });
     for (const scopeId of ['F', ...targets.map(t => store.localId(t.id))])
-      await call('link_aspect', { aspectId: 'P', scopeId });
-    await call('link_product', { sourceId: 'T', predicate: 'addresses', targetId: 'S' });
+      await acceptProduct(store, [{kind:"product_link",predicate:'applies_to',sourceId: 'P',targetId:scopeId}]);
+    await acceptProduct(store, [{kind:"product_link",sourceId: 'T',predicate: 'addresses',targetId: 'S'}]);
     for (const entityId of ['S', ...targets.map(t => store.localId(t.id))]) {
       const resolved = await call('get_applicable_aspects', { entityId });
       expect(resolved.length).toBe(1); expect(resolved[0].id).toBe('P');
     }
     expect((await call('get_aspect', { id: 'P' })).scopes).toEqual(['F', 'FILE', 'REPORT', 'SYM', 'T', 'TEST']);
     const previousVersion = (await call('get_aspect', { id: 'P' })).version;
-    const revised = await call('update_aspect', { id: 'P', body: 'Save survives a new session' });
+    const revised = await updateProduct(store, "Aspect", { id: 'P', body: 'Save survives a new session' });
     expect(revised.version).toBeGreaterThan(previousVersion);
     store.close(); store = new WorkflowStore(root);
     expect((await call('get_applicable_aspects', { entityId: 'S' }))[0].body).toBe('Save survives a new session');
     expect((await call('list_aspects', {})).length).toBe(1);
-    await call('unlink_aspect', { aspectId: 'P', scopeId: 'TEST' });
+    await acceptProduct(store, [{kind:"product_unlink",predicate:'applies_to',sourceId: 'P',targetId: 'TEST'}]);
     expect(await call('get_applicable_aspects', { entityId: 'TEST' })).toEqual([]);
-    await call('create_aspect', { id: 'CODE', title: 'Safe avatar writes', status: 'accepted' });
-    await call('link_aspect', { aspectId: 'CODE', scopeId: 'FILE' });
-    await call('link_product', { sourceId: 'T', predicate: 'modifies', targetId: 'FILE' });
+    await createProduct(store, "Aspect", { id: 'CODE', title: 'Safe avatar writes', status: 'accepted' });
+    await acceptProduct(store, [{kind:"product_link",predicate:'applies_to',sourceId: 'CODE',targetId: 'FILE'}]);
+    await acceptProduct(store, [{kind:"product_link",sourceId: 'T',predicate: 'modifies',targetId: 'FILE'}]);
     expect((await call('get_applicable_aspects', { entityId: 'T' })).map((a: {id: string}) => a.id)).toEqual(['CODE', 'P']);
     expect((await call('get_applicable_aspects', { entityId: 'S' })).map((a: {id: string}) => a.id)).toEqual(['P']);
     expect((await call('get_applicable_aspects', { entityId: 'SYM' })).map((a: {id: string}) => a.id)).toEqual(['P']);
   });
 
   it('DW-05 rejects invalid scope links and keeps proposed conflicting policy ineffective', async () => {
-    await call('create_feature', { id: 'F', title: 'Avatar filters' });
+    await createProduct(store, "Feature", { id: 'F', title: 'Avatar filters' });
     await store.sp.createEntity(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Engineering instruction' },true,false);
-    await call('create_aspect', { id: 'P', title: 'Persistency', body: 'Save survives reload', status: 'accepted' });
-    await call('create_aspect', { id: 'OTHER', title: 'Proposed ephemeral storage', body: 'Discard on reload', status: 'proposed' });
-    await call('link_aspect', { aspectId: 'P', scopeId: 'F' });
-    await call('link_aspect', { aspectId: 'OTHER', scopeId: 'F' });
+    await createProduct(store, "Aspect", { id: 'P', title: 'Persistency', body: 'Save survives reload', status: 'accepted' });
+    await createProduct(store, "Aspect", { id: 'OTHER', title: 'Proposed ephemeral storage', body: 'Discard on reload', status: 'proposed' });
+    await acceptProduct(store, [{kind:"product_link",predicate:'applies_to',sourceId: 'P',targetId: 'F'}]);
+    await acceptProduct(store, [{kind:"product_link",predicate:'applies_to',sourceId: 'OTHER',targetId: 'F'}]);
     expect((await call('get_applicable_aspects', { entityId: 'F' })).map((a: {id: string}) => a.id)).toEqual(['P']);
     await expect(call('link_aspect', { aspectId: 'P', scopeId: 'D' })).rejects.toThrow('scope');
     await expect(call('link_product', { sourceId: 'F', predicate: 'applies_to', targetId: 'P' })).rejects.toThrow('not allowed');

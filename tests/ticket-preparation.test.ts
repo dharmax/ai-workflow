@@ -1,3 +1,5 @@
+import {acceptProduct} from './product-review.ts';
+import {createAspect} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,7 +21,7 @@ describe('reviewed Ticket preparation', () => {
     const b = await store.upsertEntity(FileNode.dcr, { id: 'b.ts', filePath: 'b.ts' });
     await store.relate(a, 'depends_on', b); await store.relate(b, 'depends_on', a);
     await store.upsertEntity(Ticket.dcr, { id: 'WORK', title: 'Change source', acceptanceCriteria: ['Source changes safely'] });
-    await applyProductMutations(store, [{ kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'a.ts' }, { kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'b.ts' }]);
+    await acceptProduct(store,[{ kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'a.ts' }, { kind: 'product_link', sourceId: 'WORK', predicate: 'modifies', targetId: 'b.ts' }]);
     expect((await store.getOutgoing('WORK', 'modifies')).length).toBe(2);
   });
   const split: SystemOne = { assess: async () => ({ backendId: 'fixture', quality: 'high', latencyMs: 0, answers: Object.fromEntries(Object.entries({ workKind: 'code', scope: 'grounded', context: 'none', atomicity: 'split', depth: 'deterministic' }).map(([id, choice]) => [id, { choice, probabilities: { [choice]: 0.99 } }])) }) };
@@ -41,7 +43,7 @@ describe('reviewed Ticket preparation', () => {
 
   it('creates meaningful ordinary children with real ordering, holds a lease only during apply and reuses on rerun', async () => {
     const t = await parent();
-    const a = await Aspect.create(store, { id: 'A', title: 'Robust persistence', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] }); await store.relate(t, 'addresses', a);
+    const a = await createAspect(store,{ id: 'A', title: 'Robust persistence', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] }); await store.relate(t, 'addresses', a);
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Durable jobs', completenessTarget: 'production' }); await store.relate(t, 'implements', f);
     let calls = 0;
     const options = { systemOne: split, critic: { id: 'custom', review: async (input: Parameters<ArtifactCritic['review']>[0]) => { calls++; expect(input.applicableAspects).toContain('A'); expect(input.completeness).toBe('production'); expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.claim).toBeUndefined(); return { verdict: 'accept' as const }; } }, propose: async () => { const p = proposal(); for (const child of p.children) child.relations.push({ predicate: 'implements', targetId: 'F' }); return p; } };
@@ -95,8 +97,8 @@ describe('reviewed Ticket preparation', () => {
     expect(result.status).toBe('blocked'); if (result.status === 'blocked') expect(result.blockers[0].reason).toContain('cycle');
     expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(1); expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.claim).toBeUndefined();
     await store.upsertEntity(Ticket.dcr, { id: 'X', title: 'X' }); await store.upsertEntity(Ticket.dcr, { id: 'Y', title: 'Y' });
-    await applyProductMutations(store, [{ kind: 'product_link', sourceId: 'X', predicate: 'depends_on', targetId: 'Y' }]);
-    await expect(applyProductMutations(store, [{ kind: 'product_link', sourceId: 'Y', predicate: 'depends_on', targetId: 'X' }])).rejects.toThrow('cycle');
+    await acceptProduct(store,[{ kind: 'product_link', sourceId: 'X', predicate: 'depends_on', targetId: 'Y' }]);
+    await expect(acceptProduct(store,[{ kind: 'product_link', sourceId: 'Y', predicate: 'depends_on', targetId: 'X' }])).rejects.toThrow('cycle');
   });
 
   it('stops ceremony, duplicate contracts, exhausted revision and missing inputs before applying', async () => {

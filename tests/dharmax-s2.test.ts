@@ -1,3 +1,4 @@
+import {reviewedApply,createProduct,updateProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -23,7 +24,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     for (const dcr of entityDescriptors) await store.listEntities(dcr);
   };
   const request = (): Extract<ChangeRequest, {action: 'product_change'}> => ({ action: 'product_change', mutations: [
-    { kind: 'product_create', entityType: 'Feature', id: 'F', fields: { title: 'Avatar filters', priority: 1, status: 'accepted' } },
+    { kind: 'product_create', entityType: 'Feature', id: 'F', fields: { title: 'Avatar filters', body:'Preview and save filtered avatars', priority: 1, status: 'accepted' } },
     { kind: 'product_create', entityType: 'UserStory', id: 'S', fields: { title: 'Save avatar', ...scenario, status: 'accepted' } },
     { kind: 'product_link', sourceId: 'F', predicate: 'enables', targetId: 'S' }
   ] });
@@ -39,11 +40,11 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const original = request();
     const preview = await call('preview_change', original);
     expect(preview.blocked).toBe(false); expect(snapshot()).toEqual(before);
-    await expect(call('apply_change', { request: original, fingerprint: preview.fingerprint })).rejects.toThrow('approval');
+    await expect(reviewedApply(store, { request: original, fingerprint: preview.fingerprint })).rejects.toThrow('approval');
     expect(snapshot()).toEqual(before);
     const edited = request(); edited.mutations[1] = { kind: 'product_create', entityType: 'UserStory', id: 'S', fields: { title: 'Save avatar', ...scenario, action: 'Activate Save once', status: 'accepted' } };
     const reviewed = await call('preview_change', edited);
-    expect((await call('apply_change', { request: edited, fingerprint: reviewed.fingerprint, decision: 'accept' })).ok).toBe(true);
+    expect((await reviewedApply(store, { request: edited, fingerprint: reviewed.fingerprint, decision: 'accept' })).ok).toBe(true);
     await reopen();
     expect(await call('get_user_story', { storyId: 'S' })).toMatchObject({ ...scenario, action: 'Activate Save once', status: 'accepted', enablingFeatures: ['F'] });
     expect((await call('list_features', {})).length).toBe(1);
@@ -82,7 +83,9 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
       const current = snapshot();
       expect((await rpc('apply_change', {request: update, fingerprint: reviewed.fingerprint, decision: 'reject'})).ok).toBe(false);
       expect(snapshot()).toEqual(current);
-      expect((await rpc('apply_change', {request: update, fingerprint: reviewed.fingerprint, decision: 'accept'})).ok).toBe(true);
+      expect((await rpc('apply_change', {request: update, fingerprint: reviewed.fingerprint, decision: 'accept'})).status).toBe('review_required');
+      expect(snapshot()).toEqual(current);
+      await reviewedApply(store,{request:update,fingerprint:reviewed.fingerprint,decision:'accept'});
       expect((await call('get_feature', {featureId: 'F'})).body).toBe('Reviewed through MCP');
     } finally { await client.close(); }
   });
@@ -91,7 +94,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const before = snapshot();
     const proposal = request(), preview = await call('preview_change', proposal);
     for (const decision of ['reject', 'cancel']) {
-      const result = await call('apply_change', { request: proposal, fingerprint: preview.fingerprint, decision });
+      const result = await reviewedApply(store, { request: proposal, fingerprint: preview.fingerprint, decision });
       expect(result.ok).toBe(false); expect(snapshot()).toEqual(before);
       expect(fs.existsSync(path.join(root, 'features.md'))).toBe(false);
       await reopen(); expect(snapshot()).toEqual(before);
@@ -99,12 +102,12 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   });
 
   it('DW-06 rejects stale concurrent reviews and preserves same-identity in-place revisions', async () => {
-    await call('create_feature', { id: 'F', title: 'Avatar filters' });
+    await createProduct(store, "Feature", { id: 'F', title: 'Avatar filters' });
     const update: ChangeRequest = { action: 'product_change', mutations: [{ kind: 'product_update', entityType: 'Feature', id: 'F', fields: { title: 'Reviewed filter scope' } }] };
     const first = await call('preview_change', update), second = await call('preview_change', update);
-    await call('apply_change', { request: update, fingerprint: first.fingerprint, decision: 'accept' });
+    await reviewedApply(store, { request: update, fingerprint: first.fingerprint, decision: 'accept' });
     const after = snapshot();
-    await expect(call('apply_change', { request: update, fingerprint: second.fingerprint, decision: 'accept' })).rejects.toThrow('fingerprint');
+    await expect(reviewedApply(store, { request: update, fingerprint: second.fingerprint, decision: 'accept' })).rejects.toThrow('fingerprint');
     await reopen(); expect(snapshot()).toEqual(after);
     expect((await call('list_features', {})).map((f: {id:string}) => f.id)).toEqual(['F']);
   });
@@ -123,7 +126,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     expect((await call('preview_change', aliases)).blocked).toBe(true);
     expect(snapshot()).toEqual(before);
     const create = request(), preview = await call('preview_change', create);
-    await call('apply_change', {request: create, fingerprint: preview.fingerprint, decision: 'accept'});
+    await reviewedApply(store, {request: create, fingerprint: preview.fingerprint, decision: 'accept'});
     const current = snapshot();
     expect((await call('preview_change', {action: 'product_change', mutations: [{kind: 'product_delete', entityType: 'Feature', id: 'F'}]})).blocked).toBe(true);
     expect(snapshot()).toEqual(current);
@@ -134,7 +137,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const before = snapshot(false);
     for (const target of ['aiwf_UserStory', 'aiwf__Predicates']) {
       store.db.exec("CREATE TRIGGER s2_fail BEFORE INSERT ON " + target + " BEGIN SELECT RAISE(ABORT, 'injected product write failure'); END");
-      await expect(call('apply_change', { request: proposal, fingerprint: preview.fingerprint, decision: 'accept' })).rejects.toThrow('injected product write failure');
+      await expect(reviewedApply(store, { request: proposal, fingerprint: preview.fingerprint, decision: 'accept' })).rejects.toThrow('injected product write failure');
       await reopen(); expect(snapshot(false)).toEqual(before);
       expect(await store.getEntity('F')).toBeNull(); expect(await store.getEntity('S')).toBeNull();
       store.db.exec('DROP TRIGGER s2_fail');
@@ -142,7 +145,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   });
 
   it('DW-02 complete S1 Story content reaches inert processing without legacy narrative prerequisites', async () => {
-    await call('create_user_story', {id: 'S', title: 'Save avatar', ...scenario, status: 'accepted'});
+    await createProduct(store, "UserStory", {id: 'S', title: 'Save avatar', ...scenario, status: 'accepted'});
     const story = (await store.getEntity<UserStory>('S', UserStory.dcr))!;
     const before = snapshot(); let called = false;
     const result = await story.process(store, {critic: 'none', systemOne: {assess: async () => null}, propose: async context => {
@@ -154,7 +157,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   });
 
   it('DW-09 exclusive product review excludes concurrent native product applicability links', async () => {
-    await call('create_user_story', {id: 'S', title: 'Save avatar', ...scenario});
+    await createProduct(store, "UserStory", {id: 'S', title: 'Save avatar', ...scenario});
     await call('create_ticket', {id: 'T', title: 'Implement Save', lane: 'Todo', priority: 'P2'});
     const token = await store.admitGovernance('governance');
     try {
@@ -164,7 +167,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   });
 
   it('DW-09 rechecks revisions after admission rather than trusting the earlier preview check', async () => {
-    await call('create_feature', {id: 'F', title: 'Before'});
+    await createProduct(store, "Feature", {id: 'F', title: 'Before'});
     const proposal: ChangeRequest = {action: 'product_change', mutations: [
       {kind: 'product_update', entityType: 'Feature', id: 'F', fields: {title: 'Stale writer'}},
       {kind: 'product_create', entityType: 'Feature', id: 'EXTRA', fields: {title: 'Must not survive'}}
@@ -172,10 +175,15 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const preview = await call('preview_change', proposal);
     const admit = store.admitGovernance.bind(store); let raced = false;
     const interleave = spyOn(store, 'admitGovernance').mockImplementation(async (mode, duration) => {
-      if (!raced) { raced = true; await store.upsertEntity(Feature.dcr, {id: 'F', title: 'Concurrent writer'}); }
+      if (!raced) {
+        raced = true;
+        const concurrent = new WorkflowStore(root);
+        try { await updateProduct(concurrent,'Feature',{id:'F',title:'Concurrent writer'}); }
+        finally { concurrent.close(); }
+      }
       return admit(mode, duration);
     });
-    try { await expect(call('apply_change', {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'})).rejects.toThrow('fingerprint'); }
+    try { await expect(reviewedApply(store, {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'})).rejects.toThrow('fingerprint'); }
     finally { interleave.mockRestore(); }
     await reopen();
     expect((await call('get_feature', {featureId: 'F'})).title).toBe('Concurrent writer');
@@ -220,21 +228,21 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     const changed = snapshot();
     await expect(call('apply_epic_structure', {proposal: pending})).rejects.toThrow('revision');
     expect(snapshot()).toEqual(changed);
-    await call('create_feature', {id: 'EXISTING', title: 'Repeated label'});
+    await createProduct(store, "Feature", {id: 'EXISTING', title: 'Repeated label'});
     const ambiguous = await call('propose_epic_structure', {title: 'Reuse', injectedSemanticOutput: {features: [{action: 'reuse', title: 'Repeated label'}], stories: [], questions: []}});
     expect(ambiguous.questions.some((q: {blocking: boolean}) => q.blocking)).toBe(true);
     await expect(call('apply_epic_structure', {proposal: ambiguous})).rejects.toThrow('blocking');
   });
 
   it('DW-02 decomposition is inert and reviewed application never overwrites reused Feature or Story', async () => {
-    await call('create_feature', { id: 'F', title: 'Reviewed filters', body: 'Developer scope', status: 'accepted' });
-    await call('create_user_story', { id: 'S', title: 'Save avatar', ...scenario, status: 'accepted' });
+    await createProduct(store, "Feature", { id: 'F', title: 'Reviewed filters', body: 'Developer scope', status: 'accepted' });
+    await createProduct(store, "UserStory", { id: 'S', title: 'Save avatar', ...scenario, status: 'accepted' });
     const before = snapshot();
     const proposal = { epic: { id: 'DELIVERY', action: 'create' as const, title: 'Avatar delivery', status: 'planned' as const }, features: [{ id: 'F', action: 'reuse' as const, title: 'AI replacement', body: 'Conflicting replacement' }], stories: [{ id: 'S', action: 'reuse' as const, title: 'Discard avatar', acceptanceCriteria: [] }], questions: [] };
     const prepared = await applyEpicStructure(store, proposal);
     expect(prepared.applied).toBe(false); expect(snapshot()).toEqual(before);
     expect(prepared.preview).toBeDefined();
-    await call('apply_change', { request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept' });
+    await reviewedApply(store, { request: prepared.preview.request, fingerprint: prepared.preview.fingerprint, decision: 'accept' });
     expect((await call('get_feature', { featureId: 'F' })).body).toBe('Developer scope');
     expect(await call('get_user_story', { storyId: 'S' })).toMatchObject({ title: 'Save avatar', ...scenario, status: 'accepted' });
     await reopen(); expect((await call('get_epic', { epicId: 'DELIVERY' })).targetedFeatures).toContain('F');

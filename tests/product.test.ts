@@ -1,3 +1,4 @@
+import {createProduct,acceptProduct,updateProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,22 +41,22 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   // 1. Entity Lifecycles & Default Statuses
   // ===========================================================================
   it('correctly defaults statuses to draft and prevents silent generic implemented inheritance', async () => {
-    const epic = await registry.execute('create_epic', {
+    const epic = await createProduct(ctx.store, "Epic", {
       id: 'EPIC-DEFAULT',
       title: 'Default Epic'
-    }, ctx);
+    });
     expect(epic.status).toBe('draft');
 
-    const feature = await registry.execute('create_feature', {
+    const feature = await createProduct(ctx.store, "Feature", {
       id: 'FEAT-DEFAULT',
       title: 'Default Feature'
-    }, ctx);
+    });
     expect(feature.status).toBe('draft');
 
-    const story = await registry.execute('create_user_story', {
+    const story = await createProduct(ctx.store, "UserStory", {
       id: 'STORY-DEFAULT',
       title: 'Default Story'
-    }, ctx);
+    });
     expect(story.status).toBe('draft');
 
     // Direct store entities
@@ -70,83 +71,59 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   // 2. Constrained Canonical Product Relations (link_product / unlink_product)
   // ===========================================================================
   it('permits canonical product relations and rejects invalid combinations', async () => {
-    await registry.execute('create_epic', { id: 'EPIC-1', title: 'Epic 1' }, ctx);
-    await registry.execute('create_feature', { id: 'FEAT-1', title: 'Feature 1' }, ctx);
-    await registry.execute('create_user_story', { id: 'STORY-1', title: 'Story 1' }, ctx);
+    await createProduct(ctx.store, "Epic", { id: 'EPIC-1', title: 'Epic 1' });
+    await createProduct(ctx.store, "Feature", { id: 'FEAT-1', title: 'Feature 1' });
+    await createProduct(ctx.store, "UserStory", { id: 'STORY-1', title: 'Story 1' });
     await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'TKT-1', title: 'Ticket 1', lane: 'Todo' });
     await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST-1', title: 'Test 1', targetPath: 't.ts' });
     await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR-1"),_id:store.formatId(Decision.dcr,"ADR-1"), title: 'ADR 1', decision: 'Decided' },true,false);
 
     // Permitted: Epic targets Feature
-    const l1 = await registry.execute('link_product', {
-      sourceId: 'EPIC-1', predicate: 'targets', targetId: 'FEAT-1'
-    }, ctx);
-    expect(l1.success).toBe(true);
+    const l1 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-1',predicate: 'targets',targetId: 'FEAT-1'}]);
+    expect(l1.ok).toBe(true);
 
     // Permitted: Epic targets UserStory
-    const l2 = await registry.execute('link_product', {
-      sourceId: 'EPIC-1', predicate: 'targets', targetId: 'STORY-1'
-    }, ctx);
-    expect(l2.success).toBe(true);
+    const l2 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-1',predicate: 'targets',targetId: 'STORY-1'}]);
+    expect(l2.ok).toBe(true);
 
-    await registry.execute('create_goal', { id: 'GOAL-1', title: 'Goal 1' }, ctx);
-    await registry.execute('create_concept', { id: 'CONCEPT-1', title: 'Concept 1' }, ctx);
-    await registry.execute('create_flow', { id: 'FLOW-1', title: 'Flow 1', actor: 'Developer' }, ctx);
+    await createProduct(ctx.store, "Goal", { id: 'GOAL-1', title: 'Goal 1' });
+    await createProduct(ctx.store, "Concept", { id: 'CONCEPT-1', title: 'Concept 1' });
+    await createProduct(ctx.store, "Flow", { id: 'FLOW-1', title: 'Flow 1', actor: 'Developer' });
 
-    const g1 = await registry.execute('link_product', {
-      sourceId: 'FLOW-1', predicate: 'serves', targetId: 'GOAL-1'
-    }, ctx);
-    expect(g1.success).toBe(true);
-    const g2 = await registry.execute('link_product', {
-      sourceId: 'CONCEPT-1', predicate: 'governs', targetId: 'FLOW-1'
-    }, ctx);
-    expect(g2.success).toBe(true);
-    const g3 = await registry.execute('link_product', {
-      sourceId: 'FLOW-1', predicate: 'contains', targetId: 'STORY-1'
-    }, ctx);
-    expect(g3.success).toBe(true);
+    const g1 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-1',predicate: 'serves',targetId: 'GOAL-1'}]);
+    expect(g1.ok).toBe(true);
+    const g2 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'CONCEPT-1',predicate: 'governs',targetId: 'FLOW-1'}]);
+    expect(g2.ok).toBe(true);
+    const g3 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-1',predicate: 'contains',targetId: 'STORY-1'}]);
+    expect(g3.ok).toBe(true);
 
     // Permitted: Feature enables UserStory; it does not own the Story.
-    const l3 = await registry.execute('link_product', {
-      sourceId: 'FEAT-1', predicate: 'enables', targetId: 'STORY-1'
-    }, ctx);
-    expect(l3.success).toBe(true);
+    const l3 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-1',predicate: 'enables',targetId: 'STORY-1'}]);
+    expect(l3.ok).toBe(true);
 
     // Permitted: Epic contains Ticket
-    const l4 = await registry.execute('link_product', {
-      sourceId: 'EPIC-1', predicate: 'contains', targetId: 'TKT-1'
-    }, ctx);
-    expect(l4.success).toBe(true);
+    const l4 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-1',predicate: 'contains',targetId: 'TKT-1'}]);
+    expect(l4.ok).toBe(true);
 
     // Permitted: Ticket implements Feature
-    const l5 = await registry.execute('link_product', {
-      sourceId: 'TKT-1', predicate: 'implements', targetId: 'FEAT-1'
-    }, ctx);
-    expect(l5.success).toBe(true);
+    const l5 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-1',predicate: 'implements',targetId: 'FEAT-1'}]);
+    expect(l5.ok).toBe(true);
 
     // Permitted: Ticket addresses UserStory
-    const l6 = await registry.execute('link_product', {
-      sourceId: 'TKT-1', predicate: 'addresses', targetId: 'STORY-1'
-    }, ctx);
-    expect(l6.success).toBe(true);
+    const l6 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-1',predicate: 'addresses',targetId: 'STORY-1'}]);
+    expect(l6.ok).toBe(true);
 
     // Permitted: Test verifies Feature
-    const l7 = await store.withTestArtifactWrite('TEST-1',()=>registry.execute('link_product', {
-      sourceId: 'TEST-1', predicate: 'verifies', targetId: 'FEAT-1'
-    }, ctx));
-    expect(l7.success).toBe(true);
+    const l7 = await store.withTestArtifactWrite('TEST-1',()=>acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TEST-1',predicate: 'verifies',targetId: 'FEAT-1'}]));
+    expect(l7.ok).toBe(true);
 
     // Permitted: Test verifies UserStory
-    const l8 = await store.withTestArtifactWrite('TEST-1',()=>registry.execute('link_product', {
-      sourceId: 'TEST-1', predicate: 'verifies', targetId: 'STORY-1'
-    }, ctx));
-    expect(l8.success).toBe(true);
+    const l8 = await store.withTestArtifactWrite('TEST-1',()=>acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TEST-1',predicate: 'verifies',targetId: 'STORY-1'}]));
+    expect(l8.ok).toBe(true);
 
     // Permitted: Decision governs Epic/Feature/Story
-    const l9 = await registry.execute('link_product', {
-      sourceId: 'ADR-1', predicate: 'governs', targetId: 'FEAT-1'
-    }, ctx);
-    expect(l9.success).toBe(true);
+    const l9 = await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'ADR-1',predicate: 'governs',targetId: 'FEAT-1'}]);
+    expect(l9.ok).toBe(true);
 
     // Rejected: Ticket implements Epic
     expect(registry.execute('link_product', {
@@ -164,10 +141,8 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     }, ctx)).rejects.toThrow('Invalid product relation');
 
     // Unlink permitted
-    const un = await registry.execute('unlink_product', {
-      sourceId: 'EPIC-1', predicate: 'targets', targetId: 'FEAT-1'
-    }, ctx);
-    expect(un.success).toBe(true);
+    const un = await acceptProduct(ctx.store, [{kind:"product_unlink",sourceId: 'EPIC-1',predicate: 'targets',targetId: 'FEAT-1'}]);
+    expect(un.ok).toBe(true);
     const epicView = await registry.execute('get_epic', { epicId: 'EPIC-1' }, ctx);
     expect(epicView.targetedFeatures).not.toContain('FEAT-1');
   });
@@ -177,11 +152,11 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   // ===========================================================================
   describe('Structural Coverage Engine', () => {
     it('returns facts for draft stories without failing as project errors', async () => {
-      await registry.execute('create_user_story', {
+      await createProduct(ctx.store, "UserStory", {
         id: 'STORY-DRAFT',
         title: 'Draft story',
         status: 'draft'
-      }, ctx);
+      });
 
       const cov = await getCoverage(store, 'STORY-DRAFT');
       expect(cov.complete).toBe(true);
@@ -191,14 +166,14 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
     it('identifies independent coverage gaps for an accepted UserStory', async () => {
       // 1. Accepted story with no parent, no criteria, no work, no tests
-      await registry.execute('create_user_story', {
+      await createProduct(ctx.store, "UserStory", {
         id: 'STORY-GAP',
         title: 'Gapped story',
         actor: 'API client', intent: 'Get a valid response', initialState: 'Handler is available',
         action: 'Send a request', expectedResult: 'A valid response is returned',
         status: 'accepted',
         acceptanceCriteria: []
-      }, ctx);
+      });
 
       let cov = await getCoverage(store, 'STORY-GAP');
       expect(cov.complete).toBe(false);
@@ -209,14 +184,14 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       expect(gapKinds).toContain('missing_verification');
 
       // 2. Add containing Flow, enabling Feature, and criteria
-      await registry.execute('create_flow', { id: 'FLOW-PARENT', title: 'Parent Flow', actor: 'Caller' }, ctx);
-      await registry.execute('create_feature', { id: 'FEAT-PARENT', title: 'Enabling Feature' }, ctx);
-      await registry.execute('link_product', { sourceId: 'FLOW-PARENT', predicate: 'contains', targetId: 'STORY-GAP' }, ctx);
-      await registry.execute('link_product', { sourceId: 'FEAT-PARENT', predicate: 'enables', targetId: 'STORY-GAP' }, ctx);
-      await registry.execute('update_user_story', {
-        storyId: 'STORY-GAP',
+      await createProduct(ctx.store, "Flow", { id: 'FLOW-PARENT', title: 'Parent Flow', actor: 'Caller' });
+      await createProduct(ctx.store, "Feature", { id: 'FEAT-PARENT', title: 'Enabling Feature' });
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-PARENT',predicate: 'contains',targetId: 'STORY-GAP'}]);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-PARENT',predicate: 'enables',targetId: 'STORY-GAP'}]);
+      await updateProduct(ctx.store, "UserStory", {
+        id: 'STORY-GAP',
         acceptanceCriteria: ['Valid response returned']
-      }, ctx);
+      });
 
       cov = await getCoverage(store, 'STORY-GAP');
       const updatedKinds = cov.gaps.map(g => g.kind);
@@ -226,7 +201,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
       // 3. Add Ticket without code grounding -> triggers missing_code_grounding
       await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'TKT-WORK', title: 'Work ticket', lane: 'In Progress' });
-      await registry.execute('link_product', { sourceId: 'TKT-WORK', predicate: 'addresses', targetId: 'STORY-GAP' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-WORK',predicate: 'addresses',targetId: 'STORY-GAP'}]);
 
       cov = await getCoverage(store, 'STORY-GAP');
       expect(cov.gaps.map(g => g.kind)).toContain('missing_code_grounding');
@@ -245,7 +220,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       const test = await store.upsertEntity<TestNode>(TestNode.dcr, {
         id: 'TEST-HANDLER', title: 'Handler test', targetPath: 'tests/handler.test.ts'
       });
-      await store.withTestArtifactWrite('TEST-HANDLER',()=>registry.execute('link_product', { sourceId: 'TEST-HANDLER', predicate: 'verifies', targetId: 'STORY-GAP' }, ctx));
+      await store.withTestArtifactWrite('TEST-HANDLER',()=>acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TEST-HANDLER',predicate: 'verifies',targetId: 'STORY-GAP'}]));
 
       cov = await getCoverage(store, 'STORY-GAP');
       expect(cov.complete).toBe(true);
@@ -255,12 +230,12 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     });
 
     it('detects Epic missing_target_path invariant', async () => {
-      await registry.execute('create_epic', { id: 'EPIC-TGT', title: 'Targeted Epic' }, ctx);
-      await registry.execute('create_feature', { id: 'FEAT-TGT', title: 'Targeted Feature' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-TGT', title: 'Targeted Story' }, ctx);
+      await createProduct(ctx.store, "Epic", { id: 'EPIC-TGT', title: 'Targeted Epic' });
+      await createProduct(ctx.store, "Feature", { id: 'FEAT-TGT', title: 'Targeted Feature' });
+      await createProduct(ctx.store, "UserStory", { id: 'STORY-TGT', title: 'Targeted Story' });
 
-      await registry.execute('link_product', { sourceId: 'EPIC-TGT', predicate: 'targets', targetId: 'FEAT-TGT' }, ctx);
-      await registry.execute('link_product', { sourceId: 'EPIC-TGT', predicate: 'targets', targetId: 'STORY-TGT' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-TGT',predicate: 'targets',targetId: 'FEAT-TGT'}]);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-TGT',predicate: 'targets',targetId: 'STORY-TGT'}]);
 
       // Epic targets Feature and Story, but has no contained tickets reaching them
       let cov = await getCoverage(store, 'EPIC-TGT');
@@ -269,8 +244,8 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
       // Add contained ticket implementing Feature
       await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'TKT-IMPL', title: 'Impl', lane: 'In Progress' });
-      await registry.execute('link_product', { sourceId: 'EPIC-TGT', predicate: 'contains', targetId: 'TKT-IMPL' }, ctx);
-      await registry.execute('link_product', { sourceId: 'TKT-IMPL', predicate: 'implements', targetId: 'FEAT-TGT' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-TGT',predicate: 'contains',targetId: 'TKT-IMPL'}]);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-IMPL',predicate: 'implements',targetId: 'FEAT-TGT'}]);
 
       cov = await getCoverage(store, 'EPIC-TGT');
       // Feature target is now satisfied; Story target still missing path
@@ -279,7 +254,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       expect(remainingTargetGaps[0].relatedIds).toContain('STORY-TGT');
 
       // Add ticket addressing the Story
-      await registry.execute('link_product', { sourceId: 'TKT-IMPL', predicate: 'addresses', targetId: 'STORY-TGT' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-IMPL',predicate: 'addresses',targetId: 'STORY-TGT'}]);
       cov = await getCoverage(store, 'EPIC-TGT');
       expect(cov.gaps.filter(g => g.kind === 'missing_target_path')).toHaveLength(0);
     });
@@ -291,24 +266,24 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   describe('Bounded Product Impact', () => {
     it('bounds context surgically and excludes sibling stories and unrelated nodes', async () => {
       // Setup one capability enabling 2 stories: Target Story and Sibling Story
-      await registry.execute('create_feature', { id: 'FEAT-AUTH', title: 'Authentication' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-LOGIN', title: 'User Login', status: 'accepted', actor: 'User', intent: 'Sign in', initialState: 'Signed out with valid credentials', action: 'Submit credentials', expectedResult: 'An authenticated session starts' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-LOGOUT', title: 'User Logout', status: 'accepted', actor: 'User', intent: 'End my session', initialState: 'Signed in', action: 'Activate Log out', expectedResult: 'Session ends' }, ctx);
+      await createProduct(ctx.store, "Feature", { id: 'FEAT-AUTH', title: 'Authentication' });
+      await createProduct(ctx.store, "UserStory", { id: 'STORY-LOGIN', title: 'User Login', status: 'accepted', actor: 'User', intent: 'Sign in', initialState: 'Signed out with valid credentials', action: 'Submit credentials', expectedResult: 'An authenticated session starts' });
+      await createProduct(ctx.store, "UserStory", { id: 'STORY-LOGOUT', title: 'User Logout', status: 'accepted', actor: 'User', intent: 'End my session', initialState: 'Signed in', action: 'Activate Log out', expectedResult: 'Session ends' });
 
-      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGIN' }, ctx);
-      await registry.execute('link_product', { sourceId: 'FEAT-AUTH', predicate: 'enables', targetId: 'STORY-LOGOUT' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-AUTH',predicate: 'enables',targetId: 'STORY-LOGIN'}]);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-AUTH',predicate: 'enables',targetId: 'STORY-LOGOUT'}]);
 
       // Active Epic targeting Login
-      await registry.execute('create_epic', { id: 'EPIC-AUTH', title: 'Auth Epic', status: 'active' }, ctx);
-      await registry.execute('link_product', { sourceId: 'EPIC-AUTH', predicate: 'targets', targetId: 'STORY-LOGIN' }, ctx);
+      await createProduct(ctx.store, "Epic", { id: 'EPIC-AUTH', title: 'Auth Epic', status: 'active' });
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-AUTH',predicate: 'targets',targetId: 'STORY-LOGIN'}]);
 
       // Historical completed Epic targeting Login (must be excluded by default)
-      await registry.execute('create_epic', { id: 'EPIC-OLD', title: 'Old Epic', status: 'completed' }, ctx);
-      await registry.execute('link_product', { sourceId: 'EPIC-OLD', predicate: 'targets', targetId: 'STORY-LOGIN' }, ctx);
+      await createProduct(ctx.store, "Epic", { id: 'EPIC-OLD', title: 'Old Epic', status: 'completed' });
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-OLD',predicate: 'targets',targetId: 'STORY-LOGIN'}]);
 
       // Work & Code for Login
       await store.sp.createEntity<Ticket>(Ticket.dcr, { id: store.formatId(Ticket.dcr,'TKT-LOGIN'), _id: store.formatId(Ticket.dcr,'TKT-LOGIN'), title: 'Login Tkt', lane: 'Done', status:'verified' },true,false);
-      await registry.execute('link_product', { sourceId: 'TKT-LOGIN', predicate: 'addresses', targetId: 'STORY-LOGIN' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TKT-LOGIN',predicate: 'addresses',targetId: 'STORY-LOGIN'}]);
 
       const codeSym = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
         id: 'loginFn', title: 'loginFn', filePath: 'src/auth.ts', kind: 'function', line: 10, column: 0
@@ -317,15 +292,15 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
 
       // Test for Login
       await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST-LOGIN', title: 'Login test', targetPath: 't.ts' });
-      await store.withTestArtifactWrite('TEST-LOGIN',()=>registry.execute('link_product', { sourceId: 'TEST-LOGIN', predicate: 'verifies', targetId: 'STORY-LOGIN' }, ctx));
+      await store.withTestArtifactWrite('TEST-LOGIN',()=>acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'TEST-LOGIN',predicate: 'verifies',targetId: 'STORY-LOGIN'}]));
 
       // Decision governing containing Feature
       await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR-JWT"),_id:store.formatId(Decision.dcr,"ADR-JWT"), title: 'JWT Tokens', decision: 'Use JWT' },true,false);
-      await registry.execute('link_product', { sourceId: 'ADR-JWT', predicate: 'governs', targetId: 'FEAT-AUTH' }, ctx);
+      await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'ADR-JWT',predicate: 'governs',targetId: 'FEAT-AUTH'}]);
 
       // Unrelated Subgraph
-      await registry.execute('create_feature', { id: 'FEAT-BILLING', title: 'Billing' }, ctx);
-      await registry.execute('create_user_story', { id: 'STORY-INVOICE', title: 'Invoice', status: 'accepted', actor: 'Account owner', intent: 'Read an invoice', initialState: 'An invoice exists', action: 'Open invoice', expectedResult: 'Invoice details display' }, ctx);
+      await createProduct(ctx.store, "Feature", { id: 'FEAT-BILLING', title: 'Billing' });
+      await createProduct(ctx.store, "UserStory", { id: 'STORY-INVOICE', title: 'Invoice', status: 'accepted', actor: 'Account owner', intent: 'Read an invoice', initialState: 'An invoice exists', action: 'Open invoice', expectedResult: 'Invoice details display' });
 
       // Calculate Impact for STORY-LOGIN
       const impact = await getProductImpact(store, 'STORY-LOGIN');

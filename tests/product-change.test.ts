@@ -1,3 +1,4 @@
+import {reviewedApply} from './product-review.ts';
 import { describe, it, expect, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -29,7 +30,7 @@ describe('Product Intent Causal Change', () => {
     const { store, engine } = fixture();
     const request: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic', status: 'planned' } },
-      { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature', status: 'accepted' } },
+      { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature', body: 'Inspect related delivery work', status: 'accepted' } },
       { kind: 'product_create', entityType: 'UserStory', id: 'S1', fields: { title: 'Story', status: 'accepted',
         actor: 'Developer', intent: 'Inspect feature work', initialState: 'Feature and Ticket exist',
         action: 'Request product impact for the Feature', expectedResult: 'The linked Ticket is returned' } },
@@ -189,7 +190,7 @@ describe('Product Intent Causal Change', () => {
     ] };
     const preview = await registry.execute('preview_change', request, ctx);
     expect(preview.blocked).toBe(false);
-    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx);
+    const result = await reviewedApply(ctx.store, { request, fingerprint: preview.fingerprint, decision: 'accept' });
     expect(result.verification.passed).toBe(true);
     expect(await store.getEntity('PUBLIC-E')).not.toBeNull();
   });

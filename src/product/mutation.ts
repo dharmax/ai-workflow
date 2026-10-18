@@ -317,6 +317,24 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   return { snapshot, dependents, state, edges };
 }
 
+/** A valid proposal still needs the host to review its exact fingerprint. */
+export class ProductReviewRequired extends Error {}
+
+function productOwnerWrite(store: WorkflowStore, mutations: ProductMutation[], state: Map<string, {kind: ProductKind}>): boolean {
+  return mutations.every(m => {
+    if ((m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket') return true;
+    if (m.kind === 'product_link' || m.kind === 'product_unlink') {
+      const source = state.get(m.sourceId)?.kind, target = state.get(m.targetId)?.kind;
+      // Ticket preparation and governed implementation own work ordering and source scope.
+      if (source === 'Ticket' && (target === 'Ticket' || ['File','Symbol','Module'].includes(target ?? ''))) return true;
+    }
+    const id = 'entityType' in m && m.entityType === 'Test' ? m.id :
+      (m.kind === 'product_link' || m.kind === 'product_unlink') && m.predicate === 'verifies' ? m.sourceId : undefined;
+    if (!id) return false;
+    try { store.assertTestArtifactWrite(id); return true; } catch { return false; }
+  });
+}
+
 export async function applyProductMutations(
   store: WorkflowStore,
   mutations: ProductMutation[],
@@ -324,8 +342,12 @@ export async function applyProductMutations(
 ) {
   store.assertCanWrite();
   // Validate once before admission so malformed/rejected input cannot mutate even admission state.
-  await validateProductMutations(store, mutations, reviewed?.request.basis);
+  const initial = await validateProductMutations(store, mutations, reviewed?.request.basis);
   const workOnly = mutations.every(m => (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket');
+  if (!productOwnerWrite(store, mutations, initial.state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
+    throw new ProductReviewRequired('Product mutation requires host-owned review of the exact preview fingerprint.');
+  if (reviewed && canonical(reviewed.request.mutations) !== canonical(mutations))
+    throw Error('Reviewed Product request does not match its mutations.');
   const token = await store.admitGovernance(workOnly ? 'governed' : 'governance');
   try {
     const { snapshot, state, edges } = await validateProductMutations(store, mutations, reviewed?.request.basis);
@@ -414,6 +436,9 @@ export async function applyProductMutations(
         put({collectionName: collection.name, id, expectedVersion: revision.version});
     }
     const assertion = await store.governanceAssertion(token);
+    store.assertCanWrite();
+    if (!productOwnerWrite(store, mutations, state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
+      throw Error('Product review authority expired before commit.');
     store.sqliteStore.applyBatch([assertion, ...batch.values()]);
     return {edges};
   } finally { await store.releaseGovernance(token); }

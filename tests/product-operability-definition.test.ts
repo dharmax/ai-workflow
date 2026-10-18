@@ -1,3 +1,4 @@
+import {reviewedApply} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -106,7 +107,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       expect(await store.getEntity('feat:charter', Feature.dcr)).toBeNull();
 
       // Apply change
-      const applyRes = await call('apply_change', {
+      const applyRes = await reviewedApply(store, {
         request: createReq,
         fingerprint: preview.fingerprint,
         decision: 'accept'
@@ -179,7 +180,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
 
       const updatePreview = await call('preview_change', updateReq);
       expect(updatePreview.blocked).toBe(false);
-      const updateApply = await call('apply_change', {
+      const updateApply = await reviewedApply(store, {
         request: updateReq,
         fingerprint: updatePreview.fingerprint,
         decision: 'accept'
@@ -299,7 +300,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       };
       const rejectPreview = await call('preview_change', rejectReq);
       expect(rejectPreview.blocked).toBe(false);
-      const rejectRes = await call('apply_change', {
+      const rejectRes = await reviewedApply(store, {
         request: rejectReq,
         fingerprint: rejectPreview.fingerprint,
         decision: 'reject'
@@ -321,7 +322,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
         ]
       };
       const unlinkedPreview = await call('preview_change', unlinkedReq);
-      await call('apply_change', { request: unlinkedReq, fingerprint: unlinkedPreview.fingerprint, decision: 'accept' });
+      await reviewedApply(store, { request: unlinkedReq, fingerprint: unlinkedPreview.fingerprint, decision: 'accept' });
       const manifestWithStandalone = await generateProductManifest(store);
       expect(manifestWithStandalone).toContain('## Other Features (Unlinked)');
       expect(manifestWithStandalone).toContain('**feat:standalone**: Standalone Feature');
@@ -417,7 +418,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
 
       const preview = await call('preview_change', req);
       expect(preview.blocked).toBe(false);
-      await call('apply_change', { request: req, fingerprint: preview.fingerprint, decision: 'accept' });
+      await reviewedApply(store, { request: req, fingerprint: preview.fingerprint, decision: 'accept' });
       reopen();
 
       // 1. collectProductMeaning consumes Feature and Product charter provenance
@@ -508,7 +509,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
 
       const modPreview = await call('preview_change', modReq);
       expect(modPreview.blocked).toBe(false);
-      await call('apply_change', { request: modReq, fingerprint: modPreview.fingerprint, decision: 'accept' });
+      await reviewedApply(store, { request: modReq, fingerprint: modPreview.fingerprint, decision: 'accept' });
       reopen();
 
       // Verify module intent is recorded

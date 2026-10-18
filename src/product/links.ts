@@ -82,7 +82,7 @@ export async function reviewLink(args:LinkAction,ctx:ToolContext,yes:boolean,con
  present?.(preview);
  if(!yes&&!confirm) return preview;
  if(!yes&&!await confirm!(preview)) return {status:'cancelled',preview};
- const applied=await registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
+ const applied=await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only',ctx.signal,()=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
  if(!applied.ok) throw Error(applied.error??'Link application failed.');
  if(applied.verification&&!applied.verification.passed) {
   return {
@@ -145,11 +145,11 @@ export async function reviewDefinition(
   present?.(preview);
   if (!yes && !confirm) return preview;
   if (!yes && !(await confirm!(preview))) return { status: 'cancelled', preview };
-  const applied = await registry.execute(
+  const applied = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => registry.execute(
     'apply_change',
     { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' },
     ctx
-  );
+  ), preview.fingerprint);
   if (!applied.ok) throw new Error(applied.error ?? 'Definition application failed.');
   if (applied.verification && !applied.verification.passed) {
     return {

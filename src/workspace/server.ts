@@ -82,7 +82,8 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
         }
         if (req.method === 'POST' && url.pathname === '/api/apply') {
           const input = applySchema.parse(await req.json());
-          return json(await call('apply_change',input));
+          return json(await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal,
+            () => call('apply_change',input), input.decision === 'accept' ? input.fingerprint : undefined));
         }
         return json({error:'Not found'},404);
       } catch (error) {

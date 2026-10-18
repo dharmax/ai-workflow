@@ -197,7 +197,9 @@ async function main() {
       const ctx = {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const};
       const result = action === 'preview'
         ? await registry.execute('preview_change', input, ctx)
-        : await registry.execute('apply_change', {...(input as Record<string, unknown>), decision: action}, ctx);
+        : await ctx.store.withExecutionContext(ctx.executionAuthority, undefined,
+          () => registry.execute('apply_change', {...(input as Record<string, unknown>), decision: action}, ctx),
+          action === 'accept' ? String((input as Record<string, unknown>).fingerprint) : undefined);
       console.log(JSON.stringify(result, null, 2));
       if (result.blocked || action === 'accept' && !result.ok) process.exitCode = 1;
       break;

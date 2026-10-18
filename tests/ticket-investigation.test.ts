@@ -1,3 +1,4 @@
+import {createAspect,acceptProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -25,11 +26,11 @@ describe('grounded Ticket investigation', () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Queue', completenessTarget: 'production' });
     const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Recover jobs' });
     const d = await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Preserve ordering' },true,false);
-    const a = await Aspect.create(store, { id: 'A', title: 'Robustness', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] });
+    const a = await createAspect(store,{ id: 'A', title: 'Robustness', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] });
     const test = await store.upsertEntity<TestNode>(TestNode.dcr, { id: 'TEST', title: 'Recovery regression' });
     await store.upsertEntity<Lesson>(Lesson.dcr, { id: 'L', title: 'Do not discard jobs', filePath: 'queue.ts' });
     await store.relate(f, 'contains', story); await store.relate(t, 'addresses', story); await store.relate(t, 'modifies', file);
-    await store.relate(d, 'governs', f); await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', a)); await a.applyTo(f, store);
+    await store.relate(d, 'governs', f); await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', a)); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const before = JSON.stringify({ lane: t.lane, criteria: t.acceptanceCriteria, claim: t.claim, edges: await store.getOutgoing(t.id) });
     let calls = 0;
     const result = await t.investigate(store, { systemOne: unavailable, reason: async () => { calls++; throw Error('unnecessary'); } });
@@ -47,7 +48,7 @@ describe('grounded Ticket investigation', () => {
   it('prunes optional candidates only and escalates low confidence and contradictory routing once', async () => {
     const t = await ticket('T', 'Repair queue candidate');
     const optional = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, { id: 'OPTIONAL', title: 'candidate', filePath: 'external.ts', kind: 'function' });
-    const a = await Aspect.create(store, { id: 'A', title: 'Explicit concern' }); await store.relate(t, 'addresses', a);
+    const a = await createAspect(store,{ id: 'A', title: 'Explicit concern' }); await store.relate(t, 'addresses', a);
     const high = await t.investigate(store, { systemOne: routing('high') });
     expect(high.status).toBe('complete');
     if (high.status !== 'complete') throw Error(JSON.stringify(high));

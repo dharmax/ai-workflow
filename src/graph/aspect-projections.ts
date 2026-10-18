@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import { Aspect } from './ontology.ts';
 import type { WorkflowStore } from './store.ts';
-import { applyProductMutations, type ProductMutation } from '../product/mutation.ts';
+import type { ProductMutation } from '../product/mutation.ts';
 
 export async function exportAspectProjection(store: WorkflowStore, root: string): Promise<void> {
   let text = '# Aspects & Cross-cutting Intent\n\n';
@@ -46,6 +46,14 @@ export async function importAspectProjection(store: WorkflowStore, root: string,
     for (const targetId of new Set(scopes)) if (!previous.some(e => store.localId(e.targetId) === targetId)) mutations.push({ kind: 'product_link', sourceId: id, predicate: 'applies_to', targetId });
     count++;
   }
-  if (mutations.length) await applyProductMutations(store, mutations);
+  if (mutations.length) {
+    const {CausalChangeEngine} = await import('../change/engine.ts');
+    const engine = new CausalChangeEngine({store, projectRoot:root});
+    const request = {action:'product_change' as const, mutations};
+    const preview = await engine.previewChange(request);
+    if (preview.blocked) throw Error(preview.blockReason);
+    const applied = await engine.applyChange(request, preview.fingerprint);
+    if (!applied.ok || !applied.verification.passed) throw Error(applied.error ?? applied.verification.errors.join('; '));
+  }
   return count;
 }

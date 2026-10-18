@@ -1,3 +1,4 @@
+import {createProduct,acceptProduct,updateProduct,reviewedApply} from './product-review.ts';
 import {describe,it,expect,afterEach} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -21,7 +22,7 @@ describe('S4 reviewed derivation through Workspace',()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-'));store=new WorkflowStore(root);initializeTools();
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(file:string,value:string){return {file,value}}");
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
-  await call('create_feature',{id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted',priority:1});
+  await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted',priority:1});
   host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});
   browser=await chromium.launch({headless:true});const page=await browser.newPage();page.setDefaultTimeout(3000);
   await page.goto(host.url);await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
@@ -116,7 +117,7 @@ export function createAvatar(file:string) {
  });
  it('reports missing fixtures uncovered and materializes an approved executable public API test separately',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-test-'));store=new WorkflowStore(root);initializeTools();
-  await call('create_user_story',{id:'S',title:'Save filtered avatar',actor:'User',intent:'Keep preview',initialState:'Previous avatar exists',action:'Save filtered preview',expectedResult:'New avatar survives restart',status:'accepted'});
+  await createProduct(store, "UserStory", {id:'S',title:'Save filtered avatar',actor:'User',intent:'Keep preview',initialState:'Previous avatar exists',action:'Save filtered preview',expectedResult:'New avatar survives restart',status:'accepted'});
   const specification={storyId:'S',filePath:'tests/save.test.ts',fixturePath:'src/avatar.ts',interfaceName:'createAvatar',body:"const avatar = subject(); avatar.save('filtered'); expect(avatar.reload()).toBe('filtered');"};
   const missing=await call('prepare_story_test',{specification});expect(missing.status).toBe('uncovered');
   expect(await store.listEntities(TestNode.dcr)).toHaveLength(0);
@@ -133,8 +134,8 @@ export function createAvatar(file:string) {
   expect(applied.status).toBe('linked');expect(applied.testState).toBe('skipped');
   expect((await store.getEntity<TestNode>('test:tests/save.test.ts',TestNode.dcr))?.testState).toBe('skipped');
   const command=Bun.spawn(['bun','test','tests/save.test.ts'],{cwd:root,stdout:'pipe',stderr:'pipe'});
-  const [out,err]=await Promise.all([new Response(command.stdout).text(),new Response(command.stderr).text()]);
-  const output=out+'\n'+err;expect(await command.exited).toBe(0);expect(output).toContain('1 skip');
+  const [out,err,exitCode]=await Promise.all([new Response(command.stdout).text(),new Response(command.stderr).text(),command.exited]);
+  const output=out+'\n'+err;expect(exitCode).toBe(0);expect(output).toContain('1 skip');
   const repeated=await call('prepare_story_test',{specification});
   expect((await call('apply_story_test',{specification,fingerprint:repeated.fingerprint,decision:'accept'})).status).toBe('linked');
   expect((await store.getIncoming('S','verifies')).filter(e=>store.localId(e.sourceId)==='test:tests/save.test.ts')).toHaveLength(1);
@@ -144,7 +145,7 @@ export function createAvatar(file:string) {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-reject-'));store=new WorkflowStore(root);initializeTools();
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),'export function saveAvatar(value:string){return value}');
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
-  await call('create_feature',{id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
+  await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
   await browser?.close();
   host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(3000);await page.goto(host.url);
@@ -159,7 +160,9 @@ export function createAvatar(file:string) {
   await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
   await page.getByRole('button',{name:'Reject Story S',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
+  const application=page.waitForResponse(response=>response.url().endsWith('/api/apply'));
   await page.getByRole('button',{name:'Accept and save',exact:true}).click();
+  expect(await (await application).json()).toMatchObject({ok:true});
   await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
   expect(await store.getEntity('S')).toBeNull();expect(await store.getEntity('T')).toBeNull();
   expect(await store.listEntities(Ticket.dcr)).toHaveLength(0);
@@ -168,23 +171,23 @@ export function createAvatar(file:string) {
 
  it('reconciles an edited accepted Story, retains authoritative Aspects, and returns identity/scenario ambiguity',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-reconcile-'));store=new WorkflowStore(root);initializeTools();
-  await call('create_feature',{id:'F',title:'Avatar Filters',body:'Save previews',status:'accepted'});
-  await call('create_user_story',{id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
+  await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Save previews',status:'accepted'});
+  await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
   await call('create_ticket',{id:'T',title:'Implement save',body:'Original scope',priority:'P2'});
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/api.ts'),'export function save() { return true }');
   await indexSingleFile(store,path.join(root,'src/api.ts'),'src/api.ts',root);
-  await call('create_aspect',{id:'A',title:'Persistency',body:'Save must survive restart',status:'accepted'});
-  await call('link_product',{sourceId:'F',predicate:'enables',targetId:'S'});
-  await call('link_product',{sourceId:'A',predicate:'applies_to',targetId:'F'});
-  await call('link_product',{sourceId:'T',predicate:'addresses',targetId:'S'});
-  await call('update_user_story',{storyId:'S',action:'Save once; retain previous avatar on failure'});
+  await createProduct(store, "Aspect", {id:'A',title:'Persistency',body:'Save must survive restart',status:'accepted'});
+  await acceptProduct(store, [{kind:"product_link",sourceId:'F',predicate:'enables',targetId:'S'}]);
+  await acceptProduct(store, [{kind:"product_link",sourceId:'A',predicate:'applies_to',targetId:'F'}]);
+  await acceptProduct(store, [{kind:"product_link",sourceId:'T',predicate:'addresses',targetId:'S'}]);
+  await updateProduct(store, "UserStory", {id:'S',action:'Save once; retain previous avatar on failure'});
   const result=await call('process_story',{storyId:'S',critic:'none',proposal:{items:[
    {id:'T',kind:'Ticket',title:'Implement save',body:'Add public failure preservation case',priority:'P1',revise:true,scopeIds:['src/api.ts']}
   ],rationale:'Changed existing Story'}});
   expect(result.status).toBe('complete');expect((await call('get_ticket',{ticketId:'T'})).body).toBe('Original scope');
   const preview=result.value.proposals[0];
   expect(preview.request.basis.some((r:{id:string})=>r.id==='A')).toBe(true);
-  await call('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'});
+  await reviewedApply(store, {request:preview.request,fingerprint:preview.fingerprint,decision:'accept'});
   expect((await call('get_ticket',{ticketId:'T'})).body).toBe('Add public failure preservation case');
   expect(await store.listEntities(Ticket.dcr)).toHaveLength(1);
   expect((await call('get_applicable_aspects',{entityId:'T'})).map((a:{id:string})=>a.id)).toEqual(['A']);
@@ -200,9 +203,9 @@ export function createAvatar(file:string) {
 
  it('refuses stale/dirty test reviews, keeps started work active, and classifies fixture and source failures',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-boundary-'));store=new WorkflowStore(root);initializeTools();
-  await call('create_user_story',{id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
+  await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
   await call('create_ticket',{id:'T',title:'Implement save',lane:'In Progress'});
-  await call('link_product',{sourceId:'T',predicate:'addresses',targetId:'S'});
+  await acceptProduct(store, [{kind:"product_link",sourceId:'T',predicate:'addresses',targetId:'S'}]);
   const specification={storyId:'S',filePath:'tests/save.test.ts',fixturePath:'src/avatar.ts',interfaceName:'saveAvatar',body:"expect(subject('filtered')).toBe('filtered');"};
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(value:string){return value}");
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
