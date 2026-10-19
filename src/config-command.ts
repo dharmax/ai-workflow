@@ -6,6 +6,18 @@ export interface ConfigCommandResult {
   mutated: boolean;
   scope: ConfigScope;
 }
+export const CONFIG_HELP = [
+  'config [get] [key] [--global]       Inspect effective values and provenance',
+  'config set <key> <value> [--global] Set a validated project or global override',
+  'config reset <key> [--global]       Remove that override; inherited values remain',
+  '',
+  'Settings (objects accept quoted JSON):',
+  ...Object.entries(CONFIG_SETTINGS).map(([key, setting]) => `  ${key}: ${setting.description}`),
+  '',
+  'Credentials are not exposed here. Use model list, model set <task> <modelTarget>,',
+  'and doctor to inspect provider routing and runtime availability.'
+].join('\n');
+
 /** Both adapters supply tokens; only the interactive shell may fill missing human input. */
 export async function runConfigCommand(projectRoot: string, tokens: string[], facilitator?: ParameterFacilitator): Promise<ConfigCommandResult | null> {
   const scope: ConfigScope = tokens.includes('--global') ? 'global' : 'project';

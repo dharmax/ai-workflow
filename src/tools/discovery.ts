@@ -264,6 +264,7 @@ function normalizeObject(value: string): string {
     user: 'story',
     stories: 'story',
     tickets: 'ticket',
+    bugs: 'bug',
     task: 'ticket',
     features: 'feature',
     epics: 'epic',

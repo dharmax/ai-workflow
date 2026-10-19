@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
+import {CONFIG_HELP} from './config-command.ts';
+import {TicketDefectSchema} from './graph/ticket-state.ts';
 import {LinkActionSchema,type LinkAction,type DefinitionReviewInput} from './product/links.ts';
 import {normalizeLinkPayload} from './product/mutation.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';
@@ -88,8 +90,9 @@ export function lexCommand(input: string): string[] {
 export function isExplicitCommand(input:string):boolean {
   const [verb,...rest]=input.trim().split(/\s+/);
   const command=createCommandTree(()=>{},()=>{}).commands.find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
+  if(command && (command.name()==='next' || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
   if(rest.length && command?.registeredArguments.length===0) return true;
-  return /^(?:please\s+)?(?:link|links|unlink|resolve|prepare|investigate|process|completeness|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
+  return /^(?:please\s+)?(?:story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
 }
 
 export type NormalizedCommand =
@@ -139,7 +142,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   root.addHelpText('after', '\n'+LINK_HELP);
   const collect=(value:string,previous:string[]=[])=>[...previous,value];
   const lower=(value:string)=>value.toLowerCase();
-  const operation=(command:Command,tool:string)=>{
+  const operation=(command:Command,tool:string,kind?:'bug')=>{
     command.option('--completeness <level>','Temporary completeness',lower)
       .option('--depth <depth>','Expansion depth or all',value=>value.toLowerCase()==='all'?'all':Number(value))
       .option('--max-artifacts <count>','Maximum artifacts',Number)
@@ -149,7 +152,11 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
       .option('--max-repairs <count>','Repair bound',Number)
       .option('--allow-dirty-target <path>','Authorized dirty path (repeatable)',collect)
       .option('--authorize-file <ticket=path>','Authorized scope (repeatable)',collect);
-    command.action((id:string,opts:Record<string,unknown>)=>emit(artifactIntent(tool,id,opts)));
+    command.action((id:string,opts:Record<string,unknown>)=>{
+      const intent=artifactIntent(tool,id,opts);
+      if(kind && intent.family==='artifact') intent.args.kind=kind;
+      return emit(intent);
+    });
   };
   for(const verb of ['resolve','prepare','investigate']) {
     const tool=verb+'_ticket';
@@ -195,6 +202,68 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .action((id:string,opts:{incoming?:boolean;outgoing?:boolean;predicate?:string;limit?:number;cursor?:string})=>
       emit(linkIntent({action:'inspect',id,idMatch:'human',direction:opts.incoming?'incoming':opts.outgoing?'outgoing':'both',
         ...(opts.predicate!==undefined?{predicate:opts.predicate}:{}),...(opts.limit!==undefined?{limit:opts.limit}:{}),...(opts.cursor!==undefined?{cursor:opts.cursor}:{})})));
+  const bugCommands = (parent: Command) => {
+    const report = (command: Command, create: boolean) => {
+      if (create) command.option('--id <id>', 'Stable Ticket ID').requiredOption('--title <text>', 'Observed defect title');
+      else command.option('--title <text>', 'Observed defect title');
+      command.option('--body <text>', 'Context and diagnostic bounds')
+        .addOption(new Option('--priority <priority>', 'Explicit work priority').choices(['P0','P1','P2','P3']))
+        .option('--criterion <text>', 'Acceptance criterion (repeatable)', collect);
+      for (const key of ['reproduction','expected','actual','impact','environment'])
+        command.option(`--${key} <text>`, `Defect ${key}; omitted fields remain unknown`);
+      command.addOption(new Option('--severity <severity>', 'Observed defect severity').choices(TicketDefectSchema.shape.severity.unwrap().options))
+        .option('--evidence <path-or-url>', 'Evidence reference (repeatable); never proof by itself', collect);
+      const dispatch = (id: string | undefined, opts: Record<string, unknown>) => {
+        const {reproduction,expected,actual,impact,environment,severity,evidence,criterion,...fields}=opts;
+        const defect=Object.fromEntries(Object.entries({reproduction,expected,actual,impact,environment,severity,evidence}).filter(([,value])=>value!==undefined));
+        return emit({family:'artifact',tool:create?'create_bug':'update_bug',args:{...fields,...(id?{ticketId:id}:{}),
+          ...(criterion?{acceptanceCriteria:criterion}:{}),...(Object.keys(defect).length?{defect}:{})}});
+      };
+      if(create) command.action((opts:Record<string,unknown>)=>dispatch(undefined,opts));
+      else command.action((id:string,opts:Record<string,unknown>)=>dispatch(id,opts));
+    };
+    report(parent.command('new').aliases(['report','create']).description('Report a Bug; unknown fields remain unknown'),true);
+    report(parent.command('edit <id>').description('Complete a report in place, preserving identity and unspecified fields'),false);
+    parent.command('show <id>').description('Read a Bug; a task ID is refused')
+      .action((ticketId:string)=>emit({family:'artifact',tool:'get_bug',args:{ticketId}}));
+    parent.command('triage <id>').alias('history').description('Inspect readiness, dependencies, relations and verification evidence')
+      .option('--agent <id>','Agent for claim eligibility')
+      .action((ticketId:string,opts:{agent?:string})=>emit({family:'artifact',tool:'triage_bug',args:{ticketId,agentId:opts.agent}}));
+    parent.command('list').description('Filter canonical Bugs')
+      .option('--lane <lane>','Kanban lane').option('--severity <severity>','Observed severity').option('--query <text>','Find ID/title/context')
+      .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_bugs',args}));
+    parent.command('start <id>').description('Recheck readiness and prerequisites, claim and activate linked Story tests')
+      .option('--agent <id>','Leasing agent').option('--minutes <number>','Lease duration',Number)
+      .action((ticketId:string,opts:{agent?:string;minutes?:number})=>emit({family:'artifact',tool:'bug_action',args:{action:'start',ticketId,agentId:opts.agent,durationMinutes:opts.minutes}}));
+    for(const action of ['release','block','reopen','cancel']) parent.command(action+' <id>')
+      .description(action === 'cancel' ? 'Reject work into Backlog; preserve existing proof history' : action+' through the existing Ticket lifecycle')
+      .action((ticketId:string)=>emit({family:'artifact',tool:'bug_action',args:{action,ticketId}}));
+    for(const action of ['resolve','prepare','investigate']) operation(parent.command(action+' <id>').description(action+' this Bug through the existing Ticket owner'),action+'_ticket','bug');
+    parent.addHelpText('after', '\nUse link BUG to EXISTING as addresses|implements|targets|modifies|depends_on --yes for reviewed relations.\nPartial reports cannot start or resolve. Priority is explicit; title words do not classify work.');
+  };
+  bugCommands(root.command('bug').description('Report, triage and execute a typed Bug on the existing Ticket lifecycle'));
+  bugCommands(root.command('work').description('Work artifact operations').command('bug').description('First-class Bug operations'));
+  root.command('bugs').description('List/filter canonical Bugs')
+    .option('--lane <lane>','Kanban lane').option('--severity <severity>','Observed severity').option('--query <text>','Find ID/title/context')
+    .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_bugs',args}));
+  const storyTest=root.command('story-test').description('Review/materialize a public-interface Story test and inspect/run its lifecycle');
+  for(const action of ['status','run']) storyTest.command(action+' <storyId>')
+    .description(action==='status'?'Show uncovered/skipped/red/green/blocked/stale evidence':'Execute the active reviewed Story test; infrastructure failure is not expected red')
+    .action((storyId:string)=>emit({family:'artifact',tool:action==='status'?'get_story_test_status':'run_story_test',args:{storyId}}));
+  for(const action of ['prepare','apply']) {
+    const command=storyTest.command(action+' <storyId>').description(action==='prepare'?'Preview actual source and canonical test basis; no writes':'Apply only an explicitly reviewed current test specification')
+      .requiredOption('--file <path>','Project-relative .test.ts path')
+      .requiredOption('--fixture <path>','Existing executable public-interface fixture')
+      .requiredOption('--interface <name>','Exported fixture entry point invoked as subject')
+      .requiredOption('--body <javascript>','Executable test body that calls subject and asserts observable behavior');
+    if(action==='apply') command.requiredOption('--fingerprint <hash>','Exact current prepare fingerprint')
+      .requiredOption('--yes','Confirm this exact local test review; never Product intent');
+    command.action((storyId:string,opts:{file:string;fixture:string;interface:string;body:string;fingerprint?:string})=>
+      emit({family:'artifact',tool:action==='prepare'?'prepare_story_test':'apply_story_test',args:{
+        specification:{storyId,filePath:opts.file,fixturePath:opts.fixture,interfaceName:opts.interface,body:opts.body},
+        ...(action==='apply'?{fingerprint:opts.fingerprint,decision:'accept'}:{})}}));
+  }
+  storyTest.addHelpText('after','\nMaterialized tests are skipped until claim/start activates them. A missing fixture is uncovered.\nIf apply reports file-created-unlinked, prepare and review the same identity again before applying.');
   const productCmd = root.command('product').description('Read, author, or export Product definitions');
   productCmd.command('show').description('Show Product charter definition')
     .action(() => emit({family: 'artifact', tool: 'get_product', args: {}}));
@@ -241,7 +310,9 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   productCmd.command('export').description('Export product manifest and authored snapshot')
     .action(() => emit({family: 'legacy', command: 'product-export', tokens: []}));
 
+  productCmd.addHelpText('after', '\nNew definitions and edits are inert previews by default. Review before local --yes.\nUse product story new --help for the complete scenario; process story derives inert work proposals.');
   const productGoal = productCmd.command('goal').description('Goal operations');
+  productGoal.command('list').description('List canonical Goals').action(()=>emit({family:'artifact',tool:'list_goals',args:{}}));
   productGoal.command('show <id>').description('Existing Goal reader')
     .action((id:string)=>emit({family:'artifact',tool:'get_goal',args:{id}}));
   productGoal.command('new').description('Create a new Goal')
@@ -284,7 +355,9 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .option('--status <status>', 'Feature status')
     .option('--yes', 'Confirm and apply definition change directly')
     .action((opts: any) => {
-      const { id, yes, ...fields } = opts;
+      const { id, yes, outcome, behavioralRule, ...fields } = opts;
+      if(outcome) fields.outcomes=outcome;
+      if(behavioralRule) fields.behavioralRules=behavioralRule;
       emit({
         family: 'definition',
         yes: Boolean(yes),
@@ -297,13 +370,47 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .option('--status <status>', 'Feature status')
     .option('--yes', 'Confirm and apply definition change directly')
     .action((id: string, opts: any) => {
-      const { yes, ...fields } = opts;
+      const { yes, outcome, behavioralRule, ...fields } = opts;
+      if(outcome) fields.outcomes=outcome;
+      if(behavioralRule) fields.behavioralRules=behavioralRule;
       emit({
         family: 'definition',
         yes: Boolean(yes),
         input: { kind: 'Feature', id, create: false, fields }
       });
     });
+
+  for(const command of productFeature.commands.filter(command=>['new','edit'].includes(command.name()))) command
+    .option('--scope <text>','Feature scope').option('--boundaries <text>','Feature boundaries')
+    .option('--outcome <text>','Observable outcome (repeatable)',collect)
+    .option('--behavioral-rule <text>','Behavioral rule (repeatable)',collect);
+  for (const spec of [
+    {name:'epic',kind:'Epic' as const,read:'get_epic',list:'list_epics',key:'epicId',fields:['title','body','status']},
+    {name:'concept',kind:'Concept' as const,read:'get_concept',list:'list_concepts',key:'id',fields:['title','body','status']},
+    {name:'flow',kind:'Flow' as const,read:'get_flow',list:'list_flows',key:'id',fields:['title','body','actor','context','status']},
+    {name:'aspect',kind:'Aspect' as const,read:'get_aspect',list:'list_aspects',key:'id',fields:['title','body','status']},
+    {name:'story',kind:'UserStory' as const,read:'get_user_story',list:'list_user_stories',key:'storyId',fields:['title','actor','intent','initialState','action','expectedResult','exceptions','bounds','status']}
+  ]) {
+    const parent=productCmd.command(spec.name).description(`Read or review ${spec.kind} definitions`);
+    parent.command('show <id>').description('Show current canonical definition').action((id:string)=>emit({family:'artifact',tool:spec.read,args:{[spec.key]:id}}));
+    parent.command('list').description('List canonical definitions').action(()=>emit({family:'artifact',tool:spec.list,args:{}}));
+    for (const create of [true,false]) {
+      const command=parent.command(create?'new':'edit <id>').description(create?'Preview a new definition':'Preview an in-place revision');
+      if (create) command.requiredOption('--id <id>','Stable canonical ID').requiredOption('--title <text>','Definition title');
+      else command.option('--title <text>','Definition title');
+      for(const field of spec.fields.filter(field=>field!=='title'))
+        command.option('--'+field.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())+' <text>',field);
+      if(spec.kind==='UserStory' || spec.kind==='Aspect') command.option('--criterion <text>','Observable acceptance criterion (repeatable)',collect);
+      command.option('--yes','Confirm this exact local reviewed revision');
+      const dispatch=(id:string,opts:Record<string,unknown>)=>{
+        const {yes,criterion,...fields}=opts;
+        if(criterion) fields.acceptanceCriteria=criterion;
+        return emit({family:'definition',yes:!!yes,input:{kind:spec.kind,id,create,fields}});
+      };
+      if(create) command.action((opts:Record<string,unknown>)=>{const {id,...fields}=opts;return dispatch(String(id),fields);});
+      else command.action((id:string,opts:Record<string,unknown>)=>dispatch(id,opts));
+    }
+  }
 
   const archCmd = root.command('arch').description('Architecture operations');
   const archModule = archCmd.command('module').description('Architecture module operations');
@@ -333,18 +440,105 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     const command=root.command(signature).description(signature.split(' ')[0]!+' operation');
     command.action(()=>emit({family:'legacy',command:command.name(),tokens:command.args}));
   }
+  const ticketCommand=root.commands.find(command=>command.name()==='ticket')!;
+  ticketCommand.command('show <id>').description('Show canonical Ticket, dependencies and current verification receipt')
+    .action((ticketId:string)=>emit({family:'artifact',tool:'get_ticket',args:{ticketId}}));
+  ticketCommand.command('list').description('Filter canonical work by kind, lane and text')
+    .option('--kind <kind>','task or bug').option('--lane <lane>','Kanban lane').option('--query <text>','Find ID/title/body')
+    .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_tickets',args}));
+  for(const create of [true,false]) {
+    const command=ticketCommand.command(create?'new':'edit <id>').description(create?'Create bounded technical work':'Edit existing work in place');
+    if(create) command.option('--id <id>','Stable Ticket ID').requiredOption('--title <text>','Work title');
+    else command.option('--title <text>','Work title');
+    command.option('--body <text>','Grounded work contract').option('--priority <priority>','P0, P1, P2 or P3')
+      .option('--criterion <text>','Acceptance criterion (repeatable)',collect);
+    const dispatch=(ticketId:string|undefined,opts:Record<string,unknown>)=>{
+      const {criterion,...fields}=opts;
+      return emit({family:'artifact',tool:create?'create_ticket':'update_ticket',args:{...fields,...(ticketId?{ticketId}:{}),...(criterion?{acceptanceCriteria:criterion}:{})}});
+    };
+    if(create) command.action((opts:Record<string,unknown>)=>dispatch(undefined,opts));
+    else command.action((id:string,opts:Record<string,unknown>)=>dispatch(id,opts));
+  }
+  ticketCommand.command('classify <id> <kind>')
+    .description('Preview same-ID task/Bug reclassification; exact local review is required')
+    .option('--yes','Confirm this exact local deterministic reclassification')
+    .action((id:string,kind:string,opts:{yes?:boolean})=>emit({family:'definition',yes:!!opts.yes,input:{kind:'Ticket',id,create:false,fields:{kind}}}));
+  // Descriptions/examples belong to this shared tree; specialist owners still parse their arguments.
+  const specialistHelp: Record<string,string> = {
+    triage:'triage ["<test command>"]\nRuns the existing test runner and reports original failures; default: bun test.',
+    metrics:'metrics [--operation <name>] [--ticket <id>] [--since <duration>] [--tag <key=value>]\nmetrics export <workspace-path.json> [filters]',
+    'epic-create':'epic-create "<title>" [--body <text>] [--priority <number>] [--no-decompose] [--yes]\nDefault: inert decomposition proposal. --no-decompose previews a reviewed Epic; --yes confirms that exact local revision.',
+    'epic-add':'epic-add "<title>" [--body <text>] [--priority <number>] [--no-decompose] [--yes]\nAlias of epic-create; prefer product epic new for explicit stable identity.',
+    create:'create "<title>" [--id <id>] [--lane <lane>] [--priority <P0|P1|P2|P3>]\nCreates a task. Use ticket new for body/acceptance criteria and bug new for defects.',
+    new:'new "<title>" [--id <id>] [--lane <lane>] [--priority <P0|P1|P2|P3>]\nAlias of create. Done is owned by independent verification.',
+    claim:'claim <ticketId> [agent] [minutes] [--agent <id>] [--minutes <number>]\nChecks prerequisites, report completeness and foreign leases, then activates reviewed Story tests.',
+    symbol:'symbol <name> [--exact|-e] [--regex|-r] [--kind|-k <kind>] [--file|-f <path>] [--exported] [-n|--limit <count>]',
+    graph:'graph [query] [--type|-t <type>] [--pred|-p <predicate>] [--from|--source <id>] [--to|--target <id>] [--depth|-d <number>] [-n|--limit <count>]',
+    patch:'patch <filePath> "<existing text>" "<replacement>"\npatch --spec <patch.json>\npatch <filePath> "<existing text>" --stdin\nUses the existing guarded patch owner; preserve exact original text.',
+    exec:'exec "<instruction or wish>"\nRuns the configured Actor; Product proposals still require host-owned review.',
+    eval:'eval "<code>"\nExecutes JavaScript through the existing sandbox tool.',
+    kb:'kb sync [--force] | list [service|skill|pattern] | search <query> | show <id>'
+  };
   // Retain the established argument owners for specialist grammars, not a second parser here.
   for(const name of ['triage','product-change','metrics','setup','epic-create','epic-add','create','new',
     'claim','symbol','graph','patch','rule','config','exec','eval','model','kb']) {
-    root.command(name+' [args...]').description(name+' operation').allowUnknownOption()
+    const command=root.command(name+' [args...]').description(specialistHelp[name]?.split('\n')[0] ?? name+' operations').allowUnknownOption()
       .action((tokens:string[])=>emit({family:'legacy',command:name,tokens}));
+    if(specialistHelp[name]) command.addHelpText('after','\n'+specialistHelp[name]);
   }
+  root.commands.find(command => command.name() === 'config')!
+    .description('Inspect configuration provenance and set/reset validated overrides')
+    .addHelpText('after', '\n' + CONFIG_HELP);
+  root.commands.find(command => command.name() === 'ticket')!
+    .description('Show a canonical Ticket, its relations, dependencies and evidence')
+    .addHelpText('after', `
+Related work commands:
+  tickets [lane]                       List Tickets in a Kanban lane
+  ticket new --title <text> [--id <id>] [--body <text>] [--priority P0|P1|P2|P3]
+  claim <id> [agent] [minutes]          Claim through the existing lease owner
+  release <id>                         Release the active lease
+  move <id> <lane>                      Backlog, Todo, "In Progress", or Blocked
+  investigate <id>                      Inspect grounded evidence without implementation
+  prepare <id>                          Enrich work before implementation
+  resolve <id>                          Implement and independently verify
+  links <id>                            Inspect related canonical artifacts
+Done requires owner-managed verification; generic move/done cannot certify completion.
+Use COMMAND --help for operation options.`);
+  root.commands.find(command => command.name() === 'product-change')!
+    .description('Preview or explicitly review a current Product change')
+    .addHelpText('after', `
+  product-change preview <request.json>
+  product-change accept|reject|cancel <preview.json>
+Preview is inert. Review the exact request and fingerprint before acceptance.
+Only the local host review can authorize that current fingerprint; an external
+Actor's decision or project-write authority cannot approve its own proposal.`);
+  root.commands.find(command => command.name() === 'model')!
+    .description('Inspect available models and configure task routing')
+    .addHelpText('after', `
+  model [list]
+  model radar [--refresh]
+  model set <task> <modelTarget>
+Use config get modelRoutes to inspect effective routes and doctor for runtime checks.
+A configured provider is not proof that authentication or inference succeeds.`);
+  root.commands.find(command => command.name() === 'setup')!
+    .description('Inspect or install host integration and executable links')
+    .addHelpText('after', '\n  setup [--check] [--global|--mcp|--link]');
+  root.commands.find(command => command.name() === 'rule')!
+    .description('Inspect effective engineering Rules or preview reviewed updates')
+    .addHelpText('after', `
+  rule list [--type|--scope|--status|--language|--provenance <value>]
+  rule get <layer-id>
+  rule export
+  rule preview <request.json>
+  rule apply <request.json> <fingerprint>
+  rule resolve <reference.json> <authorized-repository>`);
   root.version(formatBuildInfo('AIWF'),'-V, --version');
   root.command('version').action(()=>emit({family:'help',tool:'help',args:{text:formatBuildInfo('AIWF')}}));
   // Commander passes the previous option value to argParser, including for booleans.
   const configure=(command:Command)=>{
     command.allowExcessArguments(false);
-    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file'].includes(option.name())) {
+    if(command.commands.length && command.registeredArguments.length===0) {command.addHelpCommand();command.action(()=>command.help());}
+    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule'].includes(option.name())) {
       const parse=option.parseArg;
       option.argParser((value,previous:unknown)=>{
         if(previous!==undefined) throw new InvalidArgumentError(`Duplicate option '${option.flags}'.`);

@@ -3,6 +3,12 @@ import { loadConfig } from './config.ts';
 import type { WorkflowStore } from './graph/store.ts';
 import { Epic, Feature, UserStory, ModuleNode, Ticket, type WorkflowEntity } from './graph/ontology.ts';
 
+/** An operation outcome has an artifact/test identity; a Ticket's work status is a separate dimension. */
+export function isBlockedOperation(result: unknown): boolean {
+  return typeof result === 'object' && result !== null && ('artifactId' in result || 'testId' in result) &&
+    'status' in result && (result.status === 'blocked' || result.status === 'needs_input');
+}
+
 export const CompletenessSchema = z.enum(['poc', 'functional', 'advanced', 'production']);
 export type CompletenessLevel = z.infer<typeof CompletenessSchema>;
 export interface CriticFinding { readonly message: string; readonly artifactId?: string }

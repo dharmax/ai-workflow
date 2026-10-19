@@ -28,6 +28,8 @@ The graph is durable project state. Markdown projections and chat transcripts ar
 
 ## Start here
 
+For the current Product → reviewed work → executable Story-test journey and typed Bug workflow, see [Iteration 1 evidence and executable replay](docs/iteration1-2026-10-19.md). It records passing public paths and remaining release gates; it does not claim S6 or complete PC5 acceptance. Use `aiwf ticket --help`, `aiwf bug --help`, `aiwf product --help`, `aiwf story-test --help` and `aiwf config --help` for scoped syntax.
+
 Inside an AIWF project:
 
 ```bash

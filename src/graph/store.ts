@@ -308,7 +308,11 @@ export class WorkflowStore {
         (['body','responsibilities','boundaries','intentStatus'].some(key => key in fields) ||
           Object.keys(fields).length === 0 && previous?.body))
       throw Error('Module intention requires reviewed Product preview/apply.');
-    if (type === 'Ticket') assertTicketAuthoring(fields, previous);
+    if (type === 'Ticket') {
+      assertTicketAuthoring(fields, previous);
+      if (this.execution.getStore() && previous && fields.kind !== undefined && fields.kind !== (previous.kind ?? 'task'))
+        throw Error('Ticket reclassification requires reviewed preview/apply; direct mutation cannot approve it.');
+    }
     if (type === 'Artifact' && id && /^(?:VERIFY-|GOVERNANCE-ADMISSION$)/.test(this.localId(id)))
       throw Error('Verification receipts and admission records are owner-managed.');
     if (type === 'Decision' &&
@@ -804,6 +808,17 @@ export class WorkflowStore {
     const doneTickets = byLane['Done'];
     const completionPercent = totalTickets > 0 ? Math.round((doneTickets / totalTickets) * 100) : 100;
 
+    const ticketScopes: Array<{ticket:Ticket;targets:Set<string>}> = [];
+    for (const ticket of tickets.filter(ticket => ticket.lane!=='Done' && ticket.status!=='rejected')) {
+      const targets=new Set<string>();
+      for (const edge of await this.getOutgoing(ticket.id)) {
+        if (!['targets','modifies'].includes(edge.predicateName)) continue;
+        targets.add(edge.targetId);
+        const symbol=await this.getEntity<SymbolNode>(edge.targetId,SymbolNode.dcr);
+        if(symbol?.filePath) targets.add(symbol.filePath);
+      }
+      ticketScopes.push({ticket,targets});
+    }
     const moduleSummaries: ModuleHealth[] = [];
     for (const m of modules) {
       const containsPreds = await this.getOutgoing(m.id, 'contains');
@@ -815,15 +830,16 @@ export class WorkflowStore {
         symbolCount += symPreds.length;
       }
 
-      const bugsInModule = lessons.filter(l => (l as any).noteType === 'BUG' && fileIds.some(fid => (l as any).filePath?.includes(fid)));
-      const activeTickets = tickets.filter(t => (t as any).lane !== 'Done' && fileIds.some(fid => (t as any).body?.includes(fid))).map(t => this.localId(t.id));
-
+      const bugNotes = lessons.filter(lesson => lesson.noteType === 'BUG' && fileIds.some(id => this.localId(id) === lesson.filePath));
+      const linkedTickets=ticketScopes.filter(({targets})=>targets.has(m.id) || fileIds.some(id=>targets.has(id)||targets.has(this.localId(id)))).map(({ticket})=>ticket);
+      const activeTickets=linkedTickets.map(ticket=>this.localId(ticket.id));
       moduleSummaries.push({
         name: (m as any).title || this.localId(m.id),
         path: (m as any).path || this.localId(m.id),
         completenessTarget: m.completenessTarget,
         symbolCount,
-        bugsCount: bugsInModule.length,
+        bugsCount: linkedTickets.filter(ticket=>ticket.kind==='bug').length,
+        bugNotesCount:bugNotes.length,
         activeTickets
       });
     }

@@ -82,15 +82,17 @@ export async function buildEntityView(
     }}
   }
   if (kind === 'ticket') {
-    const ticket = await ctx.store.getEntity<Ticket>(id, Ticket.dcr)
-    if (!ticket) throw new Error(`Ticket '${id}' not found.`)
-    const t = ticket as any
+    const t = await registry.execute('get_ticket',{ticketId:id},ctx)
     return {
       id: `ticket:${id}`,
       title: `Ticket · ${id}`,
       mode,
       fields: {
         id: text(id, 'readonly', {label: 'ID'}),
+        relations: text(JSON.stringify({incoming:t.incoming,outgoing:t.outgoing},null,2),'readonly',{label:'Relations and dependencies'}),
+        verification: text(JSON.stringify({state:t.verificationState,receipt:t.verification},null,2),'readonly',{label:'Recorded verification; current freshness requires resolver checks'}),
+        kind: text(t.kind ?? 'task', 'readonly', {label:'Type'}),
+        defect: text(t.defect ? JSON.stringify(t.defect,null,2) : '', 'readonly', {label:'Defect report; use bug edit to complete'}),
         title: text(t.title, 'edit', {label: 'Title'}),
         lane: choice(t.lane ?? 'Todo', ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'], {label: 'Lane'}),
         priority: choice(t.priority ?? 'P2', ['P0', 'P1', 'P2', 'P3'], {label: 'Priority'}),

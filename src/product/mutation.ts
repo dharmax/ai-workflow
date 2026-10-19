@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
-import { ticketState, assertTicketAuthoring } from '../graph/ticket-state.ts';
+import { ticketState, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../graph/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
 import type { TicketLane } from '../graph/types.ts';
@@ -27,6 +27,7 @@ const fields = z.object({
   responsibilities: z.array(z.string()), intentStatus: intentStatus,
   filePath: z.string(), framework: z.string(), command: z.array(z.string()), fixturePath: z.string(), interfaceName: z.string(),
   storyVersion: z.number().int().positive(), testState: z.enum(['skipped','not-run','expected-red','green','blocked']), testStateReason: z.string(), testSourceHash: z.string(), fixtureHash: z.string(), storyBasisHash: z.string(),
+  kind: TicketKindSchema, defect: TicketDefectSchema,
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
 }).partial().strict();
 
@@ -132,7 +133,7 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget', 'outcomes', 'scope', 'boundaries', 'behavioralRules'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [],
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [],
     Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
@@ -172,7 +173,11 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
       }
     }
   }
-  if (kind === 'Ticket') assertTicketAuthoring(input, create ? undefined : previous);
+  if (kind === 'Ticket') {
+    assertTicketAuthoring(input, create ? undefined : previous);
+    if (input.defect !== undefined && (input.kind ?? previous.kind ?? 'task') !== 'bug')
+      throw Error('Defect fields belong to an explicitly typed Bug.');
+  }
   if (kind === 'UserStory') {
     const next = { ...previous, ...input };
     const semanticFields = ['actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla'];
@@ -217,7 +222,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       throw Error('Verification receipts and admission records are owner-managed.');
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
-    const fields = Object.fromEntries(['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['kind', 'defect', 'title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const rows = await productEdgeRows(store, entity.id);
     snapshot[id] = { kind, fields, relations: rows };
@@ -322,7 +327,8 @@ export class ProductReviewRequired extends Error {}
 
 function productOwnerWrite(store: WorkflowStore, mutations: ProductMutation[], state: Map<string, {kind: ProductKind}>): boolean {
   return mutations.every(m => {
-    if ((m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket') return true;
+    if ((m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket')
+      return m.kind === 'product_create' || m.fields.kind === undefined;
     if (m.kind === 'product_link' || m.kind === 'product_unlink') {
       const source = state.get(m.sourceId)?.kind, target = state.get(m.targetId)?.kind;
       // Ticket preparation and governed implementation own work ordering and source scope.

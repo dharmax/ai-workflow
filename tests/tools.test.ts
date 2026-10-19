@@ -78,6 +78,8 @@ describe('Tool Registry & Deterministic Facilities', () => {
     // 3. Create a high-priority bug in Todo
     const bugTicket = await registry.execute('create_ticket', {
       id: 'BUG-001',
+      kind:'bug',
+      defect:{reproduction:'Index an empty source file',expected:'Empty module is indexed without an exception',actual:'Null pointer exception',severity:'high'},
       title: 'Fix null pointer in indexer',
       lane: 'Todo',
       priority: 'P0',

@@ -51,6 +51,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
           const cleanBody = (t as any).body.replace(/\n/g, ' ').trim();
           if (cleanBody) kanban += `  - Summary: ${cleanBody}\n`;
         }
+        if (t.kind === 'bug') kanban += `  - Type: Bug / severity: ${t.defect?.severity ?? 'unknown'} / priority: ${t.priority}\n`;
         if ((t as any).claim) {
           const claim = (t as any).claim;
           kanban += `  - Claim: leased by @${claim.agentId} until ${claim.expiresAt}\n`;
@@ -310,10 +311,10 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
   // 6. modules.md
   let modulesMd = `# Architecture & Modules\n\n`;
   modulesMd += `## Module Health\n\n`;
-  modulesMd += `| Module | Completeness Target | Symbols | Bugs 🔴 | Active Tickets |\n`;
-  modulesMd += `| :--- | :---: | :---: | :---: | :--- |\n`;
+  modulesMd += `| Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |\n`;
+  modulesMd += `| :--- | :---: | :---: | :---: | :---: | :--- |\n`;
   for (const m of health.modules) {
-    modulesMd += `| \`${m.name}\` | ${m.completenessTarget || 'project default'} | ${m.symbolCount} | ${m.bugsCount} | ${m.activeTickets.join(', ') || 'None'} |\n`;
+    modulesMd += `| \`${m.name}\` | ${m.completenessTarget || 'project default'} | ${m.symbolCount} | ${m.bugsCount} | ${m.bugNotesCount} | ${m.activeTickets.join(', ') || 'None'} |\n`;
   }
   modulesMd += `\n## Dependency Diagram\n\n\`\`\`mermaid\ngraph TD\n`;
   for (const m of health.modules) {
@@ -436,7 +437,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
               title,
               body: summary,
               claim,
-              ...ticketState(resolvedLane, resolvedLane === 'Done' && (existingTicket as Ticket | null)?.status === 'rejected' ? 'rejected' : undefined)
+              ...ticketState(resolvedLane, ['Done','Backlog'].includes(resolvedLane) && (existingTicket as Ticket | null)?.status === 'rejected' ? 'rejected' : undefined)
             });
             importedChanges++;
           }

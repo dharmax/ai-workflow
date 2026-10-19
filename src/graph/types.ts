@@ -76,7 +76,11 @@ export interface UserStoryData extends BaseEntityData {
   sla?: string;
 }
 
+export type TicketDefect = import('zod').infer<typeof import('./ticket-state.ts').TicketDefectSchema>;
+
 export interface TicketData extends BaseEntityData {
+  kind?: 'task' | 'bug';
+  defect?: TicketDefect;
   acceptanceCriteria?: string[];
   lane: TicketLane;
   priority?: 'P0' | 'P1' | 'P2' | 'P3';
@@ -184,6 +188,7 @@ export interface ModuleHealth {
   completenessTarget?: CompletenessLevel | null;
   symbolCount: number;
   bugsCount: number;
+  bugNotesCount: number;
   activeTickets: string[];
 }
 

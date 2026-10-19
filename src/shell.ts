@@ -11,7 +11,8 @@ import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts
 import { CommanderError } from 'commander';
 import { parseCommand, lexCommand, isExplicitCommand, facilitateArtifactCommand, type NormalizedCommand } from './artifact-command.ts';
 import os from 'node:os';
-import {reviewLink} from './product/links.ts';
+import {reviewLink,reviewDefinition} from './product/links.ts';
+import {isBlockedOperation} from './artifact-policy.ts';
 import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
 import type {ActorStepRecord} from '@dharmax/llm-utils';
 import {
@@ -29,6 +30,7 @@ import { Ticket } from './graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
+import {exportProductManifest,exportAuthoredState} from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { loadConfig, saveConfig } from './config.ts';
@@ -171,12 +173,27 @@ export async function processShellInput(
         command=await parseCommand(facilitated);
       }
       if(command?.family==='help') return {output:command.args.text};
-      if(command?.family==='link') {
+      if(command.family==='link' || command.family==='definition') {
         const confirm=isInteractive?async(preview:unknown)=>{
-          const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact link change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});
+          const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact '+command.family+' change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});
           return answer.approval==='apply';
         }:undefined;
-        return {output:JSON.stringify(await reviewLink(command.args,ctx,command.yes,confirm,command.yes?preview=>console.error(JSON.stringify(preview,null,2)):undefined),null,2)};
+        const present=command.yes?(preview:unknown)=>console.error(JSON.stringify(preview,null,2)):undefined;
+        const result=command.family==='link'
+          ? await reviewLink(command.args,ctx,command.yes,confirm,present)
+          : await reviewDefinition(command.input,ctx,command.yes,confirm,present);
+        return {output:JSON.stringify(result,null,2)};
+      }
+      if(command.family==='legacy' && command.command==='product-export') {
+        const manifest=await exportProductManifest(ctx.store,ctx.projectRoot);
+        const snapshot=await exportAuthoredState(ctx.store,ctx.projectRoot);
+        return {output:`Exported ${path.relative(ctx.projectRoot,manifest)} and ${path.relative(ctx.projectRoot,snapshot)}`};
+      }
+      if(command.family==='legacy' && command.command==='next') {
+        const nextTask=await registry.execute('recommend_next_task',{agentId:command.tokens[0]},ctx);
+        return {output:nextTask.ticket
+          ? `Recommended Task: [${nextTask.ticket.id}] ${nextTask.ticket.title} (${nextTask.ticket.lane})\nReason: ${nextTask.reason}`
+          : nextTask.reason};
       }
       if (command.family === 'artifact') {
         const progress = session.viewport || new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false, traceHint: ''});
@@ -185,7 +202,7 @@ export async function processShellInput(
           : `Running ${command.tool}...`);
         try {
           const result = await registry.execute(command.tool, command.args, ctx);
-          progress.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
+          progress.stop(isBlockedOperation(result) ? 'fail' : 'success');
           return {output: JSON.stringify(result, null, 2)};
         } catch (error) { progress.stop('fail'); throw error; }
       }
@@ -283,13 +300,6 @@ export async function processShellInput(
     return { output: text };
   }
 
-  if (lower === 'next') {
-    const nextTask = await registry.execute('recommend_next_task', {}, ctx);
-    if (!nextTask.ticket) return { output: 'No pending tasks found. All tickets clean!' };
-    return {
-      output: `Recommended Task: [${nextTask.ticket.id}] ${nextTask.ticket.title} (${nextTask.ticket.lane})\nReason: ${nextTask.reason}`
-    };
-  }
 
   const ticketVerb = line.split(/\s+/)[0]!.toLowerCase();
   if (TICKET_COMMANDS.includes(ticketVerb as TicketCommand)) {

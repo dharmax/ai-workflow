@@ -57,7 +57,7 @@ export async function investigateTicket(
                 ticket: {
                     id,
                     title: current.title ?? id,
-                    body: current.body,
+                    body: current.body, kind:current.kind??'task', defect:current.defect,
                     lane: current.lane,
                     status: current.status,
                     acceptanceCriteria: current.acceptanceCriteria ?? []

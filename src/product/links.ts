@@ -96,7 +96,7 @@ export async function reviewLink(args:LinkAction,ctx:ToolContext,yes:boolean,con
 }
 
 export interface DefinitionReviewInput {
-  kind: 'Product' | 'Goal' | 'Concept' | 'Flow' | 'Feature' | 'UserStory' | 'Aspect' | 'Decision' | 'Module';
+  kind: 'Product' | 'Goal' | 'Concept' | 'Flow' | 'Feature' | 'UserStory' | 'Aspect' | 'Decision' | 'Module' | 'Ticket' | 'Epic';
   id: string;
   create: boolean;
   fields: Record<string, unknown>;

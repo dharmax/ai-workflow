@@ -42,7 +42,7 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
         if (req.method === 'GET' && url.pathname === '/api/catalog') {
           const groups = await Promise.all(Object.entries(reads).map(async ([kind,[list]]) => {
             const rows = await call(list,{}) as Array<Record<string,unknown>>;
-            return rows.map(row=>({...row,kind}));
+            return rows.map(row=>({...row,...(kind==='Ticket'?{ticketKind:row.kind??'task'}:{}),kind}));
           }));
           return json({entities:groups.flat(),projectRoot:ctx.projectRoot});
         }
@@ -60,7 +60,7 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           }])).values()];
           const aspects = kind === 'Aspect' ? [] : await call('get_applicable_aspects',{entityId:id});
           const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
-          return json({storyTests,entity:{...entity,kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
+          return json({storyTests,entity:{...entity,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
         }
         if (req.method === 'POST' && url.pathname === '/api/run-story-test')
           return json(await call('run_story_test',z.object({storyId:z.string().min(1)}).parse(await req.json())));

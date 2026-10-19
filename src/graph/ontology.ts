@@ -4,6 +4,7 @@
  */
 
 import { AbstractEntity, EntityDcr, PredicateDcr, RawOntology } from "@dharmax/semantika"
+import {TicketKindSchema, TicketDefectSchema} from "./ticket-state.ts"
 
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from "../artifact-policy.ts"
 import type { WorkflowStore } from "./store.ts"
@@ -354,6 +355,9 @@ export class Aspect extends WorkflowEntity {
 }
 
 export class Ticket extends WorkflowEntity {
+    declare kind: 'task' | 'bug'
+    declare defect?: import("./types.ts").TicketDefect
+    declare priority: 'P0' | 'P1' | 'P2' | 'P3'
     declare body: string
     declare lane: import("./types.ts").TicketLane
     declare status: import("./types.ts").TicketStatus
@@ -392,7 +396,9 @@ export class Ticket extends WorkflowEntity {
         lane: { validate: (v: unknown) => ({ value: v ?? "Backlog" }) },
         priority: { validate: (v: unknown) => ({ value: v ?? "P2" }) },
         claim: passthroughValidator,
-        estimateTokens: passthroughValidator
+        estimateTokens: passthroughValidator,
+        kind: {validate: (v: unknown) => ({value: TicketKindSchema.parse(v ?? 'task')})},
+        defect: {validate: (v: unknown) => ({value: v == null ? undefined : TicketDefectSchema.parse(v)})}
     }
     static readonly dcr = new EntityDcr(Ticket, Ticket.template, "Ticket")
 }
@@ -530,6 +536,8 @@ export class Decision extends WorkflowEntity {
 }
 
 export class Lesson extends WorkflowEntity {
+    declare noteType: import('./types.ts').LessonData['noteType']
+    declare filePath?: string
     static template = {
         ...baseTemplate,
         ticketId: passthroughValidator,

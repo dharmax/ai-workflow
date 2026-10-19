@@ -10,6 +10,7 @@ import {createInterface} from 'node:readline/promises';
 import {reviewLink, reviewDefinition} from './product/links.ts';
 import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
 import { parseCommand } from './artifact-command.ts';
+import {isBlockedOperation} from './artifact-policy.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
@@ -94,10 +95,11 @@ async function main() {
     let result;
     try {
       result = await registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const});
-      progress?.stop(result?.status === 'blocked' || result?.status === 'needs_input' ? 'fail' : 'success');
+      progress?.stop(isBlockedOperation(result) ? 'fail' : 'success');
     } catch (error) { progress?.stop('fail'); throw error; }
     console.log(JSON.stringify(result, null, 2));
-    if (result?.status === 'blocked' || result?.status === 'needs_input') process.exitCode = 2;
+    if (isBlockedOperation(result)) process.exitCode = 2;
+    else if (result?.success === false) process.exitCode = 1;
     getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients();
     return;
   }
@@ -386,14 +388,12 @@ async function main() {
       const store = getStore();
 
       if (noDecompose) {
-        const created = await registry.execute('create_epic', {
-          title,
-          body,
-          priority,
-          status: 'planned'
-        }, { store, projectRoot: root, executionAuthority: 'project-write' });
-        await exportProjections(store, root);
-        console.log(`✅ Created Epic '${created.id}' without decomposition and synced projections.`);
+        const result=await reviewDefinition({kind:'Epic',id:'EPIC-'+crypto.randomUUID().slice(0,8),create:true,
+          fields:{title,body:body??'',priority,status:'planned'}},
+          {store,projectRoot:root,executionAuthority:'project-write'},args.includes('--yes'),undefined,
+          preview=>console.error(JSON.stringify(preview,null,2)));
+        if(result.status==='applied') await exportProjections(store,root);
+        console.log(JSON.stringify(result,null,2));
         break;
       }
 
@@ -470,7 +470,7 @@ async function main() {
       const agentId = args[1];
       const nextTask = await registry.execute('recommend_next_task', { agentId }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (!nextTask.ticket) {
-        console.log(`✨ No pending tasks. All tickets completed or leased!`);
+        console.log(nextTask.reason);
       } else {
         console.log(`\x1b[1;32m👉 Recommended Task: [${nextTask.ticket.id}] ${nextTask.ticket.title}\x1b[0m`);
         console.log(`Lane:   ${nextTask.ticket.lane}`);

@@ -172,7 +172,7 @@ export function registerTestTools() {
     category: 'test',
     parameters: z.object({
       specPath: z.string().optional().describe('Optional specific spec file or folder to run'),
-      createBugOnFailure: z.boolean().default(false).describe('Automatically create a P1 Bug ticket on failure')
+      createBugOnFailure: z.boolean().default(false).describe('Report a partial P1 Bug on failure; expected behavior requires triage')
     }),
     execute: async ({specPath, createBugOnFailure}, ctx: ToolContext) => {
       ctx.store.assertCanWrite()
@@ -214,6 +214,8 @@ export function registerTestTools() {
           const ticket = await ctx.store.upsertEntity<Ticket>(Ticket.dcr, {
             id: `BUG-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
             title: `Playwright regression in ${specPath || 'test suite'}`,
+            kind:'bug',
+            defect:{reproduction:cmd.join(' '),actual:failureOutput,environment:'Playwright runner',evidence:specPath?[specPath]:[]},
             lane: 'Todo',
             priority: 'P1',
             status: 'planned',

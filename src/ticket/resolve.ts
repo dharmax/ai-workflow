@@ -4,6 +4,7 @@
  */
 
 import { implementTicket } from "./implementation.ts"
+import {assessBug} from "../graph/ticket-state.ts"
 import {requireStoryTests} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance } from "./verification.ts"
 import { Ticket, TestNode, Artifact } from "../graph/ontology.ts"
@@ -225,6 +226,9 @@ export async function resolveTicket(
                             "The work closure exceeds the explicit operation budget.",
                             "Operation depth/maxArtifacts"
                         )
+                    if (ticket.kind === 'bug' && !assessBug(ticket).ready)
+                        return needs(`Complete Bug report '${id}': ${assessBug(ticket).missing.join(', ')}.`,
+                            'A partial defect report is not an executable implementation contract.', 'Bug reproduction')
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
                     const prepared = await ticket.prepare(store, { ...options, agentId })

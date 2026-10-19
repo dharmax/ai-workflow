@@ -73,6 +73,25 @@ describe('S3 Workspace public developer journeys', () => {
     if (root) { fs.rmSync(root, {recursive:true, force:true}); root = undefined as any; }
   });
 
+  it('reports and edits a first-class Bug through the actual reviewed Workspace', async () => {
+    const page=await setup();
+    await page.getByRole('button',{name:'Report Bug',exact:true}).click();
+    await fill(page, {'Stable ID':'B-UI',Title:'Decimal totals are truncated',Description:'Existing total CLI loses decimal fractions'});
+    await page.locator('[name=reproduction]').fill('total 1.5 2.5');
+    await page.locator('[name=expected]').fill('4');
+    await page.locator('[name=actual]').fill('3');
+    await page.locator('[name=severity]').selectOption('high');
+    await save(page);
+    expect((await call('get_bug',{ticketId:'B-UI'})).defect.severity).toBe('high');
+    await page.locator('[name=actual]').fill('3 instead of 4');
+    await save(page);
+    await page.reload();
+    await page.getByLabel('Entity type',{exact:true}).selectOption('Bug');
+    await page.getByRole('button',{name:'Decimal totals are truncated',exact:true}).click();
+    expect(await page.locator('[name=actual]').inputValue()).toBe('3 instead of 4');
+    expect((await call('get_bug',{ticketId:'B-UI'})).kind).toBe('bug');
+  },30000);
+
   it('DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP', async () => {
     const page = await setup();
     await page.getByRole('button', {name:'New Feature',exact:true}).click();
