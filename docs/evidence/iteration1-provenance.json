@@ -1,0 +1,60 @@
+{
+  "implementationCommit": "aa323d31ec5ec449cfa4e61e9b676c5b069d71d3",
+  "bun": "1.3.14",
+  "pristineRoot": "/tmp/aiwf-i1-final-pristine.5no10qsd",
+  "dependencies": {
+    "semantika": {
+      "head": "0d395ee2b2cef6a03a7cdee23b3a23fe9073e575",
+      "dirty": [
+        " M decisions.md",
+        " M epics.md",
+        " M modules.md",
+        " M src/artifact-collection.ts",
+        " M src/semantic-artifact.ts",
+        " M src/storage/sqlite-store/sqlite-store.ts",
+        " M tests/sqlite-batch.spec.ts",
+        "?? aspects.md"
+      ]
+    },
+    "llm-utils": {
+      "head": "f8222aaa155a0b86f50b7cacbe0701ed29d86840",
+      "dirty": []
+    }
+  },
+  "runtimeFiles": {
+    "node_modules/@dharmax/semantika/dist/index.js": {
+      "resolved": "/home/dharmax/work/semantika/dist/index.js",
+      "sha256": "70dc93762e1178ea58526a019001cb646c02b7a6d8097eb1131e4d9baa661cff"
+    },
+    "node_modules/@dharmax/semantika/dist/abstract-entity.js": {
+      "resolved": "/home/dharmax/work/semantika/dist/abstract-entity.js",
+      "sha256": "cba70766f316d73cd76fe1a9b281b10cf8ee953aefb61282c7e970fd5ed4caac"
+    },
+    "node_modules/@dharmax/semantika/dist/storage/sqlite-store/sqlite-store.js": {
+      "resolved": "/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-store.js",
+      "sha256": "7baf22575fdc8b180a49b14316d6c94998aedc2986f7a185837853a4aec74928"
+    },
+    "node_modules/@dharmax/llm-utils/src/index.ts": {
+      "resolved": "/home/dharmax/work/llm-utils/src/index.ts",
+      "sha256": "5b346ec81979050fe1e3aef1a59b12412085f74535aebde2cf2649a79ab6c98e"
+    }
+  },
+  "validationContract": "Clean AIWF Git worktree using the existing installed node_modules via an ignored symlink; not a fresh standalone dependency install.",
+  "pristinePostValidationStatus": [],
+  "sourceSuite": {
+    "pass": 550,
+    "skip": 5,
+    "fail": 0
+  },
+  "pristineSuite": {
+    "pass": 542,
+    "skip": 5,
+    "fail": 8,
+    "errors": 20
+  },
+  "pristinePackedSuite": {
+    "pass": 30,
+    "fail": 0
+  },
+  "externalPristinePackedReplay": "both expected-red; source unchanged; doctor success"
+}

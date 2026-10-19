@@ -34,7 +34,7 @@ Historical charter: execute docs/artifact-operations-plan.md completely; product
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
 - **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [In Progress]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-PRODUCT-PROCESSING** [Done]: Gate 8: PRODUCT-PROCESSING
 - **AIWF-PRIMARY-INTERFACE** [Done]: Gate 9: PRIMARY-INTERFACE
 - **AIWF-FINAL-DOGFOOD-AUDIT** [Done]: Gate 10: FINAL-DOGFOOD-AUDIT
@@ -56,7 +56,7 @@ Narrow Semantika prerequisite and the EXISTING TKT-DOCTRINE-G5-RELEASE: governed
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Contained Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [In Progress]: Prove atomic admission assertions and coherent completion contract
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Prove atomic admission assertions and coherent completion contract
 
 ### Coverage
 - **Complete**: No
@@ -74,7 +74,7 @@ After Doctrine closure, extend only demonstrated ecosystem transaction requireme
 - **FEAT-AIWF-GOVERNED-COMPLETION**: Governed source completion and current proof
 
 ### Contained Tickets
-- **TKT-TRANSACTION-PRODUCT-BATCH** [In Progress]: Make guarded Product batches atomic through Semantika
+- **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
 
 ### Coverage
 - **Complete**: Yes
@@ -110,9 +110,9 @@ Reuse verified TKT-SHELL-CONFIG-A, TKT-SHELL-SETUP-B, TKT-SHELL-CONFIG-C, TKT-SH
 - **STORY-AIWF-CONTEXTUAL-EDIT**: Developer can edit a contextually referenced Ticket
 
 ### Contained Tickets
-- **TKT-SHELL-DOGFOOD-F** [Blocked]: Delete superseded shell machinery and verify operational journeys
+- **TKT-SHELL-DOGFOOD-F** [Backlog]: Delete superseded shell machinery and verify operational journeys
 - **TKT-1585** [Backlog]: Visually distinguish AIWF shell responses from user input
-- **TKT-BUG-TYPE-LANE** [Backlog]: Establish explicit Bug typing and lane semantics
+- **TKT-BUG-TYPE-LANE** [Blocked]: Establish explicit Bug typing and lane semantics
 - **TKT-BUG-CONTEXTUAL-EDIT** [Backlog]: Bug: shell cannot resolve edit last ticket
 - **TKT-BUG-SYNC-MODULE-DRIFT** [Backlog]: Bug: repeated sync changes module symbol count without source edits
 

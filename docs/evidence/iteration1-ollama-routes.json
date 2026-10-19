@@ -1,0 +1,122 @@
+[
+  {
+    "role": "dev",
+    "model": "ollama/qwen2.5-coder:7b",
+    "elapsedMs": 45009,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.3.14"
+  },
+  {
+    "role": "critic",
+    "model": "ollama/gemma4:e4b",
+    "elapsedMs": 45013,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.3.14"
+  },
+  {
+    "role": "dev",
+    "model": "ollama/qwen2.5-coder:7b",
+    "elapsedMs": 45009,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 8192,
+    "bun": "1.3.14"
+  },
+  {
+    "role": "critic",
+    "model": "ollama/gemma4:e4b",
+    "elapsedMs": 45014,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 8192,
+    "bun": "1.3.14"
+  },
+  {
+    "role": "dev",
+    "model": "ollama/qwen2.5-coder:7b",
+    "elapsedMs": 45014,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.4.3"
+  },
+  {
+    "role": "critic",
+    "model": "ollama/gemma4:e4b",
+    "elapsedMs": 45030,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.4.3"
+  },
+  {
+    "role": "dev",
+    "model": "ollama/qwen2.5-coder:7b",
+    "elapsedMs": 45007,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.3.13"
+  },
+  {
+    "role": "critic",
+    "model": "ollama/gemma4:e4b",
+    "elapsedMs": 45015,
+    "ok": false,
+    "failure": {
+      "kind": "timeout",
+      "message": "The operation timed out.",
+      "retryable": true,
+      "fatal": false,
+      "raw": {}
+    },
+    "contextWindow": 32768,
+    "bun": "1.3.13"
+  }
+]

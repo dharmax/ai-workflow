@@ -1,0 +1,12 @@
+{
+  "tickets": 104,
+  "lanes": {
+    "Done": 56,
+    "Backlog": 42,
+    "Blocked": 3,
+    "Todo": 3
+  },
+  "canonicalProjectionMatch": true,
+  "activeLeases": 0,
+  "newDoneOrVerifyClaimed": false
+}

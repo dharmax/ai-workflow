@@ -67,7 +67,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [In Progress]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **TKT-WORKFLOW-FOUNDATION** [Backlog]: Correct demonstrated workflow friction before CodeMutator
 
 ### Coverage
@@ -151,8 +151,8 @@ Completion covers declared and attributable actual changes, all applicable Rule 
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [In Progress]: Prove atomic admission assertions and coherent completion contract
-- **TKT-TRANSACTION-PRODUCT-BATCH** [In Progress]: Make guarded Product batches atomic through Semantika
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Prove atomic admission assertions and coherent completion contract
+- **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
 
 ### Coverage
 - **Complete**: Yes
@@ -197,11 +197,12 @@ A reporter retains reproducible defects as Bugs; execution and reopening remain 
 - **STORY-AIWF-REPORT-BUG**: Reporter can register and retain a reproducible Bug
 
 ### Implementing Tickets
-- **TKT-BUG-TYPE-LANE** [Backlog]: Establish explicit Bug typing and lane semantics
+- **TKT-BUG-TYPE-LANE** [Blocked]: Establish explicit Bug typing and lane semantics
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-BUG-LIFECYCLE' is blocked by active blocker(s).
   - [ ] missing_code_grounding: Accepted Feature 'FEAT-AIWF-BUG-LIFECYCLE' has implementation Ticket(s) but no code modifications or targets.
   - [ ] missing_verification: Accepted Feature 'FEAT-AIWF-BUG-LIFECYCLE' has no verification Test directly or via contained stories.
 
