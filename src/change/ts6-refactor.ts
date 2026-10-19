@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
+import { closeLspTransport } from './lsp-shutdown.ts';
 import { resolveTs6RefactorRuntime } from '../typescript-runtime.ts';
 import type {
   LspPosition,
@@ -45,6 +46,7 @@ export class Ts6RefactorClient {
   private connection: rpc.MessageConnection | null = null;
   private initPromise: Promise<void> | null = null;
   private isClosed = false;
+  private closePromise: Promise<void> | null = null;
   private interceptedWorkspaceEdit: WorkspaceEditLike | null = null;
   private openDocuments = new Map<string, { text: string; version: number }>();
 
@@ -75,9 +77,11 @@ export class Ts6RefactorClient {
         throw new Error(runtime.error || 'TypeScript 6 refactor sidecar is not available. Run `aiwf setup`.');
       }
 
+      if (this.isClosed) throw new Error('Ts6RefactorClient is closed');
       const child = spawn(runtime.tslsBinPath, ['--stdio'], {
         cwd: this.projectRoot,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32'
       });
 
       this.child = child;
@@ -339,31 +343,16 @@ export class Ts6RefactorClient {
     return null;
   }
 
-  async close(): Promise<void> {
-    if (this.isClosed) return;
+  close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
     this.isClosed = true;
-
-    if (this.connection) {
-      try {
-        await this.connection.sendRequest('shutdown');
-        this.connection.sendNotification('exit');
-      } catch {}
-      try {
-        this.connection.dispose();
-      } catch {}
-      this.connection = null;
-    }
-
-    if (this.child) {
-      try {
-        if (!this.child.killed) {
-          this.child.kill('SIGTERM');
-        }
-      } catch {}
-      this.child = null;
-    }
-
+    const connection = this.connection;
+    const child = this.child;
+    this.connection = null;
+    this.child = null;
     this.openDocuments.clear();
+    this.closePromise = closeLspTransport(connection, child);
+    return this.closePromise;
   }
 }
 

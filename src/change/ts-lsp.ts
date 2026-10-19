@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
+import { closeLspTransport } from './lsp-shutdown.ts';
 import { resolveTypeScriptRuntime, type TsResolverSeams } from '../typescript-runtime.ts';
 import type {
   LspPosition,
@@ -88,6 +89,7 @@ export class TsLspClient {
   private initPromise: Promise<void> | null = null;
   private options: TsLspClientOptions;
   private isClosed = false;
+  private closePromise: Promise<void> | null = null;
 
   constructor(options: TsLspClientOptions) {
     this.projectRoot = path.resolve(options.projectRoot);
@@ -112,10 +114,12 @@ export class TsLspClient {
         tscPath = resolved.executablePath;
       }
 
+      if (this.isClosed) throw new Error('TsLspClient is closed');
       // Launch tsc --lsp -stdio over child_process stdio
       const child = spawn(tscPath, ['--lsp', '-stdio'], {
         cwd: this.projectRoot,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32'
       });
 
       this.child = child;
@@ -186,6 +190,7 @@ export class TsLspClient {
       const response: any = await connection.sendRequest('initialize', initParams);
       await connection.sendNotification('initialized', {});
 
+      if (this.isClosed) throw new Error('TsLspClient is closed');
       const serverCaps = response.capabilities || {};
       this.capabilities = {
         renameProvider: serverCaps.renameProvider,
@@ -366,31 +371,16 @@ export class TsLspClient {
   /**
    * Cleanly closes the LSP server.
    */
-  async close(): Promise<void> {
-    if (this.isClosed) return;
+  close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
     this.isClosed = true;
-
-    if (this.connection) {
-      try {
-        await this.connection.sendRequest('shutdown');
-        this.connection.sendNotification('exit');
-      } catch {}
-      try {
-        this.connection.dispose();
-      } catch {}
-      this.connection = null;
-    }
-
-    if (this.child) {
-      try {
-        if (!this.child.killed) {
-          this.child.kill('SIGTERM');
-        }
-      } catch {}
-      this.child = null;
-    }
-
+    const connection = this.connection;
+    const child = this.child;
+    this.connection = null;
+    this.child = null;
     this.capabilities = null;
+    this.closePromise = closeLspTransport(connection, child);
+    return this.closePromise;
   }
 }
 

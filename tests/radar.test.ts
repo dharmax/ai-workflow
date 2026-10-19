@@ -16,7 +16,7 @@ describe('Model Radar & Pareto Benchmark Engine', () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-radar-test-'));
-    cacheFile = path.join(os.homedir(), '.cache', 'aiwf', 'model-radar.json');
+    cacheFile = path.join(tempDir, 'model-radar.json');
   });
 
   afterEach(() => {
@@ -42,7 +42,7 @@ describe('Model Radar & Pareto Benchmark Engine', () => {
   });
 
   it('should provide default baseline models and recommendations synchronously', () => {
-    const radar = new ModelRadar({ projectRoot: tempDir });
+    const radar = new ModelRadar({ projectRoot: tempDir, cachePath:cacheFile });
     const recs = radar.getRecommendations();
 
     expect(recs.design).toBe(DEFAULT_RECOMMENDATIONS.design);
@@ -57,7 +57,7 @@ describe('Model Radar & Pareto Benchmark Engine', () => {
   });
 
   it('should cache radar data to disk and respect TTL', () => {
-    const radar = new ModelRadar({ projectRoot: tempDir, probeIntervalDays: 3 });
+    const radar = new ModelRadar({ projectRoot: tempDir, cachePath:cacheFile, probeIntervalDays: 3 });
 
     const dummyData: RadarData = {
       lastUpdated: new Date().toISOString(),
@@ -86,7 +86,7 @@ describe('Model Radar & Pareto Benchmark Engine', () => {
   });
 
   it('should handle probe gracefully with offline fallback', async () => {
-    const radar = new ModelRadar({ projectRoot: tempDir });
+    const radar = new ModelRadar({ projectRoot: tempDir, cachePath:cacheFile });
     // probe should never throw, even if offline or network fails
     const result = await radar.probe();
     expect(result).toBeDefined();

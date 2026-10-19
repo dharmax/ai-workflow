@@ -264,9 +264,8 @@ describe('PC1a canonical safety through public tools',()=>{
   it('real CLI creation, done, move and Product JSON cannot manufacture completion',async()=>{
     const cli=path.resolve(import.meta.dir,'../src/cli.ts');
     const run=async(...args:string[])=>{
-      const process=Bun.spawn(['bun',cli,...args],{cwd:root,stdout:'pipe',stderr:'pipe'});
-      const [stdout,stderr,code]=await Promise.all([new Response(process.stdout).text(),new Response(process.stderr).text(),process.exited]);
-      return {stdout,stderr,code};
+      const result=Bun.spawnSync(['bun',cli,...args],{cwd:root,stdout:'pipe',stderr:'pipe'});
+      return {stdout:result.stdout.toString(),stderr:result.stderr.toString(),code:result.exitCode};
     };
     expect((await run('create','Normal','--id','CLI')).code).toBe(0);
     for(const args of [['create','Forged','--id','FORGED','--lane','Done'],['done','CLI'],['move','CLI','Done']]) {

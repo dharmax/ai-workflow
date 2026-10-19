@@ -130,12 +130,12 @@ export class ModelRadar {
   private cachePath: string;
   private ttlMs: number;
 
-  constructor(options: { projectRoot?: string; probeIntervalDays?: number } = {}) {
+  constructor(options: { projectRoot?: string; probeIntervalDays?: number; cachePath?: string } = {}) {
     const days = options.probeIntervalDays ?? 3;
     this.ttlMs = days * 24 * 60 * 60 * 1000;
 
     const baseCacheDir = path.join(os.homedir(), '.cache', 'aiwf');
-    this.cachePath = path.join(baseCacheDir, 'model-radar.json');
+    this.cachePath = options.cachePath ?? path.join(baseCacheDir, 'model-radar.json');
   }
 
   /**
