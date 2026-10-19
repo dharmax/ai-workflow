@@ -120,8 +120,8 @@ describe('S3 Workspace public developer journeys', () => {
       expect(await page.getByLabel(label,{exact:true}).inputValue()).toBe(value);
     expect(await page.getByLabel('Feature',{exact:true}).inputValue()).toBe('F');
     if (process.env.AIWF_S3_EVIDENCE_DIR) await page.screenshot({path:path.join(process.env.AIWF_S3_EVIDENCE_DIR,'story-desktop.png'),fullPage:true});
-    const cli = Bun.spawn([...(binary ? [binary] : ['bun', path.resolve(import.meta.dir,'../src/cli.ts')]), 'story','S'], {cwd:root,stdout:'pipe',stderr:'pipe'});
-    const stdout = await new Response(cli.stdout).text(); expect(await cli.exited).toBe(0);
+    const cli = Bun.spawnSync([...(binary ? [binary] : ['bun', path.resolve(import.meta.dir,'../src/cli.ts')]), 'story','S'], {cwd:root,stdout:'pipe',stderr:'pipe'});
+    const stdout = cli.stdout.toString(); expect(cli.exitCode).toBe(0);
     expect(stdout).toContain('Activate Save after preview');
     const client = new Client({name:'workspace-story-proof',version:'1'});
     try {

@@ -153,7 +153,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       fs.writeFileSync(srcFile, '// Comment added\nexport let count = 1;\nexport function increment() { count++; }\n');
 
       // Applying with prior preview fingerprint MUST throw / reject before any mutation
-      expect(
+      await expect(
         engine.applyChange({
           action: 'rename_symbol',
           target: { type: 'symbol', filePath: 'counter.ts', symbolName: 'count' },

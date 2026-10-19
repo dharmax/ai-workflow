@@ -297,7 +297,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       // Mutate file on disk to simulate concurrent edit
       fs.appendFileSync(srcFile, `\n// modified\n`);
 
-      expect(engine.applyChange({
+      await expect(engine.applyChange({
         action: 'refactor',
         target: {
           type: 'range',
