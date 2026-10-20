@@ -310,7 +310,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   productCmd.command('export').description('Export product manifest and authored snapshot')
     .action(() => emit({family: 'legacy', command: 'product-export', tokens: []}));
 
-  productCmd.addHelpText('after', '\nNew definitions and edits are inert previews by default. Review before local --yes.\nUse product story new --help for the complete scenario; process story derives inert work proposals.');
+  productCmd.addHelpText('after', '\nNew definitions and edits are inert previews by default. Review before local --yes.\nUse product story new --help for the complete scenario; process story derives inert work proposals.\nFind source Modules with arch module list; inspect or revise their purpose with arch module show|edit <id>.\nA preview is unsaved. Have the developer review and apply new definitions before relating them.');
   const productGoal = productCmd.command('goal').description('Goal operations');
   productGoal.command('list').description('List canonical Goals').action(()=>emit({family:'artifact',tool:'list_goals',args:{}}));
   productGoal.command('show <id>').description('Existing Goal reader')
@@ -387,6 +387,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   for (const spec of [
     {name:'epic',kind:'Epic' as const,read:'get_epic',list:'list_epics',key:'epicId',fields:['title','body','status']},
     {name:'concept',kind:'Concept' as const,read:'get_concept',list:'list_concepts',key:'id',fields:['title','body','status']},
+    {name:'decision',kind:'Decision' as const,read:'get_decision',list:'list_decisions',key:'id',fields:['title','decision','context','consequences','status']},
     {name:'flow',kind:'Flow' as const,read:'get_flow',list:'list_flows',key:'id',fields:['title','body','actor','context','status']},
     {name:'aspect',kind:'Aspect' as const,read:'get_aspect',list:'list_aspects',key:'id',fields:['title','body','status']},
     {name:'story',kind:'UserStory' as const,read:'get_user_story',list:'list_user_stories',key:'storyId',fields:['title','actor','intent','initialState','action','expectedResult','exceptions','bounds','status']}
@@ -412,7 +413,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     }
   }
 
-  const archCmd = root.command('arch').description('Architecture operations');
+  const archCmd = root.command('arch').description('Discover indexed Modules and review their intent');
   const archModule = archCmd.command('module').description('Architecture module operations');
   archModule.command('list').description('Discover indexed Modules through the existing source graph')
     .option('--query <text>','Literal Module search').option('--limit <count>','Maximum results (1–100)',Number)

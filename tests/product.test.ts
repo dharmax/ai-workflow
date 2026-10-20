@@ -278,7 +278,7 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
       await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-AUTH',predicate: 'targets',targetId: 'STORY-LOGIN'}]);
 
       // Historical completed Epic targeting Login (must be excluded by default)
-      await createProduct(ctx.store, "Epic", { id: 'EPIC-OLD', title: 'Old Epic', status: 'completed' });
+      await ctx.store.upsertEntity(Epic.dcr, { id: 'EPIC-OLD', title: 'Old Epic', status: 'completed' });
       await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'EPIC-OLD',predicate: 'targets',targetId: 'STORY-LOGIN'}]);
 
       // Work & Code for Login

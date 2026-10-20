@@ -194,6 +194,52 @@ describe('S3 Workspace public developer journeys', () => {
     expect(await call('get_goal', {id:'G'})).toMatchObject({body:'Return exact decimal totals',status:'accepted'});
   }, 30000);
 
+  it('PC5 Epic definition edits cannot manufacture delivery completion', async () => {
+    const page = await setup();
+    const forged = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','epic','new','--id','E-FALSE','--title','False delivery','--status','completed','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(forged.exitCode).not.toBe(0);
+    expect(await store.getEntity('E-FALSE')).toBeNull();
+    await page.getByRole('button',{name:'New Epic',exact:true}).click();
+    await fill(page,{'Stable ID':'E-PLAN',Title:'Plan delivery',Description:'Organize reviewed work'});
+    expect(await page.locator('select[name=status] option[value=completed]').getAttribute('disabled')).not.toBeNull();
+    await page.getByLabel('Delivery status',{exact:true}).selectOption('active');
+    await page.getByLabel('Delivery status',{exact:true}).focus();
+    await page.keyboard.press('ArrowDown');
+    expect(await page.getByLabel('Delivery status',{exact:true}).inputValue()).toBe('cancelled');
+    await page.getByLabel('Delivery status',{exact:true}).selectOption('planned');
+    await save(page);
+    expect((await call('get_epic',{epicId:'E-PLAN'})).status).toBe('planned');
+  },30000);
+
+  it('PC5 everyday Decision authoring requires reviewed meaning and persists one identity', async () => {
+    const page = await setup();
+    await page.getByRole('button',{name:'New Decision',exact:true}).click();
+    await fill(page,{'Stable ID':'ADR-LOCAL',Title:'Keep calculations local',Decision:'Compute without a network',Context:'Offline use',Consequences:'No remote synchronization'});
+    await page.getByLabel('Definition status',{exact:true}).selectOption('accepted');
+    await page.getByRole('button',{name:'Review changes',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
+    expect(await store.getEntity('ADR-LOCAL')).toBeNull();
+    await page.getByRole('button',{name:'Reject proposal',exact:true}).click();
+    expect(await store.getEntity('ADR-LOCAL')).toBeNull();
+    await save(page);
+    await page.getByLabel('Decision',{exact:true}).fill('Compute locally with exact decimal arithmetic');
+    await save(page);
+    await workspace.stop(); store.close(); store = new WorkflowStore(root);
+    await page.goto(await start());
+    await page.getByRole('button',{name:'Keep calculations local',exact:true}).click();
+    expect(await page.getByLabel('Decision',{exact:true}).inputValue()).toBe('Compute locally with exact decimal arithmetic');
+    const read = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','decision','show','ADR-LOCAL'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(read.exitCode).toBe(0);
+    expect(JSON.parse(read.stdout.toString())).toMatchObject({id:'ADR-LOCAL',decision:'Compute locally with exact decimal arithmetic',context:'Offline use',consequences:'No remote synchronization',status:'accepted'});
+    await page.getByLabel('Decision',{exact:true}).fill('');
+    await page.getByRole('button',{name:'Review changes',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:/decision/i}).waitFor();
+    expect(await page.locator('#accept').isDisabled()).toBe(true);
+    const proposal = await call('preview_change',{action:'product_change',mutations:[{kind:'product_update',entityType:'Decision',id:'ADR-LOCAL',fields:{decision:'Agent replacement'}}]});
+    expect((await call('apply_change',{request:proposal.request,fingerprint:proposal.fingerprint,decision:'accept'})).status).toBe('review_required');
+    expect((await call('get_decision',{id:'ADR-LOCAL'})).decision).toBe('Compute locally with exact decimal arithmetic');
+  },30000);
+
   it('DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP', async () => {
     const page = await setup();
     await page.getByRole('button', {name:'New Feature',exact:true}).click();

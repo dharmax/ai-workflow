@@ -6,7 +6,7 @@ import type {ToolDefinition, ToolRegistry} from './registry.ts'
  */
 export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'link',
-  'get_product', 'get_module',
+  'get_product', 'get_module', 'get_decision', 'list_decisions',
   'list_rules', 'get_rule', 'export_rules', 'preview_rule_change', 'apply_rule_change', 'resolve_rule_reference',
   'resolve_ticket',
   'prepare_ticket',

@@ -27,7 +27,7 @@ export function registerPlanningTools() {
     execute: (params) => {
       const id = params.id || `ADR-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       return {...params, id, status: 'proposed', persisted: false,
-        next: 'Decision authoring and reviewed acceptance are deferred to PC2.'};
+        next: 'Review this proposal with product decision new; existing Decisions use product decision edit. Only exact host-reviewed S2 acceptance persists it.'};
     }
   });
 

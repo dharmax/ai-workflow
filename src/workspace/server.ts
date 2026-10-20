@@ -15,6 +15,7 @@ const reads = {
   Goal: ['list_goals', 'get_goal', 'id'],
   Concept: ['list_concepts', 'get_concept', 'id'],
   Flow: ['list_flows', 'get_flow', 'id'],
+  Decision: ['list_decisions', 'get_decision', 'id'],
   Epic: ['list_epics', 'get_epic', 'epicId'],
   Ticket: ['list_tickets', 'get_ticket', 'ticketId'],
   Product: [Product.dcr],
@@ -68,7 +69,7 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           const relations = [...new Map([...incoming,...outgoing].map(edge=>[edge.id,{
             sourceId:ctx.store.localId(edge.sourceId),predicate:edge.predicateName,targetId:ctx.store.localId(edge.targetId)
           }])).values()];
-          const aspects = kind === 'Aspect' ? [] : await call('get_applicable_aspects',{entityId:id});
+          const aspects = kind === 'Aspect' || kind === 'Decision' ? [] : await call('get_applicable_aspects',{entityId:id});
           const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
           return json({storyTests,entity:{...entity,version:canonical.version,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
         }

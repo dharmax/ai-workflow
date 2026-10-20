@@ -13,6 +13,7 @@ import {
   Product,
   ModuleNode,
   FileNode,
+  Decision,
   Goal,
   Concept,
   Flow,
@@ -230,6 +231,15 @@ export function registerProductTools() {
         sourceStatus:sourcePresent?'indexed':'missing_source'};
     }
   });
+  registry.register({name:'get_decision',category:'planning',description:'Read one canonical Decision without changing its approval state.',
+    parameters:z.object({id:z.string().min(1)}).strict(),execute:async({id},ctx)=>{
+      const decision=await ctx.store.getEntity<Decision>(id,Decision.dcr);
+      if(!decision) throw Error(`Decision '${id}' not found.`);
+      return {...await decision.fullDto<Record<string,unknown>>(),id:ctx.store.localId(decision.id),version:decision.version};
+    }});
+  registry.register({name:'list_decisions',category:'planning',description:'List canonical Decisions without accepting or revising definitions.',
+    parameters:z.object({}).strict(),execute:async(_params,ctx)=>Promise.all((await ctx.store.listEntities<Decision>(Decision.dcr)).map(async decision=>
+      ({...await decision.fullDto<Record<string,unknown>>(),id:ctx.store.localId(decision.id),version:decision.version})))});
   registry.register({name:'link',category:'planning',description:'Discover H/O/L relation types, inspect edges, or prepare an inert reviewed link change. Applying requires separate S2 review; no model approval flag.',parameters:LinkActionSchema,execute:(args,ctx)=>linkAction(ctx.store,args)});
   registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
   registry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>registry.execute('triage_test_failures',{testCommand:command},ctx),preview=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx))});

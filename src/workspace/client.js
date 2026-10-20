@@ -6,8 +6,8 @@ export function workspaceClient() {
   history.replaceState(null, '', location.pathname);
   let catalog = [], current = null, preview = null, imported = null, pending = [], dirty = false, generation = 0, editEpoch = 0, advancedDirty = false, saving = false;
   const labels = {title:'Title',body:'Description',priority:'Priority',acceptanceCriteria:'Acceptance criteria',actor:'Actor',intent:'Intent',
-    initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
-  const editable = ['Product','Goal','Concept','Flow','Feature','Aspect','UserStory','Epic','Ticket','Module'];
+    initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',decision:'Decision',consequences:'Consequences',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
+  const editable = ['Product','Goal','Concept','Flow','Feature','Aspect','UserStory','Epic','Ticket','Module','Decision'];
   const arrayFields = ['acceptanceCriteria','actors','nonGoals','responsibilities','outcomes','behavioralRules'];
   let testPreview=null, catalogPage=0;
   const say = (message, error=false) => {
@@ -39,9 +39,9 @@ export function workspaceClient() {
     say('Unsaved changes');
   }
   function canLeave() { return !dirty || confirm('Discard unsaved changes?'); }
-  function option(select,value,text) { el('option',text,select,{value}); }
+  function option(select,value,text,disabled=false) { el('option',text,select,{value,disabled}); }
   function field(form,key,value,index,kind) {
-    const label=el('label',key==='body'&&kind==='Module'?'Purpose':labels[key] || ({purpose:'Purpose',actors:'Actors',scope:'Scope',nonGoals:'Non-goals',responsibilities:'Responsibilities',boundaries:'Boundaries',outcomes:'Outcomes',behavioralRules:'Behavioral rules'}[key]) || key,form);
+    const label=el('label',key==='context'&&kind==='Decision'?'Context':key==='body'&&kind==='Module'?'Purpose':labels[key] || ({purpose:'Purpose',actors:'Actors',scope:'Scope',nonGoals:'Non-goals',responsibilities:'Responsibilities',boundaries:'Boundaries',outcomes:'Outcomes',behavioralRules:'Behavioral rules'}[key]) || key,form);
     const id='field-'+index+'-'+key;
     let input;
     const choices=key==='ticketKind'?['task','bug']:key==='lane'?['Backlog','Todo','In Progress','Done','Blocked']:
@@ -53,7 +53,7 @@ export function workspaceClient() {
     } else if(key==='status'||key==='intentStatus') {
       label.textContent=kind==='Epic'?'Delivery status':'Definition status';
       input=el('select',undefined,label,{id,name:key,'ariaLabel':'Definition status'});
-      for(const status of key==='status'&&kind==='Epic'?['draft','planned','active','completed','cancelled']:['draft','proposed','accepted','deprecated']) option(input,status,status);
+      for(const status of key==='status'&&kind==='Epic'?['draft','planned','active','completed','cancelled']:['draft','proposed','accepted','deprecated']) option(input,status,status,kind==='Epic'&&status==='completed');
       input.value=value || 'draft';
     } else {
       input=el(key==='title'||key==='priority'?'input':'textarea',undefined,label,{id,name:key});
@@ -67,6 +67,7 @@ export function workspaceClient() {
   }
   function fieldsFor(kind, data) {
     if(kind==='Product') return ['title','purpose','actors','scope','nonGoals','bounds','status'];
+    if(kind==='Decision') return ['title','decision','context','consequences','status'];
     if(kind==='Module') return ['body','responsibilities','boundaries','intentStatus'];
     if(kind==='Goal'||kind==='Concept') return ['title','body','status'];
     if(kind==='Flow') return ['title','actor','body','context','status'];
@@ -373,7 +374,7 @@ export function workspaceClient() {
   $('search').oninput=()=>list(); $('kind-filter').onchange=()=>list();
   $('previous-page').onclick=()=>run(()=>list(catalogPage-1));
   $('next-page').onclick=()=>run(()=>list(catalogPage+1));
-  for(const [id,kind] of [['new-product','Product'],['new-goal','Goal'],['new-concept','Concept'],['new-flow','Flow'],['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-epic','Epic'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
+  for(const [id,kind] of [['new-product','Product'],['new-decision','Decision'],['new-goal','Goal'],['new-concept','Concept'],['new-flow','Flow'],['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-epic','Epic'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
   $('review-button').onclick=()=>run(()=>review());
   $('update').onclick=()=>run(()=>review());
   $('accept').onclick=()=>run(()=>decision('accept'));

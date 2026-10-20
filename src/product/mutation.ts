@@ -12,7 +12,7 @@ const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feat
 export type ProductKind = keyof typeof kinds;
 export const ProductRevisionSchema = z.object({ id: z.string().min(1), entityType: z.string().min(1), version: z.number().int().positive() });
 export type ProductRevision = z.infer<typeof ProductRevisionSchema>;
-const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test', 'Module']);
+const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test', 'Module', 'Decision']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
 const ticketLane = z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']);
@@ -21,7 +21,7 @@ const fields = z.object({
   title: z.string().min(1), body: z.string(), status: z.string(), priority: z.union([z.number(), ticketPriority]),
   acceptanceCriteria: z.array(z.string()), actor: z.string(), story: z.string(), context: z.string(),
   intent: z.string(), initialState: z.string(), action: z.string(), expectedResult: z.string(),
-  exceptions: z.string(), bounds: z.string(),
+  exceptions: z.string(), bounds: z.string(), decision: z.string(), consequences: z.string(),
   purpose: z.string(), actors: z.array(z.string()), scope: z.string(), nonGoals: z.array(z.string()),
   outcomes: z.array(z.string()), boundaries: z.string(), behavioralRules: z.array(z.string()),
   responsibilities: z.array(z.string()), intentStatus: intentStatus,
@@ -133,15 +133,18 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget', 'outcomes', 'scope', 'boundaries', 'behavioralRules'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: [],
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
     Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
   };
   for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
   if (kind === 'Module' && create) throw new Error("Module cannot be created via product_create. Edit an indexed module instead.");
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
   if (input.status !== undefined) {
-    if (kind === 'Epic') epicStatus.parse(input.status);
-    if (kind === 'Product' || kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect') intentStatus.parse(input.status);
+    if (kind === 'Epic') {
+      epicStatus.parse(input.status);
+      if(input.status==='completed' && previous.status!=='completed') throw Error('Epic completion belongs to delivery verification, not definition editing.');
+    }
+    if (kind === 'Product' || kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect' || kind === 'Decision') intentStatus.parse(input.status);
     if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
   if (kind === 'Product') {
@@ -154,6 +157,12 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
         throw new Error("Accepted Product requires purpose, scope, and at least one actor.");
       }
     }
+  }
+  if (kind === 'Decision') {
+    const next={...previous,...input};
+    if(next.status==='accepted' && (create || input.status==='accepted' || ['decision','context','consequences'].some(key=>key in input))
+      && (typeof next.decision!=='string' || !next.decision.trim()))
+      throw Error('Accepted Decision requires a nonblank decision.');
   }
   if (kind === 'Feature') {
     const next = { ...previous, ...input };
@@ -222,7 +231,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       throw Error('Verification receipts and admission records are owner-managed.');
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
-    const fields = Object.fromEntries(['kind', 'defect', 'title', 'body', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['kind', 'defect', 'title', 'body', 'decision', 'consequences', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const rows = await productEdgeRows(store, entity.id);
     snapshot[id] = { kind, fields, relations: rows };
@@ -434,7 +443,7 @@ export async function applyProductMutations(
         }});
       }
     }
-    // Basis can include Rule/Decision context even when it is not a mutable Product kind.
+    // Basis can include context outside mutable Product kinds, such as Rules.
     for (const revision of reviewed?.request.basis ?? []) {
       const collection = await store.sp.collectionForEntityType(store.sp.ontology.edcr(revision.entityType));
       const id = store.formatId(revision.entityType, revision.id);
