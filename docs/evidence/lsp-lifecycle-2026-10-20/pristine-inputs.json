@@ -1,0 +1,11 @@
+{
+  "commit": "1e2d15f2e589cd9ceeb7819f2c31e8a5aaa7eac3",
+  "worktree": "/home/dharmax/work/.aiwf-lsp-pristine-bMiyic",
+  "post_validation_porcelain": "",
+  "node_modules_symlink": "/home/dharmax/work/ai-workflow/node_modules",
+  "sha256": {
+    "bun.lockb": "c07816729394f9286154a8e9db20d4292af7fcb5a5949868063f599f04f28810",
+    "node_modules/@dharmax/semantika/package.json": "80e5d76942266f9c7e2da909c61eb5522eb3e129fdfa82eb5706473d50a000a2",
+    "node_modules/@dharmax/llm-utils/package.json": "d57befaffb87a34d545b2d6298e19a021d1a806d062c2a7ae43b7f0e4021e299"
+  }
+}

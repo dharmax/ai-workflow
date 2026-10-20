@@ -45,3 +45,29 @@ Installed sibling source heads: Semantika `0775e37ef036e1eba27d42578d4ef3c67c81e
 Raw compressed evidence is under [evidence/lsp-lifecycle-2026-10-20](evidence/lsp-lifecycle-2026-10-20/): baseline, original trace, rejected document-lifecycle experiment, ordinary-await experiment, repeated focused runs, full aggregate, cross-process checks, final typecheck and pack.
 
 This is technical repair evidence. It does not manufacture independent PC5/Gate 5 acceptance or a canonical Done/VERIFY receipt.
+
+## Pristine and packed closure
+
+Implementation commit on master: `1e2d15f2e589cd9ceeb7819f2c31e8a5aaa7eac3`. Validated in detached worktree `/home/dharmax/work/.aiwf-lsp-pristine-bMiyic`, created from that exact commit. `git status --porcelain` was empty before and after both validation runs. No temporary branch was created.
+
+The worktree reused `/home/dharmax/work/ai-workflow/node_modules` through an ignored symlink. This proves pristine **tracked implementation inputs** against the installed dependency artifacts, not an independent fresh dependency installation. Dependency metadata and lock hashes are retained in `pristine-inputs.json`. The earlier sibling Git heads describe the sibling source checkouts, not proof that installed package bytes equal those heads.
+
+- Final focused source run after the logger typing correction: **43 pass / 0 fail**, 202 assertions, **16.55 s**.
+- Pristine `bun test`: **553 pass / 5 skip / 0 fail**, 558 tests / 73 files, 3753 assertions, **100.78 s**.
+- Pristine `bun run typecheck`, `bun run pack`, `git diff --check`: **pass**. Packed identity: AIWF 2.0.0, build 940, revision `1e2d15f2e589`, with no dirty build marker.
+- Packed public tests: **46 pass / 0 fail**, six files, 444 assertions, **26.58 s**.
+
+Packed command, run from the pristine worktree with each binary variable pointing to its own `dist/aiwf`:
+
+```sh
+AIWF_PUBLIC_BINARY="$PWD/dist/aiwf" \
+AIWF_TEST_BINARY="$PWD/dist/aiwf" \
+AIWF_WORKSPACE_BINARY="$PWD/dist/aiwf" \
+bun test tests/product-authority.test.ts \
+  tests/product-operability-definition.test.ts \
+  tests/product-operability-links.test.ts \
+  tests/product-operability-commands.test.ts \
+  tests/bug-public.test.ts tests/dharmax-s3.test.ts
+```
+
+Retained `pristine-full.log.gz`, `pristine-typecheck.log.gz`, `pristine-pack.log.gz` and `pristine-packed.log.gz` accompany the earlier raw evidence. Implementation and test scopes were reviewed in full; no native lifecycle experiment remains in the patch. The Ticket lease was released, the unrelated untracked `log.txt` remains untouched, and no independent acceptance receipt was fabricated.
