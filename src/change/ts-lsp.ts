@@ -146,6 +146,9 @@ export class TsLspClient {
       const writer = new rpc.StreamMessageWriter(child.stdin!);
       const connection = rpc.createMessageConnection(reader, writer);
       this.connection = connection;
+      if (process.env.DEBUG_LSP) connection.trace(rpc.Trace.Verbose, {
+        log: (message: string, data?: string) => console.error(`[TS7 LSP ${this.projectRoot}] ${message}`, data ?? '')
+      });
       connection.listen();
 
       const rootUri = pathToFileURL(this.projectRoot).toString();

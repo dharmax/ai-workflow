@@ -313,8 +313,13 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
       id: symbolName, kind: 'SymbolNode', title: symbolName, mandatory: true,
       provenance: 'Ticket modifies', filePath: 'src/add.ts', symbolName
     });
-    await expect(buildVerificationContext(store, root, {dossier, files: [], testNodes: []}))
-      .rejects.toThrow('Required verification symbol');
+    // Await native I/O before asserting: Bun 1.4.3's rejects matcher stalls repeated LSP requests.
+    const failure = await buildVerificationContext(store, root, {dossier, files: [], testNodes: []})
+      .then(() => null, error => error as Error);
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure!.message).toContain("Required verification symbol 'missing'");
+    expect(failure!.cause).toBeInstanceOf(Error);
+    expect(String(failure!.cause)).toContain("Expected one exact declaration for 'missing', found 0");
   });
 
   it('uses JavaScript applicability instead of silently treating JavaScript targets as TypeScript', async () => {

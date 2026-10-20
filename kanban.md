@@ -102,7 +102,8 @@ kanban-plugin: board
 
 ## In Progress
 
-- No items
+- [/] **TKT-LSP-LIFECYCLE-01**: Fix demonstrated LSP request lifecycle and stale preview latency
+  - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
 
 ## Done
 

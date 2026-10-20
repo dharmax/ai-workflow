@@ -108,6 +108,9 @@ export class Ts6RefactorClient {
       // Handle client-side rename callback if server triggers _typescript.rename
       connection.onRequest('_typescript.rename', () => null);
 
+      if (process.env.DEBUG_LSP) connection.trace(rpc.Trace.Verbose, {
+        log: (message: string, data?: string) => console.error(`[TS6 LSP ${this.projectRoot}] ${message}`, data ?? '')
+      });
       connection.listen();
 
       const rootUri = pathToFileURL(this.projectRoot).toString();

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -296,6 +296,8 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
 
       // Mutate file on disk to simulate concurrent edit
       fs.appendFileSync(srcFile, `\n// modified\n`);
+      const changedSource = fs.readFileSync(srcFile, 'utf8');
+      const recompute = spyOn(engine, 'previewChange');
 
       await expect(engine.applyChange({
         action: 'refactor',
@@ -309,6 +311,9 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
         },
         refactorKind: 'extract'
       }, preview.fingerprint)).rejects.toThrow(/modified since preview|Stale change preview/);
+      expect(recompute).not.toHaveBeenCalled();
+      expect(fs.readFileSync(srcFile, 'utf8')).toBe(changedSource);
+      recompute.mockRestore();
     });
   });
 

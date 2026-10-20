@@ -216,6 +216,7 @@ export function computeChangeFingerprint(
 export class CausalChangeEngine {
   public readonly store: WorkflowStore;
   private readonly governedAdmission?: string;
+  private lastPreview?: Pick<ChangePreview, 'fingerprint' | 'originalHashes'>;
   public readonly projectRoot: string;
   public readonly lspClient: TsLspClient;
   public readonly ts6Client: Ts6RefactorClient;
@@ -232,12 +233,17 @@ export class CausalChangeEngine {
    * Previews a change request without mutating disk.
    */
   async previewChange(request: ChangeRequest): Promise<ChangePreview> {
-    return withAstSnapshot(() => this.buildPreview(request));
+    const preview = await withAstSnapshot(() => this.buildPreview(request));
+    // Retain only rejection evidence; acceptance always recomputes the full fingerprint.
+    if (!preview.blocked) this.lastPreview = { fingerprint: preview.fingerprint, originalHashes: {...preview.originalHashes} };
+    return preview;
   }
 
   private async buildPreview(request: ChangeRequest): Promise<ChangePreview> {
     if (request.action === 'product_change') return this.previewProductChange(request);
+    if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh start');
     await ensureAstFresh(this.store, this.projectRoot);
+    if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh end');
 
     let productImpact: ProductImpact | undefined;
     if ('productContextEntityId' in request && request.productContextEntityId) {
@@ -676,6 +682,15 @@ export class CausalChangeEngine {
    */
   async applyChange(request: ChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
     this.store.assertCanWrite();
+    // Reject known stale sources before AST/LSP work. A different engine/process still
+    // recomputes the complete preview below; these retained hashes never authorize edits.
+    if (this.lastPreview?.fingerprint === fingerprint) {
+      for (const [file, expected] of Object.entries(this.lastPreview.originalHashes)) {
+        const absolute = path.resolve(this.projectRoot, file);
+        const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
+        if (actual !== expected) throw new Error(`File '${file}' has been modified since preview. Aborting apply.`);
+      }
+    }
     // 1. Recompute preview immediately and assert fingerprint matches
     const preview = await this.previewChange(request);
     if (preview.blocked) {

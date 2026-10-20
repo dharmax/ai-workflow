@@ -160,6 +160,14 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
           newName: 'totalCount'
         }, preview.fingerprint)
       ).rejects.toThrow(/modified since preview/i);
+
+      // A new engine has no retained preview: the full fingerprint check still rejects.
+      const freshEngine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const failure = await freshEngine.applyChange(preview.request, preview.fingerprint)
+        .then(() => null, error => error as Error);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure!.message).toMatch(/Stale change preview|modified since preview/i);
+      expect(fs.readFileSync(srcFile, 'utf8')).toBe('// Comment added\nexport let count = 1;\nexport function increment() { count++; }\n');
     });
   });
 
