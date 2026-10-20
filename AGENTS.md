@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+**Active delivery checkpoint (2026-10-20):** [AIWF v1 — two remaining iterations](plans/AIWF-V1-ACTIVE-CHECKPOINT.md). Read it before planning or coding: Iteration 1 engineering work is complete, I2/I3 target actual external Feature/Bug delivery and public release, and outstanding provider/PC5 gates remain real. This checkpoint sets priority, not new Product semantics or a false Done/GO.
+
 **Governing method (all AIWF product/workflow work):** read [plans/AIWF-DHARMAX-WAY-DESIGN.md](plans/AIWF-DHARMAX-WAY-DESIGN.md) first, then the currently authorized stage in [plans/AIWF-DHARMAX-WAY-PLAN.md](plans/AIWF-DHARMAX-WAY-PLAN.md). This is the operational application of the Prime Directive: explicit Concepts → Architecture → execution Flow → actual Implementation, judged through complete public User/Actor Stories (Intent / Initial State / Action / Expected Observable Result). Developer owns product intent; AI proposals are not acceptance. These are target constraints; do not pretend staged functionality is implemented. Preserve existing Gate 5 safety and its truthful canonical status.
 
 
