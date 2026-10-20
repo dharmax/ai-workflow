@@ -5,6 +5,7 @@ export function workspaceClient() {
   if (token) sessionStorage.setItem('aiwf-token', token);
   history.replaceState(null, '', location.pathname);
   let catalog = [], current = null, preview = null, imported = null, pending = [], dirty = false, generation = 0, editEpoch = 0, advancedDirty = false, saving = false;
+  let linkTypes=[];
   const labels = {title:'Title',body:'Description',priority:'Priority',acceptanceCriteria:'Acceptance criteria',actor:'Actor',intent:'Intent',
     initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',decision:'Decision',consequences:'Consequences',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
   const editable = ['Product','Goal','Concept','Flow','Feature','Aspect','UserStory','Epic','Ticket','Module','Decision'];
@@ -138,7 +139,7 @@ export function workspaceClient() {
     $('story-test-panel').hidden=true; $('story-test').hidden=true; testPreview=null;
   }
   async function refresh() {
-    const result=await api('catalog'); catalog=result.entities; $('project').textContent=result.projectRoot;
+    const result=await api('catalog'); catalog=result.entities; linkTypes=result.linkTypes; $('project').textContent=result.projectRoot;
     $('new-product').hidden=catalog.some(entity=>entity.kind==='Product');
     list(catalogPage);
   }
@@ -182,6 +183,19 @@ export function workspaceClient() {
     $('context').hidden=false; context(); say('New '+(kind==='UserStory'?'Story':kind));
     $('forms').querySelector('[name=title]').focus();
   }
+  function edgeIdentity(edge) {return {sourceId:edge.sourceId,predicate:edge.predicate,targetId:edge.targetId};}
+  function sameEdge(a,b) {return a.sourceId===b.sourceId&&a.predicate===b.predicate&&a.targetId===b.targetId;}
+  function relationshipChoices() {
+    const kind=current?.entity.kind||$('forms').querySelector('.entity-form')?.dataset.kind;
+    const target=catalog.find(entity=>entity.id===$('relationship-target').value)?.kind;
+    const incoming=$('relationship-direction').value==='incoming';
+    const rows=linkTypes.filter(row=>row[incoming?'targetKind':'sourceKind']===kind&&(!target||row[incoming?'sourceKind':'targetKind']===target));
+    const select=$('relationship-kind'),previous=select.value;select.replaceChildren();
+    for(const row of rows.filter((row,index,all)=>all.findIndex(other=>other.predicate===row.predicate)===index)) option(select,row.predicate,row.predicate+' · '+row.mode,row.mode!=='H');
+    if(rows.some(row=>row.predicate===previous&&row.mode==='H')) select.value=previous;
+    else select.value=rows.find(row=>row.mode==='H')?.predicate||'';
+    $('add-relationship').disabled=!target||!select.value;
+  }
   function entityLabel(id) {
     const matches=catalog.filter(entity=>entity.id===id);
     return matches.length===1&&matches[0].title?matches[0].title+' ('+id+')':id;
@@ -198,18 +212,37 @@ export function workspaceClient() {
     if(!relations.length) el('p','No linked objects. Unlinked effects are unknown.',$('related'));
     for(const edge of relations) {
       const row=el('div',undefined,$('related'),{className:'edge'});
-      el('span',entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId),row);
-      if(editable.includes(current.entity.kind)) button('Remove '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row,()=>{
-        const i=pending.findIndex(p=>p.kind==='product_unlink'&&p.sourceId===edge.sourceId&&p.predicate===edge.predicate&&p.targetId===edge.targetId);
-        if(i<0) pending.push({kind:'product_unlink',...edge}); else pending.splice(i,1);
-        invalidate(); row.classList.toggle('removed',i<0);
+      el('span',entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId)+' · '+edge.mode+' · '+edge.owner,row);
+      if(edge.mode==='H') {
+        const label=el('label','Relationship note '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row);
+        const note=el('textarea',undefined,label,{maxLength:4000});
+        const change=pending.find(p=>p.kind==='product_link'&&sameEdge(p,edge));
+        note.value=change?.payload?.note??edge.note??'';
+        note.oninput=()=>{pending=pending.filter(p=>!sameEdge(p,edge));pending.push({kind:'product_link',...edgeIdentity(edge),payload:{note:note.value}});invalidate();};
+      } else if(edge.note) el('p','Note: '+edge.note,row);
+      if(edge.mode!=='O'&&editable.includes(current.entity.kind)) button('Remove '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row,()=>{
+        const removed=pending.some(p=>p.kind==='product_unlink'&&sameEdge(p,edge));
+        pending=pending.filter(p=>!sameEdge(p,edge));
+        if(!removed) pending.push({kind:'product_unlink',...edgeIdentity(edge)});
+        invalidate(); row.classList.toggle('removed',!removed);
       });
     }
-    for(const edge of pending.filter(p=>p.kind==='product_link')) el('p','Add: '+edge.sourceId+' → '+edge.predicate+' → '+edge.targetId,$('related'));
+    if(current?.relationCursor) {
+      const more=button('More relationships',$('related'),async()=>{
+        more.disabled=true;
+        try {
+          const selected=current;
+          const result=await api('links?'+new URLSearchParams({id:selected.entity.id,cursor:selected.relationCursor}));
+          if(current!==selected) return;
+          selected.relations.push(...result.links);selected.relationCursor=result.cursor;context();
+        } finally {more.disabled=false;}
+      });
+    }
+    for(const edge of pending.filter(p=>p.kind==='product_link')) el('p','Change: '+entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId)+(edge.payload?' · Note: '+(edge.payload.note||'(clear)'):''),$('related'));
     $('relationship-target').replaceChildren();
     option($('relationship-target'),'','Choose an entity');
     for(const entity of catalog) option($('relationship-target'),entity.id,entity.title+' · '+entity.kind+' · '+entity.id);
-    $('relationship-kind').value=current?.entity.kind==='Aspect'?'applies_to':'enables';
+    relationshipChoices();
   }
   function collect() {
     if(imported) {
@@ -233,7 +266,7 @@ export function workspaceClient() {
     if(feature&&feature.value!==feature.dataset.original) {
       const existing=(current?.relations||[]).filter(r=>r.targetId===id&&(r.predicate==='enables'
         || r.predicate==='contains'&&catalog.some(entity=>entity.id===r.sourceId&&entity.kind==='Feature')));
-      for(const edge of existing) if(edge.sourceId!==feature.value) mutations.push({kind:'product_unlink',...edge});
+      for(const edge of existing) if(edge.sourceId!==feature.value) mutations.push({kind:'product_unlink',...edgeIdentity(edge)});
       if(feature.value&&!existing.some(r=>r.sourceId===feature.value)) mutations.push({kind:'product_link',sourceId:feature.value,predicate:'enables',targetId:id});
     }
     return {action:'product_change',originalRequest:'Developer Workspace edit',basis:current?.basis||[],mutations};
@@ -267,6 +300,11 @@ export function workspaceClient() {
     for(const mutation of request.mutations) {
       const block=el('section',undefined,$('diff'));
       el('h3',mutation.kind.replace('product_','')+' · '+(mutation.id||mutation.sourceId+' → '+mutation.predicate+' → '+mutation.targetId),block);
+      if(mutation.kind==='product_link'||mutation.kind==='product_unlink') {
+        const before=current?.relations.find(edge=>sameEdge(edge,mutation));
+        el('p','Note before: '+(before?before.note||'(none)':'Not loaded; inspect the canonical relationship'),block);
+        el('p','Note after: '+(mutation.kind==='product_unlink'?'(relationship removed)':mutation.payload!==undefined?mutation.payload.note||'(none)':before?.note||'(none)'),block);
+      }
       if(mutation.fields) {
         const before=current?.entity.id===mutation.id?current.entity:catalog.find(e=>e.id===mutation.id)||{};
         const table=el('table',undefined,block), head=el('tr',undefined,table);
@@ -410,13 +448,18 @@ export function workspaceClient() {
   $('import-button').onclick=()=>{if(canLeave()) {reset();current=null;$('editor').hidden=true;$('proposal-import').hidden=false;$('proposal-json').focus();}};
   $('load-proposal').onclick=()=>run(loadProposal);
   $('advanced-json').oninput=()=>{advancedDirty=true;invalidate();};
+  $('relationship-direction').onchange=relationshipChoices; $('relationship-target').onchange=relationshipChoices;
   $('add-relationship').onclick=()=>run(()=>{
     const id=$('forms').querySelector('[name=id]')?.value.trim();
     const target=$('relationship-target').value;
     if(!id||!target) throw new Error('Choose a stable ID and relationship target.');
     const reverse=$('relationship-direction').value==='incoming';
     const edge={kind:'product_link',sourceId:reverse?target:id,predicate:$('relationship-kind').value,targetId:reverse?id:target};
-    if(!pending.some(p=>JSON.stringify(p)===JSON.stringify(edge))) pending.push(edge);
+    const note=$('relationship-note').value,clear=$('relationship-clear-note').checked;
+    if(note&&clear) throw Error('Enter a note or choose Clear note, not both.');
+    if(note||clear) edge.payload={note:clear?'':note};
+    pending=pending.filter(p=>!sameEdge(p,edge));pending.push(edge);
+    $('relationship-note').value='';$('relationship-clear-note').checked=false;
     invalidate(); context();
   });
   document.addEventListener('keydown',event=>{

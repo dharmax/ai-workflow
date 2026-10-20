@@ -51,7 +51,11 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
               : await Promise.all((await ctx.store.listEntities(list)).map(async entity=>({...await entity.fullDto<Record<string,unknown>>(),id:ctx.store.localId(entity.id),version:entity.version})));
             return rows.map(row=>({...row,...(kind==='Ticket'?{ticketKind:row.kind??'task'}:{}),kind}));
           }));
-          return json({entities:groups.flat(),projectRoot:ctx.projectRoot});
+          return json({entities:groups.flat(),projectRoot:ctx.projectRoot,linkTypes:(await call('link',{action:'allowed'})).relations});
+        }
+        if(req.method==='GET'&&url.pathname==='/api/links') {
+          const input=z.object({id:z.string().min(1),cursor:z.string()}).strict().parse(Object.fromEntries(url.searchParams));
+          return json(await call('link',{action:'inspect',...input,limit:100}));
         }
         if (req.method === 'GET' && url.pathname === '/api/entity') {
           const {kind,id} = querySchema.parse(Object.fromEntries(url.searchParams));
@@ -65,13 +69,12 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           if (!canonical) return json({error:'Entity not found'},404);
           if (entity.version !== undefined && entity.version !== canonical.version)
             return json({error:'Entity changed while loading. Reload canonical data.'},409);
-          const incoming = await ctx.store.getIncoming(canonical.id), outgoing = await ctx.store.getOutgoing(canonical.id);
-          const relations = [...new Map([...incoming,...outgoing].map(edge=>[edge.id,{
-            sourceId:ctx.store.localId(edge.sourceId),predicate:edge.predicateName,targetId:ctx.store.localId(edge.targetId)
-          }])).values()];
+          const inspected=await call('link',{action:'inspect',id,limit:100});
+          if(inspected.version!==canonical.version) return json({error:'Entity changed while loading. Reload canonical data.'},409);
+          const relations=inspected.links;
           const aspects = kind === 'Aspect' || kind === 'Decision' ? [] : await call('get_applicable_aspects',{entityId:id});
           const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
-          return json({storyTests,entity:{...entity,version:canonical.version,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
+          return json({storyTests,relationCursor:inspected.cursor,entity:{...entity,version:canonical.version,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version,relationsHash:inspected.relationsHash}],relations,aspects});
         }
         if (req.method === 'POST' && url.pathname === '/api/run-story-test')
           return json(await call('run_story_test',z.object({storyId:z.string().min(1)}).parse(await req.json())));

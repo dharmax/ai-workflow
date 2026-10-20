@@ -10,7 +10,7 @@ import type { TicketLane } from '../graph/types.ts';
 
 const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;
-export const ProductRevisionSchema = z.object({ id: z.string().min(1), entityType: z.string().min(1), version: z.number().int().positive() });
+export const ProductRevisionSchema = z.object({ id: z.string().min(1), entityType: z.string().min(1), version: z.number().int().positive(), relationsHash: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export type ProductRevision = z.infer<typeof ProductRevisionSchema>;
 const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test', 'Module', 'Decision']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
@@ -260,7 +260,13 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     const entity = await store.getEntity(revision.id, revision.entityType);
     if (!entity || entity.typeName() !== revision.entityType || entity.version !== revision.version)
       throw new Error(`Stale product source revision '${revision.id}'.`);
-    if (productKind(entity)) await load(revision.id);
+    if (productKind(entity)) {
+      await load(revision.id);
+      const observed=snapshot[revision.id] as {fields:{version:number};relations:ProductEdgeRow[]};
+      if(observed.fields.version!==revision.version) throw new Error(`Stale product source revision '${revision.id}'.`);
+      if(revision.relationsHash!==undefined&&computeHash(observed.relations)!==revision.relationsHash)
+        throw new Error(`Stale product relations '${revision.id}'. Reload canonical data and review again.`);
+    } else if(revision.relationsHash!==undefined) throw new Error('Relation basis requires a Product entity.');
   }
   const deleted: string[] = [];
   // Work containment and prerequisites share execution direction. Inspect their

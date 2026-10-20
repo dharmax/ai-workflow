@@ -4,18 +4,18 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 217 | 0 | 0 | None |
+| `root` | project default | 230 | 0 | 0 | None |
 | `src/graph` | project default | 973 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
-| `src/tools` | project default | 579 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
+| `src/tools` | project default | 612 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 391 | 0 | 0 | None |
-| `src/mcp` | project default | 39 | 0 | 0 | None |
+| `src/mcp` | project default | 40 | 0 | 0 | None |
 | `src/shell` | project default | 154 | 0 | 0 | None |
 | `src/cli` | project default | 116 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/index` | project default | 0 | 0 | 0 | None |
 | `src/config` | project default | 74 | 0 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | 0 | None |
 | `src/setup` | project default | 135 | 0 | 0 | None |
-| `tests` | project default | 1936 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
+| `tests` | project default | 1983 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `skills` | project default | 11 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | 0 | None |
@@ -27,8 +27,8 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 561 | 0 | 0 | None |
-| `src/product` | project default | 638 | 0 | 0 | TKT-EXT-SURFACE-10 |
+| `docs` | project default | 568 | 0 | 0 | None |
+| `src/product` | project default | 642 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 718 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
 | `src/artifact-policy` | project default | 87 | 0 | 0 | None |
@@ -57,7 +57,7 @@
 | `src/rules` | project default | 271 | 0 | 0 | None |
 | `src/rule-command` | project default | 8 | 0 | 0 | None |
 | `node_modules` | project default | 79 | 0 | 0 | None |
-| `src/workspace` | project default | 105 | 0 | 0 | TKT-EXT-SURFACE-10 |
+| `src/workspace` | project default | 119 | 0 | 0 | TKT-EXT-SURFACE-10 |
 
 ## Dependency Diagram
 

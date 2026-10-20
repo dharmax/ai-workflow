@@ -41,7 +41,8 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
  if(args.action==='inspect') {
   const entity=await endpoint(store,args.id,args.idMatch);
   const direction=args.direction??'both',limit=args.limit??25;
-  const rows=(await productEdgeRows(store,entity.id)).filter(row=>(direction==='both'||(direction==='outgoing'?row.sourceId===entity.id:row.targetId===entity.id))&&(!args.predicate||row.predicateName===args.predicate));
+  const allRows=await productEdgeRows(store,entity.id);
+  const rows=allRows.filter(row=>(direction==='both'||(direction==='outgoing'?row.sourceId===entity.id:row.targetId===entity.id))&&(!args.predicate||row.predicateName===args.predicate));
   const basis=computeHash({id:entity.id,version:entity.version,direction,predicate:args.predicate??null,rows});
   let offset=0;
   if(args.cursor) {
@@ -57,7 +58,7 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
     sourceStatus:source&&'status' in source?source.status:undefined,targetStatus:target&&'status' in target?target.status:undefined,predicate:row.predicateName,direction:row.sourceId===entity.id?'outgoing':'incoming',
     note:row.payload?.note,mode:protectedEndpoint?'O':relation?.mode??'O',owner:protectedEndpoint?'Protected evidence owner':relation?.owner??'Indexed/runtime or unsupported historical relation; manual mutation forbidden'});
   }
-  return {status:'read',id:store.localId(entity.id),version:entity.version,links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
+  return {status:'read',id:store.localId(entity.id),version:entity.version,relationsHash:computeHash(allRows),links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
  }
  const source=await endpoint(store,args.sourceId,args.idMatch),target=await endpoint(store,args.targetId,args.idMatch);
  const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',mutations:[{

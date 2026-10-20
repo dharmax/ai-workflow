@@ -1,5 +1,5 @@
 {
-  "scope": "Actual native CLI model trials and legacy MCP schema measurement; no human approval, full PC5 acceptance or canonical VERIFY/Done is inferred.",
+  "scope": "Actual CLI/stdio/installed coding-agent host trials, human reports and bounded deterministic evidence; no human approval, full PC5 acceptance, canonical VERIFY/Done or S6 entry inferred.",
   "trials": [
     {
       "trial": "initial-cli",
@@ -1048,8 +1048,871 @@
   },
   "humanTrial": {
     "actor": "developer",
-    "status": "reported in progress; results pending",
+    "status": "Developer-reported assisted trial; follow-up pending",
     "servedPageSha256": "3ee5b1f08fc8dc0e5c05ba5a6fcf392edb6e3d0abdd028246cf0d0e81586dac9",
-    "source": "Intermediate Workspace parity build; no final-source or PC5 acceptance inferred"
+    "source": "Developer explicit correction: old Bug verification section absent; assisted use of intermediate build. No unassisted qualification or PC5 acceptance inferred.",
+    "reportedCompleted": [
+      "Product charter",
+      "Goal g1 (Assessment)",
+      "Module serves Goal interface exercise",
+      "Module purpose revision",
+      "Bug report",
+      "Bug b1 easily reopened via existing Bug entity filter"
+    ],
+    "limitations": [
+      "Repeated external guidance was needed.",
+      "Confirmed old-UI failure: developer found no verification status, test, evidence or receipt section, including at the bottom.",
+      "Elapsed time and complete action/error/correction counts not supplied.",
+      "Intermediate served build; disposable relation is not architecture acceptance."
+    ],
+    "followup": "Fresh corrected Workspace running; human results requested and pending."
+  },
+  "installedCodexHostTrial": {
+    "exitCode": 0,
+    "elapsedMs": 41453,
+    "threadId": "01a1595a-49a6-7481-8379-ccb7e61f6c01",
+    "surface": "Actual installed Codex with ephemeral AIWF MCP compact override; inherited configured host entries also visible",
+    "verdict": "blocked before domain execution; never a usability pass",
+    "calls": [
+      {
+        "id": "item_1",
+        "type": "mcp_tool_call",
+        "server": "aiwf-mcp",
+        "tool": "artifact",
+        "arguments": {
+          "action": "describe",
+          "projectRoot": "/tmp/aiwf-i2-codex-host-xwlpjm8x"
+        },
+        "result": null,
+        "error": {
+          "message": "MCP tool call requires approval, but approval policy is never"
+        },
+        "status": "failed"
+      },
+      {
+        "id": "item_2",
+        "type": "mcp_tool_call",
+        "server": "aiwf_mcp",
+        "tool": "artifact",
+        "arguments": {
+          "action": "describe",
+          "projectRoot": "/tmp/aiwf-i2-codex-host-xwlpjm8x"
+        },
+        "result": null,
+        "error": {
+          "message": "MCP tool call requires approval, but approval policy is never"
+        },
+        "status": "failed"
+      },
+      {
+        "id": "item_4",
+        "type": "mcp_tool_call",
+        "server": "aiwf-mcp",
+        "tool": "verify",
+        "arguments": {
+          "projectRoot": "/tmp/aiwf-i2-codex-host-xwlpjm8x",
+          "action": "show",
+          "kind": "ticket",
+          "id": "B-TRIAL",
+          "idMatch": "exact"
+        },
+        "result": null,
+        "error": {
+          "message": "MCP tool call requires approval, but approval policy is never"
+        },
+        "status": "failed"
+      },
+      {
+        "id": "item_5",
+        "type": "mcp_tool_call",
+        "server": "aiwf-mcp",
+        "tool": "create_bug",
+        "arguments": {
+          "projectRoot": "/tmp/aiwf-i2-codex-host-xwlpjm8x",
+          "id": "B-TRIAL",
+          "title": "Trial defect",
+          "priority": "P2",
+          "body": "Partial defect report for the disposable PC5 usability trial. Reproduction and observed defect details are unknown; investigation is pending."
+        },
+        "result": null,
+        "error": {
+          "message": "MCP tool call requires approval, but approval policy is never"
+        },
+        "status": "failed"
+      }
+    ],
+    "attemptedCalls": 4,
+    "failedCalls": 4,
+    "finalNarrative": "The trial was blocked by tool access. No preview or Bug was created, and no verification evidence was retrieved.\n\nPublic tool discovery exposed `artifact`, `create_bug`, and `verify` schemas. Complete attempted calls follow; `projectRoot` was `/tmp/aiwf-i2-codex-host-xwlpjm8x` in every call.\n\n```text\nmcp__aiwf_mcp_381562fd809e__artifact({\n  action: \"describe\",\n  projectRoot: \"/tmp/aiwf-i2-codex-host-xwlpjm8x\"\n})\n\nmcp__aiwf_mcp_c5a05bed2259__artifact({\n  action: \"describe\",\n  projectRoot: \"/tmp/aiwf-i2-codex-host-xwlpjm8x\"\n})\n\nmcp__aiwf_mcp_381562fd809e__create_bug({\n  projectRoot: \"/tmp/aiwf-i2-codex-host-xwlpjm8x\",\n  id: \"B-TRIAL\",\n  title: \"Trial defect\",\n  priority: \"P2\",\n  body: \"Partial defect report for the disposable PC5 usability trial. Reproduction and observed defect details are unknown; investigation is pending.\"\n})\n\nmcp__aiwf_mcp_381562fd809e__verify({\n  projectRoot: \"/tmp/aiwf-i2-codex-host-xwlpjm8x\",\n  action: \"show\",\n  kind: \"ticket\",\n  id: \"B-TRIAL\",\n  idMatch: \"exact\"\n})\n```\n\nEvery call returned `isError: true` with exactly:\n\n> MCP tool call requires approval, but approval policy is never\n\nI tried the second listed endpoint after the first discovery rejection; neither provided help. No unchanged failure was retried. The Bug attempt omitted reproduction, preserving it as unknown.\n\nConsequently, the Product charter, G-TRIAL Goal, indexed Module read, purpose revision, and relationship discovery remain unperformed. The unsaved-Goal review dependency could not be established from tool evidence.\n\nThe immediate host dependency is enabling these public typed tools under the fixture\u2019s approval policy. Any subsequent Product application still requires human review of the exact generated preview; no preview fingerprint exists yet. I called no `apply_change`, approval, shell, implementation, or database tools.",
+    "hostUsage": {
+      "input_tokens": 166717,
+      "cached_input_tokens": 140800,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 1071,
+      "reasoning_output_tokens": 59
+    },
+    "limits": "Actual transcript is authoritative over model narrative; inherited host listing differs from isolated compact fixture. No comparable success or paid-cost inference. Host approval decision requested; no self-approval configured."
+  },
+  "currentStdioMeasurement": {
+    "command": "bun test tests/product-operability-parity.test.ts",
+    "unit": "serialized tools/list result UTF8 bytes, not schema-map bytes or billed tokens",
+    "legacy": {
+      "tools": 75,
+      "bytes": 130767
+    },
+    "compact": {
+      "tools": 51,
+      "bytes": 118145
+    },
+    "qualification": "same actual stdio harness and identical family schemas; separate from installed-host task. Original legacy baseline70tools84725bytes predates new strict families."
+  },
+  "currentDeterministicValidation": {
+    "base": "3c2d8a665f134d38fc868d6a40a14303a6845625 plus current Workspace note parity changes",
+    "suite": {
+      "command": "bun test --max-concurrency=1",
+      "pass": 564,
+      "existingSkips": 5,
+      "fail": 0,
+      "tests": 569,
+      "files": 74,
+      "elapsedSeconds": 112.11
+    },
+    "typecheck": "pass",
+    "pack": "build952 pass",
+    "crossSurfaceNotes": "Actual CLI -> shell -> browser concurrently stale note refusal and reload -> reviewed change -> restart -> stdio exact edge/version -> explicit clear,15assertions pass",
+    "scope": "Assisted deterministic execution, not independent full PC5 acceptance. Supersedes intermediate run that overlapped activation of the expected-red missing-note case.",
+    "optimisticBasis": "Optional relationsHash in existing ProductRevision basis compares exact loaded native edge snapshot used by conditional writes; stale entity and stale edge views refuse."
+  },
+  "narrowIndependentSourceReviews": [
+    {
+      "scope": "source/evidence review only; no independent execution, human approval, canonical receipt or full PC5 inference",
+      "result": {
+        "revision": "5cb4579 plus current adapter patch",
+        "model": "openrouter/openai/o3-mini",
+        "scope": "independent source/evidence review; not executed PC5 acceptance",
+        "review": {
+          "verdict": "accept",
+          "basis": "The patch shows targeted modifications that reuse the canonical per\u2010kind field whitelist from mutation.ts, employ the exact/human endpoint and S2 previewDefinitionChange for Story S5, and reuse the existing get_ticket evidence read. The withProjectRoot functionality now correctly recurses into anyOf and oneOf branches and the opt\u2010in behavior for AIWF_MCP_SURFACE=compact cleanly hides replaced readers while leaving legacy calls with unchanged guards. The full suite tests (five stdio tests with 71 assertions) confirm that preview edits, stale version refusals, self\u2010approval rejections, and advertised schema/runtime negatives behave as expected. All immediate methods and contracts appear sound and do not introduce additional registry or apply authority concerns.",
+          "demonstratedGaps": [],
+          "unverified": [],
+          "developerReview": "This narrow adapter patch meets the requirements by integrating the canonical field whitelist, ensuring proper endpoint and preview immutability, and extending withProjectRoot to support anyOf/oneOf branches. The tests confirm expected behavior, and no grounded defects were reproduced. Therefore, I accept the adapter patch as submitted."
+        }
+      }
+    },
+    {
+      "scope": "source/evidence review only; no independent execution, human approval, canonical receipt or full PC5 inference",
+      "result": {
+        "revision": "5cb4579 plus current adapter patch",
+        "model": "openrouter/openai/o3-mini",
+        "scope": "independent source/evidence review; not executed PC5 acceptance",
+        "review": {
+          "verdict": "accept",
+          "basis": "A thorough manual review of the updated client, server, and test code indicates that the corrected behaviors \u2013 including canonical link inspection, allowed delegation, precise owner note handling (with H mode note edits, L unlink retention), strict edge identity for unlink operations, and predicate choices based on canonical descriptors \u2013 are implemented in line with the design intent relative to commit 5cb4579. The server\u2019s API endpoints (including the /api/links inspection with a bounded limit and token/origin checks) and the client\u2019s functions (such as sameEdge and edgeIdentity) correctly support the intended parity across CLI, shell, and browser flows. In addition, the extensive test suite provides simulated reproductions for key workflows (for example, PC-J8 verifies that a browser note update preserves exact edge identity across a restart) which further supports acceptance of these corrections.",
+          "demonstratedGaps": [
+            {
+              "requirement": "Exact edge identity retention and strict unlink field handling",
+              "owner": "Client UI and pending changes logic",
+              "finding": "The use of sameEdge and edgeIdentity functions combined with selective pending update/deregistration for product_link and product_unlink mutations appears correct. The diff review in the UI shows both the preexisting note and any updated note changes.",
+              "publicReproduction": "PC-J8 test in the suite reproduces the scenario by comparing the edge\u2019s id and version before and after a browser edit."
+            },
+            {
+              "requirement": "Governed delegation and controlled behavior on note clear vs. edit",
+              "owner": "Server API and client relationship module",
+              "finding": "The server enforces token and origin checks while the client UI properly distinguishes between a cleared note and a new note input. The dual treatment of CLI and shell inputs combined with browser updates is handled via explicit payloads.",
+              "publicReproduction": "Test cases involving CLI and shell note updates followed by browser revision (e.g. in the PC-J8 test) confirm proper propagation."
+            }
+          ],
+          "unverified": [
+            "Human trial with a configured Codex usability host",
+            "MCP approval of the final patch",
+            "Canonical Gate5 independent review"
+          ],
+          "developerReview": "The corrections have been implemented with careful attention to detail. Version and edge identity comparisons, explicit clear semantics, and proper handling of pending mutations are all in place. The code changes align with both the updated normative PC5 matrix and the articulated design requirements. While actual execution via live human trial and additional MCP/Gate5 approval remains pending, the static analysis alongside the comprehensive test suite supports a narrow acceptance of the patch as correct."
+        }
+      }
+    },
+    {
+      "scope": "Independent source/evidence review only; not executed full PC5 or canonical acceptance",
+      "result": {
+        "revision": "5cb4579 plus current adapter patch",
+        "model": "openrouter/openai/o3-mini",
+        "scope": "independent source/evidence review; not executed PC5 acceptance",
+        "review": {
+          "verdict": "accept",
+          "basis": "The reviewed changes correctly incorporate an optional SHA256 relationsHash into the optimistic ProductRevision basis. The canonical link inspect now computes the hash based on the exact native rows read and passes that into the Workspace\u2019s source snapshot. The validateProductMutations function neatly compares both the caller version and the pre\u2010computed hash against the loaded snapshot\u2014thus avoiding an extra independent read. Furthermore, the corrections correctly restrict the supply of relationhash to Product contexts only, leaving other specialist rule bases unchanged, and native graph conditional writes retain the existing owner. The updated test suite (the CLI\u2192shell\u2192browser stale refusal/reload/review/restart\u2192stdio identity+version\u2192clear test, which now passes 15 assertions) confirms that the stale-editor and link-note scenarios are handled as required.",
+          "demonstratedGaps": [
+            {
+              "requirement": "Complete production-level host review and normative compliance (e.g. Semantika/G5 matrix) remain unverified",
+              "owner": "Developer",
+              "finding": "While the immediate functional corrections are sound and the optimistic SHA256 check is in place, full host-review acceptance and normative matrix verification are pending.",
+              "publicReproduction": "Future integration tests and production host reviews will be required to fully validate inter-agent consistency and historical compatibility in a live setting."
+            }
+          ],
+          "unverified": [
+            "Configured agent host-review completion",
+            "Full normative matrix and canonical Semantika/G5 verification"
+          ],
+          "developerReview": "The code changes enforce a single read for both identity/version and relationsHash comparison, which simplifies the update logic and reduces race conditions. The design, including the use of strict edgeIdentity for unlink operations, allowed delegation for canonical link inspection, and explicit omission/clear handling in edge payloads, is sound and complies with the intended KISS principle. Although further production evaluation and host audit are recommended, the current corrections meet review criteria and resolve the reported stale-editor and link-note issues."
+        }
+      }
+    }
+  ],
+  "approvedScopedCodexTrial": {
+    "fixture": "/tmp/aiwf-i2-codex-approved-k_un9lol",
+    "actor": "Actual installed codex-cli0.163.0, configured gpt-6.1-sol low reasoning",
+    "modelConfigurationUnchanged": true,
+    "authorization": "Developer explicitly approved process-only allowlist artifact/link/verify/create_bug; other configured MCP entries disabled for this process; apply_change excluded; saved config untouched.",
+    "measurement": {
+      "exitCode": 0,
+      "elapsedMs": 56830
+    },
+    "calls": [
+      {
+        "id": "item_1",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "help"
+        },
+        "status": "failed",
+        "error": null,
+        "responseUtf8Bytes": 49505,
+        "responseSha256": "666bdbc9f3442f9cb6d5c28603875e569d3b2926c00148f9b458d57cad9be3dc",
+        "observedError": "Execution error in 'artifact': [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"describe\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"describe\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Product\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Product\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Product\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Product\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Product\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Product\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"PRODUCT\"\n          ],\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected \\\"PRODUCT\\\"\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Product\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Product\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Product\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Product\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"PRODUCT\"\n          ],\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected \\\"PRODUCT\\\"\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Goal\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Goal\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Goal\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Goal\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Goal\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Goal\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Goal\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Goal\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Goal\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Goal\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Concept\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Concept\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Concept\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Concept\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Concept\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Concept\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Concept\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Concept\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Concept\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Concept\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Flow\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Flow\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Flow\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Flow\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Flow\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Flow\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Flow\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Flow\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Flow\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Flow\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Feature\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Feature\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Feature\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Feature\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Feature\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Feature\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Feature\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Feature\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Feature\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Feature\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"UserStory\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"UserStory\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"UserStory\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"UserStory\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"UserStory\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"UserStory\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"UserStory\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"UserStory\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"UserStory\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"UserStory\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Aspect\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Aspect\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Aspect\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Aspect\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Aspect\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Aspect\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Aspect\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Aspect\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Aspect\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Aspect\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Module\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Module\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Module\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Module\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Module\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Module\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Module\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Module\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Epic\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Epic\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Epic\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Epic\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Epic\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Epic\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Epic\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Epic\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Ticket\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Ticket\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Ticket\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Ticket\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Ticket\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Ticket\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Ticket\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Ticket\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Bug\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Bug\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Bug\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Bug\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Bug\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Bug\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Bug\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Bug\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Decision\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Decision\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Decision\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Decision\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_edit\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_edit\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Decision\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Decision\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_new\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_new\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Decision\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Decision\\\"\"\n        },\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"fields\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"preview_retire\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"preview_retire\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Decision\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Decision\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"expected\": \"number\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"version\"\n          ],\n          \"message\": \"Invalid input: expected number, received undefined\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"list\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"list\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Idea\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Idea\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"show\"\n          ],\n          \"path\": [\n            \"action\"\n          ],\n          \"message\": \"Invalid input: expected \\\"show\\\"\"\n        },\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"Idea\"\n          ],\n          \"path\": [\n            \"kind\"\n          ],\n          \"message\": \"Invalid input: expected \\\"Idea\\\"\"\n        },\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"id\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [],\n    \"message\": \"Invalid input\"\n  }\n]"
+      },
+      {
+        "id": "item_2",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "describe",
+          "kind": "Product"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 7233,
+        "responseSha256": "e23ae837f78efbaa0217f1d7ca81ecd791f1954a5c58b5e9c5f707133ca78238"
+      },
+      {
+        "id": "item_3",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "describe",
+          "kind": "Goal"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 6376,
+        "responseSha256": "08c7b3ebb8e0fd5dc2ecfddf552fe5e65ebdad2f4c349df57032a0ac05ecc969"
+      },
+      {
+        "id": "item_4",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "describe",
+          "kind": "Module"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 5682,
+        "responseSha256": "463a76637ca68efda9386cc5d8242bbcbba4035ae9a94c7d409c3fee1026671d"
+      },
+      {
+        "id": "item_5",
+        "server": "aiwf_trial",
+        "tool": "link",
+        "arguments": {
+          "action": "allowed",
+          "sourceKind": "Module",
+          "targetKind": "Goal"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 584,
+        "responseSha256": "11e793157d935496f0592ef43e0016bd2f293490b959984677a750952e3c7dd0"
+      },
+      {
+        "id": "item_6",
+        "server": "aiwf_trial",
+        "tool": "verify",
+        "arguments": {
+          "action": "describe",
+          "kind": "ticket"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 698,
+        "responseSha256": "68bcb1a688ec44fcb6c116b5911f366ac5a2e918b4a310aaf3492f92de0d3efe",
+        "observed": {
+          "status": "read",
+          "kinds": [
+            "story",
+            "ticket"
+          ],
+          "actions": {
+            "story": [
+              "show",
+              "run"
+            ],
+            "ticket": [
+              "show"
+            ]
+          },
+          "rights": {
+            "show": "read-only",
+            "run": "project-write; executes the existing activated Story test"
+          },
+          "states": "Story evidence is current S5 classification. Ticket receipt is recorded-unchecked until the independent completion owner revalidates current source, tests and governance.",
+          "next": "prepare_story_test / apply_story_test; resolve_ticket owns independent Ticket completion"
+        }
+      },
+      {
+        "id": "item_7",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "list",
+          "kind": "Module",
+          "limit": 10
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 453,
+        "responseSha256": "3ca3d76bf66bf56cce1d104e597df95623b74b981968e8f3611ae9932aba76ac",
+        "observed": {
+          "status": "read",
+          "items": [
+            {
+              "id": "mod:root",
+              "kind": "Module",
+              "version": 1,
+              "title": "root",
+              "status": "draft"
+            },
+            {
+              "id": "mod:src/totals",
+              "kind": "Module",
+              "version": 1,
+              "title": "src/totals",
+              "status": "draft"
+            }
+          ],
+          "cursor": null
+        }
+      },
+      {
+        "id": "item_8",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "preview_new",
+          "kind": "Goal",
+          "id": "G-TRIAL",
+          "fields": {
+            "title": "Traceable trial intent",
+            "body": "Enable trial participants to connect indexed source responsibilities to an explicit Goal while keeping Product proposals inert until exact host review.",
+            "status": "draft"
+          }
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 1907,
+        "responseSha256": "aa6406199dcb273409041a2bd355a03a53b6475250e6e2314cb6a17ff799d952",
+        "preview": {
+          "fingerprint": "95ba5bd0324bb632ffb8e7581938cc2bcc8c89a38664146026689aba0d4f5375",
+          "request": {
+            "action": "product_change",
+            "mutations": [
+              {
+                "kind": "product_create",
+                "entityType": "Goal",
+                "id": "G-TRIAL",
+                "fields": {
+                  "title": "Traceable trial intent",
+                  "body": "Enable trial participants to connect indexed source responsibilities to an explicit Goal while keeping Product proposals inert until exact host review.",
+                  "status": "draft"
+                }
+              }
+            ]
+          },
+          "status": "preview",
+          "blocked": false,
+          "blockReason": null
+        }
+      },
+      {
+        "id": "item_9",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "show",
+          "kind": "Product"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 166,
+        "responseSha256": "9d584752574c92da6f4f00c06d68247b6742dde9414a929923f41e707ff9ee0e",
+        "observed": {
+          "status": "read",
+          "kind": "Product",
+          "defined": false,
+          "id": "PRODUCT"
+        }
+      },
+      {
+        "id": "item_10",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "preview_new",
+          "kind": "Product",
+          "fields": {
+            "title": "Trial Product",
+            "purpose": "Support a disposable usability trial of typed Product planning and partial Bug reporting.",
+            "actors": [
+              "Trial participant",
+              "Host reviewer"
+            ],
+            "scope": "Inert charter, Goal and indexed Module intent previews, plus an authorized partial Bug.",
+            "nonGoals": [
+              "Implement source changes",
+              "Self-approve Product proposals"
+            ],
+            "bounds": "Disposable fixture only; Product changes require exact host review.",
+            "status": "draft"
+          }
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 2999,
+        "responseSha256": "dbd64f2748145cc825a085c755d9059bf79da3c0bd8f1f04623e72406f5ca422",
+        "preview": {
+          "fingerprint": "9c5a6d50141f07e830f9eb207bba3de8fa431e5c82ea07f1611031e8eb0f6e34",
+          "request": {
+            "action": "product_change",
+            "mutations": [
+              {
+                "kind": "product_create",
+                "entityType": "Product",
+                "id": "PRODUCT",
+                "fields": {
+                  "title": "Trial Product",
+                  "purpose": "Support a disposable usability trial of typed Product planning and partial Bug reporting.",
+                  "actors": [
+                    "Trial participant",
+                    "Host reviewer"
+                  ],
+                  "scope": "Inert charter, Goal and indexed Module intent previews, plus an authorized partial Bug.",
+                  "nonGoals": [
+                    "Implement source changes",
+                    "Self-approve Product proposals"
+                  ],
+                  "bounds": "Disposable fixture only; Product changes require exact host review.",
+                  "status": "draft"
+                }
+              }
+            ]
+          },
+          "status": "preview",
+          "blocked": false,
+          "blockReason": null
+        }
+      },
+      {
+        "id": "item_11",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "show",
+          "kind": "Module",
+          "id": "mod:src/totals",
+          "idMatch": "exact"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 1518,
+        "responseSha256": "755640b0cc3a8dfee69eddbf1098504e8adf32747beaa31059fa7e11cdfa0cc2",
+        "observed": {
+          "status": "read",
+          "kind": "Module",
+          "id": "mod:src/totals",
+          "version": 1,
+          "definition": {
+            "id": "mod:src/totals",
+            "_id": "aiwf_ModuleNode_mod:src/totals",
+            "title": "src/totals",
+            "status": "implemented",
+            "createdAt": "2026-10-20T12:56:42.950Z",
+            "updatedAt": "2026-10-20T12:56:42.950Z",
+            "path": "src/totals",
+            "_created": "2026-10-20T12:56:42.953Z",
+            "_lastUpdate": "2026-10-20T12:56:42.953Z",
+            "_entityType": "ModuleNode",
+            "version": 1,
+            "sourceStatus": "indexed"
+          },
+          "relations": {
+            "status": "read",
+            "id": "mod:src/totals",
+            "version": 1,
+            "links": [
+              {
+                "id": "aiwf_9SbBXHtVYxFT4QDKyGpnvp",
+                "version": 1,
+                "sourceId": "mod:src/totals",
+                "targetId": "src/totals.ts",
+                "sourceKind": "Module",
+                "targetKind": "File",
+                "sourceStatus": "implemented",
+                "targetStatus": "implemented",
+                "predicate": "contains",
+                "direction": "outgoing",
+                "mode": "O",
+                "owner": "Indexed/runtime or unsupported historical relation; manual mutation forbidden"
+              }
+            ],
+            "cursor": null
+          },
+          "evidence": {
+            "state": "not-assessed",
+            "next": "verify / get_product_coverage; definition acceptance is not satisfaction"
+          }
+        }
+      },
+      {
+        "id": "item_12",
+        "server": "aiwf_trial",
+        "tool": "create_bug",
+        "arguments": {
+          "id": "B-TRIAL",
+          "title": "Trial defect",
+          "priority": "P3",
+          "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known."
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 169,
+        "responseSha256": "5a6abecee21967fe962cacb1d117cf98ec0577e68a52422ac3aaf02e2ee3b4a8"
+      },
+      {
+        "id": "item_14",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "preview_edit",
+          "kind": "Module",
+          "id": "mod:src/totals",
+          "version": 1,
+          "fields": {
+            "body": "Provide the indexed totals source boundary for tracing source responsibilities to reviewed Product Goals during the disposable usability trial."
+          }
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 1830,
+        "responseSha256": "84a48b96394be8fb0b03050691e565dfcf1001115583147be529e4f8e24f8005",
+        "preview": {
+          "fingerprint": "1fda0c5e725cae36540421e2855f61bdf794b68d5ae6672bb703358b75aafefa",
+          "request": {
+            "action": "product_change",
+            "mutations": [
+              {
+                "kind": "product_update",
+                "entityType": "Module",
+                "id": "mod:src/totals",
+                "fields": {
+                  "body": "Provide the indexed totals source boundary for tracing source responsibilities to reviewed Product Goals during the disposable usability trial."
+                }
+              }
+            ],
+            "basis": [
+              {
+                "id": "mod:src/totals",
+                "entityType": "ModuleNode",
+                "version": 1
+              }
+            ]
+          },
+          "status": "preview",
+          "blocked": false,
+          "blockReason": null
+        }
+      },
+      {
+        "id": "item_15",
+        "server": "aiwf_trial",
+        "tool": "link",
+        "arguments": {
+          "action": "preview_add",
+          "sourceId": "mod:src/totals",
+          "predicate": "serves",
+          "targetId": "G-TRIAL",
+          "idMatch": "exact",
+          "payload": {
+            "note": "Trace the indexed totals Module to the trial Goal."
+          }
+        },
+        "status": "failed",
+        "error": null,
+        "responseUtf8Bytes": 119,
+        "responseSha256": "e697adeb505e8ae588ae4f0becea3dde6a5f517bf0060b6e17755982f7c6479b",
+        "observedError": "Execution error in 'link': Entity 'G-TRIAL' not found."
+      },
+      {
+        "id": "item_16",
+        "server": "aiwf_trial",
+        "tool": "artifact",
+        "arguments": {
+          "action": "show",
+          "kind": "Bug",
+          "id": "B-TRIAL",
+          "idMatch": "exact"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 1442,
+        "responseSha256": "1688ebf9b16bf982b6c74e37f2b8abf44fb53f87faa92e962c1fbf132457be1d",
+        "observed": {
+          "status": "read",
+          "kind": "Bug",
+          "id": "B-TRIAL",
+          "version": 1,
+          "definition": {
+            "id": "aiwf_Ticket_B-TRIAL",
+            "_id": "aiwf_Ticket_B-TRIAL",
+            "title": "Trial defect",
+            "status": "planned",
+            "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+            "createdAt": "2026-10-20T12:57:27.208Z",
+            "updatedAt": "2026-10-20T12:57:27.208Z",
+            "lane": "Todo",
+            "priority": "P3",
+            "kind": "bug",
+            "_created": "2026-10-20T12:57:27.209Z",
+            "_lastUpdate": "2026-10-20T12:57:27.209Z",
+            "_entityType": "Ticket"
+          },
+          "relations": {
+            "status": "read",
+            "id": "B-TRIAL",
+            "version": 1,
+            "links": [],
+            "cursor": null
+          },
+          "evidence": {
+            "id": "B-TRIAL",
+            "title": "Trial defect",
+            "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+            "lane": "Todo",
+            "status": "planned",
+            "verificationState": "unverified",
+            "verification": null,
+            "outgoing": [],
+            "incoming": [],
+            "kind": "bug",
+            "priority": "P3",
+            "version": 1
+          }
+        }
+      },
+      {
+        "id": "item_17",
+        "server": "aiwf_trial",
+        "tool": "verify",
+        "arguments": {
+          "action": "show",
+          "kind": "ticket",
+          "id": "B-TRIAL",
+          "idMatch": "exact"
+        },
+        "status": "completed",
+        "error": null,
+        "responseUtf8Bytes": 517,
+        "responseSha256": "6f1dbd3979a9ca91d5db07940595d29cbc6fee323383c9ff92aac9408cc1b08b",
+        "observed": {
+          "id": "B-TRIAL",
+          "title": "Trial defect",
+          "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+          "lane": "Todo",
+          "status": "planned",
+          "verificationState": "unverified",
+          "verification": null,
+          "outgoing": [],
+          "incoming": [],
+          "kind": "bug",
+          "priority": "P3",
+          "version": 1
+        }
+      }
+    ],
+    "callCount": 16,
+    "invalidActionCalls": 1,
+    "expectedMissingGoalRefusals": 1,
+    "limits": "Elapsed excludes fixture/setup and two pre-model invalid-transport harness startup corrections. Actual host scoped subset is not full legacy-versus-compact usability comparison. No paid-cost, full PC5 or S6 inference.",
+    "independentReadback": [
+      {
+        "name": "artifact",
+        "args": {
+          "action": "show",
+          "kind": "Product"
+        },
+        "observed": {
+          "status": "read",
+          "kind": "Product",
+          "defined": false,
+          "id": "PRODUCT"
+        }
+      },
+      {
+        "name": "artifact",
+        "args": {
+          "action": "list",
+          "kind": "Goal"
+        },
+        "observed": {
+          "status": "read",
+          "items": [],
+          "cursor": null
+        }
+      },
+      {
+        "name": "artifact",
+        "args": {
+          "action": "show",
+          "kind": "Module",
+          "id": "mod:src/totals"
+        },
+        "observed": {
+          "status": "read",
+          "kind": "Module",
+          "id": "mod:src/totals",
+          "version": 1,
+          "definition": {
+            "id": "mod:src/totals",
+            "_id": "aiwf_ModuleNode_mod:src/totals",
+            "title": "src/totals",
+            "status": "implemented",
+            "createdAt": "2026-10-20T12:56:42.950Z",
+            "updatedAt": "2026-10-20T12:56:42.950Z",
+            "path": "src/totals",
+            "_created": "2026-10-20T12:56:42.953Z",
+            "_lastUpdate": "2026-10-20T12:56:42.953Z",
+            "_entityType": "ModuleNode",
+            "version": 1,
+            "sourceStatus": "indexed"
+          },
+          "relations": {
+            "status": "read",
+            "id": "mod:src/totals",
+            "version": 1,
+            "relationsHash": "f5cdf573a31ac3df157fb4b34eced96afb81e8dfbf38056092efdff36bcc66a9",
+            "links": [
+              {
+                "id": "aiwf_9SbBXHtVYxFT4QDKyGpnvp",
+                "version": 1,
+                "sourceId": "mod:src/totals",
+                "targetId": "src/totals.ts",
+                "sourceKind": "Module",
+                "targetKind": "File",
+                "sourceStatus": "implemented",
+                "targetStatus": "implemented",
+                "predicate": "contains",
+                "direction": "outgoing",
+                "mode": "O",
+                "owner": "Indexed/runtime or unsupported historical relation; manual mutation forbidden"
+              }
+            ],
+            "cursor": null
+          },
+          "evidence": {
+            "state": "not-assessed",
+            "next": "verify / get_product_coverage; definition acceptance is not satisfaction"
+          }
+        }
+      },
+      {
+        "name": "artifact",
+        "args": {
+          "action": "show",
+          "kind": "Bug",
+          "id": "B-TRIAL"
+        },
+        "observed": {
+          "status": "read",
+          "kind": "Bug",
+          "id": "B-TRIAL",
+          "version": 1,
+          "definition": {
+            "id": "aiwf_Ticket_B-TRIAL",
+            "_id": "aiwf_Ticket_B-TRIAL",
+            "title": "Trial defect",
+            "status": "planned",
+            "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+            "createdAt": "2026-10-20T12:57:27.208Z",
+            "updatedAt": "2026-10-20T12:57:27.208Z",
+            "lane": "Todo",
+            "priority": "P3",
+            "kind": "bug",
+            "_created": "2026-10-20T12:57:27.209Z",
+            "_lastUpdate": "2026-10-20T12:57:27.209Z",
+            "_entityType": "Ticket"
+          },
+          "relations": {
+            "status": "read",
+            "id": "B-TRIAL",
+            "version": 1,
+            "relationsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "links": [],
+            "cursor": null
+          },
+          "evidence": {
+            "id": "B-TRIAL",
+            "title": "Trial defect",
+            "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+            "lane": "Todo",
+            "status": "planned",
+            "verificationState": "unverified",
+            "verification": null,
+            "outgoing": [],
+            "incoming": [],
+            "kind": "bug",
+            "priority": "P3",
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "verify",
+        "args": {
+          "action": "show",
+          "kind": "ticket",
+          "id": "B-TRIAL"
+        },
+        "observed": {
+          "id": "B-TRIAL",
+          "title": "Trial defect",
+          "body": "Partial defect report for the disposable usability trial. Reproduction, actual behavior, expected behavior, impact and severity are not yet known.",
+          "lane": "Todo",
+          "status": "planned",
+          "verificationState": "unverified",
+          "verification": null,
+          "outgoing": [],
+          "incoming": [],
+          "kind": "bug",
+          "priority": "P3",
+          "version": 1
+        }
+      }
+    ],
+    "disposition": "Independent permitted read/preview/Bug tasks observed; exact developer review of three generated previews pending; relation cannot persist before Goal and separate exact review.",
+    "hostUsage": {
+      "input_tokens": 260133,
+      "cached_input_tokens": 225792,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 1772,
+      "reasoning_output_tokens": 15
+    }
   }
 }

@@ -101,6 +101,62 @@ describe('S3 Workspace public developer journeys', () => {
     expect((await call('get_bug',{ticketId:'B1'})).verification).toBeNull();
   },20000);
 
+  it('PC-J8 reads CLI and shell notes, reviews browser note changes and preserves exact edge identity across restart', async () => {
+    const page=await setup();
+    await createProduct(store,'Goal',{id:'G-NOTE',title:'Useful outcome',body:'An outcome'});
+    await createProduct(store,'Flow',{id:'FLOW-NOTE',title:'Outcome journey',actor:'User',body:'A journey'});
+    const cli=path.resolve(import.meta.dir,'../src/cli.ts');
+    const proc=Bun.spawn(['bun',cli,'link','FLOW-NOTE','to','G-NOTE','as','serves','--note','Initial rationale','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    const output=await new Response(proc.stdout).text();expect(await proc.exited).toBe(0);
+    expect(output).toContain('applied');
+    const {processShellInput}=await import('../src/shell.ts');
+    const {WorkflowActor}=await import('../src/actor/engine.ts');
+    const result=await processShellInput('link FLOW-NOTE to G-NOTE as serves --note "Shell rationale" --yes',{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
+    expect(result.output).toContain('applied');
+    let before=await call('link',{action:'inspect',id:'FLOW-NOTE'});
+    await page.getByRole('button',{name:'Reload canonical data',exact:true}).click();
+    await page.getByRole('button',{name:'Outcome journey',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Loaded FLOW-NOTE'}).waitFor();
+    const note=page.getByLabel('Relationship note FLOW-NOTE serves G-NOTE',{exact:true});
+    expect(await note.inputValue()).toBe('Shell rationale');
+    await acceptProduct(store,[{kind:'product_link',sourceId:'FLOW-NOTE',predicate:'serves',targetId:'G-NOTE',payload:{note:'Concurrent rationale'}}]);
+    await note.fill('Obsolete editor rationale');
+    await page.getByRole('button',{name:'Review changes',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:/Stale product relations/}).waitFor();
+    expect((await call('link',{action:'inspect',id:'FLOW-NOTE'})).links[0].note).toBe('Concurrent rationale');
+    await page.getByRole('button',{name:'Reload canonical data',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Loaded FLOW-NOTE'}).waitFor();
+    before=await call('link',{action:'inspect',id:'FLOW-NOTE'});
+    await note.fill('Browser rationale');
+    await page.getByRole('button',{name:'Review changes',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
+    expect(await page.getByTestId('diff').innerText()).toContain('Concurrent rationale');
+    expect(await page.getByTestId('diff').innerText()).toContain('Browser rationale');
+    await page.getByRole('button',{name:'Accept and save',exact:true}).click();
+    await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
+    const after=await call('link',{action:'inspect',id:'FLOW-NOTE'});
+    expect(after.links[0].id).toBe(before.links[0].id);expect(after.links[0].version).toBe(before.links[0].version+1);expect(after.links[0].note).toBe('Browser rationale');
+    await workspace.stop();store.close();store=new WorkflowStore(root);await page.goto(await start());
+    await page.getByRole('button',{name:'Outcome journey',exact:true}).click();
+    await page.getByLabel('Relationship note FLOW-NOTE serves G-NOTE',{exact:true}).waitFor();
+    expect(await page.getByLabel('Relationship note FLOW-NOTE serves G-NOTE',{exact:true}).inputValue()).toBe('Browser rationale');
+    const mcp=new Client({name:'pc5-note-parity',version:'1'});
+    try {
+      await mcp.connect(new StdioClientTransport({command:'bun',args:[path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe'}));
+      const result=await mcp.callTool({name:'link',arguments:{action:'inspect',id:'FLOW-NOTE'}});
+      expect(result.isError).not.toBe(true);
+      const read=JSON.parse((result.content as Array<{type:string;text:string}>)[0]!.text);
+      expect(read.links[0]).toEqual(after.links[0]);
+    } finally {await mcp.close();}
+    await page.getByText('Manage relationships',{exact:true}).click();
+    await page.getByLabel('Relationship target',{exact:true}).selectOption('G-NOTE');
+    await page.getByLabel('Clear existing note',{exact:true}).check();
+    await page.getByRole('button',{name:'Add relationship',exact:true}).click();await save(page);
+    const cleared=await call('link',{action:'inspect',id:'FLOW-NOTE'});
+    expect(cleared.links[0].id).toBe(after.links[0].id);expect(cleared.links[0].note).toBeUndefined();
+
+  },20000);
+
   it('PC5 paginates a large catalog without losing selection, draft or reviewed preview', async () => {
     const page=await setup();
     for(let index=0;index<26;index++) await createProduct(store,'Feature',{id:'F-'+index,title:'Catalog item '+index,status:'draft'});
