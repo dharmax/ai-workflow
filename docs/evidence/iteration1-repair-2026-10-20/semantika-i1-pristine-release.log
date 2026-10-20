@@ -1,0 +1,73 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/tagging.spec.ts:
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should tag and untag entities with persistence across reloads [5.95ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should tag and untag predicates with persistence [3.55ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should evaluate boolean tag queries (Existence, Absence, AND, OR, XOR) [0.42ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should construct a Multi-Parent Directed Acyclic Graph (DAG) Taxonomy [2.27ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should support default taxonomy subsumption on hasTag [0.59ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should support Tag exposition functions (entities, predicates, artifacts, count) [2.86ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should support pluggable VectorDB with InMemoryVectorStore and semantic search [2.68ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should filter predicates using tagQuery in findPredicates [1.97ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should prevent cycles in the Tag Taxonomy DAG [2.13ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should safely delete tags from TagTaxonomy and sever DAG relationships [3.04ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should validate vector dimensions in InMemoryVectorStore [0.22ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should prevent placing abstract tags directly on artifacts [1.57ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should enforce exclusive tag constraints (at most one descendant on an artifact) [4.01ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should support multi-language synonyms with default English display name [1.26ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should support bidirectional antonyms and prevent antonym conflicts [1.83ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should provide seamless ergonomics for both singular and set definitions (parent, antonym, synonym) [4.83ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should accept Tag objects directly in TagQueryExpression [1.92ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should normalize synonyms to canonical tag names on artifact and support synonym lookup [1.40ms]
+(pass) Tagging Mechanism, Boolean Query Engine & Neuro-Symbolic Taxonomy > should export full tag taxonomy in ontology.exportSchema() and serialize cleanly to JSON [0.96ms]
+
+tests/tag-search.spec.ts:
+(pass) tag search lifecycle > does not let derived-index failure falsify committed semantic state [1.26ms]
+(pass) tag search lifecycle > publishes search configuration only after a complete initial index [0.79ms]
+(pass) tag search lifecycle > isolates tag vectors by semantic package when a vector store is shared [0.79ms]
+(pass) tag search lifecycle > drops an explicit vector when semantic text changes [0.70ms]
+(pass) tag search lifecycle > reindexes persisted tags, refreshes semantic text and never creates tags from queries [4.00ms]
+
+tests/sqlite.spec.ts:
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should create entities with template validation and default values [0.86ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should support optimistic concurrency locking on entity updates [0.72ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should create predicates with mirrored peer keys and prevent duplicates [1.93ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should query incoming and outgoing predicates with entity enrichment [1.56ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should support semantic predicate inheritance [0.66ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should perform multi-hop graph traversal (traverse) [2.08ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should export ontology schema to JSON for AI / visual studio inspection [0.27ms]
+(pass) Testing Semantika SQLite Store & Advanced Graph Features > should properly erase entities and cascade delete connected predicates [1.35ms]
+
+tests/sqlite-lifecycle.spec.ts:
+(pass) completed collection and batch operations release statements before strict database close [1.44ms]
+(pass) an SQLite automatic rollback preserves the original failure and leaves no partial batch [0.61ms]
+(pass) package construction starts no detached storage work; first predicate access owns descriptor indexes [1.19ms]
+(pass) a package with predicate keys can close immediately without pending hydration [1.17ms]
+
+tests/sqlite-batch.spec.ts:
+(pass) batch commits fresh records with optimistic versions and preserves supplied objects [1.03ms]
+(pass) real database failure rolls back all entities, versions and unique-index state [0.95ms]
+(pass) stale concurrent revisions reject the entire batch [0.49ms]
+(pass) unique-index violations roll back earlier deletes and updates [0.43ms]
+(pass) nested transactions cannot expose uncommitted batch results [0.29ms]
+(pass) duplicate identities and invalid revisions fail before any writes [0.36ms]
+(pass) assertion-only entries condition a multi-collection outcome without rewriting the asserted row [0.61ms]
+(pass) public entity and predicate collection names identify the actual SQLite batch collections [1.18ms]
+(pass) entities keep their owning package instance when another project uses the same package name [1.72ms]
+
+tests/durable-tags.spec.ts:
+(pass) durable tag registry > loads a declarative multi-parent taxonomy idempotently [2.34ms]
+(pass) durable tag registry > rehydrates aliases, ancestry, constraints and safe deletion from file-backed SQLite [5.33ms]
+(pass) durable tag registry > rejects new orphan tag assignments while allowing registered aliases [1.50ms]
+(pass) durable tag registry > keeps persisted antonym ownership separate from the symmetric runtime view [0.80ms]
+(pass) durable tag registry > replaces only existing exclusive siblings and rejects other conflicts [1.13ms]
+
+tests/basic.spec.ts:
+(pass) Testing Semantika Mongo Store (Integration) > should be able to create a Semantic Package and a collection when Mongo is running [0.33ms]
+(pass) Testing Semantika Mongo Store (Integration) > should delete properly in Mongo [0.16ms]
+(pass) Testing Semantika Mongo Store (Integration) > should use basic collection in Mongo [0.12ms]
+
+ 53 pass
+ 0 fail
+ 304 expect() calls
+Ran 53 tests across 7 files. [632.00ms]

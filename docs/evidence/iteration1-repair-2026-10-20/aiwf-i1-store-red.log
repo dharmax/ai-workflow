@@ -1,0 +1,359 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/store-lifecycle.test.ts:
+18 |   await store.upsertEntity(Ticket.dcr,{id:'T',title:'Retained work',lane:'Todo'});
+19 |   expect(await store.listEntities(Ticket.dcr)).toHaveLength(1);
+20 |   store.close();
+21 |   expect(fs.existsSync(path.join(root,'.ai-workflow/state/graph.db-wal'))).toBe(false);
+22 |   expect(fs.existsSync(path.join(root,'.ai-workflow/state/graph.db-shm'))).toBe(false);
+23 |   expect(()=>store.db.exec('SELECT 1')).toThrow();
+                                             ^
+error: expect(received).toThrow()
+
+Received function did not throw
+Received value: undefined
+
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/store-lifecycle.test.ts:23:41)
+(fail) store close releases SQLite files before fixture removal and preserves data on restart [14.46ms]
+29 | test('store close reports an outstanding native statement and can retry after its owner disposes it', () => {
+30 |   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-store-busy-'));
+31 |   store=new WorkflowStore(root);
+32 |   const statement=store.db.prepare('SELECT 1');
+33 |   try {
+34 |     expect(()=>store.close()).toThrow('database is locked');
+                                   ^
+error: expect(received).toThrow(expected)
+
+Expected substring: "database is locked"
+
+Received function did not throw
+Received value: undefined
+
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/store-lifecycle.test.ts:34:31)
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+
+# Unhandled error between tests
+-------------------------------
+196 |             sql += ` LIMIT ${options.limit}`;
+197 |         }
+198 |         if (options.from !== undefined) {
+199 |             sql += ` OFFSET ${options.from}`;
+200 |         }
+201 |         const stmt = this.db.prepare(sql);
+                                   ^
+RangeError: Cannot use a closed database
+      at prepare (bun:sqlite:345:37)
+      at findSome (/home/dharmax/work/semantika/dist/storage/sqlite-store/sqlite-basic-collection.js:201:30)
+      at hydrate (/home/dharmax/work/semantika/dist/tag.js:174:44)
+-------------------------------
+
+(fail) store close reports an outstanding native statement and can retry after its owner disposes it [1.68ms]
+
+ 0 pass
+ 2 fail
+ 20 errors
+ 5 expect() calls
+Ran 2 tests across 1 file. [138.00ms]

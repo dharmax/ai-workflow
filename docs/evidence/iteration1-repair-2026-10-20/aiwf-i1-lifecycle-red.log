@@ -1,0 +1,36 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/sqlite-lifecycle.spec.ts:
+19 |         storage.applyBatch([{collectionName: "items", id: "B", expectedVersion: 1, record: {name: "changed"}}]);
+20 |         storage.applyBatch([{collectionName: "items", id: "B", expectedVersion: 2, record: null}]);
+21 |         await expect(collection.append({_id: "A"})).rejects.toThrow();
+22 |         await collection.deleteById("A");
+23 |         await collection.deleteByQuery({});
+24 |         expect(() => db.close(true)).not.toThrow();
+                                              ^
+error: expect(received).not.toThrow()
+
+Error name: "Error"
+Error message: "database is locked"
+
+      at <anonymous> (/home/dharmax/work/semantika/tests/sqlite-lifecycle.spec.ts:24:42)
+(fail) completed collection and batch operations release statements before strict database close [4.82ms]
+36 |         await collection.append({_id: "A", name: "original"});
+37 |         db.exec("CREATE TRIGGER reject_insert BEFORE INSERT ON items BEGIN SELECT RAISE(ROLLBACK, 'original rollback failure'); END");
+38 |         expect(() => storage.applyBatch([
+39 |             {collectionName: "items", id: "A", expectedVersion: 1, record: {name: "changed"}},
+40 |             {collectionName: "items", id: "B", expectedVersion: null, record: {name: "rejected"}}
+41 |         ])).toThrow("original rollback failure");
+                 ^
+error: expect(received).toThrow(expected)
+
+Expected substring: "original rollback failure"
+Received message: "cannot rollback - no transaction is active"
+
+      at <anonymous> (/home/dharmax/work/semantika/tests/sqlite-lifecycle.spec.ts:41:13)
+(fail) an SQLite automatic rollback preserves the original failure and leaves no partial batch [0.83ms]
+
+ 0 pass
+ 2 fail
+ 3 expect() calls
+Ran 2 tests across 1 file. [34.00ms]

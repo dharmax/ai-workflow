@@ -4,8 +4,8 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 218 | 0 | 0 | None |
-| `src/graph` | project default | 972 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
+| `root` | project default | 230 | 0 | 0 | None |
+| `src/graph` | project default | 973 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 575 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 391 | 0 | 0 | None |
 | `src/mcp` | project default | 39 | 0 | 0 | None |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 74 | 0 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | 0 | None |
 | `src/setup` | project default | 135 | 0 | 0 | None |
-| `tests` | project default | 1915 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
+| `tests` | project default | 1911 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `skills` | project default | 11 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | 0 | None |
@@ -23,11 +23,11 @@
 | `@external/@dharmax/context-manager` | project default | 245 | 0 | 0 | None |
 | `@external/@dharmax/llm-utils` | project default | 1522 | 0 | 0 | None |
 | `@external/@dharmax/pubsub` | project default | 66 | 0 | 0 | None |
-| `@external/@dharmax/semantika` | project default | 689 | 0 | 0 | None |
+| `@external/@dharmax/semantika` | project default | 683 | 0 | 0 | None |
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 539 | 0 | 0 | None |
+| `docs` | project default | 540 | 0 | 0 | None |
 | `src/product` | project default | 638 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 710 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |

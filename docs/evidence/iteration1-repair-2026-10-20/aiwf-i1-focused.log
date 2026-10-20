@@ -1,0 +1,42 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/dharmax-s3.test.ts:
+(pass) S3 Workspace public developer journeys > reports and edits a first-class Bug through the actual reviewed Workspace [826.09ms]
+(pass) S3 Workspace public developer journeys > DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP [1798.76ms]
+(pass) S3 Workspace public developer journeys > DW-02 cancel and reject leave every canonical row unchanged; proposal import is editable and explicitly accepted [938.80ms]
+(pass) S3 Workspace public developer journeys > DW-06 refuses the stale second editor, retaining its text and the first saved revision [839.84ms]
+(pass) S3 Workspace public developer journeys > DW-05 revises one Aspect, shows applicable policy and exact linked objects, and removes relationships [1433.65ms]
+(pass) S3 Workspace public developer journeys > DW-02 edits a Story without dropping its other existing Feature relationships [573.88ms]
+416 |    */
+417 |   private closed = false;
+418 | 
+419 |   close(): void {
+420 |     if (this.closed) return;
+421 |     this.db.close(true);
+                  ^
+error: database is locked
+      at close (/home/dharmax/work/ai-workflow/src/graph/store.ts:421:13)
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/dharmax-s3.test.ts:72:12)
+(fail) S3 Workspace public developer journeys > DW-02 blocks incomplete acceptance, preserves the form, and supports keyboard review/cancel [451.67ms]
+(pass) S3 Workspace public developer journeys > DW-06 refuses a stale reviewed commit and a stale imported preview without refreshing either [1022.99ms]
+(pass) S3 Workspace public developer journeys > DW-01 reports a committed save separately from a failed reload, then recovers through Reload [592.00ms]
+(pass) S3 Workspace public developer journeys > protects local host transport and never exposes source mutation through the Workspace [225.58ms]
+
+tests/dharmax-s4.test.ts:
+(pass) S4 reviewed derivation through Workspace > DW-03 proposes complete reviewed Stories, Epic and scoped work without mutations [2149.98ms]
+(pass) S4 reviewed derivation through Workspace > reports missing fixtures uncovered and materializes an approved executable public API test separately [120.53ms]
+(pass) S4 reviewed derivation through Workspace > rejects an individual proposed Story in Workspace without creating its Ticket [564.54ms]
+(pass) S4 reviewed derivation through Workspace > reconciles an edited accepted Story, retains authoritative Aspects, and returns identity/scenario ambiguity [275.80ms]
+(pass) S4 reviewed derivation through Workspace > refuses stale/dirty test reviews, keeps started work active, and classifies fixture and source failures [189.25ms]
+
+tests/dharmax-s5.test.ts:
+(pass) S5 Story test-first lifecycle > DW-04 activates and executes the same reviewed public-interface TestNode through Workspace [1233.72ms]
+
+tests/store-lifecycle.test.ts:
+(pass) store close releases SQLite files before fixture removal and preserves data on restart [2.29ms]
+(pass) store close reports an outstanding native statement and can retry after its owner disposes it [0.43ms]
+
+ 17 pass
+ 1 fail
+ 150 expect() calls
+Ran 18 tests across 4 files. [13.74s]

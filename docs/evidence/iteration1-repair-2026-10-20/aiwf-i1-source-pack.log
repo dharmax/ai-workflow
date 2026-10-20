@@ -1,0 +1,2 @@
+$ bun scripts/build.ts
+Built AIWF 2.0.0 build 937 @ 4267863aaf2b (dirty), updated 2026-10-20T09:19:43+03:00; llm-utils @ f8222aaa155a0b86f50b7cacbe0701ed29d86840

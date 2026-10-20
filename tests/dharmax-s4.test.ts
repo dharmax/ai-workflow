@@ -137,7 +137,8 @@ export function createAvatar(file:string) {
   const [out,err,exitCode]=await Promise.all([new Response(command.stdout).text(),new Response(command.stderr).text(),command.exited]);
   const output=out+'\n'+err;expect(exitCode).toBe(0);expect(output).toContain('1 skip');
   const repeated=await call('prepare_story_test',{specification});
-  expect((await call('apply_story_test',{specification,fingerprint:repeated.fingerprint,decision:'accept'})).status).toBe('linked');
+  const reapplied=await call('apply_story_test',{specification,fingerprint:repeated.fingerprint,decision:'accept'});
+  expect(reapplied.status,reapplied.reason).toBe('linked');
   expect((await store.getIncoming('S','verifies')).filter(e=>store.localId(e.sourceId)==='test:tests/save.test.ts')).toHaveLength(1);
  });
 

@@ -64,8 +64,13 @@ describe('S3 Workspace public developer journeys', () => {
     await page.getByRole('button', {name:'Accept and save', exact:true}).click();
     await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
   };
-  const snapshot = () => Object.fromEntries((store.db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {name:string}[])
-    .map(({name}) => [name, store.db.query('SELECT * FROM "' + name + '" ORDER BY rowid').all()]));
+  const snapshot = () => {
+    using tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+    return Object.fromEntries((tables.all() as {name:string}[]).map(({name}) => {
+      using rows = store.db.prepare('SELECT * FROM "' + name + '" ORDER BY rowid');
+      return [name, rows.all()];
+    }));
+  };
   afterEach(async () => {
     await browser?.close(); browser = undefined as any;
     await workspace?.stop(); workspace = undefined as any;

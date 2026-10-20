@@ -1,0 +1,45 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/dharmax-s2.test.ts:
+(pass) Dharmax S2 reviewed canonical product edits > DW-01/02 previews, edits and explicitly accepts one coherent Feature and complete Story [76.22ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-01 uses the same reviewed operation from the real CLI and MCP registry [1663.34ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 rejects and cancels proposals without any DB or projection change, including after reopen [20.24ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-06 rejects stale concurrent reviews and preserves same-identity in-place revisions [32.05ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 refuses malformed relations, ambiguous identity spellings and dangling deletion before writes [27.14ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 rolls back actual midway SQLite failure across entities and edges [27.88ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 complete S1 Story content reaches inert processing without legacy narrative prerequisites [76.77ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 exclusive product review excludes concurrent native product applicability links [29.72ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 rechecks revisions after admission rather than trusting the earlier preview check [30.55ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 critic-approved process proposals are inert; rejected critic leaves all canonical rows and files unchanged [149.65ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 refuses cancellation, read-only authority and stale proposal sources before any write [20.30ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 decomposition is inert and reviewed application never overwrites reused Feature or Story [41.96ms]
+
+tests/pc1a-safety.test.ts:
+(pass) PC1a canonical safety through public tools > read-only create_ticket Done cannot persist a verified Ticket [5.95ms]
+(pass) PC1a canonical safety through public tools > read-only Decision proposal is inert and cannot persist acceptance [5.27ms]
+(pass) PC1a canonical safety through public tools > authorized Decision proposal is also inert [4.57ms]
+(pass) PC1a canonical safety through public tools > read-only and aborted legacy Ticket writes leave no record [4.54ms]
+(pass) PC1a canonical safety through public tools > normal creation works but create/update/state cannot manufacture completion [17.67ms]
+(pass) PC1a canonical safety through public tools > generic Product JSON cannot author Test proof or verifies [18.16ms]
+(pass) PC1a canonical safety through public tools > refuses missing and self-attested authority, including a nested upgrade [5.01ms]
+(pass) PC1a canonical safety through public tools > denies legacy content, lease, relation and state writes with the canonical rows unchanged [26.43ms]
+(pass) PC1a canonical safety through public tools > legacy done and move Done refuse without a provider call or lease release [18.50ms]
+(pass) PC1a canonical safety through public tools > generic store and returned entity mutations cannot forge proof or accepted Decisions [5.97ms]
+(pass) PC1a canonical safety through public tools > projection import cannot manufacture new completion or Decision acceptance [9.72ms]
+(pass) PC1a canonical safety through public tools > abort at the atomic commit leaves no partial accepted records and releases admission [13.07ms]
+(pass) PC1a canonical safety through public tools > real stdio MCP defaults to read-only and accepts writes only from explicit host authority [618.02ms]
+(pass) PC1a canonical safety through public tools > an abort during native generic persistence is refused at the storage boundary [9.80ms]
+(pass) PC1a canonical safety through public tools > preserves historical terminal records and cannot promote a rejected Done row to verified [19.00ms]
+(pass) PC1a canonical safety through public tools > Test owner authority expires before a detached proof write can reach persistence [11.76ms]
+(pass) PC1a canonical safety through public tools > the actual read-only Actor boundary cannot write through a read-labelled capability [55.00ms]
+(pass) PC1a canonical safety through public tools > public generic evaluation cannot use legacy Decision status as an acceptance shortcut [6.18ms]
+(pass) PC1a canonical safety through public tools > real CLI creation, done, move and Product JSON cannot manufacture completion [1558.28ms]
+
+tests/store-lifecycle.test.ts:
+(pass) store close releases SQLite files before fixture removal and preserves data on restart [3.84ms]
+(pass) store close reports an outstanding native statement and can retry after its owner disposes it [0.79ms]
+
+ 33 pass
+ 0 fail
+ 197 expect() calls
+Ran 33 tests across 3 files. [4.90s]

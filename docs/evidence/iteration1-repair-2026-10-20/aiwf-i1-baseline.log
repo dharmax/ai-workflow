@@ -1,0 +1,977 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/workspace-text.test.ts:
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to package.json [54.32ms]
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to settings.conf [13.78ms]
+(pass) Consuela ordinary workspace targets > previews and safely applies a deterministic edit to README.md [14.50ms]
+(pass) Consuela ordinary workspace targets > rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets [4.83ms]
+(pass) Consuela ordinary workspace targets > rejects stale content even when oldText still uniquely matches [2.82ms]
+(pass) Consuela ordinary workspace targets > bounds reads and rejects missing files, directories, absolute paths and lexical/symlink escapes [3.29ms]
+
+tests/user-story-j24-sophisticated-goal.test.ts:
+(pass) User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4) > Criterion 3: Semantic discovery normalizes natural compound domain/object queries without unsupported classification errors [9.02ms]
+(pass) User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4) > Criterion 1: Solves compound project goal + critical path + missing evidence from governing project documentation [71.15ms]
+(pass) User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4) > Criterion 2: Evaluates recommendation policy & candidate ordering (2nd recommended ticket) [53.73ms]
+(pass) User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4) > Criterion 1 & 2 (Graph Domain): Structural coverage & product impact accurately expose critical path and missing verification [13.95ms]
+
+tests/ts6-refactor-sync.test.ts:
+(pass) persistent TS6 client synchronizes modified and removed open documents [1.51ms]
+
+tests/top-level-product-intent.test.ts:
+(pass) top-level Product Intent journey mechanisms > J1.2 extends an actor journey with a reusable capability instead of making the Feature own the Story [111.91ms]
+(pass) top-level Product Intent journey mechanisms > J2.3 carries Goal Concept Flow Story and Feature meaning into Ticket investigation [123.15ms]
+(pass) top-level Product Intent journey mechanisms > J1.2 gives Story processing the upstream Goal Concept and Flow context [65.90ms]
+(pass) top-level Product Intent journey mechanisms > keeps J2.3 investigation inside the addressed journey without expanding sibling capabilities or Epic targets [55.34ms]
+(pass) top-level Product Intent journey mechanisms > preserves legacy state through read and Markdown edit without authoring containment or silently migrating it [48.40ms]
+(pass) top-level Product Intent journey mechanisms > preserves graph-owned top-level Epic targets when the developer edits projected Epic content [17.98ms]
+(pass) top-level Product Intent journey mechanisms > J6.1 leaves pure technical work as a direct Ticket without inventing product ceremony [46.46ms]
+
+tests/tools.test.ts:
+(pass) Tool Registry & Deterministic Facilities > should initialize registry with all standard facilities [8.20ms]
+(pass) Tool Registry & Deterministic Facilities > should create, list, lease, prioritize, and transition tickets [46.72ms]
+(pass) Tool Registry & Deterministic Facilities > should query AST symbols, file outlines, and blast radius [244.99ms]
+(pass) Tool Registry & Deterministic Facilities > should surface qualified candidates for ambiguous member source lookups [216.51ms]
+(pass) Tool Registry & Deterministic Facilities > should run git and os facilities with error handling [33.81ms]
+(pass) Tool Registry & Deterministic Facilities > should propose ADRs and manage scratchpad notes [5.25ms]
+(pass) Tool Registry & Deterministic Facilities > should resolve test targets and triage test runs [53.09ms]
+(pass) Tool Registry & Deterministic Facilities > should localize a failing test through TestNode graph evidence [67.40ms]
+(pass) Tool Registry & Deterministic Facilities > should evaluate custom JS scripts on the fly and catch errors with script_eval [7.96ms]
+
+tests/tool-discovery.test.ts:
+(pass) semantic tool discovery and surfaces > matches the live classified recommend-ticket tuple to the existing selector [2.89ms]
+(pass) semantic tool discovery and surfaces > reports a valid but unmatched AND query without dropping its constraints [1.44ms]
+(pass) semantic tool discovery and surfaces > retains classifier failure details instead of silently returning an empty surface [0.82ms]
+(pass) semantic tool discovery and surfaces > selects only the relevant read tool for an open-ticket question with one classifier call [0.84ms]
+(pass) semantic tool discovery and surfaces > exposes a small composable tool set for a multi-stage intent [0.84ms]
+(pass) semantic tool discovery and surfaces > constrains classifier output to the registry vocabulary before matching [0.78ms]
+(pass) semantic tool discovery and surfaces > propagates execution cancellation and per-call timeout into semantic classification [0.87ms]
+(pass) semantic tool discovery and surfaces > uses the fallback classifier only after the local classifier fails [0.91ms]
+(pass) semantic tool discovery and surfaces > resolves canonical multi-key intents to narrow functions across domains [2.94ms]
+(pass) semantic tool discovery and surfaces > does not broaden a failed multi-key lookup into a category bucket [0.99ms]
+(pass) semantic tool discovery and surfaces > never turns an unclassifiable request into the full registry [0.87ms]
+(pass) semantic tool discovery and surfaces > keeps every registered function semantically distinguishable at the full key tuple [0.47ms]
+(pass) semantic tool discovery and surfaces > keeps the public MCP API smaller than the internal implementation registry [0.27ms]
+(pass) qualifies candidate descriptions and narrowly rediscovers evidence when coarse tags lose request constraints [2.93ms]
+(pass) fails closed and bounds qualification for {"ids":[]} [2.58ms]
+(pass) fails closed and bounds qualification for {"ids":["non_candidate"]} [1.25ms]
+(pass) fails closed and bounds qualification for undefined [1.04ms]
+
+tests/ticket-resolution.test.ts:
+(pass) Ticket-owned bounded resolution > surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof [705.81ms]
+(pass) Ticket-owned bounded resolution > records a blocker at the actual implementation stage [177.17ms]
+(pass) Ticket-owned bounded resolution > records a blocker at the actual verification stage [268.99ms]
+(pass) Ticket-owned bounded resolution > distinguishes newly verified unchanged source from reused proof [278.56ms]
+(pass) Ticket-owned bounded resolution > Story: resolves already implemented narrow work using caller evidence through the public lifecycle [293.52ms]
+(pass) Ticket-owned bounded resolution > selects file verifies edges before fallback and producer guesses [545.74ms]
+(pass) Ticket-owned bounded resolution > selects symbol-only verifies edges before fallback and producer guesses [472.86ms]
+(pass) Ticket-owned bounded resolution > uses filename fallback only for an uncovered source and persists its canonical evidence [474.62ms]
+(pass) Ticket-owned bounded resolution > repairs a failing graph obligation even when the producer supplies a passing decoy [619.60ms]
+(pass) Ticket-owned bounded resolution > hashes full-suite TestNodes, rejects changed spec proof, and reuses unchanged full-suite proof [953.00ms]
+(pass) Ticket-owned bounded resolution > invalidates receipt when source changes and repairs formerly Done work [847.34ms]
+(pass) Ticket-owned bounded resolution > rejects later failing TestNode evidence and invalid persisted receipts without false failure [904.11ms]
+(pass) Ticket-owned bounded resolution > preserves authored verifies edges and reproduces derived edges on repeated reconciliation [67.12ms]
+(pass) Ticket-owned bounded resolution > updates authored TestNodes with custom IDs and does not invent full-suite evidence for filtered/no-test runs [32.90ms]
+(pass) Ticket-owned bounded resolution > backfills unchanged legacy indexed tests before discovery and records every full-suite file [494.22ms]
+(pass) Ticket-owned bounded resolution > rejects acceptance proof if its source changes during independent review [461.53ms]
+(pass) Ticket-owned bounded resolution > keeps passing executions distinct from an explicitly unproved criterion [499.25ms]
+(pass) Ticket-owned bounded resolution > rejects contradictory acceptance checks instead of picking the passing duplicate [497.76ms]
+(pass) Ticket-owned bounded resolution > rejects evidence when a test mutates its verified source during execution [472.99ms]
+(pass) Ticket-owned bounded resolution > reverifies a new authored target even when an earlier receipt already hashed it as an import [713.80ms]
+(pass) Ticket-owned bounded resolution > refuses Done when the authored contract changes during independent verification [461.33ms]
+(pass) Ticket-owned bounded resolution > records the actual verifying TestNode when its path contains spaces [536.02ms]
+(pass) Ticket-owned bounded resolution > preserves native authored-symbol migration during an authorized rename and reuses its new proof [734.62ms]
+(pass) Ticket-owned bounded resolution > does not mark a skipped file passing merely because another full-suite file passed [297.56ms]
+AIWF acceptance prompt bytes: 6343
+(pass) Ticket-owned bounded resolution > projects canonical execution evidence into acceptance review without duplicating test files or raw hashes [531.22ms]
+(pass) Ticket-owned bounded resolution > allows and preserves unrelated dirty files but stops before editing a dirty target [698.96ms]
+(pass) Ticket-owned bounded resolution > invalidates Done when the authored test oracle changes [704.16ms]
+(pass) Ticket-owned bounded resolution > reverifies a broader authored source scope instead of reusing narrower proof [694.86ms]
+(pass) Ticket-owned bounded resolution > repairs a real failing test exactly once and never marks failed acceptance Done [753.41ms]
+(pass) Ticket-owned bounded resolution > resolves bounded ordinary children in dependency order and verifies the parent separately [769.06ms]
+(pass) Ticket-owned bounded resolution > runs a safe TypeScript rename through the normal fingerprint boundary and targeted assertions [523.74ms]
+(pass) Ticket-owned bounded resolution > returns precise missing-input and prerequisite/lease/budget blockers without leaked leases [402.51ms]
+(pass) Ticket-owned bounded resolution > creates missing source through Causal Change, refuses overwrite and rejects symlink/path escapes [37.61ms]
+(pass) Ticket-owned bounded resolution > reviews the complete authored checkout test while retaining broader regression executions [131.23ms]
+(pass) Ticket-owned bounded resolution > keeps exact-symbol verification separate from neighboring file obligations [60.88ms]
+(pass) Ticket-owned bounded resolution > binds synthesis to the exact authored target and uses an independent verification call [506.28ms]
+(pass) Ticket-owned bounded resolution > sends current graph proof rather than unrelated files or prior acceptance receipts to the default verifier [493.27ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: zero [437.47ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: continue [585.56ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: ordinary [432.28ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: limit [745.53ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: error [427.70ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: failed-edit [449.24ms]
+(pass) Ticket-owned bounded resolution > bounds real implementation Actor tranches: no-op [440.38ms]
+(pass) Ticket-owned bounded resolution > rejects repeated unchanged navigation and permits re-reading after a real edit [250.52ms]
+(pass) Ticket-owned bounded resolution > stops identical get_file_outline observations after three steps and executes once [219.44ms]
+(pass) Ticket-owned bounded resolution > stops identical read_workspace_file observations after three steps and executes once [186.99ms]
+(pass) Ticket-owned bounded resolution > bounds stalled report arguments and errors and omits arbitrary parameters [441.50ms]
+(pass) Ticket-owned bounded resolution > allows different observations and rejects reordered canonical parameters [183.47ms]
+(pass) Ticket-owned bounded resolution > keeps the three-tranche total across acceptance repair attempts [528.00ms]
+(pass) Ticket-owned bounded resolution > grounds dependency work before edits and sends the complete Actor catalog through Ollama with explicit context [363.47ms]
+(pass) Ticket-owned bounded resolution > uses one guarded safe change after parameter repair and parses a structured final proposal [254.16ms]
+(pass) Ticket-owned bounded resolution > keeps an actual Actor edit unaccepted when final prose supplies no structured proposal [194.92ms]
+(pass) Ticket-owned bounded resolution > treats a missing symbol slice as a recovery observation instead of successful source [534.26ms]
+
+tests/ticket-preparation.test.ts:
+(pass) reviewed Ticket preparation > keeps source import cycles separate from Ticket work-cycle validation [42.80ms]
+(pass) reviewed Ticket preparation > keeps an atomic technical Ticket unchanged without a fake Story, Critic call or lease [55.33ms]
+(pass) reviewed Ticket preparation > creates meaningful ordinary children with real ordering, holds a lease only during apply and reuses on rerun [236.37ms]
+(pass) reviewed Ticket preparation > reuses an existing equivalent child and redirects dependencies to its durable identity [122.53ms]
+(pass) reviewed Ticket preparation > feeds omission findings back to the producer and converges before writing [91.04ms]
+(pass) reviewed Ticket preparation > rejects dependency cycles even with critic none and preserves the entire unapplied batch [101.62ms]
+(pass) reviewed Ticket preparation > stops ceremony, duplicate contracts, exhausted revision and missing inputs before applying [368.40ms]
+(pass) reviewed Ticket preparation > preserves caller-owned leases and refuses a concurrent owner [153.85ms]
+(pass) reviewed Ticket preparation > keeps requirements separate from evidence in the real Critic adapter and refuses unsupported acceptance [18.59ms]
+
+tests/ticket-investigation.test.ts:
+(pass) grounded Ticket investigation > returns mandatory scope, Decision, Lesson, Aspect and test evidence without reasoning or semantic changes [69.28ms]
+(pass) grounded Ticket investigation > prunes optional candidates only and escalates low confidence and contradictory routing once [165.44ms]
+(pass) grounded Ticket investigation > preserves authored missing file anchors and reports the exact target [53.49ms]
+(pass) grounded Ticket investigation > retrieves exact linked symbol source and preserves the anchor when the symbol disappears [307.80ms]
+(pass) grounded Ticket investigation > asks for ambiguous ownership without guessing and identifies equivalent existing work [85.42ms]
+(pass) grounded Ticket investigation > centralizes Blocked and rejected states and validates complete mutation batches before writes [18.06ms]
+(pass) grounded Ticket investigation > successfully verifies Aspect creation through the shared Causal Change owner [14.75ms]
+
+tests/structured-repair.test.ts:
+(pass) AIWF delegates bounded schema correction to Asker.json > Epic decomposition accepts one schema-aware correction [7.40ms]
+(pass) AIWF delegates bounded schema correction to Asker.json > Epic decomposition fails honestly after an invalid correction [4.01ms]
+(pass) AIWF delegates bounded schema correction to Asker.json > does not repair transport/provider failures [3.40ms]
+
+tests/source-synthesis.test.ts:
+(pass) Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1) > builds small, provenance-bearing SynthesisContext from Ticket investigation dossier [44.88ms]
+(pass) Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1) > HostSourceSynthesizer synthesizes candidate source without ungrounded guessing [1.93ms]
+(pass) Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1) > rejects mutation responses instead of synthesizing source [1.72ms]
+(pass) Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1) > halts with error when synthesizer returns unresolved blocker [1.23ms]
+
+tests/skill-synthesis-acceptance.test.ts:
+(pass) Skill and synthesis production journeys > a developer finds project design guidance and its tools through the CLI [1509.33ms]
+(pass) Skill and synthesis production journeys > returns a failing CLI exit for malformed project skills [326.90ms]
+(skip) Skill and synthesis production journeys > a developer gets a checkout stylesheet grounded in the project design skill
+(skip) Skill and synthesis production journeys > a maintainer repairs checkout surcharges and discounts through the exact authored ticket
+
+tests/skill-manager-bridge.test.ts:
+(pass) SkillManager Bridge & Dynamic Skills Integration > retrieves project fixture skills without a sibling checkout [23.85ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > exposes find_skills through the production registry [8.66ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > activates project skill metadata through get_knowledge_item [8.29ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > isolates managers and source contents for two project roots [4.53ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > allows an absent optional project skills directory [2.11ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > surfaces malformed skill sync reports through every skill lookup tool [4.64ms]
+(pass) SkillManager Bridge & Dynamic Skills Integration > surfaces thrown sync, retrieval, and activation failures [5.93ms]
+
+tests/shell.test.ts:
+(pass) Interactive Shell REPL Bridge > should handle session control and help [70.23ms]
+(pass) Interactive Shell REPL Bridge > should dynamically switch modes [51.43ms]
+➜ Discovering tools...
+✔ Process completed (0 steps in 0ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should not force the current mode for ordinary input in auto mode [19.51ms]
+➜ Discovering tools...
+✖ Process failed (0 steps in 30ms) [trace show · trace open]
+➜ Discovering tools...
+✖ Process failed (0 steps in 1ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should preserve the selected shell mode for natural-language instructions [80.11ms]
+(pass) Interactive Shell REPL Bridge > should handle trace controls as deterministic shell commands [50.19ms]
+(pass) Interactive Shell REPL Bridge > should report unavailable trace controls without invoking the Actor [19.11ms]
+(pass) Interactive Shell REPL Bridge > should facilitate interactive escalation policy selection [22.74ms]
+(pass) Interactive Shell REPL Bridge > should execute all domain fast-paths without LLM invocation [669.41ms]
+(pass) Interactive Shell REPL Bridge > should open and save Ticket Views through the canonical update tool [64.92ms]
+(pass) Interactive Shell REPL Bridge > should auto-complete shell commands with shellCompleter [2.59ms]
+➜ Discovering tools...
+✖ Process failed (0 steps in 26ms) [trace show · trace open]
+(pass) Interactive Shell REPL Bridge > should delegate complex natural language wishes to cognitive actor [39.32ms]
+(pass) Interactive Shell REPL Bridge > should reject missing required parameters with usage info in non-interactive mode [143.21ms]
+(pass) Interactive Shell REPL Bridge > should dynamically complete tickets and lanes with buildSmartCompleter [6.33ms]
+(pass) Interactive Shell REPL Bridge > should interactively facilitate missing parameters via InteractivePrompter [95.68ms]
+
+tests/shell-trace.test.ts:
+(pass) Shell failure trace and floating inspection > preserves unavailable-call evidence with the tiny bootstrap catalog [101.23ms]
+(pass) Shell failure trace and floating inspection > stops on a thrown error, preserves partial evidence, and reads it after restart [48.65ms]
+(pass) Shell failure trace and floating inspection > records optional discovery failure after cognition and preserves fallback command evidence [72.26ms]
+(pass) Shell failure trace and floating inspection > does not turn a failed run with partial final text into successful trace status [62.09ms]
+(pass) Shell failure trace and floating inspection > keeps full final answers and all calls/results, and replaces only the latest run [59.45ms]
+(pass) Shell failure trace and floating inspection > falls back to trace text when a floating renderer is unavailable or throws [102.18ms]
+
+tests/shell-daily.test.ts:
+(pass) daily shared shell commands > executes complete inputs immediately and the real CLI sees the same graph lease [731.20ms]
+(pass) daily shared shell commands > offers only eligible claims and cancellation leaves state unchanged [74.38ms]
+(pass) daily shared shell commands > facilitates only a missing lane, validates plain commands, and refuses unsafe done [396.11ms]
+(pass) daily shared shell commands > uses the existing artifact parser after facilitating only missing identifiers [69.65ms]
+(pass) daily shared shell commands > facilitates entity navigation and shares the plain entity view with CLI [390.03ms]
+(pass) daily shared shell commands > updates only local model routes and shares model inspection with CLI [680.33ms]
+
+tests/shell-config-setup.test.ts:
+(pass) shared config and setup commands > runs complete shell inputs without elicitation and matches the real CLI provenance journey [899.89ms]
+(pass) shared config and setup commands > facilitates only missing inputs and cancellation cannot create a config file [39.01ms]
+(pass) shared config and setup commands > uses a structured inspection view and rejects incomplete plain commands without elicitation [334.72ms]
+(pass) shared config and setup commands > setup --check never interacts or writes even from the interactive shell [636.37ms]
+(pass) shared config and setup commands > cancelling setup review leaves the home unchanged [154.53ms]
+(pass) shared config and setup commands > represents provisioning failures explicitly using existing runtime seams [2.45ms]
+(pass) shared config and setup commands > uses shell-ui process presentation on the real plain CLI indexing path [327.64ms]
+(pass) shared config and setup commands > reports detected setup failure as nonzero on the real inspect-only CLI [454.34ms]
+(pass) shared config and setup commands > shares core validation without accepting an unknown option or secret [1.93ms]
+
+tests/setup.test.ts:
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should initialize a fresh project with AST indexing and markdown projections [24.17ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should run doctor diagnostics and produce a healthy report on initialized repo [357.57ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should read, update, and persist configuration [0.91ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should execute CLI binary commands end-to-end with zero exit codes [1315.97ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should replace TOML server sections accurately without corrupting adjacent config [0.88ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should distribute canonical 2.0 skills to all detected environments [3.85ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should wire MCP configuration, tool approvals, and rules across all hosts [54.17ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should preserve an existing installation when the running CLI is already the target [0.60ms]
+(pass) Project Initialization, Global Setup & Diagnostics Engine > should install and verify global binary symlink in custom directory [0.34ms]
+
+tests/setup-truth.test.ts:
+(pass) truthful setup > inspects without writes, verifies changes and leaves repeated setup byte-for-byte stable [30.00ms]
+(pass) truthful setup > skips absent hosts without creating their directories [20.10ms]
+(pass) truthful setup > reports malformed JSON and TOML without replacing the detected files [9.06ms]
+(pass) truthful setup > reports filesystem write failure instead of success [10.13ms]
+(pass) truthful setup > doctor reports malformed effective configuration as an error [2.39ms]
+
+tests/scaffold.test.ts:
+(pass) Greenfield Code Scaffolding (aiwf scaffold) > scaffolds a new typed module paired with a test suite and indexes it [27.37ms]
+(pass) Greenfield Code Scaffolding (aiwf scaffold) > rejects scaffolding over an existing file [1.56ms]
+
+tests/radar.test.ts:
+(pass) Model Radar & Pareto Benchmark Engine > should compute correct Pareto Value Scores based on Elo and pricing [0.28ms]
+(pass) Model Radar & Pareto Benchmark Engine > should provide default baseline models and recommendations synchronously [0.24ms]
+(pass) Model Radar & Pareto Benchmark Engine > should cache radar data to disk and respect TTL [0.33ms]
+(pass) Model Radar & Pareto Benchmark Engine > should handle probe gracefully with offline fallback [110.10ms]
+
+tests/product.test.ts:
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > correctly defaults statuses to draft and prevents silent generic implemented inheritance [29.35ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > permits canonical product relations and rejects invalid combinations [234.56ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > returns facts for draft stories without failing as project errors [10.13ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > identifies independent coverage gaps for an accepted UserStory [89.26ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Structural Coverage Engine > detects Epic missing_target_path invariant [91.09ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Bounded Product Impact > bounds context surgically and excludes sibling stories and unrelated nodes [131.29ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Single-Owner Round-Trip Projections > round-trips features.md and epics.md while keeping relation ownership strict [49.69ms]
+(pass) Product Intent Graph — Deterministic Substrate (Ticket 1) > Ticket 1 Acceptance Fixture (Calendar & Contact Graphs) > proves complete causal coverage and bounded context for the calendar acceptance fixture [17.90ms]
+
+tests/product-processing.test.ts:
+(pass) entity-owned Product Intent processing > reuses stable Feature/Story identities across Epics without ownership or duplicate creation [131.35ms]
+(pass) entity-owned Product Intent processing > creates direct technical Epic Tickets and useful Story work with executable criteria, then reuses it [177.29ms]
+(pass) entity-owned Product Intent processing > upgrades POC to production by adding only missing work and lowering never deletes valid work [222.91ms]
+(pass) entity-owned Product Intent processing > keeps Stories upstream of Features and halts ambiguous or reversed intent [204.77ms]
+(pass) entity-owned Product Intent processing > depth zero reviews only; depth two processes children once and gives production final cross-layer review [184.08ms]
+(pass) entity-owned Product Intent processing > honors explicit descendant completeness and breadth while Aspect review consumes no depth [133.02ms]
+(pass) entity-owned Product Intent processing > Critic revision precedes canonical apply and rejection leaves graph unchanged [126.70ms]
+(pass) entity-owned Product Intent processing > requires the explicit root contract in final production cross-layer review [58.90ms]
+(pass) entity-owned Product Intent processing > keeps linked verification and governing evidence mandatory even when optional candidates are pruned [68.97ms]
+(pass) entity-owned Product Intent processing > thin registry adapters use the same entity path and preserve read-only completion targets [3.83ms]
+
+tests/product-operability-links.test.ts:
+(pass) PC1b governed relation public proof > normalizes colon/space, keyword case, quotes and escaped values to the same typed intent [120.81ms]
+(pass) PC1b governed relation public proof > rejects malformed grammar, duplicate flags, foreign payloads, and no Actor fallback [93.59ms]
+(pass) PC1b governed relation public proof > replaces and clears notes on one native row while omitted/identical notes preserve identity and version [128.92ms]
+(pass) PC1b governed relation public proof > preserves system payload and detects payload-only stale and ABA changes [65.07ms]
+(pass) PC1b governed relation public proof > rejects endpoint revisions, ambiguous IDs, cycles and wrong direction, preserving endpoints [63.65ms]
+(pass) PC1b governed relation public proof > enforces H/O/L policy including protected evidence and indexed relationships [45.23ms]
+(pass) PC1b governed relation public proof > requires human confirmation; cancel/reject, model yes and read-only application are inert [148.12ms]
+(pass) PC1b governed relation public proof > rejects duplicate physical rows and rolls back the native SQL batch without partial graph [35.43ms]
+(pass) PC1b governed relation public proof > preserves notes across an advanced batch and refuses changes made during interactive review [45.73ms]
+(pass) PC1b governed relation public proof > paginates both directions and refuses stale or invalid cursors [29.53ms]
+(pass) PC1b governed relation public proof > runs strict typed discovery/preview and refusal over real stdio MCP and reopens [435.37ms]
+(pass) PC1b governed relation public proof > fails closed when an advertised tool schema cannot be converted [9.91ms]
+(pass) PC1b governed relation public proof > distinguishes clean application from committed mutation whose verification failed and reports recovery guidance [23.97ms]
+
+tests/product-operability-definition.test.ts:
+(pass) PC2: Product Definition & Manifest public acceptance journeys > Journey 1: Define, review, revise, reopen Product and Feature with identical canonical identity/revision > defines Product and Feature through governed causal change, verifies manifest and detailed definition share identity, and handles revisions & negatives [53.29ms]
+(pass) PC2: Product Definition & Manifest public acceptance journeys > Journey 2: Real downstream consumer uses accepted Product/Feature meaning > delivers approved Product and Feature charter context into buildIntentContext and collectProductMeaning without duplicate work or auto-acceptance [35.93ms]
+(pass) PC2: Product Definition & Manifest public acceptance journeys > Journey 3: Module intention survives incremental source refresh/reopen, export generates manifest & snapshot, fresh project recovery > preserves module intent across file re-indexing and reopen, exports manifest/snapshot via sync, and recovers authored state in a clean workspace [49.50ms]
+
+tests/product-operability-commands.test.ts:
+(pass) PC1b human public link journeys > discovers modes and previews without writing, then explicitly applies and reopens [1255.92ms]
+{
+  "fingerprint": "8857f2912dc73559386aa7672750a9596616c2f7ff4fd36123b07f052498951e",
+  "summary": "1 Product Intent mutation(s): E1, G1",
+  "request": {
+    "action": "product_change",
+    "mutations": [
+      {
+        "kind": "product_link",
+        "sourceId": "E1",
+        "targetId": "G1",
+        "predicate": "targets",
+        "payload": {
+          "note": "A \"quoted\" scope"
+        }
+      }
+    ],
+    "basis": [
+      {
+        "id": "E1",
+        "entityType": "Epic",
+        "version": 1
+      },
+      {
+        "id": "G1",
+        "entityType": "Goal",
+        "version": 1
+      }
+    ]
+  },
+  "mutations": [
+    {
+      "kind": "product_link",
+      "sourceId": "E1",
+      "targetId": "G1",
+      "predicate": "targets",
+      "payload": {
+        "note": "A \"quoted\" scope"
+      }
+    }
+  ],
+  "affectedFiles": [],
+  "originalHashes": {},
+  "affectedProducts": [
+    "E1",
+    "G1"
+  ],
+  "productImpact": {
+    "entityId": "E1",
+    "entityType": "Epic",
+    "epics": [
+      "E1"
+    ],
+    "features": [],
+    "stories": [],
+    "tickets": [],
+    "code": [],
+    "tests": [],
+    "decisions": [],
+    "blockers": [],
+    "dependencies": []
+  },
+  "productImpacts": [
+    {
+      "entityId": "E1",
+      "entityType": "Epic",
+      "epics": [
+        "E1"
+      ],
+      "features": [],
+      "stories": [],
+      "tickets": [],
+      "code": [],
+      "tests": [],
+      "decisions": [],
+      "blockers": [],
+      "dependencies": []
+    }
+  ],
+  "dependents": [],
+  "warnings": [],
+  "blocked": false,
+  "verification": {
+    "diagnosticsExpected": false,
+    "typecheck": false,
+    "targetedTests": [],
+    "graphChecks": {}
+  },
+  "status": "preview",
+  "unchanged": false,
+  "relationDiff": {
+    "sourceId": "E1",
+    "targetId": "G1",
+    "predicate": "targets",
+    "before": [],
+    "after": {
+      "note": "A \"quoted\" scope"
+    },
+    "operation": "product_link"
+  }
+}
+(pass) PC1b human public link journeys > lexes shell quotes once and invalid explicit grammar never reaches the Actor [611.27ms]
+(pass) PC1b human public link journeys > confirms and cancels through the executable CLI on a real terminal [780.32ms]
+(pass) PC1b human public link journeys > respects --, keeps option-like notes literal and serves scoped help without a database [615.53ms]
+{
+  "fingerprint": "5a103bfac8cafec31bbc3ef22add30f9d8d68aad080166d9d50bf5f7f7f7e76a",
+  "summary": "1 Product Intent mutation(s): PRODUCT",
+  "request": {
+    "action": "product_change",
+    "mutations": [
+      {
+        "kind": "product_create",
+        "entityType": "Product",
+        "id": "PRODUCT",
+        "fields": {
+          "title": "Example Product",
+          "purpose": "Support a public journey",
+          "scope": "Current project",
+          "status": "accepted",
+          "actors": [
+            "Developer"
+          ]
+        }
+      }
+    ]
+  },
+  "mutations": [
+    {
+      "kind": "product_create",
+      "entityType": "Product",
+      "id": "PRODUCT",
+      "fields": {
+        "title": "Example Product",
+        "purpose": "Support a public journey",
+        "scope": "Current project",
+        "status": "accepted",
+        "actors": [
+          "Developer"
+        ]
+      }
+    }
+  ],
+  "affectedFiles": [],
+  "originalHashes": {},
+  "affectedProducts": [
+    "PRODUCT"
+  ],
+  "productImpacts": [],
+  "dependents": [],
+  "warnings": [],
+  "blocked": false,
+  "verification": {
+    "diagnosticsExpected": false,
+    "typecheck": false,
+    "targetedTests": [],
+    "graphChecks": {}
+  },
+  "status": "preview",
+  "definitionDiff": {
+    "kind": "Product",
+    "id": "PRODUCT",
+    "operation": "create",
+    "fields": {
+      "title": "Example Product",
+      "purpose": "Support a public journey",
+      "scope": "Current project",
+      "status": "accepted",
+      "actors": [
+        "Developer"
+      ]
+    }
+  }
+}
+{
+  "fingerprint": "962f3f30064ed93f4dadd7bbd55c33325b358198b230dc09262bc215b41cfdfc",
+  "summary": "1 Product Intent mutation(s): S-SHELL",
+  "request": {
+    "action": "product_change",
+    "mutations": [
+      {
+        "kind": "product_create",
+        "entityType": "UserStory",
+        "id": "S-SHELL",
+        "fields": {
+          "title": "Inspect output",
+          "actor": "Developer",
+          "intent": "Understand current behavior",
+          "initialState": "Executable public CLI",
+          "action": "Run show",
+          "expectedResult": "Current output is visible",
+          "status": "accepted"
+        }
+      }
+    ]
+  },
+  "mutations": [
+    {
+      "kind": "product_create",
+      "entityType": "UserStory",
+      "id": "S-SHELL",
+      "fields": {
+        "title": "Inspect output",
+        "actor": "Developer",
+        "intent": "Understand current behavior",
+        "initialState": "Executable public CLI",
+        "action": "Run show",
+        "expectedResult": "Current output is visible",
+        "status": "accepted"
+      }
+    }
+  ],
+  "affectedFiles": [],
+  "originalHashes": {},
+  "affectedProducts": [
+    "S-SHELL"
+  ],
+  "productImpacts": [],
+  "dependents": [],
+  "warnings": [],
+  "blocked": false,
+  "verification": {
+    "diagnosticsExpected": false,
+    "typecheck": false,
+    "targetedTests": [],
+    "graphChecks": {}
+  },
+  "status": "preview",
+  "definitionDiff": {
+    "kind": "UserStory",
+    "id": "S-SHELL",
+    "operation": "create",
+    "fields": {
+      "title": "Inspect output",
+      "actor": "Developer",
+      "intent": "Understand current behavior",
+      "initialState": "Executable public CLI",
+      "action": "Run show",
+      "expectedResult": "Current output is visible",
+      "status": "accepted"
+    }
+  }
+}
+➜ Running create_ticket...
+✔ Process completed (0 steps in 18ms)
+(pass) PC1b human public link journeys > shares reviewed Product authoring, Ticket authoring and explicit manifest export with the shell [761.17ms]
+(pass) PC1b human public link journeys > shows specialist syntax through source CLI and shared shell help without mutation [1611.13ms]
+(pass) PC1b human public link journeys > reuses Commander definitions safely and awaits asynchronous intent dispatch [20.97ms]
+➜ Running get_goal...
+✔ Process completed (0 steps in 0ms)
+➜ Running get_goal...
+✔ Process completed (0 steps in 1ms)
+➜ Running get_feature...
+✔ Process completed (0 steps in 2ms)
+(pass) PC1b human public link journeys > shares Commander routing for namespaced Goal reads through CLI and shell [1478.11ms]
+(pass) PC1b human public link journeys > rejects fixed-word changes, duplicate scalars and discovery mutation flags [2255.61ms]
+(pass) PC1b human public link journeys > uses built-in scoped help without accessing a database for every namespaced spelling [854.46ms]
+(pass) PC1b human public link journeys > rejects old syntax and conflicting flags at the executable boundary [1737.01ms]
+
+tests/product-change.test.ts:
+(pass) Product Intent Causal Change > previews a coherent create/link set without writing and verifies coverage and impact after apply [101.34ms]
+(pass) Product Intent Causal Change > rejects an invalid later mutation before any write [8.03ms]
+(pass) Product Intent Causal Change > rejects stale fingerprints and requires explicit unlink before deletion [44.50ms]
+(pass) Product Intent Causal Change > links and unlinks every canonical relation and rejects invalid lifecycle fields [341.10ms]
+(pass) Product Intent Causal Change > rejects new legacy containment through preview while allowing explicit removal of existing state [26.04ms]
+(pass) Product Intent Causal Change > accepts the Product Intent request through public preview_change and apply_change tools [15.22ms]
+
+tests/product-authority.test.ts:
+(pass) EXT-SURFACE-10 Product review authority > refuses a project-write agent using a legacy direct writer or accepting its own preview [11.02ms]
+(pass) EXT-SURFACE-10 Product review authority > keeps legacy Actor discovery and model self-approval inert at the real execution boundary [49.40ms]
+(pass) EXT-SURFACE-10 Product review authority > requires the exact host fingerprint, preserves cancellation, and cannot upgrade nested agent context [15.16ms]
+(pass) EXT-SURFACE-10 Product review authority > refuses raw legacy store writers reached through an actual project-write registry call [5.63ms]
+(pass) EXT-SURFACE-10 Product review authority > keeps project-write stdio MCP self-approval inert and applies only through the local reviewed host [1421.06ms]
+(pass) EXT-SURFACE-10 Product review authority > preserves Ticket-owned technical preparation inside project-write execution without approving definitions [159.55ms]
+(pass) EXT-SURFACE-10 Product review authority > revokes nested and detached review authority when the owning host call returns [6.39ms]
+
+tests/primitive-truth.test.ts:
+(pass) truthful primitives > returns an entire long declaration, exact references, and replaces only that function through safe preview/apply [249.51ms]
+(pass) truthful primitives > does not write unchanged external dependencies, including after restart, and reuses freshness only within a scope [28.34ms]
+
+tests/performance-metrics.test.ts:
+(pass) correlated artifact performance telemetry > correlates prepare/investigate with shared System-1 and Asker metrics, survives restart and excludes content [121.88ms]
+(pass) correlated artifact performance telemetry > uses llm-utils Actor events without counting their LLM tokens twice [55.03ms]
+(pass) correlated artifact performance telemetry > reports counters/outcomes and isolates telemetry write failures from engineering results [180.15ms]
+
+tests/pc1a-safety.test.ts:
+(pass) PC1a canonical safety through public tools > read-only create_ticket Done cannot persist a verified Ticket [10.86ms]
+(pass) PC1a canonical safety through public tools > read-only Decision proposal is inert and cannot persist acceptance [9.96ms]
+(pass) PC1a canonical safety through public tools > authorized Decision proposal is also inert [7.94ms]
+(pass) PC1a canonical safety through public tools > read-only and aborted legacy Ticket writes leave no record [7.98ms]
+(pass) PC1a canonical safety through public tools > normal creation works but create/update/state cannot manufacture completion [15.60ms]
+(pass) PC1a canonical safety through public tools > generic Product JSON cannot author Test proof or verifies [13.14ms]
+(pass) PC1a canonical safety through public tools > refuses missing and self-attested authority, including a nested upgrade [4.62ms]
+(pass) PC1a canonical safety through public tools > denies legacy content, lease, relation and state writes with the canonical rows unchanged [28.98ms]
+(pass) PC1a canonical safety through public tools > legacy done and move Done refuse without a provider call or lease release [16.34ms]
+(pass) PC1a canonical safety through public tools > generic store and returned entity mutations cannot forge proof or accepted Decisions [5.40ms]
+(pass) PC1a canonical safety through public tools > projection import cannot manufacture new completion or Decision acceptance [11.43ms]
+(pass) PC1a canonical safety through public tools > abort at the atomic commit leaves no partial accepted records and releases admission [15.00ms]
+(pass) PC1a canonical safety through public tools > real stdio MCP defaults to read-only and accepts writes only from explicit host authority [656.95ms]
+(pass) PC1a canonical safety through public tools > an abort during native generic persistence is refused at the storage boundary [8.21ms]
+(pass) PC1a canonical safety through public tools > preserves historical terminal records and cannot promote a rejected Done row to verified [13.55ms]
+(pass) PC1a canonical safety through public tools > Test owner authority expires before a detached proof write can reach persistence [8.28ms]
+(pass) PC1a canonical safety through public tools > the actual read-only Actor boundary cannot write through a read-labelled capability [43.49ms]
+(pass) PC1a canonical safety through public tools > public generic evaluation cannot use legacy Decision status as an acceptance shortcut [10.56ms]
+(pass) PC1a canonical safety through public tools > real CLI creation, done, move and Product JSON cannot manufacture completion [1601.04ms]
+
+tests/os.test.ts:
+(pass) run_command observation contract > distinguishes empty success and nonzero exit with both streams [20.76ms]
+(pass) run_command observation contract > reports truncation independently for both streams [35.89ms]
+(pass) run_command observation contract > resolves working directories and reports spawn failure [7.15ms]
+(pass) run_command observation contract > distinguishes timeout and parent cancellation and terminates descendants [66.92ms]
+(pass) run_command observation contract > does not execute a command after cancellation [1.66ms]
+(pass) run_command observation contract > enforces host read-only project authority while permitting scratch computation [99.77ms]
+(pass) run_command observation contract > rejects overlapping scratch mounts and cannot write project through scratch symlinks [15.70ms]
+(pass) run_command observation contract > blocks dependency installation into a read-only project without command-name rules [17.31ms]
+
+tests/model-service.test.ts:
+(pass) configured model service > uses the configured default for local discovery and ordinary default Askers [3.59ms]
+(pass) configured model service > respects separate configured local and cloud routes [2.22ms]
+(pass) configured model service > keeps semantic task routes authoritative over mode aliases [2.18ms]
+(pass) configured model service > reloads configured defaults on the same Actor without cached model names [2.81ms]
+
+tests/mcp.test.ts:
+(pass) Stdio MCP Server Bridge > should list all tools including execute_shell_wish and domain facilities [15.73ms]
+(pass) Stdio MCP Server Bridge > should call domain tools through the MCP request handler [33.73ms]
+(pass) Stdio MCP Server Bridge > should export valid MCP JSON tool schemas to disk for host discovery [10.30ms]
+
+tests/mcp-client-investigation.test.ts:
+(pass) Client investigation through MCP > advertises scoped research and emits the same guidance used by installed clients [23.31ms]
+(pass) Client investigation through MCP > finds and slices an undeclared sibling without changing the default project scope [251.46ms]
+(pass) Client investigation through MCP > keeps a cold host graph usable after sibling-first access [43.19ms]
+(pass) Client investigation through MCP > recognizes a sibling filePath and rebases it to that project [233.16ms]
+(pass) Client investigation through MCP > rejects an invalid explicit project instead of silently using the default [5.31ms]
+
+tests/lsp-shutdown.test.ts:
+(pass) bounded native LSP teardown > ts7: normal shutdown disposes and reaps its owned child [59.30ms]
+(pass) bounded native LSP teardown > ts7: stalled shutdown disposes and reaps its owned child [805.17ms]
+(pass) bounded native LSP teardown > ts6: normal shutdown disposes and reaps its owned child [115.27ms]
+(pass) bounded native LSP teardown > ts6: stalled shutdown disposes and reaps its owned child [871.93ms]
+(pass) bounded native LSP teardown > settles an in-flight document-symbol request when its client closes [66.04ms]
+
+tests/kb.test.ts:
+(pass) Content-Addressable Knowledgebase Client & Registry > should compute identical canonical hashes regardless of key order or line endings [0.62ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should search knowledgebase items with filters [1.65ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should verify hash integrity on item retrieval from cache [1.19ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should detect tampered content with hash mismatch [0.52ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should have search_knowledgebase and get_knowledge_item tools registered [170.91ms]
+(pass) Content-Addressable Knowledgebase Client & Registry > should retrieve directory bundle skill with embedded sourceCode and verify integrity [0.64ms]
+
+tests/graph.test.ts:
+(pass) AST+ Semantic Graph (Semantika) > should create and retrieve typed entities with localId resolution [3.04ms]
+(pass) AST+ Semantic Graph (Semantika) > should connect entities via semantic predicates and traverse hops [8.45ms]
+(pass) AST+ Semantic Graph (Semantika) > should atomically lease, reject concurrent leases, and allow expired lease takeover [6.05ms]
+(pass) AST+ Semantic Graph (Semantika) > should export and import markdown projections with real disk mutation reconciliation [18.88ms]
+(pass) AST+ Semantic Graph (Semantika) > should index codebase AST symbols and modules [10.33ms]
+(pass) AST+ Semantic Graph (Semantika) > should index test files as durable graph verification artifacts [27.89ms]
+(pass) AST+ Semantic Graph (Semantika) > should reconcile symbol verification when a test is indexed before its source [22.02ms]
+(pass) AST+ Semantic Graph (Semantika) > should restore test-to-symbol evidence after an incrementally changed source removes and restores a symbol [43.81ms]
+(pass) AST+ Semantic Graph (Semantika) > should discover and index exported symbols from local file: dependencies in package.json [23.47ms]
+
+tests/execution-economics.test.ts:
+(pass) persistent execution economics > preserves mixed local/remote model and phase totals, unknown price, and sanitized restart evidence [40.08ms]
+(pass) persistent execution economics > does not present a missing historic locality/pricing split as zero-cost local work [0.42ms]
+
+tests/escalation.test.ts:
+(pass) Cognitive Escalation & Multi-Provider Engine > should resolve cloud credentials from environment variables [2.11ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should register providers based on resolved credentials [1.41ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should not escalate when policy is local_only [3.14ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should auto-escalate upon observable no-progress when cloud provider is configured and emit pubsub event [4.05ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > keeps automatic escalation task-routed so configured routes can fall back [3.02ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should not escalate upon observable no-progress when policy is local_only [39.20ms]
+
+tests/doctrine-verifier.test.ts:
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses missing Rule assessments despite passing tests and critic=none [233.16ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses duplicate Rule assessments despite passing tests and critic=none [251.58ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses unknown Rule assessments despite passing tests and critic=none [260.12ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses wrong revision Rule assessments despite passing tests and critic=none [244.71ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses wrong fingerprint Rule assessments despite passing tests and critic=none [268.95ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses invented citation Rule assessments despite passing tests and critic=none [272.05ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses invented symbol in a real file Rule assessments despite passing tests and critic=none [248.42ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses empty citations Rule assessments despite passing tests and critic=none [246.00ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses empty evidence Rule assessments despite passing tests and critic=none [224.17ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses failed Rule assessments despite passing tests and critic=none [262.38ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses inconclusive Rule assessments despite passing tests and critic=none [239.11ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > accepts authored source Symbol citations and reuses their current proof [645.90ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > records pinned assessments and reuses only current governance proof [734.61ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > requires fresh verification for legacy receipts without changing historical Done state on read [584.45ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > invalidates proof on actual normative, example, checker, Decision and Aspect changes, but ignores unrelated advisory content [146.24ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > rejects governance weakening during implementation without a receipt [209.62ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > rejects governance weakening during acceptance without a receipt [236.07ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > does not let the producer mutate its dossier to drop privately pinned obligations [207.43ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > rejects source-change attempts into canonical governance storage before writing [192.18ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > keeps Rule failure feedback in the existing bounded repair loop [453.39ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > rejects unknown mandatory language and preserves distinct module obligations [46.00ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > refuses an unavailable mandatory codelet checker before requesting an LLM verdict [74.55ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > supplies complete small authored files for structural absence while preserving exact-symbol scope [442.04ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > supplies the entire authored file even when a linked test provides only one symbol [127.07ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > fails when one of several required exact declarations cannot be supplied [592.16ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > uses JavaScript applicability instead of silently treating JavaScript targets as TypeScript [84.73ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > surfaces an expected Rule violation without treating it as unknown or blocking completion [291.76ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > invalidates a receipt when an applicable expected Rule changes [509.59ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > delivers expected Rules to the default verifier and retains their nonblocking deviations [82.00ms]
+(pass) Doctrine Gate 3 deterministic enforcement contracts > requires exact Rule identifiers and nonempty cited evidence in the schema [48.15ms]
+
+tests/doctrine-scope.test.ts:
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > unlinked module expansion is refused before mutation or acceptance (PD-01) [207.62ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > authorized expansion supplies module Rule, Decision and Aspect to producer and verifier; violation prevents Done [293.09ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > explicit dirty authorization preserves user bytes and attributes only guarded effects; unexpected edit is refused [468.60ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > active governed work excludes Rule text, entity update/erase and applicability mutations [40.07ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > index-derived authority ends with its callback, including detached asynchronous descendants [33.26ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > fresh processes race admission; abandonment expires and stale owners cannot commit after restart [707.18ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > injected SQL failure rolls back proof, relationship and Done together, and restart preserves that result [932.32ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > shared command adapter and MCP registry preserve per-Ticket expansion authorization [96.00ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > new files receive their index-derived module obligations before creation and real assertions verify them [390.53ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > file rename discovers both endpoints and secondary LSP edits; persisted evidence identifies the attributable rename [771.20ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > child attribution remains separate from parent reporting and parent acceptance [511.71ms]
+(pass) Gate 5 Actor Stories through public Ticket and governance operations > a failed acceptance cannot forget the original module after guarded file relocation on retry [729.86ms]
+(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair
+
+tests/doctrine-producer-context.test.ts:
+(pass) Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery > delivers Decision operative fields (decision, context, consequences) into Ticket dossier evidence [41.66ms]
+(pass) Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery > resolves applicable Doctrine rules and inline examples into Ticket investigation evidence [57.15ms]
+(pass) Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery > delivers Decision operative fields and active rules to Product Intent context [13.73ms]
+(pass) Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery > builds SynthesisContext delivering accepted Aspects and Rule constraints with examples [2.16ms]
+(pass) Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery > delivers real Ticket governance to implementation and synthesis payloads without promoting candidates [98.79ms]
+
+tests/doctrine-model.test.ts:
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > validates rule schemas strictly and rejects invalid importance or types [2.82ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > generates lossless collision-free entity IDs surviving WorkflowStore.formatId() [3.66ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > persists and retrieves individual Rule entities in Semantika WorkflowStore [2.44ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > resolves scoped overrides in precedence order (module > project > universal) [3.84ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > guarantees that draft rules cannot shadow active inherited rules, but disabled rules explicitly suppress [3.53ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > detects incomplete and outdated default installations, and installs defaults cleanly [4.58ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > preserves existing project overrides when defaults are installed or upgraded [4.69ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > survives an actual database restart and persists all rule layers intact [4.41ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > performs single-read in resolveAllRules and filters rules by language [3.18ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > keeps standalone draft rules visible to management while excluding them from governance results [2.41ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > distinguishes authentic bundled defaults, outdated defaults, and customized universal conflicts without silent overwrite [4.42ms]
+(pass) Doctrine Gate 1: Native Rule Model & Scoped Overrides > evaluates language applicability before scope folding so language-specific overrides do not suppress inherited rules in other languages [4.02ms]
+
+tests/doctrine-management.test.ts:
+(pass) management uses approved fingerprints, stable IDs, durable audit and atomic stale rejection [31.78ms]
+(pass) lower scoped overrides cannot weaken inherited mandatory governance silently [16.26ms]
+(pass) activating a draft override cannot bypass inherited mandatory change authorization [21.04ms]
+(pass) deletion preserves graph invariants and requires explicit mandatory change approval [21.36ms]
+(pass) Rule and audit persistence roll back together on real injected SQL failure [16.86ms]
+(pass) typed pinned references distinguish complete inventory from bounded exemplars and remain unapproved [341.44ms]
+(pass) dirty, unauthorized, unsupported and moving revisions cannot fabricate references [53.88ms]
+(pass) CLI adapter, MCP tools and existing entity form share graph truth and explicit approval [23.61ms]
+
+tests/doctrine-management-live.test.ts:
+(skip) real OpenRouter rejects a violation despite passing tests and hostile approved reference comments, then accepts repair offline
+
+tests/doctrine-enforcement-live.test.ts:
+(skip) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race
+
+tests/doctrine-batch.test.ts:
+(pass) Rule batches retain lossless layered identities, survive restart and return fresh instances [7.29ms]
+(pass) prevalidation rejects the whole pack before persistence [3.04ms]
+(pass) actual SQLite failure leaves no partial Rule entity, version or index state [3.86ms]
+(pass) a stale editor cannot overwrite a concurrent edit or persist earlier records [4.04ms]
+
+tests/dharmax-s5.test.ts:
+(pass) S5 Story test-first lifecycle > DW-04 activates and executes the same reviewed public-interface TestNode through Workspace [1324.44ms]
+
+tests/dharmax-s4.test.ts:
+(pass) S4 reviewed derivation through Workspace > DW-03 proposes complete reviewed Stories, Epic and scoped work without mutations [2202.76ms]
+(pass) S4 reviewed derivation through Workspace > reports missing fixtures uncovered and materializes an approved executable public API test separately [121.92ms]
+(pass) S4 reviewed derivation through Workspace > rejects an individual proposed Story in Workspace without creating its Ticket [613.22ms]
+(pass) S4 reviewed derivation through Workspace > reconciles an edited accepted Story, retains authoritative Aspects, and returns identity/scenario ambiguity [303.38ms]
+(pass) S4 reviewed derivation through Workspace > refuses stale/dirty test reviews, keeps started work active, and classifies fixture and source failures [207.55ms]
+
+tests/dharmax-s3.test.ts:
+(pass) S3 Workspace public developer journeys > reports and edits a first-class Bug through the actual reviewed Workspace [806.51ms]
+(pass) S3 Workspace public developer journeys > DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP [1691.15ms]
+(pass) S3 Workspace public developer journeys > DW-02 cancel and reject leave every canonical row unchanged; proposal import is editable and explicitly accepted [920.36ms]
+(pass) S3 Workspace public developer journeys > DW-06 refuses the stale second editor, retaining its text and the first saved revision [848.44ms]
+(pass) S3 Workspace public developer journeys > DW-05 revises one Aspect, shows applicable policy and exact linked objects, and removes relationships [1474.69ms]
+(pass) S3 Workspace public developer journeys > DW-02 edits a Story without dropping its other existing Feature relationships [577.96ms]
+(pass) S3 Workspace public developer journeys > DW-02 blocks incomplete acceptance, preserves the form, and supports keyboard review/cancel [418.24ms]
+(pass) S3 Workspace public developer journeys > DW-06 refuses a stale reviewed commit and a stale imported preview without refreshing either [1040.04ms]
+(pass) S3 Workspace public developer journeys > DW-01 reports a committed save separately from a failed reload, then recovers through Reload [572.77ms]
+(pass) S3 Workspace public developer journeys > protects local host transport and never exposes source mutation through the Workspace [192.77ms]
+
+tests/dharmax-s2.test.ts:
+(pass) Dharmax S2 reviewed canonical product edits > DW-01/02 previews, edits and explicitly accepts one coherent Feature and complete Story [27.68ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-01 uses the same reviewed operation from the real CLI and MCP registry [1639.42ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 rejects and cancels proposals without any DB or projection change, including after reopen [22.76ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-06 rejects stale concurrent reviews and preserves same-identity in-place revisions [29.98ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 refuses malformed relations, ambiguous identity spellings and dangling deletion before writes [24.97ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 rolls back actual midway SQLite failure across entities and edges [27.76ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 complete S1 Story content reaches inert processing without legacy narrative prerequisites [60.13ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 exclusive product review excludes concurrent native product applicability links [23.61ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 rechecks revisions after admission rather than trusting the earlier preview check [32.62ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 critic-approved process proposals are inert; rejected critic leaves all canonical rows and files unchanged [149.10ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-09 refuses cancellation, read-only authority and stale proposal sources before any write [19.78ms]
+(pass) Dharmax S2 reviewed canonical product edits > DW-02 decomposition is inert and reviewed application never overwrites reused Feature or Story [46.01ms]
+
+tests/dharmax-s1.test.ts:
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-02 creates, edits and reopens a complete accepted Story under the same identity [60.85ms]
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-02 refuses title-only acceptance through public tools and guarded product changes [13.06ms]
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-02 preserves ambiguous legacy content and historical acceptance without inventing a scenario [27.38ms]
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-02 keeps generated Stories proposed and reuses reviewed definitions without rewriting them [51.74ms]
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-05 resolves one authoritative definition over direct engineering tags and defined inherited paths [183.86ms]
+(pass) Dharmax S1 public Story definitions and Aspect applicability > DW-05 rejects invalid scope links and keeps proposed conflicting policy ineffective [53.11ms]
+
+tests/decompose.test.ts:
+(pass) Epic Decomposition & Apply (Ticket 2) > honors project default and task model routes in the shared Asker [2.86ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > reuses existing Feature by ID and does not create duplicate Feature [25.00ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > reuses existing Story by ID without duplicating it [25.13ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > does not manufacture a Feature when a Story has no enabling capability [14.70ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > leaves graph completely untouched during proposal generation [3.83ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > preserves candidate IDs through proposal and apply [21.75ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > throws an error and refuses to apply if proposal contains blocking questions [3.04ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > safely tolerates repeated apply calls without duplicate nodes or broken edges [44.67ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > fails if candidate ID collides with an existing entity of a different type [2.27ms]
+(pass) Epic Decomposition & Apply (Ticket 2) > allows a technical Epic containing only Features with zero Stories [14.71ms]
+
+tests/debugger.test.ts:
+(pass) AIWF Debugger and Triage Facility > parseLocations extracts file:line:col from direct format [0.28ms]
+(pass) AIWF Debugger and Triage Facility > parseLocations extracts frames from raw stack trace and filters node_modules [0.16ms]
+(pass) AIWF Debugger and Triage Facility > extractLineSnippet slices target line with pointer [0.18ms]
+(pass) AIWF Debugger and Triage Facility > extractLineSnippet handles non-existent file gracefully [0.03ms]
+(pass) AIWF Debugger and Triage Facility > diagnoseTarget resolves location and blast radius [4.17ms]
+(pass) AIWF Debugger and Triage Facility > debug_target tool is registered and executable in registry [1.97ms]
+
+tests/config.test.ts:
+(pass) configuration layers > keeps explicit layers and reveals the inherited model after project reset [1.36ms]
+(pass) configuration layers > preserves global credentials and unrelated fields while superseding legacy aliases [0.54ms]
+(pass) configuration layers > refuses malformed configuration without changing its bytes [0.60ms]
+(pass) configuration layers > rejects invalid settings and project secrets, and redacts legacy provider options [0.59ms]
+(pass) configuration layers > constructs providers from the same effective URL shown by configuration [0.76ms]
+(pass) configuration layers > exposes the Actor token budget as an overridable baseline [0.29ms]
+(pass) configuration layers > merges nested options from both explicit layers [1.08ms]
+
+tests/compiler.test.ts:
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should compile an atomic codelet and run its verification harness [3.61ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should reject invalid syntax and failing verification tests in compile_codelet [2.07ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should promote a verified codelet dynamically into ToolRegistry and execute it [1.62ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should deterministically patch file blocks and handle negative matching errors [2.27ms]
+(pass) Codelet Compiler, Promotion & Two-Tier Routing > should support batch patches across multiple blocks and files [1.40ms]
+
+tests/cli-help.test.ts:
+(pass) CLI help has no operation side effects > shows canonical help before executing next --help [286.40ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing init --help [279.37ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing resolve T --help [275.12ms]
+(pass) CLI help has no operation side effects > shows canonical help before executing claim T -h [277.40ms]
+
+tests/change-foundation.test.ts:
+(pass) AIWF-CHANGE-FOUNDATION > 1. Stable Code Anchors (Reconciliation Without ID Churn) > preserves Symbol ID and Ticket relations when code lines move due to edits above it [18.77ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > correctly validates 7.x version strings and rejects older versions [2.62ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > prefers project-local TS7 over packaged and host TS7 [2.74ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > falls back to packaged TS7 when project TypeScript is incompatible [2.41ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > provisions host TypeScript 7 globally via Bun when no host TS7 exists [3.03ms]
+(pass) AIWF-CHANGE-FOUNDATION > 2. TypeScript Runtime Resolver & Setup Infrastructure > returns an explicit error when no compatible TypeScript 7 can be found or provisioned [2.94ms]
+(pass) AIWF-CHANGE-FOUNDATION > 3. Native TS7 LSP Client & Process Lifecycle > starts tsc --lsp, initializes, caches capabilities, and reuses instance [152.20ms]
+(pass) AIWF-CHANGE-FOUNDATION > 3. Native TS7 LSP Client & Process Lifecycle > resolves exact definitions and references across TS files [188.11ms]
+(pass) AIWF-CHANGE-FOUNDATION > 4. Target Resolution & Ambiguity Handling > resolves exact target from graph entity ID without ambiguity [216.94ms]
+(pass) AIWF-CHANGE-FOUNDATION > 4. Target Resolution & Ambiguity Handling > rejects ambiguous same-name symbols when target context is insufficient [7.69ms]
+
+tests/change-engine.test.ts:
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture A: Exact Symbol Rename & Causal Anchor Continuity > previews with zero disk mutation, updates all imports/calls, and migrates Ticket modifies anchor [285.55ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture B: Stale Preview Fingerprint Protection > rejects applyChange when a file is modified on disk after preview was generated [439.41ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture C: Native File Rename (workspace/willRenameFiles) > renames file and automatically updates static imports across the workspace [228.34ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture D: Unsupported Rich Refactor Probe > safely blocks unsupported native refactors and returns explicit unsupported notice without guessing [1100.17ms]
+(pass) AIWF-NATIVE-CODE-CHANGE > Fixture E: Tool Registry Integration (preview_change & apply_change) > executes preview_change and apply_change via registered domain tools [230.31ms]
+
+tests/change-bridge.test.ts:
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 1. Extract Function Refactor > extracts selected block using TS6 edits, keeps preview zero-mutation, and applies cleanly [1135.90ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 2. Move Declaration to Existing File > moves declaration and updates imports across files via mature TS6 sidecar [1130.66ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 3. Move Declaration to New File > moves declaration to new file and generates new file edits cleanly [1127.61ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 4. Inline Variable Refactor > exercises inline variable refactor via TS6 sidecar [1087.48ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 5. TS7 Preference for Native Operations > proves TS7 is used for rename_symbol and rename_file without invoking TS6 [207.53ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 6. Missing Interactive Argument Handling > returns blocked preview with requiredArguments when move-to-file has no destination [237.14ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 7. Stale Preview Fingerprint Protection on Refactor > rejects applyChange when source file is modified after refactor preview was generated [1241.93ms]
+(pass) AIWF-LEGACY-REFACTOR-BRIDGE > 8. Product/Causal Graph Continuity > migrates Ticket modifies relation to extracted/moved symbol [1107.25ms]
+
+tests/bug-public.test.ts:
+➜ Running get_bug...
+✔ Process completed (0 steps in 2ms)
+(pass) first-class Bug public journey > reports unknowns, completes triage, preserves identity through edit, sync, shell and reopen [8305.74ms]
+(pass) first-class Bug public journey > selects explicit kinds with priority, dependencies, foreign claims and legacy tasks [1638.31ms]
+
+tests/ast-freshness-and-search.test.ts:
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > covers all JS/TS symbol types in AST graph (classes, methods, interfaces, types, enums, destructuring) [52.48ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > keeps AST always up to date using incremental file timestamp comparisons [43.51ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > exposes rich symbol search with exact, regex, kind filter, and container names in MCP tool [12.75ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > exposes graph search API (search_graph) for entity search, predicates, and traversal [20.14ms]
+(pass) AST Coverage, Incremental Freshness, and Graph Search API > supports symbol, graph, callers, and deps commands seamlessly in interactive shell [93.30ms]
+
+tests/aspects.test.ts:
+(pass) first-class Aspects > keeps Epic concerns on its work, inherits Feature concerns into Story work, and deduplicates Module/parent paths [94.01ms]
+(pass) first-class Aspects > accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work [43.07ms]
+(pass) first-class Aspects > uses the same preview/fingerprint boundary for Aspect mutation and rejects invalid later links before writes [18.30ms]
+(pass) first-class Aspects > round trips owned scopes while ignoring edits to rendered evidence [45.16ms]
+(pass) first-class Aspects > shortlists only optional candidates and lets independent review catch omission and ceremony without writes [21.32ms]
+
+tests/artifact-policy.test.ts:
+(pass) artifact policy > resolves root overrides, explicit descendant targets, Story inheritance, clearing and restart persistence [22.64ms]
+(pass) artifact policy > keeps Ticket scope targets distinct and rejects persistent Ticket completeness [11.70ms]
+(pass) artifact policy > round trips target fields without changing relations or interpreting operational percentages as maturity [21.75ms]
+(pass) artifact policy > counts depth as expansion edges and stops at breadth without claiming artifact completion [2.72ms]
+(pass) artifact policy > resolves injected and transport Critics without a registry or semantic writes [1.66ms]
+
+tests/artifact-command.test.ts:
+(pass) artifact-first shell/CLI/Actor delegation > validates the same policy, custom critic IDs and explicit dirty authorization without guessing parameters [262.92ms]
+(pass) artifact-first shell/CLI/Actor delegation > refuses malformed explicit command prefixes before any Actor fallback [264.32ms]
+➜ Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.
+✖ Process failed (0 steps in 1ms)
+(pass) artifact-first shell/CLI/Actor delegation > routes an explicit natural-language Ticket request through the entity once without outer Actor inference [85.08ms]
+➜ Running set_completeness_target...
+✔ Process completed (0 steps in 15ms)
+➜ Running set_completeness_target...
+✔ Process completed (0 steps in 10ms)
+(pass) artifact-first shell/CLI/Actor delegation > persists completeness only on explicit set/clear and keeps help/installed skill artifact-first [128.17ms]
+(pass) artifact-first shell/CLI/Actor delegation > runs documented CLI investigation and completeness commands in a real outside repository [1334.33ms]
+(pass) artifact-first shell/CLI/Actor delegation > advertises delegation and identical policy over the actual MCP protocol [19.66ms]
+
+tests/actor.test.ts:
+(pass) Cognitive Actor & Mode Switcher > maps configured mode routes to semantic tasks, with task routes authoritative [24.83ms]
+(pass) Cognitive Actor & Mode Switcher > uses enforced shell observation effects to stop repeated reads within read-only authority [78.36ms]
+(pass) Cognitive Actor & Mode Switcher > permits repeated scratch mutations and denies project writes through the same Actor path [81.04ms]
+(pass) Cognitive Actor & Mode Switcher > answers the next-ticket question through actual semantic discovery and selector execution [41.28ms]
+(pass) Cognitive Actor & Mode Switcher > terminates a repeated successful selector without exhausting the ten-step budget [43.98ms]
+(pass) Cognitive Actor & Mode Switcher > lets the model discover graph evidence and compose a multi-part ticket comparison [76.60ms]
+(pass) Cognitive Actor & Mode Switcher > bounds explicit discovery attempts including unsuccessful searches [32.36ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [39.10ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [44.72ms]
+(pass) Cognitive Actor & Mode Switcher > starts with universal execution before any discovery, including disabled/failed/empty discovery [48.97ms]
+(pass) Cognitive Actor & Mode Switcher > does not advertise a capability that is explicitly disabled [42.31ms]
+(pass) Cognitive Actor & Mode Switcher > bounds stalled discovery and preserves universal execution and every result [93.41ms]
+(pass) Cognitive Actor & Mode Switcher > records failed commands as recoverable errors with complete observations [70.30ms]
+(pass) Cognitive Actor & Mode Switcher > parses explicit mode preferences without linguistic routing [2.42ms]
+(pass) Cognitive Actor & Mode Switcher > should report natural-language LLM unavailability without inventing intent [37.05ms]
+(pass) Cognitive Actor & Mode Switcher > should delegate natural-language intent and model choice to llm-utils [38.69ms]
+(pass) Cognitive Actor & Mode Switcher > starts cognition with a small bootstrap prompt and no classifier call [35.36ms]
+(pass) Cognitive Actor & Mode Switcher > adds explicitly requested ticket tools without losing the bootstrap or exposing the registry [42.44ms]
+(pass) Cognitive Actor & Mode Switcher > composes selected existing capabilities for multi-stage natural language [40.02ms]
+(pass) Cognitive Actor & Mode Switcher > uses timeoutMs per model call instead of inventing a whole-run deadline [37.71ms]
+(pass) Cognitive Actor & Mode Switcher > propagates an explicit cancellation signal through model and tool execution [37.05ms]
+(pass) Cognitive Actor & Mode Switcher > reports partial actor failure instead of claiming execution was not attempted [39.69ms]
+(pass) Cognitive Actor & Mode Switcher > forwards tool cancellation into ticket resolution options [3.80ms]
+(pass) Cognitive Actor & Mode Switcher > should preserve conversational context across shell actor turns [73.03ms]
+(pass) Cognitive Actor & Mode Switcher > should execute a cognitive loop with a mock Asker and emit pubsub events [4.97ms]
+
+tests/actor-runtime-refresh.test.ts:
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > resolves initial effective route based on configured providers and routes [5.23ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > updates resolved routes dynamically after saveConfig and reloadConfig on the same instance [4.10ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > preserves injected mock askers during reloadConfig [4.37ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > displays Effective routes and reloads runtime on /model set in interactive shell [45.19ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > records and retrieves execution metrics through the lastExecutionMetrics property [2.82ms]
+
+tests/actor-review-regressions.test.ts:
+(pass) Actor review regressions > does not invent a local model for a configured cloud default [3.22ms]
+(pass) Actor review regressions > resolves an explicitly configured local task without a discovery route [2.99ms]
+(pass) Actor review regressions > honors SOTA locality even when no cloud provider is configured [27.78ms]
+(pass) Actor review regressions > gives the escalated attempt its own bounded discovery budget [36.87ms]
+
+tests/actor-prompts.test.ts:
+(pass) actor prompt templates at the model boundary > renders design guidance and environment through the real Actor [37.38ms]
+(pass) actor prompt templates at the model boundary > renders dev guidance and environment through the real Actor [29.47ms]
+(pass) actor prompt templates at the model boundary > renders triage guidance and environment through the real Actor [31.76ms]
+(pass) actor prompt templates at the model boundary > renders product guidance and environment through the real Actor [30.93ms]
+(pass) actor prompt templates at the model boundary > renders read-only authority with the actual scratch directory and cleans it up [29.05ms]
+
+tests/actor-engine-boundaries.test.ts:
+(pass) WorkflowActor execution boundaries > restores temporary tool overrides even after a failed test [212.04ms]
+(pass) WorkflowActor execution boundaries > parses complete mode tokens and preserves the rest of the instruction [27.72ms]
+(pass) WorkflowActor execution boundaries > denies cancelled explicit delegation before invoking a mutating capability [36.90ms]
+(pass) WorkflowActor execution boundaries > denies read-only explicit delegation before invoking a mutating capability [41.77ms]
+(pass) WorkflowActor execution boundaries > returns explicit delegation errors as execution failures [45.42ms]
+(pass) WorkflowActor execution boundaries > preserves an explicit tool abort returned by artifact delegation [36.05ms]
+(pass) WorkflowActor execution boundaries > preserves injected discovery tools and applies schema transforms exactly once [27.04ms]
+(pass) WorkflowActor execution boundaries > denies discovered mutating capabilities under read-only authority [29.25ms]
+(pass) WorkflowActor execution boundaries > does not retry a tool abort through cognitive escalation [30.85ms]
+(pass) WorkflowActor execution boundaries > does not retry an explicitly forced model after failure [29.69ms]
+(pass) WorkflowActor execution boundaries > keeps local-only policy authoritative when forceCloud is requested [33.22ms]
+
+tests/actor-budget-policy.test.ts:
+(pass) Actor token budget policy > grants only the current deficit for local inference, repeatedly when bounded execution still progresses [0.21ms]
+(pass) Actor token budget policy > does not auto-expand remote inference [0.07ms]
+(pass) Actor token budget policy > treats an explicit operation override as a hard cap [0.04ms]
+
+5 tests skipped:
+(skip) Skill and synthesis production journeys > a developer gets a checkout stylesheet grounded in the project design skill
+(skip) Skill and synthesis production journeys > a maintainer repairs checkout surcharges and discounts through the exact authored ticket
+(skip) Gate 5 Actor Stories through public Ticket and governance operations > configured live independent verifier rejects the actual unlinked module violation and accepts its guarded repair
+(skip) real OpenRouter rejects a violation despite passing tests and hostile approved reference comments, then accepts repair offline
+(skip) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race
+
+ 551 pass
+ 5 skip
+ 0 fail
+ 3734 expect() calls
+Ran 556 tests across 72 files. [120.17s]

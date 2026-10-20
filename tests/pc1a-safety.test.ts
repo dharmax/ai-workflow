@@ -21,12 +21,18 @@ describe('PC1a canonical safety through public tools',()=>{
   const call=(name:string,params:unknown,executionAuthority:'read-only'|'project-write'='project-write',signal?:AbortSignal)=>
     registry.execute(name,params,{store,projectRoot:root,executionAuthority,signal});
   const reopen=()=>{store.close();store=new WorkflowStore(root);};
-  const snapshot=()=>JSON.stringify((store.db.query("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'aiwf_%' ORDER BY name").all() as Array<{name:string}>)
-    .map(({name})=>[name,store.db.query('SELECT * FROM "'+name+'" ORDER BY _id').all()]));
+  const snapshot=()=>{
+    using tables=store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'aiwf_%' ORDER BY name");
+    return JSON.stringify((tables.all() as Array<{name:string}>).map(({name})=>{
+      using rows=store.db.prepare('SELECT * FROM "'+name+'" ORDER BY _id');
+      return [name,rows.all()];
+    }));
+  };
   beforeEach(async()=>{
     root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-pc1a-'));
     store=new WorkflowStore(root);initializeTools();
     for(const dcr of entityDescriptors) await store.listEntities(dcr);
+    await store.sp.predicateCollection(store.sp.ontology.pdcr('addresses'));
   });
   afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
 

@@ -208,6 +208,7 @@ export class WorkflowStore {
   public readonly db: Database;
   public readonly sqliteStore: SqliteStore;
   public readonly sp: SemanticPackage;
+  private closed = false;
 
   constructor(projectRoot?: string, inMemory: boolean = false) {
     this.root = projectRoot ? path.resolve(projectRoot) : findProjectRoot().root;
@@ -411,16 +412,11 @@ export class WorkflowStore {
     return tx();
   }
 
-  /**
-   * Close the database connection safely.
-   */
-  close() {
-    try {
-      (this.db as any).exec = () => {};
-      this.db.close();
-    } catch {
-      // Safe no-op on already closed database
-    }
+  /** Close once, reporting outstanding statements or native close failures to the caller. */
+  close(): void {
+    if (this.closed) return;
+    this.db.close(true);
+    this.closed = true;
   }
 
   /**

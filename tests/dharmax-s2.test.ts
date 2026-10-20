@@ -15,10 +15,14 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   let root: string, store: WorkflowStore;
   const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = { actor: 'Signed-in user', intent: 'Keep my filtered avatar', initialState: 'Unsaved filtered preview and previous saved avatar exist', action: 'Activate Save', expectedResult: 'Saved avatar matches preview after reload', exceptions: 'Failure preserves previous avatar', bounds: 'Current account' };
-  const snapshot = (admission = true) => Object.fromEntries(
-    (store.db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{name: string}>)
-      .map(({name}) => [name, (store.db.query('SELECT * FROM "' + name + '" ORDER BY rowid').all() as Record<string, unknown>[])
-        .filter((row: Record<string, unknown>) => admission || !String(row._id).endsWith('GOVERNANCE-ADMISSION'))]));
+  const snapshot = (admission = true) => {
+    using tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+    return Object.fromEntries((tables.all() as Array<{name:string}>).map(({name}) => {
+      using rows = store.db.prepare('SELECT * FROM "' + name + '" ORDER BY rowid');
+      return [name, (rows.all() as Record<string,unknown>[])
+        .filter(row => admission || !String(row._id).endsWith('GOVERNANCE-ADMISSION'))];
+    }));
+  };
   const reopen = async () => {
     store.close(); store = new WorkflowStore(root);
     for (const dcr of entityDescriptors) await store.listEntities(dcr);
@@ -31,6 +35,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-dw-s2-')); store = new WorkflowStore(root); initializeTools();
     for (const dcr of entityDescriptors) await store.listEntities(dcr);
+    await store.sp.predicateCollection(store.sp.ontology.pdcr('addresses'));
     await store.upsertEntity(Epic.dcr, { id: 'E', title: 'Avatar delivery', body: 'Deliver reviewed avatar filters', status: 'active' });
   });
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
