@@ -5,7 +5,7 @@ import type {ToolDefinition, ToolRegistry} from './registry.ts'
  * and to semantic Actor discovery without being advertised to every host.
  */
 export const PUBLIC_MCP_TOOL_NAMES = new Set([
-  'link',
+  'artifact', 'link', 'verify',
   'get_product', 'get_module', 'get_decision', 'list_decisions',
   'list_rules', 'get_rule', 'export_rules', 'preview_rule_change', 'apply_rule_change', 'resolve_rule_reference',
   'resolve_ticket',
@@ -63,6 +63,12 @@ export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'get_knowledge_item',
 ])
 
-export function getPublicMcpTools(registry: ToolRegistry): ToolDefinition[] {
-  return registry.getAll().filter(tool => PUBLIC_MCP_TOOL_NAMES.has(tool.name))
+/** Opt-in advertisement only; legacy calls retain their existing authority and schemas. */
+const COMPACT_REPLACED_READS=new Set([
+  'get_product','get_module','get_decision','list_decisions','get_epic','list_epics','get_feature','list_features',
+  'get_user_story','list_user_stories','get_goal','list_goals','get_concept','list_concepts','get_flow','list_flows',
+  'get_aspect','list_aspects','get_ticket','list_tickets','get_bug','list_bugs','get_story_test_status','run_story_test'
+]);
+export function getPublicMcpTools(registry: ToolRegistry, compact=false): ToolDefinition[] {
+  return registry.getAll().filter(tool => PUBLIC_MCP_TOOL_NAMES.has(tool.name)&&(!compact||!COMPACT_REPLACED_READS.has(tool.name)))
 }

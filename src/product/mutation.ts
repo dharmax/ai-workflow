@@ -123,9 +123,7 @@ export async function resolveProductEntity(store: WorkflowStore, id: string) {
   return found[0];
 }
 
-function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean, previous: Record<string, unknown> = {}): void {
-  fields.parse(input);
-  const allowed: Record<ProductKind, string[]> = {
+const definitionFields: Record<ProductKind, string[]> = {
     Product: ['title', 'purpose', 'actors', 'scope', 'nonGoals', 'bounds', 'status'],
     Aspect: ['title', 'body', 'status', 'acceptanceCriteria'], Idea: [], Goal: ['title', 'body', 'status'],
     Concept: ['title', 'body', 'status'], Flow: ['title', 'body', 'status', 'actor', 'context'],
@@ -135,8 +133,20 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
     Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
     Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
-  };
-  for (const key of Object.keys(input)) if (!allowed[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
+};
+
+/** Exact authored field schemas shared by Product validation and public adapters. */
+export function productDefinitionFields(kind: ProductKind) {
+  const shape:Record<string,z.ZodType>={};
+  for(const key of definitionFields[kind]) shape[key]=fields.shape[key as keyof typeof fields.shape];
+  if('status' in shape) shape.status=(kind==='Epic'?z.enum(['draft','planned','active','cancelled']):kind==='Ticket'?z.enum(['planned','in_progress','verified','blocked','rejected']):intentStatus).optional();
+  if('priority' in shape) shape.priority=(kind==='Ticket'?ticketPriority:z.number()).optional();
+  return z.object(shape).strict();
+}
+
+function validateFields(kind: ProductKind, input: Record<string, unknown>, create: boolean, previous: Record<string, unknown> = {}): void {
+  fields.parse(input);
+  for (const key of Object.keys(input)) if (!definitionFields[kind].includes(key)) throw new Error(`${kind} does not support '${key}'.`);
   if (kind === 'Module' && create) throw new Error("Module cannot be created via product_create. Edit an indexed module instead.");
   if (create && !input.title) throw new Error(`${kind} creation requires a title.`);
   if (input.status !== undefined) {

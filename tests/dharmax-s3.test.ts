@@ -78,6 +78,29 @@ describe('S3 Workspace public developer journeys', () => {
     if (root) { fs.rmSync(root, {recursive:true, force:true}); root = undefined as any; }
   });
 
+  it('PC5 explains charter fields, names linked endpoints and makes Bugs and missing proof discoverable', async () => {
+    const page=await setup();
+    await page.getByRole('button',{name:'Define Product',exact:true}).click();
+    await page.getByText('Scope describes what this product covers. Example: assess one patient at a time.',{exact:true}).waitFor();
+    await page.getByText('Non-goals describe what this product deliberately does not provide. Example: emergency diagnosis.',{exact:true}).waitFor();
+    await page.getByText('Bounds describe limits that apply inside the scope. Example: adults only; clinician review required.',{exact:true}).waitFor();
+    await createProduct(store,'Goal',{id:'g1',title:'Assessment',body:'Explain an assessment',status:'draft'});
+    await createProduct(store,'Flow',{id:'flow1',title:'Clinical intake',body:'Collect symptoms',actor:'Clinician',status:'draft'});
+    await acceptProduct(store,[{kind:'product_link',sourceId:'flow1',predicate:'serves',targetId:'g1'}]);
+    await page.getByRole('button',{name:'Reload canonical data',exact:true}).click();
+    await page.getByRole('button',{name:'Clinical intake',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Loaded flow1'}).waitFor();
+    expect(await page.getByTestId('related').innerText()).toContain('Clinical intake (flow1) → serves → Assessment (g1)');
+    await page.getByRole('button',{name:'Report Bug',exact:true}).click();
+    await fill(page,{'Stable ID':'B1','Title':'Observed trial defect'});await save(page);
+    await page.getByRole('button',{name:'Browse Bugs',exact:true}).click();
+    expect(await page.getByLabel('Entity type',{exact:true}).inputValue()).toBe('Bug');
+    await page.getByRole('button',{name:'Observed trial defect',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Loaded B1'}).waitFor();
+    expect(await page.getByRole('region',{name:'Ticket verification'}).innerText()).toContain('No independent verification receipt');
+    expect((await call('get_bug',{ticketId:'B1'})).verification).toBeNull();
+  },20000);
+
   it('PC5 paginates a large catalog without losing selection, draft or reviewed preview', async () => {
     const page=await setup();
     for(let index=0;index<26;index++) await createProduct(store,'Feature',{id:'F-'+index,title:'Catalog item '+index,status:'draft'});

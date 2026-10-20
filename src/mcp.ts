@@ -35,7 +35,8 @@ function withProjectRoot(schema: McpTool['inputSchema']): McpTool['inputSchema']
       ...schema.properties,
       projectRoot: {type: 'string', description: 'Optional target project directory, absolute or relative to the MCP server project. Use this for sibling repositories; filePath is relative to this project.'}
     },
-    ...(Array.isArray(schema.oneOf) ? {oneOf: schema.oneOf.map(branch => withProjectRoot(branch as McpTool['inputSchema']))} : {})
+    ...(Array.isArray(schema.oneOf) ? {oneOf: schema.oneOf.map(branch => withProjectRoot(branch as McpTool['inputSchema']))} : {}),
+    ...(Array.isArray(schema.anyOf) ? {anyOf: schema.anyOf.map(branch => withProjectRoot(branch as McpTool['inputSchema']))} : {})
   };
 }
 
@@ -44,6 +45,7 @@ export interface McpServerOptions {
   projectRoot?: string;
   actor?: WorkflowActor;
   executionAuthority?: ToolContext['executionAuthority'];
+  compactSurface?: boolean;
 }
 
 export function createMcpServer(options: McpServerOptions = {}) {
@@ -97,8 +99,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
       })
     });
 
-    // Domain facilities from registry
-    for (const t of getPublicMcpTools(registry)) {
+    // Domain facilities from the same registry; compact advertisement is host opt-in.
+    for (const t of getPublicMcpTools(registry,options.compactSurface??process.env.AIWF_MCP_SURFACE==='compact')) {
       tools.push({
         name: t.name,
         description: `[${t.category.toUpperCase()}]: ${t.description}`,

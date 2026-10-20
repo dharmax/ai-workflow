@@ -25,8 +25,10 @@ import { getCoverage } from '../product/coverage.ts';
 import { getProductImpact } from '../product/impact.ts';
 import { proposeEpicStructure, type EpicStructureProposal } from '../product/decompose.ts';
 import { applyEpicStructure } from '../product/apply.ts';
-import {LinkActionSchema,linkAction} from '../product/links.ts';
-import { applyProductMutations, resolveProductEntity, productKind } from '../product/mutation.ts';
+import {LinkActionSchema,linkAction,endpoint,previewDefinitionChange,type DefinitionReviewInput} from '../product/links.ts';
+import {computeHash} from '../kb/canonical.ts';
+import {entityDescriptors} from '../graph/ontology.ts';
+import { applyProductMutations, resolveProductEntity, productKind, productDefinitionFields, productDependents } from '../product/mutation.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
 
@@ -211,7 +213,106 @@ async function storyView(ctx: ToolContext, story: UserStory) {
   };
 }
 
+const artifactKinds=['Product','Goal','Concept','Flow','Feature','UserStory','Aspect','Module','Epic','Ticket','Bug','Decision','Idea'] as const;
+type ArtifactKind=typeof artifactKinds[number];
+const artifactId=z.string().min(1).regex(/\S/,'ID must not be blank');
+const artifactMatch=z.enum(['exact','human']).optional();
+const pageFields={query:z.string().optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()};
+const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked']).optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),kind:z.enum(['task','bug']).optional()}).strict();
+const definitionFilter=(kind:ArtifactKind)=>kind==='Ticket'?workFilter:kind==='Bug'?workFilter.extend({kind:z.literal('bug').optional()}):
+  z.object({status:(kind==='Epic'?z.enum(EPIC_STATUSES):kind==='Idea'?z.enum(['draft','proposed','accepted','implemented','verified','deprecated']):z.enum(INTENT_STATUSES)).optional()}).strict();
+const artifactBranches:z.ZodType[]=[z.object({action:z.literal('describe'),kind:z.enum(artifactKinds).optional()}).strict()];
+for(const kind of artifactKinds) {
+  const identity=kind==='Product'?z.literal('PRODUCT'):artifactId;
+  artifactBranches.push(z.object({action:z.literal('list'),kind:z.literal(kind),...pageFields,filter:definitionFilter(kind).optional()}).strict(),
+    z.object({action:z.literal('show'),kind:z.literal(kind),id:kind==='Product'?identity.optional():identity,idMatch:artifactMatch}).strict());
+  if(kind==='Idea') continue;
+  const authored=productDefinitionFields(kind==='Bug'?'Ticket':kind);
+  const editable=kind==='Ticket'||kind==='Bug'?authored.omit({status:true,lane:true,...(kind==='Bug'?{kind:true}:{})}):authored;
+  artifactBranches.push(z.object({action:z.literal('preview_edit'),kind:z.literal(kind),id:identity,version:z.number().int().positive(),
+    fields:editable.refine(value=>Object.keys(value).length>0,'At least one definition field is required.').meta({minProperties:1})}).strict());
+  if(kind!=='Module') artifactBranches.push(z.object({action:z.literal('preview_new'),kind:z.literal(kind),id:identity.optional(),
+    fields:(kind==='Ticket'||kind==='Bug'?editable.extend({lane:z.enum(['Backlog','Todo']).optional()}):editable).extend({title:z.string().min(1).regex(/\S/,'Title must not be blank')})}).strict());
+  if(!['Epic','Ticket','Bug'].includes(kind)) artifactBranches.push(z.object({action:z.literal('preview_retire'),kind:z.literal(kind),id:identity,version:z.number().int().positive()}).strict());
+}
+const ArtifactActionSchema=z.union(artifactBranches as [z.ZodType,z.ZodType,...z.ZodType[]]);
+const VerifyActionSchema=z.discriminatedUnion('action',[
+  z.object({action:z.literal('describe'),kind:z.enum(['story','ticket']).optional()}).strict(),
+  z.object({action:z.literal('show'),kind:z.enum(['story','ticket']),id:artifactId,idMatch:artifactMatch}).strict(),
+  z.object({action:z.literal('run'),kind:z.literal('story'),id:artifactId,idMatch:artifactMatch}).strict()
+]);
+// Parsing the finite schemas above precedes this common adapter; domain rules remain in S2/S5.
+type ArtifactAction={action:'describe';kind?:ArtifactKind}|{action:'list';kind:ArtifactKind;query?:string;filter?:Record<string,string>;limit?:number;cursor?:string}|
+  {action:'show';kind:ArtifactKind;id?:string;idMatch?:'exact'|'human'}|
+  {action:'preview_new';kind:Exclude<ArtifactKind,'Idea'|'Module'>;id?:string;fields:Record<string,unknown>}|
+  {action:'preview_edit';kind:Exclude<ArtifactKind,'Idea'>;id:string;version:number;fields:Record<string,unknown>}|
+  {action:'preview_retire';kind:Exclude<ArtifactKind,'Idea'|'Epic'|'Ticket'|'Bug'>;id:string;version:number};
+
+async function artifactAction(args:ArtifactAction,ctx:ToolContext) {
+  if(args.action==='describe') return {status:'read',kinds:artifactKinds,actions:['describe','list','show','preview_new','preview_edit','preview_retire'],
+    ...(args.kind?{kind:args.kind,schemas:artifactBranches.filter(branch=>{
+      const schema=z.toJSONSchema(branch),kindSchema=schema.properties?.kind;return typeof kindSchema==='object'&&kindSchema.const===args.kind;
+    }).map(branch=>z.toJSONSchema(branch))}:{}),
+    review:'Previews are inert. A developer must review the exact fingerprint through Workspace or product-change accept. apply_change cannot self-approve.',
+    specialists:{relations:'link',verification:'verify',work:'claim_ticket / update_ticket_state / resolve_ticket',storyTests:'prepare_story_test / apply_story_test',rules:'preview_rule_change / apply_rule_change',source:'find_symbol / get_module'}};
+  const kind=args.kind==='Bug'?'Ticket':args.kind;
+  if(kind==='Module') await ensureAstFresh(ctx.store);
+  if(args.action==='list') {
+    const descriptor=entityDescriptors.find(item=>item.name===(kind==='Module'?'ModuleNode':kind));
+    if(!descriptor) throw Error(`No descriptor for ${kind}.`);
+    const query=(args.query??'').toLowerCase();
+    const rows=[];
+    for(const entity of await ctx.store.listEntities(descriptor)) {
+      const data=await entity.fullDto<Record<string,unknown>>();
+      const recordKind=data.kind??'task';
+      if(args.kind==='Bug'&&recordKind!=='bug') continue;
+      const status=kind==='Module'?data.intentStatus??'draft':data.status;
+      if(query&&!`${data.title??''}\n${data.body??''}`.toLowerCase().includes(query)) continue;
+      if(Object.entries(args.filter??{}).some(([key,value])=>(key==='kind'?recordKind:key==='status'?status:data[key])!==value)) continue;
+      rows.push({id:ctx.store.localId(entity.id),kind:args.kind,version:entity.version,title:data.title,body:data.body,status,
+        ...(kind==='Ticket'?{lane:data.lane,priority:data.priority,workKind:recordKind}:{})});
+    }
+    rows.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+    const basis=computeHash({kind:args.kind,query,filter:args.filter??{},rows});let offset=0;
+    if(args.cursor) {try {const cursor=JSON.parse(Buffer.from(args.cursor,'base64url').toString());if(cursor.basis!==basis||!Number.isInteger(cursor.offset)||cursor.offset<0||cursor.offset>=rows.length) throw Error();offset=cursor.offset;}catch{throw Error('Invalid or stale artifact cursor; restart listing.');}}
+    const limit=args.limit??25;
+    return {status:'read',items:rows.slice(offset,offset+limit),cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
+  }
+  if(args.action==='preview_new') {
+    const id=args.kind==='Product'?'PRODUCT':args.id??`${artifactPrefixes[args.kind]}-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
+    return previewDefinitionChange(ctx,{kind:kind as DefinitionReviewInput['kind'],id,create:true,fields:{...args.fields,...(args.kind==='Bug'?{kind:'bug'}:{})}});
+  }
+  const id=args.id??'PRODUCT';
+  if(args.action==='show'&&kind==='Product'&&!await ctx.store.getEntity('PRODUCT',Product.dcr)) return {status:'read',kind:'Product',defined:false,id:'PRODUCT'};
+  const entity=await endpoint(ctx.store,id,'idMatch' in args?args.idMatch:undefined);
+  if(productKind(entity)!==kind) throw Error(`Expected ${args.kind} '${id}', found ${productKind(entity)}.`);
+  const data=await entity.fullDto<Record<string,unknown>>();
+  if(args.kind==='Bug'&&(data.kind??'task')!=='bug') throw Error(`Ticket '${id}' is a task, not a Bug.`);
+  const exactId=ctx.store.localId(entity.id);
+  if(args.action==='show') {
+    const definition=kind==='Module'?await registry.execute('get_module',{moduleId:exactId},ctx):data;
+    return {status:'read',kind:args.kind,id:exactId,version:entity.version,...(kind==='Product'?{defined:true}:{}),definition,
+      relations:await linkAction(ctx.store,{action:'inspect',id:exactId,limit:25}),
+      evidence:kind==='Ticket'?await registry.execute('get_ticket',{ticketId:exactId},ctx):{state:'not-assessed',next:'verify / get_product_coverage; definition acceptance is not satisfaction'}};
+  }
+  if(entity.version!==args.version) throw Error(`Stale ${args.kind} version; read the current definition and restart review.`);
+  const fields=args.action==='preview_retire'?{[kind==='Module'?'intentStatus':'status']:'deprecated'}:args.fields;
+  const preview=await previewDefinitionChange(ctx,{kind:kind as DefinitionReviewInput['kind'],id:exactId,create:false,fields});
+  return {...preview,...(args.action==='preview_retire'?{dependents:await productDependents(ctx.store,exactId)}:{})};
+}
+const artifactPrefixes={Product:'PRODUCT',Goal:'GOAL',Concept:'CONCEPT',Flow:'FLOW',Feature:'FEAT',UserStory:'STORY',Aspect:'ASP',Epic:'EPIC',Ticket:'TKT',Bug:'BUG',Decision:'DEC'} as const;
+
 export function registerProductTools() {
+  registry.register({name:'artifact',category:'planning',description:'Typed definition discovery, bounded reads and inert S2 previews. Use describe for one kind. Product acceptance requires exact developer review.',parameters:ArtifactActionSchema,execute:(args,ctx)=>artifactAction(args as ArtifactAction,ctx)});
+  registry.register({name:'verify',category:'test',description:'Inspect Story S5 execution or recorded Ticket proof; run an activated Story test. Never writes a Ticket receipt or completes work.',parameters:VerifyActionSchema,execute:async(args,ctx)=>{
+    if(args.action==='describe') return {status:'read',kinds:['story','ticket'],actions:{story:['show','run'],ticket:['show']},rights:{show:'read-only',run:'project-write; executes the existing activated Story test'},states:'Story evidence is current S5 classification. Ticket receipt is recorded-unchecked until the independent completion owner revalidates current source, tests and governance.',next:'prepare_story_test / apply_story_test; resolve_ticket owns independent Ticket completion'};
+    const entity=await endpoint(ctx.store,args.id,args.idMatch);
+    const expected=args.kind==='story'?'UserStory':'Ticket';
+    if(productKind(entity)!==expected) throw Error(`Expected ${expected} '${args.id}'.`);
+    const id=ctx.store.localId(entity.id);
+    if(args.kind==='ticket') return registry.execute('get_ticket',{ticketId:id},ctx);
+    return registry.execute(args.action==='run'?'run_story_test':'get_story_test_status',{storyId:id},ctx);
+  }});
   registry.register({
     name:'get_module', category:'graph',
     description:'Read an exact indexed Module identity, authored intent and current source availability. Source facts are not authorable.',

@@ -63,6 +63,14 @@ export function workspaceClient() {
       if(arrayFields.includes(key)) el('small',key==='acceptanceCriteria'?'One observable criterion per line':'One entry per line',label);
     }
     input.setAttribute('aria-label',label.firstChild.textContent);
+    const help=kind==='Product'?{
+      purpose:'Purpose explains why this product exists and who benefits.',
+      actors:'Actors are the people or systems that use this product. One per line.',
+      scope:'Scope describes what this product covers. Example: assess one patient at a time.',
+      nonGoals:'Non-goals describe what this product deliberately does not provide. Example: emergency diagnosis.',
+      bounds:'Bounds describe limits that apply inside the scope. Example: adults only; clinician review required.'
+    }[key]:undefined;
+    if(help) {el('small',help,label,{id:id+'-help'});input.setAttribute('aria-describedby',id+'-help');}
     input.oninput=invalidate;
   }
   function fieldsFor(kind, data) {
@@ -85,7 +93,17 @@ export function workspaceClient() {
     const label=el('label','Stable ID',meta);
     el('input',undefined,label,{name:'id',value:data.id || '',readOnly:!create||data.kind==='Product',oninput:invalidate,required:true});
     if(data.version) el('span','Revision '+data.version,meta);
-    if(data.kind==='Module') el('p','Indexed path: '+(data.path||'unknown')+' · Source: '+(data.sourceStatus||'unknown'),section,{className:'hint'});
+    if(data.kind==='Module') {
+      el('p','A Module is an indexed group of source files. Describe the responsibility of this existing code here; indexing owns its path and source facts.',section,{className:'hint'});
+      el('p','Indexed path: '+(data.path||'unknown')+' · Source: '+(data.sourceStatus||'unknown'),section,{className:'hint'});
+    }
+    if(data.kind==='Ticket'&&!create) {
+      const proof=el('section',undefined,section,{role:'region',ariaLabel:'Ticket verification'});
+      el('h3','Verification',proof);
+      el('p',data.verificationState==='unverified'?'No independent verification receipt. This work remains unverified.':'Recorded receipt; current source, tests and governance have not been revalidated by this view.',proof);
+      if(data.verification) el('pre',JSON.stringify(data.verification,null,2),proof);
+      el('p','AIWF resolve owns independent completion. Saving a report or moving work does not verify it.',proof,{className:'hint'});
+    }
     const form=el('div',undefined,section,{className:'fields'});
     for(const key of fieldsFor(data.kind,data)) field(form,key,data[key]??data.defect?.[key],index,data.kind);
     if(data.kind==='UserStory') {
@@ -164,6 +182,10 @@ export function workspaceClient() {
     $('context').hidden=false; context(); say('New '+(kind==='UserStory'?'Story':kind));
     $('forms').querySelector('[name=title]').focus();
   }
+  function entityLabel(id) {
+    const matches=catalog.filter(entity=>entity.id===id);
+    return matches.length===1&&matches[0].title?matches[0].title+' ('+id+')':id;
+  }
   function context() {
     $('aspects').replaceChildren(); $('related').replaceChildren();
     const aspects=current?.aspects||[];
@@ -176,7 +198,7 @@ export function workspaceClient() {
     if(!relations.length) el('p','No linked objects. Unlinked effects are unknown.',$('related'));
     for(const edge of relations) {
       const row=el('div',undefined,$('related'),{className:'edge'});
-      el('span',edge.sourceId+' → '+edge.predicate+' → '+edge.targetId,row);
+      el('span',entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId),row);
       if(editable.includes(current.entity.kind)) button('Remove '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row,()=>{
         const i=pending.findIndex(p=>p.kind==='product_unlink'&&p.sourceId===edge.sourceId&&p.predicate===edge.predicate&&p.targetId===edge.targetId);
         if(i<0) pending.push({kind:'product_unlink',...edge}); else pending.splice(i,1);
@@ -372,6 +394,7 @@ export function workspaceClient() {
     await review(proposal.request,proposal);
   });
   $('search').oninput=()=>list(); $('kind-filter').onchange=()=>list();
+  $('browse-bugs').onclick=()=>{$('kind-filter').value='Bug';$('search').value='';list();$('results').querySelector('button')?.focus();};
   $('previous-page').onclick=()=>run(()=>list(catalogPage-1));
   $('next-page').onclick=()=>run(()=>list(catalogPage+1));
   for(const [id,kind] of [['new-product','Product'],['new-decision','Decision'],['new-goal','Goal'],['new-concept','Concept'],['new-flow','Flow'],['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-epic','Epic'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
