@@ -127,6 +127,73 @@ describe('S3 Workspace public developer journeys', () => {
     expect((await call('get_bug',{ticketId:'B-UI'})).kind).toBe('bug');
   },30000);
 
+  it('PC-J1/J8 reviews charter and Goal forms and preserves indexed Module intent across restart', async () => {
+    const page = await setup();
+    await page.getByRole('button', {name:'Define Product',exact:true}).click();
+    expect(await page.getByLabel('Stable ID', {exact:true}).inputValue()).toBe('PRODUCT');
+    await fill(page, {Title:'Ledger', Purpose:'Understand totals', Actors:'Accountant\nAuditor', Scope:'Local arithmetic', 'Non-goals':'Banking', Bounds:'Offline'});
+    await page.getByLabel('Definition status', {exact:true}).selectOption('accepted');
+    await page.getByRole('button', {name:'Review changes',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
+    expect((await call('get_product', {})).defined).toBe(false);
+    await page.getByRole('button', {name:'Cancel review',exact:true}).click();
+    expect(await page.getByLabel('Purpose', {exact:true}).inputValue()).toBe('Understand totals');
+    await save(page);
+    expect((await call('get_product', {})).product).toMatchObject({id:'PRODUCT',actors:['Accountant','Auditor'],status:'accepted'});
+    await page.getByRole('button', {name:'New Goal',exact:true}).click();
+    await fill(page, {'Stable ID':'G',Title:'Accurate totals',Description:'Return exact decimal totals'});
+    await page.getByLabel('Definition status', {exact:true}).selectOption('accepted');
+    await save(page);
+    fs.mkdirSync(path.join(root,'src'), {recursive:true});
+    fs.writeFileSync(path.join(root,'src/ledger.ts'), 'export const total = 0;\n');
+    const {ensureAstFresh} = await import('../src/graph/indexer.ts');
+    await ensureAstFresh(store);
+    await page.getByRole('button', {name:'Reload canonical data',exact:true}).click();
+    await page.getByLabel('Entity type', {exact:true}).selectOption('Module');
+    await page.locator('#results button').first().click();
+    await page.getByRole('heading', {name:/^Module · /}).waitFor();
+    const moduleId = await page.getByLabel('Stable ID', {exact:true}).inputValue();
+    expect(await page.locator('[name=title]').count()).toBe(0);
+    await fill(page, {Purpose:'Own decimal operations',Responsibilities:'Total\nMean',Boundaries:'No networking'});
+    await page.getByLabel('Definition status', {exact:true}).selectOption('accepted');
+    await save(page);
+    await workspace.stop(); store.close(); store = new WorkflowStore(root);
+    await page.goto(await start());
+    await page.getByLabel('Entity type', {exact:true}).selectOption('Module');
+    await page.locator('#results button').first().click();
+    expect(await page.getByLabel('Stable ID', {exact:true}).inputValue()).toBe(moduleId);
+    expect(await page.getByLabel('Purpose', {exact:true}).inputValue()).toBe('Own decimal operations');
+    expect(await page.getByLabel('Responsibilities', {exact:true}).inputValue()).toBe('Total\nMean');
+    const moduleEdit = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','edit',moduleId,'--status','accepted','--body','Own decimal operations','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(moduleEdit.exitCode).toBe(0);
+    const modules = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','list'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(modules.exitCode).toBe(0);
+    expect(JSON.parse(modules.stdout.toString()).results.some((item:{id:string})=>item.id===moduleId)).toBe(true);
+    const moduleRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','show',moduleId],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(moduleRead.exitCode).toBe(0);
+    expect(JSON.parse(moduleRead.stdout.toString())).toMatchObject({id:moduleId,body:'Own decimal operations',intentStatus:'accepted',sourceStatus:'indexed'});
+    const linked = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'link',moduleId,'to','G','as','serves','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(linked.exitCode).toBe(0);
+    const client = new Client({name:'workspace-module-proof',version:'1'});
+    try {
+      await client.connect(new StdioClientTransport({command:'bun',args:[path.resolve(import.meta.dir,'../src/mcp.ts')],cwd:root,stderr:'pipe'}));
+      const response = await client.callTool({name:'get_module',arguments:{moduleId}});
+      expect(response.isError).not.toBe(true);
+      const content = response.content as Array<{type:string;text?:string}>;
+      const module = JSON.parse(content.find(item=>item.type==='text')!.text!);
+      expect(module).toMatchObject({id:moduleId,body:'Own decimal operations',responsibilities:['Total','Mean'],intentStatus:'accepted',sourceStatus:'indexed'});
+      expect(module.version).toBeGreaterThan(0);
+      fs.unlinkSync(path.join(root,'src/ledger.ts'));
+      const missing = await client.callTool({name:'get_module',arguments:{moduleId}});
+      expect(JSON.parse((missing.content as Array<{text:string}>)[0]!.text)).toMatchObject({id:moduleId,body:'Own decimal operations',sourceStatus:'missing_source'});
+    } finally { await client.close(); }
+    const productRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','show'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    expect(JSON.parse(productRead.stdout.toString()).product.actors).toEqual(['Accountant','Auditor']);
+    const product = await call('get_product', {});
+    expect(product.product.actors).toEqual(['Accountant','Auditor']);
+    expect(await call('get_goal', {id:'G'})).toMatchObject({body:'Return exact decimal totals',status:'accepted'});
+  }, 30000);
+
   it('DW-01/02 creates, edits, reviews and reloads Avatar Filters and a complete Save Story, consistent with CLI/MCP', async () => {
     const page = await setup();
     await page.getByRole('button', {name:'New Feature',exact:true}).click();

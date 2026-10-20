@@ -4,11 +4,15 @@
  */
 
 import { z } from 'zod';
+import fs from 'node:fs';
+import path from 'node:path';
 import { IntentProposalSchema } from '../product/process-types.ts';
 import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus,runStoryTest} from '../product/story-tests.ts';
 import { registry, type ToolContext } from './registry.ts';
 import {
   Product,
+  ModuleNode,
+  FileNode,
   Goal,
   Concept,
   Flow,
@@ -23,6 +27,7 @@ import { applyEpicStructure } from '../product/apply.ts';
 import {LinkActionSchema,linkAction} from '../product/links.ts';
 import { applyProductMutations, resolveProductEntity, productKind } from '../product/mutation.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
+import { ensureAstFresh } from '../graph/indexer.ts';
 
 const EPIC_STATUSES = ['draft', 'planned', 'active', 'completed', 'cancelled'] as const;
 const INTENT_STATUSES = ['draft', 'proposed', 'accepted', 'deprecated'] as const;
@@ -206,6 +211,25 @@ async function storyView(ctx: ToolContext, story: UserStory) {
 }
 
 export function registerProductTools() {
+  registry.register({
+    name:'get_module', category:'graph',
+    description:'Read an exact indexed Module identity, authored intent and current source availability. Source facts are not authorable.',
+    parameters:z.object({moduleId:z.string().min(1)}).strict(),
+    execute:async({moduleId},ctx)=>{
+      await ensureAstFresh(ctx.store);
+      const module=await ctx.store.getEntity<ModuleNode>(moduleId,ModuleNode.dcr);
+      if(!module) throw Error(`Module '${moduleId}' not found.`);
+      let sourcePresent=false;
+      for(const edge of await ctx.store.getOutgoing(module.id,'contains')) {
+        if(edge.targetType!=='FileNode') continue;
+        const file=await ctx.store.getEntity<FileNode & {metadata?:{externalPath?:string}}>(edge.targetId,FileNode.dcr);
+        const source=file?.metadata?.externalPath ?? path.resolve(ctx.projectRoot,ctx.store.localId(edge.targetId));
+        if(fs.statSync(source,{throwIfNoEntry:false})?.isFile()) {sourcePresent=true;break;}
+      }
+      return {...await module.fullDto<Record<string,unknown>>(),id:ctx.store.localId(module.id),version:module.version,
+        sourceStatus:sourcePresent?'indexed':'missing_source'};
+    }
+  });
   registry.register({name:'link',category:'planning',description:'Discover H/O/L relation types, inspect edges, or prepare an inert reviewed link change. Applying requires separate S2 review; no model approval flag.',parameters:LinkActionSchema,execute:(args,ctx)=>linkAction(ctx.store,args)});
   registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
   registry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>registry.execute('triage_test_failures',{testCommand:command},ctx),preview=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx))});

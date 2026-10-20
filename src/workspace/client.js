@@ -7,7 +7,8 @@ export function workspaceClient() {
   let catalog = [], current = null, preview = null, imported = null, pending = [], dirty = false, generation = 0, editEpoch = 0, advancedDirty = false, saving = false;
   const labels = {title:'Title',body:'Description',priority:'Priority',acceptanceCriteria:'Acceptance criteria',actor:'Actor',intent:'Intent',
     initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
-  const editable = ['Feature','Aspect','UserStory','Ticket'];
+  const editable = ['Product','Goal','Concept','Flow','Feature','Aspect','UserStory','Epic','Ticket','Module'];
+  const arrayFields = ['acceptanceCriteria','actors','nonGoals','responsibilities','outcomes','behavioralRules'];
   let testPreview=null, catalogPage=0;
   const say = (message, error=false) => {
     $('notice').textContent = message; $('notice').setAttribute('role',error?'alert':'status');
@@ -40,7 +41,7 @@ export function workspaceClient() {
   function canLeave() { return !dirty || confirm('Discard unsaved changes?'); }
   function option(select,value,text) { el('option',text,select,{value}); }
   function field(form,key,value,index,kind) {
-    const label=el('label',labels[key] || key,form);
+    const label=el('label',key==='body'&&kind==='Module'?'Purpose':labels[key] || ({purpose:'Purpose',actors:'Actors',scope:'Scope',nonGoals:'Non-goals',responsibilities:'Responsibilities',boundaries:'Boundaries',outcomes:'Outcomes',behavioralRules:'Behavioral rules'}[key]) || key,form);
     const id='field-'+index+'-'+key;
     let input;
     const choices=key==='ticketKind'?['task','bug']:key==='lane'?['Backlog','Todo','In Progress','Done','Blocked']:
@@ -49,25 +50,31 @@ export function workspaceClient() {
       input=el('select',undefined,label,{id,name:key});
       for(const choice of choices) option(input,choice,choice||'Unknown');
       input.value=value??(key==='ticketKind'?'task':key==='priority'?'P2':key==='lane'?'Todo':'');
-    } else if(key==='status') {
-      label.textContent='Definition status';
+    } else if(key==='status'||key==='intentStatus') {
+      label.textContent=kind==='Epic'?'Delivery status':'Definition status';
       input=el('select',undefined,label,{id,name:key,'ariaLabel':'Definition status'});
-      for(const status of ['draft','proposed','accepted','deprecated']) option(input,status,status);
+      for(const status of key==='status'&&kind==='Epic'?['draft','planned','active','completed','cancelled']:['draft','proposed','accepted','deprecated']) option(input,status,status);
       input.value=value || 'draft';
     } else {
       input=el(key==='title'||key==='priority'?'input':'textarea',undefined,label,{id,name:key});
       input.value=Array.isArray(value)?value.join('\n'):value??'';
       if(key==='priority') {input.type='number'; input.step='any';}
       if(key==='title') input.required=true;
-      if(key==='acceptanceCriteria') el('small','One observable criterion per line',label);
+      if(arrayFields.includes(key)) el('small',key==='acceptanceCriteria'?'One observable criterion per line':'One entry per line',label);
     }
+    input.setAttribute('aria-label',label.firstChild.textContent);
     input.oninput=invalidate;
   }
   function fieldsFor(kind, data) {
+    if(kind==='Product') return ['title','purpose','actors','scope','nonGoals','bounds','status'];
+    if(kind==='Module') return ['body','responsibilities','boundaries','intentStatus'];
+    if(kind==='Goal'||kind==='Concept') return ['title','body','status'];
+    if(kind==='Flow') return ['title','actor','body','context','status'];
+    if(kind==='Epic') return ['title','body','priority','status'];
     if(kind==='Ticket') return ['title','body','priority','lane','ticketKind',...(data.ticketKind==='bug'?['reproduction','expected','actual','severity','impact','environment','evidence']:[]),'acceptanceCriteria'];
     if(kind==='UserStory') return ['title','actor','intent','initialState','action','expectedResult','exceptions','bounds','acceptanceCriteria',
       ...['story','context','sla'].filter(key=>data[key]),'status'];
-    return ['title','body',...(kind==='Feature'?['priority']:[]),'acceptanceCriteria','status'];
+    return ['title','body',...(kind==='Feature'?['priority','outcomes','scope','boundaries','behavioralRules']:[]),'acceptanceCriteria','status'];
   }
   function entityForm(data,index,create=false) {
     const section=el('section',undefined,$('forms'),{className:'entity-form'});
@@ -75,8 +82,9 @@ export function workspaceClient() {
     el('h2',(data.kind==='UserStory'?'Story':data.kind) + (create?' · New':' · '+data.id),section);
     const meta=el('div',undefined,section,{className:'meta'});
     const label=el('label','Stable ID',meta);
-    el('input',undefined,label,{name:'id',value:data.id || '',readOnly:!create,oninput:invalidate,required:true});
+    el('input',undefined,label,{name:'id',value:data.id || '',readOnly:!create||data.kind==='Product',oninput:invalidate,required:true});
     if(data.version) el('span','Revision '+data.version,meta);
+    if(data.kind==='Module') el('p','Indexed path: '+(data.path||'unknown')+' · Source: '+(data.sourceStatus||'unknown'),section,{className:'hint'});
     const form=el('div',undefined,section,{className:'fields'});
     for(const key of fieldsFor(data.kind,data)) field(form,key,data[key]??data.defect?.[key],index,data.kind);
     if(data.kind==='UserStory') {
@@ -112,6 +120,7 @@ export function workspaceClient() {
   }
   async function refresh() {
     const result=await api('catalog'); catalog=result.entities; $('project').textContent=result.projectRoot;
+    $('new-product').hidden=catalog.some(entity=>entity.kind==='Product');
     list(catalogPage);
   }
   function list(page=0) {
@@ -128,7 +137,7 @@ export function workspaceClient() {
     for(const entity of rows.slice(catalogPage*pageSize,(catalogPage+1)*pageSize)) {
       const row=el('div',undefined,$('results'),{className:'result'});
       button(entity.title||entity.id,row,()=>open(entity.kind,entity.id));
-      el('small',(entity.ticketKind==='bug'?'Bug':entity.kind)+' · '+entity.id+' · '+(entity.status||entity.lane||'unknown'),row);
+      el('small',(entity.ticketKind==='bug'?'Bug':entity.kind)+' · '+entity.id+' · '+(entity.kind==='Module'?entity.intentStatus||'unknown':entity.status||entity.lane||'unknown'),row);
     }
     if(!rows.length) el('p','No matching entities. Try a shorter search or create a definition.',$('results'));
   }
@@ -150,7 +159,7 @@ export function workspaceClient() {
   }
   function create(kind) {
     if(!canLeave()) return; reset(); current=null;
-    entityForm(kind==='Bug'?{kind:'Ticket',ticketKind:'bug',lane:'Todo',priority:'P2'}:{kind,status:'draft'},0,true);
+    entityForm(kind==='Bug'?{kind:'Ticket',ticketKind:'bug',lane:'Todo',priority:'P2'}:{kind,...(kind==='Product'?{id:'PRODUCT'}:{}),status:kind==='Epic'?'planned':'draft'},0,true);
     $('context').hidden=false; context(); say('New '+(kind==='UserStory'?'Story':kind));
     $('forms').querySelector('[name=title]').focus();
   }
@@ -216,7 +225,7 @@ export function workspaceClient() {
       else if(['reproduction','expected','actual','severity','impact','environment','evidence'].includes(key)) {
         if(input.value!=='') (values.defect??={})[key]=key==='evidence'?input.value.split('\n').map(s=>s.trim()).filter(Boolean):input.value;
       }
-      else values[key]=key==='acceptanceCriteria'?input.value.split('\n').map(s=>s.trim()).filter(Boolean):input.value;
+      else values[key]=arrayFields.includes(key)?input.value.split('\n').map(s=>s.trim()).filter(Boolean):input.value;
     }
     return values;
   }
@@ -364,7 +373,7 @@ export function workspaceClient() {
   $('search').oninput=()=>list(); $('kind-filter').onchange=()=>list();
   $('previous-page').onclick=()=>run(()=>list(catalogPage-1));
   $('next-page').onclick=()=>run(()=>list(catalogPage+1));
-  for(const [id,kind] of [['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
+  for(const [id,kind] of [['new-product','Product'],['new-goal','Goal'],['new-concept','Concept'],['new-flow','Flow'],['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-epic','Epic'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
   $('review-button').onclick=()=>run(()=>review());
   $('update').onclick=()=>run(()=>review());
   $('accept').onclick=()=>run(()=>decision('accept'));

@@ -5,6 +5,8 @@ import type { ToolContext } from '../tools/registry.ts';
 import { ProductMutationSchema, ProductRevisionSchema } from '../product/mutation.ts';
 import { workspacePage } from './page.ts';
 import { IntentProposalSchema } from '../product/process-types.ts';
+import { Product, ModuleNode } from '../graph/ontology.ts';
+import { ensureAstFresh } from '../graph/indexer.ts';
 
 const reads = {
   Feature: ['list_features', 'get_feature', 'featureId'],
@@ -14,7 +16,9 @@ const reads = {
   Concept: ['list_concepts', 'get_concept', 'id'],
   Flow: ['list_flows', 'get_flow', 'id'],
   Epic: ['list_epics', 'get_epic', 'epicId'],
-  Ticket: ['list_tickets', 'get_ticket', 'ticketId']
+  Ticket: ['list_tickets', 'get_ticket', 'ticketId'],
+  Product: [Product.dcr],
+  Module: [ModuleNode.dcr]
 } as const;
 const querySchema = z.object({kind:z.enum(Object.keys(reads) as [keyof typeof reads, ...(keyof typeof reads)[]]), id:z.string().min(1)});
 const requestSchema = z.object({action:z.literal('product_change'), mutations:z.array(ProductMutationSchema).min(1), basis:z.array(ProductRevisionSchema).optional(), originalRequest:z.string().optional()}).strict();
@@ -41,16 +45,22 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
       try {
         if (req.method === 'GET' && url.pathname === '/api/catalog') {
           const groups = await Promise.all(Object.entries(reads).map(async ([kind,[list]]) => {
-            const rows = await call(list,{}) as Array<Record<string,unknown>>;
+            if (kind === 'Module') await ensureAstFresh(ctx.store);
+            const rows: Array<Record<string,unknown>> = typeof list === 'string' ? await call(list,{}) as Array<Record<string,unknown>>
+              : await Promise.all((await ctx.store.listEntities(list)).map(async entity=>({...await entity.fullDto<Record<string,unknown>>(),id:ctx.store.localId(entity.id),version:entity.version})));
             return rows.map(row=>({...row,...(kind==='Ticket'?{ticketKind:row.kind??'task'}:{}),kind}));
           }));
           return json({entities:groups.flat(),projectRoot:ctx.projectRoot});
         }
         if (req.method === 'GET' && url.pathname === '/api/entity') {
           const {kind,id} = querySchema.parse(Object.fromEntries(url.searchParams));
-          const [,get,key] = reads[kind];
-          const entity = await call(get,{[key]:id}) as Record<string,unknown>;
+          if (kind === 'Module') await ensureAstFresh(ctx.store);
+          const reader = reads[kind];
           const canonical = await ctx.store.getEntity(id);
+          if (canonical && canonical.typeName() !== (kind === 'Module' ? 'ModuleNode' : kind)) return json({error:'Entity kind mismatch'},400);
+          const entity = kind === 'Module' ? await call('get_module',{moduleId:id}) as Record<string,unknown> : typeof reader[0] === 'string'
+            ? await call(reader[1]!,{[reader[2]!]:id}) as Record<string,unknown>
+            : canonical ? {...await canonical.fullDto<Record<string,unknown>>(),id:ctx.store.localId(canonical.id),version:canonical.version} : {};
           if (!canonical) return json({error:'Entity not found'},404);
           if (entity.version !== undefined && entity.version !== canonical.version)
             return json({error:'Entity changed while loading. Reload canonical data.'},409);
@@ -60,7 +70,7 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           }])).values()];
           const aspects = kind === 'Aspect' ? [] : await call('get_applicable_aspects',{entityId:id});
           const storyTests=kind==='UserStory'?await call('get_story_test_status',{storyId:id}):undefined;
-          return json({storyTests,entity:{...entity,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
+          return json({storyTests,entity:{...entity,version:canonical.version,...(kind==='Ticket'?{ticketKind:entity.kind??'task'}:{}),kind},basis:[{id,entityType:canonical.typeName(),version:canonical.version}],relations,aspects});
         }
         if (req.method === 'POST' && url.pathname === '/api/run-story-test')
           return json(await call('run_story_test',z.object({storyId:z.string().min(1)}).parse(await req.json())));

@@ -414,6 +414,14 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
 
   const archCmd = root.command('arch').description('Architecture operations');
   const archModule = archCmd.command('module').description('Architecture module operations');
+  archModule.command('list').description('Discover indexed Modules through the existing source graph')
+    .option('--query <text>','Literal Module search').option('--limit <count>','Maximum results (1–100)',Number)
+    .action((opts:{query?:string;limit?:number})=>{
+      const limit=z.number().int().min(1).max(100).parse(opts.limit??25);
+      emit({family:'artifact',tool:'search_graph',args:{entityType:'ModuleNode',query:opts.query,limit}});
+    });
+  archModule.command('show <id>').description('Show exact Module intent and indexed source availability')
+    .action((moduleId:string)=>emit({family:'artifact',tool:'get_module',args:{moduleId}}));
   archModule.command('edit <id>').description('Edit Module Intent')
     .option('--body <text>', 'Module purpose')
     .option('--responsibility <text>', 'Add responsibility', (v, prev: string[] = []) => [...prev, v])
@@ -421,8 +429,9 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .option('--status <status>', 'Module intent status')
     .option('--yes', 'Confirm and apply definition change directly')
     .action((id: string, opts: any) => {
-      const { yes, responsibility, ...rest } = opts;
+      const { yes, responsibility, status, ...rest } = opts;
       const fields: Record<string, unknown> = { ...rest };
+      if (status !== undefined) fields.intentStatus = status;
       if (responsibility) fields.responsibilities = responsibility;
       emit({
         family: 'definition',
