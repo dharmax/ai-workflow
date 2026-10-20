@@ -26,14 +26,13 @@ test('store close releases SQLite files before fixture removal and preserves dat
   expect((await store.getEntity<Ticket>('T',Ticket.dcr))?.title).toBe('Retained work');
 });
 
-test('store close reports an outstanding native statement and can retry after its owner disposes it', () => {
+test('store close finalizes outstanding prepared statements and is idempotent', () => {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-store-busy-'));
   store=new WorkflowStore(root);
   const statement=store.db.prepare('SELECT 1');
-  try {
-    expect(()=>store.close()).toThrow('database is locked');
-  } finally {
-    statement.finalize();
-  }
+  expect(statement.get()).toEqual({'1':1});
+  expect(()=>store.close()).not.toThrow();
+  expect(()=>statement.get()).toThrow('Database has closed');
+  expect(()=>statement.finalize()).not.toThrow();
   expect(()=>store.close()).not.toThrow();
 });
