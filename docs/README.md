@@ -1,5 +1,7 @@
 # AIWF documentation
 
+**Current working checkpoint:** [AIWF v1 — active two-iteration delivery](../plans/AIWF-V1-ACTIVE-CHECKPOINT.md). This is the concise current scope/status/validation policy; dated audits are evidence, not competing execution plans.  
+**Detailed three-iteration release contract:** [AIWF usable v1 plan](../plans/AIWF-USABLE-V1-RELEASE-PLAN.md).  
 **Governing design:** [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md).  
 **Execution stages:** [Dharmax-way plan](../plans/AIWF-DHARMAX-WAY-PLAN.md).  
 **Required S5→S6 postcondition:** [Product Operability design](../plans/AIWF-S5-POSTCONDITION-DESIGN.md) and [PC0–PC5 plan](../plans/AIWF-S5-POSTCONDITION-PLAN.md).  
