@@ -43,4 +43,21 @@ Qualify the *packed/public* build from the supported install/dependency setup in
 - **Execution hygiene:** use master; no forest of branches. Claim canonical owner when editing source/test code, release lease, preserve unrelated dirty files, push stable coherent changes. Keep Board truthful (one primary executing Ticket; few actionable Todo; actual blockers in Blocked; noncritical work in Backlog). Preserve mandatory scope and defer all noncritical improvements from `AIWF-USABLE-V1-RELEASE-PLAN.md`.
 - **Reporting:** one short status after each meaningful step: demonstrated external user behavior, exact source owner/fix if any, observed real model/test/proof outcomes, the one current blocker, and next action. Green tests alone never imply developer authorization or release acceptance.
 
-**Next action:** start I2 at the provider + PC5 S6-entry reality check, then drive the existing Ledger `T-MEAN` and `B-TOTAL` through AIWF's native resolver. No further pristine/LSP investigation without a *new* observed blocker.
+## I2 outcome — 2026-10-20: NO-GO at provider entry
+
+Checked clean local and remote master `b496a2a84c0fa6cf209087443944ca3e1f5692b1`, Bun 1.4.3 and installed dependencies. Canonical state: 106 Tickets, no active leases; `TKT-DOCTRINE-SEMANTIKA-CONTRACT` Todo/unverified (version 41), `TKT-DOCTRINE-G5-RELEASE` Blocked/unverified (version 49), with the prerequisite edge intact. No canonical work/acceptance state was changed.
+
+Actual bounded inference through `createDefaultAsker` / `ModelService`, using the same route selections as `implementTicket` and `verifyTicketAcceptance`, failed on a minimal JSON arithmetic request (`maxTokens:64`, `maxRetries:0`, 45-second abort):
+
+- DEV `ollama/qwen2.5-coder:7b`: timeout, 45,012 ms.
+- CRITIC `ollama/gemma4:e4b`: timeout, 45,031 ms.
+- Raw generation on the configured Ollama host, Qwen with one output token: timeout, 15,001 ms. No AIWF Actor/navigation was involved.
+- Supported `gateway:auto` in an isolated temporary configuration, reusing existing credential resolution without changing project routing: `openrouter/deepseek/deepseek-chat` and `openrouter/openai/o3-mini` both returned authentication `User not found.` (260/10 ms); `openai/gpt-4.1-mini` returned quota `You have no credits remaining.` (6,601 ms). No credentials were printed or modified.
+
+These are current external provider failures, not Story reds or implementation defects. Per I2's explicit stop rule, S6a and the Ledger Feature/Bug resolver executions were not entered; neither external implementation was manually edited. The existing complete Ledger bundle verifies at `43645f6c56e88d813cd490cfd22d22f2c6d4b037`; its identities, expected-red history and source remain preserved. No new independent verdict, receipt, Done or restart qualification is claimed.
+
+Remaining normative entry obligations are unchanged: independently attributable PC5 acceptance of PC-J1–J10 **and** mandatory everyday/negative cases, plus developer acceptance; current Gate 5 whole-method/PD-01 and Semantika admission/atomic-completion acceptance through their existing owners. Ordinary tests cannot satisfy these gates. The present authorization permits execution after legitimate entry; it does not manufacture that acceptance.
+
+Validation on the unchanged implementation: `bun test --max-concurrency=1` **553 pass / 5 skip / 0 fail**, 558 tests across 73 files, 101.14 seconds; `bun run typecheck`, `bun run pack` (build 946), and `git diff --check` pass. The skips remain unqualified live acceptance. Installed sibling heads: Semantika `0775e37ef036e1eba27d42578d4ef3c67c81e234` (existing dirty Markdown preserved), llm-utils `f8222aaa155a0b86f50b7cacbe0701ed29d86840` (clean). This is workspace validation, not independent PC5 acceptance or pristine/fresh-install qualification.
+
+**I3 entry:** restore real bounded inference on the configured implementation and distinct verifier routes (or qualify a supported, explicitly recorded alternative), then obtain outstanding normative PC5/Gate 5 acceptance. Continue S6a, the same `T-MEAN` / `S-MEAN` and `B-TOTAL` / `S-TOTAL`, and packed/public release qualification. This is the third and final planned iteration; no fourth iteration or reduced contract is implied. No AIWF code repair was justified by these provider-only failures, and no pristine/LSP investigation was repeated.
