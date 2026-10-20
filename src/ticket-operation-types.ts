@@ -90,6 +90,8 @@ export interface ResolutionVerificationInput { dossier: TicketDossier; files: st
 export interface ResolutionOptions extends PreparationOptions {
   /** Cumulative implementation Actor token budget override. Explicit values are treated as hard caps. */
   maxActorTokens?: number;
+  /** Verify existing work without source implementation or repair; independent acceptance remains mandatory. */
+  verifyOnly?: boolean;
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
   /** Explicit per-Ticket authorization for files outside authored source targets, including new/rename endpoints. */
   authorizedFiles?: Record<string, string[]>;

@@ -25,7 +25,7 @@ it.skipIf(process.env.AIWF_DOCTRINE_LIVE !== '1')('OpenRouter rejects a real red
     evidence[phase] = result;
     const content = JSON.stringify(evidence, null, 2) + '\n';
     fs.writeFileSync(evidenceFile, content);
-    fs.writeFileSync('/tmp/g3-live-adversarial.json', content);
+    fs.writeFileSync(path.join(os.tmpdir(), 'g3-live-adversarial.json'), content);
     console.log(`Live doctrine evidence recorded: ${phase}`);
   };
   try {

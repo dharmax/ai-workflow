@@ -34,6 +34,36 @@ describe('truthful setup', () => {
     expect(json.other).toBe('retained');
     expect(json.mcpServers.other.command).toBe('other');
   });
+  it('preserves host tool review settings when reloading MCP and schemas', () => {
+    fs.mkdirSync(path.join(home, '.codex'));
+    fs.mkdirSync(path.join(home, '.gemini'));
+    const file = path.join(home, '.codex', 'config.toml');
+    fs.writeFileSync(file, `[mcp_servers.aiwf-mcp]
+command = "/old/aiwf"
+args = ["mcp"]
+[mcp_servers.aiwf-mcp.tools.apply_change]
+approval_mode = "deny"
+[mcp_servers.aiwf-mcp.tools.artifact]
+approval_mode = "approve"
+[mcp_servers.unrelated]
+command = "retained"
+`);
+    const options = {homeDir: home, binaryPath: '/current/aiwf'};
+    const before = fs.readFileSync(file, 'utf8');
+    configureMcp({...options, check: true});
+    expect(fs.readFileSync(file, 'utf8')).toBe(before);
+    const result = configureMcp(options);
+    expect(result.steps.find(s => s.id === 'OpenAI Codex')?.state).toBe('changed');
+    const parsed = Bun.TOML.parse(fs.readFileSync(file, 'utf8')) as {mcp_servers: Record<string, {command: string; tools: Record<string, {approval_mode: string}>}>};
+    expect(parsed.mcp_servers['aiwf-mcp'].command).toBe('/current/aiwf');
+    expect(parsed.mcp_servers['aiwf-mcp'].tools.apply_change.approval_mode).toBe('deny');
+    expect(parsed.mcp_servers['aiwf-mcp'].tools.artifact.approval_mode).toBe('approve');
+    expect(parsed.mcp_servers.unrelated.command).toBe('retained');
+    expect(fs.existsSync(path.join(result.schemasDir, 'artifact.json'))).toBe(true);
+    const installed = fs.readFileSync(file, 'utf8');
+    expect(configureMcp(options).steps.filter(s => s.state === 'changed' || s.state === 'failed')).toEqual([]);
+    expect(fs.readFileSync(file, 'utf8')).toBe(installed);
+  });
   it('skips absent hosts without creating their directories', () => {
     const result = configureMcp({homeDir: home, check: true});
     expect(result.steps.filter(s => !s.id.startsWith('Skill:') && s.id !== 'MCP schemas').every(s => s.state === 'skipped')).toBe(true);

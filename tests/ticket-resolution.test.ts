@@ -14,7 +14,7 @@ import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
 import type { ResolutionVerificationInput, ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/verification-context.ts';
-import { registry } from '../src/tools/registry.ts';
+import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 
 describe('Ticket-owned bounded resolution', () => {
@@ -108,6 +108,36 @@ describe('Ticket-owned bounded resolution', () => {
       expect(JSON.parse(receipt!.body!).tests).toContainEqual({ command: commands[0], passed: true });
       expect((await currentTestEvidence(store, [oracle.id]))[0].passed).toBe(true);
       expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].resolution?.outcome).toBe('verified_no_change');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
+  for (const implemented of [true, false]) it(`public verify-only resolves existing work without a producer (implemented=${implemented})`, async () => {
+    if (implemented) fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
+    const t = await ticket();
+    const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'verification baseline');
+    const source = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
+    const calls: string[] = [];
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      if (!prompt.includes('Independently verify EVERY')) throw Error('verify-only must not invoke an implementation model');
+      calls.push('acceptance');
+      expect(prompt).toContain('return a + b');
+      expect(prompt).toContain('"passed":true');
+      return {model, ok: true, text: JSON.stringify({criteria: [{criterion: 'Positive and negative inputs add correctly', passed: true, evidence: 'Executed signed addition contract agrees with current source.'}], aspects: [], rules: []})};
+    });
+    try {
+      initializeTools();
+      const result = await registry.execute('resolve_ticket', {ticketId: 'T', verifyOnly: true, critic: 'none', testCommands: [['bun', 'test', oracle.filePath!]]}, {store, projectRoot: root, executionAuthority: 'project-write'});
+      expect(result.status).toBe(implemented ? 'complete' : 'blocked');
+      expect(calls).toEqual(implemented ? ['acceptance'] : []);
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(source);
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
+      const receipt = await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr);
+      expect(!!receipt).toBe(implemented);
+      store.close(); store = new WorkflowStore(root);
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe(implemented ? 'Done' : 'Todo');
+      if (implemented) expect(queryPerformance(root, {operation: 'resolve_ticket'}).rows[0].resolution?.outcome).toBe('verified_no_change');
+      else expect(queryPerformance(root, {operation: 'resolve_ticket'}).rows[0].resolution?.outcome).toBe('blocked_verification');
     } finally { completion.mockRestore(); }
   }, 30000);
 

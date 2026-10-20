@@ -43,7 +43,7 @@ export function registerTicketTools() {
 
   registry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
-    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional(), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
+    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional(), verifyOnly: z.boolean().optional().describe("Verify existing work without invoking the implementation Actor or editing source; failed checks block rather than repair. Independent acceptance is still required."), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
       if (ticket.kind === 'bug' && !assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};

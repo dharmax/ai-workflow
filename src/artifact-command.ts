@@ -20,7 +20,7 @@ export const ARTIFACT_HELP = `Delegate artifact work first:
 
 Operation options: --completeness <level> --depth <N|all> --max-artifacts <N>
                    --critic <auto|none|configured-id> --tag <key=value> (repeatable)
-Resolution options: --agent <id> --max-repairs <0..3> --allow-dirty-target <path> --authorize-file <ticketId=path>
+Resolution options: --agent <id> --verify-only --max-repairs <0..3> --allow-dirty-target <path> --authorize-file <ticketId=path>
 Completeness on an operation is temporary. Persist it only with completeness set.
 needs_input/blocked are results to inspect; Done requires explicit acceptance proof.
 Use symbol/graph/slice/blast/change/test primitives for explicit drill-down.`;
@@ -125,7 +125,7 @@ function artifactIntent(tool: string, id: string, input: Record<string, unknown>
   }
   if(allowDirtyTarget) options.allowDirtyTargets=allowDirtyTarget;
   if(typeof options.critic==='string' && !['auto','none'].includes(options.critic)) options.critic={id:options.critic};
-  const schema=ArtifactTransportOptionsSchema.extend({agentId:z.string().optional(),maxRepairs:z.number().int().min(0).max(3).optional(),allowDirtyTargets:z.array(z.string()).optional(),authorizedFiles:z.record(z.string(),z.array(z.string())).optional()}).strict();
+  const schema=ArtifactTransportOptionsSchema.extend({agentId:z.string().optional(),verifyOnly:z.boolean().optional(),maxRepairs:z.number().int().min(0).max(3).optional(),allowDirtyTargets:z.array(z.string()).optional(),authorizedFiles:z.record(z.string(),z.array(z.string())).optional()}).strict();
   const key=tool.endsWith('_ticket')?'ticketId':tool==='process_epic'?'epicId':tool==='process_feature'?'featureId':'storyId';
   return {family:'artifact',tool,args:{[key]:id,...schema.parse(options)}};
 }
@@ -149,6 +149,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
       .option('--critic <id>','Critic selection',value=>['auto','none'].includes(value.toLowerCase())?value.toLowerCase():value)
       .option('--tag <key=value>','Metric tag (repeatable)',collect);
     if(tool==='resolve_ticket') command.option('--agent <id>','Agent ID')
+      .option('--verify-only','Verify existing work without implementation or source repair')
       .option('--max-repairs <count>','Repair bound',Number)
       .option('--allow-dirty-target <path>','Authorized dirty path (repeatable)',collect)
       .option('--authorize-file <ticket=path>','Authorized scope (repeatable)',collect);

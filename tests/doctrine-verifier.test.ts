@@ -305,6 +305,21 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
       .rejects.toThrow('Verification context exceeds');
   });
 
+  it('supplies caller-scoped whole files without resolving inferred call anchors as declarations', async () => {
+    fs.appendFileSync(path.join(root, 'src/add.ts'), '\nexport class BoundAddition { constructor() { const bound = add.bind(null); } }\n');
+    await indexCodebase(store, root);
+    const inferred = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.filePath === 'src/add.ts' && symbol.title === 'bind')!;
+    expect(inferred).toBeDefined();
+    const investigation = await ticket.investigate(store, options());
+    if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+    const dossier = {...investigation.value, evidence: investigation.value.evidence.filter(item => item.kind !== 'FileNode' && item.kind !== 'SymbolNode')};
+    const context = await buildVerificationContext(store, root, {dossier, files: ['src/add.ts'], testNodes: [{id: 'test:tests/add.test.ts', filePath: 'tests/add.test.ts', verifies: [inferred.id]}]});
+    const file = context.files.find(item => item.file === 'src/add.ts')!;
+    expect(file.snippets).toHaveLength(1);
+    expect(file.snippets[0].source).toBe(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8'));
+    expect(file.outline).toEqual([]);
+  });
+
   it('fails when one of several required exact declarations cannot be supplied', async () => {
     const investigation = await ticket.investigate(store, options());
     if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));

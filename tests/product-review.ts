@@ -1,6 +1,6 @@
 import {Aspect} from '../src/graph/ontology.ts';
 import type {WorkflowStore} from '../src/graph/store.ts';
-import {registry} from '../src/tools/index.ts';
+import {initializeTools,registry} from '../src/tools/index.ts';
 import type {ProductMutation} from '../src/product/mutation.ts';
 
 export function reviewedApply(store: WorkflowStore, params: Record<string,unknown>) {
@@ -11,6 +11,7 @@ export function reviewedApply(store: WorkflowStore, params: Record<string,unknow
 
 /** Emulate a local host reviewing an exact S2 preview, never agent self-approval. */
 export async function acceptProduct(store: WorkflowStore, mutations: ProductMutation[]) {
+ initializeTools();
  const ctx={store,projectRoot:store.root,executionAuthority:'project-write' as const};
  const request={action:'product_change' as const,mutations};
  const preview=await registry.execute('preview_change',request,ctx);

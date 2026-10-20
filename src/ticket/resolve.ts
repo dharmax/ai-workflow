@@ -397,7 +397,7 @@ export async function resolveTicket(
                         options.verify ?? ((input: ResolutionVerificationInput) => verifyTicketAcceptance(store, input, options, cfg))
                     let feedback: string[] = []
                     const implementationState = { tranches: 0 }
-                    for (let attempt = 0; attempt <= maxRepairs; attempt++) {
+                    for (let attempt = 0; attempt <= (options.verifyOnly ? 0 : maxRepairs); attempt++) {
                         options.signal?.throwIfAborted()
                         if (attempt) {
                             repairs++
@@ -413,37 +413,39 @@ export async function resolveTicket(
                         let proposedTests = [...(options.testCommands ?? [])]
                         if (!children.length && (ticket.lane !== "Done" || attempt > 0)) {
                             await requireStoryTests(store,ticket)
-                            const implementation =
-                                options.implement ??
-                                ((input: TicketDossier, findings: readonly string[]) =>
-                                    implementTicket(input, findings, {
-                                        store,
-                                        ticket,
-                                        options,
-                                        cfg,
-                                        applyChange: apply,
-                                        mutationEpoch: () => successfulChanges,
-                                        ownedFiles,
-                                        tokenBudget: actorTokenBudget,
-                                        state: implementationState,
-                                        testCommands: proposedTests,
-                                        repair: attempt > 0
-                                    }))
-                            const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback))
-                            if (proposal.required?.length) return { status: "needs_input", artifactId: id, required: proposal.required }
-                            let changeBlocked = false
-                            for (const request of proposal.changes) {
-                                try {
-                                    await apply(request)
-                                } catch (error) {
-                                    if (String(error).includes("Dirty target requires input:") || String(error).includes("Scope expansion requires input:")) throw error
-                                    feedback = [String(error)]
-                                    changeBlocked = true
-                                    break
+                            if (!options.verifyOnly) {
+                                const implementation =
+                                    options.implement ??
+                                    ((input: TicketDossier, findings: readonly string[]) =>
+                                        implementTicket(input, findings, {
+                                            store,
+                                            ticket,
+                                            options,
+                                            cfg,
+                                            applyChange: apply,
+                                            mutationEpoch: () => successfulChanges,
+                                            ownedFiles,
+                                            tokenBudget: actorTokenBudget,
+                                            state: implementationState,
+                                            testCommands: proposedTests,
+                                            repair: attempt > 0
+                                        }))
+                                const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback))
+                                if (proposal.required?.length) return { status: "needs_input", artifactId: id, required: proposal.required }
+                                let changeBlocked = false
+                                for (const request of proposal.changes) {
+                                    try {
+                                        await apply(request)
+                                    } catch (error) {
+                                        if (String(error).includes("Dirty target requires input:") || String(error).includes("Scope expansion requires input:")) throw error
+                                        feedback = [String(error)]
+                                        changeBlocked = true
+                                        break
+                                    }
                                 }
+                                if (changeBlocked) continue
+                                if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands
                             }
-                            if (changeBlocked) continue
-                            if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands
                         }
                         const attributableState = Object.assign({...scope.baselines}, ...scope.effects.slice(effectEpoch).map(effect => effect.after))
                         if (canonical(attributableState) !== canonical(hashFiles(store.root, Object.keys(attributableState))))

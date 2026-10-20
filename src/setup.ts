@@ -419,9 +419,15 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
   steps.push(setupFiles('OpenAI Codex', fs.existsSync(codex), check, () => {
     const filePath = path.join(codex, 'config.toml');
     const raw = readSetupFile(filePath);
-    try { Bun.TOML.parse(raw); } catch { throw new Error(`Invalid TOML host configuration at ${filePath}; repair it before setup.`); }
-    let block = `[mcp_servers.aiwf-mcp]\ncommand = ${JSON.stringify(command)}\nargs = ${JSON.stringify(args)}\nenv = { AI_WORKFLOW_TOOLKIT_ROOT = ${JSON.stringify(pkgRoot)} }`;
-    for (const tool of allToolNames) block += `\n\n[mcp_servers.aiwf-mcp.tools.${tool}]\napproval_mode = "approve"`;
+    let existingTools: Record<string, unknown> = {};
+    try {
+      const config = Bun.TOML.parse(raw) as {mcp_servers?: Record<string, {tools?: Record<string, unknown>}>};
+      existingTools = config.mcp_servers?.['aiwf-mcp']?.tools ?? {};
+    } catch { throw new Error(`Invalid TOML host configuration at ${filePath}; repair it before setup.`); }
+    const block = Bun.TOML.stringify({mcp_servers: {'aiwf-mcp': {
+      command, args, env: {AI_WORKFLOW_TOOLKIT_ROOT: pkgRoot},
+      tools: Object.fromEntries(allToolNames.map(tool => [tool, existingTools[tool] ?? {approval_mode: 'approve'}]))
+    }}});
     const files: SetupFile[] = [{filePath, content: replaceTomlServerSection(raw, 'aiwf-mcp', block)}];
     const rulesPath = path.join(codex, 'rules', 'default.rules');
     let rules = readSetupFile(rulesPath);

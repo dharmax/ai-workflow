@@ -155,7 +155,7 @@ export async function buildVerificationContext(
   for (const file of new Set([...scopeFiles, ...wantedSourceSymbols.keys()])) ensureFile(file)
 
   for (const [file, names] of wantedSourceSymbols) {
-    if (wholeFileTargets.has(file)) continue
+    if (scopeFiles.has(file) && !exactScope.has(file)) continue
     const context = ensureFile(file)
     for (const name of names) {
       try {
