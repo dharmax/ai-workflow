@@ -8,7 +8,7 @@ export function workspaceClient() {
   const labels = {title:'Title',body:'Description',priority:'Priority',acceptanceCriteria:'Acceptance criteria',actor:'Actor',intent:'Intent',
     initialState:'Initial State',action:'Action',expectedResult:'Expected Result',exceptions:'Exceptions',bounds:'Bounds',story:'Legacy narrative',context:'Legacy context',sla:'Service level'};
   const editable = ['Feature','Aspect','UserStory','Ticket'];
-  let testPreview=null;
+  let testPreview=null, catalogPage=0;
   const say = (message, error=false) => {
     $('notice').textContent = message; $('notice').setAttribute('role',error?'alert':'status');
     $('notice').className = error ? 'error' : 'notice';
@@ -112,14 +112,20 @@ export function workspaceClient() {
   }
   async function refresh() {
     const result=await api('catalog'); catalog=result.entities; $('project').textContent=result.projectRoot;
-    list();
+    list(catalogPage);
   }
-  function list() {
+  function list(page=0) {
     const query=$('search').value.toLowerCase().trim(), kind=$('kind-filter').value;
     const rows=catalog.filter(e=>(!kind||(kind==='Bug'?e.ticketKind==='bug':e.kind===kind)) && JSON.stringify(e).toLowerCase().includes(query));
     $('results').replaceChildren();
+    const pageSize=25, pages=Math.ceil(rows.length/pageSize);
+    catalogPage=Math.max(0,Math.min(page,pages-1));
     $('count').textContent=rows.length+' canonical entities';
-    for(const entity of rows) {
+    $('catalog-pages').hidden=pages<=1;
+    $('catalog-page').textContent=pages?'Page '+(catalogPage+1)+' of '+pages:'No results';
+    $('previous-page').disabled=catalogPage===0;
+    $('next-page').disabled=catalogPage+1>=pages;
+    for(const entity of rows.slice(catalogPage*pageSize,(catalogPage+1)*pageSize)) {
       const row=el('div',undefined,$('results'),{className:'result'});
       button(entity.title||entity.id,row,()=>open(entity.kind,entity.id));
       el('small',(entity.ticketKind==='bug'?'Bug':entity.kind)+' · '+entity.id+' · '+(entity.status||entity.lane||'unknown'),row);
@@ -355,7 +361,9 @@ export function workspaceClient() {
     const proposal=result.value.proposals[0]; reset(); renderProposal(proposal.request);dirty=true;
     await review(proposal.request,proposal);
   });
-  $('search').oninput=list; $('kind-filter').onchange=list;
+  $('search').oninput=()=>list(); $('kind-filter').onchange=()=>list();
+  $('previous-page').onclick=()=>run(()=>list(catalogPage-1));
+  $('next-page').onclick=()=>run(()=>list(catalogPage+1));
   for(const [id,kind] of [['new-feature','Feature'],['new-story','UserStory'],['new-aspect','Aspect'],['new-bug','Bug']]) $(id).onclick=()=>run(()=>create(kind));
   $('review-button').onclick=()=>run(()=>review());
   $('update').onclick=()=>run(()=>review());

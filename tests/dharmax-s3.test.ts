@@ -78,6 +78,36 @@ describe('S3 Workspace public developer journeys', () => {
     if (root) { fs.rmSync(root, {recursive:true, force:true}); root = undefined as any; }
   });
 
+  it('PC5 paginates a large catalog without losing selection, draft or reviewed preview', async () => {
+    const page=await setup();
+    for(let index=0;index<26;index++) await createProduct(store,'Feature',{id:'F-'+index,title:'Catalog item '+index,status:'draft'});
+    await page.getByRole('button',{name:'Reload canonical data',exact:true}).click();
+    await page.getByLabel('Entity type',{exact:true}).selectOption('Feature');
+    expect(await page.locator('#results .result').count()).toBe(25);
+    await page.locator('#results .result button').first().click();
+    await page.getByLabel('Description',{exact:true}).fill('Retained catalog draft');
+    await page.getByRole('button',{name:'Review changes',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
+    const selectedId=await page.locator('[name=id]').inputValue();
+    await page.getByRole('button',{name:'Next page',exact:true}).click();
+    expect(await page.locator('#results .result').count()).toBe(1);
+    expect(await page.locator('[name=id]').inputValue()).toBe(selectedId);
+    expect(await page.getByLabel('Description',{exact:true}).inputValue()).toBe('Retained catalog draft');
+    expect(await page.getByRole('button',{name:'Accept and save',exact:true}).isEnabled()).toBe(true);
+    await page.getByRole('button',{name:'Previous page',exact:true}).click();
+    expect(await page.locator('#results .result').count()).toBe(25);
+    await page.getByLabel('Search product',{exact:true}).fill('Catalog item 25');
+    expect(await page.locator('#results .result').count()).toBe(1);
+    expect(await page.getByRole('button',{name:'Next page',exact:true,includeHidden:true}).isDisabled()).toBe(true);
+    await page.getByLabel('Search product',{exact:true}).fill('no matching catalog record');
+    await expect(page.getByText('No matching entities. Try a shorter search or create a definition.',{exact:true}).isVisible()).resolves.toBe(true);
+    expect(await page.getByLabel('Description',{exact:true}).inputValue()).toBe('Retained catalog draft');
+    await page.getByLabel('Search product',{exact:true}).fill('');
+    await page.getByRole('button',{name:'Accept and save',exact:true}).click();
+    await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
+    expect((await call('get_feature',{featureId:selectedId})).body).toBe('Retained catalog draft');
+  },30000);
+
   it('reports and edits a first-class Bug through the actual reviewed Workspace', async () => {
     const page=await setup();
     await page.getByRole('button',{name:'Report Bug',exact:true}).click();

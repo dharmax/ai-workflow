@@ -15,6 +15,7 @@ header{background:#142b36;color:#fff;padding:18px 26px;display:flex;align-items:
 <label>Search product<input id="search" type="search" placeholder="Title, ID, scenario, policy…" aria-keyshortcuts="Control+k"></label>
 <label>Entity type<select id="kind-filter" aria-label="Entity type"><option value="">All product and work</option><option>Feature</option><option value="UserStory">Story</option><option>Aspect</option><option>Goal</option><option>Concept</option><option>Flow</option><option>Epic</option><option>Ticket</option><option>Bug</option></select></label>
 <small id="count"></small><nav id="results" aria-label="Canonical entities"></nav>
+<div id="catalog-pages" role="group" aria-label="Catalog pages" hidden><button id="previous-page">Previous page</button> <span id="catalog-page" aria-live="polite"></span> <button id="next-page">Next page</button></div>
 </aside><main><h1>Define the product</h1><p class="hint">Edit intent, complete scenarios, and shared policies. Review every change before saving.</p>
 <div class="toolbar"><button id="new-feature">New Feature</button><button id="new-story">New Story</button><button id="new-aspect">New Aspect</button><button id="new-bug">Report Bug</button><button id="import-button">Review proposal</button><button id="reload">Reload canonical data</button></div>
 <div id="notice" role="status" aria-live="polite">Loading canonical definitions…</div>
