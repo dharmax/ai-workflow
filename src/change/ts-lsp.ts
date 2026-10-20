@@ -229,15 +229,20 @@ export class TsLspClient {
 
   async getDocumentSymbols(filePath: string): Promise<LspDocumentSymbol[]> {
     await this.ensureStarted();
+    const connection = this.connection;
+    if (!connection) throw new Error('TypeScript LSP client is closed.');
     if (!this.capabilities?.raw.documentSymbolProvider) throw new Error('TypeScript document symbols unavailable.');
     const uri = this.toUri(filePath);
-    await this.connection!.sendNotification('textDocument/didOpen', { textDocument: {
+    await connection.sendNotification('textDocument/didOpen', { textDocument: {
       uri, languageId: /\.[cm]?tsx?$/.test(filePath) ? 'typescript' : 'javascript', version: 1,
       text: fs.readFileSync(path.resolve(this.projectRoot, filePath), 'utf8')
     } });
     try {
-      return await this.connection!.sendRequest('textDocument/documentSymbol', { textDocument: { uri } }) as LspDocumentSymbol[] || [];
-    } finally { await this.connection!.sendNotification('textDocument/didClose', { textDocument: { uri } }); }
+      return await connection.sendRequest('textDocument/documentSymbol', { textDocument: { uri } }) as LspDocumentSymbol[] || [];
+    } finally {
+      try { await connection.sendNotification('textDocument/didClose', { textDocument: { uri } }); }
+      catch (error) { if (!this.isClosed) throw error; }
+    }
   }
 
   async getIncomingCalls(filePath: string, position: LspPosition): Promise<Array<{ from: LspCallHierarchyItem; fromRanges: LspRange[] }>> {

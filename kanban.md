@@ -102,7 +102,9 @@ kanban-plugin: board
 
 ## In Progress
 
-- No items
+- [/] **TKT-I1-LSP-CLOSE-RACE**: Handle LSP close racing an in-flight document symbol request
+  - Summary: Iteration 1 pristine aggregate failure: resolveRuleReference failed in TsLspClient.getDocumentSymbols because its finally block dereferenced this.connection after concurrent close had nulled it. Preserve one connection per in-flight request and make didClose best-effort when teardown wins. Add a deterministic real JSON-RPC regression with a stalled documentSymbol request, then rerun pristine serialized aggregate.
+  - Claim: leased by @codex-i1 until 2026-10-20T06:32:33.278Z
 
 ## Done
 

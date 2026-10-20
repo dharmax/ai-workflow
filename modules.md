@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 217 | 0 | 0 | None |
+| `root` | project default | 230 | 0 | 0 | None |
 | `src/graph` | project default | 972 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 575 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 391 | 0 | 0 | None |
@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 533 | 0 | 0 | None |
+| `docs` | project default | 539 | 0 | 0 | None |
 | `src/product` | project default | 638 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 710 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
