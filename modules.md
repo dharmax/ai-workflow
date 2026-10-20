@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 568 | 0 | 0 | None |
+| `docs` | project default | 569 | 0 | 0 | None |
 | `src/product` | project default | 642 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 718 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
@@ -47,7 +47,7 @@
 | `src/client-guidance` | project default | 3 | 0 | 0 | None |
 | `@external/@dharmax/skill-manager` | project default | 356 | 0 | 0 | None |
 | `src/synthesis` | project default | 66 | 0 | 0 | None |
-| `plans` | project default | 152 | 0 | 0 | None |
+| `plans` | project default | 153 | 0 | 0 | None |
 | `src/config-command` | project default | 15 | 0 | 0 | None |
 | `src/setup-command` | project default | 6 | 0 | 0 | None |
 | `src/ticket-command` | project default | 22 | 0 | 0 | None |
