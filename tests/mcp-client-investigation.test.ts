@@ -43,7 +43,7 @@ describe('Client investigation through MCP', () => {
 
   async function call(name: string, args: Record<string, unknown>) {
     const response = await client.callTool({name, arguments: args});
-    expect(response.isError).not.toBe(true);
+    if (response.isError) throw Error(JSON.stringify(response.content));
     const text = (response.content as Array<{type: string; text?: string}>).find(item => item.type === 'text')?.text;
     return JSON.parse(text!);
   }
@@ -74,6 +74,7 @@ describe('Client investigation through MCP', () => {
     expect(source.code).toContain('sibling evidence');
     expect(await call('find_symbol', {name: 'hostOnly', exact: true})).toHaveLength(1);
     expect(await call('find_symbol', {name: 'KnowledgeBase', exact: true})).toHaveLength(0);
+    expect(fs.existsSync(path.join(sibling, '.ai-workflow'))).toBe(false);
   });
 
   it('keeps a cold host graph usable after sibling-first access', async () => {

@@ -126,8 +126,9 @@ export function authenticate(token: string): boolean {
       stdout: 'pipe',
       stderr: 'pipe'
     });
-    const helpOut = await new Response(helpProc.stdout).text();
-    expect(await helpProc.exited).toBe(0);
+    const [helpOut, helpErr, helpExit] = await Promise.all([new Response(helpProc.stdout).text(), new Response(helpProc.stderr).text(), helpProc.exited]);
+    expect(helpExit).toBe(0);
+    expect(helpErr).toBe('');
     expect(helpOut).toContain('AI-Workflow 2.0');
     expect(helpOut).toContain('Usage: aiwf <command>');
 
@@ -137,8 +138,9 @@ export function authenticate(token: string): boolean {
       stdout: 'pipe',
       stderr: 'pipe'
     });
-    const docOut = await new Response(docProc.stdout).text();
-    expect(await docProc.exited).toBe(0);
+    const [docOut, docErr, docExit] = await Promise.all([new Response(docProc.stdout).text(), new Response(docProc.stderr).text(), docProc.exited]);
+    expect(docExit).toBe(0);
+    expect(docErr).toBe('');
     expect(docOut).toContain('Doctor Report');
     expect(docOut).toContain('HEALTHY');
 
@@ -148,8 +150,9 @@ export function authenticate(token: string): boolean {
       stdout: 'pipe',
       stderr: 'pipe'
     });
-    const evalOut = await new Response(evalProc.stdout).text();
-    expect(await evalProc.exited).toBe(0);
+    const [evalOut, evalErr, evalExit] = await Promise.all([new Response(evalProc.stdout).text(), new Response(evalProc.stderr).text(), evalProc.exited]);
+    expect(evalExit).toBe(0);
+    expect(evalErr).toBe('');
     expect(evalOut.trim()).toBe('42');
   });
 

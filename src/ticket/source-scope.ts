@@ -52,6 +52,9 @@ export async function sourceChangeScope(store: WorkflowStore, ticketId: string, 
     const governance = await resolveTicketGovernance(store, ticket, pending.files, pending.governance);
     return {ticket, scope: {...pending, governance}};
   }
+  // An incomplete Ticket must not enter optional model reasoning during an external preview.
+  if (!ticket.acceptanceCriteria?.length)
+    throw Error('Ticket source work requires reviewed acceptance criteria; prepare the Ticket first.');
   const investigated = await ticket.investigate(store);
   if (investigated.status !== 'complete') throw Error('Investigate/prepare the Ticket before source work: ' + investigated.status);
   const receipt = await store.getEntity<Artifact>('VERIFY-' + store.localId(ticket.id), Artifact.dcr);

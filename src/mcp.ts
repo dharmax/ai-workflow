@@ -21,6 +21,7 @@ import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from './tools/surface.ts';
 import { WorkflowActor, type ShellMode } from './actor/engine.ts';
 import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
 import { SemanticPackage } from '@dharmax/semantika';
+import {ensureAstFresh} from './graph/indexer.ts';
 
 function toolInputSchema(tool: NonNullable<ReturnType<typeof registry.get>>): McpTool['inputSchema'] {
   const converted=zodToJsonSchema(tool.parameters);
@@ -143,8 +144,15 @@ export function createMcpServer(options: McpServerOptions = {}) {
       const targetAuthority = executionAuthority === 'project-write' && !writeRoots.includes(fs.realpathSync(activeRoot))
         ? 'read-only' : executionAuthority;
       if (activeRoot !== root) {
-        activeStore = new WorkflowStore(activeRoot);
+        // Cross-project source investigation uses an ephemeral AST graph when this host lacks
+        // a write grant. Do not mutate the sibling's canonical database just to answer a read.
+        const sourceRead = ['find_symbol', 'get_symbol_source', 'get_file_outline',
+          'get_exact_callers', 'get_exact_references', 'analyze_blast_radius'].includes(name);
+        const ephemeral = targetAuthority === 'read-only' && sourceRead;
+        activeStore = new WorkflowStore(activeRoot, ephemeral);
         await activeStore.sp.ready();
+        if (ephemeral) await activeStore.withExecutionContext('project-write', undefined,
+          () => ensureAstFresh(activeStore, activeRoot));
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
         executionAuthority: targetAuthority};

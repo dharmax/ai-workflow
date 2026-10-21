@@ -41,7 +41,7 @@ async function installed(authority?: 'project-write') {
   fs.writeFileSync(path.join(root, 'unrelated.txt'), 'preserved local work\n');
   const store = new WorkflowStore(root);
   try {
-    await store.upsertEntity(Ticket.dcr, {id: 'T-P0', title: 'Change source coherently', body: 'Reviewed fixture source scope', kind: 'task', lane: 'Todo', priority: 'P0'});
+    await store.upsertEntity(Ticket.dcr, {id: 'T-P0', title: 'Change source coherently', body: 'Reviewed fixture source scope', acceptanceCriteria: ['Source changes preserve unrelated work and pass execution checks'], kind: 'task', lane: 'Todo', priority: 'P0'});
     for (const file of ['math.ts', 'obsolete.ts', 'created.ts', 'renamed.ts']) {
       await store.upsertEntity(FileNode.dcr, {id: file, title: file, metadata: {isStub: true,
         ...(['created.ts','renamed.ts'].includes(file) ? {plannedCreation: true} : {})}});
