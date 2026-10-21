@@ -18,7 +18,7 @@ The following is the **complete currently approved field set**. Do not infer add
 | **Domains** *(optional)* | Set of organizational tags. Not behavioral requirements. |
 | **Comments** *(optional)* | List of additional context or notes. Whether comments can serve as half-formal requirements for LLM interpretation remains undecided; inferred requirements must not silently alter the accepted Expected Result. |
 
-ID, Title, Actor, Intent, Initial State, Action and Expected Result form the required **effective definition**. Common [Epic](epic.md) material may supply Initial State and part of Expected Result, as well as Domains and Comments; a [sub-US](sub-user-story.md) inherits its parent's effective definition and specifies what it refines or replaces.
+ID, Title, Actor, Intent, Initial State, Action and Expected Result form the required **effective definition**. Every proposed/revised US is checked against the mandatory [Product charter](product.md); material conflict, ambiguity or drift requires a specific warning and explicit developer answer before it can be considered aligned/approved. Common [Epic](epic.md) material may supply Initial State and part of Expected Result, as well as Domains and Comments; a [sub-US](sub-user-story.md) inherits its parent's effective definition and specifies what it refines or replaces.
 
 ## Rules of use
 

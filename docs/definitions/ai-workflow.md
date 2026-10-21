@@ -1,6 +1,6 @@
 # AI-Workflow (AIWF)
 
-**AI-Workflow is the AI-assisted engineering workflow, and the software that operates it, built to follow [Dharmax-way](dharmax-way.md).** It takes developer-approved product intent through concrete [User/Actor Stories](user-story.md), executable [tests](test.md), justified [Tickets](ticket.md), engineering operations and independent verification to working product behavior.
+**AI-Workflow is the AI-assisted engineering workflow, and the software that operates it, built to follow [Dharmax-way](dharmax-way.md).** It operates under the mandatory [Product charter](product.md): downstream product definitions are reviewed for conflict/drift and require a developer answer to material warnings. It then takes approved intent through concrete [User/Actor Stories](user-story.md), executable [tests](test.md), justified [Tickets](ticket.md), engineering operations and independent verification to working product behavior.
 
 AIWF maintains connected project state in the [Project Graph](project-graph.md) and repository, so its work and evidence can be inspected and resumed without reconstructing a chat. Its operations include investigating, preparing, processing and resolving work. They serve the workflow; they do not define product intent or turn creating records into the goal.
 

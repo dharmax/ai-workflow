@@ -8,7 +8,7 @@ This document describes the durable architecture of AIWF: what owns what, how wo
 
 AIWF turns product and engineering intent into verified repository changes while preserving the evidence needed to explain what happened.
 
-Its durable state is the **project repository plus semantic graph**. The graph is backed by `@dharmax/semantika`. Human-readable Markdown projections are views of that state, not a competing database.
+Its durable state is the **project repository plus semantic graph**. The mandatory [Product charter](definitions/product.md) anchors product intent; downstream Aspect, Feature, Epic and US meaning requires a grounded alignment review and an explicit developer answer to material conflict/drift. Do not infer that current code already enforces this. The graph is backed by `@dharmax/semantika`. Human-readable Markdown projections are views of that state, not a competing database.
 
 The important consequence is re-entrancy: another human or agent should be able to resume work from repository + graph state without reconstructing a hidden conversation.
 
@@ -27,8 +27,8 @@ If AIWF starts reimplementing one of those responsibilities, that is normally an
 The governing relationship is **not** an immutable hierarchy or a mandate to generate artifacts mechanically:
 
 ```text
-Developer intent → Goals / Concepts / Features / authoritative Aspects
-                 → complete User/Actor Stories (Intent, State, Action, Result)
+Mandatory accepted Product charter → Goals / Concepts / Features / authoritative Aspects
+                 → charter-aligned complete USs (Actor, Intent, Initial State, Action, Expected Result)
                  → reviewed Epic (delivery grouping), Tickets and Story tests
                  → Architecture / execution Flow / Implementation
                  → observed public behavior and current evidence

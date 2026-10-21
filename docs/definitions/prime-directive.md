@@ -17,4 +17,4 @@ Apply the standard before and after engineering work to the **entire touched met
 
 **Prove behavior and inspect design.** Passing tests are necessary but not sufficient. A green US test cannot excuse incoherent methods; a beautiful implementation cannot excuse incorrect product behavior. Preserve existing working contracts and safety; leave touched scope better than found. Defer unrelated risky refactors visibly rather than smuggling them into a patch. Prefer quick merger/cleanup of stable temporary branches over a forest of stale branches.
 
-The Prime Directive is the engineering standard inside [Dharmax-way](dharmax-way.md); it never overrides developer-approved product intent, actual authorization, or truthful verification. See the current [repository guidelines](../../AGENTS.md#prime-directive).
+The Prime Directive is the engineering standard inside [Dharmax-way](dharmax-way.md); it never overrides the mandatory developer-approved [Product charter](product.md), an unanswered charter-alignment warning, actual authorization, or truthful verification. See the current [repository guidelines](../../AGENTS.md#prime-directive).

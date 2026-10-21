@@ -1,40 +1,45 @@
 # Canonical definitions
 
-**Authority:** These files define AIWF terminology. Plans, examples, tests and implementation details do not silently redefine them. Changing an agreed meaning requires explicit project-developer approval. Keep proposals and known implementation gaps distinguishable from approved definitions.
+**Authority:** These files define the project terms and their approved meaning. One file per **substantive concept**; related fields belong together in their owning definition. Suggestions, older plans, generated text and existing code cannot silently add fields or redefine terms. Semantic changes require explicit developer approval. A definition is not a claim that its runtime support already exists.
 
-## Product and intent
+## Product meaning
 
-- [AI-Workflow](ai-workflow.md) — the engineering workflow and software implementing it
-- [Dharmax-way](dharmax-way.md) — its governing engineering approach
-- [Product](product.md) — project charter and Feature manifest
+- [Product](product.md) — **mandatory, developer-approved charter** and downstream alignment
 - [Goal](goal.md) — intended outcome
-- [Concept](concept.md) — domain meaning
-- [Feature](feature.md) — specific product functionality/capability
-- [Aspect](aspect.md) — reusable governing concern
-- [User/Actor Story](user-story.md) — **complete US field definition**
-- [Flow](flow.md) — optional product journey; distinct from engineering execution flow
+- [Concept](concept.md) — shared domain meaning
+- [Feature](feature.md) — specific functionality/capability
+- [Aspect](aspect.md) — abstract cross-cutting expectations
+- [User/Actor Story](user-story.md) — exact complete US fields and episode of use
+- [Flow](flow.md) — optional significant Product journey (distinct from execution flow)
+- [Proposal and Acceptance](proposal-and-acceptance.md) — candidate meaning versus developer authority
 
-## Work and evidence
+## Delivery and proof
 
 - [Epic](epic.md) — delivery grouping and shared US context
-- [Sub-US](sub-user-story.md) — meaningful inherited variation
-- [Ticket](ticket.md) — bounded engineering work
-- [Test](test.md) — principally US-driven behavioral proof
-- [Artifact](artifact.md) — work product; distinguish the specific graph entity
-- [Decision](decision.md) — recorded architectural/product choice
-- [Project Graph](project-graph.md) — interconnected project knowledge and state; **Canonical Project Graph** is the proposed full name
+- [Sub-US](sub-user-story.md) — full inheritance and a meaningful variation
+- [Ticket](ticket.md) — canonical work item (Kanban, Gantt and Scrum perspectives)
+- [Test](test.md) — US-first acceptance, distinct from skeleton/invariant tests
+- [Verification and Evidence](verification.md) — current proof versus status or narration
+- [Artifact](artifact.md) — an identifiable work product, distinct from the specific graph entity
+- [Decision](decision.md) — approved, traceable choice
 
-## Engineering governance
+## System and engineering governance
 
-- [Prime Directive](prime-directive.md) — simplest correct solution and whole-scope review
-- [Rules and Guidelines](rules-and-guidelines.md) — normative instructions versus guidance
+- [AI-Workflow](ai-workflow.md) — the engineering workflow and software supporting it
+- [Dharmax-way](dharmax-way.md) — governing test-first method
+- [Prime Directive](prime-directive.md) — smallest correct engineering solution, whole-scope quality
+- [Rules and Guidelines](rules-and-guidelines.md) — instruction versus advice
+- [Project Graph](project-graph.md) — the shared Semantika-backed project model; *Canonical Project Graph* remains a proposed full name
 
-## Open design decisions
+## Agreed cross-cutting rule
 
-Only genuinely unresolved points belong here:
-- Mandatory primary Epic and automatic `Default` Epic for otherwise unassigned USs. At most one **designated primary** Epic is agreed.
-- Precise composition/conflict rules for shared Epic and specific US Initial State/Expected Result.
-- Whether Comments may be half-formal input for LLM-deduced requirements, and whether distinct Requirements/Preconditions fields are worthwhile. They are **not** in the currently approved US field set.
-- Domain taxonomy/tag composition and detailed field-editing mechanics for inherited text.
+Every project needs an actual, accepted **Product charter**. Every proposed/revised Aspect, Feature, Epic and US is reviewed against it. Material conflict, ambiguity or drift requires a grounded warning **and an explicit developer answer**; unanswered warnings cannot be silently treated as alignment. See [Product](product.md) for the complete rule.
 
-**Implementation status:** This glossary establishes intended terminology; it is not a claim that existing code and records implement every definition. In particular, legacy UserStory schema fields and parts of current Epic/sub-US relationship handling need separate reconciliation. Do not silently migrate data or infer successful verification from documentation.
+## Decisions still open
+
+- Must every US have a primary Epic, automatically assigned a simple `Default` Epic when none is supplied? At most one designated primary Epic is agreed.
+- Precise mechanical composition/conflict rules for shared Epic and specific US Initial State/Expected Result.
+- Comments as half-formal LLM input and whether separate Requirements or Preconditions fields add value; neither is currently an approved US field.
+- Domain taxonomy/tag composition and fine-grained inherited-definition editing mechanics.
+
+**Current-state warning:** the mandatory charter decision supersedes older optional-Product plans. Implementation and stored data need separate review/migration; the latest tracked Product manifest states no charter is defined but is not itself proof of current DB state. No default charter, fake alignment or automatic migration is authorized by this documentation.

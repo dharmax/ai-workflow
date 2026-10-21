@@ -19,6 +19,8 @@ These illustrate the *kinds* of Aspects; they do not mandate that every project 
 | **Setup / Deployment** | Installation, configuration and deployment expectations |
 | **Self-healing / Error Handling** | Recovery and truthful handling of failures |
 
+Every proposed/revised Aspect is examined against the mandatory [Product charter](product.md); material conflict, ambiguity or drift calls for a specific warning and explicit developer answer before it is considered aligned/approved.
+
 An Aspect is intentionally **broader and more reusable** than a [Feature](feature.md). Example: `Persistency:Aspect --applies-to--> Saveable user-feedback:Feature`. The Feature provides a specific functionality; the Aspect governs the relevant persistence expectations. Other Features may refer to the same Persistency definition.
 
 ## Graph application

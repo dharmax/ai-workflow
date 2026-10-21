@@ -1,6 +1,6 @@
 # Test
 
-An executable check of actual behavior or a necessary engineering invariant. **AIWF testing is US-driven by default, almost exclusively.** Derive the genuine product acceptance test **before implementation** from an accepted, complete [User/Actor Story](user-story.md): its actual Initial State, Actor Action and **Expected Result**, exercised through a public interface. The approved US, not a stub or existing implementation, determines the oracle.
+An executable check of actual behavior or a necessary engineering invariant. **AIWF testing is US-driven by default, almost exclusively.** Derive the genuine product acceptance test **before implementation** from an accepted, complete [User/Actor Story](user-story.md): its actual Initial State, Actor Action and **Expected Result**, exercised through a public interface. The accepted effective US (including its inherited Epic content, applicable Aspects and [charter-alignment decisions](product.md)), not a stub or existing implementation, determines the oracle. Passing a test cannot cure an unanswered charter warning.
 
 **One cohesive executable acceptance-test file per accepted US** holds ordinary, conditional, non-pristine, regression and relevant failure/safety scenarios. A meaningful [sub-US](sub-user-story.md) is itself a US. Preserve/refine historical cases when they protect real Story behavior, without manufacturing Stories or chasing test-file counts.
 

@@ -1,6 +1,6 @@
 # Feature
 
-A **specific functionality or capability the product provides**. Features can be identified or derived from actual [USs](user-story.md), and a Feature's definition and changes in turn affect its related USs. The relationship is meaningful in both directions, **not** a requirement to create a Feature mechanically for each Story.
+A **specific functionality or capability the product provides**, considered against the mandatory [Product charter](product.md). Every proposed/revised Feature is reviewed for conflict, ambiguity or drift; a material issue requires a grounded warning and explicit developer answer, not implicit AI approval. Features can be identified or derived from actual [USs](user-story.md), and a Feature's definition and changes in turn affect its related USs. The relationship is meaningful in both directions, **not** a requirement to create a Feature mechanically for each Story.
 
 Compared with an [Aspect](aspect.md), a Feature is concrete and functional. An Aspect is more abstract and cross-cutting. For example:
 

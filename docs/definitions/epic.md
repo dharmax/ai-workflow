@@ -1,6 +1,6 @@
 # Epic
 
-An Epic relates User/Actor Stories and may hold material **common to the USs under it**, avoiding repetition.
+An Epic groups delivery and relates User/Actor Stories, and may hold material **common to the USs under it**, avoiding repetition. Every proposed/revised Epic is checked against the mandatory [Product charter](product.md); material conflict or drift requires a warning and explicit developer answer before it is considered aligned/approved.
 
 ## Agreed relationship
 

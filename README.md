@@ -1,8 +1,8 @@
 # AI-Workflow 2.0
 
-**AIWF is the AI-assisted engineering workflow and software implementing Dharmax-way.** It connects approved product intent, US-driven tests, justified Tickets, source work and verification through the project's semantic graph.
+**AIWF is the AI-assisted engineering workflow and software implementing Dharmax-way.** It starts from a mandatory developer-approved **Product charter**, aligns Features, Aspects, Epics and complete User/Actor Stories with it, then carries accepted Stories through test-first engineering, justified Tickets and independently verified behavior. The project graph preserves connected definitions, work and evidence.
 
-AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface supports high-level engineering and Ticket operations; exact graph, source, change, test, Git, and knowledge primitives remain available for deliberate drill-down.
+AIWF is Bun-first and backed by `@dharmax/semantika`. It offers high-level engineering and Ticket operations alongside exact graph, source, change, test, Git and knowledge primitives. The repository remains authoritative for actual source; the graph owns authored project records and relationships. Neither a generated proposal nor a green skeleton test proves completed product behavior.
 
 ## Governing design and current status
 
@@ -12,20 +12,23 @@ AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface suppo
 
 ## The idea
 
-A Ticket is not merely a task description. AIWF can connect it upward to the product reason for the work and downward to the code and proof that implement it:
+The Product charter anchors the workflow. Aspects, Features, Epics and USs are checked against it; material conflict or drift produces a specific warning requiring a developer answer, not AI self-approval. Features and USs inform one another; the sequence below shows **delivery**, not an inflexible graph hierarchy:
 
 ```text
-Developer-approved product intent → complete User/Actor Story (Features / Aspects)
-                               → genuine executable US test (first)
-                               → actual baseline; normally expected red for missing behavior
-                               → resolution Ticket for making the US test pass
-                               → optional separate full-flow skeleton test (multi-component)
-                               → one coding Ticket per temporary internal stub
-                               → replacement/other justified coding work under the Prime Directive
-                               → same genuine US test green + independent current proof
+Mandatory accepted Product charter
+    ↓ check downstream definitions against it; developer answers material warnings
+Accepted complete US (+ relevant Feature / Aspect / Epic context)
+    ↓ genuine executable US test first
+Actual baseline (normally expected red when new behavior is missing)
+    ↓ resolution Ticket owns making that test pass
+Optional separate full-flow skeleton test for multi-component integration
+    ↓ each temporary internal stub gets one replacement coding Ticket
+Real implementation under the Prime Directive (+ other justified work)
+    ↓ unchanged genuine US test passes without internal placeholders
+Independent current verification and traceable evidence
 ```
 
-This is the **target workflow**, not a claim that current `processIntent` or UI already implements it. A skeleton pass proves wiring, never US acceptance. A Feature defines functionality; an Aspect contributes shared cross-cutting expectations; an Epic organizes delivery. Pure technical maintenance can start at a justified direct Ticket without inventing a US.
+This is the **target workflow**, not a claim that current `processIntent`, UI or charter validation already implements it. A skeleton pass proves wiring, never US acceptance. A Feature defines functionality; an Aspect contributes shared cross-cutting expectations; an Epic groups delivery and may supply common US context. Pure technical maintenance can use a justified direct Ticket, without inventing a Story.
 
 The graph is durable project state. Markdown projections and chat transcripts are not the source of truth.
 
@@ -70,8 +73,8 @@ AIWF returns truthfully: complete, needs input, or blocked. It does not call a t
 
 ## Core laws
 
-1. **The graph is authoritative.** Repository + semantic graph are durable state; Markdown is projection/UI.
-2. **Product work starts from actor reality.** Goals, Flows and Stories explain why Features and Tickets exist. Technical maintenance can remain technical.
+1. **The charter anchors product intent.** The Product charter is mandatory; material downstream conflict/drift is warned about and answered by the developer. AI approval is not developer acceptance.
+2. **One durable project state.** The graph is authoritative for authored project records/relationships; the repository owns actual code/history. Markdown is projection/export, not a competing store. Features describe capabilities, Aspects shared concerns, USs actor episodes; their links inform each other.
 3. **Investigate before inventing.** Reuse existing intent, capabilities, symbols, tests and decisions before creating new ones.
 4. **Narrow before reasoning.** Deterministic graph/source evidence and semantic discovery reduce context before expensive model work.
 5. **One execution stack.** AIWF composes shared ecosystem packages rather than growing parallel registries, routers, persistence layers or execution engines.
@@ -122,7 +125,7 @@ aiwf init
 aiwf doctor
 ```
 
-`init` creates the `.ai-workflow/` state/configuration area, indexes source/test structure into the semantic graph, and creates human-readable projections. `doctor` verifies the runtime, Git state, graph, projections, leases, model configuration and MCP integration. Re-running `setup` is the supported way to refresh the global CLI/MCP/skill wiring.
+`init` currently creates the `.ai-workflow/` state/configuration area, indexes source/test structure into the semantic graph, and creates human-readable projections. **It must not be mistaken for approval of a Product charter**: any missing charter is an explicit gap for developer definition/review until the mandatory charter workflow is implemented. `doctor` verifies the runtime, Git state, graph, projections, leases, model configuration and MCP integration. Re-running `setup` refreshes global CLI/MCP/skill wiring.
 
 ## Interfaces
 
@@ -175,7 +178,7 @@ A green component suite is not proof of a product journey. Conversely, a model's
 
 ## Documentation
 
-The governing files are [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
+Start with the [canonical definitions](docs/definitions/README.md), especially the mandatory [Product charter](docs/definitions/product.md), [Ticket](docs/definitions/ticket.md), [Test](docs/definitions/test.md) and [Verification](docs/definitions/verification.md). The governing execution details are in [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
 
 ## License
 
