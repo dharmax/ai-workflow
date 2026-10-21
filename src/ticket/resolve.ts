@@ -3,6 +3,7 @@
  * Scope: Dependency order, guarded mutations, repair, receipts and lease lifecycle.
  */
 
+import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
 import {requireStoryTests} from "../product/story-tests.ts"
@@ -357,8 +358,9 @@ export async function resolveTicket(
                             !ruleAcceptanceFailures(governance, proof.acceptance, [
                                 ...Object.keys(proof.hashes), ...dossier.evidence.filter(item => item.mandatory &&
                                     item.kind === 'SymbolNode' && item.filePath && item.filePath in proof.hashes)
-                                    .map(item => store.localId(item.id)), ...testNodes.map(test => test.id)
+                                    .map(item => store.localId(item.id)), ...testNodes.map(test => test.id), ...(proof.acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])
                             ]).length
+                        await assertTechnicalReviews(store, id, proof.acceptance)
                         if (
                             proof.signature === signature &&
                             proof.governanceFingerprint === governance.fingerprint &&
@@ -513,7 +515,7 @@ export async function resolveTicket(
                         const ruleFailures = ruleAcceptanceFailures(governance, acceptance, [
                             ...Object.keys(verificationHashes), ...dossier.evidence.filter(item => item.mandatory &&
                                 item.kind === 'SymbolNode' && item.filePath && item.filePath in verificationHashes)
-                                .map(item => store.localId(item.id)), ...testNodes.map(test => test.id)
+                                .map(item => store.localId(item.id)), ...testNodes.map(test => test.id), ...(acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])
                         ])
                         if (missing.length || ruleFailures.length) {
                             feedback = [...missing.map(item => `Unverified required acceptance/Aspect: ${item}`), ...ruleFailures]
@@ -545,6 +547,7 @@ export async function resolveTicket(
                         const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness, [], scope.governance)
                         if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes))))
                             throw Error('Source or test changed before coherent completion.')
+                        await assertTechnicalReviews(store, id, acceptance)
                         await store.completeTicket(currentTicket, agentId, admission!, JSON.stringify({
                                 scope,
                                 governanceVersion: DOCTRINE_VERIFIER_VERSION,

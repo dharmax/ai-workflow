@@ -201,7 +201,7 @@ export async function processShellInput(
           ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
           : `Running ${command.tool}...`);
         try {
-          const result = await registry.execute(command.tool, command.args, ctx);
+          const result = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => registry.execute(command.tool, command.args, ctx), command.reviewFingerprint);
           progress.stop(isBlockedOperation(result) ? 'fail' : 'success');
           return {output: JSON.stringify(result, null, 2)};
         } catch (error) { progress.stop('fail'); throw error; }

@@ -94,7 +94,7 @@ async function main() {
     progress?.start(progressMessage);
     let result;
     try {
-      result = await registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const});
+      result = await getStore().withExecutionContext('project-write', undefined, () => registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}), delegation.reviewFingerprint);
       progress?.stop(isBlockedOperation(result) ? 'fail' : 'success');
     } catch (error) { progress?.stop('fail'); throw error; }
     console.log(JSON.stringify(result, null, 2));

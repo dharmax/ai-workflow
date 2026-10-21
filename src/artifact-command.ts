@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {TestBindingSpecificationSchema} from './graph/test-proof-types.ts';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
 import {CONFIG_HELP} from './config-command.ts';
@@ -99,7 +100,7 @@ export type NormalizedCommand =
   | {family:'link';tool:'link';args:LinkAction;yes:boolean}
   | {family:'definition';input:DefinitionReviewInput;yes:boolean}
   | {family:'help';tool:'help';args:{text:string}}
-  | {family:'artifact';tool:string;args:Record<string,unknown>}
+  | {family:'artifact';tool:string;args:Record<string,unknown>;reviewFingerprint?:string}
   | {family:'legacy';command:string;tokens:string[]};
 
 function linkIntent(args: unknown, yes = false): NormalizedCommand {
@@ -247,6 +248,14 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   root.command('bugs').description('List/filter canonical Bugs')
     .option('--lane <lane>','Kanban lane').option('--severity <severity>','Observed severity').option('--query <text>','Find ID/title/context')
     .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_bugs',args}));
+  const testBinding=root.command('test-binding').description('Review existing TestNode evidence for a technical Ticket; no fabricated Story or test');
+  for(const action of ['prepare','apply']) {
+    const command=testBinding.command(action+' <specification-json>').description('Use the typed Test binding specification shared with MCP');
+    if(action==='apply')command.requiredOption('--fingerprint <hash>','Exact current preview fingerprint').requiredOption('--yes','Confirm this exact local proof-meaning review');
+    command.action((json:string,opts:{fingerprint?:string})=>emit({family:'artifact',tool:action==='prepare'?'prepare_test_binding':'apply_test_binding',
+      args:{specification:TestBindingSpecificationSchema.parse(JSON.parse(json)),...(action==='apply'?{fingerprint:opts.fingerprint,decision:'accept'}:{})},
+      ...(action==='apply'?{reviewFingerprint:opts.fingerprint}:{})}));
+  }
   const storyTest=root.command('story-test').description('Review/materialize a public-interface Story test and inspect/run its lifecycle');
   for(const action of ['status','run']) storyTest.command(action+' <storyId>')
     .description(action==='status'?'Show uncovered/skipped/red/green/blocked/stale evidence':'Execute the active reviewed Story test; infrastructure failure is not expected red')

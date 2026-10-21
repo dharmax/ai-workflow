@@ -47,6 +47,7 @@ Resolution accepts explicit `testCommands`, `maxRepairs`, and `allowDirtyTargets
 - Evidence: `symbol`, `graph`, `slice`, `outline`, `callers`, `deps`, `blast`; TS/JS exact references and symbol source are preferred for correctness.
 - Safe edits: `preview_change` → `apply_change` with fingerprint; semantic rename/refactor and symbol replacement through the existing Causal Change Engine.
 - Tests: `resolve_test_target`, `triage_test_failures`. Successful execution and explicit acceptance proof are both required.
+- Technical proof: use `prepare_test_binding` / `apply_test_binding` (CLI/Shell: test-binding prepare/apply) for developer-reviewed existing TestNode scopes on a technical Ticket. Exact host-reviewed fingerprint is required; project-write/model decisions cannot approve meaning. Dependency tests/source/execution remain in their owning project. Scopes partition semantic review, never regression execution. resolve --verify-only retains all required checks, independent scope review and atomic completion.
 - Graph state: canonical Product Intent tools, ordinary Ticket children and real prerequisites. No parallel plan/session/shadow graph.
 - Measurement: `aiwf metrics --operation resolve_ticket --ticket <id> --since 7d`; persisted aggregate telemetry contains no prompts/source/tool arguments. Never claim paid-token savings without measurement.
 

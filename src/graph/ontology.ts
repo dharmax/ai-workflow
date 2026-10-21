@@ -496,6 +496,7 @@ export class TestNode extends WorkflowEntity {
     declare testSourceHash?: string
     declare fixtureHash?: string
     declare storyBasisHash?: string
+    declare technicalProofs?: import('./test-proof-types.ts').TechnicalProof[]
 
     static template = {
         ...baseTemplate,
@@ -517,7 +518,8 @@ export class TestNode extends WorkflowEntity {
         testStateReason: passthroughValidator,
         testSourceHash: passthroughValidator,
         fixtureHash: passthroughValidator,
-        storyBasisHash: passthroughValidator
+        storyBasisHash: passthroughValidator,
+        technicalProofs: passthroughValidator
     }
     static readonly dcr = new EntityDcr(TestNode, TestNode.template, "TestNode")
 }

@@ -320,7 +320,7 @@ export class WorkflowStore {
         (!previous || Object.entries(fields).some(([key, value]) => !['id','_id'].includes(key) && canonical(previous[key]) !== canonical(value))))
       throw Error('Decision acceptance requires reviewed authoring, deferred to PC2.');
     if (type === 'TestNode' && Object.keys(fields).some(key =>
-        ['lastRun','passed','failure','exitCode','durationMs','command','output','executionHashes','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash','fixturePath','interfaceName'].includes(key) ||
+        ['technicalProofs','lastRun','passed','failure','exitCode','durationMs','command','output','executionHashes','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash','fixturePath','interfaceName'].includes(key) ||
         key === 'status' && ['verified','failing'].includes(String(fields[key]))))
       this.assertTestArtifactWrite(id!);
   }

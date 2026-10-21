@@ -1,5 +1,6 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
 import { z } from 'zod';
+import {TechnicalProofSchema} from '../graph/test-proof-types.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
@@ -27,9 +28,10 @@ const fields = z.object({
   responsibilities: z.array(z.string()), intentStatus: intentStatus,
   filePath: z.string(), framework: z.string(), command: z.array(z.string()), fixturePath: z.string(), interfaceName: z.string(),
   storyVersion: z.number().int().positive(), testState: z.enum(['skipped','not-run','expected-red','green','blocked']), testStateReason: z.string(), testSourceHash: z.string(), fixtureHash: z.string(), storyBasisHash: z.string(),
+  technicalProofs: z.array(TechnicalProofSchema),
   kind: TicketKindSchema, defect: TicketDefectSchema,
   sla: z.string(), lane: ticketLane, completenessTarget: CompletenessSchema.nullable()
-}).partial().strict();
+}).partial().strict().meta({id:'ProductFields'});
 
 export const LinkPayloadSchema = z.object({note: z.string().max(4000).optional()}).strict();
 export type LinkPayload = z.infer<typeof LinkPayloadSchema>;
@@ -131,7 +133,7 @@ const definitionFields: Record<ProductKind, string[]> = {
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget', 'outcomes', 'scope', 'boundaries', 'behavioralRules'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
+    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['technicalProofs','title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
     Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
 };
 
@@ -241,7 +243,7 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       throw Error('Verification receipts and admission records are owner-managed.');
     const kind = productKind(entity)!;
     rememberIdentity(id, kind);
-    const fields = Object.fromEntries(['kind', 'defect', 'title', 'body', 'decision', 'consequences', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
+    const fields = Object.fromEntries(['kind', 'defect', 'title', 'body', 'decision', 'consequences', 'status', 'priority', 'acceptanceCriteria', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'sla', 'lane', 'claim', 'completenessTarget', 'filePath', 'framework', 'command', 'fixturePath', 'interfaceName', 'storyVersion', 'testState', 'testStateReason', 'testSourceHash', 'fixtureHash', 'storyBasisHash', 'technicalProofs', 'purpose', 'actors', 'scope', 'nonGoals', 'outcomes', 'boundaries', 'behavioralRules', 'responsibilities', 'intentStatus', 'version', 'updatedAt'].map(k => [k, (entity as any)[k] ?? null]));
     state.set(id, { kind, exists: true, fields, lane: kind === 'Ticket' ? (entity as Ticket).lane : undefined });
     const rows = await productEdgeRows(store, entity.id);
     snapshot[id] = { kind, fields, relations: rows };

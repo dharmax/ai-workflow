@@ -4,6 +4,8 @@
  */
 
 import { z } from 'zod';
+import {TestBindingSpecificationSchema} from '../graph/test-proof-types.ts';
+import {prepareTestBinding,applyTestBinding} from '../graph/technical-proof.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { IntentProposalSchema } from '../product/process-types.ts';
@@ -344,6 +346,8 @@ export function registerProductTools() {
   registry.register({name:'link',category:'planning',description:'Discover H/O/L relation types, inspect edges, or prepare an inert reviewed link change. Applying requires separate S2 review; no model approval flag.',parameters:LinkActionSchema,execute:(args,ctx)=>linkAction(ctx.store,args)});
   registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
   registry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>registry.execute('triage_test_failures',{testCommand:command},ctx),preview=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx))});
+  registry.register({name:'prepare_test_binding',category:'planning',description:'Preview developer-reviewed bounded technical Ticket proof using existing local and dependency-owned TestNodes; no execution or acceptance is imported.',parameters:z.object({specification:TestBindingSpecificationSchema}).strict(),execute:({specification},ctx)=>prepareTestBinding(ctx.store,specification)});
+  registry.register({name:'apply_test_binding',category:'planning',description:'Bind the exact current technical proof preview only with host-reviewed fingerprint authority. Project-write and model decisions cannot approve proof meaning.',parameters:z.object({specification:TestBindingSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}).strict(),execute:({specification,fingerprint,decision},ctx)=>applyTestBinding(ctx.store,specification,fingerprint,decision,preview=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx))});
   registry.register({name:'prepare_story_test',category:'planning',description:'Preview a reviewed executable public-interface Story suite; missing fixtures remain uncovered.',
     parameters:z.object({specification:StoryTestSpecificationSchema}),
     execute:({specification},ctx)=>prepareStoryTest(ctx.store,specification)});

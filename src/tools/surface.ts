@@ -28,6 +28,7 @@ export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'list_features',
   'get_user_story', 'get_goal', 'list_goals', 'get_concept', 'list_concepts', 'get_flow', 'list_flows',
   'get_story_test_status', 'prepare_story_test', 'apply_story_test', 'run_story_test',
+  'prepare_test_binding', 'apply_test_binding',
   'list_user_stories',
   'get_product_coverage',
   'get_product_impact',

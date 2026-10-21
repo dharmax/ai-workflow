@@ -76,7 +76,7 @@ export const RuleEvaluationSchema = z.object({
   evidence: z.string().trim().min(1), evidenceIds: z.array(z.string().trim().min(1)).min(1),
   limitations: z.array(z.string()).default([])
 });
-export const AcceptanceVerificationSchema = z.object({
+export const AcceptanceAssessmentSchema = z.object({
   criteria: z.array(z.object({ criterion: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
   aspects: z.array(z.object({ id: z.string(), passed: z.boolean(), evidence: z.string().trim().min(1) })),
   rules: z.array(RuleEvaluationSchema).default([])
@@ -84,6 +84,10 @@ export const AcceptanceVerificationSchema = z.object({
   for (const [field, keys] of [['criteria', value.criteria.map(check => check.criterion)], ['aspects', value.aspects.map(check => check.id)], ['rules', value.rules.map(check => canonical([check.ruleId, check.fingerprint]))]] as const) {
     if (new Set(keys).size !== keys.length) ctx.addIssue({code: 'custom', path: [field], message: 'Acceptance checks must identify each requirement exactly once.'});
   }
+});
+export const AcceptanceVerificationSchema = AcceptanceAssessmentSchema.safeExtend({
+  scopeReviews:z.array(z.object({id:z.string(),bindingHash:z.string(),projectRoot:z.string(),testId:z.string(),
+    sourceIds:z.array(z.string()),hashes:z.record(z.string(),z.string()),execution:z.object({lastRun:z.string(),hashes:z.record(z.string(),z.string())}),characters:z.number().int().nonnegative(),assessment:AcceptanceAssessmentSchema})).optional()
 });
 export type AcceptanceVerification = z.infer<typeof AcceptanceVerificationSchema>;
 export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[]; testNodes: Awaited<ReturnType<typeof import('./graph/test-artifacts.ts').currentTestEvidence>> }
