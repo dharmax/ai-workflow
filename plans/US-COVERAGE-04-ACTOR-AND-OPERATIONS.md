@@ -87,3 +87,6 @@ Status: **proposed**, reviewed test-oracle map; these are not auto-accepted Prod
 
 ### Cycle 4 double-check
 All 13 Actor-category and six Capabilities-category files are assigned here; setup and Shell/public-interface files are cross-referenced with Cycle 1. Test count is not a target. Consolidate shared fixture/logic and delete exact duplicated expectations only where a stronger retained public oracle already proves the *same behavior and same failure boundary*.
+
+### Follow-up double-check
+The two local-only escalation cases are **not duplicates**: one completes normally, the other stalls with repeated observations. ModelService default reload and Actor task-route reload likewise protect different contracts. Retain all four until a stronger replacement proves both behaviors.

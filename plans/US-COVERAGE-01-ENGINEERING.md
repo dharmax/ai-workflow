@@ -63,7 +63,7 @@ Baseline: `USs-and-consolidation` from P0 repair `dec2dab`.
 ## Cycle 1 overlap audit — **candidate only**
 | Candidate | Existing stronger owner | Required equivalence before removing |
 |---|---|---|
-| `tests/cli-help.test.ts`: repeated help variants | `product-operability-commands.test.ts` scoped help; `artifact-command.test.ts` invalid command; `p0-engineering.test.ts` canonical names | Preserve no-DB/no-mutation for *every* spelling and side-effect probe |
+| `tests/cli-help.test.ts` — **retain after double-check** | Its `next/init/resolve/claim` help/no-DB coverage is absent from the Product namespaced help cases | Different command families; not a duplicate |
 | `tests/mcp.test.ts`: generic list assertion | `product-operability-parity.test.ts` real stdio; `p0-engineering.test.ts` installed host | Retain schema export, invocation and exact public tool-set evidence |
 | `tests/change-engine.test.ts`: generic registry boundary test | P0 installed-host acceptance | Preserve distinct raw engine behavior (do not remove engine-specific assertions) |
 | `tests/workspace-text.test.ts`: 3 data variants | One table-driven parameterized contract | Keep CRLF/Unicode/JSON distinction; consolidate only fixture/setup |
