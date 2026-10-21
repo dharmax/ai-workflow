@@ -109,20 +109,41 @@ it('P0 installed host discovers guarded engineering and preserves explicit host 
   await payload(client, 'release_ticket', {ticketId: 'T-P0'});
   expect((await payload(client, 'get_ticket', {ticketId: 'T-P0'})).verificationState).toBe('unverified');
 }, 30000);
-it('P0 host write grant never transfers to a sibling root, but investigation remains available', async () => {
+it('P0 host write grant does not transfer to a sibling before or after a real stdio restart', async () => {
   const {client, root} = await installed('project-write');
   const sibling = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-p0-other-project-'));
   roots.push(sibling);
-  fs.mkdirSync(path.join(sibling, '.ai-workflow'));
+  fs.mkdirSync(path.join(sibling,'.ai-workflow'));
+  fs.mkdirSync(path.join(sibling,'src'));
+  fs.writeFileSync(path.join(sibling,'package.json'),JSON.stringify({name:'p0-sibling'}));
+  fs.writeFileSync(path.join(sibling,'tsconfig.json'),JSON.stringify({compilerOptions:{target:'ESNext',module:'ESNext'}}));
+  const source=path.join(sibling,'src/sibling.ts');
+  const bytes='export class SiblingOnly { evidence() { return 42 } }\n';
+  fs.writeFileSync(source,bytes);
   fs.writeFileSync(path.join(sibling,'victim.txt'),'do not modify');
-  expect((await payload(client,'read_workspace_file',{projectRoot:sibling,filePath:'victim.txt'})).content).toBe('do not modify');
-  const attempted = await client.callTool({name:'create_ticket', arguments:{
-    id:'UNAUTHORIZED', title:'Other project write',kind:'task',lane:'Todo',priority:'P0',projectRoot:sibling
-  }});
-  expect(attempted.isError).toBe(true);
-  expect(fs.readFileSync(path.join(sibling,'victim.txt'),'utf8')).toBe('do not modify');
-  expect(fs.existsSync(path.join(root,'math.ts'))).toBe(true);
-});
+  const before=fs.readdirSync(path.join(sibling,'.ai-workflow')).sort();
+  const inspect=async (current:Client) => {
+    expect((await payload(current,'read_workspace_file',{projectRoot:sibling,filePath:'victim.txt'})).content).toBe('do not modify');
+    const symbols=await payload(current,'find_symbol',{projectRoot:sibling,name:'SiblingOnly',exact:true});
+    expect(symbols.some((symbol:{name:string})=>symbol.name==='SiblingOnly')).toBe(true);
+    const refused=await current.callTool({name:'create_ticket',arguments:{
+      id:'UNAUTHORIZED',title:'Other project write',kind:'task',lane:'Todo',priority:'P0',projectRoot:sibling
+    }});
+    expect(refused.isError).toBe(true);
+    expect(fs.readFileSync(source,'utf8')).toBe(bytes);
+    expect(fs.readdirSync(path.join(sibling,'.ai-workflow')).sort()).toEqual(before);
+    expect(fs.existsSync(path.join(root,'math.ts'))).toBe(true);
+  };
+  await inspect(client);
+  await client.close();
+  clients.splice(clients.indexOf(client),1);
+  const entry=JSON.parse(fs.readFileSync(path.join(root,'host/.cursor/mcp.json'),'utf8')).mcpServers['ai-workflow'];
+  const restarted=new Client({name:'external-engineering-restarted',version:'1'});
+  clients.push(restarted);
+  await restarted.connect(new StdioClientTransport({command:entry.command,args:entry.args,cwd:root,
+    stderr:'pipe',env:{...process.env,AIWF_EXECUTION_AUTHORITY:'read-only',...entry.env} as Record<string,string>}));
+  await inspect(restarted);
+},15000);
 it('P0 default installed host refuses self-granted write authority and raw patch bypass', async () => {
   const {client, root} = await installed();
   for (const [name, args] of [
