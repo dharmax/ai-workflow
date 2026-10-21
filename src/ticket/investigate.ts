@@ -274,6 +274,7 @@ export async function investigateTicket(
                     predicate: "implements",
                     targetId: store.localId(productCandidates[0].id)
                 })
+            if (options.mandatoryEvidenceOnly) return {status: 'complete', artifactId: id, value: dossier}
             const codeMentions = [...current.body.matchAll(/`([^`]+)`/g)].map(match => match[1]).join(" ")
             const words = new Set(`${current.title} ${codeMentions}`.match(/[A-Za-z_$][\w$]{2,}/g) ?? [])
             const optional = (await store.listEntities<SymbolNode>(SymbolNode.dcr))

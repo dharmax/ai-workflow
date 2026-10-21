@@ -55,7 +55,7 @@ export async function sourceChangeScope(store: WorkflowStore, ticketId: string, 
   // An incomplete Ticket must not enter optional model reasoning during an external preview.
   if (!ticket.acceptanceCriteria?.length)
     throw Error('Ticket source work requires reviewed acceptance criteria; prepare the Ticket first.');
-  const investigated = await ticket.investigate(store);
+  const investigated = await ticket.investigate(store, {mandatoryEvidenceOnly: true});
   if (investigated.status !== 'complete') throw Error('Investigate/prepare the Ticket before source work: ' + investigated.status);
   const receipt = await store.getEntity<Artifact>('VERIFY-' + store.localId(ticket.id), Artifact.dcr);
   const previous = receipt ? readVerificationReceipt(receipt.body)?.scope : undefined;

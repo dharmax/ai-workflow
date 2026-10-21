@@ -37,6 +37,8 @@ export interface TicketDossier {
   provenance: { systemOne: { backendId: string; quality: string } | null; reasoningUsed: boolean; optionalCandidates: number; optionalSelected: number; freshnessReconciliations: number };
 }
 export interface InvestigationOptions extends ArtifactOperationOptions {
+  /** Obtain mandatory reviewed evidence for guarded source admission; skip optional cognitive enrichment. */
+  mandatoryEvidenceOnly?: boolean;
   systemOne?: SystemOne;
   reason?: (dossier: TicketDossier) => Promise<InvestigationJudgment>;
 }

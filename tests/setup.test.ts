@@ -130,7 +130,7 @@ export function authenticate(token: string): boolean {
     expect(helpExit).toBe(0);
     expect(helpErr).toBe('');
     expect(helpOut).toContain('AI-Workflow 2.0');
-    expect(helpOut).toContain('Usage: aiwf <command>');
+    expect(helpOut).toContain('Usage: aiwf <topic[:sub-topic]> <VERB> [options]');
 
     // 2. aiwf doctor
     const docProc = Bun.spawn(['bun', path.resolve('src/cli.ts'), 'doctor'], {
