@@ -148,7 +148,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
         // a write grant. Do not mutate the sibling's canonical database just to answer a read.
         const sourceRead = ['find_symbol', 'get_symbol_source', 'get_file_outline',
           'get_exact_callers', 'get_exact_references', 'analyze_blast_radius'].includes(name);
-        const ephemeral = targetAuthority === 'read-only' && (sourceRead || name === 'read_workspace_file');
+        // An ungranted sibling must never create persistent state, including for rejected writes.
+        const ephemeral = targetAuthority === 'read-only';
         activeStore = new WorkflowStore(activeRoot, ephemeral);
         await activeStore.sp.ready();
         if (ephemeral && sourceRead) await activeStore.withExecutionContext('project-write', undefined,

@@ -126,6 +126,7 @@ it('P0 host write grant does not transfer to a sibling before or after a real st
     expect((await payload(current,'read_workspace_file',{projectRoot:sibling,filePath:'victim.txt'})).content).toBe('do not modify');
     const symbols=await payload(current,'find_symbol',{projectRoot:sibling,name:'SiblingOnly',exact:true});
     expect(symbols.some((symbol:{name:string})=>symbol.name==='SiblingOnly')).toBe(true);
+    expect(fs.readdirSync(path.join(sibling,'.ai-workflow')).sort()).toEqual(before);
     const refused=await current.callTool({name:'create_ticket',arguments:{
       id:'UNAUTHORIZED',title:'Other project write',kind:'task',lane:'Todo',priority:'P0',projectRoot:sibling
     }});
