@@ -24,6 +24,6 @@ ID, Title, Actor, Intent, Initial State, Action and Expected Result form the req
 
 - A US has **at most one designated primary Epic** (one when assigned). Whether assignment should be mandatory with a `Default` Epic is still open. Other Epic relations do not provide additional inherited parents.
 - A meaningfully different episode can be a [sub-US](sub-user-story.md). A conditional result within the same episode need not become a separate Story.
-- Relevant Aspects can follow implicitly from the description or be associated by the developer during editing. They are not part of the US field set.
+- **Aspect is not a US field.** An optional graph relation `US --has-aspect--> Aspect` explicitly associates the Story with an applicable Aspect; relevance can also come through its related Feature. See [Aspect](aspect.md). The current ontology instead exposes `Aspect --applies_to--> UserStory`; the requested `has-aspect` relation remains an implementation gap, not an extra field.
 - A discovered bug or an old test may reveal a missing/unclear intended outcome; it does not define that outcome by itself.
 - See [Test](test.md) for verifying the agreed definition, not replacing it.

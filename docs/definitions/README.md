@@ -4,12 +4,12 @@
 
 ## Product and intent
 
-- [AI-Workflow](ai-workflow.md) — the product
+- [AI-Workflow](ai-workflow.md) — the engineering workflow and software implementing it
 - [Dharmax-way](dharmax-way.md) — its governing engineering approach
 - [Product](product.md) — project charter and Feature manifest
 - [Goal](goal.md) — intended outcome
 - [Concept](concept.md) — domain meaning
-- [Feature](feature.md) — enduring product responsibility
+- [Feature](feature.md) — specific product functionality/capability
 - [Aspect](aspect.md) — reusable governing concern
 - [User/Actor Story](user-story.md) — **complete US field definition**
 - [Flow](flow.md) — optional product journey; distinct from engineering execution flow

@@ -1,13 +1,20 @@
 # Prime Directive
 
-**The simplest correct solution wins.** Code should be no more complex than the problem. Reuse suitable existing contracts/primitives before adding abstractions; avoid duplicate/shadow systems, speculative compatibility and branch proliferation. Make the smallest safe coherent change, preserve working behavior, prove it, and remove temporary branches when stable.
+**The simplest *correct* solution wins.** The complexity, design and amount of code must be justified by the actual problem—not by an impressive-looking architecture, a small diff, a passing suite or a framework convention. Reuse good existing contracts and primitives; avoid shadow systems, duplicated ownership, speculative compatibility and unnecessary abstraction. Simplify the directly affected scope before adding more machinery when its present complexity obstructs correctness.
 
-The *am-i-allowed standard* applies to the **whole touched artifact**, down to individual variables and statements—not merely the diff or its tests. Review:
-- **Responsibility/existence:** does it have a precise purpose and single appropriate owner; should it exist?
-- **Placement/dependencies:** is it in the right method/class/module with justified dependencies?
-- **Tightness:** is each construct necessary, clear and nonredundant?
-- **Generality:** does the abstraction fit its real contract without artificial limitations or speculative breadth?
-- **Flow:** are states, transitions, failure, cancellation and boundary cases coherently handled where applicable?
-- **API:** precise public semantics, types and failure behavior; private implementation details remain private.
+The quality reference is [**dharmax/am-i-allowed**](https://github.com/dharmax/am-i-allowed): a small, generic, dependency-light library that handles real-world sophistication without making its implementation complicated. This is a **code/design quality benchmark**, not a claim that its permission-checking API enforces the Prime Directive.
 
-Leave directly touched scope better than found; defer unrelated, risk-expanding cleanup explicitly. **Passing tests is necessary, not a defense of poor design.** This is engineering governance, not permission to override developer-approved product intent, authorization or truthful reporting. See [AGENTS.md](../../AGENTS.md#prime-directive).
+## Whole-scope review
+
+Apply the standard before and after engineering work to the **entire touched methods/artifacts and their immediate contracts**, down to statements and variables—not only the added lines:
+
+1. **Responsibility and existence:** one precise purpose/owner; should this entity, method, layer or variable exist at all?
+2. **Placement:** correct existing class/module/API boundary and dependency direction; avoid fragmentation and duplicated responsibility.
+3. **Tightness:** every branch, statement, variable and syntactic construct earns its place; remove unnecessary indirection, dead work, redundant state and misleading names.
+4. **Generality:** fit real requirements and legitimate consumers—neither hard-coded special cases nor an overly broad speculative framework.
+5. **Algorithm and execution flow:** one coherent path/owner; account for meaningful state transitions, invariants, failures, concurrency, cancellation and restart where applicable. Don't paper over a root cause.
+6. **API and contracts:** precise names/types, small useful surface, clear failure semantics and isolation; do not leak internals or hidden side effects.
+
+**Prove behavior and inspect design.** Passing tests are necessary but not sufficient. A green US test cannot excuse incoherent methods; a beautiful implementation cannot excuse incorrect product behavior. Preserve existing working contracts and safety; leave touched scope better than found. Defer unrelated risky refactors visibly rather than smuggling them into a patch. Prefer quick merger/cleanup of stable temporary branches over a forest of stale branches.
+
+The Prime Directive is the engineering standard inside [Dharmax-way](dharmax-way.md); it never overrides developer-approved product intent, actual authorization, or truthful verification. See the current [repository guidelines](../../AGENTS.md#prime-directive).

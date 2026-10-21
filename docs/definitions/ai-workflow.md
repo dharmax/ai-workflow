@@ -1,9 +1,9 @@
 # AI-Workflow (AIWF)
 
-The **artifact-first engineering system for developers and coding agents** that puts [Dharmax-way](dharmax-way.md) into practice.
+**AI-Workflow is the AI-assisted engineering workflow, and the software that operates it, built to follow [Dharmax-way](dharmax-way.md).** It takes developer-approved product intent through concrete [User/Actor Stories](user-story.md), executable [tests](test.md), justified [Tickets](ticket.md), engineering operations and independent verification to working product behavior.
 
-AIWF connects developer-approved product intent, engineering work, code/architecture, governance, tests, decisions and current evidence through the [Canonical Project Graph](project-graph.md). It provides high-level investigation, preparation and resolution of work, plus precise public operations for deliberate inspection and change. Work should be resumable from repository and canonical state, not dependent on reconstructing a previous chat.
+AIWF maintains connected project state in the [Project Graph](project-graph.md) and repository, so its work and evidence can be inspected and resumed without reconstructing a chat. Its operations include investigating, preparing, processing and resolving work. They serve the workflow; they do not define product intent or turn creating records into the goal.
 
-**Distinction:** Dharmax-way is the governing approach; AIWF is the product implementing it. A complete graph, generated artifacts or passing internal suite alone is not the goal: correct, working, verified product behavior is.
+The central obligation is **to make the approved US test pass through correctly engineered work**, while preserving the developer's authority, applicable Aspects, Rules, authorization and valid evidence. When genuine work requires smaller coding Tickets, they are derived and resolved as part of that obligation—not generated for ceremony.
 
-The project integrates existing ecosystem owners rather than duplicating their responsibilities. See [the current architecture](../architecture.md) for present implementation and [the governing design](../../plans/AIWF-DHARMAX-WAY-DESIGN.md) for the approved target; a planned capability is not automatically implemented.
+Dharmax-way is the governing approach; AIWF implements and supports it. The current code is being brought into alignment with this target: this definition does not claim every stage is already implemented. See [current architecture](../architecture.md) and [governing design](../../plans/AIWF-DHARMAX-WAY-DESIGN.md).

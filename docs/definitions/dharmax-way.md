@@ -1,12 +1,16 @@
 # Dharmax-way
 
-AIWF's **governing approach to defining, implementing and verifying product and engineering work**; the operational application of the [Prime Directive](prime-directive.md), not a separate ceremonial framework.
+**The governing, test-first (TDD) method for defining and delivering correct product behavior**, implemented by [AI-Workflow](ai-workflow.md) and governed in engineering by the [Prime Directive](prime-directive.md). The developer owns intended product behavior and its approval; AI helps discover, propose, implement and verify it, but cannot approve its own product definition.
 
-- The developer owns product intent and acceptance; AI may discover, clarify and propose but does not approve its own proposed requirements.
-- Establish the actual [Feature](feature.md), [Aspect](aspect.md) and concrete [US](user-story.md) involved. Preserve canonical identities and revise existing definitions rather than multiplying substitutes.
-- Use the smallest coherent engineering sequence: **Concepts → Architecture → execution Flow → Implementation → Proof**. Inspect existing owners/contracts before adding another.
-- Derive executable behavioral [Tests](test.md) from accepted, complete Stories; derive/reconcile implementation [Tickets](ticket.md) from genuine unmet obligations. Narrow technical work can have a direct Ticket without a fictional Story.
-- Make guarded changes, establish actual outcomes through public behavior and independent current verification; distinguish proposed, skipped, blocked, red, green and verified without manufactured history.
-- Inspect complete touched methods/contracts and leave directly affected work simpler, not just a passing patch.
+## Normal US-driven cycle
 
-This defines the approach, not a compulsory new document, subsystem or artifact per stage. Detailed operating contracts are in [the canonical design](../../plans/AIWF-DHARMAX-WAY-DESIGN.md).
+1. **Define and approve the US.** Resolve its actual Actor, Intent, Initial State, Action and full **Expected Result**, including relevant Feature/Aspect context. Reuse/revise existing canonical definitions instead of inventing parallel ones.
+2. **Generate and review the executable US test file first.** Derive its behavioral assertions from the accepted effective US, not from existing code or an AI-invented oracle. One cohesive file owns the episode and meaningful scenarios. Before implementation starts, a materialized test may be marked skipped; an uncreated test is uncovered, not skipped.
+3. **Establish the actual baseline when work begins.** Activate and run the test. For missing new behavior it **normally fails for the expected product reason (red)**. Existing behavior may already pass; a provider/fixture/infrastructure failure is not expected red. Never manufacture a historical failure.
+4. **Resolve the US test through a governing resolution Ticket.** Establish or reconcile the Ticket that owns making this accepted test pass (it may be established before the baseline run to govern execution). Investigate only enough to identify the actual unmet obligations. Derive **smaller coding Tickets only when useful**; each is bounded by the real need, not a mechanical one-Ticket-per-step ceremony.
+5. **Engineer and resolve the necessary work.** Apply the [Prime Directive](prime-directive.md) to every touched scope: establish **Concepts → Architecture → execution Flow → Implementation**; reuse existing owners, make guarded changes, keep methods/APIs tight, and obey actual Rules, authorization and applicable Aspects.
+6. **Prove the outcome.** Rerun the **same US test** and any necessary specialist tests; obtain real green and independent *current* verification. Record actual evidence and unresolved gaps truthfully. A code change, completed Ticket or graph link alone does not establish Story satisfaction.
+
+Changes in accepted intent or an applicable Aspect may require revisiting the test and affected work. For a bug, reproduce the incorrect behavior through the owning Story where possible and fix the existing identity; for justified technical-only maintenance, a direct Ticket is legitimate without inventing a US.
+
+This is an iterative operating method, not a requirement to create every kind of record for every change. See [the detailed engineering design](../../plans/AIWF-DHARMAX-WAY-DESIGN.md).

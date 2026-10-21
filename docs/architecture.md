@@ -74,7 +74,7 @@ AIWF distinguishes structural graph coverage, intended Story behavior and **curr
 
 The ordinary test is derived from an accepted User/Actor Story: establish its actual initial state, perform the action through a real public interface, and assert observable result and material exceptions/Aspects. Keep the Story's related outcomes together. An exceptional isolated unit test is justified by a genuinely complex mechanism (e.g. cross-process atomic batch). Raw internal pass counts never prove the product.
 
-The planned lifecycle is: accepted Story → runnable test (skipped only before its work begins) → activate and establish expected red → guarded implementation → real green → independent current acceptance. Existing implemented work may be verified as it stands; do not invent a historical red phase. This lifecycle is **target** until stages S4–S7 pass.
+The planned lifecycle is: complete accepted Story → reviewed runnable test **before implementation** (skipped only before work begins) → resolution Ticket for satisfying that test → at work start activate/run and establish the actual baseline (normally attributable expected red for missing new behavior) → derive only needed smaller coding Tickets → guarded implementation under the Prime Directive → the **same** test green → independent current acceptance. Already-implemented work may pass at baseline; never invent a historical red phase. This lifecycle is **target** until stages S4–S7 pass.
 
 A model saying “done” is not evidence. A generated test cannot certify its own behavioral oracle. Verification should inspect authored acceptance and material product obligations independently of the implementation attempt.
 
