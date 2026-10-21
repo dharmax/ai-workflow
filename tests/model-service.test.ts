@@ -73,23 +73,17 @@ describe("configured model service", () => {
         expect(new ModelService(root).localModel?.modelId).toBe("fixture-updated")
     })
     it("never fabricates a local default but accepts an explicit local task route", () => {
-        {
         saveConfig(root, { model: "openrouter/vendor/configured-cloud" })
-        const models = new ModelService(root)
-        expect(models.localModel).toBeUndefined()
-        expect(models.resolveModel("local", true)).toBeUndefined()
-        }
-        {
-        saveConfig(root, {
-            model: "openrouter/vendor/configured-cloud",
-            modelRoutes: { code: "ollama/configured-code" },
-        })
-        const models = new ModelService(root)
-        expect(models.localModel).toBeUndefined()
-        expect(models.resolveModel("code", true)).toEqual({
+        const cloudOnly = new ModelService(root)
+        expect(cloudOnly.localModel).toBeUndefined()
+        expect(cloudOnly.resolveModel("local", true)).toBeUndefined()
+
+        saveConfig(root, { modelRoutes: { code: "ollama/configured-code" } })
+        const explicitRoute = new ModelService(root)
+        expect(explicitRoute.localModel).toBeUndefined()
+        expect(explicitRoute.resolveModel("code", true)).toEqual({
             providerId: "ollama", modelId: "configured-code",
         })
-        }
     })
 
 
