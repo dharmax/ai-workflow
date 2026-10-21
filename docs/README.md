@@ -1,5 +1,7 @@
 # AIWF documentation
 
+**Canonical terminology and definition-change rules:** [Definitions glossary](definitions/README.md). One Markdown file per term. Read these before interpreting older design, journeys, plans or implementation fields; the glossary controls when wording conflicts.
+
 **Current working checkpoint:** [AIWF v1 — active two-iteration delivery](../plans/AIWF-V1-ACTIVE-CHECKPOINT.md). This is the concise current scope/status/validation policy; dated audits are evidence, not competing execution plans.  
 **Detailed three-iteration release contract:** [AIWF usable v1 plan](../plans/AIWF-USABLE-V1-RELEASE-PLAN.md).  
 **Governing design:** [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md).  

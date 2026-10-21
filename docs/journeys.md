@@ -1,8 +1,8 @@
 # AIWF Actor Journeys
 
-These are public product/actor acceptance scenarios, not a list of internal methods. The governing definitions are in [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md); implement in the order of the [staged plan](../plans/AIWF-DHARMAX-WAY-PLAN.md).
+These are public product/actor acceptance scenarios, not a list of internal methods. The governing definitions are in the [canonical glossary](definitions/README.md), with architectural context in [Dharmax-way design](../plans/AIWF-DHARMAX-WAY-DESIGN.md); implement in the order of the [staged plan](../plans/AIWF-DHARMAX-WAY-PLAN.md).
 
-**Status:** DW-01–DW-09 below are target Stories for the staged redesign; they are **not claims of current implementation**. A Story title alone is not a Story. Each scenario includes actor intent, initial state, action and expected observable result. Confirm the developer-approved specification before making its test authoritative. The earlier J-series catalog is retained below for reconciliation, not a competing set of implementation instructions.
+**Status:** DW-01–DW-09 below are target Stories for the staged redesign; they are **not claims of current implementation**. A Story title alone is not a Story. Each scenario is historical target material; its eventual accepted definition must use Actor, Intent, Initial State, Action and **Expected Result** as specified in the glossary. Confirm the developer-approved specification before making its test authoritative. The earlier J-series catalog is retained below for reconciliation, not a competing set of implementation instructions.
 
 ## Dharmax-way target User/Actor Stories
 
@@ -15,7 +15,7 @@ These are public product/actor acceptance scenarios, not a list of internal meth
 ### DW-02 — Review and edit a complete Story
 - **Actor / intent:** Developer wants `Save filtered avatar` to describe real user behavior, not merely a label.
 - **Initial state:** AIWF displays an AI-proposed Story, not yet accepted, associated with Avatar Filters.
-- **Action:** Developer edits Actor, Intent, Initial State, Action, Expected Observable Result and material failure/bounds; accepts and reopens it.
+- **Action:** Developer edits Actor, Intent, Initial State, Action and Expected Result (including relevant conditional outcomes); accepts and reopens it.
 - **Expected result:** The exact edited scenario persists as accepted. Rejecting or abandoning a proposal leaves canonical product intent unchanged. Ambiguous migrated legacy Stories remain visible as needing review, never silently completed.
 
 ### DW-03 — Derive work without inventing the product
