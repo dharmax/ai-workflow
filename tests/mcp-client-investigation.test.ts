@@ -111,9 +111,28 @@ describe('Client investigation through MCP', () => {
     expect(fs.existsSync(path.join(sibling, '.ai-workflow'))).toBe(false);
   });
 
-  it('keeps a cold host graph usable after sibling-first access', async () => {
+  it('keeps sibling and default scope correct across a restarted MCP session without persisting sibling state', async () => {
+    const file=path.join(sibling,'src/knowledge.ts');
+    const source=fs.readFileSync(file,'utf8');
     expect(await call('find_symbol', {name: 'KnowledgeBase', exact: true, projectRoot: sibling})).toHaveLength(1);
     expect(await call('find_symbol', {name: 'hostOnly', exact: true})).toHaveLength(1);
+
+    await client.close();
+    await server.close();
+    store.close();
+    store=new WorkflowStore(project,true);
+    await store.sp.ready();
+    server=createMcpServer({store,projectRoot:project,executionAuthority:'project-write',
+      actor:new WorkflowActor({store,projectRoot:project,offline:true})}).server;
+    client=new Client({name:'investigation-client-restarted',version:'1'});
+    const [clientTransport,serverTransport]=InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    expect(await call('find_symbol', {name: 'hostOnly', exact: true})).toHaveLength(1);
+    expect(await call('find_symbol', {name: 'KnowledgeBase', exact: true, projectRoot: sibling})).toHaveLength(1);
+    expect(fs.readFileSync(file,'utf8')).toBe(source);
+    expect(fs.existsSync(path.join(sibling,'.ai-workflow'))).toBe(false);
   });
 
   it('recognizes a sibling filePath and rebases it to that project', async () => {

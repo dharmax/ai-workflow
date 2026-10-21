@@ -115,3 +115,8 @@ No test deletion is justified merely by a higher pass count. The deletion unit i
 - Retired `tests/mcp.test.ts`: all three former handler-internal scenarios are represented using a real linked SDK Client in `mcp-client-investigation.test.ts`. Unique advertised tools, hidden/unknown refusal, invocation, exported JSON schema and stale-file cleanup assertions were retained. Actual installed stdio transport remains independently covered in `p0-engineering` and `product-operability-parity`.
 - Consolidated four common CLI help test cases into one cohesive per-command loop with one isolated fixture. All four binary invocations and no-write assertions remain.
 - These changes consolidate *test ownership and fixture lifecycle*, not reduce safety checks by target percentage. Run targeted tests and full suite before considering acceptance.
+
+### Cycle 7 — strengthened proof after batch review (pending Bun verification)
+- Replaced the original sibling-first cold-host smoke with one SDK Client Story that repeats host/sibling source queries across a closed and reopened server/client/store session; asserts sibling source unchanged and no persistent sibling AIWF state. No extra test case added.
+- Reviewed `tools.test.ts` case by case: its registry wiring, recommendation semantics, qualified symbol ambiguity, OS and Git errors, scratchpad/ADR, TestNode triage and `script_eval` each include distinguishable oracles. **Retain**; a broad file deletion would reduce coverage.
+- Real installed **stdio** restart remains a distinct acceptance improvement; do not claim the in-memory SDK session proves deployment/restart.
