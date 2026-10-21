@@ -1,4 +1,4 @@
-# Acceptance coverage register — 75 consolidated test files (original 76 accounted for)
+# Acceptance coverage register — 74 consolidated test files (original 76 accounted for)
 **Proposed Story descriptions:** cycles 1–4. **Audited:** exact repository tree at USs-and-consolidation. This is an ownership inventory, not a green-test claim.
 Legend: *public* executes a client/API/UI/CLI or relevant external host; *technical* proves distinct primitive; *candidate* may contain redundant assertions but is not authorized for deletion; *gap* leaves a specified acceptance obligation unproved. Conditional-live is not counted as always-on acceptance.
 
@@ -63,7 +63,6 @@ Legend: *public* executes a client/API/UI/CLI or relevant external host; *techni
 | `tests/actor.test.ts` | US-A01 | public/internal-mixed |
 | `tests/actor-engine-boundaries.test.ts` | US-A03 | technical |
 | `tests/actor-runtime-refresh.test.ts` | US-A04 | technical |
-| `tests/actor-review-regressions.test.ts` | US-A04 | candidate |
 | `tests/actor-prompts.test.ts` | US-A03 | technical |
 | `tests/actor-budget-policy.test.ts` | US-A04 | technical |
 | `tests/user-story-j24-sophisticated-goal.test.ts` | US-A01 | public |
@@ -125,3 +124,8 @@ No test deletion is justified merely by a higher pass count. The deletion unit i
 - Extended the existing P0 sibling grant-refusal Story (not a new test case) to exercise real stdio Client/server restart, exact cross-project symbol investigation, unchanged sibling bytes and no new sibling persistence, and refusal of transferred write authority before and after restart.
 - The test revealed a real mismatch: sibling `read_workspace_file` opened a persistent store, unlike sibling AST reads. It now reuses the same ephemeral read-only sibling store without needless AST indexing for literal file reads. No new store, registry or authorization subsystem.
 - **Do not infer** this proves all non-source graph reads on an absent sibling DB are non-mutating; those remain separately governed. Actual source read/restart proof is pending Bun execution.
+
+### Cycle 9 — Actor boundary and routing ownership (pending verification)
+- Removed catch-all `actor-review-regressions.test.ts`: its cloud-only/explicit-local route behavior is one test in `model-service.test.ts`, and its SOTA locality/escalated discovery budget scenarios moved to `escalation.test.ts` with the original explicit configured-model fixture. No unique behavioral case dropped.
+- Removed one redundant *disabled discovery* Actor matrix instance. The stronger dedicated `does not advertise a capability that is explicitly disabled` test retains missing tool/schema and successful universal-execution checks; failed and empty discovery remain independently executed.
+- Distinct provider, forced-local, no-progress and budget safety oracles remain. Await targeted + full Bun results.

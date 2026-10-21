@@ -90,3 +90,6 @@ All 13 Actor-category and six Capabilities-category files are assigned here; set
 
 ### Follow-up double-check
 The two local-only escalation cases are **not duplicates**: one completes normally, the other stalls with repeated observations. ModelService default reload and Actor task-route reload likewise protect different contracts. Retain all four until a stronger replacement proves both behaviors.
+
+### Cycle 9 implementation-owner consolidation
+`actor-review-regressions.test.ts` retired. Default/explicit model routes belong to `model-service.test.ts`; SOTA locality and fresh escalation discovery budget belong to `escalation.test.ts`. The disabled discovery matrix duplicate in `actor.test.ts` is represented by its stronger standalone counterexample. No new tests, fixtures or source paths.

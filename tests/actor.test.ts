@@ -147,7 +147,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(result.issues?.some(issue => issue.message.includes('exhausted after two attempts'))).toBe(true);
   });
 
-  for (const discovery of [null, {discover: async () => {throw new Error('classifier failure')}}, {discover: async () => ({query:{},tools:[]})}]) it('starts with universal execution before any discovery, including disabled/failed/empty discovery', async () => {
+  for (const discovery of [{discover: async () => {throw new Error('classifier failure')}}, {discover: async () => ({query:{},tools:[]})}]) it('starts with universal execution before failed or empty discovery', async () => {
     let calls=0;
     const asker={json:async (_prompt:string,_schema:unknown,options:{system?:string})=>{
       expect(options.system).toContain('### Tool: run_command');
@@ -155,7 +155,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       return {ok:true,data:++calls===1?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf observed'}}]}:{thought:'',action:'final_answer',finalAnswer:'observed'}};
     }} as unknown as Asker;
     const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:discovery}).execute('Inspect evidence','dev');
-    expect(result.failed).toBeUndefined();expect(result.discoveredTools).toEqual(discovery ? ['run_command','discover_tools'] : ['run_command']);
+    expect(result.failed).toBeUndefined();expect(result.discoveredTools).toEqual(['run_command','discover_tools']);
     expect(result.events[0].toolResults?.[0].result).toMatchObject({stdout:'observed',success:true});
   });
 
