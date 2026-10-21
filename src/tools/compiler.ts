@@ -8,7 +8,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
-import { applyPatch } from '@dharmax/block-patcher';
 
 /**
  * Extracts executable code from optional markdown fences.
@@ -162,56 +161,8 @@ export function registerCompilerTools() {
         replace: z.string()
       })).optional().describe('Batch patch specifications')
     }),
-    execute: async ({ filePath, targetContent, replacementContent, patches }, ctx: ToolContext) => {
-      const allPatches = patches ? [...patches] : [];
-      if (filePath && targetContent !== undefined && replacementContent !== undefined) {
-        allPatches.push({ file: filePath, search: targetContent, replace: replacementContent });
-      }
-
-      if (allPatches.length === 0) {
-        throw new Error('Either (filePath, targetContent, replacementContent) or patches array must be provided.');
-      }
-
-      // Group patches by file
-      const byFile = new Map<string, Array<{ file: string; search: string; replace: string }>>();
-      for (const p of allPatches) {
-        const list = byFile.get(p.file) || [];
-        list.push(p);
-        byFile.set(p.file, list);
-      }
-
-      let totalBytesModified = 0;
-      const summaries: any[] = [];
-
-      for (const [file, filePatches] of byFile.entries()) {
-        const fullPath = path.resolve(ctx.projectRoot, file);
-        if (!fs.existsSync(fullPath)) {
-          throw new Error(`Target file does not exist: ${file}`);
-        }
-
-        const originalContent = fs.readFileSync(fullPath, 'utf8');
-        const patchResult = applyPatch(originalContent, filePatches);
-
-        if (!patchResult.allApplied) {
-          return {
-            success: false,
-            filePath: file,
-            message: `Failed to apply patch to ${file}: targetContent could not be uniquely matched.`
-          };
-        }
-
-        fs.writeFileSync(fullPath, patchResult.content, 'utf8');
-        totalBytesModified += (patchResult.content.length - originalContent.length);
-        summaries.push(...patchResult.summary);
-      }
-
-      return {
-        success: true,
-        filePath: filePath || allPatches[0].file,
-        bytesModified: totalBytesModified,
-        filesModified: byFile.size,
-        summary: summaries
-      };
+    execute: async () => {
+      throw Error('apply_block_patch is retired. Use preview_change and apply_change with a current fingerprint and owning Ticket.');
     }
   });
 

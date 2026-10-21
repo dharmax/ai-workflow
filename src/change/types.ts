@@ -93,7 +93,14 @@ export type ChangeTarget =
   | { type: 'range'; filePath: string; startLine: number; startCharacter: number; endLine: number; endCharacter: number }
   | { type: 'file'; filePath: string };
 
+export type SourceFileChange =
+  | { action: 'replace_text'; filePath: string; oldText: string; newText: string }
+  | { action: 'create_file'; filePath: string; content: string }
+  | { action: 'delete_file'; filePath: string };
+
 export type ChangeRequest =
+  | { action: 'source_change'; changes: SourceFileChange[] }
+  | { action: 'delete_file'; filePath: string }
   | { action: 'replace_text'; filePath: string; oldText: string; newText: string }
   | { action: 'create_file'; filePath: string; content: string; productContextEntityId?: string }
   | { action: 'product_change'; mutations: ProductMutation[]; basis?: ProductRevision[]; originalRequest?: string }

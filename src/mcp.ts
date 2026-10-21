@@ -50,6 +50,7 @@ export interface McpServerOptions {
 
 export function createMcpServer(options: McpServerOptions = {}) {
   const root = options.projectRoot || findProjectRoot().root;
+  const executionAuthority = options.executionAuthority ?? (process.env.AIWF_EXECUTION_AUTHORITY === 'project-write' ? 'project-write' : 'read-only');
   const store = options.store || new WorkflowStore(root);
   initializeTools();
 
@@ -140,7 +141,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
         await activeStore.sp.ready();
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
-        executionAuthority: options.executionAuthority ?? (process.env.AIWF_EXECUTION_AUTHORITY === 'project-write' ? 'project-write' : 'read-only')};
+        executionAuthority};
 
       if (name === 'execute_shell_wish') {
         const wish = String(toolArgs.wish || '');

@@ -52,7 +52,6 @@ export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'preview_change',
   'apply_change',
   'read_workspace_file',
-  'apply_block_patch',
 
   'resolve_test_target',
   'triage_test_failures',

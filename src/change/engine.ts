@@ -101,9 +101,11 @@ export function normalizeWorkspaceEdit(
 ): {
   fileEdits: Map<string, LspTextEdit[]>;
   fileRenames: Array<{ from: string; to: string }>;
+  fileDeletes: string[];
 } {
   const fileEdits = new Map<string, LspTextEdit[]>();
   const fileRenames: Array<{ from: string; to: string }> = [];
+  const fileDeletes: string[] = [];
 
   // 1. Direct changes map { [uri]: edits }
   if (edit.changes) {
@@ -127,7 +129,13 @@ export function normalizeWorkspaceEdit(
           to: path.relative(projectRoot, toAbs)
         });
       } else if ('kind' in docChange) {
-        if (docChange.kind !== 'create') throw Error('Workspace file deletion is unsupported; refusing partial effects.');
+        if (docChange.kind === 'delete') {
+          const relative = workspacePath(projectRoot, lspClient.fromUri(docChange.uri));
+          if (docChange.options?.recursive || !fs.lstatSync(path.resolve(projectRoot, relative)).isFile())
+            throw Error('Deletion requires an existing regular file; recursive deletion is forbidden.');
+          fileDeletes.push(relative);
+          continue;
+        }
         const relative = path.relative(projectRoot, lspClient.fromUri(docChange.uri));
         if (fs.existsSync(path.resolve(projectRoot, relative))) throw Error(`Workspace creation would overwrite '${relative}'.`);
         if (!fileEdits.has(relative)) fileEdits.set(relative, []);
@@ -143,7 +151,11 @@ export function normalizeWorkspaceEdit(
 
   if (fileRenames.some(rename => fileEdits.has(rename.to)))
     throw Error('Editing a rename destination in the same workspace edit is unsupported; refusing partial effects.');
-  return { fileEdits, fileRenames };
+  for (const file of [...fileEdits.keys(), ...fileDeletes, ...fileRenames.flatMap(rename => [rename.from, rename.to])])
+    workspacePath(projectRoot, file);
+  if (new Set(fileDeletes).size !== fileDeletes.length || fileDeletes.some(file => fileEdits.has(file) || fileRenames.some(rename => rename.from === file || rename.to === file)))
+    throw Error('Conflicting workspace deletion; refusing partial effects.');
+  return { fileEdits, fileRenames, fileDeletes };
 }
 
 /**
@@ -167,6 +179,7 @@ export function computeChangeFingerprint(
   // Canonicalize mutations: extract and sort all text edits and renames by file path
   const canonicalFileEdits: Array<{ file: string; edits: LspTextEdit[] }> = [];
   const canonicalRenames: Array<{ from: string; to: string }> = [];
+  const canonicalDeletes: string[] = [];
 
   for (const mutation of mutations) {
     if (mutation.kind === 'workspace_edit' && lspClient && projectRoot) {
@@ -179,6 +192,7 @@ export function computeChangeFingerprint(
         });
         canonicalFileEdits.push({ file, edits: sortedEdits });
       }
+      canonicalDeletes.push(...norm.fileDeletes);
       for (const r of norm.fileRenames) {
         canonicalRenames.push(r);
       }
@@ -200,6 +214,7 @@ export function computeChangeFingerprint(
       : undefined,
     canonicalFileEdits,
     canonicalRenames,
+    canonicalDeletes: canonicalDeletes.sort(),
     sortedHashes,
     productContext: productImpact
       ? {
@@ -260,6 +275,29 @@ export class CausalChangeEngine {
     const originalHashes: Record<string, string> = {};
 
     switch (request.action) {
+      case 'source_change': {
+        const seen = new Set<string>();
+        for (const change of request.changes) {
+          const file = workspacePath(this.projectRoot, change.filePath);
+          if (seen.has(file)) return this.createBlockedPreview(request, `Multiple operations target '${file}'; combine its replacement first.`, warnings, productImpact);
+          seen.add(file);
+          const child = await this.buildPreview(change);
+          if (child.blocked) return this.createBlockedPreview(request, child.blockReason ?? child.summary, warnings, productImpact);
+          mutations.push(...child.mutations);
+          warnings.push(...child.warnings);
+        }
+        summary = `Coherent source change across ${seen.size} files.`;
+        break;
+      }
+      case 'delete_file': {
+        try {
+          const relative = workspacePath(this.projectRoot, request.filePath);
+          if (!fs.lstatSync(path.resolve(this.projectRoot, relative)).isFile()) throw Error('Deletion target must be an existing regular file.');
+          mutations.push({kind: 'workspace_edit', source: 'workspace-text', edit: {documentChanges: [{kind: 'delete', uri: this.lspClient.toUri(relative)}]}});
+          summary = `Delete '${relative}'.`;
+        } catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
+        break;
+      }
       case 'replace_text': {
         try {
           if (path.isAbsolute(request.filePath)) throw new Error('Workspace path must be relative.');
@@ -552,7 +590,7 @@ export class CausalChangeEngine {
     // Include every secondary edit, creation and both rename endpoints before authorization/fingerprinting.
     for (const mutation of mutations) if (mutation.kind === 'workspace_edit') {
       const normalized = normalizeWorkspaceEdit(mutation.edit, this.lspClient, this.projectRoot);
-      for (const file of normalized.fileEdits.keys()) affectedFilesSet.add(file);
+      for (const file of [...normalized.fileEdits.keys(), ...normalized.fileDeletes]) affectedFilesSet.add(file);
       for (const rename of normalized.fileRenames) { affectedFilesSet.add(rename.from); affectedFilesSet.add(rename.to); }
     }
     const affectedFiles = Array.from(affectedFilesSet).sort();
@@ -766,6 +804,7 @@ export class CausalChangeEngine {
     // 3. Normalize all edits across all mutations
     const combinedFileEdits = new Map<string, LspTextEdit[]>();
     const combinedRenames: Array<{ from: string; to: string }> = [];
+    const combinedDeletes: string[] = [];
 
     for (const mutation of preview.mutations) {
       if (mutation.kind === 'workspace_edit') {
@@ -776,6 +815,7 @@ export class CausalChangeEngine {
           combinedFileEdits.set(f, list);
         }
         combinedRenames.push(...norm.fileRenames);
+        combinedDeletes.push(...norm.fileDeletes);
       }
     }
 
@@ -796,7 +836,14 @@ export class CausalChangeEngine {
       materializedFiles.set(absPath, updated);
     }
 
+    for (const file of combinedDeletes) {
+      if (combinedFileEdits.has(file) || combinedRenames.some(rename => rename.from === file || rename.to === file))
+        throw Error('Conflicting deletion; refusing partial effects.');
+      const absolute = path.resolve(this.projectRoot, file);
+      originalBackups.set(absolute, fs.readFileSync(absolute, 'utf8'));
+    }
     const expectedAfter = {...preview.originalHashes};
+    for (const file of combinedDeletes) expectedAfter[file] = 'missing';
     for (const [absolute, content] of materializedFiles)
       expectedAfter[path.relative(this.projectRoot, absolute)] = computeFileSha256(content);
     for (const rename of combinedRenames) {
@@ -830,6 +877,11 @@ export class CausalChangeEngine {
         fs.mkdirSync(path.dirname(toAbs), { recursive: true });
         fs.renameSync(fromAbs, toAbs);
         executedRenames.push(r);
+      }
+      for (const file of combinedDeletes) {
+        const absolute = path.resolve(this.projectRoot, file);
+        fs.unlinkSync(absolute);
+        writtenFiles.push(absolute);
       }
     } catch (err: any) {
       // Best-effort rollback
@@ -934,7 +986,7 @@ export class CausalChangeEngine {
     return {
       ok: true,
       fingerprint,
-      filesTouched: Array.from(combinedFileEdits.keys()),
+      filesTouched: [...combinedFileEdits.keys(), ...combinedDeletes],
       filesRenamed: executedRenames,
       reindexedFiles,
       migratedAnchors,

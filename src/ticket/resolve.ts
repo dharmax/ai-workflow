@@ -3,6 +3,7 @@
  * Scope: Dependency order, guarded mutations, repair, receipts and lease lifecycle.
  */
 
+import {assertChangeScope} from './change.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
@@ -98,7 +99,6 @@ export async function resolveTicket(
             let effectEpoch = 0
             const ctx = { store, projectRoot: store.root, signal: options.signal,
                 get governedAdmission() { return admission } }
-            const statePath = path.join(".ai-workflow", "state")
             const blocked = (reason: string): OperationResult<ResolvedTicket> => ({
                 status: "blocked",
                 artifactId: rootId,
@@ -120,25 +120,6 @@ export async function resolveTicket(
                 }
                 return claim.message ?? "Lease unavailable."
             }
-            const guardFiles = (files: string[]) => {
-                const status = Bun.spawnSync(["git", "status", "--porcelain=v1", "-z"], { cwd: store.root, stderr: "pipe" })
-                if (!status.success) throw new Error("Workspace Git status unavailable; edits require an inspectable repository.")
-                const dirty = new Set<string>(),
-                    entries = status.stdout.toString().split("\0")
-                for (let i = 0; i < entries.length; i++)
-                    if (entries[i]) {
-                        dirty.add(entries[i].slice(3))
-                        if (/[RC]/.test(entries[i].slice(0, 2))) dirty.add(entries[++i])
-                    }
-                for (const file of files) {
-                    const relative = workspacePath(store.root, file)
-                    const currentHash = hashFiles(store.root, [relative])[relative]
-                    const expected = [...scope.effects.slice(effectEpoch)].reverse().find(effect => relative in effect.after)?.after[relative] ?? scope.baselines[relative]
-                    if (expected !== currentHash) throw Error(`Unexpected concurrent source modification: ${relative}`)
-                    if (dirty.has(relative) && !ownedFiles.has(relative) && !options.allowDirtyTargets?.includes(relative)) return relative
-                }
-                return null
-            }
             const apply = async (request: import("../change/types.ts").ChangeRequest) => {
                 await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
                 const leaseError = await lease(executingTicket)
@@ -153,36 +134,8 @@ export async function resolveTicket(
                         undefined,
                         "safety_preview"
                     )
-                if (preview.affectedFiles.some(file => {
-                    const relative = workspacePath(store.root, file)
-                    return relative === statePath || relative.startsWith(statePath + path.sep)
-                }))
-                    throw new Error("Implementation cannot mutate canonical workflow/governance state through source changes.")
                 await store.governanceAssertion(admission!)
-                const unauthorized = preview.affectedFiles.filter(file => !scope.authorizedFiles.includes(workspacePath(store.root, file)) && !scope.authoredFiles.includes(workspacePath(store.root, file)))
-                if (unauthorized.length) throw new Error(`Scope expansion requires input: ${unauthorized.join(', ')}; authorize these exact paths for Ticket '${scope.ticketId}'.`)
-                for (const file of preview.affectedFiles.filter(file => !scope.authorizedFiles.includes(file))) {
-                    const targets = scope.authoredTargets.filter(target => target.kind === 'SymbolNode' && target.filePath === file)
-                    let authorized = false
-                    for (const target of targets) {
-                        let targetId = target.id
-                        for (const migration of anchorMigrations) if (store.localId(migration.oldId) === store.localId(targetId)) targetId = migration.newId
-                        const symbol = await store.getEntity<import('../graph/ontology.ts').SymbolNode>(targetId, 'SymbolNode')
-                        if (!symbol || symbol.status === 'deprecated') continue
-                        if (preview.resolvedTarget?.graphEntityId === symbol.id) { authorized = true; break }
-                        if (request.action === 'replace_text' && request.filePath === file) {
-                            const {getExactSymbolSource} = await import('../change/symbol-source.ts')
-                            const source = await getExactSymbolSource(store.root, path.resolve(store.root, file), symbol.containerName ? `${symbol.containerName}.${symbol.title}` : symbol.title!)
-                            if (source.code.includes(request.oldText)) { authorized = true; break }
-                        }
-                    }
-                    if (!authorized) throw Error(`Scope expansion requires input: ${file}; this effect is outside its authored exact symbol. Authorize the file explicitly.`)
-                }
-                const proposedGovernance = await resolveTicketGovernance(store, executingTicket, scope.files, scope.governance)
-                if (proposedGovernance.fingerprint !== scope.governance.fingerprint)
-                    throw Error('Applicable obligations changed; producer must receive a fresh governed scope before applying.')
-                const conflict = guardFiles(preview.affectedFiles)
-                if (conflict) throw new Error(`Dirty target requires input: ${conflict}`)
+                await assertChangeScope(store, executingTicket, scope, preview, request, ownedFiles, options.allowDirtyTargets, effectEpoch, anchorMigrations)
                 await applyProductMutations(store, [
                     { kind: "product_update", entityType: "Ticket", id: store.localId(executingTicket.id), fields: { lane: "In Progress" } }
                 ])

@@ -76,7 +76,8 @@ function jsonHostFile(filePath: string, entry: Record<string, unknown>): SetupFi
       if (config.mcpServers !== undefined && (!config.mcpServers || typeof config.mcpServers !== 'object' || Array.isArray(config.mcpServers))) throw new Error();
     } catch { throw new Error(`Invalid JSON host configuration at ${filePath}; repair it before setup.`); }
   }
-  config.mcpServers = {...config.mcpServers as Record<string, unknown> | undefined, 'ai-workflow': entry};
+  const servers = config.mcpServers as Record<string, Record<string, unknown>> | undefined;
+  config.mcpServers = {...servers, 'ai-workflow': {...servers?.['ai-workflow'], ...entry}};
   return {filePath, content: JSON.stringify(config, null, 2)};
 }
 
@@ -165,7 +166,7 @@ When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
 - **Product Intent & Coverage**: Use \`get_product_coverage\`, \`get_product_impact\`, \`list_epics\`, \`list_features\`, \`list_user_stories\` to verify intent and impact before changing features.
 - **Repository investigation**: ${REPOSITORY_INVESTIGATION}
-- **Deterministic Patches**: Use \`apply_block_patch\` or \`aiwf patch\` for AST block replacement.
+- **Guarded source changes**: Use \`preview_change\` then \`apply_change\` with \`ticketId\`, \`agentId\` and the exact fingerprint. Canonical CLI/Shell: \`source:change PREVIEW/APPLY\`. Raw block patching is retired.
 - **Verification**: Run \`resolve_test_target\` and \`triage_test_failures\` to verify code changes against test suites.
 - **Complete**: Delegated completion belongs to \`resolve_ticket\`. For genuinely manual recovery after a blocker, mark Done only after acceptance proof, then release and sync.
 <!-- /ai-workflow-rules -->
@@ -421,12 +422,14 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
     const filePath = path.join(codex, 'config.toml');
     const raw = readSetupFile(filePath);
     let existingTools: Record<string, unknown> = {};
+    let existingEnv: Record<string, string> = {};
     try {
-      const config = Bun.TOML.parse(raw) as {mcp_servers?: Record<string, {tools?: Record<string, unknown>}>};
+      const config = Bun.TOML.parse(raw) as {mcp_servers?: Record<string, {tools?: Record<string, unknown>; env?: Record<string, string>}>};
       existingTools = config.mcp_servers?.['aiwf-mcp']?.tools ?? {};
+      existingEnv = config.mcp_servers?.['aiwf-mcp']?.env ?? {};
     } catch { throw new Error(`Invalid TOML host configuration at ${filePath}; repair it before setup.`); }
     const block = Bun.TOML.stringify({mcp_servers: {'aiwf-mcp': {
-      command, args, env: {AI_WORKFLOW_TOOLKIT_ROOT: pkgRoot},
+      command, args, env: {...existingEnv, AI_WORKFLOW_TOOLKIT_ROOT: pkgRoot},
       tools: Object.fromEntries(allToolNames.map(tool => [tool, existingTools[tool] ?? {approval_mode: 'approve'}]))
     }}});
     const files: SetupFile[] = [{filePath, content: replaceTomlServerSection(raw, 'aiwf-mcp', block)}];

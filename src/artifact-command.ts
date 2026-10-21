@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {ChangeRequestSchema} from './tools/change.ts';
 import {TestBindingSpecificationSchema} from './graph/test-proof-types.ts';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
@@ -137,10 +138,11 @@ function completenessIntent(entityId:string,level:string):NormalizedCommand {
 
 /** One shared syntax tree. Actions only adapt parsed values into domain intent. */
 export function createCommandTree(emit: (intent: NormalizedCommand) => void | Promise<void>, write: (text:string)=>void) {
-  const root=new Command('aiwf').usage('<command> [options]').description('AI-Workflow 2.0')
+  const root=new Command('aiwf').usage('<topic[:sub-topic]> <VERB> [options]').description('AI-Workflow 2.0')
     .exitOverride().configureOutput({writeOut:write,writeErr:()=>{}}).enablePositionalOptions();
   root.addHelpText('before', ARTIFACT_HELP+'\n');
   root.addHelpText('after', '\n'+LINK_HELP);
+  root.addHelpText('after', '\nEngineering: source:change PREVIEW|APPLY <request-json> --ticket <id> --agent <id> [--fingerprint <hash>]\nNamespace forms are equivalent: source:change PREVIEW / source change PREVIEW.\nShell uses the same grammar without aiwf. Typed MCP tools take semantic parameters, never command strings.\n');
   const collect=(value:string,previous:string[]=[])=>[...previous,value];
   const lower=(value:string)=>value.toLowerCase();
   const operation=(command:Command,tool:string,kind?:'bug')=>{
@@ -165,6 +167,28 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     const command=root.command(verb+' <id>').alias(tool).description(verb+' a Ticket');
     operation(command,tool);
     operation(command.command('ticket <id>',{hidden:true}),tool);
+  }
+  const source = root.command('source').description('Investigate source and preview guarded engineering changes');
+  const file = source.command('file').description('Inspect exact workspace files');
+  file.command('show <filePath>').action((filePath: string) => emit({family: 'artifact', tool: 'read_workspace_file', args: {filePath}}));
+  file.command('outline <filePath>').action((filePath: string) => emit({family: 'artifact', tool: 'get_file_outline', args: {filePath}}));
+  const symbol = source.command('symbol').description('Inspect fresh symbols and references');
+  symbol.command('find <name>').option('--file <path>', 'File filter').option('--exact', 'Exact name')
+    .action((name: string, opts: {file?: string; exact?: boolean}) => emit({family: 'artifact', tool: 'find_symbol', args: {name, ...(opts.file ? {filePath: opts.file} : {}), ...(opts.exact ? {exact: true} : {})}}));
+  symbol.command('show <filePath> <symbolName>').action((filePath: string, symbolName: string) => emit({family: 'artifact', tool: 'get_symbol_source', args: {filePath, symbolName}}));
+  const change = source.command('change').description('Use the Causal Change Engine');
+  for (const action of ['preview', 'apply']) {
+    const command = change.command(action + ' <request>').description(action + ' a typed JSON source change')
+      .requiredOption('--ticket <id>', 'Owning Ticket')
+      .requiredOption('--agent <id>', 'Owning lease agent');
+    if (action === 'apply') command.requiredOption('--fingerprint <hash>', 'Exact preview fingerprint');
+    command.action((json: string, opts: {ticket: string; agent: string; fingerprint?: string}) => {
+      const request = ChangeRequestSchema.parse(JSON.parse(json));
+      return emit({family: 'artifact', tool: action + '_change', args: {
+        ...(action === 'preview' ? request : {request, fingerprint: opts.fingerprint}),
+        ticketId: opts.ticket, agentId: opts.agent
+      }});
+    });
   }
   const process=root.command('process').description('Reconcile reviewed Product intent');
   for(const kind of ['epic','feature','story']) {
@@ -494,7 +518,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     claim:'claim <ticketId> [agent] [minutes] [--agent <id>] [--minutes <number>]\nChecks prerequisites, report completeness and foreign leases, then activates reviewed Story tests.',
     symbol:'symbol <name> [--exact|-e] [--regex|-r] [--kind|-k <kind>] [--file|-f <path>] [--exported] [-n|--limit <count>]',
     graph:'graph [query] [--type|-t <type>] [--pred|-p <predicate>] [--from|--source <id>] [--to|--target <id>] [--depth|-d <number>] [-n|--limit <count>]',
-    patch:'patch <filePath> "<existing text>" "<replacement>"\npatch --spec <patch.json>\npatch <filePath> "<existing text>" --stdin\nUses the existing guarded patch owner; preserve exact original text.',
+    patch:'Retired raw patch alias. Use source:change PREVIEW/APPLY with JSON, --ticket, --agent and the exact preview fingerprint.',
     exec:'exec "<instruction or wish>"\nRuns the configured Actor; Product proposals still require host-owned review.',
     eval:'eval "<code>"\nExecutes JavaScript through the existing sandbox tool.',
     kb:'kb sync [--force] | list [service|skill|pattern] | search <query> | show <id>'
@@ -502,7 +526,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   // Retain the established argument owners for specialist grammars, not a second parser here.
   for(const name of ['triage','product-change','metrics','setup','epic-create','epic-add','create','new',
     'claim','symbol','graph','patch','rule','config','exec','eval','model','kb']) {
-    const command=root.command(name+' [args...]').description(specialistHelp[name]?.split('\n')[0] ?? name+' operations').allowUnknownOption()
+    const command=root.command(name+' [args...]', {hidden: name === 'patch'}).description(specialistHelp[name]?.split('\n')[0] ?? name+' operations').allowUnknownOption()
       .action((tokens:string[])=>emit({family:'legacy',command:name,tokens}));
     if(specialistHelp[name]) command.addHelpText('after','\n'+specialistHelp[name]);
   }
