@@ -28,7 +28,10 @@ describe('Consuela ordinary workspace targets', () => {
     expect((await engine.previewChange(request)).fingerprint).toBe(preview.fingerprint);
     expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(before);
     expect(await registry.execute('read_workspace_file', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' })).toEqual({ filePath, content: before });
-    const result = await registry.execute('apply_change', { request, fingerprint: preview.fingerprint }, { store, projectRoot: root, executionAuthority: 'project-write' });
+    // Direct primitive test: the public writer deliberately requires an owning Ticket.
+    await expect(registry.execute('apply_change', {request, fingerprint: preview.fingerprint},
+      {store, projectRoot: root, executionAuthority: 'project-write'})).rejects.toThrow('ticketId');
+    const result = await engine.applyChange(request, preview.fingerprint);
     expect(result.ok && result.verification.passed).toBe(true); expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(after);
   });
 

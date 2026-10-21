@@ -43,7 +43,8 @@ async function installed(authority?: 'project-write') {
   try {
     await store.upsertEntity(Ticket.dcr, {id: 'T-P0', title: 'Change source coherently', body: 'Reviewed fixture source scope', kind: 'task', lane: 'Todo', priority: 'P0'});
     for (const file of ['math.ts', 'obsolete.ts', 'created.ts', 'renamed.ts']) {
-      await store.upsertEntity(FileNode.dcr, {id: file, title: file, metadata: {isStub: true}});
+      await store.upsertEntity(FileNode.dcr, {id: file, title: file, metadata: {isStub: true,
+        ...(['created.ts','renamed.ts'].includes(file) ? {plannedCreation: true} : {})}});
       await store.relate('T-P0', 'modifies', file);
     }
   } finally {store.close();}
@@ -108,16 +109,18 @@ it('P0 installed host discovers guarded engineering and preserves explicit host 
   await payload(client, 'release_ticket', {ticketId: 'T-P0'});
   expect((await payload(client, 'get_ticket', {ticketId: 'T-P0'})).verificationState).toBe('unverified');
 }, 30000);
-it('P0 host write authority is bound to the configured project', async () => {
+it('P0 host write grant never transfers to a sibling root, but investigation remains available', async () => {
   const {client, root} = await installed('project-write');
   const sibling = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-p0-other-project-'));
   roots.push(sibling);
   fs.mkdirSync(path.join(sibling, '.ai-workflow'));
-  const attempted = await client.callTool({name:'preview_change', arguments:{
-    action:'delete_file',filePath:'victim.ts',projectRoot:sibling
+  fs.writeFileSync(path.join(sibling,'victim.txt'),'do not modify');
+  expect((await payload(client,'read_workspace_file',{projectRoot:sibling,filePath:'victim.txt'})).content).toBe('do not modify');
+  const attempted = await client.callTool({name:'create_ticket', arguments:{
+    id:'UNAUTHORIZED', title:'Other project write',kind:'task',lane:'Todo',priority:'P0',projectRoot:sibling
   }});
   expect(attempted.isError).toBe(true);
-  expect(JSON.stringify(attempted.content)).toContain('not granted');
+  expect(fs.readFileSync(path.join(sibling,'victim.txt'),'utf8')).toBe('do not modify');
   expect(fs.existsSync(path.join(root,'math.ts'))).toBe(true);
 });
 it('P0 default installed host refuses self-granted write authority and raw patch bypass', async () => {

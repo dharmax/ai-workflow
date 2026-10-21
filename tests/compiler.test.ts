@@ -117,66 +117,19 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(executed).toBe('$123.45');
   });
 
-  it('should deterministically patch file blocks and handle negative matching errors', async () => {
-    const testFile = path.join(tempDir, 'service.ts');
-    const initialContent = `
-export function computeRate(tier: string): number {
-  if (tier === 'basic') return 10;
-  return 20;
-}
-`;
-    fs.writeFileSync(testFile, initialContent, 'utf8');
-
-    // 1. Successful patch
-    const patchRes = await registry.execute('apply_block_patch', {
-      filePath: 'service.ts',
-      targetContent: "if (tier === 'basic') return 10;\n  return 20;",
-      replacementContent: "if (tier === 'basic') return 15;\n  if (tier === 'pro') return 30;\n  return 50;"
-    }, ctx);
-
-    expect(patchRes.success).toBe(true);
-
-    const updated = fs.readFileSync(testFile, 'utf8');
-    expect(updated).toContain("return 15;");
-    expect(updated).toContain("return 30;");
-
-    // 2. Mismatched patch target: must return success: false and leave file content completely unchanged
-    const mismatchRes = await registry.execute('apply_block_patch', {
-      filePath: 'service.ts',
-      targetContent: "non_existent_code_block_that_does_not_exist();",
-      replacementContent: "something_else();"
-    }, ctx);
-
-    expect(mismatchRes.success).toBe(false);
-    expect(mismatchRes.message).toContain('Failed to apply patch');
-    expect(fs.readFileSync(testFile, 'utf8')).toBe(updated);
-
-    // 3. Patching non-existent file must throw
-    expect(registry.execute('apply_block_patch', {
-      filePath: 'missing-file.ts',
-      targetContent: 'foo',
-      replacementContent: 'bar'
-    }, ctx)).rejects.toThrow('Target file does not exist');
+  it('retired raw patch tool refuses individual and batch writes without partial effects', async () => {
+    const fileA = path.join(tempDir, 'fileA.ts'), fileB = path.join(tempDir, 'fileB.ts');
+    fs.writeFileSync(fileA, 'const a = 1;\n');
+    fs.writeFileSync(fileB, 'const b = 2;\n');
+    await expect(registry.execute('apply_block_patch', {
+      filePath: 'fileA.ts', targetContent: 'const a = 1;', replacementContent: 'const a = 3;'
+    }, ctx)).rejects.toThrow('retired');
+    await expect(registry.execute('apply_block_patch', {patches: [
+      {file: 'fileA.ts', search: 'const a = 1;', replace: 'const a = 3;'},
+      {file: 'fileB.ts', search: 'const b = 2;', replace: 'const b = 4;'}
+    ]}, ctx)).rejects.toThrow('retired');
+    expect(fs.readFileSync(fileA,'utf8')).toBe('const a = 1;\n');
+    expect(fs.readFileSync(fileB,'utf8')).toBe('const b = 2;\n');
   });
-
-  it('should support batch patches across multiple blocks and files', async () => {
-    const fileA = path.join(tempDir, 'fileA.ts');
-    const fileB = path.join(tempDir, 'fileB.ts');
-    fs.writeFileSync(fileA, 'const a = 1;\nconst b = 2;\n');
-    fs.writeFileSync(fileB, 'const c = 3;\n');
-
-    const batchRes = await registry.execute('apply_block_patch', {
-      patches: [
-        { file: 'fileA.ts', search: 'const a = 1;', replace: 'const a = 100;' },
-        { file: 'fileB.ts', search: 'const c = 3;', replace: 'const c = 300;' }
-      ]
-    }, ctx);
-
-    expect(batchRes.success).toBe(true);
-    expect(batchRes.filesModified).toBe(2);
-    expect(fs.readFileSync(fileA, 'utf8')).toContain('const a = 100;');
-    expect(fs.readFileSync(fileB, 'utf8')).toContain('const c = 300;');
-  });
-
 
 });

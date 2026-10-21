@@ -162,8 +162,8 @@ export async function investigateTicket(
                 evidence.filePath = filePath
                 if (!fs.existsSync(path.resolve(store.root, filePath))) {
                     const details = entity instanceof FileNode ? await entity.fullDto<Record<string, unknown>>() : null
-                    if (details && (details.metadata as {isStub?: unknown} | undefined)?.isStub === true) {
-                        // A reviewed planned FileNode is a valid creation target; it is not existing source.
+                    if (details && (details.metadata as {plannedCreation?: unknown} | undefined)?.plannedCreation === true) {
+                        // Only explicitly planned creation may be missing; an ordinary indexed stub is not creation authority.
                         evidence.body = "Planned file; no source content exists yet."
                         continue
                     }

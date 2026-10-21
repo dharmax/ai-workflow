@@ -257,7 +257,8 @@ approval_mode = "approve"`;
     expect(codexToml).toContain('[mcp_servers.aiwf-mcp]');
     expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.claim_ticket]');
     expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.recommend_next_task]');
-    expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.apply_block_patch]');
+    expect(codexToml).not.toContain('[mcp_servers.aiwf-mcp.tools.apply_block_patch]');
+    expect(codexToml).toContain('[mcp_servers.aiwf-mcp.tools.apply_change]');
     expect(codexToml).toContain('approval_mode = "approve"');
 
     // 2. Verify Codex rules has prefix_rule for aiwf and ai-workflow

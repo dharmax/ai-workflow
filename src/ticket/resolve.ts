@@ -240,6 +240,7 @@ export async function resolveTicket(
                     scope = immutable(await buildSourceScope(store, ticket, dossier, {
                         pending, previous: pending ?? proof?.scope, authorizedFiles: options.authorizedFiles?.[id]
                     }))
+                    const governance = scope.governance
                     effectEpoch = scope.effects.length
                     for (const effect of scope.effects) for (const [file, hash] of Object.entries(effect.after))
                         if (hashFiles(store.root, [file])[file] === hash) ownedFiles.add(file)

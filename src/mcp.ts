@@ -139,14 +139,15 @@ export function createMcpServer(options: McpServerOptions = {}) {
           }
         }
       }
-      if (executionAuthority === 'project-write' && !writeRoots.includes(fs.realpathSync(activeRoot)))
-        throw Error('Project-write authority is not granted for the requested projectRoot. Configure the host allowlist explicitly.');
+      // Sibling repositories remain readable; a host write grant never travels with an agent-supplied root.
+      const targetAuthority = executionAuthority === 'project-write' && !writeRoots.includes(fs.realpathSync(activeRoot))
+        ? 'read-only' : executionAuthority;
       if (activeRoot !== root) {
         activeStore = new WorkflowStore(activeRoot);
         await activeStore.sp.ready();
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
-        executionAuthority};
+        executionAuthority: targetAuthority};
 
       if (name === 'execute_shell_wish') {
         const wish = String(toolArgs.wish || '');

@@ -1,4 +1,4 @@
-import {createProduct,acceptProduct,reviewedApply,updateProduct} from './product-review.ts';
+import {createProduct,acceptProduct,updateProduct} from './product-review.ts';
 import {afterEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,10 +9,13 @@ import {TestNode,UserStory} from '../src/graph/ontology.ts';
 import {indexSingleFile} from '../src/graph/indexer.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {startWorkspace} from '../src/workspace/server.ts';
+import {CausalChangeEngine} from '../src/change/engine.ts';
 
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
+ const applySource=(preview:{request: import('../src/change/types.ts').ChangeRequest; fingerprint:string})=>
+  store.withExecutionContext('project-write',undefined,()=>new CausalChangeEngine({store,projectRoot:root}).applyChange(preview.request,preview.fingerprint));
  afterEach(async()=>{
   await browser?.close();browser=undefined as any;
   host?.server.stop(true);host=undefined as any;
@@ -63,19 +66,19 @@ describe('S5 Story test-first lifecycle',()=>{
   const beforeFix=fs.readFileSync(path.join(root,'src/avatar.ts'),'utf8');
   const fixed=beforeFix.replace('  store.clear()\n','');
   const fix=await call('preview_change',{action:'replace_text',filePath:'src/avatar.ts',oldText:beforeFix,newText:fixed});
-  await reviewedApply(store, {request:(fix as any).request,fingerprint:(fix as any).fingerprint,decision:'accept'});
+  await applySource(fix as any);
   expect((await (call('get_story_test_status',{storyId:'S'}) as Promise<any>)).tests[0].state).toBe('stale');
   await page.getByRole('button',{name:'Run active Story test',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Story test green'}).waitFor();
   test=await store.getEntity<TestNode>(stableId,TestNode.dcr);expect(test?.testState).toBe('green');expect(test?.passed).toBe(true);
   const syntax=await call('preview_change',{action:'replace_text',filePath:'src/avatar.ts',oldText:fixed,newText:fixed+'\nexport const broken = ;'});
-  await reviewedApply(store, {request:(syntax as any).request,fingerprint:(syntax as any).fingerprint,decision:'accept'});
+  await applySource(syntax as any);
   await page.getByRole('button',{name:'Run active Story test',exact:true}).click();
   await page.getByRole('alert').filter({hasText:'Story test blocked'}).waitFor();
   test=await store.getEntity<TestNode>(stableId,TestNode.dcr);expect(test?.testState).toBe('blocked');
   const malformed=fs.readFileSync(path.join(root,'src/avatar.ts'),'utf8');
   const repair=await call('preview_change',{action:'replace_text',filePath:'src/avatar.ts',oldText:malformed,newText:fixed});
-  await reviewedApply(store, {request:(repair as any).request,fingerprint:(repair as any).fingerprint,decision:'accept'});
+  await applySource(repair as any);
   await page.getByRole('button',{name:'Run active Story test',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Story test green'}).waitFor();
   host.server.stop(true);host=undefined as any;await browser?.close();browser=undefined as any;store.close();store=new WorkflowStore(root);

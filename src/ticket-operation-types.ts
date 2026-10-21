@@ -7,7 +7,7 @@ import type { CompletenessLevel } from './artifact-policy.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
 import type { AspectAssessment } from './aspects.ts';
-import { ChangeRequestSchema } from './tools/change.ts';
+import { ChangeRequestSchema } from './change/request-schema.ts';
 
 export type OperationResult<T> =
   | { status: 'complete'; artifactId: string; value: T }
