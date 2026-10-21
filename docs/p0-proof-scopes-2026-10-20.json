@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-20",
+  "developerDecision": "Approve the three bounded proof scopes",
+  "classification": "Independent assisted source/test/execution reviews; not native canonical acceptance receipts",
+  "regressionObligation": "All 65 native-required tests remain; independent review partitioning changes no execution requirement",
+  "sourceHashes": {
+    "src/graph/store.ts": "3e09ec6efdf0f08a6ce05dddc7d105a77b7523c632b140b95f01fbbdcd112d7e",
+    "tests/doctrine-scope.test.ts": "c6e2c54900304c7daa66c0f13ed3597ac16dff5834ddb28e31aafbe79dd32d72",
+    "/home/dharmax/work/semantika/src/storage/sqlite-store/sqlite-store.ts": "81925860cd057f3e33b6bc59b4bf75f1d6f585b8ca7ee7bd81fcd33f13836036",
+    "/home/dharmax/work/semantika/tests/sqlite-batch.spec.ts": "e89538e6e2ae3976bf7247d84799769d864c91d1d90111135e5dcdcea18977a2"
+  },
+  "semantikaHead": "0775e37ef036e1eba27d42578d4ef3c67c81e234",
+  "executions": {
+    "sqlite": "9 pass / 0 fail / 37 assertions",
+    "admissionCompletion": "12 pass / 1 opt-in live skip / 0 fail / 109 assertions"
+  },
+  "reviews": [
+    {
+      "scope": "sqlite-batches",
+      "characters": 14711,
+      "model": "openrouter/openai/o3-mini",
+      "kind": "independent assisted review; no canonical acceptance",
+      "review": {
+        "verdict": "accept",
+        "basis": "The review of the source code and test suite confirms that the applyBatch implementation meets the approved technical proof scope. The method correctly validates inputs (including collection names and revision numbers), enforces the requirement for an independent native SQLite transaction, applies batch updates atomically, supports optimistic concurrency with expected revisions, and rolls back all changes and side\u2010effects upon any failure (including unique-index and trigger\u2010injected errors). The tests thoroughly exercise fresh insertions, updates, deletions, assertion-only entries, prevention of nested transactions, duplicate identities, stale concurrent revisions, as well as integration scenarios with dynamic public collection names. All regression runs pass, and the logs confirm correct transactional behavior and rollback. There are no obvious defects or missing evidence relative to the stated criteria.",
+        "defects": [],
+        "unverified": []
+      }
+    },
+    {
+      "scope": "admission",
+      "characters": 38167,
+      "model": "openrouter/openai/o3-mini",
+      "kind": "independent assisted review; no canonical acceptance",
+      "review": {
+        "verdict": "accept",
+        "basis": "The technical proof scope has been reviewed in detail against the developer\u2010approved criteria. The code effectively implements cross\u2010process shared/exclusive admission, race detection for fresh processes, lease expiry with abandonment handling, and safeguards against stale owners committing after a restart. The applyBatch method correctly enforces batch uniqueness, version integrity, and proper transaction handling including rollbacks in failure scenarios. Likewise, the governance methods (admitGovernance, governanceAssertion, renewGovernance, releaseGovernance, commitGovernance) demonstrate robust use of token-based admission and conflict detection, with multiple retry attempts built into updateGovernanceAdmission. Extensive tests cover a wide variety of realistic use cases including authorized expansions, protected file mutations, file renames, child ticket separation, and simulated SQL-triggered failures. Execution logs confirm that all targeted scenarios are exercised and meet the intended outcomes. Minor issues and areas for further review remain but do not preclude overall compliance with the approved technical criteria.",
+        "defects": [
+          "The retry loop in updateGovernanceAdmission (up to 32 attempts) lacks internal logging or diagnostics, which might hinder debugging under high contention scenarios.",
+          "The handling of transaction state (using a check on inTransaction and isTransaction) may be ambiguous if those properties are undefined in some SQLite wrappers, warranting tighter type checks or documentation.",
+          "The live independent verifier test is conditionally skipped, so its end\u2010to\u2010end behavior remains unverified in the regular execution logs."
+        ],
+        "unverified": [
+          "Configured live independent verifier scenario (skipped test) \u2013 its actual integration and behavior are not demonstrated in the current execution logs."
+        ]
+      }
+    },
+    {
+      "scope": "completion",
+      "characters": 41200,
+      "model": "openrouter/openai/o3-mini",
+      "kind": "independent assisted review; no canonical acceptance",
+      "review": {
+        "verdict": "accept",
+        "basis": "The reviewed scope demonstrates an atomic transactional design that meets the defined criteria. The applyBatch method begins an immediate transaction, validates inputs (including enforcing public collection names via a strict regex), and conditionally commits or rolls back changes. The injected SQL failure scenario is explicitly tested using a trigger (reject_done) to force a rollback, and the restart logic verifies that no partial state persists. Furthermore, governance admission and related ticket updates are correctly chained through controlled batch applications. Although minor points (such as the transaction detection using a nullish coalescing of inTransaction/isTransaction and optional finalization of statements) warrant a closer look in a high-load scenario, there is no evidence that these lead to failures. Overall, the scope meets the developer\u2010approved technical proof requirements.",
+        "defects": [],
+        "unverified": []
+      }
+    }
+  ],
+  "remainingNativeGap": "Existing protected Story-test authoring supports Story fixtures; technical Ticket authored proof and cross-project evidence need reconciliation through existing owners. No generic TestNode write or imported pass metadata was used."
+}

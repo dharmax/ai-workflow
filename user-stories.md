@@ -33,7 +33,7 @@
 - **Tests**: `TEST-AIWF-RESOLVE`
 - **Acceptance Criteria**:
   - [ ] Caller delegates a Ticket and receives explicitly verified completion, needs_input or blocked, with safe edits, bounded repair and truthful leases.
-- **Coverage**: Complete
+- **Coverage**: blocked
 
 ## STORY-AIWF-PROCESS-INTENT: Caller can process Story/Feature/Epic into the next useful work/intent layer without ceremonial artifacts
 - **Status**: `accepted`

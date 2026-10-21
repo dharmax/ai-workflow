@@ -1,8 +1,10 @@
 # AIWF / DHARMAX-WAY — CANONICAL PRODUCT & ENGINEERING DESIGN
 
+**2026-10-20 priority correction:** P0 AI engineering through MCP/skill/plugin → P1 native Digest → P2 ai-cli dogfooding → P3 Shell → P4 Workspace last. This supersedes Workspace-first scheduling, not safety or acceptance. See [the approved release-plan sequence amendment](AIWF-USABLE-V1-RELEASE-PLAN.md#approved-p0-sequence-amendment--2026-10-20). **Developer approved core AI engineering before Workspace acceptance on 2026-10-20.** Bounded P0 S6a may proceed under the approved clause; S6b requires accepted S6a and authorized scope. Full PC5 remains pending. Any older full-PC5-before-S6 clause below is superseded only in that sequence requirement; all safety, review and independent proof obligations remain. No Workspace rewrite/polish cycle now; retain current backend/regressions, canonical Semantika/Gate 5 obligations and independent proof.
+
 Document role: **authoritative design/engineering constraints for AI execution**, not a completion report or instruction to implement all stages at once. Companion: `AIWF-DHARMAX-WAY-PLAN.md`. Revision: 2026-10-15. Do not automatically copy this file over existing project rules or replace approved product definitions. Apply approved changes through AIWF.
 
-**2026-10-16 roadmap amendment:** S5's Story-test lifecycle acceptance is distinct from the [S5 Product Operability postcondition](AIWF-S5-POSTCONDITION-DESIGN.md) and its [bounded PC0–PC5 plan](AIWF-S5-POSTCONDITION-PLAN.md). This postcondition must be independently accepted before S6 is authorized. It does not add a runtime subsystem or retroactively change S5's accepted scope. Publication alone does not authorize execution.
+**2026-10-16 roadmap amendment:** S5's Story-test lifecycle acceptance is distinct from the [S5 Product Operability postcondition](AIWF-S5-POSTCONDITION-DESIGN.md) and its [bounded PC0–PC5 plan](AIWF-S5-POSTCONDITION-PLAN.md). This postcondition still requires independent acceptance for full cross-surface/Workspace claims; bounded P0 S6a may precede it under the approved 2026-10-20 sequence amendment. It does not add a runtime subsystem or retroactively change S5's accepted scope. Publication alone does not authorize execution.
 
 ## 0. Foundation and source baseline
 

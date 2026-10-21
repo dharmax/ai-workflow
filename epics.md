@@ -34,13 +34,15 @@ Historical charter: execute docs/artifact-operations-plan.md completely; product
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
 - **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-PRODUCT-PROCESSING** [Done]: Gate 8: PRODUCT-PROCESSING
 - **AIWF-PRIMARY-INTERFACE** [Done]: Gate 9: PRIMARY-INTERFACE
 - **AIWF-FINAL-DOGFOOD-AUDIT** [Done]: Gate 10: FINAL-DOGFOOD-AUDIT
 
 ### Coverage
-- **Complete**: Yes
+- **Complete**: No
+- **Gaps**:
+  - [ ] blocked: Epic 'EPIC-AIWF-ARTIFACT-OPS' is blocked by active blocker(s).
 
 ## EPIC-AIWF-DOCTRINE: Finish Doctrine Enforcement
 
@@ -56,11 +58,12 @@ Narrow Semantika prerequisite and the EXISTING TKT-DOCTRINE-G5-RELEASE: governed
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Contained Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Prove atomic admission assertions and coherent completion contract
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Blocked]: Prove atomic admission assertions and coherent completion contract
 
 ### Coverage
 - **Complete**: No
 - **Gaps**:
+  - [ ] blocked: Epic 'EPIC-AIWF-DOCTRINE' is blocked by active blocker(s).
   - [ ] missing_target_path: Epic 'EPIC-AIWF-DOCTRINE' targets UserStory 'STORY-AIWF-RESOLVE-TICKET' but has no contained Ticket addressing it.
 
 ## EPIC-AIWF-TRANSACTION-INTEGRITY: Transaction Integrity & Integration

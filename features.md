@@ -67,11 +67,13 @@ Production capability governed by docs/artifact-operations-plan.md.
 ### Implementing Tickets
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Backlog]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **TKT-WORKFLOW-FOUNDATION** [Backlog]: Correct demonstrated workflow friction before CodeMutator
 
 ### Coverage
-- **Complete**: Yes
+- **Complete**: No
+- **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-TICKET-OPS' is blocked by active blocker(s).
 
 ## FEAT-AIWF-PERFORMANCE-METRICS: Correlated AIWF + llm-utils performance telemetry
 
@@ -151,11 +153,13 @@ Completion covers declared and attributable actual changes, all applicable Rule 
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
-- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Todo]: Prove atomic admission assertions and coherent completion contract
+- **TKT-DOCTRINE-SEMANTIKA-CONTRACT** [Blocked]: Prove atomic admission assertions and coherent completion contract
 - **TKT-TRANSACTION-PRODUCT-BATCH** [Backlog]: Make guarded Product batches atomic through Semantika
 
 ### Coverage
-- **Complete**: Yes
+- **Complete**: No
+- **Gaps**:
+  - [ ] blocked: Feature 'FEAT-AIWF-GOVERNED-COMPLETION' is blocked by active blocker(s).
 
 ## FEAT-AIWF-CONSUMER-CONTRACTS: Usable public ecosystem contracts
 
