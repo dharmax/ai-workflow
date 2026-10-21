@@ -1,0 +1,996 @@
+{
+  "classification": "Observed public/native execution evidence; not an acceptance receipt or reusable authorization",
+  "sourceCommit": "60aa19edc94aed3504746c160b475517eeeae26a",
+  "binary": "AIWF 2.0.0 build 960",
+  "binding": {
+    "fingerprint": "4505a3dab8081c9f3dc9b0c4ca1beaf38c187c3f2f1a9f68ee5b4a57c0aaa8dd",
+    "testId": "test:tests/doctrine-scope.test.ts",
+    "currentTestVersion": 33,
+    "proof": {
+      "ticketId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "basisHash": "2617151a5fcbef3ee7a5b0273322f8c306a46c21e22c604c8c8ae0a237481c0f",
+      "scopes": [
+        {
+          "id": "sqlite-batches",
+          "criteria": [
+            "Public applyBatch assertion-only entries enforce exact revisions/absence in the same transaction as all writes and expose no uncommitted DTOs.",
+            "AIWF consumes only public collection names, conditional batches and canonical leased admission state; no private provider API or parallel governance store."
+          ],
+          "projectRoot": "/home/dharmax/work/semantika",
+          "testId": "test:tests/sqlite-batch.spec.ts",
+          "sources": [
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/storage/sqlite-store/sqlite-store.ts",
+              "symbolName": "SqliteStore.applyBatch"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/artifact-collection.ts",
+              "symbolName": "ArtifactCollection.name"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/semantic-package.ts",
+              "symbolName": "SemanticPackage.collectionForEntityType"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/semantic-package.ts",
+              "symbolName": "CollectionManager.entityCollection"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/semantic-package.ts",
+              "symbolName": "CollectionManager.predicateCollection"
+            }
+          ],
+          "filePath": "tests/sqlite-batch.spec.ts",
+          "reviewedTestVersion": 1,
+          "hashes": {
+            "/home/dharmax/work/semantika::tests/sqlite-batch.spec.ts": "e89538e6e2ae3976bf7247d84799769d864c91d1d90111135e5dcdcea18977a2",
+            "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts": "81925860cd057f3e33b6bc59b4bf75f1d6f585b8ca7ee7bd81fcd33f13836036",
+            "/home/dharmax/work/semantika::src/artifact-collection.ts": "b508040cfc5c353111b63eb7f9e32fdbb417a036ac7bfdea95ccc73352893aaf",
+            "/home/dharmax/work/semantika::src/semantic-package.ts": "2387f568b5278d1cc94cfc5472cb6df3adaff388e2104641668f7459dd52dcaa"
+          }
+        },
+        {
+          "id": "admission",
+          "criteria": [
+            "Fresh processes cannot concurrently admit governed work and governance changes; stale/expired owners cannot complete after recovery.",
+            "AIWF consumes only public collection names, conditional batches and canonical leased admission state; no private provider API or parallel governance store."
+          ],
+          "projectRoot": "/home/dharmax/work/ai-workflow",
+          "testId": "test:tests/doctrine-scope.test.ts",
+          "sources": [
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "admissionSchema"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.admitGovernance"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.updateGovernanceAdmission"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.governanceAssertion"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.renewGovernance"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.releaseGovernance"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.commitGovernance"
+            }
+          ],
+          "filePath": "tests/doctrine-scope.test.ts",
+          "reviewedTestVersion": 31,
+          "hashes": {
+            "/home/dharmax/work/ai-workflow::tests/doctrine-scope.test.ts": "c6e2c54900304c7daa66c0f13ed3597ac16dff5834ddb28e31aafbe79dd32d72",
+            "/home/dharmax/work/ai-workflow::src/graph/store.ts": "8f253429c9849f7a38f3933c71a160a1e919aafaf6aba7b7adfad9c1195c43cf"
+          }
+        },
+        {
+          "id": "completion",
+          "criteria": [
+            "Ticket, current verification Artifact and verifies relationship commit together or all roll back under real SQL failure and restart.",
+            "AIWF consumes only public collection names, conditional batches and canonical leased admission state; no private provider API or parallel governance store."
+          ],
+          "projectRoot": "/home/dharmax/work/ai-workflow",
+          "testId": "test:tests/doctrine-scope.test.ts",
+          "sources": [
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "admissionSchema"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.completeTicket"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.governanceAssertion"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/ai-workflow",
+              "filePath": "src/graph/store.ts",
+              "symbolName": "WorkflowStore.commitGovernance"
+            },
+            {
+              "projectRoot": "/home/dharmax/work/semantika",
+              "filePath": "src/storage/sqlite-store/sqlite-store.ts",
+              "symbolName": "SqliteStore.applyBatch"
+            }
+          ],
+          "filePath": "tests/doctrine-scope.test.ts",
+          "reviewedTestVersion": 31,
+          "hashes": {
+            "/home/dharmax/work/ai-workflow::tests/doctrine-scope.test.ts": "c6e2c54900304c7daa66c0f13ed3597ac16dff5834ddb28e31aafbe79dd32d72",
+            "/home/dharmax/work/ai-workflow::src/graph/store.ts": "8f253429c9849f7a38f3933c71a160a1e919aafaf6aba7b7adfad9c1195c43cf",
+            "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts": "81925860cd057f3e33b6bc59b4bf75f1d6f585b8ca7ee7bd81fcd33f13836036"
+          }
+        }
+      ]
+    }
+  },
+  "contextMeasurements": [
+    {
+      "id": "sqlite-batches",
+      "characters": 15543,
+      "files": [
+        "/home/dharmax/work/semantika::src/artifact-collection.ts",
+        "/home/dharmax/work/semantika::src/semantic-package.ts",
+        "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts",
+        "/home/dharmax/work/semantika::tests/sqlite-batch.spec.ts"
+      ],
+      "hashes": {
+        "/home/dharmax/work/semantika::tests/sqlite-batch.spec.ts": "e89538e6e2ae3976bf7247d84799769d864c91d1d90111135e5dcdcea18977a2",
+        "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts": "81925860cd057f3e33b6bc59b4bf75f1d6f585b8ca7ee7bd81fcd33f13836036",
+        "/home/dharmax/work/semantika::src/artifact-collection.ts": "b508040cfc5c353111b63eb7f9e32fdbb417a036ac7bfdea95ccc73352893aaf",
+        "/home/dharmax/work/semantika::src/semantic-package.ts": "2387f568b5278d1cc94cfc5472cb6df3adaff388e2104641668f7459dd52dcaa"
+      }
+    },
+    {
+      "id": "admission",
+      "characters": 31453,
+      "files": [
+        "src/graph/store.ts",
+        "tests/doctrine-scope.test.ts"
+      ],
+      "hashes": {
+        "/home/dharmax/work/ai-workflow::tests/doctrine-scope.test.ts": "c6e2c54900304c7daa66c0f13ed3597ac16dff5834ddb28e31aafbe79dd32d72",
+        "/home/dharmax/work/ai-workflow::src/graph/store.ts": "8f253429c9849f7a38f3933c71a160a1e919aafaf6aba7b7adfad9c1195c43cf"
+      }
+    },
+    {
+      "id": "completion",
+      "characters": 34868,
+      "files": [
+        "src/graph/store.ts",
+        "tests/doctrine-scope.test.ts",
+        "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts"
+      ],
+      "hashes": {
+        "/home/dharmax/work/ai-workflow::tests/doctrine-scope.test.ts": "c6e2c54900304c7daa66c0f13ed3597ac16dff5834ddb28e31aafbe79dd32d72",
+        "/home/dharmax/work/ai-workflow::src/graph/store.ts": "8f253429c9849f7a38f3933c71a160a1e919aafaf6aba7b7adfad9c1195c43cf",
+        "/home/dharmax/work/semantika::src/storage/sqlite-store/sqlite-store.ts": "81925860cd057f3e33b6bc59b4bf75f1d6f585b8ca7ee7bd81fcd33f13836036"
+      }
+    }
+  ],
+  "native": {
+    "command": "PLAYWRIGHT_BROWSERS_PATH=/home/dharmax/.cache/ms-playwright AIWF_DOCTRINE_LIVE=1 AIWF_G4_LIVE=1 env -u OPENROUTER_API_KEY aiwf resolve TKT-DOCTRINE-SEMANTIKA-CONTRACT --verify-only --max-repairs 0 --depth 0 --max-artifacts 4 --agent codex",
+    "exitCode": 2,
+    "result": {
+      "status": "blocked",
+      "artifactId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "blockers": [
+        {
+          "reason": "Bounded repair exhausted for 'TKT-DOCTRINE-SEMANTIKA-CONTRACT': bun test v1.4.3 (c6da4a4d3)\n\n\ntests/doctrine-enforcement-live.test.ts:\n16 | \n17 | it.skipIf(process.env.AIWF_DOCTRINE_LIVE !== '1')('OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race', async () => {\n18 |   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-doctrine-live-'));\n19 |   let store: WorkflowStore | undefined;\n20 |   const critic = loadConfig(path.resolve(import.meta.dir, '..')).modelRoutes?.critic ?? 'openrouter/openai/gpt-4o-mini';\n21 |   if (!critic.startsWith('openrouter/')) throw Error('Live doctrine acceptance requires an explicit OpenRouter route.');\n                                                    ^\nerror: Live doctrine acceptance requires an explicit OpenRouter route.\n      at <anonymous> (/home/dharmax/work/ai-workflow/tests/doctrine-enforcement-live.test.ts:21:48)\n(fail) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race [4.88ms]\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [109.00ms]\n\nbun test v1.4.3 (c6da4a4d3)\n\n\ntests/doctrine-management-live.test.ts:\n35 |     fs.writeFileSync(path.join(root, 'src/add.ts'), source);\n36 |     fs.writeFileSync(path.join(root, 'tests/add.test.ts'), 'import {test,expect} from \"bun:test\";import {add} from \"../src/add\";test(\"sums\",()=>{expect(add(2,3)).toBe(5);expect(add(-2,3)).toBe(1)});\\n');\n37 |     fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({compilerOptions: {target: 'ESNext', module: 'ESNext', moduleResolution: 'bundler', types: ['bun'], skipLibCheck: true}}));\n38 |     git(root, 'init', '-q'); git(root, 'add', '.'); git(root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture');\n39 |     const critic = loadConfig(path.resolve(import.meta.dir, '..')).modelRoutes?.critic;\n40 |     if (!critic?.startsWith('openrouter/')) throw Error('Explicit working OpenRouter critic route required.');\n                                                       ^\nerror: Explicit working OpenRouter critic route required.\n      at <anonymous> (/home/dharmax/work/ai-workflow/tests/doctrine-management-live.test.ts:40:51)\n(fail) real OpenRouter rejects a violation despite passing tests and hostile approved reference comments, then accepts repair offline [256.33ms]\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [349.00ms]\n"
+        }
+      ]
+    },
+    "semanticReviewerCalls": 0,
+    "dependencyExecutionReached": false
+  },
+  "executions": {
+    "required": 66,
+    "currentPassing": 64,
+    "attemptedThisRun": 66,
+    "results": [
+      {
+        "id": "test:tests/doctrine-scope.test.ts",
+        "filePath": "tests/doctrine-scope.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:08.124Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-scope.test.ts"
+        ]
+      },
+      {
+        "id": "TEST-AIWF-RESOLVE",
+        "filePath": "tests/ticket-resolution.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:30.691Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/ticket-resolution.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/actor-engine-boundaries.test.ts",
+        "filePath": "tests/actor-engine-boundaries.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:31.472Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-engine-boundaries.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/actor-prompts.test.ts",
+        "filePath": "tests/actor-prompts.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:31.814Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-prompts.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/actor-review-regressions.test.ts",
+        "filePath": "tests/actor-review-regressions.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:32.077Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-review-regressions.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/actor-runtime-refresh.test.ts",
+        "filePath": "tests/actor-runtime-refresh.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:32.381Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/actor-runtime-refresh.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/actor.test.ts",
+        "filePath": "tests/actor.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:33.593Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/actor.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/artifact-command.test.ts",
+        "filePath": "tests/artifact-command.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:35.656Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/artifact-command.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/artifact-policy.test.ts",
+        "filePath": "tests/artifact-policy.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:35.939Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/artifact-policy.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/aspects.test.ts",
+        "filePath": "tests/aspects.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:36.380Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/aspects.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/ast-freshness-and-search.test.ts",
+        "filePath": "tests/ast-freshness-and-search.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:36.839Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/ast-freshness-and-search.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/bug-public.test.ts",
+        "filePath": "tests/bug-public.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:45.090Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/bug-public.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/change-bridge.test.ts",
+        "filePath": "tests/change-bridge.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:52.806Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/change-bridge.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/change-engine.test.ts",
+        "filePath": "tests/change-engine.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:55.100Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/change-engine.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/change-foundation.test.ts",
+        "filePath": "tests/change-foundation.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:55.821Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/change-foundation.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/compiler.test.ts",
+        "filePath": "tests/compiler.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:56.024Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/compiler.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/debugger.test.ts",
+        "filePath": "tests/debugger.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:56.318Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/debugger.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/decompose.test.ts",
+        "filePath": "tests/decompose.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:56.698Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/decompose.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/dharmax-s1.test.ts",
+        "filePath": "tests/dharmax-s1.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:57.244Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/dharmax-s1.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/dharmax-s2.test.ts",
+        "filePath": "tests/dharmax-s2.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:59.274Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/dharmax-s2.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/dharmax-s3.test.ts",
+        "filePath": "tests/dharmax-s3.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:16.098Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/dharmax-s3.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/dharmax-s4.test.ts",
+        "filePath": "tests/dharmax-s4.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:19.828Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/dharmax-s4.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/dharmax-s5.test.ts",
+        "filePath": "tests/dharmax-s5.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:21.487Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/dharmax-s5.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-batch.test.ts",
+        "filePath": "tests/doctrine-batch.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:21.654Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-batch.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-enforcement-live.test.ts",
+        "filePath": "tests/doctrine-enforcement-live.test.ts",
+        "passed": false,
+        "lastRun": "2026-10-21T07:34:21.825Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-enforcement-live.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-management-live.test.ts",
+        "filePath": "tests/doctrine-management-live.test.ts",
+        "passed": false,
+        "lastRun": "2026-10-21T07:34:22.238Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-management-live.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-management.test.ts",
+        "filePath": "tests/doctrine-management.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:22.945Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-management.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-model.test.ts",
+        "filePath": "tests/doctrine-model.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:23.154Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-model.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-producer-context.test.ts",
+        "filePath": "tests/doctrine-producer-context.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:23.574Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-producer-context.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/doctrine-verifier.test.ts",
+        "filePath": "tests/doctrine-verifier.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:30.754Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-verifier.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/escalation.test.ts",
+        "filePath": "tests/escalation.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:31.029Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/escalation.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/graph.test.ts",
+        "filePath": "tests/graph.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:31.307Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/graph.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/mcp-client-investigation.test.ts",
+        "filePath": "tests/mcp-client-investigation.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:32.072Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/mcp-client-investigation.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/mcp.test.ts",
+        "filePath": "tests/mcp.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:32.394Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/mcp.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/model-service.test.ts",
+        "filePath": "tests/model-service.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:32.590Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/model-service.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/os.test.ts",
+        "filePath": "tests/os.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:32.991Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/os.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/pc1a-safety.test.ts",
+        "filePath": "tests/pc1a-safety.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:35.234Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/pc1a-safety.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/performance-metrics.test.ts",
+        "filePath": "tests/performance-metrics.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:35.729Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/performance-metrics.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/primitive-truth.test.ts",
+        "filePath": "tests/primitive-truth.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:36.190Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/primitive-truth.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-authority.test.ts",
+        "filePath": "tests/product-authority.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:37.877Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-authority.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-change.test.ts",
+        "filePath": "tests/product-change.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:38.492Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-change.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-operability-commands.test.ts",
+        "filePath": "tests/product-operability-commands.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:48.406Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-operability-commands.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-operability-definition.test.ts",
+        "filePath": "tests/product-operability-definition.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:48.779Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-operability-definition.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-operability-links.test.ts",
+        "filePath": "tests/product-operability-links.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:50.193Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-operability-links.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product-processing.test.ts",
+        "filePath": "tests/product-processing.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:51.640Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product-processing.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/product.test.ts",
+        "filePath": "tests/product.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:52.332Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/product.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/scaffold.test.ts",
+        "filePath": "tests/scaffold.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:52.561Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/scaffold.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/setup-truth.test.ts",
+        "filePath": "tests/setup-truth.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:52.892Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/setup-truth.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/setup.test.ts",
+        "filePath": "tests/setup.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:54.658Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/setup.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/shell-config-setup.test.ts",
+        "filePath": "tests/shell-config-setup.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:57.253Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/shell-config-setup.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/shell-daily.test.ts",
+        "filePath": "tests/shell-daily.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:59.319Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/shell-daily.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/shell-trace.test.ts",
+        "filePath": "tests/shell-trace.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:34:59.949Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/shell-trace.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/shell.test.ts",
+        "filePath": "tests/shell.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:01.417Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/shell.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/skill-manager-bridge.test.ts",
+        "filePath": "tests/skill-manager-bridge.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:01.647Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/skill-manager-bridge.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/skill-synthesis-acceptance.test.ts",
+        "filePath": "tests/skill-synthesis-acceptance.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:09.941Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/skill-synthesis-acceptance.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/source-synthesis.test.ts",
+        "filePath": "tests/source-synthesis.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:10.185Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/source-synthesis.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/store-lifecycle.test.ts",
+        "filePath": "tests/store-lifecycle.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:10.327Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/store-lifecycle.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/structured-repair.test.ts",
+        "filePath": "tests/structured-repair.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:10.485Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/structured-repair.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/technical-proof.test.ts",
+        "filePath": "tests/technical-proof.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:16.421Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/technical-proof.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/ticket-investigation.test.ts",
+        "filePath": "tests/ticket-investigation.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:17.318Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/ticket-investigation.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/ticket-preparation.test.ts",
+        "filePath": "tests/ticket-preparation.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:18.798Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/ticket-preparation.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/ticket-resolution.test.ts",
+        "filePath": "tests/ticket-resolution.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:33:30.691Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/ticket-resolution.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/tools.test.ts",
+        "filePath": "tests/tools.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:19.652Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/tools.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/top-level-product-intent.test.ts",
+        "filePath": "tests/top-level-product-intent.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:20.182Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/top-level-product-intent.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/user-story-j24-sophisticated-goal.test.ts",
+        "filePath": "tests/user-story-j24-sophisticated-goal.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:20.512Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/user-story-j24-sophisticated-goal.test.ts"
+        ]
+      },
+      {
+        "id": "test:tests/workspace-text.test.ts",
+        "filePath": "tests/workspace-text.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-21T07:35:20.751Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/workspace-text.test.ts"
+        ]
+      }
+    ]
+  },
+  "canonical": {
+    "ticket": {
+      "id": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+      "lane": "Blocked",
+      "status": "blocked",
+      "criteria": [
+        "Public applyBatch assertion-only entries enforce exact revisions/absence in the same transaction as all writes and expose no uncommitted DTOs.",
+        "Fresh processes cannot concurrently admit governed work and governance changes; stale/expired owners cannot complete after recovery.",
+        "Ticket, current verification Artifact and verifies relationship commit together or all roll back under real SQL failure and restart.",
+        "AIWF consumes only public collection names, conditional batches and canonical leased admission state; no private provider API or parallel governance store."
+      ],
+      "claim": null
+    },
+    "receipt": false,
+    "receiptEdges": 0,
+    "gate5": {
+      "id": "TKT-DOCTRINE-G5-RELEASE",
+      "lane": "Blocked",
+      "status": "blocked",
+      "receipt": false,
+      "prerequisiteRetained": true
+    },
+    "activeLeases": [],
+    "reopenedBindingCurrent": true,
+    "activeGovernanceAdmissions": []
+  },
+  "provider": {
+    "gateway": "ollama",
+    "critic": "ollama/gemma4:e4b",
+    "temporaryRouteApplied": false,
+    "projectConfigSha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+  },
+  "validation": {
+    "sourceAggregate": {
+      "pass": 579,
+      "skip": 5,
+      "fail": 0,
+      "files": 75
+    },
+    "focusedTechnical": {
+      "pass": 11,
+      "fail": 0
+    },
+    "typecheck": "pass",
+    "pack": "pass",
+    "firstAggregateFailure": "578 pass / 5 skip / 1 fail: discovered tool catalog 16118 > unchanged16000. Fixed by shared ProductFields schema identity; unchanged authority test and final aggregate pass."
+  },
+  "nextP0": "Qualify an authorized current OpenRouter critic for mandatory G3/G4, then replay S6a before actual external-host engineering. No S6a/S6b/Gate5/P0 GO.",
+  "semantikaHead": "0775e37ef036e1eba27d42578d4ef3c67c81e234"
+}
