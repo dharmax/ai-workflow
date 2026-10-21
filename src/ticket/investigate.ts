@@ -158,7 +158,15 @@ export async function investigateTicket(
                 if (!(entity instanceof FileNode || entity instanceof SymbolNode)) continue
                 const filePath = entity instanceof SymbolNode ? entity.filePath! : store.localId(entity.id)
                 codePaths.add(filePath)
-                if (!fs.existsSync(path.resolve(store.root, filePath)))
+                const evidence = dossier.evidence.find(e => e.id === store.localId(entity.id))!
+                evidence.filePath = filePath
+                if (!fs.existsSync(path.resolve(store.root, filePath))) {
+                    const details = entity instanceof FileNode ? await entity.fullDto<Record<string, unknown>>() : null
+                    if (details && (details.metadata as {isStub?: unknown} | undefined)?.isStub === true) {
+                        // A reviewed planned FileNode is a valid creation target; it is not existing source.
+                        evidence.body = "Planned file; no source content exists yet."
+                        continue
+                    }
                     return {
                         status: "needs_input",
                         artifactId: id,
@@ -171,8 +179,7 @@ export async function investigateTicket(
                             }
                         ]
                     }
-                const evidence = dossier.evidence.find(e => e.id === store.localId(entity.id))!
-                evidence.filePath = filePath
+                }
                 if (entity instanceof SymbolNode) {
                     try {
                         const name = entity.containerName ? `${entity.containerName}.${entity.title}` : entity.title!

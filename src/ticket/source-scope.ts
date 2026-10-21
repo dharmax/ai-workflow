@@ -43,13 +43,20 @@ export async function sourceChangeScope(store: WorkflowStore, ticketId: string, 
   const claim = ticket.claim;
   if (!claim || claim.agentId !== agentId || Date.parse(claim.expiresAt) <= Date.now())
     throw Error('Source changes require the active owning Ticket lease.');
-  const investigated = await ticket.investigate(store);
-  if (investigated.status !== 'complete') throw Error('Investigate/prepare the Ticket before source work: ' + investigated.status);
   const cached = VerificationReceiptSchema.shape.scope.safeParse((ticket as Ticket & {metadata?: Record<string, unknown>}).metadata?.governedScope);
   const pending = cached.success && cached.data.ticketId === store.localId(ticket.id) ? cached.data : undefined;
+  const intent = {title: ticket.title ?? store.localId(ticket.id), body: ticket.body, acceptanceCriteria: ticket.acceptanceCriteria ?? []};
+  if (pending && canonical(pending.intent) === canonical(intent)) {
+    // A committed deletion can leave a legitimate missing authored FileNode. Retain that
+    // reviewed scope and its effects; refresh effective governance rather than re-inventing it.
+    const governance = await resolveTicketGovernance(store, ticket, pending.files, pending.governance);
+    return {ticket, scope: {...pending, governance}};
+  }
+  const investigated = await ticket.investigate(store);
+  if (investigated.status !== 'complete') throw Error('Investigate/prepare the Ticket before source work: ' + investigated.status);
   const receipt = await store.getEntity<Artifact>('VERIFY-' + store.localId(ticket.id), Artifact.dcr);
-  const previous = pending ?? (receipt ? readVerificationReceipt(receipt.body)?.scope : undefined);
-  return {ticket, scope: await buildSourceScope(store, ticket, investigated.value, {pending, previous})};
+  const previous = receipt ? readVerificationReceipt(receipt.body)?.scope : undefined;
+  return {ticket, scope: await buildSourceScope(store, ticket, investigated.value, {previous})};
 }
 
 /** Bind each public preview to its exact source, Ticket, governed scope and revision. */
