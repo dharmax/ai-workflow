@@ -1,13 +1,9 @@
-# US test
+# US Test
 
-**Status:** Developer-agreed consolidation/testing principle; not a US field.
+An executable test establishes whether actual product behavior meets an accepted [US](user-story.md)'s **Expected Result**. The intended organization is **one test file per accepted US**, containing the meaningful scenarios of that episode (not one file per implementation method, subsystem or historical bug).
 
-A test establishes whether actual product behavior meets the **Expected Result** of a real [User/Actor Story](user-story.md). **One executable test file per accepted US**; its scenarios can cover the primary episode, real alternatives, non-pristine Initial States, meaningful sub-flow/conditional outcomes, discovered bug regressions and necessary failure/safety cases.
+Its scenarios may include the ordinary episode, real non-pristine Initial States, conditional alternatives, meaningful sub-flows, discovered regressions and necessary safety/failure outcomes. A genuinely distinct [sub-US](sub-user-story.md) is itself a US.
 
-- Keep or refine an old test **when it represents a real US/sub-US flow or meaningful edge condition**, even if technically detailed. Place it under its owning US, not under a historical subsystem/test-count bucket.
-- A distinct implementation assertion alone does not justify keeping a case. Inspect unmatched old tests for a genuinely missing US/sub-US **before** deciding to retire them.
-- Do not manufacture a US around an easy-to-migrate technical test.
-- A test's observation is **verification evidence**, not the Story's Expected Result and not authority to invent product meaning.
-- For existing behavior, verify current truth; do not invent a historical red run or pretend skipped/unavailable tests passed.
+Retain, move or refine an old case when it proves such a real flow, even if technically detailed. Before discarding an unmatched case, check whether it reveals a missing Story/sub-US or important condition. Distinct internal assertions alone neither justify a new US nor require preservation.
 
-Test organization is downstream of the developer-approved Story definition. It is not a reason to rewrite that definition.
+Tests report **observed evidence**; they do not invent the product's Expected Result. Verify existing behavior as it is, never invent historical expected-red evidence, and never count skipped/unavailable tests as passing.
