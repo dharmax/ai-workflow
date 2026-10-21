@@ -96,6 +96,8 @@ Legend: *public* executes a client/API/UI/CLI or relevant external host; *techni
 | `doctrine-verifier` + `doctrine-scope` generic positive cases | Both recheck success path | Keep scope/admission races in scope, independent rule review and actual checker/proof in verifier |
 | `escalation` duplicated local-only cases | Same policy appears in separate scenarios | Preserve both policy and observable no-progress failure contexts if they differ |
 
+The executable Given/Action/Observable/negative specifications are in [US-ACCEPTANCE-TEST-SPECS.md](US-ACCEPTANCE-TEST-SPECS.md); their status is **proposed**, not executed or automatically accepted.
+
 ## Uncovered tests that must be authored/reviewed before implementing or pruning
 - **US-P02:** Real public Story approval/materialization precedes implementation Ticket proposal; Ticket exists because an identified behavioral test obligation is unmet. Current S4 Ticket-first fixture is a contrary historical behavior.
 - **US-E02/US-T02:** External installed host goes beyond source writes through activated Story expected-red → green and independently verified Ticket closure.
