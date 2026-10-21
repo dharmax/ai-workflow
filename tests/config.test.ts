@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {modelRuntime} from '../src/model-runtime.ts';
-import {getConfigPath, getGlobalConfigPath, loadConfig, saveConfig, setConfigOverride, resetConfigOverride, inspectConfig, resolveCloudCredentials} from '../src/config.ts';
+import {getConfigPath, getGlobalConfigPath, loadConfig, saveConfig, setConfigOverride, resetConfigOverride, inspectConfig, resolveCloudCredentials, DEFAULT_CONFIG} from '../src/config.ts';
 
 describe('configuration layers', () => {
   let root: string;
@@ -30,6 +30,13 @@ describe('configuration layers', () => {
     expect(inspectConfig(root, 'model')[0]?.source).toBe('global');
     expect(JSON.parse(fs.readFileSync(getConfigPath(root), 'utf8'))).toEqual({autoSync: false});
     expect(JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf8'))).toEqual({model: 'global-model'});
+    // The former setup smoke duplicated this owner's default/save/restart contract.
+    const inherited = loadConfig(root);
+    expect(inherited.defaultAgentId).toBe(DEFAULT_CONFIG.defaultAgentId);
+    expect(inherited.defaultLeaseMinutes).toBe(30);
+    const saved = saveConfig(root, {defaultAgentId: 'autonomous-sentinel', defaultLeaseMinutes: 45, model: 'qwen2.5-coder:14b'});
+    expect(saved).toMatchObject({defaultAgentId: 'autonomous-sentinel', defaultLeaseMinutes: 45, model: 'qwen2.5-coder:14b'});
+    expect(loadConfig(root)).toMatchObject({defaultAgentId: 'autonomous-sentinel', defaultLeaseMinutes: 45, model: 'qwen2.5-coder:14b'});
   });
   it('preserves global credentials and unrelated fields while superseding legacy aliases', () => {
     fs.mkdirSync(path.dirname(getGlobalConfigPath()), {recursive: true});

@@ -104,3 +104,8 @@ Legend: *public* executes a client/API/UI/CLI or relevant external host; *techni
 - **US-E01:** Read-only sibling inspection after restart remains correct and leaves no persistent sibling graph.
 
 No test deletion is justified merely by a higher pass count. The deletion unit is a genuinely duplicate behavioral oracle, not an arbitrary percentage or file extension.
+
+### Cycle 5 reviewed disposition
+- **Deleted as duplicate:** standalone `setup.test.ts` “should read, update, and persist configuration”. All its default-agent/default-lease and explicit save/reload assertions are folded into `config.test.ts`'s layered persistence case. One fixture lifecycle and one test case removed; no observable contract dropped. **Source inspection only; still requires Bun verification.**
+- **Retained after double-check:** `cli-help.test.ts` probes `next/init/resolve/claim` help without a DB, whereas the apparent overlap checks namespaced Product help. Different command families.
+- **Retained after double-check:** the two `escalation.test.ts` local-only cases cover ordinary completion vs repeated no-progress. Different failure conditions.

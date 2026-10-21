@@ -13,7 +13,6 @@ import {
   MCP_INSTRUCTIONS_2_0
 } from '../src/setup.ts';
 import { runDiagnostics, formatDiagnosticReport } from '../src/doctor.ts';
-import { loadConfig, saveConfig, DEFAULT_CONFIG } from '../src/config.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Epic } from '../src/graph/ontology.ts';
 
@@ -92,29 +91,6 @@ export function authenticate(token: string): boolean {
     expect(formatted).toContain('HEALTHY');
 
     store.close();
-  });
-
-  it('should read, update, and persist configuration', () => {
-    // Default config
-    const initialCfg = loadConfig(tempDir);
-    expect(initialCfg.defaultAgentId).toBe(DEFAULT_CONFIG.defaultAgentId);
-    expect(initialCfg.defaultLeaseMinutes).toBe(30);
-
-    // Update config
-    const updated = saveConfig(tempDir, {
-      defaultAgentId: 'autonomous-sentinel',
-      defaultLeaseMinutes: 45,
-      model: 'qwen2.5-coder:14b'
-    });
-
-    expect(updated.defaultAgentId).toBe('autonomous-sentinel');
-    expect(updated.defaultLeaseMinutes).toBe(45);
-    expect(updated.model).toBe('qwen2.5-coder:14b');
-
-    // Read back fresh from disk
-    const reloaded = loadConfig(tempDir);
-    expect(reloaded.defaultAgentId).toBe('autonomous-sentinel');
-    expect(reloaded.defaultLeaseMinutes).toBe(45);
   });
 
   it('should execute CLI binary commands end-to-end with zero exit codes', async () => {
