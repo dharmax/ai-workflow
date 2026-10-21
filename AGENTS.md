@@ -2,7 +2,7 @@
 
 **Active delivery checkpoint (2026-10-20):** [AIWF v1 — corrected priorities](plans/AIWF-V1-ACTIVE-CHECKPOINT.md). Read before planning/coding: **P0 AI engineering through MCP/skill/plugin; P1 native Digest; P2 ai-cli dogfooding; P3 Shell; P4 Workspace last.** I1 is spent; I2/I3 remain. No Workspace rewrite/polish now. The developer approved core P0 engineering before Workspace acceptance; use the exact release-plan amendment, with bounded S6a before S6b; safety, host authorization, independent verification and canonical Gate 5 obligations remain real.
 
-**Governing method (all AIWF product/workflow work):** read [plans/AIWF-DHARMAX-WAY-DESIGN.md](plans/AIWF-DHARMAX-WAY-DESIGN.md) first, then the currently authorized stage in [plans/AIWF-DHARMAX-WAY-PLAN.md](plans/AIWF-DHARMAX-WAY-PLAN.md). This is the operational application of the Prime Directive: explicit Concepts → Architecture → execution Flow → actual Implementation, judged through complete public User/Actor Stories (Intent / Initial State / Action / Expected Observable Result). Developer owns product intent; AI proposals are not acceptance. These are target constraints; do not pretend staged functionality is implemented. Preserve existing Gate 5 safety and its truthful canonical status.
+**Governing method (all AIWF product/workflow work):** read the [canonical definitions](docs/definitions/README.md), then [plans/AIWF-DHARMAX-WAY-DESIGN.md](plans/AIWF-DHARMAX-WAY-DESIGN.md) and the authorized stage in [plans/AIWF-DHARMAX-WAY-PLAN.md](plans/AIWF-DHARMAX-WAY-PLAN.md). Dharmax-way operationalizes the Prime Directive: Concepts → Architecture → execution Flow → Implementation → Proof, judged primarily through complete public User/Actor Stories (Actor / Intent / Initial State / Action / **Expected Result**). Developer owns product intent; AI proposals are not acceptance. Target constraints are not claims that a stage is implemented. Preserve existing Gate 5 safety and truthful canonical status.
 
 
 ## Prime Directive
@@ -49,7 +49,7 @@ Obsidian Markdown projections sit at the project root (`kanban.md`, `epics.md`, 
 
 ## Testing Guidelines
 - Use Bun's native test runner (`describe`, `it`, `expect` from `bun:test`).
-- Place new test suites in `tests/` named `<feature>.test.ts`.
+- Organize ordinary acceptance tests as one cohesive file per accepted US (e.g. `tests/us/<story>.test.ts`); keep justified technical/invariant tests separate. See [Test](docs/definitions/test.md).
 - Every test suite must isolate its database state using temporary directories (`fs.mkdtempSync`) and close stores in `afterEach()`.
 - Default: derive tests from accepted, complete User/Actor Stories; execute actual public interfaces and observable results. When work begins, activate its test and establish attributable expected red before implementation. Isolated unit tests are exceptional for a demonstrably complex component/invariant (such as atomic batches or parsers); they never substitute for Story proof. Report skipped, unknown and unverified outcomes truthfully.
 

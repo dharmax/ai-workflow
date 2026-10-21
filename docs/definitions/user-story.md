@@ -26,4 +26,4 @@ ID, Title, Actor, Intent, Initial State, Action and Expected Result form the req
 - A meaningfully different episode can be a [sub-US](sub-user-story.md). A conditional result within the same episode need not become a separate Story.
 - Relevant Aspects can follow implicitly from the description or be associated by the developer during editing. They are not part of the US field set.
 - A discovered bug or an old test may reveal a missing/unclear intended outcome; it does not define that outcome by itself.
-- See [US Test](us-test.md) for verifying the agreed definition, not replacing it.
+- See [Test](test.md) for verifying the agreed definition, not replacing it.
