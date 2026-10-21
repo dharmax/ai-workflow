@@ -1,6 +1,6 @@
 # AI-Workflow 2.0
 
-**AIWF is an artifact-first engineering system for humans and coding agents.** It keeps product intent, engineering work, source evidence, tests, decisions, and verification in one durable semantic project graph, then uses that graph to investigate and resolve work without reconstructing the project from chat history or repeatedly scanning the repository.
+**AIWF is the AI-assisted engineering workflow and software implementing Dharmax-way.** It connects approved product intent, US-driven tests, justified Tickets, source work and verification through the project's semantic graph.
 
 AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface supports high-level engineering and Ticket operations; exact graph, source, change, test, Git, and knowledge primitives remain available for deliberate drill-down.
 
@@ -15,16 +15,17 @@ AIWF is Bun-first and backed by `@dharmax/semantika`. Its normal interface suppo
 A Ticket is not merely a task description. AIWF can connect it upward to the product reason for the work and downward to the code and proof that implement it:
 
 ```text
-Developer-approved product intent → Goals / Concepts / Features / Aspects
-                               → concrete User/Actor Stories
-                               → reviewed Epic / Tickets / Story tests
-                               → architecture / execution flow / implementation
-                               → observed public behavior and current evidence
+Developer-approved product intent → complete User/Actor Story (Features / Aspects)
+                               → genuine executable US test (first)
+                               → actual baseline; normally expected red for missing behavior
+                               → resolution Ticket for making the US test pass
+                               → optional separate full-flow skeleton test (multi-component)
+                               → one coding Ticket per temporary internal stub
+                               → replacement/other justified coding work under the Prime Directive
+                               → same genuine US test green + independent current proof
 ```
 
-This is the **target product workflow**, not an assertion that the current `processIntent` or UI already implements it. An Epic organizes delivery; a Feature describes functionality. Stories state Intent, Initial State, Action and Expected Observable Result. Pure technical maintenance may start from a direct Ticket without invented product ceremony.
-
-Pure technical work may start directly at a Ticket. AIWF does not manufacture product ceremony where none is useful.
+This is the **target workflow**, not a claim that current `processIntent` or UI already implements it. A skeleton pass proves wiring, never US acceptance. A Feature defines functionality; an Aspect contributes shared cross-cutting expectations; an Epic organizes delivery. Pure technical maintenance can start at a justified direct Ticket without inventing a US.
 
 The graph is durable project state. Markdown projections and chat transcripts are not the source of truth.
 
