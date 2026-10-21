@@ -44,6 +44,7 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
     for (const name of ['create_user_story','create_feature','run_command','apply_block_patch']) {
       expect(tools.tools.some(item => item.name === name)).toBe(false);
     }
+    expect(tools.tools.find(item=>item.name==='execute_shell_wish')?.description).toContain('AI-Workflow cognitive engine');
     const schemas = path.join(root, 'schemas');
     fs.mkdirSync(schemas,{recursive:true});
     fs.writeFileSync(path.join(schemas,'run_command.json'),'{}');
