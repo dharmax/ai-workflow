@@ -148,10 +148,10 @@ export function createMcpServer(options: McpServerOptions = {}) {
         // a write grant. Do not mutate the sibling's canonical database just to answer a read.
         const sourceRead = ['find_symbol', 'get_symbol_source', 'get_file_outline',
           'get_exact_callers', 'get_exact_references', 'analyze_blast_radius'].includes(name);
-        const ephemeral = targetAuthority === 'read-only' && sourceRead;
+        const ephemeral = targetAuthority === 'read-only' && (sourceRead || name === 'read_workspace_file');
         activeStore = new WorkflowStore(activeRoot, ephemeral);
         await activeStore.sp.ready();
-        if (ephemeral) await activeStore.withExecutionContext('project-write', undefined,
+        if (ephemeral && sourceRead) await activeStore.withExecutionContext('project-write', undefined,
           () => ensureAstFresh(activeStore, activeRoot));
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,

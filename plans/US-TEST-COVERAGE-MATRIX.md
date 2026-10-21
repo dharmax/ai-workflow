@@ -120,3 +120,8 @@ No test deletion is justified merely by a higher pass count. The deletion unit i
 - Replaced the original sibling-first cold-host smoke with one SDK Client Story that repeats host/sibling source queries across a closed and reopened server/client/store session; asserts sibling source unchanged and no persistent sibling AIWF state. No extra test case added.
 - Reviewed `tools.test.ts` case by case: its registry wiring, recommendation semantics, qualified symbol ambiguity, OS and Git errors, scratchpad/ADR, TestNode triage and `script_eval` each include distinguishable oracles. **Retain**; a broad file deletion would reduce coverage.
 - Real installed **stdio** restart remains a distinct acceptance improvement; do not claim the in-memory SDK session proves deployment/restart.
+
+### Cycle 8 — installed-host restart test and source-read ownership (requires Bun verification)
+- Extended the existing P0 sibling grant-refusal Story (not a new test case) to exercise real stdio Client/server restart, exact cross-project symbol investigation, unchanged sibling bytes and no new sibling persistence, and refusal of transferred write authority before and after restart.
+- The test revealed a real mismatch: sibling `read_workspace_file` opened a persistent store, unlike sibling AST reads. It now reuses the same ephemeral read-only sibling store without needless AST indexing for literal file reads. No new store, registry or authorization subsystem.
+- **Do not infer** this proves all non-source graph reads on an absent sibling DB are non-mutating; those remain separately governed. Actual source read/restart proof is pending Bun execution.
