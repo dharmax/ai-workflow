@@ -8,13 +8,13 @@ describe('CLI help has no operation side effects', () => {
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-help-')); });
   afterEach(() => { fs.rmSync(root, {recursive: true, force: true}); });
 
-  for (const args of [['next', '--help'], ['init', '--help'], ['resolve', 'T', '--help'], ['claim', 'T', '-h']]) {
-    it(`shows canonical help before executing ${args.join(' ')}`, () => {
+  it('serves every common command help without creating or accessing project state', () => {
+    for (const args of [['next', '--help'], ['init', '--help'], ['resolve', 'T', '--help'], ['claim', 'T', '-h']]) {
       const result = Bun.spawnSync([process.execPath, path.resolve(import.meta.dir, '../src/cli.ts'), ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
       expect(result.success).toBe(true);
       expect(result.stdout.toString()).toContain('Usage: aiwf '+args[0]);
       expect(result.stdout.toString()).not.toContain('Recommended Task:');
       expect(fs.readdirSync(root)).toEqual([]);
-    });
-  }
+    }
+  });
 });

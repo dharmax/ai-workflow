@@ -71,3 +71,6 @@ Baseline: `USs-and-consolidation` from P0 repair `dec2dab`.
 
 ### Double-check
 No test marked for immediate removal: these candidates have partially overlapping names but not yet proven identical observables. Distinct adversarial paths remain mandatory. A single 30-second mega-Story is a poor diagnostic owner: isolate setup, source, authorization and completion observations without fabricating more lower-level assertions.
+
+### Cycle 6 audit resolution
+`mcp.test.ts` used private SDK `_requestHandlers` (a handler mock rather than an external client). Its unique advertising, invocation, refusal and schema-export assertions have moved to `mcp-client-investigation.test.ts` using the actual SDK Client/transport. The installed stdio P0 and parity Stories remain separate. Four common CLI help commands share a single fixture/test while retaining every public binary invocation. Await Bun verification; no other candidates authorized for deletion.

@@ -58,11 +58,45 @@ describe('Client investigation through MCP', () => {
       expect(tool.inputSchema.properties?.projectRoot).toEqual(expect.objectContaining({type: 'string'}));
       expect(tool.inputSchema.required ?? []).not.toContain('projectRoot');
     }
+    for (const name of ['claim_ticket','process_story','get_product_coverage','get_product_impact','list_user_stories']) {
+      expect(tools.tools.some(item => item.name === name)).toBe(true);
+    }
+    for (const name of ['create_user_story','create_feature','run_command','apply_block_patch']) {
+      expect(tools.tools.some(item => item.name === name)).toBe(false);
+    }
+    expect(tools.tools.find(item=>item.name==='execute_shell_wish')?.description).toContain('AI-Workflow cognitive engine');
     expect(CANONICAL_SKILL_MD).toContain('Repository investigation');
     expect(CODEX_AGENT_RULES).toContain('Repository investigation');
     const schemas = path.join(root, 'schemas');
-    exportMcpSchemas(schemas);
+    fs.mkdirSync(schemas,{recursive:true});
+    fs.writeFileSync(path.join(schemas,'run_command.json'),'{}');
+    const exported=exportMcpSchemas(schemas);
+    expect(exported).toContain('claim_ticket.json');
+    expect(exported).toContain('execute_shell_wish.json');
+    expect(exported).not.toContain('run_command.json');
+    expect(fs.existsSync(path.join(schemas,'run_command.json'))).toBe(false);
     expect(JSON.parse(fs.readFileSync(path.join(schemas, 'find_symbol.json'), 'utf8')).parameters.properties.projectRoot.type).toBe('string');
+    const claim=JSON.parse(fs.readFileSync(path.join(schemas,'claim_ticket.json'),'utf8'));
+    expect(claim).toMatchObject({name:'claim_ticket'});
+    expect(claim.parameters.properties.ticketId).toBeDefined();
+  });
+
+  it('allows advertised domain calls but refuses hidden/unknown primitives through an actual MCP client',async()=>{
+    const recommended=await client.callTool({name:'recommend_next_task',arguments:{}});
+    expect(recommended.isError).not.toBe(true);
+    expect(JSON.stringify(recommended.content)).toContain('reason');
+    const wished=await client.callTool({name:'execute_shell_wish',arguments:{wish:'What is the recommended next task?'}});
+    expect(wished.isError).not.toBe(true);
+    expect(JSON.stringify(wished.content)).toContain('AI-Workflow');
+    expect((await client.callTool({name:'list_user_stories',arguments:{}})).isError).not.toBe(true);
+    for(const name of ['create_user_story','create_feature','run_command','non_existent_tool']) {
+      const result=await client.callTool({name,arguments:{}});
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result.content)).toContain('not exposed');
+    }
+    const absent=await client.callTool({name:'update_ticket_state',arguments:{ticketId:'TKT-NON-EXISTENT',lane:'Done'}});
+    expect(absent.isError).toBe(true);
+    expect(JSON.stringify(absent.content)).toContain('TKT-NON-EXISTENT');
   });
 
   it('finds and slices an undeclared sibling without changing the default project scope', async () => {

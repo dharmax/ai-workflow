@@ -1,4 +1,4 @@
-# Acceptance coverage register — all 76 current test files
+# Acceptance coverage register — 75 consolidated test files (original 76 accounted for)
 **Proposed Story descriptions:** cycles 1–4. **Audited:** exact repository tree at USs-and-consolidation. This is an ownership inventory, not a green-test claim.
 Legend: *public* executes a client/API/UI/CLI or relevant external host; *technical* proves distinct primitive; *candidate* may contain redundant assertions but is not authorized for deletion; *gap* leaves a specified acceptance obligation unproved. Conditional-live is not counted as always-on acceptance.
 
@@ -47,7 +47,6 @@ Legend: *public* executes a client/API/UI/CLI or relevant external host; *techni
 | `tests/source-synthesis.test.ts` | US-A05 | technical |
 | `tests/scaffold.test.ts` | US-E04 | technical |
 | `tests/debugger.test.ts` | US-E04 | technical |
-| `tests/mcp.test.ts` | US-E05 | public |
 | `tests/mcp-client-investigation.test.ts` | US-E01 | public |
 | `tests/p0-engineering.test.ts` | US-E02 | public/gap |
 | `tests/cli-help.test.ts` | US-E03 | candidate |
@@ -111,3 +110,8 @@ No test deletion is justified merely by a higher pass count. The deletion unit i
 - **Deleted as duplicate:** standalone `setup.test.ts` “should read, update, and persist configuration”. All its default-agent/default-lease and explicit save/reload assertions are folded into `config.test.ts`'s layered persistence case. One fixture lifecycle and one test case removed; no observable contract dropped. **Source inspection only; still requires Bun verification.**
 - **Retained after double-check:** `cli-help.test.ts` probes `next/init/resolve/claim` help without a DB, whereas the apparent overlap checks namespaced Product help. Different command families.
 - **Retained after double-check:** the two `escalation.test.ts` local-only cases cover ordinary completion vs repeated no-progress. Different failure conditions.
+
+### Cycle 6 — MCP and CLI consolidation (pending Bun verification)
+- Retired `tests/mcp.test.ts`: all three former handler-internal scenarios are represented using a real linked SDK Client in `mcp-client-investigation.test.ts`. Unique advertised tools, hidden/unknown refusal, invocation, exported JSON schema and stale-file cleanup assertions were retained. Actual installed stdio transport remains independently covered in `p0-engineering` and `product-operability-parity`.
+- Consolidated four common CLI help test cases into one cohesive per-command loop with one isolated fixture. All four binary invocations and no-write assertions remain.
+- These changes consolidate *test ownership and fixture lifecycle*, not reduce safety checks by target percentage. Run targeted tests and full suite before considering acceptance.
