@@ -12,7 +12,7 @@ Companion specification: `AIWF-DHARMAX-WAY-DESIGN.md` (read first; it owns defin
 4. `validateProductMutations()` followed by a series of individual writes is not an atomic reviewed acceptance. Prove coherent product mutation or implement the smallest existing-Semantika-backed batch adapter before making UI/editor rely on it. Do not promise Graph + filesystem atomicity.
 5. Current `UserStory` fields do not encode full Story. Migrate without inventing unknown State/Action/Result; UI must make ambiguous legacy material reviewable. Structural coverage is not Story satisfaction; projection `- [ ]` is unconditional and not an acceptance oracle.
 6. **UI is integral**: build real editor early, after safe canonical operations, rather than defer all human review until the very end. Still avoid building UI on Markdown and avoid selecting a heavyweight frontend by default.
-7. Story-first tests are not hundreds of hypothetical unit tests. One accepted real Story implies an appropriate executable Story test/suite. Skip only while its implementation has not started. Activate and establish expected red before implementation. Existing implemented work is verified as it stands, not forced to replay fictional history.
+7. Story-first tests are not hundreds of hypothetical unit tests. Each accepted real Story owns one executable test file: primary user flow, real non-pristine variants/sub-flows, discovered bug regressions and meaningful safety/failure boundaries. Digest valuable old cases into the right Story, rather than indiscriminately deleting them or preserving implementation suites because they are distinct. Skip only while implementation has not started; activate and establish attributable expected red when work begins. Existing implemented work is verified as it stands, not forced to replay fictional history. The bounded [US consolidation plan](US-TEST-CONSOLIDATION-PLAN.md) governs this migration.
 8. Explicit portable export/restore must precede deletion of tracked Markdown projections, since canonical `.ai-workflow/state/` is Git-ignored. Remove live sync only after end-to-end UI/CLI/MCP and migration acceptance succeeds.
 
 ## B. Operational rules for every stage
@@ -165,7 +165,7 @@ For each: record Intent/State/Action/Expected vs Observed, real public invocatio
 | `src/tools/product.ts`, CLI, shell, MCP | Reuse public operations; add exact Story fields/approval and present same domain contracts. |
 | `src/ticket/*`, `src/change/engine.ts`, `graph/store.ts` | Retain Gate 5 safety; simplify only demonstrated flow waste and adapt to Story-first verification. |
 | `src/graph/projections.ts`, sync callers and files | Temporary compatibility; remove *automatic* sync only at S8 after independent restore/UI acceptance; leave optional one-way export. |
-| Tests | Preserve existing valuable safety regressions; add story-grounded public journeys. Unit tests for demonstrably complex contracts only; don't mass-convert every test file. |
+| Tests | For this approved consolidation, digest real old flows/non-pristine cases into one file per accepted US, using limited shared non-test helpers. Preserve valuable safety and bug regressions within their owning US; inspect unmatched cases for missing US/sub-flows. No manufactured Stories, deletion quotas or falsified passing evidence. See [US consolidation plan](US-TEST-CONSOLIDATION-PLAN.md). |
 
 ## F. Definition of safe execution / stopping rule
 

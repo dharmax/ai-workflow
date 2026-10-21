@@ -1,4 +1,6 @@
 # Cycle 2 — Product, Stories, review and delivery specification
+
+**Migration note (2026-10-21):** Candidate US/source inventory for [the revised US-led test digestion plan](US-TEST-CONSOLIDATION-PLAN.md). The earlier cycle labels and file-centric retirement proposals are historical; do **not** treat them as the final accepted Story catalog, test-file organization, numerical reduction goal or instructions to discard real non-pristine/sub-flow/bug cases.
 Status: **proposed for developer review**. Read with `US-COVERAGE-01-ENGINEERING.md`.
 Every Story below requires public-facing acceptance evidence. Internal schema tests remain supporting contracts, not Story proof.
 

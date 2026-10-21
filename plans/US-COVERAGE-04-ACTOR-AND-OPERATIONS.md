@@ -1,4 +1,6 @@
 # Cycle 4 — Actor, tools, configuration and operational Stories
+
+**Migration note (2026-10-21):** Candidate US/source inventory for [the revised US-led test digestion plan](US-TEST-CONSOLIDATION-PLAN.md). The earlier cycle labels and file-centric retirement proposals are historical; do **not** treat them as the final accepted Story catalog, test-file organization, numerical reduction goal or instructions to discard real non-pristine/sub-flow/bug cases.
 Status: **proposed**, reviewed test-oracle map; these are not auto-accepted Product records.
 
 ## US-A01 — Complete a compound personalized engineering request

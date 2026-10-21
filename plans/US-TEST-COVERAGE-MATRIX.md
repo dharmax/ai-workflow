@@ -1,4 +1,6 @@
 # Acceptance coverage register — 74 consolidated test files (original 76 accounted for)
+
+**Organizational supersession (2026-10-21):** [US-led test digestion plan](US-TEST-CONSOLIDATION-PLAN.md) is the active three-iteration method. The following is a historical **file-level inventory**, not the intended end-state, an automatically accepted US list, or an order to preserve/delete tests. Digest every *scenario*, especially non-pristine, alternative, sub-flow, discovered-bug and safety flows, into one file per accepted real US. Counts are observations, never targets.
 **Proposed Story descriptions:** cycles 1–4. **Audited:** exact repository tree at USs-and-consolidation. This is an ownership inventory, not a green-test claim.
 Legend: *public* executes a client/API/UI/CLI or relevant external host; *technical* proves distinct primitive; *candidate* may contain redundant assertions but is not authorized for deletion; *gap* leaves a specified acceptance obligation unproved. Conditional-live is not counted as always-on acceptance.
 

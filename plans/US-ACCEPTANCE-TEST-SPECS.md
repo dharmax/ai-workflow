@@ -1,5 +1,5 @@
 # Proposed public acceptance tests — uncovered Story obligations
-Status: **specifications for developer review, not executable/approved tests and not passing evidence**.
+Status: **specifications for developer review, not executable/approved tests and not passing evidence**. These are **scenario additions to the owning US test file**, not six standalone test files. Their existing/non-pristine variants must be digested alongside historical tests under [the revised plan](US-TEST-CONSOLIDATION-PLAN.md).
 Basis: US coverage cycles 1–4 and the 76-file ownership matrix. Implement each accepted test first; activate expected red on starting the corresponding work. Reuse existing owners/fixtures, no new parallel test framework.
 
 ## AT-P02 — Derive implementation work from a reviewed Story test
