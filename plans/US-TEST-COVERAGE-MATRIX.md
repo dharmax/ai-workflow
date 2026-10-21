@@ -1,4 +1,4 @@
-# Acceptance coverage register — 74 consolidated test files (original 76 accounted for)
+# Acceptance coverage register — original suites with US-E01 migration recorded
 
 **Organizational supersession (2026-10-21):** [US-led test digestion plan](US-TEST-CONSOLIDATION-PLAN.md) is the active three-iteration method. The following is a historical **file-level inventory**, not the intended end-state, an automatically accepted US list, or an order to preserve/delete tests. Digest every *scenario*, especially non-pristine, alternative, sub-flow, discovered-bug and safety flows, into one file per accepted real US. Counts are observations, never targets.
 **Proposed Story descriptions:** cycles 1–4. **Audited:** exact repository tree at USs-and-consolidation. This is an ownership inventory, not a green-test claim.
@@ -49,7 +49,8 @@ Legend: *public* executes a client/API/UI/CLI or relevant external host; *techni
 | `tests/source-synthesis.test.ts` | US-A05 | technical |
 | `tests/scaffold.test.ts` | US-E04 | technical |
 | `tests/debugger.test.ts` | US-E04 | technical |
-| `tests/mcp-client-investigation.test.ts` | US-E01 | public |
+| `tests/us/e01-investigate-sibling.test.ts` | US-E01 | public primary/non-pristine/installed-host |
+| `tests/mcp-public-surface.test.ts` | US-E05 | historical generic MCP assertions pending digestion |
 | `tests/p0-engineering.test.ts` | US-E02 | public/gap |
 | `tests/cli-help.test.ts` | US-E03 | candidate |
 | `tests/artifact-command.test.ts` | US-E03 | public |
@@ -131,3 +132,6 @@ No test deletion is justified merely by a higher pass count. The deletion unit i
 - Removed catch-all `actor-review-regressions.test.ts`: its cloud-only/explicit-local route behavior is one test in `model-service.test.ts`, and its SOTA locality/escalated discovery budget scenarios moved to `escalation.test.ts` with the original explicit configured-model fixture. No unique behavioral case dropped.
 - Removed one redundant *disabled discovery* Actor matrix instance. The stronger dedicated `does not advertise a capability that is explicitly disabled` test retains missing tool/schema and successful universal-execution checks; failed and empty discovery remain independently executed.
 - Distinct provider, forced-local, no-progress and budget safety oracles remain. Await targeted + full Bun results.
+
+### Concrete US-E01 migration (2026-10-21; pending new Bun run)
+The completed [US-E01 case ledger](US-E01-DIGEST.md) is the authoritative migration record for this Story. Four sibling cases, research discovery/guidance, and the installed-host restart/write-denial case now have a **single** owner: `tests/us/e01-investigate-sibling.test.ts`. Generic MCP advertisements/hidden-tool behavior remain under their *different*, pending US-E05 owner `tests/mcp-public-surface.test.ts`; three unrelated P0 cases stay in `tests/p0-engineering.test.ts`. The original mixed `tests/mcp-client-investigation.test.ts` is retired. No corresponding behavior was intentionally dropped; verification at the new commit is pending.

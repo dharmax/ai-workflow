@@ -4,12 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
-import {WorkflowActor} from '../src/actor/engine.ts';
-import {WorkflowStore} from '../src/graph/store.ts';
-import {createMcpServer, exportMcpSchemas} from '../src/mcp.ts';
-import {CANONICAL_SKILL_MD, CODEX_AGENT_RULES, MCP_INSTRUCTIONS_2_0} from '../src/setup.ts';
+import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {WorkflowActor} from '../../src/actor/engine.ts';
+import {WorkflowStore} from '../../src/graph/store.ts';
+import {createMcpServer, exportMcpSchemas} from '../../src/mcp.ts';
+import {CANONICAL_SKILL_MD, CODEX_AGENT_RULES, MCP_INSTRUCTIONS_2_0, configureMcp} from '../../src/setup.ts';
 
-describe('Client investigation through MCP', () => {
+describe('US-E01: investigate a sibling repository without changing or authorizing it', () => {
   let root: string, project: string, sibling: string;
   let store: WorkflowStore, client: Client;
   let server: ReturnType<typeof createMcpServer>['server'];
@@ -48,7 +49,7 @@ describe('Client investigation through MCP', () => {
     return JSON.parse(text!);
   }
 
-  it('advertises scoped research and emits the same guidance used by installed clients', async () => {
+  it('discovers scoped investigation and its canonical installed guidance', async () => {
     expect(client.getInstructions()).toBe(MCP_INSTRUCTIONS_2_0);
     expect(client.getInstructions()).toContain('Repository investigation');
     expect(client.getInstructions()).not.toContain('Resolution options:');
@@ -58,45 +59,12 @@ describe('Client investigation through MCP', () => {
       expect(tool.inputSchema.properties?.projectRoot).toEqual(expect.objectContaining({type: 'string'}));
       expect(tool.inputSchema.required ?? []).not.toContain('projectRoot');
     }
-    for (const name of ['claim_ticket','process_story','get_product_coverage','get_product_impact','list_user_stories']) {
-      expect(tools.tools.some(item => item.name === name)).toBe(true);
-    }
-    for (const name of ['create_user_story','create_feature','run_command','apply_block_patch']) {
-      expect(tools.tools.some(item => item.name === name)).toBe(false);
-    }
-    expect(tools.tools.find(item=>item.name==='execute_shell_wish')?.description).toContain('AI-Workflow cognitive engine');
     expect(CANONICAL_SKILL_MD).toContain('Repository investigation');
     expect(CODEX_AGENT_RULES).toContain('Repository investigation');
     const schemas = path.join(root, 'schemas');
-    fs.mkdirSync(schemas,{recursive:true});
-    fs.writeFileSync(path.join(schemas,'run_command.json'),'{}');
     const exported=exportMcpSchemas(schemas);
-    expect(exported).toContain('claim_ticket.json');
-    expect(exported).toContain('execute_shell_wish.json');
-    expect(exported).not.toContain('run_command.json');
-    expect(fs.existsSync(path.join(schemas,'run_command.json'))).toBe(false);
+    expect(exported).toContain('find_symbol.json');
     expect(JSON.parse(fs.readFileSync(path.join(schemas, 'find_symbol.json'), 'utf8')).parameters.properties.projectRoot.type).toBe('string');
-    const claim=JSON.parse(fs.readFileSync(path.join(schemas,'claim_ticket.json'),'utf8'));
-    expect(claim).toMatchObject({name:'claim_ticket'});
-    expect(claim.parameters.properties.ticketId).toBeDefined();
-  });
-
-  it('allows advertised domain calls but refuses hidden/unknown primitives through an actual MCP client',async()=>{
-    const recommended=await client.callTool({name:'recommend_next_task',arguments:{}});
-    expect(recommended.isError).not.toBe(true);
-    expect(JSON.stringify(recommended.content)).toContain('reason');
-    const wished=await client.callTool({name:'execute_shell_wish',arguments:{wish:'What is the recommended next task?'}});
-    expect(wished.isError).not.toBe(true);
-    expect(JSON.stringify(wished.content)).toContain('AI-Workflow');
-    expect((await client.callTool({name:'list_user_stories',arguments:{}})).isError).not.toBe(true);
-    for(const name of ['create_user_story','create_feature','run_command','non_existent_tool']) {
-      const result=await client.callTool({name,arguments:{}});
-      expect(result.isError).toBe(true);
-      expect(JSON.stringify(result.content)).toContain('not exposed');
-    }
-    const absent=await client.callTool({name:'update_ticket_state',arguments:{ticketId:'TKT-NON-EXISTENT',lane:'Done'}});
-    expect(absent.isError).toBe(true);
-    expect(JSON.stringify(absent.content)).toContain('TKT-NON-EXISTENT');
   });
 
   it('finds and slices an undeclared sibling without changing the default project scope', async () => {
@@ -147,4 +115,67 @@ describe('Client investigation through MCP', () => {
     const response = await client.callTool({name: 'find_symbol', arguments: {projectRoot: 'missing-project', name: 'hostOnly'}});
     expect(response.isError).toBe(true);
   });
+  it('investigates a non-pristine sibling through a configured host before and after stdio restart without transferring write authority', async () => {
+    // A real installed-host journey, not a direct handler mock. The sibling already has its own
+    // .ai-workflow directory; reading must neither initialize state nor change existing bytes.
+    const home = path.join(root, 'external-host');
+    fs.mkdirSync(path.join(home, '.cursor'), {recursive: true});
+    const configPath = path.join(home, '.cursor', 'mcp.json');
+    fs.writeFileSync(configPath, JSON.stringify({mcpServers: {'ai-workflow': {env: {AIWF_EXECUTION_AUTHORITY: 'project-write'}}}}));
+    configureMcp({homeDir: home, link: true, mcpPath: path.resolve(import.meta.dir, '../../src/mcp.ts')});
+    const entry = JSON.parse(fs.readFileSync(configPath, 'utf8')).mcpServers['ai-workflow'];
+    expect(entry.env.AIWF_EXECUTION_AUTHORITY).toBe('project-write');
+
+    const siblingState = path.join(sibling, '.ai-workflow');
+    fs.mkdirSync(siblingState);
+    fs.writeFileSync(path.join(siblingState, 'existing-note'), 'leave existing state alone');
+    const originalEntries = fs.readdirSync(siblingState).sort();
+    const sourcePath = path.join(sibling, 'src/knowledge.ts');
+    const originalSource = fs.readFileSync(sourcePath, 'utf8');
+    fs.writeFileSync(path.join(sibling, 'victim.txt'), 'unrelated sibling content');
+
+    const connect = async (name: string) => {
+      const current = new Client({name, version: '1'});
+      await current.connect(new StdioClientTransport({
+        command: entry.command, args: entry.args, cwd: project, stderr: 'pipe',
+        env: {...process.env, AIWF_EXECUTION_AUTHORITY: 'read-only', ...entry.env} as Record<string, string>
+      }));
+      return current;
+    };
+    const inspect = async (current: Client) => {
+      const read = await current.callTool({name: 'read_workspace_file', arguments: {projectRoot: sibling, filePath: 'victim.txt'}});
+      expect(read.isError).not.toBe(true);
+      expect(JSON.stringify(read.content)).toContain('unrelated sibling content');
+      const symbols = await current.callTool({name: 'find_symbol', arguments: {projectRoot: sibling, name: 'KnowledgeBase', exact: true}});
+      expect(symbols.isError).not.toBe(true);
+      expect(JSON.stringify(symbols.content)).toContain('KnowledgeBase');
+      expect(fs.readdirSync(siblingState).sort()).toEqual(originalEntries);
+
+      const refused = await current.callTool({name: 'create_ticket', arguments: {
+        projectRoot: sibling, id: 'UNAUTHORIZED', title: 'Other project write',
+        kind: 'task', lane: 'Todo', priority: 'P0'
+      }});
+      expect(refused.isError).toBe(true);
+      expect(fs.readdirSync(siblingState).sort()).toEqual(originalEntries);
+      expect(fs.readFileSync(sourcePath, 'utf8')).toBe(originalSource);
+      expect(fs.readFileSync(path.join(sibling, 'victim.txt'), 'utf8')).toBe('unrelated sibling content');
+
+      const host = await current.callTool({name: 'find_symbol', arguments: {name: 'hostOnly', exact: true}});
+      expect(host.isError).not.toBe(true);
+      expect(JSON.stringify(host.content)).toContain('hostOnly');
+    };
+
+    let current: Client | undefined;
+    try {
+      current = await connect('us-e01-installed');
+      await inspect(current);
+      await current.close();
+      current = undefined;
+      current = await connect('us-e01-restarted');
+      await inspect(current);
+    } finally {
+      await current?.close();
+    }
+  }, 15000);
+
 });

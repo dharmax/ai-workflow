@@ -19,6 +19,8 @@ Baseline: `USs-and-consolidation` from P0 repair `dec2dab`.
 **Existing executable oracles:** `tests/mcp-client-investigation.test.ts` (five), `tests/ast-freshness-and-search.test.ts` (exact/regex/index behavior), `tests/primitive-truth.test.ts` (long slice).
 **Additional needed:** Confirm read-only sibling evidence works after restart and no sibling state directory is created. No product Ticket until the test demonstrates a gap.
 
+**US-E01 migration checkpoint (2026-10-21):** All sibling-specific and installed stdio authority/restart cases now reside in `tests/us/e01-investigate-sibling.test.ts`. The complete original-case accounting, including the two *unrelated generic MCP* cases retained for US-E05, is in [US-E01-DIGEST.md](US-E01-DIGEST.md). This changes test ownership only; its new execution is pending. The older bullet above is the historical inventory, not a second US-E01 test owner.
+
 ## US-E02 — Perform a leased, host-authorized, cohesive source change
 **Actor/intent:** External agent resolves reviewed engineering work without bypassing governance.
 **Initial:** Installed MCP host grants project-write to its configured project; reviewed Ticket, owning lease, public Story tests where applicable, multiple existing/planned source targets and unrelated dirty work.
