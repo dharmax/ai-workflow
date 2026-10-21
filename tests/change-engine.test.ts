@@ -251,16 +251,15 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       expect(preview.blocked).toBe(false);
       expect(preview.fingerprint).toBeDefined();
 
-      // Tool call: apply_change
-      const applyResult: any = await registry.execute('apply_change', {
-        request: {
-          action: 'rename_symbol',
-          target: { type: 'symbol', filePath: 'foo.ts', symbolName: 'calculateValue' },
-          newName: 'getVal'
-        },
-        fingerprint: preview.fingerprint
-      }, ctx);
-
+      // An external source write requires a Ticket. The internal engine remains usable by its owning domain.
+      const request = {
+        action: 'rename_symbol' as const,
+        target: {type: 'symbol' as const, filePath: 'foo.ts', symbolName: 'calculateValue'},
+        newName: 'getVal'
+      };
+      await expect(registry.execute('apply_change', {request, fingerprint: preview.fingerprint}, ctx))
+        .rejects.toThrow('ticketId');
+      const applyResult = await new CausalChangeEngine({store, projectRoot:tmpDir}).applyChange(request, preview.fingerprint);
       expect(applyResult.ok).toBe(true);
       expect(fs.readFileSync(fooFile, 'utf8')).toContain('export function getVal');
     });

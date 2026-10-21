@@ -4,8 +4,9 @@
  */
 
 import fs from 'node:fs';
-import {computeHash} from '../kb/canonical.ts';
 import {hashFiles} from '../graph/test-artifacts.ts';
+import {sourceChangeScope, assertChangeScope, sourceChangeFingerprint} from '../ticket/source-scope.ts';
+import {requireStoryTests} from '../product/story-tests.ts';
 import path from 'node:path';
 import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
@@ -133,11 +134,10 @@ export function registerChangeTools() {
       });
       const preview = await engine.previewChange(request as ChangeRequest);
       if (request.action !== 'product_change' && ticketId && agentId && !preview.blocked) {
-        const {sourceChangeScope, assertChangeScope} = await import('../ticket/change.ts');
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
         const owned = new Set(scope.effects.flatMap(effect => Object.keys(effect.after).filter(file => hashFiles(ctx.projectRoot, [file])[file] === effect.after[file])));
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned);
-        return {...preview, fingerprint: computeHash({source: preview.fingerprint, intent: scope.intent, governance: scope.governance.fingerprint, targets: scope.authoredTargets, authorizedFiles: scope.authorizedFiles})};
+        return {...preview, fingerprint: sourceChangeFingerprint(preview, scope)};
       }
       return preview;
     }
@@ -165,17 +165,17 @@ export function registerChangeTools() {
       }
       ctx.store.assertCanWrite();
       if (!ticketId || !agentId) throw Error('Source application requires ticketId and the active lease agentId.');
-      const {sourceChangeScope, assertChangeScope} = await import('../ticket/change.ts');
       const admission = await ctx.store.admitGovernance('governed');
       try {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
         const engine = new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission});
         const preview = await engine.previewChange(request as ChangeRequest);
         if (preview.blocked) throw Error(preview.blockReason ?? 'Source preview blocked.');
-        const expected = computeHash({source: preview.fingerprint, intent: scope.intent, governance: scope.governance.fingerprint, targets: scope.authoredTargets, authorizedFiles: scope.authorizedFiles});
+        const expected = sourceChangeFingerprint(preview, scope);
         if (expected !== fingerprint) throw Error('Stale change preview: source, Ticket scope or governance fingerprint changed.');
         const owned = new Set(scope.effects.flatMap(effect => Object.keys(effect.after).filter(file => hashFiles(ctx.projectRoot, [file])[file] === effect.after[file])));
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned);
+        await requireStoryTests(ctx.store, ticket);
         await ctx.store.saveGovernedScope(ticketId, agentId, admission, scope);
         const result = await engine.applyChange(request as ChangeRequest, preview.fingerprint);
         if (result.ok && result.effects) await ctx.store.saveGovernedScope(ticketId, agentId, admission, {...scope, revision: scope.revision + 1,
@@ -184,4 +184,9 @@ export function registerChangeTools() {
       } finally { await ctx.store.releaseGovernance(admission); }
     }
   });
+}
+
+/** Internal owners of reviewed Story-test source/metadata retain their existing change-engine lifecycle. */
+export function applyOwnedChange(preview: import('../change/types.ts').ChangePreview, ctx: ToolContext) {
+  return new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).applyChange(preview.request, preview.fingerprint);
 }

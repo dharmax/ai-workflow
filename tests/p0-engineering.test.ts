@@ -108,6 +108,18 @@ it('P0 installed host discovers guarded engineering and preserves explicit host 
   await payload(client, 'release_ticket', {ticketId: 'T-P0'});
   expect((await payload(client, 'get_ticket', {ticketId: 'T-P0'})).verificationState).toBe('unverified');
 }, 30000);
+it('P0 host write authority is bound to the configured project', async () => {
+  const {client, root} = await installed('project-write');
+  const sibling = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-p0-other-project-'));
+  roots.push(sibling);
+  fs.mkdirSync(path.join(sibling, '.ai-workflow'));
+  const attempted = await client.callTool({name:'preview_change', arguments:{
+    action:'delete_file',filePath:'victim.ts',projectRoot:sibling
+  }});
+  expect(attempted.isError).toBe(true);
+  expect(JSON.stringify(attempted.content)).toContain('not granted');
+  expect(fs.existsSync(path.join(root,'math.ts'))).toBe(true);
+});
 it('P0 default installed host refuses self-granted write authority and raw patch bypass', async () => {
   const {client, root} = await installed();
   for (const [name, args] of [

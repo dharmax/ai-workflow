@@ -51,6 +51,9 @@ export interface McpServerOptions {
 export function createMcpServer(options: McpServerOptions = {}) {
   const root = options.projectRoot || findProjectRoot().root;
   const executionAuthority = options.executionAuthority ?? (process.env.AIWF_EXECUTION_AUTHORITY === 'project-write' ? 'project-write' : 'read-only');
+  const writeRoots = [root, ...(process.env.AIWF_PROJECT_WRITE_ROOTS ?? '').split(path.delimiter).filter(Boolean)]
+    .map(directory => fs.realpathSync(path.resolve(directory)));
+
   const store = options.store || new WorkflowStore(root);
   initializeTools();
 
@@ -136,6 +139,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
           }
         }
       }
+      if (executionAuthority === 'project-write' && !writeRoots.includes(fs.realpathSync(activeRoot)))
+        throw Error('Project-write authority is not granted for the requested projectRoot. Configure the host allowlist explicitly.');
       if (activeRoot !== root) {
         activeStore = new WorkflowStore(activeRoot);
         await activeStore.sp.ready();

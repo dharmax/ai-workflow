@@ -1,34 +1,62 @@
-/** Ticket source scope checks shared by the resolver and external engineering tools. */
+/** The resolver and external source tools share one investigated, governed Ticket scope. */
 import path from 'node:path';
-import {Ticket, FileNode, SymbolNode} from '../graph/ontology.ts';
+import {Ticket, SymbolNode, Artifact} from '../graph/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {workspacePath} from '../change/workspace-path.ts';
 import type {ChangeRequest, ChangePreview} from '../change/types.ts';
 import {hashFiles} from '../graph/test-artifacts.ts';
-import {canonical} from '../kb/canonical.ts';
-import {resolveTicketGovernance, VerificationReceiptSchema, type GovernedChangeScope} from '../ticket-operation-types.ts';
+import {canonical, computeHash} from '../kb/canonical.ts';
+import {resolveTicketGovernance, VerificationReceiptSchema, readVerificationReceipt, type TicketDossier, type GovernedChangeScope} from '../ticket-operation-types.ts';
+import type {z} from 'zod';
 
-export async function sourceChangeScope(store: WorkflowStore, ticketId: string, agentId: string): Promise<{ticket: Ticket; scope: GovernedChangeScope}> {
+type StoredScope = z.infer<typeof VerificationReceiptSchema.shape.scope>;
+
+/** Authorize only mandatory investigated evidence and explicitly reviewed additional files. */
+export async function buildSourceScope(store: WorkflowStore, ticket: Ticket, dossier: TicketDossier, options: {
+  pending?: StoredScope; previous?: StoredScope; authorizedFiles?: readonly string[];
+} = {}): Promise<GovernedChangeScope> {
+  const {pending, previous, authorizedFiles = []} = options;
+  const id = store.localId(ticket.id);
+  const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!);
+  const intent = {title: dossier.ticket.title, body: dossier.ticket.body, acceptanceCriteria: dossier.ticket.acceptanceCriteria};
+  const sameIntent = previous && canonical(previous.intent) === canonical(intent);
+  const authorized = [...new Set([
+    ...dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath).map(item => item.filePath!),
+    ...authorizedFiles, ...(sameIntent ? previous.authorizedFiles : [])
+  ].map(file => workspacePath(store.root, file)))].sort();
+  const files = [...new Set([...scopeFiles, ...authorized, ...(previous?.files ?? [])])].sort();
+  const governance = await resolveTicketGovernance(store, ticket, files, previous?.governance);
+  return {
+    ticketId: id, intent,
+    authoredTargets: dossier.evidence.filter(item => item.mandatory && ['FileNode', 'SymbolNode'].includes(item.kind))
+      .map(({id, kind, filePath, symbolName}) => ({id, kind, filePath, symbolName})),
+    revision: (pending?.revision ?? -1) + 1,
+    authoredFiles: [...new Set(scopeFiles)].sort(), authorizedFiles: authorized, files,
+    baselines: hashFiles(store.root, files), effects: sameIntent && pending ? pending.effects : [], governance
+  };
+}
+
+/** External edits use the current Ticket investigation; graph edges alone do not mint file authority. */
+export async function sourceChangeScope(store: WorkflowStore, ticketId: string, agentId: string) {
   const ticket = await store.getEntity<Ticket>(ticketId, Ticket.dcr);
   if (!ticket) throw Error(`Ticket '${ticketId}' does not exist.`);
-  const claim = (await store.getActiveClaims()).find(entry => entry.ticketId === store.localId(ticket.id))?.claim;
-  if (!claim || claim.agentId !== agentId) throw Error('Source changes require the active owning Ticket lease.');
-  const intent = {title: ticket.title ?? store.localId(ticket.id), body: ticket.body, acceptanceCriteria: ticket.acceptanceCriteria ?? []};
+  const claim = ticket.claim;
+  if (!claim || claim.agentId !== agentId || Date.parse(claim.expiresAt) <= Date.now())
+    throw Error('Source changes require the active owning Ticket lease.');
+  const investigated = await ticket.investigate(store);
+  if (investigated.status !== 'complete') throw Error('Investigate/prepare the Ticket before source work: ' + investigated.status);
   const cached = VerificationReceiptSchema.shape.scope.safeParse((ticket as Ticket & {metadata?: Record<string, unknown>}).metadata?.governedScope);
-  const prior = cached.success && canonical(cached.data.intent) === canonical(intent) ? cached.data : undefined;
-  const authoredTargets: GovernedChangeScope['authoredTargets'][number][] = [];
-  for (const edge of [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)]) {
-    if (!['modifies', 'targets'].includes(edge.predicateName)) continue;
-    const entity = await store.getEntity(edge.sourceId === ticket.id ? edge.targetId : edge.sourceId);
-    if (entity instanceof FileNode || entity instanceof SymbolNode) authoredTargets.push({id: store.localId(entity.id), kind: entity.typeName(),
-      filePath: entity instanceof FileNode ? store.localId(entity.id) : entity.filePath, symbolName: entity instanceof SymbolNode ? entity.title : undefined});
-  }
-  const authoredFiles = [...new Set(authoredTargets.map(target => target.filePath!))].sort();
-  const authorizedFiles = [...new Set([...authoredTargets.filter(target => target.kind === 'FileNode').map(target => target.filePath!), ...(prior?.authorizedFiles ?? [])])].sort();
-  const files = [...new Set([...authoredFiles, ...authorizedFiles])].sort();
-  const governance = await resolveTicketGovernance(store, ticket, files, prior?.governance);
-  return {ticket, scope: {ticketId: store.localId(ticket.id), intent, authoredTargets, revision: (prior?.revision ?? -1) + 1,
-    authoredFiles, authorizedFiles, files, baselines: prior?.baselines ?? hashFiles(store.root, files), effects: prior?.effects ?? [], governance}};
+  const pending = cached.success && cached.data.ticketId === store.localId(ticket.id) ? cached.data : undefined;
+  const receipt = await store.getEntity<Artifact>('VERIFY-' + store.localId(ticket.id), Artifact.dcr);
+  const previous = pending ?? (receipt ? readVerificationReceipt(receipt.body)?.scope : undefined);
+  return {ticket, scope: await buildSourceScope(store, ticket, investigated.value, {pending, previous})};
+}
+
+/** Bind each public preview to its exact source, Ticket, governed scope and revision. */
+export function sourceChangeFingerprint(preview: ChangePreview, scope: GovernedChangeScope): string {
+  return computeHash({source: preview.fingerprint, ticketId: scope.ticketId, revision: scope.revision,
+    intent: scope.intent, targets: scope.authoredTargets, authorizedFiles: scope.authorizedFiles,
+    files: scope.files, baselines: scope.baselines, effects: scope.effects, governance: scope.governance.fingerprint});
 }
 
 export async function assertChangeScope(store: WorkflowStore, ticket: Ticket, scope: GovernedChangeScope, preview: ChangePreview,

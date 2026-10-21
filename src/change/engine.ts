@@ -866,8 +866,8 @@ export class CausalChangeEngine {
       // 5a. Write modified / new file contents
       for (const [absPath, content] of materializedFiles) {
         fs.mkdirSync(path.dirname(absPath), { recursive: true });
-        fs.writeFileSync(absPath, content, 'utf8');
         writtenFiles.push(absPath);
+        fs.writeFileSync(absPath, content, 'utf8');
       }
 
       // 5b. Execute file renames
@@ -880,8 +880,8 @@ export class CausalChangeEngine {
       }
       for (const file of combinedDeletes) {
         const absolute = path.resolve(this.projectRoot, file);
-        fs.unlinkSync(absolute);
         writtenFiles.push(absolute);
+        fs.unlinkSync(absolute);
       }
     } catch (err: any) {
       // Best-effort rollback

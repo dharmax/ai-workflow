@@ -3,7 +3,7 @@
  * Scope: Dependency order, guarded mutations, repair, receipts and lease lifecycle.
  */
 
-import {assertChangeScope} from './change.ts'
+import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
@@ -234,19 +234,12 @@ export async function resolveTicket(
                     const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
                     await ensureAstFresh(store, store.root)
                     const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
-                    const proof = receipt && readVerificationReceipt((receipt as Artifact & { body: string }).body)
+                    const proof = receipt && readVerificationReceipt((receipt as Artifact & {body: string}).body)
                     const cached = VerificationReceiptSchema.shape.scope.safeParse((ticket as Ticket & {metadata?: Record<string, unknown>}).metadata?.governedScope)
                     const pending = cached.success && cached.data.ticketId === id ? cached.data : undefined
-                    const previousScope = pending ?? proof?.scope
-                    const sameIntent = previousScope && canonical(previousScope.intent) === canonical({title: dossier.ticket.title, body: dossier.ticket.body, acceptanceCriteria: dossier.ticket.acceptanceCriteria})
-                    const authorized = [...new Set([...dossier.evidence.filter(item => item.mandatory && item.kind === 'FileNode' && item.filePath).map(item => item.filePath!), ...(options.authorizedFiles?.[id] ?? []),
-                        ...(sameIntent ? previousScope.authorizedFiles : [])].map(file => workspacePath(store.root, file)))].sort()
-                    const files = [...new Set([...scopeFiles, ...authorized, ...(previousScope?.files ?? [])])].sort()
-                    const governance = await resolveTicketGovernance(store, ticket, files, previousScope?.governance)
-                    scope = immutable({ticketId: id, intent: {title: dossier.ticket.title, body: dossier.ticket.body, acceptanceCriteria: dossier.ticket.acceptanceCriteria},
-                        authoredTargets: dossier.evidence.filter(item => item.mandatory && ['FileNode', 'SymbolNode'].includes(item.kind))
-                            .map(({id, kind, filePath, symbolName}) => ({id, kind, filePath, symbolName})), revision: (pending?.revision ?? -1) + 1, authoredFiles: Object.freeze([...new Set(scopeFiles)].sort()),
-                        authorizedFiles: Object.freeze(authorized), files: Object.freeze(files), baselines: hashFiles(store.root, files), effects: Object.freeze(sameIntent && pending ? pending.effects : []), governance})
+                    scope = immutable(await buildSourceScope(store, ticket, dossier, {
+                        pending, previous: pending ?? proof?.scope, authorizedFiles: options.authorizedFiles?.[id]
+                    }))
                     effectEpoch = scope.effects.length
                     for (const effect of scope.effects) for (const [file, hash] of Object.entries(effect.after))
                         if (hashFiles(store.root, [file])[file] === hash) ownedFiles.add(file)

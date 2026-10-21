@@ -14,6 +14,7 @@ import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';
 import {exportProjections} from '../graph/projections.ts';
+import {applyOwnedChange} from './change.ts';
 
 async function requireTicket(ctx: ToolContext, ticketId: string, kind?: Ticket['kind']): Promise<Ticket> {
   const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
@@ -83,7 +84,7 @@ export function registerTicketTools() {
       if (result.success) {
         try {
           await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
-            registry.execute('apply_change', {request:preview.request,fingerprint:preview.fingerprint,decision:'accept'}, ctx));
+            applyOwnedChange(preview, ctx));
         } catch (error) { await ctx.store.releaseTicket(ticketId); throw error; }
       }
       return result;
@@ -146,7 +147,7 @@ export function registerTicketTools() {
         const eligibility = await ticketEligibility(ctx.store, ticket, loadConfig(ctx.projectRoot).defaultAgentId);
         if (!eligibility.eligible) throw Error(eligibility.reasons.join(' '));
         await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
-          registry.execute('apply_change', { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx));
+          applyOwnedChange(preview, ctx));
       }
       if (lane) Object.assign(fields, ticketState(lane));
       await applyProductMutations(ctx.store, [{
@@ -186,7 +187,7 @@ export function registerTicketTools() {
         const eligibility = await ticketEligibility(ctx.store, ticket, loadConfig(ctx.projectRoot).defaultAgentId);
         if (!eligibility.eligible) throw Error(eligibility.reasons.join(' '));
         await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
-          registry.execute('apply_change', { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' }, ctx));
+          applyOwnedChange(preview, ctx));
       }
       await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Ticket', id: ticketId,
         fields: ticketState(lane, status) }]);
