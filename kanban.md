@@ -98,7 +98,6 @@ kanban-plugin: board
 
 - [/] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
   - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
-  - Claim: leased by @codex-p0-interface until 2026-10-21T13:21:25.919Z
 - [/] **TKT-LSP-LIFECYCLE-01**: Fix demonstrated LSP request lifecycle and stale preview latency
   - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
 - [/] **TKT-9Z2Z**: Refresh default model map from llm-utils advice snapshot

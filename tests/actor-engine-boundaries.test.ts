@@ -143,11 +143,11 @@ describe("WorkflowActor execution boundaries", () => {
         expect(result.haltReason).toBe("aborted")
         expect(result.answer).toContain("User refused execution")
     })
-    it("preserves injected discovery tools and applies schema transforms exactly once", async () => {
+    it("preserves injected governed discovery tools and applies schema transforms exactly once", async () => {
         let calls = 0
         let value = ""
         const tool = {
-            name: "custom_transform", description: "Use a host capability", category: "os" as const,
+            name: "read_workspace_file", description: "Use a host capability", category: "os" as const,
             parameters: z.object({ value: z.string().transform(input => input + "!") }),
             execute: (params: {
                 value: string
@@ -169,7 +169,7 @@ describe("WorkflowActor execution boundaries", () => {
     it("denies discovered mutating capabilities under read-only authority", async () => {
         let calls = 0
         let invoked = false
-        const tool = { name: "custom_mutation", description: "Mutate state", category: "os" as const,
+        const tool = { name: "claim_ticket", description: "Mutate state", category: "os" as const,
             parameters: z.object({}), execute: () => {
                 invoked = true
                 return {}

@@ -44,14 +44,14 @@ describe("actor prompt templates at the model boundary", () => {
         expect(system).toContain("Achieve the user's entire goal and address every requested part.")
         expect(system).toContain(`[${mode.toUpperCase()}] preference:`)
         expect(system).toContain(`Environment observation: the project root is ${root}.`)
-        expect(system).not.toContain("Execution authority: read-only")
+        expect(system).toContain("run_command authority: read-only project filesystem")
         expect(system).not.toContain("{{")
     })
 
     it("renders read-only authority with the actual scratch directory and cleans it up", async () => {
         const result = await actor.execute("Inspect this fixture.", "dev", { executionAuthority: "read-only" })
         expect(result.failed).not.toBe(true)
-        expect(system).toContain("Execution authority: read-only project filesystem")
+        expect(system).toContain("run_command authority: read-only project filesystem")
         expect(system).toContain("TMPDIR points there.")
         const scratch = system.match(/writable scratch directory ([^;]+);/)?.[1]
         expect(scratch).toBeDefined()

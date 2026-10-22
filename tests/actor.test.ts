@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
-import { Ticket, Epic, Feature, UserStory } from '../src/graph/ontology.ts';
+import { Ticket, Epic, Feature, UserStory, FileNode } from '../src/graph/ontology.ts';
 import type {Asker, ZodType} from '@dharmax/llm-utils';
 
 const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
@@ -29,6 +29,97 @@ describe('Cognitive Actor & Mode Switcher', () => {
   afterEach(() => {
     store.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('P0 Actor bogus-file workaround cannot change project state with project-write authority', async () => {
+    const git = (...args: string[]) => {
+      const result = Bun.spawnSync(['git', ...args], {cwd: tempDir});
+      if (!result.success) throw Error(result.stderr.toString());
+      return result.stdout.toString();
+    };
+    fs.writeFileSync(path.join(tempDir, '.gitignore'), '.ai-workflow/\n');
+    fs.writeFileSync(path.join(tempDir, 'records.json'), 'real\n');
+    git('init'); git('add', '.');
+    git('-c', 'user.name=fixture', '-c', 'user.email=fixture@example.test', 'commit', '-m', 'baseline');
+    const before = git('status', '--porcelain', '--untracked-files=all');
+    const commands = ['printf bogus > bogus.ts', 'printf fake > records.json', 'printf scratch > "$TMPDIR/result"; cat "$TMPDIR/result"'];
+    let step = 0;
+    const candidates: string[] = [];
+    const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
+      if (options.system?.startsWith('Classify')) {
+        expect(options.system.match(/^domain: (.*)$/m)?.[1]).not.toMatch(/script|compiler/);
+        return {ok: true, data: {domain: ['change'], action: ['apply']}};
+      }
+      if (options.system?.startsWith('Qualify semantic discovery')) {
+        const ids = JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id);
+        candidates.push(...ids);
+        return {ok: true, data: {ids}};
+      }
+      const call = step++;
+      return {ok: true, data: call === 0
+        ? {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Find source mutation capabilities'}}]}
+        : call <= commands.length
+          ? {thought: '', action: 'tool_call', toolCalls: [{name: 'run_command', parameters: {command: commands[call - 1]}}]}
+          : {thought: '', action: 'final_answer', finalAnswer: 'Project writes refused; scratch succeeded'}};
+    }} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute(
+      'Try the bogus-file workaround', undefined, {executionAuthority: 'project-write'});
+    expect(result.failed, JSON.stringify(result)).not.toBe(true);
+    expect(candidates).toContain('apply_change');
+    for (const name of ['script_eval', 'compile_codelet', 'run_codelet', 'apply_block_patch', 'promote_codelet'])
+      expect(result.discoveredTools).not.toContain(name);
+    expect(result.events[1]!.toolResults![0]!.isError).toBe(true);
+    expect(result.events[2]!.toolResults![0]!.isError).toBe(true);
+    expect((result.events[3]!.toolResults![0]!.result as {stdout: string}).stdout).toBe('scratch');
+    expect(fs.existsSync(path.join(tempDir, 'bogus.ts'))).toBe(false);
+    expect(fs.readFileSync(path.join(tempDir, 'records.json'), 'utf8')).toBe('real\n');
+    expect(git('status', '--porcelain', '--untracked-files=all')).toBe(before);
+  });
+
+  it('P0 Actor applies a real Ticket-owned source change through preview/apply', async () => {
+    const git = (...args: string[]) => {
+      const result = Bun.spawnSync(['git', ...args], {cwd: tempDir});
+      if (!result.success) throw Error(result.stderr.toString());
+    };
+    fs.writeFileSync(path.join(tempDir, '.gitignore'), '.ai-workflow/\n');
+    fs.writeFileSync(path.join(tempDir, 'value.ts'), 'export const value = 1;\n');
+    git('init'); git('add', '.');
+    git('-c', 'user.name=fixture', '-c', 'user.email=fixture@example.test', 'commit', '-m', 'baseline');
+    await store.upsertEntity(Ticket.dcr, {id: 'T-ACTOR-P0', title: 'Set value to two', kind: 'task', lane: 'Todo',
+      acceptanceCriteria: ['Importing value.ts returns value 2']});
+    await store.upsertEntity(FileNode.dcr, {id: 'value.ts', title: 'value.ts', metadata: {isStub: true}});
+    await store.relate('T-ACTOR-P0', 'modifies', 'value.ts');
+    const request = {action: 'replace_text', filePath: 'value.ts', oldText: 'value = 1', newText: 'value = 2'};
+    const owner = {ticketId: 'T-ACTOR-P0', agentId: 'actor-p0'};
+    let step = 0, fingerprint = '';
+    const asker = {json: async () => {
+      const calls = [
+        {name: 'discover_tools', parameters: {request: 'Claim Ticket and preview/apply source'}},
+        {name: 'claim_ticket', parameters: {...owner, durationMinutes: 10}},
+        {name: 'preview_change', parameters: {...request, ...owner}},
+        {name: 'apply_change', parameters: {request, fingerprint, ...owner}},
+        {name: 'run_command', parameters: {command: `bun -e 'const {value}=await import("./value.ts"); if(value!==2)throw Error("wrong value"); console.log(value)'`}},
+      ];
+      const next = calls[step++];
+      return {ok: true, data: next ? {thought: '', action: 'tool_call', toolCalls: [next]}
+        : {thought: '', action: 'final_answer', finalAnswer: 'Value is two'}};
+    }} as unknown as Asker;
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker,
+      toolDiscovery: discover(['claim_ticket', 'preview_change', 'apply_change'])}).execute(
+      'Set value to two through its Ticket', undefined, {executionAuthority: 'project-write', onStep: step => {
+        if (step.toolCalls[0]?.toolName === 'preview_change') {
+          const preview = step.toolResults[0]!.result as {fingerprint: string; blocked: boolean};
+          expect(preview.blocked).toBe(false);
+          expect(fs.readFileSync(path.join(tempDir, 'value.ts'), 'utf8')).toContain('value = 1');
+          fingerprint = preview.fingerprint;
+        }
+      }});
+    expect(result.failed, JSON.stringify(result)).not.toBe(true);
+    expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.events[3]!.toolResults![0]!.result).toMatchObject({ok: true});
+    expect(result.events[4]!.toolResults![0]!.result).toMatchObject({success: true, stdout: '2\n', authority: 'read-only'});
+    expect(fs.readFileSync(path.join(tempDir, 'value.ts'), 'utf8')).toBe('export const value = 2;\n');
+    await registry.execute('release_ticket', {ticketId: owner.ticketId}, {store, projectRoot: tempDir, executionAuthority: 'project-write'});
   });
 
   it('maps configured mode routes to semantic tasks, with task routes authoritative', () => {
@@ -64,7 +155,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     fs.writeFileSync(path.join(tempDir,'records.json'),'real');
     const asker={json:async()=>({ok:true,data:count<commands.length?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:commands[count++]}}]}:{thought:'',action:'final_answer',finalAnswer:'xx from scratch; source unchanged'}})} as unknown as Asker;
     const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null}).execute('Compute without changing source',undefined,{executionAuthority:'read-only'});
-    expect(result.failed).not.toBe(true);
+    expect(result.failed, JSON.stringify(result)).not.toBe(true);
     expect(result.events[0]!.toolResults![0]!.isError).toBe(true);
     expect(result.events[1]!.toolResults![0]!.isError).toBe(false);
     expect(result.events[2]!.toolResults![0]!.isError).toBe(false);
@@ -486,7 +577,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     let toolSignal: AbortSignal | undefined
     let calls = 0
     const tool = {
-      name: 'capture_signal',
+      name: 'get_git_status',
       description: 'Capture execution signal',
       category: 'os' as const,
       parameters: (await import('@dharmax/llm-utils')).z.object({}),
@@ -507,7 +598,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
               data: {
                 thought: 'Use the tool.',
                 action: 'tool_call',
-                toolCalls: [{callId: '1', name: 'capture_signal', parameters: {}}],
+                toolCalls: [{callId: '1', name: 'get_git_status', parameters: {}}],
               },
             }
           : {
@@ -639,7 +730,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
             data: {
               thought: 'I will inspect the system environment.',
               action: 'tool_call',
-              toolCalls: [{ callId: 'call_1', name: 'get_environment_info', parameters: {} }]
+              toolCalls: [{ callId: 'call_1', name: 'get_git_status', parameters: {} }]
             }
           };
         }
@@ -659,7 +750,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       projectRoot: tempDir,
       asker: mockAsker,
       maxSteps: 5,
-      toolDiscovery: discover(['get_environment_info'], 'triage')
+      toolDiscovery: discover(['get_git_status'], 'triage')
     });
 
     const actorEvents: any[] = [];

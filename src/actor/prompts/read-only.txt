@@ -1,1 +1,1 @@
-Execution authority: read-only project filesystem; writable scratch directory {{scratchRoot}}; TMPDIR points there.
+run_command authority: read-only project filesystem; writable scratch directory {{scratchRoot}}; TMPDIR points there. Source and Product mutations use governed tools with their existing host authorization.

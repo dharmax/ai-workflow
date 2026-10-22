@@ -24,13 +24,14 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import type { WorkflowStore } from "../graph/store.ts"
-import { registry, type ToolContext, type ToolDefinition } from "../tools/registry.ts"
+import { registry, ToolRegistry, type ToolContext, type ToolDefinition } from "../tools/registry.ts"
 import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from "../tools/discovery.ts"
 import { lexCommand, isExplicitCommand, artifactCommand } from "../artifact-command.ts"
 import { loadConfig } from "../config.ts"
 import { ModelService } from "../model-runtime.ts"
 import { ModelRadar } from "./radar.ts"
 import { renderActorSystem } from "./prompts.ts"
+import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from "../tools/surface.ts"
 
 export { pubsub }
 
@@ -188,7 +189,9 @@ export class WorkflowActor {
     }
 
     private createDiscovery(models: ModelService): ToolDiscovery | undefined {
-        if (this.options.asker) return new ToolDiscovery(registry, this.options.asker)
+        const tools = new ToolRegistry()
+        for (const tool of getPublicMcpTools(registry)) tools.register(tool)
+        if (this.options.asker) return new ToolDiscovery(tools, this.options.asker)
         const local = models.localModel
         if (!local) return undefined
         const discoveryAsker = new Asker({
@@ -196,7 +199,7 @@ export class WorkflowActor {
             defaultModel: local,
             preferLocal: true,
         })
-        return new ToolDiscovery(registry, discoveryAsker, this._asker)
+        return new ToolDiscovery(tools, discoveryAsker, this._asker)
     }
 
     private locality(policy: string, escalated = false): boolean {
@@ -318,9 +321,7 @@ export class WorkflowActor {
             this.recordEscalation(state, MODE_CONFIGS[state.mode].taskClass, "SOTA / forceCloud requested")
         }
         try {
-            if (state.ctx.executionAuthority === "read-only") {
-                state.ctx.scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aiwf-scratch-"))
-            }
+            state.ctx.scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aiwf-scratch-"))
             const actor = this.createActor(state)
             const options = this.runOptions(state, bootstrap, config)
             this.recordDiscovery(state, { query: {}, bootstrap: true })
@@ -344,7 +345,6 @@ export class WorkflowActor {
     private createActor({ mode, ctx }: ExecutionState): LLMActor {
         return new LLMActor(this._asker!, {
             maxSteps: this.maxSteps,
-            maxToolCatalogChars: 16_000,
             system: renderActorSystem(mode, this.projectRoot, ctx.scratchRoot),
         })
     }
@@ -457,18 +457,19 @@ export class WorkflowActor {
         if (!this.toolDiscovery) throw new Error("Specialized discovery is disabled. Continue through run_command.")
         const found = await this.discoverTools(request, state.options.signal)
         if (found.error) throw new Error(found.error)
-        if (!found.tools.length)
+        const tools = found.tools.filter(tool => PUBLIC_MCP_TOOL_NAMES.has(tool.name))
+        if (!tools.length)
             throw new Error("No applicable specialized capability discovered. Continue through run_command.")
-        for (const tool of found.tools) state.selectedNames.add(tool.name)
+        for (const tool of tools) state.selectedNames.add(tool.name)
         state.options.onDiscovery?.([...state.selectedNames], state.mode)
         this.recordDiscovery(state, {
             request,
             query: found.query,
             status: "completed",
-            addedTools: found.tools.map((tool) => tool.name),
+            addedTools: tools.map((tool) => tool.name),
             elapsedMs: Date.now() - started,
         })
-        return found.tools.map((tool) => this.wrapTool(tool, state.ctx))
+        return tools.map((tool) => this.wrapTool(tool, state.ctx))
     }
 
     private recordDiscovery(state: ExecutionState, detail: Omit<CapabilityDiscoveryEvent, "mode" | "tools">): void {
@@ -569,6 +570,7 @@ export class WorkflowActor {
         params: unknown,
         ctx: ToolContext,
     ): Promise<unknown> {
+        if (tool.name === "run_command") ctx = { ...ctx, executionAuthority: "read-only" }
         this.assertExecutionAllowed(tool, ctx)
         pubsub.trigger("aiwf", "actor:tool", { name: tool.name, params })
         const result = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal,
