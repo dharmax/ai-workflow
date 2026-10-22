@@ -6,7 +6,7 @@
 
 ## Product meaning
 
-- [Product](product.md) — **mandatory, developer-approved charter** and downstream alignment
+- [Product](product.md) — **mandatory charter contract** and downstream alignment; [AIWF's approved charter](../product-charter.md) is the project-specific product intent
 - [Goal](goal.md) — intended outcome
 - [Concept](concept.md) — shared domain meaning
 - [Feature](feature.md) — specific functionality/capability
@@ -42,4 +42,4 @@ See [Product](product.md) for the authoritative mandatory-charter/alignment cont
 - Comments as half-formal LLM input and whether separate Requirements or Preconditions fields add value; neither is currently an approved US field.
 - Domain taxonomy/tag composition and fine-grained inherited-definition editing mechanics.
 
-**Current-state warning:** implementation and data may lag definitions. The tracked manifest reports no charter (not a fresh DB check); no default charter, fake approval or automatic migration is authorized. Validate current state.
+**Current-state warning:** [AIWF's charter](../product-charter.md) is now developer-approved; local graph registration and alignment enforcement have **not** been independently verified. The tracked manifest is a stale projection, not a current DB check. Validate state and re-export through AIWF; no automatic migration or fabricated compliance.

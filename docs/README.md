@@ -1,6 +1,6 @@
 # AIWF documentation
 
-**Start here:** [canonical definitions](definitions/README.md) (load only the concepts needed); AI coders follow the [agent entry contract](../AGENTS.md#ai-coding-agent-entry-contract). The [Product charter](definitions/product.md) governs product intent, while the glossary defines terms/fields; missing runtime support must be reported, not inferred.
+**Start here:** [AIWF's approved Product Charter](product-charter.md) establishes product intent; [canonical definitions](definitions/README.md) specify the model and exact fields. AI coders follow the [agent entry contract](../AGENTS.md#ai-coding-agent-entry-contract) and load only the relevant concepts. Developer approval of the charter is separate from verification that it has been registered in the local graph.
 
 **Current working checkpoint:** [AIWF v1 — active two-iteration delivery](../plans/AIWF-V1-ACTIVE-CHECKPOINT.md). This is the concise current scope/status/validation policy; dated audits are evidence, not competing execution plans.  
 **Detailed three-iteration release contract:** [AIWF usable v1 plan](../plans/AIWF-USABLE-V1-RELEASE-PLAN.md).  

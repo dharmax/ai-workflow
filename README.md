@@ -6,7 +6,7 @@ AIWF is an AI-assisted engineering system that connects product intent, project 
 
 **The ambition:** reduce LLM token use by **20–90%** and elapsed engineering time by **40–90%** on comparable tasks, without sacrificing correctness or maintainability. These are **targets to measure, not achieved benchmarks or guarantees**; results will depend on the task, project and comparison baseline.
 
-Use AIWF through an external coding agent (MCP, project skill or supported plugin integration), or directly through its CLI, interactive shell and developing graphical Workspace. Engineering is governed by [Dharmax-way](docs/definitions/dharmax-way.md) and its [Prime Directive](docs/definitions/prime-directive.md).
+Use AIWF through an external coding agent (MCP, project skill or supported plugin integration), or directly through its CLI, interactive shell and developing graphical Workspace. Its [approved Product Charter](docs/product-charter.md) anchors product intent; engineering is governed by [Dharmax-way](docs/definitions/dharmax-way.md) and its [Prime Directive](docs/definitions/prime-directive.md).
 
 > **Status:** Active development. This README describes the product direction alongside usable existing entry points; the complete workflow is **not yet implemented or accepted**. The [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md) records actual scope, priorities, blockers and evidence.
 

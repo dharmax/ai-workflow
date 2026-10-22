@@ -1,6 +1,8 @@
 # Definition usage check — DW-02 (provisional)
 
-**Purpose:** exercise the canonical definitions against an **existing AIWF product-use scenario**, without manufacturing a new accepted Story or claiming that its tests ran. This is an investigation aid, not another definition or a product-approval record.
+**Purpose:** exercise the canonical definitions against an **existing AIWF product-use scenario**, without manufacturing a new accepted Story or claiming that its tests ran.
+
+**Historical snapshot note (2026-10-22):** This dry run preceded approval of [AIWF's Product Charter](product-charter.md). References below to an unapproved/missing charter describe the then-observed input; they are not a claim that the charter text remains unapproved. Canonical graph registration and effective Story approval still require separate verification. This is an investigation aid, not another definition or a product-approval record.
 
 **Source:** [DW-02 — Review and edit a complete Story](journeys.md#dw-02--review-and-edit-a-complete-story). Existing implementation-related cases are in [`tests/dharmax-s3.test.ts`](../tests/dharmax-s3.test.ts). The journey document labels DW-01–09 as target material, **not** currently accepted canonical Story definitions.
 
