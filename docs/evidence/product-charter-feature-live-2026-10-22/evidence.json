@@ -1,0 +1,507 @@
+{
+  "ticket": "TKT-PRODUCT-CHARTER-FEATURE",
+  "head": "eeaf9e6",
+  "startedAt": "2026-10-22T17:42:32.456Z",
+  "surface": "registry.execute preview_change (public Product change tool)",
+  "root": "/tmp/aiwf-feature-qualification-yIaS4U",
+  "model": "ollama/gemma4:e4b",
+  "configBefore": [
+    {
+      "path": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "path": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "charter": {
+    "id": "PRODUCT",
+    "version": 1,
+    "title": "AI-Workflow (AIWF)",
+    "purpose": "AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\n\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\n\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\n\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.",
+    "actors": [
+      "Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.",
+      "AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.",
+      "Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.",
+      "Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI."
+    ],
+    "scope": "AIWF provides an integrated engineering environment encompassing:\n\n**Product understanding**\n\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\n- Identification of conflicts, dependencies, inconsistencies and product drift.\n\n**Engineering intelligence**\n\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\n\n**Work management and execution**\n\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\n- Grounded investigation, planning, implementation, testing, correction and completion.\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\n\n**Quality and verification**\n\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\n- Correct, maintainable implementations with minimal justified complexity.\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\n\n**Accessibility and continuity**\n\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\n- Direct operation through CLI, interactive shell and graphical interfaces.\n- Persistent project context enabling work to continue across sessions, developers and agents.\n\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.",
+    "nonGoals": [
+      "Replace the developer's authority over product intent or consequential decisions.",
+      "Become a general-purpose chatbot or content-generation application.",
+      "Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.",
+      "Replace established development tools or suitable ecosystem capabilities unnecessarily.",
+      "Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.",
+      "Optimize token consumption or speed at the expense of correctness, maintainability or safety.",
+      "Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness."
+    ],
+    "bounds": "1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\n\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\n\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\n\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\n\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\n\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\n\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\n\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\n\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.",
+    "status": "accepted"
+  },
+  "cases": [
+    {
+      "name": "aligned",
+      "id": "QUALIFY-ALIGNED",
+      "title": "Repository defect investigation",
+      "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+      "startedAt": "2026-10-22T17:42:32.456Z",
+      "transport": [
+        {
+          "startedAt": "2026-10-22T17:42:32.477Z",
+          "url": "http://lotus:11434/api/chat",
+          "model": "gemma4:e4b",
+          "request": {
+            "model": "gemma4:e4b",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Independently review this engineering proposal at production completeness. You are read-only. acceptanceCriteria describes REQUIRED outcomes, never proof they are already met. First evaluate EVERY parent acceptanceCriteria entry, and EVERY applicable Aspect. For each, report whether proposed or existing work explicitly covers it and cite the actual work that does so. An unrelated criterion is not coverage. Requirements in intent are not implementation evidence. If any material criterion or Aspect is missing, the review MUST revise or reject with specific findings. Then check duplicate work, unnecessary ceremony, executable acceptance, real dependency ordering, Decisions and reuse versus creation. Higher completeness requires stronger evidence, never more artifacts by itself. Do not accept based only on whether one proposed child looks reasonable. Return criteria, aspects and review. Review context: {\"artifactId\":\"PRODUCT\",\"intent\":\"Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised Feature must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.\",\"neighborhood\":[{\"id\":\"PRODUCT\",\"entityType\":\"Product\",\"kind\":null,\"defect\":null,\"title\":\"AI-Workflow (AIWF)\",\"body\":null,\"decision\":null,\"consequences\":null,\"status\":\"accepted\",\"priority\":null,\"acceptanceCriteria\":null,\"actor\":null,\"intent\":null,\"initialState\":null,\"action\":null,\"expectedResult\":null,\"exceptions\":null,\"bounds\":\"1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\\n\\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\\n\\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\\n\\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\\n\\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\\n\\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\\n\\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\\n\\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\\n\\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.\",\"story\":null,\"context\":null,\"sla\":null,\"lane\":null,\"claim\":null,\"completenessTarget\":null,\"filePath\":null,\"framework\":null,\"command\":null,\"fixturePath\":null,\"interfaceName\":null,\"storyVersion\":null,\"testState\":null,\"testStateReason\":null,\"testSourceHash\":null,\"fixtureHash\":null,\"storyBasisHash\":null,\"technicalProofs\":null,\"purpose\":\"AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\\n\\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\\n\\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\\n\\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.\",\"actors\":[\"Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.\",\"AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.\",\"Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.\",\"Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI.\"],\"scope\":\"AIWF provides an integrated engineering environment encompassing:\\n\\n**Product understanding**\\n\\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\\n- Identification of conflicts, dependencies, inconsistencies and product drift.\\n\\n**Engineering intelligence**\\n\\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\\n\\n**Work management and execution**\\n\\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\\n- Grounded investigation, planning, implementation, testing, correction and completion.\\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\\n\\n**Quality and verification**\\n\\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\\n- Correct, maintainable implementations with minimal justified complexity.\\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\\n\\n**Accessibility and continuity**\\n\\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\\n- Direct operation through CLI, interactive shell and graphical interfaces.\\n- Persistent project context enabling work to continue across sessions, developers and agents.\\n\\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.\",\"nonGoals\":[\"Replace the developer's authority over product intent or consequential decisions.\",\"Become a general-purpose chatbot or content-generation application.\",\"Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.\",\"Replace established development tools or suitable ecosystem capabilities unnecessarily.\",\"Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.\",\"Optimize token consumption or speed at the expense of correctness, maintainability or safety.\",\"Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness.\"],\"outcomes\":null,\"boundaries\":null,\"behavioralRules\":null,\"responsibilities\":null,\"intentStatus\":null,\"version\":1,\"updatedAt\":\"2026-10-22T17:42:32.451Z\"},{\"id\":\"QUALIFY-ALIGNED\",\"entityType\":\"Feature\",\"status\":\"accepted\",\"title\":\"Repository defect investigation\",\"body\":\"Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.\"}],\"proposal\":[{\"kind\":\"product_create\",\"entityType\":\"Feature\",\"id\":\"QUALIFY-ALIGNED\",\"fields\":{\"title\":\"Repository defect investigation\",\"body\":\"Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.\",\"status\":\"accepted\"}}],\"applicableAspects\":[],\"candidateAspects\":[],\"completeness\":\"production\",\"depth\":0,\"acceptanceCriteria\":[\"Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised Feature must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.\"],\"evidence\":[\"{\\\"current\\\":{\\\"PRODUCT\\\":{\\\"kind\\\":\\\"Product\\\",\\\"fields\\\":{\\\"kind\\\":null,\\\"defect\\\":null,\\\"title\\\":\\\"AI-Workflow (AIWF)\\\",\\\"body\\\":null,\\\"decision\\\":null,\\\"consequences\\\":null,\\\"status\\\":\\\"accepted\\\",\\\"priority\\\":null,\\\"acceptanceCriteria\\\":null,\\\"actor\\\":null,\\\"intent\\\":null,\\\"initialState\\\":null,\\\"action\\\":null,\\\"expectedResult\\\":null,\\\"exceptions\\\":null,\\\"bounds\\\":\\\"1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\\\\n\\\\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\\\\n\\\\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\\\\n\\\\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\\\\n\\\\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\\\\n\\\\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\\\\n\\\\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\\\\n\\\\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\\\\n\\\\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.\\\",\\\"story\\\":null,\\\"context\\\":null,\\\"sla\\\":null,\\\"lane\\\":null,\\\"claim\\\":null,\\\"completenessTarget\\\":null,\\\"filePath\\\":null,\\\"framework\\\":null,\\\"command\\\":null,\\\"fixturePath\\\":null,\\\"interfaceName\\\":null,\\\"storyVersion\\\":null,\\\"testState\\\":null,\\\"testStateReason\\\":null,\\\"testSourceHash\\\":null,\\\"fixtureHash\\\":null,\\\"storyBasisHash\\\":null,\\\"technicalProofs\\\":null,\\\"purpose\\\":\\\"AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\\\\n\\\\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\\\\n\\\\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\\\\n\\\\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.\\\",\\\"actors\\\":[\\\"Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.\\\",\\\"AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.\\\",\\\"Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.\\\",\\\"Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI.\\\"],\\\"scope\\\":\\\"AIWF provides an integrated engineering environment encompassing:\\\\n\\\\n**Product understanding**\\\\n\\\\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\\\\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\\\\n- Identification of conflicts, dependencies, inconsistencies and product drift.\\\\n\\\\n**Engineering intelligence**\\\\n\\\\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\\\\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\\\\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\\\\n\\\\n**Work management and execution**\\\\n\\\\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\\\\n- Grounded investigation, planning, implementation, testing, correction and completion.\\\\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\\\\n\\\\n**Quality and verification**\\\\n\\\\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\\\\n- Correct, maintainable implementations with minimal justified complexity.\\\\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\\\\n\\\\n**Accessibility and continuity**\\\\n\\\\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\\\\n- Direct operation through CLI, interactive shell and graphical interfaces.\\\\n- Persistent project context enabling work to continue across sessions, developers and agents.\\\\n\\\\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.\\\",\\\"nonGoals\\\":[\\\"Replace the developer's authority over product intent or consequential decisions.\\\",\\\"Become a general-purpose chatbot or content-generation application.\\\",\\\"Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.\\\",\\\"Replace established development tools or suitable ecosystem capabilities unnecessarily.\\\",\\\"Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.\\\",\\\"Optimize token consumption or speed at the expense of correctness, maintainability or safety.\\\",\\\"Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness.\\\"],\\\"outcomes\\\":null,\\\"boundaries\\\":null,\\\"behavioralRules\\\":null,\\\"responsibilities\\\":null,\\\"intentStatus\\\":null,\\\"version\\\":1,\\\"updatedAt\\\":\\\"2026-10-22T17:42:32.451Z\\\"},\\\"relations\\\":[]},\\\"QUALIFY-ALIGNED\\\":null},\\\"proposedFeatures\\\":[\\\"QUALIFY-ALIGNED\\\"]}\"]}"
+              }
+            ],
+            "stream": false,
+            "format": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "criterion": {
+                        "type": "string"
+                      },
+                      "covered": {
+                        "type": "boolean"
+                      },
+                      "evidence": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "criterion",
+                      "covered",
+                      "evidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "aspects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "covered": {
+                        "type": "boolean"
+                      },
+                      "evidence": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "covered",
+                      "evidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "review": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "accept",
+                        "revise",
+                        "reject",
+                        "needs_input"
+                      ]
+                    },
+                    "findings": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "string"
+                          },
+                          "artifactId": {
+                            "default": "",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "message",
+                          "artifactId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "question": {
+                            "type": "string"
+                          },
+                          "artifactId": {
+                            "default": "",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "question",
+                          "artifactId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "findings",
+                    "required"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "criteria",
+                "aspects",
+                "review"
+              ],
+              "additionalProperties": false
+            },
+            "options": {
+              "temperature": 0,
+              "num_predict": 2048,
+              "num_ctx": 32768
+            }
+          },
+          "elapsedMs": 60029.438014,
+          "error": "TimeoutError: The operation timed out."
+        }
+      ],
+      "request": {
+        "action": "product_change",
+        "basis": [
+          {
+            "id": "PRODUCT",
+            "entityType": "Product",
+            "version": 1
+          }
+        ],
+        "mutations": [
+          {
+            "kind": "product_create",
+            "entityType": "Feature",
+            "id": "QUALIFY-ALIGNED",
+            "fields": {
+              "title": "Repository defect investigation",
+              "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      "response": {
+        "fingerprint": "ff2396801c22ac791f276e9d5ccf1c864f4150b1d418f6d7fba741280c5ba496",
+        "summary": "Blocked: Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-ALIGNED",
+              "fields": {
+                "title": "Repository defect investigation",
+                "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        },
+        "warnings": [
+          "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out."
+        ],
+        "blocked": true,
+        "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+        "status": "needs_input",
+        "required": [
+          {
+            "artifactId": "QUALIFY-ALIGNED",
+            "question": "Review QUALIFY-ALIGNED against the current accepted Product charter and explicitly answer the warning by revising the Feature or leaving it unresolved."
+          }
+        ],
+        "dependents": []
+      },
+      "elapsedMs": 60056.92693,
+      "featureWritten": false
+    },
+    {
+      "name": "contradictory",
+      "id": "QUALIFY-CONTRADICTORY",
+      "title": "General-purpose public chatbot and creative writing",
+      "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+      "startedAt": "2026-10-22T17:43:32.514Z",
+      "transport": [
+        {
+          "startedAt": "2026-10-22T17:43:32.521Z",
+          "url": "http://lotus:11434/api/chat",
+          "model": "gemma4:e4b",
+          "request": {
+            "model": "gemma4:e4b",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Independently review this engineering proposal at production completeness. You are read-only. acceptanceCriteria describes REQUIRED outcomes, never proof they are already met. First evaluate EVERY parent acceptanceCriteria entry, and EVERY applicable Aspect. For each, report whether proposed or existing work explicitly covers it and cite the actual work that does so. An unrelated criterion is not coverage. Requirements in intent are not implementation evidence. If any material criterion or Aspect is missing, the review MUST revise or reject with specific findings. Then check duplicate work, unnecessary ceremony, executable acceptance, real dependency ordering, Decisions and reuse versus creation. Higher completeness requires stronger evidence, never more artifacts by itself. Do not accept based only on whether one proposed child looks reasonable. Return criteria, aspects and review. Review context: {\"artifactId\":\"PRODUCT\",\"intent\":\"Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised Feature must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.\",\"neighborhood\":[{\"id\":\"PRODUCT\",\"entityType\":\"Product\",\"kind\":null,\"defect\":null,\"title\":\"AI-Workflow (AIWF)\",\"body\":null,\"decision\":null,\"consequences\":null,\"status\":\"accepted\",\"priority\":null,\"acceptanceCriteria\":null,\"actor\":null,\"intent\":null,\"initialState\":null,\"action\":null,\"expectedResult\":null,\"exceptions\":null,\"bounds\":\"1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\\n\\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\\n\\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\\n\\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\\n\\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\\n\\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\\n\\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\\n\\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\\n\\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.\",\"story\":null,\"context\":null,\"sla\":null,\"lane\":null,\"claim\":null,\"completenessTarget\":null,\"filePath\":null,\"framework\":null,\"command\":null,\"fixturePath\":null,\"interfaceName\":null,\"storyVersion\":null,\"testState\":null,\"testStateReason\":null,\"testSourceHash\":null,\"fixtureHash\":null,\"storyBasisHash\":null,\"technicalProofs\":null,\"purpose\":\"AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\\n\\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\\n\\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\\n\\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.\",\"actors\":[\"Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.\",\"AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.\",\"Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.\",\"Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI.\"],\"scope\":\"AIWF provides an integrated engineering environment encompassing:\\n\\n**Product understanding**\\n\\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\\n- Identification of conflicts, dependencies, inconsistencies and product drift.\\n\\n**Engineering intelligence**\\n\\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\\n\\n**Work management and execution**\\n\\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\\n- Grounded investigation, planning, implementation, testing, correction and completion.\\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\\n\\n**Quality and verification**\\n\\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\\n- Correct, maintainable implementations with minimal justified complexity.\\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\\n\\n**Accessibility and continuity**\\n\\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\\n- Direct operation through CLI, interactive shell and graphical interfaces.\\n- Persistent project context enabling work to continue across sessions, developers and agents.\\n\\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.\",\"nonGoals\":[\"Replace the developer's authority over product intent or consequential decisions.\",\"Become a general-purpose chatbot or content-generation application.\",\"Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.\",\"Replace established development tools or suitable ecosystem capabilities unnecessarily.\",\"Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.\",\"Optimize token consumption or speed at the expense of correctness, maintainability or safety.\",\"Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness.\"],\"outcomes\":null,\"boundaries\":null,\"behavioralRules\":null,\"responsibilities\":null,\"intentStatus\":null,\"version\":1,\"updatedAt\":\"2026-10-22T17:42:32.451Z\"},{\"id\":\"QUALIFY-CONTRADICTORY\",\"entityType\":\"Feature\",\"status\":\"accepted\",\"title\":\"General-purpose public chatbot and creative writing\",\"body\":\"Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.\"}],\"proposal\":[{\"kind\":\"product_create\",\"entityType\":\"Feature\",\"id\":\"QUALIFY-CONTRADICTORY\",\"fields\":{\"title\":\"General-purpose public chatbot and creative writing\",\"body\":\"Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.\",\"status\":\"accepted\"}}],\"applicableAspects\":[],\"candidateAspects\":[],\"completeness\":\"production\",\"depth\":0,\"acceptanceCriteria\":[\"Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised Feature must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.\"],\"evidence\":[\"{\\\"current\\\":{\\\"PRODUCT\\\":{\\\"kind\\\":\\\"Product\\\",\\\"fields\\\":{\\\"kind\\\":null,\\\"defect\\\":null,\\\"title\\\":\\\"AI-Workflow (AIWF)\\\",\\\"body\\\":null,\\\"decision\\\":null,\\\"consequences\\\":null,\\\"status\\\":\\\"accepted\\\",\\\"priority\\\":null,\\\"acceptanceCriteria\\\":null,\\\"actor\\\":null,\\\"intent\\\":null,\\\"initialState\\\":null,\\\"action\\\":null,\\\"expectedResult\\\":null,\\\"exceptions\\\":null,\\\"bounds\\\":\\\"1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\\\\n\\\\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\\\\n\\\\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\\\\n\\\\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\\\\n\\\\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\\\\n\\\\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\\\\n\\\\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\\\\n\\\\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\\\\n\\\\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.\\\",\\\"story\\\":null,\\\"context\\\":null,\\\"sla\\\":null,\\\"lane\\\":null,\\\"claim\\\":null,\\\"completenessTarget\\\":null,\\\"filePath\\\":null,\\\"framework\\\":null,\\\"command\\\":null,\\\"fixturePath\\\":null,\\\"interfaceName\\\":null,\\\"storyVersion\\\":null,\\\"testState\\\":null,\\\"testStateReason\\\":null,\\\"testSourceHash\\\":null,\\\"fixtureHash\\\":null,\\\"storyBasisHash\\\":null,\\\"technicalProofs\\\":null,\\\"purpose\\\":\\\"AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\\\\n\\\\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\\\\n\\\\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\\\\n\\\\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.\\\",\\\"actors\\\":[\\\"Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.\\\",\\\"AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.\\\",\\\"Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.\\\",\\\"Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI.\\\"],\\\"scope\\\":\\\"AIWF provides an integrated engineering environment encompassing:\\\\n\\\\n**Product understanding**\\\\n\\\\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\\\\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\\\\n- Identification of conflicts, dependencies, inconsistencies and product drift.\\\\n\\\\n**Engineering intelligence**\\\\n\\\\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\\\\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\\\\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\\\\n\\\\n**Work management and execution**\\\\n\\\\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\\\\n- Grounded investigation, planning, implementation, testing, correction and completion.\\\\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\\\\n\\\\n**Quality and verification**\\\\n\\\\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\\\\n- Correct, maintainable implementations with minimal justified complexity.\\\\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\\\\n\\\\n**Accessibility and continuity**\\\\n\\\\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\\\\n- Direct operation through CLI, interactive shell and graphical interfaces.\\\\n- Persistent project context enabling work to continue across sessions, developers and agents.\\\\n\\\\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.\\\",\\\"nonGoals\\\":[\\\"Replace the developer's authority over product intent or consequential decisions.\\\",\\\"Become a general-purpose chatbot or content-generation application.\\\",\\\"Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.\\\",\\\"Replace established development tools or suitable ecosystem capabilities unnecessarily.\\\",\\\"Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.\\\",\\\"Optimize token consumption or speed at the expense of correctness, maintainability or safety.\\\",\\\"Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness.\\\"],\\\"outcomes\\\":null,\\\"boundaries\\\":null,\\\"behavioralRules\\\":null,\\\"responsibilities\\\":null,\\\"intentStatus\\\":null,\\\"version\\\":1,\\\"updatedAt\\\":\\\"2026-10-22T17:42:32.451Z\\\"},\\\"relations\\\":[]},\\\"QUALIFY-CONTRADICTORY\\\":null},\\\"proposedFeatures\\\":[\\\"QUALIFY-CONTRADICTORY\\\"]}\"]}"
+              }
+            ],
+            "stream": false,
+            "format": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "criterion": {
+                        "type": "string"
+                      },
+                      "covered": {
+                        "type": "boolean"
+                      },
+                      "evidence": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "criterion",
+                      "covered",
+                      "evidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "aspects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "covered": {
+                        "type": "boolean"
+                      },
+                      "evidence": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "covered",
+                      "evidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "review": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "accept",
+                        "revise",
+                        "reject",
+                        "needs_input"
+                      ]
+                    },
+                    "findings": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "string"
+                          },
+                          "artifactId": {
+                            "default": "",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "message",
+                          "artifactId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "question": {
+                            "type": "string"
+                          },
+                          "artifactId": {
+                            "default": "",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "question",
+                          "artifactId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "findings",
+                    "required"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "criteria",
+                "aspects",
+                "review"
+              ],
+              "additionalProperties": false
+            },
+            "options": {
+              "temperature": 0,
+              "num_predict": 2048,
+              "num_ctx": 32768
+            }
+          },
+          "elapsedMs": 60017.437536000005,
+          "error": "TimeoutError: The operation timed out."
+        }
+      ],
+      "request": {
+        "action": "product_change",
+        "basis": [
+          {
+            "id": "PRODUCT",
+            "entityType": "Product",
+            "version": 1
+          }
+        ],
+        "mutations": [
+          {
+            "kind": "product_create",
+            "entityType": "Feature",
+            "id": "QUALIFY-CONTRADICTORY",
+            "fields": {
+              "title": "General-purpose public chatbot and creative writing",
+              "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      "response": {
+        "fingerprint": "8f5208282c62b12227e744adb45524832f0f4aa2cda15f9bd4b5a23ef56cc350",
+        "summary": "Blocked: Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-CONTRADICTORY",
+              "fields": {
+                "title": "General-purpose public chatbot and creative writing",
+                "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        },
+        "warnings": [
+          "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out."
+        ],
+        "blocked": true,
+        "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+        "status": "needs_input",
+        "required": [
+          {
+            "artifactId": "QUALIFY-CONTRADICTORY",
+            "question": "Review QUALIFY-CONTRADICTORY against the current accepted Product charter and explicitly answer the warning by revising the Feature or leaving it unresolved."
+          }
+        ],
+        "dependents": []
+      },
+      "elapsedMs": 60030.042495,
+      "featureWritten": false
+    }
+  ],
+  "fixtureProductUnchanged": true,
+  "canonicalProductUnchanged": true,
+  "configAfter": [
+    {
+      "path": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "path": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "finishedAt": "2026-10-22T17:44:32.551Z",
+  "disposableStateRemoved": true,
+  "harnessNotes": [
+    "Two setup attempts did not reach inference: fullDto omitted public version, then fixture upsert rejected public readonly version. Harness corrected to read get_product and seed writable charter fields, preserving PRODUCT v1. Both final previews reached the unchanged real configured reviewer."
+  ]
+}

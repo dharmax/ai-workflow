@@ -169,7 +169,9 @@ export async function verifyTicketAcceptance(
         countEngineering("sourceReads", context.code?.reduce((count, file) => count + file.snippets.length, 0) ?? 0)
         countEngineering("reasoningCalls")
         const response = await asker.json(renderAcceptancePrompt(serializedContext), AcceptanceAssessmentSchema, {
-            model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model,
+            ...(cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design
+                ? {model: cfg.modelRoutes.critic ?? cfg.modelRoutes.design}
+                : {task: 'verification'}),
             temperature: 0, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens,
             ...cognitionMetrics({phase: "acceptance_verification"})
         })

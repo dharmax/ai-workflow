@@ -1,0 +1,20 @@
+bun test v1.4.3 (c6da4a4d3)
+
+tests/model-advice-story.test.ts:
+(pass) Actor refreshes and uses native model advice while preserving developer choices and failed-refresh routes [404.71ms]
+(pass) public inspection and explicit model choices preserve routing without refresh or configuration side effects [264.71ms]
+
+tests/us/product-charter-feature.test.ts:
+(pass) Product charter governs Feature acceptance and revision through public operations > keeps a contradictory proposal inert, requires an explicit answer, and records the reviewed revision in a Decision [141.90ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects an agent-authored substantive answer even under ordinary host Product approval [783.48ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects answers bound to a stale charter or original Feature revision [69.50ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > requires an accepted canonical charter, while drafts and unrelated work remain usable [29.84ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > accepts aligned Product and Feature atomically and invalidates review when the charter changes [34.18ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > fails closed when the reviewer is uncertain or gives generic approval without alignment evidence [35.66ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > refuses alternate public Product paths, ordinary --yes, MCP and Actor self-approval [717.61ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > preserves historical accepted definitions, drafts and technical Tickets without migration [26.61ms]
+
+ 10 pass
+ 0 fail
+ 132 expect() calls
+Ran 10 tests across 2 files. [2.70s]

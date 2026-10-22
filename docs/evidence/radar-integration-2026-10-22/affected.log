@@ -1,0 +1,80 @@
+bun test v1.4.3 (c6da4a4d3)
+
+tests/actor-runtime-refresh.test.ts:
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > resolves initial effective route based on configured providers and routes [14.03ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > updates resolved routes dynamically after saveConfig and reloadConfig on the same instance [3.83ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > preserves injected mock askers during reloadConfig [2.18ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > displays Effective routes and reloads runtime on /model set in interactive shell [63.10ms]
+(pass) WorkflowActor runtime refresh & effective target (J2.5) > records and retrieves execution metrics through the lastExecutionMetrics property [1.94ms]
+
+tests/setup-truth.test.ts:
+(pass) truthful setup > inspects without writes, verifies changes and leaves repeated setup byte-for-byte stable [44.58ms]
+(pass) truthful setup > preserves host tool review settings when reloading MCP and schemas [37.91ms]
+(pass) truthful setup > skips absent hosts without creating their directories [14.10ms]
+(pass) truthful setup > reports malformed JSON and TOML without replacing the detected files [7.21ms]
+(pass) truthful setup > reports filesystem write failure instead of success [6.96ms]
+(pass) truthful setup > doctor reports malformed effective configuration as an error [2.31ms]
+
+tests/shell-config-setup.test.ts:
+(pass) shared config and setup commands > runs complete shell inputs without elicitation and matches the real CLI provenance journey [729.68ms]
+(pass) shared config and setup commands > facilitates only missing inputs and cancellation cannot create a config file [24.88ms]
+(pass) shared config and setup commands > uses a structured inspection view and rejects incomplete plain commands without elicitation [305.16ms]
+(pass) shared config and setup commands > setup --check never interacts or writes even from the interactive shell [549.17ms]
+(pass) shared config and setup commands > cancelling setup review leaves the home unchanged [141.03ms]
+(pass) shared config and setup commands > represents provisioning failures explicitly using existing runtime seams [3.36ms]
+(pass) shared config and setup commands > uses shell-ui process presentation on the real plain CLI indexing path [292.73ms]
+(pass) shared config and setup commands > reports detected setup failure as nonzero on the real inspect-only CLI [401.27ms]
+(pass) shared config and setup commands > shares core validation without accepting an unknown option or secret [1.37ms]
+
+tests/shell-daily.test.ts:
+(pass) daily shared shell commands > executes complete inputs immediately and the real CLI sees the same graph lease [625.43ms]
+(pass) daily shared shell commands > offers only eligible claims and cancellation leaves state unchanged [61.92ms]
+(pass) daily shared shell commands > facilitates only a missing lane, validates plain commands, and refuses unsafe done [354.00ms]
+(pass) daily shared shell commands > uses the existing artifact parser after facilitating only missing identifiers [60.78ms]
+(pass) daily shared shell commands > facilitates entity navigation and shares the plain entity view with CLI [315.25ms]
+(pass) daily shared shell commands > updates only local model routes and shares model inspection with CLI [539.05ms]
+
+tests/config.test.ts:
+(pass) configuration layers > keeps explicit layers and reveals the inherited model after project reset [2.43ms]
+(pass) configuration layers > preserves global credentials and unrelated fields while superseding legacy aliases [0.90ms]
+(pass) configuration layers > refuses malformed configuration without changing its bytes [1.13ms]
+(pass) configuration layers > rejects invalid settings and project secrets, and redacts legacy provider options [0.91ms]
+(pass) configuration layers > constructs providers from the same effective URL shown by configuration [1.42ms]
+(pass) configuration layers > exposes the Actor token budget as an overridable baseline [0.52ms]
+(pass) configuration layers > merges nested options from both explicit layers [0.74ms]
+
+tests/escalation.test.ts:
+(pass) Cognitive Escalation & Multi-Provider Engine > should resolve cloud credentials from environment variables [0.81ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should register providers based on resolved credentials [2.31ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should not escalate when policy is local_only [13.69ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should auto-escalate upon observable no-progress when cloud provider is configured and emit pubsub event [4.87ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > keeps automatic escalation task-routed so configured routes can fall back [2.14ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > should not escalate upon observable no-progress when policy is local_only [38.02ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > honors SOTA locality even when no cloud provider is configured [29.19ms]
+(pass) Cognitive Escalation & Multi-Provider Engine > gives the escalated attempt its own bounded discovery budget [31.09ms]
+
+tests/model-service.test.ts:
+(pass) configured model service > uses the configured default for local discovery and ordinary default Askers [2.07ms]
+(pass) configured model service > respects separate configured local and cloud routes [1.32ms]
+(pass) configured model service > keeps semantic task routes authoritative over mode aliases [1.43ms]
+(pass) configured model service > reloads configured defaults on the same Actor without cached model names [2.07ms]
+(pass) configured model service > never fabricates a local default but accepts an explicit local task route [1.55ms]
+
+tests/model-advice-story.test.ts:
+(pass) Actor refreshes and uses native model advice while preserving developer choices and failed-refresh routes [388.28ms]
+(pass) public inspection and explicit model choices preserve routing without refresh or configuration side effects [276.79ms]
+
+tests/us/product-charter-feature.test.ts:
+(pass) Product charter governs Feature acceptance and revision through public operations > keeps a contradictory proposal inert, requires an explicit answer, and records the reviewed revision in a Decision [130.71ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects an agent-authored substantive answer even under ordinary host Product approval [763.25ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects answers bound to a stale charter or original Feature revision [68.06ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > requires an accepted canonical charter, while drafts and unrelated work remain usable [25.57ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > accepts aligned Product and Feature atomically and invalidates review when the charter changes [32.34ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > fails closed when the reviewer is uncertain or gives generic approval without alignment evidence [37.71ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > refuses alternate public Product paths, ordinary --yes, MCP and Actor self-approval [716.71ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > preserves historical accepted definitions, drafts and technical Tickets without migration [43.11ms]
+
+ 56 pass
+ 0 fail
+ 365 expect() calls
+Ran 56 tests across 9 files. [7.43s]

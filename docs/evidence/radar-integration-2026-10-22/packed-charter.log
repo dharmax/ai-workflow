@@ -1,0 +1,16 @@
+bun test v1.4.3 (c6da4a4d3)
+
+tests/us/product-charter-feature.test.ts:
+(pass) Product charter governs Feature acceptance and revision through public operations > keeps a contradictory proposal inert, requires an explicit answer, and records the reviewed revision in a Decision [189.72ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects an agent-authored substantive answer even under ordinary host Product approval [691.76ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > rejects answers bound to a stale charter or original Feature revision [73.66ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > requires an accepted canonical charter, while drafts and unrelated work remain usable [35.64ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > accepts aligned Product and Feature atomically and invalidates review when the charter changes [35.43ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > fails closed when the reviewer is uncertain or gives generic approval without alignment evidence [36.17ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > refuses alternate public Product paths, ordinary --yes, MCP and Actor self-approval [662.08ms]
+(pass) Product charter governs Feature acceptance and revision through public operations > preserves historical accepted definitions, drafts and technical Tickets without migration [20.39ms]
+
+ 8 pass
+ 0 fail
+ 81 expect() calls
+Ran 8 tests across 1 file. [1.95s]

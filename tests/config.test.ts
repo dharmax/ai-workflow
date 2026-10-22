@@ -96,8 +96,8 @@ describe('configuration layers', () => {
     expect(() => setConfigOverride(root, 'actorTokenBudget', '0')).toThrow();
   });
   it('merges nested options from both explicit layers', () => {
-    setConfigOverride(root, 'modelRadar', '{"enabled":false}', 'global');
-    setConfigOverride(root, 'modelRadar', '{"probeIntervalDays":7}');
-    expect(loadConfig(root).modelRadar).toMatchObject({enabled: false, probeIntervalDays: 7});
+    setConfigOverride(root, 'providerOptions', '{"ollama":{"seed":42}}', 'global');
+    setConfigOverride(root, 'providerOptions', '{"openrouter":{"seed":7}}');
+    expect(loadConfig(root).providerOptions).toMatchObject({ollama: {seed: 42}, openrouter: {seed: 7}});
   });
 });

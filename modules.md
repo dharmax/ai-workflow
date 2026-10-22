@@ -4,18 +4,18 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 230 | 0 | 0 | None |
+| `root` | project default | 233 | 0 | 0 | None |
 | `src/graph` | project default | 1023 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 612 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
-| `src/actor` | project default | 397 | 0 | 0 | TKT-EXT-SURFACE-07 |
+| `src/actor` | project default | 288 | 0 | 0 | TKT-EXT-SURFACE-07 |
 | `src/mcp` | project default | 45 | 0 | 0 | None |
 | `src/shell` | project default | 159 | 0 | 0 | None |
 | `src/cli` | project default | 116 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/index` | project default | 0 | 0 | 0 | None |
-| `src/config` | project default | 74 | 0 | 0 | None |
-| `src/doctor` | project default | 65 | 0 | 0 | None |
+| `src/config` | project default | 67 | 0 | 0 | None |
+| `src/doctor` | project default | 63 | 0 | 0 | None |
 | `src/setup` | project default | 138 | 0 | 0 | None |
-| `tests` | project default | 2150 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10 |
+| `tests` | project default | 2171 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10 |
 | `skills` | project default | 11 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | 0 | None |
@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 648 | 0 | 0 | None |
+| `docs` | project default | 768 | 0 | 0 | None |
 | `src/product` | project default | 673 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 741 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
@@ -37,7 +37,7 @@
 | `src/artifact-critic` | project default | 31 | 0 | 0 | None |
 | `src/performance-metrics` | project default | 167 | 0 | 0 | None |
 | `src/artifact-command` | project default | 90 | 0 | 0 | None |
-| `src/model-runtime` | project default | 58 | 0 | 0 | None |
+| `src/model-runtime` | project default | 72 | 0 | 0 | None |
 | `src/version` | project default | 16 | 0 | 0 | None |
 | `scripts` | project default | 105 | 0 | 0 | None |
 | `src/entity-view` | project default | 26 | 0 | 0 | None |
@@ -51,7 +51,7 @@
 | `src/config-command` | project default | 15 | 0 | 0 | None |
 | `src/setup-command` | project default | 6 | 0 | 0 | None |
 | `src/ticket-command` | project default | 22 | 0 | 0 | None |
-| `src/model-command` | project default | 14 | 0 | 0 | None |
+| `src/model-command` | project default | 18 | 0 | 0 | None |
 | `src/actor-budget-policy` | project default | 1 | 0 | 0 | None |
 | `src/ticket` | project default | 318 | 0 | 0 | None |
 | `src/rules` | project default | 271 | 0 | 0 | None |

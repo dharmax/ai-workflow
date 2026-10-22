@@ -1,0 +1,599 @@
+{
+  "stage": 2,
+  "head": "eeaf9e6",
+  "basis": "Developer authorization 2026-10-22; canonical PRODUCT accepted v1; three active universal engineering Rules v1. Registration only; no Product definitions or source implementation changed.",
+  "searches": [
+    "All 108 canonical Ticket titles and lanes",
+    "Canonical Ticket bodies queried for Aspect, inherit, primary Epic, sub-US, impact",
+    "TKT-DW-S1, AIWF-ASPECTS, TKT-RF0W, TKT-CPV-PRODUCT-ACCEPTANCE inspected"
+  ],
+  "before": {
+    "TKT-DW-S1": {
+      "id": "TKT-DW-S1",
+      "title": "S1: Canonical Story semantics and authoritative Aspect applicability",
+      "body": "S1 implementation complete for developer acceptance; stopped before S2. Evidence: docs/dharmax-s1-2026-10-15.md; raw logs/source hashes at /home/dharmax/.local/state/aiwf/evidence/dharmax-s1-20261015/. Baseline guidance suites 15 pass/0 fail after both known failures reproduced. Final bun test 463 pass/0 fail/5 skipped, typecheck and pack pass; Semantika batch contracts 9 pass. Six DW-02/DW-05 public Story cases pass with attributable expected-red evidence. All 12 legacy S0 Story rows survive disposable reopen unchanged and are accurately needs_review. Protected Tickets/21 relationships and Semantika source/installed hashes unchanged. No Gate 5 closure, VERIFY receipt, commit, push or S2 work claimed. Retain In Progress pending developer acceptance rather than infer autonomous acceptance from manual tests.\n\n2026-10-19 Iteration 1 disposition/evidence:\nDeveloper-approved release-board reconciliation defers this nonpriority work to Backlog outside immediate Iteration 1 execution. Existing identity, acceptance criteria, historical evidence and prerequisite edges remain. This is not completion or independent acceptance.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [],
+      "incoming": [],
+      "kind": "task",
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Both existing setup skill parity failures pass without safety changes",
+        "DW-02 complete Story public create/read/edit/reopen and lossless legacy review semantics",
+        "DW-05 authoritative Aspect direct applicability and defined inheritance; invalid links rejected",
+        "Relevant regressions, full suite, typecheck and build results recorded; no S2 work"
+      ],
+      "claim": null,
+      "version": 6
+    },
+    "TKT-CPV-PRODUCT-ACCEPTANCE": {
+      "id": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "title": "Accept bidirectional Continuous Product Verification",
+      "body": "Product-level acceptance checkpoint, not a claim that representation alone delivers CPV. Before execution reconcile/register verified dependencies for slices 2\u20135: Bun evidence ingestion, governed Bug reconciliation, impact/selection, product evidence/gap queries. Add those concrete dependencies progressively; keep this checkpoint Backlog until all exist and are verified.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [
+        {
+          "_id": "aiwf_vmwiTnKtNs5rqByG2SnweL",
+          "id": "aiwf_vmwiTnKtNs5rqByG2SnweL",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "implements",
+          "sourceId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Feature_FEAT-AIWF-CONTINUOUS-VERIFICATION",
+          "targetType": "Feature",
+          "timestamp": 1791993334041,
+          "_target_title": "Bidirectional product-to-reality verification",
+          "_created": "2026-10-14T15:55:34.041Z",
+          "_lastUpdate": "2026-10-14T15:55:34.041Z"
+        },
+        {
+          "_id": "aiwf_4qyRjevNupTRz1Kv7Utd5y",
+          "id": "aiwf_4qyRjevNupTRz1Kv7Utd5y",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "depends_on",
+          "sourceId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Ticket_TKT-CPV-REPRESENTATION",
+          "targetType": "Ticket",
+          "timestamp": 1791993334042,
+          "_target_title": "Establish canonical test identity and product evidence relationships",
+          "_created": "2026-10-14T15:55:34.042Z",
+          "_lastUpdate": "2026-10-14T15:55:34.042Z"
+        }
+      ],
+      "incoming": [
+        {
+          "_id": "aiwf_eqfxPraDQSP2M5zuAd8c8L",
+          "id": "aiwf_eqfxPraDQSP2M5zuAd8c8L",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "contains",
+          "sourceId": "aiwf_Epic_EPIC-AIWF-CONTINUOUS-VERIFICATION",
+          "sourceType": "Epic",
+          "targetId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "targetType": "Ticket",
+          "timestamp": 1791993334039,
+          "_target_title": "Accept bidirectional Continuous Product Verification",
+          "_created": "2026-10-14T15:55:34.039Z",
+          "_lastUpdate": "2026-10-14T15:55:34.039Z"
+        },
+        {
+          "_id": "aiwf_f9UPeau1J3pq3f83joW7gu",
+          "id": "aiwf_f9UPeau1J3pq3f83joW7gu",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "depends_on",
+          "sourceId": "aiwf_Ticket_TKT-INTELLIGENCE-FIRST-USECASE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "targetType": "Ticket",
+          "timestamp": 1791993334045,
+          "_target_title": "Accept bidirectional Continuous Product Verification",
+          "_created": "2026-10-14T15:55:34.045Z",
+          "_lastUpdate": "2026-10-14T15:55:34.045Z"
+        }
+      ],
+      "kind": "task",
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Real failure -> affected enduring behavior/requirements/capability and product claim -> current support/meaningful gaps both demonstrated.",
+        "Bun evidence, Bug recovery/reopening, source/governance staleness and risk-proportional selection independently accepted.",
+        "One test/run is neither absolute correctness proof nor automatic Bug closure; no duplicate DB/scheduler/governance; measured outcome and full ownership audit."
+      ],
+      "version": 1
+    },
+    "AIWF-ASPECTS": {
+      "id": "AIWF-ASPECTS",
+      "title": "Gate 3: ASPECTS",
+      "body": "Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 8. Gate 3 \u2014 AIWF-ASPECTS  ### Goal  Make Aspects first-class cross-cutting intent before ticket automation depends on them.  ### Design reference  `docs/aspects.md`.  ### Work \u2014 checkpoint A: entity + graph semantics  Add a real Semantika `Aspect` entity class + DCR using IntentStatus and optional acceptance criteria.  Add only the new `applies_to` predicate and the relation shapes defined in the design:  - Aspect `applies_to` Idea/Module/Epic/Feature/UserStory; - Ticket `addresses` Aspect; - Test/Artifact `verifies` Aspect; - Decision `governs` Aspect.  Aspect-local behavior lives on `Aspect`; applicable-Aspect behavior lives on the relevant entity classes, backed only by small bounded helpers where genuinely cross-entity.  Extend the existing Product Intent/Causal Change mutation owner. No `AspectService`, `AspectChange`, taxonomy framework or shadow graph.  Add deterministic CRUD/query + `aspects.md` projection with single relation ownership.  ### Work \u2014 checkpoint B: applicability + assessment  Implement bounded `get_applicable_aspects` semantics exactly from the design\u2014no unrestricted inheritance traversal.  Implement derived structural Aspect assessment: applicable concerns, addressing work, tests/evidence artifacts, governing Decisions and known gaps. No score/percentage.  ### Work \u2014 checkpoint C: cognition  Use System-1 only to shortlist candidate missing Aspects from a bounded vocabulary/project set. Reasoning/Critic adjudicates materiality. No AI silently persists an Aspect.  ### Acceptance  Prove Feature direct Aspect, Story inheritance, Epic\u2192contained-Ticket applicability without contaminating targeted Feature, Module\u2192targeting Ticket, parent/child Ticket handling, dedup/cycle safety, evidence via code/test/report/Decision, and both omission + anti-ceremony behavior.  ### Dogfood immediately  Create/reuse and apply at least these **material** Aspects to this program where appropriate:  - `Maintainability / KISS` \u2014 program Epic; - `Robustness / truthfulness` \u2014 Truthful Primitives and Ticket Ops Features; - `Execution efficiency / token attention` \u2014 Ticket Ops and Primary Interface Features.  Do not add irrelevant standard Aspects merely to exercise the feature.  Run Aspect assessment on the program before proceeding.   External gate verified: LLMUTILS-SYSTEM1 verified 2026-10-03: llm-utils revision 57107d315538b81a0b5c952a39b04a6261a76e0b, version 1.0.0; installed Bun entry exports LayaSystemOne/SystemOne contract and remote/fallback adapters. Package typecheck green; 99 tests pass, 6 live tests skip, 0 fail; System-1 suite 4 pass. Optional backend unavailability is represented as null. Gate 3 implemented entity/DCR, constrained applicability, evidence assessment, safe mutation/projection and read-only System-1 shortlist + independent injected Critic. Full AIWF suite 129 pass, typecheck green. User bun.lock change preserved.",
+      "lane": "Done",
+      "status": "verified",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [
+        {
+          "_id": "aiwf_wfuETK8t3WSa8YfWzAzzjf",
+          "id": "aiwf_wfuETK8t3WSa8YfWzAzzjf",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "implements",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Feature_FEAT-AIWF-ASPECTS",
+          "targetType": "Feature",
+          "timestamp": 1791014733000,
+          "_target_title": "First-class cross-cutting Aspects",
+          "_created": "2026-10-03T08:05:33.000Z",
+          "_lastUpdate": "2026-10-03T08:05:33.000Z"
+        },
+        {
+          "_id": "aiwf_ociabAyTNVqMc6x1c1SW75",
+          "id": "aiwf_ociabAyTNVqMc6x1c1SW75",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/aspects.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196592,
+          "_target_title": "aspects.ts",
+          "_created": "2026-10-03T09:19:56.594Z",
+          "_lastUpdate": "2026-10-03T09:19:56.594Z"
+        },
+        {
+          "_id": "aiwf_r9BB4grFF3Q64v7USCTfRP",
+          "id": "aiwf_r9BB4grFF3Q64v7USCTfRP",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/graph/aspect-projections.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196595,
+          "_target_title": "aspect-projections.ts",
+          "_created": "2026-10-03T09:19:56.595Z",
+          "_lastUpdate": "2026-10-03T09:19:56.595Z"
+        },
+        {
+          "_id": "aiwf_mQfavgmCQDeyEHHvD8zXrR",
+          "id": "aiwf_mQfavgmCQDeyEHHvD8zXrR",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/graph/ontology.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196594,
+          "_target_title": "ontology.ts",
+          "_created": "2026-10-03T09:19:56.595Z",
+          "_lastUpdate": "2026-10-03T09:19:56.595Z"
+        },
+        {
+          "_id": "aiwf_75RnkWNnjeaRN4ZjmfxCFy",
+          "id": "aiwf_75RnkWNnjeaRN4ZjmfxCFy",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/tools/aspects.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196596,
+          "_target_title": "aspects.ts",
+          "_created": "2026-10-03T09:19:56.596Z",
+          "_lastUpdate": "2026-10-03T09:19:56.596Z"
+        }
+      ],
+      "incoming": [
+        {
+          "_id": "aiwf_gcGr6iBBYTPocaP3F4Q67u",
+          "id": "aiwf_gcGr6iBBYTPocaP3F4Q67u",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "contains",
+          "sourceId": "aiwf_Epic_EPIC-AIWF-ARTIFACT-OPS",
+          "sourceType": "Epic",
+          "targetId": "aiwf_Ticket_AIWF-ASPECTS",
+          "targetType": "Ticket",
+          "timestamp": 1791014732991,
+          "_target_title": "Gate 3: ASPECTS",
+          "_created": "2026-10-03T08:05:32.991Z",
+          "_lastUpdate": "2026-10-03T08:05:32.991Z"
+        }
+      ],
+      "kind": "task",
+      "priority": "P1",
+      "claim": null,
+      "version": 17
+    }
+  },
+  "operations": [
+    {
+      "marker": "PI-ADV-ASPECT",
+      "id": "TKT-DW-S1",
+      "disposition": "UPDATED EXISTING",
+      "args": {
+        "ticketId": "TKT-DW-S1",
+        "body": "S1 implementation complete for developer acceptance; stopped before S2. Evidence: docs/dharmax-s1-2026-10-15.md; raw logs/source hashes at /home/dharmax/.local/state/aiwf/evidence/dharmax-s1-20261015/. Baseline guidance suites 15 pass/0 fail after both known failures reproduced. Final bun test 463 pass/0 fail/5 skipped, typecheck and pack pass; Semantika batch contracts 9 pass. Six DW-02/DW-05 public Story cases pass with attributable expected-red evidence. All 12 legacy S0 Story rows survive disposable reopen unchanged and are accurately needs_review. Protected Tickets/21 relationships and Semantika source/installed hashes unchanged. No Gate 5 closure, VERIFY receipt, commit, push or S2 work claimed. Retain In Progress pending developer acceptance rather than infer autonomous acceptance from manual tests.\n\n2026-10-19 Iteration 1 disposition/evidence:\nDeveloper-approved release-board reconciliation defers this nonpriority work to Backlog outside immediate Iteration 1 execution. Existing identity, acceptance criteria, historical evidence and prerequisite edges remain. This is not completion or independent acceptance.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-ASPECT \u2014 Advanced Aspect semantics. One canonical reusable Aspect definition and reviewed applicability. Reconcile the intended optional US --has-aspect--> Aspect with implemented reverse Aspect --applies_to--> UserStory; do not silently equate opposite predicates, add an Aspect US field or replace infrastructure. Applicable accepted Aspect meaning contributes to effective Product/US obligations without copying policy into every consumer. Definition or applicability revisions expose affected entities and potentially stale proof for review, preserving unrelated history. Reuse src/aspects.ts, ontology/mutation, context, coverage and impact owners. Historical AIWF-ASPECTS remains Done, unchanged; its existing infrastructure is the reuse basis, not work to duplicate/reopen. Preserve the historical S1 evidence and existing P1 priority; the advanced portion is deferred separately from basic hierarchy delivery. Open: fine-grained inherited-definition editing and conflicting applicable meaning require reviewed design; no invented composition policy. References: docs/definitions/aspect.md, user-story.md, product.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a72.3.",
+        "acceptanceCriteria": [
+          "Both existing setup skill parity failures pass without safety changes",
+          "DW-02 complete Story public create/read/edit/reopen and lossless legacy review semantics",
+          "DW-05 authoritative Aspect direct applicability and defined inheritance; invalid links rejected",
+          "Relevant regressions, full suite, typecheck and build results recorded; no S2 work",
+          "PI-ADV-ASPECT: Reviewed design explicitly reconciles optional has-aspect with existing reverse applies_to, preserving stable identities and existing supported behavior.",
+          "PI-ADV-ASPECT: Public create/read/revise/reopen behavior proves one accepted Aspect definition contributes to effective obligations through actual grounded applicability paths without copied policy.",
+          "PI-ADV-ASPECT: Revision/applicability changes reveal affected entities and potentially stale proof; conflicting policies and unknown/unlinked effects are explicit, with no silent descendant rewrite or historical reopening."
+        ]
+      },
+      "response": {
+        "ticketId": "TKT-DW-S1",
+        "kind": "task",
+        "title": "S1: Canonical Story semantics and authoritative Aspect applicability",
+        "lane": "Backlog",
+        "status": "planned",
+        "priority": "P1",
+        "body": "S1 implementation complete for developer acceptance; stopped before S2. Evidence: docs/dharmax-s1-2026-10-15.md; raw logs/source hashes at /home/dharmax/.local/state/aiwf/evidence/dharmax-s1-20261015/. Baseline guidance suites 15 pass/0 fail after both known failures reproduced. Final bun test 463 pass/0 fail/5 skipped, typecheck and pack pass; Semantika batch contracts 9 pass. Six DW-02/DW-05 public Story cases pass with attributable expected-red evidence. All 12 legacy S0 Story rows survive disposable reopen unchanged and are accurately needs_review. Protected Tickets/21 relationships and Semantika source/installed hashes unchanged. No Gate 5 closure, VERIFY receipt, commit, push or S2 work claimed. Retain In Progress pending developer acceptance rather than infer autonomous acceptance from manual tests.\n\n2026-10-19 Iteration 1 disposition/evidence:\nDeveloper-approved release-board reconciliation defers this nonpriority work to Backlog outside immediate Iteration 1 execution. Existing identity, acceptance criteria, historical evidence and prerequisite edges remain. This is not completion or independent acceptance.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-ASPECT \u2014 Advanced Aspect semantics. One canonical reusable Aspect definition and reviewed applicability. Reconcile the intended optional US --has-aspect--> Aspect with implemented reverse Aspect --applies_to--> UserStory; do not silently equate opposite predicates, add an Aspect US field or replace infrastructure. Applicable accepted Aspect meaning contributes to effective Product/US obligations without copying policy into every consumer. Definition or applicability revisions expose affected entities and potentially stale proof for review, preserving unrelated history. Reuse src/aspects.ts, ontology/mutation, context, coverage and impact owners. Historical AIWF-ASPECTS remains Done, unchanged; its existing infrastructure is the reuse basis, not work to duplicate/reopen. Preserve the historical S1 evidence and existing P1 priority; the advanced portion is deferred separately from basic hierarchy delivery. Open: fine-grained inherited-definition editing and conflicting applicable meaning require reviewed design; no invented composition policy. References: docs/definitions/aspect.md, user-story.md, product.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a72.3.",
+        "acceptanceCriteria": [
+          "Both existing setup skill parity failures pass without safety changes",
+          "DW-02 complete Story public create/read/edit/reopen and lossless legacy review semantics",
+          "DW-05 authoritative Aspect direct applicability and defined inheritance; invalid links rejected",
+          "Relevant regressions, full suite, typecheck and build results recorded; no S2 work",
+          "PI-ADV-ASPECT: Reviewed design explicitly reconciles optional has-aspect with existing reverse applies_to, preserving stable identities and existing supported behavior.",
+          "PI-ADV-ASPECT: Public create/read/revise/reopen behavior proves one accepted Aspect definition contributes to effective obligations through actual grounded applicability paths without copied policy.",
+          "PI-ADV-ASPECT: Revision/applicability changes reveal affected entities and potentially stale proof; conflicting policies and unknown/unlinked effects are explicit, with no silent descendant rewrite or historical reopening."
+        ]
+      }
+    },
+    {
+      "marker": "PI-ADV-EPIC",
+      "id": "PI-ADV-EPIC",
+      "disposition": "CREATED",
+      "args": {
+        "id": "PI-ADV-EPIC",
+        "kind": "task",
+        "title": "PI-ADV-EPIC: Epic shared context and effective US inheritance",
+        "body": "\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-EPIC \u2014 At most one designated primary Epic per US. That Epic may supply common Initial State, portions of Expected Result, Domains and Comments. Other Epic relationships confer no inheritance. Actor, Intent and Action remain US-specific. Acceptance and test derivation use the complete effective US. Preserve as undecided: mandatory/default Epic assignment, exact composition, precedence and editing rules for overlapping/conflicting text. Comments as half-formal LLM input versus authoritative requirements, Domain taxonomy/tag composition and fine-grained inherited-definition editing remain open questions here; no additional requirement fields or automatic policy invented. Reuse existing ontology, Product mutation/context and versioned graph owners. References: docs/definitions/epic.md, user-story.md, product.md; Dharmax-way design \u00a71 and \u00a72.",
+        "acceptanceCriteria": [
+          "Obtain explicit developer decisions for necessary composition/conflict/editing mechanics before implementation; retain mandatory/default assignment as undecided until separately decided.",
+          "Public reviewed create/read/edit/reopen proves at most one primary Epic, allowed common material in effective US and no inheritance from other Epic relationships; Actor/Intent/Action stay specific.",
+          "Unchanged genuine accepted Story tests and independent current verification use the complete effective US, expose material charter conflicts and preserve unrelated historical evidence."
+        ],
+        "lane": "Backlog",
+        "priority": "P3"
+      },
+      "response": {
+        "id": "PI-ADV-EPIC",
+        "title": "PI-ADV-EPIC: Epic shared context and effective US inheritance",
+        "lane": "Backlog",
+        "kind": "task"
+      }
+    },
+    {
+      "marker": "PI-ADV-SUBUS",
+      "id": "PI-ADV-SUBUS",
+      "disposition": "CREATED",
+      "args": {
+        "id": "PI-ADV-SUBUS",
+        "kind": "task",
+        "title": "PI-ADV-SUBUS: Effective parent US inheritance and refinement",
+        "body": "\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-SUBUS \u2014 A meaningfully different episode of use, not every conditional outcome. Inherit the entire effective parent US, including applicable Epic material; refine or replace only distinguishing portions. Title: Parent US title - distinction. Retain ordinary exact US field meanings, charter alignment and developer approval. Fine-grained inheritance, editing and revision mechanics remain deferred design work; do not invent them during registration. Coordinate with PI-ADV-EPIC for effective Epic material without making advanced work a prerequisite of basic hierarchy delivery. Preserve unresolved Comments authority and Domain taxonomy/tag composition from parent context; no inferred requirements silently alter accepted Expected Result. Reuse existing Product definitions/mutation/context, graph revision and test owners. References: docs/definitions/sub-user-story.md, user-story.md, epic.md, product.md.",
+        "acceptanceCriteria": [
+          "Reviewed design distinguishes a meaningful variant episode from a conditional result and explicitly resolves only mechanics necessary for implementation.",
+          "Public create/read/refine/reopen proves full effective parent inheritance including Epic material, unchanged portions retained, only distinguishing refinements/replacements and exact Parent US title - distinction naming.",
+          "Variant remains a complete ordinary effective US subject to charter review/developer answers; public tests and independent current verification cover revision effects without silently rewriting descendants or reopening history."
+        ],
+        "lane": "Backlog",
+        "priority": "P3"
+      },
+      "response": {
+        "id": "PI-ADV-SUBUS",
+        "title": "PI-ADV-SUBUS: Effective parent US inheritance and refinement",
+        "lane": "Backlog",
+        "kind": "task"
+      }
+    },
+    {
+      "marker": "PI-ADV-IMPACT",
+      "id": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "disposition": "UPDATED EXISTING",
+      "args": {
+        "ticketId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+        "body": "Product-level acceptance checkpoint, not a claim that representation alone delivers CPV. Before execution reconcile/register verified dependencies for slices 2\u20135: Bun evidence ingestion, governed Bug reconciliation, impact/selection, product evidence/gap queries. Add those concrete dependencies progressively; keep this checkpoint Backlog until all exist and are verified.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-IMPACT \u2014 Advanced Product Intent impact and reconciliation. Extend this existing impact/selection and evidence/gap acceptance responsibility to reveal affected definitions, work, source, tests and potentially stale verification through grounded graph paths. Separate confirmed impacts, inferred possibilities and unknowns. Reconcile existing work and create only genuinely missing work. Never silently rewrite descendants, invalidate unrelated proof or reopen completed historical work. Reuse src/product/impact.ts, coverage.ts, context.ts, graph and existing verification owners; no parallel subsystem or new scheduler/database. Existing CPV prerequisites/acceptance and P1 priority remain intact; this advanced portion is deferred and does not block the basic Product Intent hierarchy. Impact review must preserve unresolved Comments authority, Domain taxonomy/tag composition and fine-grained inherited-definition editing; do not infer decisions from affected paths. References: docs/definitions/project-graph.md, product.md, verification.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a7\u00a72.2\u20132.3.",
+        "acceptanceCriteria": [
+          "Real failure -> affected enduring behavior/requirements/capability and product claim -> current support/meaningful gaps both demonstrated.",
+          "Bun evidence, Bug recovery/reopening, source/governance staleness and risk-proportional selection independently accepted.",
+          "One test/run is neither absolute correctness proof nor automatic Bug closure; no duplicate DB/scheduler/governance; measured outcome and full ownership audit.",
+          "PI-ADV-IMPACT: Public impact queries show actual paths from revised definitions/applicability to affected definitions, work, source, tests and potentially stale proof, labeling confirmed/inferred/unknown separately.",
+          "PI-ADV-IMPACT: Reviewed reconciliation preserves canonical identities and reuses overlapping work; unchanged or unrelated proof/history is retained and no descendants are silently rewritten or historical Done work reopened.",
+          "PI-ADV-IMPACT: Genuine public tests and independent current verification prove proportional current-proof reconciliation through existing graph/coverage/impact owners, with unresolved semantic decisions surfaced."
+        ]
+      },
+      "response": {
+        "ticketId": "TKT-CPV-PRODUCT-ACCEPTANCE",
+        "kind": "task",
+        "title": "Accept bidirectional Continuous Product Verification",
+        "lane": "Backlog",
+        "status": "planned",
+        "priority": "P1",
+        "body": "Product-level acceptance checkpoint, not a claim that representation alone delivers CPV. Before execution reconcile/register verified dependencies for slices 2\u20135: Bun evidence ingestion, governed Bug reconciliation, impact/selection, product evidence/gap queries. Add those concrete dependencies progressively; keep this checkpoint Backlog until all exist and are verified.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-IMPACT \u2014 Advanced Product Intent impact and reconciliation. Extend this existing impact/selection and evidence/gap acceptance responsibility to reveal affected definitions, work, source, tests and potentially stale verification through grounded graph paths. Separate confirmed impacts, inferred possibilities and unknowns. Reconcile existing work and create only genuinely missing work. Never silently rewrite descendants, invalidate unrelated proof or reopen completed historical work. Reuse src/product/impact.ts, coverage.ts, context.ts, graph and existing verification owners; no parallel subsystem or new scheduler/database. Existing CPV prerequisites/acceptance and P1 priority remain intact; this advanced portion is deferred and does not block the basic Product Intent hierarchy. Impact review must preserve unresolved Comments authority, Domain taxonomy/tag composition and fine-grained inherited-definition editing; do not infer decisions from affected paths. References: docs/definitions/project-graph.md, product.md, verification.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a7\u00a72.2\u20132.3.",
+        "acceptanceCriteria": [
+          "Real failure -> affected enduring behavior/requirements/capability and product claim -> current support/meaningful gaps both demonstrated.",
+          "Bun evidence, Bug recovery/reopening, source/governance staleness and risk-proportional selection independently accepted.",
+          "One test/run is neither absolute correctness proof nor automatic Bug closure; no duplicate DB/scheduler/governance; measured outcome and full ownership audit.",
+          "PI-ADV-IMPACT: Public impact queries show actual paths from revised definitions/applicability to affected definitions, work, source, tests and potentially stale proof, labeling confirmed/inferred/unknown separately.",
+          "PI-ADV-IMPACT: Reviewed reconciliation preserves canonical identities and reuses overlapping work; unchanged or unrelated proof/history is retained and no descendants are silently rewritten or historical Done work reopened.",
+          "PI-ADV-IMPACT: Genuine public tests and independent current verification prove proportional current-proof reconciliation through existing graph/coverage/impact owners, with unresolved semantic decisions surfaced."
+        ]
+      }
+    }
+  ],
+  "after": {
+    "TKT-DW-S1": {
+      "id": "TKT-DW-S1",
+      "title": "S1: Canonical Story semantics and authoritative Aspect applicability",
+      "body": "S1 implementation complete for developer acceptance; stopped before S2. Evidence: docs/dharmax-s1-2026-10-15.md; raw logs/source hashes at /home/dharmax/.local/state/aiwf/evidence/dharmax-s1-20261015/. Baseline guidance suites 15 pass/0 fail after both known failures reproduced. Final bun test 463 pass/0 fail/5 skipped, typecheck and pack pass; Semantika batch contracts 9 pass. Six DW-02/DW-05 public Story cases pass with attributable expected-red evidence. All 12 legacy S0 Story rows survive disposable reopen unchanged and are accurately needs_review. Protected Tickets/21 relationships and Semantika source/installed hashes unchanged. No Gate 5 closure, VERIFY receipt, commit, push or S2 work claimed. Retain In Progress pending developer acceptance rather than infer autonomous acceptance from manual tests.\n\n2026-10-19 Iteration 1 disposition/evidence:\nDeveloper-approved release-board reconciliation defers this nonpriority work to Backlog outside immediate Iteration 1 execution. Existing identity, acceptance criteria, historical evidence and prerequisite edges remain. This is not completion or independent acceptance.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-ASPECT \u2014 Advanced Aspect semantics. One canonical reusable Aspect definition and reviewed applicability. Reconcile the intended optional US --has-aspect--> Aspect with implemented reverse Aspect --applies_to--> UserStory; do not silently equate opposite predicates, add an Aspect US field or replace infrastructure. Applicable accepted Aspect meaning contributes to effective Product/US obligations without copying policy into every consumer. Definition or applicability revisions expose affected entities and potentially stale proof for review, preserving unrelated history. Reuse src/aspects.ts, ontology/mutation, context, coverage and impact owners. Historical AIWF-ASPECTS remains Done, unchanged; its existing infrastructure is the reuse basis, not work to duplicate/reopen. Preserve the historical S1 evidence and existing P1 priority; the advanced portion is deferred separately from basic hierarchy delivery. Open: fine-grained inherited-definition editing and conflicting applicable meaning require reviewed design; no invented composition policy. References: docs/definitions/aspect.md, user-story.md, product.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a72.3.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [],
+      "incoming": [],
+      "kind": "task",
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Both existing setup skill parity failures pass without safety changes",
+        "DW-02 complete Story public create/read/edit/reopen and lossless legacy review semantics",
+        "DW-05 authoritative Aspect direct applicability and defined inheritance; invalid links rejected",
+        "Relevant regressions, full suite, typecheck and build results recorded; no S2 work",
+        "PI-ADV-ASPECT: Reviewed design explicitly reconciles optional has-aspect with existing reverse applies_to, preserving stable identities and existing supported behavior.",
+        "PI-ADV-ASPECT: Public create/read/revise/reopen behavior proves one accepted Aspect definition contributes to effective obligations through actual grounded applicability paths without copied policy.",
+        "PI-ADV-ASPECT: Revision/applicability changes reveal affected entities and potentially stale proof; conflicting policies and unknown/unlinked effects are explicit, with no silent descendant rewrite or historical reopening."
+      ],
+      "claim": null,
+      "version": 7
+    },
+    "PI-ADV-EPIC": {
+      "id": "PI-ADV-EPIC",
+      "title": "PI-ADV-EPIC: Epic shared context and effective US inheritance",
+      "body": "\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-EPIC \u2014 At most one designated primary Epic per US. That Epic may supply common Initial State, portions of Expected Result, Domains and Comments. Other Epic relationships confer no inheritance. Actor, Intent and Action remain US-specific. Acceptance and test derivation use the complete effective US. Preserve as undecided: mandatory/default Epic assignment, exact composition, precedence and editing rules for overlapping/conflicting text. Comments as half-formal LLM input versus authoritative requirements, Domain taxonomy/tag composition and fine-grained inherited-definition editing remain open questions here; no additional requirement fields or automatic policy invented. Reuse existing ontology, Product mutation/context and versioned graph owners. References: docs/definitions/epic.md, user-story.md, product.md; Dharmax-way design \u00a71 and \u00a72.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [],
+      "incoming": [],
+      "kind": "task",
+      "priority": "P3",
+      "acceptanceCriteria": [
+        "Obtain explicit developer decisions for necessary composition/conflict/editing mechanics before implementation; retain mandatory/default assignment as undecided until separately decided.",
+        "Public reviewed create/read/edit/reopen proves at most one primary Epic, allowed common material in effective US and no inheritance from other Epic relationships; Actor/Intent/Action stay specific.",
+        "Unchanged genuine accepted Story tests and independent current verification use the complete effective US, expose material charter conflicts and preserve unrelated historical evidence."
+      ],
+      "version": 1
+    },
+    "PI-ADV-SUBUS": {
+      "id": "PI-ADV-SUBUS",
+      "title": "PI-ADV-SUBUS: Effective parent US inheritance and refinement",
+      "body": "\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-SUBUS \u2014 A meaningfully different episode of use, not every conditional outcome. Inherit the entire effective parent US, including applicable Epic material; refine or replace only distinguishing portions. Title: Parent US title - distinction. Retain ordinary exact US field meanings, charter alignment and developer approval. Fine-grained inheritance, editing and revision mechanics remain deferred design work; do not invent them during registration. Coordinate with PI-ADV-EPIC for effective Epic material without making advanced work a prerequisite of basic hierarchy delivery. Preserve unresolved Comments authority and Domain taxonomy/tag composition from parent context; no inferred requirements silently alter accepted Expected Result. Reuse existing Product definitions/mutation/context, graph revision and test owners. References: docs/definitions/sub-user-story.md, user-story.md, epic.md, product.md.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [],
+      "incoming": [],
+      "kind": "task",
+      "priority": "P3",
+      "acceptanceCriteria": [
+        "Reviewed design distinguishes a meaningful variant episode from a conditional result and explicitly resolves only mechanics necessary for implementation.",
+        "Public create/read/refine/reopen proves full effective parent inheritance including Epic material, unchanged portions retained, only distinguishing refinements/replacements and exact Parent US title - distinction naming.",
+        "Variant remains a complete ordinary effective US subject to charter review/developer answers; public tests and independent current verification cover revision effects without silently rewriting descendants or reopening history."
+      ],
+      "version": 1
+    },
+    "TKT-CPV-PRODUCT-ACCEPTANCE": {
+      "id": "TKT-CPV-PRODUCT-ACCEPTANCE",
+      "title": "Accept bidirectional Continuous Product Verification",
+      "body": "Product-level acceptance checkpoint, not a claim that representation alone delivers CPV. Before execution reconcile/register verified dependencies for slices 2\u20135: Bun evidence ingestion, governed Bug reconciliation, impact/selection, product evidence/gap queries. Add those concrete dependencies progressively; keep this checkpoint Backlog until all exist and are verified.\n\nDeveloper-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.\n\nPI-ADV-IMPACT \u2014 Advanced Product Intent impact and reconciliation. Extend this existing impact/selection and evidence/gap acceptance responsibility to reveal affected definitions, work, source, tests and potentially stale verification through grounded graph paths. Separate confirmed impacts, inferred possibilities and unknowns. Reconcile existing work and create only genuinely missing work. Never silently rewrite descendants, invalidate unrelated proof or reopen completed historical work. Reuse src/product/impact.ts, coverage.ts, context.ts, graph and existing verification owners; no parallel subsystem or new scheduler/database. Existing CPV prerequisites/acceptance and P1 priority remain intact; this advanced portion is deferred and does not block the basic Product Intent hierarchy. Impact review must preserve unresolved Comments authority, Domain taxonomy/tag composition and fine-grained inherited-definition editing; do not infer decisions from affected paths. References: docs/definitions/project-graph.md, product.md, verification.md; plans/AIWF-DHARMAX-WAY-DESIGN.md \u00a7\u00a72.2\u20132.3.",
+      "lane": "Backlog",
+      "status": "planned",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [
+        {
+          "_id": "aiwf_vmwiTnKtNs5rqByG2SnweL",
+          "id": "aiwf_vmwiTnKtNs5rqByG2SnweL",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "implements",
+          "sourceId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Feature_FEAT-AIWF-CONTINUOUS-VERIFICATION",
+          "targetType": "Feature",
+          "timestamp": 1791993334041,
+          "_target_title": "Bidirectional product-to-reality verification",
+          "_created": "2026-10-14T15:55:34.041Z",
+          "_lastUpdate": "2026-10-14T15:55:34.041Z"
+        },
+        {
+          "_id": "aiwf_4qyRjevNupTRz1Kv7Utd5y",
+          "id": "aiwf_4qyRjevNupTRz1Kv7Utd5y",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "depends_on",
+          "sourceId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Ticket_TKT-CPV-REPRESENTATION",
+          "targetType": "Ticket",
+          "timestamp": 1791993334042,
+          "_target_title": "Establish canonical test identity and product evidence relationships",
+          "_created": "2026-10-14T15:55:34.042Z",
+          "_lastUpdate": "2026-10-14T15:55:34.042Z"
+        }
+      ],
+      "incoming": [
+        {
+          "_id": "aiwf_eqfxPraDQSP2M5zuAd8c8L",
+          "id": "aiwf_eqfxPraDQSP2M5zuAd8c8L",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "contains",
+          "sourceId": "aiwf_Epic_EPIC-AIWF-CONTINUOUS-VERIFICATION",
+          "sourceType": "Epic",
+          "targetId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "targetType": "Ticket",
+          "timestamp": 1791993334039,
+          "_target_title": "Accept bidirectional Continuous Product Verification",
+          "_created": "2026-10-14T15:55:34.039Z",
+          "_lastUpdate": "2026-10-14T15:55:34.039Z"
+        },
+        {
+          "_id": "aiwf_f9UPeau1J3pq3f83joW7gu",
+          "id": "aiwf_f9UPeau1J3pq3f83joW7gu",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "depends_on",
+          "sourceId": "aiwf_Ticket_TKT-INTELLIGENCE-FIRST-USECASE",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Ticket_TKT-CPV-PRODUCT-ACCEPTANCE",
+          "targetType": "Ticket",
+          "timestamp": 1791993334045,
+          "_target_title": "Accept bidirectional Continuous Product Verification",
+          "_created": "2026-10-14T15:55:34.045Z",
+          "_lastUpdate": "2026-10-14T15:55:34.045Z"
+        }
+      ],
+      "kind": "task",
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Real failure -> affected enduring behavior/requirements/capability and product claim -> current support/meaningful gaps both demonstrated.",
+        "Bun evidence, Bug recovery/reopening, source/governance staleness and risk-proportional selection independently accepted.",
+        "One test/run is neither absolute correctness proof nor automatic Bug closure; no duplicate DB/scheduler/governance; measured outcome and full ownership audit.",
+        "PI-ADV-IMPACT: Public impact queries show actual paths from revised definitions/applicability to affected definitions, work, source, tests and potentially stale proof, labeling confirmed/inferred/unknown separately.",
+        "PI-ADV-IMPACT: Reviewed reconciliation preserves canonical identities and reuses overlapping work; unchanged or unrelated proof/history is retained and no descendants are silently rewritten or historical Done work reopened.",
+        "PI-ADV-IMPACT: Genuine public tests and independent current verification prove proportional current-proof reconciliation through existing graph/coverage/impact owners, with unresolved semantic decisions surfaced."
+      ],
+      "version": 2
+    },
+    "AIWF-ASPECTS": {
+      "id": "AIWF-ASPECTS",
+      "title": "Gate 3: ASPECTS",
+      "body": "Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 8. Gate 3 \u2014 AIWF-ASPECTS  ### Goal  Make Aspects first-class cross-cutting intent before ticket automation depends on them.  ### Design reference  `docs/aspects.md`.  ### Work \u2014 checkpoint A: entity + graph semantics  Add a real Semantika `Aspect` entity class + DCR using IntentStatus and optional acceptance criteria.  Add only the new `applies_to` predicate and the relation shapes defined in the design:  - Aspect `applies_to` Idea/Module/Epic/Feature/UserStory; - Ticket `addresses` Aspect; - Test/Artifact `verifies` Aspect; - Decision `governs` Aspect.  Aspect-local behavior lives on `Aspect`; applicable-Aspect behavior lives on the relevant entity classes, backed only by small bounded helpers where genuinely cross-entity.  Extend the existing Product Intent/Causal Change mutation owner. No `AspectService`, `AspectChange`, taxonomy framework or shadow graph.  Add deterministic CRUD/query + `aspects.md` projection with single relation ownership.  ### Work \u2014 checkpoint B: applicability + assessment  Implement bounded `get_applicable_aspects` semantics exactly from the design\u2014no unrestricted inheritance traversal.  Implement derived structural Aspect assessment: applicable concerns, addressing work, tests/evidence artifacts, governing Decisions and known gaps. No score/percentage.  ### Work \u2014 checkpoint C: cognition  Use System-1 only to shortlist candidate missing Aspects from a bounded vocabulary/project set. Reasoning/Critic adjudicates materiality. No AI silently persists an Aspect.  ### Acceptance  Prove Feature direct Aspect, Story inheritance, Epic\u2192contained-Ticket applicability without contaminating targeted Feature, Module\u2192targeting Ticket, parent/child Ticket handling, dedup/cycle safety, evidence via code/test/report/Decision, and both omission + anti-ceremony behavior.  ### Dogfood immediately  Create/reuse and apply at least these **material** Aspects to this program where appropriate:  - `Maintainability / KISS` \u2014 program Epic; - `Robustness / truthfulness` \u2014 Truthful Primitives and Ticket Ops Features; - `Execution efficiency / token attention` \u2014 Ticket Ops and Primary Interface Features.  Do not add irrelevant standard Aspects merely to exercise the feature.  Run Aspect assessment on the program before proceeding.   External gate verified: LLMUTILS-SYSTEM1 verified 2026-10-03: llm-utils revision 57107d315538b81a0b5c952a39b04a6261a76e0b, version 1.0.0; installed Bun entry exports LayaSystemOne/SystemOne contract and remote/fallback adapters. Package typecheck green; 99 tests pass, 6 live tests skip, 0 fail; System-1 suite 4 pass. Optional backend unavailability is represented as null. Gate 3 implemented entity/DCR, constrained applicability, evidence assessment, safe mutation/projection and read-only System-1 shortlist + independent injected Critic. Full AIWF suite 129 pass, typecheck green. User bun.lock change preserved.",
+      "lane": "Done",
+      "status": "verified",
+      "verificationState": "unverified",
+      "verification": null,
+      "outgoing": [
+        {
+          "_id": "aiwf_wfuETK8t3WSa8YfWzAzzjf",
+          "id": "aiwf_wfuETK8t3WSa8YfWzAzzjf",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "implements",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_Feature_FEAT-AIWF-ASPECTS",
+          "targetType": "Feature",
+          "timestamp": 1791014733000,
+          "_target_title": "First-class cross-cutting Aspects",
+          "_created": "2026-10-03T08:05:33.000Z",
+          "_lastUpdate": "2026-10-03T08:05:33.000Z"
+        },
+        {
+          "_id": "aiwf_ociabAyTNVqMc6x1c1SW75",
+          "id": "aiwf_ociabAyTNVqMc6x1c1SW75",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/aspects.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196592,
+          "_target_title": "aspects.ts",
+          "_created": "2026-10-03T09:19:56.594Z",
+          "_lastUpdate": "2026-10-03T09:19:56.594Z"
+        },
+        {
+          "_id": "aiwf_r9BB4grFF3Q64v7USCTfRP",
+          "id": "aiwf_r9BB4grFF3Q64v7USCTfRP",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/graph/aspect-projections.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196595,
+          "_target_title": "aspect-projections.ts",
+          "_created": "2026-10-03T09:19:56.595Z",
+          "_lastUpdate": "2026-10-03T09:19:56.595Z"
+        },
+        {
+          "_id": "aiwf_mQfavgmCQDeyEHHvD8zXrR",
+          "id": "aiwf_mQfavgmCQDeyEHHvD8zXrR",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/graph/ontology.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196594,
+          "_target_title": "ontology.ts",
+          "_created": "2026-10-03T09:19:56.595Z",
+          "_lastUpdate": "2026-10-03T09:19:56.595Z"
+        },
+        {
+          "_id": "aiwf_75RnkWNnjeaRN4ZjmfxCFy",
+          "id": "aiwf_75RnkWNnjeaRN4ZjmfxCFy",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "modifies",
+          "sourceId": "aiwf_Ticket_AIWF-ASPECTS",
+          "sourceType": "Ticket",
+          "targetId": "aiwf_FileNode_src/tools/aspects.ts",
+          "targetType": "FileNode",
+          "timestamp": 1791019196596,
+          "_target_title": "aspects.ts",
+          "_created": "2026-10-03T09:19:56.596Z",
+          "_lastUpdate": "2026-10-03T09:19:56.596Z"
+        }
+      ],
+      "incoming": [
+        {
+          "_id": "aiwf_gcGr6iBBYTPocaP3F4Q67u",
+          "id": "aiwf_gcGr6iBBYTPocaP3F4Q67u",
+          "_tags": [],
+          "_version": 1,
+          "predicateName": "contains",
+          "sourceId": "aiwf_Epic_EPIC-AIWF-ARTIFACT-OPS",
+          "sourceType": "Epic",
+          "targetId": "aiwf_Ticket_AIWF-ASPECTS",
+          "targetType": "Ticket",
+          "timestamp": 1791014732991,
+          "_target_title": "Gate 3: ASPECTS",
+          "_created": "2026-10-03T08:05:32.991Z",
+          "_lastUpdate": "2026-10-03T08:05:32.991Z"
+        }
+      ],
+      "kind": "task",
+      "priority": "P1",
+      "claim": null,
+      "version": 17
+    }
+  },
+  "historicalAspectUnchanged": true,
+  "reopenVerified": true,
+  "projectionRegeneration": "aiwf sync: canonical export, 0 disk changes reconciled; after registration and final integration"
+}

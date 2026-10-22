@@ -1,0 +1,14 @@
+{
+  "stage": 1,
+  "ticket": "TKT-PRODUCT-CHARTER-FEATURE",
+  "head": "eeaf9e6",
+  "disposition": "QUALIFICATION FAILED; Todo/unverified",
+  "blocker": "Aligned live reviewer accepted alignment but returned a positive finding; assessFeatureAlignment refuses any nonempty findings. Thus the aligned preview was not eligible for ordinary review. Contradictory preview correctly warned and returned needs_input. No retry or implementation/prompt/config change authorized.",
+  "independentCompleteAcceptance": "Not performed: prerequisite of both successful semantic previews unmet. No receipt or Done.",
+  "model": "openrouter/openai/o3-mini",
+  "realSemanticPreviews": 2,
+  "modelResponses": 2,
+  "timeoutMs": 60000,
+  "configUnchanged": true,
+  "canonicalProductUnchanged": true
+}

@@ -1,0 +1,13 @@
+Model & Gateway Status
+Active Gateway: ollama
+Default: qwen2.5-coder:7b (Override: project)
+Configured Providers: ollama (reachability not probed)
+Escalation Policy: auto (Blast threshold: 3)
+Advice: 2026-10-21T09:12:38.866Z | Authority: test-authority
+Mode Routing:
+[DESIGN] Effective: ollama/gemma4:e4b | Recommendation: none (Override: ollama/gemma4:e4b)
+[DEV] Effective: ollama/qwen2.5-coder:7b | Recommendation: none (Override: ollama/qwen2.5-coder:7b)
+[TRIAGE] Effective: ollama/qwen2.5-coder:7b | Recommendation: none
+[PRODUCT] Effective: ollama/qwen2.5-coder:7b | Recommendation: none
+[SUMMARIZATION] Effective: ollama/qwen2.5-coder:7b | Recommendation: none
+[VERIFICATION] Effective: ollama/qwen2.5-coder:7b | Recommendation: none

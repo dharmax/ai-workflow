@@ -1,0 +1,46 @@
+{
+  "ticket": "TKT-PRODUCT-CHARTER-FEATURE",
+  "head": "eeaf9e6",
+  "recordedAt": "2026-10-22T17:51:15.103075+00:00",
+  "disposition": "blocked_authorization",
+  "liveQualification": "unverified",
+  "retainedEvidence": {
+    "path": "docs/evidence/product-charter-feature-live-2026-10-22/evidence.json",
+    "sha256": "4b18c32bc3399479c4e58b82cbd61b3b78bdc6ea18eeee484e0bb0c21835c748",
+    "byteIdenticalToSource": true,
+    "credentialScan": "No credential fields, bearer tokens or provider-key patterns found; original artifact retained without changes."
+  },
+  "historicalOutcomes": [
+    {
+      "scenario": "aligned",
+      "model": "ollama/gemma4:e4b",
+      "elapsedMs": 60056.92693,
+      "status": "needs_input",
+      "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+      "modelResponseProduced": false,
+      "featureWritten": false
+    },
+    {
+      "scenario": "contradictory",
+      "model": "ollama/gemma4:e4b",
+      "elapsedMs": 60030.042495,
+      "status": "needs_input",
+      "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: timeout: The operation timed out.",
+      "modelResponseProduced": false,
+      "featureWritten": false
+    }
+  ],
+  "candidate": {
+    "route": "openrouter/openai/o3-mini",
+    "basis": "docs/p0-engineering-2026-10-20.md:44,68,104; docs/p0-proof-scopes-2026-10-20.json",
+    "qualification": "Previously qualified bounded independent source/scope reviews; current operation not probed.",
+    "authorization": "Previous authorization was temporary for an earlier replay; no current authorization established.",
+    "requiredChoice": "Authorize temporary openrouter/openai/o3-mini for the two unchanged disposable Feature preview scenarios and, if successful, independent review of the complete Feature acceptance contract including eeaf9e6. No permanent configuration changes or alternative-model search."
+  },
+  "blocker": "Fresh developer authorization is required for temporary OpenRouter Critic use. Current critic remains ollama/gemma4:e4b; its two retained no-response timeouts do not establish live semantic classification.",
+  "newModelCalls": 0,
+  "scenariosReplayed": false,
+  "completeIndependentAcceptanceReview": "not performed: conditional on successful live qualification",
+  "ticketDisposition": "Keep Todo/unverified, no Verification receipt or Done; record exact blocker.",
+  "scope": "Evidence preservation and bounded authorization audit only; no code, prompt, timeout, routing or sibling changes."
+}

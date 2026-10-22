@@ -1,0 +1,225 @@
+{
+  "ticket": "TKT-PRODUCT-CHARTER-FEATURE",
+  "head": "eeaf9e6",
+  "startedAt": "2026-10-22T18:12:43.714Z",
+  "surface": "registry.execute preview_change (public Product change tool)",
+  "root": "/tmp/aiwf-feature-qualification-0gC5uc",
+  "model": "openrouter/openai/o3-mini",
+  "configBefore": [
+    {
+      "path": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "path": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "charter": {
+    "id": "PRODUCT",
+    "version": 1,
+    "title": "AI-Workflow (AIWF)",
+    "purpose": "AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\n\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\n\n**Performance ambition:** Achieve 20\u201390% reduction in LLM token consumption and 40\u201390% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\n\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.",
+    "actors": [
+      "Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.",
+      "AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.",
+      "Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.",
+      "Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI."
+    ],
+    "scope": "AIWF provides an integrated engineering environment encompassing:\n\n**Product understanding**\n\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\n- Identification of conflicts, dependencies, inconsistencies and product drift.\n\n**Engineering intelligence**\n\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\n\n**Work management and execution**\n\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\n- Grounded investigation, planning, implementation, testing, correction and completion.\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\n\n**Quality and verification**\n\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\n- Correct, maintainable implementations with minimal justified complexity.\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\n\n**Accessibility and continuity**\n\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\n- Direct operation through CLI, interactive shell and graphical interfaces.\n- Persistent project context enabling work to continue across sessions, developers and agents.\n\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.",
+    "nonGoals": [
+      "Replace the developer's authority over product intent or consequential decisions.",
+      "Become a general-purpose chatbot or content-generation application.",
+      "Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.",
+      "Replace established development tools or suitable ecosystem capabilities unnecessarily.",
+      "Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.",
+      "Optimize token consumption or speed at the expense of correctness, maintainability or safety.",
+      "Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness."
+    ],
+    "bounds": "1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\n\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\n\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\n\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\n\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\n\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\n\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\n\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\n\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements.",
+    "status": "accepted"
+  },
+  "cases": [
+    {
+      "name": "aligned",
+      "id": "QUALIFY-ALIGNED",
+      "title": "Repository defect investigation",
+      "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+      "startedAt": "2026-10-22T18:12:43.968Z",
+      "transport": [],
+      "request": {
+        "action": "product_change",
+        "basis": [
+          {
+            "id": "PRODUCT",
+            "entityType": "Product",
+            "version": 1
+          }
+        ],
+        "mutations": [
+          {
+            "kind": "product_create",
+            "entityType": "Feature",
+            "id": "QUALIFY-ALIGNED",
+            "fields": {
+              "title": "Repository defect investigation",
+              "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      "response": {
+        "fingerprint": "3f1450779849c61482754be8025de30ac03a74c58cb8f8ac90b449ee992357e9",
+        "summary": "Blocked: Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-ALIGNED",
+              "fields": {
+                "title": "Repository defect investigation",
+                "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        },
+        "warnings": [
+          "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter"
+        ],
+        "blocked": true,
+        "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter",
+        "status": "needs_input",
+        "required": [
+          {
+            "artifactId": "QUALIFY-ALIGNED",
+            "question": "Review QUALIFY-ALIGNED against the current accepted Product charter and explicitly answer the warning by revising the Feature or leaving it unresolved."
+          }
+        ],
+        "dependents": []
+      },
+      "elapsedMs": 32.695177,
+      "featureWritten": false
+    },
+    {
+      "name": "contradictory",
+      "id": "QUALIFY-CONTRADICTORY",
+      "title": "General-purpose public chatbot and creative writing",
+      "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+      "startedAt": "2026-10-22T18:12:44.001Z",
+      "transport": [],
+      "request": {
+        "action": "product_change",
+        "basis": [
+          {
+            "id": "PRODUCT",
+            "entityType": "Product",
+            "version": 1
+          }
+        ],
+        "mutations": [
+          {
+            "kind": "product_create",
+            "entityType": "Feature",
+            "id": "QUALIFY-CONTRADICTORY",
+            "fields": {
+              "title": "General-purpose public chatbot and creative writing",
+              "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      "response": {
+        "fingerprint": "28e05fb34bd45473d2317039a815b6247002604875d1c0610250affa0483b0b0",
+        "summary": "Blocked: Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-CONTRADICTORY",
+              "fields": {
+                "title": "General-purpose public chatbot and creative writing",
+                "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        },
+        "warnings": [
+          "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter"
+        ],
+        "blocked": true,
+        "blockReason": "Cannot establish Feature alignment with PRODUCT: Independent Critic failed: unsupported: No adapter registered for provider: openrouter",
+        "status": "needs_input",
+        "required": [
+          {
+            "artifactId": "QUALIFY-CONTRADICTORY",
+            "question": "Review QUALIFY-CONTRADICTORY against the current accepted Product charter and explicitly answer the warning by revising the Feature or leaving it unresolved."
+          }
+        ],
+        "dependents": []
+      },
+      "elapsedMs": 9.73837599999996,
+      "featureWritten": false
+    }
+  ],
+  "providerCheck": {
+    "endpoint": "https://openrouter.ai/api/v1/auth/key",
+    "httpStatus": 200,
+    "elapsedMs": 253.37647299999998,
+    "credentialSource": "saved credential; stale environment override removed for child process only"
+  },
+  "fixtureProductUnchanged": true,
+  "canonicalProductUnchanged": true,
+  "configAfter": [
+    {
+      "path": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "path": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "finishedAt": "2026-10-22T18:12:44.017Z",
+  "disposableStateRemoved": true,
+  "note": "Harness setup only: inherited gateway=ollama excluded the authorized provider. No inference calls occurred. Corrected only disposable gateway before the exactly two real semantic previews."
+}

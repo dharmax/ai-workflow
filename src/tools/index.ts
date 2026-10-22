@@ -20,6 +20,8 @@ import { registerChangeTools } from './change.ts';
 import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { registerAspectTools } from './aspects.ts';
 import { registerRuleTools } from './rules.ts';
+import {z} from 'zod';
+import {refreshDefaultModelAdvice} from '../model-runtime.ts';
 
 let initialized = false;
 
@@ -41,6 +43,15 @@ export function initializeTools(): ToolRegistry {
     registerArtifactPolicyTools();
     registerAspectTools();
     registerRuleTools();
+    registry.register({
+      name: 'refresh_model_advice', category: 'kb',
+      description: 'Explicitly refresh native llm-utils workload advice using live provider catalogue evidence and configured local research. Preserves developer overrides; no paid research or pulls.',
+      parameters: z.object({}).strict(),
+      execute: async (_args, ctx) => {
+        if (ctx.executionAuthority !== 'project-write') throw new Error('Model advice refresh requires project-write authority.');
+        return refreshDefaultModelAdvice(ctx.projectRoot);
+      }
+    });
     initialized = true;
   }
   return registry;

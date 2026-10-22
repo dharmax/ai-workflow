@@ -1,0 +1,10 @@
+bun test v1.4.3 (c6da4a4d3)
+
+tests/model-advice-story.test.ts:
+(pass) Actor refreshes and uses native model advice while preserving developer choices and failed-refresh routes [396.16ms]
+(pass) public inspection and explicit model choices preserve routing without refresh or configuration side effects [48.90ms]
+
+ 2 pass
+ 0 fail
+ 46 expect() calls
+Ran 2 tests across 1 file. [624.00ms]

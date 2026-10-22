@@ -10,7 +10,7 @@ import { WorkflowStore } from './graph/store.ts';
 import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
 import {createDefaultAsker} from './model-runtime.ts';
 import { loadConfig, resolveCloudCredentials } from './config.ts';
-import { ModelRadar } from './actor/radar.ts';
+import {readModelAdvice} from '@dharmax/llm-utils';
 import { resolveTypeScriptRuntime, checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime } from './typescript-runtime.ts';
 
 export interface DiagnosticCheck {
@@ -311,12 +311,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
   if (creds.geminiApiKey) configuredProviders.push('google');
   if (creds.openaiApiKey) configuredProviders.push('openai');
 
-  const radar = new ModelRadar({
-    projectRoot,
-    probeIntervalDays: config.modelRadar?.probeIntervalDays ?? 3
-  });
-  const cachedRadar = radar.loadCache();
-  const recs = radar.getRecommendations();
+  const advice = readModelAdvice();
 
   checks.push({
     category: 'Routing',
@@ -344,18 +339,10 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
     checks.push({category: 'Cognitive', name: 'Provider runtime construction', status: 'error', message: error instanceof Error ? error.message : String(error)});
   }
 
-  // 8. Model Radar & SOTA Benchmark Cache
   checks.push({
-    category: 'Radar',
-    name: 'Model Radar (SOTA Discovery)',
-    status: 'ok',
-    message: cachedRadar
-      ? `Cache active (${cachedRadar.models.length} models, updated ${new Date(cachedRadar.lastUpdated).toLocaleDateString()}) | Dev: ${recs.dev}, Design: ${recs.design}`
-      : `Baseline active (6 models) | Dev: ${recs.dev}, Design: ${recs.design}. Run 'aiwf model radar --refresh' to probe OpenRouter.`,
-    details: {
-      source: cachedRadar ? cachedRadar.source : 'baseline',
-      recommendations: recs
-    }
+    category: 'Routing', name: 'Native model advice', status: 'ok',
+    message: advice ? `Snapshot: ${advice.updatedAt} | Authority: ${advice.advisor}; inference not qualified`
+      : 'No valid advice; configured routing remains active. Run model radar refresh explicitly.',
   });
 
   // 9. MCP Integrations

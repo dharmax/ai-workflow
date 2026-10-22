@@ -1,0 +1,46 @@
+{
+  "stage": 3,
+  "ticket": "TKT-9Z2Z",
+  "startingMaster": "eeaf9e6d0e7ee1a7d19c712f7e02fa4a2ed0d1d2",
+  "branchCommit": "f937651cd16446ae5c65df5e4a7a732a67e2710a",
+  "disposition": "Integration source verified and ready for master push; native Ticket Todo/unverified without a receipt.",
+  "integration": "Applied only justified source hunks via leased preview/fingerprint/apply; excluded all branch graph/projection snapshots. Preserved current master Actor authority changes and newer config tests.",
+  "qualification": "Public CLI/Shell/Actor/diagnostic behavior, controlled external provider transport. No live model benchmarking or paid Radar research.",
+  "checks": {
+    "baseline": "0 pass / 1 fail: refresh_model_advice absent",
+    "affected": "56 pass / 0 fail across 9 files",
+    "aggregate": "583 pass / 5 existing opt-in skips / 0 fail; 588 tests in 76 files; 4235 assertions; 132.60 seconds",
+    "typecheck": "pass; corrected Promise<Response> annotation on throwing test transport; no runtime behavior or assertion changed",
+    "definitions": "20 concepts, 164 internal links, 9 exact US fields",
+    "pack": "pass; packed model list/radar inspection pass; packed Charter CLI/MCP 8 pass / 0 fail",
+    "stagedExport": "Clean staged-index source export, using installed dependencies: public Model Advice + Charter 10 pass / 0 fail; typecheck pass. Excludes unrelated working-tree bun.lockb change."
+  },
+  "nativeEntry": "verify-only/critic none saved developer-authorized scope but blocked by stale graph test references and isolated Playwright browser path. No receipt or Done. Final direct aggregate used the existing installed browser path, no skips added.",
+  "wholeScopeReview": [
+    "llm-utils remains the sole advice schema, environment discovery, persistence and routing owner. AIWF supplies workload intent and configured local research authority.",
+    "Native Radar static rankings/cache/probing and dead configuration removed; existing raw config is preserved.",
+    "Snapshot read is inert; explicit refresh uses local-only inference, observed provider catalogues, schema validation, observed-model eligibility guards, no pulls or paid research. Failure occurs before native atomic replacement.",
+    "Explicit config model provenance is read once per ModelService. Defaults and task aliases remain authoritative over advice; current runtime changes only on ordinary reload.",
+    "CLI/Shell report effective Actor route plus separate recommendation/provenance. Diagnostics only read advice and retain existing Ollama health probe.",
+    "Acceptance verification uses native verification workload only absent existing explicit critic/design route; routing is not independent verification."
+  ],
+  "preservation": {
+    "unrelatedBunLock": "Pre-existing dirty bun.lockb retained uncommitted, SHA256 959535c3bfbfaef1125a7c345d4c1c7c7f23df9f476ca0af97b80c7f6397ca0d",
+    "llmUtils": "Sibling untouched; installed advice/routing source hashes matched current sibling. Pack truthfully reports pre-existing dirty llm-utils at f8222aaa155a0b86f50b7cacbe0701ed29d86840.",
+    "historicalEvidence": "Retained; no historical Ticket reopened or receipts manufactured."
+  },
+  "sourceHashes": {
+    "src/actor/engine.ts": "46f55484228135d784663fae8c2dc8692ac59c4cd0f6d3ba765f26bedcfc8c6c",
+    "src/actor/radar.ts": "deleted",
+    "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+    "src/doctor.ts": "de091a06ca1b6630987b50fbe2d450921e45ab8e719e172d3cf60b3ee8a06021",
+    "src/model-command.ts": "26b429810eb649043a190694343f1ceb1f5fbc2569444a175c8c23ea039fdacb",
+    "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+    "src/ticket/verification.ts": "e816969456fdd0f1b9026a287d79748c56c1477117e060b70fc072c4dbba4d8a",
+    "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+    "tests/config.test.ts": "af87b5f4a4f03983dff8a6567cd4325ffe569170ef2c8e93a5b99ec30606f69d",
+    "tests/radar.test.ts": "deleted",
+    "tests/model-advice-story.test.ts": "c7f8005336bf13b528d019fd6c108f28a112a090ac8779ed1d2194b9fee64b51"
+  },
+  "branchDeletion": "Authorized only after verified push; final Git readback reported separately."
+}

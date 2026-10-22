@@ -11,14 +11,6 @@ import { z } from 'zod';
 export type GatewayType = 'auto' | 'openrouter' | 'direct' | 'ollama';
 export type EscalationPolicy = 'auto' | 'local_only' | 'prompt' | 'sota';
 
-export interface ModelRadarConfig {
-  enabled: boolean;
-  probeIntervalDays: number;
-  lastProbedAt?: string;
-  maxCostPer1MInput?: number;
-  maxCostPer1MOutput?: number;
-}
-
 export interface EscalationConfig {
   policy: EscalationPolicy;
   blastRadiusThreshold: number;
@@ -46,7 +38,6 @@ export interface ProjectConfig {
   autoSync: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   gateway: GatewayType;
-  modelRadar: ModelRadarConfig;
   escalation: EscalationConfig;
   modelRoutes?: Record<string, string>;
   providerOptions?: Record<string, Record<string, unknown>>;
@@ -66,12 +57,6 @@ export const DEFAULT_CONFIG: ProjectConfig = {
   autoSync: true,
   logLevel: 'info',
   gateway: 'auto',
-  modelRadar: {
-    enabled: true,
-    probeIntervalDays: 3,
-    maxCostPer1MInput: 5.0,
-    maxCostPer1MOutput: 15.0
-  },
   escalation: {
     policy: 'auto',
     blastRadiusThreshold: 3,
@@ -98,7 +83,6 @@ export const CONFIG_SETTINGS = {
   autoSync: { schema: z.boolean(), description: 'Synchronize projections automatically', type: 'boolean' },
   logLevel: { schema: z.enum(['debug', 'info', 'warn', 'error']), description: 'Log verbosity', type: 'string' },
   gateway: { schema: z.enum(['auto', 'openrouter', 'direct', 'ollama']), description: 'Provider gateway', type: 'string' },
-  modelRadar: { schema: z.object({ enabled: z.boolean().optional(), probeIntervalDays: positiveInt.optional(), lastProbedAt: z.string().optional(), maxCostPer1MInput: z.number().nonnegative().optional(), maxCostPer1MOutput: z.number().nonnegative().optional() }).strict(), description: 'Model radar options', type: 'object' },
   escalation: { schema: z.object({ policy: z.enum(['auto', 'local_only', 'prompt', 'sota']).optional(), blastRadiusThreshold: positiveInt.optional(), testRetryThreshold: z.number().int().nonnegative().optional() }).strict(), description: 'Escalation options', type: 'object' },
   modelRoutes: { schema: z.record(z.string(), z.string().min(1)), description: 'Task model routes', type: 'object' },
   providerOptions: { schema: z.record(z.string(), z.record(z.string(), z.unknown())), description: 'Provider request options', type: 'object' },
@@ -243,7 +227,6 @@ export function loadConfig(projectRoot: string): ProjectConfig {
   };
   return {
     ...base, ...global, ...project,
-    modelRadar: {...base.modelRadar, ...global.modelRadar, ...project.modelRadar},
     escalation: {...base.escalation, ...global.escalation, ...project.escalation},
     modelRoutes: {...base.modelRoutes, ...global.modelRoutes, ...project.modelRoutes},
     providerOptions: {...base.providerOptions, ...global.providerOptions, ...project.providerOptions},

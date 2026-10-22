@@ -29,7 +29,6 @@ import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from "../tools/
 import { lexCommand, isExplicitCommand, artifactCommand } from "../artifact-command.ts"
 import { loadConfig } from "../config.ts"
 import { ModelService } from "../model-runtime.ts"
-import { ModelRadar } from "./radar.ts"
 import { renderActorSystem } from "./prompts.ts"
 import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from "../tools/surface.ts"
 
@@ -93,7 +92,6 @@ export interface WorkflowActorOptions {
     preferLocal?: boolean
     offline?: boolean
     timeoutMs?: number
-    radar?: ModelRadar
     toolDiscovery?: Pick<ToolDiscovery, "discover"> | null
 }
 
@@ -141,7 +139,6 @@ export class WorkflowActor {
     public readonly maxSteps: number
     public readonly timeoutMs: number
     public readonly metrics: InMemoryMetricsStore
-    public readonly radar: ModelRadar
     private _asker?: Asker
     private session?: LLMSession
     private readonly preferLocal: boolean
@@ -160,7 +157,6 @@ export class WorkflowActor {
         this.timeoutMs = options.timeoutMs ?? 60000
         this.preferLocal = options.preferLocal ?? true
         this.metrics = new InMemoryMetricsStore()
-        this.radar = options.radar || new ModelRadar({ projectRoot: this.projectRoot })
 
         this.initRuntime()
     }
