@@ -27,7 +27,8 @@
     "mcp": "bun src/cli.ts mcp",
     "typecheck": "tsc --noEmit",
     "pack": "bun scripts/build.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "check:definitions": "bun scripts/check-definitions.mjs"
   },
   "dependencies": {
     "@dharmax/block-patcher": "file:../block-patcher",

@@ -1,6 +1,8 @@
 # Canonical definitions
 
-**Authority:** These files define the project terms and their approved meaning. One file per **substantive concept**; related fields belong together in their owning definition. Suggestions, older plans, generated text and existing code cannot silently add fields or redefine terms. Semantic changes require explicit developer approval. A definition is not a claim that its runtime support already exists.
+**Authority:** One file per substantive concept; related fields belong together. Definitions are stable until an explicitly approved semantic change. The glossary controls terminology and exact field sets; the developer-approved charter and decisions control product intent. Historical text, generated proposals and implementation details do not silently redefine either. Documentation is not proof of runtime support.
+
+**For AI coding agents:** read this index, then load **only relevant concept files**. During investigation identify the charter/approval basis, applicable definitions/Aspects/Rules and current code/test evidence; revisit that basis during verification. See the concise [agent entry contract](../../AGENTS.md#ai-coding-agent-entry-contract). Do not replace actual evidence with this glossary.
 
 ## Product meaning
 
@@ -31,9 +33,7 @@
 - [Rules and Guidelines](rules-and-guidelines.md) — instruction versus advice
 - [Project Graph](project-graph.md) — the shared Semantika-backed project model; *Canonical Project Graph* remains a proposed full name
 
-## Agreed cross-cutting rule
-
-Every project needs an actual, accepted **Product charter**. Every proposed/revised Aspect, Feature, Epic and US is reviewed against it. Material conflict, ambiguity or drift requires a grounded warning **and an explicit developer answer**; unanswered warnings cannot be silently treated as alignment. See [Product](product.md) for the complete rule.
+See [Product](product.md) for the authoritative mandatory-charter/alignment contract; it is not restated here.
 
 ## Decisions still open
 
@@ -42,4 +42,4 @@ Every project needs an actual, accepted **Product charter**. Every proposed/revi
 - Comments as half-formal LLM input and whether separate Requirements or Preconditions fields add value; neither is currently an approved US field.
 - Domain taxonomy/tag composition and fine-grained inherited-definition editing mechanics.
 
-**Current-state warning:** the mandatory charter decision supersedes older optional-Product plans. Implementation and stored data need separate review/migration; the latest tracked Product manifest states no charter is defined but is not itself proof of current DB state. No default charter, fake alignment or automatic migration is authorized by this documentation.
+**Current-state warning:** implementation and data may lag definitions. The tracked manifest reports no charter (not a fresh DB check); no default charter, fake approval or automatic migration is authorized. Validate current state.

@@ -165,10 +165,13 @@ Internal capabilities do not become public merely because they exist.
 ## Verification
 
 ```bash
+bun run check:definitions
 bun test
 bun run typecheck
 bun run pack
 ```
+
+`check:definitions` is a small static guard for glossary indexing, relative Markdown file links and the exact US field table. It does not approve requirements, inspect the live Product charter or prove product behavior.
 
 The Workspace Story tests run real Chromium. After installing dependencies, run `bunx playwright install chromium` once (and install Playwright's OS browser prerequisites if needed). Run them with `bun test tests/dharmax-s3.test.ts`; no model credentials are required.
 
@@ -178,7 +181,7 @@ A green component suite is not proof of a product journey. Conversely, a model's
 
 ## Documentation
 
-Start with the [canonical definitions](docs/definitions/README.md), especially the mandatory [Product charter](docs/definitions/product.md), [Ticket](docs/definitions/ticket.md), [Test](docs/definitions/test.md) and [Verification](docs/definitions/verification.md). The governing execution details are in [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
+Start with the [definitions index](docs/definitions/README.md) and the bounded [AI coding agent entry contract](AGENTS.md#ai-coding-agent-entry-contract); load only relevant concepts. The [DW-02 glossary dry run](docs/definition-usage-check.md) demonstrates where an agent must stop rather than invent approved intent or test proof. The governing execution details are in [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
 
 ## License
 
