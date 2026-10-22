@@ -2,29 +2,39 @@
 
 **AI-assisted software engineering that keeps product intent, implementation and proof connected.**
 
-AIWF helps developers and coding agents take a product idea, requirement, defect or engineering need through understanding, definition, implementation and independent verification. It brings product knowledge, code intelligence, work management and execution into one durable workflow governed by **Dharmax-way**.
-
-A coding agent should not have to rediscover the project on every turn, invent requirements to justify a change, or declare success merely because it produced code. AIWF gives humans and agents the relevant context and capabilities to move from *what should happen* to *what actually works*. The developer remains responsible for product intent and consequential decisions.
-
-AIWF can serve as an engineering environment directly or support external coding agents through its public interfaces. It is **not just another issue tracker, prompt library or autonomous code generator detached from the product**.
-
-> **Status:** Active development. This README describes the intended product as well as useful existing entry points; the complete workflow is **not yet implemented or accepted**. For actual current scope and evidence, see the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
+**The goal**  create and keep the codebase and design tight, production quality, and using  20%-90% less tokens and achieving that in 40%-90% less time. 
 
 ## What it does
 
-AIWF connects work that is otherwise fragmented across chats, repositories, plans, issue boards, coding agents and test reports:
+AIWF connects work that is otherwise fragmented across chats, repositories, plans, issue boards, coding agents and test reports.
+
+It helps developers and coding agents take a product idea, requirement, defect or engineering need through understanding, definition, implementation and WORTHWHILE verification. It brings product knowledge, code intelligence, work management and execution into one durable workflow governed by [Dharmax-way](docs/definitions/dharmax-way.md) and
+ Its [Prime Directive](docs/definitions/prime-directive.md) that make sure technical debt don't creep in and work is never based on assumptions and KISS.   
+
+
+##How it does it 
+
+A knowledge graph connects everything with semantic accuracy: user-stories, features, aspects and requirements, work-tickets, tests, code artifacts, decisions, and more . It knows all the connections and thus makes finding artifacts, doing impact-analysis, refactoring etc. in sometimes zero tokens and milliseconds. 
+
+Issue tracking - from the top-level Product Charter, to epics, down to bugs and todos - all in, tightly integrated. The AI checks for conflicts and investigate dependencies and plan implementation and applies it.
+
+It works either as a plugin/mcp/skill to your favorite AI Coding Agent as well as a standalone shell, with sophisticated UI.
+
+It uses @dharmax/llm-utils, to abstractize and optimize the AI economics, where both System-1 and LLMs are being used for maximum efficiency and accuracy.  
+
+> **Status:** Active development. This README describes the intended product as well as useful existing entry points; the complete workflow is **not yet implemented or accepted**. For actual current scope and evidence, see the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
+
+
+## Features
 
 - **Product understanding:** Work from a developer-approved Product charter, discover or propose Features, cross-cutting Aspects and complete User/Actor Stories; surface material conflict or drift for a developer decision.
 - **Engineering intelligence:** Find the relevant code, architecture, dependencies, existing capabilities, applicable Rules, tests and past decisions without repeatedly loading the entire repository into an LLM.
 - **Useful work management:** Propose and reconcile real Epics and Tickets, with priorities, dependencies, state and acceptance obligations—without inventing work to populate a hierarchy.
 - **Engineering execution:** Investigate, prepare only what's missing, choose existing tools or justified new capabilities, make guarded changes, run tests and correct observed failures.
 - **Verification and continuity:** Independently establish current results, retain grounded evidence, report real blockers and allow another developer or agent to resume from durable project state.
-
-New functionality, Bugs against existing behavior and direct technical maintenance are all legitimate; they do not need to be forced into an identical product hierarchy.
+- **Skills and knowledge:** skill-registry and skill-management modules let AIWF use skills that can be imported or generated on the fly! Skills can combine both knowledge and executable code.  
 
 ## Dharmax-way: from intent to working software
-
-[Dharmax-way](docs/definitions/dharmax-way.md) is the governing test-first method. Its [Prime Directive](docs/definitions/prime-directive.md) is **the simplest correct solution wins**—including within each touched method, not just in architecture diagrams.
 
 For product functionality, the normal path is:
 
