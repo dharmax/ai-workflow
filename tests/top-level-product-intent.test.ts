@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import fs from 'node:fs'
@@ -10,18 +11,21 @@ import { exportProjections, importProjections } from '../src/graph/projections.t
 import { getCoverage } from '../src/product/coverage.ts'
 
 describe('top-level Product Intent journey mechanisms', () => {
+  let stopReviewer:(()=>void)|undefined
   let root: string
   let store: WorkflowStore
   let ctx: ToolContext
 
-  beforeEach(() => {
+  beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-top-level-'))
     store = new WorkflowStore(root)
     initializeTools()
+    stopReviewer=await productReviewFixture(store)
     ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const }
   })
 
   afterEach(() => {
+    stopReviewer?.()
     store.close()
     fs.rmSync(root, { recursive: true, force: true })
   })

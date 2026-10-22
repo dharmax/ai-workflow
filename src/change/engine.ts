@@ -23,7 +23,7 @@ import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/index
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
 import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
-import { validateProductMutations, applyProductMutations, ProductReviewRequired, productDependents } from '../product/mutation.ts';
+import { validateProductMutations, assessFeatureAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
   ChangeRequest,
@@ -646,7 +646,9 @@ export class CausalChangeEngine {
 
   private async previewProductChange(request: Extract<ChangeRequest, { action: 'product_change' }>): Promise<ChangePreview> {
     try {
-      const { snapshot } = await validateProductMutations(this.store, request.mutations, request.basis);
+      const validated = await validateProductMutations(this.store, request.mutations, request.basis);
+      const {snapshot} = validated;
+      await assessFeatureAlignment(this.store, request.mutations, validated);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
       const affected = new Set<string>();
@@ -672,6 +674,11 @@ export class CausalChangeEngine {
     } catch (error) {
       const blocked = this.createBlockedPreview(request, error instanceof Error ? error.message : String(error), []);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
+      if (error instanceof ProductAlignmentRequired) {
+        blocked.status = 'needs_input';
+        blocked.warnings = error.warnings;
+        blocked.required = error.required;
+      }
       blocked.dependents = (await Promise.all(deleted.map(async m => {
         try { return await productDependents(this.store, m.id); } catch { return []; }
       }))).flat();
@@ -740,7 +747,8 @@ export class CausalChangeEngine {
         reindexedFiles: [],
         migratedAnchors: [],
         verification: { passed: false, diagnosticsOk: false, errors: [preview.blockReason || 'Preview blocked'] },
-        error: preview.blockReason
+        error: preview.blockReason,
+        ...(preview.status === 'needs_input' ? {status: 'needs_input' as const, preview} : {})
       };
     }
 
@@ -753,7 +761,14 @@ export class CausalChangeEngine {
       try { committed = await applyProductMutations(this.store, request.mutations, {request, fingerprint}); }
       catch (error) {
         if (!(error instanceof ProductReviewRequired)) throw error;
-        return {ok: false, status: 'review_required', fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
+        if (error instanceof ProductAlignmentRequired) {
+          preview.status = 'needs_input';
+          preview.blocked = true;
+          preview.blockReason = error.message;
+          preview.warnings = error.warnings;
+          preview.required = error.required;
+        }
+        return {ok: false, status: error instanceof ProductAlignmentRequired ? 'needs_input' : 'review_required', fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
           verification: {passed: false, errors: []}, error: error.message, preview};
       }
       const errors: string[] = [];

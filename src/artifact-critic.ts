@@ -29,7 +29,7 @@ export class AiArtifactCritic implements ArtifactCritic {
     const assessment = AiReviewSchema.parse(result.data);
     const missing = [...(input.acceptanceCriteria ?? []).filter(criterion => !assessment.criteria.some(check => check.criterion === criterion && check.covered && check.evidence.trim())),
       ...input.applicableAspects.filter(id => !assessment.aspects.some(check => check.id === id && check.covered && check.evidence.trim()))];
-    if (missing.length && assessment.review.verdict === 'accept') return { verdict: 'revise', findings: missing.map(item => ({ message: `Independent review has no explicit coverage for '${item}'.` })) };
+    if (missing.length && assessment.review.verdict === 'accept') return { verdict: 'revise', findings: [...(assessment.review.findings ?? []), ...missing.map(item => ({ message: `Independent review has no explicit coverage for '${item}'.` }))] };
     return assessment.review;
   }
 }

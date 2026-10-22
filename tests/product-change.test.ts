@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {reviewedApply} from './product-review.ts';
 import { describe, it, expect, afterEach } from 'bun:test';
 import fs from 'node:fs';
@@ -11,9 +12,11 @@ import { TestNode, Decision, Feature, UserStory } from '../src/graph/ontology.ts
 import type { ChangeRequest } from '../src/change/types.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 
+const stops:Array<()=>void>=[];
 const roots: string[] = [];
 const stores: WorkflowStore[] = [];
 afterEach(() => {
+  for(const stop of stops.splice(0)) stop();
   for (const store of stores.splice(0)) store.close();
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
@@ -28,6 +31,7 @@ function fixture() {
 describe('Product Intent Causal Change', () => {
   it('previews a coherent create/link set without writing and verifies coverage and impact after apply', async () => {
     const { store, engine } = fixture();
+    stops.push(await productReviewFixture(store));
     const request: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic', status: 'planned' } },
       { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature', body: 'Inspect related delivery work', status: 'accepted' } },

@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {reviewedApply,createProduct,updateProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import fs from 'node:fs';
@@ -12,6 +13,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 
 describe('Dharmax S2 reviewed canonical product edits', () => {
+  let stopReviewer: (()=>void) | undefined;
   let root: string, store: WorkflowStore;
   const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = { actor: 'Signed-in user', intent: 'Keep my filtered avatar', initialState: 'Unsaved filtered preview and previous saved avatar exist', action: 'Activate Save', expectedResult: 'Saved avatar matches preview after reload', exceptions: 'Failure preserves previous avatar', bounds: 'Current account' };
@@ -34,11 +36,12 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   ] });
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-dw-s2-')); store = new WorkflowStore(root); initializeTools();
+    stopReviewer=await productReviewFixture(store);
     for (const dcr of entityDescriptors) await store.listEntities(dcr);
     await store.sp.predicateCollection(store.sp.ontology.pdcr('addresses'));
     await store.upsertEntity(Epic.dcr, { id: 'E', title: 'Avatar delivery', body: 'Deliver reviewed avatar filters', status: 'active' });
   });
-  afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
+  afterEach(() => { stopReviewer?.(); store.close(); fs.rmSync(root, { recursive: true, force: true }); });
 
   it('DW-01/02 previews, edits and explicitly accepts one coherent Feature and complete Story', async () => {
     const before = snapshot();

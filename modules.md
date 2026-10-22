@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 219 | 0 | 0 | None |
+| `root` | project default | 220 | 0 | 0 | None |
 | `src/graph` | project default | 1021 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 612 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 397 | 0 | 0 | TKT-EXT-SURFACE-07 |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 74 | 0 | 0 | None |
 | `src/doctor` | project default | 65 | 0 | 0 | None |
 | `src/setup` | project default | 138 | 0 | 0 | None |
-| `tests` | project default | 2068 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10 |
+| `tests` | project default | 2134 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10 |
 | `skills` | project default | 11 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | 0 | None |
@@ -28,8 +28,8 @@
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
 | `docs` | project default | 648 | 0 | 0 | None |
-| `src/product` | project default | 642 | 0 | 0 | TKT-EXT-SURFACE-10 |
-| `src/change` | project default | 732 | 0 | 0 | TKT-EXT-SURFACE-10 |
+| `src/product` | project default | 653 | 0 | 0 | TKT-EXT-SURFACE-10 |
+| `src/change` | project default | 741 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
 | `src/artifact-policy` | project default | 87 | 0 | 0 | None |
 | `src/aspects` | project default | 35 | 0 | 0 | None |

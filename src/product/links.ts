@@ -124,7 +124,7 @@ export async function previewDefinitionChange(ctx: ToolContext, input: Definitio
   const preview = await engine.previewChange(request);
   return {
     ...preview,
-    status: preview.blocked ? 'blocked' : 'preview',
+    status: preview.status ?? (preview.blocked ? 'blocked' : 'preview'),
     definitionDiff: {
       kind: input.kind,
       id: input.id,
@@ -142,6 +142,7 @@ export async function reviewDefinition(
   present?: (preview: unknown) => void
 ) {
   const preview = await previewDefinitionChange(ctx, input);
+  if (preview.status === 'needs_input') return preview;
   if (preview.blocked) throw new Error(preview.blockReason ?? 'Definition preview blocked.');
   present?.(preview);
   if (!yes && !confirm) return preview;
@@ -151,6 +152,7 @@ export async function reviewDefinition(
     { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' },
     ctx
   ), preview.fingerprint);
+  if (applied.status === 'needs_input') return {...(applied.preview ?? preview), status: 'needs_input' as const, result: applied};
   if (!applied.ok) throw new Error(applied.error ?? 'Definition application failed.');
   if (applied.verification && !applied.verification.passed) {
     return {

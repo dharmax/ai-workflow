@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct} from './product-review.ts';
 import { describe, it, expect, afterEach } from 'bun:test';
 import fs from 'node:fs';
@@ -11,6 +12,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 describe('S3 Workspace public developer journeys', () => {
+  let stopReviewer:(()=>void)|undefined;
   let root: string, store: WorkflowStore, browser: Browser;
   let workspace: {url: string; stop: () => Promise<void>};
   const binary = process.env.AIWF_WORKSPACE_BINARY ? path.resolve(process.env.AIWF_WORKSPACE_BINARY) : undefined;
@@ -40,9 +42,10 @@ describe('S3 Workspace public developer journeys', () => {
     }
     return workspace.url;
   };
-  const setup = async () => {
+  const setup = async (registerCharter=true) => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-s3-'));
     store = new WorkflowStore(root); initializeTools();
+    stopReviewer=await productReviewFixture(store,registerCharter);
     for (const dcr of entityDescriptors) await store.listEntities(dcr);
     const url = await start();
     browser = await chromium.launch({headless: true});
@@ -72,6 +75,7 @@ describe('S3 Workspace public developer journeys', () => {
     }));
   };
   afterEach(async () => {
+    stopReviewer?.();stopReviewer=undefined;
     await browser?.close(); browser = undefined as any;
     await workspace?.stop(); workspace = undefined as any;
     store?.close(); store = undefined as any;
@@ -79,7 +83,7 @@ describe('S3 Workspace public developer journeys', () => {
   });
 
   it('PC5 explains charter fields, names linked endpoints and makes Bugs and missing proof discoverable', async () => {
-    const page=await setup();
+    const page=await setup(false);
     await page.getByRole('button',{name:'Define Product',exact:true}).click();
     await page.getByText('Scope describes what this product covers. Example: assess one patient at a time.',{exact:true}).waitFor();
     await page.getByText('Non-goals describe what this product deliberately does not provide. Example: emergency diagnosis.',{exact:true}).waitFor();
@@ -207,7 +211,7 @@ describe('S3 Workspace public developer journeys', () => {
   },30000);
 
   it('PC-J1/J8 reviews charter and Goal forms and preserves indexed Module intent across restart', async () => {
-    const page = await setup();
+    const page = await setup(false);
     await page.getByRole('button', {name:'Define Product',exact:true}).click();
     expect(await page.getByLabel('Stable ID', {exact:true}).inputValue()).toBe('PRODUCT');
     await fill(page, {Title:'Ledger', Purpose:'Understand totals', Actors:'Accountant\nAuditor', Scope:'Local arithmetic', 'Non-goals':'Banking', Bounds:'Offline'});

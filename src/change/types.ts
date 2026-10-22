@@ -147,6 +147,8 @@ export interface VerificationPlan {
 }
 
 export interface ChangePreview {
+  status?: 'needs_input';
+  required?: Array<{question: string; artifactId: string}>;
   fingerprint: string;
   summary: string;
   request: ChangeRequest;
@@ -166,7 +168,7 @@ export interface ChangePreview {
 }
 
 export interface ChangeApplyResult {
-  status?: 'review_required';
+  status?: 'review_required' | 'needs_input';
   preview?: ChangePreview;
   ok: boolean;
   fingerprint: string;

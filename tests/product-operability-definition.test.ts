@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {reviewedApply} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
@@ -18,6 +19,7 @@ const binary = process.env.AIWF_PUBLIC_BINARY;
 const cli = path.resolve(import.meta.dir, '../src/cli.ts');
 
 describe('PC2: Product Definition & Manifest public acceptance journeys', () => {
+  let stopReviewer: (()=>void) | undefined;
   let root: string;
   let store: WorkflowStore;
   let engine: CausalChangeEngine;
@@ -39,9 +41,11 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
     store = new WorkflowStore(root);
     engine = new CausalChangeEngine({ store, projectRoot: root });
     initializeTools();
+    stopReviewer=await productReviewFixture(store, false);
   });
 
   afterEach(() => {
+    stopReviewer?.();
     store.close();
     fs.rmSync(root, { recursive: true, force: true });
   });

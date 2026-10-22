@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct} from './product-review.ts';
 import {afterEach,beforeEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
@@ -18,6 +19,7 @@ import type {Asker} from '@dharmax/llm-utils';
 
 describe('PC1a canonical safety through public tools',()=>{
   let root:string,store:WorkflowStore;
+  let stopReviewer:(()=>void)|undefined;
   const call=(name:string,params:unknown,executionAuthority:'read-only'|'project-write'='project-write',signal?:AbortSignal)=>
     registry.execute(name,params,{store,projectRoot:root,executionAuthority,signal});
   const reopen=()=>{store.close();store=new WorkflowStore(root);};
@@ -34,7 +36,7 @@ describe('PC1a canonical safety through public tools',()=>{
     for(const dcr of entityDescriptors) await store.listEntities(dcr);
     await store.sp.predicateCollection(store.sp.ontology.pdcr('addresses'));
   });
-  afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
+  afterEach(()=>{stopReviewer?.();stopReviewer=undefined;store.close();fs.rmSync(root,{recursive:true,force:true});});
 
   it('read-only create_ticket Done cannot persist a verified Ticket',async()=>{
     const before=snapshot();
@@ -166,6 +168,7 @@ describe('PC1a canonical safety through public tools',()=>{
   });
 
   it('abort at the atomic commit leaves no partial accepted records and releases admission',async()=>{
+    stopReviewer=await productReviewFixture(store);
     const request={action:'product_change',mutations:[
       {kind:'product_create',entityType:'Feature',id:'F',fields:{title:'Feature',body:'Deliver the reviewed capability',status:'accepted'}},
       {kind:'product_create',entityType:'Ticket',id:'T',fields:{title:'Task'}}

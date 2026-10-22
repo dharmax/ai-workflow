@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct,updateProduct,reviewedApply} from './product-review.ts';
 import {describe,it,expect,afterEach} from 'bun:test';
 import fs from 'node:fs';
@@ -10,9 +11,11 @@ import {indexSingleFile} from '../src/graph/indexer.ts';
 import {chromium,type Browser} from 'playwright';
 import {startWorkspace} from '../src/workspace/server.ts';
 describe('S4 reviewed derivation through Workspace',()=>{
+ let stopReviewer:(()=>void)|undefined;
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  afterEach(async()=>{
+  stopReviewer?.();stopReviewer=undefined;
   await browser?.close();browser=undefined as any;
   host?.server.stop(true);host=undefined as any;
   store?.close();store=undefined as any;
@@ -20,6 +23,7 @@ describe('S4 reviewed derivation through Workspace',()=>{
  });
  it('DW-03 proposes complete reviewed Stories, Epic and scoped work without mutations',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(file:string,value:string){return {file,value}}");
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted',priority:1});
@@ -117,6 +121,7 @@ export function createAvatar(file:string) {
  });
  it('reports missing fixtures uncovered and materializes an approved executable public API test separately',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-test-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   await createProduct(store, "UserStory", {id:'S',title:'Save filtered avatar',actor:'User',intent:'Keep preview',initialState:'Previous avatar exists',action:'Save filtered preview',expectedResult:'New avatar survives restart',status:'accepted'});
   const specification={storyId:'S',filePath:'tests/save.test.ts',fixturePath:'src/avatar.ts',interfaceName:'createAvatar',body:"const avatar = subject(); avatar.save('filtered'); expect(avatar.reload()).toBe('filtered');"};
   const missing=await call('prepare_story_test',{specification});expect(missing.status).toBe('uncovered');
@@ -144,6 +149,7 @@ export function createAvatar(file:string) {
 
  it('rejects an individual proposed Story in Workspace without creating its Ticket',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-reject-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),'export function saveAvatar(value:string){return value}');
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
@@ -172,6 +178,7 @@ export function createAvatar(file:string) {
 
  it('reconciles an edited accepted Story, retains authoritative Aspects, and returns identity/scenario ambiguity',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-reconcile-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Save previews',status:'accepted'});
   await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
   await call('create_ticket',{id:'T',title:'Implement save',body:'Original scope',priority:'P2'});
@@ -204,6 +211,7 @@ export function createAvatar(file:string) {
 
  it('refuses stale/dirty test reviews, keeps started work active, and classifies fixture and source failures',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s4-boundary-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
   await call('create_ticket',{id:'T',title:'Implement save',lane:'In Progress'});
   await acceptProduct(store, [{kind:"product_link",sourceId:'T',predicate:'addresses',targetId:'S'}]);
