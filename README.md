@@ -1,168 +1,121 @@
-# AI-Workflow 2.0
+# AI-Workflow (AIWF)
 
-**AIWF is the AI-assisted engineering workflow and software implementing Dharmax-way.** It starts from a mandatory developer-approved **Product charter**, aligns Features, Aspects, Epics and complete User/Actor Stories with it, then carries accepted Stories through test-first engineering, justified Tickets and independently verified behavior. The project graph preserves connected definitions, work and evidence.
+**AI-assisted software engineering that keeps product intent, implementation and proof connected.**
 
-AIWF is Bun-first and backed by `@dharmax/semantika`. It offers high-level engineering and Ticket operations alongside exact graph, source, change, test, Git and knowledge primitives. The repository remains authoritative for actual source; the graph owns authored project records and relationships. Neither a generated proposal nor a green skeleton test proves completed product behavior.
+AIWF helps developers and coding agents take a product idea, requirement, defect or engineering need through understanding, definition, implementation and independent verification. It brings product knowledge, code intelligence, work management and execution into one durable workflow governed by **Dharmax-way**.
 
-## Governing design and current status
+A coding agent should not have to rediscover the project on every turn, invent requirements to justify a change, or declare success merely because it produced code. AIWF gives humans and agents the relevant context and capabilities to move from *what should happen* to *what actually works*. The developer remains responsible for product intent and consequential decisions.
 
-**Current v1 delivery focus:** [active Iteration 2–3 checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md). Iteration 1 engineering work is complete; live provider and independent acceptance remain to be qualified. The target is native Feature and Bug delivery in the same external Ledger repository, then public release—not another infrastructure iteration.
+AIWF can serve as an engineering environment directly or support external coding agents through its public interfaces. It is **not just another issue tracker, prompt library or autonomous code generator detached from the product**.
 
-**Dharmax-way** is the governing test-first method. Read the [canonical definitions](docs/definitions/README.md), [canonical design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged implementation plan](plans/AIWF-DHARMAX-WAY-PLAN.md) before changing product/workflow semantics. [Documentation index](docs/README.md) distinguishes current code, target Stories and historical evidence. The full plan is **not yet implemented**. Before S6, the [S5 Product Operability postcondition](plans/AIWF-S5-POSTCONDITION-DESIGN.md) must pass its [PC0–PC5 acceptance plan](plans/AIWF-S5-POSTCONDITION-PLAN.md); publishing these documents is not acceptance. Execute only one approved checkpoint at a time; existing Gate 5 remains Blocked until its actual canonical release criteria succeed. Earlier plans are preserved in [docs/archive/plans](docs/archive/plans/README.md).
+> **Status:** Active development. This README describes the intended product as well as useful existing entry points; the complete workflow is **not yet implemented or accepted**. For actual current scope and evidence, see the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
 
-## The idea
+## What it does
 
-The Product charter anchors the workflow. Aspects, Features, Epics and USs are checked against it; material conflict or drift produces a specific warning requiring a developer answer, not AI self-approval. Features and USs inform one another; the sequence below shows **delivery**, not an inflexible graph hierarchy:
+AIWF connects work that is otherwise fragmented across chats, repositories, plans, issue boards, coding agents and test reports:
+
+- **Product understanding:** Work from a developer-approved Product charter, discover or propose Features, cross-cutting Aspects and complete User/Actor Stories; surface material conflict or drift for a developer decision.
+- **Engineering intelligence:** Find the relevant code, architecture, dependencies, existing capabilities, applicable Rules, tests and past decisions without repeatedly loading the entire repository into an LLM.
+- **Useful work management:** Propose and reconcile real Epics and Tickets, with priorities, dependencies, state and acceptance obligations—without inventing work to populate a hierarchy.
+- **Engineering execution:** Investigate, prepare only what's missing, choose existing tools or justified new capabilities, make guarded changes, run tests and correct observed failures.
+- **Verification and continuity:** Independently establish current results, retain grounded evidence, report real blockers and allow another developer or agent to resume from durable project state.
+
+New functionality, Bugs against existing behavior and direct technical maintenance are all legitimate; they do not need to be forced into an identical product hierarchy.
+
+## Dharmax-way: from intent to working software
+
+[Dharmax-way](docs/definitions/dharmax-way.md) is the governing test-first method. Its [Prime Directive](docs/definitions/prime-directive.md) is **the simplest correct solution wins**—including within each touched method, not just in architecture diagrams.
+
+For product functionality, the normal path is:
 
 ```text
-Mandatory accepted Product charter
-    ↓ check downstream definitions against it; developer answers material warnings
-Accepted complete US (+ relevant Feature / Aspect / Epic context)
-    ↓ genuine executable US test first
-Actual baseline (normally expected red when new behavior is missing)
-    ↓ resolution Ticket owns making that test pass
-Optional separate full-flow skeleton test for multi-component integration
-    ↓ each temporary internal stub gets one replacement coding Ticket
-Real implementation under the Prime Directive (+ other justified work)
-    ↓ unchanged genuine US test passes without internal placeholders
+Product charter + developer intent
+    ↓ discover/revise relevant Feature, Aspect, Epic and complete Story
+Developer reviews and approves the actual User/Actor Story (US)
+    ↓
+Generate and review the genuine US acceptance test *first*
+    ↓ run at work start; establish the actual baseline (normally expected red)
+A resolution Ticket owns making that test pass
+    ↓
+When useful, connect multi-component work with a separate full-flow skeleton test
+    ↓ one coding Ticket per temporary internal implementation stub
+Replace the stubs; implement the real behavior under the Prime Directive
+    ↓
+The unchanged genuine US test passes without unfinished placeholders
+    ↓
 Independent current verification and traceable evidence
 ```
 
-This is the **target workflow**, not a claim that current `processIntent`, UI or charter validation already implements it. A skeleton pass proves wiring, never US acceptance. A Feature defines functionality; an Aspect contributes shared cross-cutting expectations; an Epic groups delivery and may supply common US context. Pure technical maintenance can use a justified direct Ticket, without inventing a Story.
+The skeleton test proves that a path is connected; **it does not prove the US is satisfied**. Small changes need no ceremonial skeleton. Already-working behavior may pass at baseline—AIWF must never manufacture a historical red/green cycle.
 
-The graph is durable project state. Markdown projections and chat transcripts are not the source of truth.
+The process is iterative rather than a compulsory set of documents. New evidence can send work back to a definition, assumption or design. Justified technical maintenance can use a direct Ticket without fabricating a Story.
 
-## Start here
+## The connected project model
 
-For the current Product → reviewed work → executable Story-test journey and typed Bug workflow, see [Iteration 1 evidence and executable replay](docs/iteration1-2026-10-19.md). It records passing public paths and remaining release gates; it does not claim S6 or complete PC5 acceptance. Use `aiwf ticket --help`, `aiwf bug --help`, `aiwf product --help`, `aiwf story-test --help` and `aiwf config --help` for scoped syntax.
+AIWF keeps authored product/work records and their relationships in a [Project Graph](docs/definitions/project-graph.md), backed by [Semantika](https://github.com/dharmax/semantika). The repository is authoritative for source files and Git history. Markdown projections are views, **not** competing live state.
 
-Inside an AIWF project:
+| Concept | Meaning |
+| --- | --- |
+| **Product charter** | The mandatory, developer-approved purpose, actors, scope, non-goals and boundaries against which downstream product definitions are reviewed. |
+| **Feature** | Specific product functionality/capability. |
+| **Aspect** | Reusable, cross-cutting expectations (e.g. Persistency or Access Control) applicable to multiple capabilities or Stories. |
+| **User/Actor Story (US)** | A concrete episode of use: Actor, Intent, Initial State, Action and complete Expected Result. The source of genuine acceptance tests. |
+| **Epic / Ticket** | Delivery grouping / bounded engineering work. Kanban and scheduling are useful views, not additional work databases. |
+| **Test / evidence** | An executable check / what was actually observed and verified. A Done lane or AI narration is not proof. |
 
-```bash
-aiwf investigate TICKET-ID
-aiwf prepare TICKET-ID --critic auto
-aiwf resolve TICKET-ID --completeness production --critic auto
+These are related concepts, **not a rigid one-of-each hierarchy**. Exact definitions, Story fields and still-open decisions live in the [canonical glossary](docs/definitions/README.md).
 
-aiwf process epic EPIC-ID --completeness production --depth 1 --max-artifacts 24
-aiwf status
-aiwf next
-aiwf doctor
-```
+## Interfaces and architecture
 
-The same workflow is available through the interactive shell and the public MCP surface.
+AIWF offers a **CLI and interactive shell**, a deliberately scoped **MCP interface and project skill** for external coding agents, and a **Workspace** for human-oriented inspection/editing. Workspace UX remains under development and is not yet accepted as the final experience.
 
-A normal resolution is deliberately boring:
+AIWF composes existing owners rather than creating parallel stacks: Semantika for project graph/state, `semantic-registry` for capability discovery, `skill-manager` for skill lifecycle, `llm-utils` for Actor/model concerns, and established source/change tools for exact operations. LLMs perform meaningful interpretation and necessary synthesis; deterministic work stays deterministic.
 
-```text
-investigate
-   ↓
-prepare only what is missing
-   ↓
-make the smallest justified change
-   ↓
-run relevant tests
-   ↓
-bounded repair if needed
-   ↓
-independent acceptance verification
-   ↓
-record reusable evidence
-```
+Agents should delegate an existing Ticket to AIWF's resolution operation rather than recreate its investigation, mutation and proof lifecycle by hand. See [Operations](docs/operations.md) and the [AIWF skill](skills/ai-workflow/SKILL.md) for the actual public surface and its limits.
 
-AIWF returns truthfully: complete, needs input, or blocked. It does not call a task complete merely because an agent produced code.
+## Getting started
 
-## Core laws
-
-1. **The charter anchors product intent.** The Product charter is mandatory; material downstream conflict/drift is warned about and answered by the developer. AI approval is not developer acceptance.
-2. **One durable project state.** The graph is authoritative for authored project records/relationships; the repository owns actual code/history. Markdown is projection/export, not a competing store. Features describe capabilities, Aspects shared concerns, USs actor episodes; their links inform each other.
-3. **Investigate before inventing.** Reuse existing intent, capabilities, symbols, tests and decisions before creating new ones.
-4. **Narrow before reasoning.** Deterministic graph/source evidence and semantic discovery reduce context before expensive model work.
-5. **One execution stack.** AIWF composes shared ecosystem packages rather than growing parallel registries, routers, persistence layers or execution engines.
-6. **Deterministic work stays deterministic.** LLMs handle semantic judgment and synthesis; exact graph, language, mutation and verification machinery handles exact work.
-7. **Generated source is only a candidate.** Source synthesis is grounded in investigated evidence, becomes an ordinary safe change, and is accepted only by real verification.
-8. **Stories define acceptance.** Tests emulate complete approved User/Actor Stories through public interfaces; isolated unit tests are exceptional for genuinely complex mechanisms. Counts and graph links do not prove product behavior.
-9. **Failure must remain visible.** Missing evidence, tool failure, skill failure and verification failure must not quietly become absence or success.
-10. **Keep it small.** Prefer deletion and composition over new abstractions. No process theater.
-
-## Architecture at a glance
-
-AIWF has three conceptual layers:
-
-- **Intent and work graph** — Goals, Concepts, Flows, Stories, Features, Tickets, Decisions, Aspects and evidence.
-- **Engineering operations** — investigate, prepare, resolve, process, safe change, test, verify, metrics and projections.
-- **Cognitive/runtime layer** — bounded semantic capability discovery, System-1 hints, configured model routing, Actor execution, project skills and grounded source synthesis.
-
-`@dharmax/semantic-registry` selects executable capabilities semantically. `@dharmax/skill-manager` owns skill discovery, activation and execution. AIWF composes them. Project skills are discovered from the project's `skills/` tree; additional skill sources must be configured explicitly. There is no sibling-checkout or host-specific global-directory magic.
-
-The Actor starts from a deliberately small capability surface. Semantic misses do not expand to the global registry. Model/provider routing belongs to `llm-utils`, not to ad-hoc AIWF logic.
-
-For source changes, AIWF uses exact deterministic mutation whenever possible. When real synthesis is needed, `Ticket.resolve()` supplies a bounded investigated dossier to the synthesizer; the generated source is then wrapped in an ordinary change such as `replace_symbol` and sent through the same change and verification machinery as any other edit.
-
-See [Architecture](docs/architecture.md) for the complete model.
-
-## Install and initialize
-
-AIWF is currently developed as part of the Dharmax sibling-repository workspace: its package manifest still uses local `file:../...` dependencies and is marked private. Do not treat it as an independently installable npm package yet.
+AIWF is currently a **private Bun project** developed alongside sibling repositories using local `file:../...` dependencies; it is not yet a standalone public npm installation.
 
 From the AIWF checkout in that workspace:
 
 ```bash
 bun install
 bun run setup
-```
-
-`setup` provisions the required TypeScript runtimes, installs the `aiwf` command under `~/.local/bin`, configures detected supported coding-agent hosts for MCP, and synchronizes the AIWF skill. Ensure `~/.local/bin` is on `$PATH`, then verify the installation with:
-
-```bash
 aiwf doctor
 ```
 
-To initialize a repository:
+Ensure `~/.local/bin` is on your `PATH`. Initialize another repository and inspect its available commands:
 
 ```bash
 cd /path/to/project
 aiwf init
 aiwf doctor
+aiwf help
 ```
 
-`init` currently creates the `.ai-workflow/` state/configuration area, indexes source/test structure into the semantic graph, and creates human-readable projections. **It must not be mistaken for approval of a Product charter**: any missing charter is an explicit gap for developer definition/review until the mandatory charter workflow is implemented. `doctor` verifies the runtime, Git state, graph, projections, leases, model configuration and MCP integration. Re-running `setup` refreshes global CLI/MCP/skill wiring.
+Examples of currently available Ticket operations:
 
-## Interfaces
+```bash
+aiwf status
+aiwf next
+aiwf investigate TICKET-ID
+aiwf prepare TICKET-ID --critic auto
+aiwf resolve TICKET-ID --completeness production --critic auto
+```
 
-### CLI and shell
+Use the installed command's `--help` for exact options. `init` creates local project state; it **does not invent or approve a Product charter**.
 
-Run `aiwf help` for the current command surface. Important groups are:
+## Principles
 
-- artifact work: `investigate`, `prepare`, `resolve`, `process`;
-- work navigation: `status`, `next`, `tickets`, `epics`, `features`, `stories`;
-- code intelligence: `symbol`, `graph`, `callers`, `deps`, `slice`, `outline`, `blast`, `debug`;
-- safe engineering: `patch`, `scaffold`, tests and change preview/apply through the registry;
-- diagnostics: `doctor`, `audit`, `metrics`;
-- cognition: `exec`, model configuration, traces and project knowledge/skills.
+1. **Developer authority.** AI can discover and propose; it cannot silently approve product meaning or dismiss material charter warnings.
+2. **Investigate before inventing.** Reuse canonical definitions, code, tools and work identities.
+3. **Smallest correct engineering.** One appropriate owner and path; no shadow graph, registry, model router or change engine.
+4. **Story-driven acceptance.** Actual public behavior and applicable policies matter more than internal test counts.
+5. **Truthful progress.** Keep proposed, skipped, expected-red, genuinely passing, blocked, stale and independently verified outcomes distinct.
+6. **Durable continuity.** Retain useful project context and evidence outside any single agent conversation.
 
-The interactive shell adds structured views, semantic natural-language execution and inspectable execution traces. Complete commands execute immediately; missing interactive identifiers can be facilitated. Config supports explicit project/global overrides and reset, and `aiwf setup --check` inspects without writes or prompts. See [operational commands](docs/operations.md#13-shell-configuration-and-setup).
-
-### Workspace
-
-Run `aiwf workspace` (or `bun src/cli.ts workspace`) and open the printed local URL. An optional port is supported: `aiwf workspace 4317`. Ctrl+C closes the session.
-
-Search canonical product and work definitions; create or edit Features, Aspects and complete Stories. Choose a Feature in the Story form, or add/remove links under **Manage relationships**. **Review changes** shows the diff; **Accept and save** commits through the same reviewed Product operation used by CLI/MCP. Cancel/reject writes nothing. A conflicting editor keeps your unsaved text and refuses overwriting; copy that text before reloading canonical data.
-
-**Review proposal** accepts a Product change request or an S2 preview copied from CLI/MCP. Edit Feature/Aspect/Story fields directly, or expand **Edit complete proposal request** for relationships, removals and other supported mutations. Update review after editing. Proposals are local to the browser session until accepted; this stage does not generate or execute implementation work.
-
-Keyboard: Ctrl/⌘ K searches, Ctrl/⌘ S prepares review, Escape cancels review. Acceptance approves definitions, not implementation or Story satisfaction. The Workspace uses the canonical DB; existing Markdown synchronization remains supported until S8.
-
-### MCP
-
-The public MCP surface is intentionally smaller than AIWF's internal registry. External coding agents should delegate artifact work first—especially `resolve_ticket`—and use primitive tools only for deliberate investigation or a concrete blocker.
-
-Internal capabilities do not become public merely because they exist.
-
-### Skills
-
-`skills/ai-workflow/SKILL.md` is the operational contract for external coding agents using AIWF. It should be read before manually reproducing AIWF's workflow.
-
-## Verification
+## Development and documentation
 
 ```bash
 bun run check:definitions
@@ -171,17 +124,11 @@ bun run typecheck
 bun run pack
 ```
 
-`check:definitions` is a small static guard for glossary indexing, relative Markdown file links and the exact US field table. It does not approve requirements, inspect the live Product charter or prove product behavior.
+The definitions check validates documentation structure, not product semantics. Some browser tests need Playwright Chromium (`bunx playwright install chromium`); opt-in live tests require their configured environment. A green component suite alone is not independent product acceptance.
 
-The Workspace Story tests run real Chromium. After installing dependencies, run `bunx playwright install chromium` once (and install Playwright's OS browser prerequisites if needed). Run them with `bun test tests/dharmax-s3.test.ts`; no model credentials are required.
+When working **on AIWF itself**, begin with [AGENTS.md](AGENTS.md) and the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md); consult only the relevant canonical definitions. Do not treat proposed capabilities or historical evidence as shipped behavior.
 
-Use focused tests first while developing, then the repository gates. Opt-in live acceptance tests are reserved for journeys that genuinely require the configured model/runtime.
-
-A green component suite is not proof of a product journey. Conversely, a model's confident final narration is not proof that a tool, skill, test or acceptance step actually ran.
-
-## Documentation
-
-Start with the [definitions index](docs/definitions/README.md) and the bounded [AI coding agent entry contract](AGENTS.md#ai-coding-agent-entry-contract); load only relevant concepts. The [DW-02 glossary dry run](docs/definition-usage-check.md) demonstrates where an agent must stop rather than invent approved intent or test proof. The governing execution details are in [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) and [staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md). The [documentation index](docs/README.md) links the existing [Architecture](docs/architecture.md), complete target [Actor Stories](docs/journeys.md), [Operations](docs/operations.md), preserved [historical briefs](docs/archive/plans/README.md), and dated evidence. Historical reports are not competing active plans.
+Further reading: [Definitions](docs/definitions/README.md) · [Dharmax-way design](plans/AIWF-DHARMAX-WAY-DESIGN.md) · [Staged plan](plans/AIWF-DHARMAX-WAY-PLAN.md) · [Architecture](docs/architecture.md) · [Actor journeys](docs/journeys.md) · [Operations](docs/operations.md) · [Documentation index](docs/README.md).
 
 ## License
 
