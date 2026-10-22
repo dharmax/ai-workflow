@@ -17,6 +17,7 @@
   ],
   "scripts": {
     "setup": "bun src/cli.ts setup",
+    "register:charter": "bun scripts/register-charter.mjs",
     "link:bin": "bun src/cli.ts setup --link",
     "sync": "bun src/cli.ts sync",
     "status": "bun src/cli.ts status",

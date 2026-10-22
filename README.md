@@ -103,7 +103,7 @@ aiwf prepare TICKET-ID --critic auto
 aiwf resolve TICKET-ID --completeness production --critic auto
 ```
 
-Consult the installed command's `--help` for exact options. `init` creates local project state; it **does not invent or approve a Product charter**. Current supported public operations and release limitations are described in [Operations](docs/operations.md) and the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
+Consult the installed command's `--help` for exact options. `init` creates local project state; it **does not invent or approve a Product charter**. To register **AIWF's own already-approved charter**, preview with `bun run register:charter`, then run `bun run register:charter --apply` from this checkout; the script uses the reviewed Product command and verifies/re-exports canonical state. Current supported public operations and release limitations are described in [Operations](docs/operations.md) and the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
 
 ## Development and verification
 
