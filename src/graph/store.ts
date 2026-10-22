@@ -70,10 +70,10 @@ type BatchEntry = Parameters<SqliteStore['applyBatch']>[0][number];
 type AdmissionLease = z.infer<typeof admissionSchema>[number];
 
 export class WorkflowStore {
-  private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean; productFingerprint?: string}>();
+  private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean; productFingerprint?: string; productAnswers?: Readonly<Record<string, string>>}>();
 
   /** Host context is inherited by every canonical writer, including legacy adapters. */
-  async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>, productFingerprint?: string): Promise<T> {
+  async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>, productFingerprint?: string, productAnswers?: Readonly<Record<string, string>>): Promise<T> {
     const parent = this.execution.getStore();
     let active = true;
     const context = {
@@ -81,7 +81,8 @@ export class WorkflowStore {
       signal: parent?.signal && signal ? AbortSignal.any([parent.signal, signal]) : parent?.signal ?? signal,
       get active() { return active && (!parent || parent.active); },
       // Only host code can supply review context; tool arguments never reach it.
-      productFingerprint: parent ? parent.productFingerprint : productFingerprint
+      productFingerprint: parent ? parent.productFingerprint : productFingerprint,
+      productAnswers: parent ? parent.productAnswers : productAnswers ? {...productAnswers} : undefined
     };
     try { return await this.execution.run(context, work); }
     finally { active = false; }
@@ -91,6 +92,13 @@ export class WorkflowStore {
   canReviewProduct(fingerprint: string): boolean {
     const context = this.execution.getStore();
     return !context || context.active && context.productFingerprint === fingerprint;
+  }
+
+  /** Only the trusted host can attest a separately collected answer, for this exact review. */
+  canAnswerProduct(fingerprint: string, decisionId: string, answer: string): boolean {
+    const context = this.execution.getStore();
+    return !!context?.active && context.authority === 'project-write' &&
+      context.productFingerprint === fingerprint && !!answer.trim() && context.productAnswers?.[decisionId] === answer;
   }
 
   assertCanWrite(): void {

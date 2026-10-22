@@ -94,7 +94,7 @@ export function isExplicitCommand(input:string):boolean {
   const command=createCommandTree(()=>{},()=>{}).commands.find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
   if(command && (command.name()==='next' || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
   if(rest.length && command?.registeredArguments.length===0) return true;
-  return /^(?:please\s+)?(?:story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
+  return /^(?:please\s+)?(?:story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product-change|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
 }
 
 export type NormalizedCommand =
@@ -554,6 +554,8 @@ Use COMMAND --help for operation options.`);
   product-change preview <request.json>
   product-change accept|reject|cancel <preview.json>
 Preview is inert. Review the exact request and fingerprint before acceptance.
+Charter-warning Decisions require a separate interactive developer response;
+noninteractive acceptance and --yes cannot supply that response.
 Only the local host review can authorize that current fingerprint; an external
 Actor's decision or project-write authority cannot approve its own proposal.`);
   root.commands.find(command => command.name() === 'model')!

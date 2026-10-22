@@ -50,6 +50,9 @@ export const ProductMutationSchema = z.discriminatedUnion('kind', [
 ]);
 export type ProductMutation = z.infer<typeof ProductMutationSchema> & { source?: never };
 
+/** Structured trace in the existing Decision.context text; no new graph fields. */
+export const CharterWarningContextSchema = z.object({warning:z.string().trim().min(1), proposal:z.object({action:z.literal('product_change'),mutations:z.array(ProductMutationSchema),basis:z.array(ProductRevisionSchema).optional(),originalRequest:z.string().optional()}).strict(), reviewFingerprint:z.string().min(1),charterRevision:z.number().int().positive()});
+
 const relationTriples: Array<[ProductKind, string, ProductKind]> = [
   ...(['Idea', 'Goal', 'Concept', 'Flow', 'Module', 'Epic', 'Feature', 'UserStory', 'File', 'Symbol', 'Ticket', 'Test', 'Artifact'] as const).map(target => ['Aspect', 'applies_to', target] as [ProductKind, string, ProductKind]),
   ['Ticket', 'addresses', 'Aspect'], ['Test', 'verifies', 'Aspect'], ['Artifact', 'verifies', 'Aspect'], ['Decision', 'governs', 'Aspect'],
@@ -352,7 +355,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   const features = [...new Set(mutations.flatMap(m =>
     (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Feature' ? [m.id] : []))]
     .filter(id => state.get(id)?.fields.status === 'accepted');
-  if (features.length && !state.has('PRODUCT')) {
+  const warningDecisions = [...state.values()].some(entity => entity.kind === 'Decision' && entity.fields.status === 'accepted' && typeof entity.fields.context === 'string' && entity.fields.context.includes('\"warning\"'));
+  if ((features.length || warningDecisions) && !state.has('PRODUCT')) {
     const product = await store.getEntity('PRODUCT', Product.dcr);
     if (product) await load('PRODUCT');
     else snapshot.PRODUCT = null;
@@ -370,11 +374,44 @@ export class ProductAlignmentRequired extends ProductReviewRequired {
   }
 }
 
-/** Reuse the independent Critic with the exact current and proposed definitions.
- * Proposals remain inert. A developer's revision/answer can be recorded using an
- * accepted Decision (context, decision, consequences) governing the same Feature.
+/** A warning-resolution Decision keeps the original warning/proposal basis in context,
+ * the actual developer response in decision, and governs the affected Feature.
+ * Text proposed by an agent cannot attest that a developer supplied that response.
  */
-export async function assessFeatureAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>): Promise<void> {
+async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
+  for (const [id, entity] of validated.state) {
+    if (entity.kind !== 'Decision') continue;
+    const previous = validated.snapshot[id] as {fields:Record<string,unknown>} | null;
+    let previousContext: unknown;
+    try { previousContext = JSON.parse(String(previous?.fields.context)); } catch { /* Ordinary Decision context is free text. */ }
+    const hadWarning = !!previousContext && typeof previousContext === 'object' && 'warning' in previousContext;
+    if (hadWarning && (!entity.exists || entity.fields.context !== previous?.fields.context || previous?.fields.status === 'accepted' && entity.fields.decision !== previous.fields.decision))
+      throw new ProductAlignmentRequired([`Preserve the charter warning context of Decision ${id}; record a new reviewed Decision for a new basis.`],[{artifactId:id,question:'Preserve the warning and actual answer history.'}]);
+    if (!entity.exists || entity.fields.status !== 'accepted') continue;
+    const touched = mutations.some(m => 'id' in m ? m.id === id : m.sourceId === id && m.predicate === 'governs');
+    if (!touched) continue;
+    let context: unknown;
+    try { context = JSON.parse(String(entity.fields.context)); } catch { continue; }
+    if (!context || typeof context !== 'object' || !('warning' in context)) continue;
+    const basis = CharterWarningContextSchema.safeParse(context);
+    const requireAnswer = (message: string) => new ProductAlignmentRequired([message], [{artifactId:id,question:message}]);
+    if (!basis.success) throw requireAnswer(`Decision ${id} must preserve the specific charter warning and its original proposal, fingerprint and charter revision.`);
+    const {warning, proposal, reviewFingerprint, charterRevision} = basis.data;
+    const original = await validateProductMutations(store, proposal.mutations, proposal.basis);
+    const product = await store.getEntity<Product>('PRODUCT', Product.dcr);
+    const affected = [...validated.edges.values()].filter(edge => edge.sourceId === id && edge.predicate === 'governs' && validated.state.get(edge.targetId)?.kind === 'Feature').map(edge => edge.targetId);
+    if (!affected.length || !affected.every(feature => original.features.includes(feature)))
+      throw requireAnswer(`Decision ${id} must govern the Feature affected by its charter warning.`);
+    if (product?.version !== charterRevision || computeHash({request:proposal,snapshot:original.snapshot}) !== reviewFingerprint)
+      throw requireAnswer(`Stale charter warning basis for Decision ${id}; review the current charter and Feature proposal again.`);
+    const fingerprint = request && computeHash({request,snapshot:validated.snapshot});
+    if (!fingerprint || typeof entity.fields.decision !== 'string' || !store.canAnswerProduct(fingerprint,id,entity.fields.decision))
+      throw requireAnswer(`Developer answer required for Decision ${id}: ${warning} The host must separately collect the developer response; ordinary Product approval and proposed Decision text do not answer it.`);
+  }
+}
+
+export async function assessFeatureAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
+  await assessCharterAnswers(store,mutations,validated,request);
   if (!validated.features.length) return;
   const product = validated.state.get('PRODUCT');
   const ask = (warnings: string[]) => new ProductAlignmentRequired(warnings,
@@ -428,7 +465,7 @@ export async function applyProductMutations(
     throw new ProductReviewRequired('Product mutation requires host-owned review of the exact preview fingerprint.');
   if (reviewed && canonical(reviewed.request.mutations) !== canonical(mutations))
     throw Error('Reviewed Product request does not match its mutations.');
-  await assessFeatureAlignment(store, mutations, initial);
+  await assessFeatureAlignment(store, mutations, initial, reviewed?.request);
   const token = await store.admitGovernance(workOnly ? 'governed' : 'governance');
   try {
     const { snapshot, state, edges } = await validateProductMutations(store, mutations, reviewed?.request.basis);
@@ -520,6 +557,7 @@ export async function applyProductMutations(
     store.assertCanWrite();
     if (!productOwnerWrite(store, mutations, state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
       throw Error('Product review authority expired before commit.');
+    await assessCharterAnswers(store,mutations,initial,reviewed?.request);
     store.sqliteStore.applyBatch([assertion, ...batch.values()]);
     return {edges};
   } finally { await store.releaseGovernance(token); }

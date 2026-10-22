@@ -13,6 +13,9 @@ import {initializeTools, registry} from '../../src/tools/index.ts';
 import {saveConfig} from '../../src/config.ts';
 import {Product, Feature, Decision} from '../../src/graph/ontology.ts';
 import {reviewedApply} from '../product-review.ts';
+import {reviewProductChange} from '../../src/product/links.ts';
+import {startWorkspace} from '../../src/workspace/server.ts';
+import {ParameterFacilitator} from '@dharmax/shell-ui';
 import type {ChangeRequest} from '../../src/change/types.ts';
 
 type ProductRequest=Extract<ChangeRequest,{action:'product_change'}>;
@@ -35,9 +38,11 @@ describe('Product charter governs Feature acceptance and revision through public
    const body=await request.json() as {messages:Array<{content:string}>};
    const prompt=body.messages.map(m=>m.content).join('\n');prompts.push(prompt);
    const context=JSON.parse(prompt.split('Review context: ')[1]!);
-   const criteria=(context.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:verdict==='aligned',evidence:verdict==='aligned'?'PRODUCT purpose and scope permit F engineering assistance.':warning}));
+   const originalConflict=verdict==='aligned' && context.proposal?.some((mutation:{entityType?:string;fields?:{body?:string}})=>mutation.entityType==='Feature' && mutation.fields?.body?.includes('poems'));
+   const effective=originalConflict?'conflict':verdict;
+   const criteria=(context.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:effective==='aligned',evidence:effective==='aligned'?'PRODUCT purpose and scope permit F engineering assistance.':warning}));
    // Deliberate general Critic approval must not erase a material finding.
-   const review=verdict==='generic'?{verdict:'accept'}:verdict==='conflict'?{verdict:'accept',findings:[{artifactId:'F',message:warning}]}:verdict==='unknown'?{verdict:'needs_input',required:[{artifactId:'F',question:'Is this scope engineering-only?'}]}:{verdict:'accept'};
+   const review=effective==='generic'?{verdict:'accept'}:effective==='conflict'?{verdict:'accept',findings:[{artifactId:'F',message:warning}]}:effective==='unknown'?{verdict:'needs_input',required:[{artifactId:'F',question:'Is this scope engineering-only?'}]}:{verdict:'accept'};
    return Response.json({message:{content:JSON.stringify({criteria,aspects:[],review})}});
   }});
   previousHost=process.env.OLLAMA_HOST;process.env.OLLAMA_HOST=server.url.toString();
@@ -61,8 +66,13 @@ describe('Product charter governs Feature acceptance and revision through public
   const revised:ProductRequest={...feature('Discuss repository defects and propose source fixes for developers only'),basis:[{id:'PRODUCT',entityType:'Product',version:1}],mutations:[...feature('Discuss repository defects and propose source fixes for developers only').mutations,{kind:'product_create',entityType:'Decision',id:'ANSWER',fields:{title:'Limit conversation to engineering',context:JSON.stringify({warning,proposal:request,reviewFingerprint:preview.fingerprint,charterRevision:1}),decision:'Revise F to repository defect diagnosis for developers; remove unrestricted discussion and poetry.',consequences:'The general-purpose capability is excluded. Review the revised F against PRODUCT v1.',status:'accepted'}},{kind:'product_link',sourceId:'ANSWER',predicate:'governs',targetId:'F'}]};
   const current=await call('preview_change',revised);
   const unreviewed=await call('apply_change',{request:revised,fingerprint:current.fingerprint,decision:'accept'});
-  expect(unreviewed.status).toBe('review_required');expect(await store.getEntity('ANSWER',Decision.dcr)).toBeNull();
-  expect((await reviewedApply(store,{request:revised,fingerprint:current.fingerprint,decision:'accept'})).ok).toBe(true);
+  expect(unreviewed.status).toBe('needs_input');expect(await store.getEntity('ANSWER',Decision.dcr)).toBeNull();
+  const answers:string[]=[];
+  fs.writeFileSync(path.join(root,'answer-preview.json'),JSON.stringify({request:revised,fingerprint:current.fingerprint}));
+  const facilitator=new ParameterFacilitator({elicit:async request=>{answers.push(JSON.stringify(request));return {status:'answered',id:request.id,value:'Revise F to repository defect diagnosis for developers; remove unrestricted discussion and poetry.'};},form:async()=>({status:'unavailable'}),review:async()=>({status:'unavailable'}),view:async()=>({status:'unavailable'})});
+  const applied=await processShellInput('product-change accept answer-preview.json',{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:true,facilitator});
+  expect(JSON.parse(applied.output).ok).toBe(true);
+  expect(answers).toHaveLength(1);expect(answers[0]).toContain(warning);
   store.close();store=new WorkflowStore(root);
   const answer=await call('get_decision',{id:'ANSWER'});
   expect(answer.context).toContain(warning);expect(answer.decision).toContain('remove unrestricted discussion');
@@ -72,6 +82,72 @@ describe('Product charter governs Feature acceptance and revision through public
   const drift:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'Discuss any topic and generate poems for everyone'}}]};
   expect((await accept(drift)).status).toBe('needs_input');
   expect((await call('get_feature',{featureId:'F'})).version).toBe(1);
+ });
+ it('rejects an agent-authored substantive answer even under ordinary host Product approval',async()=>{
+  await accept({action:'product_change',mutations:[charter]});
+  verdict='conflict';const original=feature();const raised=await call('preview_change',original);
+  expect(raised.status).toBe('needs_input');expect(raised.warnings).toContain(warning);
+  verdict='aligned';const revised:ProductRequest={...feature('Diagnose repository defects for developers only'),mutations:[...feature('Diagnose repository defects for developers only').mutations,{kind:'product_create',entityType:'Decision',id:'AGENT-ANSWER',fields:{title:'Engineering only',context:JSON.stringify({warning,proposal:original,reviewFingerprint:raised.fingerprint,charterRevision:1}),decision:'Remove poetry and restrict F to developer repository diagnostics.',status:'accepted'}},{kind:'product_link',sourceId:'AGENT-ANSWER',predicate:'governs',targetId:'F'}]};
+  const result=await accept(revised);
+  expect(result.ok).toBe(false);expect(result.status).toBe('needs_input');
+  expect(await store.getEntity('F',Feature.dcr)).toBeNull();expect(await store.getEntity('AGENT-ANSWER',Decision.dcr)).toBeNull();
+  const p=await call('preview_change',revised),ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
+  for(const answer of [undefined,'','yes','Approve the proposed text']) {
+   expect((await reviewProductChange({request:revised,fingerprint:p.fingerprint,decision:'accept'},ctx,async()=>answer)).status).toBe('needs_input');
+  }
+  const forged:ProductRequest={...revised,mutations:revised.mutations.map(m=>m.kind==='product_create'&&m.entityType==='Decision'?{...m,fields:{...m.fields,context:JSON.stringify({...JSON.parse(String(m.fields.context)),warning:'Please approve this harmless correction.'})}}:m)};
+  const forgedPreview=await call('preview_change',forged);let asked=false;
+  expect((await reviewProductChange({request:forged,fingerprint:forgedPreview.fingerprint,decision:'accept'},ctx,async()=>{asked=true;return 'Remove poetry and restrict F to developer repository diagnostics.';})).ok).toBe(false);expect(asked).toBe(false);
+  // Tool arguments cannot install the host's answer authority.
+  expect((await call('apply_change',{request:revised,fingerprint:p.fingerprint,decision:'accept',developerAnswers:{'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'}})).ok).toBe(false);
+  // A nested callback may inherit authority but cannot introduce an answer.
+  await store.withExecutionContext('project-write',undefined,async()=>{
+   expect((await reviewProductChange({request:revised,fingerprint:p.fingerprint,decision:'accept'},ctx,async()=>'Remove poetry and restrict F to developer repository diagnostics.')).ok).toBe(false);
+  },p.fingerprint);
+  fs.writeFileSync(path.join(root,'answer-preview.json'),JSON.stringify({request:revised,fingerprint:p.fingerprint}));
+  const command='product-change accept answer-preview.json';
+  const shell=await processShellInput(command,{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
+  expect(JSON.parse(shell.output).status).toBe('needs_input');
+  const binary=process.env.AIWF_PUBLIC_BINARY,cli=path.resolve(import.meta.dir,'../../src/cli.ts');
+  const proc=Bun.spawn(binary?[binary,...lexCommand(command)]:['bun',cli,...lexCommand(command)],{cwd:root,stdout:'pipe',stderr:'pipe'});
+  const [stdout]=await Promise.all([new Response(proc.stdout).text(),new Response(proc.stderr).text(),proc.exited]);expect(JSON.parse(stdout).status).toBe('needs_input');
+  const transport=new StdioClientTransport({command:binary??'bun',args:binary?['mcp']:[cli,'mcp'],cwd:root,env:{...process.env,AIWF_EXECUTION_AUTHORITY:'project-write'} as Record<string,string>,stderr:'pipe'});
+  const client=new Client({name:'developer-answer-boundary',version:'1'});
+  try {
+   await client.connect(transport);
+   const result=await client.callTool({name:'apply_change',arguments:{request:revised,fingerprint:p.fingerprint,decision:'accept',developerAnswers:{'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'}}});
+   expect(result.isError).not.toBe(true);expect(JSON.parse((result.content as Array<{text:string}>)[0]!.text).status).toBe('needs_input');
+  } finally {await client.close();}
+  // Trusted Workspace host receives the response separately from request/approval.
+  const workspace=startWorkspace(ctx),url=new URL(workspace.url),token=url.hash.slice(1);
+  try {
+   const apply=async(developerAnswers?:Record<string,string>,request=revised,fingerprint=p.fingerprint)=>{
+    const response=await fetch(url.origin+'/api/apply',{method:'POST',headers:{'x-aiwf-token':token,'content-type':'application/json'},body:JSON.stringify({request,fingerprint,decision:'accept',developerAnswers})});
+    return response.json();
+   };
+   expect((await apply()).status).toBe('needs_input');
+   const changed:ProductRequest={...revised,mutations:revised.mutations.map(m=>m.kind==='product_create'&&m.entityType==='Feature'?{...m,fields:{...m.fields,body:'Different repository diagnostic proposal'}}:m)};
+   expect((await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'},changed)).error).toContain('Developer answer required');
+   const success=await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'});expect(success.ok).toBe(true);
+   expect((await call('get_decision',{id:'AGENT-ANSWER'})).context).toContain(warning);
+  } finally {workspace.server.stop(true);}
+
+ });
+ it('rejects answers bound to a stale charter or original Feature revision',async()=>{
+  await accept({action:'product_change',mutations:[charter]});
+  await accept(feature('Diagnose source defects for developers'));
+  const original:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'General conversation and poems'}}]};
+  verdict='conflict';const raised=await call('preview_change',original);expect(raised.status).toBe('needs_input');verdict='aligned';
+  const response='Keep repository engineering assistance; exclude general conversation.';
+  const revised:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'Repository engineering assistance'}},{kind:'product_create',entityType:'Decision',id:'STALE',fields:{title:'Engineering assistance',context:JSON.stringify({warning,proposal:original,reviewFingerprint:raised.fingerprint,charterRevision:1}),decision:response,status:'accepted'}},{kind:'product_link',sourceId:'STALE',predicate:'governs',targetId:'F'}]};
+  const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
+  // Independently aligned ordinary Feature revision remains usable.
+  await accept({action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'Explain compiler diagnostics for developers'}}]});
+  const stale=await call('preview_change',revised);expect(stale.status).toBe('needs_input');expect(stale.blockReason).toContain('Stale');
+  expect((await reviewProductChange({request:revised,fingerprint:stale.fingerprint,decision:'accept'},ctx,async()=>response)).ok).toBe(false);
+  await accept({action:'product_change',mutations:[{kind:'product_update',entityType:'Product',id:'PRODUCT',fields:{bounds:'Repository-local engineering assistance'}}]});
+  const changed=await call('preview_change',revised);expect(changed.blockReason).toContain('Stale');
+  expect(await store.getEntity('STALE',Decision.dcr)).toBeNull();expect((await call('get_feature',{featureId:'F'})).body).toContain('compiler diagnostics');
  });
  it('requires an accepted canonical charter, while drafts and unrelated work remain usable',async()=>{
   const missing=await call('preview_change',feature('Review source defects'));

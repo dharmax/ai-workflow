@@ -7,7 +7,7 @@
 
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
-import {reviewLink, reviewDefinition} from './product/links.ts';
+import {reviewLink, reviewDefinition, reviewProductChange} from './product/links.ts';
 import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
 import { parseCommand } from './artifact-command.ts';
 import {isBlockedOperation} from './artifact-policy.ts';
@@ -199,9 +199,11 @@ async function main() {
       const ctx = {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const};
       const result = action === 'preview'
         ? await registry.execute('preview_change', input, ctx)
-        : await ctx.store.withExecutionContext(ctx.executionAuthority, undefined,
-          () => registry.execute('apply_change', {...(input as Record<string, unknown>), decision: action}, ctx),
-          action === 'accept' ? String((input as Record<string, unknown>).fingerprint) : undefined);
+        : await reviewProductChange({...input as Parameters<typeof reviewProductChange>[0],decision:action as 'accept'|'reject'|'cancel'},ctx,
+          process.stdin.isTTY ? async question => {
+            const reader=createInterface({input:process.stdin,output:process.stdout});
+            try { return await reader.question(question); } finally { reader.close(); }
+          } : undefined);
       console.log(JSON.stringify(result, null, 2));
       if (result.blocked || action === 'accept' && !result.ok) process.exitCode = 1;
       break;

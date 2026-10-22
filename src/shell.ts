@@ -11,7 +11,7 @@ import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts
 import { CommanderError } from 'commander';
 import { parseCommand, lexCommand, isExplicitCommand, facilitateArtifactCommand, type NormalizedCommand } from './artifact-command.ts';
 import os from 'node:os';
-import {reviewLink,reviewDefinition} from './product/links.ts';
+import {reviewLink,reviewDefinition,reviewProductChange} from './product/links.ts';
 import {isBlockedOperation} from './artifact-policy.ts';
 import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
 import type {ActorStepRecord} from '@dharmax/llm-utils';
@@ -182,6 +182,17 @@ export async function processShellInput(
         const result=command.family==='link'
           ? await reviewLink(command.args,ctx,command.yes,confirm,present)
           : await reviewDefinition(command.input,ctx,command.yes,confirm,present);
+        return {output:JSON.stringify(result,null,2)};
+      }
+      if(command.family==='legacy' && command.command==='product-change') {
+        const [action,file,...extra]=command.tokens;
+        if (!file || extra.length || !['preview','accept','reject','cancel'].includes(action!)) throw Error('Usage: product-change preview <request.json> | accept|reject|cancel <preview.json>');
+        const input=JSON.parse(fs.readFileSync(path.resolve(ctx.projectRoot,file),'utf8'));
+        const result=action==='preview' ? await registry.execute('preview_change',input,ctx) : await reviewProductChange({...input,decision:action},ctx,
+          isInteractive ? async question => {
+            const response=await facilitator.facilitate({answer:{type:'string',description:question}},{},{interactive:true});
+            return typeof response.answer==='string' ? response.answer : undefined;
+          } : undefined);
         return {output:JSON.stringify(result,null,2)};
       }
       if(command.family==='legacy' && command.command==='product-export') {

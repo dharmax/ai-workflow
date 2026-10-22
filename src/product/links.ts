@@ -1,7 +1,7 @@
 /** Governed link presentation over the existing Product/S2 owner. */
 import {z} from 'zod';
 import type {WorkflowStore} from '../graph/store.ts';
-import {PRODUCT_RELATIONS,LinkPayloadSchema,normalizeLinkPayload,productKind,resolveProductEntity,productEdgeRows,productRelation} from './mutation.ts';
+import {CharterWarningContextSchema,PRODUCT_RELATIONS,LinkPayloadSchema,normalizeLinkPayload,productKind,resolveProductEntity,productEdgeRows,productRelation} from './mutation.ts';
 import {computeHash} from '../kb/canonical.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import type {ChangeRequest} from '../change/types.ts';
@@ -132,6 +132,33 @@ export async function previewDefinitionChange(ctx: ToolContext, input: Definitio
       fields: input.fields
     }
   };
+}
+
+/** Existing local review, with a separate question/response step for charter Decisions.
+ * The callback is host UI code, never an Actor/tool argument. */
+export async function reviewProductChange(
+  input: {request: import('../change/types.ts').ChangeRequest; fingerprint:string; decision:'accept'|'reject'|'cancel'},
+  ctx: ToolContext,
+  respond?: (question:string, decisionId:string) => Promise<string | undefined>
+) {
+  const answers: Record<string,string> = {};
+  if (input.decision === 'accept' && respond && input.request.action === 'product_change') {
+    for (const mutation of input.request.mutations) {
+      if ((mutation.kind !== 'product_create' && mutation.kind !== 'product_update') || mutation.entityType !== 'Decision') continue;
+      let context: unknown;
+      try { context = JSON.parse(String(mutation.fields.context)); } catch { continue; }
+      const basis=CharterWarningContextSchema.safeParse(context);
+      if (!basis.success) continue;
+      // Obtain the grounded question from the public owner, rather than trusting
+      // an agent's account of what warning was raised. Changed/uncertain review fails closed.
+      const raised=await registry.execute('preview_change',basis.data.proposal,ctx);
+      if (raised.status!=='needs_input' || raised.fingerprint!==basis.data.reviewFingerprint || !raised.warnings.includes(basis.data.warning)) continue;
+      const answer = await respond(`Charter warning: ${basis.data.warning}\nEnter your actual response to this question. Approval of proposed text is separate; if your answer differs, revise the Decision before applying.\nDeveloper response: `,mutation.id);
+      if (answer !== undefined) answers[mutation.id] = answer;
+    }
+  }
+  return ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only',ctx.signal,
+    () => registry.execute('apply_change',input,ctx), input.decision === 'accept' ? input.fingerprint : undefined,answers);
 }
 
 export async function reviewDefinition(

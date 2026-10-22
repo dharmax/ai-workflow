@@ -291,7 +291,8 @@ export function workspaceClient() {
     say('Preparing review…');
     const result=existing||await api('preview',request);
     if(epoch!==editEpoch) return;
-    if(result.blocked) throw new Error(result.blockReason||'Review blocked');
+    const needsAnswer=result.status==='needs_input' && result.blockReason?.startsWith('Developer answer required for Decision ');
+    if(result.blocked && !needsAnswer) throw new Error(result.blockReason||'Review blocked');
     if(imported) renderProposal(request);
     preview=result; $('review').hidden=false; $('update').hidden=false; $('review-button').hidden=true;
     $('summary').textContent=result.summary;
@@ -306,6 +307,17 @@ export function workspaceClient() {
         el('p','Note after: '+(mutation.kind==='product_unlink'?'(relationship removed)':mutation.payload!==undefined?mutation.payload.note||'(none)':before?.note||'(none)'),block);
       }
       if(mutation.fields) {
+        if(mutation.entityType==='Decision' && mutation.fields.context) {
+          let context;
+          try {context=JSON.parse(mutation.fields.context);} catch {}
+          if(context?.warning) {
+            el('p','Charter warning: '+context.warning,block);
+            const label=el('label','Your response to this charter warning',block);
+            const answer=el('textarea',undefined,label);
+            answer.setAttribute('data-charter-decision',mutation.id);
+            el('small','Enter your actual answer separately from approval. If it differs from the proposed Decision, edit that Decision and update the review.',label);
+          }
+        }
         const before=current?.entity.id===mutation.id?current.entity:catalog.find(e=>e.id===mutation.id)||{};
         const table=el('table',undefined,block), head=el('tr',undefined,table);
         for(const title of ['Field','Before','After']) el('th',title,head);
@@ -330,7 +342,8 @@ export function workspaceClient() {
     for(const [control] of controls) control.disabled=true;
     saving=true;
     try {
-      const result=await api('apply',{request:reviewed.request,fingerprint:reviewed.fingerprint,decision:choice});
+      const developerAnswers=Object.fromEntries([...document.querySelectorAll('[data-charter-decision]')].map(input=>[input.getAttribute('data-charter-decision'),input.value]));
+      const result=await api('apply',{request:reviewed.request,fingerprint:reviewed.fingerprint,decision:choice,developerAnswers});
       if(choice==='accept') {
         if(!result.ok) throw new Error(result.error||'Save refused');
         dirty=false; imported=null; preview=null; pending=[];

@@ -7,6 +7,7 @@ import { workspacePage } from './page.ts';
 import { IntentProposalSchema } from '../product/process-types.ts';
 import { Product, ModuleNode } from '../graph/ontology.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
+import {reviewProductChange} from '../product/links.ts';
 
 const reads = {
   Feature: ['list_features', 'get_feature', 'featureId'],
@@ -23,7 +24,7 @@ const reads = {
 } as const;
 const querySchema = z.object({kind:z.enum(Object.keys(reads) as [keyof typeof reads, ...(keyof typeof reads)[]]), id:z.string().min(1)});
 const requestSchema = z.object({action:z.literal('product_change'), mutations:z.array(ProductMutationSchema).min(1), basis:z.array(ProductRevisionSchema).optional(), originalRequest:z.string().optional()}).strict();
-const applySchema = z.object({request:requestSchema, fingerprint:z.string().min(1), decision:z.enum(['accept','reject','cancel'])}).strict();
+const applySchema = z.object({request:requestSchema, fingerprint:z.string().min(1), decision:z.enum(['accept','reject','cancel']),developerAnswers:z.record(z.string(),z.string()).optional()}).strict();
 
 /** Caller owns the store; stop the returned server before closing it. Bind only loopback. */
 export function startWorkspace(ctx: ToolContext, port = 0) {
@@ -96,8 +97,8 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
         }
         if (req.method === 'POST' && url.pathname === '/api/apply') {
           const input = applySchema.parse(await req.json());
-          return json(await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal,
-            () => call('apply_change',input), input.decision === 'accept' ? input.fingerprint : undefined));
+          return json(await reviewProductChange({request:input.request,fingerprint:input.fingerprint,decision:input.decision},ctx,
+            async (_question,id) => input.developerAnswers?.[id]));
         }
         return json({error:'Not found'},404);
       } catch (error) {

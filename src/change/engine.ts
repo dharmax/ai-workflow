@@ -648,7 +648,7 @@ export class CausalChangeEngine {
     try {
       const validated = await validateProductMutations(this.store, request.mutations, request.basis);
       const {snapshot} = validated;
-      await assessFeatureAlignment(this.store, request.mutations, validated);
+      await assessFeatureAlignment(this.store, request.mutations, validated, request);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
       const affected = new Set<string>();
@@ -675,6 +675,8 @@ export class CausalChangeEngine {
       const blocked = this.createBlockedPreview(request, error instanceof Error ? error.message : String(error), []);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       if (error instanceof ProductAlignmentRequired) {
+        const {snapshot} = await validateProductMutations(this.store, request.mutations, request.basis);
+        blocked.fingerprint = computeHash({request, snapshot});
         blocked.status = 'needs_input';
         blocked.warnings = error.warnings;
         blocked.required = error.required;
