@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exportedAt": "2026-10-21T11:21:26.194Z",
+  "exportedAt": "2026-10-22T12:35:55.794Z",
   "entities": [
     {
       "id": "ASP-AIWF-EFFICIENCY",
@@ -229,6 +229,32 @@
         "title": "Increasingly autonomous, grounded engineering",
         "body": "An engineering system understands enduring product intent through capabilities, actor behavior, requirements, governance, source symbols, tests and observed execution. Every phase improves capability, correctness, architectural clarity or efficiency without unjustified regression. Canonical graph is authoritative; epics.md/kanban.md are projections. This registration is planning only; no implementation authorization. Existing verified work and receipts remain historical evidence.",
         "status": "accepted"
+      }
+    },
+    {
+      "id": "PRODUCT",
+      "kind": "Product",
+      "fields": {
+        "title": "AI-Workflow (AIWF)",
+        "status": "accepted",
+        "purpose": "AIWF aims to dramatically improve the **quality, speed and cost-efficiency of AI-assisted software engineering**.\n\nIt enables developers and AI coding agents to produce and maintain tight, production-quality software by combining semantically connected project knowledge, engineering intelligence, integrated work management, efficient execution and worthwhile verification.\n\n**Performance ambition:** Achieve 20–90% reduction in LLM token consumption and 40–90% reduction in elapsed engineering time on comparable tasks, without compromising correctness or maintainability, but rather increasing them.\n\nThese are measurable product targets, not guaranteed outcomes. The ultimate measure of success is correctly engineered software, achieved with substantially less effort, time and avoidable technical debt.",
+        "actors": [
+          "Developer / Product Owner: Defines intended product behavior, reviews proposals, makes decisions and authorizes consequential changes.",
+          "AI Coding Agent: Uses AIWF to understand, investigate, plan, implement, test and verify engineering work within its delegated authority.",
+          "Maintainer: Understands and evolves existing software, investigates defects, manages technical work and protects its integrity.",
+          "Verifier: Independently assesses actual engineering outcomes against applicable requirements and evidence. May be human or AI."
+        ],
+        "scope": "AIWF provides an integrated engineering environment encompassing:\n\n**Product understanding**\n\n- A canonical Product Charter and semantically connected Goals, Features, Aspects, User/Actor Stories and related knowledge.\n- AI-assisted discovery, generation, reconciliation and controlled evolution of product definitions.\n- Identification of conflicts, dependencies, inconsistencies and product drift.\n\n**Engineering intelligence**\n\n- A persistent semantic project graph connecting product intent, work, code, architecture, tests, decisions and evidence.\n- Efficient, targeted retrieval, dependency and impact analysis, code intelligence and refactoring support.\n- Intelligent selection and combination of deterministic operations, System-1 and LLM reasoning to optimize engineering economics.\n\n**Work management and execution**\n\n- Integrated Epics, Tickets, Bugs, priorities, dependencies, planning views and work lifecycle.\n- Grounded investigation, planning, implementation, testing, correction and completion.\n- Discovery, reuse, import and justified generation of capabilities and skills, combining knowledge and executable functionality where appropriate.\n\n**Quality and verification**\n\n- Dharmax-way as the governing engineering method, including US-driven test-first development and the Prime Directive.\n- Correct, maintainable implementations with minimal justified complexity.\n- Meaningful testing, independent current verification, truthful progress and durable evidence.\n\n**Accessibility and continuity**\n\n- Integration with external AI coding agents through MCP, skills and supported plugin interfaces.\n- Direct operation through CLI, interactive shell and graphical interfaces.\n- Persistent project context enabling work to continue across sessions, developers and agents.\n\nAIWF supports new functionality, modification of existing behavior, Bug resolution, refactoring and justified technical maintenance.",
+        "nonGoals": [
+          "Replace the developer's authority over product intent or consequential decisions.",
+          "Become a general-purpose chatbot or content-generation application.",
+          "Merely generate code, documentation, Tickets or other artifacts without advancing an actual engineering objective.",
+          "Replace established development tools or suitable ecosystem capabilities unnecessarily.",
+          "Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.",
+          "Optimize token consumption or speed at the expense of correctness, maintainability or safety.",
+          "Treat passing internal tests, generated code, completed Ticket states or AI assertions as sufficient proof of product correctness."
+        ],
+        "bounds": "1. **Developer authority:** Product intent and material changes require appropriate review and approval. Every downstream product definition is examined against the charter; material conflicts or drift must be exposed and explicitly answered.\n\n2. **Engineering quality:** Dharmax-way and its Prime Directive govern the work. The simplest correct solution wins. Avoid assumptions, unnecessary abstraction, duplicated ownership and accumulating avoidable technical debt.\n\n3. **Grounded intelligence:** Investigation and engineering decisions must use relevant, attributable project knowledge and actual evidence. Unknown or uncertain information must not be represented as established fact.\n\n4. **Efficiency:** Prefer inexpensive deterministic mechanisms where sufficient. Use AI reasoning when it adds value, with relevant context, appropriate capabilities and measurable resource consumption.\n\n5. **Safety and integrity:** Respect authorization, project boundaries, existing work and guarded mutation contracts. Changes must not silently damage or overwrite unrelated work.\n\n6. **Truthful verification:** Product acceptance requires relevant observed behavior and valid current evidence. Verification effort should be proportional to the actual obligations and risks, not performed merely for appearances.\n\n7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.\n\n8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.\n\nA person or agent may fulfill more than one role, subject to applicable authorization and verification-independence requirements."
       }
     },
     {
