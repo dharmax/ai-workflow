@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 227 | 0 | 0 | None |
+| `root` | project default | 222 | 0 | 0 | None |
 | `src/graph` | project default | 1023 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 612 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 288 | 0 | 0 | TKT-EXT-SURFACE-07 |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 67 | 0 | 0 | None |
 | `src/doctor` | project default | 63 | 0 | 0 | None |
 | `src/setup` | project default | 138 | 0 | 0 | None |
-| `tests` | project default | 2223 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10 |
+| `tests` | project default | 2228 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10, TKT-PRODUCT-CHARTER-FEATURE |
 | `skills` | project default | 11 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 26 | 0 | 0 | None |

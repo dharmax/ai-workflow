@@ -127,6 +127,42 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
   expect(p.status).toBe('needs_input');expect(p.warnings).toContain(response.alignment.conflicts[0].message);
   expect(p.required).toContainEqual({artifactId:'QUALIFY-CONTRADICTORY',question:response.alignment.conflicts[0].question});
  });
+ it('refuses incomplete acceptance without changing accepted intent',async()=>{
+  expect((await apply(charter())).ok).toBe(true);
+  expect((await apply(feature())).ok).toBe(true);
+  for(const field of ['actor','intent','initialState','action','expectedResult'] as const){
+   const refused=await preview(story({...storyFields,[field]:'   '}));expect(refused.blocked).toBe(true);expect(refused.blockReason).toContain(field);
+   expect(await call('list_user_stories',{})).toHaveLength(0);
+  }
+  expect((await apply(story())).ok).toBe(true);
+  const accepted=await call('get_user_story',{storyId:'US'});
+  for(const field of ['actor','intent','initialState','action','expectedResult'] as const){
+   const incomplete:Request={action:'product_change',mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{[field]:''}}]};
+   const refused=await preview(incomplete);expect(refused.blocked).toBe(true);expect(refused.blockReason).toContain(field);
+   expect(await call('get_user_story',{storyId:'US'})).toEqual(accepted);
+  }
+ });
+ it('refuses a stale Story approval and reopens the same accepted identity and meaning',async()=>{
+  expect((await apply(charter())).ok).toBe(true);
+  expect((await apply(feature())).ok).toBe(true);
+  expect((await apply(story())).ok).toBe(true);
+  const pending:Request={action:'product_change',basis:[{id:'US',entityType:'UserStory',version:1}],mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{expectedResult:storyFields.expectedResult+' Show the test command.'}}]};
+  const old=await preview(pending);
+  const revised={...storyFields,expectedResult:storyFields.expectedResult+' Include source file and line references.'};
+  expect((await apply({action:'product_change',mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:revised}]})).ok).toBe(true);
+  const accepted=await call('get_user_story',{storyId:'US'});
+  expect(accepted).toMatchObject({id:'US',...revised,status:'accepted',version:2,definitionReview:{status:'complete',missingFields:[]}});
+  const stale=await reviewedApply(store,{request:pending,fingerprint:old.fingerprint,decision:'accept'});expect(stale.ok).toBe(false);expect(stale.error).toContain('Stale');
+  for(const decision of ['reject','cancel']){
+   const current=await preview({...pending,basis:[{id:'US',entityType:'UserStory',version:2}]});
+   expect((await reviewedApply(store,{request:current.request,fingerprint:current.fingerprint,decision})).ok).toBe(false);
+   expect(await call('get_user_story',{storyId:'US'})).toEqual(accepted);
+  }
+  store.close();store=new WorkflowStore(root);
+  expect(await call('get_user_story',{storyId:'US'})).toEqual(accepted);
+  expect(await call('list_user_stories',{})).toHaveLength(1);
+  expect((await call('link',{action:'inspect',id:'US',predicate:'enables'})).links).toEqual([expect.objectContaining({sourceId:'QUALIFY-ALIGNED',targetId:'US',predicate:'enables'})]);
+ });
  it('requires current accepted charter for complete Stories too',async()=>{
   const request=story();request.mutations.pop();expect((await preview(request)).status).toBe('needs_input');
  });
