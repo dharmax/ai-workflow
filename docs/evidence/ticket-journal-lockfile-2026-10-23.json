@@ -1,0 +1,10 @@
+{
+  "artifact": "Measured preservation evidence for the existing Ticket journal correction",
+  "file": "bun.lockb",
+  "baselineSha256": "959535c3bfbfaef1125a7c345d4c1c7c7f23df9f476ca0af97b80c7f6397ca0d",
+  "currentSha256": "959535c3bfbfaef1125a7c345d4c1c7c7f23df9f476ca0af97b80c7f6397ca0d",
+  "unchanged": true,
+  "preexistingDirty": true,
+  "measuredAt": "2026-10-23T14:21:41.311Z",
+  "method": "SHA-256 of actual file bytes, compared to the recorded pre-implementation baseline. This is preservation evidence, not a new test or verification receipt."
+}

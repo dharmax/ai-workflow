@@ -1,0 +1,889 @@
+{
+  "ticketId": "TKT-TICKET-JOURNAL",
+  "date": "2026-10-23",
+  "branch": "master",
+  "base": "e418c4cd779bee8338b65e44cb5fec82db92140d",
+  "approvalBasis": "Developer-approved Ticket Body & System Journal outward Story in this session; PRODUCT accepted revision 1; three universal Rules revision 1. No BASIC #3 authorization.",
+  "baseline": {
+    "command": "bun test tests/us/ticket-journal.test.ts",
+    "source": "master before journal implementation",
+    "result": "0 pass / 1 fail / 2 assertions",
+    "failure": "Tool 'record_ticket_event' not found in registry.",
+    "unchangedMainStory": true
+  },
+  "validation": {
+    "publicStoryAndBoundaries": "3 pass / 0 fail / 44 assertions",
+    "nativeResolverAndStory": "59 pass / 0 fail / 431 assertions",
+    "finalFullRegression": "594 pass / 5 existing opt-in skips / 0 fail / 4387 assertions / 599 tests / 78 files / 142.11s",
+    "typecheck": "pass",
+    "definitions": "pass: 20 concepts, 164 links, 9 exact US fields",
+    "pack": "pass; pre-existing dirty llm-utils dependency remains",
+    "packedStory": "3 pass / 0 fail",
+    "freshPackedMcp": "4 journal tools advertised; BASIC #2 Done/verified, 727-character specification, original 12176-character body retrievable; read-only journal mutation refused",
+    "migrationReopenAndSync": "36 original hashes, lanes, verification signatures and existing receipt hashes/versions match after sync and fresh reopen",
+    "bunLockbSha256Unchanged": "959535c3bfbfaef1125a7c345d4c1c7c7f23df9f476ca0af97b80c7f6397ca0d"
+  },
+  "migration": {
+    "timestamp": "2026-10-23T09:09:54.522Z",
+    "rows": [
+      {
+        "ticketId": "AIWF-ASPECTS",
+        "entryId": "01a16805-612c-71b1-ab89-8e5a374381ab",
+        "beforeBytes": 2983,
+        "afterBytes": 2363,
+        "originalHash": "5c8605232e339a0b3b72c5f92410861d0c56e1c2ed0174c97551d62e172ce348",
+        "specificationHash": "8725bb96baaf06cb016d58ef2594bdfc61587b1182bd10679ab59e73fa45f49f",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "d193debed56f9f45c053aa0d99a569c0d6ebd0322d1c38e78fb9161c89e6e1f2",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "d193debed56f9f45c053aa0d99a569c0d6ebd0322d1c38e78fb9161c89e6e1f2",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "AIWF-TICKET-INVESTIGATION",
+        "entryId": "01a16806-112a-729c-b671-c6b3c98865e1",
+        "beforeBytes": 2550,
+        "afterBytes": 1930,
+        "originalHash": "cb1918eb3837b0b34215aefff0fe1f976342ea359df584445cd0bf715aa00e34",
+        "specificationHash": "023223e1275ae8d5bacae2de1f7441f0ccfadf10a0958ef0839fc0f8f6aee68b",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "44da0248b048a1ccfb45f21d5b44f56f75154283d483355bcf1f1587cca9af45",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "44da0248b048a1ccfb45f21d5b44f56f75154283d483355bcf1f1587cca9af45",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "AIWF-PERFORMANCE-METRICS",
+        "entryId": "01a16806-122d-757a-b3ce-407e922669c1",
+        "beforeBytes": 5219,
+        "afterBytes": 1537,
+        "originalHash": "2c35c99315d744b53a35b50619dd469279c6d3900ce0587863685e2df0002c66",
+        "specificationHash": "be537e1f302f8b063c13ff0eb982520e82f3d8b45e707cb59595cac452a30218",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "3439a5a9e7fa11acdb10939b244ee33a1026d62ca01f9c979c18271fc40dfc9d",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "3439a5a9e7fa11acdb10939b244ee33a1026d62ca01f9c979c18271fc40dfc9d",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "AIWF-TICKET-RESOLUTION-FIRST-PROOF",
+        "entryId": "01a16806-1327-7632-88f0-106233c9b80c",
+        "beforeBytes": 9254,
+        "afterBytes": 2063,
+        "originalHash": "b9f4436a6c7a820e25eb1bc15638dca373822b3607da0e497907d71c16e3d3a6",
+        "specificationHash": "eed6ca0a8054ba6fafa485892d656572964054adc6034feac734a446d300a802",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "e30b383bdc4db11b14743356b17f4fd76764919149e55d59a6fd04a9af427459",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "e30b383bdc4db11b14743356b17f4fd76764919149e55d59a6fd04a9af427459",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "AIWF-FINAL-DOGFOOD-AUDIT",
+        "entryId": "01a16806-13e3-7517-8f1d-f4b15b08806d",
+        "beforeBytes": 2376,
+        "afterBytes": 1825,
+        "originalHash": "c2bd73b5f679e095f4cf2ec592dc9f548644415594726a14d4a0d697f247b093",
+        "specificationHash": "3b2b4f7012e543c398c7b162ea8a2543ecf1c1c16c44412a6bde94344d1d776f",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "4dfd05791cd92d255d91772306b08b95f70646408c8c7cb52e2e6eb40db01bd8",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "4dfd05791cd92d255d91772306b08b95f70646408c8c7cb52e2e6eb40db01bd8",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-YXKK",
+        "entryId": "01a16806-144c-71b4-9232-c880369a45fa",
+        "beforeBytes": 1465,
+        "afterBytes": 378,
+        "originalHash": "7c4060946c811fab4b4f5ea200f806b697e39cbf1f24f65584e08de5fb5e575b",
+        "specificationHash": "9ea01d2f954ef03e7c679bbc9366f2754fd7ed2762321cb434d11b10ee2d9c61",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "f024d30088914a4fd0f5a758a21095e5552186b33dac24e138b5917a90ffa451",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "f024d30088914a4fd0f5a758a21095e5552186b33dac24e138b5917a90ffa451",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-LLPM",
+        "entryId": "01a16806-14ae-7288-b536-c2c3c9432254",
+        "beforeBytes": 1960,
+        "afterBytes": 502,
+        "originalHash": "912adf70491bb7e3173d411165d8c55e7a2e754e20d8875597abfb731ea4a6c8",
+        "specificationHash": "93df069d6456d4297cbaef7a2fc6022a47094123ec5a9e5ba9d9603df01ebedc",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "29dc8ee3e3dfce7813d957c4acf2302e28e4b5d25cac57c3c447e5a2b13a4a26",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "29dc8ee3e3dfce7813d957c4acf2302e28e4b5d25cac57c3c447e5a2b13a4a26",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-RILZ",
+        "entryId": "01a16806-1512-7091-99fb-b805d2ad911c",
+        "beforeBytes": 9327,
+        "afterBytes": 300,
+        "originalHash": "7423d2975bd1b0d2b66d9fc3d67cb579de3ce54152c039903d2b17a536f72d34",
+        "specificationHash": "5924e86b6daf9854241a2a747e3a1fdda54efcc97c00ed3774786da82ea3fa1c",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "799e699a9d02a9cc5c8e08430f4d8a544adc8800dddab7c026ca0943d2acb4ae",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "799e699a9d02a9cc5c8e08430f4d8a544adc8800dddab7c026ca0943d2acb4ae",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-GB73",
+        "entryId": "01a16806-1572-7219-9115-702c8a5fda6e",
+        "beforeBytes": 741,
+        "afterBytes": 217,
+        "originalHash": "1047f07600fcf6139becfadc288bd79242cf4b0a34d801f59fb8e0f0136c0397",
+        "specificationHash": "23f23bbc85f66fa7d182e04099b83c4b991a95eac6be5fd4b2cfe626a7b313ec",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "f60c68cdc9d957a9e8fa173bd45d37a51c85e07eff173907455ec4e416ad81e1",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "f60c68cdc9d957a9e8fa173bd45d37a51c85e07eff173907455ec4e416ad81e1",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-3END",
+        "entryId": "01a16806-15c9-7587-a089-152f31dadbb4",
+        "beforeBytes": 844,
+        "afterBytes": 207,
+        "originalHash": "3d53616be45fc2ad64e724ea56cf351161ce63b081f04c2e645b8ff7f7c42a51",
+        "specificationHash": "e6560ae9ab3ddd0e633c35d0313537fff457f61557dc6d1573645272829631e2",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "63dfc06df5dd025a9f99f2e2904615ba259a643fca88789e569cf78cd22b5994",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "63dfc06df5dd025a9f99f2e2904615ba259a643fca88789e569cf78cd22b5994",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-8D3F",
+        "entryId": "01a16806-16ca-744e-a5a3-fd9251139640",
+        "beforeBytes": 25508,
+        "afterBytes": 347,
+        "originalHash": "2b8b3606b71a0d3f9d3c251cd5c7b244ab1765718400ed068a7b03cca798d145",
+        "specificationHash": "fb5a71674cc14f3b46bf72afd2d6edebb124627a011c8c93dc6a9e0fc8078c8d",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "65fee0e001325f013ea4d0025f8fe8e3f68a38880b586bb9533004009d8cea28",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "65fee0e001325f013ea4d0025f8fe8e3f68a38880b586bb9533004009d8cea28",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "AIWF-TOPLEVEL1-PHASE-A",
+        "entryId": "01a16806-175b-7324-a31e-9bcf48b319dd",
+        "beforeBytes": 855,
+        "afterBytes": 181,
+        "originalHash": "cad84fe19d60cb6c47fde3bc9bda087cffdbc3119a2da2895fa86621fc2f02de",
+        "specificationHash": "7bf08e01765ccf3134165f6b2785426565a3a75a5b844dafd4b59e4e6e449e53",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "abfe00c11f69627b4764e29b5da0c875d17b9d56a2dba7e597e37d5ef9133cda",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "abfe00c11f69627b4764e29b5da0c875d17b9d56a2dba7e597e37d5ef9133cda",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-ADV-ACTOR-P0",
+        "entryId": "01a16806-17ab-743d-a88e-e7666efc5ca8",
+        "beforeBytes": 1973,
+        "afterBytes": 257,
+        "originalHash": "0e077947f3dc694d132525a280ace9a8c7e3fd78496edfb72aa136ba48dc6403",
+        "specificationHash": "ce8970e2e058650fd3bb3f9ab4cf12ce1d3c85fc905effc4d916dbd7326cbecf",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "71aa3c0626f9a6a26bbb3a60ab7984b9c96c767894dca9649fb44ece0ce3e889",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "71aa3c0626f9a6a26bbb3a60ab7984b9c96c767894dca9649fb44ece0ce3e889",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-CLIENT-GRAPH-FIRST",
+        "entryId": "01a16806-1801-77ca-8218-c112525b1f84",
+        "beforeBytes": 768,
+        "afterBytes": 293,
+        "originalHash": "b7347154cfa23efdc5b36f10f27bda4390f1ac81a95e6b38d48834be829b8778",
+        "specificationHash": "76106d21920e68414cbda6bb3312bd38ea9e7240607fd1004f810d5dae8460d0",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "33ce0e2a8034a38b6ed13b43ecde25558897e8dd20cb8d31b8ca15631fe1daea",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "33ce0e2a8034a38b6ed13b43ecde25558897e8dd20cb8d31b8ca15631fe1daea",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-CONFIG-A",
+        "entryId": "01a16806-1853-7794-85da-5dcacb80222d",
+        "beforeBytes": 1462,
+        "afterBytes": 293,
+        "originalHash": "292cebf7704e7fa2a2ccac19d2068c45ddb318376603a8438bd76a38390b60dc",
+        "specificationHash": "240658a58a8b4f7bfc7a815f06d1fe636fd644afdba70d3e6b9445ff1c13a516",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "9b1a93e1fb8f062b5f6ed725833c7c30974491a4e2b4d664d2aebc230f8fbacb",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "9b1a93e1fb8f062b5f6ed725833c7c30974491a4e2b4d664d2aebc230f8fbacb",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-SETUP-B",
+        "entryId": "01a16806-18a7-71ef-b6b1-09070bf19455",
+        "beforeBytes": 1306,
+        "afterBytes": 566,
+        "originalHash": "3ce2438aa9835d007a5016ddafdbbbc7d791adf15c3a58144bbd46360e5898eb",
+        "specificationHash": "bf9b8d6c688a6f6cacae7a76e927bc6ce0f35dd39d16d3095664710e2a2b9c0c",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "2a462512ee61508f5a761aeff0cea14ebc62ba874e8e950c06988c6d5cce293b",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "2a462512ee61508f5a761aeff0cea14ebc62ba874e8e950c06988c6d5cce293b",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-CONFIG-C",
+        "entryId": "01a16806-18fb-769c-aad4-ef5d8c4e8aa1",
+        "beforeBytes": 1140,
+        "afterBytes": 444,
+        "originalHash": "03b278a0e9efe7177b0811a96c92d98247954c003bbc43ab35878af145f7fcbd",
+        "specificationHash": "70c2952be84bdfe6c27b77ffe7e80b63ae5fd9c505ccc1a5b6d4a748286f94c9",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "eb15267db49d225e12e019dbd9f140d3eb7fb2c2fb8ecb4b1c7736ddde23004b",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "eb15267db49d225e12e019dbd9f140d3eb7fb2c2fb8ecb4b1c7736ddde23004b",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-SETUP-D",
+        "entryId": "01a16806-194f-7425-8545-6b30be75d132",
+        "beforeBytes": 1068,
+        "afterBytes": 372,
+        "originalHash": "5facd6d8e58041be00b9fa80278d581623b52cf7b337d579f2c846e6ceb5983b",
+        "specificationHash": "f0c7f7e58ef17e112d79be32e750ef46d63121aaf26c7b45dceb745e347aa00d",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "f4c824776053c3c74f8386397f940e5ff7bd5cd330d992a6c18659164fbd5c70",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "f4c824776053c3c74f8386397f940e5ff7bd5cd330d992a6c18659164fbd5c70",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-DOGFOOD-F",
+        "entryId": "01a16806-19a7-7057-ac19-97c6235176ae",
+        "beforeBytes": 5638,
+        "afterBytes": 576,
+        "originalHash": "748b87546962d1df8c902189277ee177cd732f6d9663a72cd2945882982975e6",
+        "specificationHash": "cf612ff8b6331ae365bad014ea1a49b6d9ee3f92de13c989d42b55a6cbdf8801",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "4ffcaf71e70f3268b7409067bead3bd21ddb247cda3c07f6a1350405c53d08d0",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "4ffcaf71e70f3268b7409067bead3bd21ddb247cda3c07f6a1350405c53d08d0",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-RESOLVE-RECOVERY-R1",
+        "entryId": "01a16806-19fa-7233-b7e7-8b208184736e",
+        "beforeBytes": 1571,
+        "afterBytes": 319,
+        "originalHash": "76986d1084eccd6202a2d4c5c1d794b37600e2dda12678028cc3bd6aff7ee494",
+        "specificationHash": "2bf7e5653267d35f24511c88a8ee0c70a8f9ef83b7b69bc09a34d6850cc1692c",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "5b2abb34b603db6f9baf7d92e17c5a007d28278fc1b63834cf7fca302c4c6f5e",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "5b2abb34b603db6f9baf7d92e17c5a007d28278fc1b63834cf7fca302c4c6f5e",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-RESOLVE-RECOVERY-R3",
+        "entryId": "01a16806-1a54-70ee-bb78-45e541ff19ac",
+        "beforeBytes": 8957,
+        "afterBytes": 343,
+        "originalHash": "adf27104ac67646ce09423bdaad95474a5d1a4a07b920c11eb95c40650216d02",
+        "specificationHash": "3c8dd513664cb7bab4dd7ec394168171ffd0c1dd70ee4aa8b6cfaa36f9e3c0c7",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "c617cf019353f76d0198f1ad62561d4b6da8c30371188be5b572bdb9d994a4b3",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "c617cf019353f76d0198f1ad62561d4b6da8c30371188be5b572bdb9d994a4b3",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-DOCTRINE-G5-RELEASE",
+        "entryId": "01a16806-1aac-7225-8a31-c9ae965e3af8",
+        "beforeBytes": 1564,
+        "afterBytes": 516,
+        "originalHash": "c943d0e6f36ea8cd8c7b92080b0f2229d5080bb4b16c2f86d27c6d4d50bd13de",
+        "specificationHash": "05635738f79742c124a50285789df78ce83b30dfaf158ac3e3e1e871369382d7",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "e071d6a340295c4247b0d18e9451e6e490e9a14ec58a7316e8fd9f6e36ee205d",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "e071d6a340295c4247b0d18e9451e6e490e9a14ec58a7316e8fd9f6e36ee205d",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+        "entryId": "01a16806-1b04-7778-b9e8-be24ca54d927",
+        "beforeBytes": 2046,
+        "afterBytes": 499,
+        "originalHash": "0fd51b8a37b6f600bf997a62c18f030b81b22b2d3538b4fedcd609a5b0251b3b",
+        "specificationHash": "abdce7c7f8737e358529dc16661d49ef009734d91023105475fd20ffca0ef3c5",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "2617151a5fcbef3ee7a5b0273322f8c306a46c21e22c604c8c8ae0a237481c0f",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "2617151a5fcbef3ee7a5b0273322f8c306a46c21e22c604c8c8ae0a237481c0f",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-TRANSACTION-PRODUCT-BATCH",
+        "entryId": "01a16806-1b78-738d-94d9-c86e06d6fff1",
+        "beforeBytes": 1689,
+        "afterBytes": 317,
+        "originalHash": "470b1fa911c818524aeafc44a7f309df362e92a1bfb6e0124d48a2d520b5301c",
+        "specificationHash": "9e84d61ee4af7065983d66b940edbe3192d443c681005f225281e6519ebaf97c",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "afb880f9b730328d190783d674e88d7972c7a06956b8cb562e7580b19eb02514",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "afb880f9b730328d190783d674e88d7972c7a06956b8cb562e7580b19eb02514",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-BUG-TYPE-LANE",
+        "entryId": "01a16806-1bd5-70c9-9c51-0ad7fa50c78e",
+        "beforeBytes": 809,
+        "afterBytes": 338,
+        "originalHash": "476fdde88914bf9241401affc252297d8da248970b5310167c6cfbf6c9e94978",
+        "specificationHash": "9fdde069080e2722b47ffd8f4cced595e0b4d72a9ec85506ddd031667c2d628f",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "fcc58a35d480f269be3aac7a3242d15e4bfb1ac25d19fa0b2d23fc3d56410f2d",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "fcc58a35d480f269be3aac7a3242d15e4bfb1ac25d19fa0b2d23fc3d56410f2d",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-V56W",
+        "entryId": "01a16806-1c30-77a2-801a-e56e03ae63c9",
+        "beforeBytes": 316,
+        "afterBytes": 70,
+        "originalHash": "7e4eea90b2c923d426d2a045d9f2912bddba5f9cb96b0dc0c59d283893408cc8",
+        "specificationHash": "ea8ae2479febeb2cd7459623e1a8f5776c227334a989c89ea1fd1624216298aa",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "5a21a7fc05559571546a49d7404da085d5acdf05383aac5fc0794a5d00f24136",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "5a21a7fc05559571546a49d7404da085d5acdf05383aac5fc0794a5d00f24136",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-DW-S1",
+        "entryId": "01a16806-1c82-7059-a5bf-f818eb04da16",
+        "beforeBytes": 2929,
+        "afterBytes": 1950,
+        "originalHash": "69d6c7490d98d5a7e78468983fdd0cda01383a0201fbdc8bbfae1216ad5f912a",
+        "specificationHash": "decacf4791cdbbff2de7d26f5bcfbbb6d624baf2a6c82db3d4022afaa7daf9c3",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "16f9035382288b0ad379e8f7c5f49f0d097655ac148c781e9878368404536c8f",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "16f9035382288b0ad379e8f7c5f49f0d097655ac148c781e9878368404536c8f",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-DW-S3",
+        "entryId": "01a16806-1cdf-72b5-b310-89a8c79ed5e5",
+        "beforeBytes": 3794,
+        "afterBytes": 941,
+        "originalHash": "775f33793ca5169fb35589b32af1aacd6fa2f0f65aecbce65e30fd0600f07a03",
+        "specificationHash": "29ccd9d2e29589b72c77b5b39c52abdfe288c49bdc8a9f1f497b960c06d8bb3a",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "8aea66eea301446a06f9be201bed3fcfe20a24b8c8083b32863a2aab2b666d47",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "8aea66eea301446a06f9be201bed3fcfe20a24b8c8083b32863a2aab2b666d47",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-RF0W",
+        "entryId": "01a16806-1d3c-77ea-bbda-73b6072b1444",
+        "beforeBytes": 316,
+        "afterBytes": 66,
+        "originalHash": "7e4eea90b2c923d426d2a045d9f2912bddba5f9cb96b0dc0c59d283893408cc8",
+        "specificationHash": "0f23902d5820f835680ce623031a8dbc97066fce5d852310579670f5558f06ce",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "294e44df8d521f93ec624f8055265562f5cd79c9069aa1d435249859b63dd9fd",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "294e44df8d521f93ec624f8055265562f5cd79c9069aa1d435249859b63dd9fd",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-7MI2",
+        "entryId": "01a16806-1d91-728a-bbc9-936cec6cca29",
+        "beforeBytes": 316,
+        "afterBytes": 68,
+        "originalHash": "7e4eea90b2c923d426d2a045d9f2912bddba5f9cb96b0dc0c59d283893408cc8",
+        "specificationHash": "cf748d723a3a1839137eb7164f2179f5cdf75cdfc3de27ad3d8ff5d4a335b2a6",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "ff98c8cc171ec525fab205a4c59f574d30f7b5a157437b4cfeadfafc0710d4c7",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Backlog",
+          "status": "planned",
+          "signature": "ff98c8cc171ec525fab205a4c59f574d30f7b5a157437b4cfeadfafc0710d4c7",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-PC1A",
+        "entryId": "01a16806-1de6-77ed-805b-d6318fc8893d",
+        "beforeBytes": 1120,
+        "afterBytes": 262,
+        "originalHash": "2fe0e9232eae354bd439b46903d40dfed6c08c3757d9caf3f291b9a55c1085ec",
+        "specificationHash": "298050820b2c65e1554b20cf1ecc5e8c464f6ba370e26103983bbf87fc312f06",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "e7872d97da4821ecc050c364401677ddac9ee237bfabd4ae4ab50209c70c37ef",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "e7872d97da4821ecc050c364401677ddac9ee237bfabd4ae4ab50209c70c37ef",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-PC1B",
+        "entryId": "01a16806-1e44-75e5-819a-47c8cbbe5f43",
+        "beforeBytes": 411,
+        "afterBytes": 256,
+        "originalHash": "ab7d51ebd271b7c18798906552f5bffb1394afcad2690499ed0e26ef13c167e6",
+        "specificationHash": "d9bd91c424623320d0523cad0d44a071adeac3ef12fa1d0d1881c54aa46d6644",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "26ec41bfe8489fd59eb51c4c38767cf4c554394970c6ba5576fb2e4f083924ed",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "26ec41bfe8489fd59eb51c4c38767cf4c554394970c6ba5576fb2e4f083924ed",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-EXT-SURFACE-01",
+        "entryId": "01a16806-1e99-70c3-96bb-13059215ee4d",
+        "beforeBytes": 1306,
+        "afterBytes": 662,
+        "originalHash": "5242a242d9c2d4dd73629d2735cd54f0a9bec8061f8e0319e7e7339e0fc8b6ce",
+        "specificationHash": "e7ce028635ae78f215ae11632054902bda9a673b14abd50ef2a01e99efbe7859",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "095ba6faff8f6fabc624298943c1ac87500093e4498b3eb53e1e0464dc5a9424",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "095ba6faff8f6fabc624298943c1ac87500093e4498b3eb53e1e0464dc5a9424",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-EXT-SURFACE-10",
+        "entryId": "01a16806-1f6d-777b-884d-56685e9146e2",
+        "beforeBytes": 2856,
+        "afterBytes": 487,
+        "originalHash": "0717c9aeefdad953c551b173b9966d985f21e63a53ac309d80197215ef2f6c3f",
+        "specificationHash": "8015c36af38154b6337989184670329b53d1be29cbbd11d30e1205cc68b9f7c5",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "f833f760f6f604cff1f0e34990be9bd0a7db3801c48e65c83a280cb3960a038a",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Blocked",
+          "status": "blocked",
+          "signature": "f833f760f6f604cff1f0e34990be9bd0a7db3801c48e65c83a280cb3960a038a",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-9Z2Z",
+        "entryId": "01a16806-2049-7322-9494-6b1c9c3e867d",
+        "beforeBytes": 2955,
+        "afterBytes": 1521,
+        "originalHash": "cc807cdba52ec0fccae29b514ee8e4d31945c4ac390751249d185b2f86a127c7",
+        "specificationHash": "38f395069750776a8c487b3ac8aecf0bc5af4ff159d91864ff69d143ab3c882a",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "43ed794525d9df8600971ab700ec19882ff713b7654d12aa2e5b83b6c6eb1073",
+          "receiptHash": null,
+          "receiptVersion": null
+        },
+        "after": {
+          "lane": "Todo",
+          "status": "planned",
+          "signature": "43ed794525d9df8600971ab700ec19882ff713b7654d12aa2e5b83b6c6eb1073",
+          "receiptHash": null,
+          "receiptVersion": null
+        }
+      },
+      {
+        "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+        "entryId": "01a16806-20a8-76cf-b297-20e4b5748a7d",
+        "beforeBytes": 12176,
+        "afterBytes": 727,
+        "originalHash": "699e763b43f5daf2f9e9f47a686387aaf7c486ebf813d9c5ccb3d7d2accd7677",
+        "specificationHash": "77194d6ea541aaca5a0e1bd99cd438ce4d69b71ce385cc14519d12dcee893e88",
+        "verificationAndStateUnchanged": true,
+        "before": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "cdb45271c1b6807a8406627abdcb07d973810b3e91e644a3b8949788336c9007",
+          "receiptHash": "05c578b5d08e3627cf7085d0dd28e3444ff35f95a35a3da8223c064e8da10b32",
+          "receiptVersion": 1
+        },
+        "after": {
+          "lane": "Done",
+          "status": "verified",
+          "signature": "cdb45271c1b6807a8406627abdcb07d973810b3e91e644a3b8949788336c9007",
+          "receiptHash": "05c578b5d08e3627cf7085d0dd28e3444ff35f95a35a3da8223c064e8da10b32",
+          "receiptVersion": 1
+        }
+      }
+    ]
+  },
+  "independentReview": {
+    "configuredRoute": "ollama/gemma4:e4b",
+    "storageContextCharacters": 42351,
+    "lifecycleContextCharacters": 56596,
+    "storage": {
+      "status": "unverified",
+      "error": "Error: Independent Critic failed: timeout: The operation timed out."
+    },
+    "lifecycle": {
+      "status": "unverified",
+      "error": "Error: Independent Critic failed: timeout: The operation timed out."
+    },
+    "acceptance": "unverified; no receipt or Done claimed; no provider changes"
+  },
+  "sourceHashes": {
+    "src/graph/journal.ts": "cbe775ce2ef6574822d21de46e338268a8f944e53f411d03dd598355b1a93baf",
+    "src/graph/store.ts": "cfb1eae47816a010eb6a1e1f4e9b3f44d4b5c19b7c67cc3110c72abf2e914dd6",
+    "src/product/mutation.ts": "aa08d782380ac5253315e43e65808ce6aefc601171b52744f7df31c4535e9629",
+    "src/ticket-operation-types.ts": "a090cdee8095c08915355b4075c866777d700cf0da092c2198045cd3fb118443",
+    "src/ticket/investigate.ts": "009793e5e44fd879bbea2d9c2bb3569e612fb262bcdd850cfe7e426c0f6c7a05",
+    "src/ticket/resolve.ts": "5f73f7fa1e82d9157b819684ea99756ee26162990df358f85c0596179a45e1cf",
+    "src/tools/tickets.ts": "78247c98690c79730a85cb7f89acd3d7205f45bfaf4fd14cd589d24a009d73ae",
+    "src/tools/surface.ts": "3d6a6d8d07a836a22b1ef7b9aae298a5a663cc73a7c6ea555a47537afbf1cdc3",
+    "src/artifact-command.ts": "20c804790630b9448609388dd328b2962ed1ecf761d0a8e3103b073477ad4f61",
+    "src/entity-view.ts": "4a3746f11507ef520106aaa552629c30fd68c6ee60b1a0c4d64ab427c57465ee",
+    "src/setup.ts": "5445c4f344db45954b2f1750a7ecc471b35bf7bac0017066e82824da941fbbdd",
+    "skills/ai-workflow/SKILL.md": "a929ec36c97c148b912852b01e5b6d41c189fb9acd419207f5e25dec769a101a",
+    "tests/us/ticket-journal.test.ts": "aaf9450acb5ae64df4cc2bc7bd6841ca38156496429d692332801eabb251cf79"
+  },
+  "writerTrace": "No current hardcoded Ticket.body history append was found in src. Generic update_ticket/update_bug/entity-view/projection authoring allowed agents to append reports; body-heavy live Tickets showed that use. The correction documents current-specification-only editing and exposes journal writes. Existing Product mutation, native Ticket update and completion owners automatically journal lifecycle changes; resolver records actions/checks/repairs; explicit tools record decisions and corrections. Migration preserves original material before cleanup."
+}

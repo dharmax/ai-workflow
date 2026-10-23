@@ -1,0 +1,1060 @@
+{
+  "ticketId": "TKT-TICKET-JOURNAL",
+  "configuredRoute": "ollama/gemma4:e4b",
+  "endpoint": "http://lotus:11434",
+  "contextWindow": 32768,
+  "originalContextCharacters": [
+    42351,
+    56596
+  ],
+  "originalOutputBudget": 2048,
+  "originalRequestTimeoutMs": 60000,
+  "outerSignalMs": 120000,
+  "originalObservedFailure": "Both original requests returned HTTP 499 at 1m0s while Ollama was still loading the model; server log: client connection closed before llama-server finished loading, aborting load.",
+  "timeoutResolution": "Preload the same model; no source, provider or timeout refactoring.",
+  "outputResolution": "Local 2048-token responses ended with done_reason length and empty content. Temporary 8192-token budget resolves empty outputs; original configuration restored byte for byte after each attempt.",
+  "observedCanonicalBlockers": [
+    "Unknown unsupplied symbol citation src/product/mutation.ts#applyProductMutations:458:576; corrected the existing binding to supply the complete file.",
+    "Reviewer lacked explicit bun.lockb preservation evidence; supplied actual baseline/current SHA-256 observations through a bound evidence artifact. The native bounded-command guard was retained.",
+    "Unknown unsupplied src/graph/ontology.ts citation; supplied the actual Ticket declaration as an immediate contract.",
+    "Latest response cites engineering.abstraction-placement as source evidence, returns it inconclusive, and omits engineering.kiss-simplicity and engineering.single-responsibility-tightness. Native completion refused."
+  ],
+  "latestCanonicalResult": {
+    "status": "blocked",
+    "artifactId": "TKT-TICKET-JOURNAL",
+    "blockers": [
+      {
+        "reason": "Bounded repair exhausted for 'TKT-TICKET-JOURNAL': Mandatory Rule 'engineering.abstraction-placement' cites unknown or unsupplied evidence: engineering.abstraction-placement.\nMandatory Rule 'engineering.abstraction-placement': inconclusive: []\nMandatory Rule 'engineering.kiss-simplicity' lacks an independent assessment.\nMandatory Rule 'engineering.single-responsibility-tightness' lacks an independent assessment."
+      }
+    ]
+  },
+  "validation": "594 pass / 5 existing skips / 0 fail; clean project snapshot, typecheck/definitions/build pass. Story and implementation unchanged during closure.",
+  "migrationAudit": {
+    "rows": [
+      {
+        "ticketId": "AIWF-ASPECTS",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "AIWF-TICKET-INVESTIGATION",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "AIWF-PERFORMANCE-METRICS",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "AIWF-TICKET-RESOLUTION-FIRST-PROOF",
+        "lane": "Blocked",
+        "status": "blocked",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "AIWF-FINAL-DOGFOOD-AUDIT",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-YXKK",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-LLPM",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-RILZ",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-GB73",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-3END",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-8D3F",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "AIWF-TOPLEVEL1-PHASE-A",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-ADV-ACTOR-P0",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-CLIENT-GRAPH-FIRST",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-CONFIG-A",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-SETUP-B",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-CONFIG-C",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-SETUP-D",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-SHELL-DOGFOOD-F",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-RESOLVE-RECOVERY-R1",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-RESOLVE-RECOVERY-R3",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-DOCTRINE-G5-RELEASE",
+        "lane": "Blocked",
+        "status": "blocked",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-DOCTRINE-SEMANTIKA-CONTRACT",
+        "lane": "Blocked",
+        "status": "blocked",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-TRANSACTION-PRODUCT-BATCH",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-BUG-TYPE-LANE",
+        "lane": "Blocked",
+        "status": "blocked",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-V56W",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-DW-S1",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-DW-S3",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-RF0W",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-7MI2",
+        "lane": "Backlog",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-PC1A",
+        "lane": "Todo",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-PC1B",
+        "lane": "Todo",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-EXT-SURFACE-01",
+        "lane": "Todo",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-EXT-SURFACE-10",
+        "lane": "Blocked",
+        "status": "blocked",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-9Z2Z",
+        "lane": "Todo",
+        "status": "planned",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": false,
+          "receiptSchemaValid": false
+        }
+      },
+      {
+        "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+        "lane": "Done",
+        "status": "verified",
+        "originalAccessible": true,
+        "summaryCurrent": true,
+        "summaryReferencesIntact": true,
+        "receiptBytesUnchanged": true,
+        "receiptValidity": {
+          "receiptPresent": true,
+          "receiptSchemaValid": true,
+          "signatureMatches": false,
+          "governanceMatches": false,
+          "sourceHashesCurrent": false,
+          "testNodesCurrent": false,
+          "criteriaSatisfied": true,
+          "aspectsSatisfied": true,
+          "ruleFailures": [
+            "Unknown Rule assessment 'engineering.abstraction-placement'.",
+            "Unknown Rule assessment 'engineering.kiss-simplicity'.",
+            "Unknown Rule assessment 'engineering.single-responsibility-tightness'.",
+            "Mandatory Rule 'engineering.abstraction-placement' lacks an independent assessment.",
+            "Mandatory Rule 'engineering.kiss-simplicity' lacks an independent assessment.",
+            "Mandatory Rule 'engineering.single-responsibility-tightness' lacks an independent assessment."
+          ]
+        }
+      }
+    ]
+  },
+  "historicalReceiptAudit": {
+    "historicalReceiptBasisSignatureMatches": true,
+    "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+    "receiptId": "VERIFY-TKT-PRODUCT-CHARTER-FEATURE",
+    "receiptSignature": "11ed4c0ff4d37a5e248986775c4aefe36fef8253d2df6c03f86e6c61555513dc",
+    "receiptIntentBodyLength": 12176,
+    "receiptIntentBodyHash": "699e763b43f5daf2f9e9f47a686387aaf7c486ebf813d9c5ccb3d7d2accd7677",
+    "allBaseSourceHashesMatch": true,
+    "currentChangedSources": [
+      {
+        "file": "src/graph/store.ts",
+        "receiptHash": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+        "baseHash": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+        "currentHash": "cfb1eae47816a010eb6a1e1f4e9b3f44d4b5c19b7c67cc3110c72abf2e914dd6"
+      },
+      {
+        "file": "src/product/mutation.ts",
+        "receiptHash": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+        "baseHash": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+        "currentHash": "aa08d782380ac5253315e43e65808ce6aefc601171b52744f7df31c4535e9629"
+      },
+      {
+        "file": "src/ticket-operation-types.ts",
+        "receiptHash": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+        "baseHash": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+        "currentHash": "a090cdee8095c08915355b4075c866777d700cf0da092c2198045cd3fb118443"
+      },
+      {
+        "file": "src/tools/tickets.ts",
+        "receiptHash": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+        "baseHash": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+        "currentHash": "78247c98690c79730a85cb7f89acd3d7205f45bfaf4fd14cd589d24a009d73ae"
+      },
+      {
+        "file": "src/ticket/investigate.ts",
+        "receiptHash": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+        "baseHash": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+        "currentHash": "009793e5e44fd879bbea2d9c2bb3569e612fb262bcdd850cfe7e426c0f6c7a05"
+      },
+      {
+        "file": "src/ticket/resolve.ts",
+        "receiptHash": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+        "baseHash": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+        "currentHash": "5f73f7fa1e82d9157b819684ea99756ee26162990df358f85c0596179a45e1cf"
+      }
+    ],
+    "rows": [
+      {
+        "file": "tests/us/basic-product-intent.test.ts",
+        "receiptHash": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+        "baseHash": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+        "currentHash": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572"
+      },
+      {
+        "file": "src/change/types.ts",
+        "receiptHash": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+        "baseHash": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+        "currentHash": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416"
+      },
+      {
+        "file": "src/config.ts",
+        "receiptHash": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+        "baseHash": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+        "currentHash": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908"
+      },
+      {
+        "file": "src/graph/store.ts",
+        "receiptHash": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+        "baseHash": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+        "currentHash": "cfb1eae47816a010eb6a1e1f4e9b3f44d4b5c19b7c67cc3110c72abf2e914dd6"
+      },
+      {
+        "file": "src/product/links.ts",
+        "receiptHash": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+        "baseHash": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+        "currentHash": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+      },
+      {
+        "file": "src/tools/index.ts",
+        "receiptHash": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+        "baseHash": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+        "currentHash": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081"
+      },
+      {
+        "file": "tests/product-review.ts",
+        "receiptHash": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+        "baseHash": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+        "currentHash": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d"
+      },
+      {
+        "file": "src/product/impact.ts",
+        "receiptHash": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+        "baseHash": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+        "currentHash": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd"
+      },
+      {
+        "file": "src/product/mutation.ts",
+        "receiptHash": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+        "baseHash": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+        "currentHash": "aa08d782380ac5253315e43e65808ce6aefc601171b52744f7df31c4535e9629"
+      },
+      {
+        "file": "src/artifact-policy.ts",
+        "receiptHash": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+        "baseHash": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+        "currentHash": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397"
+      },
+      {
+        "file": "src/graph/indexer.ts",
+        "receiptHash": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+        "baseHash": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+        "currentHash": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d"
+      },
+      {
+        "file": "src/graph/ticket-state.ts",
+        "receiptHash": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+        "baseHash": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+        "currentHash": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4"
+      },
+      {
+        "file": "src/kb/canonical.ts",
+        "receiptHash": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+        "baseHash": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+        "currentHash": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8"
+      },
+      {
+        "file": "src/ticket-operation-types.ts",
+        "receiptHash": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+        "baseHash": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+        "currentHash": "a090cdee8095c08915355b4075c866777d700cf0da092c2198045cd3fb118443"
+      },
+      {
+        "file": "src/change/engine.ts",
+        "receiptHash": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+        "baseHash": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+        "currentHash": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77"
+      },
+      {
+        "file": "src/graph/ontology.ts",
+        "receiptHash": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+        "baseHash": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+        "currentHash": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc"
+      },
+      {
+        "file": "src/tools/registry.ts",
+        "receiptHash": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+        "baseHash": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+        "currentHash": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502"
+      },
+      {
+        "file": "src/model-runtime.ts",
+        "receiptHash": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+        "baseHash": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+        "currentHash": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f"
+      },
+      {
+        "file": "src/tools/artifact-policy.ts",
+        "receiptHash": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+        "baseHash": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+        "currentHash": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1"
+      },
+      {
+        "file": "src/tools/aspects.ts",
+        "receiptHash": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+        "baseHash": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+        "currentHash": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3"
+      },
+      {
+        "file": "src/tools/change.ts",
+        "receiptHash": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+        "baseHash": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+        "currentHash": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6"
+      },
+      {
+        "file": "src/tools/compiler.ts",
+        "receiptHash": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+        "baseHash": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+        "currentHash": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc"
+      },
+      {
+        "file": "src/tools/debugger.ts",
+        "receiptHash": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+        "baseHash": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+        "currentHash": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd"
+      },
+      {
+        "file": "src/tools/git.ts",
+        "receiptHash": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+        "baseHash": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+        "currentHash": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe"
+      },
+      {
+        "file": "src/tools/graph-queries.ts",
+        "receiptHash": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+        "baseHash": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+        "currentHash": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc"
+      },
+      {
+        "file": "src/tools/kb.ts",
+        "receiptHash": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+        "baseHash": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+        "currentHash": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c"
+      },
+      {
+        "file": "src/tools/os.ts",
+        "receiptHash": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+        "baseHash": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+        "currentHash": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8"
+      },
+      {
+        "file": "src/tools/planning.ts",
+        "receiptHash": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+        "baseHash": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+        "currentHash": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb"
+      },
+      {
+        "file": "src/tools/product.ts",
+        "receiptHash": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+        "baseHash": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+        "currentHash": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf"
+      },
+      {
+        "file": "src/tools/rules.ts",
+        "receiptHash": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+        "baseHash": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+        "currentHash": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102"
+      },
+      {
+        "file": "src/tools/scaffold.ts",
+        "receiptHash": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+        "baseHash": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+        "currentHash": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76"
+      },
+      {
+        "file": "src/tools/scripting.ts",
+        "receiptHash": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+        "baseHash": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+        "currentHash": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268"
+      },
+      {
+        "file": "src/tools/test-runner.ts",
+        "receiptHash": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+        "baseHash": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+        "currentHash": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd"
+      },
+      {
+        "file": "src/tools/tickets.ts",
+        "receiptHash": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+        "baseHash": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+        "currentHash": "78247c98690c79730a85cb7f89acd3d7205f45bfaf4fd14cd589d24a009d73ae"
+      },
+      {
+        "file": "src/artifact-critic.ts",
+        "receiptHash": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+        "baseHash": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+        "currentHash": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017"
+      },
+      {
+        "file": "src/graph/test-proof-types.ts",
+        "receiptHash": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+        "baseHash": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+        "currentHash": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec"
+      },
+      {
+        "file": "src/graph/types.ts",
+        "receiptHash": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+        "baseHash": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+        "currentHash": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b"
+      },
+      {
+        "file": "src/graph/test-artifacts.ts",
+        "receiptHash": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+        "baseHash": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+        "currentHash": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5"
+      },
+      {
+        "file": "src/aspects.ts",
+        "receiptHash": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+        "baseHash": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+        "currentHash": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2"
+      },
+      {
+        "file": "src/change/request-schema.ts",
+        "receiptHash": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+        "baseHash": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+        "currentHash": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a"
+      },
+      {
+        "file": "src/product/context.ts",
+        "receiptHash": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+        "baseHash": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+        "currentHash": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6"
+      },
+      {
+        "file": "src/rules/references.ts",
+        "receiptHash": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+        "baseHash": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+        "currentHash": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46"
+      },
+      {
+        "file": "src/rules/store.ts",
+        "receiptHash": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+        "baseHash": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+        "currentHash": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96"
+      },
+      {
+        "file": "src/rules/types.ts",
+        "receiptHash": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+        "baseHash": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+        "currentHash": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb"
+      },
+      {
+        "file": "src/ticket/prompts.ts",
+        "receiptHash": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+        "baseHash": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+        "currentHash": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4"
+      },
+      {
+        "file": "src/change/symbol-source.ts",
+        "receiptHash": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+        "baseHash": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+        "currentHash": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254"
+      },
+      {
+        "file": "src/change/target-resolver.ts",
+        "receiptHash": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+        "baseHash": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+        "currentHash": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9"
+      },
+      {
+        "file": "src/change/ts-lsp.ts",
+        "receiptHash": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+        "baseHash": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+        "currentHash": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14"
+      },
+      {
+        "file": "src/change/ts6-refactor.ts",
+        "receiptHash": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+        "baseHash": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+        "currentHash": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c"
+      },
+      {
+        "file": "src/change/workspace-path.ts",
+        "receiptHash": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+        "baseHash": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+        "currentHash": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996"
+      },
+      {
+        "file": "src/product/coverage.ts",
+        "receiptHash": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+        "baseHash": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+        "currentHash": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc"
+      },
+      {
+        "file": "src/product/process-types.ts",
+        "receiptHash": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+        "baseHash": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+        "currentHash": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9"
+      },
+      {
+        "file": "src/product/process.ts",
+        "receiptHash": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+        "baseHash": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+        "currentHash": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94"
+      },
+      {
+        "file": "src/ticket/investigate.ts",
+        "receiptHash": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+        "baseHash": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+        "currentHash": "009793e5e44fd879bbea2d9c2bb3569e612fb262bcdd850cfe7e426c0f6c7a05"
+      },
+      {
+        "file": "src/ticket/prepare.ts",
+        "receiptHash": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+        "baseHash": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+        "currentHash": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5"
+      },
+      {
+        "file": "src/ticket/resolve.ts",
+        "receiptHash": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+        "baseHash": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+        "currentHash": "5f73f7fa1e82d9157b819684ea99756ee26162990df358f85c0596179a45e1cf"
+      },
+      {
+        "file": "src/performance-metrics.ts",
+        "receiptHash": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+        "baseHash": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+        "currentHash": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d"
+      },
+      {
+        "file": "src/graph/projections.ts",
+        "receiptHash": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+        "baseHash": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+        "currentHash": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca"
+      },
+      {
+        "file": "src/product/story-tests.ts",
+        "receiptHash": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+        "baseHash": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+        "currentHash": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed"
+      },
+      {
+        "file": "src/ticket/source-scope.ts",
+        "receiptHash": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+        "baseHash": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+        "currentHash": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8"
+      },
+      {
+        "file": "src/kb/client.ts",
+        "receiptHash": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+        "baseHash": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+        "currentHash": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4"
+      },
+      {
+        "file": "src/kb/manager.ts",
+        "receiptHash": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+        "baseHash": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+        "currentHash": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635"
+      },
+      {
+        "file": "src/graph/technical-proof.ts",
+        "receiptHash": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+        "baseHash": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+        "currentHash": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f"
+      },
+      {
+        "file": "src/product/apply.ts",
+        "receiptHash": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+        "baseHash": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+        "currentHash": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631"
+      },
+      {
+        "file": "src/product/decompose.ts",
+        "receiptHash": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+        "baseHash": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+        "currentHash": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf"
+      },
+      {
+        "file": "src/rules/defaults.json",
+        "receiptHash": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+        "baseHash": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+        "currentHash": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f"
+      },
+      {
+        "file": "src/ticket/prompts/acceptance.txt",
+        "receiptHash": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+        "baseHash": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+        "currentHash": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1"
+      },
+      {
+        "file": "src/ticket/prompts/investigation.txt",
+        "receiptHash": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+        "baseHash": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+        "currentHash": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351"
+      },
+      {
+        "file": "src/ticket/prompts/preparation.txt",
+        "receiptHash": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+        "baseHash": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+        "currentHash": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af"
+      },
+      {
+        "file": "src/ticket/prompts/system.txt",
+        "receiptHash": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+        "baseHash": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+        "currentHash": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127"
+      },
+      {
+        "file": "src/change/lsp-shutdown.ts",
+        "receiptHash": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+        "baseHash": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+        "currentHash": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e"
+      },
+      {
+        "file": "src/typescript-runtime.ts",
+        "receiptHash": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+        "baseHash": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+        "currentHash": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9"
+      },
+      {
+        "file": "src/product/prompts.ts",
+        "receiptHash": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+        "baseHash": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+        "currentHash": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df"
+      },
+      {
+        "file": "src/actor-budget-policy.ts",
+        "receiptHash": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+        "baseHash": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+        "currentHash": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96"
+      },
+      {
+        "file": "src/ticket/implementation.ts",
+        "receiptHash": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+        "baseHash": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+        "currentHash": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225"
+      },
+      {
+        "file": "src/ticket/verification.ts",
+        "receiptHash": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+        "baseHash": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+        "currentHash": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114"
+      },
+      {
+        "file": "package.json",
+        "receiptHash": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+        "baseHash": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+        "currentHash": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664"
+      },
+      {
+        "file": "src/graph/aspect-projections.ts",
+        "receiptHash": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+        "baseHash": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+        "currentHash": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1"
+      },
+      {
+        "file": "src/product/manifest.ts",
+        "receiptHash": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+        "baseHash": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+        "currentHash": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b"
+      },
+      {
+        "file": "src/verification-context.ts",
+        "receiptHash": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+        "baseHash": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+        "currentHash": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef"
+      },
+      {
+        "file": "src/synthesis/index.ts",
+        "receiptHash": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88",
+        "baseHash": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88",
+        "currentHash": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+      }
+    ],
+    "historicalRoute": "openrouter/openai/gpt-4o",
+    "restoredRoute": "ollama/gemma4:e4b",
+    "existingRouteCaveat": "docs/evidence/basic-product-intent-2026-10-23/gpt4o-completion-disposition.json",
+    "noReopeningOrReceiptRewrite": true
+  },
+  "receiptInterpretation": "All 36 exact original entries and condensed reference sets are accessible. Of 16 migrated Done Tickets, only BASIC #2 has a receipt. Its original historical intent/signature basis matches; its pre-existing route-restoration caveat and now legitimately changed source hashes prevent current reuse. BASIC #2 remains closed; no receipt rewritten or fabricated.",
+  "authorizationPending": "One bounded canonical verify-only run with temporary openrouter/openai/gpt-4o, existing saved credential, 16000 output tokens, six scopes plus final composition, existing single retry, at most 14 requests; restore configuration. No paid request sent without explicit authorization.",
+  "scope": "Existing Ticket journal correction only; no #3."
+}
