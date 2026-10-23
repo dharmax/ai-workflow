@@ -15,6 +15,7 @@ import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';
 import {exportProjections} from '../graph/projections.ts';
 import {applyOwnedChange} from './change.ts';
+import {TicketEventInputSchema,recordTicketEvent,getTicketHistory,ticketHistoryContext,condenseTicketHistory,migrateTicketBody} from '../graph/journal.ts';
 
 async function requireTicket(ctx: ToolContext, ticketId: string, kind?: Ticket['kind']): Promise<Ticket> {
   const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
@@ -24,6 +25,16 @@ async function requireTicket(ctx: ToolContext, ticketId: string, kind?: Ticket['
 }
 
 export function registerTicketTools() {
+  registry.register({name:'record_ticket_event',category:'ticket',description:'Append a meaningful decision, action, failure, correction or outcome to the Semantika system journal. Reference evidence; keep execution history out of Ticket.body.',
+    parameters:TicketEventInputSchema,execute:(input,ctx)=>recordTicketEvent(ctx.store,input)});
+  registry.register({name:'get_ticket_history',category:'ticket',description:'Read original Ticket journal entries. Explicit bounded pagination; normal Ticket reads return compact context instead.',
+    parameters:z.object({ticketId:z.string().min(1),limit:z.number().int().min(1).max(100).default(100),after:z.string().regex(/^\d+$/).optional()}),
+    execute:async({ticketId,limit,after},ctx)=>{await requireTicket(ctx,ticketId);return getTicketHistory(ctx.store,ticketId,limit,after);}});
+  registry.register({name:'condense_ticket_history',category:'ticket',description:'Explicitly replace the compact deterministic history summary; preserve every original entry and evidence reference. No model calls.',
+    parameters:z.object({ticketId:z.string().min(1)}),execute:({ticketId},ctx)=>condenseTicketHistory(ctx.store,ticketId)});
+  registry.register({name:'migrate_ticket_history',category:'ticket',description:'Preserve an exact legacy body in the journal before replacing it with the reviewed current specification. Refuse stale bodies; retain completed verification.',
+    parameters:z.object({ticketId:z.string().min(1),expectedBody:z.string(),specification:z.string().trim().min(1),references:z.array(z.string()).default([])}),
+    execute:async({ticketId,expectedBody,specification,references},ctx)=>{const result=await migrateTicketBody(ctx.store,ticketId,expectedBody,specification,references);if(result.migrated) await exportProjections(ctx.store);return result;}});
   registry.register({name:'bug_action',category:'ticket',description:'Start, release, block, reopen or cancel a typed Bug through the existing Ticket owners.',
     parameters:z.object({action:z.enum(['start','release','block','reopen','cancel']),ticketId:z.string(),agentId:z.string().optional(),durationMinutes:z.number().positive().optional()}),
     execute:async({action,ticketId,agentId,durationMinutes},ctx)=>{
@@ -37,7 +48,7 @@ export function registerTicketTools() {
     execute:async({ticketId},ctx)=>{
       const ticket=await requireTicket(ctx,ticketId);
       const receipt=await ctx.store.getEntity<Artifact>('VERIFY-'+ctx.store.localId(ticket.id),Artifact.dcr);
-      return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,status:ticket.status,
+      return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,status:ticket.status,history:await ticketHistoryContext(ctx.store,ticket.id),
         verificationState:receipt?'recorded-unchecked':'unverified',verification:readVerificationReceipt(receipt?.body),outgoing:await ctx.store.getOutgoing(ticket.id),incoming:await ctx.store.getIncoming(ticket.id),
         kind:ticket.kind ?? 'task',defect:ticket.defect,priority:ticket.priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
     }});
@@ -48,7 +59,9 @@ export function registerTicketTools() {
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
       if (ticket.kind === 'bug' && !assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};
-      return ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
+      const result=await ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
+      if(ctx.executionAuthority==='project-write') await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'outcome',message:result.status==='complete'?'Resolution complete.':JSON.stringify(result).slice(0,12000),references:result.status==='complete'?[`VERIFY-${ticketId}`]:[]});
+      return result;
     }
   });
   registry.register({
@@ -56,7 +69,9 @@ export function registerTicketTools() {
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional() }),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
-      return ticket.prepare(ctx.store, { ...options, signal: ctx.signal });
+      const result=await ticket.prepare(ctx.store, { ...options, signal: ctx.signal });
+      if(ctx.executionAuthority==='project-write') await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'action',message:result.status==='complete'?'Preparation complete.':JSON.stringify(result).slice(0,12000),references:[]});
+      return result;
     }
   });
   registry.register({
@@ -129,7 +144,7 @@ export function registerTicketTools() {
 
   registry.register({
     name: 'update_ticket',
-    description: 'Update editable Ticket content and optional Kanban lane through canonical Product mutation.',
+    description: 'Edit the current Ticket work specification and optional lane. Preserve developer edits. Record execution logs, test results and progress with record_ticket_event, never append them to body.',
     category: 'ticket',
     parameters: z.object({
       ticketId: z.string().describe('Ticket identifier'),

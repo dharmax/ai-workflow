@@ -31,6 +31,10 @@ Repository investigation & code edits: use AIWF even when no Ticket exists. Star
 
 CLI equivalents: `aiwf symbol <name>`, `outline <file>`, `slice <file> <symbol>`, `callers <symbol>`, `graph`, `deps`, `blast`. For sibling CLI research, run the same commands from that repository. MCP callers use the optional `projectRoot` argument; do not assume siblings are indexed as dependencies of the current project.
 
+## Ticket specification and execution history
+
+Keep Ticket.body as the concise current work specification. Preserve legitimate developer edits. Never append progress reports, test output, historical dispositions or verification narration to it. Use `record_ticket_event` / `aiwf ticket record <id> --kind <kind> --message <text> --reference <evidence-id-or-path>` for meaningful decisions, actions, failures, corrections and outcomes; reference existing TestNodes, files and receipts rather than copying them. Creation, specification edits, state and lease changes are automatically journaled. `get_ticket_history` / `aiwf ticket history <id>` retrieves originals with pagination. `condense_ticket_history` / `aiwf ticket condense <id>` explicitly refreshes a deterministic summary without changing history or calling a model. Normal Ticket/dossier reads include bounded history context; it is context, never independent proof. Preserve legacy history through `migrate_ticket_history` before cleaning an exact reviewed body.
+
 ## Policy
 
 All artifact operations accept `completeness`, `depth`, `maxArtifacts`, `critic` consistently. CLI flags: `--completeness production --depth 1 --max-artifacts 24 --critic auto`.

@@ -14,6 +14,12 @@ The *same canonical Tickets* can be understood or displayed through complementar
 
 Priority, dependency, state, claim/owner and verification are distinct concerns. Views do not become alternative databases, proof states or competing authorities. Do not confuse a Kanban Ticket in Done with a satisfied US.
 
+## Specification and execution history
+
+`Ticket.body` holds only the concise current work specification, including legitimate developer-authored revisions. Execution logs, test results, progress reports and historical dispositions belong in the Semantika system journal, indexed by Ticket ID. Meaningful decisions, actions, failures, corrections and outcomes reference existing TestNodes, files and verification receipts rather than copying their evidence.
+
+History survives reopening. Explicit on-demand condensation replaces only the compact summary; original entries and their references remain accessible. Normal Ticket retrieval and independent review receive the current specification and bounded relevant history. History is context, never independent acceptance. Legacy cleanup preserves the exact prior body in the same storage transaction before replacing it, retaining completed verification without fabricating receipts.
+
 ## Types and resolution
 
 - A **resolution Ticket** owns making an already approved, genuine US acceptance test pass through correct implementation and current verification.

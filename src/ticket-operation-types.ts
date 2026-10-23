@@ -26,6 +26,7 @@ export const InvestigationJudgmentSchema = z.object({
 });
 export type InvestigationJudgment = z.infer<typeof InvestigationJudgmentSchema>;
 export interface TicketDossier {
+  history?: Awaited<ReturnType<typeof import('./graph/journal.ts').ticketHistoryContext>>;
   ticket: { id: string; title: string; body: string; status: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./graph/types.ts').TicketDefect };
   disposition: InvestigationJudgment['disposition']; rationale: string;
   evidence: TicketEvidence[];
@@ -331,7 +332,7 @@ export async function ticketVerificationSignature(store: WorkflowStore, ticket: 
     }
   }
   return createHash('sha256').update(canonical({
-    ticket: {title: ticket.title, body: ticket.body, criteria: ticket.acceptanceCriteria, kind:ticket.kind??'task', defect:ticket.defect},
+    ticket: {title: ticket.title, body: await (await import('./graph/journal.ts')).ticketVerificationBody(store,ticket), criteria: ticket.acceptanceCriteria, kind:ticket.kind??'task', defect:ticket.defect},
     targets: [...targets].sort(), completeness: await ticket.getCompletenessContext(store, completeness),
     governance: (governance ?? await resolveTicketGovernance(store, ticket)).fingerprint
   })).digest('hex');

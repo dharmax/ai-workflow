@@ -62,6 +62,7 @@ export async function investigateTicket(
                     status: current.status,
                     acceptanceCriteria: current.acceptanceCriteria ?? []
                 },
+                history: await (await import("../graph/journal.ts")).ticketHistoryContext(store,current.id),
                 disposition: "ready",
                 rationale: "Existing acceptance and mandatory evidence define executable work.",
                 evidence: [],

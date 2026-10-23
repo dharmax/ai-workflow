@@ -12,6 +12,7 @@ export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'prepare_ticket',
   'investigate_ticket',
   'create_ticket', 'get_ticket', 'update_ticket',
+  'record_ticket_event', 'get_ticket_history', 'condense_ticket_history', 'migrate_ticket_history',
   'create_bug', 'get_bug', 'list_bugs', 'update_bug', 'triage_bug', 'bug_action',
   'claim_ticket',
   'release_ticket',

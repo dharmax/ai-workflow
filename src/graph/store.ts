@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
+import {ticketChangeEvents} from './journal.ts';
 import {
   SemanticPackage,
   SqliteStore,
@@ -243,6 +244,14 @@ export class WorkflowStore {
         const write = Reflect.get(collection, name) as (...args: unknown[]) => unknown;
         Object.defineProperty(collection, name, {value: (...args: unknown[]) => {
           this.assertCanWrite();
+          if(name==='updateDocument' && typeof args[0]==='string' && args[0].startsWith(this.formatId(Ticket.dcr,''))) return (async()=>{
+            const [id,fields,version]=args as [string,Record<string,unknown>,number|undefined];
+            const previous=await collection.findById<Record<string,unknown>&{_version:number}>(id);
+            if(!previous) throw Error(`Ticket '${id}' not found.`);
+            const next={...previous,...fields};
+            const events=await ticketChangeEvents(this,id,previous,next);
+            return this.sqliteStore.applyBatch([{collectionName:collection.name,id,expectedVersion:version??previous._version,record:next},...events])[0];
+          })();
           return Reflect.apply(write, collection, args);
         }});
       }
@@ -300,6 +309,7 @@ export class WorkflowStore {
     if (link) changes.push({collectionName: predicates.name, id: link._id, expectedVersion: link._version});
     else changes.push({collectionName: predicates.name, id: predicates.createId(), expectedVersion: null, record: {
       sourceId: proofId, sourceType: 'Artifact', predicateName: 'verifies', targetId: ticket.id, targetType: 'Ticket', timestamp: Date.now()}});
+    changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,...ticketState('Done','verified')}));
     this.sqliteStore.applyBatch(changes);
   }
 
@@ -344,9 +354,9 @@ export class WorkflowStore {
           const collection = await this.sp.collectionForEntityType(entity.descriptor);
           const previous = await collection.findById<Record<string, unknown>>(entity.id);
           this.assertEntityWrite(entity.typeName(), entity.id, fields, previous);
-          return nativeUpdate(entity instanceof Ticket && ('lane' in fields || 'status' in fields)
-            ? {...fields, ...ticketState((fields.lane ?? previous.lane) as TicketLane, fields.status as string | undefined)}
-            : fields, superSet, cutExtra, rawOperations);
+          const next=entity instanceof Ticket && ('lane' in fields || 'status' in fields)
+            ? {...fields,...ticketState((fields.lane ?? previous.lane) as TicketLane,fields.status as string | undefined)} : fields;
+          return nativeUpdate(next,superSet,cutExtra,rawOperations);
         }});
         Object.defineProperty(entity, 'erase', {configurable: true, value: () => {
           this.assertEntityWrite(entity.typeName(), entity.id, {}, entity as unknown as Record<string, unknown>);

@@ -561,7 +561,16 @@ export async function applyProductMutations(
     if (!productOwnerWrite(store, mutations, state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
       throw Error('Product review authority expired before commit.');
     await assessCharterAnswers(store,mutations,initial,reviewed?.request);
-    store.sqliteStore.applyBatch([assertion, ...batch.values()]);
+    const {ticketChangeEvents}=await import('../graph/journal.ts');
+    const history=[];
+    for(const entry of batch.values()) {
+      const ticket=state.get(store.localId(entry.id));
+      if(ticket?.kind!=='Ticket' || !entry.record) continue;
+      const collection=await store.sp.collectionForEntityType(Ticket.dcr);
+      const previous=await collection.findById<Record<string,unknown>>(entry.id);
+      history.push(...await ticketChangeEvents(store,entry.id,previous??undefined,entry.record));
+    }
+    store.sqliteStore.applyBatch([assertion, ...batch.values(), ...history]);
     return {edges};
   } finally { await store.releaseGovernance(token); }
 }

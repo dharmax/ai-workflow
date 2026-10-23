@@ -487,6 +487,15 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   const ticketCommand=root.commands.find(command=>command.name()==='ticket')!;
   ticketCommand.command('show <id>').description('Show canonical Ticket, dependencies and current verification receipt')
     .action((ticketId:string)=>emit({family:'artifact',tool:'get_ticket',args:{ticketId}}));
+  ticketCommand.command('history <id>').description('Read original journal entries by Ticket ID')
+    .option('--limit <count>','Page size').option('--after <id>','Journal cursor')
+    .action((ticketId:string,opts:{limit?:string;after?:string})=>emit({family:'artifact',tool:'get_ticket_history',args:{ticketId,...opts,limit:Number(opts.limit??100)}}));
+  ticketCommand.command('condense <id>').description('Replace the compact history summary; retain original entries')
+    .action((ticketId:string)=>emit({family:'artifact',tool:'condense_ticket_history',args:{ticketId}}));
+  ticketCommand.command('record <id>').description('Record execution history with references, keeping the work specification concise')
+    .requiredOption('--kind <kind>','decision, action, failure, correction or outcome').requiredOption('--message <text>','Meaningful event')
+    .option('--reference <id-or-path>','Evidence reference (repeatable)',collect)
+    .action((ticketId:string,opts:{kind:string;message:string;reference?:string[]})=>emit({family:'artifact',tool:'record_ticket_event',args:{ticketId,kind:opts.kind,message:opts.message,references:opts.reference??[]}}));
   ticketCommand.command('list').description('Filter canonical work by kind, lane and text')
     .option('--kind <kind>','task or bug').option('--lane <lane>','Kanban lane').option('--query <text>','Find ID/title/body')
     .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_tickets',args}));
@@ -584,7 +593,7 @@ A configured provider is not proof that authentication or inference succeeds.`);
   const configure=(command:Command)=>{
     command.allowExcessArguments(false);
     if(command.commands.length && command.registeredArguments.length===0) {command.addHelpCommand();command.action(()=>command.help());}
-    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule'].includes(option.name())) {
+    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule','reference'].includes(option.name())) {
       const parse=option.parseArg;
       option.argParser((value,previous:unknown)=>{
         if(previous!==undefined) throw new InvalidArgumentError(`Duplicate option '${option.flags}'.`);

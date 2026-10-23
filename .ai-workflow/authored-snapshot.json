@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exportedAt": "2026-10-23T08:38:50.922Z",
+  "exportedAt": "2026-10-23T14:27:19.288Z",
   "entities": [
     {
       "id": "ASP-AIWF-EFFICIENCY",
@@ -1454,6 +1454,16 @@
       "predicate": "depends_on",
       "targetId": "TKT-WORKFLOW-FOUNDATION",
       "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-EXT-SURFACE-19",
+      "sourceKind": "Ticket",
+      "predicate": "contains",
+      "targetId": "TKT-INTELLIGENT-GIT-WORKFLOW",
+      "targetKind": "Ticket",
+      "payload": {
+        "note": "Focused intelligent commit, publication and branch workflow within the existing Git/publication backlog; portability remains in the parent."
+      }
     },
     {
       "sourceId": "TKT-INTELLIGENCE-FIRST-USECASE",

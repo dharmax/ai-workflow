@@ -91,6 +91,7 @@ export async function buildEntityView(
         id: text(id, 'readonly', {label: 'ID'}),
         relations: text(JSON.stringify({incoming:t.incoming,outgoing:t.outgoing},null,2),'readonly',{label:'Relations and dependencies'}),
         verification: text(JSON.stringify({state:t.verificationState,receipt:t.verification},null,2),'readonly',{label:'Recorded verification; current freshness requires resolver checks'}),
+        history: text(JSON.stringify(t.history,null,2),'readonly',{label:'Execution history; use ticket history for original entries'}),
         kind: text(t.kind ?? 'task', 'readonly', {label:'Type'}),
         defect: text(t.defect ? JSON.stringify(t.defect,null,2) : '', 'readonly', {label:'Defect report; use bug edit to complete'}),
         title: text(t.title, 'edit', {label: 'Title'}),

@@ -3,6 +3,7 @@
  * Scope: Dependency order, guarded mutations, repair, receipts and lease lifecycle.
  */
 
+import {recordTicketEvent} from '../graph/journal.ts'
 import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
@@ -156,6 +157,8 @@ export async function resolveTicket(
                     ownedFiles.add(file)
                     allFiles.add(file)
                 }
+                await recordTicketEvent(store,{ticketId:store.localId(executingTicket.id),kind:result.ok&&result.verification.passed?'action':'failure',
+                    message:`Guarded ${request.action}: ${result.ok&&result.verification.passed?'applied':'verification failed'}.`,references:observed})
                 countEngineering("codeEdits")
                 countEngineering("filesTouched", result.filesTouched.length)
                 if (!result.ok || !result.verification.passed)
@@ -351,6 +354,7 @@ export async function resolveTicket(
                         if (attempt) {
                             repairs++
                             countEngineering("repairs")
+                            await recordTicketEvent(store,{ticketId:id,kind:'correction',message:`Repair attempt ${attempt}; addressing prior failed checks.`,references:[]})
                         }
                         recordResolutionStage("implementation")
                         const current = attempt ? await ticket.investigate(store, options) : null
@@ -413,6 +417,9 @@ export async function resolveTicket(
                         )
                         if (checked.status !== "complete") return checked
                         const { tests: currentTests, testNodes, evidenceComplete } = checked.value
+                        await recordTicketEvent(store,{ticketId:id,kind:currentTests.some(test=>!test.passed)?'failure':'outcome',
+                            message:`Verification checks: ${currentTests.filter(test=>test.passed).length} passing, ${currentTests.filter(test=>!test.passed).length} failing; evidence ${evidenceComplete?'complete':'incomplete'}.`,
+                            references:testNodes.map(test=>test.id)})
                         if (currentTests.some(test => !test.passed)) {
                             feedback = currentTests.filter(test => !test.passed).map(test => test.output)
                             continue
@@ -438,6 +445,7 @@ export async function resolveTicket(
                         if ((await resolveTicketGovernance(store, ticket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Governance changed during independent acceptance.", "Ticket governance")
                         if (rejectedRules) {
+                            await recordTicketEvent(store,{ticketId:id,kind:'failure',message:'Independent Rule review rejected: '+rejectedRules.join('; ').slice(0,11000),references:[]})
                             feedback = rejectedRules
                             continue
                         }
