@@ -1,0 +1,1581 @@
+{
+  "authorization": "ONE bounded temporary OpenRouter openai/gpt-4o independent canonical review for BASIC Product Intent #2, including scope assessment and native final composition, zero repairs; preserve separate technical doctrine obligation.",
+  "sha": "0f624b5ec6cb23f74a90f3b771b02d84c87a1d7e",
+  "startedAt": "2026-10-23T08:38:31.990Z",
+  "configBefore": [
+    {
+      "file": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "file": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "transport": [
+    {
+      "startedAt": "2026-10-23T08:38:38.334Z",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "requestedModel": "openai/gpt-4o",
+      "maxTokens": 16000,
+      "promptSha256": "847d94e8e1e5520420f56e5bfedfbe5a3525802d89ce9da54b2b8dda90bc965e",
+      "promptCharacters": 102856,
+      "httpStatus": 200,
+      "response": {
+        "id": "gen-1792744718-3qZNHWoIBByDwjo7im6Y",
+        "object": "chat.completion",
+        "created": 1792744718,
+        "model": "openai/gpt-4o",
+        "provider": "OpenAI",
+        "system_fingerprint": "fp_f89046aead",
+        "service_tier": "default",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\"criteria\":[{\"criterion\":\"Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases.\"},{\"criterion\":\"Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'.\"},{\"criterion\":\"Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.\",\"passed\":true,\"evidence\":\"src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract.\"},{\"criterion\":\"Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints.\"},{\"criterion\":\"Focused, aggregate, typecheck and pack pass before commit/push.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack.\"},{\"criterion\":\"Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory.\"}],\"aspects\":[],\"rules\":[{\"ruleId\":\"engineering.abstraction-placement\",\"revision\":1,\"fingerprint\":\"983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.\",\"evidenceIds\":[\"src/product/mutation.ts#validateFields:56:1\"] ,\"limitations\":[]},{\"ruleId\":\"engineering.kiss-simplicity\",\"revision\":1,\"fingerprint\":\"b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.\",\"evidenceIds\":[\"src/product/mutation.ts#validateProductMutations:84:1\"],\"limitations\":[]},{\"ruleId\":\"engineering.single-responsibility-tightness\",\"revision\":1,\"fingerprint\":\"b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.\",\"evidenceIds\":[\"src/product/mutation.ts#assessCharterAlignment:413:1\"],\"limitations\":[]}]}",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 24916,
+          "completion_tokens": 727,
+          "total_tokens": 25643,
+          "cost": 0.06956,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.06956,
+            "upstream_inference_prompt_cost": 0.06229,
+            "upstream_inference_completions_cost": 0.00727
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "finishedAt": "2026-10-23T08:38:44.635Z"
+    },
+    {
+      "startedAt": "2026-10-23T08:38:44.643Z",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "requestedModel": "openai/gpt-4o",
+      "maxTokens": 16000,
+      "promptSha256": "24772882d11bc377dc1d113a101ee7a7dd324cbf0d3a77a706b1fb348b2a176c",
+      "promptCharacters": 64451,
+      "httpStatus": 200,
+      "response": {
+        "id": "gen-1792744724-R9ZczWXTA9lthME5HuY9",
+        "object": "chat.completion",
+        "created": 1792744724,
+        "model": "openai/gpt-4o",
+        "provider": "OpenAI",
+        "system_fingerprint": "fp_f89046aead",
+        "service_tier": "default",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\"criteria\":[{\"criterion\":\"Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases.\"},{\"criterion\":\"Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'.\"},{\"criterion\":\"Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.\",\"passed\":true,\"evidence\":\"src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract.\"},{\"criterion\":\"Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints.\"},{\"criterion\":\"Focused, aggregate, typecheck and pack pass before commit/push.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack.\"},{\"criterion\":\"Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.\",\"passed\":true,\"evidence\":\"tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory.\"}],\"aspects\":[],\"rules\":[{\"ruleId\":\"engineering.abstraction-placement\",\"revision\":1,\"fingerprint\":\"983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.\",\"evidenceIds\":[\"src/product/mutation.ts#validateFields:56:1\"],\"limitations\":[]},{\"ruleId\":\"engineering.kiss-simplicity\",\"revision\":1,\"fingerprint\":\"b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.\",\"evidenceIds\":[\"src/product/mutation.ts#validateProductMutations:84:1\"],\"limitations\":[]},{\"ruleId\":\"engineering.single-responsibility-tightness\",\"revision\":1,\"fingerprint\":\"b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3\",\"verdict\":\"pass\",\"evidence\":\"src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.\",\"evidenceIds\":[\"src/product/mutation.ts#assessCharterAlignment:413:1\"],\"limitations\":[]}]}",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 15515,
+          "completion_tokens": 727,
+          "total_tokens": 16242,
+          "cost": 0.0460575,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0460575,
+            "upstream_inference_prompt_cost": 0.0387875,
+            "upstream_inference_completions_cost": 0.00727
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "finishedAt": "2026-10-23T08:38:50.323Z"
+    }
+  ],
+  "resolverInput": {
+    "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+    "agentId": "codex-basic-product-finish",
+    "verifyOnly": true,
+    "maxRepairs": 0,
+    "testCommands": [
+      [
+        "bun",
+        "test",
+        "tests/us/basic-product-intent.test.ts"
+      ]
+    ]
+  },
+  "credentialPreflight": {
+    "checkedAt": "2026-10-23T08:38:19.433Z",
+    "credentialSource": "saved global credential; environment override omitted only in child process",
+    "httpStatus": 200,
+    "authenticated": true
+  },
+  "effective": {
+    "gateway": "openrouter",
+    "critic": "openrouter/openai/gpt-4o",
+    "design": "openrouter/openai/gpt-4o",
+    "verification": "openrouter/openai/gpt-4o",
+    "llmOutputTokens": 16000,
+    "providers": [
+      "ollama",
+      "openrouter"
+    ],
+    "resolved": {
+      "providerId": "openrouter",
+      "modelId": "openai/gpt-4o"
+    }
+  },
+  "bindingRefreshPreview": {
+    "status": "review",
+    "specification": {
+      "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+      "testId": "test:tests/us/basic-product-intent.test.ts",
+      "scopes": [
+        {
+          "id": "basic-product-intent",
+          "criteria": [
+            "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+            "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+            "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+            "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+            "Focused, aggregate, typecheck and pack pass before commit/push.",
+            "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy."
+          ],
+          "testId": "test:tests/us/basic-product-intent.test.ts",
+          "sources": [
+            {
+              "filePath": "tests/us/basic-product-intent.test.ts"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "validateFields"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "validateProductMutations"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "assessCharterAlignment"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "assessCharterAnswers"
+            },
+            {
+              "filePath": "src/product/links.ts",
+              "symbolName": "reviewProductChange"
+            }
+          ]
+        }
+      ]
+    },
+    "technicalProof": {
+      "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+      "basisHash": "11ed4c0ff4d37a5e248986775c4aefe36fef8253d2df6c03f86e6c61555513dc",
+      "scopes": [
+        {
+          "id": "basic-product-intent",
+          "criteria": [
+            "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+            "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+            "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+            "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+            "Focused, aggregate, typecheck and pack pass before commit/push.",
+            "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy."
+          ],
+          "testId": "test:tests/us/basic-product-intent.test.ts",
+          "sources": [
+            {
+              "filePath": "tests/us/basic-product-intent.test.ts",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "validateFields",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "validateProductMutations",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "assessCharterAlignment",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            },
+            {
+              "filePath": "src/product/mutation.ts",
+              "symbolName": "assessCharterAnswers",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            },
+            {
+              "filePath": "src/product/links.ts",
+              "symbolName": "reviewProductChange",
+              "projectRoot": "/home/dharmax/work/ai-workflow"
+            }
+          ],
+          "projectRoot": "/home/dharmax/work/ai-workflow",
+          "filePath": "tests/us/basic-product-intent.test.ts",
+          "reviewedTestVersion": 24,
+          "hashes": {
+            "/home/dharmax/work/ai-workflow::tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+            "/home/dharmax/work/ai-workflow::src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+            "/home/dharmax/work/ai-workflow::src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+          }
+        }
+      ]
+    },
+    "preview": {
+      "fingerprint": "1afd98eaa205f3289b4d729a520d1cdd576d7c605df194add67ddb1224da5022",
+      "summary": "2 Product Intent mutation(s): TKT-PRODUCT-CHARTER-FEATURE, test:tests/us/basic-product-intent.test.ts",
+      "request": {
+        "action": "product_change",
+        "basis": [
+          {
+            "id": "TKT-PRODUCT-CHARTER-FEATURE",
+            "entityType": "Ticket",
+            "version": 131
+          },
+          {
+            "id": "test:tests/us/basic-product-intent.test.ts",
+            "entityType": "TestNode",
+            "version": 24
+          }
+        ],
+        "originalRequest": "Developer-reviewed technical Ticket acceptance binding",
+        "mutations": [
+          {
+            "kind": "product_update",
+            "entityType": "Test",
+            "id": "test:tests/us/basic-product-intent.test.ts",
+            "fields": {
+              "technicalProofs": [
+                {
+                  "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+                  "basisHash": "11ed4c0ff4d37a5e248986775c4aefe36fef8253d2df6c03f86e6c61555513dc",
+                  "scopes": [
+                    {
+                      "id": "basic-product-intent",
+                      "criteria": [
+                        "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+                        "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+                        "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+                        "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+                        "Focused, aggregate, typecheck and pack pass before commit/push.",
+                        "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy."
+                      ],
+                      "testId": "test:tests/us/basic-product-intent.test.ts",
+                      "sources": [
+                        {
+                          "filePath": "tests/us/basic-product-intent.test.ts",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        },
+                        {
+                          "filePath": "src/product/mutation.ts",
+                          "symbolName": "validateFields",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        },
+                        {
+                          "filePath": "src/product/mutation.ts",
+                          "symbolName": "validateProductMutations",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        },
+                        {
+                          "filePath": "src/product/mutation.ts",
+                          "symbolName": "assessCharterAlignment",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        },
+                        {
+                          "filePath": "src/product/mutation.ts",
+                          "symbolName": "assessCharterAnswers",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        },
+                        {
+                          "filePath": "src/product/links.ts",
+                          "symbolName": "reviewProductChange",
+                          "projectRoot": "/home/dharmax/work/ai-workflow"
+                        }
+                      ],
+                      "projectRoot": "/home/dharmax/work/ai-workflow",
+                      "filePath": "tests/us/basic-product-intent.test.ts",
+                      "reviewedTestVersion": 24,
+                      "hashes": {
+                        "/home/dharmax/work/ai-workflow::tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+                        "/home/dharmax/work/ai-workflow::src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+                        "/home/dharmax/work/ai-workflow::src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "kind": "product_link",
+            "sourceId": "test:tests/us/basic-product-intent.test.ts",
+            "predicate": "verifies",
+            "targetId": "TKT-PRODUCT-CHARTER-FEATURE"
+          }
+        ]
+      },
+      "mutations": [
+        {
+          "kind": "product_update",
+          "entityType": "Test",
+          "id": "test:tests/us/basic-product-intent.test.ts",
+          "fields": {
+            "technicalProofs": [
+              {
+                "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+                "basisHash": "11ed4c0ff4d37a5e248986775c4aefe36fef8253d2df6c03f86e6c61555513dc",
+                "scopes": [
+                  {
+                    "id": "basic-product-intent",
+                    "criteria": [
+                      "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+                      "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+                      "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+                      "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+                      "Focused, aggregate, typecheck and pack pass before commit/push.",
+                      "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy."
+                    ],
+                    "testId": "test:tests/us/basic-product-intent.test.ts",
+                    "sources": [
+                      {
+                        "filePath": "tests/us/basic-product-intent.test.ts",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      },
+                      {
+                        "filePath": "src/product/mutation.ts",
+                        "symbolName": "validateFields",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      },
+                      {
+                        "filePath": "src/product/mutation.ts",
+                        "symbolName": "validateProductMutations",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      },
+                      {
+                        "filePath": "src/product/mutation.ts",
+                        "symbolName": "assessCharterAlignment",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      },
+                      {
+                        "filePath": "src/product/mutation.ts",
+                        "symbolName": "assessCharterAnswers",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      },
+                      {
+                        "filePath": "src/product/links.ts",
+                        "symbolName": "reviewProductChange",
+                        "projectRoot": "/home/dharmax/work/ai-workflow"
+                      }
+                    ],
+                    "projectRoot": "/home/dharmax/work/ai-workflow",
+                    "filePath": "tests/us/basic-product-intent.test.ts",
+                    "reviewedTestVersion": 24,
+                    "hashes": {
+                      "/home/dharmax/work/ai-workflow::tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+                      "/home/dharmax/work/ai-workflow::src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+                      "/home/dharmax/work/ai-workflow::src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "product_link",
+          "sourceId": "test:tests/us/basic-product-intent.test.ts",
+          "predicate": "verifies",
+          "targetId": "TKT-PRODUCT-CHARTER-FEATURE"
+        }
+      ],
+      "affectedFiles": [],
+      "originalHashes": {},
+      "affectedProducts": [
+        "TKT-PRODUCT-CHARTER-FEATURE",
+        "test:tests/us/basic-product-intent.test.ts"
+      ],
+      "productImpacts": [],
+      "dependents": [],
+      "warnings": [],
+      "blocked": false,
+      "verification": {
+        "diagnosticsExpected": false,
+        "typecheck": false,
+        "targetedTests": [],
+        "graphChecks": {}
+      }
+    },
+    "fingerprint": "1afd98eaa205f3289b4d729a520d1cdd576d7c605df194add67ddb1224da5022"
+  },
+  "bindingRefresh": {
+    "status": "bound",
+    "testId": "test:tests/us/basic-product-intent.test.ts",
+    "fingerprint": "1afd98eaa205f3289b4d729a520d1cdd576d7c605df194add67ddb1224da5022"
+  },
+  "technicalBefore": {
+    "id": "aiwf_Ticket_TKT-ACCEPTANCE-CONTEXT-LIMIT",
+    "lane": "Todo",
+    "status": "planned",
+    "metadata": {
+      "governedScope": {
+        "ticketId": "TKT-ACCEPTANCE-CONTEXT-LIMIT",
+        "intent": {
+          "title": "Qualify the larger independent acceptance context bound",
+          "body": "Technical ownership separated from TKT-PRODUCT-CHARTER-FEATURE by developer instruction at master 0f624b5. Owns the already committed src/ticket/verification.ts verifyTicketAcceptance bound increase from 80000 to 128000 characters for the observed 98187-character review. PRODUCT accepted v1; justified technical maintenance under Ticket, Verification and Prime Directive definitions and three active universal Rules v1. Retain source/test relationships and failed live evidence as history. tests/doctrine-enforcement-live.test.ts remains mandatory for this technical source scope, alongside deterministic doctrine-verifier.test.ts. Its explicit OpenRouter requirement needs developer paid-model authorization; no route change or live activation authorized here. No Product Story invented, no test weakening or acceptance bypass. This ownership reconciliation is not independent acceptance of the technical change.",
+          "acceptanceCriteria": [
+            "Complete review contexts up to 128000 characters remain eligible and larger contexts fail closed without truncation.",
+            "Current deterministic doctrine-verifier and mandatory live doctrine-enforcement execution pass with attributable evidence; retain live obligation while authorization is absent.",
+            "Independent current Rule and whole-owner Prime Directive acceptance and native verification receipt precede Done."
+          ]
+        },
+        "authoredTargets": [
+          {
+            "id": "src/ticket/verification.ts",
+            "kind": "FileNode",
+            "filePath": "src/ticket/verification.ts"
+          }
+        ],
+        "revision": 1,
+        "authoredFiles": [
+          "src/ticket/verification.ts"
+        ],
+        "authorizedFiles": [
+          "src/ticket/verification.ts"
+        ],
+        "files": [
+          "src/ticket/verification.ts"
+        ],
+        "baselines": {
+          "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114"
+        },
+        "effects": [
+          {
+            "fingerprint": "5c62e5ed4e88dd2bf9b8d4882b6730061a420a3f4b59fc7be810fe1822bd2878",
+            "edits": [
+              {
+                "filePath": "src/ticket/verification.ts",
+                "edits": [
+                  {
+                    "range": {
+                      "start": {
+                        "line": 166,
+                        "character": 8
+                      },
+                      "end": {
+                        "line": 167,
+                        "character": 81
+                      }
+                    },
+                    "newText": "if (serializedContext.length > 128_000)\n            throw Error(`Acceptance verification context exceeds 128000 characters"
+                  }
+                ]
+              }
+            ],
+            "before": {
+              "src/ticket/verification.ts": "e816969456fdd0f1b9026a287d79748c56c1477117e060b70fc072c4dbba4d8a"
+            },
+            "after": {
+              "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114"
+            },
+            "renames": []
+          }
+        ],
+        "governance": {
+          "fingerprint": "4f2726019a8074e50208d63400f2a36e05aa3fd095da26a3648506612b7f44c2",
+          "rules": [
+            {
+              "id": "rule-5b22656e67696e656572696e672e6162737472616374696f6e2d706c6163656d656e74222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.abstraction-placement",
+              "title": "Abstraction Placement",
+              "type": "architecture",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 10,
+              "rule": "Introduce abstractions wherever genuinely justified and nowhere else; first inspect existing owners and simpler alternatives.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "negative",
+                  "description": "Creating a new registry for a responsibility already owned by the current registry.",
+                  "lesson": "Duplication is not an abstraction improvement."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Review each touched artifact and immediate contracts. Identify justified and unjustified abstractions, alternatives already available, and exact evidence. Report pass, fail, not_applicable or inconclusive per rule."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "3cd9c9c6ade09d7eafaf431ee2cdb719fff8b2e19075ba0a6d49988e8d222121"
+            },
+            {
+              "id": "rule-5b22656e67696e656572696e672e6b6973732d73696d706c6963697479222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.kiss-simplicity",
+              "title": "Extreme KISS Simplicity",
+              "type": "coding",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 9,
+              "rule": "If a solution is not super-simple, it is totally wrong. Avoid complex wrapper abstractions and bypasses when native platform and existing contracts exist.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "negative",
+                  "description": "Adding intermediate caching layers or shadow stores when the direct store already owns persistence.",
+                  "lesson": "Prefer direct, native single-owner contracts."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Verify that the implementation chooses the simplest correct expression without unnecessary layers."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "a40a2c0c180bf04ff427b505e98addd96b9b4f4cf8965f141f015d38bf437887"
+            },
+            {
+              "id": "rule-5b22656e67696e656572696e672e73696e676c652d726573706f6e736962696c6974792d74696768746e657373222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.single-responsibility-tightness",
+              "title": "Single Responsibility & Tightness",
+              "type": "architecture",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 9,
+              "rule": "Every touched artifact must earn its existence with one clear owner and responsibility. Tighten statements and remove redundant branches or obsolete workarounds.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "positive",
+                  "description": "Placing domain operations in their owning domain tool module rather than scattering across general utilities.",
+                  "lesson": "Keep responsibility cohesive."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Assess whether touched methods have scattered or fragmented responsibilities."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "139ec9fe9fb1155f3b3229d9f5c123c240b4c2a9d229875ab1ff2cb89d14e503"
+            }
+          ],
+          "decisions": [],
+          "aspects": {
+            "scopeId": "TKT-ACCEPTANCE-CONTEXT-LIMIT",
+            "aspects": [],
+            "knownGaps": []
+          },
+          "targets": [
+            {
+              "filePath": "src/ticket/verification.ts",
+              "moduleIds": [
+                "mod:src/ticket"
+              ],
+              "language": "typescript",
+              "exists": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "charter": {
+    "id": "aiwf_Product_PRODUCT",
+    "status": "accepted",
+    "version": 1
+  },
+  "resolverResult": {
+    "status": "complete",
+    "artifactId": "TKT-PRODUCT-CHARTER-FEATURE",
+    "value": {
+      "verification": true,
+      "resolved": [
+        "TKT-PRODUCT-CHARTER-FEATURE"
+      ],
+      "files": [],
+      "repairs": 0,
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases."
+          },
+          {
+            "criterion": "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'."
+          },
+          {
+            "criterion": "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+            "passed": true,
+            "evidence": "src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract."
+          },
+          {
+            "criterion": "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints."
+          },
+          {
+            "criterion": "Focused, aggregate, typecheck and pack pass before commit/push.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack."
+          },
+          {
+            "criterion": "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory."
+          }
+        ],
+        "aspects": [],
+        "rules": [
+          {
+            "ruleId": "engineering.abstraction-placement",
+            "revision": 1,
+            "fingerprint": "983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.",
+            "evidenceIds": [
+              "src/product/mutation.ts#validateFields:56:1"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.kiss-simplicity",
+            "revision": 1,
+            "fingerprint": "b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.",
+            "evidenceIds": [
+              "src/product/mutation.ts#validateProductMutations:84:1"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.single-responsibility-tightness",
+            "revision": 1,
+            "fingerprint": "b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.",
+            "evidenceIds": [
+              "src/product/mutation.ts#assessCharterAlignment:413:1"
+            ],
+            "limitations": []
+          }
+        ],
+        "scopeReviews": [
+          {
+            "id": "basic-product-intent",
+            "bindingHash": "845be4eda88aa6c5dfb1d689cb913c800ae91576c505dd47c32274087fb7a95c",
+            "projectRoot": "/home/dharmax/work/ai-workflow",
+            "testId": "test:tests/us/basic-product-intent.test.ts",
+            "sourceIds": [
+              "tests/us/basic-product-intent.test.ts",
+              "src/product/mutation.ts#validateFields:56:1",
+              "src/product/mutation.ts#validateProductMutations:84:1",
+              "src/product/mutation.ts#assessCharterAlignment:413:1",
+              "src/product/mutation.ts#assessCharterAnswers:378:1",
+              "src/product/links.ts#reviewProductChange:139:1",
+              "test:tests/us/basic-product-intent.test.ts",
+              "src/product/links.ts",
+              "src/product/mutation.ts",
+              "tests/us/basic-product-intent.test.ts"
+            ],
+            "hashes": {
+              "/home/dharmax/work/ai-workflow::tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+              "/home/dharmax/work/ai-workflow::src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+              "/home/dharmax/work/ai-workflow::src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+            },
+            "execution": {
+              "lastRun": "2026-10-23T08:38:37.571Z",
+              "hashes": {
+                "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+                "src/change/types.ts": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+                "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+                "src/graph/store.ts": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+                "src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+                "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+                "tests/product-review.ts": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+                "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+                "src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+                "src/artifact-policy.ts": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+                "src/graph/indexer.ts": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+                "src/graph/ticket-state.ts": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+                "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+                "src/ticket-operation-types.ts": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+                "src/change/engine.ts": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+                "src/graph/ontology.ts": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+                "src/tools/registry.ts": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+                "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+                "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+                "src/tools/aspects.ts": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+                "src/tools/change.ts": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+                "src/tools/compiler.ts": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+                "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+                "src/tools/git.ts": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+                "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+                "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+                "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+                "src/tools/planning.ts": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+                "src/tools/product.ts": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+                "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+                "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+                "src/tools/scripting.ts": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+                "src/tools/test-runner.ts": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+                "src/tools/tickets.ts": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+                "src/artifact-critic.ts": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+                "src/graph/test-proof-types.ts": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+                "src/graph/types.ts": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+                "src/graph/test-artifacts.ts": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+                "src/aspects.ts": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+                "src/change/request-schema.ts": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+                "src/product/context.ts": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+                "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+                "src/rules/store.ts": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+                "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+                "src/ticket/prompts.ts": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+                "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+                "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+                "src/change/ts-lsp.ts": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+                "src/change/ts6-refactor.ts": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+                "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+                "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+                "src/product/process-types.ts": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+                "src/product/process.ts": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+                "src/ticket/investigate.ts": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+                "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+                "src/ticket/resolve.ts": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+                "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+                "src/graph/projections.ts": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+                "src/product/story-tests.ts": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+                "src/ticket/source-scope.ts": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+                "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+                "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+                "src/graph/technical-proof.ts": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+                "src/product/apply.ts": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+                "src/product/decompose.ts": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+                "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+                "src/ticket/prompts/acceptance.txt": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+                "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+                "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+                "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+                "src/change/lsp-shutdown.ts": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+                "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+                "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+                "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+                "src/ticket/implementation.ts": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+                "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+                "package.json": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+                "src/graph/aspect-projections.ts": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+                "src/product/manifest.ts": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+                "src/verification-context.ts": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+                "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+              }
+            },
+            "characters": 40370,
+            "assessment": {
+              "criteria": [
+                {
+                  "criterion": "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases."
+                },
+                {
+                  "criterion": "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'."
+                },
+                {
+                  "criterion": "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+                  "passed": true,
+                  "evidence": "src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract."
+                },
+                {
+                  "criterion": "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints."
+                },
+                {
+                  "criterion": "Focused, aggregate, typecheck and pack pass before commit/push.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack."
+                },
+                {
+                  "criterion": "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory."
+                }
+              ],
+              "aspects": [],
+              "rules": [
+                {
+                  "ruleId": "engineering.abstraction-placement",
+                  "revision": 1,
+                  "fingerprint": "983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#validateFields:56:1"
+                  ],
+                  "limitations": []
+                },
+                {
+                  "ruleId": "engineering.kiss-simplicity",
+                  "revision": 1,
+                  "fingerprint": "b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#validateProductMutations:84:1"
+                  ],
+                  "limitations": []
+                },
+                {
+                  "ruleId": "engineering.single-responsibility-tightness",
+                  "revision": 1,
+                  "fingerprint": "b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#assessCharterAlignment:413:1"
+                  ],
+                  "limitations": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "canonicalProductReadback": {
+    "id": "aiwf_Ticket_TKT-PRODUCT-CHARTER-FEATURE",
+    "lane": "Done",
+    "status": "verified",
+    "claim": null
+  },
+  "receipt": {
+    "id": "aiwf_Artifact_VERIFY-TKT-PRODUCT-CHARTER-FEATURE",
+    "status": "verified",
+    "body": {
+      "governanceVersion": 3,
+      "governanceFingerprint": "32dc1c4ab9ac0e526ad324340b2865b4505d9ddb9e4266f362e1b806f88375ab",
+      "scope": {
+        "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+        "intent": {
+          "title": "Govern Feature acceptance and revision by the current Product charter",
+          "body": "Authorized first Product Intent vertical slice on master, 2026-10-22. Canonical PRODUCT exists, accepted v1, excludes general-purpose chatbot functionality. Definitions: Product, Feature, Proposal and Acceptance, Decision, Project Graph. Universal active Rules: abstraction-placement, kiss-simplicity, single-responsibility-tightness v1. Shared S2 change/mutation owners; existing Critic, fingerprints, host authorization, Decision fields and governs relation. No hierarchy expansion or migration. Baseline tests/us/product-charter-feature.test.ts: 0 pass, 4 meaningful failures before implementation (conflict/missing charter/uncertainty not assessed; charter revision did not stale Feature preview). Final focused: 81 pass/0 fail across 9 public/safety suites. Final aggregate: 583 pass, 5 existing opt-in skips, 0 fail (588 tests/76 files, 137.16s). Typecheck, check:definitions and pack pass. Live configured ollama/gemma4:e4b previews copied canonical PRODUCT v1 into an isolated fixture: conflicting preview timed out at 60040ms; aligned preview timed out at 60038ms. Both returned needs_input, no Feature written. Live semantic classification remains unverified. Existing 60s bound and provider settings unchanged. Pack reports pre-existing dirty llm-utils dependency; sibling untouched. Implementation delivery and controlled public proof are not a native receipt or Gate acceptance. No migration.\n\n2026-10-22 bounded developer-answer correction, starting clean master e01b01a. Same accepted PRODUCT v1 and Product/Feature/Decision/Proposal-and-Acceptance definitions; same three universal Rules, no applicable linked Aspect and no Product Intent expansion. Public regression first failed causally: ordinary host Product approval accepted an agent-authored substantive warning answer (expected false, received true). Existing host execution review now separately carries the developer response, scoped to the exact current Product fingerprint and Decision. Existing Decision context preserves grounded warning, original proposal/fingerprint and charter revision; decision preserves actual answer and governs the affected Feature. Host reobtains the grounded warning before elicitation; proposed text/ordinary approval/project-write/Critic acceptance cannot attest an answer. Stale basis and nested authority upgrades refuse. Positive interactive Shell and Workspace host proofs, source CLI/MCP and packed public negatives pass; independent aligned Feature acceptance and unrelated Product operations retained. Final focused 82/0 across 9 files; charter suite 8/0 through packed CLI/MCP; typecheck, check:definitions and pack pass. One aggregate run: 585 pass, 5 existing opt-in skips, 0 fail, 590 tests/76 files, 4202 assertions, 137.90s. Initial broad focused attempt was sandbox-denied loopback listening; unrestricted focused rerun green after fixing observed Shell explicit-command dispatch. No live model experiments. Pack retains pre-existing dirty llm-utils dependency; sibling untouched. Controlled-provider/public proofs establish this correction, not live semantic classification, independent human identification or a native verification receipt. Keep Todo/unverified after lease release; no Gate or stage advancement.\n\n2026-10-22 bounded live-qualification continuation on master eeaf9e6: original /tmp/aiwf-feature-live-20261022/evidence.json preserved byte-for-byte at docs/evidence/product-charter-feature-live-2026-10-22/evidence.json (SHA-256 4b18c32bc3399479c4e58b82cbd61b3b78bdc6ea18eeee484e0bb0c21835c748); no credential fields or credential patterns found. Exact retained timings: aligned 60056.92693ms, contradictory 60030.042495ms; both ollama/gemma4:e4b requests timed out without model responses and returned needs_input, no Feature written. No Gemma retry or infrastructure investigation. Previously qualified alternative openrouter/openai/o3-mini is documented in docs/p0-engineering-2026-10-20.md and docs/p0-proof-scopes-2026-10-20.json, but its earlier temporary authorization is explicitly non-reusable; current operation is unprobed. Exact blocker: fresh developer authorization for temporary openrouter/openai/o3-mini use for these two unchanged disposable scenarios and, if successful, independent complete Feature acceptance review including eeaf9e6. No permanent routing/configuration changes, new model calls, model search, prompt redesign, timeout changes, source repairs or sibling edits. Detailed disposition: docs/evidence/product-charter-feature-live-2026-10-22/disposition.json. Live classification and conditional independent acceptance review remain unverified. Return Todo/unverified after releasing lease; no Verification receipt, Done or stage advancement.\n\nStage 1 disposition 2026-10-22, eeaf9e6: developer explicitly authorized temporary openrouter/openai/o3-mini. Provider credential endpoint HTTP 200; exactly two real unchanged semantic previews in disposable PRODUCT v1 state, with existing 60000ms bound. Aligned 9941.325546ms: model accepted alignment but returned positive findings; assessFeatureAlignment refuses any findings, so public preview returned needs_input, not eligible for ordinary review. Contradictory 9506.731547ms: specific grounded chatbot non-goal conflict, needs_input. Two real model responses retained, no Feature written, canonical charter and permanent configuration unchanged. Setup-only attempt inherited gateway=ollama, produced no network inference; corrected disposable gateway before the two real previews. Qualification FAILED, conditional independent complete acceptance not performed; no prompt redesign, retries, source repair or timeout changes. Evidence: docs/evidence/product-charter-feature-o3-2026-10-22/{evidence,disposition,setup-attempt}.json and run.ts. Keep Todo/planned/unverified, no receipt or Done. This is a live reviewer/output-contract blocker, not a timeout or proof of accepted behavior.\n\n2026-10-23 developer-authorized BASIC Product Intent #2 continuation from master b46e5b7. PRODUCT accepted v1 and Product/Feature/UserStory/Proposal-and-Acceptance/Decision/Prime Directive definitions; three active universal Rules v1. Exact saved o3 aligned response reproduced as false warning on untouched base; three new public failures established before implementation. Existing Critic now has explicit charter assessment/explanation/observations versus grounded conflicts and required developer input; general consumers unchanged. Existing mutation/review path now governs accepted complete UserStories and preserves eeaf9e6 separately host-collected developer answers, canonical relationships, history, stale-charter refusal and Manifest identity. Complete public Charter -> accepted Feature -> inert derived/revised/accepted US -> reopen/Manifest/conflict/actual answer/stale refusal regression passes. Final aggregate 589 pass, 5 existing opt-in skips, 0 fail (594 tests/77 files, 4296 assertions, 138.09s); typecheck, definitions, pack pass; packed public 14/0. Temporary authorized o3-mini classified both Features; original contradictory preview exposed a paraphrase-handling defect, corrected at the same owner and proven by exact-response replay; final handling replay is controlled proof, not another live run. Whole-scope independent o3-mini review returned HTTP 200 empty output twice under existing one retry, yielding invalid_response: JSON schema validation failed: Empty response received for response. No independent acceptance verdict, no VERIFY receipt or Done. Retain Todo/planned/unverified; do not claim BASIC #2 fully accepted. No permanent configuration/provider changes, no advanced PI or task #3 work. Evidence: docs/evidence/basic-product-intent-2026-10-23/. Pre-existing dirty bun.lockb and llm-utils sibling preserved; no independent-installable-package claim. Deferred TKT-DW-S1/PI-ADV-* scope unchanged.\n\n2026-10-23 BASIC Product Intent #2 closure attempt, base 7042de2bc204570a766068884c459a4e16f8ffcb. Developer-approved outward Story: Developer establishes Charter and Feature through reviewed public AIWF operations, supplies a complete User Story, reviews/edits its interpretation and explicitly accepts it, so subsequent engineering can work from approved complete Product Intent. Expected: canonical complete fields and current Charter validation; editable inert proposals; grounded material warnings with actual developer answers; one accepted US identity/revision and Feature enables relation; same accepted meaning on read/reopen with Manifest only a projection; rejection/cancellation/unauthorized answers/stale approval preserve accepted intent; precise enough to derive eventual acceptance tests. Implementing the requested software is #3 and excluded.\nGrounding: canonical PRODUCT accepted v1; Product/UserStory/Proposal-and-Acceptance/Test/Verification/Prime Directive definitions and governing design; active universal abstraction-placement, kiss-simplicity and single-responsibility-tightness Rules v1. No linked applicable Aspect or outstanding alignment warning for this work; fixture conflicts are deliberately unresolved until host-collected developer answers. Current source and test inspection, not historical AI reviews, form the assessment.\nActual initial baseline: bun test tests/us/basic-product-intent.test.ts on unchanged HEAD: 6 pass, 0 fail, 61 assertions. Already GREEN; no product red or production fix invented. Same file elaborated with incomplete required fields on creation/revision and stale US revision approval, plus accepted cancellation/rejection preservation, full definition/identity and reopen durability. Initial added-case run had 6 pass/2 fail solely from incorrect exception assertions where the public API returns structured refusals; corrected the test oracle to assert those refusals and unchanged canonical state. No implementation changes. Final Story proof: 8 pass, 0 fail, 108 assertions. Real registry operations, real host Product review, actual CLI Manifest export; Charter and Feature established through reviewed mutations, no fabricated graph fixtures; only external model transport is controlled, retaining recorded live response replays. Existing proposal/edit/accept, grounded conflict/actual answer versus agent self-approval, Charter stale approval and reopen checks remain unchanged.\nCurrent assessment: inspected the complete Story test and existing validateFields, validateProductMutations, assessCharterAlignment, assessCharterAnswers, reviewProductChange and change-engine preview/apply contracts against the approved Expected Result. BASIC #2 outward behavior is proven within this controlled external-transport scope; no #3 work, model purchase or provider change. Precommit full regression: bun test --max-concurrency=1: 591 pass, 5 existing opt-in skips, 0 fail, 4343 assertions, 596 tests/77 files, 138.73s; bun run typecheck passes.\nLegitimate completion attempt: aiwf resolve TKT-PRODUCT-CHARTER-FEATURE --verify-only --agent codex-basic-product-intent --max-repairs 0 --allow-dirty-target tests/us/basic-product-intent.test.ts. Returned blocked: Verification command timed out. Exact separate verification-tool defect: src/ticket/verification.ts executeTicketChecks hardcodes timeoutMs:60000 for each engineering check, including default bun test; current unchanged full suite needs 138.73s. Completion stopped at test execution before independent acceptance/receipt creation. No receipt fabricated, no Product implementation restarted to accommodate finishing machinery; return Todo/planned/unverified and release lease. Earlier duplicate standalone full run was stopped when resolver itself started bun test; one direct full run then completed after resolver timeout. Pre-existing unrelated bun.lockb preserved. Commit/push only this Story-test change and AIWF-generated work projections; no advanced Product Intent, Radar or extra ceremonies.\n\n2026-10-23 developer authorizes increasing the acceptance-context limit to fit the observed 98187-character review and retrying canonical completion with the exact BASIC Product Intent Story command. Bound raised to 128000 characters. No model routing, Product Intent implementation or test timeout change.",
+          "acceptanceCriteria": [
+            "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+            "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+            "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+            "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+            "Focused, aggregate, typecheck and pack pass before commit/push.",
+            "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy."
+          ]
+        },
+        "authoredTargets": [
+          {
+            "id": "tests/us/basic-product-intent.test.ts",
+            "kind": "FileNode",
+            "filePath": "tests/us/basic-product-intent.test.ts"
+          }
+        ],
+        "governance": {
+          "targets": [
+            {
+              "filePath": "tests/us/basic-product-intent.test.ts",
+              "moduleIds": [
+                "mod:tests"
+              ],
+              "language": "typescript",
+              "exists": true
+            }
+          ],
+          "decisions": []
+        },
+        "revision": 10,
+        "authoredFiles": [
+          "tests/us/basic-product-intent.test.ts"
+        ],
+        "authorizedFiles": [
+          "tests/us/basic-product-intent.test.ts"
+        ],
+        "files": [
+          "tests/us/basic-product-intent.test.ts"
+        ],
+        "baselines": {
+          "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572"
+        },
+        "effects": []
+      },
+      "signature": "11ed4c0ff4d37a5e248986775c4aefe36fef8253d2df6c03f86e6c61555513dc",
+      "hashes": {
+        "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+        "src/change/types.ts": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+        "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+        "src/graph/store.ts": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+        "src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+        "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+        "tests/product-review.ts": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+        "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+        "src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+        "src/artifact-policy.ts": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+        "src/graph/indexer.ts": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+        "src/graph/ticket-state.ts": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+        "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+        "src/ticket-operation-types.ts": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+        "src/change/engine.ts": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+        "src/graph/ontology.ts": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+        "src/tools/registry.ts": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+        "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+        "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+        "src/tools/aspects.ts": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+        "src/tools/change.ts": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+        "src/tools/compiler.ts": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+        "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+        "src/tools/git.ts": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+        "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+        "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+        "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+        "src/tools/planning.ts": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+        "src/tools/product.ts": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+        "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+        "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+        "src/tools/scripting.ts": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+        "src/tools/test-runner.ts": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+        "src/tools/tickets.ts": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+        "src/artifact-critic.ts": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+        "src/graph/test-proof-types.ts": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+        "src/graph/types.ts": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+        "src/graph/test-artifacts.ts": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+        "src/aspects.ts": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+        "src/change/request-schema.ts": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+        "src/product/context.ts": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+        "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+        "src/rules/store.ts": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+        "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+        "src/ticket/prompts.ts": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+        "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+        "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+        "src/change/ts-lsp.ts": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+        "src/change/ts6-refactor.ts": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+        "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+        "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+        "src/product/process-types.ts": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+        "src/product/process.ts": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+        "src/ticket/investigate.ts": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+        "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+        "src/ticket/resolve.ts": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+        "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+        "src/graph/projections.ts": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+        "src/product/story-tests.ts": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+        "src/ticket/source-scope.ts": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+        "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+        "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+        "src/graph/technical-proof.ts": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+        "src/product/apply.ts": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+        "src/product/decompose.ts": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+        "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+        "src/ticket/prompts/acceptance.txt": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+        "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+        "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+        "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+        "src/change/lsp-shutdown.ts": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+        "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+        "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+        "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+        "src/ticket/implementation.ts": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+        "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+        "package.json": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+        "src/graph/aspect-projections.ts": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+        "src/product/manifest.ts": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+        "src/verification-context.ts": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+        "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+      },
+      "acceptance": {
+        "criteria": [
+          {
+            "criterion": "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases."
+          },
+          {
+            "criterion": "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'."
+          },
+          {
+            "criterion": "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+            "passed": true,
+            "evidence": "src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract."
+          },
+          {
+            "criterion": "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints."
+          },
+          {
+            "criterion": "Focused, aggregate, typecheck and pack pass before commit/push.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack."
+          },
+          {
+            "criterion": "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.",
+            "passed": true,
+            "evidence": "tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory."
+          }
+        ],
+        "aspects": [],
+        "rules": [
+          {
+            "ruleId": "engineering.abstraction-placement",
+            "revision": 1,
+            "fingerprint": "983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.",
+            "evidenceIds": [
+              "src/product/mutation.ts#validateFields:56:1"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.kiss-simplicity",
+            "revision": 1,
+            "fingerprint": "b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.",
+            "evidenceIds": [
+              "src/product/mutation.ts#validateProductMutations:84:1"
+            ],
+            "limitations": []
+          },
+          {
+            "ruleId": "engineering.single-responsibility-tightness",
+            "revision": 1,
+            "fingerprint": "b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3",
+            "verdict": "pass",
+            "evidence": "src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.",
+            "evidenceIds": [
+              "src/product/mutation.ts#assessCharterAlignment:413:1"
+            ],
+            "limitations": []
+          }
+        ],
+        "scopeReviews": [
+          {
+            "id": "basic-product-intent",
+            "bindingHash": "845be4eda88aa6c5dfb1d689cb913c800ae91576c505dd47c32274087fb7a95c",
+            "projectRoot": "/home/dharmax/work/ai-workflow",
+            "testId": "test:tests/us/basic-product-intent.test.ts",
+            "sourceIds": [
+              "tests/us/basic-product-intent.test.ts",
+              "src/product/mutation.ts#validateFields:56:1",
+              "src/product/mutation.ts#validateProductMutations:84:1",
+              "src/product/mutation.ts#assessCharterAlignment:413:1",
+              "src/product/mutation.ts#assessCharterAnswers:378:1",
+              "src/product/links.ts#reviewProductChange:139:1",
+              "test:tests/us/basic-product-intent.test.ts",
+              "src/product/links.ts",
+              "src/product/mutation.ts",
+              "tests/us/basic-product-intent.test.ts"
+            ],
+            "hashes": {
+              "/home/dharmax/work/ai-workflow::tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+              "/home/dharmax/work/ai-workflow::src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+              "/home/dharmax/work/ai-workflow::src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58"
+            },
+            "execution": {
+              "lastRun": "2026-10-23T08:38:37.571Z",
+              "hashes": {
+                "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+                "src/change/types.ts": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+                "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+                "src/graph/store.ts": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+                "src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+                "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+                "tests/product-review.ts": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+                "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+                "src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+                "src/artifact-policy.ts": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+                "src/graph/indexer.ts": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+                "src/graph/ticket-state.ts": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+                "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+                "src/ticket-operation-types.ts": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+                "src/change/engine.ts": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+                "src/graph/ontology.ts": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+                "src/tools/registry.ts": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+                "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+                "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+                "src/tools/aspects.ts": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+                "src/tools/change.ts": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+                "src/tools/compiler.ts": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+                "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+                "src/tools/git.ts": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+                "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+                "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+                "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+                "src/tools/planning.ts": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+                "src/tools/product.ts": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+                "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+                "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+                "src/tools/scripting.ts": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+                "src/tools/test-runner.ts": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+                "src/tools/tickets.ts": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+                "src/artifact-critic.ts": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+                "src/graph/test-proof-types.ts": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+                "src/graph/types.ts": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+                "src/graph/test-artifacts.ts": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+                "src/aspects.ts": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+                "src/change/request-schema.ts": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+                "src/product/context.ts": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+                "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+                "src/rules/store.ts": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+                "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+                "src/ticket/prompts.ts": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+                "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+                "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+                "src/change/ts-lsp.ts": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+                "src/change/ts6-refactor.ts": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+                "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+                "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+                "src/product/process-types.ts": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+                "src/product/process.ts": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+                "src/ticket/investigate.ts": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+                "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+                "src/ticket/resolve.ts": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+                "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+                "src/graph/projections.ts": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+                "src/product/story-tests.ts": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+                "src/ticket/source-scope.ts": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+                "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+                "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+                "src/graph/technical-proof.ts": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+                "src/product/apply.ts": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+                "src/product/decompose.ts": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+                "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+                "src/ticket/prompts/acceptance.txt": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+                "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+                "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+                "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+                "src/change/lsp-shutdown.ts": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+                "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+                "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+                "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+                "src/ticket/implementation.ts": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+                "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+                "package.json": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+                "src/graph/aspect-projections.ts": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+                "src/product/manifest.ts": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+                "src/verification-context.ts": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+                "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+              }
+            },
+            "characters": 40370,
+            "assessment": {
+              "criteria": [
+                {
+                  "criterion": "Mandatory current accepted charter governs Feature acceptance and revision through all Product mutation paths.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test suite verifies that the charter governs Feature acceptance and revision through all mutation paths, as evidenced by the successful execution of the test cases."
+                },
+                {
+                  "criterion": "Specific semantic contradiction returns needs_input; yes, model accept/acknowledgment and project-write do not resolve it.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'blocks an accept verdict containing a substantive explicit conflict' confirms that semantic contradictions return 'needs_input'."
+                },
+                {
+                  "criterion": "Reviewed Feature revision preserves warning, response and revision context in existing Decision contract.",
+                  "passed": true,
+                  "evidence": "src/product/links.ts: The function 'reviewProductChange' ensures that warnings and responses are preserved in the Decision contract."
+                },
+                {
+                  "criterion": "Aligned coherent Product+Feature batch succeeds; charter revision invalidates old fingerprint; no migration of drafts/history/technical work.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'accepts the recorded positive observation with an explicit aligned assessment' confirms successful alignment and invalidation of old fingerprints."
+                },
+                {
+                  "criterion": "Focused, aggregate, typecheck and pack pass before commit/push.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test suite passes all tests, indicating successful typecheck and pack."
+                },
+                {
+                  "criterion": "Developer can derive, edit, review and accept a complete canonical UserStory under the current accepted charter; graph-owned Feature enables Story, durable reopen/Manifest, grounded warnings and separately host-collected answers are publicly proven without schema redesign or mandatory hierarchy.",
+                  "passed": true,
+                  "evidence": "tests/us/basic-product-intent.test.ts: The test case 'reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution' confirms the ability to derive, edit, review, and accept a complete UserStory."
+                }
+              ],
+              "aspects": [],
+              "rules": [
+                {
+                  "ruleId": "engineering.abstraction-placement",
+                  "revision": 1,
+                  "fingerprint": "983c7bfbdca2c480513be5968b8f922d35bdb02bbdbcd7dafc73c845e26bd333",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The code does not introduce unnecessary abstractions and adheres to existing owners and simpler alternatives.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#validateFields:56:1"
+                  ],
+                  "limitations": []
+                },
+                {
+                  "ruleId": "engineering.kiss-simplicity",
+                  "revision": 1,
+                  "fingerprint": "b5fe9ae2cb21fec61ccb3930b96b95fc0a531be5a5ec1039df3bcc74d8dd415d",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The implementation uses simple and direct expressions without unnecessary layers.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#validateProductMutations:84:1"
+                  ],
+                  "limitations": []
+                },
+                {
+                  "ruleId": "engineering.single-responsibility-tightness",
+                  "revision": 1,
+                  "fingerprint": "b6b81a34f4b19f0ad6093cb5c600071ed37e628a824494502386b9d59d80acf3",
+                  "verdict": "pass",
+                  "evidence": "src/product/mutation.ts: The methods have cohesive responsibilities and do not scatter across general utilities.",
+                  "evidenceIds": [
+                    "src/product/mutation.ts#assessCharterAlignment:413:1"
+                  ],
+                  "limitations": []
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "tests": [
+        {
+          "command": [
+            "bun",
+            "test",
+            "tests/us/basic-product-intent.test.ts"
+          ],
+          "passed": true
+        }
+      ],
+      "testNodes": [
+        {
+          "id": "test:tests/us/basic-product-intent.test.ts",
+          "hashes": {
+            "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+            "src/change/types.ts": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+            "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+            "src/graph/store.ts": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+            "src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+            "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+            "tests/product-review.ts": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+            "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+            "src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+            "src/artifact-policy.ts": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+            "src/graph/indexer.ts": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+            "src/graph/ticket-state.ts": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+            "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+            "src/ticket-operation-types.ts": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+            "src/change/engine.ts": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+            "src/graph/ontology.ts": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+            "src/tools/registry.ts": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+            "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+            "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+            "src/tools/aspects.ts": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+            "src/tools/change.ts": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+            "src/tools/compiler.ts": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+            "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+            "src/tools/git.ts": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+            "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+            "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+            "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+            "src/tools/planning.ts": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+            "src/tools/product.ts": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+            "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+            "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+            "src/tools/scripting.ts": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+            "src/tools/test-runner.ts": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+            "src/tools/tickets.ts": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+            "src/artifact-critic.ts": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+            "src/graph/test-proof-types.ts": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+            "src/graph/types.ts": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+            "src/graph/test-artifacts.ts": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+            "src/aspects.ts": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+            "src/change/request-schema.ts": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+            "src/product/context.ts": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+            "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+            "src/rules/store.ts": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+            "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+            "src/ticket/prompts.ts": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+            "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+            "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+            "src/change/ts-lsp.ts": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+            "src/change/ts6-refactor.ts": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+            "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+            "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+            "src/product/process-types.ts": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+            "src/product/process.ts": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+            "src/ticket/investigate.ts": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+            "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+            "src/ticket/resolve.ts": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+            "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+            "src/graph/projections.ts": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+            "src/product/story-tests.ts": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+            "src/ticket/source-scope.ts": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+            "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+            "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+            "src/graph/technical-proof.ts": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+            "src/product/apply.ts": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+            "src/product/decompose.ts": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+            "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+            "src/ticket/prompts/acceptance.txt": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+            "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+            "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+            "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+            "src/change/lsp-shutdown.ts": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+            "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+            "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+            "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+            "src/ticket/implementation.ts": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+            "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+            "package.json": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+            "src/graph/aspect-projections.ts": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+            "src/product/manifest.ts": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+            "src/verification-context.ts": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+            "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+          }
+        }
+      ]
+    }
+  },
+  "technicalAfter": {
+    "id": "aiwf_Ticket_TKT-ACCEPTANCE-CONTEXT-LIMIT",
+    "lane": "Todo",
+    "status": "planned",
+    "metadata": {
+      "governedScope": {
+        "ticketId": "TKT-ACCEPTANCE-CONTEXT-LIMIT",
+        "intent": {
+          "title": "Qualify the larger independent acceptance context bound",
+          "body": "Technical ownership separated from TKT-PRODUCT-CHARTER-FEATURE by developer instruction at master 0f624b5. Owns the already committed src/ticket/verification.ts verifyTicketAcceptance bound increase from 80000 to 128000 characters for the observed 98187-character review. PRODUCT accepted v1; justified technical maintenance under Ticket, Verification and Prime Directive definitions and three active universal Rules v1. Retain source/test relationships and failed live evidence as history. tests/doctrine-enforcement-live.test.ts remains mandatory for this technical source scope, alongside deterministic doctrine-verifier.test.ts. Its explicit OpenRouter requirement needs developer paid-model authorization; no route change or live activation authorized here. No Product Story invented, no test weakening or acceptance bypass. This ownership reconciliation is not independent acceptance of the technical change.",
+          "acceptanceCriteria": [
+            "Complete review contexts up to 128000 characters remain eligible and larger contexts fail closed without truncation.",
+            "Current deterministic doctrine-verifier and mandatory live doctrine-enforcement execution pass with attributable evidence; retain live obligation while authorization is absent.",
+            "Independent current Rule and whole-owner Prime Directive acceptance and native verification receipt precede Done."
+          ]
+        },
+        "authoredTargets": [
+          {
+            "id": "src/ticket/verification.ts",
+            "kind": "FileNode",
+            "filePath": "src/ticket/verification.ts"
+          }
+        ],
+        "revision": 1,
+        "authoredFiles": [
+          "src/ticket/verification.ts"
+        ],
+        "authorizedFiles": [
+          "src/ticket/verification.ts"
+        ],
+        "files": [
+          "src/ticket/verification.ts"
+        ],
+        "baselines": {
+          "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114"
+        },
+        "effects": [
+          {
+            "fingerprint": "5c62e5ed4e88dd2bf9b8d4882b6730061a420a3f4b59fc7be810fe1822bd2878",
+            "edits": [
+              {
+                "filePath": "src/ticket/verification.ts",
+                "edits": [
+                  {
+                    "range": {
+                      "start": {
+                        "line": 166,
+                        "character": 8
+                      },
+                      "end": {
+                        "line": 167,
+                        "character": 81
+                      }
+                    },
+                    "newText": "if (serializedContext.length > 128_000)\n            throw Error(`Acceptance verification context exceeds 128000 characters"
+                  }
+                ]
+              }
+            ],
+            "before": {
+              "src/ticket/verification.ts": "e816969456fdd0f1b9026a287d79748c56c1477117e060b70fc072c4dbba4d8a"
+            },
+            "after": {
+              "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114"
+            },
+            "renames": []
+          }
+        ],
+        "governance": {
+          "fingerprint": "4f2726019a8074e50208d63400f2a36e05aa3fd095da26a3648506612b7f44c2",
+          "rules": [
+            {
+              "id": "rule-5b22656e67696e656572696e672e6162737472616374696f6e2d706c6163656d656e74222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.abstraction-placement",
+              "title": "Abstraction Placement",
+              "type": "architecture",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 10,
+              "rule": "Introduce abstractions wherever genuinely justified and nowhere else; first inspect existing owners and simpler alternatives.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "negative",
+                  "description": "Creating a new registry for a responsibility already owned by the current registry.",
+                  "lesson": "Duplication is not an abstraction improvement."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Review each touched artifact and immediate contracts. Identify justified and unjustified abstractions, alternatives already available, and exact evidence. Report pass, fail, not_applicable or inconclusive per rule."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "3cd9c9c6ade09d7eafaf431ee2cdb719fff8b2e19075ba0a6d49988e8d222121"
+            },
+            {
+              "id": "rule-5b22656e67696e656572696e672e6b6973732d73696d706c6963697479222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.kiss-simplicity",
+              "title": "Extreme KISS Simplicity",
+              "type": "coding",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 9,
+              "rule": "If a solution is not super-simple, it is totally wrong. Avoid complex wrapper abstractions and bypasses when native platform and existing contracts exist.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "negative",
+                  "description": "Adding intermediate caching layers or shadow stores when the direct store already owns persistence.",
+                  "lesson": "Prefer direct, native single-owner contracts."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Verify that the implementation chooses the simplest correct expression without unnecessary layers."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "a40a2c0c180bf04ff427b505e98addd96b9b4f4cf8965f141f015d38bf437887"
+            },
+            {
+              "id": "rule-5b22656e67696e656572696e672e73696e676c652d726573706f6e736962696c6974792d74696768746e657373222c22756e6976657273616c222c22225d",
+              "ruleId": "engineering.single-responsibility-tightness",
+              "title": "Single Responsibility & Tightness",
+              "type": "architecture",
+              "scope": {
+                "kind": "universal"
+              },
+              "importance": 9,
+              "rule": "Every touched artifact must earn its existence with one clear owner and responsibility. Tighten statements and remove redundant branches or obsolete workarounds.",
+              "status": "active",
+              "examples": [
+                {
+                  "kind": "positive",
+                  "description": "Placing domain operations in their owning domain tool module rather than scattering across general utilities.",
+                  "lesson": "Keep responsibility cohesive."
+                }
+              ],
+              "references": [],
+              "test": {
+                "kind": "llm",
+                "instruction": "Assess whether touched methods have scattered or fragmented responsibilities."
+              },
+              "revision": 1,
+              "provenance": "bundled-default",
+              "fingerprint": "139ec9fe9fb1155f3b3229d9f5c123c240b4c2a9d229875ab1ff2cb89d14e503"
+            }
+          ],
+          "decisions": [],
+          "aspects": {
+            "scopeId": "TKT-ACCEPTANCE-CONTEXT-LIMIT",
+            "aspects": [],
+            "knownGaps": []
+          },
+          "targets": [
+            {
+              "filePath": "src/ticket/verification.ts",
+              "moduleIds": [
+                "mod:src/ticket"
+              ],
+              "language": "typescript",
+              "exists": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "technicalUnchanged": true,
+  "configAfter": [
+    {
+      "file": "/home/dharmax/work/ai-workflow/.ai-workflow/config.json",
+      "sha256": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d"
+    },
+    {
+      "file": "/home/dharmax/.ai-workflow/config.json",
+      "sha256": "ae0aa2315260d841b8a1b16bb5d98f4e2db1d1fc5875ce7533b56b487f10148f"
+    }
+  ],
+  "configRestored": true,
+  "finishedAt": "2026-10-23T08:38:50.943Z"
+}

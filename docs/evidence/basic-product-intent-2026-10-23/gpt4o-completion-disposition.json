@@ -1,0 +1,65 @@
+{
+  "outcome": "Native canonical resolver complete; independent scope assessment and final composition accepted; receipt and Done persisted.",
+  "sha": "0f624b5ec6cb23f74a90f3b771b02d84c87a1d7e",
+  "route": {
+    "gateway": "openrouter",
+    "critic": "openrouter/openai/gpt-4o",
+    "design": "openrouter/openai/gpt-4o",
+    "verification": "openrouter/openai/gpt-4o",
+    "llmOutputTokens": 16000,
+    "providers": [
+      "ollama",
+      "openrouter"
+    ],
+    "resolved": {
+      "providerId": "openrouter",
+      "modelId": "openai/gpt-4o"
+    }
+  },
+  "actualResponseModels": [
+    "openai/gpt-4o",
+    "openai/gpt-4o"
+  ],
+  "successfulAssessmentRequests": 2,
+  "testResult": "8 pass / 0 fail / 108 assertions",
+  "ticket": {
+    "id": "aiwf_Ticket_TKT-PRODUCT-CHARTER-FEATURE",
+    "lane": "Done",
+    "status": "verified",
+    "claim": null
+  },
+  "receipt": {
+    "id": "aiwf_Artifact_VERIFY-TKT-PRODUCT-CHARTER-FEATURE",
+    "bodySha256": "05c578b5d08e3627cf7085d0dd28e3444ff35f95a35a3da8223c064e8da10b32",
+    "criteriaPassed": true,
+    "ruleVerdicts": [
+      {
+        "id": "engineering.abstraction-placement",
+        "verdict": "pass"
+      },
+      {
+        "id": "engineering.kiss-simplicity",
+        "verdict": "pass"
+      },
+      {
+        "id": "engineering.single-responsibility-tightness",
+        "verdict": "pass"
+      }
+    ],
+    "scopeCount": 1,
+    "sourceHashesCurrent": true,
+    "signatureMatchesRestoredRoute": false
+  },
+  "configurationRestoredByteForByte": true,
+  "technicalTicket": {
+    "id": "aiwf_Ticket_TKT-ACCEPTANCE-CONTEXT-LIMIT",
+    "lane": "Todo",
+    "status": "planned",
+    "claim": null
+  },
+  "technicalObligationUnchanged": true,
+  "technicalReceiptPresent": false,
+  "restorationCaveat": "The existing governance signature includes the critic model. Restoring Ollama leaves the historical GPT-4o receipt and Done/verified intact with current source hashes, but its signature differs from the restored verifier route and cannot be reused as current proof under that route. No receipt, signature, or Rule was rewritten to hide this.",
+  "authentication": "First inference request refused HTTP 401 because environment credential shadowed saved key. Saved key authenticated HTTP 200; actual review used it only inside child process. No credentials or permanent settings changed.",
+  "implementationChanges": false
+}

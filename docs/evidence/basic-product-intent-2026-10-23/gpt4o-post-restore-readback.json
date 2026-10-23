@@ -1,0 +1,57 @@
+{
+  "sha": "0f624b5ec6cb23f74a90f3b771b02d84c87a1d7e",
+  "ticket": {
+    "id": "aiwf_Ticket_TKT-PRODUCT-CHARTER-FEATURE",
+    "lane": "Done",
+    "status": "verified",
+    "claim": null
+  },
+  "receipt": {
+    "id": "aiwf_Artifact_VERIFY-TKT-PRODUCT-CHARTER-FEATURE",
+    "bodySha256": "05c578b5d08e3627cf7085d0dd28e3444ff35f95a35a3da8223c064e8da10b32",
+    "criteriaPassed": true,
+    "ruleVerdicts": [
+      {
+        "id": "engineering.abstraction-placement",
+        "verdict": "pass"
+      },
+      {
+        "id": "engineering.kiss-simplicity",
+        "verdict": "pass"
+      },
+      {
+        "id": "engineering.single-responsibility-tightness",
+        "verdict": "pass"
+      }
+    ],
+    "scopeCount": 1,
+    "sourceHashesCurrent": true,
+    "signatureMatchesRestoredRoute": false
+  },
+  "test": [
+    {
+      "id": "test:tests/us/basic-product-intent.test.ts",
+      "lastRun": "2026-10-23T08:38:37.571Z",
+      "passed": true,
+      "command": [
+        "bun",
+        "test",
+        "tests/us/basic-product-intent.test.ts"
+      ],
+      "output": "tests/us/basic-product-intent.test.ts:\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > accepts the recorded positive observation with an explicit aligned assessment [95.73ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > blocks an accept verdict containing a substantive explicit conflict [23.82ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > keeps legacy responses, malformed assessments, contradictions and uncertainty closed [45.81ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution [517.84ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > preserves the grounded conflict from the actual o3-mini response despite paraphrased general findings [18.90ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > refuses incomplete acceptance without changing accepted intent [65.18ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > refuses a stale Story approval and reopens the same accepted identity and meaning [94.85ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > requires current accepted charter for complete Stories too [7.57ms]\n\n 8 pass\n 0 fail\n 108 expect() calls\nRan 8 tests across 1 file. [1020.00ms]\n"
+    }
+  ],
+  "restoredRoute": {
+    "gateway": "ollama",
+    "critic": "ollama/gemma4:e4b",
+    "design": "ollama/gemma4:e4b",
+    "llmOutputTokens": 2048
+  },
+  "technical": {
+    "id": "aiwf_Ticket_TKT-ACCEPTANCE-CONTEXT-LIMIT",
+    "lane": "Todo",
+    "status": "planned",
+    "claim": null
+  },
+  "technicalReceiptPresent": false
+}
