@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct,updateProduct,reviewedApply} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
@@ -11,6 +12,7 @@ import { applyEpicStructure } from '../src/product/apply.ts';
 
 describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   let root: string, store: WorkflowStore;
+  let stopReviewer: (()=>void) | undefined;
   const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = {
     actor: 'signed-in user', intent: 'keep the previewed avatar',
@@ -18,11 +20,12 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
     action: 'Activate Save', expectedResult: 'Saved avatar displays the filtered image after reload',
     exceptions: 'Failed save preserves the previous avatar and reports failure', bounds: 'One signed-in account'
   };
-  beforeEach(() => {
+  beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-dw-s1-'));
     store = new WorkflowStore(root); initializeTools();
+    stopReviewer=await productReviewFixture(store);
   });
-  afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
+  afterEach(() => { stopReviewer?.(); store.close(); fs.rmSync(root, { recursive: true, force: true }); });
 
   it('DW-02 creates, edits and reopens a complete accepted Story under the same identity', async () => {
     await createProduct(store, "Feature", { id: 'F', title: 'Avatar filters', priority: 1 });

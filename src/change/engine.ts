@@ -23,7 +23,7 @@ import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/index
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
 import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
-import { validateProductMutations, assessFeatureAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
+import { validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
   ChangeRequest,
@@ -648,7 +648,7 @@ export class CausalChangeEngine {
     try {
       const validated = await validateProductMutations(this.store, request.mutations, request.basis);
       const {snapshot} = validated;
-      await assessFeatureAlignment(this.store, request.mutations, validated, request);
+      await assessCharterAlignment(this.store, request.mutations, validated, request);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
       const affected = new Set<string>();

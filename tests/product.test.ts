@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct,updateProduct} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
@@ -24,15 +25,18 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
   let tempDir: string;
   let store: WorkflowStore;
   let ctx: ToolContext;
+  let stopReviewer: (()=>void) | undefined;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-product-test-'));
     store = new WorkflowStore(tempDir, true);
     initializeTools();
     ctx = { store, projectRoot: tempDir, executionAuthority: 'project-write' as const };
+    stopReviewer=await productReviewFixture(store);
   });
 
   afterEach(() => {
+    stopReviewer?.();
     store.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });

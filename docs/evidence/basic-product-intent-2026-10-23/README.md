@@ -1,0 +1,35 @@
+# BASIC Product Intent #2 — implementation and evidence, 2026-10-23
+
+**Disposition: implemented and regression-tested; independent acceptance blocked.** Starting master was b46e5b793066aeb388595a8bc69d8b6e2d04bed9. The unrelated pre-existing bun.lockb change is excluded from publication.
+
+## Governing basis and scope
+
+The actual canonical PRODUCT is accepted revision 1, matching docs/product-charter.md. Product, Feature, UserStory, Proposal and Acceptance, Decision and Prime Directive definitions govern this bounded journey. Required US fields remain ID, Title, Actor, Intent, Initial State, Action and Expected Result; existing legacy data/schema remain. Three current universal Rules v1 apply: engineering.abstraction-placement, engineering.kiss-simplicity and engineering.single-responsibility-tightness. No linked Aspect supplies additional meaning for this work. No advanced Aspect/Epic/Sub-US/impact, Radar, provider infrastructure or task #3 work is included.
+
+Existing TKT-PRODUCT-CHARTER-FEATURE owns the semantic defect and this developer-authorized BASIC continuation. It stays Todo/planned/unverified, without a VERIFY receipt or Done claim. TKT-DW-S1 and the deferred PI-ADV-* records retain their existing advanced/backlog scope; no roadmap completion is inferred.
+
+## Reproduction and correction
+
+recorded-baseline.json replays the exact saved o3-mini aligned response over controlled external transport against untouched b46e5b7. Existing llm-utils repairs the originally incomplete JSON. One request produces needs_input and a warning containing the positive observation, with no Feature written. red.txt preserves the initial three meaningful public failures: aligned positive findings block, an actionable assessment fails to surface its warning, and accepted Stories bypass charter review. An earlier test-fixture JSON parse error was repaired before that genuine baseline; it is not counted as product red.
+
+The existing AiArtifactCritic path now requests a typed alignment assessment only for charter reviews. Explanation/observations are distinct from grounded conflicts and required input. An aligned result must explicitly classify generic findings as observations; unknown, malformed, missing or uncertain assessments fail closed. A substantive structured conflict blocks regardless of a general accept verdict. General Critic consumers keep their existing schema/behavior. There is no sentiment/keyword classifier, parallel reviewer, new product field or alternate persistence owner.
+
+The existing Product mutation owner now applies that path to accepted Feature and UserStory definitions and revisions. PRODUCT absence/version participates in their fingerprints, including unlinked Stories; charter amendments stale pending reviews without rewriting accepted descendants. Existing host-owned, separately collected developer answers from eeaf9e6 remain required for warning-resolution Decisions. Those Decisions can govern the affected Feature or Story. Agent-authored text, ordinary approval, project-write and nested authority cannot supply the answer.
+
+The cohesive tests/us/basic-product-intent.test.ts exercises the public registry, trusted local review callback and CLI export: actual charter acceptance; aligned Feature acceptance; inert process_feature derivation of a complete Story; developer revision, rejection/cancellation and exact acceptance; same definitions/revisions and canonical enables relation after store reopen; consistent Feature detail/Manifest; conflicting Story, grounded warning, refused self-approval, separately collected answer, durable Decision, and stale charter refusal. It derives no mandatory Feature/Epic parent. Its external transport is controlled regression evidence, not live semantic proof. Older acceptance assertions are unchanged; four suites gained required isolated charter/reviewer setup and the shared controlled reviewer gained the explicit alignment contract.
+
+## Bounded live qualification
+
+live.json retains the authorized temporary openrouter/openai/o3-mini run against the same aligned/contradictory Feature scenarios and actual charter text. Two public previews used the existing single structured-output retry (four HTTP 200 inference calls). Permanent project/global configuration hashes are unchanged; no feature was written and disposable state was removed. No provider investigation, model shopping or timeout change followed.
+
+The aligned preview became eligible with no warning after a schema retry (18.728 s). The model also returned a valid grounded contradictory assessment after a retry (20.836 s), but the initial handler replaced its grounded warning with a classification error because the general finding paraphrased the structured conflict. Thus **the original live public qualification did not fully pass**; live.json records that explicitly.
+
+That demonstrated refusal-path defect was corrected at the existing owner: material structured conflicts remain blocking and keep their grounded warnings without an unnecessary duplicate-wording requirement. Aligned general findings still require explicit observation classification. replay.json replays the exact final external responses through the corrected public path: aligned has no warnings; contradictory returns its exact conflict and developer question; no feature is written. A permanent regression retains that real contradictory response. This final handling proof is controlled replay, not another live run; the captured model classifications themselves are real external semantic evidence. No additional live qualification was attempted under the one-run authorization.
+
+## Validation and independent review
+
+Final full aggregate: 589 pass, 5 existing opt-in skips, 0 fail; 594 tests / 77 files, 4296 assertions, 138.09 s. Final packed public suites: 14 pass / 0 fail, 142 assertions. Typecheck, check:definitions (20 concepts, 164 links, exact 9-field table) and pack pass. The first aggregate's four failures were older mandatory-charter/reviewer fixture gaps; those were corrected without changing their assertions, then the full aggregate passed. Pack reports the pre-existing dirty llm-utils sibling; it was not edited, and these results do not claim pristine sibling dependencies or independent npm installation.
+
+independent-review.json records the bounded whole-scope AiArtifactCritic review using temporary o3-mini, exact final source hashes, required criteria and real evidence. **No verdict was obtained:** Independent Critic failed: invalid_response: JSON schema validation failed: Empty response received for response. The model returned no review text under the existing retry/output contract. Configurations remain unchanged. This is the exact independent-acceptance blocker; no receipt, Done, Gate or stage advancement is claimed.
+
+The implementation/public regression passes, but BASIC Product Intent #2 must not be called fully independently accepted. Any further live qualification or independent-review continuation is a separate bounded operation; no automatic provider investigations were started.

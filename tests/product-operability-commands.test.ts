@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {afterEach,beforeEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,11 +14,13 @@ const binary=process.env.AIWF_PUBLIC_BINARY;
 const cli=path.resolve(import.meta.dir,'../src/cli.ts');
 describe('PC1b human public link journeys',()=>{
  let root:string,store:WorkflowStore;
+ let stopReviewer: (()=>void) | undefined;
  const run=(...args:string[])=>Bun.spawnSync(binary?[binary,...args]:['bun',cli,...args],{cwd:root,stderr:'pipe'});
  const reopen=()=>{store.close();store=new WorkflowStore(root);};
  beforeEach(async()=>{root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-pc1b-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store,false);
   await store.upsertEntity(Epic.dcr,{id:'E1',title:'Delivery'});await store.upsertEntity(Goal.dcr,{id:'G1',title:'Outcome'});});
- afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
+ afterEach(()=>{stopReviewer?.();store.close();fs.rmSync(root,{recursive:true,force:true});});
  it('discovers modes and previews without writing, then explicitly applies and reopens',async()=>{
   const types=run('link','types','Epic','Goal');expect(types.success).toBe(true);expect(types.stdout.toString()).toContain('targets');
   const preview=run('link','E1','to','G1','as','targets','--note','Delivery scope');expect(preview.success).toBe(true);

@@ -43,7 +43,7 @@ describe('Product charter governs Feature acceptance and revision through public
    const criteria=(context.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:effective==='aligned',evidence:effective==='aligned'?'PRODUCT purpose and scope permit F engineering assistance.':warning}));
    // Deliberate general Critic approval must not erase a material finding.
    const review=effective==='generic'?{verdict:'accept'}:effective==='conflict'?{verdict:'accept',findings:[{artifactId:'F',message:warning}]}:effective==='unknown'?{verdict:'needs_input',required:[{artifactId:'F',question:'Is this scope engineering-only?'}]}:{verdict:'accept'};
-   return Response.json({message:{content:JSON.stringify({criteria,aspects:[],review})}});
+   return Response.json({message:{content:JSON.stringify({criteria,aspects:[],review,...(context.charterAlignment?{alignment:{status:effective==='aligned'?'aligned':effective==='conflict'?'conflict':'uncertain',explanation:effective==='aligned'?'PRODUCT permits repository engineering assistance.':warning,observations:[],conflicts:effective==='conflict'?[{artifactId:'F',message:warning,charterEvidence:'General-purpose conversation and content generation',definitionEvidence:'poems for the general public',question:'Revise F to engineering assistance or leave unresolved?'}]:[]}}:{})})}});
   }});
   previousHost=process.env.OLLAMA_HOST;process.env.OLLAMA_HOST=server.url.toString();
   saveConfig(root,{model:'ollama/controlled-reviewer',ollamaUrl:server.url.toString()});

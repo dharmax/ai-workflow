@@ -1,0 +1,50 @@
+bun test v1.4.4 (38afee6c8)
+
+tests/us/basic-product-intent.test.ts:
+48 |   previousHost=process.env.OLLAMA_HOST;process.env.OLLAMA_HOST=server.url.toString();saveConfig(root,{model:'ollama/controlled-reviewer',ollamaUrl:server.url.toString()});
+49 |  });
+50 |  afterEach(()=>{server.stop(true);if(previousHost===undefined)delete process.env.OLLAMA_HOST;else process.env.OLLAMA_HOST=previousHost;store.close();fs.rmSync(root,{recursive:true,force:true});});
+51 |  it('accepts the recorded positive observation with an explicit aligned assessment',async()=>{
+52 |   expect((await apply(charter())).ok).toBe(true);
+53 |   const p=await preview(feature());expect(p.blocked).toBe(false);expect(p.warnings).toEqual([]);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: false
+Received: true
+
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/us/basic-product-intent.test.ts:53:54)
+(fail) Basic Product Intent: developer reviews Charter, Feature and complete Story > accepts the recorded positive observation with an explicit aligned assessment [72.48ms]
+52 |   expect((await apply(charter())).ok).toBe(true);
+53 |   const p=await preview(feature());expect(p.blocked).toBe(false);expect(p.warnings).toEqual([]);
+54 |   expect((await apply(feature())).ok).toBe(true);
+55 |  });
+56 |  it('blocks an accept verdict containing a substantive explicit conflict',async()=>{
+57 |   await apply(charter());mode='conflict';const p=await preview(feature());expect(p.status).toBe('needs_input');expect(p.warnings).toContain(warning);
+                                                                                                                                       ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "PRODUCT excludes general-purpose content generation; US proposes poems unrelated to software engineering. Revise US to repository diagnosis or defer it."
+Received: [ "The proposal’s definition aligns explicitly with the PRODUCT purpose and meets the acceptance criteria. There is no conflict, duplication, unnecessary ceremony, or misalignment with the provided product and feature definitions." ]
+
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/us/basic-product-intent.test.ts:57:131)
+(fail) Basic Product Intent: developer reviews Charter, Feature and complete Story > blocks an accept verdict containing a substantive explicit conflict [22.44ms]
+55 |  });
+56 |  it('blocks an accept verdict containing a substantive explicit conflict',async()=>{
+57 |   await apply(charter());mode='conflict';const p=await preview(feature());expect(p.status).toBe('needs_input');expect(p.warnings).toContain(warning);
+58 |  });
+59 |  it('requires current accepted charter for complete Stories too',async()=>{
+60 |   const request=story();request.mutations.pop();expect((await preview(request)).status).toBe('needs_input');
+                                                                                             ^
+error: expect(received).toBe(expected)
+
+Expected: "needs_input"
+Received: undefined
+
+      at <anonymous> (/home/dharmax/work/ai-workflow/tests/us/basic-product-intent.test.ts:60:89)
+(fail) Basic Product Intent: developer reviews Charter, Feature and complete Story > requires current accepted charter for complete Stories too [9.55ms]
+
+ 0 pass
+ 3 fail
+ 5 expect() calls
+Ran 3 tests across 1 file. [244.00ms]

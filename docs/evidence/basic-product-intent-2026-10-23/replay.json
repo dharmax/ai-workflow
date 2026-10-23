@@ -1,0 +1,115 @@
+{
+  "transport": "controlled replay of exact final external responses, no new live calls",
+  "results": [
+    {
+      "name": "aligned",
+      "preview": {
+        "fingerprint": "01e350b53b34783c7f7bb348f4b5a8e1ca39d7c64776f5bcdab52450b1b98953",
+        "summary": "1 Product Intent mutation(s): QUALIFY-ALIGNED",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-ALIGNED",
+              "fields": {
+                "title": "Repository defect investigation",
+                "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [
+          {
+            "kind": "product_create",
+            "entityType": "Feature",
+            "id": "QUALIFY-ALIGNED",
+            "fields": {
+              "title": "Repository defect investigation",
+              "body": "Help developers and AI coding agents investigate software defects using targeted semantic graph retrieval, exact source references and test evidence. Produce grounded diagnosis and proposed repairs for explicit developer review. Preserve developer authority; operate only on software engineering objectives.",
+              "status": "accepted"
+            }
+          }
+        ],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "affectedProducts": [
+          "QUALIFY-ALIGNED"
+        ],
+        "productImpacts": [],
+        "dependents": [],
+        "warnings": [],
+        "blocked": false,
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        }
+      },
+      "featureWritten": false
+    },
+    {
+      "name": "contradictory",
+      "preview": {
+        "fingerprint": "30ddece4933ecec9ae2b55c2f57748eafb1f2e42c41f9404a4f4b635d2587e86",
+        "summary": "Blocked: The proposed feature introduces general-purpose chatbot functionality, which conflicts with the PRODUCT's explicit non-goal: 'Become a general-purpose chatbot or content-generation application.'",
+        "request": {
+          "action": "product_change",
+          "mutations": [
+            {
+              "kind": "product_create",
+              "entityType": "Feature",
+              "id": "QUALIFY-CONTRADICTORY",
+              "fields": {
+                "title": "General-purpose public chatbot and creative writing",
+                "body": "Provide unrestricted conversation on any topic, poetry, fiction and entertainment content for the general public, independent of any software engineering objective. Make AIWF a general-purpose chatbot and content-generation application.",
+                "status": "accepted"
+              }
+            }
+          ],
+          "basis": [
+            {
+              "id": "PRODUCT",
+              "entityType": "Product",
+              "version": 1
+            }
+          ]
+        },
+        "mutations": [],
+        "affectedFiles": [],
+        "originalHashes": {},
+        "verification": {
+          "diagnosticsExpected": false,
+          "typecheck": false,
+          "targetedTests": [],
+          "graphChecks": {}
+        },
+        "warnings": [
+          "The proposed feature introduces general-purpose chatbot functionality, which conflicts with the PRODUCT's explicit non-goal: 'Become a general-purpose chatbot or content-generation application.'"
+        ],
+        "blocked": true,
+        "blockReason": "The proposed feature introduces general-purpose chatbot functionality, which conflicts with the PRODUCT's explicit non-goal: 'Become a general-purpose chatbot or content-generation application.'",
+        "status": "needs_input",
+        "required": [
+          {
+            "artifactId": "QUALIFY-CONTRADICTORY",
+            "question": "How should the proposed chatbot functionality be reconciled with the PRODUCT's defined non-goal of avoiding general-purpose chatbot features?"
+          }
+        ],
+        "dependents": []
+      },
+      "featureWritten": false
+    }
+  ],
+  "passed": true
+}

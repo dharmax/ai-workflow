@@ -1,0 +1,8 @@
+bun test --max-concurrency=1: exit 0; 589 pass, 5 existing opt-in skip, 0 fail; 594 tests / 77 files; 4296 assertions; 138.09 s.
+bun run typecheck: exit 0.
+bun run check:definitions: exit 0; 20 concepts, 164 internal links, 9 exact US fields.
+bun run pack: exit 0; existing dirty llm-utils sibling reported, untouched.
+AIWF_PUBLIC_BINARY=dist/aiwf bun test tests/us/basic-product-intent.test.ts tests/us/product-charter-feature.test.ts: exit 0; 14 pass, 0 fail, 142 assertions.
+Controlled exact recorded old response on pristine b46e5b7: reproduced false warning, no Feature written.
+Controlled final handling replay of exact current external responses: aligned no warning, contradictory grounded warning and required input, no Feature written.
+Independent whole-scope review: no verdict; invalid_response / empty response; no canonical verification receipt or Done.

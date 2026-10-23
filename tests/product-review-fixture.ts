@@ -13,7 +13,8 @@ if (import.meta.main) {
   return Response.json({message:{content:JSON.stringify({
    criteria:(input.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:true,evidence:'Controlled fixture: proposed Feature is within the test charter scope.'})),
    aspects:(input.applicableAspects??[]).map((id:string)=>({id,covered:true,evidence:'Controlled fixture coverage.'})),
-   review:{verdict:'accept'}
+   review:{verdict:'accept'},
+   ...(input.charterAlignment?{alignment:{status:'aligned',explanation:'Controlled fixture explicitly covers the current charter and complete downstream definition.',observations:[],conflicts:[]}}:{})
   })}});
  }});
  console.log(server.url.toString());

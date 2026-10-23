@@ -4,7 +4,7 @@ import {TechnicalProofSchema} from '../graph/test-proof-types.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
-import {AiArtifactCritic, CriticResultSchema} from '../artifact-critic.ts';
+import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../artifact-critic.ts';
 import { ticketState, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../graph/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
@@ -350,18 +350,18 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
     visiting.delete(id); visited.add(id);
   }
   for (const edge of edges.values()) if (workEdge(edge)) visit(edge.sourceId);
-  // The current charter is causal input even for an unlinked Feature. Including
+  // The current charter is causal input even for an unlinked Feature or UserStory. Including
   // absence/version in the snapshot also makes concurrent registration/revision stale.
-  const features = [...new Set(mutations.flatMap(m =>
-    (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Feature' ? [m.id] : []))]
+  const alignmentTargets = [...new Set(mutations.flatMap(m =>
+    (m.kind === 'product_create' || m.kind === 'product_update') && ['Feature', 'UserStory'].includes(m.entityType) ? [m.id] : []))]
     .filter(id => state.get(id)?.fields.status === 'accepted');
   const warningDecisions = [...state.values()].some(entity => entity.kind === 'Decision' && entity.fields.status === 'accepted' && typeof entity.fields.context === 'string' && entity.fields.context.includes('\"warning\"'));
-  if ((features.length || warningDecisions) && !state.has('PRODUCT')) {
+  if ((alignmentTargets.length || warningDecisions) && !state.has('PRODUCT')) {
     const product = await store.getEntity('PRODUCT', Product.dcr);
     if (product) await load('PRODUCT');
     else snapshot.PRODUCT = null;
   }
-  return { snapshot, dependents, state, edges, features };
+  return { snapshot, dependents, state, edges, alignmentTargets };
 }
 
 /** A valid proposal still needs the host to review its exact fingerprint. */
@@ -375,7 +375,7 @@ export class ProductAlignmentRequired extends ProductReviewRequired {
 }
 
 /** A warning-resolution Decision keeps the original warning/proposal basis in context,
- * the actual developer response in decision, and governs the affected Feature.
+ * the actual developer response in decision, and governs the affected Feature or UserStory.
  * Text proposed by an agent cannot attest that a developer supplied that response.
  */
 async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
@@ -399,41 +399,44 @@ async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMuta
     const {warning, proposal, reviewFingerprint, charterRevision} = basis.data;
     const original = await validateProductMutations(store, proposal.mutations, proposal.basis);
     const product = await store.getEntity<Product>('PRODUCT', Product.dcr);
-    const affected = [...validated.edges.values()].filter(edge => edge.sourceId === id && edge.predicate === 'governs' && validated.state.get(edge.targetId)?.kind === 'Feature').map(edge => edge.targetId);
-    if (!affected.length || !affected.every(feature => original.features.includes(feature)))
-      throw requireAnswer(`Decision ${id} must govern the Feature affected by its charter warning.`);
+    const affected = [...validated.edges.values()].filter(edge => edge.sourceId === id && edge.predicate === 'governs' && ['Feature', 'UserStory'].includes(validated.state.get(edge.targetId)?.kind ?? '')).map(edge => edge.targetId);
+    if (!affected.length || !affected.every(feature => original.alignmentTargets.includes(feature)))
+      throw requireAnswer(`Decision ${id} must govern the Feature or UserStory affected by its charter warning.`);
     if (product?.version !== charterRevision || computeHash({request:proposal,snapshot:original.snapshot}) !== reviewFingerprint)
-      throw requireAnswer(`Stale charter warning basis for Decision ${id}; review the current charter and Feature proposal again.`);
+      throw requireAnswer(`Stale charter warning basis for Decision ${id}; review the current charter and downstream proposal again.`);
     const fingerprint = request && computeHash({request,snapshot:validated.snapshot});
     if (!fingerprint || typeof entity.fields.decision !== 'string' || !store.canAnswerProduct(fingerprint,id,entity.fields.decision))
       throw requireAnswer(`Developer answer required for Decision ${id}: ${warning} The host must separately collect the developer response; ordinary Product approval and proposed Decision text do not answer it.`);
   }
 }
 
-export async function assessFeatureAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
+export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
   await assessCharterAnswers(store,mutations,validated,request);
-  if (!validated.features.length) return;
+  if (!validated.alignmentTargets.length) return;
   const product = validated.state.get('PRODUCT');
   const ask = (warnings: string[]) => new ProductAlignmentRequired(warnings,
-    validated.features.map(artifactId => ({artifactId, question: `Review ${artifactId} against the current accepted Product charter and explicitly answer the warning by revising the Feature or leaving it unresolved.`})));
+    validated.alignmentTargets.map(artifactId => ({artifactId, question: `Review ${artifactId} against the current accepted Product charter and explicitly answer the warning by revising the definition or leaving it unresolved.`})));
   if (!product?.exists || product.fields.status !== 'accepted')
-    throw ask(['Feature acceptance requires an actual current accepted Product charter (PRODUCT). Register or accept it through the governed Product path.']);
-  const criterion = 'Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised Feature must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.';
+    throw ask(['Feature/UserStory acceptance requires an actual current accepted Product charter (PRODUCT). Register or accept it through the governed Product path.']);
+  const criterion = 'Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature or complete UserStory aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised definition must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.';
   let review;
   try {
-    review = CriticResultSchema.parse(await new AiArtifactCritic('auto', store.root).review({
-      artifactId: 'PRODUCT', intent: criterion,
+    review = CriticResultSchema.extend({alignment: CharterAlignmentSchema}).parse(await new AiArtifactCritic('auto', store.root).review({
+      artifactId: 'PRODUCT', intent: criterion, charterAlignment: {artifactIds: validated.alignmentTargets},
       neighborhood: [...validated.state].map(([id, entity]) => ({id, entityType: entity.kind, ...entity.fields})),
       proposal: mutations, applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 0,
-      acceptanceCriteria: [criterion], evidence: [JSON.stringify({current: validated.snapshot, proposedFeatures: validated.features})]
+      acceptanceCriteria: [criterion], evidence: [JSON.stringify({current: validated.snapshot, proposedDefinitions: validated.alignmentTargets})]
     }));
   } catch (error) {
-    throw ask([`Cannot establish Feature alignment with PRODUCT: ${error instanceof Error ? error.message : String(error)}`]);
+    throw ask([`Cannot establish definition alignment with PRODUCT: ${error instanceof Error ? error.message : String(error)}`]);
   }
-  if (review.verdict !== 'accept' || review.findings.length || review.required.length)
+  const {alignment} = review;
+  if (review.verdict !== 'accept' || alignment.status !== 'aligned' || alignment.conflicts.length || review.required.length)
     throw new ProductAlignmentRequired(
-      review.findings.length ? review.findings.map(item => item.message) : review.required.length ? review.required.map(item => item.question) : ['The reviewer could not establish Feature alignment with PRODUCT; an explicit developer answer is required.'],
-      review.required.length ? review.required : validated.features.map(artifactId => ({artifactId, question: 'Please explicitly answer the charter warning by revising this Feature or leaving it unresolved.'})));
+      alignment.conflicts.length ? alignment.conflicts.map(item => item.message) :
+        review.required.length ? review.required.map(item => item.question) : [alignment.explanation],
+      alignment.conflicts.length ? alignment.conflicts.map(({artifactId,question}) => ({artifactId,question})) :
+        review.required.length ? review.required : validated.alignmentTargets.map(artifactId => ({artifactId, question: 'Please explicitly answer the charter warning by revising this definition or leaving it unresolved.'})));
 }
 
 function productOwnerWrite(store: WorkflowStore, mutations: ProductMutation[], state: Map<string, {kind: ProductKind}>): boolean {
@@ -465,7 +468,7 @@ export async function applyProductMutations(
     throw new ProductReviewRequired('Product mutation requires host-owned review of the exact preview fingerprint.');
   if (reviewed && canonical(reviewed.request.mutations) !== canonical(mutations))
     throw Error('Reviewed Product request does not match its mutations.');
-  await assessFeatureAlignment(store, mutations, initial, reviewed?.request);
+  await assessCharterAlignment(store, mutations, initial, reviewed?.request);
   const token = await store.admitGovernance(workOnly ? 'governed' : 'governance');
   try {
     const { snapshot, state, edges } = await validateProductMutations(store, mutations, reviewed?.request.basis);

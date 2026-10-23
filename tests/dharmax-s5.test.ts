@@ -1,3 +1,4 @@
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createProduct,acceptProduct,updateProduct} from './product-review.ts';
 import {afterEach,describe,expect,it} from 'bun:test';
 import fs from 'node:fs';
@@ -13,10 +14,12 @@ import {CausalChangeEngine} from '../src/change/engine.ts';
 
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
+ let stopReviewer: (()=>void) | undefined;
  const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  const applySource=(preview:{request: import('../src/change/types.ts').ChangeRequest; fingerprint:string})=>
   store.withExecutionContext('project-write',undefined,()=>new CausalChangeEngine({store,projectRoot:root}).applyChange(preview.request,preview.fingerprint));
  afterEach(async()=>{
+  stopReviewer?.();
   await browser?.close();browser=undefined as any;
   host?.server.stop(true);host=undefined as any;
   store?.close();store=undefined as any;
@@ -24,6 +27,7 @@ describe('S5 Story test-first lifecycle',()=>{
  });
  it('DW-04 activates and executes the same reviewed public-interface TestNode through Workspace',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s5-'));store=new WorkflowStore(root);initializeTools();
+  stopReviewer=await productReviewFixture(store);
   fs.mkdirSync(path.join(root,'src'),{recursive:true});
   fs.copyFileSync(path.resolve('tests/fixtures/dw04-avatar-store.ts'),path.join(root,'src/avatar.ts'));
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
