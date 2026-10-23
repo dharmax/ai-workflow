@@ -230,5 +230,214 @@
     "independentVerdict": null,
     "independentBlocker": "Acceptance verification context exceeds 80000 characters after graph narrowing (98187). No reviewer verdict or canonical receipt was produced."
   },
-  "disposition": "Story selected and passed: 8 pass, 0 fail, 108 assertions, 968ms. Distinct acceptance-context obstacle reached after correct execution. Ticket Todo/planned/unverified with no lease and no receipt. Stop without context-limit, routing, timeout, aggregate or Product Intent repairs."
+  "disposition": "Story selected and passed: 8 pass, 0 fail, 108 assertions, 968ms. Distinct acceptance-context obstacle reached after correct execution. Ticket Todo/planned/unverified with no lease and no receipt. Stop without context-limit, routing, timeout, aggregate or Product Intent repairs.",
+  "authorizedContextLimitRetry": {
+    "change": {
+      "filePath": "src/ticket/verification.ts",
+      "previousCharacters": 80000,
+      "characters": 128000,
+      "authorization": "Developer explicitly requested increasing the context limit to fit the current review and retrying."
+    },
+    "bindingFingerprint": "40765a79eb4590baee5c1eb741766ba1313b2f23896ce941ba09f2dbd608e476",
+    "resolverInput": {
+      "ticketId": "TKT-PRODUCT-CHARTER-FEATURE",
+      "agentId": "codex-basic-product-close",
+      "testCommands": [
+        [
+          "bun",
+          "test",
+          "tests/us/basic-product-intent.test.ts"
+        ]
+      ],
+      "verifyOnly": true,
+      "maxRepairs": 0,
+      "allowDirtyTargets": [
+        "src/ticket/verification.ts"
+      ]
+    },
+    "resolverResult": {
+      "status": "blocked",
+      "artifactId": "TKT-PRODUCT-CHARTER-FEATURE",
+      "blockers": [
+        {
+          "reason": "Bounded repair exhausted for 'TKT-PRODUCT-CHARTER-FEATURE': No current passing TestNode execution proves this verification scope."
+        }
+      ]
+    },
+    "storyExecution": [
+      {
+        "id": "test:tests/us/basic-product-intent.test.ts",
+        "filePath": "tests/us/basic-product-intent.test.ts",
+        "passed": true,
+        "lastRun": "2026-10-23T07:49:32.255Z",
+        "command": [
+          "bun",
+          "test",
+          "tests/us/basic-product-intent.test.ts"
+        ],
+        "hashes": {
+          "tests/us/basic-product-intent.test.ts": "186cf57f7997c159e7294c0608d8f085415ff053fb3f1fd0e27b10315ace9572",
+          "src/change/types.ts": "b216b28daa99377fc0dc8605fec2885f58dd1148246c826f4600f1c9e0c9d416",
+          "src/config.ts": "da3c983cd0dc13a4761c87171a26debe9d5820eab0e2e217fcd023aaf0972908",
+          "src/graph/store.ts": "cd6ccf3ea48e27ef8fe3d60f1d346aacf0bd67f4390e07d8ec924bcde50a32c5",
+          "src/product/links.ts": "27358f76d8d3466bf91b09162248658ca6e9257a6da104546b99931b64733f58",
+          "src/tools/index.ts": "f31eddffbd774186067b23567d3564146874f24f27a12700afcf5301ec571081",
+          "tests/product-review.ts": "78f3d9064880264d6ab510da4017e1de4380e0a754226185c7bfa5c81e6e2c0d",
+          "src/product/impact.ts": "80b2f22aec91acd14b9b1d4d918626b4b850a1b8dad8267676bb40f42d9865bd",
+          "src/product/mutation.ts": "512a49eca8116bb5a0d95a81e61e1924416f992e142a1056c5cb0b1fef9f5240",
+          "src/artifact-policy.ts": "b375878ed50f304350947be8e73b13605fee6d5c75d65be5546fceb96a8d7397",
+          "src/graph/indexer.ts": "8e2b887ae38a1139132ee959ed5e9730df43a64a846129d73dd513217ac70b6d",
+          "src/graph/ticket-state.ts": "ace9f842d3c7ebf83372db295211e1fe759c84aa2c37667876f64748e940cdf4",
+          "src/kb/canonical.ts": "f88152baa9243b041fc7e17a34f5e6b0cf0a52dc9489ea6359579379e9d783e8",
+          "src/ticket-operation-types.ts": "eb1a9a8c7d4a40bd74d34f05e3a185233c6d33c435d3aaa0e1ec74db0de4d0d4",
+          "src/change/engine.ts": "de0721f5dc7dbc58c7b38bd3f6840065b921456a3acc51b1dfcdc3249a89af77",
+          "src/graph/ontology.ts": "b88bd22d94f9a7475b0d495a0694a26de9a2a83ea4a1c9528849f141a7f12fbc",
+          "src/tools/registry.ts": "2dc095e82b3eb936ac18b2c584905c2c8dba31ad7e9cab782777257639403502",
+          "src/model-runtime.ts": "0b0136ca5f871a98c18d6fc6ba496b543a82ad405ffb750a74f765e79195c24f",
+          "src/tools/artifact-policy.ts": "6354ccb770ddaf758272e0c0d91cef59fde2c61794202946934889fe994f49c1",
+          "src/tools/aspects.ts": "64fcc40fa525ee8c52ab2d9e111c1b96d9d8ef7d273d7909cd497c81a91481a3",
+          "src/tools/change.ts": "7fbb3d02522e9827f8e3fb72e2e562c4c8de5a7047e2a7518c1dac0cbdd3fef6",
+          "src/tools/compiler.ts": "8a179706eb8aaf501b6a409407355b99c77957181f41193e9bfd2ade3bcc6bcc",
+          "src/tools/debugger.ts": "595f3f422f31c357e485c8bb5342c40fa569fb6a95ad13297d075566322c57fd",
+          "src/tools/git.ts": "595270cd2ff6db098f064250eb23d95c48ef3ad662c4aaa3eab0325674c89fbe",
+          "src/tools/graph-queries.ts": "c268cb7c272bd9b364d5e0294be2cfc9832651b2168143427f5c5cbfb13ce2cc",
+          "src/tools/kb.ts": "ac6838a13f0cec5a29c0982040bb4e9b181c12efbeaf772942121a67c20ad65c",
+          "src/tools/os.ts": "103934f4f8a7e3c05500ad70ecf8b6013d3818e8b931f43efdecfe312f9fe7b8",
+          "src/tools/planning.ts": "6e754135dfb5a034c410268808fa38329c9cd88f0794133c5630f604b6337ebb",
+          "src/tools/product.ts": "e9fed36ffa272c63e7a7dcb20056be2000678ee50be2500e91a6853087f72edf",
+          "src/tools/rules.ts": "af3318f1c24f8432f9ed3581c7d7483d1df89dccb64c43d006b91ee9ff2a7102",
+          "src/tools/scaffold.ts": "b9c23d83eb6d2006e8d841bf268fb82e650b112c61fc8ef2756789b3b672fa76",
+          "src/tools/scripting.ts": "cd49fd8fea2bc172fe3de7ba045e9d6097501358338720bfd6c85ad1d8996268",
+          "src/tools/test-runner.ts": "a6af331a962214a2baac3ac89848987f4326cb88f38f904efb9a15a4a01e10dd",
+          "src/tools/tickets.ts": "cd9648877df2e7a0836182e363eb80186c2f67436fa3b5d082f7ab04ad0b3bd1",
+          "src/artifact-critic.ts": "ef24c08a9e8b9bb33b346542e21d66ca3aff877ada350e2d49c19b0966798017",
+          "src/graph/test-proof-types.ts": "b7073d1661916347a3e86230c43a4ecbf629c222c557ec2a7b1348db547048ec",
+          "src/graph/types.ts": "059f112199fd9df182ced8e01c98c564a8e2cc4151c50caeac19b2b52357c42b",
+          "src/graph/test-artifacts.ts": "a0bc9773af3199a0978af859d2d23f948f791babd85c0fbdb569fe0cf83b4af5",
+          "src/aspects.ts": "26382d43d85d409817adb0e43f3b9e1f541222a480a07d273309a48fb4f567c2",
+          "src/change/request-schema.ts": "8a2053ed9f3bc89648601cad25fafe3f7ba69fa13960d4287aed1eb3c5f2878a",
+          "src/product/context.ts": "fd394cf98c9bc103707fcf72ff6b1f106fec53b55911b69fbe6fc4c00d1c5ca6",
+          "src/rules/references.ts": "4f6bf895f2249cc2a656fda7dd4d5ac79ba458eb014f5b068e995fcaf44e2b46",
+          "src/rules/store.ts": "537c090644b88fb0710df3b9b45f09a960adb12a09fd102f63fc5f9d92fdac96",
+          "src/rules/types.ts": "053662550017bcbe74c9b42f320a9233226db21438aa4817741c1f1a89ba7bbb",
+          "src/ticket/prompts.ts": "13e6dea3f738bf672e9526ea154e6c15eb9b31ba832a1719d313c117ddcbbec4",
+          "src/change/symbol-source.ts": "a2f2751a8991da606af365292e18c8977143283a68664afc7b558d026bed3254",
+          "src/change/target-resolver.ts": "d7a7e846f56f34f9a60b9307a42414114f64c116986e037748440df6393abde9",
+          "src/change/ts-lsp.ts": "650b0a33217f2834852557a9057b3c803bfcacefd692d9c6af040f4b29820d14",
+          "src/change/ts6-refactor.ts": "56b0b06db339160334930b351a09518b141e0093e8ca87f5e4ac5067266ecb3c",
+          "src/change/workspace-path.ts": "0104009c89f9374fe9522a98bf6b8451df06d9ef95b9321a66023470098e1996",
+          "src/product/coverage.ts": "93409a5181732eb0d7b0d55f7deeccb922ac205383de30214744a429abee7bdc",
+          "src/product/process-types.ts": "cd8c70d9e2849c3795442e34bc6b11e905ef369176f8eee2eeeb21b70ff37af9",
+          "src/product/process.ts": "9ee70c3bb6e95178dfccb4cc9eb6c34bf00b7885b02707ec4cdf31dd7c33dd94",
+          "src/ticket/investigate.ts": "2be796759e705090f71311217bc29c71672954d9dbe5380a2ce8347cc63cb704",
+          "src/ticket/prepare.ts": "f529ecdc721d7c6c277e1856aaa18383cbe43a8a3f337cbed21982452d1dd9f5",
+          "src/ticket/resolve.ts": "e8623d3fcff7a09139a692270e1f1fa6dfde92785fbbd15d14599a6b7886553e",
+          "src/performance-metrics.ts": "14c6a9cf49c50eb8136e50e02fb9f08e2a0b97f7aaf797c54f455963abe6421d",
+          "src/graph/projections.ts": "159d140ef2a9f73de001aa89ac04d3b60a9b4e32022edf5ef7c8f00b248b9dca",
+          "src/product/story-tests.ts": "7a8d7bc2bde489a1c64ebe757b0bddba7cf7e4d0ea343404384a0d90941056ed",
+          "src/ticket/source-scope.ts": "029d9d45e64d710421493af995e1fbec9f6185866e2ee2004bb64540b2c910e8",
+          "src/kb/client.ts": "74505c7c4e583842ca11c9bbe4c40e026c6eeb3f61fc459d18ab6f54e4b984d4",
+          "src/kb/manager.ts": "f0631697119335901af7a70d6a1e553fb88007c0235b193b692132db58c79635",
+          "src/graph/technical-proof.ts": "d4d26b0a5a79b5b88d397f6f14f82a19a5654f39383343f7a7ba65cd4894f91f",
+          "src/product/apply.ts": "adfdc0bb92f6c8aa5f590fdcd11b4b98c29b3375dd9022823cc791ce301d9631",
+          "src/product/decompose.ts": "56535c3e775f9286ea2fea7c6f9ac6a3f5d24c561379ee49bd5da6eeb8e462bf",
+          "src/rules/defaults.json": "fffa9fbc401209f26ec50add3bab1790208ce4fe8fc512b44cb1ac18deff9d3f",
+          "src/ticket/prompts/acceptance.txt": "86849d7727653ee370c69220e5c26c326176faa95a70fb3e80f1c204bb3f74f1",
+          "src/ticket/prompts/investigation.txt": "40007e34fd7e982c444c64160e599733cca4c812faba1946693ae0fc6573b351",
+          "src/ticket/prompts/preparation.txt": "ce57db025603beb2946923fd99abb8c877eea6cd05bd286f8c03048d0fc983af",
+          "src/ticket/prompts/system.txt": "24c03bb44802b575482d8c012ee1957c6be6fb7bbb6b8ffc2bf01f16fb32b127",
+          "src/change/lsp-shutdown.ts": "75446d9fe312d660455987932c80dc94d449540ccb3cf7f03bcf7fbc6f539e3e",
+          "src/typescript-runtime.ts": "fa628c20d320d04ade92815ceb22eab3e2c696f973289f8bdb2ac8ece651dca9",
+          "src/product/prompts.ts": "becae6d5a0655cc0c29355d9536249e5bbb8bbc5401090ea82e6c00f307700df",
+          "src/actor-budget-policy.ts": "47e79518b2f003fd942bc1da85b57e981de760f6478027148f05e7a118e18c96",
+          "src/ticket/implementation.ts": "b63ce23054ee48aeae823072ca4c03f19f8292d18dd53d13ce57ee429a547225",
+          "src/ticket/verification.ts": "27caf1c77a5fc7018e6bb50d3ce6b5a5c884ff4a8e0e71423fb6cdcd42352114",
+          "package.json": "94f916f2f1729f937041eafd19c8c3f457310d9b7dc6045a2ca90b7d3b17c664",
+          "src/graph/aspect-projections.ts": "de1b8d1525c0ff1c4eca29664d6f3b5070177a8521d704c55e356802165392b1",
+          "src/product/manifest.ts": "694f3abe67568bd1d22b47ceb344220eafcb8e537331c550ed789d5a371abd5b",
+          "src/verification-context.ts": "ef426707c07d886da0f85d74d395cd43c5c24411e9b9f2c2a55ccf5f80a62eef",
+          "src/synthesis/index.ts": "7eabcb1cf60db8d6e4b1a90e4b8e87427ab087fcd1248feb6c584ae9594fdf88"
+        },
+        "output": "tests/us/basic-product-intent.test.ts:\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > accepts the recorded positive observation with an explicit aligned assessment [87.70ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > blocks an accept verdict containing a substantive explicit conflict [21.35ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > keeps legacy responses, malformed assessments, contradictions and uncertainty closed [44.97ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > reviews an inert derived Story, developer revision, durable acceptance and explicit conflict resolution [501.27ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > preserves the grounded conflict from the actual o3-mini response despite paraphrased general findings [17.11ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > refuses incomplete acceptance without changing accepted intent [59.62ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > refuses a stale Story approval and reopens the same accepted identity and meaning [91.96ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > requires current accepted charter for complete Stories too [9.03ms]\n\n 8 pass\n 0 fail\n 108 expect() calls\nRan 8 tests across 1 file. [983.00ms]\n",
+        "verifies": [
+          "src/change/types.ts",
+          "src/config.ts",
+          "src/graph/store.ts",
+          "src/product/links.ts",
+          "src/tools/index.ts",
+          "tests/product-review.ts",
+          "src/config.ts#saveConfig:135:1",
+          "src/graph/store.ts#WorkflowStore.Error:141:26",
+          "src/graph/store.ts#WorkflowStore.apply:223:26",
+          "src/graph/store.ts#WorkflowStore.async:197:73",
+          "src/graph/store.ts#WorkflowStore.close:126:3",
+          "src/graph/store.ts#WorkflowStore.join:73:29",
+          "src/graph/store.ts#WorkflowStore.map:244:17",
+          "src/graph/store.ts#WorkflowStore.parse:80:38",
+          "src/graph/store.ts#WorkflowStore.push:404:16",
+          "src/graph/store.ts#WorkflowStore.resolve:68:36",
+          "src/graph/store.ts#WorkflowStore.slice:106:23",
+          "src/graph/store.ts#WorkflowStore.stringify:85:70",
+          "src/graph/store.ts#WorkflowStore:61:1",
+          "src/product/links.ts#reviewProductChange:139:1",
+          "src/tools/index.ts#initializeTools:23:1",
+          "tests/product-review.ts#ctx:7:2",
+          "tests/product-review.ts#reviewedApply:5:1",
+          "TKT-PRODUCT-CHARTER-FEATURE"
+        ]
+      }
+    ],
+    "scopeEvidence": [
+      {
+        "id": "test:tests/doctrine-enforcement-live.test.ts",
+        "passed": false,
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-enforcement-live.test.ts"
+        ],
+        "lastRun": "2026-10-21T07:34:21.825Z",
+        "output": "octrine acceptance requires an explicit OpenRouter route.');\n                                                    ^\nerror: Live doctrine acceptance requires an explicit OpenRouter route.\n      at <anonymous> (/home/dharmax/work/ai-workflow/tests/doctrine-enforcement-live.test.ts:21:48)\n(fail) OpenRouter rejects a real redundant registry despite passing tests, accepts its guarded repair, invalidates proof and rejects a governance race [4.88ms]\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [109.00ms]\n"
+      },
+      {
+        "id": "test:tests/doctrine-verifier.test.ts",
+        "passed": true,
+        "command": [
+          "bun",
+          "test",
+          "tests/doctrine-verifier.test.ts"
+        ],
+        "lastRun": "2026-10-23T07:49:39.610Z",
+        "output": " Gate 3 deterministic enforcement contracts > invalidates a receipt when an applicable expected Rule changes [442.26ms]\n(pass) Doctrine Gate 3 deterministic enforcement contracts > delivers expected Rules to the default verifier and retains their nonblocking deviations [104.69ms]\n(pass) Doctrine Gate 3 deterministic enforcement contracts > requires exact Rule identifiers and nonempty cited evidence in the schema [25.80ms]\n\n 31 pass\n 0 fail\n 126 expect() calls\nRan 31 tests across 1 file. [7.05s]\n"
+      },
+      {
+        "id": "test:tests/us/basic-product-intent.test.ts",
+        "passed": true,
+        "command": [
+          "bun",
+          "test",
+          "tests/us/basic-product-intent.test.ts"
+        ],
+        "lastRun": "2026-10-23T07:49:32.255Z",
+        "output": " and complete Story > refuses incomplete acceptance without changing accepted intent [59.62ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > refuses a stale Story approval and reopens the same accepted identity and meaning [91.96ms]\n(pass) Basic Product Intent: developer reviews Charter, Feature and complete Story > requires current accepted charter for complete Stories too [9.03ms]\n\n 8 pass\n 0 fail\n 108 expect() calls\nRan 8 tests across 1 file. [983.00ms]\n"
+      }
+    ],
+    "validation": {
+      "focusedVerifierTests": {
+        "passed": 31,
+        "failed": 0
+      },
+      "typecheck": "pass",
+      "aggregate": "not rerun"
+    },
+    "blocker": "Adding the actual changed verification source to the governed Ticket scope also requires its graph-linked opt-in doctrine-enforcement-live TestNode. This test has no current passing evidence (last retained failure 2026-10-21 requires an explicit OpenRouter route); the current ordinary invocation is opt-in skipped. evidenceComplete is false, so no independent review or receipt is reached. No route switch or live-test activation was made.",
+    "disposition": {
+      "ticketLane": "Todo",
+      "ticketStatus": "planned",
+      "verificationState": "unverified",
+      "claim": null,
+      "receipt": null,
+      "independentVerdict": null
+    }
+  }
 }

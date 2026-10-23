@@ -164,8 +164,8 @@ export async function verifyTicketAcceptance(
     }
     const review = async (context: {code?: Array<{snippets: unknown[]}>; [key: string]: unknown}): Promise<AcceptanceVerification> => {
         const serializedContext = JSON.stringify(context)
-        if (serializedContext.length > 80_000)
-            throw Error(`Acceptance verification context exceeds 80000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`)
+        if (serializedContext.length > 128_000)
+            throw Error(`Acceptance verification context exceeds 128000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`)
         countEngineering("sourceReads", context.code?.reduce((count, file) => count + file.snippets.length, 0) ?? 0)
         countEngineering("reasoningCalls")
         const response = await asker.json(renderAcceptancePrompt(serializedContext), AcceptanceAssessmentSchema, {

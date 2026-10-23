@@ -4,7 +4,7 @@
 
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| `root` | project default | 236 | 0 | 0 | None |
+| `root` | project default | 222 | 0 | 0 | None |
 | `src/graph` | project default | 1023 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/tools` | project default | 612 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10 |
 | `src/actor` | project default | 288 | 0 | 0 | TKT-EXT-SURFACE-07 |
@@ -27,7 +27,7 @@
 | `@external/@dharmax/text-compiler` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/shell-ui` | project default | 785 | 0 | 0 | None |
 | `src/kb` | project default | 140 | 0 | 0 | None |
-| `docs` | project default | 807 | 0 | 0 | None |
+| `docs` | project default | 817 | 0 | 0 | None |
 | `src/product` | project default | 674 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/change` | project default | 741 | 0 | 0 | TKT-EXT-SURFACE-10 |
 | `src/typescript-runtime` | project default | 76 | 0 | 0 | None |
@@ -53,7 +53,7 @@
 | `src/ticket-command` | project default | 22 | 0 | 0 | None |
 | `src/model-command` | project default | 18 | 0 | 0 | None |
 | `src/actor-budget-policy` | project default | 1 | 0 | 0 | None |
-| `src/ticket` | project default | 318 | 0 | 0 | None |
+| `src/ticket` | project default | 318 | 0 | 0 | TKT-PRODUCT-CHARTER-FEATURE |
 | `src/rules` | project default | 271 | 0 | 0 | None |
 | `src/rule-command` | project default | 8 | 0 | 0 | None |
 | `node_modules` | project default | 79 | 0 | 0 | None |
