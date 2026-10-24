@@ -294,13 +294,13 @@ export class RuleAcceptanceError extends Error {
 }
 
 /** Assessments must name the pinned Rule and cite current source or executed tests. */
-export function ruleAcceptanceFailures(
+/** Structural review errors can be corrected; substantive negative verdicts cannot. */
+export function ruleAssessmentContractFailures(
   governance: TicketGovernance, acceptance: AcceptanceVerification, evidenceIds: readonly string[]
 ): string[] {
-  const required = governance.rules.filter(rule => rule.importance >= 8);
   const failures = acceptance.rules.filter(check => !governance.rules.some(rule => rule.ruleId === check.ruleId && rule.fingerprint === check.fingerprint))
     .map(check => `Unknown Rule assessment '${check.ruleId}'.`);
-  for (const rule of required) {
+  for (const rule of governance.rules.filter(rule => rule.importance >= 8)) {
     const check = acceptance.rules.find(item => item.ruleId === rule.ruleId && item.fingerprint === rule.fingerprint);
     if (!check) {
       failures.push(`Mandatory Rule '${rule.ruleId}' lacks an independent assessment.`);
@@ -311,7 +311,17 @@ export function ruleAcceptanceFailures(
     const unknownEvidence = check.evidenceIds.filter(id => !evidenceIds.includes(id));
     if (unknownEvidence.length)
       failures.push(`Mandatory Rule '${rule.ruleId}' cites unknown or unsupplied evidence: ${unknownEvidence.join(', ')}.`);
-    if (!['pass', 'not_applicable'].includes(check.verdict))
+  }
+  return failures;
+}
+
+export function ruleAcceptanceFailures(
+  governance: TicketGovernance, acceptance: AcceptanceVerification, evidenceIds: readonly string[]
+): string[] {
+  const failures = ruleAssessmentContractFailures(governance, acceptance, evidenceIds);
+  for (const rule of governance.rules.filter(rule => rule.importance >= 8)) {
+    const check = acceptance.rules.find(item => item.ruleId === rule.ruleId && item.fingerprint === rule.fingerprint);
+    if (check && !['pass', 'not_applicable'].includes(check.verdict))
       failures.push(`Mandatory Rule '${rule.ruleId}': ${check.verdict}: ${check.evidence}`);
   }
   return failures;

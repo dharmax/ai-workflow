@@ -137,3 +137,10 @@
   - [ ] No autonomous repair/housekeeping is implied by a recommendation.
 - **Coverage**: missing_parent, missing_work, missing_verification
 
+## US-REVIEWER-RELIABILITY: Developer obtains reliable independent verification within approved spending
+- **Status**: `proposed`
+- **Actor**: Developer or delegated coding agent
+- **Story**: 
+- **Tickets**: `TKT-REVIEWER-RELIABILITY`
+- **Coverage**: Complete
+

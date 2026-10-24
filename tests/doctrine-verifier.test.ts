@@ -410,6 +410,55 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     }
   });
 
+  for (const defect of ['missing Rule', 'invalid citation', 'missing criterion', 'exhausted correction', 'malformed then incomplete', 'failed Rule', 'inconclusive Rule'] as const) {
+    it(`corrects response-contract errors once and preserves rejection: ${defect}`, async () => {
+      const prompts: string[] = [];
+      let acceptance: AcceptanceVerification;
+      const server = Bun.serve({port: 0, fetch: async request => {
+        const body = await request.json() as {messages: Array<{content: string}>};
+        prompts.push(body.messages[0].content);
+        if (defect === 'malformed then incomplete' && prompts.length === 1)
+          return Response.json({message: {content: '{'}});
+        const response = structuredClone(acceptance);
+        if (prompts.length === 1 || ['exhausted correction', 'malformed then incomplete'].includes(defect)) {
+          if (defect === 'invalid citation') response.rules[0].evidenceIds = ['invented.ts'];
+          else if (defect === 'missing criterion') response.criteria = [];
+          else if (defect === 'failed Rule') response.rules[0].verdict = 'fail';
+          else if (defect === 'inconclusive Rule') response.rules[0].verdict = 'inconclusive';
+          else response.rules = [];
+        }
+        return Response.json({message: {content: JSON.stringify(response)}});
+      }});
+      const previous = process.env.OLLAMA_HOST;
+      process.env.OLLAMA_HOST = server.url.toString();
+      try {
+        saveConfig(root, {model: 'ollama/fixture', modelRoutes: {critic: 'ollama/fixture'}, ollamaUrl: server.url.toString()});
+        const investigation = await ticket.investigate(store, options());
+        if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+        const input = {dossier: investigation.value, files: [], tests: [], testNodes: [], children: []};
+        acceptance = assessments(input);
+        const result = verifyTicketAcceptance(store, input, options(), loadConfig(root));
+        if (['failed Rule', 'inconclusive Rule'].includes(defect)) {
+          await expect(result).rejects.toThrow(defect === 'failed Rule' ? ': fail:' : ': inconclusive:');
+          expect(prompts).toHaveLength(1);
+        } else if (['exhausted correction', 'malformed then incomplete'].includes(defect)) {
+          await expect(result).rejects.toThrow('lacks an independent assessment');
+          expect(prompts).toHaveLength(2);
+        } else {
+          expect(await result).toEqual(acceptance);
+          expect(prompts).toHaveLength(2);
+          expect(prompts[1]).toContain(defect === 'invalid citation' ? 'invented.ts' : defect === 'missing criterion' ? 'Missing criterion assessment' : 'lacks an independent assessment');
+          expect(prompts[1]).toContain('Previous response failed validation');
+          expect(prompts[0]).toContain('validEvidenceIds');
+          expect(prompts[0]).toContain('src/add.ts');
+        }
+      } finally {
+        server.stop(true);
+        if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous;
+      }
+    });
+  }
+
   it('requires exact Rule identifiers and nonempty cited evidence in the schema', () => {
     expect(AcceptanceVerificationSchema.safeParse({ criteria: [], aspects: [], rules: [{ ruleId: rule.ruleId, revision: 1, fingerprint: '0'.repeat(64), verdict: 'pass', evidence: '', evidenceIds: [] }] }).success).toBe(false);
   });

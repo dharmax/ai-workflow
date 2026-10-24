@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exportedAt": "2026-10-23T14:27:19.288Z",
+  "exportedAt": "2026-10-24T11:25:03.143Z",
   "entities": [
     {
       "id": "ASP-AIWF-EFFICIENCY",
@@ -443,6 +443,19 @@
           "Semantic capability discovery on compound queries correctly normalizes domain/object aliases (e.g. \"project\", \"critical path\") to valid registered capabilities without unsupported classification errors."
         ],
         "completenessTarget": null
+      }
+    },
+    {
+      "id": "US-REVIEWER-RELIABILITY",
+      "kind": "UserStory",
+      "fields": {
+        "title": "Developer obtains reliable independent verification within approved spending",
+        "status": "proposed",
+        "actor": "Developer or delegated coding agent",
+        "intent": "Obtain trustworthy independent verification without repeatedly selecting a model that has failed its contract or spending without approval.",
+        "initialState": "A Ticket has actual test evidence. Available model advice, explicit developer routes and observed verification qualification/failure evidence may exist. Paid execution is unapproved by default.",
+        "action": "Request canonical Ticket verification; where paid execution is desired, configure approved providers and tasks and an explicit cumulative spending ceiling for that verification operation.",
+        "expectedResult": "AIWF uses existing Radar advice and llm-utils routing to select an available verification model, with explicit developer routes and spending restrictions taking precedence. It records observed contract qualification/failure separately from advice and avoids automatically selecting a model whose latest observed verification contract failed. The reviewer receives exact valid evidence identifiers and applicable Rule identities. A malformed or incomplete response receives at most one targeted correction containing actual validation errors. Missing mandatory assessments, invalid citations and inconclusive mandatory Rules still block acceptance. Paid execution requires developer approval of provider/task and a spending ceiling; AIWF enforces that ceiling across all scopes/retries of the operation and reports actual usage. Only complete independent acceptance creates a canonical receipt and Done/verified state. No eligible authorized model or exhausted budget yields a truthful blocker, without a receipt. Explicitly configured failed models are not silently overridden; their contract failures remain blocking. Existing Radar, routing, verifier, configuration and Semantika owners only. No new routing engine, duplicate Radar, generic retry or governance subsystem. Preserve historical proof. BASIC Product Intent #2 stays closed; #3 and Consult excluded."
       }
     }
   ],
@@ -1492,6 +1505,13 @@
       "predicate": "depends_on",
       "targetId": "TKT-RILZ",
       "targetKind": "Ticket"
+    },
+    {
+      "sourceId": "TKT-REVIEWER-RELIABILITY",
+      "sourceKind": "Ticket",
+      "predicate": "addresses",
+      "targetId": "US-REVIEWER-RELIABILITY",
+      "targetKind": "UserStory"
     },
     {
       "sourceId": "TKT-RILZ",

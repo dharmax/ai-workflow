@@ -84,7 +84,7 @@ it('native technical scopes retain regression execution and dependency ownership
  const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
   if(!prompt.includes('Independently verify EVERY'))throw Error('Implementation Actor invoked in verify-only');
   expect(prompt).not.toContain('REGRESSION_SOURCE_MUST_NOT_REACH_REVIEW');
-  const context=JSON.parse(prompt.slice(prompt.lastIndexOf('Context: ')+9));
+  const context=JSON.parse(prompt.slice(prompt.lastIndexOf('Context: ')+9).split('\n\nPrevious response failed validation:')[0]);
   contexts.push(context);
   expect(context.testNodes.some((test:{filePath:string;passed:boolean})=>test.filePath==='tests/regression.test.ts'&&test.passed),JSON.stringify(context.testNodes)).toBe(true);
   const refused=mode==='inconclusive'&&context.scope?.id==='completion';
@@ -118,8 +118,9 @@ it('native technical scopes retain regression execution and dependency ownership
    });
    await expect(assertTechnicalReviews(reopened,'T',body.acceptance)).rejects.toThrow('execution');
   }else{
-   const causes={'inconclusive':'Independent technical scope refused: completion','changed-local':'Stale technical binding: source or TestNode changed in public','changed-dependency':'Stale technical binding: source or TestNode changed in completion','failed-dependency':'Dependency-owned technical execution refused','sql-failure':'injected completion failure','rule-inconclusive':"Mandatory Rule 'engineering.direct': inconclusive",'aspect-missing':'Unverified required acceptance/Aspect: A'};
+   const causes={'inconclusive':'Independent technical scope refused: completion','changed-local':'Stale technical binding: source or TestNode changed in public','changed-dependency':'Stale technical binding: source or TestNode changed in completion','failed-dependency':'Dependency-owned technical execution refused','sql-failure':'injected completion failure','rule-inconclusive':"Mandatory Rule 'engineering.direct': inconclusive",'aspect-missing':'Missing Aspect assessment: A'};
    expect(JSON.stringify(result)).toContain(causes[mode]);
+   if(mode==='aspect-missing')expect(contexts).toHaveLength(2);
    const reopened=new WorkflowStore(local.root);stores.push(reopened);
    expect((await reopened.getEntity<Ticket>('T',Ticket.dcr))!.lane).not.toBe('Done');
    expect(await reopened.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
