@@ -17,12 +17,16 @@ Product development starts with developer-owned intent (Goals/Concepts/Features/
 
 **Agency invariant:** the LLM Actor is the general problem solver. Sophisticated goals require an adequate configured reasoning route and flexible execution means; System-1 may advise but never gate. Ordinary tools, discovery, environment execution and ephemeral deterministic composition are optional means chosen by the Actor. Compilation is never the default definition of sophistication. Current-project claims require observed evidence. For Actor/discovery/composition/model-routing changes, follow `docs/architecture.md` and prove J2.4/J2.5 from `docs/journeys.md` through the real host boundary.
 
+## Bounded work and completion
+
+Completion gates do not expand authorized scope. Work within the developer's current request and its agreed completion checks; do not add deliverables or raise the acceptance bar while closing. Repair defects introduced by the change or already covered by the request. Record other defects separately; if one blocks a required check, report the exact blocker and obtain authorization before expanding implementation. A failed review is not permission to repair the reviewer until it approves. Verify proportionately, reuse current evidence, and stop developing once the agreed checks pass. An explicit push or publish instruction closes development for the stated work: check the intended commits, destination and publication safety, perform the authorized publication, verify the remote result and report. Do not restart implementation, reviews or development checks without a concrete reason affecting publication. Respect developer-retained prerequisites and mandatory constraints; report any blocking condition instead of silently repairing surrounding systems. Publication does not accept a Story, validate a receipt or mark a Ticket Done. Report operation completion and formal acceptance separately and truthfully.
+
 ## Preferred workflow
 
 1. If given a Ticket, call `resolve_ticket` / `aiwf resolve <ticketId>` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
 2. For evidence without implementation, use `investigate_ticket` / `aiwf investigate <ticketId>`. For executable enrichment or useful decomposition, use `prepare_ticket` / `aiwf prepare <ticketId>`.
 3. For accepted intent, use `process_epic`, `process_feature` or `process_story` / `aiwf process epic|feature|story <id>`. Reuse meaningful existing work; technical work needs no ceremonial Story.
-4. Inspect `needs_input` and `blocked`. Resolve the exact question or capability gap and retry against durable graph state. Do not mark Done or weaken acceptance to bypass verification.
+4. Inspect `needs_input` and `blocked`. Apply the bounded completion policy above: resolve only within the authorized scope; otherwise report the exact blocker and defer its repair. Do not mark Done or weaken acceptance to bypass verification.
 5. Use primitives for explicit drill-down/debugging or an actual delegation blocker. First inspect AIWF's dossier; then use graph/symbol/exact source/references/blast/test evidence surgically. Claim the relevant Ticket before manual edits, preserve unrelated work, verify real acceptance, and sync.
 
 ## Repository investigation

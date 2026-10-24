@@ -114,7 +114,6 @@ kanban-plugin: board
   - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
 - [/] **TKT-REVIEWER-RELIABILITY**: Select and qualify independent reviewers within developer spending policy
   - Summary: Implement the developer-approved Reviewer Reliability Story using existing Radar, llm-utils routing, verifier and configuration owners. One public acceptance test first; actual baseline. Preserve mandatory Rules/citations, one targeted correction, observed qualification, approved paid provider/task policy and cumulative operation ceiling. Current definition review has a charter warning pending developer clarification. BASIC #2 stays closed; #3 and Consult excluded.
-  - Claim: leased by @codex until 2026-10-24T11:55:02.841Z
 
 ## Done
 
@@ -242,6 +241,8 @@ kanban-plugin: board
   - Summary: [EXT-SURFACE-10] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: bug. Priority: P0, prerequisite to ANY exposed Product/Link writing, including EXT-SURFACE-03 and -08.  Observed: direct public writers including define_product/update_product use applyProductMutations independently of the separately available S2 preview/apply review boundary. Investigate actual host execution context and full direct callers first; patch at the canonical owner, not a cosmetic tool allowlist.
 - [ ] **TKT-I1-LSP-CLOSE-RACE**: Handle LSP close racing an in-flight document symbol request
   - Summary: Iteration 1 pristine aggregate failure: resolveRuleReference failed in TsLspClient.getDocumentSymbols because its finally block dereferenced this.connection after concurrent close had nulled it. Preserve one connection per in-flight request and make didClose best-effort when teardown wins. Add a deterministic real JSON-RPC regression with a stalled documentSymbol request, then rerun pristine serialized aggregate.
+- [ ] **TKT-BOUNDED-COMPLETION-POLICY**: Distribute bounded completion policy through shared AIWF guidance
+  - Summary: Developer-approved instruction maintenance: completion gates do not expand implementation authority. Publish only the requested work when instructed, preserve truthful acceptance states, and defer out-of-scope blockers. Put the policy in shared AIWF guidance and its existing MCP, installed-skill and native Actor consumers. No new reviewer gate, retry loop or governance subsystem.
 
 %% kanban:settings
 ```

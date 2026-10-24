@@ -16,7 +16,7 @@ import { buildMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
 import { checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime, ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
-import {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0, REPOSITORY_INVESTIGATION} from './client-guidance.ts';
+import {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0, REPOSITORY_INVESTIGATION, BOUNDED_COMPLETION} from './client-guidance.ts';
 
 export interface SetupTypeScriptResult extends TsProvisionResult {}
 
@@ -119,12 +119,16 @@ Product development starts with developer-owned intent (Goals/Concepts/Features/
 
 **Agency invariant:** the LLM Actor is the general problem solver. Sophisticated goals require an adequate configured reasoning route and flexible execution means; System-1 may advise but never gate. Ordinary tools, discovery, environment execution and ephemeral deterministic composition are optional means chosen by the Actor. Compilation is never the default definition of sophistication. Current-project claims require observed evidence. For Actor/discovery/composition/model-routing changes, follow \`docs/architecture.md\` and prove J2.4/J2.5 from \`docs/journeys.md\` through the real host boundary.
 
+## Bounded work and completion
+
+${BOUNDED_COMPLETION}
+
 ## Preferred workflow
 
 1. If given a Ticket, call \`resolve_ticket\` / \`aiwf resolve <ticketId>\` first. AIWF owns investigation, leasing, preparation, safe edits, tests, repair, acceptance and material Aspect verification, release and sync.
 2. For evidence without implementation, use \`investigate_ticket\` / \`aiwf investigate <ticketId>\`. For executable enrichment or useful decomposition, use \`prepare_ticket\` / \`aiwf prepare <ticketId>\`.
 3. For accepted intent, use \`process_epic\`, \`process_feature\` or \`process_story\` / \`aiwf process epic|feature|story <id>\`. Reuse meaningful existing work; technical work needs no ceremonial Story.
-4. Inspect \`needs_input\` and \`blocked\`. Resolve the exact question or capability gap and retry against durable graph state. Do not mark Done or weaken acceptance to bypass verification.
+4. Inspect \`needs_input\` and \`blocked\`. Apply the bounded completion policy above: resolve only within the authorized scope; otherwise report the exact blocker and defer its repair. Do not mark Done or weaken acceptance to bypass verification.
 5. Use primitives for explicit drill-down/debugging or an actual delegation blocker. First inspect AIWF's dossier; then use graph/symbol/exact source/references/blast/test evidence surgically. Claim the relevant Ticket before manual edits, preserve unrelated work, verify real acceptance, and sync.
 
 ## Repository investigation
@@ -166,8 +170,9 @@ export const CODEX_AGENT_RULES = `<!-- ai-workflow-rules -->
 
 When working in an \`ai-workflow\` repository (containing \`.ai-workflow/\` or \`kanban.md\`):
 - **Prime Directive**: ${PRIME_DIRECTIVE}
+- **Bounded work and completion**: ${BOUNDED_COMPLETION}
 - **Delegate First**: Given a Ticket, call \`resolve_ticket\`; use \`investigate_ticket\` or \`prepare_ticket\` for evidence/preparation, and \`process_epic/feature/story\` for intent. Inspect precise blockers before manual work.
-- **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` to find active priority.
+- **Select Task**: Call \`recommend_next_task\` or run \`aiwf next\` only when the developer requests work selection. Never extend a completed request by selecting another Ticket.
 - **Lease Mandatory**: Call \`claim_ticket\` or run \`aiwf claim <id>\` BEFORE editing any files.
 - **Product Intent & Coverage**: Use \`get_product_coverage\`, \`get_product_impact\`, \`list_epics\`, \`list_features\`, \`list_user_stories\` to verify intent and impact before changing features.
 - **Repository investigation**: ${REPOSITORY_INVESTIGATION}

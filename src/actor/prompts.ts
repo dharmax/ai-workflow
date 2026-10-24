@@ -4,6 +4,7 @@
  */
 
 import { PromptEngine } from "@dharmax/llm-utils"
+import { BOUNDED_COMPLETION } from "../client-guidance.ts"
 import { z } from "zod"
 import type { ShellMode } from "./engine.ts"
 import actorTemplate from "./prompts/actor.txt" with { type: "text" }
@@ -15,5 +16,5 @@ const modes = z.record(z.enum(["design", "dev", "triage", "product"]), z.string(
 
 export function renderActorSystem(mode: ShellMode, projectRoot: string, scratchRoot?: string): string {
     const authority = scratchRoot ? prompts.render(readOnlyTemplate.trim(), { scratchRoot }) : ""
-    return prompts.render(system.content, { modeInstructions: modes[mode], projectRoot, authority })
+    return BOUNDED_COMPLETION + "\n\n" + prompts.render(system.content, { modeInstructions: modes[mode], projectRoot, authority })
 }

@@ -190,6 +190,7 @@ approval_mode = "approve"`;
     expect(codexSkill).toContain('call `resolve_ticket`');
     expect(codexSkill).toContain('Claim the relevant Ticket before manual edits');
     expect(codexSkill).toContain(PRIME_DIRECTIVE);
+    expect(codexSkill).toContain('Completion gates do not expand authorized scope.');
 
     const claudeSkill = fs.readFileSync(path.join(mockHome, '.claude', 'skills', 'ai-workflow', 'SKILL.md'), 'utf8');
     expect(claudeSkill).toBe(CANONICAL_SKILL_MD);
@@ -249,6 +250,7 @@ approval_mode = "approve"`;
     const agentsMd = fs.readFileSync(path.join(mockHome, '.codex', 'AGENTS.md'), 'utf8');
     expect(agentsMd).toContain('@AI-WORKFLOW.md');
     expect(fs.existsSync(path.join(mockHome, '.codex', 'AI-WORKFLOW.md'))).toBe(true);
+    expect(fs.readFileSync(path.join(mockHome, '.codex', 'AI-WORKFLOW.md'), 'utf8')).toContain('Completion gates do not expand authorized scope.');
 
     // 4. Verify Claude JSON in link mode
     const claudeJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.claude.json'), 'utf8'));
@@ -259,6 +261,7 @@ approval_mode = "approve"`;
     const cursorJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.cursor', 'mcp.json'), 'utf8'));
     expect(cursorJson.mcpServers['ai-workflow'].instructions).toBe(MCP_INSTRUCTIONS_2_0);
     expect(MCP_INSTRUCTIONS_2_0).toContain(PRIME_DIRECTIVE);
+    expect(MCP_INSTRUCTIONS_2_0).toContain('Completion gates do not expand authorized scope.');
 
     // 6. Verify Windsurf JSON
     const windsurfJson = JSON.parse(fs.readFileSync(path.join(mockHome, '.codeium', 'windsurf', 'mcp_config.json'), 'utf8'));
