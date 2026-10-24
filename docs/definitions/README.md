@@ -29,6 +29,7 @@
 
 - [AI-Workflow](ai-workflow.md) — the engineering workflow and software supporting it
 - [Dharmax-way](dharmax-way.md) — governing test-first method
+  - [Dharmax Architecture](dharmax-architecture.md) — default, adaptable architectural topology within Dharmax-way
 - [Prime Directive](prime-directive.md) — smallest correct engineering solution, whole-scope quality
 - [Rules and Guidelines](rules-and-guidelines.md) — instruction versus advice
 - [Project Graph](project-graph.md) — the shared Semantika-backed project model; *Canonical Project Graph* remains a proposed full name
