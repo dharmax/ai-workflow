@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-24",
+  "ticketId": "TKT-REVIEWER-RELIABILITY",
+  "scope": "Developer-authorized technical refactor followed by correction-boundary fix. Broader B routing/qualification/paid policy remains unimplemented; no Story completion claimed.",
+  "changes": [
+    "Split verifyTicketAcceptance into preparation, response validation, dependency execution, per-scope review, composition and source review. Main function: 132 to 13 lines.",
+    "Separate malformed/incomplete response checks from substantive rejection. Feed missing required Rule/criterion/Aspect assessments and invalid citations into existing llm-utils Asker schema validation; maxRetries remains 1.",
+    "Supply exact validEvidenceIds with reviewer context. Failed or inconclusive mandatory verdicts remain blocking and receive no corrective retry."
+  ],
+  "verification": {
+    "refactorBeforeFix": "98 pass / 0 fail / 655 assertions, three existing regression files",
+    "newBoundaryBaseline": "3 pass / 4 fail across seven cases before the fix",
+    "newBoundaries": "7 pass / 0 fail / 26 assertions",
+    "finalRelevant": "105 pass / 0 fail / 678 assertions / three files",
+    "typecheck": "$ tsc --noEmit",
+    "finalFullSummary": "\n 601 pass\n 5 skip\n 1 fail\n 4415 expect() calls\nRan 607 tests across 79 files. [147.39s]\n",
+    "fullFailures": [
+      "(fail) developer obtains independent verification using advice, observed qualification, one correction and an enforced paid ceiling [257.86ms]",
+      "(fail) developer obtains independent verification using advice, observed qualification, one correction and an enforced paid ceiling [257.86ms]"
+    ],
+    "samePublicStory": "Still red at model-failure history assertion, after its existing one-correction checks now pass. Expected broader B behavior was not weakened.",
+    "fixtureCorrection": "Existing technical-proof fixture now extracts JSON context before appended correction diagnostics; missing Aspect now fails at the response validator, and the test additionally asserts exactly two calls. No-receipt/no-Done assertions retained."
+  },
+  "independentSourceReviews": [
+    {
+      "date": "2026-10-24T10:54:16.773Z",
+      "scope": "Technical refactor and correction-boundary patch only; broader B acceptance excluded",
+      "result": {
+        "verdict": "revise",
+        "findings": [
+          {
+            "message": "The proposal does not explicitly cover the acceptance criterion of preserving acceptance gates and permitting only one validation correction.",
+            "artifactId": "TKT-REVIEWER-RELIABILITY"
+          }
+        ],
+        "required": []
+      },
+      "hashes": [
+        {
+          "file": "src/ticket/verification.ts",
+          "sha256": "db718f1e065ca8aa88f881241d633598c47677d6ddbc4d791fdaf75b31aebb72"
+        },
+        {
+          "file": "src/ticket-operation-types.ts",
+          "sha256": "6e3a814eaca9e836a0752f5705168811b6ae4ec85f4e8f4899cf346afbe338bd"
+        },
+        {
+          "file": "tests/doctrine-verifier.test.ts",
+          "sha256": "dfa4324bf10109eaea123871c9390e2b1fa301783e6030a9702c4aa151caa2a9"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-24T10:55:14.096Z",
+      "scope": "Technical refactor and correction-boundary patch only; broader B acceptance excluded",
+      "result": {
+        "verdict": "accept",
+        "findings": [
+          {
+            "message": "The proposal explicitly covers the acceptance criterion by refactoring the `executeTicketChecks` function to preserve acceptance gates and limit validation corrections.",
+            "artifactId": "src/ticket/verification.ts"
+          }
+        ],
+        "required": []
+      },
+      "hashes": [
+        {
+          "file": "src/ticket/verification.ts",
+          "sha256": "db718f1e065ca8aa88f881241d633598c47677d6ddbc4d791fdaf75b31aebb72"
+        },
+        {
+          "file": "src/ticket-operation-types.ts",
+          "sha256": "6e3a814eaca9e836a0752f5705168811b6ae4ec85f4e8f4899cf346afbe338bd"
+        },
+        {
+          "file": "tests/doctrine-verifier.test.ts",
+          "sha256": "dfa4324bf10109eaea123871c9390e2b1fa301783e6030a9702c4aa151caa2a9"
+        }
+      ]
+    }
+  ],
+  "reviewLimitation": "Critic latest verdict is accept, but its explanation names executeTicketChecks, which was not refactored. Preserve actual responses as advisory source review only; this is not native independent acceptance, a receipt or Done for B.",
+  "spending": {
+    "ceilingUSD": 2,
+    "totalBProviderReportedUSD": 0.16096749999999999,
+    "thisPatchProviderReportedUSD": 0.11807,
+    "configurationRestored": true
+  },
+  "aiwfUse": {
+    "investigation": "investigate_ticket, exact source slices, callers, blast radius and recommended test files",
+    "changes": [
+      {
+        "log": "/tmp/reviewer-refactor-apply.log",
+        "preview": {
+          "fingerprint": "f3b7d003263367efdd42af028b2bd96db1f7c69e91985d981f69058562be0ccd",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-correction-test-apply.log",
+        "preview": {
+          "fingerprint": "429c6d8831f2367f769937ed57b96b68f798670933475e3fd6ca5b19dc34b711",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-rule-contract-apply.log",
+        "preview": {
+          "fingerprint": "c7a6d15cb396645fc0a4a355ad07193c98e18866f632908e1da3d7804475d0fe",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-rule-import-apply.log",
+        "preview": {
+          "fingerprint": "4a7eac96ce95d00145bf6475f5056bb13ade2bd1fbc84831d28988014f931c98",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-response-schema-apply.log",
+        "preview": {
+          "fingerprint": "65a1a3448d4206c2ca2e87087bf7da528317b1cef5f6baa5df31ddbba2709a18",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-story-type-apply.log",
+        "preview": {
+          "fingerprint": "54c9c9a48e4136058cefc415085b80cb337a3a145ef362f2e88562a02a9d3cda",
+          "blocked": false
+        }
+      },
+      {
+        "log": "/tmp/reviewer-proof-fixture-apply.log",
+        "preview": {
+          "fingerprint": "81fbddc697f8bebda74676f4324db6a82f5a67087095b37aaeacb0de4fc1d18b",
+          "blocked": false
+        }
+      }
+    ],
+    "assessment": "Useful for bounding the owner, finding regressions and guarding edits. Refactor/fix reasoning authored by the host agent. Critic explanation limitation retained; no claimed token savings."
+  },
+  "hashes": {
+    "src/ticket/verification.ts": "db718f1e065ca8aa88f881241d633598c47677d6ddbc4d791fdaf75b31aebb72",
+    "src/ticket-operation-types.ts": "6e3a814eaca9e836a0752f5705168811b6ae4ec85f4e8f4899cf346afbe338bd",
+    "tests/doctrine-verifier.test.ts": "dfa4324bf10109eaea123871c9390e2b1fa301783e6030a9702c4aa151caa2a9",
+    "tests/technical-proof.test.ts": "d08555f6e17a90cfbcd9983afc46de078569b95bdc8951eae9729ff99a494c81",
+    "tests/us/reviewer-reliability.test.ts": "30a5dd69df98ca5edb95ecc796b1f918448cd520b522e454053430d1c1fb1c79"
+  },
+  "canonical": {
+    "ticket": "In Progress/unverified; partial B implementation",
+    "receipt": null,
+    "commit": null,
+    "head": "a4a35cb4daa127bd81245a8c0527b761b532f99c"
+  }
+}

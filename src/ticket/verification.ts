@@ -27,7 +27,7 @@ import {
     type ResolutionOptions
 } from "../ticket-operation-types.ts"
 import type { loadConfig } from "../config.ts"
-import { createDefaultAsker } from "../model-runtime.ts"
+import {prepareReviewer, recordReviewerResult} from "./reviewer.ts"
 import { buildVerificationContext } from "../verification-context.ts"
 import { countEngineering, cognitionMetrics } from "../performance-metrics.ts"
 
@@ -185,9 +185,8 @@ function acceptanceResponseSchema(dossier: TicketDossier, evidenceIds: string[])
     })
 }
 
-function createAcceptanceReview(store: WorkflowStore, options: ResolutionOptions, cfg: ReturnType<typeof loadConfig>, governance: TicketGovernance): AcceptanceReview {
-    const asker = createDefaultAsker(store.root)
-    if (!asker) throw Error('Independent acceptance verifier unavailable.')
+async function createAcceptanceReview(store: WorkflowStore, options: ResolutionOptions, cfg: ReturnType<typeof loadConfig>, governance: TicketGovernance, ticketId: string): Promise<AcceptanceReview> {
+    const {asker, model} = await prepareReviewer(store, cfg, ticketId)
     return async (context, evidenceIds) => {
         const validEvidenceIds = [...new Set(evidenceIds)]
         const serializedContext = JSON.stringify({...context, validEvidenceIds})
@@ -196,12 +195,11 @@ function createAcceptanceReview(store: WorkflowStore, options: ResolutionOptions
         countEngineering('sourceReads', context.code?.reduce((count, file) => count + file.snippets.length, 0) ?? 0)
         countEngineering('reasoningCalls')
         const response = await asker.json(renderAcceptancePrompt(serializedContext), acceptanceResponseSchema(context.dossier, validEvidenceIds), {
-            ...(cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design
-                ? {model: cfg.modelRoutes.critic ?? cfg.modelRoutes.design}
-                : {task: 'verification'}),
+            ...(model ? {model} : {task: 'verification'}),
             temperature: 0, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens,
             ...cognitionMetrics({phase: 'acceptance_verification'})
         })
+        await recordReviewerResult(store, context.dossier.ticket.id, response, validEvidenceIds)
         if (!response.ok) throw Error(`Acceptance verification failed: ${response.failure?.message}`)
         const acceptance = AcceptanceVerificationSchema.parse(response.data)
         const failures = ruleAcceptanceFailures(governance, acceptance, validEvidenceIds)
@@ -299,7 +297,7 @@ export async function verifyTicketAcceptance(store: WorkflowStore, input: Resolu
     for (const rule of governance.rules.filter(rule => rule.importance >= 8))
         if (rule.test.kind === 'codelet') throw Error(`Mandatory Rule '${rule.ruleId}' requires an unsupported codelet checker '${rule.test.codeletName ?? 'missing'}'.`)
     const dossier = prepareReviewDossier(store, input, governance)
-    const review = createAcceptanceReview(store, options, cfg, governance)
+    const review = await createAcceptanceReview(store, options, cfg, governance, input.dossier.ticket.id)
     const proof = await readTechnicalProof(store, input.dossier.ticket.id)
     return proof
         ? reviewTechnicalProof(store, input, dossier, proof, options, review)

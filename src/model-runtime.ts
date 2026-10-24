@@ -124,7 +124,7 @@ export class ModelService {
         return eligible.includes(target.providerId) ? target : undefined
     }
 
-    public createAsker(taskAliases: Record<string, string> = {}, preferLocal = false): Asker {
+    public createAsker(taskAliases: Record<string, string> = {}, preferLocal = false, failedVerificationModels: ReadonlySet<string> = new Set()): Asker {
         const { config, providers } = this.runtime
         const routes = { ...config.modelRoutes }
         const fallbacks: Record<string, string[]> = {}
@@ -144,7 +144,7 @@ export class ModelService {
             for (const task of Object.keys(MODEL_WORKLOADS)) routes[task] ??= config.model
         return new Asker({ providers, preferLocal, router: new ModelRouter({
             providers, routes, fallbacks, preferLocal, defaultModel: this.defaultModel,
-            adviceSnapshot: this.advice, advicePath: false,
+            adviceSnapshot: qualifiedVerificationAdvice(this.advice, failedVerificationModels), advicePath: false,
         }) })
     }
 
@@ -157,6 +157,16 @@ export class ModelService {
         const origin = target.providerId === "openrouter" ? alternate.providerId : target.providerId
         return providers[origin] && !providers[origin]?.local && providers[alternate.providerId] ? [equivalent] : []
     }
+}
+
+function qualifiedVerificationAdvice(advice: ModelAdviceSnapshot | undefined, failed: ReadonlySet<string>): ModelAdviceSnapshot | undefined {
+    if (!advice?.workloads.verification || !failed.size) return advice
+    const {verification, ...workloads} = advice.workloads
+    const choices = [verification.primary, ...verification.fallbacks]
+        .filter(choice => !failed.has(`${choice.target.providerId}/${choice.target.modelId}`))
+    return {...advice, workloads: choices.length
+        ? {...workloads, verification: {...verification, primary: choices[0]!, fallbacks: choices.slice(1)}}
+        : workloads}
 }
 
 export function createDefaultAsker(projectRoot: string = process.cwd()): Asker | undefined {

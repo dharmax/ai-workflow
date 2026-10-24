@@ -29,6 +29,26 @@ const AiReviewSchema = z.object({
 });
 
 /** A separate Asker call with review-only context, never producer conversation history. */
+function criticAssessmentSchema(input: CriticInput) {
+  const schema = input.charterAlignment ? AiReviewSchema.extend({alignment: CharterAlignmentSchema}) : AiReviewSchema;
+  return schema.superRefine((assessment, ctx) => {
+    // Preserve a grounded charter conflict; it already blocks acceptance.
+    if ('alignment' in assessment && CharterAlignmentSchema.parse(assessment.alignment).conflicts.length) return;
+    for (const criterion of input.acceptanceCriteria ?? [])
+      if (!assessment.criteria.some(check => check.criterion === criterion))
+        ctx.addIssue({code:'custom',path:['criteria'],message:'Missing exact criterion assessment: '+criterion});
+    for (const check of assessment.criteria)
+      if (!(input.acceptanceCriteria ?? []).includes(check.criterion))
+        ctx.addIssue({code:'custom',path:['criteria'],message:'Unknown criterion assessment: '+check.criterion});
+    for (const id of input.applicableAspects)
+      if (!assessment.aspects.some(check => check.id === id))
+        ctx.addIssue({code:'custom',path:['aspects'],message:'Missing Aspect assessment: '+id});
+    for (const check of assessment.aspects)
+      if (!input.applicableAspects.includes(check.id))
+        ctx.addIssue({code:'custom',path:['aspects'],message:'Unknown Aspect assessment: '+check.id});
+  });
+}
+
 export class AiArtifactCritic implements ArtifactCritic {
   constructor(readonly id: string, private readonly projectRoot: string, private readonly signal?: AbortSignal) {}
   async review(input: CriticInput): Promise<CriticResult> {
@@ -40,7 +60,7 @@ export class AiArtifactCritic implements ArtifactCritic {
     const alignmentInstruction = input.charterAlignment
       ? ' This is a charter-alignment review. Return alignment with status (aligned, conflict or uncertain), a substantive explanation, observations and conflicts. Classify EVERY review.findings entry exactly once in observations or conflicts, preserving artifactId and message. Positive/explanatory observations are not warnings. Conflicts include material ambiguity/drift and require artifactId, message, charterEvidence and definitionEvidence quoting both actual definitions, and a developer question. An aligned assessment has no conflicts or required input. Missing evidence or uncertainty must never be called aligned. Review proposed UserStories for a coherent complete effective definition (Actor, Intent, Initial State, Action, Expected Result), sufficient to derive tests without inventing behavior. Do not demand implementation evidence for definition acceptance.'
       : '';
-    const schema = input.charterAlignment ? AiReviewSchema.extend({alignment: CharterAlignmentSchema}) : AiReviewSchema;
+    const schema = criticAssessmentSchema(input);
     const result = await asker.json(`${alignmentInstruction}Independently review this engineering proposal at ${input.completeness} completeness. You are read-only. acceptanceCriteria describes REQUIRED outcomes, never proof they are already met. First evaluate EVERY parent acceptanceCriteria entry, and EVERY applicable Aspect. For each, report whether proposed or existing work explicitly covers it and cite the actual work that does so. An unrelated criterion is not coverage. Requirements in intent are not implementation evidence. If any material criterion or Aspect is missing, the review MUST revise or reject with specific findings. Then check duplicate work, unnecessary ceremony, executable acceptance, real dependency ordering, Decisions and reuse versus creation. Higher completeness requires stronger evidence, never more artifacts by itself. Do not accept based only on whether one proposed child looks reasonable. Return criteria, aspects and review. Review context: ${JSON.stringify(input)}`, schema, { model, temperature: 0, timeoutMs: 60000, signal: this.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens, ...cognitionMetrics({phase: 'critic_review'}) });
     if (!result.ok) throw new Error(`Independent Critic failed: ${result.failure?.kind ?? 'unknown'}: ${result.failure?.message ?? 'No validated result.'}`);
     const assessment = schema.parse(result.data);

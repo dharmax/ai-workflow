@@ -131,8 +131,8 @@ describe('reviewed Ticket preparation', () => {
     const previous = process.env.OLLAMA_HOST; process.env.OLLAMA_HOST = server.url.toString();
     saveConfig(root, { model: 'ollama/fixture', ollamaUrl: server.url.toString() });
     try {
-      const result = await new AiArtifactCritic('auto', root).review({ artifactId: 'P', intent: 'Persist jobs and migrate records.', neighborhood: [], proposal: [{ title: 'Persist jobs' }], applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 1, acceptanceCriteria: ['Restart retains jobs', 'Old records migrate safely'], evidence: [] });
-      expect(result.verdict).toBe('revise'); if (result.verdict === 'revise') expect(result.findings[0].message).toContain('Old records migrate safely');
+      await expect(new AiArtifactCritic('auto', root).review({ artifactId: 'P', intent: 'Persist jobs and migrate records.', neighborhood: [], proposal: [{ title: 'Persist jobs' }], applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 1, acceptanceCriteria: ['Restart retains jobs', 'Old records migrate safely'], evidence: [] })).rejects.toThrow('Old records migrate safely');
+      expect(prompt).toContain('Previous response failed validation:');
       expect(prompt).toContain('acceptanceCriteria describes REQUIRED outcomes'); expect(prompt).toContain('"evidence":[]');
       await expect(new AiArtifactCritic('unconfigured', root).review({ artifactId: 'P', intent: '', neighborhood: [], proposal: [], applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 1, evidence: [] })).rejects.toThrow('configured model route');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }

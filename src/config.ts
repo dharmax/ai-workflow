@@ -24,6 +24,8 @@ export interface CloudCredentials {
   openaiApiKey?: string;
 }
 
+export const PaidInferencePolicySchema = z.object({providers:z.array(z.string().min(1)),tasks:z.array(z.string().min(1)),ceilingUSD:z.number().finite().positive()}).strict();
+
 export interface ProjectConfig {
   defaultCompleteness: CompletenessLevel;
   maxArtifacts: number;
@@ -41,6 +43,7 @@ export interface ProjectConfig {
   escalation: EscalationConfig;
   modelRoutes?: Record<string, string>;
   providerOptions?: Record<string, Record<string, unknown>>;
+  paidInference?: z.infer<typeof PaidInferencePolicySchema>;
   openrouterApiKey?: string;
 }
 
@@ -86,6 +89,7 @@ export const CONFIG_SETTINGS = {
   escalation: { schema: z.object({ policy: z.enum(['auto', 'local_only', 'prompt', 'sota']).optional(), blastRadiusThreshold: positiveInt.optional(), testRetryThreshold: z.number().int().nonnegative().optional() }).strict(), description: 'Escalation options', type: 'object' },
   modelRoutes: { schema: z.record(z.string(), z.string().min(1)), description: 'Task model routes', type: 'object' },
   providerOptions: { schema: z.record(z.string(), z.record(z.string(), z.unknown())), description: 'Provider request options', type: 'object' },
+  paidInference: {schema: PaidInferencePolicySchema, description: 'Approved paid verification providers/tasks and cumulative USD ceiling per operation; absent means no paid execution', type: 'object'},
 } as const;
 export type SettingId = keyof typeof CONFIG_SETTINGS;
 export const CONFIG_SCOPES: readonly ConfigScope[] = ['project', 'global'];

@@ -1,0 +1,194 @@
+{
+  "authorization": {
+    "job": "B only",
+    "ceilingUSD": 2,
+    "provider": "openrouter",
+    "model": "openai/gpt-4o",
+    "maxRequests": 30,
+    "maxOutputTokens": 16000,
+    "developerAuthorized": true
+  },
+  "startedAt": "2026-10-23T16:14:54.654Z",
+  "requests": [
+    {
+      "id": 1,
+      "startedAt": "2026-10-23T16:14:54.814Z",
+      "model": "openai/gpt-4o",
+      "promptCharacters": 23643,
+      "promptSha256": "21a8117dd422a675230f58c6d7c7de58e52be04ab70ba179e53a4f79209afe66",
+      "maxTokens": 16000,
+      "reserveUSD": 0.235165,
+      "elapsedMs": 1531,
+      "httpStatus": 200,
+      "responseId": "gen-1792772095-wnMLqidAh0eKdUFDydTp",
+      "usage": {
+        "prompt_tokens": 4356,
+        "completion_tokens": 392,
+        "total_tokens": 4748,
+        "cost": 0.01481,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.01481,
+          "upstream_inference_prompt_cost": 0.01089,
+          "upstream_inference_completions_cost": 0.00392
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "finishReason": "stop",
+      "assessment": "{\"criteria\":[{\"criterion\":\"Verification uses eligible Radar advice, preserves explicit developer routing and spending authority, and records observed qualification separately from advice; failed automatic candidates are avoided.\",\"covered\":true,\"evidence\":\"The proposed UserStory explicitly mentions using existing Radar advice and llm-utils routing, preserving developer routes and spending restrictions.\"},{\"criterion\":\"Exact evidence and Rule identifiers are supplied; at most one targeted correction uses actual validation errors; incomplete, invalid or inconclusive mandatory assessments cannot create acceptance.\",\"covered\":true,\"evidence\":\"The UserStory specifies that exact valid evidence identifiers and applicable Rule identities are provided, with a single targeted correction for malformed responses.\"},{\"criterion\":\"Paid providers/tasks and a cumulative per-operation USD ceiling require developer authorization, are enforced across scopes and corrections, and actual usage is reported.\",\"covered\":true,\"evidence\":\"The UserStory outlines the requirement for developer approval of provider/task and a spending ceiling, with enforcement and reporting of actual usage.\"}],\"aspects\":[],\"review\":{\"verdict\":\"accept\",\"findings\":[],\"required\":[]},\"alignment\":{\"status\":\"aligned\",\"explanation\":\"The proposed UserStory aligns with the PRODUCT's purpose, actors, scope, and non-goals. It adheres to the acceptance criteria by ensuring verification processes are reliable, authorized, and well-documented, without introducing new routing engines or governance subsystems.\",\"observations\":[{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The UserStory effectively integrates existing Radar advice and llm-utils routing, ensuring developer control over verification processes.\"},{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The UserStory's emphasis on providing exact evidence identifiers and Rule identities supports clear and accountable verification.\"},{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The UserStory's requirement for developer authorization and spending ceiling enforcement aligns with the PRODUCT's emphasis on safety and integrity.\"}],\"conflicts\":[]}}",
+      "costUSD": 0.01481,
+      "costBasis": "provider-reported"
+    },
+    {
+      "id": 2,
+      "startedAt": "2026-10-23T16:15:31.208Z",
+      "model": "openai/gpt-4o",
+      "promptCharacters": 23643,
+      "promptSha256": "21a8117dd422a675230f58c6d7c7de58e52be04ab70ba179e53a4f79209afe66",
+      "maxTokens": 16000,
+      "reserveUSD": 0.235165,
+      "elapsedMs": 867,
+      "httpStatus": 200,
+      "responseId": "gen-1792772131-GVuk2h8duPXP1qzLeBUx",
+      "usage": {
+        "prompt_tokens": 4356,
+        "completion_tokens": 364,
+        "total_tokens": 4720,
+        "cost": 0.01453,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.01453,
+          "upstream_inference_prompt_cost": 0.01089,
+          "upstream_inference_completions_cost": 0.00364
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "finishReason": "stop",
+      "assessment": "{\"criteria\":[{\"criterion\":\"Verification uses eligible Radar advice, preserves explicit developer routing and spending authority, and records observed qualification separately from advice; failed automatic candidates are avoided.\",\"covered\":true,\"evidence\":\"The proposed UserStory explicitly mentions using existing Radar advice and preserving developer routing and spending authority.\"},{\"criterion\":\"Exact evidence and Rule identifiers are supplied; at most one targeted correction uses actual validation errors; incomplete, invalid or inconclusive mandatory assessments cannot create acceptance.\",\"covered\":true,\"evidence\":\"The UserStory specifies that exact evidence identifiers and applicable Rule identities are provided, with a limit of one targeted correction.\"},{\"criterion\":\"Paid providers/tasks and a cumulative per-operation USD ceiling require developer authorization, are enforced across scopes and corrections, and actual usage is reported.\",\"covered\":true,\"evidence\":\"The UserStory outlines the requirement for developer approval for paid execution and enforcement of spending ceilings.\"}],\"aspects\":[],\"review\":{\"verdict\":\"accept\",\"findings\":[], \"required\": []},\"alignment\":{\"status\":\"aligned\",\"explanation\":\"The proposed UserStory aligns with the PRODUCT's purpose, actors, scope, and non-goals. It adheres to the acceptance criteria and does not introduce any material contradictions, ambiguities, or drift.\",\"observations\":[{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The UserStory effectively integrates existing Radar advice and developer routing, ensuring spending authority is maintained.\"},{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The UserStory provides clear guidelines for evidence and Rule identifiers, ensuring targeted corrections are limited and assessments are conclusive.\"},{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"Developer authorization for paid execution is well-defined, with spending ceilings enforced and usage reported.\"}],\"conflicts\":[]}}",
+      "costUSD": 0.01453,
+      "costBasis": "provider-reported"
+    },
+    {
+      "id": 3,
+      "startedAt": "2026-10-23T16:16:40.219Z",
+      "model": "openai/gpt-4o",
+      "promptCharacters": 22361,
+      "promptSha256": "7c4019933f7ea11c19567eef9def5cac300a28254eda442c7aec43c09ebb66fa",
+      "maxTokens": 16000,
+      "reserveUSD": 0.23196,
+      "elapsedMs": 1207,
+      "httpStatus": 200,
+      "responseId": "gen-1792772200-yZjO2mLBHyNZCJe0Hzjf",
+      "usage": {
+        "prompt_tokens": 4167,
+        "completion_tokens": 314,
+        "total_tokens": 4481,
+        "cost": 0.0135575,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0135575,
+          "upstream_inference_prompt_cost": 0.0104175,
+          "upstream_inference_completions_cost": 0.00314
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "finishReason": "stop",
+      "assessment": "{\"criteria\":[{\"criterion\":\"Review definition acceptance only, not implementation or verified behavior.\",\"covered\":true,\"evidence\":\"The proposal focuses on definition acceptance, aligning with the PRODUCT purpose, actors, scope, non-goals, and bounds.\"}],\"aspects\":[],\"review\":{\"verdict\":\"revise\",\"findings\":[{\"message\":\"The proposal lacks explicit evidence of alignment with the PRODUCT's non-goals, particularly regarding avoiding unnecessary planning ceremonies and artificial hierarchies.\",\"artifactId\":\"US-REVIEWER-RELIABILITY\"}]  ,\"required\":[]},\"alignment\":{\"status\":\"uncertain\",\"explanation\":\"The proposal for 'US-REVIEWER-RELIABILITY' aligns with the PRODUCT's intent to improve verification processes but lacks explicit evidence addressing all non-goals, particularly avoiding unnecessary ceremonies and hierarchies. This creates uncertainty in full alignment.\",\"observations\":[{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"The proposal aligns with the PRODUCT's intent to improve verification processes and maintain developer authority.\"}],\"conflicts\":[{\"artifactId\":\"US-REVIEWER-RELIABILITY\",\"message\":\"Potential conflict with PRODUCT's non-goal of avoiding unnecessary planning ceremonies.\",\"charterEvidence\":\"The PRODUCT non-goals state: 'Impose rigid methodologies, unnecessary planning ceremonies or artificial product/work hierarchies.'\",\"definitionEvidence\":\"The proposal does not explicitly address the avoidance of unnecessary ceremonies or hierarchies.\",\"question\":\"How does the proposal ensure it avoids unnecessary planning ceremonies and artificial hierarchies?\"}]}}",
+      "costUSD": 0.0135575,
+      "costBasis": "provider-reported"
+    }
+  ],
+  "spentUSD": 0.0428975,
+  "reservedUSD": 0,
+  "configBefore": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d",
+  "pricing": {
+    "source": "https://openrouter.ai/api/v1/models",
+    "observedAt": "2026-10-23T16:16:40.155Z",
+    "prompt": "0.0000025",
+    "completion": "0.00001",
+    "input_cache_read": "0.00000125"
+  },
+  "effectiveRoute": {
+    "providerId": "openrouter",
+    "modelId": "openai/gpt-4o"
+  },
+  "story": {
+    "id": "US-REVIEWER-RELIABILITY",
+    "title": "Developer obtains reliable independent verification within approved spending",
+    "actor": "Developer or delegated coding agent",
+    "intent": "Obtain trustworthy independent verification without repeatedly selecting a model that has failed its contract or spending without approval.",
+    "initialState": "A Ticket has actual test evidence. Available model advice, explicit developer routes and observed verification qualification/failure evidence may exist. Paid execution is unapproved by default.",
+    "action": "Request canonical Ticket verification; where paid execution is desired, configure approved providers and tasks and an explicit cumulative spending ceiling for that verification operation.",
+    "expectedResult": "AIWF uses existing Radar advice and llm-utils routing to select an available verification model, with explicit developer routes and spending restrictions taking precedence. It records observed contract qualification/failure separately from advice and avoids automatically selecting a model whose latest observed verification contract failed. The reviewer receives exact valid evidence identifiers and applicable Rule identities. A malformed or incomplete response receives at most one targeted correction containing actual validation errors. Missing mandatory assessments, invalid citations and inconclusive mandatory Rules still block acceptance. Paid execution requires developer approval of provider/task and a spending ceiling; AIWF enforces that ceiling across all scopes/retries of the operation and reports actual usage. Only complete independent acceptance creates a canonical receipt and Done/verified state. No eligible authorized model or exhausted budget yields a truthful blocker, without a receipt. Explicitly configured failed models are not silently overridden; their contract failures remain blocking. Existing Radar, routing, verifier, configuration and Semantika owners only. No new routing engine, duplicate Radar, generic retry or governance subsystem. Preserve historical proof. BASIC Product Intent #2 stays closed; #3 and Consult excluded.",
+    "exceptions": "No eligible authorized model or exhausted budget yields a truthful blocker, without a receipt. Explicitly configured failed models are not silently overridden; their contract failures remain blocking.",
+    "bounds": "Existing Radar, routing, verifier, configuration and Semantika owners only. No new routing engine, duplicate Radar, generic retry or governance subsystem. Preserve historical proof. BASIC Product Intent #2 stays closed; #3 and Consult excluded.",
+    "status": "accepted",
+    "acceptanceCriteria": [
+      "Verification uses eligible Radar advice, preserves explicit developer routing and spending authority, and records observed qualification separately from advice; failed automatic candidates are avoided.",
+      "Exact evidence and Rule identifiers are supplied; at most one targeted correction uses actual validation errors; incomplete, invalid or inconclusive mandatory assessments cannot create acceptance.",
+      "Paid providers/tasks and a cumulative per-operation USD ceiling require developer authorization, are enforced across scopes and corrections, and actual usage is reported."
+    ]
+  },
+  "error": "Error: Potential conflict with PRODUCT's non-goal of avoiding unnecessary planning ceremonies.",
+  "configAfter": "befbcc33416f50546ba89ac5f5b0d16f93848c0a7fc47c2730616558e192932d",
+  "configRestored": true,
+  "finishedAt": "2026-10-23T16:16:43.714Z",
+  "disposition": {
+    "storyStatus": "proposed; charter clarification pending",
+    "ticketId": "TKT-REVIEWER-RELIABILITY",
+    "state": "Blocked/unverified",
+    "baseline": "0 pass / 1 fail / 2 assertions. Real public resolve_ticket; three installed mandatory Rules; controlled external inference only. Missing assessments correctly block, but there is one request instead of expected initial plus one targeted correction.",
+    "firstActualDefect": "verifyTicketAcceptance passes AcceptanceAssessmentSchema to Asker.json; Rule completeness/citation checks occur after structured validation, outside the existing single correction loop. Missing mandatory assessments therefore do not receive a targeted correction.",
+    "baselineLog": "bun test v1.4.4 (38afee6c8)\n\ntests/us/reviewer-reliability.test.ts:\nReviewer baseline: {\"status\":\"blocked\",\"models\":[\"bad\"]}\n46 |  store=new WorkflowStore(root);await indexCodebase(store,root);await new RuleStore(store).installDefaults();initializeTools();\n47 |  const call=(name:string,args:unknown)=>registry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});\n48 |  const create=async(id:string)=>{await call('create_ticket',{id,title:'Preserve signed addition',body:'Keep direct signed arithmetic.',acceptanceCriteria:['Signed addition works']});await store!.relate((await store!.getEntity(id,Ticket.dcr))!,'modifies',(await store!.getEntity('src/add.ts',FileNode.dcr))!);};\n49 |  const resolve=(ticketId:string)=>call('resolve_ticket',{ticketId,agentId:'developer',verifyOnly:true,maxRepairs:0,testCommands:[['bun','test','tests/add.test.ts']]});\n50 |  await create('FIRST');const first=await resolve('FIRST');console.info('Reviewer baseline:',JSON.stringify({status:first.status,models:calls.map(c=>c.model)}));expect(first.status).toBe('blocked');\n51 |  expect(calls.filter(c=>c.model==='bad')).toHaveLength(2);\n                                               ^\nerror: expect(received).toHaveLength(expected)\n\nExpected length: 2\nReceived length: 1\n\n      at <anonymous> (/home/dharmax/work/ai-workflow/tests/us/reviewer-reliability.test.ts:51:43)\n(fail) developer obtains independent verification using advice, observed qualification, one correction and an enforced paid ceiling [365.84ms]\n\n 0 pass\n 1 fail\n 2 expect() calls\nRan 1 test across 1 file. [507.00ms]\n",
+    "discardedFixtureRuns": "Earlier fixture runs omitted mandatory Rules; empty assessment was then legal. Fixture corrected using RuleStore.installDefaults before establishing this baseline. Assertions not weakened.",
+    "implementationStarted": false,
+    "receipt": null,
+    "developmentPaidInference": false,
+    "remainingBudgetUSD": 1.9571025,
+    "requiredDeveloperAnswer": "The charter reviewer asks how this Story avoids unnecessary planning ceremonies/artificial hierarchies. Pending proposed answer: existing model selection and verification only; no new user-facing approval ceremony, work hierarchy or governance subsystem.",
+    "sourceInvestigation": {
+      "aiwf": [
+        "src/model-runtime.ts: ModelService.createAsker",
+        "src/ticket/verification.ts: verifyTicketAcceptance",
+        "src/ticket-operation-types.ts: ruleAcceptanceFailures",
+        "src/artifact-critic.ts: AiArtifactCritic.review"
+      ],
+      "llmUtils": [
+        "src/routing.ts: ModelRouter.resolve",
+        "src/asker.ts: Asker.ask",
+        "src/model-advice.ts: isAdviceUsable"
+      ],
+      "boundary": "ModelRouter already prioritizes explicit configuration and filters usable Radar choices. Asker already has schema-based correction and shared token accounting; reuse these owners. Sibling files had pre-existing changes and were not modified."
+    }
+  }
+}
