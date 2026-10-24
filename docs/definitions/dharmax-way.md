@@ -2,6 +2,8 @@
 
 **The governing, test-first (TDD) method for defining and delivering correct product behavior**, implemented by [AI-Workflow](ai-workflow.md) and governed in engineering by the [Prime Directive](prime-directive.md). The developer owns intended product behavior and its approval; AI helps discover, propose, implement and verify it, but cannot approve its own product definition.
 
+The default, adaptable system structure is defined separately in [Dharmax Architecture](dharmax-architecture.md). It informs project architecture without prescribing unnecessary components.
+
 ## Normal US-driven cycle
 
 1. **Ground the work in the mandatory Product charter.** Review downstream Aspects, Features, Epics and USs against the developer-approved charter. Material conflict, ambiguity or drift must produce a specific warning and receive the developer's explicit answer before the definition is considered aligned/approved. Do not manufacture the missing charter.
