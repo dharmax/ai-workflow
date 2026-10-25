@@ -17,36 +17,30 @@ export interface BuildSynthesisContextOptions {
   target?: SynthesisTarget;
 }
 
-/**
- * Builds a small, bounded SynthesisContext from existing Ticket investigation dossier
- * and exact code evidence.
- */
+/** Optional discoveries are context; only one grounded mandatory symbol can be synthesized. */
+export function findSynthesisTarget(dossier: TicketDossier): Extract<SynthesisTarget, { kind: 'existing_symbol' }> | undefined {
+  const targets = dossier.evidence.filter(
+    item => item.kind === 'SymbolNode' && item.mandatory && item.exact && item.filePath && item.symbolName && item.source
+  );
+  if (targets.length !== 1) return undefined;
+  const target = targets[0]!;
+  return {
+    kind: 'existing_symbol',
+    filePath: target.filePath!,
+    symbolName: target.symbolName!,
+    containerName: target.containerName,
+    existingSource: target.source!
+  };
+}
+
+/** Builds bounded synthesis context from Ticket intent and exact code evidence. */
 export function buildSynthesisContext(options: BuildSynthesisContextOptions): SynthesisContext {
   const { dossier, target: explicitTarget } = options;
   const ticket = dossier.ticket;
 
-  // 1. Identify Target
-  let target: SynthesisTarget;
-  if (explicitTarget) {
-    target = explicitTarget;
-  } else {
-    // Locate exact target from dossier evidence
-    const exactTargets = dossier.evidence.filter(
-      e => e.exact && e.mandatory && e.filePath && e.symbolName && e.source
-    );
-    const exactEvidence = exactTargets.length === 1 ? exactTargets[0] : undefined;
-
-    if (exactEvidence) {
-      target = {
-        kind: 'existing_symbol',
-        filePath: exactEvidence.filePath!,
-        symbolName: exactEvidence.symbolName!,
-        containerName: exactEvidence.containerName,
-        existingSource: exactEvidence.source!
-      };
-    } else {
-      throw new Error('Source synthesis blocked: no exact synthesis target in the Ticket dossier.');
-    }
+  const target = explicitTarget ?? findSynthesisTarget(dossier);
+  if (!target) {
+    throw new Error('Source synthesis blocked: no exact synthesis target in the Ticket dossier; requires exactly one mandatory exact symbol with file path, symbol name and source.');
   }
 
   // 2. Synthesize Evidence with Provenance

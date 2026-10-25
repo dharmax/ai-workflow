@@ -637,6 +637,54 @@ describe('Ticket-owned bounded resolution', () => {
     expect(wholeFile.tests.map(t => t.filePath).sort()).toEqual(['tests/add.test.ts', 'tests/multiply.test.ts']);
   }, 30000);
 
+  for (const mode of ['optional', 'authorized-with-optional', 'ambiguous'] as const) it(`selects synthesis only for one authorized exact target: ${mode}`, async () => {
+    fs.writeFileSync(path.join(root, 'src/multiply.ts'), 'export function multiply(a: number, b: number) { return a * b; }\n');
+    git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'reuse candidate');
+    await indexCodebase(store, root);
+    const t = await ticket('T', mode === 'optional' ? 'Repair add' : 'Repair add and inspect multiply');
+    const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr);
+    const add = symbols.find(s => s.filePath === 'src/add.ts' && s.title === 'add')!;
+    const multiply = symbols.find(s => s.filePath === 'src/multiply.ts' && s.title === 'multiply')!;
+    if (mode !== 'optional') await store.relate(t, 'modifies', add);
+    if (mode === 'ambiguous') await store.relate(t, 'modifies', multiply);
+    const dossier = await t.investigate(store, { systemOne });
+    expect(dossier.status).toBe('complete');
+    if (dossier.status !== 'complete') throw Error(JSON.stringify(dossier));
+    expect(dossier.value.evidence.find(e => e.id === store.localId(add.id))).toMatchObject({ exact: true, mandatory: mode !== 'optional' });
+    if (mode === 'optional') expect(dossier.value.evidence.find(e => e.id === store.localId(multiply.id))).toBeUndefined();
+    else expect(dossier.value.evidence.find(e => e.id === store.localId(multiply.id))).toMatchObject({ exact: true, mandatory: mode === 'ambiguous' });
+    const untouched = fs.readFileSync(path.join(root, 'src/multiply.ts'), 'utf8');
+    let synthesisCalls = 0, actorCalls = 0;
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const synthesis = prompt.includes('"existingSource":');
+      const proposal = { changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] };
+      let reply: unknown;
+      if (synthesis) {
+        synthesisCalls++;
+        reply = { source: proposal.changes[0].replacement };
+      } else if (actorCalls++ === 0) {
+        reply = { thought: 'Inspect the actual target before proposing the bounded fix', action: 'tool_call', toolCalls: [{ name: 'get_symbol_source', parameters: { filePath: 'src/add.ts', symbolName: 'add' } }] };
+      } else {
+        expect(prompt).toContain('return a - b');
+        reply = { thought: 'Propose the inspected addition fix', action: 'final_answer', finalAnswer: JSON.stringify(proposal) };
+      }
+      return { model, ok: true, text: JSON.stringify(reply) };
+    });
+    try {
+      const synthesisHint = { assess: async (_input: unknown, questions: Record<string, unknown>) => 'mechanism' in questions
+        ? { quality: 'high' as const, backendId: 'fixture', latencyMs: 0, answers: { mechanism: { choice: 'synthesis' } } }
+        : null };
+      const result = await t.resolve(store, { systemOne: synthesisHint, critic: 'none', verify, maxRepairs: 0, testCommands: [['bun', 'test', 'tests/add.test.ts']] });
+      if (result.status !== 'complete') throw Error(JSON.stringify(result));
+      expect(result.status).toBe('complete');
+      expect(synthesisCalls).toBe(mode === 'authorized-with-optional' ? 1 : 0);
+      expect(actorCalls).toBe(mode === 'authorized-with-optional' ? 0 : 2);
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b;');
+      expect(fs.readFileSync(path.join(root, 'src/multiply.ts'), 'utf8')).toBe(untouched);
+      expect((await store.getOutgoing(t.id, 'modifies')).some(e => e.targetId === multiply.id)).toBe(mode === 'ambiguous');
+    } finally { completion.mockRestore(); }
+  }, 30000);
+
   it('binds synthesis to the exact authored target and uses an independent verification call', async () => {
     const t = await ticket();
     const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')!; await store.relate(t, 'modifies', symbol);

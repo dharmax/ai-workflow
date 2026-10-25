@@ -13,7 +13,7 @@ import { CodeChangeRequestSchema } from "../tools/change.ts"
 import { registry } from "../tools/registry.ts"
 import { createDefaultAsker } from "../model-runtime.ts"
 import type { loadConfig } from "../config.ts"
-import { buildSynthesisContext, HostSourceSynthesizer } from "../synthesis/index.ts"
+import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../synthesis/index.ts"
 import { canonical } from "../kb/canonical.ts"
 import { cognitionMetrics, countEngineering } from "../performance-metrics.ts"
 
@@ -41,12 +41,12 @@ export async function implementTicket(
     const ctx = { store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const }
     const asker = createDefaultAsker(store.root)
     if (!asker) throw new Error("Implementation provider unavailable.")
-    const exact = input.evidence.filter(item => item.source && item.exact && [6, 12].includes(item.symbolKind ?? 0))
+    const synthesisTarget = findSynthesisTarget(input)
     const mechanism = options.systemOne
         ? await options.systemOne.assess(
               {
                   criterionCount: input.ticket.acceptanceCriteria.length,
-                  exactTargets: exact.length,
+                  exactTargets: synthesisTarget ? 1 : 0,
                   repair: findings.length > 0,
                   failure: findings.join("\n").slice(0, 1000)
               },
@@ -93,9 +93,9 @@ export async function implementTicket(
         mechanism?.quality === "high" && mechanism.answers.modelTier?.choice === "stronger"
             ? (cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model)
             : (cfg.modelRoutes?.dev ?? cfg.model)
-    if (exact.length === 1 && !(mechanism?.quality === "high" && mechanism.answers.mechanism?.choice === "interactive")) {
+    if (synthesisTarget && !(mechanism?.quality === "high" && mechanism.answers.mechanism?.choice === "interactive")) {
         countEngineering("reasoningCalls")
-        const synthesisCtx = buildSynthesisContext({ dossier: input })
+        const synthesisCtx = buildSynthesisContext({ dossier: input, target: synthesisTarget })
         const synthesizer = new HostSourceSynthesizer(asker)
         const candidate = await synthesizer.synthesize(synthesisCtx, {
             model,
@@ -105,9 +105,9 @@ export async function implementTicket(
         })
         const target = {
             type: "symbol" as const,
-            filePath: exact[0].filePath!,
-            symbolName: exact[0].symbolName!,
-            containerName: exact[0].containerName
+            filePath: synthesisTarget.filePath,
+            symbolName: synthesisTarget.symbolName,
+            containerName: synthesisTarget.containerName
         }
         return { changes: [{ action: "replace_symbol" as const, target, replacement: candidate.source }], testCommands }
     }

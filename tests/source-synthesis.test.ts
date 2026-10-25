@@ -69,6 +69,21 @@ describe('Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1)', () => {
     expect(buildSynthesisContext({ dossier: { ...dossier, evidence: [exactTarget] } }).target.kind).toBe('existing_symbol');
     expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [exactTarget, { ...exactTarget, id: 'other', symbolName: 'other' }] } })).toThrow('no exact synthesis target');
 
+    const optionalTarget = { ...exactTarget, id: 'discovered', mandatory: false, symbolName: 'reuse' };
+    expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [optionalTarget] } })).toThrow('requires exactly one mandatory exact symbol');
+    expect(buildSynthesisContext({ dossier: { ...dossier, evidence: [exactTarget, optionalTarget] } }).target).toMatchObject({
+      filePath: 'src/bonus.ts', symbolName: 'bonus', existingSource: exactTarget.source
+    });
+    for (const incomplete of [
+      { ...exactTarget, filePath: undefined },
+      { ...exactTarget, symbolName: undefined },
+      { ...exactTarget, source: undefined },
+      { ...exactTarget, exact: false },
+      { ...exactTarget, kind: 'FileNode' }
+    ]) {
+      expect(() => buildSynthesisContext({ dossier: { ...dossier, evidence: [incomplete] } })).toThrow('no exact synthesis target');
+    }
+
     const ctx = buildSynthesisContext({
       dossier,
       target: {
