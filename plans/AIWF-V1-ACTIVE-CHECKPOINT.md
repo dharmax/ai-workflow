@@ -8,6 +8,8 @@
 
 The 2026-10-20/21 P0-first host/MCP qualification and subsequent P1–P4 sequence **no longer determines immediate work order**. Retain the earlier work, actual observations, safety/authorization/verification obligations and unresolved blockers as historical evidence and applicable constraints; do not treat prior "next P0" commands as the current mandate. Do not silently claim the US workflow is working merely because a technical gate or component suite passes.
 
+**US lifecycle responsibility contract:** [Dharmax-way design §3.3](AIWF-DHARMAX-WAY-DESIGN.md#33-native-work-lifecycle--responsibility-contract-developer-decision-2026-10-25) is the agreed target for `process`, internal Ticket triage, substantive `investigate`, optional `prepare`, guarded implementation, test execution, independent acceptance and `resolve` as the primary public operation. **The current investigation/triage/early-readiness gaps are not fixed.** Correct those existing owners and prove a real Story/Bug journey before claiming the core lifecycle ready; do not introduce another executor, public command layer or parallel verifier.
+
 **Architect / Semantic Studio boundary — agreed design, deferred implementation:**
 - [Dharmax Architecture](../docs/definitions/dharmax-architecture.md) establishes the preferred domain/manager/entity architecture and initial scaffolding, normally before Story-to-Ticket processing, without being a rigid gate.
 - Future AIWF **Architect** is a small pluggable interface invoked by AIWF, with a truthful no-op default initially. Keep AIWF small; **do not build architecture generation, ontology intelligence or scaffold synthesis inside AIWF now**.
