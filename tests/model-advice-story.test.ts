@@ -132,7 +132,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
   failResearch = false
   unobservedModel = true
-  const ineligible = await processShellInput('model radar refresh', {store, projectRoot: root, actor: fresh})
+  const ineligible = await processShellInput('model radar refresh --critic TypeScript/Bun architecture', {store, projectRoot: root, actor: fresh})
   expect(ineligible.output).toContain('unavailable or unobserved model: openrouter/vendor/not-observed')
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
   expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('dev')?.target).toBe('openrouter/vendor/current-coder')
