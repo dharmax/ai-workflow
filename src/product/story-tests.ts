@@ -135,7 +135,10 @@ export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:s
 export async function requireStoryTests(store:WorkflowStore,ticket:Ticket) {
   for(const edge of await store.getOutgoing(ticket.id,'addresses')) {
     const story=await store.getEntity<UserStory>(edge.targetId,UserStory.dcr);
-    if(!story || (story as UserStory & {status:string}).status!=='accepted' || story.definitionReview.status!=='complete') continue;
+    if(!story) continue;
+    const effective=await story.getEffectiveState(store);
+    if(['draft','proposed','deprecated','needs-review'].includes(effective.state))
+      throw new Error('Story '+store.localId(story.id)+' needs review: '+effective.reasons.join('; '));
     const coverage=await storyTestStatus(store,store.localId(story.id));
     if(coverage.status==='uncovered') throw new Error('Story '+store.localId(story.id)+' is uncovered. Review and materialize its public-interface test before implementation.');
     if(!coverage.tests.some(test=>test.materialized&&(test.state==='expected-red'||test.state==='green'))) throw new Error('Run the active Story test and establish current expected-red or green evidence before implementation (S5).');
@@ -303,4 +306,68 @@ export async function applyStoryTest(
     return {status:fileMaterialized?'file-created-unlinked':'uncovered',fileMaterialized,
       reason:String(error),recovery:'Preserve the file; prepare and review this same specification and identity again. No canonical test approval is claimed.'};
   }
+}
+
+export type StoryEffectiveState = 'draft' | 'proposed' | 'deprecated' | 'needs-review' | 'ready' | 'in-progress' | 'blocked' | 'tested' | 'done';
+export interface EffectiveStoryState {
+  state: StoryEffectiveState;
+  reasons: string[];
+  references: string[];
+}
+
+/** Operational state is an observation of current definition, work and proof; it is never persisted. */
+export async function storyEffectiveState(store: WorkflowStore, story: UserStory): Promise<EffectiveStoryState> {
+  const references = [store.localId(story.id)];
+  const result = (state: StoryEffectiveState, ...reasons: string[]): EffectiveStoryState => ({state,reasons,references});
+  if (story.status === 'deprecated') return result('deprecated','Story definition is deprecated.');
+  if (story.status !== 'accepted') return result(story.status === 'proposed' ? 'proposed' : 'draft','Story definition is not accepted.');
+  if (story.definitionReview.status !== 'complete')
+    return result('needs-review','Accepted historical definition is incomplete: '+story.definitionReview.missingFields.join(', '));
+  const tickets: Ticket[] = [];
+  for (const edge of await store.getIncoming(story.id,'addresses')) {
+    const ticket = await store.getEntity<Ticket>(edge.sourceId,Ticket.dcr);
+    if (ticket) {tickets.push(ticket); references.push(store.localId(ticket.id));}
+  }
+  const coverage = await storyTestStatus(store,store.localId(story.id));
+  references.push(...coverage.tests.map(test=>test.id));
+  if (!coverage.tests.length || coverage.tests.some(test=>!test.materialized || test.state==='uncovered'))
+    return result('needs-review','Story needs a reviewed executable public-interface test.');
+  if (coverage.tests.some(test=>test.state==='blocked'))
+    return result('blocked',...coverage.tests.filter(test=>test.state==='blocked').map(test=>test.reason));
+  if (tickets.some(ticket=>ticket.lane==='Blocked'))
+    return result('blocked','Addressing work is explicitly Blocked.');
+  for (const ticket of tickets.filter(ticket=>!['Done','Cancelled'].includes(ticket.lane))) {
+    for (const edge of await store.getOutgoing(ticket.id,'depends_on')) {
+      const dependency=await store.getEntity<Ticket>(edge.targetId,Ticket.dcr);
+      if (!dependency || dependency.lane!=='Done') {
+        references.push(store.localId(edge.targetId));
+        return result('blocked','Unsatisfied prerequisite '+store.localId(edge.targetId)+' for '+store.localId(ticket.id)+'.');
+      }
+    }
+  }
+  if (tickets.some(ticket=>ticket.lane==='In Progress'))
+    return result('in-progress','Addressing work is In Progress.');
+  if (coverage.tests.every(test=>test.state==='green')) {
+    const {currentTicketReceipt} = await import('../ticket/verification.ts');
+    // Every Story test must be independently covered. A Done work item alone proves no Story behavior.
+    const accepted = new Set<string>();
+    const verifiedTickets = new Set<string>();
+    const uncertainties: string[] = [];
+    for (const ticket of tickets.filter(ticket=>ticket.lane==='Done')) {
+      let proof;
+      try { proof = await currentTicketReceipt(store,ticket); }
+      catch(error) { uncertainties.push('Cannot confirm current receipt for '+store.localId(ticket.id)+': '+String(error)); continue; }
+      if (!proof) continue;
+      verifiedTickets.add(ticket.id);
+      references.push('VERIFY-'+store.localId(ticket.id));
+      for (const test of proof.testNodes) accepted.add(test.id);
+    }
+    if (tickets.length && tickets.every(ticket=>verifiedTickets.has(ticket.id) || ticket.lane==='Cancelled') &&
+        coverage.tests.every(test=>accepted.has(test.id)))
+      return result('done','All current Story tests have independent acceptance; addressing work is complete.');
+    return result('tested','Current Story tests pass; current independent Story acceptance is incomplete.',...uncertainties);
+  }
+  return result('ready',...coverage.tests.map(test=>test.state==='stale'
+    ? 'Evidence is stale and requires re-verification; this does not establish broken behavior: '+test.reason
+    : test.reason || 'Reviewed Story test is '+test.state+'.'));
 }

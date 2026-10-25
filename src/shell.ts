@@ -1119,8 +1119,8 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
   const completer = new SmartCompleter({
     builtins: SHELL_COMMANDS,
     subcommands: {
-      move: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
-      tickets: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'],
+      move: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'],
+      tickets: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'],
       escalate: ['auto', 'local_only', 'prompt', 'sota'],
       '/escalate': ['auto', 'local_only', 'prompt', 'sota'],
       config: ['get', 'set', 'reset'],
@@ -1176,7 +1176,7 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       if ((tokens.length === 2 && endsWithSpace) || (tokens.length >= 3 && !endsWithSpace)) {
         const laneTokens = endsWithSpace ? [] : tokens.slice(2);
         const prefix = laneTokens.join(' ');
-        const lanes = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
+        const lanes = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'];
         const matches = lanes.filter((l) => l.toLowerCase().startsWith(prefix.toLowerCase()));
         if (matches.length > 0) {
           return {

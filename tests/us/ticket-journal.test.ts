@@ -72,7 +72,7 @@ it('preserves legacy bodies and evidence atomically, retains historical verifica
   store.db.exec('DROP TRIGGER journal_reject');
   expect((await run()).migrated).toBe(true);
   const after=(await store.getEntity<Ticket>(ticketId,Ticket.dcr))!;
-  expect(after.lane).toBe('Done');expect(after.status).toBe('verified');
+  expect(after.lane).toBe('Done');expect(after).not.toHaveProperty('status');
   expect(await ticketVerificationSignature(store,after)).toBe(beforeSignature);
   const unchanged=(await store.getEntity<Artifact>('VERIFY-'+ticketId,Artifact.dcr))!;
   expect(unchanged.body).toBe(receipt.body);expect(unchanged.version).toBe(receipt.version);

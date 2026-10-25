@@ -205,6 +205,7 @@ async function storyView(ctx: ToolContext, story: UserStory) {
     exceptions: story.exceptions,
     bounds: story.bounds,
     definitionReview: story.definitionReview,
+    effectiveState: await story.getEffectiveState(ctx.store),
     containingFlows: containingFlows.sort(),
     enablingFeatures,
     containingFeatures: enablingFeatures,
@@ -221,7 +222,7 @@ type ArtifactKind=typeof artifactKinds[number];
 const artifactId=z.string().min(1).regex(/\S/,'ID must not be blank');
 const artifactMatch=z.enum(['exact','human']).optional();
 const pageFields={query:z.string().optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()};
-const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked']).optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),kind:z.enum(['task','bug']).optional()}).strict();
+const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked','Cancelled']).optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),kind:z.enum(['task','bug']).optional()}).strict();
 const definitionFilter=(kind:ArtifactKind)=>kind==='Ticket'?workFilter:kind==='Bug'?workFilter.extend({kind:z.literal('bug').optional()}):
   z.object({status:(kind==='Epic'?z.enum(EPIC_STATUSES):kind==='Idea'?z.enum(['draft','proposed','accepted','implemented','verified','deprecated']):z.enum(INTENT_STATUSES)).optional()}).strict();
 const artifactBranches:z.ZodType[]=[z.object({action:z.literal('describe'),kind:z.enum(artifactKinds).optional()}).strict()];
@@ -231,7 +232,7 @@ for(const kind of artifactKinds) {
     z.object({action:z.literal('show'),kind:z.literal(kind),id:kind==='Product'?identity.optional():identity,idMatch:artifactMatch}).strict());
   if(kind==='Idea') continue;
   const authored=productDefinitionFields(kind==='Bug'?'Ticket':kind);
-  const editable=kind==='Ticket'||kind==='Bug'?authored.omit({status:true,lane:true,...(kind==='Bug'?{kind:true}:{})}):authored;
+  const editable=kind==='Ticket'||kind==='Bug'?authored.omit({lane:true,...(kind==='Bug'?{kind:true}:{})}):authored;
   artifactBranches.push(z.object({action:z.literal('preview_edit'),kind:z.literal(kind),id:identity,version:z.number().int().positive(),
     fields:editable.refine(value=>Object.keys(value).length>0,'At least one definition field is required.').meta({minProperties:1})}).strict());
   if(kind!=='Module') artifactBranches.push(z.object({action:z.literal('preview_new'),kind:z.literal(kind),id:identity.optional(),
@@ -272,8 +273,8 @@ async function artifactAction(args:ArtifactAction,ctx:ToolContext) {
       const status=kind==='Module'?data.intentStatus??'draft':data.status;
       if(query&&!`${data.title??''}\n${data.body??''}`.toLowerCase().includes(query)) continue;
       if(Object.entries(args.filter??{}).some(([key,value])=>(key==='kind'?recordKind:key==='status'?status:data[key])!==value)) continue;
-      rows.push({id:ctx.store.localId(entity.id),kind:args.kind,version:entity.version,title:data.title,body:data.body,status,
-        ...(kind==='Ticket'?{lane:data.lane,priority:data.priority,workKind:recordKind}:{})});
+      rows.push({id:ctx.store.localId(entity.id),kind:args.kind,version:entity.version,title:data.title,body:data.body,
+        ...(kind==='Ticket'?{lane:data.lane,priority:data.priority,workKind:recordKind}:{status})});
     }
     rows.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
     const basis=computeHash({kind:args.kind,query,filter:args.filter??{},rows});let offset=0;
@@ -296,7 +297,7 @@ async function artifactAction(args:ArtifactAction,ctx:ToolContext) {
     const definition=kind==='Module'?await registry.execute('get_module',{moduleId:exactId},ctx):data;
     return {status:'read',kind:args.kind,id:exactId,version:entity.version,...(kind==='Product'?{defined:true}:{}),definition,
       relations:await linkAction(ctx.store,{action:'inspect',id:exactId,limit:25}),
-      evidence:kind==='Ticket'?await registry.execute('get_ticket',{ticketId:exactId},ctx):{state:'not-assessed',next:'verify / get_product_coverage; definition acceptance is not satisfaction'}};
+      evidence:kind==='Ticket'?await registry.execute('get_ticket',{ticketId:exactId},ctx):entity instanceof UserStory?await entity.getEffectiveState(ctx.store):{state:'not-assessed',next:'verify / get_product_coverage; definition acceptance is not satisfaction'}};
   }
   if(entity.version!==args.version) throw Error(`Stale ${args.kind} version; read the current definition and restart review.`);
   const fields=args.action==='preview_retire'?{[kind==='Module'?'intentStatus':'status']:'deprecated'}:args.fields;

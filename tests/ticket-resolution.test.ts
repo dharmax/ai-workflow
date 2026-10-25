@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } from '../src/graph/ontology.ts';
+import { UserStory, Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } from '../src/graph/ontology.ts';
 import { saveConfig } from '../src/config.ts';
 import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence, verifyingTestsForTargets } from '../src/graph/test-artifacts.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
@@ -68,12 +68,14 @@ describe('Ticket-owned bounded resolution', () => {
           if(result.status==='linked')break;
         }
       }
+      const story=(await store.getEntity<UserStory>('S',UserStory.dcr))!;
       git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','reviewed story');
       if(initial==='dependency') {
         await store.upsertEntity(Ticket.dcr,{id:'PREREQUISITE',title:'External approval',lane:'Todo',acceptanceCriteria:['Approved']});
         await acceptProduct(store,[{kind:'product_link',sourceId:'T',predicate:'depends_on',targetId:'PREREQUISITE'}]);
       }
       if(initial==='stale') fs.appendFileSync(path.join(root,specification.filePath),'\n// unreviewed test change');
+      if(initial!=='stale') expect((await story.getEffectiveState(store)).state).toBe(initial==='dependency'?'blocked':'ready');
       const testBefore=fs.readFileSync(path.join(root,specification.filePath),'utf8');
       const sourceBefore=fs.readFileSync(path.join(root,'src/add.ts'),'utf8');
       let implementations=0,reviews=0;
@@ -117,13 +119,39 @@ describe('Ticket-owned bounded resolution', () => {
       } else {
         if(result.status!=='complete')throw Error(JSON.stringify(result));expect(result.status).toBe('complete');
         expect(implementations).toBe(initial==='green'?0:initial==='public'?2:1);expect(reviews).toBe(1);
+        expect((await story.getEffectiveState(store)).state).toBe('done');
         expect((await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!.testState).toBe('green');
-        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({lane:'Done',status:'verified',claim:null});
+        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({lane:'Done',claim:null});
         expect(await store.getEntity('VERIFY-T')).not.toBeNull();
         store.close();store=new WorkflowStore(root);
-        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.status).toBe('verified');expect(await store.getEntity('VERIFY-T')).not.toBeNull();
+        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');expect(await store.getEntity('VERIFY-T')).not.toBeNull();
+        expect((await story.getEffectiveState(store)).state).toBe('done');
+        if(initial==='green') {
+          const writes=store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count;
+          expect((await story.getEffectiveState(store)).state).toBe('done');
+          expect(store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count).toBe(writes);
+          const followup=await store.upsertEntity<Ticket>(Ticket.dcr,{id:'FOLLOWUP',title:'Remaining Story work',lane:'Todo'});
+          await store.relate(followup,'addresses',story);
+          expect((await story.getEffectiveState(store)).state).toBe('tested');
+          await followup.update({lane:'Blocked'});
+          expect((await story.getEffectiveState(store)).state).toBe('blocked');
+          await followup.update({lane:'In Progress'});
+          expect((await story.getEffectiveState(store)).state).toBe('in-progress');
+          await followup.update({lane:'Cancelled'});
+          expect((await story.getEffectiveState(store)).state).toBe('done');
+          // Historical Done without current independent proof cannot satisfy remaining Story work.
+          store.db.query("UPDATE aiwf_Ticket SET data=json_set(data,'$.lane','Done') WHERE _id=?").run(followup.id);
+          expect((await story.getEffectiveState(store)).state).toBe('tested');
+          await store.upsertEntity(Ticket.dcr,{id:'T',body:'Changed completion obligation'});
+          expect((await story.getEffectiveState(store)).state).toBe('tested');
+        }
         if(initial==='red') {
+          const version=(await store.getEntity<Ticket>('T',Ticket.dcr))!.version;
           fs.writeFileSync(path.join(root,'src/add.ts'),sourceBefore);
+          const staleState=await story.getEffectiveState(store);
+          expect(staleState.state).toBe('ready');
+          expect(staleState.reasons.join(' ')).toContain('stale');
+          expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.version).toBe(version);
           git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','external source regression');
           const stale=await t.resolve(store,{...options,verifyOnly:true});
           expect(stale.status).toBe('blocked');expect(implementations).toBe(1);
@@ -137,7 +165,7 @@ describe('Ticket-owned bounded resolution', () => {
     const t = await ticket(); const a = await createAspect(store,{ id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
     const result = await t.resolve(store, fix); expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
     expect(result.value).toMatchObject({ verification: true, resolved: ['T'], repairs: 0 }); expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b');
-    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null });
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', claim: null });
     expect(await store.getEntity('VERIFY-T')).not.toBeNull(); expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].verification).toBe(true);
     expect(queryPerformance(root, { operation: 'resolve_ticket' }).rows[0].resolution?.outcome).toBe('implemented');
     const rerun = await t.resolve(store, { ...fix, implement: async () => { throw Error('must reuse verified work'); } }); expect(rerun.status).toBe('complete');
@@ -196,7 +224,7 @@ describe('Ticket-owned bounded resolution', () => {
       if (result.status !== 'complete') throw Error(JSON.stringify(result));
       expect(calls).toEqual(['implementation', 'implementation', 'acceptance']);
       expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(source);
-      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', status: 'verified', claim: null });
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!).toMatchObject({ lane: 'Done', claim: null });
       const receipt = await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr);
       expect(receipt).not.toBeNull();
       expect(JSON.parse(receipt!.body!).tests).toContainEqual({ command: commands[0], passed: true });

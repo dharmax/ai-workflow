@@ -131,7 +131,7 @@ describe("Skill and synthesis production journeys", () => {
             throw new Error(JSON.stringify(result))
         expect(result.value.files).toEqual(["src/price.ts"])
         expect(fs.readFileSync(path.join(root, "tests/price.test.ts"), "utf8")).toBe(assertions)
-        expect((await store.getEntity<Ticket>(ticket.id, Ticket.dcr))?.status).toBe("verified")
+        expect((await store.getEntity<Ticket>(ticket.id, Ticket.dcr))?.lane).toBe("Done")
         expect(await store.getEntity("VERIFY-LIVE-EXACT")).not.toBeNull()
         const execution = Bun.spawnSync(["bun", "test", "tests/price.test.ts"], { cwd: root })
         expect(execution.success).toBe(true)

@@ -95,9 +95,8 @@ export async function buildEntityView(
         kind: text(t.kind ?? 'task', 'readonly', {label:'Type'}),
         defect: text(t.defect ? JSON.stringify(t.defect,null,2) : '', 'readonly', {label:'Defect report; use bug edit to complete'}),
         title: text(t.title, 'edit', {label: 'Title'}),
-        lane: choice(t.lane ?? 'Todo', ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'], {label: 'Lane'}),
+        lane: choice(t.lane ?? 'Todo', ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'], {label: 'Lane'}),
         priority: choice(t.priority ?? 'P2', ['P0', 'P1', 'P2', 'P3'], {label: 'Priority'}),
-        status: text(t.status, 'readonly', {label: 'Status'}),
         body: text(t.body, 'edit', {label: 'Body', multiline: true, grow: true}),
         acceptanceCriteria: text((t.acceptanceCriteria ?? []).join('\n'), 'edit', {
           label: 'Acceptance criteria',
@@ -172,6 +171,8 @@ export async function buildEntityView(
         exceptions: text(s.exceptions, 'readonly', {label: 'Exceptions', multiline: true}),
         bounds: text(s.bounds, 'readonly', {label: 'Bounds', multiline: true}),
         definitionReview: text(s.definitionReview, 'readonly', {label: 'Definition review'}),
+        effectiveState: text([s.effectiveState.state, ...s.effectiveState.reasons, ...s.effectiveState.references].join('\n'),
+          'readonly', {label: 'Effective state', multiline: true}),
         story: text(s.story, 'edit', {label: 'Story', multiline: true, grow: true}),
         context: text(s.context, 'edit', {label: 'Context', multiline: true}),
         acceptanceCriteria: text((s.acceptanceCriteria ?? []).join('\n'), 'edit', {

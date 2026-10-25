@@ -3,8 +3,9 @@
  * Scope: Complete ontological graph model connecting code, architecture, roadmap, and artifacts.
  */
 
+import { z } from "zod"
 import { AbstractEntity, EntityDcr, PredicateDcr, RawOntology } from "@dharmax/semantika"
-import {TicketKindSchema, TicketDefectSchema} from "./ticket-state.ts"
+import {TicketKindSchema, TicketDefectSchema, TicketLaneSchema} from "./ticket-state.ts"
 
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from "../artifact-policy.ts"
 import type { WorkflowStore } from "./store.ts"
@@ -22,6 +23,8 @@ import type {
     TicketDossier
 } from "../ticket-operation-types.ts"
 
+export const UserStoryStateSchema = z.enum(["draft", "proposed", "accepted", "deprecated"])
+
 const completenessValidator = { validate: (v: unknown) => ({ value: v == null ? undefined : CompletenessSchema.parse(v) }) }
 const passthroughValidator = { validate: (v: unknown) => ({ value: v }) }
 
@@ -36,6 +39,8 @@ const baseTemplate = {
     updatedAt: passthroughValidator
 }
 
+const {status: _ticketStatus, ...ticketTemplate} = baseTemplate
+
 // -----------------------------------------------------------------------------
 // Durable Domain Entities (aiwf-durable)
 // -----------------------------------------------------------------------------
@@ -43,7 +48,6 @@ const baseTemplate = {
 export abstract class WorkflowEntity extends AbstractEntity {
     declare title?: string
     declare body?: string
-    declare status?: string
     static readonly dcr: EntityDcr
 
     override typeName(): string {
@@ -66,6 +70,7 @@ export abstract class WorkflowEntity extends AbstractEntity {
 }
 
 export class Idea extends WorkflowEntity {
+    declare status?: string
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }
@@ -84,6 +89,7 @@ export class Idea extends WorkflowEntity {
 }
 
 export class Goal extends WorkflowEntity {
+    declare status?: string
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }
@@ -101,6 +107,7 @@ export class Goal extends WorkflowEntity {
 }
 
 export class Concept extends WorkflowEntity {
+    declare status?: string
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }
@@ -118,6 +125,7 @@ export class Concept extends WorkflowEntity {
 }
 
 export class Flow extends WorkflowEntity {
+    declare status?: string
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }
@@ -137,6 +145,7 @@ export class Flow extends WorkflowEntity {
 }
 
 export class Product extends WorkflowEntity {
+    declare status?: string
     declare purpose?: string
     declare actors?: string[]
     declare scope?: string
@@ -162,6 +171,7 @@ export class Product extends WorkflowEntity {
 }
 
 export class Epic extends WorkflowEntity {
+    declare status?: string
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
     }
@@ -191,6 +201,7 @@ export class Epic extends WorkflowEntity {
 }
 
 export class Feature extends WorkflowEntity {
+    declare status?: string
     declare priority?: number
     declare outcomes?: string[]
     declare scope?: string
@@ -231,6 +242,7 @@ export class Feature extends WorkflowEntity {
 }
 
 export class UserStory extends WorkflowEntity {
+    declare status: import('./types.ts').IntentStatus
     declare actor?: string
     declare intent?: string
     declare initialState?: string
@@ -242,6 +254,16 @@ export class UserStory extends WorkflowEntity {
     declare context?: string
     declare acceptanceCriteria?: string[]
     declare sla?: string
+
+    async getEffectiveState(store: WorkflowStore) {
+        const {storyEffectiveState} = await import("../product/story-tests.ts")
+        return store.withExecutionContext('read-only', undefined, async () => {
+            const current = await store.getEntity<UserStory>(this.id, UserStory.dcr)
+            return current ? storyEffectiveState(store, current) : {
+                state: 'needs-review' as const, reasons: ['Story definition no longer exists.'], references: [store.localId(this.id)]
+            }
+        })
+    }
 
     /** Read-time migration: retain historical acceptance and never guess missing scenario content. */
     get definitionReview() {
@@ -274,7 +296,7 @@ export class UserStory extends WorkflowEntity {
     static template = {
         ...baseTemplate,
         completenessTarget: completenessValidator,
-        status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
+        status: { validate: (v: unknown) => ({ value: UserStoryStateSchema.parse(v ?? 'draft') }) },
         actor: passthroughValidator,
         intent: passthroughValidator,
         initialState: passthroughValidator,
@@ -360,7 +382,6 @@ export class Ticket extends WorkflowEntity {
     declare priority: 'P0' | 'P1' | 'P2' | 'P3'
     declare body: string
     declare lane: import("./types.ts").TicketLane
-    declare status: import("./types.ts").TicketStatus
     declare acceptanceCriteria?: string[]
     declare claim?: import("./types.ts").TicketClaim | null
     applicableAspects(store: WorkflowStore) {
@@ -391,9 +412,9 @@ export class Ticket extends WorkflowEntity {
     }
 
     static template = {
-        ...baseTemplate,
+        ...ticketTemplate,
         acceptanceCriteria: passthroughValidator,
-        lane: { validate: (v: unknown) => ({ value: v ?? "Backlog" }) },
+        lane: { validate: (v: unknown) => ({ value: TicketLaneSchema.parse(v ?? "Backlog") }) },
         priority: { validate: (v: unknown) => ({ value: v ?? "P2" }) },
         claim: passthroughValidator,
         estimateTokens: passthroughValidator,
@@ -404,6 +425,7 @@ export class Ticket extends WorkflowEntity {
 }
 
 export class ModuleNode extends WorkflowEntity {
+    declare status?: string
     declare responsibilities?: string[]
     declare boundaries?: string
     declare intentStatus?: "draft" | "proposed" | "accepted" | "deprecated"
@@ -438,6 +460,7 @@ export class ModuleNode extends WorkflowEntity {
 }
 
 export class FileNode extends WorkflowEntity {
+    declare status?: string
     declare language?: string
     static template = {
         ...baseTemplate,
@@ -477,6 +500,7 @@ export class SymbolNode extends WorkflowEntity {
 }
 
 export class TestNode extends WorkflowEntity {
+    declare status?: string
     declare filePath?: string
     declare targetPath?: string
     declare framework?: string
@@ -525,6 +549,7 @@ export class TestNode extends WorkflowEntity {
 }
 
 export class Decision extends WorkflowEntity {
+    declare status?: string
     declare decision?: string
     declare context?: string
     declare consequences?: string
@@ -538,6 +563,7 @@ export class Decision extends WorkflowEntity {
 }
 
 export class Lesson extends WorkflowEntity {
+    declare status?: string
     declare noteType: import('./types.ts').LessonData['noteType']
     declare filePath?: string
     static template = {
@@ -551,6 +577,7 @@ export class Lesson extends WorkflowEntity {
 }
 
 export class Artifact extends WorkflowEntity {
+    declare status?: string
     static template = {
         ...baseTemplate,
         action: passthroughValidator,
@@ -600,6 +627,7 @@ export class Rule extends WorkflowEntity {
 // -----------------------------------------------------------------------------
 
 export class CallSite extends WorkflowEntity {
+    declare status?: string
     static template = {
         ...baseTemplate,
         callerFile: passthroughValidator,
@@ -611,6 +639,7 @@ export class CallSite extends WorkflowEntity {
 }
 
 export class TraceNode extends WorkflowEntity {
+    declare status?: string
     static template = {
         ...baseTemplate,
         traceId: passthroughValidator,

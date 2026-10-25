@@ -276,7 +276,7 @@ describe('Gate 5 Actor Stories through public Ticket and governance operations',
     evidence.repaired=repaired;record();expect(repaired.status).toBe('complete');
     const proof=readVerificationReceipt((await store.getEntity<Artifact & {body:string}>('VERIFY-T',Artifact.dcr))!.body)!;
     evidence.proof=proof;record();expect(proof.acceptance.rules.find(rule=>rule.ruleId==='other-one')!.verdict).toBe('pass');
-    expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.status).toBe('verified');
+    expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');
     store.close();store=new WorkflowStore(root);expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');
   },180000);
 });

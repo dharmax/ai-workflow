@@ -157,8 +157,8 @@ describe('grounded Ticket investigation', () => {
     const t = await ticket();
     const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
     await registry.execute('update_ticket_state', { ticketId: 'T', lane: 'Blocked' }, ctx);
-    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.status).toBe('blocked');
-    await expect(store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' })).rejects.toThrow('independent Ticket completion');
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe('Blocked');
+    await expect(store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' })).rejects.toThrow('Ticket.status was removed');
     expect(await store.getEntity('R', Ticket.dcr)).toBeNull();
     const engine = new CausalChangeEngine(ctx);
     const preview = await engine.previewChange({ action: 'product_change', mutations: [
@@ -166,7 +166,7 @@ describe('grounded Ticket investigation', () => {
       { kind: 'product_update', entityType: 'Ticket', id: 'T', fields: { lane: 'Blocked', status: 'planned' } }
     ] });
     expect(preview.blocked).toBe(true); expect(await store.getEntity('NEW')).toBeNull();
-    await expect(store.upsertEntity(Ticket.dcr, { id: 'T', lane: 'Todo', status: 'verified' })).rejects.toThrow('independent Ticket completion');
+    await expect(store.upsertEntity(Ticket.dcr, { id: 'T', lane: 'Todo', status: 'verified' })).rejects.toThrow('Ticket.status was removed');
     expect((await store.getEntity<Ticket>(t.id, Ticket.dcr))!.lane).toBe('Blocked');
   });
 

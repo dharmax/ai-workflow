@@ -4,8 +4,7 @@ import type { CompletenessLevel } from '../artifact-policy.ts';
  * Scope: Typed contracts for Semantika ontology nodes, predicates, claims, and project health.
  */
 
-export type TicketLane = 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Blocked';
-export type TicketStatus = 'planned' | 'in_progress' | 'verified' | 'blocked' | 'rejected';
+export type TicketLane = 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Blocked' | 'Cancelled';
 export type EntityStatus = 'draft' | 'proposed' | 'accepted' | 'implemented' | 'verified' | 'deprecated';
 
 export type EpicStatus =
@@ -78,7 +77,7 @@ export interface UserStoryData extends BaseEntityData {
 
 export type TicketDefect = import('zod').infer<typeof import('./ticket-state.ts').TicketDefectSchema>;
 
-export interface TicketData extends BaseEntityData {
+export interface TicketData extends Omit<BaseEntityData, 'status'> {
   kind?: 'task' | 'bug';
   defect?: TicketDefect;
   acceptanceCriteria?: string[];

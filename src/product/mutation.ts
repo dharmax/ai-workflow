@@ -5,7 +5,7 @@ import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../artifact-critic.ts';
-import { ticketState, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../graph/ticket-state.ts';
+import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../graph/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
 import type { TicketLane } from '../graph/types.ts';
@@ -17,7 +17,7 @@ export type ProductRevision = z.infer<typeof ProductRevisionSchema>;
 const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory', 'Ticket', 'Aspect', 'Test', 'Module', 'Decision']);
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
-const ticketLane = z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']);
+const ticketLane = TicketLaneSchema;
 const ticketPriority = z.enum(['P0', 'P1', 'P2', 'P3']);
 const fields = z.object({
   title: z.string().min(1), body: z.string(), status: z.string(), priority: z.union([z.number(), ticketPriority]),
@@ -137,7 +137,7 @@ const definitionFields: Record<ProductKind, string[]> = {
     Epic: ['title', 'body', 'status', 'priority', 'completenessTarget'],
     Feature: ['title', 'body', 'status', 'priority', 'acceptanceCriteria', 'completenessTarget', 'outcomes', 'scope', 'boundaries', 'behavioralRules'],
     UserStory: ['title', 'status', 'actor', 'intent', 'initialState', 'action', 'expectedResult', 'exceptions', 'bounds', 'story', 'context', 'acceptanceCriteria', 'sla', 'completenessTarget'],
-    Ticket: ['title', 'body', 'status', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['technicalProofs','title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
+    Ticket: ['title', 'body', 'lane', 'priority', 'acceptanceCriteria', 'kind', 'defect'], Test: ['technicalProofs','title','filePath','framework','command','fixturePath','interfaceName','storyVersion','testState','testStateReason','testSourceHash','fixtureHash','storyBasisHash'], Decision: ['title','decision','context','consequences','status'],
     Module: ['body', 'responsibilities', 'boundaries', 'intentStatus', 'completenessTarget']
 };
 
@@ -145,7 +145,7 @@ const definitionFields: Record<ProductKind, string[]> = {
 export function productDefinitionFields(kind: ProductKind) {
   const shape:Record<string,z.ZodType>={};
   for(const key of definitionFields[kind]) shape[key]=fields.shape[key as keyof typeof fields.shape];
-  if('status' in shape) shape.status=(kind==='Epic'?z.enum(['draft','planned','active','cancelled']):kind==='Ticket'?z.enum(['planned','in_progress','verified','blocked','rejected']):intentStatus).optional();
+  if('status' in shape) shape.status=(kind==='Epic'?z.enum(['draft','planned','active','cancelled']):intentStatus).optional();
   if('priority' in shape) shape.priority=(kind==='Ticket'?ticketPriority:z.number()).optional();
   return z.object(shape).strict();
 }
@@ -161,7 +161,6 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
       if(input.status==='completed' && previous.status!=='completed') throw Error('Epic completion belongs to delivery verification, not definition editing.');
     }
     if (kind === 'Product' || kind === 'Goal' || kind === 'Concept' || kind === 'Flow' || kind === 'Feature' || kind === 'UserStory' || kind === 'Aspect' || kind === 'Decision') intentStatus.parse(input.status);
-    if (kind === 'Ticket') z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(input.status);
   }
   if (kind === 'Product') {
     const next = { ...previous, ...input };
@@ -298,8 +297,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       rememberIdentity(mutation.id, mutation.entityType);
       if (state.has(mutation.id) || await store.getEntity(mutation.id)) throw new Error(`Entity '${mutation.id}' already exists.`);
       validateFields(mutation.entityType, mutation.fields, true);
-      if (mutation.entityType === 'Ticket') ticketState(mutation.fields.lane ?? 'Todo', mutation.fields.status);
-      state.set(mutation.id, { kind: mutation.entityType, exists: true, fields: { status: 'draft', ...mutation.fields }, lane: mutation.entityType === 'Ticket' ? mutation.fields.lane ?? 'Todo' : undefined });
+      if (mutation.entityType === 'Ticket') ticketState(mutation.fields.lane ?? 'Todo');
+      state.set(mutation.id, { kind: mutation.entityType, exists: true, fields: { ...(mutation.entityType === 'Ticket' ? {} : {status:'draft'}), ...mutation.fields }, lane: mutation.entityType === 'Ticket' ? mutation.fields.lane ?? 'Todo' : undefined });
       snapshot[mutation.id] = null;
     } else if (mutation.kind === 'product_update' || mutation.kind === 'product_delete') {
       const entity = await load(mutation.id);
@@ -307,8 +306,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       if (mutation.kind === 'product_update') {
         validateFields(entity.kind, mutation.fields, false, entity.fields);
         entity.fields = { ...entity.fields, ...mutation.fields };
-        if (entity.kind === 'Ticket' && (mutation.fields.lane || mutation.fields.status)) {
-          const next = ticketState(mutation.fields.lane ?? entity.lane ?? 'Todo', mutation.fields.status);
+        if (entity.kind === 'Ticket' && mutation.fields.lane) {
+          const next = ticketState(mutation.fields.lane ?? entity.lane ?? 'Todo');
           entity.lane = next.lane;
         }
       } else {
@@ -500,11 +499,11 @@ export async function applyProductMutations(
         if (!('id' in mutation) || mutation.id !== id || mutation.kind === 'product_delete') continue;
         Object.assign(data, Object.fromEntries(Object.entries(mutation.fields).filter(([, value]) => value !== undefined)));
         if (mutation.kind === 'product_create') {
-          data.status ??= entity.kind === 'Ticket' ? 'planned' : 'draft';
+          if (entity.kind !== 'Ticket') data.status ??= 'draft';
           if (entity.kind === 'Ticket') { data.lane ??= 'Todo'; data.priority ??= 'P2'; }
         }
-        if (entity.kind === 'Ticket' && (mutation.kind === 'product_create' || mutation.fields.lane || mutation.fields.status))
-          Object.assign(data, ticketState(data.lane as TicketLane, mutation.fields.status));
+        if (entity.kind === 'Ticket' && (mutation.kind === 'product_create' || mutation.fields.lane))
+          Object.assign(data, ticketState(data.lane as TicketLane));
       }
       if (old && Object.entries(data).every(([key, value]) => canonical(old[key]) === canonical(value))) continue;
       const now = new Date().toISOString();

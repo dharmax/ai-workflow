@@ -205,7 +205,6 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
         id: 'TKT-SYNTH',
         title: ticket.title ?? 'TKT-SYNTH',
         body: ticket.body,
-        status: ticket.status,
         lane: ticket.lane,
         acceptanceCriteria: ticket.acceptanceCriteria!
       },

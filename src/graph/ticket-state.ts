@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { TicketLane, TicketStatus } from './types.ts';
+import type { TicketLane } from './types.ts';
 
 export const TicketKindSchema = z.enum(['task', 'bug']);
 export const TicketDefectSchema = z.object({
@@ -24,23 +24,24 @@ export async function ticketEligibility(store: import('./store.ts').WorkflowStor
   if (ticket.kind === 'bug' && !assessBug(ticket).ready) reasons.push('Incomplete Bug report: ' + assessBug(ticket).missing.join(', '));
   for (const edge of await store.getOutgoing(ticket.id, 'depends_on')) {
     const dependency = await store.getEntity<import('./ontology.ts').Ticket>(edge.targetId);
-    if (!dependency || dependency.typeName() !== 'Ticket' || dependency.lane !== 'Done' || dependency.status !== 'verified')
+    if (!dependency || dependency.typeName() !== 'Ticket' || dependency.lane !== 'Done')
       reasons.push(`Unsatisfied prerequisite '${store.localId(edge.targetId)}'.`);
   }
   return {eligible: reasons.length === 0, reasons};
 }
 
-/** Generic authoring may retain historical completion, but cannot create independent proof. */
-export function assertTicketAuthoring(fields: {lane?: unknown; status?: unknown}, previous?: {lane?: unknown; status?: unknown}): void {
-  if ((fields.lane === 'Done' || fields.status === 'verified') &&
-      !(previous?.lane === 'Done' && (fields.lane === undefined || fields.lane === previous.lane) &&
-        (fields.status ?? 'verified') === previous.status))
-    throw Error('Done/verified is owned by independent Ticket completion. Use resolve_ticket; generic authoring cannot complete work.');
+export const TicketLaneSchema = z.enum(['Backlog', 'Todo', 'In Progress', 'Blocked', 'Done', 'Cancelled']);
+
+/** Generic transitions may preserve historical Done, but only the completion owner can enter it. */
+export function assertTicketAuthoring(fields: {lane?: unknown; status?: unknown}, previous?: {lane?: unknown}): void {
+  if ('status' in fields) throw Error('Ticket.status was removed; use lane.');
+  if (fields.lane !== undefined) TicketLaneSchema.parse(fields.lane);
+  if (fields.lane === 'Done' && previous?.lane !== 'Done')
+    throw Error('Done is owned by independent Ticket completion. Use resolve_ticket; generic authoring cannot complete work.');
+  if (previous?.lane === 'Cancelled' && fields.lane !== undefined && !['Cancelled','Backlog','Todo'].includes(String(fields.lane)))
+    throw Error('Reopen cancelled work to Backlog or Todo before execution.');
 }
 
-export function ticketState(lane: TicketLane, status?: string): { lane: TicketLane; status: TicketStatus } {
-  const inferred: TicketStatus = lane === 'Done' ? 'verified' : lane === 'In Progress' ? 'in_progress' : lane === 'Blocked' ? 'blocked' : 'planned';
-  const parsed = z.enum(['planned', 'in_progress', 'verified', 'blocked', 'rejected']).parse(status ?? inferred);
-  if (parsed !== inferred && !(['Done', 'Backlog'].includes(lane) && parsed === 'rejected')) throw new Error(`Incoherent Ticket state: ${lane}/${parsed}.`);
-  return { lane, status: parsed };
+export function ticketState(lane: TicketLane): {lane: TicketLane} {
+  return {lane: TicketLaneSchema.parse(lane)};
 }

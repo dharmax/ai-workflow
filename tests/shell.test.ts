@@ -296,10 +296,10 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(claimRes.output).toBe('Usage: claim <ticketId> [agent] [minutes]');
 
     const moveRes = await processShellInput('move', session);
-    expect(moveRes.output).toBe('Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>');
+    expect(moveRes.output).toBe('Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked|Cancelled>');
 
     const moveNoLaneRes = await processShellInput('move TKT-1', session);
-    expect(moveNoLaneRes.output).toBe('Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked>');
+    expect(moveNoLaneRes.output).toBe('Usage: move <ticketId> <Backlog|Todo|"In Progress"|Done|Blocked|Cancelled>');
 
     const releaseRes = await processShellInput('release', session);
     expect(releaseRes.output).toBe('Usage: release <ticketId>');

@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { ticketState, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../graph/ticket-state.ts';
+import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../graph/ticket-state.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { registry, type ToolContext } from './registry.ts';
 import { Ticket, Artifact } from '../graph/ontology.ts';
@@ -41,14 +41,14 @@ export function registerTicketTools() {
       await registry.execute('get_bug',{ticketId},ctx);
       if(action==='start') return registry.execute('claim_ticket',{ticketId,agentId,durationMinutes},ctx);
       if(action==='release') return registry.execute('release_ticket',{ticketId},ctx);
-      return registry.execute('update_ticket_state',{ticketId,lane:action==='block'?'Blocked':action==='reopen'?'Todo':'Backlog',...(action==='cancel'?{status:'rejected'}:{})},ctx);
+      return registry.execute('update_ticket_state',{ticketId,lane:action==='block'?'Blocked':action==='reopen'?'Todo':'Cancelled'},ctx);
     }});
   registry.register({name:'get_ticket',category:'ticket',description:'Read the canonical Ticket definition and revision.',
     parameters:z.object({ticketId:z.string().min(1)}),
     execute:async({ticketId},ctx)=>{
       const ticket=await requireTicket(ctx,ticketId);
       const receipt=await ctx.store.getEntity<Artifact>('VERIFY-'+ctx.store.localId(ticket.id),Artifact.dcr);
-      return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,status:ticket.status,history:await ticketHistoryContext(ctx.store,ticket.id),
+      return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,history:await ticketHistoryContext(ctx.store,ticket.id),
         verificationState:receipt?'recorded-unchecked':'unverified',verification:readVerificationReceipt(receipt?.body),outgoing:await ctx.store.getOutgoing(ticket.id),incoming:await ctx.store.getIncoming(ticket.id),
         kind:ticket.kind ?? 'task',defect:ticket.defect,priority:ticket.priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
     }});
@@ -127,7 +127,7 @@ export function registerTicketTools() {
       id: z.string().optional().describe('Optional custom ticket ID (e.g. TKT-002)'),
       title: z.string().min(1).describe('Brief, descriptive ticket title'),
       kind: TicketKindSchema.default('task'), defect: TicketDefectSchema.optional(),
-      lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).default('Todo'),
+      lane: TicketLaneSchema.default('Todo'),
       body: z.string().optional().describe('Detailed context, requirements, or acceptance criteria'),
       acceptanceCriteria: z.array(z.string()).optional(),
       priority: z.enum(['P0', 'P1', 'P2', 'P3']).default('P2')
@@ -153,8 +153,8 @@ export function registerTicketTools() {
       body: z.string().optional(),
       acceptanceCriteria: z.array(z.string()).optional(),
       priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional(),
-      lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional()
-    }),
+      lane: TicketLaneSchema.optional()
+    }).strict(),
     execute: async ({ ticketId, lane, ...changes }, ctx: ToolContext) => {
       const ticket = await requireTicket(ctx, ticketId);
       const fields = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
@@ -178,7 +178,6 @@ export function registerTicketTools() {
         kind:updated.kind ?? 'task', defect:updated.defect,
         title: updated.title,
         lane: updated.lane,
-        status: updated.status,
         priority: updated.priority,
         body: updated.body,
         acceptanceCriteria: updated.acceptanceCriteria ?? []
@@ -188,14 +187,13 @@ export function registerTicketTools() {
 
   registry.register({
     name: 'update_ticket_state',
-    description: 'Update the lane and lifecycle status of a ticket.',
+    description: 'Transition the authoritative Ticket lane; Done belongs to independent completion.',
     category: 'ticket',
     parameters: z.object({
       ticketId: z.string().describe('Ticket identifier'),
-      lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).describe('Target Kanban lane'),
-      status: z.string().optional().describe('Optional lifecycle status')
-    }),
-    execute: async ({ ticketId, lane, status }, ctx: ToolContext) => {
+      lane: TicketLaneSchema.describe('Target Kanban lane')
+    }).strict(),
+    execute: async ({ ticketId, lane }, ctx: ToolContext) => {
       const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);
       if (!ticket) throw new Error(`Ticket ${ticketId} not found.`);
       if (lane === 'In Progress' && ticket.lane !== 'In Progress') {
@@ -205,11 +203,10 @@ export function registerTicketTools() {
           applyOwnedChange(preview, ctx));
       }
       await applyProductMutations(ctx.store, [{ kind: 'product_update', entityType: 'Ticket', id: ticketId,
-        fields: ticketState(lane, status) }]);
+        fields: ticketState(lane) }]);
       return {
         ticketId,
-        lane,
-        status: ticketState(lane, status).status
+        lane
       };
     }
   });
@@ -220,7 +217,7 @@ export function registerTicketTools() {
     category: 'ticket',
     parameters: z.object({
       kind: TicketKindSchema.optional(), severity: TicketDefectSchema.shape.severity, query: z.string().optional(),
-      lane: z.enum(['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked']).optional().describe('Filter by lane')
+      lane: TicketLaneSchema.optional().describe('Filter by lane')
     }),
     execute: async ({ lane, kind, severity, query }, ctx: ToolContext) => {
       const tickets = (await ctx.store.listEntities<Ticket>(Ticket.dcr, lane ? {lane} : {})).filter(t =>
@@ -231,7 +228,6 @@ export function registerTicketTools() {
         kind:t.kind ?? 'task', defect:t.defect,
         title: t.title,
         lane: t.lane,
-        status: t.status,
         priority: t.priority,
         claim: t.claim
       }));
@@ -280,10 +276,10 @@ export function registerTicketTools() {
       return registry.execute('get_ticket',params,ctx);
     }});
   registry.register({name:'list_bugs',category:'ticket',description:'Filter canonical Bugs by lane, severity or text.',
-    parameters:z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked']).optional(),severity:TicketDefectSchema.shape.severity,query:z.string().optional()}),
+    parameters:z.object({lane:TicketLaneSchema.optional(),severity:TicketDefectSchema.shape.severity,query:z.string().optional()}),
     execute:(params,ctx)=>registry.execute('list_tickets',{...params,kind:'bug'},ctx)});
   registry.register({name:'update_bug',category:'ticket',description:'Complete or edit a Bug report in place, preserving unspecified defect fields.',
-    parameters:z.object({ticketId:z.string(),title:z.string().min(1).optional(),body:z.string().optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional(),lane:z.enum(['Backlog','Todo','In Progress','Blocked']).optional()}),
+    parameters:z.object({ticketId:z.string(),title:z.string().min(1).optional(),body:z.string().optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional(),lane:TicketLaneSchema.optional()}),
     execute:async({ticketId,defect,...fields},ctx)=>{
       await registry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);

@@ -45,7 +45,7 @@ export function workspaceClient() {
     const label=el('label',key==='context'&&kind==='Decision'?'Context':key==='body'&&kind==='Module'?'Purpose':labels[key] || ({purpose:'Purpose',actors:'Actors',scope:'Scope',nonGoals:'Non-goals',responsibilities:'Responsibilities',boundaries:'Boundaries',outcomes:'Outcomes',behavioralRules:'Behavioral rules'}[key]) || key,form);
     const id='field-'+index+'-'+key;
     let input;
-    const choices=key==='ticketKind'?['task','bug']:key==='lane'?['Backlog','Todo','In Progress','Done','Blocked']:
+    const choices=key==='ticketKind'?['task','bug']:key==='lane'?['Backlog','Todo','In Progress','Done','Blocked','Cancelled']:
       key==='severity'?['','critical','high','medium','low']:key==='priority'&&kind==='Ticket'?['P0','P1','P2','P3']:null;
     if(choices) {
       input=el('select',undefined,label,{id,name:key});

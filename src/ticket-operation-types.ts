@@ -27,7 +27,7 @@ export const InvestigationJudgmentSchema = z.object({
 export type InvestigationJudgment = z.infer<typeof InvestigationJudgmentSchema>;
 export interface TicketDossier {
   history?: Awaited<ReturnType<typeof import('./graph/journal.ts').ticketHistoryContext>>;
-  ticket: { id: string; title: string; body: string; status: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./graph/types.ts').TicketDefect };
+  ticket: { id: string; title: string; body: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./graph/types.ts').TicketDefect };
   disposition: InvestigationJudgment['disposition']; rationale: string;
   evidence: TicketEvidence[];
   findings?: string[];

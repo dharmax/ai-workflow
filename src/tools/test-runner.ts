@@ -218,7 +218,6 @@ export function registerTestTools() {
             defect:{reproduction:cmd.join(' '),actual:failureOutput,environment:'Playwright runner',evidence:specPath?[specPath]:[]},
             lane: 'Todo',
             priority: 'P1',
-            status: 'planned',
             body: `Automated Playwright regression detected:\n\`\`\`\n${failureOutput.slice(0, 1000)}\n\`\`\``
           })
           createdTicketId = ctx.store.localId(ticket.id)

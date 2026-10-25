@@ -6,12 +6,12 @@ import {registry, type ToolContext} from './tools/index.ts';
 export const TICKET_COMMANDS = ['claim', 'release', 'move', 'done'] as const;
 export type TicketCommand = typeof TICKET_COMMANDS[number];
 interface TicketCandidate {id: string; lane: string; claim?: {agentId: string; expiresAt: string} | null}
-const lanes = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
+const lanes = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'];
 export async function runTicketCommand(command: TicketCommand, tokens: string[], ctx: ToolContext, facilitator?: ParameterFacilitator): Promise<{output: string; success: boolean}> {
   const positional: string[] = [];
   let agent: string | undefined;
   let minutes: string | undefined;
-  const usage = `Usage: ${command} <ticketId>${command === 'claim' ? ' [agent] [minutes]' : command === 'move' ? ' <Backlog|Todo|"In Progress"|Done|Blocked>' : ''}`;
+  const usage = `Usage: ${command} <ticketId>${command === 'claim' ? ' [agent] [minutes]' : command === 'move' ? ' <Backlog|Todo|"In Progress"|Done|Blocked|Cancelled>' : ''}`;
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index]!;
     if (!token.startsWith('-')) {positional.push(token); continue;}
@@ -32,7 +32,7 @@ export async function runTicketCommand(command: TicketCommand, tokens: string[],
     const choices = candidates.filter(ticket => {
       const active = ticket.claim && new Date(ticket.claim.expiresAt).getTime() > Date.now();
       if (command === 'release') return Boolean(active);
-      if (command === 'claim') return !['Done', 'Blocked'].includes(ticket.lane) && (!active || ticket.claim?.agentId === agentId);
+      if (command === 'claim') return !['Done', 'Blocked', 'Cancelled'].includes(ticket.lane) && (!active || ticket.claim?.agentId === agentId);
       return command !== 'done' || ticket.lane !== 'Done';
     }).map(ticket => ticket.id);
     if (!choices.length) return {output: `No eligible tickets for ${command}.`, success: true};

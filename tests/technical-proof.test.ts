@@ -109,7 +109,7 @@ it('native technical scopes retain regression execution and dependency ownership
    const body=JSON.parse(receipt!.body!);expect(body.testNodes).toHaveLength(2);expect(body.acceptance.scopeReviews).toHaveLength(3);
    expect(body.acceptance.scopeReviews.every((scope:{characters:number})=>scope.characters<64000)).toBe(true);
    local.store.close();const reopened=new WorkflowStore(local.root);stores.push(reopened);
-   expect((await reopened.getEntity<Ticket>('T',Ticket.dcr))!.status).toBe('verified');
+   expect((await reopened.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');
    await assertTechnicalReviews(reopened,'T',body.acceptance);
    // Missing structured review and missing execution cannot be replaced by three stored accept strings.
    await expect(assertTechnicalReviews(reopened,'T',{...body.acceptance,scopeReviews:[]})).rejects.toThrow('Missing independently');

@@ -29,8 +29,8 @@ describe('first-class Bug public journey',()=>{
   expect(json('bug','show','B1').defect.actual).toBe('23');
   expect(run('bug','new','--title','Different title','--reproduction','Run total 2 3','--expected','5','--actual','23').exitCode).toBe(2);
   expect(json('work','bug','show','B1').id).toBe('B1');
-  json('bug','cancel','B1');expect(json('bug','show','B1').status).toBe('rejected');
-  expect(run('sync').success).toBe(true);expect(json('bug','show','B1').status).toBe('rejected');
+  json('bug','cancel','B1');expect(json('bug','show','B1').lane).toBe('Cancelled');
+  expect(run('sync').success).toBe(true);expect(json('bug','show','B1').lane).toBe('Cancelled');
   json('bug','reopen','B1');expect(json('bug','show','B1').lane).toBe('Todo');
   json('bug','block','B1');expect(json('bug','show','B1').lane).toBe('Blocked');
   json('bug','reopen','B1');

@@ -24,7 +24,7 @@ import { exportAspectProjection, importAspectProjection } from './aspect-project
 import { ticketState } from './ticket-state.ts';
 import { exportProductManifest, exportAuthoredState } from '../product/manifest.ts';
 
-const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'];
+const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'];
 
 export async function exportProjections(store: WorkflowStore, rootDir: string = store.root): Promise<{ exportedFiles: string[] }> {
   const exportedFiles: string[] = [];
@@ -437,7 +437,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
               title,
               body: summary,
               claim,
-              ...ticketState(resolvedLane, ['Done','Backlog'].includes(resolvedLane) && (existingTicket as Ticket | null)?.status === 'rejected' ? 'rejected' : undefined)
+              ...ticketState(existingTicket?.lane === 'Cancelled' && resolvedLane === 'Done' ? 'Cancelled' : resolvedLane)
             });
             importedChanges++;
           }

@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { renderAcceptancePrompt } from "./prompts.ts"
-import { TestNode, Ticket } from "../graph/ontology.ts"
+import { Artifact, TestNode, Ticket } from "../graph/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets } from "../graph/test-artifacts.ts"
 import { registry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
@@ -22,6 +22,8 @@ import {
     ruleAcceptanceFailures,
     ruleAssessmentContractFailures,
     resolveTicketGovernance,
+    readVerificationReceipt,
+    ticketVerificationSignature,
     type AcceptanceVerification,
     type ResolutionVerificationInput,
     type ResolutionOptions
@@ -302,4 +304,43 @@ export async function verifyTicketAcceptance(store: WorkflowStore, input: Resolu
     return proof
         ? reviewTechnicalProof(store, input, dossier, proof, options, review)
         : reviewSourceAcceptance(store, input, dossier, review)
+}
+
+/** Read current independent proof using the same checks for restart and Story state. Never executes tests or models. */
+export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket, options: {
+    completeness?: ResolutionOptions['completeness']; testCommands?: string[][];
+    expectedFiles?: string[]; requiredTestIds?: string[];
+} = {}) {
+    if (ticket.lane !== 'Done') return null
+    const id = store.localId(ticket.id)
+    const artifact = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
+    const proof = artifact && readVerificationReceipt(artifact.body)
+    if (!proof || proof.scope.ticketId !== id || !proof.tests.length || proof.tests.some(test => !test.passed)) return null
+    if (!(await store.getOutgoing(artifact!.id, 'verifies')).some(edge => edge.targetId === ticket.id)) return null
+    if (canonical(proof.hashes) !== canonical(hashFiles(store.root, Object.keys(proof.hashes)))) return null
+    const tests = await currentTestEvidence(store, proof.testNodes.map(test => test.id))
+    if (tests.length !== proof.testNodes.length || tests.some(test => !test.passed ||
+        canonical(test.hashes) !== canonical(proof.testNodes.find(node => node.id === test.id)?.hashes))) return null
+    const graph = await verifyingTestsForTargets(store, [ticket.id, ...proof.scope.authoredTargets.map(target => target.id)], proof.scope.files)
+    const requiredTests = [...graph.tests.map(test => store.localId(test.id)), ...(options.requiredTestIds ?? [])]
+    if (requiredTests.some(id => !proof.testNodes.some(test => test.id === id))) return null
+    const expectedFiles = [...proof.scope.files, ...(options.expectedFiles ?? []),
+        ...graph.tests.map(test => test.filePath || test.targetPath!).filter(Boolean)]
+    if (expectedFiles.some(file => !(file in proof.hashes))) return null
+    if ((options.testCommands ?? []).some(command => !proof.tests.some(test => canonical(test.command) === canonical(command)))) return null
+    if (proof.tests.some(test => canonical(test.command) === canonical(['bun', 'test']))) {
+        const suite = (await store.listEntities<TestNode>(TestNode.dcr)).filter(test => test.framework === 'bun')
+        if (suite.some(test => (test.filePath || test.targetPath) && !((test.filePath || test.targetPath!) in proof.hashes))) return null
+    }
+    const governance = await resolveTicketGovernance(store, ticket, proof.scope.files, proof.scope.governance)
+    if (proof.governanceFingerprint !== governance.fingerprint ||
+        proof.signature !== await ticketVerificationSignature(store, ticket, options.completeness, [], governance)) return null
+    if ((ticket.acceptanceCriteria ?? []).some(criterion => !proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)) ||
+        governance.aspects.aspects.some(aspect => !proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed))) return null
+    const evidenceIds = [...Object.keys(proof.hashes),
+        ...proof.scope.authoredTargets.filter(target => target.kind === 'SymbolNode' && target.filePath && target.filePath in proof.hashes).map(target => store.localId(target.id)),
+        ...tests.map(test => test.id), ...(proof.acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])]
+    if (ruleAcceptanceFailures(governance, proof.acceptance, evidenceIds).length) return null
+    try { await assertTechnicalReviews(store, id, proof.acceptance) } catch { return null }
+    return proof
 }

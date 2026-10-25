@@ -107,7 +107,6 @@ export async function buildIntentContext(
             ...((item as Ticket).acceptanceCriteria?.length
                 ? { acceptanceCriteria: (item as Ticket).acceptanceCriteria }
                 : { body: (item as Ticket).body }),
-            status: (item as Ticket).status,
             lane: (item as Ticket).lane,
             linked: linked.has(item.id)
         })),

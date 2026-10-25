@@ -9,7 +9,7 @@ import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
-import { executeTicketChecks, verifyTicketAcceptance } from "./verification.ts"
+import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
 import { Ticket, TestNode, Artifact, UserStory } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
@@ -183,9 +183,20 @@ export async function resolveTicket(
                             "The work closure exceeds the explicit operation budget.",
                             "Operation depth/maxArtifacts"
                         )
+                    if (ticket.lane === 'Cancelled')
+                        return needs(`Reopen cancelled Ticket '${id}' before resolving it.`,
+                            'Cancellation is not successful completion and cannot silently resume execution.', 'Ticket lane')
                     if (ticket.kind === 'bug' && !assessBug(ticket).ready)
                         return needs(`Complete Bug report '${id}': ${assessBug(ticket).missing.join(', ')}.`,
                             'A partial defect report is not an executable implementation contract.', 'Bug reproduction')
+                    for (const edge of await store.getOutgoing(ticket.id, 'addresses')) {
+                        const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr)
+                        if (!story) continue
+                        const effective = await story.getEffectiveState(store)
+                        if (['draft', 'proposed', 'deprecated', 'needs-review'].includes(effective.state))
+                            return needs(`Review Story '${store.localId(story.id)}': ${effective.reasons.join('; ')}`,
+                                'Addressed Story intent and its reviewed test must be executable before resolving work.', 'Story definition/test review')
+                    }
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
                     const prepared = await ticket.prepare(store, { ...options, agentId })
@@ -220,7 +231,7 @@ export async function resolveTicket(
                             if (!target) continue
                             const targetId = store.localId(target.id)
                             if (work.has(targetId)) await visit(targetId)
-                            else if (edge.predicateName === "depends_on" && !(target.lane === "Done" && target.status === "verified"))
+                            else if (edge.predicateName === "depends_on" && !(target.lane === "Done"))
                                 throw new Error(`Unresolved prerequisite '${targetId}' outside the bounded work set.`)
                         }
                     visiting.delete(id)
@@ -237,7 +248,7 @@ export async function resolveTicket(
                     const stories: string[] = []
                     for (const edge of await store.getOutgoing(ticket.id, 'addresses')) {
                         const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr)
-                        if (story?.status === 'accepted' && story.definitionReview.status === 'complete') stories.push(store.localId(story.id))
+                        if (story) stories.push(store.localId(story.id))
                     }
                     let green = stories.length > 0
                     for (const storyId of stories) {
@@ -304,69 +315,19 @@ export async function resolveTicket(
                                 mandatory: true,
                                 provenance: "Graph verifies code target"
                             })
-                    if (ticket.lane === "Done" && ticket.status === "verified" && proof) {
-                        const testNodes = await currentTestEvidence(
-                            store,
-                            (proof.testNodes ?? []).map(test => test.id)
-                        )
-                        const expectedFiles = [
-                            ...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root)),
-                            ...scope.files,
-                            ...graphScope.tests.map(test => test.filePath || test.targetPath!)
-                        ]
-                        const fullSuite = proof.tests.some(test => canonical(test.command) === canonical(["bun", "test"]))
-                        if (fullSuite)
-                            expectedFiles.push(
-                                ...(await store.listEntities<TestNode>(TestNode.dcr))
-                                    .filter(test => test.framework === "bun")
-                                    .map(test => test.filePath || test.targetPath!)
-                                    .filter(Boolean)
-                            )
-                        const requestedChecks = (options.testCommands ?? []).every(command =>
-                            proof.tests.some(test => test.passed && canonical(test.command) === canonical(command))
-                        )
-                        const currentProof =
-                            requestedChecks &&
-                            Boolean(proof.testNodes?.length) &&
-                            testNodes.length === proof.testNodes!.length &&
-                            graphScope.tests.every(test => proof.testNodes!.some(node => node.id === store.localId(test.id))) &&
-                            testNodes.every(
-                                test =>
-                                    test.passed &&
-                                    canonical(proof.testNodes!.find(old => old.id === test.id)!.hashes) ===
-                                      canonical(hashFiles(store.root, Object.keys(proof.testNodes!.find(old => old.id === test.id)!.hashes)))
-                            )
-                        const verifiedContract =
-                            dossier.ticket.acceptanceCriteria.every(criterion =>
-                                proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)
-                            ) &&
-                            dossier.aspects.aspects.every(aspect =>
-                                proof.acceptance.aspects.some(check => check.id === aspect.id && check.passed)
-                            ) &&
-                            !ruleAcceptanceFailures(governance, proof.acceptance, [
-                                ...Object.keys(proof.hashes), ...dossier.evidence.filter(item => item.mandatory &&
-                                    item.kind === 'SymbolNode' && item.filePath && item.filePath in proof.hashes)
-                                    .map(item => store.localId(item.id)), ...testNodes.map(test => test.id), ...(proof.acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])
-                            ]).length
-                        await assertTechnicalReviews(store, id, proof.acceptance)
-                        if (
-                            proof.signature === signature &&
-                            proof.governanceFingerprint === governance.fingerprint &&
-                            currentProof &&
-                            verifiedContract &&
-                            expectedFiles.every(file => file in proof.hashes) &&
-                            canonical(proof.hashes) === canonical(hashFiles(store.root, Object.keys(proof.hashes)))
-                        ) {
-                            acceptance = AcceptanceVerificationSchema.parse(proof.acceptance)
-                            acceptance.aspects = acceptance.aspects.filter(check =>
-                                dossier.aspects.aspects.some(aspect => aspect.id === check.id)
-                            )
-                            for (const file of Object.keys(proof.hashes)) allFiles.add(file)
-                            resolved.push(id)
-                            reusedProofs++
-                            countEngineering("artifactsReused")
-                            continue
-                        }
+                    const currentReceipt = await currentTicketReceipt(store, ticket, {
+                        completeness: options.completeness, testCommands: options.testCommands,
+                        expectedFiles: [...scope.files, ...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root))],
+                        requiredTestIds: graphScope.tests.map(test => store.localId(test.id))
+                    })
+                    if (currentReceipt) {
+                        acceptance = AcceptanceVerificationSchema.parse(currentReceipt.acceptance)
+                        acceptance.aspects = acceptance.aspects.filter(check => dossier.aspects.aspects.some(aspect => aspect.id === check.id))
+                        for (const file of Object.keys(currentReceipt.hashes)) allFiles.add(file)
+                        resolved.push(id)
+                        reusedProofs++
+                        countEngineering("artifactsReused")
+                        continue
                     }
                     await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
                     await store.saveGovernedScope(id, agentId, admission!, scope)
@@ -527,7 +488,7 @@ export async function resolveTicket(
                             const record = await store.getEntity<Artifact>(`VERIFY-${childId}`, Artifact.dcr)
                             const childProof = record && readVerificationReceipt(record.body)
                             const evidence = childProof ? await currentTestEvidence(store, childProof.testNodes.map(test => test.id)) : []
-                            if (!child || child.lane !== 'Done' || child.status !== 'verified' || !childProof ||
+                            if (!child || child.lane !== 'Done' || !childProof ||
                                 childProof.signature !== await ticketVerificationSignature(store, child, options.completeness, [],
                                   await resolveTicketGovernance(store, child, childProof.scope.files, childProof.scope.governance)) ||
                                 canonical(childProof.hashes) !== canonical(hashFiles(store.root, Object.keys(childProof.hashes))) ||

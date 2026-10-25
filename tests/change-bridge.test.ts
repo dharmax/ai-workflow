@@ -326,7 +326,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {
         id: 'TKT-ANCHOR',
         title: 'Refactor processItem',
-        lane: 'doing'
+        lane: 'In Progress'
       });
 
       const syms = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: 'anchor.ts', title: 'processItem' });

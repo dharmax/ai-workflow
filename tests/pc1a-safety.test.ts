@@ -74,7 +74,7 @@ describe('PC1a canonical safety through public tools',()=>{
     ] as const) await expect(call(name,params)).rejects.toThrow();
     reopen();
     expect(await store.getEntity('D',Ticket.dcr)).toBeNull();
-    expect(await store.getEntity('T',Ticket.dcr)).toMatchObject({lane:'Todo',status:'planned'});
+    expect(await store.getEntity('T',Ticket.dcr)).toMatchObject({lane:'Todo'});
     expect(await store.getIncoming((await store.getEntity('T',Ticket.dcr))!.id,'verifies')).toEqual([]);
   });
   it('generic Product JSON cannot author Test proof or verifies',async()=>{
@@ -141,17 +141,17 @@ describe('PC1a canonical safety through public tools',()=>{
     const ticket=await store.upsertEntity<Ticket>(Ticket.dcr,{id:'T',title:'Task',lane:'Todo'});
     const test=await store.upsertEntity<TestNode>(TestNode.dcr,{id:'TEST',title:'Test'});
     await expect(store.upsertEntity(Ticket.dcr,{id:'D',title:'Forged',lane:'Done'})).rejects.toThrow();
-    await expect(ticket.update({lane:'Done',status:'verified'},true,false)).rejects.toThrow();
+    await expect(ticket.update({lane:'Done'},true,false)).rejects.toThrow();
     // Mutating the caller-owned object must not counterfeit canonical previous state.
     ticket.lane='Done';
-    await expect(ticket.update({lane:'Done',status:'verified'},true,false)).rejects.toThrow();
+    await expect(ticket.update({lane:'Done'},true,false)).rejects.toThrow();
     await expect(test.update({passed:true,lastRun:new Date().toISOString()},true,false)).rejects.toThrow('owned');
     await expect(store.upsertEntity(TestNode.dcr,{id:'TEST',executionHashes:{fake:'hash'}})).rejects.toThrow('owned');
     await expect(store.upsertEntity(Artifact.dcr,{id:'VERIFY-T',title:'Forged receipt',body:'{}'})).rejects.toThrow('owner-managed');
     await expect(store.relate(test,'verifies',ticket)).rejects.toThrow('owned');
     await expect(store.upsertEntity(Decision.dcr,{id:'D',title:'Forged acceptance',status:'accepted'})).rejects.toThrow('PC2');
     reopen();
-    expect(await store.getEntity('T',Ticket.dcr)).toMatchObject({lane:'Todo',status:'planned'});
+    expect(await store.getEntity('T',Ticket.dcr)).toMatchObject({lane:'Todo'});
     expect((await store.getEntity<TestNode>('TEST',TestNode.dcr))!.passed).toBeUndefined();
     expect(await store.getEntity('D',Decision.dcr)).toBeNull();
   });
@@ -201,7 +201,7 @@ describe('PC1a canonical safety through public tools',()=>{
     reopen();
     expect(await store.getEntity('DENIED',Ticket.dcr)).toBeNull();
     expect(await store.getEntity('FORGED',Ticket.dcr)).toBeNull();
-    expect(await store.getEntity('ALLOWED',Ticket.dcr)).toMatchObject({lane:'Todo',status:'planned'});
+    expect(await store.getEntity('ALLOWED',Ticket.dcr)).toMatchObject({lane:'Todo'});
   },15000);
 
   it('an abort during native generic persistence is refused at the storage boundary',async()=>{
@@ -221,14 +221,16 @@ describe('PC1a canonical safety through public tools',()=>{
     for(const [id,status] of [['HISTORY','verified'],['REJECTED','rejected']]) {
       await store.sp.createEntity(Ticket.dcr,{id:store.formatId(Ticket.dcr,id),_id:store.formatId(Ticket.dcr,id),title:id,lane:'Done',status},true,false);
     }
+    reopen();
+    await store.getEntity('REJECTED',Ticket.dcr);
     const before=snapshot();
     for(const name of ['update_ticket','update_ticket_state'])
       await expect(call(name,{ticketId:'REJECTED',lane:'Done'})).rejects.toThrow('independent Ticket completion');
     await expect(store.upsertEntity(Ticket.dcr,{id:'REJECTED',lane:'Done'})).rejects.toThrow('independent Ticket completion');
     reopen();
     expect(snapshot()).toBe(before);
-    expect(await store.getEntity('HISTORY',Ticket.dcr)).toMatchObject({lane:'Done',status:'verified'});
-    expect(await store.getEntity('REJECTED',Ticket.dcr)).toMatchObject({lane:'Done',status:'rejected'});
+    expect(await store.getEntity('HISTORY',Ticket.dcr)).toMatchObject({lane:'Done'});
+    expect(await store.getEntity('REJECTED',Ticket.dcr)).toMatchObject({lane:'Cancelled'});
   });
 
   it('Test owner authority expires before a detached proof write can reach persistence',async()=>{
@@ -282,12 +284,12 @@ describe('PC1a canonical safety through public tools',()=>{
     }
     fs.writeFileSync(path.join(root,'forgery.json'),JSON.stringify({action:'product_change',mutations:[
       {kind:'product_create',entityType:'Feature',id:'PARTIAL',fields:{title:'Must not be accepted',status:'accepted'}},
-      {kind:'product_update',entityType:'Ticket',id:'CLI',fields:{lane:'Done',status:'verified'}}
+      {kind:'product_update',entityType:'Ticket',id:'CLI',fields:{lane:'Done'}}
     ]}));
     const preview=await run('product-change','preview','forgery.json');
     expect(JSON.parse(preview.stdout).blocked).toBe(true);
     reopen();
-    expect(await store.getEntity('CLI',Ticket.dcr)).toMatchObject({lane:'Todo',status:'planned'});
+    expect(await store.getEntity('CLI',Ticket.dcr)).toMatchObject({lane:'Todo'});
     expect(await store.getEntity('FORGED')).toBeNull();expect(await store.getEntity('PARTIAL')).toBeNull();
   },15000);
 

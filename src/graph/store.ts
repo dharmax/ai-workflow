@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
-import {ticketChangeEvents} from './journal.ts';
+import {ticketChangeEvents, ticketEventBatch} from './journal.ts';
 import {
   SemanticPackage,
   SqliteStore,
@@ -28,6 +28,7 @@ import {
   Ticket,
   Epic,
   UserStory,
+  UserStoryStateSchema,
   ModuleNode,
   FileNode,
   SymbolNode,
@@ -219,6 +220,8 @@ export class WorkflowStore {
   public readonly sp: SemanticPackage;
   private closed = false;
 
+  private readonly ready: Promise<void>;
+
   constructor(projectRoot?: string, inMemory: boolean = false) {
     this.root = projectRoot ? path.resolve(projectRoot) : findProjectRoot().root;
 
@@ -248,6 +251,7 @@ export class WorkflowStore {
             const [id,fields,version]=args as [string,Record<string,unknown>,number|undefined];
             const previous=await collection.findById<Record<string,unknown>&{_version:number}>(id);
             if(!previous) throw Error(`Ticket '${id}' not found.`);
+            this.assertEntityWrite('Ticket', id, fields, previous);
             const next={...previous,...fields};
             const events=await ticketChangeEvents(this,id,previous,next);
             return this.sqliteStore.applyBatch([{collectionName:collection.name,id,expectedVersion:version??previous._version,record:next},...events])[0];
@@ -258,6 +262,29 @@ export class WorkflowStore {
       return collection;
     };
     this.sp = new SemanticPackage('aiwf', graphOntology, this.sqliteStore);
+    const ticketsExist = this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='aiwf_Ticket'").get();
+    const legacy = ticketsExist && this.db.query("SELECT 1 FROM aiwf_Ticket WHERE json_type(data,'$.status') IS NOT NULL LIMIT 1").get();
+    this.ready = legacy ? this.migrateTicketStates() : Promise.resolve();
+  }
+
+  /** One-time record migration. Preserve the exact legacy disposition in the existing journal. */
+  private async migrateTicketStates(): Promise<void> {
+    const collection = await this.sp.collectionForEntityType(Ticket.dcr);
+    const rows = await collection.findSome<Record<string, unknown> & {_id: string; _version: number}>({});
+    const changes: BatchEntry[] = [];
+    const legacyLanes: Record<string, TicketLane> = {
+      planned: 'Backlog', in_progress: 'In Progress', blocked: 'Blocked', verified: 'Done', rejected: 'Cancelled'
+    };
+    for (const row of rows) {
+      if (!Object.hasOwn(row, 'status')) continue;
+      const {status, ...record} = row;
+      const lane = status === 'rejected' ? 'Cancelled' : row.lane ?? legacyLanes[String(status)];
+      Object.assign(record, ticketState(lane as TicketLane));
+      changes.push({collectionName: collection.name, id: row._id, expectedVersion: row._version, record});
+      changes.push(await ticketEventBatch(this, row._id, 'legacy',
+        'Migrated Ticket state: ' + JSON.stringify({lane: row.lane, status}) + ' → ' + String(lane) + '.'));
+    }
+    if (changes.length) this.sqliteStore.applyBatch(changes);
   }
 
   /** Keep one current in-progress scope on its canonical Ticket; completion moves authority to VERIFY. */
@@ -305,11 +332,11 @@ export class WorkflowStore {
       {collectionName: artifacts.name, id: proofId, expectedVersion: previous?._version ?? null,
         record: {title: `Verified acceptance for ${this.localId(ticket.id)}`, body, status: 'verified'}},
       {collectionName: tickets.name, id: ticket.id, expectedVersion: ticket.version,
-        record: {...record, metadata: {...record.metadata, governedScope: undefined}, ...ticketState('Done', 'verified'), updatedAt: new Date().toISOString()}}];
+        record: {...record, metadata: {...record.metadata, governedScope: undefined}, ...ticketState('Done'), updatedAt: new Date().toISOString()}}];
     if (link) changes.push({collectionName: predicates.name, id: link._id, expectedVersion: link._version});
     else changes.push({collectionName: predicates.name, id: predicates.createId(), expectedVersion: null, record: {
       sourceId: proofId, sourceType: 'Artifact', predicateName: 'verifies', targetId: ticket.id, targetType: 'Ticket', timestamp: Date.now()}});
-    changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,...ticketState('Done','verified')}));
+    changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,...ticketState('Done')}));
     this.sqliteStore.applyBatch(changes);
   }
 
@@ -327,6 +354,7 @@ export class WorkflowStore {
         (['body','responsibilities','boundaries','intentStatus'].some(key => key in fields) ||
           Object.keys(fields).length === 0 && previous?.body))
       throw Error('Module intention requires reviewed Product preview/apply.');
+    if (type === 'UserStory' && fields.status !== undefined) UserStoryStateSchema.parse(fields.status);
     if (type === 'Ticket') {
       assertTicketAuthoring(fields, previous);
       if (this.execution.getStore() && previous && fields.kind !== undefined && fields.kind !== (previous.kind ?? 'task'))
@@ -354,8 +382,8 @@ export class WorkflowStore {
           const collection = await this.sp.collectionForEntityType(entity.descriptor);
           const previous = await collection.findById<Record<string, unknown>>(entity.id);
           this.assertEntityWrite(entity.typeName(), entity.id, fields, previous);
-          const next=entity instanceof Ticket && ('lane' in fields || 'status' in fields)
-            ? {...fields,...ticketState((fields.lane ?? previous.lane) as TicketLane,fields.status as string | undefined)} : fields;
+          const next=entity instanceof Ticket && 'lane' in fields
+            ? {...fields,...ticketState((fields.lane ?? previous.lane) as TicketLane)} : fields;
           return nativeUpdate(next,superSet,cutExtra,rawOperations);
         }});
         Object.defineProperty(entity, 'erase', {configurable: true, value: () => {
@@ -455,6 +483,7 @@ export class WorkflowStore {
     data: Record<string, any>,
     expectedVersion?: number
   ): Promise<T> {
+    await this.ready;
     this.assertCanWrite();
     const dcr = this.getDescriptor(typeOrDcr);
     const rawId = data.id || data._id;
@@ -483,8 +512,8 @@ export class WorkflowStore {
 
     if (previous) {
       const existing = previous as T;
-      const state = dcr.name === 'Ticket' && (data.lane || data.status)
-        ? ticketState(data.lane ?? (existing as unknown as Ticket).lane, data.status) : {};
+      const state = dcr.name === 'Ticket' && data.lane
+        ? ticketState(data.lane ?? (existing as unknown as Ticket).lane) : {};
       const updatePayload: Record<string, any> = { ...data, ...state, updatedAt: new Date().toISOString() };
       delete updatePayload.id;
       delete updatePayload._id;
@@ -500,10 +529,10 @@ export class WorkflowStore {
       ...data,
       id: formattedId,
       _id: formattedId,
-      status: data.status ?? defaultStatus,
+      ...(dcr.name === 'Ticket' ? {} : {status: data.status ?? defaultStatus}),
       createdAt: data.createdAt ?? new Date().toISOString(),
       updatedAt: data.updatedAt ?? new Date().toISOString(),
-      ...(dcr.name === 'Ticket' ? ticketState(data.lane ?? 'Backlog', data.status) : {})
+      ...(dcr.name === 'Ticket' ? ticketState(data.lane ?? 'Backlog') : {})
     };
     return this.ownEntity(await this.sp.createEntity<T>(dcr, createPayload, true, false));
   }
@@ -515,6 +544,7 @@ export class WorkflowStore {
     id: string,
     typeOrDcr?: string | EntityDcr
   ): Promise<T | null> {
+    await this.ready;
     if (typeOrDcr) {
       const formattedId = this.formatId(typeOrDcr, id);
       try {
@@ -584,6 +614,7 @@ export class WorkflowStore {
     query: Record<string, any> = {},
     options: { sort?: Record<string, 1 | -1>; limit?: number; from?: number } = {}
   ): Promise<T[]> {
+    await this.ready;
     const dcr = this.getDescriptor(typeOrDcr);
     const col = await this.sp.collectionForEntityType(dcr);
     const docs = await col.findSome<any>(query, options);
@@ -737,6 +768,8 @@ export class WorkflowStore {
     const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
     if (!ticket) return { success: false, message: `Ticket not found: ${ticketId}` };
 
+    if (moveToInProgress && ['Done','Cancelled'].includes(ticket.lane))
+      return {success:false,message:'Reopen terminal work explicitly before claiming it.'};
     const now = new Date();
     const existingClaim: TicketClaim | undefined = (ticket as any).claim;
 
@@ -810,7 +843,8 @@ export class WorkflowStore {
       'Todo': 0,
       'In Progress': 0,
       'Done': 0,
-      'Blocked': 0
+      'Blocked': 0,
+      'Cancelled': 0
     };
 
     for (const t of tickets) {
@@ -823,7 +857,7 @@ export class WorkflowStore {
     const completionPercent = totalTickets > 0 ? Math.round((doneTickets / totalTickets) * 100) : 100;
 
     const ticketScopes: Array<{ticket:Ticket;targets:Set<string>}> = [];
-    for (const ticket of tickets.filter(ticket => ticket.lane!=='Done' && ticket.status!=='rejected')) {
+    for (const ticket of tickets.filter(ticket => !['Done','Cancelled'].includes(ticket.lane))) {
       const targets=new Set<string>();
       for (const edge of await this.getOutgoing(ticket.id)) {
         if (!['targets','modifies'].includes(edge.predicateName)) continue;

@@ -59,7 +59,6 @@ export async function investigateTicket(
                     title: current.title ?? id,
                     body: current.body, kind:current.kind??'task', defect:current.defect,
                     lane: current.lane,
-                    status: current.status,
                     acceptanceCriteria: current.acceptanceCriteria ?? []
                 },
                 history: await (await import("../graph/journal.ts")).ticketHistoryContext(store,current.id),

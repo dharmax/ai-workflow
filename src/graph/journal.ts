@@ -46,8 +46,8 @@ export async function ticketChangeEvents(store:WorkflowStore,ticketId:string,pre
     const fields=['title','body','acceptanceCriteria','priority','kind','defect'].filter(key=>canonical(previous[key])!==canonical(next[key]));
     if(fields.length) events.push(await ticketEventBatch(store,ticketId,'specification',`Updated current work specification: ${fields.join(', ')}.`));
   }
-  if(previous && (previous.lane!==next.lane || previous.status!==next.status))
-    events.push(await ticketEventBatch(store,ticketId,'state',`${String(previous.lane)}/${String(previous.status)} → ${String(next.lane)}/${String(next.status)}.`,next.status==='verified'?[`VERIFY-${store.localId(ticketId)}`]:[]));
+  if(previous && previous.lane!==next.lane)
+    events.push(await ticketEventBatch(store,ticketId,'state',`${String(previous.lane)} → ${String(next.lane)}.`,next.lane==='Done'?[`VERIFY-${store.localId(ticketId)}`]:[]));
   if(canonical(previous?.claim)!==canonical(next.claim)) {
     const before=previous?.claim as Ticket['claim'], after=next.claim as Ticket['claim'];
     // Routine lease renewal is noise; record acquisition, owner change and release.

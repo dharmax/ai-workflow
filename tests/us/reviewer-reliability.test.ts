@@ -64,5 +64,5 @@ it('developer obtains independent verification using advice, observed qualificat
  expect((await resolve('PAID')).status).toBe('blocked');expect(paidCalls()).toBe(0);
  saveConfig(root,{paidInference:{providers:['openrouter'],tasks:['verification'],ceilingUSD:0.000001}} as Parameters<typeof saveConfig>[1]);expect((await resolve('PAID')).status).toBe('blocked');expect(paidCalls()).toBe(0);
  saveConfig(root,{paidInference:{providers:['openrouter'],tasks:['verification'],ceilingUSD:1}} as Parameters<typeof saveConfig>[1]);expect((await resolve('PAID')).status).toBe('complete');expect(paidCalls()).toBe(1);
- const history=await call('get_ticket_history',{ticketId:'PAID'});expect(JSON.stringify(history)).toContain('0.00105');expect(JSON.stringify(history)).toContain('ceilingUSD');expect((await call('get_ticket',{ticketId:'PAID'})).status).toBe('verified');
+ const history=await call('get_ticket_history',{ticketId:'PAID'});expect(JSON.stringify(history)).toContain('0.00105');expect(JSON.stringify(history)).toContain('ceilingUSD');expect((await call('get_ticket',{ticketId:'PAID'})).lane).toBe('Done');
 });

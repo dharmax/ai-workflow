@@ -304,7 +304,7 @@ export function processIntent(
                             if (!(child instanceof Feature || child instanceof UserStory || child instanceof Ticket)) continue
                             if (!budget.visit(childId, depth + 1)) continue
                             if (child instanceof Ticket) {
-                                if (child.lane !== "Done" || child.status !== "verified") budget.remaining.add(childId)
+                                if (child.lane !== "Done") budget.remaining.add(childId)
                             } else if (budget.depth === "all" || depth + 1 < budget.depth)
                                 queue.push({ entity: child, depth: depth + 1, inherited: completeness })
                             else {
