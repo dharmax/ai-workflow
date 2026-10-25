@@ -2,7 +2,23 @@
 
 **Read after AGENTS.md on every continuation.** This replaces the Workspace-first direction in the previous checkpoint. [Release plan](AIWF-USABLE-V1-RELEASE-PLAN.md) contains the governing priority correction, approved gate sequence amendment and retained historical delivery contract. Dharmax-way definitions, host authorization, safety, independent verification and canonical Semantika/Gate 5 obligations remain authoritative. Historical reports are evidence, not competing execution instructions.
 
+## Current developer decision — 2026-10-25 (supersedes older priority sequencing)
+
+**Immediate P0: make the basic User Story lifecycle work reliably at a good-enough level.** The outcome to demonstrate is a real charter-grounded Story progressing through definition/editing and developer approval, processing into useful Tickets, resolution/implementation, genuine Story acceptance and independent current verification, with truthful graph/status/evidence throughout. Scope must be controlled: fix blockers on this path and do not expand to unrelated engineering capabilities, interfaces or polish merely because older plans listed them as P0. "Good enough" means genuinely usable and dependable, not full feature coverage or architectural perfection.
+
+The 2026-10-20/21 P0-first host/MCP qualification and subsequent P1–P4 sequence **no longer determines immediate work order**. Retain the earlier work, actual observations, safety/authorization/verification obligations and unresolved blockers as historical evidence and applicable constraints; do not treat prior "next P0" commands as the current mandate. Do not silently claim the US workflow is working merely because a technical gate or component suite passes.
+
+**Architect / Semantic Studio boundary — agreed design, deferred implementation:**
+- [Dharmax Architecture](../docs/definitions/dharmax-architecture.md) establishes the preferred domain/manager/entity architecture and initial scaffolding, normally before Story-to-Ticket processing, without being a rigid gate.
+- Future AIWF **Architect** is a small pluggable interface invoked by AIWF, with a truthful no-op default initially. Keep AIWF small; **do not build architecture generation, ontology intelligence or scaffold synthesis inside AIWF now**.
+- Semantic Studio can later provide a substantive Architect implementation for architecture/ontology/scaffolding proposals. Architect produces proposals/source-change requests, **not filesystem mutations**. AIWF owns the existing guarded review/change-application path. No duplicate mutation engine or Semantic Studio dependency inside AIWF.
+- This is a documented design decision, **not** an implemented/accepted runtime capability and **not** authority to interrupt the basic-US critical path.
+
+**Continuation rule:** On every continuation, check this latest developer priority before selecting work from historical gates or plans. Work on the currently blocking US path; surface material conflicts, do not invent completion, and do not add another checkpoint or orchestration subsystem.
+
 ## Binding priority order
+**Historical priority ordering (2026-10-20): superseded for immediate sequencing by the 2026-10-25 developer decision above.** The retained details below are evidence and context, not a mandate to restart that expansion.
+
 
 1. **P0 — excellent AI engineering capability exposed through MCP / skill / plugin.** External Codex/AGY integration and actual intelligence/execution are inseparable. Demonstrate intent understanding, grounded investigation, architecture/requirements reasoning, reviewed planning, guarded implementation, tests/correction and distinct independent current verification through real host integration. Efficient bounded context/discovery, correct schemas/permissions/review, install/reload and verifiable active versions are part of usefulness. Dogfood improved AIWF during its development. Three previews and a Bug report do not meet this outcome.
 2. **P1 — native Digest:** explicit evidence → Analyze → Reconcile → independent review. Read-only deterministic orchestration; grounded results, first-class `needs_input` and useful measured evidence/performance. Reuse existing context/process/Critic owners, no competing Actor/persistence/orchestration system. Recover retained design; demonstrate native parity on real engineering material before retiring separate `aiwf-digest`.
@@ -52,7 +68,7 @@ After that fix, deterministic composition proves the real boundary: **935,230 ch
 
 The remaining native owner gap is technical Ticket proof authorship across existing protected TestNode and Semantika owners. Story-test authoring is tied to accepted Story fixtures, so do not invent a Story; generic Test links/metadata, copied pass records and a second proof store are invalid. Resolve this through the existing Test/verification and dependency evidence owners, then run the three bounded scopes and native independent completion. The approved scope decision is in force, not pending. `AIWF-TICKET-RESOLUTION-FIRST-PROOF` and `TKT-DOCTRINE-SEMANTIKA-CONTRACT` remain Blocked/unverified; G5 remains Blocked. No receipt, Done, S6a/S6b GO or Ledger/ai-cli edits.
 
-## Next executable step
+## Prior next executable step (historical; superseded for sequencing)
 
 Use the existing Ticket resolution owner to add a developer-reviewed technical proof-binding path that preserves TestNode write authority and dependency-local evidence ownership. Make its schema/tool behavior discoverable through existing MCP/skill routes; do not add a second proof engine. Then bind and execute the three approved scopes, preserve all 65 regression outcomes, and rerun native independent acceptance. Separately qualify real Codex/AGY implementation after S6a. Only then advance P1 Digest, P2 ai-cli, P3 Shell and P4 Workspace within the original I2/I3 budget. The clean packed pagination failure stays an explicit P4 regression and does not gate starting P0 under the approved amendment.
 
@@ -73,4 +89,4 @@ The original technical Ticket now has its exact reviewed native binding on `test
 
 Canonical/reopen: Semantika and its source-work owner remain Blocked/unverified, no Semantika verification Artifact/receipt edge/Done, no active Ticket or governance leases. Gate 5 remains Blocked with its original Semantika dependency and no receipt. The binding remains current and independently inspectable. Semantika's unrelated dirty Markdown is preserved.
 
-**Next P0:** authorize/qualify a supported current OpenRouter reviewer for mandatory G3/G4, then replay the same S6a proof. GPT-OSS 120B was proposed, not authorized or qualified. After genuine S6a acceptance, proceed only to authorized real external-host MCP/Skill/Plugin engineering (bounded S6b), not automatic adjacent infrastructure or P1–P4 work. [Detailed observed result](../docs/p0-engineering-2026-10-20.md#2026-10-21--native-technical-binding-delivered-s6a-refused-on-current-provider-preconditions), [execution references](../docs/evidence/p0-native-technical-proof-2026-10-21.json).
+**Historical next P0 (2026-10-21; no longer the immediate priority):** authorize/qualify a supported current OpenRouter reviewer for mandatory G3/G4, then replay the same S6a proof. GPT-OSS 120B was proposed, not authorized or qualified. After genuine S6a acceptance, proceed only to authorized real external-host MCP/Skill/Plugin engineering (bounded S6b), not automatic adjacent infrastructure or P1–P4 work. [Detailed observed result](../docs/p0-engineering-2026-10-20.md#2026-10-21--native-technical-binding-delivered-s6a-refused-on-current-provider-preconditions), [execution references](../docs/evidence/p0-native-technical-proof-2026-10-21.json).
