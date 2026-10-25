@@ -11,7 +11,7 @@ export async function runModelCommand(projectRoot: string, actor: WorkflowActor,
     let task = tokens[1];
     let target = tokens[2];
     if ((!task || !target) && facilitator) {
-      const values = await facilitator.facilitate({task: {type: 'select', description: 'Model task', choices: ['design', 'dev', 'triage', 'product']}, target: {type: 'string', description: 'Provider/model target'}}, {task, target}, {interactive: true});
+      const values = await facilitator.facilitate({task: {type: 'select', description: 'Model task', choices: ['design', 'dev', 'triage', 'product', 'radar']}, target: {type: 'string', description: 'Provider/model target'}}, {task, target}, {interactive: true});
       if (typeof values.task !== 'string' || typeof values.target !== 'string') return null;
       task = values.task;
       target = values.target;
@@ -24,11 +24,15 @@ export async function runModelCommand(projectRoot: string, actor: WorkflowActor,
     return {output: `Set model for [${task.toUpperCase()}] to: ${target}`};
   }
   if (action === 'radar') {
-    if (tokens.slice(1).some(token => !['refresh', '--refresh', '-r'].includes(token))) throw new Error('Usage: model radar [--refresh]');
-    const data = tokens.length > 1 ? await refreshDefaultModelAdvice(projectRoot) : readModelAdvice();
+    const refresh = ['refresh', '--refresh', '-r'].includes(tokens[1] ?? '')
+    const criticFlag = tokens[2] === '--critic'
+    if ((tokens.length > 1 && !refresh) || (tokens.length > 2 && !criticFlag) || (criticFlag && tokens.length < 4))
+      throw new Error('Usage: model radar [refresh [--critic <focus>]]');
+    const criticFocus = criticFlag ? tokens.slice(3).join(' ').replace(/^['"]|['"]$/g, '') : undefined
+    const data = refresh ? await refreshDefaultModelAdvice(projectRoot, criticFocus) : readModelAdvice();
     return {output: data ? `Model advice: ${data.updatedAt} | Authority: ${data.advisor}\n` + Object.entries(data.workloads).map(([task, advice]) => `${task}: ${advice.primary.target.providerId}/${advice.primary.target.modelId} | ${advice.primary.reason}`).join('\n') : 'No valid model advice snapshot. Run model radar refresh explicitly.'};
   }
-  if (action !== 'list' || tokens.length > 1) throw new Error('Usage: model [list|radar [--refresh]|set <task> <modelTarget>]');
+  if (action !== 'list' || tokens.length > 1) throw new Error('Usage: model [list|radar [refresh [--critic <focus>]]|set <task> <modelTarget>]');
   const config = loadConfig(projectRoot);
   const providers = actor.configuredProviders;
   const defaultSource = inspectConfig(projectRoot, 'model')[0]?.source;

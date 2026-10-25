@@ -5,6 +5,7 @@
 
 import { Asker, ModelRouter, ModelAdviceResearchSchema, parseModelTarget, readModelAdvice, refreshModelAdvice, type ModelAdviceSnapshot, type ModelTarget, type ProviderConfig } from "@dharmax/llm-utils"
 import { inspectConfig, loadConfig, resolveCloudCredentials, type ProjectConfig } from "./config.ts"
+import { budgetedInference, paidProviderAllowed, type PaidUsage } from "./paid-inference.ts"
 
 export interface ModelRuntime {
     config: ProjectConfig
@@ -187,29 +188,53 @@ const MODEL_WORKLOADS = {
     verification: 'Independent verification of implementation and evidence; seek diverse failure modes, not author self-approval.',
 }
 
-/** Explicit operation only. Local reasoning over fresh provider facts never authorizes paid inference or pulls. */
-export async function refreshDefaultModelAdvice(projectRoot: string): Promise<ModelAdviceSnapshot> {
-    const models = new ModelService(projectRoot)
-    const {providers, config} = models.runtime
-    const local = models.localModel
-    if (!local) throw new Error('Model advice research requires a configured local model; paid research is not authorized.')
-    const asker = new Asker({providers, defaultModel: local, advicePath: false})
+/** An explicit research authority ranks observed models for the requested critic context. */
+export async function refreshDefaultModelAdvice(
+    projectRoot: string, criticFocus = 'TypeScript/Bun code, tests, and project architecture'
+): Promise<ModelAdviceSnapshot> {
+    const {providers, config} = modelRuntime(projectRoot)
+    const route = config.modelRoutes?.radar
+    if (!route) throw new Error('Configure a Radar research authority with: model set radar <provider/model>.')
+    const authority = parseModelTarget(route)
+    const provider = providers[authority.providerId]
+    if (!provider?.available) throw new Error('Configured Radar research authority is unavailable: ' + route)
+    if (!provider.local && !paidProviderAllowed(config.paidInference, authority.providerId, 'radar'))
+        throw new Error('Paid Radar research requires explicit paidInference authorization for task radar and a USD ceiling.')
+    const asker = new Asker({providers, defaultModel: authority, advicePath: false})
+    const paidUsage: PaidUsage[] = []
+    if (!provider.local) {
+        const generate = budgetedInference(config.paidInference, 'radar', async usage => { paidUsage.push(usage) })
+        asker.getCompletion().registerAdapter({id: authority.providerId, async generate(request) {
+            const {modelId, prompt, config: providerConfig, ...options} = request
+            return generate(prompt, {providerId: authority.providerId, modelId}, providerConfig, options)
+        }})
+    }
+    const workloads = {...MODEL_WORKLOADS, verification: {
+        description: 'Independent ' + criticFocus.trim() + ' critic. Verify source correctness, architecture, test execution and actual acceptance evidence.',
+        constraints: [
+            'Must reliably return strict structured JSON and reproduce supplied acceptance criteria and Aspect IDs exactly.',
+            'Must identify defects and unproved claims, cite actual evidence, and never invent requirement IDs.',
+            'Creative or roleplay-oriented tuning alone is not evidence of engineering-verification competence.'
+        ]
+    }}
     return refreshModelAdvice({
-        id: `${local.providerId}/${local.modelId} with live provider catalogue evidence`,
+        id: `${authority.providerId}/${authority.modelId} (explicit Radar research authority)`,
         async research({prompt, environment}) {
             const catalogue = environment.providers.find(p => p.id === 'openrouter')
-            if (!catalogue?.models?.length)
-                throw new Error('OpenRouter live catalogue unavailable; previous model advice preserved.')
-            const installed = environment.providers.find(p => p.id === local.providerId)
-            if (!installed?.available || !installed.models?.some(m => m.id === local.modelId))
-                throw new Error('Configured local research model is unavailable; no model will be pulled.')
+            if (providers.openrouter && !catalogue?.models?.length)
+                throw new Error('Configured OpenRouter catalogue unavailable; previous advice preserved.')
+            const selected = environment.providers.find(p => p.id === authority.providerId)
+            if (!selected?.available || (selected.models?.length && !selected.models.some(m => m.id === authority.modelId)) ||
+                (provider.local && !selected.models?.some(m => m.id === authority.modelId)))
+                throw new Error('Configured Radar research authority is not available in observed provider models: ' + route)
             const eligibleTargets = environment.providers.filter(provider => provider.available).flatMap(provider => (provider.models ?? []).map(model => `${provider.id}/${model.id}`))
-            const result = await asker.ask(prompt + '\nEligible routing targets: ' + JSON.stringify(eligibleTargets) + '\nChoose every primary and fallback ONLY from that eligible routing targets list. The catalogue of any unavailable provider is NOT a routing target list.\nUse only exact provider/model pairs from available providers and their observed model lists for every primary and fallback. A public catalogue on an unavailable provider is market evidence, not routing eligibility. Put uninstalled candidates only in recommendedPulls. Use the observed catalogue as current market evidence. Cite https://openrouter.ai/api/v1/models for OpenRouter facts. Never claim web browsing or measured benchmarks. Treat latency, reliability, reasoning overhead and retry estimates as uncertain unless observed. Independent verification needs independence from the author; routing alone cannot establish it.', {
-                model: local, allowedProviders: [local.providerId], maxRetries: 0,
+            const result = await asker.ask(prompt + '\nEligible routing targets: ' + JSON.stringify(eligibleTargets) + '\nChoose every primary and fallback ONLY from that eligible routing targets list. The catalogue of any unavailable provider is NOT a routing target list.\nUse only exact provider/model pairs from available providers and their observed model lists for every primary and fallback. A public catalogue on an unavailable provider is market evidence, not routing eligibility. Put uninstalled candidates only in recommendedPulls. This call supplies live provider catalogues and installed models but no browsing tools; never claim web browsing, verified model competence, or measured benchmarks unless independently evidenced. Account configuration is not billing entitlement. Treat latency, reliability, reasoning overhead and retry estimates as uncertain unless observed. For the verification workload specifically, select for the critic focus and strict contract, not general conversation quality. Independent verification needs independence from the author; routing alone cannot establish it.', {
+                model: authority, allowedProviders: [authority.providerId], maxRetries: 0,
                 schema: ModelAdviceResearchSchema, timeoutMs: 180000,
             })
             if (!result.ok || !result.data) throw new Error(result.failure?.message ?? 'Model advice research failed')
             const advice = result.data
+            if (paidUsage.length) advice.notes.push(...paidUsage.map(u => 'Radar research spend: ' + JSON.stringify(u)))
             for (const workload of Object.values(advice.workloads)) {
                 for (const choice of [workload.primary, ...workload.fallbacks]) {
                     const provider = environment.providers.find(p => p.id === choice.target.providerId)
@@ -229,8 +254,8 @@ export async function refreshDefaultModelAdvice(projectRoot: string): Promise<Mo
             }
             return advice
         },
-    }, MODEL_WORKLOADS, {providers: {openrouter: {id: 'openrouter', available: false}, ...providers}, ollamaHost: config.ollamaUrl,
+    }, workloads, {providers: {openrouter: {id: 'openrouter', available: false}, ...providers}, ollamaHost: config.ollamaUrl,
         constraints: ['Preserve explicit developer choices, configured routes, gateway restrictions and local-only policy.',
             'Optimize expected cost per completed task including output tokens, reasoning overhead, latency and retries.',
-            'No pulls or paid research. Installed local candidates and observed provider catalogues are evidence; subscription/API entitlement and inference reliability remain unproven.']})
+            'No pulls or unapproved paid research. Installed local candidates and observed provider catalogues are evidence; subscription/API entitlement and inference reliability remain unproven.']})
 }

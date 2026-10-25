@@ -45,11 +45,11 @@ export function initializeTools(): ToolRegistry {
     registerRuleTools();
     registry.register({
       name: 'refresh_model_advice', category: 'kb',
-      description: 'Explicitly refresh native llm-utils workload advice using live provider catalogue evidence and configured local research. Preserves developer overrides; no paid research or pulls.',
-      parameters: z.object({}).strict(),
-      execute: async (_args, ctx) => {
+      description: 'Refresh model advice using the explicitly configured Radar research authority and observed provider catalogues; optionally specify a critic focus. Paid research requires explicit spending authorization.',
+      parameters: z.object({criticFocus: z.string().trim().min(1).optional()}).strict(),
+      execute: async (args, ctx) => {
         if (ctx.executionAuthority !== 'project-write') throw new Error('Model advice refresh requires project-write authority.');
-        return refreshDefaultModelAdvice(ctx.projectRoot);
+        return refreshDefaultModelAdvice(ctx.projectRoot, args.criticFocus);
       }
     });
     initialized = true;

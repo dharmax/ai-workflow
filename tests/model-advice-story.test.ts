@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {modelAdvicePath, readModelAdvice} from '@dharmax/llm-utils'
+import {refreshDefaultModelAdvice} from '../src/model-runtime.ts'
 import {saveConfig, loadConfig} from '../src/config.ts'
 import {WorkflowStore} from '../src/graph/store.ts'
 import {WorkflowActor} from '../src/actor/engine.ts'
@@ -33,7 +34,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   delete process.env.GEMINI_API_KEY
   saveConfig(root, {gateway: 'openrouter', ollamaUrl: 'http://local-evidence:11434',
     escalation: {policy: 'sota', blastRadiusThreshold: 3, testRetryThreshold: 2},
-    modelRoutes: {reasoning: 'openrouter/vendor/developer-choice'}})
+    modelRoutes: {radar: 'ollama/research-specialist:14b', reasoning: 'openrouter/vendor/developer-choice'}})
   store = new WorkflowStore(root, true)
   await store.sp.ready()
   const adviceFile = modelAdvicePath()
@@ -59,7 +60,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   fetchSpy = spyOn(globalThis, 'fetch').mockImplementation((async (input, init) => {
     const url = String(input)
     calls.push(url)
-    if (url.endsWith('/api/tags')) return Response.json({models: [{name: 'qwen2.5-coder:7b'}]})
+    if (url.endsWith('/api/tags')) return Response.json({models: [{name: 'qwen2.5-coder:7b'}, {name: 'research-specialist:14b'}]})
     if (url.endsWith('/api/show')) return Response.json({details: {parameter_size: '7B', quantization_level: 'Q4_K_M'},
       model_info: {'general.architecture': 'qwen2', 'qwen2.context_length': 32768}})
     if (url === 'https://openrouter.ai/api/v1/models') return Response.json({data: [
@@ -75,6 +76,9 @@ it('Actor refreshes and uses native model advice while preserving developer choi
         expect(prompt).toContain('vendor/current-coder')
         expect(prompt).toContain('0.8')
         expect(prompt).toContain('supported')
+        expect(prompt).toContain('Independent TypeScript/Bun architecture critic')
+        expect(prompt).toContain('research-specialist:14b')
+        expect(prompt).toContain('provider catalogue')
         const candidate = structuredClone(research)
         if (unobservedModel) candidate.workloads.verification!.primary.target.modelId = 'vendor/not-observed'
         return Response.json({message: {role: 'assistant', content: failResearch ? 'invalid advice' : JSON.stringify(candidate)}, done: true})
@@ -94,10 +98,11 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   const previousRoute = actor.resolveRoute('dev')
   expect(calls).toEqual([])
   const registry = initializeTools()
-  await registry.execute('refresh_model_advice', {}, {store, projectRoot: root, executionAuthority: 'project-write'})
+  await registry.execute('refresh_model_advice', {criticFocus: 'TypeScript/Bun architecture'}, {store, projectRoot: root, executionAuthority: 'project-write'})
   const snapshot = readModelAdvice()!
   expect(snapshot.updatedAt).not.toBe(old.updatedAt)
-  expect(snapshot.advisor).toContain('ollama/')
+  expect(snapshot.advisor).toContain('ollama/research-specialist:14b')
+  expect(inferenceModels).toContain('research-specialist:14b')
   expect(snapshot.environment.providers.find(p => p.id === 'openrouter')?.models).toContainEqual(expect.objectContaining({
     id: 'vendor/current-coder', contextWindow: 128000, inputPer1M: 0.2, outputPer1M: 0.8,
     supportedParameters: ['tools', 'structured_outputs']}))
@@ -122,7 +127,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   expect(stdout).toContain('Override: openrouter/vendor/developer-choice')
   const retained = fs.readFileSync(adviceFile, 'utf8')
   failResearch = true
-  const failed = await processShellInput('model radar refresh', {store, projectRoot: root, actor: fresh})
+  const failed = await processShellInput('model radar refresh --critic TypeScript/Bun architecture', {store, projectRoot: root, actor: fresh})
   expect(failed.output).toContain('JSON')
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
   failResearch = false
@@ -203,4 +208,14 @@ it('public inspection and explicit model choices preserve routing without refres
   fs.writeFileSync(adviceFile, '{invalid JSON')
   expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('dev')?.target).toBe('openrouter/developer-code')
   expect(calls).toEqual([])
+})
+
+it('Radar requires an explicit authority and refuses unapproved paid research before inference', async () => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-radar-authority-'))
+  process.env.XDG_CONFIG_HOME = path.join(root, 'config')
+  process.env.OPENROUTER_API_KEY = 'fixture-key'
+  saveConfig(root, {gateway: 'openrouter'})
+  await expect(refreshDefaultModelAdvice(root)).rejects.toThrow('Configure a Radar research authority')
+  saveConfig(root, {gateway: 'openrouter', modelRoutes: {radar: 'openrouter/vendor/research'}})
+  await expect(refreshDefaultModelAdvice(root)).rejects.toThrow('Paid Radar research requires explicit paidInference')
 })
