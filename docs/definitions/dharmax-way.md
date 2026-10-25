@@ -2,7 +2,7 @@
 
 **The governing, test-first (TDD) method for defining and delivering correct product behavior**, implemented by [AI-Workflow](ai-workflow.md) and governed in engineering by the [Prime Directive](prime-directive.md). The developer owns intended product behavior and its approval; AI helps discover, propose, implement and verify it, but cannot approve its own product definition.
 
-The default, adaptable system structure is defined separately in [Dharmax Architecture](dharmax-architecture.md). It informs project architecture without prescribing unnecessary components.
+For a new project, establish the initial [Dharmax Architecture](dharmax-architecture.md) from the approved Product charter, **normally before User Stories are elaborated into implementation Tickets**—not necessarily before the first Story is defined. Identify the main domains/resources, entities and their relationships, and scaffold the principal folders/classes as appropriate. This is a flexible default, not a mandatory separate approval gate; initial scaffolding is not proof of implemented Story behavior.
 
 ## Normal US-driven cycle
 
