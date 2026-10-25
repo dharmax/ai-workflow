@@ -1,4 +1,4 @@
-# AIWF v1 — active checkpoint: AI engineering first (2026-10-20)
+# AIWF v1 — active checkpoint: User Story lifecycle first (2026-10-25)
 
 **Read after AGENTS.md on every continuation.** This replaces the Workspace-first direction in the previous checkpoint. [Release plan](AIWF-USABLE-V1-RELEASE-PLAN.md) contains the governing priority correction, approved gate sequence amendment and retained historical delivery contract. Dharmax-way definitions, host authorization, safety, independent verification and canonical Semantika/Gate 5 obligations remain authoritative. Historical reports are evidence, not competing execution instructions.
 
@@ -28,7 +28,7 @@ The 2026-10-20/21 P0-first host/MCP qualification and subsequent P1–P4 sequenc
 
 **Continuation rule:** On every continuation, check this latest developer priority before selecting work from historical gates or plans. Work on the currently blocking US path; surface material conflicts, do not invent completion, and do not add another checkpoint or orchestration subsystem.
 
-## Binding priority order
+## Historical priority order (superseded for immediate sequencing)
 **Historical priority ordering (2026-10-20): superseded for immediate sequencing by the 2026-10-25 developer decision above.** The retained details below are evidence and context, not a mandate to restart that expansion.
 
 
