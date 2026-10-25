@@ -203,9 +203,10 @@ export async function refreshDefaultModelAdvice(projectRoot: string): Promise<Mo
             const installed = environment.providers.find(p => p.id === local.providerId)
             if (!installed?.available || !installed.models?.some(m => m.id === local.modelId))
                 throw new Error('Configured local research model is unavailable; no model will be pulled.')
-            const result = await asker.ask(prompt + '\nUse only exact provider/model pairs from available providers and their observed model lists for every primary and fallback. A public catalogue on an unavailable provider is market evidence, not routing eligibility. Put uninstalled candidates only in recommendedPulls. Use the observed catalogue as current market evidence. Cite https://openrouter.ai/api/v1/models for OpenRouter facts. Never claim web browsing or measured benchmarks. Treat latency, reliability, reasoning overhead and retry estimates as uncertain unless observed. Independent verification needs independence from the author; routing alone cannot establish it.', {
+            const eligibleTargets = environment.providers.filter(provider => provider.available).flatMap(provider => (provider.models ?? []).map(model => `${provider.id}/${model.id}`))
+            const result = await asker.ask(prompt + '\nEligible routing targets: ' + JSON.stringify(eligibleTargets) + '\nChoose every primary and fallback ONLY from that eligible routing targets list. The catalogue of any unavailable provider is NOT a routing target list.\nUse only exact provider/model pairs from available providers and their observed model lists for every primary and fallback. A public catalogue on an unavailable provider is market evidence, not routing eligibility. Put uninstalled candidates only in recommendedPulls. Use the observed catalogue as current market evidence. Cite https://openrouter.ai/api/v1/models for OpenRouter facts. Never claim web browsing or measured benchmarks. Treat latency, reliability, reasoning overhead and retry estimates as uncertain unless observed. Independent verification needs independence from the author; routing alone cannot establish it.', {
                 model: local, allowedProviders: [local.providerId], maxRetries: 0,
-                schema: ModelAdviceResearchSchema, timeoutMs: 60000,
+                schema: ModelAdviceResearchSchema, timeoutMs: 180000,
             })
             if (!result.ok || !result.data) throw new Error(result.failure?.message ?? 'Model advice research failed')
             const advice = result.data

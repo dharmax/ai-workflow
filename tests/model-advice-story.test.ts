@@ -45,6 +45,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   const calls: string[] = []
   const inferenceModels: string[] = []
   let failResearch = false
+  let unobservedModel = false
   const workloads = ['fast', 'code', 'reasoning', 'creative', 'summarization', 'verification']
   const research = {workloads: Object.fromEntries(workloads.map(task => [task, {
     primary: {target: {providerId: 'openrouter', modelId: 'vendor/current-coder'}, availability: 'accessible',
@@ -74,7 +75,9 @@ it('Actor refreshes and uses native model advice while preserving developer choi
         expect(prompt).toContain('vendor/current-coder')
         expect(prompt).toContain('0.8')
         expect(prompt).toContain('supported')
-        return Response.json({message: {role: 'assistant', content: failResearch ? 'invalid advice' : JSON.stringify(research)}, done: true})
+        const candidate = structuredClone(research)
+        if (unobservedModel) candidate.workloads.verification!.primary.target.modelId = 'vendor/not-observed'
+        return Response.json({message: {role: 'assistant', content: failResearch ? 'invalid advice' : JSON.stringify(candidate)}, done: true})
       }
       return Response.json({message: {role: 'assistant', content: 'local completed'}, done: true})
     }
@@ -121,6 +124,11 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   failResearch = true
   const failed = await processShellInput('model radar refresh', {store, projectRoot: root, actor: fresh})
   expect(failed.output).toContain('JSON')
+  expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
+  failResearch = false
+  unobservedModel = true
+  const ineligible = await processShellInput('model radar refresh', {store, projectRoot: root, actor: fresh})
+  expect(ineligible.output).toContain('unavailable or unobserved model: openrouter/vendor/not-observed')
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
   expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('dev')?.target).toBe('openrouter/vendor/current-coder')
   expect(fs.readFileSync(configFile, 'utf8')).toBe(configBefore)
