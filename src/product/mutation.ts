@@ -463,7 +463,12 @@ export async function applyProductMutations(
   store.assertCanWrite();
   // Validate once before admission so malformed/rejected input cannot mutate even admission state.
   const initial = await validateProductMutations(store, mutations, reviewed?.request.basis);
-  const workOnly = mutations.every(m => (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket');
+  const workOnly = mutations.every(m =>
+    (m.kind === 'product_create' || m.kind === 'product_update') && m.entityType === 'Ticket' ||
+    // The protected Story-test owner records activation/classification during governed work.
+    // Definitions, test commands, technical proof bindings and relations remain exclusive.
+    m.kind === 'product_update' && m.entityType === 'Test' &&
+      Object.keys(m.fields).every(key => ['testState','testStateReason','testSourceHash','fixtureHash','storyVersion','storyBasisHash'].includes(key)));
   if (!productOwnerWrite(store, mutations, initial.state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
     throw new ProductReviewRequired('Product mutation requires host-owned review of the exact preview fingerprint.');
   if (reviewed && canonical(reviewed.request.mutations) !== canonical(mutations))

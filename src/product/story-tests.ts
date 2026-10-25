@@ -97,6 +97,8 @@ export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:s
     if(!tests.length) throw new Error('Story '+store.localId(story.id)+' is uncovered. Review and materialize its public-interface test before implementation.');
     for(const test of tests) {
       const state=await inspectStoryTest(store,story,test);
+      // Existing current baselines are already active; starting sibling work must preserve them.
+      if(state.state==='green'||state.state==='expected-red') continue;
       const filePath=workspacePath(store.root,test.filePath!),source=fs.readFileSync(path.join(store.root,filePath),'utf8');
       const recoveredSource=source.replace(/\bit\s*\(/,match=>match.replace('it','it.skip'));
       const basis=await storyTestBasis(store,story);

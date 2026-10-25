@@ -276,8 +276,10 @@ export async function investigateTicket(
                     targetId: store.localId(productCandidates[0].id)
                 })
             if (options.mandatoryEvidenceOnly) return {status: 'complete', artifactId: id, value: dossier}
+            const report = [current.title, current.body, ...Object.values(current.defect ?? {}).flat(),
+                ...dossier.evidence.filter(item => ['UserStory', 'TestNode'].includes(item.kind)).map(item => item.body ?? item.title)].join('\n')
             const codeMentions = [...current.body.matchAll(/`([^`]+)`/g)].map(match => match[1]).join(" ")
-            const words = new Set(`${current.title} ${codeMentions}`.match(/[A-Za-z_$][\w$]{2,}/g) ?? [])
+            const words = new Set(`${current.title} ${codeMentions} ${current.kind === 'bug' ? report : ''}`.match(/[A-Za-z_$][\w$]{2,}/g) ?? [])
             const optional = (await store.listEntities<SymbolNode>(SymbolNode.dcr))
                 .filter(
                     s =>
@@ -381,11 +383,73 @@ export async function investigateTicket(
                         answer?.choice && ["include", "omit"].includes(answer.choice) && (answer.probabilities?.[answer.choice] ?? 0) >= 0.8
                     )
                 })
-            const selected = optional.filter(s => !confident || assessment?.answers[store.localId(s.id)]?.choice !== "omit")
+            // Routing confidence cannot discard concrete Bug clues or stand in for source inspection.
+            const selected = optional.filter(s => current.kind === 'bug' || !confident || assessment?.answers[store.localId(s.id)]?.choice !== "omit")
             for (const candidate of selected) add(candidate, "Bounded optional code candidate", false)
+            const { registry, initializeTools } = await import('../tools/index.ts')
+            const { verifyingTestsForTargets } = await import('../graph/test-artifacts.ts')
+            initializeTools()
+            const readContext = {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const}
+            dossier.findings = []
+            dossier.uncertainties = current.kind === 'bug' ? ['Reproduction is reported by the developer; this read-only investigation has not executed it.'] : []
+            // Error/stack paths are clues, never mutation authority. Read only indexed local files.
+            const reportedFiles = (await store.listEntities<FileNode>(FileNode.dcr))
+                .filter(file => report.includes(store.localId(file.id))).slice(0, max)
+            for (const file of reportedFiles) add(file, 'File identified in work evidence', false)
+            for (const evidence of dossier.evidence.filter(item => ['FileNode', 'SymbolNode'].includes(item.kind))) {
+                const entity = await store.getEntity(evidence.id)
+                const filePath = entity instanceof SymbolNode ? entity.filePath : entity instanceof FileNode ? store.localId(entity.id) : undefined
+                if (!filePath || filePath.startsWith('@')) continue
+                evidence.filePath = filePath
+                try {
+                    if (!evidence.source) {
+                        if (entity instanceof SymbolNode) {
+                            const name = entity.containerName ? `${entity.containerName}.${entity.title}` : entity.title!
+                            const source = await getExactSymbolSource(store.root, filePath, name)
+                            evidence.source = source.code
+                            evidence.exact = true
+                            evidence.symbolName = entity.title
+                            evidence.containerName = entity.containerName
+                            evidence.symbolKind = source.kind
+                            countEngineering('exactSymbolReads')
+                        } else {
+                            evidence.source = (await registry.execute('read_workspace_file', {filePath}, readContext)).content
+                        }
+                        countEngineering('sourceReads')
+                    }
+                    dossier.findings.push(`Inspected ${filePath}${evidence.symbolName ? '#' + evidence.symbolName : ''}; current source is attached as ${evidence.id}.`)
+                } catch (error) {
+                    dossier.uncertainties.push(`Could not inspect candidate ${filePath}: ${String(error)}`)
+                }
+            }
+            const inspected = dossier.evidence.filter(item => item.filePath && item.source)
+            const related = await verifyingTestsForTargets(store, inspected.map(item => item.id), inspected.map(item => item.filePath!))
+            for (const test of related.tests.slice(0, max)) add(test, 'Test covering inspected source', false)
+            for (const evidence of dossier.evidence.filter(item => item.kind === 'TestNode').slice(0, max)) {
+                const test = await store.getEntity<TestNode>(evidence.id, TestNode.dcr)
+                if (!test) continue
+                evidence.filePath = test.filePath || test.targetPath
+                evidence.body = JSON.stringify({command: test.command, lastRun: test.lastRun, passed: test.passed, output: test.output})
+                if (!evidence.filePath) continue
+                try {
+                    evidence.source = (await registry.execute('read_workspace_file', {filePath: evidence.filePath}, readContext)).content
+                    countEngineering('sourceReads')
+                    dossier.findings.push(`Inspected regression ${evidence.filePath}; stored executions are historical until freshness is checked.`)
+                } catch (error) {
+                    dossier.uncertainties.push(`Could not inspect test ${evidence.filePath}: ${String(error)}`)
+                }
+            }
+            if (current.kind === 'bug' && !inspected.length) {
+                dossier.disposition = 'needs_preparation'
+                dossier.rationale = 'Cause unknown: no current source location could be resolved from the Bug reproduction, actual error, indexed symbols or linked scope. Reproduction has not been executed. Supply an implicated local symbol, stack location or diagnostic evidence; do not infer a root cause from routing confidence.'
+                dossier.uncertainties.push(dossier.rationale)
+                return {status: 'complete', artifactId: id, value: dossier}
+            }
+            if (inspected.length) dossier.rationale = dossier.findings.join(' ')
             dossier.provenance.optionalSelected = selected.length
             countEngineering("optionalSelected", selected.length)
             const unresolved =
+                current.kind === 'bug' ||
                 !current.acceptanceCriteria?.length ||
                 Boolean(
                     assessment &&

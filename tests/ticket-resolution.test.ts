@@ -1,6 +1,8 @@
+import {createProduct,acceptProduct} from './product-review.ts';
+import {productReviewFixture} from './product-review-fixture.ts';
 import {createAspect} from './product-review.ts';
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
-import { CompletionEngine } from '@dharmax/llm-utils';
+import { CompletionEngine, LayaSystemOne } from '@dharmax/llm-utils';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -38,6 +40,98 @@ describe('Ticket-owned bounded resolution', () => {
     await store.relate(t, 'modifies', (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!); return t;
   };
   const fix: ResolutionOptions = { systemOne, critic: 'none', verify, implement: async () => ({ changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) };
+
+  for (const initial of ['red','green','infrastructure','rejected','dependency','read-only','stale','public','multiple'] as const) it(`resolves reviewed Story lifecycle without manual preparation: ${initial}`,async()=>{
+    const stop=await productReviewFixture(store);
+    try {
+      await createProduct(store,'UserStory',{id:'S',title:'Add signed values',actor:'User',intent:'Calculate a sum',initialState:'Two signed numbers are available',action:'Add the numbers',expectedResult:'Their sum is returned',status:'accepted'});
+      const t=await ticket();
+      await acceptProduct(store,[{kind:'product_link',sourceId:'T',predicate:'addresses',targetId:'S'}]);
+      initializeTools();const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
+      if(initial==='green') fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a: number,b: number){return a+b;}');
+      if(initial==='infrastructure') fs.writeFileSync(path.join(root,'src/add.ts'),'throw new Error("provider unavailable"); export function add(a:number,b:number){return a+b;}');
+      const specification={storyId:'S',filePath:'tests/signed-story.test.ts',fixturePath:'src/add.ts',interfaceName:'add',body:'expect(subject(2,3)).toBe(5);expect(subject(-2,3)).toBe(1);'};
+      let preview=await registry.execute('prepare_story_test',{specification},ctx);
+      let applied=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+      if(applied.status==='file-created-unlinked') {
+        preview=await registry.execute('prepare_story_test',{specification},ctx);
+        applied=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+      }
+      expect(applied.status).toBe('linked');
+      if(initial==='multiple') {
+        await createProduct(store,'UserStory',{id:'EXISTING',title:'Add zero',actor:'User',intent:'Preserve the value',initialState:'A number and zero',action:'Add zero',expectedResult:'Original number is returned',status:'accepted'});
+        await acceptProduct(store,[{kind:'product_link',sourceId:'T',predicate:'addresses',targetId:'EXISTING'}]);
+        const existing={...specification,storyId:'EXISTING',filePath:'tests/zero-story.test.ts',body:'expect(subject(2,0)).toBe(2);'};
+        for(let attempt=0;attempt<2;attempt++) {
+          const preview=await registry.execute('prepare_story_test',{specification:existing},ctx);
+          const result=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification:existing,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+          if(result.status==='linked')break;
+        }
+      }
+      git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','reviewed story');
+      if(initial==='dependency') {
+        await store.upsertEntity(Ticket.dcr,{id:'PREREQUISITE',title:'External approval',lane:'Todo',acceptanceCriteria:['Approved']});
+        await acceptProduct(store,[{kind:'product_link',sourceId:'T',predicate:'depends_on',targetId:'PREREQUISITE'}]);
+      }
+      if(initial==='stale') fs.appendFileSync(path.join(root,specification.filePath),'\n// unreviewed test change');
+      const testBefore=fs.readFileSync(path.join(root,specification.filePath),'utf8');
+      const sourceBefore=fs.readFileSync(path.join(root,'src/add.ts'),'utf8');
+      let implementations=0,reviews=0;
+      const options:ResolutionOptions={...fix,maxRepairs:0,implement:async(dossier,feedback)=>{
+        implementations++;
+        const baseline=(await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!;
+        expect(baseline.testState).toBe('expected-red');expect(baseline.passed).toBe(false);expect(baseline.lastRun).toBeTruthy();
+        return fix.implement!(dossier,feedback);
+      },verify:async input=>{reviews++;expect(input.tests.every(t=>t.passed)).toBe(true);
+        const accepted=await verify(input);
+        if(initial==='rejected') accepted.criteria[0].passed=false;
+        return accepted;
+      }};
+      let result:Awaited<ReturnType<typeof t.resolve>>;
+      if(initial==='public') {
+        const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
+        const provider=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
+          if(prompt.includes('Independently verify EVERY')) {
+            reviews++;expect(prompt).toContain('return a + b');expect(prompt).toContain('"passed":true');
+            return {model,ok:true,text:JSON.stringify({criteria:[{criterion:'Positive and negative inputs add correctly',passed:true,evidence:'Current signed arithmetic source and both executed public Story assertions agree.'}],aspects:[],rules:[]})};
+          }
+          implementations++;
+          const baseline=(await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!;
+          expect(baseline.testState).toBe('expected-red');expect(baseline.passed).toBe(false);
+          const decision=implementations===1
+            ? {thought:'Correct the inspected arithmetic operator',action:'tool_call',toolCalls:[{name:'safe_change',parameters:{action:'replace_text',filePath:'src/add.ts',oldText:'a - b',newText:'a + b'}}]}
+            : {thought:'Request tests and independent acceptance',action:'final_answer',finalAnswer:JSON.stringify({changes:[],testCommands:[['bun','test','tests/signed-story.test.ts']]})};
+          return {model,ok:true,text:JSON.stringify(decision)};
+        });
+        try {result=await registry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},ctx);}
+        finally {provider.mockRestore();routing.mockRestore();}
+      } else result=await store.withExecutionContext(initial==='read-only'?'read-only':'project-write',undefined,()=>t.resolve(store,options));
+      expect(fs.readFileSync(path.join(root,specification.filePath),'utf8')).toBe(
+        ['dependency','read-only','stale'].includes(initial)?testBefore:testBefore.replace(/\bit\.skip\s*\(/g,'it('));
+      if(['infrastructure','rejected','dependency','read-only','stale'].includes(initial)) {
+        expect(result.status).toBe('blocked');expect(await store.getEntity('VERIFY-T')).toBeNull();expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).not.toBe('Done');
+        if(initial==='rejected'){expect(implementations).toBe(1);expect(reviews).toBe(1);}
+        else {expect(implementations).toBe(0);expect(reviews).toBe(0);expect(fs.readFileSync(path.join(root,'src/add.ts'),'utf8')).toBe(sourceBefore);}
+        if(initial==='infrastructure')expect((await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!.testState).toBe('blocked');
+        if(initial==='dependency')expect(JSON.stringify(result)).toContain('PREREQUISITE');
+      } else {
+        if(result.status!=='complete')throw Error(JSON.stringify(result));expect(result.status).toBe('complete');
+        expect(implementations).toBe(initial==='green'?0:initial==='public'?2:1);expect(reviews).toBe(1);
+        expect((await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!.testState).toBe('green');
+        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({lane:'Done',status:'verified',claim:null});
+        expect(await store.getEntity('VERIFY-T')).not.toBeNull();
+        store.close();store=new WorkflowStore(root);
+        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.status).toBe('verified');expect(await store.getEntity('VERIFY-T')).not.toBeNull();
+        if(initial==='red') {
+          fs.writeFileSync(path.join(root,'src/add.ts'),sourceBefore);
+          git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','external source regression');
+          const stale=await t.resolve(store,{...options,verifyOnly:true});
+          expect(stale.status).toBe('blocked');expect(implementations).toBe(1);
+          expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).not.toBe('Done');
+        }
+      }
+    } finally {stop();}
+  },30000);
 
   it('surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof', async () => {
     const t = await ticket(); const a = await createAspect(store,{ id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
@@ -661,7 +755,7 @@ describe('Ticket-owned bounded resolution', () => {
       const t = await ticket(); let calls = 0, executions = 0;
       const original = registry.execute.bind(registry);
       const execution = spyOn(registry, 'execute').mockImplementation(async (tool, params, ctx) => {
-        if (tool === name) executions++;
+        if (tool === name && calls > 0) executions++;
         return original(tool, params, ctx);
       });
       const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {

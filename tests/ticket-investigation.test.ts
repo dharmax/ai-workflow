@@ -1,5 +1,6 @@
 import {createAspect,acceptProduct} from './product-review.ts';
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import {CompletionEngine,LayaSystemOne} from '@dharmax/llm-utils';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,6 +19,47 @@ describe('grounded Ticket investigation', () => {
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
   const ticket = (id = 'T', title = 'Repair queue') => store.upsertEntity<Ticket>(Ticket.dcr, { id, title, body: 'Fix the queue while preserving existing results.', lane: 'Todo', acceptanceCriteria: ['Failed jobs remain recoverable'] });
   const routing = (quality: 'low' | 'high', overrides: Record<string, string> = {}): SystemOne => ({ assess: async (_state, questions) => ({ backendId: 'fixture', quality, latencyMs: 0, answers: Object.fromEntries(Object.keys(questions).map(id => { const choice = overrides[id] ?? ({ workKind: 'code', atomicity: 'atomic', scope: 'grounded', context: 'code', depth: 'deterministic' }[id] ?? 'omit'); return [id, { choice, probabilities: { [choice]: 0.99 } }]; })) }) });
+
+  it('investigates an unanchored Bug using its reproduction, error location and actual source', async () => {
+    fs.writeFileSync(path.join(root, 'queue.ts'), 'export function enqueue(job: string) { throw new Error("queue unavailable"); }');
+    await indexSingleFile(store, path.join(root, 'queue.ts'), 'queue.ts');
+    const t = await store.upsertEntity<Ticket>(Ticket.dcr, {id:'BUG',title:'Jobs cannot be submitted',body:'Restore submission.',kind:'bug',lane:'Todo',
+      acceptanceCriteria:['Submitting a job succeeds'],defect:{reproduction:'Call enqueue("job")',expected:'Job is queued',actual:'Error: queue unavailable at queue.ts:1',evidence:['queue.ts:1']}});
+    fs.mkdirSync(path.join(root,'tests'));
+    fs.writeFileSync(path.join(root,'tests/queue.test.ts'),'import {it,expect} from "bun:test"; import {enqueue} from "../queue"; it("submits a job",()=>expect(()=>enqueue("job")).not.toThrow());');
+    const test=await store.withTestArtifactWrite('test:tests/queue.test.ts',()=>store.upsertEntity<TestNode>(TestNode.dcr,{id:'test:tests/queue.test.ts',title:'Submission regression',filePath:'tests/queue.test.ts',command:['bun','test','tests/queue.test.ts']}));
+    const file=(await store.getEntity<FileNode>('queue.ts',FileNode.dcr))!;
+    await store.withTestArtifactWrite(test.id,()=>store.relate(test,'verifies',file));
+    const route=spyOn(LayaSystemOne.prototype,'assess').mockImplementation(routing('high').assess);
+    let reasoningCalls=0;
+    const provider=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
+      reasoningCalls++;
+      expect(prompt).toContain('throw new Error');expect(prompt).toContain('Job is queued');expect(prompt).toContain('tests/queue.test.ts');
+      return {model,ok:true,text:JSON.stringify({disposition:'ready',rationale:'Source queue.ts unconditionally throws. Reported enqueue failure is consistent with this candidate cause; runtime reproduction has not been executed. Preserve tests/queue.test.ts as the submission regression.'})};
+    });
+    let result:Awaited<ReturnType<typeof t.investigate>>;
+    try {result=await registry.execute('investigate_ticket',{ticketId:'BUG'},{store,projectRoot:root});}
+    finally {provider.mockRestore();route.mockRestore();}
+    expect(reasoningCalls).toBe(1);
+    expect(result.status).toBe('complete'); if(result.status!=='complete') throw Error(JSON.stringify(result));
+    expect(result.value.evidence.some(e => e.filePath==='queue.ts' && e.source?.includes('queue unavailable'))).toBe(true);
+    expect(result.value.rationale).toContain('queue.ts');
+    expect(result.value.provenance.reasoningUsed).toBe(true);
+    expect(result.value.uncertainties?.join(' ')).toContain('has not executed');
+    expect(await store.getOutgoing(t.id,'modifies')).toEqual([]);
+  });
+
+  it('reports precise investigation uncertainty when a complete Bug has no discoverable source', async () => {
+    const t=await store.upsertEntity<Ticket>(Ticket.dcr,{id:'UNKNOWN',title:'Remote submission fails',body:'Remote failure',kind:'bug',lane:'Todo',acceptanceCriteria:['Submission succeeds'],defect:{reproduction:'Submit job remotely',expected:'Job is queued',actual:'Remote service returns 502'}});
+    const result=await t.investigate(store,{systemOne:routing('high')});
+    expect(result.status).toBe('complete');if(result.status!=='complete')throw Error(JSON.stringify(result));
+    expect(result.value.rationale).toMatch(/source|location/i);
+    expect(result.value.rationale).toMatch(/unknown|uncertain|not.*reproduc/i);
+    expect(result.value.disposition).toBe('needs_preparation');
+    expect((await store.getEntity<Ticket>('UNKNOWN',Ticket.dcr))!.lane).toBe('Todo');
+    const preparation=await t.prepare(store,{systemOne:routing('high'),propose:async()=>{throw Error('Missing engineering facts cannot be invented in preparation');}});
+    expect(preparation.status).toBe('needs_input');
+  });
 
   it('returns mandatory scope, Decision, Lesson, Aspect and test evidence without reasoning or semantic changes', async () => {
     const t = await ticket();

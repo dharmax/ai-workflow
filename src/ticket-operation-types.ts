@@ -30,6 +30,8 @@ export interface TicketDossier {
   ticket: { id: string; title: string; body: string; status: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./graph/types.ts').TicketDefect };
   disposition: InvestigationJudgment['disposition']; rationale: string;
   evidence: TicketEvidence[];
+  findings?: string[];
+  uncertainties?: string[];
   completeness: TicketCompletenessContext;
   aspects: AspectAssessment;
   governance?: TicketGovernance;

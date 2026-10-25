@@ -8,9 +8,9 @@ import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
-import {requireStoryTests} from "../product/story-tests.ts"
+import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance } from "./verification.ts"
-import { Ticket, TestNode, Artifact } from "../graph/ontology.ts"
+import { Ticket, TestNode, Artifact, UserStory } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
     ResolutionOptions,
@@ -234,6 +234,44 @@ export async function resolveTicket(
                         dossier = dossiers.get(id)!
                     executingTicket = ticket
                     recordMetricCompleteness(dossier.completeness)
+                    const stories: string[] = []
+                    for (const edge of await store.getOutgoing(ticket.id, 'addresses')) {
+                        const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr)
+                        if (story?.status === 'accepted' && story.definitionReview.status === 'complete') stories.push(store.localId(story.id))
+                    }
+                    let green = stories.length > 0
+                    for (const storyId of stories) {
+                        const coverage = await storyTestStatus(store, storyId)
+                        if (coverage.tests.some(test => test.state === 'skipped' || test.state === 'not-run')) {
+                            const activated = await activateStoryTestsForTicket(store, id, preview =>
+                                new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                            for (const testId of activated.tests) {
+                                const test = await store.getEntity<TestNode>(testId, TestNode.dcr)
+                                if (test?.filePath) ownedFiles.add(test.filePath)
+                            }
+                        }
+                        if (ticket.lane !== 'Done') await applyProductMutations(store, [
+                            {kind: 'product_update', entityType: 'Ticket', id, fields: {lane: 'In Progress'}}
+                        ])
+                        const current = await storyTestStatus(store, storyId)
+                        if (current.tests.length !== 1) throw Error(`Story '${storyId}' needs one reviewed runnable test; selection is uncovered or ambiguous.`)
+                        let state = current.tests[0].state
+                        if (state !== 'expected-red' && state !== 'green') {
+                            // A historical Done receipt cannot keep stale Story evidence current.
+                            if (ticket.lane === 'Done') await applyProductMutations(store, [
+                                {kind: 'product_update', entityType: 'Ticket', id, fields: {lane: 'In Progress'}}
+                            ])
+                            const {registry} = await import('../tools/index.ts')
+                            const baseline = await runStoryTest(store, storyId,
+                                command => registry.execute('triage_test_failures', {testCommand: command},
+                                    {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'project-write'}),
+                                preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                            if (baseline.status !== 'expected-red' && baseline.status !== 'green') return blocked(`Story '${storyId}' baseline: ${baseline.reason}`)
+                            state = baseline.status
+                        }
+                        green &&= state === 'green'
+                    }
+                    await requireStoryTests(store, ticket)
                     const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
                     await ensureAstFresh(store, store.root)
                     const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
@@ -366,7 +404,7 @@ export async function resolveTicket(
                         let proposedTests = [...(options.testCommands ?? [])]
                         if (!children.length && (ticket.lane !== "Done" || attempt > 0)) {
                             await requireStoryTests(store,ticket)
-                            if (!options.verifyOnly) {
+                            if (!options.verifyOnly && (!green || attempt > 0)) {
                                 const implementation =
                                     options.implement ??
                                     ((input: TicketDossier, findings: readonly string[]) =>
@@ -407,14 +445,22 @@ export async function resolveTicket(
                             return needs("Review changed governance and retry.", "Governance changed during implementation; self-weakening cannot proceed.", "Ticket governance")
                         recordResolutionStage("verification")
                         await ensureAstFresh(store, store.root)
-                        const checked = await executeTicketChecks(
-                            store,
-                            dossier,
-                            [...scope.files],
-                            proposedTests,
-                            options.signal,
-                            rootId
-                        )
+                        let check = () => executeTicketChecks(store, dossier, [...scope.files], proposedTests, options.signal, rootId)
+                        // Each existing Story owner observes the same check execution. Nest callbacks
+                        // so all tests execute once and each classification captures its own prior run.
+                        for (const storyId of stories) {
+                            const execute = check
+                            check = async () => {
+                                let result: Awaited<ReturnType<typeof executeTicketChecks>> | undefined
+                                const observation = await runStoryTest(store, storyId, async () => { result = await execute() },
+                                    preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                                if (observation.status === 'blocked') return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
+                                return result!
+                            }
+                        }
+                        const checked = await check()
+                        if (checked.status === 'complete' && stories.length)
+                            checked.value.testNodes = await currentTestEvidence(store, checked.value.testNodes.map(test => test.id))
                         if (checked.status !== "complete") return checked
                         const { tests: currentTests, testNodes, evidenceComplete } = checked.value
                         await recordTicketEvent(store,{ticketId:id,kind:currentTests.some(test=>!test.passed)?'failure':'outcome',

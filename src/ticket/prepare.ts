@@ -40,16 +40,12 @@ export async function prepareTicket(
             value: { dossier, children: existing, created: [], reused: existing, applied: false, criticRounds: 0, rationale }
         })
         if (dossier.disposition === "rejectable") return result(dossier.rationale)
-        if (dossier.ticket.acceptanceCriteria.length && children.length && children.every(child => child.acceptanceCriteria?.length)) {
-            try {
-                const { validateProductMutations } = await import("../product/mutation.ts")
-                await validateProductMutations(store, [{ kind: "product_update", entityType: "Ticket", id, fields: {} }])
-                countEngineering("artifactsReused", existing.length)
-                return result("Existing executable children reused.")
-            } catch (error) {
-                return { status: "blocked", artifactId: id, blockers: [{ reason: `Existing child work is invalid: ${String(error)}` }] }
-            }
-        }
+        if (dossier.ticket.kind === 'bug' && dossier.disposition === 'needs_preparation' &&
+            !dossier.evidence.some(item => item.filePath && item.source))
+            return {status: 'needs_input', artifactId: id, required: [{
+                question: 'Supply an implicated source symbol, stack location or diagnostic evidence.',
+                why: dossier.rationale, target: 'Bug engineering evidence'
+            }]}
         const enrichments = dossier.proposedEnrichments
         if (dossier.disposition === "ready" && !enrichments.acceptanceCriteria && !enrichments.relations.length)
             return result("Existing atomic contract is executable; no decomposition or enrichment needed.")
@@ -160,7 +156,19 @@ export async function prepareTicket(
                             predicate: "depends_on",
                             targetId: identities.get(prerequisite) ?? prerequisite
                         })
-                if (!mutations.length) return result(proposal.rationale)
+                // Reconcile the complete proposal before reusing existing children. Criteria alone
+                // say nothing about omitted work. Existing links are idempotent, not new preparation.
+                for (let index = mutations.length - 1; index >= 0; index--) {
+                    const mutation = mutations[index]
+                    if (mutation.kind === 'product_link' && (await store.getOutgoing(mutation.sourceId, mutation.predicate))
+                        .some(edge => store.localId(edge.targetId) === mutation.targetId)) mutations.splice(index, 1)
+                }
+                if (!mutations.length) {
+                    if (dossier.disposition !== 'ready' && !proposal.children.length)
+                        throw new Error('Preparation did not resolve the investigation gaps or supply executable work.')
+                    countEngineering('artifactsReused', existing.length)
+                    return result(proposal.rationale)
+                }
                 if (critic) {
                     // Serialize detached data; a Critic never receives live entities or producer history.
                     const input = JSON.parse(

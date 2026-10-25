@@ -34,6 +34,16 @@ describe('reviewed Ticket preparation', () => {
     { id: 'P/migrate', title: 'Migrate records', body: 'Migrate historical records into the durable format.', acceptanceCriteria: ['Migration preserves historical records'], relations: [], dependsOn: ['P/persist'] }
   ] });
 
+  it('does not infer preparation completeness from one existing child with criteria', async () => {
+    const t=await parent(), p=proposal();
+    await store.upsertEntity(Ticket.dcr,{...p.children[0],lane:'Todo'});
+    await acceptProduct(store,[{kind:'product_link',sourceId:'P',predicate:'contains',targetId:'P/persist'}]);
+    let proposed=0;
+    const result=await t.prepare(store,{systemOne:split,critic:accept,propose:async()=>{proposed++;return p;}});
+    expect(result.status).toBe('complete');expect(proposed).toBe(1);
+    expect((await store.getOutgoing('P','contains')).map(e=>store.localId(e.targetId)).sort()).toEqual(['P/migrate','P/persist']);
+  });
+
   it('keeps an atomic technical Ticket unchanged without a fake Story, Critic call or lease', async () => {
     const t = await parent(); let calls = 0;
     const result = await t.prepare(store, { systemOne: unavailable, critic: { id: 'unused', review: async () => { calls++; throw Error('unnecessary'); } }, propose: async () => { calls++; throw Error('unnecessary'); } });
