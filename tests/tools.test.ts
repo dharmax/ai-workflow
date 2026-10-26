@@ -46,7 +46,7 @@ describe('Tool Registry & Deterministic Facilities', () => {
     const created = await registry.execute('create_ticket', {
       title: 'Implement JIT Compiler',
       lane: 'Todo',
-      priority: 'P1',
+      priority: 1,
       body: 'Synthesize codelets dynamically'
     }, ctx);
 
@@ -82,7 +82,7 @@ describe('Tool Registry & Deterministic Facilities', () => {
       defect:{reproduction:'Index an empty source file',expected:'Empty module is indexed without an exception',actual:'Null pointer exception',severity:'high'},
       title: 'Fix null pointer in indexer',
       lane: 'Todo',
-      priority: 'P0',
+      priority: 0,
       body: 'AST indexer throws when file is empty'
     }, ctx);
 

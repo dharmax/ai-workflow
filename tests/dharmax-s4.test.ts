@@ -35,7 +35,7 @@ describe('S4 reviewed derivation through Workspace',()=>{
    items:[
     {id:'E',kind:'Epic',title:'Deliver Avatar Filters',body:'Deliver reviewed preview and save',priority:1},
     {id:'S',kind:'UserStory',title:'Save filtered avatar',actor:'Signed-in user',intent:'Keep the preview',initialState:'Unsaved filtered preview and previous avatar',action:'Activate Save',expectedResult:'Saved avatar survives reload',exceptions:'Failure preserves previous avatar'},
-    {id:'T',kind:'Ticket',title:'Implement Save',body:'Implement the public avatar save API',priority:'P1',storyIds:['S'],scopeIds:['src/avatar.ts']}
+    {id:'T',kind:'Ticket',title:'Implement Save',body:'Implement the public avatar save API',priority:1,storyIds:['S'],scopeIds:['src/avatar.ts']}
    ],rationale:'Deliver accepted intent'}));
   await page.getByRole('button',{name:'Prepare work proposal',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
@@ -67,16 +67,16 @@ describe('S4 reviewed derivation through Workspace',()=>{
   await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
   await page.getByRole('button',{name:'Accept and save',exact:true}).click();
   await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
-  work.items[2].revise=true;work.items[2].priority='P0';work.items[2].body='Implement reviewed save and failure preservation';
+  work.items[2].revise=true;work.items[2].priority=0;work.items[2].body='Implement reviewed save and failure preservation';
   await page.getByRole('button',{name:'Derive work',exact:true}).click();
   await page.getByLabel('Work proposal JSON',{exact:true}).fill(JSON.stringify(work));
   await page.getByRole('button',{name:'Prepare work proposal',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Review ready'}).waitFor();
-  expect(await page.getByTestId('diff').innerText()).toContain('P0');
-  expect((await call('get_ticket',{ticketId:'T'})).priority).toBe('P1');
+  expect(await page.getByTestId('diff').innerText()).toContain('Priority\t1\t0');
+  expect((await call('get_ticket',{ticketId:'T'})).priority).toBe(1);
   await page.getByRole('button',{name:'Accept and save',exact:true}).click();
   await page.getByRole('status').filter({hasText:/^Saved[.]/}).waitFor();
-  expect((await call('get_ticket',{ticketId:'T'})).priority).toBe('P0');
+  expect((await call('get_ticket',{ticketId:'T'})).priority).toBe(0);
   expect((await store.listEntities(Ticket.dcr)).length).toBe(1);
   expect((await store.listEntities(Epic.dcr)).length).toBe(1);
   // The real fixture is an executable filesystem API, not a mocked test of specification strings.
@@ -181,7 +181,7 @@ export function createAvatar(file:string) {
   stopReviewer=await productReviewFixture(store);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Save previews',status:'accepted'});
   await createProduct(store, "UserStory", {id:'S',title:'Save avatar',actor:'User',intent:'Keep preview',initialState:'Unsaved preview',action:'Save',expectedResult:'Avatar persists',status:'accepted'});
-  await call('create_ticket',{id:'T',title:'Implement save',body:'Original scope',priority:'P2'});
+  await call('create_ticket',{id:'T',title:'Implement save',body:'Original scope',priority:2});
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/api.ts'),'export function save() { return true }');
   await indexSingleFile(store,path.join(root,'src/api.ts'),'src/api.ts',root);
   await createProduct(store, "Aspect", {id:'A',title:'Persistency',body:'Save must survive restart',status:'accepted'});
@@ -190,7 +190,7 @@ export function createAvatar(file:string) {
   await acceptProduct(store, [{kind:"product_link",sourceId:'T',predicate:'addresses',targetId:'S'}]);
   await updateProduct(store, "UserStory", {id:'S',action:'Save once; retain previous avatar on failure'});
   const result=await call('process_story',{storyId:'S',critic:'none',proposal:{items:[
-   {id:'T',kind:'Ticket',title:'Implement save',body:'Add public failure preservation case',priority:'P1',revise:true,scopeIds:['src/api.ts']}
+   {id:'T',kind:'Ticket',title:'Implement save',body:'Add public failure preservation case',priority:1,revise:true,scopeIds:['src/api.ts']}
   ],rationale:'Changed existing Story'}});
   expect(result.status).toBe('complete');expect((await call('get_ticket',{ticketId:'T'})).body).toBe('Original scope');
   const preview=result.value.proposals[0];

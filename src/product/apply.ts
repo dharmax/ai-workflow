@@ -33,13 +33,13 @@ export async function applyEpicStructure(store: WorkflowStore, proposal: EpicStr
   const basis: ProductRevision[] = [...proposal.basis ?? []];
   if (epic) basis.push({id: store.localId(epic.id), entityType: epic.typeName(), version: epic.version});
   else mutations.push({ kind: 'product_create', entityType: 'Epic', id: proposal.epic.id,
-    fields: { title: proposal.epic.title, body: proposal.epic.body || '', status: proposal.epic.status || 'planned' } });
+    fields: { priority: proposal.epic.priority, title: proposal.epic.title, body: proposal.epic.body || '', status: proposal.epic.status || 'planned' } });
   for (const f of proposal.features) {
     const existing = await store.getEntity(f.id);
     if ((f.action === 'reuse' || existing) && !(existing instanceof Feature)) throw new Error(`Reused Feature '${f.id}' does not exist in graph as a Feature.`);
     if (existing) basis.push({id: store.localId(existing.id), entityType: existing.typeName(), version: existing.version});
     else mutations.push({ kind: 'product_create', entityType: 'Feature', id: f.id,
-      fields: { title: f.title, body: f.body || '', acceptanceCriteria: f.acceptanceCriteria || [], status: 'proposed' } });
+      fields: { priority: f.priority, title: f.title, body: f.body || '', acceptanceCriteria: f.acceptanceCriteria || [], status: 'proposed' } });
     mutations.push({ kind: 'product_link', sourceId: proposal.epic.id, predicate: 'targets', targetId: f.id });
   }
   for (const s of proposal.stories) {

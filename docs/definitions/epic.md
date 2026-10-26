@@ -17,3 +17,5 @@ The effective US definition includes the relevant common Epic material and its o
 ## Open questions
 
 Whether an Epic assignment is mandatory (automatically assigning a simple `Default` Epic if missing) is **not yet decided**. Nor is the exact precedence/editing mechanism for overlapping or contradictory Epic and US text. Do not silently choose or implement these behaviors.
+
+Priority is an integer from **0 to 5**, default **2**; lower numbers rank first. Legacy `P0`-`P3` values migrate to `0`-`3` without changing their order. Bug severity is independent of priority.

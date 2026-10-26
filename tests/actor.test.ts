@@ -164,7 +164,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
   });
 
   it('answers the next-ticket question through actual semantic discovery and selector execution', async () => {
-    await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 'P1'});
+    await store.upsertEntity(Ticket.dcr, {id: 'BUG-NEXT', title: 'Fix a demonstrated bug', lane: 'Todo', priority: 1});
     let classifierCalls = 0, actorCalls = 0, finalPrompt = '';
     const asker = {json: async (prompt: string, _schema: unknown, options: {system?: string}) => {
       if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
@@ -189,7 +189,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
   });
 
   it('terminates a repeated successful selector without exhausting the ten-step budget', async () => {
-    await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 'P1'});
+    await store.upsertEntity(Ticket.dcr, {id: 'NEXT', title: 'Next task', lane: 'Todo', priority: 1});
     let calls=0;
     const asker = {json: async () => ({ok: true, data: {thought: '', action: 'tool_call', toolCalls: ++calls===1 ? [{name:'discover_tools',parameters:{request:'Select next ticket'}}] : [{name: 'recommend_next_task', parameters: {}}]}})} as unknown as Asker;
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discover(['recommend_next_task'])}).execute('Compare candidates');
@@ -198,7 +198,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
   });
 
   it('lets the model discover graph evidence and compose a multi-part ticket comparison', async () => {
-    for (const ticket of [{id: 'HIGH', title: 'High priority', lane: 'Todo', priority: 'P1'}, {id: 'LOW', title: 'Low priority', lane: 'Todo', priority: 'P3'}]) await store.upsertEntity(Ticket.dcr, ticket);
+    for (const ticket of [{id: 'HIGH', title: 'High priority', lane: 'Todo', priority: 1}, {id: 'LOW', title: 'Low priority', lane: 'Todo', priority: 3}]) await store.upsertEntity(Ticket.dcr, ticket);
     const epic = await store.upsertEntity(Epic.dcr, {id: 'SHARED', title: 'Shared main initiative'});
     for (const id of ['HIGH', 'LOW']) {
       const feature = await store.upsertEntity(Feature.dcr, {id: `FEATURE-${id}`, title: `Feature ${id}`});
@@ -217,7 +217,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       expect(options.system).toContain('discover_tools'); expect(options.system).toContain('every requested part');
       if (actorCalls === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'List ticket candidates'}}]}};
       if (actorCalls === 2) return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'list_tickets', parameters: {}}]}};
-      if (actorCalls === 3) {expect(prompt).toContain('P3'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Search and traverse graph connections for ticket artifact relationships'}}]}};}
+      if (actorCalls === 3) {expect(prompt).toContain('\"priority\":3'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: 'Search and traverse graph connections for ticket artifact relationships'}}]}};}
       if (actorCalls === 4) {expect(prompt).toContain('search_graph'); expect(options.system).toContain('maxDepth'); return {ok: true, data: {thought: '', action: 'tool_call', toolCalls: ['HIGH', 'LOW'].map(id => ({name: 'search_graph', parameters: {sourceId: id, direction: 'both', maxDepth: 3}}))}};}
       expect(prompt).toContain('SHARED'); expect(prompt).toContain('STORY-HIGH'); expect(prompt).toContain('STORY-LOW');
       return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'HIGH is most and LOW least by priority; both trace through separate stories and features to SHARED.'}};

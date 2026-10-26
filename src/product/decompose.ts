@@ -4,6 +4,7 @@
  *        reusing existing Features/Stories, surfacing questions, and performing ZERO graph mutation.
  */
 
+import {PrioritySchema} from '../graph/types.ts';
 import { z } from 'zod';
 import type { Asker } from '@dharmax/llm-utils';
 import { WorkflowStore } from '../graph/store.ts';
@@ -23,6 +24,7 @@ export interface EpicStructureProposal {
     title: string;
     body?: string;
     status: EpicStatus;
+    priority?: number;
   };
 
   features: Array<{
@@ -31,6 +33,7 @@ export interface EpicStructureProposal {
     title: string;
     body?: string;
     acceptanceCriteria?: string[];
+    priority?: number;
   }>;
 
   stories: Array<{
@@ -56,7 +59,8 @@ export const SemanticFeatureOutputSchema = z.object({
   id: z.string().optional().describe('Existing feature ID if action=reuse, or optional reference key if create'),
   title: z.string().describe('Feature capability title'),
   body: z.string().optional().describe('Feature description and scope'),
-  acceptanceCriteria: z.array(z.string()).optional().default([])
+  acceptanceCriteria: z.array(z.string()).optional().default([]),
+  priority: PrioritySchema.default(2)
 });
 
 export const SemanticStoryOutputSchema = z.object({
@@ -167,6 +171,7 @@ export async function proposeEpicStructure(
     body?: string;
     status?: EpicStatus;
     existingEpicId?: string;
+    priority?: number;
   },
   options?: {
     asker?: Asker;
@@ -174,6 +179,7 @@ export async function proposeEpicStructure(
     injectedSemanticOutput?: SemanticDecompositionInput;
   }
 ): Promise<EpicStructureProposal> {
+  const priority = PrioritySchema.default(2).parse(draft.priority);
   const basis: ProductRevision[] = [];
   for (const ctor of [Goal, Concept, Flow, Epic, Feature, UserStory, Decision]) {
     for (const entity of await store.listEntities(ctor.dcr))
@@ -262,6 +268,7 @@ Respond ONLY with valid JSON conforming to the schema.`;
       action: f.action,
       title: f.title,
       body: f.body,
+      priority: f.priority,
       acceptanceCriteria: f.acceptanceCriteria
     });
   }
@@ -317,7 +324,8 @@ Respond ONLY with valid JSON conforming to the schema.`;
       action: epicAction,
       title: draft.title,
       body: draft.body,
-      status: draft.status || 'draft'
+      status: draft.status || 'draft',
+      priority
     },
     features: resolvedFeatures,
     stories: resolvedStories,

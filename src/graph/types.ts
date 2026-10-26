@@ -1,8 +1,12 @@
+import {z} from 'zod';
 import type { CompletenessLevel } from '../artifact-policy.ts';
 /**
  * Responsibility: Core type definitions for the AST+ Semantic Graph, Tickets, and Entities.
  * Scope: Typed contracts for Semantika ontology nodes, predicates, claims, and project health.
  */
+
+/** Lower numbers rank first; shared by every authored work priority. */
+export const PrioritySchema = z.number().int().min(0).max(5);
 
 export type TicketLane = 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Blocked' | 'Cancelled';
 export type EntityStatus = 'draft' | 'proposed' | 'accepted' | 'implemented' | 'verified' | 'deprecated';
@@ -82,7 +86,7 @@ export interface TicketData extends Omit<BaseEntityData, 'status'> {
   defect?: TicketDefect;
   acceptanceCriteria?: string[];
   lane: TicketLane;
-  priority?: 'P0' | 'P1' | 'P2' | 'P3';
+  priority?: number;
   claim?: TicketClaim;
   estimateTokens?: number;
 }

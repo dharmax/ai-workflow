@@ -1,3 +1,4 @@
+import {PrioritySchema} from './graph/types.ts';
 import { z } from 'zod';
 import {ChangeRequestSchema} from './tools/change.ts';
 import {TestBindingSpecificationSchema} from './graph/test-proof-types.ts';
@@ -233,7 +234,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
       if (create) command.option('--id <id>', 'Stable Ticket ID').requiredOption('--title <text>', 'Observed defect title');
       else command.option('--title <text>', 'Observed defect title');
       command.option('--body <text>', 'Context and diagnostic bounds')
-        .addOption(new Option('--priority <priority>', 'Explicit work priority').choices(['P0','P1','P2','P3']))
+        .addOption(new Option('--priority <priority>', 'Integer 0-5; default 2; lower ranks first').argParser(value => PrioritySchema.parse(value.trim() ? Number(value) : NaN)))
         .option('--criterion <text>', 'Acceptance criterion (repeatable)', collect);
       for (const key of ['reproduction','expected','actual','impact','environment'])
         command.option(`--${key} <text>`, `Defect ${key}; omitted fields remain unknown`);
@@ -503,7 +504,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     const command=ticketCommand.command(create?'new':'edit <id>').description(create?'Create bounded technical work':'Edit existing work in place');
     if(create) command.option('--id <id>','Stable Ticket ID').requiredOption('--title <text>','Work title');
     else command.option('--title <text>','Work title');
-    command.option('--body <text>','Grounded work contract').option('--priority <priority>','P0, P1, P2 or P3')
+    command.option('--body <text>','Grounded work contract').addOption(new Option('--priority <priority>','Integer 0-5; default 2; lower ranks first').argParser(value => PrioritySchema.parse(value.trim() ? Number(value) : NaN)))
       .option('--criterion <text>','Acceptance criterion (repeatable)',collect);
     const dispatch=(ticketId:string|undefined,opts:Record<string,unknown>)=>{
       const {criterion,...fields}=opts;
@@ -522,8 +523,8 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     metrics:'metrics [--operation <name>] [--ticket <id>] [--since <duration>] [--tag <key=value>]\nmetrics export <workspace-path.json> [filters]',
     'epic-create':'epic-create "<title>" [--body <text>] [--priority <number>] [--no-decompose] [--yes]\nDefault: inert decomposition proposal. --no-decompose previews a reviewed Epic; --yes confirms that exact local revision.',
     'epic-add':'epic-add "<title>" [--body <text>] [--priority <number>] [--no-decompose] [--yes]\nAlias of epic-create; prefer product epic new for explicit stable identity.',
-    create:'create "<title>" [--id <id>] [--lane <lane>] [--priority <P0|P1|P2|P3>]\nCreates a task. Use ticket new for body/acceptance criteria and bug new for defects.',
-    new:'new "<title>" [--id <id>] [--lane <lane>] [--priority <P0|P1|P2|P3>]\nAlias of create. Done is owned by independent verification.',
+    create:'create "<title>" [--id <id>] [--lane <lane>] [--priority <0|1|2|3|4|5>]\nCreates a task. Use ticket new for body/acceptance criteria and bug new for defects.',
+    new:'new "<title>" [--id <id>] [--lane <lane>] [--priority <0|1|2|3|4|5>]\nAlias of create. Done is owned by independent verification.',
     claim:'claim <ticketId> [agent] [minutes] [--agent <id>] [--minutes <number>]\nChecks prerequisites, report completeness and foreign leases, then activates reviewed Story tests.',
     symbol:'symbol <name> [--exact|-e] [--regex|-r] [--kind|-k <kind>] [--file|-f <path>] [--exported] [-n|--limit <count>]',
     graph:'graph [query] [--type|-t <type>] [--pred|-p <predicate>] [--from|--source <id>] [--to|--target <id>] [--depth|-d <number>] [-n|--limit <count>]',
@@ -547,7 +548,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .addHelpText('after', `
 Related work commands:
   tickets [lane]                       List Tickets in a Kanban lane
-  ticket new --title <text> [--id <id>] [--body <text>] [--priority P0|P1|P2|P3]
+  ticket new --title <text> [--id <id>] [--body <text>] [--priority 0|1|2|3|4|5]
   claim <id> [agent] [minutes]          Claim through the existing lease owner
   release <id>                         Release the active lease
   move <id> <lane>                      Backlog, Todo, "In Progress", or Blocked

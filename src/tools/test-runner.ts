@@ -172,7 +172,7 @@ export function registerTestTools() {
     category: 'test',
     parameters: z.object({
       specPath: z.string().optional().describe('Optional specific spec file or folder to run'),
-      createBugOnFailure: z.boolean().default(false).describe('Report a partial P1 Bug on failure; expected behavior requires triage')
+      createBugOnFailure: z.boolean().default(false).describe('Report a partial priority-1 Bug on failure; expected behavior requires triage')
     }),
     execute: async ({specPath, createBugOnFailure}, ctx: ToolContext) => {
       ctx.store.assertCanWrite()
@@ -217,7 +217,7 @@ export function registerTestTools() {
             kind:'bug',
             defect:{reproduction:cmd.join(' '),actual:failureOutput,environment:'Playwright runner',evidence:specPath?[specPath]:[]},
             lane: 'Todo',
-            priority: 'P1',
+            priority: 1,
             body: `Automated Playwright regression detected:\n\`\`\`\n${failureOutput.slice(0, 1000)}\n\`\`\``
           })
           createdTicketId = ctx.store.localId(ticket.id)

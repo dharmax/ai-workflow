@@ -91,7 +91,7 @@ it('PC5 bounded literal list uses snapshot cursors and missing Ticket verificati
  const bug=await payload(client,'create_bug',{id:'B1',title:'Observed defect'});
  const id=bug.id??bug.ticketId;
  const proof=await payload(client,'verify',{action:'show',kind:'ticket',id});
- expect(proof.verificationState).toBe('unverified');expect(proof.verification).toBeNull();
+ expect('verificationState' in proof).toBe(false);expect(proof.verification).toBeNull();
 },20000);
 it('PC5 compact advertisement is opt-in and retains legacy calls with identical family schemas',async()=>{
  const legacy=await connect();const compact=await connect(true);

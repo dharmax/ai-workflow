@@ -153,7 +153,7 @@ describe('US-E01: investigate a sibling repository without changing or authorizi
 
       const refused = await current.callTool({name: 'create_ticket', arguments: {
         projectRoot: sibling, id: 'UNAUTHORIZED', title: 'Other project write',
-        kind: 'task', lane: 'Todo', priority: 'P0'
+        kind: 'task', lane: 'Todo', priority: 0
       }});
       expect(refused.isError).toBe(true);
       expect(fs.readdirSync(siblingState).sort()).toEqual(originalEntries);

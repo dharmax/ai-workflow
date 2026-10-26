@@ -1,4 +1,5 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
+import {PrioritySchema} from '../graph/types.ts';
 import { z } from 'zod';
 import {TechnicalProofSchema} from '../graph/test-proof-types.ts';
 import type { WorkflowStore } from '../graph/store.ts';
@@ -18,9 +19,8 @@ const entityKind = z.enum(['Product', 'Goal', 'Concept', 'Flow', 'Epic', 'Featur
 const epicStatus = z.enum(['draft', 'planned', 'active', 'completed', 'cancelled']);
 const intentStatus = z.enum(['draft', 'proposed', 'accepted', 'deprecated']);
 const ticketLane = TicketLaneSchema;
-const ticketPriority = z.enum(['P0', 'P1', 'P2', 'P3']);
 const fields = z.object({
-  title: z.string().min(1), body: z.string(), status: z.string(), priority: z.union([z.number(), ticketPriority]),
+  title: z.string().min(1), body: z.string(), status: z.string(), priority: PrioritySchema,
   acceptanceCriteria: z.array(z.string()), actor: z.string(), story: z.string(), context: z.string(),
   intent: z.string(), initialState: z.string(), action: z.string(), expectedResult: z.string(),
   exceptions: z.string(), bounds: z.string(), decision: z.string(), consequences: z.string(),
@@ -146,7 +146,6 @@ export function productDefinitionFields(kind: ProductKind) {
   const shape:Record<string,z.ZodType>={};
   for(const key of definitionFields[kind]) shape[key]=fields.shape[key as keyof typeof fields.shape];
   if('status' in shape) shape.status=(kind==='Epic'?z.enum(['draft','planned','active','cancelled']):intentStatus).optional();
-  if('priority' in shape) shape.priority=(kind==='Ticket'?ticketPriority:z.number()).optional();
   return z.object(shape).strict();
 }
 
@@ -212,8 +211,6 @@ function validateFields(kind: ProductKind, input: Record<string, unknown>, creat
       if (missing.length) throw new Error(`Accepted UserStory requires complete Story fields: ${missing.join(', ')}.`);
     }
   }
-  if ((kind === 'Epic' || kind === 'Feature') && input.priority !== undefined) z.number().parse(input.priority);
-  if (kind === 'Ticket' && input.priority !== undefined) ticketPriority.parse(input.priority);
 }
 
 export async function productDependents(store: WorkflowStore, id: string) {
@@ -500,7 +497,8 @@ export async function applyProductMutations(
         Object.assign(data, Object.fromEntries(Object.entries(mutation.fields).filter(([, value]) => value !== undefined)));
         if (mutation.kind === 'product_create') {
           if (entity.kind !== 'Ticket') data.status ??= 'draft';
-          if (entity.kind === 'Ticket') { data.lane ??= 'Todo'; data.priority ??= 'P2'; }
+          if (entity.kind === 'Ticket') data.lane ??= 'Todo';
+          if (['Epic','Feature','Ticket'].includes(entity.kind)) data.priority ??= 2;
         }
         if (entity.kind === 'Ticket' && (mutation.kind === 'product_create' || mutation.fields.lane))
           Object.assign(data, ticketState(data.lane as TicketLane));

@@ -1,3 +1,4 @@
+import {PrioritySchema} from '../graph/types.ts';
 import { z } from 'zod';
 import type { ChangePreview } from '../change/types.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
@@ -6,7 +7,7 @@ import type { ArtifactOperationOptions, CompletenessLevel } from '../artifact-po
 export const IntentProposalSchema = z.object({
   items: z.array(z.object({
     id: z.string().min(1), kind: z.enum(['Epic', 'Feature', 'UserStory', 'Ticket']), title: z.string().min(1),
-    priority: z.union([z.number(), z.enum(['P0','P1','P2','P3'])]).optional(),
+    priority: PrioritySchema.optional(),
     storyIds: z.array(z.string()).optional(), scopeIds: z.array(z.string()).optional(),
     revise: z.boolean().optional(),
     body: z.string().default(''), actor: z.string().optional(), story: z.string().optional(),

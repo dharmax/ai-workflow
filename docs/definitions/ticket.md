@@ -28,3 +28,5 @@ History survives reopening. Explicit on-demand condensation replaces only the co
 - Justified technical maintenance/refactoring can use a direct Ticket without a fictional product hierarchy.
 
 A [primary Epic](epic.md) groups delivery and may supply common Story context; a Ticket can have dependencies and relevant parent work, but neither an Epic nor a board lane silently changes the Ticket's acceptance contract. A skeleton test passing cannot close the resolution Ticket. Its real US test, missing internal stubs, necessary specialist checks and independently valid [evidence](verification.md) determine completion. Definition acceptance, work claim, progress, Done and verified product behavior are distinct.
+
+Priority is an integer from **0 to 5**, default **2**; lower numbers rank first. Legacy `P0`-`P3` values migrate to `0`-`3` without changing their order. Bug severity is independent of priority.

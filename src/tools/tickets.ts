@@ -3,6 +3,7 @@
  * Scope: Atomic leases, lane transitions, ticket listing, and next-task recommendation.
  */
 
+import {PrioritySchema} from '../graph/types.ts';
 import { z } from 'zod';
 import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../graph/ticket-state.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
@@ -130,7 +131,7 @@ export function registerTicketTools() {
       lane: TicketLaneSchema.default('Todo'),
       body: z.string().optional().describe('Detailed context, requirements, or acceptance criteria'),
       acceptanceCriteria: z.array(z.string()).optional(),
-      priority: z.enum(['P0', 'P1', 'P2', 'P3']).default('P2')
+      priority: PrioritySchema.default(2)
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `TKT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -152,7 +153,7 @@ export function registerTicketTools() {
       title: z.string().min(1).optional(),
       body: z.string().optional(),
       acceptanceCriteria: z.array(z.string()).optional(),
-      priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional(),
+      priority: PrioritySchema.optional(),
       lane: TicketLaneSchema.optional()
     }).strict(),
     execute: async ({ ticketId, lane, ...changes }, ctx: ToolContext) => {
@@ -246,20 +247,20 @@ export function registerTicketTools() {
           candidates.push({ticket,created:await ticket.getField<string>('_created') ?? ''});
       const group = (ticket:Ticket) => ticket.claim && Date.parse(ticket.claim.expiresAt) > now && ticket.claim.agentId === agentId ? 0 : ticket.lane === 'In Progress' ? 1 : 2;
       const severity = (ticket:Ticket) => ticket.kind === 'bug' && ticket.defect?.severity ? ['critical','high','medium','low'].indexOf(ticket.defect.severity) : 4;
-      candidates.sort((a,b) => group(a.ticket)-group(b.ticket) || a.ticket.priority.localeCompare(b.ticket.priority) ||
+      candidates.sort((a,b) => group(a.ticket)-group(b.ticket) || a.ticket.priority - b.ticket.priority ||
         severity(a.ticket)-severity(b.ticket) || a.created.localeCompare(b.created) || a.ticket.id.localeCompare(b.ticket.id));
       const ticket=candidates[0]?.ticket;
       return {ticket:ticket ? {id:ctx.store.localId(ticket.id),title:ticket.title,lane:ticket.lane,kind:ticket.kind ?? 'task',priority:ticket.priority,defect:ticket.defect} : null,
         reason:!ticket ? 'No pending tasks are eligible: check lanes, prerequisites, report completeness and active claims.' :
           group(ticket)===0 ? (ticket.lane==='In Progress'?'Active task currently in progress (eligible own lease).':'Eligible work with an active owned lease.') :
           group(ticket)===1 ? 'Unleased task in In Progress lane ready for pickup.' :
-          ticket.kind==='bug' && ['P0','P1'].includes(ticket.priority) ? 'High-priority bug fix pending in Todo lane (explicit priority/severity order).' :
+          ticket.kind==='bug' && ticket.priority <= 1 ? 'High-priority bug fix pending in Todo lane (explicit priority/severity order).' :
           'Next planned task in Todo lane (eligible prerequisites and report).' };
     }
   });
 
   registry.register({name:'create_bug',category:'ticket',description:'Report a first-class Bug on the canonical Ticket store; partial reports retain unknowns.',
-    parameters:z.object({id:z.string().optional(),title:z.string().min(1),body:z.string().optional(),priority:z.enum(['P0','P1','P2','P3']).default('P2'),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional()}),
+    parameters:z.object({id:z.string().optional(),title:z.string().min(1),body:z.string().optional(),priority:PrioritySchema.default(2),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional()}),
     execute:async(params,ctx)=>{
       if (assessBug({kind:'bug',defect:params.defect}).ready) {
         const keys=['reproduction','expected','actual','environment'] as const;
@@ -279,7 +280,7 @@ export function registerTicketTools() {
     parameters:z.object({lane:TicketLaneSchema.optional(),severity:TicketDefectSchema.shape.severity,query:z.string().optional()}),
     execute:(params,ctx)=>registry.execute('list_tickets',{...params,kind:'bug'},ctx)});
   registry.register({name:'update_bug',category:'ticket',description:'Complete or edit a Bug report in place, preserving unspecified defect fields.',
-    parameters:z.object({ticketId:z.string(),title:z.string().min(1).optional(),body:z.string().optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional(),lane:TicketLaneSchema.optional()}),
+    parameters:z.object({ticketId:z.string(),title:z.string().min(1).optional(),body:z.string().optional(),priority:PrioritySchema.optional(),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional(),lane:TicketLaneSchema.optional()}),
     execute:async({ticketId,defect,...fields},ctx)=>{
       await registry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);

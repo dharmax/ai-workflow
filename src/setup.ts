@@ -236,7 +236,7 @@ export async function initProject(projectRoot: string): Promise<InitResult> {
       id: 'TKT-001',
       title: 'Explore codebase and run diagnostics',
       lane: 'Todo',
-      priority: 'P2',
+      priority: 2,
       body: 'Review initial AST+ graph index and verify project health with `aiwf doctor`.'
     });
 

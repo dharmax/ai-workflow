@@ -166,7 +166,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
 
   it('DW-09 exclusive product review excludes concurrent native product applicability links', async () => {
     await createProduct(store, "UserStory", {id: 'S', title: 'Save avatar', ...scenario});
-    await call('create_ticket', {id: 'T', title: 'Implement Save', lane: 'Todo', priority: 'P2'});
+    await call('create_ticket', {id: 'T', title: 'Implement Save', lane: 'Todo', priority: 2});
     const token = await store.admitGovernance('governance');
     try {
       await expect(store.relate('T', 'addresses', 'S')).rejects.toThrow('Governance admission conflict');

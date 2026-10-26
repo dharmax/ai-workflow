@@ -102,7 +102,7 @@ export async function buildIntentContext(
             id: store.localId(item.id),
             kind: item.typeName(),
             title: item.title,
-            priority: (item as WorkflowEntity & {priority?:number|string}).priority,
+            priority: (item as WorkflowEntity & {priority?:number}).priority,
             ...(item instanceof UserStory ? {actor:item.actor,intent:item.intent,initialState:item.initialState,action:item.action,expectedResult:item.expectedResult,exceptions:item.exceptions,bounds:item.bounds} : {}),
             ...((item as Ticket).acceptanceCriteria?.length
                 ? { acceptanceCriteria: (item as Ticket).acceptanceCriteria }

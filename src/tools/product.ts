@@ -3,6 +3,7 @@
  * Scope: CRUD/query for product entities, constrained canonical linking/unlinking, and coverage/impact wrappers.
  */
 
+import {PrioritySchema} from '../graph/types.ts';
 import { z } from 'zod';
 import {TestBindingSpecificationSchema} from '../graph/test-proof-types.ts';
 import {prepareTestBinding,applyTestBinding} from '../graph/technical-proof.ts';
@@ -99,7 +100,7 @@ async function epicView(ctx: ToolContext, epic: Epic) {
     title: (epic as any).title,
     status: (epic as any).status || 'draft',
     body: (epic as any).body || undefined,
-    priority: (epic as any).priority ?? 1,
+    priority: epic.priority,
     targetedGoals: targetedGoals.sort(),
     targetedConcepts: targetedConcepts.sort(),
     targetedFlows: targetedFlows.sort(),
@@ -222,7 +223,7 @@ type ArtifactKind=typeof artifactKinds[number];
 const artifactId=z.string().min(1).regex(/\S/,'ID must not be blank');
 const artifactMatch=z.enum(['exact','human']).optional();
 const pageFields={query:z.string().optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()};
-const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked','Cancelled']).optional(),priority:z.enum(['P0','P1','P2','P3']).optional(),kind:z.enum(['task','bug']).optional()}).strict();
+const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked','Cancelled']).optional(),priority:PrioritySchema.optional(),kind:z.enum(['task','bug']).optional()}).strict();
 const definitionFilter=(kind:ArtifactKind)=>kind==='Ticket'?workFilter:kind==='Bug'?workFilter.extend({kind:z.literal('bug').optional()}):
   z.object({status:(kind==='Epic'?z.enum(EPIC_STATUSES):kind==='Idea'?z.enum(['draft','proposed','accepted','implemented','verified','deprecated']):z.enum(INTENT_STATUSES)).optional()}).strict();
 const artifactBranches:z.ZodType[]=[z.object({action:z.literal('describe'),kind:z.enum(artifactKinds).optional()}).strict()];
@@ -246,7 +247,7 @@ const VerifyActionSchema=z.discriminatedUnion('action',[
   z.object({action:z.literal('run'),kind:z.literal('story'),id:artifactId,idMatch:artifactMatch}).strict()
 ]);
 // Parsing the finite schemas above precedes this common adapter; domain rules remain in S2/S5.
-type ArtifactAction={action:'describe';kind?:ArtifactKind}|{action:'list';kind:ArtifactKind;query?:string;filter?:Record<string,string>;limit?:number;cursor?:string}|
+type ArtifactAction={action:'describe';kind?:ArtifactKind}|{action:'list';kind:ArtifactKind;query?:string;filter?:Record<string,string|number>;limit?:number;cursor?:string}|
   {action:'show';kind:ArtifactKind;id?:string;idMatch?:'exact'|'human'}|
   {action:'preview_new';kind:Exclude<ArtifactKind,'Idea'|'Module'>;id?:string;fields:Record<string,unknown>}|
   {action:'preview_edit';kind:Exclude<ArtifactKind,'Idea'>;id:string;version:number;fields:Record<string,unknown>}|
@@ -444,13 +445,13 @@ export function registerProductTools() {
       id: z.string().optional().describe('Optional stable epic ID (e.g. EPIC-001)'),
       title: z.string().describe('Epic title'),
       body: z.string().optional().describe('Detailed epic description or background'),
-      priority: z.number().optional().describe('Priority integer (default 1)'),
+      priority: PrioritySchema.optional().describe('Priority integer 0-5 (default 2; lower ranks first)'),
       status: z.enum(EPIC_STATUSES).optional().describe('Epic lifecycle status (default: draft)')
     }),
     execute: async (params, ctx: ToolContext) => {
       const id = params.id || `EPIC-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       await applyProductMutations(ctx.store, [{ kind: 'product_create', entityType: 'Epic', id,
-        fields: { title: params.title, body: params.body || '', priority: params.priority ?? 1, status: params.status || 'draft' } }]);
+        fields: { title: params.title, body: params.body || '', priority: params.priority ?? 2, status: params.status || 'draft' } }]);
       const epic = await requireEntity(ctx, id, Epic.dcr, 'Epic');
       return await epicView(ctx, epic);
     }
@@ -490,7 +491,7 @@ export function registerProductTools() {
       epicId: z.string(),
       title: z.string().optional(),
       body: z.string().optional(),
-      priority: z.number().optional(),
+      priority: PrioritySchema.optional(),
       status: z.enum(EPIC_STATUSES).optional()
     }),
     execute: async ({ epicId, ...changes }, ctx: ToolContext) => {
@@ -511,7 +512,7 @@ export function registerProductTools() {
       id: z.string().optional().describe('Optional stable feature ID (e.g. FEAT-001)'),
       title: z.string().describe('Feature capability title'),
       body: z.string().optional().describe('Feature scope and description'),
-      priority: z.number().optional().describe('Feature priority, using the existing numeric product priority convention'),
+      priority: PrioritySchema.optional().describe('Priority integer 0-5 (default 2; lower ranks first)'),
       acceptanceCriteria: z.array(z.string()).optional().describe('High-level feature acceptance criteria'),
       status: z.enum(INTENT_STATUSES).optional().describe('Intent lifecycle status (default: draft)')
     }),
@@ -558,7 +559,7 @@ export function registerProductTools() {
       featureId: z.string(),
       title: z.string().optional(),
       body: z.string().optional(),
-      priority: z.number().optional(),
+      priority: PrioritySchema.optional(),
       acceptanceCriteria: z.array(z.string()).optional(),
       status: z.enum(INTENT_STATUSES).optional()
     }),
@@ -764,6 +765,7 @@ export function registerProductTools() {
       body: z.string().optional().describe('Epic scope or description'),
       status: z.enum(EPIC_STATUSES).optional().describe('Epic status'),
       existingEpicId: z.string().optional().describe('Optional existing Epic ID to enrich'),
+      priority: PrioritySchema.default(2),
       injectedSemanticOutput: z.any().optional().describe('Deterministic test injection (bypasses LLM)')
     }),
     execute: async ({ injectedSemanticOutput, ...draft }, ctx: ToolContext) => {

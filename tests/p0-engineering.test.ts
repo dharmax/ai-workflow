@@ -41,7 +41,7 @@ async function installed(authority?: 'project-write') {
   fs.writeFileSync(path.join(root, 'unrelated.txt'), 'preserved local work\n');
   const store = new WorkflowStore(root);
   try {
-    await store.upsertEntity(Ticket.dcr, {id: 'T-P0', title: 'Change source coherently', body: 'Reviewed fixture source scope', acceptanceCriteria: ['Source changes preserve unrelated work and pass execution checks'], kind: 'task', lane: 'Todo', priority: 'P0'});
+    await store.upsertEntity(Ticket.dcr, {id: 'T-P0', title: 'Change source coherently', body: 'Reviewed fixture source scope', acceptanceCriteria: ['Source changes preserve unrelated work and pass execution checks'], kind: 'task', lane: 'Todo', priority: 0});
     for (const file of ['math.ts', 'obsolete.ts', 'created.ts', 'renamed.ts']) {
       await store.upsertEntity(FileNode.dcr, {id: file, title: file, metadata: {isStub: true,
         ...(['created.ts','renamed.ts'].includes(file) ? {plannedCreation: true} : {})}});
@@ -107,12 +107,13 @@ it('P0 installed host discovers guarded engineering and preserves explicit host 
   expect(fs.existsSync(path.join(root, 'created.ts'))).toBe(false);
   expect(fs.readFileSync(path.join(root, 'renamed.ts'), 'utf8')).toContain('created = true');
   await payload(client, 'release_ticket', {ticketId: 'T-P0'});
-  expect((await payload(client, 'get_ticket', {ticketId: 'T-P0'})).verificationState).toBe('unverified');
+  const proof=await payload(client, 'get_ticket', {ticketId: 'T-P0'});
+  expect(proof.verification).toBeNull();expect('verificationState' in proof).toBe(false);
 }, 30000);
 it('P0 default installed host refuses self-granted write authority and raw patch bypass', async () => {
   const {client, root} = await installed();
   for (const [name, args] of [
-    ['create_ticket', {id: 'SELF', title: 'Self grant', kind: 'task', lane: 'Todo', priority: 'P0', executionAuthority: 'project-write'}],
+    ['create_ticket', {id: 'SELF', title: 'Self grant', kind: 'task', lane: 'Todo', priority: 0, executionAuthority: 'project-write'}],
     ['apply_block_patch', {filePath: 'math.ts', targetContent: 'value = 1', replacementContent: 'value = 99'}]
   ] as const) expect((await client.callTool({name, arguments: args})).isError).toBe(true);
   expect(fs.readFileSync(path.join(root, 'math.ts'), 'utf8')).toContain('value = 1');

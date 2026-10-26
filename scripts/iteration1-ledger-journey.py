@@ -32,7 +32,7 @@ run('link','E-MEAN','to','F-MEAN','as','targets','--yes')
 run('link','E-MEAN','to','T-MEAN','as','contains','--yes')
 run('link','T-MEAN','to','S-MEAN','as','addresses','--yes')
 run('link','T-MEAN','to','src/cli.ts','as','modifies','--yes')
-run('bug','new','--id','B-TOTAL','--title','Decimal totals are truncated','--priority','P1')
+run('bug','new','--id','B-TOTAL','--title','Decimal totals are truncated','--priority','1')
 assert run('bug','triage','B-TOTAL')['ready'] is False
 run('bug','edit','B-TOTAL','--reproduction','bun src/cli.ts total 1.5 2.5','--expected','Exit 0; stdout 4','--actual','Exit 0; stdout 3','--severity','high','--environment','Bun 1.3.14 on Linux','--impact','Decimal numeric values are lost','--evidence','src/cli.ts','--criterion','total 1.5 2.5 exits 0 and prints 4')
 run('link','B-TOTAL','to','S-TOTAL','as','addresses','--yes')

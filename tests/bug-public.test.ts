@@ -29,7 +29,7 @@ describe('first-class Bug public journey',()=>{
   expect(run('claim','B1','agent').success).toBe(false);
   expect(run('bug','resolve','B1').exitCode).toBe(2);
   expect(json('bug','show','B1').verification).toBeNull();
-  json('bug','edit','B1','--reproduction','Run total 2 3','--expected','5','--actual','23','--severity','high','--priority','P1','--evidence','tests/total.test.ts');
+  json('bug','edit','B1','--reproduction','Run total 2 3','--expected','5','--actual','23','--severity','high','--priority','1','--evidence','tests/total.test.ts');
   const triage=json('bug','triage','B1');
   expect(triage.lane).toBe('Todo');
   expect(triage.missing).toEqual([]);
@@ -58,7 +58,12 @@ describe('first-class Bug public journey',()=>{
   const transport=new StdioClientTransport({command:binary??'bun',args:binary?['mcp']:[path.resolve('src/mcp.ts')],cwd:root,stderr:'pipe'});
   try {
     await client.connect(transport);
-    expect((await client.listTools()).tools.map(tool=>tool.name)).toContain('create_bug');
+    const tools=(await client.listTools()).tools;
+    expect(tools.map(tool=>tool.name)).toContain('create_bug');
+    for(const name of ['create_ticket','update_ticket','create_bug','update_bug']) {
+      const schema=tools.find(tool=>tool.name===name)!.inputSchema.properties!.priority as {type:string;minimum:number;maximum:number};
+      expect(schema).toMatchObject({type:'integer',minimum:0,maximum:5});
+    }
     const read=await client.callTool({name:'get_bug',arguments:{ticketId:'B1'}});
     expect(JSON.parse((read.content as Array<{text:string}>)[0]!.text).kind).toBe('bug');
     const denied=await client.callTool({name:'create_bug',arguments:{id:'UNAPPROVED',title:'Agent report'}});
@@ -70,8 +75,8 @@ describe('first-class Bug public journey',()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-bug-rank-'));initializeTools();store=new WorkflowStore(root);
   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
   const call=(tool:string,args:unknown)=>registry.execute(tool,args,ctx);
-  await call('create_ticket',{id:'T',title:'fix BUG in task title',lane:'Todo',priority:'P1'});
-  await call('create_bug',{id:'B',title:'Saved total',priority:'P1',defect:{reproduction:'total 2 3',expected:'5',actual:'23',severity:'medium'}});
+  await call('create_ticket',{id:'T',title:'fix BUG in task title',lane:'Todo',priority:1});
+  await call('create_bug',{id:'B',title:'Saved total',priority:1,defect:{reproduction:'total 2 3',expected:'5',actual:'23',severity:'medium'}});
   expect((await call('get_ticket',{ticketId:'T'})).kind).toBe('task');
   const proposal=await call('preview_change',{action:'product_change',mutations:[{kind:'product_update',entityType:'Ticket',id:'T',fields:{kind:'bug'}}]});
   expect((await call('apply_change',{request:proposal.request,fingerprint:proposal.fingerprint,decision:'accept'})).status).toBe('review_required');

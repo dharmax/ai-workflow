@@ -215,7 +215,7 @@ Only Todo tickets are eligible. Order by numeric priority ascending; ties by tic
       id: 'ORCH-B',
       title: 'Implement sync service handler',
       lane: 'Todo',
-      priority: 'P1'
+      priority: 1
     });
     await store.relate(ticket, 'implements', story);
 

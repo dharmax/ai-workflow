@@ -10,6 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
+import {PrioritySchema} from './types.ts';
 import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
 import {ticketChangeEvents, ticketEventBatch} from './journal.ts';
 import {
@@ -264,10 +265,34 @@ export class WorkflowStore {
     this.sp = new SemanticPackage('aiwf', graphOntology, this.sqliteStore);
     const ticketsExist = this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='aiwf_Ticket'").get();
     const legacy = ticketsExist && this.db.query("SELECT 1 FROM aiwf_Ticket WHERE json_type(data,'$.status') IS NOT NULL LIMIT 1").get();
-    this.ready = legacy ? this.migrateTicketStates() : Promise.resolve();
+    const legacyPriorities = ['Epic', 'Feature', 'Ticket'].some(kind => {
+      const table = `aiwf_${kind}`;
+      return !!this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table) &&
+        !!this.db.query(`SELECT 1 FROM ${table} WHERE json_type(data,'$.priority') IS NOT 'integer' OR json_extract(data,'$.priority') NOT BETWEEN 0 AND 5 LIMIT 1`).get();
+    });
+    const prioritiesReady = legacyPriorities ? this.migratePriorities() : Promise.resolve();
+    this.ready = legacy ? prioritiesReady.then(() => this.migrateTicketStates()) : prioritiesReady;
   }
 
-  /** One-time record migration. Preserve the exact legacy disposition in the existing journal. */
+  /** Read the legacy snapshot synchronously so short commands cannot close mid-migration. Commit through one public conditional batch. */
+  private async migratePriorities(): Promise<void> {
+    const changes: BatchEntry[] = [];
+    for (const kind of ['Epic', 'Feature', 'Ticket']) {
+      const table = `aiwf_${kind}`;
+      if (!this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)) continue;
+      const rows = this.db.query(`SELECT _id, _version, data FROM ${table}`).all() as Array<{_id: string; _version: number; data: string}>;
+      for (const row of rows) {
+        const record = JSON.parse(row.data) as Record<string, unknown>;
+        const legacy = typeof record.priority === 'string' && /^P[0-3]$/.test(record.priority);
+        const priority = PrioritySchema.parse(legacy ? Number((record.priority as string).slice(1)) : record.priority ?? 2);
+        if (record.priority === priority) continue;
+        changes.push({collectionName: table, id: row._id, expectedVersion: row._version, record: {...record, priority}});
+      }
+    }
+    if (changes.length) this.sqliteStore.applyBatch(changes);
+  }
+
+  /** Preserve the exact legacy disposition in the existing journal. */
   private async migrateTicketStates(): Promise<void> {
     const collection = await this.sp.collectionForEntityType(Ticket.dcr);
     const rows = await collection.findSome<Record<string, unknown> & {_id: string; _version: number}>({});
@@ -347,6 +372,7 @@ export class WorkflowStore {
 
   private assertEntityWrite(type: string, id: string | undefined, fields: Record<string, unknown>, previous?: Record<string, unknown>): void {
     this.assertCanWrite();
+    if (['Epic','Feature','Ticket'].includes(type) && 'priority' in fields) PrioritySchema.parse(fields.priority);
     if (this.execution.getStore() && ['Product','Goal','Concept','Flow','Epic','Feature','UserStory','Aspect'].includes(type) &&
         !(previous && 'completenessTarget' in fields && Object.keys(fields).every(key => ['id','_id','completenessTarget'].includes(key))))
       throw Error('Product definitions require reviewed preview/apply; direct tool authoring cannot bypass review.');
@@ -496,7 +522,7 @@ export class WorkflowStore {
       const collection = await this.sp.collectionForEntityType(dcr);
       const old = await collection.findById<Record<string, unknown> & {_version: number}>(formattedId);
       if (expectedVersion !== undefined && old?._version !== expectedVersion) throw Error('Stale governance entity revision.');
-      const payload = {...old, ...data, title: data.title ?? old?.title, status: data.status ?? old?.status ?? (['Product', 'Epic', 'Feature', 'UserStory'].includes(dcr.name) ? 'draft' : 'implemented'),
+      const payload = {...old, ...data, ...(['Epic','Feature'].includes(dcr.name) ? {priority: PrioritySchema.default(2).parse(data.priority ?? old?.priority)} : {}), title: data.title ?? old?.title, status: data.status ?? old?.status ?? (['Product', 'Epic', 'Feature', 'UserStory'].includes(dcr.name) ? 'draft' : 'implemented'),
         updatedAt: new Date().toISOString(), createdAt: old?.createdAt ?? new Date().toISOString()};
       if (old && Object.entries(data).every(([key, value]) => ['id', '_id'].includes(key) || canonical(old[key]) === canonical(value)))
         return this.ownEntity(this.sp.makeEntity<T>(dcr, formattedId, old));
@@ -527,6 +553,7 @@ export class WorkflowStore {
 
     const createPayload = {
       ...data,
+      ...(['Epic','Feature','Ticket'].includes(dcr.name) ? {priority: PrioritySchema.default(2).parse(data.priority)} : {}),
       id: formattedId,
       _id: formattedId,
       ...(dcr.name === 'Ticket' ? {} : {status: data.status ?? defaultStatus}),

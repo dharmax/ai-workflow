@@ -18,6 +18,7 @@ import {
   ModuleNode,
   TestNode
 } from './ontology.ts';
+import {PrioritySchema} from './types.ts';
 import type { TicketLane, EpicStatus, IntentStatus } from './types.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { exportAspectProjection, importAspectProjection } from './aspect-projections.ts';
@@ -28,9 +29,9 @@ const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked'
 
 export async function exportProjections(store: WorkflowStore, rootDir: string = store.root): Promise<{ exportedFiles: string[] }> {
   const exportedFiles: string[] = [];
-  const tickets = await store.listEntities<Ticket>(Ticket.dcr);
-  const epics = await store.listEntities<Epic>(Epic.dcr);
-  const features = await store.listEntities<Feature>(Feature.dcr);
+  const tickets = await store.listEntities<Ticket>(Ticket.dcr, {}, {sort: {priority: 1}});
+  const epics = await store.listEntities<Epic>(Epic.dcr, {}, {sort: {priority: 1}});
+  const features = await store.listEntities<Feature>(Feature.dcr, {}, {sort: {priority: 1}});
   const userStories = await store.listEntities<UserStory>(UserStory.dcr);
   const decisions = await store.listEntities<Decision>(Decision.dcr);
   const health = await store.getProjectHealth();
@@ -51,7 +52,8 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
           const cleanBody = (t as any).body.replace(/\n/g, ' ').trim();
           if (cleanBody) kanban += `  - Summary: ${cleanBody}\n`;
         }
-        if (t.kind === 'bug') kanban += `  - Type: Bug / severity: ${t.defect?.severity ?? 'unknown'} / priority: ${t.priority}\n`;
+        kanban += `  - **Priority**: ${t.priority}\n`;
+        if (t.kind === 'bug') kanban += `  - Type: Bug / severity: ${t.defect?.severity ?? 'unknown'}\n`;
         if ((t as any).claim) {
           const claim = (t as any).claim;
           kanban += `  - Claim: leased by @${claim.agentId} until ${claim.expiresAt}\n`;
@@ -74,7 +76,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
       epicsMd += `## ${epicLocalId}: ${(epic as any).title || epicLocalId}\n\n`;
       epicsMd += `- **Status**: \`${(epic as any).status || 'draft'}\`\n`;
       if (epic.completenessTarget) epicsMd += `- **Completeness Target**: \`${epic.completenessTarget}\`\n`;
-      epicsMd += `- **Priority**: ${(epic as any).priority ?? 1}\n\n`;
+      epicsMd += `- **Priority**: ${epic.priority}\n\n`;
 
       if ((epic as any).body) {
         epicsMd += `${(epic as any).body}\n\n`;
@@ -161,6 +163,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
 
       featuresMd += `## ${featLocalId}: ${(feature as any).title || featLocalId}\n\n`;
       featuresMd += `- **Status**: \`${(feature as any).status || 'draft'}\`\n`;
+      featuresMd += `- **Priority**: ${feature.priority}\n`;
       if (feature.completenessTarget) featuresMd += `- **Completeness Target**: \`${feature.completenessTarget}\`\n`;
       if (epicIds.length > 0) {
         featuresMd += `- **Epics**: ${epicIds.map(id => `\`${id}\``).join(', ')}\n`;
@@ -421,6 +424,14 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
               summary = lines[j + 1].trim().replace(/^- Summary:\s*/, '');
             }
 
+            let priority: number | undefined;
+            for (let k = j + 1; k < lines.length; k++) {
+              const detail = lines[k].trim();
+              if (/^-\s+\[/.test(detail)) break;
+              const match = detail.match(/^-\s+\*\*Priority\*\*:\s*(\S+)\s*$/i);
+              if (match) priority = PrioritySchema.parse(Number(match[1]));
+            }
+
             const existingTicket = await store.getEntity<Ticket>(ticketId, Ticket.dcr);
             const existingClaim = existingTicket ? (existingTicket as any).claim : null;
             const isClaimActive = existingClaim && new Date(existingClaim.expiresAt) > new Date();
@@ -436,6 +447,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
               id: ticketId,
               title,
               body: summary,
+              ...(priority !== undefined ? {priority} : {}),
               claim,
               ...ticketState(existingTicket?.lane === 'Cancelled' && resolvedLane === 'Done' ? 'Cancelled' : resolvedLane)
             });
@@ -463,7 +475,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         const title = headerMatch[2].trim();
         let completenessTarget: CompletenessLevel | null = null;
         let status: EpicStatus = 'draft';
-        let priority = 1;
+        let priority: number | undefined;
 
         const targetedFeatures: string[] = [];
         const targetedStories: string[] = [];
@@ -483,9 +495,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
             continue;
           }
 
-          const prioMatch = line.match(/^-\s+\*\*Priority\*\*:\s*(\d+)/i);
+          const prioMatch = line.match(/^-\s+\*\*Priority\*\*:\s*(\S+)\s*$/i);
           if (prioMatch) {
-            priority = parseInt(prioMatch[1], 10);
+            priority = PrioritySchema.parse(Number(prioMatch[1]));
             continue;
           }
 
@@ -522,7 +534,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           id,
           title,
           body,
-          priority,
+          ...(priority !== undefined ? {priority} : {}),
           completenessTarget,
           status
         });
@@ -572,6 +584,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
         const title = headerMatch[2].trim();
         let completenessTarget: CompletenessLevel | null = null;
         let status: IntentStatus = 'draft';
+        let priority: number | undefined;
         const acceptanceCriteria: string[] = [];
         const enabledStories: string[] = [];
         const bodyLines: string[] = [];
@@ -589,6 +602,9 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
             status = statusMatch[1] as IntentStatus;
             continue;
           }
+
+          const priorityMatch = line.match(/^-\s+\*\*Priority\*\*:\s*(\S+)\s*$/i);
+          if (priorityMatch) { priority = PrioritySchema.parse(Number(priorityMatch[1])); continue; }
 
           if (line.startsWith('### Acceptance Criteria')) {
             currentSection = 'criteria';
@@ -631,6 +647,7 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
           id,
           title,
           body,
+          ...(priority !== undefined ? {priority} : {}),
           acceptanceCriteria,
           completenessTarget,
           status

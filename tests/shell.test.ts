@@ -234,7 +234,7 @@ describe('Interactive Shell REPL Bridge', () => {
       id: 'TKT-VIEW-1',
       title: 'Original title',
       lane: 'Todo',
-      priority: 'P2',
+      priority: 2,
       body: 'Original body'
     }, { store, projectRoot: tempDir, executionAuthority: 'project-write' });
 
@@ -243,7 +243,7 @@ describe('Interactive Shell REPL Bridge', () => {
       values: {
         title: 'Updated title',
         lane: 'In Progress',
-        priority: 'P1',
+        priority: 1,
         body: 'Updated body',
         acceptanceCriteria: 'works\npersists'
       }
@@ -257,7 +257,7 @@ describe('Interactive Shell REPL Bridge', () => {
     const ticket = await store.getEntity<any>('TKT-VIEW-1');
     expect(ticket.title).toBe('Updated title');
     expect(ticket.lane).toBe('In Progress');
-    expect(ticket.priority).toBe('P1');
+    expect(ticket.priority).toBe(1);
     expect(ticket.body).toBe('Updated body');
     expect(ticket.acceptanceCriteria).toEqual(['works', 'persists']);
 

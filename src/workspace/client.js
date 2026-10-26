@@ -46,11 +46,11 @@ export function workspaceClient() {
     const id='field-'+index+'-'+key;
     let input;
     const choices=key==='ticketKind'?['task','bug']:key==='lane'?['Backlog','Todo','In Progress','Done','Blocked','Cancelled']:
-      key==='severity'?['','critical','high','medium','low']:key==='priority'&&kind==='Ticket'?['P0','P1','P2','P3']:null;
+      key==='severity'?['','critical','high','medium','low']:key==='priority'&&kind==='Ticket'?['0','1','2','3','4','5']:null;
     if(choices) {
       input=el('select',undefined,label,{id,name:key});
       for(const choice of choices) option(input,choice,choice||'Unknown');
-      input.value=value??(key==='ticketKind'?'task':key==='priority'?'P2':key==='lane'?'Todo':'');
+      input.value=value??(key==='ticketKind'?'task':key==='priority'?'2':key==='lane'?'Todo':'');
     } else if(key==='status'||key==='intentStatus') {
       label.textContent=kind==='Epic'?'Delivery status':'Definition status';
       input=el('select',undefined,label,{id,name:key,'ariaLabel':'Definition status'});
@@ -58,8 +58,8 @@ export function workspaceClient() {
       input.value=value || 'draft';
     } else {
       input=el(key==='title'||key==='priority'?'input':'textarea',undefined,label,{id,name:key});
-      input.value=Array.isArray(value)?value.join('\n'):value??'';
-      if(key==='priority') {input.type='number'; input.step='any';}
+      input.value=Array.isArray(value)?value.join('\n'):value??(key==='priority'?2:'');
+      if(key==='priority') {input.type='number'; input.step='1'; input.min='0'; input.max='5';}
       if(key==='title') input.required=true;
       if(arrayFields.includes(key)) el('small',key==='acceptanceCriteria'?'One observable criterion per line':'One entry per line',label);
     }
@@ -101,7 +101,7 @@ export function workspaceClient() {
     if(data.kind==='Ticket'&&!create) {
       const proof=el('section',undefined,section,{role:'region',ariaLabel:'Ticket verification'});
       el('h3','Verification',proof);
-      el('p',data.verificationState==='unverified'?'No independent verification receipt. This work remains unverified.':'Recorded receipt; current source, tests and governance have not been revalidated by this view.',proof);
+      el('p',!data.verification?'No independent verification receipt. This work remains unverified.':'Recorded receipt; current source, tests and governance have not been revalidated by this view.',proof);
       if(data.verification) el('pre',JSON.stringify(data.verification,null,2),proof);
       el('p','AIWF resolve owns independent completion. Saving a report or moving work does not verify it.',proof,{className:'hint'});
     }
@@ -179,7 +179,7 @@ export function workspaceClient() {
   }
   function create(kind) {
     if(!canLeave()) return; reset(); current=null;
-    entityForm(kind==='Bug'?{kind:'Ticket',ticketKind:'bug',lane:'Todo',priority:'P2'}:{kind,...(kind==='Product'?{id:'PRODUCT'}:{}),status:kind==='Epic'?'planned':'draft'},0,true);
+    entityForm(kind==='Bug'?{kind:'Ticket',ticketKind:'bug',lane:'Todo',priority:2}:{kind,...(kind==='Product'?{id:'PRODUCT'}:{}),status:kind==='Epic'?'planned':'draft'},0,true);
     $('context').hidden=false; context(); say('New '+(kind==='UserStory'?'Story':kind));
     $('forms').querySelector('[name=title]').focus();
   }
@@ -276,7 +276,7 @@ export function workspaceClient() {
     for(const input of section.querySelectorAll('[name]')) {
       const key=input.name;
       if(['id','feature'].includes(key)) continue;
-      if(key==='priority') {if(input.value!=='') values[key]=section.dataset.kind==='Ticket'?input.value:Number(input.value);}
+      if(key==='priority') {if(input.value!=='') values[key]=Number(input.value);}
       else if(key==='ticketKind') values.kind=input.value;
       else if(['reproduction','expected','actual','severity','impact','environment','evidence'].includes(key)) {
         if(input.value!=='') (values.defect??={})[key]=key==='evidence'?input.value.split('\n').map(s=>s.trim()).filter(Boolean):input.value;

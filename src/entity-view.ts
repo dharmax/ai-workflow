@@ -96,7 +96,7 @@ export async function buildEntityView(
         defect: text(t.defect ? JSON.stringify(t.defect,null,2) : '', 'readonly', {label:'Defect report; use bug edit to complete'}),
         title: text(t.title, 'edit', {label: 'Title'}),
         lane: choice(t.lane ?? 'Todo', ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'], {label: 'Lane'}),
-        priority: choice(t.priority ?? 'P2', ['P0', 'P1', 'P2', 'P3'], {label: 'Priority'}),
+        priority: choice(String(t.priority ?? 2), ['0', '1', '2', '3', '4', '5'], {label: 'Priority'}),
         body: text(t.body, 'edit', {label: 'Body', multiline: true, grow: true}),
         acceptanceCriteria: text((t.acceptanceCriteria ?? []).join('\n'), 'edit', {
           label: 'Acceptance criteria',
@@ -121,7 +121,7 @@ export async function buildEntityView(
         id: text(e.id, 'readonly', {label: 'ID'}),
         title: text(e.title, 'edit', {label: 'Title'}),
         status: choice(e.status, ['draft', 'planned', 'active', 'completed', 'cancelled'], {label: 'Status'}),
-        priority: text(e.priority, 'edit', {label: 'Priority'}),
+        priority: choice(String(e.priority ?? 2), ['0', '1', '2', '3', '4', '5'], {label: 'Priority'}),
         body: text(e.body, 'edit', {label: 'Body', multiline: true, grow: true}),
         features: text(e.targetedFeatures, 'readonly', {label: 'Features'}),
         stories: text(e.targetedStories, 'readonly', {label: 'Stories'}),
@@ -139,6 +139,7 @@ export async function buildEntityView(
       fields: {
         id: text(f.id, 'readonly', {label: 'ID'}),
         title: text(f.title, 'edit', {label: 'Title'}),
+        priority: choice(String(f.priority ?? 2), ['0', '1', '2', '3', '4', '5'], {label: 'Priority'}),
         status: choice(f.status, ['draft', 'proposed', 'accepted', 'deprecated'], {label: 'Status'}),
         body: text(f.body, 'edit', {label: 'Body', multiline: true, grow: true}),
         acceptanceCriteria: text((f.acceptanceCriteria ?? []).join('\n'), 'edit', {
@@ -232,7 +233,7 @@ export async function saveEntityView(
       ticketId: id,
       title: values.title,
       lane: values.lane,
-      priority: values.priority,
+      priority: Number(values.priority),
       body: values.body,
       acceptanceCriteria: lines(values.acceptanceCriteria),
     }, ctx)
@@ -255,6 +256,7 @@ export async function saveEntityView(
   if (kind === 'feature') {
     await registry.execute('update_feature', {
       featureId: id,
+      priority: values.priority === undefined ? undefined : Number(values.priority),
       title: values.title,
       status: values.status,
       body: values.body,

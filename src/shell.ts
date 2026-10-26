@@ -6,6 +6,7 @@
  */
 
 import fs from 'node:fs';
+import {PrioritySchema} from './graph/types.ts';
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
 import { CommanderError } from 'commander';
@@ -416,7 +417,7 @@ export async function processShellInput(
       } else if (parts[i] === '--body' && parts[i + 1]) {
         flags.body = parts[++i];
       } else if (parts[i] === '--priority' && parts[i + 1]) {
-        flags.priority = parseInt(parts[++i], 10);
+        flags.priority = PrioritySchema.parse(Number(parts[++i]));
       } else {
         positional.push(parts[i]);
       }
@@ -450,7 +451,7 @@ export async function processShellInput(
       const created = await registry.execute('create_epic', {
         title: args.title,
         body: flags.body,
-        priority: flags.priority || 1,
+        priority: flags.priority ?? 2,
         status: 'planned'
       }, ctx);
       await exportProjections(session.store, session.projectRoot);
@@ -460,6 +461,7 @@ export async function processShellInput(
     const proposal = await registry.execute('propose_epic_structure', {
       title: args.title,
       body: flags.body,
+      priority: flags.priority ?? 2,
       status: 'planned'
     }, ctx);
 

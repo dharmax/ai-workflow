@@ -3,6 +3,7 @@
  * Scope: Complete ontological graph model connecting code, architecture, roadmap, and artifacts.
  */
 
+import {PrioritySchema} from './types.ts'
 import { z } from "zod"
 import { AbstractEntity, EntityDcr, PredicateDcr, RawOntology } from "@dharmax/semantika"
 import {TicketKindSchema, TicketDefectSchema, TicketLaneSchema} from "./ticket-state.ts"
@@ -171,6 +172,7 @@ export class Product extends WorkflowEntity {
 }
 
 export class Epic extends WorkflowEntity {
+    declare priority: number
     declare status?: string
     process(store: WorkflowStore, options: ProcessOptions = {}) {
         return WorkflowEntity.processIntent(this, store, options)
@@ -195,14 +197,14 @@ export class Epic extends WorkflowEntity {
         ...baseTemplate,
         completenessTarget: completenessValidator,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
-        priority: { validate: (v: unknown) => ({ value: v ?? 1 }) }
+        priority: { validate: (v: unknown) => ({ value: PrioritySchema.default(2).parse(v) }) }
     }
     static readonly dcr = new EntityDcr(Epic, Epic.template, "Epic")
 }
 
 export class Feature extends WorkflowEntity {
     declare status?: string
-    declare priority?: number
+    declare priority: number
     declare outcomes?: string[]
     declare scope?: string
     declare boundaries?: string
@@ -231,7 +233,7 @@ export class Feature extends WorkflowEntity {
         ...baseTemplate,
         completenessTarget: completenessValidator,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },
-        priority: passthroughValidator,
+        priority: { validate: (v: unknown) => ({ value: PrioritySchema.default(2).parse(v) }) },
         acceptanceCriteria: passthroughValidator,
         outcomes: passthroughValidator,
         scope: passthroughValidator,
@@ -379,7 +381,7 @@ export class Aspect extends WorkflowEntity {
 export class Ticket extends WorkflowEntity {
     declare kind: 'task' | 'bug'
     declare defect?: import("./types.ts").TicketDefect
-    declare priority: 'P0' | 'P1' | 'P2' | 'P3'
+    declare priority: number
     declare body: string
     declare lane: import("./types.ts").TicketLane
     declare acceptanceCriteria?: string[]
@@ -415,7 +417,7 @@ export class Ticket extends WorkflowEntity {
         ...ticketTemplate,
         acceptanceCriteria: passthroughValidator,
         lane: { validate: (v: unknown) => ({ value: TicketLaneSchema.parse(v ?? "Backlog") }) },
-        priority: { validate: (v: unknown) => ({ value: v ?? "P2" }) },
+        priority: { validate: (v: unknown) => ({ value: PrioritySchema.default(2).parse(v) }) },
         claim: passthroughValidator,
         estimateTokens: passthroughValidator,
         kind: {validate: (v: unknown) => ({value: TicketKindSchema.parse(v ?? 'task')})},

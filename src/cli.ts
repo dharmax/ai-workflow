@@ -5,6 +5,7 @@
  * release, symbol, slice, outline, blast, index, patch, config, exec, shell, mcp.
  */
 
+import {PrioritySchema} from './graph/types.ts';
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {reviewLink, reviewDefinition, reviewProductChange} from './product/links.ts';
@@ -382,7 +383,7 @@ async function main() {
       const bodyIdx = args.indexOf('--body');
       const body = bodyIdx !== -1 ? args[bodyIdx + 1] : undefined;
       const prioIdx = args.indexOf('--priority');
-      const priority = prioIdx !== -1 ? parseInt(args[prioIdx + 1], 10) : 1;
+      const priority = PrioritySchema.parse(prioIdx !== -1 ? (args[prioIdx + 1]?.trim() ? Number(args[prioIdx + 1]) : NaN) : 2);
       const noDecompose = args.includes('--no-decompose');
       if (args.includes('--apply') && !noDecompose)
         throw new Error('Generated decomposition requires review. Generate a preview, then use product-change accept <preview.json>.');
@@ -403,6 +404,7 @@ async function main() {
       const proposal = await registry.execute('propose_epic_structure', {
         title,
         body,
+        priority,
         status: 'planned'
       }, { store, projectRoot: root, executionAuthority: 'project-write' });
 
@@ -446,17 +448,17 @@ async function main() {
     case 'new': {
       const title = args[1];
       if (!title) {
-        console.error('Usage: aiwf create "<title>" [--lane <lane>] [--priority <P0|P1|P2|P3>] [--id <id>]');
+        console.error('Usage: aiwf create "<title>" [--lane <lane>] [--priority <0|1|2|3|4|5>] [--id <id>]');
         process.exit(1);
       }
       let lane: any = 'Todo';
-      let priority: any = 'P2';
+      let priority = 2;
       let id: string | undefined;
 
       const laneIdx = args.indexOf('--lane');
       if (laneIdx !== -1 && args[laneIdx + 1]) lane = args[laneIdx + 1];
       const prioIdx = args.indexOf('--priority') !== -1 ? args.indexOf('--priority') : args.indexOf('-p');
-      if (prioIdx !== -1 && args[prioIdx + 1]) priority = args[prioIdx + 1];
+      if (prioIdx !== -1) priority = args[prioIdx + 1]?.trim() ? Number(args[prioIdx + 1]) : NaN;
       const idIdx = args.indexOf('--id');
       if (idIdx !== -1 && args[idIdx + 1]) id = args[idIdx + 1];
 
