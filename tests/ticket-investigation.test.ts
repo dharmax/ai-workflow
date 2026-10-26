@@ -87,6 +87,21 @@ describe('grounded Ticket investigation', () => {
     expect(JSON.stringify({ lane: after.lane, criteria: after.acceptanceCriteria, claim: after.claim, edges: await store.getOutgoing(t.id) })).toBe(before);
   });
 
+  it('discovers Oxc interface properties as optional investigation candidates', async () => {
+    const t = await ticket('PRIORITY', 'Repair priority field');
+    fs.mkdirSync(path.join(root, 'src'), {recursive: true});
+    const file = path.join(root, 'src', 'options.ts');
+    fs.writeFileSync(file, 'export interface Options { priority: number }\n');
+    await indexSingleFile(store, file, 'src/options.ts');
+    const property = (await store.listEntities<SymbolNode>(SymbolNode.dcr))
+      .find(symbol => symbol.filePath === 'src/options.ts' && symbol.title === 'priority');
+    expect(property?.kind).toBe('property');
+    const result = await t.investigate(store, {systemOne: routing('high', {[store.localId(property!.id)]: 'include'})});
+    expect(result.status).toBe('complete');
+    if (result.status !== 'complete') throw Error(JSON.stringify(result));
+    expect(result.value.provenance.optionalCandidates).toBeGreaterThan(0);
+    expect(result.value.evidence.some(e => e.id === store.localId(property!.id))).toBe(true);
+  });
   it('prunes optional candidates only and escalates low confidence and contradictory routing once', async () => {
     const t = await ticket('T', 'Repair queue candidate');
     const optional = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, { id: 'OPTIONAL', title: 'candidate', filePath: 'external.ts', kind: 'function' });
