@@ -18,6 +18,17 @@ import {
 } from './ontology.ts';
 import {findTestsVerifying, isTestSource, reconcileTestVerificationEdges, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
+async function pruneOrphanedCallAnchors(store: WorkflowStore, targetIds: Iterable<string>): Promise<void> {
+  for (const id of new Set(targetIds)) {
+    const anchor = await store.getEntity<SymbolNode>(id, SymbolNode.dcr);
+    if (!anchor || anchor.filePath) continue;
+    const legacy = anchor.kind === 'function' && store.localId(anchor.id) === anchor.title;
+    if (anchor.kind !== 'call-candidate' && !legacy) continue;
+    if (!(await store.getIncoming(anchor.id)).length && !(await store.getOutgoing(anchor.id)).length)
+      await store.deleteEntity(anchor.id);
+  }
+}
+
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini',
   '.lean-ctx', '.obsidian', 'tmp', 'coverage', '.cache', 'output', 'fixtures', '__fixtures__', 'legacy-reference'
@@ -89,6 +100,7 @@ export async function indexSingleFile(
   }
 
   const existingFile = await store.getEntity<FileNode>(relPath, FileNode.dcr);
+  const oldCallTargets: string[] = [];
   if (existingFile) {
     const outImports = await store.getOutgoing(existingFile.id, 'imports');
     for (const p of outImports) {
@@ -101,6 +113,7 @@ export async function indexSingleFile(
     }
 
     const outCalls = await store.getOutgoing(existingFile.id, 'calls');
+    oldCallTargets.push(...outCalls.map(p => p.targetId));
     for (const p of outCalls) {
       try { await store.unrelate(existingFile.id, 'calls', p.targetId); } catch {}
     }
@@ -284,25 +297,20 @@ export async function indexSingleFile(
         } catch {}
       }
     } else if (fact.predicate === 'calls' && typeof fact.objectText === 'string') {
+      // Parser call names are syntactic candidates, never resolved declaration references.
       const callee = fact.objectText;
-      try {
-        let targetSym = await store.getEntity<SymbolNode>(callee, SymbolNode.dcr);
-        if (!targetSym) {
-          const matchingSyms = await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: callee });
-          targetSym = matchingSyms[0] || null;
-        }
-        if (!targetSym) {
-          targetSym = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
-            id: callee,
-            title: callee,
-            kind: 'function',
-            status: 'implemented'
-          });
-        }
-        await store.relate(fileEntity, 'calls', targetSym);
-      } catch {}
+      const callId = `call:${callee}`;
+      let anchor = await store.getEntity<SymbolNode>(callId, SymbolNode.dcr);
+      if (!anchor) anchor = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
+        id: callId, title: callee, kind: 'call-candidate', status: 'proposed',
+        metadata: {provenance: 'parser-call-name', resolution: 'candidate'}
+      });
+      await store.relate(fileEntity, 'calls', anchor, {
+        provenance: 'parser-call-name', resolution: 'candidate', confidence: fact.confidence ?? 0
+      });
     }
   }
+  await pruneOrphanedCallAnchors(store, oldCallTargets);
 
   if (testArtifact) await reconcileTestVerificationEdges(store, testArtifact)
 
@@ -348,7 +356,9 @@ export async function removeFileFromIndex(store: WorkflowStore, relPath: string)
     } catch {}
   }
 
+  const oldCallTargets = (await store.getOutgoing(fileEntity.id, 'calls')).map(edge => edge.targetId);
   await store.deleteEntity(fileEntity.id);
+  await pruneOrphanedCallAnchors(store, oldCallTargets);
   return true;
 }
 

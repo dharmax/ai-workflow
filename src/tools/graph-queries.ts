@@ -111,6 +111,7 @@ export function registerGraphTools() {
         const container = (s as any).containerName;
         const symFilePath = (s as any).filePath || '';
         const symKind = (s as any).kind || 'symbol';
+        if (s.status === 'deprecated' || !symFilePath || symKind === 'call-candidate') continue;
         const exported = Boolean((s as any).exported);
 
         if (filePath && !symFilePath.toLowerCase().includes(filePath.toLowerCase())) continue;
@@ -215,7 +216,8 @@ export function registerGraphTools() {
           predicates: travRes.predicates.map(p => ({
             predicate: p.predicateName,
             sourceId: ctx.store.localId(p.sourceId),
-            targetId: ctx.store.localId(p.targetId)
+            targetId: ctx.store.localId(p.targetId),
+            ...(p.predicateName === 'calls' ? {resolution: 'candidate', confidence: p.payload?.confidence ?? null} : {})
           }))
         };
       }
@@ -274,7 +276,8 @@ export function registerGraphTools() {
         const mappedPreds = predicates.slice(0, limit).map(p => ({
           predicate: p.predicateName,
           sourceId: ctx.store.localId(p.sourceId),
-          targetId: ctx.store.localId(p.targetId)
+          targetId: ctx.store.localId(p.targetId),
+          ...(p.predicateName === 'calls' ? {resolution: 'candidate', confidence: p.payload?.confidence ?? null} : {})
         }));
 
         return {
@@ -503,10 +506,9 @@ export async function analyzeBlastRadius(
   const matchedDirect = directFiles.filter(f => f.id.includes(target) || (f as any).path?.includes(target));
 
   const exactSymbol = await store.getEntity<SymbolNode>(target, SymbolNode.dcr);
-  const matchedSymbols = exactSymbol
-    ? [exactSymbol]
-    : (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: target }))
-        .filter(symbol => symbol.status !== 'deprecated');
+  const matchedSymbols = (exactSymbol ? [exactSymbol]
+    : (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: target })))
+    .filter(symbol => symbol.status !== 'deprecated' && symbol.filePath && symbol.kind !== 'call-candidate');
 
   const affectedFileIds = new Set<string>();
   for (const f of matchedDirect) affectedFileIds.add(store.localId(f.id));

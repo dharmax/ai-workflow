@@ -23,6 +23,38 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it('keeps name-only call candidates separate from declarations across reindexing', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), {recursive: true});
+    fs.writeFileSync(path.join(tmpDir, 'src', 'caller.ts'), 'export function run() { return helper() }');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'one.ts'), 'export function helper() { return 1 }');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'two.ts'), 'export function helper() { return 2 }');
+    await indexCodebase(store, tmpDir);
+
+    const edges = await store.getOutgoing('src/caller.ts', 'calls');
+    expect(edges).toHaveLength(1);
+    const anchor = (await store.getEntity<SymbolNode>(edges[0]!.targetId, SymbolNode.dcr))!;
+    expect(anchor.title).toBe('helper');
+    expect(anchor.kind).toBe('call-candidate');
+    expect(anchor.filePath).toBeUndefined();
+    const declarations = (await store.listEntities<SymbolNode>(SymbolNode.dcr, {title: 'helper'}))
+      .filter(symbol => symbol.filePath);
+    expect(declarations).toHaveLength(2);
+    for (const declaration of declarations)
+      expect(await store.getIncoming(declaration.id, 'calls')).toHaveLength(0);
+
+    const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
+    expect((await registry.execute('find_symbol', {name: 'helper', exact: true}, ctx))).toHaveLength(2);
+    const facts = await registry.execute('search_graph', {sourceId: 'src/caller.ts', predicate: 'calls'}, ctx);
+    expect(facts.results[0].resolution).toBe('candidate');
+    await indexCodebase(store, tmpDir);
+    expect((await store.getOutgoing('src/caller.ts', 'calls'))[0]!.targetId).toBe(anchor.id);
+
+    fs.writeFileSync(path.join(tmpDir, 'src', 'caller.ts'), 'export function run() { return 1 }');
+    await indexCodebase(store, tmpDir);
+    expect(await store.getOutgoing('src/caller.ts', 'calls')).toHaveLength(0);
+    expect(await store.getEntity<SymbolNode>(anchor.id, SymbolNode.dcr)).toBeNull();
+  });
+
   it('covers all JS/TS symbol types in AST graph (classes, methods, interfaces, types, enums, destructuring)', async () => {
     const srcDir = path.join(tmpDir, 'src');
     fs.mkdirSync(srcDir, { recursive: true });
