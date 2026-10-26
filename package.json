@@ -35,7 +35,7 @@
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
-    "@dharmax/llm-utils": "file:../llm-utils",
+    "@dharmax/llm-utils": "link:../llm-utils",
     "@dharmax/pubsub": "file:../pubsub",
     "@dharmax/semantic-registry": "file:../semantic-registry",
     "@dharmax/semantika": "file:../semantika",
@@ -54,7 +54,7 @@
     "@dharmax/block-patcher": "file:../block-patcher",
     "@dharmax/codebase-parser": "file:../codebase-parser",
     "@dharmax/context-manager": "file:../context-manager",
-    "@dharmax/llm-utils": "file:../llm-utils",
+    "@dharmax/llm-utils": "link:../llm-utils",
     "@dharmax/pubsub": "file:../pubsub",
     "@dharmax/semantika": "file:../semantika",
     "@dharmax/text-compiler": "file:../text-compiler"
