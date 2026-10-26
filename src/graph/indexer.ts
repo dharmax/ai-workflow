@@ -5,10 +5,14 @@
 
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync, lstatSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { parseIndexedFile } from '@dharmax/codebase-parser';
 import { WorkflowStore } from './store.ts';
+import type {AbstractEntity} from '@dharmax/semantika';
+import type {Stats} from 'node:fs';
+import {canonical} from '../kb/canonical.ts';
+import {workspacePath} from '../change/workspace-path.ts';
 import {
   ModuleNode,
   FileNode,
@@ -18,27 +22,47 @@ import {
 } from './ontology.ts';
 import {findTestsVerifying, isTestSource, reconcileTestVerificationEdges, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
-async function pruneOrphanedCallAnchors(store: WorkflowStore, targetIds: Iterable<string>): Promise<void> {
-  for (const id of new Set(targetIds)) {
-    const anchor = await store.getEntity<SymbolNode>(id, SymbolNode.dcr);
-    if (!anchor || anchor.filePath) continue;
-    const legacy = anchor.kind === 'function' && store.localId(anchor.id) === anchor.title;
-    if (anchor.kind !== 'call-candidate' && !legacy) continue;
-    if (!(await store.getIncoming(anchor.id)).length && !(await store.getOutgoing(anchor.id)).length)
-      await store.deleteEntity(anchor.id);
-  }
-}
-
-const IGNORE_DIRS = new Set([
+const INDEX_EXCLUSIONS = new Set([
   'node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini',
   '.lean-ctx', '.obsidian', 'tmp', 'coverage', '.cache', 'output', 'fixtures', '__fixtures__', 'legacy-reference'
 ]);
 
+const WORKSPACE_TOOL_DIRS = new Set(['node_modules', '.git', '.ai-workflow', 'dist', '.idea', '.gemini', '.lean-ctx', '.obsidian', '.cache', '.codex', 'coverage']);
+
 const SUPPORTED_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.rs', '.go',
+  '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.py', '.rs', '.go',
   '.sh', '.bash', '.css', '.scss', '.html', '.riot', '.vue', '.svelte',
   '.json', '.yaml', '.yml', '.toml', '.md', '.markdown'
 ]);
+
+/** One workspace enumeration owner for structural indexing and literal discovery. */
+export async function discoverWorkspaceFiles(rootDir: string): Promise<{files: string[]; scope: string; skippedFiles: string[]; excludedDirectories: string[]}> {
+  const git = Bun.spawnSync(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: rootDir, stderr: 'pipe'});
+  const files: string[] = [], skippedFiles: string[] = [];
+  const admitted = (file: string) => !file.split(path.sep).some(part => WORKSPACE_TOOL_DIRS.has(part));
+  if (git.success) {
+    for (const file of new Set(git.stdout.toString().split('\0').filter(Boolean))) {
+      if (!admitted(file)) continue;
+      let relative: string;
+      try {relative = workspacePath(rootDir, file);} catch {skippedFiles.push(file); continue;}
+      const info = lstatSync(path.resolve(rootDir, relative), {throwIfNoEntry: false});
+      if (info?.isFile()) files.push(file);
+      else if (info) skippedFiles.push(file);
+    }
+    return {files: files.sort(), skippedFiles, scope: 'git-tracked-and-unignored-workspace-files', excludedDirectories: [...WORKSPACE_TOOL_DIRS]};
+  }
+  async function walk(directory: string): Promise<void> {
+    for (const entry of await readdir(directory, {withFileTypes: true})) {
+      if (WORKSPACE_TOOL_DIRS.has(entry.name)) continue;
+      const full = path.join(directory, entry.name), relative = path.relative(rootDir, full);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile()) files.push(relative);
+      else skippedFiles.push(relative);
+    }
+  }
+  await walk(rootDir);
+  return {files: files.sort(), skippedFiles, scope: 'workspace-files-excluding-tool-directories', excludedDirectories: [...WORKSPACE_TOOL_DIRS]};
+}
 
 export function resolveModulePath(relPath: string): string {
   const parts = relPath.split(path.sep);
@@ -74,301 +98,174 @@ export interface FreshnessResult {
  * Indexes or updates a single file in the AST+ Graph.
  * Cleans up any prior symbols and notes for this file before re-indexing.
  */
-export async function indexSingleFile(
-  store: WorkflowStore,
-  fullPath: string,
-  relPath: string,
-  rootDir: string = store.root
-): Promise<{ symbolsCount: number; notesCount: number }> {
-  const fileStat = await stat(fullPath);
-  const content = await readFile(fullPath, 'utf8');
-  const parsed = parseIndexedFile({ filePath: relPath, content });
-
-  const modName = resolveModulePath(relPath);
-  const modEntity = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr) ?? await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
-    id: `mod:${modName}`,
-    title: modName,
-    path: modName,
-    status: 'implemented'
-  });
-
-  // Clean up previous file notes for this relPath using filtered query (symbols are stably reconciled below)
-  const existingNotes = await store.listEntities<Lesson>(Lesson.dcr, { filePath: relPath });
-  for (const n of existingNotes) {
-    if (!store.localId(n.id).startsWith(`note:${relPath}:`)) continue;
-    try { await store.deleteEntity(n.id); } catch {}
-  }
-
-  const existingFile = await store.getEntity<FileNode>(relPath, FileNode.dcr);
-  const oldCallTargets: string[] = [];
-  if (existingFile) {
-    const outImports = await store.getOutgoing(existingFile.id, 'imports');
-    for (const p of outImports) {
-      try { await store.unrelate(existingFile.id, 'imports', p.targetId); } catch {}
-    }
-
-    const outDeps = await store.getOutgoing(existingFile.id, 'depends_on');
-    for (const p of outDeps) {
-      try { await store.unrelate(existingFile.id, 'depends_on', p.targetId); } catch {}
-    }
-
-    const outCalls = await store.getOutgoing(existingFile.id, 'calls');
-    oldCallTargets.push(...outCalls.map(p => p.targetId));
-    for (const p of outCalls) {
-      try { await store.unrelate(existingFile.id, 'calls', p.targetId); } catch {}
-    }
-  }
-
-  const fileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
-    id: relPath,
-    title: path.basename(relPath),
-    path: relPath,
-    language: parsed.language,
-    fileKind: parsed.fileKind,
-    size: fileStat.size,
-    mtime: fileStat.mtimeMs,
-    status: 'implemented',
-    metadata: parsed.metadata
-  });
-
-  await store.relate(modEntity, 'contains', fileEntity);
-
-  const testArtifact = isTestSource(relPath, content)
-    ? await upsertTestArtifact(store, fileEntity, relPath, content)
-    : null;
-
-  if (!testArtifact) {
-    const staleTest = await store.getEntity<TestNode>(testArtifactId(relPath), TestNode.dcr);
-    if (staleTest) {
-      try { await store.deleteEntity(staleTest.id); } catch {}
-    }
-  }
-
-  // 1. Reconcile symbols stably: do NOT blindly delete existing symbols.
-  // Group old and new symbols by stable key: containerName + kind + name
-  const existingSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: relPath });
-  const oldByKey = new Map<string, SymbolNode[]>();
-  for (const s of existingSymbols) {
-    const key = `${s.containerName || ''}::${s.kind}::${s.title}`;
-    const list = oldByKey.get(key) || [];
-    list.push(s);
-    oldByKey.set(key, list);
-  }
-
-  const newByKey = new Map<string, typeof parsed.symbols>();
-  for (const sym of parsed.symbols) {
-    const key = `${sym.containerName || ''}::${sym.kind}::${sym.name}`;
-    const list = newByKey.get(key) || [];
-    list.push(sym);
-    newByKey.set(key, list);
-  }
-
-  // Set of old entity IDs that were matched and preserved
-  const preservedOldIds = new Set<string>();
-  const containerEntities = new Map<string, SymbolNode>();
-  let symbolsCount = 0;
-
-  // Process new symbols: either update uniquely matched old entity, or create new
-  for (const sym of parsed.symbols) {
-    symbolsCount++;
-    const key = `${sym.containerName || ''}::${sym.kind}::${sym.name}`;
-    const oldMatches = oldByKey.get(key) || [];
-    const newMatches = newByKey.get(key) || [];
-
-    let symbolEntity: SymbolNode;
-    // Exactly one old and one new symbol share this key: update old entity in place
-    if (oldMatches.length === 1 && newMatches.length === 1) {
-      const oldEntity = oldMatches[0];
-      preservedOldIds.add(oldEntity.id);
-      await oldEntity.update({
-        line: sym.line,
-        column: sym.column,
-        exported: sym.exported,
-        signature: sym.metadata?.signature,
-        status: 'implemented',
-        metadata: {...((oldEntity as any).metadata ?? {}), missing: false},
-        updatedAt: new Date().toISOString()
-      }, true, false);
-      symbolEntity = oldEntity;
-    } else {
-      // Unmatched or ambiguous duplicate key: create new symbol entity
-      const containerPrefix = sym.containerName ? `${sym.containerName}.` : '';
-      const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
-      symbolEntity = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
-        id: symbolId,
-        title: sym.name,
-        containerName: sym.containerName,
-        filePath: relPath,
-        kind: sym.kind,
-        exported: sym.exported,
-        line: sym.line,
-        column: sym.column,
-        signature: sym.metadata?.signature,
-        status: 'implemented'
-      });
-    }
-
-    try {
-      await store.relate(fileEntity, 'contains', symbolEntity);
-    } catch {}
-
-    if (!sym.containerName && ['class', 'interface', 'enum', 'struct', 'trait'].includes(sym.kind)) {
-      containerEntities.set(sym.name, symbolEntity);
-    }
-  }
-
-  // Delete unmatched old symbols that were not preserved
-  for (const oldSym of existingSymbols) {
-    if (!preservedOldIds.has(oldSym.id)) {
-      try {
-        const referenced = (await store.getIncoming(oldSym.id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName));
-        if (referenced) await store.upsertEntity(SymbolNode.dcr, { id: oldSym.id, status: 'deprecated', metadata: { missing: true } });
-        else await store.deleteEntity(oldSym.id);
-      } catch {}
-    }
-  }
-
-  // 2. Relate container entity to its members (e.g. Class contains Method)
-  for (const sym of parsed.symbols) {
-    if (sym.containerName && containerEntities.has(sym.containerName)) {
-      const parentEntity = containerEntities.get(sym.containerName)!;
-      const key = `${sym.containerName}::${sym.kind}::${sym.name}`;
-      const oldMatches = oldByKey.get(key) || [];
-      const newMatches = newByKey.get(key) || [];
-
-      let memberEntity: SymbolNode | null = null;
-      if (oldMatches.length === 1 && newMatches.length === 1 && preservedOldIds.has(oldMatches[0].id)) {
-        memberEntity = oldMatches[0];
-      } else {
-        const containerPrefix = `${sym.containerName}.`;
-        const symbolId = `${relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
-        memberEntity = await store.getEntity<SymbolNode>(symbolId, SymbolNode.dcr);
-      }
-
-      if (memberEntity) {
-        try {
-          await store.relate(parentEntity, 'contains', memberEntity);
-        } catch {}
-      }
-    }
-  }
-
-  // 3. Index static imports, dependencies, and calls
-  for (const fact of parsed.facts) {
-    if (fact.predicate === 'imports' && typeof fact.objectText === 'string') {
-      const importSpec = fact.objectText;
-      if (importSpec.startsWith('.')) {
-        const absDir = path.dirname(fullPath);
-        let resolved = path.resolve(absDir, importSpec);
-        if (!existsSync(resolved)) {
-          if (existsSync(`${resolved}.ts`)) resolved = `${resolved}.ts`;
-          else if (existsSync(`${resolved}.tsx`)) resolved = `${resolved}.tsx`;
-          else if (existsSync(`${resolved}.js`)) resolved = `${resolved}.js`;
-          else if (existsSync(path.join(resolved, 'index.ts'))) resolved = path.join(resolved, 'index.ts');
-          else if (existsSync(path.join(resolved, 'index.js'))) resolved = path.join(resolved, 'index.js');
-        }
-        const targetRel = path.relative(rootDir, resolved);
-
-        try {
-          let targetFileEntity = await store.getEntity<FileNode>(targetRel, FileNode.dcr);
-          if (!targetFileEntity) {
-            targetFileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
-              id: targetRel,
-              title: path.basename(targetRel),
-              path: targetRel,
-              status: 'implemented',
-              metadata: { isStub: true }
-            });
-          }
-          await store.relate(fileEntity, 'imports', targetFileEntity);
-          await store.relate(fileEntity, 'depends_on', targetFileEntity);
-        } catch {}
-      } else {
-        // External package or built-in import (e.g. @test/mylib, lodash)
-        try {
-          let targetEntity = await store.getEntity<ModuleNode>(`mod:@external/${importSpec}`, ModuleNode.dcr);
-          if (!targetEntity) {
-            const allFiles = await store.listEntities<FileNode>(FileNode.dcr);
-            targetEntity = allFiles.find(f => (f as any).id.includes(importSpec)) || null as any;
-          }
-          if (targetEntity) {
-            await store.relate(fileEntity, 'imports', targetEntity);
-            await store.relate(fileEntity, 'depends_on', targetEntity);
-          }
-        } catch {}
-      }
-    } else if (fact.predicate === 'calls' && typeof fact.objectText === 'string') {
-      // Parser call names are syntactic candidates, never resolved declaration references.
-      const callee = fact.objectText;
-      const callId = `call:${callee}`;
-      let anchor = await store.getEntity<SymbolNode>(callId, SymbolNode.dcr);
-      if (!anchor) anchor = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
-        id: callId, title: callee, kind: 'call-candidate', status: 'proposed',
-        metadata: {provenance: 'parser-call-name', resolution: 'candidate'}
-      });
-      await store.relate(fileEntity, 'calls', anchor, {
-        provenance: 'parser-call-name', resolution: 'candidate', confidence: fact.confidence ?? 0
-      });
-    }
-  }
-  await pruneOrphanedCallAnchors(store, oldCallTargets);
-
-  if (testArtifact) await reconcileTestVerificationEdges(store, testArtifact)
-
-  // 4. Index in-code notes (BUG, FIXME, TODO)
-  let notesCount = 0;
-  for (const note of parsed.notes) {
-    notesCount++;
-    const noteId = `note:${relPath}:${note.line}:${note.column}`;
-    const lesson = await store.upsertEntity<Lesson>(Lesson.dcr, {
-      id: noteId,
-      title: `${note.noteType} at ${relPath}:${note.line}`,
-      filePath: relPath,
-      noteType: (note.noteType as any) || 'TODO',
-      body: note.body,
-      status: 'proposed'
-    });
-
-    await store.relate(fileEntity, 'contains', lesson);
-  }
-
-  return { symbolsCount, notesCount };
+/** Preserve source entity revisions when forced parsing produces identical facts. */
+async function upsertSource<T extends AbstractEntity>(store: WorkflowStore, type: typeof FileNode.dcr,
+  fields: Record<string, unknown> & {id: string}): Promise<T> {
+  const previous = await store.getEntity<T>(fields.id, type);
+  if (previous && Object.entries(fields).every(([key, value]) => key === 'id' ||
+      canonical((previous as unknown as Record<string, unknown>)[key]) === canonical(value))) return previous;
+  return store.upsertEntity<T>(type, fields);
 }
 
-/**
- * Removes a file and all its contained symbols and notes from the AST+ Graph.
- */
-export async function removeFileFromIndex(store: WorkflowStore, relPath: string): Promise<boolean> {
-  const fileEntity = await store.getEntity<FileNode>(relPath, FileNode.dcr);
-  if (!fileEntity) return false;
+type ParsedFile = ReturnType<typeof parseIndexedFile>;
+type ParsedSymbol = ParsedFile['symbols'][number];
 
-  const contained = await store.getOutgoing(fileEntity.id, 'contains');
-  const oldCallTargets = (await store.getOutgoing(fileEntity.id, 'calls')).map(edge => edge.targetId);
-  const retained = new Set<string>();
-  for (const id of [fileEntity.id, ...contained.map(edge => edge.targetId)]) {
-    if ((await store.getIncoming(id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName))
-      retained.add(id);
+/** Reconcile only source-derived state; authored work targets survive missing source. */
+export async function indexSingleFile(
+  store: WorkflowStore, fullPath: string, relPath: string, rootDir: string = store.root
+): Promise<{symbolsCount: number; notesCount: number}> {
+  const fileStat = await stat(fullPath);
+  const content = await readFile(fullPath, 'utf8');
+  const parsed = parseIndexedFile({filePath: relPath, content});
+  const modName = resolveModulePath(relPath);
+  const module = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr)
+    ?? await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
+      id: `mod:${modName}`, title: modName, path: modName, status: 'implemented'
+    });
+  const existing = await store.getEntity<FileNode>(relPath, FileNode.dcr);
+  if (existing) for (const predicate of ['calls'])
+    for (const edge of await store.getOutgoing(existing.id, predicate))
+      await store.unrelate(existing.id, predicate, edge.targetId);
+  const file = await upsertSource<FileNode>(store, FileNode.dcr, {
+    id: relPath, title: path.basename(relPath), path: relPath,
+    language: parsed.language, fileKind: parsed.fileKind, size: fileStat.size, mtime: fileStat.mtimeMs,
+    status: 'implemented', metadata: {...existing?.metadata, ...parsed.metadata, missing: false, isStub: false, ctimeMs: fileStat.ctimeMs, structureVersion: 2,
+      callCandidates: parsed.facts.filter(fact => fact.predicate === 'calls').map(fact => ({
+        name: fact.objectText, confidence: fact.confidence, provenance: 'parser-syntax', resolution: 'unresolved'
+      }))}
+  });
+  await store.relate(module, 'contains', file);
+  await reconcileFileSymbols(store, file, relPath, parsed.symbols);
+  await indexFileImports(store, file, fullPath, rootDir, parsed);
+  const test = isTestSource(relPath, content) ? await upsertTestArtifact(store, file, relPath, content) : null;
+  if (test) await reconcileTestVerificationEdges(store, test);
+  await reconcileFileNotes(store, file, relPath, parsed);
+  return {symbolsCount: parsed.symbols.length, notesCount: parsed.notes.length};
+}
+
+function symbolKey(name: string, kind: string, container: string | undefined, isStatic: unknown): string {
+  return JSON.stringify([container ?? '', kind, name, Boolean(isStatic)]);
+}
+
+async function hasAuthoredAnchor(store: WorkflowStore, id: string): Promise<boolean> {
+  return (await store.getIncoming(id)).some(edge =>
+    ['modifies', 'targets', 'governs'].includes(edge.predicateName) ||
+    edge.predicateName === 'verifies' && edge.payload?.state !== 'derived');
+}
+
+async function retireSymbol(store: WorkflowStore, symbol: SymbolNode): Promise<void> {
+  if (await hasAuthoredAnchor(store, symbol.id))
+    await store.upsertEntity(SymbolNode.dcr, {id: symbol.id, status: 'deprecated',
+      metadata: {...symbol.metadata, missing: true}});
+  else await store.deleteEntity(symbol.id);
+}
+
+/** Stable structural keys preserve line-moved declarations, including static and nested members. */
+async function reconcileFileSymbols(store: WorkflowStore, file: FileNode, relPath: string, symbols: ParsedSymbol[]): Promise<void> {
+  const previous = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
+  const key = (symbol: ParsedSymbol) => symbolKey(symbol.name, symbol.kind, symbol.containerName, symbol.metadata?.static);
+  const oldByKey = new Map<string, SymbolNode[]>();
+  for (const symbol of previous) {
+    const identity = symbolKey(symbol.title!, symbol.kind!, symbol.containerName, symbol.metadata?.static);
+    oldByKey.set(identity, [...oldByKey.get(identity) ?? [], symbol]);
   }
-  if (retained.size) {
-    // Keep authored targets but remove obsolete derived source relationships.
-    for (const predicate of ['imports', 'depends_on', 'calls'])
-      for (const edge of await store.getOutgoing(fileEntity.id, predicate))
-        await store.unrelate(fileEntity.id, predicate, edge.targetId);
-    for (const edge of contained) {
-      const symbol = await store.getEntity<SymbolNode>(edge.targetId, SymbolNode.dcr);
-      if (retained.has(edge.targetId) && symbol)
-        await store.upsertEntity(SymbolNode.dcr, {id: symbol.id, status: 'deprecated', metadata: {missing: true}});
-      else if (!retained.has(edge.targetId))
-        await store.deleteEntity(edge.targetId);
+  const counts = new Map<string, number>();
+  for (const symbol of symbols) counts.set(key(symbol), (counts.get(key(symbol)) ?? 0) + 1);
+  const current = new Set<string>(), byName = new Map<string, SymbolNode[]>();
+  const entries: Array<{symbol: ParsedSymbol; entity: SymbolNode}> = [];
+  const ownership: Array<{source: FileNode | SymbolNode; target: SymbolNode}> = [];
+  for (const symbol of symbols) {
+    const old = oldByKey.get(key(symbol)) ?? [];
+    const unique = counts.get(key(symbol)) === 1;
+    const fullName = [symbol.containerName, symbol.name].filter(Boolean).join('.');
+    const id = old.length === 1 && unique ? old[0]!.id
+      : `${relPath}#${fullName}:${symbol.kind}${symbol.metadata?.static ? ':static' : ''}${unique ? '' : `:${symbol.line}:${symbol.column}`}`;
+    const entity = await upsertSource<SymbolNode>(store, SymbolNode.dcr, {
+      id, title: symbol.name, kind: symbol.kind, containerName: symbol.containerName, filePath: relPath,
+      line: symbol.line, column: symbol.column, exported: symbol.exported,
+      signature: symbol.metadata?.signature, status: 'implemented',
+      metadata: {...symbol.metadata, provenance: /\.[cm]?[jt]sx?$/.test(relPath) ? 'oxc-ast' : 'parser-heuristic', missing: false, ambiguousIdentity: !unique}
+    });
+    current.add(entity.id);
+    entries.push({symbol, entity});
+    byName.set(fullName, [...byName.get(fullName) ?? [], entity]);
+    ownership.push({source: file, target: entity});
+  }
+  for (const {symbol, entity} of entries) {
+    const parents = symbol.containerName ? byName.get(symbol.containerName) : undefined;
+    if (parents?.length === 1) ownership.push({source: parents[0]!, target: entity});
+  }
+  const desired = new Set(ownership.map(({source, target}) => JSON.stringify([source.id, target.id])));
+  for (const owner of [file, ...previous]) for (const edge of await store.getOutgoing(owner.id, 'contains'))
+    if (edge.targetType === 'SymbolNode' && !desired.has(JSON.stringify([owner.id, edge.targetId])))
+      await store.unrelate(owner.id, 'contains', edge.targetId);
+  for (const {source, target} of ownership) await store.relate(source, 'contains', target);
+  for (const symbol of previous) if (!current.has(symbol.id)) await retireSymbol(store, symbol);
+}
+
+/** Imports are structural dependencies, never name-resolved symbol calls. */
+async function indexFileImports(store: WorkflowStore, file: FileNode, fullPath: string, rootDir: string, parsed: ParsedFile): Promise<void> {
+  const targets = new Set<string>();
+  for (const fact of parsed.facts) {
+    if (fact.predicate !== 'imports' || typeof fact.objectText !== 'string') continue;
+    const specifier = fact.objectText;
+    if (!specifier.startsWith('.')) {
+      const packageName = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
+      const external = await store.getEntity<ModuleNode>(`mod:@external/${packageName}`, ModuleNode.dcr);
+      if (external) {
+        targets.add(external.id);
+        await store.relate(file, 'imports', external, {state: 'derived', note: 'Parser import specifier'});
+        await store.relate(file, 'depends_on', external, {state: 'derived', note: 'Parser import specifier'});
+      }
+      continue;
     }
-    await store.upsertEntity(FileNode.dcr, {id: fileEntity.id, mtime: 0, status: 'deprecated',
-      metadata: {isStub: true, missing: true}});
-    await pruneOrphanedCallAnchors(store, oldCallTargets);
-    return true;
+    const base = path.resolve(path.dirname(fullPath), specifier);
+    const resolved = resolveSourceImport(path.dirname(fullPath), specifier) ?? base;
+    const relative = path.relative(rootDir, resolved);
+    if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) continue;
+    const target = await store.getEntity<FileNode>(relative, FileNode.dcr)
+      ?? await store.upsertEntity<FileNode>(FileNode.dcr, {id: relative, title: path.basename(relative), path: relative,
+        status: 'proposed', metadata: {isStub: true}});
+    targets.add(target.id);
+    await store.relate(file, 'imports', target, {state: 'derived', note: 'Parser import; filesystem candidate, not TS module resolution'});
+    await store.relate(file, 'depends_on', target, {state: 'derived', note: 'Parser import; filesystem candidate, not TS module resolution'});
   }
-  for (const edge of contained) await store.deleteEntity(edge.targetId);
-  await store.deleteEntity(fileEntity.id);
-  await pruneOrphanedCallAnchors(store, oldCallTargets);
+  for (const predicate of ['imports', 'depends_on']) for (const edge of await store.getOutgoing(file.id, predicate))
+    if (!targets.has(edge.targetId)) await store.unrelate(file.id, predicate, edge.targetId);
+}
+
+async function reconcileFileNotes(store: WorkflowStore, file: FileNode, relPath: string, parsed: ParsedFile): Promise<void> {
+  for (const note of await store.listEntities<Lesson>(Lesson.dcr, {filePath: relPath}))
+    if (store.localId(note.id).startsWith(`note:${relPath}:`) && !(await hasAuthoredAnchor(store, note.id)))
+      await store.deleteEntity(note.id);
+  for (const note of parsed.notes) {
+    const lesson = await store.upsertEntity<Lesson>(Lesson.dcr, {
+      id: `note:${relPath}:${note.line}:${note.column}`, title: `${note.noteType} at ${relPath}:${note.line}`,
+      filePath: relPath, noteType: note.noteType || 'TODO', body: note.body, status: 'proposed'
+    });
+    await store.relate(file, 'contains', lesson);
+  }
+}
+
+/** Remove derived facts but retain authored targets and unresolved import destinations. */
+export async function removeFileFromIndex(store: WorkflowStore, relPath: string): Promise<boolean> {
+  const file = await store.getEntity<FileNode>(relPath, FileNode.dcr);
+  if (!file || file.metadata?.missing === true) return false;
+  const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
+  let retain = await hasAuthoredAnchor(store, file.id);
+  for (const symbol of symbols) {
+    retain ||= await hasAuthoredAnchor(store, symbol.id);
+    for (const edge of await store.getOutgoing(symbol.id, 'contains'))
+      await store.unrelate(symbol.id, 'contains', edge.targetId);
+    await retireSymbol(store, symbol);
+  }
+  for (const predicate of ['imports', 'depends_on', 'calls', 'contains'])
+    for (const edge of await store.getOutgoing(file.id, predicate))
+      await store.unrelate(file.id, predicate, edge.targetId);
+  retain ||= (await store.getIncoming(file.id)).some(edge => ['imports', 'depends_on'].includes(edge.predicateName));
+  if (retain) await store.upsertEntity(FileNode.dcr, {id: file.id, mtime: 0, status: 'deprecated',
+    metadata: {...file.metadata, isStub: true, missing: true, callCandidates: []}});
+  else await store.deleteEntity(file.id);
   return true;
 }
 
@@ -404,48 +301,25 @@ async function reconcileAst(
   rootDir: string = store.root,
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
 ): Promise<FreshnessResult> {
-  const candidateFiles: Array<{ fullPath: string; relPath: string; stat: any }> = [];
-
-  async function walk(currentDir: string) {
-    let entries: any[] = [];
-    try {
-      entries = await readdir(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') && entry.name !== '.env') continue;
-      if (IGNORE_DIRS.has(entry.name)) continue;
-
-      const fullPath = path.join(currentDir, entry.name);
-      const relPath = path.relative(rootDir, fullPath);
-
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (!SUPPORTED_EXTENSIONS.has(ext)) continue;
-        try {
-          const s = await stat(fullPath);
-          candidateFiles.push({ fullPath, relPath, stat: s });
-        } catch {}
-      }
-    }
+  const discovered = await discoverWorkspaceFiles(rootDir);
+  const candidateFiles: Array<{fullPath: string; relPath: string; stat: Stats}> = [];
+  for (const relPath of discovered.files) {
+    if (relPath.split(path.sep).some(part => INDEX_EXCLUSIONS.has(part)) || !SUPPORTED_EXTENSIONS.has(path.extname(relPath).toLowerCase())) continue;
+    const fullPath = path.resolve(rootDir, relPath);
+    candidateFiles.push({fullPath, relPath, stat: await stat(fullPath)});
   }
 
-  await walk(rootDir);
-
   const existingFiles = await store.listEntities<FileNode>(FileNode.dcr);
-  const existingMap = new Map<string, { mtime?: number; size?: number; id: string; isExternal?: boolean; isStub?: boolean }>();
+  const existingMap = new Map<string, { mtime?: number; size?: number; id: string; isExternal?: boolean; isStub?: boolean; ctimeMs?: number; structureVersion?: number }>();
   for (const f of existingFiles) {
-    const localId = store.localId(f.id);
+    const localId = (f as FileNode & {path?: string}).path ?? store.localId(f.id);
     existingMap.set(localId, {
       mtime: (f as any).mtime,
       size: (f as any).size,
       id: f.id,
       isExternal: Boolean((f as any).metadata?.isExternal),
-      isStub: Boolean((f as any).metadata?.isStub)
+      isStub: Boolean((f as any).metadata?.isStub),
+      ctimeMs: f.metadata?.ctimeMs as number | undefined, structureVersion: f.metadata?.structureVersion as number | undefined
     });
   }
 
@@ -475,7 +349,7 @@ async function reconcileAst(
       options?.force ||
       !existing.mtime ||
       s.mtimeMs !== existing.mtime ||
-      s.size !== existing.size
+      s.size !== existing.size || s.ctimeMs !== existing.ctimeMs || existing.structureVersion !== 2
     );
 
     if (isNew || isModified) {
@@ -499,19 +373,9 @@ async function reconcileAst(
     }
   }
 
-  if (options?.force) {
-    await reconcileTestVerificationEdges(store)
-  } else {
-    for (const test of affectedTests.values()) {
-      const testPath = test.filePath || test.targetPath
-      if (!testPath) continue
-      const fullPath = path.resolve(rootDir, testPath)
-      if (!existsSync(fullPath)) continue
-      try {
-        await indexSingleFile(store, fullPath, testPath, rootDir)
-      } catch (cause) { throw new Error(`Failed to reindex verifying test ${testPath}`, {cause}); }
-    }
-  }
+  // Dependent test sources did not change. Refresh only their derived verification links.
+  if (options?.force) await reconcileTestVerificationEdges(store);
+  else if (affectedTests.size) await reconcileTestVerificationEdges(store, [...affectedTests.values()]);
 
   return {
     updatedFiles,
@@ -524,134 +388,84 @@ async function reconcileAst(
 /**
  * Discovers and indexes local workspace/file: dependencies from package.json.
  */
+/** Index an external public surface through the same declaration reconciliation owner. */
+async function indexExternalFile(store: WorkflowStore, fullPath: string, relPath: string, module: ModuleNode) {
+  const info = await stat(fullPath);
+  const previous = await store.getEntity<FileNode & {mtime?: number; size?: number}>(relPath, FileNode.dcr);
+  if (previous?.mtime === info.mtimeMs && previous.size === info.size &&
+      previous.metadata?.ctimeMs === info.ctimeMs && previous.metadata?.structureVersion === 2)
+    return {changed: false, imports: (previous.metadata.importSpecifiers ?? []) as string[]};
+  const parsed = parseIndexedFile({filePath: relPath, content: await readFile(fullPath, 'utf8')});
+  const imports = parsed.facts.filter(fact => fact.predicate === 'imports').map(fact => fact.objectText)
+    .filter((text): text is string => typeof text === 'string');
+  const file = await upsertSource<FileNode>(store, FileNode.dcr, {id: relPath, title: path.basename(fullPath), path: relPath,
+    language: parsed.language, fileKind: parsed.fileKind, size: info.size, mtime: info.mtimeMs, status: 'implemented',
+    metadata: {...previous?.metadata, isExternal: true, externalPath: fullPath, ctimeMs: info.ctimeMs,
+      structureVersion: 2, missing: false, isStub: false, importSpecifiers: imports,
+      coverage: 'Exported declarations and members in the package entry and its direct local imports; not the whole dependency.'}});
+  await store.relate(module, 'contains', file);
+  const publicContainers = parsed.symbols.filter(symbol => symbol.exported && ['class','interface','type','enum','namespace'].includes(symbol.kind))
+    .map(symbol => [symbol.containerName, symbol.name].filter(Boolean).join('.'));
+  await reconcileFileSymbols(store, file, relPath, parsed.symbols.filter(symbol => symbol.exported ||
+    publicContainers.some(container => symbol.containerName === container)));
+  return {changed: true, imports};
+}
+
+function resolveSourceImport(directory: string, specifier: string): string | undefined {
+  const base = path.resolve(directory, specifier);
+  return [base, ...['.ts','.tsx','.mts','.cts','.js','.mjs','.cjs'].map(extension => base + extension),
+    ...['index.ts','index.tsx','index.js'].map(name => path.join(base, name))]
+    .find(file => existsSync(file) && statSync(file).isFile());
+}
+
+type DependencyManifest = {
+  dependencies?: Record<string, string>; devDependencies?: Record<string, string>;
+  exports?: string | Record<string, string | Record<string, string>>; module?: string; main?: string;
+};
+
+/** Entry and direct-import coverage is explicit; parsing, identity and retirement have one owner. */
 export async function indexExternalDependencies(store: WorkflowStore, rootDir: string): Promise<number> {
-  const pkgJsonPath = path.join(rootDir, 'package.json');
-  let indexedCount = 0;
-
-  try {
-    const pkgRaw = await readFile(pkgJsonPath, 'utf8');
-    const pkg = JSON.parse(pkgRaw);
-    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-
-    for (const [depName, depVersion] of Object.entries(deps)) {
-      if (typeof depVersion === 'string' && depVersion.startsWith('file:')) {
-        const depRel = depVersion.slice(5);
-        const depRoot = path.resolve(rootDir, depRel);
-        const depPkgPath = path.join(depRoot, 'package.json');
-
-        try {
-          const depPkgRaw = await readFile(depPkgPath, 'utf8');
-          const depPkg = JSON.parse(depPkgRaw);
-
-          const candidates = [
-            depPkg.exports?.['.']?.bun,
-            depPkg.exports?.['.']?.default,
-            depPkg.exports?.['.']?.import,
-            depPkg.exports?.['.'],
-            depPkg.module,
-            depPkg.main,
-            'src/index.ts',
-            'src/index.js',
-            'index.ts',
-            'index.js'
-          ].filter(Boolean);
-
-          let entryFile: string | null = null;
-          let entryRel: string = '';
-          for (const c of candidates) {
-            const p = path.resolve(depRoot, c);
-            if (existsSync(p)) {
-              entryFile = p;
-              entryRel = path.relative(depRoot, p);
-              break;
-            }
-          }
-
-          if (entryFile) {
-            const entryContent = await readFile(entryFile, 'utf8');
-            const filesToIndex: Array<{ fullPath: string; relPath: string; content: string }> = [
-              { fullPath: entryFile, relPath: `${depName}/${entryRel}`, content: entryContent }
-            ];
-
-            const reExportMatches = [...entryContent.matchAll(/export\s+(?:\*|\{[^}]+\})\s+from\s+['"]([^'"]+)['"]/g)];
-            for (const m of reExportMatches) {
-              const targetRel = m[1];
-              if (!targetRel.startsWith('.')) continue;
-              let candidatePath = path.resolve(path.dirname(entryFile), targetRel);
-              if (!existsSync(candidatePath)) {
-                if (existsSync(`${candidatePath}.ts`)) candidatePath = `${candidatePath}.ts`;
-                else if (existsSync(`${candidatePath}.js`)) candidatePath = `${candidatePath}.js`;
-              }
-              if (existsSync(candidatePath)) {
-                try {
-                  const targetContent = await readFile(candidatePath, 'utf8');
-                  const relToDep = path.relative(depRoot, candidatePath);
-                  filesToIndex.push({
-                    fullPath: candidatePath,
-                    relPath: `${depName}/${relToDep}`,
-                    content: targetContent
-                  });
-                } catch {}
-              }
-            }
-
-            const modName = `@external/${depName}`;
-            for (const fileItem of filesToIndex) {
-              const fileStat = existsSync(fileItem.fullPath) ? await stat(fileItem.fullPath) : { size: fileItem.content.length, mtimeMs: Date.now() };
-              const existing = await store.getEntity<FileNode & { mtime?: number; size?: number; metadata?: { externalPath?: string } }>(fileItem.relPath, FileNode.dcr);
-              if (existing?.mtime === fileStat.mtimeMs && existing.size === fileStat.size && existing.metadata?.externalPath === fileItem.fullPath) continue;
-              const parsed = parseIndexedFile({ filePath: fileItem.relPath, content: fileItem.content });
-              const modEntity = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr)
-                || await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
-                  id: `mod:${modName}`, title: modName, path: modName, status: 'implemented'
-                });
-              if (existing) {
-                const oldSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { filePath: fileItem.relPath });
-                for (const symbol of oldSymbols) await store.deleteEntity(symbol.id);
-              }
-
-              const fileEntity = await store.upsertEntity<FileNode>(FileNode.dcr, {
-                id: fileItem.relPath,
-                title: path.basename(fileItem.fullPath),
-                path: fileItem.relPath,
-                language: parsed.language,
-                fileKind: parsed.fileKind,
-                size: fileStat.size,
-                mtime: fileStat.mtimeMs,
-                status: 'implemented',
-                metadata: { isExternal: true, externalPath: fileItem.fullPath }
-              });
-
-              await store.relate(modEntity, 'contains', fileEntity);
-              indexedCount++;
-
-              for (const sym of parsed.symbols) {
-                if (!sym.exported) continue;
-                const containerPrefix = sym.containerName ? `${sym.containerName}.` : '';
-                const symbolId = `${fileItem.relPath}#${containerPrefix}${sym.name}:${sym.line}:${sym.column}`;
-                const symbolEntity = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {
-                  id: symbolId,
-                  title: sym.name,
-                  containerName: sym.containerName,
-                  filePath: fileItem.relPath,
-                  kind: sym.kind,
-                  exported: true,
-                  line: sym.line,
-                  column: sym.column,
-                  signature: sym.metadata?.signature,
-                  status: 'implemented'
-                });
-
-                await store.relate(fileEntity, 'contains', symbolEntity);
-              }
-            }
-          }
-        } catch {}
+  const manifest = path.join(rootDir, 'package.json');
+  if (!existsSync(manifest)) return 0;
+  const pkg: DependencyManifest = JSON.parse(await readFile(manifest, 'utf8'));
+  const retained = new Set<string>();
+  let indexed = 0;
+  for (const [name, version] of Object.entries({...pkg.dependencies, ...pkg.devDependencies})) {
+    if (!version.startsWith('file:') && !version.startsWith('link:')) continue;
+    const dependency = path.resolve(rootDir, version.slice(5));
+    const dependencyManifest = path.join(dependency, 'package.json');
+    if (!existsSync(dependencyManifest)) continue; // Uninstalled optional local dependency is not source evidence.
+    try {
+      const fields: DependencyManifest = JSON.parse(await readFile(dependencyManifest, 'utf8'));
+      const rootExport = typeof fields.exports === 'string' ? fields.exports : fields.exports?.['.'] ?? fields.exports;
+      const conditions = typeof rootExport === 'object' ? rootExport : {};
+      const entries = [rootExport, conditions.bun, conditions.import, conditions.default, fields.module, fields.main,
+        'src/index.ts','src/index.js','index.ts','index.js'].filter((value): value is string => typeof value === 'string');
+      const entry = entries.map(file => path.resolve(dependency, file)).find(file => existsSync(file) && statSync(file).isFile());
+      if (!entry) continue;
+      const module = await store.getEntity<ModuleNode>(`mod:@external/${name}`, ModuleNode.dcr)
+        ?? await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {id: `mod:@external/${name}`, title: `@external/${name}`,
+          path: `@external/${name}`, status: 'implemented'});
+      const entryId = `${name}/${path.relative(dependency, entry)}`;
+      const result = await indexExternalFile(store, entry, entryId, module);
+      retained.add(entryId);
+      if (result.changed) indexed++;
+      for (const specifier of new Set(result.imports.filter(specifier => specifier.startsWith('.')))) {
+        const full = resolveSourceImport(path.dirname(entry), specifier);
+        if (!full || full === entry) continue;
+        const relative = path.relative(dependency, full);
+        if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) continue;
+        const id = `${name}/${relative}`;
+        const imported = await indexExternalFile(store, full, id, module);
+        retained.add(id);
+        if (imported.changed) indexed++;
       }
-    }
-  } catch {}
-
-  return indexedCount;
+    } catch (cause) {throw new Error(`Failed to index local dependency ${name}`, {cause});}
+  }
+  for (const file of await store.listEntities<FileNode>(FileNode.dcr))
+    if (file.metadata?.isExternal && !retained.has(String((file as FileNode & {path?: string}).path ?? store.localId(file.id))))
+      await removeFileFromIndex(store, String((file as FileNode & {path?: string}).path ?? store.localId(file.id)));
+  return indexed;
 }
 
 /**
@@ -665,6 +479,11 @@ export async function indexCodebase(
   const freshness = await ensureAstFresh(store, rootDir, { force: true, onProgress: options?.onProgress });
 
   const allFiles = await store.listEntities<FileNode>(FileNode.dcr);
+  for (const symbol of await store.listEntities<SymbolNode>(SymbolNode.dcr))
+    if (!symbol.filePath && (symbol.kind === 'call-candidate' || store.localId(symbol.id) === symbol.title)
+        && !(await store.getIncoming(symbol.id)).length && !(await store.getOutgoing(symbol.id)).length)
+      await store.deleteEntity(symbol.id);
+
   const allSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr);
   const allNotes = await store.listEntities<Lesson>(Lesson.dcr);
   const allModules = await store.listEntities<ModuleNode>(ModuleNode.dcr);

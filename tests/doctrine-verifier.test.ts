@@ -308,7 +308,8 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
   it('supplies caller-scoped whole files without resolving inferred call anchors as declarations', async () => {
     fs.appendFileSync(path.join(root, 'src/add.ts'), '\nexport class BoundAddition { constructor() { const bound = add.bind(null); } }\n');
     await indexCodebase(store, root);
-    const inferred = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(symbol => symbol.title === 'bind' && !symbol.filePath)!;
+    const inferred = await store.upsertEntity<SymbolNode>(SymbolNode.dcr, {id: 'legacy-bind', title: 'bind', kind: 'function'});
+    await store.relate((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!, 'calls', inferred, {state: 'legacy-heuristic'});
     expect(inferred).toBeDefined();
     // An unresolved call has a caller edge, not a declaration in the caller's file.
     expect((await store.getOutgoing('src/add.ts', 'calls')).some(edge => edge.targetId === inferred.id)).toBe(true);

@@ -23,36 +23,37 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('keeps name-only call candidates separate from declarations across reindexing', async () => {
+  it('stores unresolved parser call names as file evidence, never synthetic declarations', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'caller.ts'), 'export function invoke() { left.send(); right.send(); }');
+    await indexCodebase(store, tmpDir);
+    const file = (await store.getEntity<FileNode>('caller.ts', FileNode.dcr))!;
+    expect(file.metadata?.callCandidates).toEqual([{name: 'send', confidence: 0.52, provenance: 'parser-syntax', resolution: 'unresolved'}]);
+    expect((await store.listEntities<SymbolNode>(SymbolNode.dcr)).every(symbol => Boolean(symbol.filePath))).toBe(true);
+    expect(await store.getOutgoing(file.id, 'calls')).toEqual([]);
+  });
+
+  it('keeps ambiguous call names separate from declarations across reindexing', async () => {
     fs.mkdirSync(path.join(tmpDir, 'src'), {recursive: true});
-    fs.writeFileSync(path.join(tmpDir, 'src', 'caller.ts'), 'export function run() { return helper() }');
-    fs.writeFileSync(path.join(tmpDir, 'src', 'one.ts'), 'export function helper() { return 1 }');
-    fs.writeFileSync(path.join(tmpDir, 'src', 'two.ts'), 'export function helper() { return 2 }');
+    fs.writeFileSync(path.join(tmpDir, 'src/caller.ts'), 'export function run() { return helper() }');
+    fs.writeFileSync(path.join(tmpDir, 'src/one.ts'), 'export function helper() { return 1 }');
+    fs.writeFileSync(path.join(tmpDir, 'src/two.ts'), 'export function helper() { return 2 }');
     await indexCodebase(store, tmpDir);
-
-    const edges = await store.getOutgoing('src/caller.ts', 'calls');
-    expect(edges).toHaveLength(1);
-    const anchor = (await store.getEntity<SymbolNode>(edges[0]!.targetId, SymbolNode.dcr))!;
-    expect(anchor.title).toBe('helper');
-    expect(anchor.kind).toBe('call-candidate');
-    expect(anchor.filePath).toBeUndefined();
-    const declarations = (await store.listEntities<SymbolNode>(SymbolNode.dcr, {title: 'helper'}))
-      .filter(symbol => symbol.filePath);
+    const file = (await store.getEntity<FileNode>('src/caller.ts', FileNode.dcr))!;
+    const candidates = file.metadata?.callCandidates;
+    expect(candidates).toEqual([{name: 'helper', confidence: 0.52, provenance: 'parser-syntax', resolution: 'unresolved'}]);
+    const declarations = await store.listEntities<SymbolNode>(SymbolNode.dcr, {title: 'helper'});
     expect(declarations).toHaveLength(2);
-    for (const declaration of declarations)
-      expect(await store.getIncoming(declaration.id, 'calls')).toHaveLength(0);
-
+    for (const declaration of declarations) expect(await store.getIncoming(declaration.id, 'calls')).toHaveLength(0);
     const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
-    expect((await registry.execute('find_symbol', {name: 'helper', exact: true}, ctx))).toHaveLength(2);
-    const facts = await registry.execute('search_graph', {sourceId: 'src/caller.ts', predicate: 'calls'}, ctx);
-    expect(facts.results[0].resolution).toBe('candidate');
+    expect(await registry.execute('find_symbol', {name: 'helper', exact: true}, ctx)).toHaveLength(2);
+    const outline = await registry.execute('get_file_outline', {filePath: 'src/caller.ts'}, ctx);
+    expect(outline.callCandidates).toEqual(candidates);
     await indexCodebase(store, tmpDir);
-    expect((await store.getOutgoing('src/caller.ts', 'calls'))[0]!.targetId).toBe(anchor.id);
-
-    fs.writeFileSync(path.join(tmpDir, 'src', 'caller.ts'), 'export function run() { return 1 }');
+    expect((await store.getEntity<FileNode>(file.id, FileNode.dcr))!.metadata?.callCandidates).toEqual(candidates);
+    fs.writeFileSync(path.join(tmpDir, 'src/caller.ts'), 'export function run() { return 1 }');
     await indexCodebase(store, tmpDir);
-    expect(await store.getOutgoing('src/caller.ts', 'calls')).toHaveLength(0);
-    expect(await store.getEntity<SymbolNode>(anchor.id, SymbolNode.dcr)).toBeNull();
+    expect((await store.getEntity<FileNode>(file.id, FileNode.dcr))!.metadata?.callCandidates).toEqual([]);
+    expect((await store.listEntities<SymbolNode>(SymbolNode.dcr)).every(symbol => Boolean(symbol.filePath))).toBe(true);
   });
 
   it('reports literal schema/config occurrences without claiming exact references', async () => {
@@ -62,12 +63,12 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     fs.writeFileSync(path.join(tmpDir, 'settings.json'), '{"defaultPriority": "priority"}');
     await indexCodebase(store, tmpDir);
     const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
-    const result = await registry.execute('search_indexed_files_text', {text: 'priority'}, ctx);
+    const result = await registry.execute('search_workspace_text', {text: 'priority'}, ctx);
     expect(result.exact).toBe(false);
     expect(result.completeWithinScope).toBe(true);
     expect(result.matches.some((item: any) => item.filePath === 'src/record.ts')).toBe(true);
     expect(result.matches.some((item: any) => item.filePath === 'settings.json')).toBe(true);
-    const bounded = await registry.execute('search_indexed_files_text', {text: 'priority', limit: 1}, ctx);
+    const bounded = await registry.execute('search_workspace_text', {text: 'priority', limit: 1}, ctx);
     expect(bounded.truncated).toBe(true);
     expect(bounded.completeWithinScope).toBe(false);
     expect(bounded.matches).toHaveLength(1);
@@ -329,12 +330,14 @@ export function utilB() { return 123; }
     expect(importsSearch.mode).toBe('predicate_search');
     expect(importsSearch.results.some((r: any) => r.targetId.includes('moduleB'))).toBe(true);
 
-    // 3. Call sites (calls)
+    // 3. Syntactic names are available as unresolved source evidence, never declaration call edges.
     const callsSearch = await registry.execute('search_graph', {
       sourceId: 'src/moduleA.ts',
       predicate: 'calls'
     }, ctx);
-    expect(callsSearch.results.some((r: any) => r.targetId.includes('utilB'))).toBe(true);
+    expect(callsSearch.results).toEqual([]);
+    const outline = await registry.execute('get_file_outline', {filePath: 'src/moduleA.ts'}, ctx);
+    expect(outline.callCandidates).toContainEqual({name: 'utilB', confidence: 0.52, provenance: 'parser-syntax', resolution: 'unresolved'});
 
     // 4. Graph traversal
     const traversal = await registry.execute('search_graph', {

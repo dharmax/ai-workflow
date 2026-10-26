@@ -1,178 +1,70 @@
-/**
- * Responsibility: Exact code target resolution for Causal Change Engine.
- * Scope: Maps ChangeTarget (entity, symbol, position, file) to exact ResolvedCodeTarget
- *        using Semantika AST+ Graph, freshness verification, and TS7 LSP definitions.
- * Rules:
- *   - ensureAstFresh() is always called first.
- *   - No guessing between ambiguous symbols: if multiple candidates exist without sufficient context, reject with error.
- *   - No fuzzy semantic retrieval.
- */
-
+/** Resolve exact source identity; explicit positions do not depend on Graph admission. */
 import path from 'node:path';
 import fs from 'node:fs';
-import { pathToFileURL } from 'node:url';
-import type { WorkflowStore } from '../graph/store.ts';
-import { SymbolNode, FileNode } from '../graph/ontology.ts';
-import { ensureAstFresh } from '../graph/indexer.ts';
-import { TsLspClient } from './ts-lsp.ts';
-import type { ChangeTarget, ResolvedCodeTarget, LspPosition } from './types.ts';
+import {workspacePath} from './workspace-path.ts';
+import type {WorkflowStore} from '../graph/store.ts';
+import {SymbolNode, FileNode} from '../graph/ontology.ts';
+import {ensureAstFresh} from '../graph/indexer.ts';
+import type {TsLspClient} from './ts-lsp.ts';
+import type {ChangeTarget, ResolvedCodeTarget} from './types.ts';
 
-export async function resolveCodeTarget(
-  target: ChangeTarget,
-  store: WorkflowStore,
-  lspClient: TsLspClient,
-  projectRoot: string
-): Promise<ResolvedCodeTarget> {
-  // 1. Ensure AST graph is fresh before resolving any anchors
-  await ensureAstFresh(store, projectRoot);
+function resolvePosition(target: Extract<ChangeTarget, {type:'position'}>, client: TsLspClient, root: string): ResolvedCodeTarget {
+  const filePath = workspacePath(root, target.filePath);
+  const full = path.resolve(root, filePath);
+  if (!fs.statSync(full).isFile() || !/\.[cm]?[jt]sx?$/.test(filePath))
+    throw Error('Reference target must be a JS/TS source file in the project.');
+  const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
+  if (!Number.isInteger(target.line) || !Number.isInteger(target.character) || target.line < 0 || target.character < 0 ||
+      target.line >= lines.length || target.character > lines[target.line]!.length)
+    throw Error('Reference position falls outside the source file.');
+  return {filePath, symbolName:'', position:{line:target.line, character:target.character}, uri:client.toUri(filePath)};
+}
 
-  let candidateFilePath: string | undefined;
-  let candidateSymbolName: string | undefined;
-  let candidateContainer: string | undefined;
-  let candidatePosition: LspPosition | undefined;
-  let graphEntityId: string | undefined;
-
-  switch (target.type) {
-    case 'entity': {
-      const entity = await store.getEntity<SymbolNode>(target.entityId, SymbolNode.dcr);
-      if (!entity) {
-        throw new Error(`Target entity '${target.entityId}' not found in AST graph.`);
-      }
-      graphEntityId = entity.id;
-      candidateFilePath = entity.filePath;
-      candidateSymbolName = entity.title;
-      candidateContainer = entity.containerName;
-      if (entity.line !== undefined && entity.column !== undefined) {
-        candidatePosition = {
-          line: Math.max(0, entity.line - 1),
-          character: Math.max(0, entity.column - 1)
-        };
-      }
-      break;
-    }
-
-    case 'symbol': {
-      candidateFilePath = target.filePath;
-      candidateSymbolName = target.symbolName;
-      candidateContainer = target.containerName;
-
-      // Find matching symbol in graph
-      const query: Record<string, any> = { title: target.symbolName };
-      if (target.filePath) {
-        const rel = path.isAbsolute(target.filePath) ? path.relative(projectRoot, target.filePath) : target.filePath;
-        query.filePath = rel;
-      }
-      if (target.containerName) {
-        query.containerName = target.containerName;
-      }
-
-      const matches = await store.listEntities<SymbolNode>(SymbolNode.dcr, query);
-      if (matches.length === 0) {
-        throw new Error(`Symbol '${target.symbolName}' not found${target.filePath ? ` in ${target.filePath}` : ''}.`);
-      }
-      if (matches.length > 1) {
-        const locations = matches.map(m => `${m.filePath}#${m.title} (line ${m.line})`).join(', ');
-        throw new Error(`Ambiguous symbol '${target.symbolName}' found in multiple locations: ${locations}. Specify exact filePath or entity ID.`);
-      }
-
-      const match = matches[0];
-      graphEntityId = match.id;
-      candidateFilePath = match.filePath;
-      candidateContainer = match.containerName;
-      candidatePosition = {
-        line: Math.max(0, (match.line || 1) - 1),
-        character: Math.max(0, (match.column || 1) - 1)
-      };
-      break;
-    }
-
-    case 'position': {
-      candidateFilePath = target.filePath;
-      candidatePosition = {
-        line: target.line,
-        character: target.character
-      };
-      break;
-    }
-
-    case 'range': {
-      const rel = path.isAbsolute(target.filePath) ? path.relative(projectRoot, target.filePath) : target.filePath;
-      return {
-        filePath: rel,
-        symbolName: '',
-        position: { line: target.startLine, character: target.startCharacter },
-        range: {
-          start: { line: target.startLine, character: target.startCharacter },
-          end: { line: target.endLine, character: target.endCharacter }
-        },
-        uri: lspClient.toUri(rel)
-      };
-    }
-
-    case 'file': {
-      const rel = path.isAbsolute(target.filePath) ? path.relative(projectRoot, target.filePath) : target.filePath;
-      const fileEntity = await store.getEntity<FileNode>(rel, FileNode.dcr);
-      if (!fileEntity) {
-        throw new Error(`File '${target.filePath}' not found in AST graph.`);
-      }
-      return {
-        filePath: rel,
-        symbolName: path.basename(rel),
-        position: { line: 0, character: 0 },
-        uri: lspClient.toUri(rel),
-        graphEntityId: fileEntity.id
-      };
-    }
+async function findGraphSymbol(target: Extract<ChangeTarget, {type:'entity'|'symbol'}>, store: WorkflowStore, root: string): Promise<SymbolNode> {
+  if (target.type === 'entity') {
+    const entity = await store.getEntity<SymbolNode>(target.entityId, SymbolNode.dcr);
+    if (!entity || !entity.filePath || entity.status === 'deprecated' || entity.metadata?.missing)
+      throw Error(`Target entity '${target.entityId}' has no current source declaration in the AST graph.`);
+    return entity;
   }
-
-  if (!candidateFilePath || !candidatePosition) {
-    throw new Error('Could not resolve file path or position for target.');
+  const query: Record<string, string> = {title:target.symbolName};
+  if (target.filePath) query.filePath = workspacePath(root, target.filePath);
+  if (target.containerName) query.containerName = target.containerName;
+  const matches = (await store.listEntities<SymbolNode>(SymbolNode.dcr, query))
+    .filter(symbol => symbol.status !== 'deprecated' && symbol.filePath);
+  if (!matches.length) throw Error(`Symbol '${target.symbolName}' not found in ${target.filePath}.`);
+  if (matches.length > 1) {
+    const locations = matches.map(symbol => `${symbol.filePath}#${symbol.title} (line ${symbol.line}, column ${symbol.column})`).join(', ');
+    throw Error(`Ambiguous symbol '${target.symbolName}': ${locations}. Specify an exact entity ID or source position.`);
   }
+  return matches[0]!;
+}
 
-  const relFilePath = path.isAbsolute(candidateFilePath)
-    ? path.relative(projectRoot, candidateFilePath)
-    : candidateFilePath;
-
-  // Scan line to locate exact identifier token position for accurate LSP definition/rename probe
-  const absPath = path.resolve(projectRoot, relFilePath);
-  if (fs.existsSync(absPath) && candidateSymbolName) {
-    try {
-      const fileText = fs.readFileSync(absPath, 'utf8');
-      const fileLines = fileText.split('\n');
-      const targetLine = fileLines[candidatePosition.line];
-      if (targetLine) {
-        // Search for symbol identifier on this line
-        const regex = new RegExp(`\\b${candidateSymbolName}\\b`);
-        const match = targetLine.match(regex);
-        if (match && match.index !== undefined) {
-          candidatePosition = {
-            line: candidatePosition.line,
-            character: match.index
-          };
-        }
-      }
-    } catch {}
+export async function resolveCodeTarget(target: ChangeTarget, store: WorkflowStore, client: TsLspClient, root: string): Promise<ResolvedCodeTarget> {
+  if (target.type === 'position') return resolvePosition(target, client, root);
+  if (target.type === 'range') {
+    const filePath = workspacePath(root, target.filePath);
+    return {filePath, symbolName:'', position:{line:target.startLine,character:target.startCharacter},
+      range:{start:{line:target.startLine,character:target.startCharacter},end:{line:target.endLine,character:target.endCharacter}},
+      uri:client.toUri(filePath)};
   }
-
-  // Ask TS7 LSP for exact definition
-  await lspClient.ensureStarted();
-  const definitions = await lspClient.getDefinition(relFilePath, candidatePosition);
-
-  let exactPosition = candidatePosition;
-  let exactFilePath = relFilePath;
-
-  if (definitions.length > 0) {
-    const def = definitions[0];
-    exactFilePath = path.relative(projectRoot, lspClient.fromUri(def.uri));
-    exactPosition = def.range.start;
+  await ensureAstFresh(store, root);
+  if (target.type === 'file') {
+    const filePath = workspacePath(root, target.filePath);
+    const file = await store.getEntity<FileNode>(filePath, FileNode.dcr);
+    if (!file || file.status === 'deprecated') throw Error(`File '${target.filePath}' not found in AST graph.`);
+    return {filePath,symbolName:path.basename(filePath),position:{line:0,character:0},uri:client.toUri(filePath),graphEntityId:file.id};
   }
-
-  return {
-    filePath: exactFilePath,
-    symbolName: candidateSymbolName || '',
-    containerName: candidateContainer,
-    position: exactPosition,
-    uri: lspClient.toUri(exactFilePath),
-    graphEntityId
-  };
+  const symbol = await findGraphSymbol(target, store, root);
+  if (symbol.line === undefined || symbol.column === undefined) throw Error('Declaration has no source position.');
+  // Preserve the parser's identifier coordinates. A same-line name scan can select another member.
+  const resolved = resolvePosition({type:'position',filePath:symbol.filePath!,line:symbol.line-1,character:symbol.column-1},client,root);
+  const definitions = await client.getDefinition(resolved.filePath, resolved.position);
+  if (definitions.length > 1) throw Error(`Ambiguous TypeScript definitions for '${symbol.title}'; use the intended source position.`);
+  if (definitions.length === 1) {
+    resolved.filePath = workspacePath(root, client.fromUri(definitions[0]!.uri));
+    resolved.position = definitions[0]!.range.start;
+    resolved.uri = client.toUri(resolved.filePath);
+  }
+  return {...resolved,symbolName:symbol.title ?? '',containerName:symbol.containerName,graphEntityId:symbol.id};
 }

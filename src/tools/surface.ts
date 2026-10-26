@@ -48,6 +48,7 @@ export const PUBLIC_MCP_TOOL_NAMES = new Set([
   'get_file_outline',
   'get_exact_callers',
   'get_exact_references',
+  'search_workspace_text',
   'analyze_blast_radius',
 
   'preview_change',

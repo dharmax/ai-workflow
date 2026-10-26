@@ -392,13 +392,14 @@ export async function investigateTicket(
             const readContext = {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const}
             dossier.findings = []
             dossier.uncertainties = current.kind === 'bug' ? ['Reproduction is reported by the developer; this read-only investigation has not executed it.'] : []
+            await collectContractEvidence(store, dossier, selected, codeMentions, max, options.signal)
             // Error/stack paths are clues, never mutation authority. Read only indexed local files.
             const reportedFiles = (await store.listEntities<FileNode>(FileNode.dcr))
-                .filter(file => report.includes(store.localId(file.id))).slice(0, max)
+                .filter(file => report.includes(String((file as FileNode & {path?: string}).path ?? store.localId(file.id)))).slice(0, max)
             for (const file of reportedFiles) add(file, 'File identified in work evidence', false)
             for (const evidence of dossier.evidence.filter(item => ['FileNode', 'SymbolNode'].includes(item.kind))) {
                 const entity = await store.getEntity(evidence.id)
-                const filePath = entity instanceof SymbolNode ? entity.filePath : entity instanceof FileNode ? store.localId(entity.id) : undefined
+                const filePath = entity instanceof SymbolNode ? entity.filePath : entity instanceof FileNode ? (entity as FileNode & {path?: string}).path ?? store.localId(entity.id) : undefined
                 if (!filePath || filePath.startsWith('@')) continue
                 evidence.filePath = filePath
                 try {
@@ -503,4 +504,54 @@ export async function investigateTicket(
             return { status: "complete", artifactId: id, value: dossier }
         })
     )
+}
+
+/** Optional source discovery provides evidence, never permission to edit a discovered file. */
+async function collectContractEvidence(store: WorkflowStore, dossier: TicketDossier, symbols: SymbolNode[], codeMentions: string,
+  max: number, signal?: AbortSignal): Promise<void> {
+    const {registry} = await import('../tools/registry.ts');
+    const context = {store, projectRoot: store.root, signal, executionAuthority: 'read-only' as const};
+    const inspectedFiles = new Set<string>();
+    for (const symbol of symbols.slice(0, Math.min(max, 8))) {
+        if (!symbol.filePath || symbol.line === undefined || symbol.column === undefined) continue;
+        try {
+            if (!inspectedFiles.has(symbol.filePath)) {
+                inspectedFiles.add(symbol.filePath);
+                const impact = await registry.execute('analyze_blast_radius', {target: symbol.filePath}, context);
+                for (const filePath of impact.affectedFiles.slice(0, max)) {
+                    const file = await store.getEntity<FileNode>(filePath, FileNode.dcr);
+                    if (file && !dossier.evidence.some(evidence => evidence.id === store.localId(file.id)))
+                        dossier.evidence.push({id: store.localId(file.id), kind: 'FileNode', title: file.title ?? filePath,
+                            filePath, mandatory: false, provenance: 'Structural import impact candidate; not exact semantic usage or edit authority'});
+                }
+                if (impact.affectedFiles.length > max) dossier.uncertainties!.push('Structural impact exceeded maxArtifacts; additional consumers need follow-up.');
+            }
+            const result = await registry.execute('get_exact_references', {filePath: symbol.filePath,
+                line: symbol.line - 1, character: symbol.column - 1}, context);
+            dossier.evidence.push({id: 'references:' + store.localId(symbol.id), kind: 'SemanticReferences',
+                title: symbol.title ?? '', mandatory: false, provenance: 'TypeScript LSP; project scope is explicit',
+                body: JSON.stringify({coverage: result.coverage, referenceCount: result.references.length,
+                    references: result.references.slice(0, max * 4)})});
+            if (result.references.length > max * 4) dossier.uncertainties!.push(`Reference evidence for ${symbol.title} is bounded; ${result.references.length} references require follow-up.`);
+            if (result.coverage.scope === 'inferred-project') dossier.uncertainties!.push(result.coverage.completeness);
+        } catch (error) {dossier.uncertainties!.push(`Semantic references unavailable for ${symbol.filePath}#${symbol.title}: ${String(error)}`);}
+    }
+    if (symbols.length > 8) dossier.uncertainties!.push('Semantic discovery inspected at most eight optional symbols; other declarations may require follow-up.');
+    const terms = [...new Set(codeMentions.split(/\s+/).filter(term => /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(term))
+        .map(term => term.split('.').at(-1)!).concat(symbols.map(symbol => symbol.title!).filter(Boolean)))];
+    let remaining = max;
+    for (const term of terms.slice(0, 4)) {
+        const result = await registry.execute('search_workspace_text', {text: term, limit: Math.min(300, max * 8)}, context);
+        const byFile = new Map<string, string[]>();
+        for (const match of result.matches) byFile.set(match.filePath, [...byFile.get(match.filePath) ?? [], `${match.line}:${match.column} ${match.text}`]);
+        for (const [filePath, lines] of byFile) {
+            if (remaining-- <= 0) {dossier.uncertainties!.push('Optional literal file evidence reached maxArtifacts; follow-up discovery may be needed.'); break;}
+            const id = 'literal:' + term + ':' + filePath;
+            dossier.evidence.push({id, kind: 'TextMatch', title: filePath, filePath, mandatory: false,
+                provenance: 'Workspace literal candidate; not a semantic reference or edit authority', source: lines.join('\n')});
+        }
+        dossier.findings!.push(`Literal ${JSON.stringify(term)}: ${result.matches.length} occurrences; ${result.scope}; excluded directories: ${result.excludedDirectories.join(', ')}.`);
+        if (!result.completeWithinScope) dossier.uncertainties!.push(`Literal ${JSON.stringify(term)} coverage is incomplete: truncated=${result.truncated}; skipped=${result.skippedFiles.join(', ')}.`);
+    }
+    if (terms.length > 4) dossier.uncertainties!.push('Literal discovery inspected at most four identifiers; other contracts may require follow-up.');
 }

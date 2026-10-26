@@ -90,6 +90,9 @@ export class TsLspClient {
   private options: TsLspClientOptions;
   private isClosed = false;
   private closePromise: Promise<void> | null = null;
+  private fileWatcher: fs.FSWatcher | null = null;
+  private readonly pendingFiles = new Map<string, 1 | 2 | 3>();
+  private fileWatchError: unknown;
 
   constructor(options: TsLspClientOptions) {
     this.projectRoot = path.resolve(options.projectRoot);
@@ -208,6 +211,7 @@ export class TsLspClient {
         serverInfo: response.serverInfo,
         raw: serverCaps
       };
+      this.watchFiles();
     })();
 
     try {
@@ -215,6 +219,37 @@ export class TsLspClient {
     } finally {
       this.initPromise = null;
     }
+  }
+
+  /** TS7 delegates workspace filesystem notifications to its host client. */
+  private watchFiles(): void {
+    if (this.fileWatcher) return;
+    const ignored = new Set(['node_modules','.git','.ai-workflow','dist','coverage']);
+    this.fileWatcher = fs.watch(this.projectRoot,{recursive:true},(event,filename) => {
+      if (this.isClosed) return;
+      if (!filename) {this.fileWatchError = Error('Workspace watch event has no path.'); return;}
+      const relative = filename.toString();
+      if (relative.split(path.sep).some(part => ignored.has(part))) return;
+      try {
+        const info = fs.lstatSync(path.resolve(this.projectRoot,relative),{throwIfNoEntry:false});
+        if (info?.isDirectory()) return;
+        const uri = this.toUri(relative);
+        this.pendingFiles.set(uri,!info ? 3 : event === 'rename' || this.pendingFiles.get(uri) === 1 ? 1 : 2);
+      } catch (error) {this.fileWatchError = error;}
+    });
+    this.fileWatcher.on('error',error => {this.fileWatchError = error;});
+    this.fileWatcher.unref();
+  }
+
+  private async prepareRequest(): Promise<void> {
+    await this.ensureStarted();
+    // Let queued native filesystem events run before sending a semantic request.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    if (this.fileWatchError) throw new Error('TypeScript workspace watch failed.',{cause:this.fileWatchError});
+    if (!this.pendingFiles.size) return;
+    const changes = [...this.pendingFiles].map(([uri,type]) => ({uri,type}));
+    this.pendingFiles.clear();
+    await this.connection!.sendNotification('workspace/didChangeWatchedFiles',{changes});
   }
 
   getCapabilities(): TsLspServerCapabilities | null {
@@ -231,7 +266,7 @@ export class TsLspClient {
   }
 
   async getDocumentSymbols(filePath: string): Promise<LspDocumentSymbol[]> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const connection = this.connection;
     if (!connection) throw new Error('TypeScript LSP client is closed.');
     if (!this.capabilities?.raw.documentSymbolProvider) throw new Error('TypeScript document symbols unavailable.');
@@ -249,7 +284,7 @@ export class TsLspClient {
   }
 
   async getIncomingCalls(filePath: string, position: LspPosition): Promise<Array<{ from: LspCallHierarchyItem; fromRanges: LspRange[] }>> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     if (!this.capabilities?.callHierarchyProvider) throw new Error('TypeScript call hierarchy unavailable.');
     const items = await this.connection!.sendRequest('textDocument/prepareCallHierarchy', {
       textDocument: { uri: this.toUri(filePath) }, position
@@ -262,7 +297,7 @@ export class TsLspClient {
    * Resolves exact definition(s) for a location in a file.
    */
   async getDefinition(filePath: string, position: LspPosition): Promise<LspLocation[]> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const uri = this.toUri(filePath);
     const res: any = await this.connection!.sendRequest('textDocument/definition', {
       textDocument: { uri },
@@ -285,7 +320,7 @@ export class TsLspClient {
    * Resolves all exact references for a location in a file.
    */
   async getReferences(filePath: string, position: LspPosition, includeDeclaration = true): Promise<LspLocation[]> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const uri = this.toUri(filePath);
     const res: any = await this.connection!.sendRequest('textDocument/references', {
       textDocument: { uri },
@@ -303,7 +338,7 @@ export class TsLspClient {
    * Tests whether a symbol at location can be renamed and returns its identifier range.
    */
   async prepareRename(filePath: string, position: LspPosition): Promise<LspPrepareRenameResult | null> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const uri = this.toUri(filePath);
     try {
       const res: any = await this.connection!.sendRequest('textDocument/prepareRename', {
@@ -328,7 +363,7 @@ export class TsLspClient {
    * Generates exact WorkspaceEdit renaming symbol across the project.
    */
   async rename(filePath: string, position: LspPosition, newName: string): Promise<WorkspaceEditLike> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const uri = this.toUri(filePath);
     const res: any = await this.connection!.sendRequest('textDocument/rename', {
       textDocument: { uri },
@@ -342,7 +377,7 @@ export class TsLspClient {
    * Computes import updates across workspace when a file is renamed.
    */
   async willRenameFiles(files: Array<{ oldPath: string; newPath: string }>): Promise<WorkspaceEditLike> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const lspFiles = files.map(f => ({
       oldUri: this.toUri(f.oldPath),
       newUri: this.toUri(f.newPath)
@@ -362,7 +397,7 @@ export class TsLspClient {
    * Requests supported code/source actions for a file range.
    */
   async getCodeActions(filePath: string, range: LspRange, kinds?: string[]): Promise<LspCodeAction[]> {
-    await this.ensureStarted();
+    await this.prepareRequest();
     const uri = this.toUri(filePath);
     const res: any = await this.connection!.sendRequest('textDocument/codeAction', {
       textDocument: { uri },
@@ -382,6 +417,9 @@ export class TsLspClient {
   close(): Promise<void> {
     if (this.closePromise) return this.closePromise;
     this.isClosed = true;
+    this.fileWatcher?.close();
+    this.fileWatcher = null;
+    this.pendingFiles.clear();
     const connection = this.connection;
     const child = this.child;
     this.connection = null;

@@ -30,6 +30,7 @@ describe('grounded Ticket investigation', () => {
     const test=await store.withTestArtifactWrite('test:tests/queue.test.ts',()=>store.upsertEntity<TestNode>(TestNode.dcr,{id:'test:tests/queue.test.ts',title:'Submission regression',filePath:'tests/queue.test.ts',command:['bun','test','tests/queue.test.ts']}));
     const file=(await store.getEntity<FileNode>('queue.ts',FileNode.dcr))!;
     await store.withTestArtifactWrite(test.id,()=>store.relate(test,'verifies',file));
+    await indexSingleFile(store, path.join(root, 'tests/queue.test.ts'), 'tests/queue.test.ts');
     const route=spyOn(LayaSystemOne.prototype,'assess').mockImplementation(routing('high').assess);
     let reasoningCalls=0;
     const provider=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{

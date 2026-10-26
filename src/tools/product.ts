@@ -323,7 +323,6 @@ export function registerProductTools() {
     description:'Read an exact indexed Module identity, authored intent and current source availability. Source facts are not authorable.',
     parameters:z.object({moduleId:z.string().min(1)}).strict(),
     execute:async({moduleId},ctx)=>{
-      await ensureAstFresh(ctx.store);
       const module=await ctx.store.getEntity<ModuleNode>(moduleId,ModuleNode.dcr);
       if(!module) throw Error(`Module '${moduleId}' not found.`);
       let sourcePresent=false;

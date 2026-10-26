@@ -49,6 +49,7 @@ const {status: _ticketStatus, ...ticketTemplate} = baseTemplate
 export abstract class WorkflowEntity extends AbstractEntity {
     declare title?: string
     declare body?: string
+    declare metadata?: Record<string, unknown>
     static readonly dcr: EntityDcr
 
     override typeName(): string {
@@ -462,6 +463,9 @@ export class ModuleNode extends WorkflowEntity {
 }
 
 export class FileNode extends WorkflowEntity {
+    declare path?: string
+    declare mtime?: number
+    declare size?: number
     declare status?: string
     declare language?: string
     static template = {

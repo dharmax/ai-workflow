@@ -14,6 +14,8 @@ import { ensureAstFresh } from '../graph/indexer.ts';
 import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbol-source.ts';
 import { getTsLspClient } from '../change/ts-lsp.ts';
 import { resolveCodeTarget } from '../change/target-resolver.ts';
+import {workspacePath} from '../change/workspace-path.ts';
+import {discoverWorkspaceFiles} from '../graph/indexer.ts';
 
 const referenceTargetSchema = z.object({
   filePath: z.string(), symbolName: z.string().optional(), containerName: z.string().optional(),
@@ -30,17 +32,60 @@ async function resolveReferenceTarget(params: z.infer<typeof referenceTargetSche
   }
   if (params.line === undefined || params.character === undefined)
     throw Error('Both line and character are required for source-position references.');
-  const root = fs.realpathSync(ctx.projectRoot);
-  const full = fs.realpathSync(path.resolve(root, params.filePath));
-  if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile() ||
-      !/\.[cm]?[jt]sx?$/.test(full)) throw Error('Reference target must be a JS/TS source file in the project.');
-  const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
-  if (params.line >= lines.length || params.character > lines[params.line]!.length)
-    throw Error('Reference position falls outside the source file.');
-  const filePath = path.relative(root, full);
-  return {filePath, symbolName: params.symbolName ?? '',
-    position: {line: params.line, character: params.character}, uri: client.toUri(filePath)};
+  return resolveCodeTarget({type: 'position', filePath: params.filePath,
+    line: params.line, character: params.character}, ctx.store, client, ctx.projectRoot);
 }
+function referenceCoverage(root: string, filePath: string) {
+  let directory = path.dirname(path.resolve(root, filePath));
+  while (true) {
+    for (const name of ['tsconfig.json', 'jsconfig.json']) {
+      const config = path.join(directory, name);
+      if (fs.existsSync(config)) return {scope: 'typescript-project', configuration: path.relative(root, config),
+        completeness: 'TypeScript project configuration and compiler resolution determine coverage; not a repository text search.'};
+    }
+    if (directory === path.resolve(root)) break;
+    const parent = path.dirname(directory);
+    if (parent === directory || !directory.startsWith(path.resolve(root) + path.sep)) break;
+    directory = parent;
+  }
+  return {scope: 'inferred-project', completeness: 'No tsconfig.json or jsconfig.json found; cross-file coverage is not established.'};
+}
+
+async function searchWorkspaceText(text: string, limit: number, ctx: ToolContext) {
+  if (/[\r\n]/.test(text)) throw Error('Literal text search is limited to one line.');
+  const {files, scope, skippedFiles, excludedDirectories} = await discoverWorkspaceFiles(ctx.projectRoot);
+  const matches: Array<{filePath: string; line: number; column: number; text: string}> = [];
+  let scannedFiles = 0, truncated = false;
+  for (const filePath of files) {
+    ctx.signal?.throwIfAborted();
+    const full = path.resolve(ctx.projectRoot, workspacePath(ctx.projectRoot, filePath));
+    const descriptor = fs.openSync(full, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK | fs.constants.O_NOFOLLOW);
+    let content: Buffer;
+    try {
+      const info = fs.fstatSync(descriptor);
+      if (!info.isFile() || info.size > 1_000_000) {skippedFiles.push(filePath); continue;}
+      content = fs.readFileSync(descriptor);
+    } finally {fs.closeSync(descriptor);}
+    if (content.includes(0)) {skippedFiles.push(filePath); continue;}
+    scannedFiles++;
+    const lines = content.toString('utf8').split(/\r?\n/);
+    for (let line = 0; line < lines.length; line++) {
+      const source = lines[line]!;
+      let offset = 0, column: number;
+      while ((column = source.indexOf(text, offset)) >= 0) {
+        if (matches.length === limit) {truncated = true; break;}
+        matches.push({filePath, line: line + 1, column: column + 1,
+          text: source.slice(Math.max(0, column - 80), column + text.length + 160)});
+        offset = column + text.length;
+      }
+      if (truncated) break;
+    }
+    if (truncated) break;
+  }
+  return {query: text, source: 'workspace-literal', exact: false, scope, excludedDirectories, scannedFiles, skippedFiles,
+    completeWithinScope: !truncated && skippedFiles.length === 0, truncated, matches};
+}
+
 export function registerGraphTools() {
   registry.register({
     name: 'get_exact_callers',
@@ -50,7 +95,7 @@ export function registerGraphTools() {
     execute: async (params, ctx: ToolContext) => {
       const target = await resolveReferenceTarget(params, ctx);
       const client = getTsLspClient(ctx.projectRoot);
-      return { exact: true, source: 'typescript-lsp', target, callers: await client.getIncomingCalls(target.filePath, target.position) };
+      return { exact: true, source: 'typescript-lsp', coverage: referenceCoverage(ctx.projectRoot, target.filePath), target, callers: await client.getIncomingCalls(target.filePath, target.position) };
     }
   });
   registry.register({
@@ -61,54 +106,15 @@ export function registerGraphTools() {
     execute: async (params, ctx: ToolContext) => {
       const target = await resolveReferenceTarget(params, ctx);
       const client = getTsLspClient(ctx.projectRoot);
-      return { exact: true, source: 'typescript-lsp', target, references: await client.getReferences(target.filePath, target.position) };
+      return { exact: true, source: 'typescript-lsp', coverage: referenceCoverage(ctx.projectRoot, target.filePath), target, references: await client.getReferences(target.filePath, target.position) };
     }
   });
   registry.register({
-    name: 'search_indexed_files_text',
-    description: 'Find literal text in indexed workspace sources, tests and configs. Text matches are candidates, not semantic references; coverage limits are explicit.',
+    name: 'search_workspace_text',
+    description: 'Find case-sensitive literal contracts in workspace source, schemas, configuration and tests, including unindexed extensions. Text matches are candidates; exclusions and truncation are explicit. Does not mutate the Graph.',
     category: 'graph',
-    parameters: z.object({
-      text: z.string().min(1).describe('Case-sensitive, single-line literal string (not regex)'),
-      limit: z.number().int().min(1).max(300).optional()
-    }),
-    execute: async ({text, limit = 100}, ctx: ToolContext) => {
-      if (/[\r\n]/.test(text)) throw Error('Literal text search is limited to one line.');
-      await ensureAstFresh(ctx.store, ctx.projectRoot);
-      const root = fs.realpathSync(ctx.projectRoot);
-      const files = await ctx.store.listEntities<FileNode>(FileNode.dcr);
-      const matches: Array<{filePath: string; line: number; column: number; text: string}> = [];
-      const skippedFiles: string[] = [];
-      let scannedFiles = 0, truncated = false;
-      files.sort((a, b) => ctx.store.localId(a.id).localeCompare(ctx.store.localId(b.id)));
-      for (const file of files) {
-        const rel = ctx.store.localId(file.id);
-        const metadata = (file as any).metadata;
-        if (metadata?.isExternal || metadata?.isStub || rel.startsWith('@')) continue;
-        const full = path.resolve(root, rel);
-        if (!full.startsWith(root + path.sep) || !fs.existsSync(full)) continue;
-        const stat = fs.statSync(full);
-        if (!stat.isFile()) continue;
-        if (stat.size > 1_000_000 || fs.realpathSync(full) !== full) {skippedFiles.push(rel); continue;}
-        scannedFiles++;
-        const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
-        for (let line = 0; line < lines.length; line++) {
-          const source = lines[line]!;
-          let offset = 0, column: number;
-          while ((column = source.indexOf(text, offset)) >= 0) {
-            matches.push({filePath: rel, line: line + 1, column: column + 1, text: source.slice(0, 240)});
-            if (matches.length >= limit) {truncated = true; break;}
-            offset = column + text.length;
-          }
-          if (truncated) break;
-        }
-        if (truncated) break;
-      }
-      return {query: text, source: 'indexed-file-literal', exact: false,
-        scope: 'indexed-workspace-files', scannedFiles, skippedFiles,
-        completeWithinScope: !truncated && skippedFiles.length === 0,
-        truncated, matches};
-    }
+    parameters: z.object({text: z.string().min(1).max(1000), limit: z.number().int().min(1).max(300).optional()}),
+    execute: async ({text, limit = 100}, ctx: ToolContext) => searchWorkspaceText(text, limit, ctx)
   });
   registry.register({
     name: 'find_symbol',
@@ -176,6 +182,7 @@ export function registerGraphTools() {
         column: number;
         signature?: string;
         score: number;
+        provenance: string;
       }> = [];
 
       for (const s of symbols) {
@@ -203,6 +210,7 @@ export function registerGraphTools() {
           line: (s as any).line || 1,
           column: (s as any).column || 0,
           signature: (s as any).signature || undefined,
+          provenance: typeof s.metadata?.provenance === 'string' ? s.metadata.provenance : 'legacy-unspecified',
           score: testRes.score
         });
       }
@@ -289,7 +297,7 @@ export function registerGraphTools() {
             predicate: p.predicateName,
             sourceId: ctx.store.localId(p.sourceId),
             targetId: ctx.store.localId(p.targetId),
-            ...(p.predicateName === 'calls' ? {resolution: 'candidate', confidence: p.payload?.confidence ?? null} : {})
+            payload: p.payload
           }))
         };
       }
@@ -349,7 +357,7 @@ export function registerGraphTools() {
           predicate: p.predicateName,
           sourceId: ctx.store.localId(p.sourceId),
           targetId: ctx.store.localId(p.targetId),
-          ...(p.predicateName === 'calls' ? {resolution: 'candidate', confidence: p.payload?.confidence ?? null} : {})
+          payload: p.payload
         }));
 
         return {
@@ -495,7 +503,7 @@ export function registerGraphTools() {
 
       const normPath = filePath.startsWith('/') ? path.relative(ctx.projectRoot, filePath) : filePath;
       const symbols = await ctx.store.listEntities<SymbolNode>(SymbolNode.dcr);
-      const matched = symbols.filter(s => ((s as any).filePath || '').endsWith(normPath));
+      const matched = symbols.filter(s => s.filePath === normPath && s.status !== 'deprecated');
 
       const mapped = matched.map(s => ({
         name: (s as any).title,
@@ -504,15 +512,19 @@ export function registerGraphTools() {
         kind: (s as any).kind || 'symbol',
         exported: (s as any).exported,
         line: (s as any).line || 1,
+        column: s.column ?? 0,
+        provenance: s.metadata?.provenance ?? 'legacy-unspecified',
         signature: (s as any).signature || undefined
       }));
 
-      mapped.sort((a, b) => a.line - b.line);
+      mapped.sort((a, b) => a.line - b.line || a.column - b.column);
+      const file = await ctx.store.getEntity<FileNode>(normPath, FileNode.dcr);
 
       return {
         file: normPath,
         symbolCount: mapped.length,
         signatures: mapped,
+        callCandidates: file?.metadata?.callCandidates ?? [],
         symbols: mapped
       };
     }
@@ -526,7 +538,6 @@ export function registerGraphTools() {
       target: z.string().describe('File path or module to analyze')
     }),
     execute: async ({ target }, ctx: ToolContext) => {
-      await ensureAstFresh(ctx.store, ctx.projectRoot);
       return analyzeBlastRadius(ctx.store, target, ctx.projectRoot);
     }
   });
@@ -566,74 +577,48 @@ export function registerGraphTools() {
   });
 }
 
-export async function analyzeBlastRadius(
-  store: WorkflowStore,
-  target: string,
-  _projectRoot: string
-) {
-  const incomingDeps = await store.getIncoming(target, 'depends_on');
-  const incomingImports = await store.getIncoming(target, 'imports');
-
-  const directFiles = await store.listEntities<FileNode>(FileNode.dcr);
-  const matchedDirect = directFiles.filter(f => f.id.includes(target) || (f as any).path?.includes(target));
-
+export async function analyzeBlastRadius(store: WorkflowStore, target: string, projectRoot: string) {
+  await ensureAstFresh(store, projectRoot);
+  const files = await store.listEntities<FileNode>(FileNode.dcr);
+  const filePath = (file: FileNode) => file.path ?? store.localId(file.id);
+  const exactFile = await store.getEntity<FileNode>(target, FileNode.dcr);
+  const matchedFiles = exactFile ? [exactFile] : files.filter(file => filePath(file).includes(target));
   const exactSymbol = await store.getEntity<SymbolNode>(target, SymbolNode.dcr);
-  const matchedSymbols = (exactSymbol ? [exactSymbol]
-    : (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: target })))
-    .filter(symbol => symbol.status !== 'deprecated' && symbol.filePath && symbol.kind !== 'call-candidate');
-
-  const affectedFileIds = new Set<string>();
-  for (const f of matchedDirect) affectedFileIds.add(store.localId(f.id));
-  for (const d of incomingDeps) affectedFileIds.add(store.localId(d.sourceId));
-  for (const i of incomingImports) affectedFileIds.add(store.localId(i.sourceId));
-
+  const symbols = (exactSymbol ? [exactSymbol] : await store.listEntities<SymbolNode>(SymbolNode.dcr,{title:target}))
+    .filter(symbol => symbol.status !== 'deprecated' && symbol.filePath);
+  const seeds = new Map(matchedFiles.map(file => [file.id,file]));
   const recommendedTests = new Set<string>();
-
-  // Symbols are first-class blast-radius targets. Their containing source file,
-  // graph callers, and directly verifying tests are already indexed evidence.
-  for (const symbol of matchedSymbols) {
-    if (symbol.filePath) affectedFileIds.add(normalizeTestPath(symbol.filePath));
-
-    for (const call of await store.getIncoming(symbol.id, 'calls')) {
-      const caller = await store.getEntity(call.sourceId);
-      if (caller instanceof FileNode) affectedFileIds.add(store.localId(caller.id));
-      else if (caller instanceof SymbolNode && caller.filePath) {
-        affectedFileIds.add(normalizeTestPath(caller.filePath));
-      }
+  for (const symbol of symbols) {
+    const file = await store.getEntity<FileNode>(symbol.filePath!,FileNode.dcr);
+    if (file) seeds.set(file.id,file);
+    for (const edge of await store.getIncoming(symbol.id,'calls')) {
+      const caller = await store.getEntity(edge.sourceId);
+      const file = caller instanceof FileNode ? caller : caller instanceof SymbolNode && caller.filePath
+        ? await store.getEntity<FileNode>(caller.filePath,FileNode.dcr) : null;
+      if (file) seeds.set(file.id,file);
     }
-
-    for (const test of await findTestsVerifying(store, symbol.id)) {
-      const testPath = (test as any).filePath || (test as any).targetPath;
-      if (testPath) recommendedTests.add(normalizeTestPath(testPath));
-    }
+    for (const test of await findTestsVerifying(store,symbol.id))
+      if (test.filePath || test.targetPath) recommendedTests.add(normalizeTestPath(test.filePath || test.targetPath!));
   }
-
-  for (const fileId of affectedFileIds) {
-    const file = await store.getEntity<FileNode>(fileId, FileNode.dcr);
-    if (file) {
-      for (const test of await findTestsVerifying(store, file.id)) {
-        const testPath = (test as any).filePath || (test as any).targetPath;
-        if (testPath) recommendedTests.add(normalizeTestPath(testPath));
-      }
-    }
-
-    // A changed test file should still recommend itself even before graph relations exist.
-    if (fileId.includes('test') || fileId.endsWith('.test.ts') || fileId.endsWith('.spec.ts')) {
-      recommendedTests.add(normalizeTestPath(fileId));
-    }
+  const affected = new Set<string>();
+  const limits = {maxDepth:Math.max(1,files.length),limit:Math.max(2,files.length*2)};
+  let truncated = false;
+  for (const file of seeds.values()) {
+    const impact = await store.traverse(file.id,{...limits,direction:'incoming',predicateTypes:['imports','depends_on']});
+    truncated ||= impact.entities.length >= limits.limit;
+    for (const entity of impact.entities) if (entity instanceof FileNode) affected.add(filePath(entity));
   }
-
-  const tickets = await store.listEntities<Ticket>(Ticket.dcr);
-  const activeTickets = tickets
-    .filter(t => (t as any).lane !== 'Done' && Array.from(affectedFileIds).some(fid => (t as any).body?.includes(fid)))
-    .map(t => ({ id: store.localId(t.id), title: (t as any).title, lane: (t as any).lane }));
-
-  return {
-    target,
-    affectedFilesCount: affectedFileIds.size,
-    affectedFiles: Array.from(affectedFileIds),
-    activeTickets,
-    dependentTickets: activeTickets,
-    recommendedTests: recommendedTests.size > 0 ? [...recommendedTests] : ['bun test']
-  };
+  for (const source of affected) {
+    const file = await store.getEntity<FileNode>(source,FileNode.dcr);
+    if (file) for (const test of await findTestsVerifying(store,file.id))
+      if (test.filePath || test.targetPath) recommendedTests.add(normalizeTestPath(test.filePath || test.targetPath!));
+    if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(source)) recommendedTests.add(source);
+  }
+  const activeTickets = (await store.listEntities<Ticket>(Ticket.dcr))
+    .filter(ticket => !['Done','Cancelled'].includes(ticket.lane) && [...affected].some(file => ticket.body?.includes(file)))
+    .map(ticket => ({id:store.localId(ticket.id),title:ticket.title,lane:ticket.lane}));
+  return {target,exact:false,source:'structural-graph',truncated,limits,
+    coverage:'Transitive indexed imports/dependencies; dynamic, unresolved and textual contracts require separate discovery.',
+    affectedFilesCount:affected.size,affectedFiles:[...affected],activeTickets,dependentTickets:activeTickets,
+    recommendedTests:recommendedTests.size ? [...recommendedTests] : ['bun test']};
 }

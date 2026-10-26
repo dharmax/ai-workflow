@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto'
 import {canonical} from '../kb/canonical.ts'
 import type {WorkflowStore} from './store.ts'
 import {FileNode, SymbolNode, TestNode} from './ontology.ts'
+import {getTsLspClient} from '../change/ts-lsp.ts'
 
 export function normalizeTestPath(value: string): string {
   return value.replace(/\\/g, '/').replace(/^\.\//, '')
@@ -237,7 +238,7 @@ export async function reconcileTestVerificationEdges(
     const authored = new Set<string>()
     for (const edge of await store.getOutgoing(test.id, 'verifies')) {
       if ((edge as {payload?: {state?: string}}).payload?.state !== 'derived') { authored.add(edge.targetId); continue }
-      try { await store.withTestArtifactWrite(test.id,()=>store.unrelate(test.id, 'verifies', edge.targetId)) } catch {}
+      await store.withTestArtifactWrite(test.id,()=>store.unrelate(test.id, 'verifies', edge.targetId))
     }
 
     const testPath = normalizeTestPath(test.filePath || test.targetPath || '')
@@ -251,45 +252,34 @@ export async function reconcileTestVerificationEdges(
       if (!target) continue
       const targetPath = normalizeTestPath((target as any).path || store.localId(target.id))
       verifiedFiles.add(targetPath)
-      try {
-        if (!authored.has(target.id)) await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', target, {
+      if (!authored.has(target.id)) await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', target, {
           state: 'derived',
-          note: 'Static test import',
+          note: 'Static test import; dependency coverage, not executed verification',
         }))
-      } catch {}
     }
 
     if (verifiedFiles.size === 0) continue
 
-    for (const edge of await store.getOutgoing(file.id, 'calls')) {
-      const target = await store.getEntity<SymbolNode>(edge.targetId, SymbolNode.dcr)
-      if (!target) continue
-
-      let resolved = target
-      const targetPath = target.filePath ? normalizeTestPath(target.filePath) : ''
-      if (!targetPath || !verifiedFiles.has(targetPath)) {
-        const title = target.title || store.localId(target.id)
-        let candidates = symbolsByTitle.get(title)
-        if (!candidates) {
-          candidates = (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title }))
-            .filter(symbol => symbol.status !== 'deprecated')
-          symbolsByTitle.set(title, candidates)
-        }
-        const imported = candidates.filter(symbol =>
-          Boolean(symbol.filePath)
-          && verifiedFiles.has(normalizeTestPath(symbol.filePath!)),
-        )
-        if (imported.length !== 1) continue
-        resolved = imported[0]!
+    // Parser names narrow candidates; only TS7 evidence can connect a declaration to this test.
+    const names = (file.metadata?.callCandidates ?? []) as Array<{name: string}>;
+    const client = getTsLspClient(store.root);
+    for (const {name} of names) {
+      let candidates = symbolsByTitle.get(name);
+      if (!candidates) {
+        candidates = (await store.listEntities<SymbolNode>(SymbolNode.dcr, {title: name}))
+          .filter(symbol => symbol.status !== 'deprecated' && Boolean(symbol.filePath) && /\.[cm]?[jt]sx?$/.test(symbol.filePath!));
+        symbolsByTitle.set(name, candidates);
       }
-
-      if (!resolved.filePath || !verifiedFiles.has(normalizeTestPath(resolved.filePath))) continue
-      try {
-        if (!authored.has(resolved.id)) await store.withTestArtifactWrite(test.id,()=>store.relate(test, 'verifies', resolved, {
-          state: 'derived',
-          note: 'Static test call into imported source',
-        }))
-      } catch {}
+      for (const symbol of candidates) {
+        if (!verifiedFiles.has(normalizeTestPath(symbol.filePath!)) || authored.has(symbol.id)) continue;
+        const references = await client.getReferences(symbol.filePath!, {
+          line: symbol.line! - 1, character: symbol.column! - 1
+        }, false);
+        if (!references.some(reference => path.resolve(client.fromUri(reference.uri)) === path.resolve(store.root, testPath))) continue;
+        await store.withTestArtifactWrite(test.id, () => store.relate(test, 'verifies', symbol, {
+          state: 'derived', note: 'TypeScript LSP reference from test; execution remains separate evidence'
+        }));
+      }
     }
   }
 }

@@ -313,6 +313,7 @@ export class Calculator {
   });
 
   it('should localize a failing test through TestNode graph evidence', async () => {
+    fs.writeFileSync(path.join(tempDir,'tsconfig.json'),JSON.stringify({compilerOptions:{module:'ESNext',moduleResolution:'Bundler'},include:['src/**/*.ts','tests/**/*.ts']}));
     fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
     fs.mkdirSync(path.join(tempDir, 'tests'), { recursive: true });
     fs.writeFileSync(

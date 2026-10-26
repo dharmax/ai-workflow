@@ -239,6 +239,7 @@ export function add(a: number, b: number): number {
 
   it('should index test files as durable graph verification artifacts', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-graph-'));
+    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), JSON.stringify({compilerOptions:{module:'ESNext',moduleResolution:'Bundler'},include:['src/**/*.ts','tests/**/*.ts']}));
     const diskStore = new WorkflowStore(tmpDir);
 
     try {
@@ -314,6 +315,7 @@ export const sample = () => add(1, 2)
 
   it('should reconcile symbol verification when a test is indexed before its source', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-order-'));
+    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), JSON.stringify({compilerOptions:{module:'ESNext',moduleResolution:'Bundler'},include:['src/**/*.ts','tests/**/*.ts']}));
     const diskStore = new WorkflowStore(tmpDir);
 
     try {
@@ -362,6 +364,7 @@ test('adds', () => expect(add(1, 2)).toBe(3))
 
   it('should restore test-to-symbol evidence after an incrementally changed source removes and restores a symbol', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-test-incremental-'));
+    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), JSON.stringify({compilerOptions:{module:'ESNext',moduleResolution:'Bundler'},include:['src/**/*.ts','tests/**/*.ts']}));
     const diskStore = new WorkflowStore(tmpDir);
 
     try {

@@ -168,6 +168,9 @@ kanban-plugin: board
 - [/] **TKT-CORE-LIFECYCLE-01**: Make native investigation and resolution self-contained
   - Summary: Implement the developer-authorized core lifecycle corrections in investigate, prepare and resolve, with public-path regression tests. Settled design 3.3-3.4; preserve safety and independent acceptance. Technical maintenance under accepted PRODUCT revision 1; no new product definitions.
   - **Priority**: 0
+- [/] **TKT-GRAPH-ISSUE-6**: Complete Issue 6 structural Graph integration and restore runtime correctness
+  - Summary: Complete https://github.com/dharmax/ai-workflow/issues/6 per developer mission: audit and correct Graph integration, restore runtime suite, preserve authored anchors and authority, demonstrate real multi-file field-contract migration with exact and textual discovery, guarded changes and independent verification. Historical remote implementation notes are untrusted.
+  - **Priority**: 0
 - [/] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
   - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
   - **Priority**: 1
@@ -184,7 +187,6 @@ kanban-plugin: board
   - Summary: Replace legacy P0-P3 priorities with the agreed integer 0-5 contract across canonical storage, CLI, Workspace, MCP, scheduling and validation. Default: 2. Lower means higher priority. Bug severity remains independent.
   - **Priority**: 2
   - Type: Bug / severity: unknown
-  - Claim: leased by @codex-priority until 2026-10-26T19:03:34.720Z
 
 ## Done
 
