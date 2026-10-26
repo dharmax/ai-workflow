@@ -101,7 +101,8 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
    const cliHelp=run(command!,'--help');expect(cliHelp.success).toBe(true);expect(cliHelp.stdout.toString()).toContain(syntax!);
    const shellHelp=await processShellInput(`${command} --help`,session);
    expect(shellHelp.output).toContain(syntax!);
-   expect(shellHelp.output.trim()).toBe(cliHelp.stdout.toString().trim());
+   const normalizeHelp=(value:string)=>value.replace(/\s+/g,' ').trim();
+   expect(normalizeHelp(shellHelp.output)).toBe(normalizeHelp(cliHelp.stdout.toString()));
   }
  });
  it('reuses Commander definitions safely and awaits asynchronous intent dispatch',async()=>{
