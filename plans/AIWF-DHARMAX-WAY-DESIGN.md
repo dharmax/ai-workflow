@@ -191,3 +191,28 @@ For *each* meaningful change, answer in this order, concisely and against inspec
 5. **Proof**: What real public Story ran? What initial state/action/observable result? What is still skipped/blocked/unknown? Did it fail for the expected reason before new implementation?
 
 If a proposal cannot answer these, it is not ready to implement. Never elevate a function bug into a new subsystem by default. No philosophical/process vocabulary in place of an exact code/behavior explanation. Add to this design only when an actual missing product concept or demonstrated defect requires refinement.
+
+## Model Radar: System-1 runtime selection (decision 2026-10-26)
+
+### Ownership and flow
+
+- **Authority** performs comparatively infrequent research and maintains a versioned, evidenced mapping of eligible providers/models and their suitability for workloads. Include known quality, capability, availability, limits, cost, latency, provider constraints, local hardware fit, and uncertainty. It does **not** select the model for each request.
+- **Radar** collects current execution facts and passes a rich, bounded selection envelope plus the Authority mapping to the existing **System 1**. System 1 selects the actual provider/model for this invocation. Radar is orchestration, **not** a second model-ranking engine.
+- **Router/executor** validates the result against hard user/developer policy and actual availability, then uses the selected provider/model. An explicit model override takes precedence; an invalid or unavailable selection uses the existing safe fallback path, not an unapproved provider.
+- This generic selection capability belongs in **llm-utils**; AIWF consumes it rather than duplicating its own model intelligence. Authority's map is evidence and advice, not permission to bypass configuration or authorization.
+
+### System-1 selection input
+
+Provide enough context to make a *situated* choice, without building a parallel heuristic scoring system:
+
+1. **Task and original query** as distinct fields: requested operation/purpose, relevant role or phase (e.g. critic, design, implementation), and the unaltered user query or a faithful privacy-bounded extract. A task label alone is insufficient.
+2. **Execution context** where available and relevant: resolved objective/instructions, prior-turn or session summary, expected continuation/batch size, required reasoning/coding/tool/vision capabilities, input/output language, expected token sizes/context window, and quality-versus-speed preference. Include only bounded context necessary for selection; do not transmit secrets or entire histories by default.
+3. **Authority's current mapping**, with evidence timestamp/version, eligible provider/model IDs, workload suitability/quality notes, capability/context limits, observed or estimated latency and cost, availability, and confidence/freshness. Do not manufacture missing measurements.
+4. **Runtime constraints and state**: explicit allowed/forbidden providers/models, budget/latency/offline/privacy constraints, current provider health, local hardware and memory limits, installed local models, actual currently resident/loaded local model(s) if observable, most recently used local model, and known or estimated load/unload/switching overhead. Distinguish **last used** from **still loaded**; if residency is unknown, mark it unknown.
+
+System 1 should consider local switching cost as an opportunity cost, **not** a rigid stay-on-current-model rule: choose another model when expected quality, capabilities, or longer-run workload justify switching. Do not permit switching economy to override hard requirements. Preserve explicit overrides and provider restrictions.
+
+### Selection result and diagnostics
+
+The required successful result is only `{ provider, model }` (canonical identifiers). An optional short reason may be recorded for observability, outside the minimal routing contract. Validate the returned pair against the eligible mapping and current hard constraints; never hallucinate a usable route. Missing context must be represented as unknown rather than invented. Make System-1 failure and fallback observable.
+
