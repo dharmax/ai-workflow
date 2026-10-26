@@ -464,7 +464,7 @@ async function reconcileAst(
     const isModified = existing && (
       options?.force ||
       !existing.mtime ||
-      s.mtimeMs > (existing.mtime || 0) ||
+      s.mtimeMs !== existing.mtime ||
       s.size !== existing.size
     );
 
@@ -473,7 +473,7 @@ async function reconcileAst(
         if (!options?.force) await rememberVerifyingTests(relPath);
         await indexSingleFile(store, fullPath, relPath, rootDir);
         updatedFiles.push(relPath);
-      } catch {}
+      } catch (cause) { throw new Error(`Failed to index ${relPath}`, {cause}); }
     }
   }
 
@@ -485,7 +485,7 @@ async function reconcileAst(
         if (!options?.force) await rememberVerifyingTests(relPath);
         await removeFileFromIndex(store, relPath);
         deletedFiles.push(relPath);
-      } catch {}
+      } catch (cause) { throw new Error(`Failed to remove indexed file ${relPath}`, {cause}); }
     }
   }
 
@@ -499,7 +499,7 @@ async function reconcileAst(
       if (!existsSync(fullPath)) continue
       try {
         await indexSingleFile(store, fullPath, testPath, rootDir)
-      } catch {}
+      } catch (cause) { throw new Error(`Failed to reindex verifying test ${testPath}`, {cause}); }
     }
   }
 
