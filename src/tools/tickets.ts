@@ -49,7 +49,7 @@ export function registerTicketTools() {
       const ticket=await requireTicket(ctx,ticketId);
       const receipt=await ctx.store.getEntity<Artifact>('VERIFY-'+ctx.store.localId(ticket.id),Artifact.dcr);
       return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,history:await ticketHistoryContext(ctx.store,ticket.id),
-        verificationState:receipt?'recorded-unchecked':'unverified',verification:readVerificationReceipt(receipt?.body),outgoing:await ctx.store.getOutgoing(ticket.id),incoming:await ctx.store.getIncoming(ticket.id),
+        verification:readVerificationReceipt(receipt?.body),outgoing:await ctx.store.getOutgoing(ticket.id),incoming:await ctx.store.getIncoming(ticket.id),
         kind:ticket.kind ?? 'task',defect:ticket.defect,priority:ticket.priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
     }});
 
@@ -285,12 +285,13 @@ export function registerTicketTools() {
       const ticket=await requireTicket(ctx,ticketId);
       return registry.execute('update_ticket',{ticketId,...fields,...(defect ? {defect:{...ticket.defect,...defect}} : {})},ctx);
     }});
-  registry.register({name:'triage_bug',category:'ticket',description:'Inspect missing reproduction fields, canonical prerequisites, related artifacts and current proof without fabricating readiness.',
+  registry.register({name:'triage_bug',category:'ticket',description:'Inspect Bug report gaps and claim blockers without competing lifecycle state flags.',
     parameters:z.object({ticketId:z.string(),agentId:z.string().optional()}),
     execute:async({ticketId,agentId},ctx)=>{
       const bug=await registry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);
-      return {...bug,...assessBug(ticket),...await ticketEligibility(ctx.store,ticket,agentId),
-        verificationState:bug.verification?'recorded-unchecked':'unverified'};
+      const report=assessBug(ticket);
+      const eligibility=await ticketEligibility(ctx.store,ticket,agentId);
+      return {...bug,missing:report.missing,reasons:eligibility.reasons};
     }});
 }
