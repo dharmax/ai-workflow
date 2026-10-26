@@ -199,6 +199,9 @@ async function createAcceptanceReview(store: WorkflowStore, options: ResolutionO
         const response = await asker.json(renderAcceptancePrompt(serializedContext), acceptanceResponseSchema(context.dossier, validEvidenceIds), {
             ...(model ? {model} : {task: 'verification'}),
             temperature: 0, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens,
+            routingContext: {query: context.dossier.ticket.title + ': ' + context.dossier.ticket.body,
+                role: 'independent TypeScript/Bun acceptance critic',
+                requirements: ['exact criterion/Aspect IDs', 'current source and executed tests', 'strict structured JSON']},
             ...cognitionMetrics({phase: 'acceptance_verification'})
         })
         await recordReviewerResult(store, context.dossier.ticket.id, response, validEvidenceIds)

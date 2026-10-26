@@ -64,6 +64,11 @@ describe("configured model service", () => {
         expect(asker.getRouter().resolve("code")).toEqual({ providerId: "ollama", modelId: "fixture-code" })
     })
 
+    it("keeps a global default as fallback rather than disguising it as a task override", () => {
+        const asker = new ModelService(root).createAsker({dev: "code"})
+        expect(asker.getRouter().resolve("code")).toEqual({providerId: "ollama", modelId: "fixture-default"})
+    })
+
     it("reloads configured defaults on the same Actor without cached model names", () => {
         const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null })
         expect(actor.resolveRoute("dev")?.target).toBe("ollama/fixture-default")

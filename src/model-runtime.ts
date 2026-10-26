@@ -3,7 +3,7 @@
  * Scope: Project configuration, model getters and native llm-utils routing/Asker construction.
  */
 
-import { Asker, ModelRouter, ModelAdviceResearchSchema, parseModelTarget, readModelAdvice, refreshModelAdvice, type ModelAdviceSnapshot, type ModelTarget, type ProviderConfig } from "@dharmax/llm-utils"
+import { Asker, LayaSystemOne, ModelRouter, ModelAdviceResearchSchema, parseModelTarget, readModelAdvice, refreshModelAdvice, type ModelAdviceSnapshot, type ModelTarget, type ProviderConfig } from "@dharmax/llm-utils"
 import { inspectConfig, loadConfig, resolveCloudCredentials, type ProjectConfig } from "./config.ts"
 import { budgetedInference, paidProviderAllowed, type PaidUsage } from "./paid-inference.ts"
 
@@ -132,7 +132,6 @@ export class ModelService {
         const local = this.localModel
         for (const [alias, task] of Object.entries(taskAliases)) {
             const primary = routes[task] ?? routes[alias]
-                ?? (this.configuredModel ? config.model : undefined)
             if (!primary) continue
             routes[task] = primary
             fallbacks[task] = [
@@ -142,8 +141,9 @@ export class ModelService {
             ]
         }
         if (this.configuredModel)
-            for (const task of Object.keys(MODEL_WORKLOADS)) routes[task] ??= config.model
-        return new Asker({ providers, preferLocal, router: new ModelRouter({
+            for (const task of Object.keys(MODEL_WORKLOADS))
+                if (!routes[task]) fallbacks[task] ??= [config.model]
+        return new Asker({ providers, preferLocal, systemOne: new LayaSystemOne(), router: new ModelRouter({
             providers, routes, fallbacks, preferLocal, defaultModel: this.defaultModel,
             adviceSnapshot: qualifiedVerificationAdvice(this.advice, failedVerificationModels), advicePath: false,
         }) })

@@ -377,7 +377,9 @@ export class WorkflowActor {
         state: ExecutionState,
         policy: string,
     ): Promise<ActorRunResult> {
-        const result = await this.session!.run(actor, text, options)
+        const routedOptions = {...options, askOptions: {...options.askOptions,
+            routingContext: {query: text, role: state.mode}}}
+        const result = await this.session!.run(actor, text, routedOptions)
         if (!this.canEscalate(result, state, policy)) return result
         const reason =
             result.error ||
@@ -385,9 +387,9 @@ export class WorkflowActor {
             "Observable no-progress: execution stalled on initial route"
         this.recordEscalation(state, "reasoning", reason)
         return this.session!.run(actor, text, {
-            ...options,
+            ...routedOptions,
             onDiscoverTools: this.discoveryHandler(state),
-            askOptions: { ...options.askOptions, task: "reasoning", preferLocal: false },
+            askOptions: { ...routedOptions.askOptions, task: "reasoning", preferLocal: false },
         })
     }
 
