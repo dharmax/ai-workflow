@@ -13,6 +13,7 @@ import {
 } from '../src/typescript-runtime.ts';
 import { TsLspClient, getTsLspClient, closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { resolveCodeTarget } from '../src/change/target-resolver.ts';
+import { initializeTools, registry } from '../src/tools/index.ts';
 
 describe('AIWF-CHANGE-FOUNDATION', () => {
   let tmpDir: string;
@@ -30,6 +31,24 @@ describe('AIWF-CHANGE-FOUNDATION', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it('queries TS7 references by coordinates without requiring a Graph symbol', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), {recursive: true});
+    fs.writeFileSync(path.join(tmpDir, 'src', 'options.ts'), [
+      'export interface Options { priority: number }',
+      'const options: Options = { priority: 2 }',
+      'export const selected = options.priority',
+      ''
+    ].join('\n'));
+    initializeTools();
+    const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
+    expect(await store.listEntities<SymbolNode>(SymbolNode.dcr)).toHaveLength(0);
+    const ref = await registry.execute('get_exact_references',
+      {filePath: 'src/options.ts', line: 0, character: 28}, ctx);
+    expect(ref.exact).toBe(true);
+    expect(ref.target.graphEntityId).toBeUndefined();
+    expect(ref.references.length).toBeGreaterThanOrEqual(2);
+    expect(await store.listEntities<SymbolNode>(SymbolNode.dcr)).toHaveLength(0);
+  });
   describe('1. Stable Code Anchors (Reconciliation Without ID Churn)', () => {
     it('preserves Symbol ID and Ticket relations when code lines move due to edits above it', async () => {
       const srcDir = path.join(tmpDir, 'src');
