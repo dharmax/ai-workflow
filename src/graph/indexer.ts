@@ -342,21 +342,30 @@ export async function removeFileFromIndex(store: WorkflowStore, relPath: string)
   if (!fileEntity) return false;
 
   const contained = await store.getOutgoing(fileEntity.id, 'contains');
-  // A deleted source is still a durable work target. Keep its anchors so investigation
-  // can report the missing file rather than silently erase Ticket/Decision intent.
-  for (const id of [fileEntity.id, ...contained.map(edge => edge.targetId)]) {
-    if ((await store.getIncoming(id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName))) {
-      await store.upsertEntity(FileNode.dcr, { id: fileEntity.id, mtime: 0, status: 'deprecated', metadata: { isStub: true, missing: true } });
-      return true;
-    }
-  }
-  for (const pred of contained) {
-    try {
-      await store.deleteEntity(pred.targetId);
-    } catch {}
-  }
-
   const oldCallTargets = (await store.getOutgoing(fileEntity.id, 'calls')).map(edge => edge.targetId);
+  const retained = new Set<string>();
+  for (const id of [fileEntity.id, ...contained.map(edge => edge.targetId)]) {
+    if ((await store.getIncoming(id)).some(edge => ['modifies', 'targets', 'governs'].includes(edge.predicateName))
+      retained.add(id);
+  }
+  if (retained.size) {
+    // Keep authored targets but remove obsolete derived source relationships.
+    for (const predicate of ['imports', 'depends_on', 'calls'])
+      for (const edge of await store.getOutgoing(fileEntity.id, predicate))
+        await store.unrelate(fileEntity.id, predicate, edge.targetId);
+    for (const edge of contained) {
+      const symbol = await store.getEntity<SymbolNode>(edge.targetId, SymbolNode.dcr);
+      if (retained.has(edge.targetId) && symbol)
+        await store.upsertEntity(SymbolNode.dcr, {id: symbol.id, status: 'deprecated', metadata: {missing: true}});
+      else if (!retained.has(edge.targetId))
+        await store.deleteEntity(edge.targetId);
+    }
+    await store.upsertEntity(FileNode.dcr, {id: fileEntity.id, mtime: 0, status: 'deprecated',
+      metadata: {isStub: true, missing: true}});
+    await pruneOrphanedCallAnchors(store, oldCallTargets);
+    return true;
+  }
+  for (const edge of contained) await store.deleteEntity(edge.targetId);
   await store.deleteEntity(fileEntity.id);
   await pruneOrphanedCallAnchors(store, oldCallTargets);
   return true;
