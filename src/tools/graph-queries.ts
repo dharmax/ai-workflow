@@ -15,15 +15,41 @@ import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbo
 import { getTsLspClient } from '../change/ts-lsp.ts';
 import { resolveCodeTarget } from '../change/target-resolver.ts';
 
+const referenceTargetSchema = z.object({
+  filePath: z.string(), symbolName: z.string().optional(), containerName: z.string().optional(),
+  line: z.number().int().min(0).optional(), character: z.number().int().min(0).optional()
+});
+
+/** Exact source coordinates require no declaration in the indexed Graph. */
+async function resolveReferenceTarget(params: z.infer<typeof referenceTargetSchema>, ctx: ToolContext) {
+  const client = getTsLspClient(ctx.projectRoot);
+  if (params.line === undefined && params.character === undefined) {
+    if (!params.symbolName) throw Error('Provide symbolName or zero-based line and character.');
+    return resolveCodeTarget({type: 'symbol', filePath: params.filePath,
+      symbolName: params.symbolName, containerName: params.containerName}, ctx.store, client, ctx.projectRoot);
+  }
+  if (params.line === undefined || params.character === undefined)
+    throw Error('Both line and character are required for source-position references.');
+  const root = fs.realpathSync(ctx.projectRoot);
+  const full = fs.realpathSync(path.resolve(root, params.filePath));
+  if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile() ||
+      !/\.[cm]?[jt]sx?$/.test(full)) throw Error('Reference target must be a JS/TS source file in the project.');
+  const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
+  if (params.line >= lines.length || params.character > lines[params.line]!.length)
+    throw Error('Reference position falls outside the source file.');
+  const filePath = path.relative(root, full);
+  return {filePath, symbolName: params.symbolName ?? '',
+    position: {line: params.line, character: params.character}, uri: client.toUri(filePath)};
+}
 export function registerGraphTools() {
   registry.register({
     name: 'get_exact_callers',
     description: 'Find exact TS/JS incoming calls using TypeScript call hierarchy.',
     category: 'graph',
-    parameters: z.object({ filePath: z.string(), symbolName: z.string(), containerName: z.string().optional() }),
+    parameters: referenceTargetSchema,
     execute: async (params, ctx: ToolContext) => {
+      const target = await resolveReferenceTarget(params, ctx);
       const client = getTsLspClient(ctx.projectRoot);
-      const target = await resolveCodeTarget({ type: 'symbol', ...params }, ctx.store, client, ctx.projectRoot);
       return { exact: true, source: 'typescript-lsp', target, callers: await client.getIncomingCalls(target.filePath, target.position) };
     }
   });
@@ -31,10 +57,10 @@ export function registerGraphTools() {
     name: 'get_exact_references',
     description: 'Find exact TS/JS references using TypeScript LSP; graph call edges are heuristic discovery only.',
     category: 'graph',
-    parameters: z.object({ filePath: z.string(), symbolName: z.string(), containerName: z.string().optional() }),
+    parameters: referenceTargetSchema,
     execute: async (params, ctx: ToolContext) => {
+      const target = await resolveReferenceTarget(params, ctx);
       const client = getTsLspClient(ctx.projectRoot);
-      const target = await resolveCodeTarget({ type: 'symbol', ...params }, ctx.store, client, ctx.projectRoot);
       return { exact: true, source: 'typescript-lsp', target, references: await client.getReferences(target.filePath, target.position) };
     }
   });
