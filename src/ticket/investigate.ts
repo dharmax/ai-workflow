@@ -285,7 +285,8 @@ export async function investigateTicket(
                         s.filePath &&
                         /\.[cm]?[jt]sx?$/.test(s.filePath) &&
                         !s.filePath.startsWith("@") &&
-                        ["class", "function", "method"].includes(s.kind ?? "") &&
+                        s.status !== 'deprecated' &&
+                        s.kind !== 'call-candidate' && s.kind !== 'export' &&
                         words.has(s.title ?? "") &&
                         !mandatory.has(s.id)
                 )
