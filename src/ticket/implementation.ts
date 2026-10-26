@@ -117,6 +117,7 @@ export async function implementTicket(
         "get_file_outline",
         "search_graph",
         "get_exact_references",
+        "search_indexed_files_text",
         "read_workspace_file",
         "safe_change"
     ]
@@ -178,7 +179,7 @@ export async function implementTicket(
                     const result = await registry.execute(name, params, ctx)
                     if (name === "find_symbol" && Array.isArray(result) && result.length === 0)
                         throw new ToolExecutionError(
-                            "No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.",
+                            "No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use search_indexed_files_text for literal contracts or read_workspace_file for a known path. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.",
                             undefined,
                             "not_found"
                         )
