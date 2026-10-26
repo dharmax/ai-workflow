@@ -65,6 +65,52 @@ export function registerGraphTools() {
     }
   });
   registry.register({
+    name: 'search_indexed_files_text',
+    description: 'Find literal text in indexed workspace sources, tests and configs. Text matches are candidates, not semantic references; coverage limits are explicit.',
+    category: 'graph',
+    parameters: z.object({
+      text: z.string().min(1).describe('Case-sensitive, single-line literal string (not regex)'),
+      limit: z.number().int().min(1).max(300).optional()
+    }),
+    execute: async ({text, limit = 100}, ctx: ToolContext) => {
+      if (/[\r\n]/.test(text)) throw Error('Literal text search is limited to one line.');
+      await ensureAstFresh(ctx.store, ctx.projectRoot);
+      const root = fs.realpathSync(ctx.projectRoot);
+      const files = await ctx.store.listEntities<FileNode>(FileNode.dcr);
+      const matches: Array<{filePath: string; line: number; column: number; text: string}> = [];
+      const skippedFiles: string[] = [];
+      let scannedFiles = 0, truncated = false;
+      files.sort((a, b) => ctx.store.localId(a.id).localeCompare(ctx.store.localId(b.id)));
+      for (const file of files) {
+        const rel = ctx.store.localId(file.id);
+        const metadata = (file as any).metadata;
+        if (metadata?.isExternal || metadata?.isStub || rel.startsWith('@')) continue;
+        const full = path.resolve(root, rel);
+        if (!full.startsWith(root + path.sep) || !fs.existsSync(full)) continue;
+        const stat = fs.statSync(full);
+        if (!stat.isFile()) continue;
+        if (stat.size > 1_000_000 || fs.realpathSync(full) !== full) {skippedFiles.push(rel); continue;}
+        scannedFiles++;
+        const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
+        for (let line = 0; line < lines.length; line++) {
+          const source = lines[line]!;
+          let offset = 0, column: number;
+          while ((column = source.indexOf(text, offset)) >= 0) {
+            matches.push({filePath: rel, line: line + 1, column: column + 1, text: source.slice(0, 240)});
+            if (matches.length >= limit) {truncated = true; break;}
+            offset = column + text.length;
+          }
+          if (truncated) break;
+        }
+        if (truncated) break;
+      }
+      return {query: text, source: 'indexed-file-literal', exact: false,
+        scope: 'indexed-workspace-files', scannedFiles, skippedFiles,
+        completeWithinScope: !truncated && skippedFiles.length === 0,
+        truncated, matches};
+    }
+  });
+  registry.register({
     name: 'find_symbol',
     description: 'Look up AST symbols across the codebase by exact name, fuzzy substring, regex, or kind filter with automatic freshness sync.',
     category: 'graph',
