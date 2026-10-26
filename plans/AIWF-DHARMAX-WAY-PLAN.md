@@ -28,6 +28,14 @@ Companion specification: `AIWF-DHARMAX-WAY-DESIGN.md` (read for architecture and
 - Preserve dirty/untracked unrelated files and repo history. Stage may be committed on master after independently demonstrable stable boundary and explicit permission; never promise push/merge without authorization. No automatic whole-plan execution.
 - Report for each stage: changed owners; Story with Given/Action/Observed; before/after results; current skipped/unknown; code-method review; residual defects; whether stage can safely be marked complete. Short report, not a ceremony.
 
+### Bounded Autonomy — architectural prerequisite (pending design review)
+
+The developer requires Bounded Autonomy as a core AIWF invariant across **all** autonomous workflows and future features, including nested delegation, retries and recovery. The [single-mechanism design and review implications](AIWF-BOUNDED-AUTONOMY-DESIGN.md) are the implementation basis under review; the [proposed Product charter amendment](../docs/product-charter.md#proposed-amendment--bounded-autonomy-pending-design-review) makes inheritance explicit.
+
+This is a cross-cutting architectural prerequisite within the existing priority/stage boundaries, not a new execution framework, additional iteration, Gate 5 acceptance or authorization to begin runtime coding. First review the design and defaults, then apply the reviewed canonical Product amendment and approve one outward Story/public test. Reuse the current execution context, llm-utils budgeting/cancellation, existing repair/delegation owners and Semantika journal. Establish the actual baseline and run that same Story through shared-budget exhaustion, durable completed/remaining-work reporting, reopening and explicit continuation across the autonomous entry points. Add proportionate nested/concurrent/recovery/crash boundaries before independent acceptance.
+
+Each future autonomous feature must identify its governing execution budget, inherited child allowance, terminal outcomes and durable report in its normal design/acceptance context. A new Actor, Asker, pipeline, store, retry or recovery cannot renew the governing budget. Resource exhaustion ends an execution; it neither completes nor discards the long-lived Ticket. Required verification remains truthful, and completion gates do not authorize repairing unrelated systems.
+
 ## C. Stages and exact gates
 
 ### S0 — Ground and protect the actual pushed product (read-only first; minimal safeguard only)

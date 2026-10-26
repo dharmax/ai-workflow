@@ -90,3 +90,11 @@ AIWF is not intended to:
 7. **Durability and consistency:** Maintain connected, reusable project state without competing sources of truth. Preserve the distinction between intended product behavior, engineering progress and demonstrated implementation.
 
 8. **Extensibility and simplicity:** Support varied projects, coding agents and development environments through reusable capabilities and justified integrations, without introducing unnecessary parallel infrastructure.
+
+## Proposed amendment — Bounded Autonomy (pending design review)
+
+This is the developer-requested architectural requirement proposed for the next reviewed charter revision. It is **not yet part of accepted canonical PRODUCT version 1**; the accepted text above remains its registration reference.
+
+**Bounded Autonomy:** Every autonomous workflow provided, initiated or delegated by AIWF must operate under a finite, developer-authorized governing execution budget, reach an explicit terminal outcome, and produce a durable, attributable report. Nested delegation, retries, escalation and recovery consume that same budget or reserved portions of it; they cannot silently reset or enlarge it. On exhaustion, AIWF stops cleanly, preserves completed work and valid evidence, and reports remaining work and what is needed to continue. Execution bounds are distinct from a Ticket's potentially long-lived lifecycle and from formal acceptance. An unfinished Ticket does not authorize unlimited continuation. New autonomous features and supported host integrations inherit this invariant by design through existing execution and storage owners, without parallel workflow or persistence frameworks.
+
+The proposed mechanism, limitations and review decision are in the [Bounded Autonomy design](../plans/AIWF-BOUNDED-AUTONOMY-DESIGN.md). Review precedes runtime implementation; the canonical Product amendment uses the existing reviewed Product operation.
