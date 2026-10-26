@@ -186,6 +186,7 @@ export async function indexSingleFile(
         exported: sym.exported,
         signature: sym.metadata?.signature,
         status: 'implemented',
+        metadata: {...((oldEntity as any).metadata ?? {}), missing: false},
         updatedAt: new Date().toISOString()
       }, true, false);
       symbolEntity = oldEntity;
