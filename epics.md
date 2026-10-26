@@ -28,13 +28,13 @@ Historical charter: execute docs/artifact-operations-plan.md completely; product
 - **FEAT-AIWF-TRUTHFUL-PRIMITIVES**: Truthful, efficient code intelligence/change primitives
 
 ### Contained Tickets
+- **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-PRIMITIVE-TRUTH** [Done]: Gate 1: PRIMITIVE-TRUTH
 - **AIWF-OPERATION-POLICY** [Done]: Gate 2: OPERATION-POLICY
 - **AIWF-ASPECTS** [Done]: Gate 3: ASPECTS
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-PERFORMANCE-METRICS** [Done]: Gate 6: PERFORMANCE-METRICS
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-PRODUCT-PROCESSING** [Done]: Gate 8: PRODUCT-PROCESSING
 - **AIWF-PRIMARY-INTERFACE** [Done]: Gate 9: PRIMARY-INTERFACE
 - **AIWF-FINAL-DOGFOOD-AUDIT** [Done]: Gate 10: FINAL-DOGFOOD-AUDIT
@@ -114,10 +114,10 @@ Reuse verified TKT-SHELL-CONFIG-A, TKT-SHELL-SETUP-B, TKT-SHELL-CONFIG-C, TKT-SH
 
 ### Contained Tickets
 - **TKT-SHELL-DOGFOOD-F** [Backlog]: Delete superseded shell machinery and verify operational journeys
-- **TKT-1585** [Backlog]: Visually distinguish AIWF shell responses from user input
 - **TKT-BUG-TYPE-LANE** [Blocked]: Establish explicit Bug typing and lane semantics
 - **TKT-BUG-CONTEXTUAL-EDIT** [Backlog]: Bug: shell cannot resolve edit last ticket
 - **TKT-BUG-SYNC-MODULE-DRIFT** [Backlog]: Bug: repeated sync changes module symbol count without source edits
+- **TKT-1585** [Backlog]: Visually distinguish AIWF shell responses from user input
 
 ### Coverage
 - **Complete**: No
@@ -141,10 +141,10 @@ Use actual Doctrine G3-G5 execution evidence as baseline. Reuse FEAT-AIWF-PERFOR
 - **STORY-AIWF-PUBLIC-CONTRACT-CONSUMER**: Producer can ground dependency calls through public contracts
 
 ### Contained Tickets
-- **TKT-DOGFOOD-CODE-MUTATOR** [Backlog]: Dogfood: rename CausalChangeEngine to CodeMutator
 - **TKT-WORKFLOW-BASELINE** [Backlog]: Measure Doctrine execution and governance baseline
 - **TKT-WORKFLOW-FOUNDATION** [Backlog]: Correct demonstrated workflow friction before CodeMutator
 - **TKT-CODEMUTATOR-GO-NOGO** [Backlog]: CodeMutator dogfooding go/no-go checkpoint
+- **TKT-DOGFOOD-CODE-MUTATOR** [Backlog]: Dogfood: rename CausalChangeEngine to CodeMutator
 
 ### Coverage
 - **Complete**: No

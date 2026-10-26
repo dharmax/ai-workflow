@@ -3,6 +3,7 @@
 ## FEAT-AIWF-TRUTHFUL-PRIMITIVES: Truthful, efficient code intelligence/change primitives
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`, `EPIC-AIWF-WORKFLOW-EFFICIENCY`
 
@@ -20,6 +21,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-ARTIFACT-POLICY: Completeness/depth/critic operation policy
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
@@ -37,6 +39,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-ASPECTS: First-class cross-cutting Aspects
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
@@ -54,6 +57,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-TICKET-OPS: Ticket investigation, preparation and end-to-end resolution
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`, `EPIC-AIWF-WORKFLOW-EFFICIENCY`
 
@@ -65,9 +69,9 @@ Production capability governed by docs/artifact-operations-plan.md.
 - **STORY-AIWF-RESOLVE-TICKET**: Caller can delegate a Ticket and receive verified completion / needs-input / blocked
 
 ### Implementing Tickets
+- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **AIWF-TICKET-INVESTIGATION** [Done]: Gate 4: TICKET-INVESTIGATION
 - **AIWF-TICKET-PREPARATION** [Done]: Gate 5: TICKET-PREPARATION
-- **AIWF-TICKET-RESOLUTION-FIRST-PROOF** [Blocked]: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
 - **TKT-WORKFLOW-FOUNDATION** [Backlog]: Correct demonstrated workflow friction before CodeMutator
 
 ### Coverage
@@ -78,6 +82,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PERFORMANCE-METRICS: Correlated AIWF + llm-utils performance telemetry
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`, `EPIC-AIWF-WORKFLOW-EFFICIENCY`
 
@@ -96,6 +101,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PRODUCT-PROCESSING: Story/Feature/Epic semantic processing
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`
 
@@ -116,6 +122,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-PRIMARY-INTERFACE: High-level shell/MCP delegation surface
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Completeness Target**: `production`
 - **Epics**: `EPIC-AIWF-ARTIFACT-OPS`, `EPIC-AIWF-INTERFACE-CONSOLIDATION`
 
@@ -140,6 +147,7 @@ Production capability governed by docs/artifact-operations-plan.md.
 ## FEAT-AIWF-GOVERNED-COMPLETION: Governed source completion and current proof
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Epics**: `EPIC-AIWF-DOCTRINE`, `EPIC-AIWF-TRANSACTION-INTEGRITY`
 
 Completion covers declared and attributable actual changes, all applicable Rule layers and current evidence.
@@ -164,6 +172,7 @@ Completion covers declared and attributable actual changes, all applicable Rule 
 ## FEAT-AIWF-CONSUMER-CONTRACTS: Usable public ecosystem contracts
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Epics**: `EPIC-AIWF-CONSUMER-CONTRACTS`
 
 Consumers can use sibling libraries from public contracts and verified examples.
@@ -188,6 +197,7 @@ Consumers can use sibling libraries from public contracts and verified examples.
 ## FEAT-AIWF-BUG-LIFECYCLE: Typed Bug identity and governed lifecycle
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Epics**: `EPIC-AIWF-INTERFACE-CONSOLIDATION`
 
 A reporter retains reproducible defects as Bugs; execution and reopening remain evidence-governed.
@@ -213,6 +223,7 @@ A reporter retains reproducible defects as Bugs; execution and reopening remain 
 ## FEAT-AIWF-CONTINUOUS-VERIFICATION: Bidirectional product-to-reality verification
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Epics**: `EPIC-AIWF-CONTINUOUS-VERIFICATION`
 
 Maintain relationships between enduring product guarantees and observed execution.
@@ -239,6 +250,7 @@ Maintain relationships between enduring product guarantees and observed executio
 ## FEAT-AIWF-ENGINEERING-INTELLIGENCE: Evidence-backed engineering insights
 
 - **Status**: `accepted`
+- **Priority**: 2
 - **Epics**: `EPIC-AIWF-ENGINEERING-INTELLIGENCE`
 
 Use current verification graph to identify demonstrated maintenance/product readiness needs.
