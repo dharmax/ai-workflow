@@ -55,6 +55,23 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     expect(await store.getEntity<SymbolNode>(anchor.id, SymbolNode.dcr)).toBeNull();
   });
 
+  it('reports literal schema/config occurrences without claiming exact references', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), {recursive: true});
+    fs.writeFileSync(path.join(tmpDir, 'src', 'record.ts'),
+      'export interface RecordType { priority: number }\nexport const item: RecordType = { priority: 2 }\n');
+    fs.writeFileSync(path.join(tmpDir, 'settings.json'), '{"defaultPriority": "priority"}');
+    await indexCodebase(store, tmpDir);
+    const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
+    const result = await registry.execute('search_indexed_files_text', {text: 'priority'}, ctx);
+    expect(result.exact).toBe(false);
+    expect(result.completeWithinScope).toBe(true);
+    expect(result.matches.some((item: any) => item.filePath === 'src/record.ts')).toBe(true);
+    expect(result.matches.some((item: any) => item.filePath === 'settings.json')).toBe(true);
+    const bounded = await registry.execute('search_indexed_files_text', {text: 'priority', limit: 1}, ctx);
+    expect(bounded.truncated).toBe(true);
+    expect(bounded.completeWithinScope).toBe(false);
+    expect(bounded.matches).toHaveLength(1);
+  });
   it('covers all JS/TS symbol types in AST graph (classes, methods, interfaces, types, enums, destructuring)', async () => {
     const srcDir = path.join(tmpDir, 'src');
     fs.mkdirSync(srcDir, { recursive: true });
