@@ -158,7 +158,7 @@ export interface TicketGovernance {
 
 /** One effective Ticket governance view for investigation, production, verification and proof reuse. */
 export async function resolveTicketGovernance(store: WorkflowStore, ticket: WorkflowEntity, files: readonly string[] = [],
-  prior?: Pick<TicketGovernance, 'targets' | 'decisions'>): Promise<TicketGovernance> {
+  prior?: Pick<TicketGovernance, 'targets' | 'decisions'>, options: {refreshIndex?: boolean} = {}): Promise<TicketGovernance> {
   const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./graph/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
@@ -167,7 +167,8 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const { applicableAspects, assessAspects } = await import('./aspects.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
   const { renderRuleReferences } = await import('./rules/references.ts');
-  await ensureAstFresh(store);
+  // Receipt inspection uses the current canonical Graph without mutating it.
+  if (options.refreshIndex !== false) await ensureAstFresh(store);
   const neighbors = [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)];
   const entities: WorkflowEntity[] = [];
   for (const edge of neighbors) {
