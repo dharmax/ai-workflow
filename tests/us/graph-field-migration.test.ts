@@ -82,8 +82,13 @@ describe('US: As a developer, I can request a Story and receive working, indepen
         body: "Update the public greet(name) behavior for the accepted GREET-USER Story; preserve the public signature.",
         acceptanceCriteria: ["Calling greet('Ada') returns exactly 'Hello, ADA!' and the public test passes.",
           'Typecheck passes and the existing public test is unchanged.']}, ctx);
+      // Discover the implementation target through the public graph facade.
+      const sourceSymbols = await registry.execute('find_symbol',
+        {name: 'greet', filePath: 'src/greeting.ts', exact: true}, ctx);
+      expect(sourceSymbols.some((symbol: {name: string}) => symbol.name === 'greet')).toBe(true);
       await acceptProduct(store, [
-        {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'addresses', targetId: 'GREET-USER'}
+        {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'addresses', targetId: 'GREET-USER'},
+        {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: 'src/greeting.ts'}
       ]);
 
       // Developer reviews ONE executable Story test through public preview/apply.
