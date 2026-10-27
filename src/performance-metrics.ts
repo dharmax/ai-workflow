@@ -88,7 +88,9 @@ export function cognitionMetrics(tags?: Record<string, string | number | boolean
 /** Opt-in, read-only phase diagnostics for real resolution runs. Never log prompts or credentials. */
 export function traceResolution(message: string): void {
   if (process.env.AIWF_TRACE_RESOLUTION !== '1') return;
-  const stage = active.getStore()?.resolution?.stage ?? 'startup';
+  let scope = active.getStore();
+  while (scope && !scope.resolution) scope = scope.parent;
+  const stage = scope?.resolution?.stage ?? 'startup';
   process.stderr.write(`[AIWF resolve / ${stage}] ${message}\n`);
 }
 export function recordResolutionStage(stage: ResolutionStage, outcome = ''): void {
