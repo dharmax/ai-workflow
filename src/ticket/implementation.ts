@@ -15,7 +15,7 @@ import { createDefaultAsker } from "../model-runtime.ts"
 import type { loadConfig } from "../config.ts"
 import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../synthesis/index.ts"
 import { canonical } from "../kb/canonical.ts"
-import { cognitionMetrics, countEngineering } from "../performance-metrics.ts"
+import { cognitionMetrics, countEngineering, traceResolution } from "../performance-metrics.ts"
 
 interface ImplementationContext {
     store: WorkflowStore
@@ -97,6 +97,7 @@ export async function implementTicket(
         countEngineering("reasoningCalls")
         const synthesisCtx = buildSynthesisContext({ dossier: input, target: synthesisTarget })
         const synthesizer = new HostSourceSynthesizer(asker)
+        traceResolution('implementation synthesis model call: ' + model)
         const candidate = await synthesizer.synthesize(synthesisCtx, {
             model,
             signal: options.signal,
@@ -207,12 +208,14 @@ export async function implementTicket(
                     : {})
             }))
         }
+        traceResolution('implementation Actor model call: ' + model + ', tranche ' + (tranche+1))
         const output = await actor.run(renderImplementationGoal(store.root, workspaceFiles, actorDossier, findings, testCommands), {
             ...cognitionMetrics({ phase: repair ? "repair" : "implementation_actor" }),
             signal: trancheSignal,
             schema: ResolutionProposalSchema,
             askOptions: { model, maxTokens: cfg.llmOutputTokens, tokenBudget }
         })
+        traceResolution('implementation Actor returned: ' + output.haltReason + ', steps ' + output.totalSteps)
         if (options.signal?.aborted) options.signal.throwIfAborted()
         const recentObservations = output.steps.slice(-3).map(step => ({
             step: step.step,
