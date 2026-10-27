@@ -150,13 +150,15 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
       const request={action:'product_change' as const,mutations:[{kind:'product_update' as const,entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Load the configured millisecond delay'}}]};
       const pending=await registry.execute('preview_change',request,fixture.context);
       await acceptProduct(restarted,[{kind:'product_update',entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Read the configured retry delay in milliseconds'}}]);
-      const stale=await reviewedApply(restarted,{request,fingerprint:pending.fingerprint,decision:'accept'});
-      expect(stale.ok).toBe(false);expect(stale.error).toContain('Stale');
+      await expect(reviewedApply(restarted,{request,fingerprint:pending.fingerprint,decision:'accept'}))
+        .rejects.toThrow('Stale change preview');
+      expect((await restarted.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!.title)
+        .toBe('Read the configured retry delay in milliseconds');
       expect((await storyTestStatus(restarted,'LOAD-POLICY')).state).toBe('stale');
       expect(await currentTicketReceipt(restarted,persistedTicket)).toBeNull();
       expect((await (await restarted.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!.getEffectiveState(restarted)).state).not.toBe('done');
       expect((await restarted.getEntity<Artifact>('VERIFY-FIELD-MIGRATION',Artifact.dcr))!.body).toBe(artifact!.body);
-      evidence.negatives={changedTest:'stale; receipt invalid',changedConfiguration:'receipt invalid',revisedStory:'stale; receipt invalid',staleApproval:stale,historicalReceiptPreserved:true};
+      evidence.negatives={changedTest:'stale; receipt invalid',changedConfiguration:'receipt invalid',revisedStory:'stale; receipt invalid',staleApproval:'rejected without mutation',historicalReceiptPreserved:true};
     } finally {
       stop();
       if(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE)fs.writeFileSync(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE,JSON.stringify(evidence,null,2));
