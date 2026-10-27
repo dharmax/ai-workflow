@@ -424,7 +424,7 @@ export async function resolveTicket(
                                     preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
                                 if (observation.status === 'blocked') {
                                     traceResolution('Story ' + storyId + ' checks blocked: ' + observation.reason +
-                                        '\nLast test output:\n' + (observation.output ?? '(no recorded output)').slice(-2400))
+                                        '\nLast test output:\n' + ('output' in observation && typeof observation.output === 'string' ? observation.output : '(no recorded output)').slice(-2400))
                                     return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
                                 }
                                 return result!
