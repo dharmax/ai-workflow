@@ -332,11 +332,15 @@ export function ruleAcceptanceFailures(
 
 /** Fingerprint the authored contract and applicable governance, not unrelated advisory records. */
 export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = [], governance?: TicketGovernance) {
-  const {FileNode, SymbolNode} = await import('./graph/ontology.ts');
+  const {FileNode, SymbolNode, UserStory} = await import('./graph/ontology.ts');
   const targets = new Set<string>();
+  const addressedStories = new Map<string, number | null>();
   for (const edge of [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)]) {
     if (!['contains', 'implements', 'addresses', 'targets', 'modifies', 'governs', 'blocks', 'depends_on', 'verifies'].includes(edge.predicateName)) continue;
     const entity = await store.getEntity(edge.sourceId === ticket.id ? edge.targetId : edge.sourceId);
+    // Acceptance of an addressed Story is valid only for that Story's reviewed revision.
+    if (edge.predicateName === 'addresses' && edge.sourceId === ticket.id)
+      addressedStories.set(store.localId(edge.targetId), entity instanceof UserStory ? entity.version : null);
     if (entity instanceof FileNode || entity instanceof SymbolNode) {
       let id = entity.id;
       // Native changes may migrate durable anchors without changing authored scope.
@@ -347,6 +351,7 @@ export async function ticketVerificationSignature(store: WorkflowStore, ticket: 
   return createHash('sha256').update(canonical({
     ticket: {title: ticket.title, body: await (await import('./graph/journal.ts')).ticketVerificationBody(store,ticket), criteria: ticket.acceptanceCriteria, kind:ticket.kind??'task', defect:ticket.defect},
     targets: [...targets].sort(), completeness: await ticket.getCompletenessContext(store, completeness),
+    ...(addressedStories.size ? {addressedStories: [...addressedStories].sort(([a], [b]) => a.localeCompare(b))} : {}),
     governance: (governance ?? await resolveTicketGovernance(store, ticket)).fingerprint
   })).digest('hex');
 }
