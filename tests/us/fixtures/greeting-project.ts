@@ -144,14 +144,16 @@ export async function withAcceptedGreetingStory(
     await step('Exercise public US acceptance', () => exercise({root, ctx, publicOracle, step}));
   } finally {
     clearInterval(heartbeat);
-    closeDefinitionReviewer?.();
-    report('CLEANUP disposable project');
-    try { await closeAllTsLspClients(); }
+    try { closeDefinitionReviewer?.(); }
     finally {
-      try { store?.close(); }
+      report('CLEANUP disposable project');
+      try { await closeAllTsLspClients(); }
       finally {
-        try { exitCleanup(); }
-        finally { process.off('exit', exitCleanup); }
+        try { store?.close(); }
+        finally {
+          try { exitCleanup(); }
+          finally { process.off('exit', exitCleanup); }
+        }
       }
     }
   }
