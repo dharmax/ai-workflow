@@ -21,13 +21,19 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
       const signal = new AbortController();
       const deadline = setTimeout(() => signal.abort(new Error('US resolution exceeded 180s; see last reported stage')), 180_000);
       let resolution: Awaited<ReturnType<typeof registry.execute>>;
+      const previousTrace = process.env.AIWF_TRACE_RESOLUTION;
+      process.env.AIWF_TRACE_RESOLUTION = '1';
       try {
         resolution = await step('Resolve Story through public resolve_ticket', () => registry.execute('resolve_ticket', {
           ticketId: 'GREET-TICKET', agentId: 'us-acceptance', maxRepairs: 2,
           authorizedFiles: {'GREET-TICKET': ['src/greeting.ts']},
           testCommands: [['bun', 'test'], ['bun', 'run', 'typecheck']]
         }, {...ctx, signal: signal.signal}));
-      } finally { clearTimeout(deadline); }
+      } finally {
+        clearTimeout(deadline);
+        if (previousTrace === undefined) delete process.env.AIWF_TRACE_RESOLUTION;
+        else process.env.AIWF_TRACE_RESOLUTION = previousTrace;
+      }
 
       // THEN: verify the caller-visible contract independently of the resolver's own evidence.
       expect(resolution.status, JSON.stringify(resolution)).toBe('complete');
