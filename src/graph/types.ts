@@ -25,6 +25,7 @@ export type IntentStatus =
   | 'deprecated';
 
 export interface TicketClaim {
+  leaseId: string;
   agentId: string;
   claimedAt: string;
   expiresAt: string;

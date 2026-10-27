@@ -11,6 +11,7 @@ import {assessBug} from "../graph/ticket-state.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
 import { Ticket, TestNode, Artifact, UserStory } from "../graph/ontology.ts"
+import type {TicketClaim} from "../graph/types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
     ResolutionOptions,
@@ -61,7 +62,7 @@ export async function resolveTicket(
             const cfg = loadConfig(store.root),
                 agentId = options.agentId ?? cfg.defaultAgentId,
                 rootId = store.localId(rootTicket.id)
-            const acquired = new Set<string>(),
+            const acquired = new Map<string, TicketClaim>(),
                 ownedFiles = new Set<string>(),
                 allFiles = new Set<string>(),
                 resolved: string[] = []
@@ -100,26 +101,21 @@ export async function resolveTicket(
             let scope: import('../ticket-operation-types.ts').GovernedChangeScope
             let effectEpoch = 0
             const ctx = { store, projectRoot: store.root, signal: options.signal,
-                get governedAdmission() { return admission } }
-            let stopReason: string | undefined
-            const blocked = (reason: string): OperationResult<ResolvedTicket> => {
-                stopReason = reason
-                return {status: 'blocked', artifactId: rootId, blockers: [{reason}]}
-            }
-            const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> => {
-                stopReason = `${question} ${why}`
-                return {status: 'needs_input', artifactId: rootId, required: [{question, why, target}]}
-            }
+                get governedAdmission() { return admission },
+                get ticketLease() {
+                    const ticketId = store.localId(executingTicket.id), claim = acquired.get(ticketId)
+                    return claim ? {ticketId, claim} : undefined
+                } }
+            const blocked = (reason: string): OperationResult<ResolvedTicket> =>
+                ({status: 'blocked', artifactId: rootId, blockers: [{reason}]})
+            const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> =>
+                ({status: 'needs_input', artifactId: rootId, required: [{question, why, target}]})
             const lease = async (ticket: Ticket) => {
-                const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!,
-                    active = fresh.claim && Date.parse(fresh.claim.expiresAt) > Date.now()
-                if (active && fresh.claim!.agentId !== agentId) return `Ticket '${store.localId(ticket.id)}' is leased by '${fresh.claim!.agentId}'.`
-                const claim = await store.claimTicket(store.localId(ticket.id), agentId, cfg.defaultLeaseMinutes, false)
-                if (claim.success) {
-                    acquired.add(store.localId(ticket.id))
-                    return null
-                }
-                return claim.message ?? "Lease unavailable."
+                const id = store.localId(ticket.id)
+                const claim = await store.claimTicket(id, agentId, cfg.defaultLeaseMinutes, false, acquired.get(id))
+                if (!claim.success) return claim.message ?? 'Lease unavailable.'
+                acquired.set(id, claim.claim!)
+                return null
             }
             const apply = async (request: import("../change/types.ts").ChangeRequest) => {
                 await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
@@ -151,7 +147,7 @@ export async function resolveTicket(
                     Object.freeze({fingerprint: preview.fingerprint, edits: result.effects.edits,
                         before: Object.freeze({...result.effects.before}),
                         after: Object.freeze(after), renames: Object.freeze(result.filesRenamed.map(rename => Object.freeze({...rename})))})])})
-                await store.saveGovernedScope(scope.ticketId, agentId, admission!, scope)
+                await store.saveGovernedScope(scope.ticketId, acquired.get(scope.ticketId)!, admission!, scope)
                 anchorMigrations.push(...result.migratedAnchors)
                 for (const file of [...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])]) {
                     ownedFiles.add(file)
@@ -167,6 +163,7 @@ export async function resolveTicket(
                     successfulChanges++
                 return result
             }
+            const run = async (): Promise<OperationResult<ResolvedTicket>> => {
             try {
                 traceResolution('initial AST refresh start')
                 await ensureAstFresh(store, store.root)
@@ -202,7 +199,7 @@ export async function resolveTicket(
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
                     traceResolution('Ticket.prepare start: ' + id)
-                    const prepared = await ticket.prepare(store, { ...options, agentId })
+                    const prepared = await ticket.prepare(store, { ...options, agentId, owner: acquired.get(id) })
                     traceResolution('Ticket.prepare returned: ' + prepared.status)
                     if (prepared.status !== "complete") return prepared
                     if (prepared.value.dossier.disposition === "rejectable")
@@ -245,8 +242,8 @@ export async function resolveTicket(
                 await visit(rootId)
                 for (const id of order) {
                     anchorMigrations = []
-                    const ticket = work.get(id)!,
-                        dossier = dossiers.get(id)!
+                    const ticket = work.get(id)!
+                    let dossier = dossiers.get(id)!
                     executingTicket = ticket
                     recordMetricCompleteness(dossier.completeness)
                     const stories: string[] = []
@@ -255,6 +252,7 @@ export async function resolveTicket(
                         if (story) stories.push(store.localId(story.id))
                     }
                     let green = stories.length > 0
+                    const baselineFindings: string[] = []
                     for (const storyId of stories) {
                         const coverage = await storyTestStatus(store, storyId)
                         if (coverage.tests.some(test => test.state === 'skipped' || test.state === 'not-run')) {
@@ -285,6 +283,15 @@ export async function resolveTicket(
                             state = baseline.status
                         }
                         green &&= state === 'green'
+                        const observed = await store.getEntity<TestNode>(current.tests[0].id, TestNode.dcr)
+                        baselineFindings.push(`Story '${storyId}' baseline: ${state}.\n${observed?.output?.slice(-2000) ?? ''}`)
+                    }
+                    if (stories.length) {
+                        // Preparation preceded activation and the observed baseline. Its source
+                        // snapshots must not describe skipped tests to the implementation Actor.
+                        const refreshed = await ticket.investigate(store, {...options, mandatoryEvidenceOnly: true})
+                        if (refreshed.status !== 'complete') return refreshed
+                        dossier = refreshed.value
                     }
                     await requireStoryTests(store, ticket)
                     const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
@@ -334,7 +341,7 @@ export async function resolveTicket(
                         continue
                     }
                     await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
-                    await store.saveGovernedScope(id, agentId, admission!, scope)
+                    await store.saveGovernedScope(id, acquired.get(id)!, admission!, scope)
                     if (ticket.lane === "Done")
                         await applyProductMutations(store, [
                             { kind: "product_update", entityType: "Ticket", id, fields: { lane: "In Progress" } }
@@ -350,7 +357,7 @@ export async function resolveTicket(
                         .map(edge => store.localId(edge.targetId))
                     const verify =
                         options.verify ?? ((input: ResolutionVerificationInput) => verifyTicketAcceptance(store, input, options, cfg))
-                    let feedback: string[] = []
+                    let feedback: string[] = baselineFindings
                     const implementationState = { tranches: 0 }
                     for (let attempt = 0; attempt <= (options.verifyOnly ? 0 : maxRepairs); attempt++) {
                         options.signal?.throwIfAborted()
@@ -390,18 +397,18 @@ export async function resolveTicket(
                                 const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback))
                                 traceResolution('implementation model returned ' + proposal.changes.length + ' proposed changes')
                                 if (proposal.required?.length) return { status: "needs_input", artifactId: id, required: proposal.required }
-                                let changeBlocked = false
+                                let previewFailed = false
                                 for (const request of proposal.changes) {
                                     try {
                                         await apply(request)
                                     } catch (error) {
-                                        if (String(error).includes("Dirty target requires input:") || String(error).includes("Scope expansion requires input:")) throw error
+                                        if (!(error instanceof ToolExecutionError) || error.category !== 'safety_preview') throw error
                                         feedback = [String(error)]
-                                        changeBlocked = true
+                                        previewFailed = true
                                         break
                                     }
                                 }
-                                if (changeBlocked) continue
+                                if (previewFailed && scope.effects.length === effectEpoch) continue
                                 if (!options.testCommands?.length && proposal.testCommands.length) proposedTests = proposal.testCommands
                             }
                         }
@@ -526,7 +533,7 @@ export async function resolveTicket(
                         if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes))))
                             throw Error('Source or test changed before coherent completion.')
                         await assertTechnicalReviews(store, id, acceptance)
-                        await store.completeTicket(currentTicket, agentId, admission!, JSON.stringify({
+                        await store.completeTicket(currentTicket, acquired.get(id)!, admission!, JSON.stringify({
                                 scope,
                                 governanceVersion: DOCTRINE_VERIFIER_VERSION,
                                 governanceFingerprint: governance.fingerprint,
@@ -565,12 +572,23 @@ export async function resolveTicket(
                     cause = cause instanceof Error ? cause.cause : undefined
                 }
                 return blocked(`Ticket resolution failed: ${[message, ...causes].join(' <- ')}`)
+            }
+            }
+            let outcome: OperationResult<ResolvedTicket> | undefined
+            try {
+                outcome = await run()
+                return outcome
             } finally {
-                if (admission) await store.releaseGovernance(admission)
-                for (const id of acquired) {
-                    const stopped = stopReason && id === store.localId(executingTicket.id)
-                    await store.releaseTicket(id, agentId, stopped ? 'Blocked' : 'Todo', stopped ? stopReason : undefined)
-                }
+                const stopped = outcome?.status !== 'complete'
+                const reason = outcome ? JSON.stringify(outcome) : 'Resolution interrupted before an outcome.'
+                // Every acquired reservation belongs to this operation. Partial child completion
+                // remains Done; all unfinished owned work records the same final stop outcome.
+                const cleanup = await Promise.allSettled([
+                    ...(admission ? [store.releaseGovernance(admission)] : []),
+                    ...[...acquired].map(([id, owner]) => store.releaseTicket(id, owner, stopped ? 'Blocked' : 'Todo', stopped ? reason : undefined))
+                ])
+                const failed = cleanup.find(result => result.status === 'rejected')
+                if (failed?.status === 'rejected') throw failed.reason
                 if (!options.signal?.aborted && !store.isReadOnlyExecution()) {
                     const { exportProjections } = await import('../graph/projections.ts')
                     await exportProjections(store)

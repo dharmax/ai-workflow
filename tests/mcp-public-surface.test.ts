@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {registry} from '../src/tools/index.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {WorkflowActor} from '../src/actor/engine.ts';
@@ -76,5 +77,42 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
     expect(JSON.stringify(absent.content)).toContain('TKT-NON-EXISTENT');
   });
 
+  it('fences delayed public cleanup after same-agent reacquisition', async () => {
+    await client.callTool({name:'create_ticket',arguments:{id:'LEASE',title:'Retain canonical work'}});
+    const call=async(name:string,args:Record<string,unknown>)=>{
+      const result=await client.callTool({name,arguments:args});
+      expect(result.isError).not.toBe(true);
+      return JSON.parse((result.content as Array<{text:string}>)[0]!.text);
+    };
+    const first=await call('claim_ticket',{ticketId:'LEASE',agentId:'same'});
+    const next=await call('claim_ticket',{ticketId:'LEASE',agentId:'same'});
+    expect(first.claim.leaseId).not.toBe(next.claim.leaseId);
+    expect((await call('release_ticket',{ticketId:'LEASE',leaseId:first.claim.leaseId})).success).toBe(false);
+    expect((await call('get_ticket',{ticketId:'LEASE'})).claim).toEqual(next.claim);
+    expect((await call('release_ticket',{ticketId:'LEASE',leaseId:next.claim.leaseId})).success).toBe(true);
+    expect(await call('get_ticket',{ticketId:'LEASE'})).toMatchObject({lane:'Todo',claim:null,verification:null});
+  });
 
+  it('forwards an SDK cancellation notification to the executing tool', async () => {
+    const original=registry.get('get_ticket')!;
+    let entered!:()=>void, observed!:()=>void;
+    const started=new Promise<void>(resolve=>{entered=resolve});
+    const cancelled=new Promise<void>(resolve=>{observed=resolve});
+    registry.register({...original,execute:async(_input,ctx)=>{
+      entered();
+      await new Promise<void>(resolve=>{
+        if(ctx.signal?.aborted){observed();resolve();return;}
+        const timer=setTimeout(resolve,1000);
+        ctx.signal?.addEventListener('abort',()=>{clearTimeout(timer);observed();resolve();},{once:true});
+      });
+      return {cancelled:ctx.signal?.aborted};
+    }});
+    try {
+      const controller=new AbortController();
+      const pending=client.callTool({name:'get_ticket',arguments:{ticketId:'T'}},undefined,{signal:controller.signal}).catch(error=>error);
+      await started;controller.abort(Error('Public MCP cancellation'));
+      await pending;
+      expect(await Promise.race([cancelled.then(()=>true),new Promise<boolean>(resolve=>setTimeout(()=>resolve(false),200))])).toBe(true);
+    } finally {registry.register(original);}
+  });
 });

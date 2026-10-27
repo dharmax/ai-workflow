@@ -88,7 +88,7 @@ export function registerChangeTools() {
       const admission = await ctx.store.admitGovernance('governed');
       try {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
-        const engine = new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission});
+        const engine = new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission, ticketLease: {ticketId, claim: ticket.claim!}});
         const preview = await engine.previewChange(request as ChangeRequest);
         if (preview.blocked) throw Error(preview.blockReason ?? 'Source preview blocked.');
         const expected = sourceChangeFingerprint(preview, scope);
@@ -96,9 +96,9 @@ export function registerChangeTools() {
         const owned = new Set(scope.effects.flatMap(effect => Object.keys(effect.after).filter(file => hashFiles(ctx.projectRoot, [file])[file] === effect.after[file])));
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned);
         await requireStoryTests(ctx.store, ticket);
-        await ctx.store.saveGovernedScope(ticketId, agentId, admission, scope);
+        await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, scope);
         const result = await engine.applyChange(request as ChangeRequest, preview.fingerprint);
-        if (result.ok && result.effects) await ctx.store.saveGovernedScope(ticketId, agentId, admission, {...scope, revision: scope.revision + 1,
+        if (result.ok && result.effects) await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, {...scope, revision: scope.revision + 1,
           effects: [...scope.effects, {fingerprint, ...result.effects, renames: result.filesRenamed}]});
         return {...result, fingerprint};
       } finally { await ctx.store.releaseGovernance(admission); }

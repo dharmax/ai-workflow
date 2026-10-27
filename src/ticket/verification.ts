@@ -6,9 +6,10 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import {workspacePath} from '../change/workspace-path.ts'
 import { renderAcceptancePrompt } from "./prompts.ts"
 import { Artifact, TestNode, Ticket } from "../graph/ontology.ts"
-import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets } from "../graph/test-artifacts.ts"
+import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework } from "../graph/test-artifacts.ts"
 import { registry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
 import {canonical, computeHash} from '../kb/canonical.ts'
@@ -47,6 +48,17 @@ async function planTicketChecks(
     signal: AbortSignal | undefined, artifactId: string
 ): Promise<OperationResult<CheckPlan>> {
     const graph = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), files)
+    // Framework is source-derived tooling metadata, not acceptance evidence. Older
+    // indexed rows must not choose a different runner from the current test source.
+    for (let index = 0; index < graph.tests.length; index++) {
+        const test = graph.tests[index]!, relative = test.filePath || test.targetPath
+        if (!relative) continue
+        const file = path.resolve(store.root, workspacePath(store.root, relative))
+        if (!fs.existsSync(file) || !fs.lstatSync(file).isFile()) continue
+        const framework = inferTestFramework(relative, fs.readFileSync(file, 'utf8'))
+        if (framework !== 'unknown' && framework !== test.framework)
+            graph.tests[index] = await store.upsertEntity<TestNode>(TestNode.dcr, {id: test.id, framework})
+    }
     const unsupported = graph.tests.find(test => !['bun', 'unknown', 'playwright', undefined].includes(test.framework))
     if (unsupported) return checkNeedsInput(artifactId,
         `Supply a supported runner for '${unsupported.filePath || unsupported.targetPath}'.`,

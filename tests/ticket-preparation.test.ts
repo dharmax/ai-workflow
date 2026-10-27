@@ -125,10 +125,10 @@ describe('reviewed Ticket preparation', () => {
   });
 
   it('preserves caller-owned leases and refuses a concurrent owner', async () => {
-    const t = await parent(); await store.claimTicket('P', 'owner', 30, false);
+    const t = await parent(); const owned = await store.claimTicket('P', 'owner', 30, false);
     const blocked = await t.prepare(store, { agentId: 'other', systemOne: split, critic: 'none', propose: async () => proposal() }); expect(blocked.status).toBe('blocked');
     expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(1);
-    const result = await t.prepare(store, { agentId: 'owner', systemOne: split, critic: 'none', propose: async () => proposal() }); expect(result.status).toBe('complete');
+    const result = await t.prepare(store, { agentId: 'owner', owner: owned.claim, systemOne: split, critic: 'none', propose: async () => proposal() }); expect(result.status).toBe('complete');
     expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.claim?.agentId).toBe('owner');
   });
 

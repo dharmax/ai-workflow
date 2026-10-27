@@ -1,3 +1,6 @@
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {createMcpServer} from '../src/mcp.ts';
 import {createProduct,acceptProduct} from './product-review.ts';
 import {productReviewFixture} from './product-review-fixture.ts';
 import {createAspect} from './product-review.ts';
@@ -41,7 +44,7 @@ describe('Ticket-owned bounded resolution', () => {
   };
   const fix: ResolutionOptions = { systemOne, critic: 'none', verify, implement: async () => ({ changes: [{ action: 'replace_symbol', target: { type: 'symbol', filePath: 'src/add.ts', symbolName: 'add' }, replacement: 'export function add(a: number, b: number) { return a + b; }' }], testCommands: [['bun', 'test', 'tests/add.test.ts']] }) };
 
-  for (const initial of ['red','green','infrastructure','rejected','dependency','read-only','stale','public','multiple'] as const) it(`resolves reviewed Story lifecycle without manual preparation: ${initial}`,async()=>{
+  for (const initial of ['red','green','infrastructure','rejected','dependency','read-only','stale','public','public-duplicate','multiple'] as const) it(`resolves reviewed Story lifecycle without manual preparation: ${initial}`,async()=>{
     const stop=await productReviewFixture(store);
     try {
       await createProduct(store,'UserStory',{id:'S',title:'Add signed values',actor:'User',intent:'Calculate a sum',initialState:'Two signed numbers are available',action:'Add the numbers',expectedResult:'Their sum is returned',status:'accepted'});
@@ -90,7 +93,7 @@ describe('Ticket-owned bounded resolution', () => {
         return accepted;
       }};
       let result:Awaited<ReturnType<typeof t.resolve>>;
-      if(initial==='public') {
+      if(initial==='public'||initial==='public-duplicate') {
         const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
         const provider=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
           if(prompt.includes('Independently verify EVERY')) {
@@ -98,11 +101,13 @@ describe('Ticket-owned bounded resolution', () => {
             return {model,ok:true,text:JSON.stringify({criteria:[{criterion:'Positive and negative inputs add correctly',passed:true,evidence:'Current signed arithmetic source and both executed public Story assertions agree.'}],aspects:[],rules:[]})};
           }
           implementations++;
+          expect(prompt).toContain("Story 'S' baseline: expected-red");
+          expect(prompt).not.toContain('it.skip(');
           const baseline=(await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!;
           expect(baseline.testState).toBe('expected-red');expect(baseline.passed).toBe(false);
           const decision=implementations===1
             ? {thought:'Correct the inspected arithmetic operator',action:'tool_call',toolCalls:[{name:'safe_change',parameters:{action:'replace_text',filePath:'src/add.ts',oldText:'a - b',newText:'a + b'}}]}
-            : {thought:'Request tests and independent acceptance',action:'final_answer',finalAnswer:JSON.stringify({changes:[],testCommands:[['bun','test','tests/signed-story.test.ts']]})};
+            : {thought:'Request tests and independent acceptance',action:'final_answer',finalAnswer:JSON.stringify({changes:initial==='public-duplicate'?[{action:'replace_text',filePath:'src/add.ts',oldText:'a - b',newText:'a + b'}]:[],testCommands:[['bun','test','tests/signed-story.test.ts']]})};
           return {model,ok:true,text:JSON.stringify(decision)};
         });
         try {result=await registry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},ctx);}
@@ -118,7 +123,7 @@ describe('Ticket-owned bounded resolution', () => {
         if(initial==='dependency')expect(JSON.stringify(result)).toContain('PREREQUISITE');
       } else {
         if(result.status!=='complete')throw Error(JSON.stringify(result));expect(result.status).toBe('complete');
-        expect(implementations).toBe(initial==='green'?0:initial==='public'?2:1);expect(reviews).toBe(1);
+        expect(implementations).toBe(initial==='green'?0:(initial==='public'||initial==='public-duplicate')?2:1);expect(reviews).toBe(1);
         expect((await story.getEffectiveState(store)).state).toBe('done');
         expect((await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!.testState).toBe('green');
         expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({lane:'Done',claim:null});
@@ -170,6 +175,37 @@ describe('Ticket-owned bounded resolution', () => {
     } finally {stop();}
   },30000);
 
+  for (const target of ['root','child'] as const) for (const status of ['blocked','needs_input','exception'] as const)
+  it(`public resolver stops all owned reservations after ${target} preparation ${status}`, async () => {
+    await ticket();
+    if(target==='child') {
+      const parent=(await store.getEntity<Ticket>('T',Ticket.dcr))!;
+      const child=await ticket('CHILD','Separate child contract');await store.upsertEntity(Ticket.dcr,{id:'CHILD',body:'Bounded independent subtask',acceptanceCriteria:['Child contract is satisfied']});await store.relate(parent,'contains',child);
+    }
+    const original=Ticket.prototype.prepare;
+    const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
+    const preparation=spyOn(Ticket.prototype,'prepare').mockImplementation(async function(this:Ticket,s,options) {
+      const id=s.localId(this.id);
+      if(id!==(target==='root'?'T':'CHILD'))return original.call(this,s,options);
+      if(status==='exception')throw Error('Preparation exception preserves work');
+      return status==='blocked'?{status,artifactId:id,blockers:[{reason:'Nested preparation blocker'}]}:
+        {status,artifactId:id,required:[{question:'Developer decision',why:'Nested preparation needs input',target:'Ticket scope'}]};
+    });
+    try {
+      initializeTools();
+      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
+        {store,projectRoot:root,executionAuthority:'project-write'});
+      expect(result.status).toBe(status==='exception'?'blocked':status);
+      for(const id of target==='child'?['T','CHILD']:['T']) {
+        expect(await store.getEntity<Ticket>(id,Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
+        expect(await store.getEntity('VERIFY-'+id,Artifact.dcr)).toBeNull();
+        const history=await registry.execute('get_ticket_history',{ticketId:id,limit:100},{store,projectRoot:root});
+        expect(JSON.stringify(history)).toContain(status==='exception'?'Preparation exception':status==='blocked'?'Nested preparation blocker':'Nested preparation needs input');
+      }
+      expect(await store.getActiveClaims()).toEqual([]);
+    } finally {preparation.mockRestore();routing.mockRestore();}
+  });
+
   it('surgically fixes a function, verifies material Aspects, records proof/metrics and reuses only matching proof', async () => {
     const t = await ticket(); const a = await createAspect(store,{ id: 'A', title: 'Signed arithmetic', acceptanceCriteria: ['Preserve signed inputs'] }); await store.relate(t, 'addresses', a);
     const result = await t.resolve(store, fix); expect(result.status).toBe('complete'); if (result.status !== 'complete') throw Error(JSON.stringify(result));
@@ -192,7 +228,7 @@ describe('Ticket-owned bounded resolution', () => {
     expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'T'}).rows[0].resolution).toEqual({stage, outcome: `blocked_${stage}`});
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
   });
-  for (const interruption of ['abort','replacement'] as const) it(`public resolution releases only its owned execution after ${interruption}`, async () => {
+  for (const interruption of ['abort','replacement','same-agent'] as const) it(`public resolution releases only its owned execution after ${interruption}`, async () => {
     fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a: number, b: number) { return a + b; }\n');
     await ticket();
     const oracle=await graphOracle((await store.getEntity<FileNode>('src/add.ts',FileNode.dcr))!);
@@ -200,9 +236,9 @@ describe('Ticket-owned bounded resolution', () => {
     const controller=new AbortController();
     const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async()=>{
       expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim?.agentId).toBe('resolver');
-      if(interruption==='replacement') {
+      if(interruption!=='abort') {
         await store.upsertEntity(Ticket.dcr,{id:'T',claim:{agentId:'resolver',claimedAt:new Date(0).toISOString(),expiresAt:new Date(0).toISOString()}});
-        expect((await store.claimTicket('T','replacement',30)).success).toBe(true);
+        expect((await store.claimTicket('T',interruption==='same-agent'?'resolver':'replacement',30)).success).toBe(true);
       }
       controller.abort(Error('Interrupted at independent review'));
       throw controller.signal.reason;
@@ -213,8 +249,8 @@ describe('Ticket-owned bounded resolution', () => {
         testCommands:[['bun','test',oracle.filePath!]]},{store,projectRoot:root,executionAuthority:'project-write',signal:controller.signal});
       expect(result.status).toBe('blocked');
       const current=await store.getEntity<Ticket>('T',Ticket.dcr);
-      expect(current?.lane).toBe(interruption==='replacement'?'In Progress':'Blocked');
-      expect(current?.claim?.agentId??null).toBe(interruption==='replacement'?'replacement':null);
+      expect(current?.lane).toBe(interruption!=='abort'?'In Progress':'Blocked');
+      expect(current?.claim?.agentId??null).toBe(interruption==='same-agent'?'resolver':interruption==='replacement'?'replacement':null);
       expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
       if(interruption==='abort') {
         const history=await registry.execute('get_ticket_history',{ticketId:'T',limit:100},{store,projectRoot:root});
@@ -223,6 +259,77 @@ describe('Ticket-owned bounded resolution', () => {
       expect(JSON.parse((await store.getEntity<Artifact>('GOVERNANCE-ADMISSION',Artifact.dcr))!.body!)).toEqual([]);
     } finally {completion.mockRestore();}
   },30000);
+  it('cancels actual MCP resolution during independent review and waits for durable cleanup',async()=>{
+    fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a:number,b:number){return a+b;}');
+    await ticket();const oracle=await graphOracle((await store.getEntity<FileNode>('src/add.ts',FileNode.dcr))!);
+    git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','correct source');
+    let reviewing!:()=>void,finished!:()=>void;
+    const entered=new Promise<void>(resolve=>{reviewing=resolve});
+    const settled=new Promise<void>(resolve=>{finished=resolve});
+    const original=Ticket.prototype.resolve;
+    const observe=spyOn(Ticket.prototype,'resolve').mockImplementation(async function(this:Ticket,s,o){
+      try{return await original.call(this,s,o);}finally{finished();}
+    });
+    const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
+    const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(_p,_m,_c,options)=>{
+      expect(options?.signal).toBeDefined();reviewing();
+      return await new Promise((_,reject)=>options!.signal!.addEventListener('abort',()=>reject(options!.signal!.reason),{once:true}));
+    });
+    const server=createMcpServer({store,projectRoot:root,executionAuthority:'project-write'}).server;
+    const client=new Client({name:'cancellation-regression',version:'1'});
+    const [ct,st]=InMemoryTransport.createLinkedPair();
+    await server.connect(st);await client.connect(ct);
+    try{
+      const controller=new AbortController();
+      const pending=client.callTool({name:'resolve_ticket',arguments:{ticketId:'T',agentId:'resolver',verifyOnly:true,critic:'none',maxRepairs:0,testCommands:[['bun','test',oracle.filePath!]]}},undefined,{signal:controller.signal}).catch(error=>error);
+      await entered;controller.abort(Error('Cancel independent acceptance'));await pending;
+      expect(await Promise.race([settled.then(()=>true),new Promise<boolean>(resolve=>setTimeout(()=>resolve(false),2000))])).toBe(true);
+      expect(await store.getEntity<Ticket>('T',Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
+      expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+      expect(await store.getActiveClaims()).toEqual([]);
+    }finally{await client.close();await server.close();completion.mockRestore();routing.mockRestore();observe.mockRestore();}
+  },10000);
+
+  for(const status of ['blocked','needs_input'] as const) it(`public resolver preserves an investigation ${status} returned after preparation`,async()=>{
+    const t=await ticket();const dossier=await t.investigate(store,{systemOne});
+    if(dossier.status!=='complete')throw Error(JSON.stringify(dossier));
+    const prep=spyOn(Ticket.prototype,'prepare').mockResolvedValue({status:'complete',artifactId:'T',value:{dossier:dossier.value,children:[],created:[],reused:[],applied:true,criticRounds:0,rationale:'Controlled preparation boundary'}});
+    const investigation=spyOn(Ticket.prototype,'investigate').mockResolvedValue(status==='blocked'?
+      {status,artifactId:'T',blockers:[{reason:'Investigation stopped'}]}:
+      {status,artifactId:'T',required:[{question:'Inspect missing evidence',why:'Investigation stopped',target:'source evidence'}]});
+    try{
+      initializeTools();const result=await registry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
+      expect(result.status).toBe(status);
+      expect(await store.getEntity<Ticket>('T',Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
+      expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+    }finally{investigation.mockRestore();prep.mockRestore();}
+  });
+
+  it('public resolver fences source commit after same-agent replacement inside guarded apply',async()=>{
+    await ticket();let calls=0,replaced=false;
+    const original=CausalChangeEngine.prototype.applyChange;
+    const guarded=spyOn(CausalChangeEngine.prototype,'applyChange').mockImplementation(async function(this:CausalChangeEngine,request,fingerprint){
+      if(!replaced && request.action==='replace_text' && request.filePath==='src/add.ts') {
+        replaced=true;expect((await store.claimTicket('T','resolver',30,false)).success).toBe(true);
+      }
+      return original.call(this,request,fingerprint);
+    });
+    const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
+    const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
+      if(prompt.includes('Independently verify EVERY'))return {model,ok:true,text:JSON.stringify({criteria:[],aspects:[],rules:[]})};
+      return {model,ok:true,text:JSON.stringify(calls++===0?
+        {thought:'Apply authorized change',action:'tool_call',toolCalls:[{name:'safe_change',parameters:{action:'replace_text',filePath:'src/add.ts',oldText:'a - b',newText:'a + b'}}]}:
+        {thought:'Stop for verification',action:'final_answer',finalAnswer:JSON.stringify({changes:[],testCommands:[['bun','test','tests/add.test.ts']]})})};
+    });
+    try{
+      initializeTools();const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
+      expect(result.status).toBe('blocked');expect(replaced).toBe(true);
+      expect(fs.readFileSync(path.join(root,'src/add.ts'),'utf8')).toContain('a - b');
+      expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim?.agentId).toBe('resolver');
+      expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+    }finally{completion.mockRestore();routing.mockRestore();guarded.mockRestore();}
+  });
+
   it('distinguishes newly verified unchanged source from reused proof', async () => {
     fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'correct source');
@@ -273,10 +380,11 @@ describe('Ticket-owned bounded resolution', () => {
     } finally { completion.mockRestore(); }
   }, 30000);
 
-  for (const implemented of [true, false]) it(`public verify-only resolves existing work without a producer (implemented=${implemented})`, async () => {
+  for (const implemented of [true, false, 'stale-framework'] as const) it(`public verify-only resolves existing work without a producer (implemented=${implemented})`, async () => {
     if (implemented) fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
     const t = await ticket();
     const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
+    if(implemented==='stale-framework') await store.upsertEntity(TestNode.dcr,{id:oracle.id,framework:'bun:test'});
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'verification baseline');
     const source = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
     await (await import('../src/graph/projections.ts')).exportProjections(store);
@@ -297,7 +405,8 @@ describe('Ticket-owned bounded resolution', () => {
       expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(source);
       expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
       const receipt = await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr);
-      expect(!!receipt).toBe(implemented);
+      expect(!!receipt).toBe(Boolean(implemented));
+      if(implemented==='stale-framework') expect((await store.getEntity<TestNode>(oracle.id,TestNode.dcr))!.framework).toBe('bun');
       if(implemented) {
         fs.writeFileSync(path.join(root,'kanban.md'),staleBoard);
         const later=new Date(Date.now()+5000);fs.utimesSync(path.join(root,'kanban.md'),later,later);
@@ -854,6 +963,27 @@ describe('Ticket-owned bounded resolution', () => {
       }
     } finally { completion.mockRestore(); }
   }, 30000);
+
+  for(const partial of [false,true]) it(`public resolver bounds repeated no-op mutations and retains partial work: ${partial}`,async()=>{
+    await ticket();let calls=0;
+    const routing=spyOn(LayaSystemOne.prototype,'assess').mockResolvedValue(null);
+    const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(_prompt,model)=>{
+      const first=calls++===0;
+      const oldText=partial&&!first?'a + b':'a - b';
+      const newText=partial?'a + b':oldText;
+      return {model,ok:true,text:JSON.stringify({thought:'Apply change',action:'tool_call',toolCalls:[{name:'safe_change',parameters:{action:'replace_text',filePath:'src/add.ts',oldText,newText}}]})};
+    });
+    try{
+      initializeTools();
+      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
+        {store,projectRoot:root,executionAuthority:'project-write'});
+      expect(result.status).toBe('blocked');expect(calls).toBe(partial?4:3);
+      expect(JSON.stringify(result)).toContain('Stalled navigation');
+      expect(fs.readFileSync(path.join(root,'src/add.ts'),'utf8')).toContain(partial?'a + b':'a - b');
+      expect(await store.getEntity<Ticket>('T',Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
+      expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+    }finally{completion.mockRestore();routing.mockRestore();}
+  });
 
   it('rejects repeated unchanged navigation and permits re-reading after a real edit', async () => {
     const t = await ticket(); let calls = 0;

@@ -244,9 +244,15 @@ export async function prepareTicket(
                 const held = current.claim && new Date(current.claim.expiresAt).getTime() > Date.now()
                 if (held && current.claim!.agentId !== agentId)
                     return { status: "blocked", artifactId: id, blockers: [{ reason: `Ticket is leased by '${current.claim!.agentId}'.` }] }
-                let acquired = false
+                if (held && !options.owner)
+                    return {status: 'blocked', artifactId: id, blockers: [{reason: 'Preparation requires the exact enclosing execution lease; an agent name does not establish ownership.'}]}
+                let acquired: import("../graph/types.ts").TicketClaim | undefined
                 try {
-                    if (!held) {
+                    if (options.owner) {
+                        const {canonical} = await import('../kb/canonical.ts')
+                        if (!held || canonical(current.claim) !== canonical(options.owner))
+                            throw Error('Enclosing execution lease changed or expired during preparation.')
+                    } else {
                         const lease = await store.claimTicket(id, agentId, cfg.defaultLeaseMinutes, false)
                         if (!lease.success)
                             return {
@@ -254,7 +260,7 @@ export async function prepareTicket(
                                 artifactId: id,
                                 blockers: [{ reason: lease.message ?? "Ticket lease unavailable." }]
                             }
-                        acquired = true
+                        acquired = lease.claim!
                     }
                     // Claim changed the durable fingerprint, so preview again under the lease.
                     const preview = await engine.previewChange(request)
@@ -283,9 +289,11 @@ export async function prepareTicket(
                     }
                 } finally {
                     if (acquired) {
-                        await store.releaseTicket(id)
-                        const { exportProjections } = await import("../graph/projections.ts")
-                        await exportProjections(store)
+                        await store.releaseTicket(id, acquired)
+                        if (!options.signal?.aborted) {
+                            const { exportProjections } = await import("../graph/projections.ts")
+                            await exportProjections(store)
+                        }
                     }
                 }
             }

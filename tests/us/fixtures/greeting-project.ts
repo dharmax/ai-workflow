@@ -111,7 +111,7 @@ export async function withAcceptedGreetingStory(
     if (targets.length !== 1) throw Error('Expected one indexed public greet symbol; found ' + targets.length);
     await step('Link Ticket to Story and exact source symbol', () => acceptProduct(store!, [
       {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'addresses', targetId: 'GREET-USER'},
-      {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: targets[0]!.id}
+      {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: 'src/greeting.ts'}
     ]));
 
     // Developer approves the executable public-interface Story test.

@@ -54,7 +54,7 @@ it('preserves legacy bodies and evidence atomically, retains historical verifica
   // Existing owner seeds a controlled historical completion; this fixture is not current product acceptance.
   await store.claimTicket(ticketId,'fixture',30,false);
   const token=await store.admitGovernance('governed');
-  try {await store.completeTicket((await store.getEntity<Ticket>(ticketId,Ticket.dcr))!,'fixture',token,'Historical fixture receipt; preserve exact bytes.');}
+  try {await store.completeTicket((await store.getEntity<Ticket>(ticketId,Ticket.dcr))!,(await store.getEntity<Ticket>(ticketId,Ticket.dcr))!.claim!,token,'Historical fixture receipt; preserve exact bytes.');}
   finally {await store.releaseGovernance(token);}
   const receipt=(await store.getEntity<Artifact>('VERIFY-'+ticketId,Artifact.dcr))!;
   const beforeSignature=await ticketVerificationSignature(store,(await store.getEntity<Ticket>(ticketId,Ticket.dcr))!);

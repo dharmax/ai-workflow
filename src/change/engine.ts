@@ -39,6 +39,7 @@ import type {
 } from './types.ts';
 
 export interface ChangeEngineOptions {
+  ticketLease?: {ticketId: string; claim: import('../graph/types.ts').TicketClaim};
   governedAdmission?: string;
   store: WorkflowStore;
   projectRoot: string;
@@ -231,6 +232,7 @@ export function computeChangeFingerprint(
 export class CausalChangeEngine {
   public readonly store: WorkflowStore;
   private readonly governedAdmission?: string;
+  private readonly ticketLease: ChangeEngineOptions['ticketLease'];
   private lastPreview?: Pick<ChangePreview, 'fingerprint' | 'originalHashes'>;
   public readonly projectRoot: string;
   public readonly lspClient: TsLspClient;
@@ -239,6 +241,7 @@ export class CausalChangeEngine {
   constructor(options: ChangeEngineOptions) {
     this.store = options.store;
     this.governedAdmission = options.governedAdmission;
+    this.ticketLease = options.ticketLease;
     this.projectRoot = path.resolve(options.projectRoot);
     this.lspClient = options.lspClient || getTsLspClient(this.projectRoot);
     this.ts6Client = options.ts6Client || getTs6RefactorClient(this.projectRoot);
@@ -879,6 +882,7 @@ export class CausalChangeEngine {
     const writtenFiles: string[] = [];
     const executedRenames: Array<{ from: string; to: string }> = [];
 
+    const commit = () => {
     try {
       // 5a. Write modified / new file contents
       for (const [absPath, content] of materializedFiles) {
@@ -919,6 +923,10 @@ export class CausalChangeEngine {
       }
       throw new Error(`Failed to commit change to disk; rolled back touches: ${err.message}`);
     }
+
+    };
+    if (this.ticketLease) await this.store.commitWithTicketLease(this.ticketLease.ticketId, this.ticketLease.claim, commit);
+    else commit();
 
     // Preserve durable source-anchor identities and provenance before re-indexing.
     const anchorSources: Array<{oldId: string; symbol?: SymbolNode; relations: Array<{sourceId: string; predicate: string}>}> = [];

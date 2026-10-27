@@ -58,6 +58,8 @@ export const TicketPreparationProposalSchema = z.object({
 });
 export type TicketPreparationProposal = z.infer<typeof TicketPreparationProposalSchema>;
 export interface PreparationOptions extends InvestigationOptions {
+  /** Exact enclosing execution lease; never supplied by the model transport. */
+  owner?: import("./graph/types.ts").TicketClaim;
   agentId?: string;
   propose?: (dossier: TicketDossier, findings: readonly CriticFinding[]) => Promise<TicketPreparationProposal>;
 }

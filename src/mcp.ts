@@ -117,7 +117,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
   });
 
   // 2. Call Tool
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: args } = request.params;
 
     const {projectRoot: requestedRoot, ...toolArgs} = args || {};
@@ -156,7 +156,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
           () => ensureAstFresh(activeStore, activeRoot));
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
-        executionAuthority: targetAuthority};
+        executionAuthority: targetAuthority, signal: extra.signal};
 
       if (name === 'execute_shell_wish') {
         const wish = String(toolArgs.wish || '');
@@ -166,7 +166,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
           projectRoot: activeRoot,
           preferLocal: true
         });
-        const res = await activeActor.execute(wish, mode, {executionAuthority: ctx.executionAuthority});
+        const res = await activeActor.execute(wish, mode, {executionAuthority: ctx.executionAuthority, signal: extra.signal});
 
         let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
         if (res.stepsCount > 0) {

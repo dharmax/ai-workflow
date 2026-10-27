@@ -1,4 +1,4 @@
-import {afterEach, expect, test} from 'bun:test';
+import {afterEach, expect, test, spyOn} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -225,7 +225,67 @@ test('public status reports a resolver reservation even before its lane enters I
   const result=Bun.spawnSync(['bun',path.resolve('src/cli.ts'),'status'],{cwd:root,stderr:'pipe'});
   expect(result.success).toBe(true);
   expect(result.stdout.toString()).toContain('reserved-owner');
-  await store.releaseTicket('T','reserved-owner');
+  await store.releaseTicket('T',(await store.getEntity<Ticket>('T',Ticket.dcr))!.claim!);
   expect((await store.getActiveClaims())).toEqual([]);
   expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Todo');
+});
+
+
+test('same-agent replacement fences delayed renewal and cleanup across restart', async () => {
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-lease-identity-'));
+  store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Retain work',lane:'Todo'});
+  const first=await store.claimTicket('T','same-agent',30);
+  const second=await store.claimTicket('T','same-agent',30);
+  expect(first.success && second.success).toBe(true);
+  expect(first.claim!.leaseId).not.toBe(second.claim!.leaseId);
+  store.close();store=new WorkflowStore(root);
+  expect(await store.releaseTicket('T',first.claim)).toBe(false);
+  expect((await store.claimTicket('T','same-agent',30,false,first.claim)).success).toBe(false);
+  expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim).toEqual(second.claim!);
+  expect(await store.releaseTicket('T',second.claim)).toBe(true);
+});
+
+
+test('CAS acquisition, renewal, expiry and stale completion preserve the current execution',async()=>{
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-lease-cas-'));store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'One execution',lane:'Todo'});
+  const attempts=await Promise.all(['one','two'].map(agent=>store.claimTicket('T',agent,30)));
+  expect(attempts.filter(result=>result.success)).toHaveLength(1);
+  const first=attempts.find(result=>result.success)!.claim!;
+  const renewed=await store.claimTicket('T',first.agentId,60,false,first);
+  expect(renewed.success).toBe(true);expect(renewed.claim!.leaseId).toBe(first.leaseId);
+  expect(await store.releaseTicket('T',first)).toBe(false);
+  const next=await store.claimTicket('T',first.agentId,30,false);
+  const admission=await store.admitGovernance('governed');
+  try {
+    await expect(store.completeTicket((await store.getEntity<Ticket>('T',Ticket.dcr))!,renewed.claim!,admission,'Must never persist')).rejects.toThrow('claim changed');
+    expect(await store.getEntity('VERIFY-T')).toBeNull();
+  }finally{await store.releaseGovernance(admission);}
+  expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim).toEqual(next.claim!);
+  await store.releaseTicket('T',next.claim);
+  const expiring=await store.claimTicket('T','expires',0.0001);
+  await new Promise(resolve=>setTimeout(resolve,12));
+  expect((await store.claimTicket('T','expires',30,false,expiring.claim)).success).toBe(false);
+  const recovered=await store.claimTicket('T','expires',30);
+  expect(recovered.success).toBe(true);expect(recovered.claim!.leaseId).not.toBe(expiring.claim!.leaseId);
+  expect(await store.releaseTicket('T',expiring.claim)).toBe(false);
+  expect(await store.releaseTicket('T',recovered.claim)).toBe(true);
+});
+
+
+test('a lease expiring during completion cannot mint a receipt or Done',async()=>{
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-expired-completion-'));store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Retain incomplete work',lane:'Todo'});
+  const claim=await store.claimTicket('T','expires',0.001);
+  const admission=await store.admitGovernance('governed');
+  const original=store.governanceAssertion.bind(store);
+  const waiting=spyOn(store,'governanceAssertion').mockImplementation(async token=>{
+    const assertion=await original(token);await new Promise(resolve=>setTimeout(resolve,75));return assertion;
+  });
+  try {
+    await expect(store.completeTicket((await store.getEntity<Ticket>('T',Ticket.dcr))!,claim.claim!,admission,'Must not persist')).rejects.toThrow('expired');
+    expect(await store.getEntity('VERIFY-T')).toBeNull();
+    expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('In Progress');
+  }finally{waiting.mockRestore();await store.releaseGovernance(admission);await store.releaseTicket('T',claim.claim);}
 });

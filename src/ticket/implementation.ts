@@ -153,14 +153,7 @@ export async function implementTicket(
                 parameters: tool.parameters,
                 execute: async params => {
                     if (controller.signal.aborted) throw new Error("Stalled navigation: implementation tranche terminated.")
-                    if (name === "safe_change") {
-                        countEngineering("toolCalls")
-                        const epochBefore = context.mutationEpoch()
-                        const result = await applyChange(params as ChangeRequest)
-                        if (context.mutationEpoch() > epochBefore) duplicateAttempts = 0
-                        return result
-                    }
-                    // Every navigation tool is an observation; safe changes are handled above.
+                    // Bound repeated effect-free tool calls, including failed or no-op changes.
                     const key = canonical([name, params, context.mutationEpoch()])
                     if (observations.has(key)) {
                         if (++duplicateAttempts >= 2) controller.abort()
@@ -172,6 +165,13 @@ export async function implementTicket(
                     }
                     observations.add(key)
                     duplicateAttempts = 0
+                    if (name === "safe_change") {
+                        countEngineering("toolCalls")
+                        const epochBefore = context.mutationEpoch()
+                        const result = await applyChange(params as ChangeRequest)
+                        if (context.mutationEpoch() > epochBefore) duplicateAttempts = 0
+                        return result
+                    }
                     if (name === "get_symbol_source") {
                         countEngineering("sourceReads")
                         countEngineering("exactSymbolReads")

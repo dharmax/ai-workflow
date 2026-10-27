@@ -113,7 +113,7 @@ export async function authorizeMigration(fixture: MigrationFixture) {
   if (dossier.status !== 'complete') throw Error(JSON.stringify(dossier));
   const scope = await buildSourceScope(store,ticket,dossier.value,{authorizedFiles:files});
   const admission = await store.admitGovernance('governed');
-  try {await store.saveGovernedScope('FIELD-MIGRATION','migration-host',admission,scope);}
+  try {await store.saveGovernedScope('FIELD-MIGRATION',claim.claim!,admission,scope);}
   finally {await store.releaseGovernance(admission);}
   const structural = await registry.execute('analyze_blast_radius',{target:'src/policy.ts'},fixture.context);
   const escaped = await registry.execute('search_workspace_text',{text:String.raw`wait\u0053econds`,limit:100},fixture.context);

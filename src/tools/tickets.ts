@@ -101,7 +101,7 @@ export function registerTicketTools() {
         try {
           await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
             applyOwnedChange(preview, ctx));
-        } catch (error) { await ctx.store.releaseTicket(ticketId, agentId); throw error; }
+        } catch (error) { await ctx.store.releaseTicket(ticketId, result.claim); throw error; }
       }
       return result;
     }
@@ -109,13 +109,16 @@ export function registerTicketTools() {
 
   registry.register({
     name: 'release_ticket',
-    description: 'Release an active ticket lease.',
+    description: 'Release the exact execution lease by leaseId. Omit leaseId only for an explicit administrative release of current work.',
     category: 'ticket',
     parameters: z.object({
-      ticketId: z.string().describe('The ID of the ticket to release')
+      ticketId: z.string().describe('The ID of the ticket to release'),
+      leaseId: z.string().uuid().optional().describe('Execution identity returned by claim_ticket; prevents stale cleanup of a replacement lease')
     }),
-    execute: async ({ ticketId }, ctx: ToolContext) => {
-      const success = await ctx.store.releaseTicket(ticketId);
+    execute: async ({ ticketId, leaseId }, ctx: ToolContext) => {
+      const ticket = await requireTicket(ctx, ticketId);
+      if (leaseId && ticket.claim && ticket.claim.leaseId !== leaseId) return {success: false, ticketId};
+      const success = await ctx.store.releaseTicket(ticketId, ticket.claim ?? undefined);
       return { success, ticketId };
     }
   });

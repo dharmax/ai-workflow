@@ -197,6 +197,10 @@ kanban-plugin: board
   - **Priority**: 1
   - Revision: 4
   - Type: Bug / severity: unknown
+- [ ] **TKT-TICKET-LIFECYCLE-INTEGRITY**: Preserve Ticket lifecycle integrity across release recovery and Markdown reconciliation
+  - Summary: Developer-authorized technical lifecycle integrity repair, 2026-10-27. PRODUCT accepted v1; Ticket, Verification and Prime Directive definitions; three universal Rules v1. Audit all 17 existing In Progress/Blocked Tickets without changing their lanes. Repair release, cancellation, resolver recovery and stale Markdown reconciliation in current owners. No sync performance, automatic Done, cleanup scripts or new subsystem.
+  - **Priority**: 1
+  - Revision: 85
 - [ ] **TKT-PC1B**: PC1b: normalized commands and reviewed governed links
   - Summary: PC1b: normalized commands and reviewed governed links. Complete shared Commander help and public Product, Ticket, Config, review and Story-test operations while preserving specialist ownership and shell parity. Independent full acceptance remains required.
   - **Priority**: 2
@@ -233,11 +237,6 @@ kanban-plugin: board
   - Summary: Unify source synthesis eligibility in the existing context builder and Ticket implementation. Optional discoveries are navigation context only. Preserve the grounded simple-fix fast path and bounded Actor fallback. Regressions exercise actual resolution; review full methods and callers; focused/typecheck/proportionate aggregate checks; commit and push correction on master. No Story acceptance or implementation.
   - **Priority**: 1
   - Revision: 28
-- [/] **TKT-TICKET-LIFECYCLE-INTEGRITY**: Preserve Ticket lifecycle integrity across release recovery and Markdown reconciliation
-  - Summary: Developer-authorized technical lifecycle integrity repair, 2026-10-27. PRODUCT accepted v1; Ticket, Verification and Prime Directive definitions; three universal Rules v1. Audit all 17 existing In Progress/Blocked Tickets without changing their lanes. Repair release, cancellation, resolver recovery and stale Markdown reconciliation in current owners. No sync performance, automatic Done, cleanup scripts or new subsystem.
-  - **Priority**: 1
-  - Revision: 76
-  - Claim: leased by @codex-ticket-integrity until 2026-10-27T18:24:37.862Z
 - [/] **TKT-REVIEWER-RELIABILITY**: Select and qualify independent reviewers within developer spending policy
   - Summary: Implement the developer-approved Reviewer Reliability Story using existing Radar, llm-utils routing, verifier and configuration owners. One public acceptance test first; actual baseline. Preserve mandatory Rules/citations, one targeted correction, observed qualification, approved paid provider/task policy and cumulative operation ceiling. Current definition review has a charter warning pending developer clarification. BASIC #2 stays closed; #3 and Consult excluded.  Current developer-authorized continuation (2026-10-25): repeated charter-alignment Critic calls hit the 60-second timeout. Increase only the existing review request timeout to 180 seconds; preserve review schemas, findings, authority and configured route. The developer separately authorized replacing the critic route with valid Radar advice.
   - **Priority**: 2
@@ -499,9 +498,9 @@ kanban-plugin: board
   - **Priority**: 1
   - Revision: 10
 - [ ] **TKT-LIFECYCLE-STATE**: Unify Ticket state and derive Story effective state
-  - Summary: Developer-authorized Ticket lane unification and read-only Story effective state; preserve independent completion and historical evidence; close incomplete Story bypass. Developer continuation 2026-10-27: repair claim/release/resolution/cancellation/recovery and stale Markdown lifecycle reconciliation through existing canonical owners. Retain the already-prepared guarded patch and real CLI/MCP regressions; investigate and complete any remaining work through resolve_ticket, then independently verify. No bulk Ticket cleanup, automatic Done, sync/export performance, duplicate implementation subsystem or unrelated repairs. Existing TKT-TICKET-LIFECYCLE-INTEGRITY is an overlapping audit/work record; preserve its evidence pending developer disposition.
+  - Summary: Developer-authorized Ticket lane unification and read-only Story effective state; preserve independent completion and historical evidence; close incomplete Story bypass. Developer continuation 2026-10-27: repair claim/release/resolution/cancellation/recovery and stale Markdown lifecycle reconciliation through existing canonical owners. Retain the already-prepared guarded patch and real CLI/MCP regressions; investigate and complete any remaining work through resolve_ticket, then independently verify. No bulk Ticket cleanup, automatic Done, sync/export performance, duplicate implementation subsystem or unrelated repairs. Existing TKT-TICKET-LIFECYCLE-INTEGRITY is an overlapping audit/work record; preserve its evidence pending developer disposition. Developer mission: make resolve_ticket ownership and all exit outcomes reliable; reproduce SDK cancellation and actual configured Actor tool calls, repair demonstrated owners through governed changes, then retry native public resolution. No autonomous success claim without real model/tool/source/test/independent acceptance evidence.
   - **Priority**: 1
-  - Revision: 171
+  - Revision: 269
 - [ ] **TKT-BOUNDED-COMPLETION-POLICY**: Distribute bounded completion policy through shared AIWF guidance
   - Summary: Developer-approved instruction maintenance: completion gates do not expand implementation authority. Publish only the requested work when instructed, preserve truthful acceptance states, and defer out-of-scope blockers. Put the policy in shared AIWF guidance and its existing MCP, installed-skill and native Actor consumers. No new reviewer gate, retry loop or governance subsystem.
   - **Priority**: 2

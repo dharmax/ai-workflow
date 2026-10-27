@@ -379,12 +379,30 @@ export class WorkflowStore {
   }
 
   /** Keep one current in-progress scope on its canonical Ticket; completion moves authority to VERIFY. */
-  async saveGovernedScope(ticketId: string, agentId: string, admission: string, scope: import('../ticket-operation-types.ts').GovernedChangeScope): Promise<void> {
+  /** Hold the existing SQLite write lock across the synchronous filesystem commit.
+   * Reacquisition cannot interleave between the exact claim check and source writes. */
+  async commitWithTicketLease(ticketId: string, owner: TicketClaim, commit: () => void): Promise<void> {
+    this.assertCanWrite();
+    const collection = await this.sp.collectionForEntityType(Ticket.dcr);
+    const id = this.formatId(Ticket.dcr, ticketId);
+    this.db.transaction(() => {
+      this.assertCanWrite();
+      const row = this.db.query<{data: string}, [string]>(`SELECT data FROM "${collection.name}" WHERE _id = ?`).get(id);
+      const claim = row ? (JSON.parse(row.data) as {claim?: TicketClaim}).claim : undefined;
+      if (!claim || canonical(claim) !== canonical(owner) || Date.parse(claim.expiresAt) <= Date.now())
+        throw Error('Ticket execution lease changed or expired before source commit.');
+      commit();
+    }).immediate();
+  }
+
+  async saveGovernedScope(ticketId: string, owner: TicketClaim, admission: string, scope: import('../ticket-operation-types.ts').GovernedChangeScope): Promise<void> {
     const collection = await this.sp.collectionForEntityType(Ticket.dcr);
     const id = this.formatId(Ticket.dcr, ticketId);
     const old = await collection.findById<Record<string, unknown> & {_version: number; claim?: TicketClaim; metadata?: Record<string, unknown>}>(id);
-    if (!old || old.claim?.agentId !== agentId || Date.parse(old.claim.expiresAt) <= Date.now()) throw Error('Scope requires an active owning Ticket claim.');
-    this.sqliteStore.applyBatch([await this.governanceAssertion(admission), {collectionName: collection.name, id, expectedVersion: old._version,
+    if (!old || !old.claim || canonical(old.claim) !== canonical(owner) || Date.parse(old.claim.expiresAt) <= Date.now()) throw Error('Scope requires an active owning Ticket claim.');
+    const assertion = await this.governanceAssertion(admission);
+    if (Date.parse(owner.expiresAt) <= Date.now()) throw Error('Ticket execution lease expired before scope persistence.');
+    this.sqliteStore.applyBatch([assertion, {collectionName: collection.name, id, expectedVersion: old._version,
       record: {...old, metadata: {...old.metadata, governedScope: scope}}}]);
   }
 
@@ -408,12 +426,12 @@ export class WorkflowStore {
   }
 
   /** Replace current verification and transition the leased Ticket in one conditional DB commit. */
-  async completeTicket(ticket: Ticket, agentId: string, admission: string, body: string): Promise<void> {
+  async completeTicket(ticket: Ticket, owner: TicketClaim, admission: string, body: string): Promise<void> {
     const tickets = await this.sp.collectionForEntityType(Ticket.dcr);
     const artifacts = await this.sp.collectionForEntityType(Artifact.dcr);
     const predicates = await this.sp.predicateCollection(semanticPredicates.verifies);
     const record = await tickets.findById<Record<string, unknown> & {claim?: TicketClaim; _version: number; metadata?: Record<string, unknown>}>(ticket.id);
-    if (!record || record._version !== ticket.version || record.claim?.agentId !== agentId || Date.parse(record.claim.expiresAt) <= Date.now())
+    if (!record || !record.claim || record._version !== ticket.version || canonical(record.claim) !== canonical(owner) || Date.parse(record.claim.expiresAt) <= Date.now())
       throw Error('Ticket or claim changed before coherent completion.');
     const proofId = this.formatId(Artifact.dcr, `VERIFY-${this.localId(ticket.id)}`);
     const previous = await artifacts.findById<{_version: number}>(proofId);
@@ -428,6 +446,7 @@ export class WorkflowStore {
     else changes.push({collectionName: predicates.name, id: predicates.createId(), expectedVersion: null, record: {
       sourceId: proofId, sourceType: 'Artifact', predicateName: 'verifies', targetId: ticket.id, targetType: 'Ticket', timestamp: Date.now()}});
     changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,claim:null,...ticketState('Done')}));
+    if (Date.parse(owner.expiresAt) <= Date.now()) throw Error('Ticket execution lease expired before coherent completion.');
     this.sqliteStore.applyBatch(changes);
   }
 
@@ -856,55 +875,64 @@ export class WorkflowStore {
     ticketId: string,
     agentId: string,
     durationMinutes: number = 30,
-    moveToInProgress: boolean = true
+    moveToInProgress: boolean = true,
+    owner?: TicketClaim
   ): Promise<{ success: boolean; claim?: TicketClaim; message?: string }> {
+    this.assertCanWrite();
     z.number().finite().positive().parse(durationMinutes);
     const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
-    if (!ticket) return { success: false, message: `Ticket not found: ${ticketId}` };
-
-    if (moveToInProgress && ['Done','Cancelled'].includes(ticket.lane))
-      return {success:false,message:'Reopen terminal work explicitly before claiming it.'};
-    const now = new Date();
-    const existingClaim: TicketClaim | undefined = (ticket as any).claim;
-
-    if (existingClaim && new Date(existingClaim.expiresAt) > now && existingClaim.agentId !== agentId) {
-      return {
-        success: false,
-        claim: existingClaim,
-        message: `Ticket ${ticketId} is actively leased by agent '${existingClaim.agentId}' until ${existingClaim.expiresAt}`
-      };
-    }
-
-    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
+    if (!ticket) return {success: false, message: `Ticket not found: ${ticketId}`};
+    if (ticket.lane === 'Cancelled' || moveToInProgress && ticket.lane === 'Done')
+      return {success: false, message: 'Reopen terminal work explicitly before claiming it.'};
+    const now = Date.now(), existing = ticket.claim;
+    if (owner && (!existing || canonical(existing) !== canonical(owner) || Date.parse(existing.expiresAt) <= now))
+      return {success: false, message: 'Ticket execution lease changed or expired.'};
+    if (existing && Date.parse(existing.expiresAt) > now && existing.agentId !== agentId)
+      return {success: false, claim: existing, message: `Ticket ${ticketId} is actively leased by agent '${existing.agentId}' until ${existing.expiresAt}`};
+    if (owner && owner.agentId !== agentId) return {success: false, message: 'Ticket execution owner differs.'};
     const claim: TicketClaim = {
-      agentId,
-      claimedAt: now.toISOString(),
-      expiresAt
+      leaseId: owner ? owner.leaseId : crypto.randomUUID(), agentId,
+      claimedAt: owner ? owner.claimedAt : new Date(now).toISOString(),
+      expiresAt: new Date(now + durationMinutes * 60_000).toISOString()
     };
-
-    await ticket.update({ claim, ...(moveToInProgress ? ticketState('In Progress') : {}) }, true, false);
-    return { success: true, claim };
+    const collection = await this.sp.collectionForEntityType(Ticket.dcr);
+    const previous = await collection.findById<Record<string, unknown> & {_version: number}>(ticket.id);
+    if (!previous || previous._version !== ticket.version) return {success: false, message: 'Ticket changed during claim.'};
+    const next = {...previous, claim, ...(moveToInProgress ? ticketState('In Progress') : {}), updatedAt: new Date(now).toISOString()};
+    const events = await ticketChangeEvents(this, ticket.id, previous, next);
+    try {
+      this.sqliteStore.applyBatch([{collectionName: collection.name, id: ticket.id, expectedVersion: ticket.version, record: next}, ...events]);
+      return {success: true, claim};
+    } catch (error) {
+      if (!String(error).includes('Stale batch revision')) throw error;
+      return {success: false, message: 'Ticket changed during claim.'};
+    }
   }
 
-  /** End owned execution, preserving terminal lanes and any replacement owner's lease. */
-  async releaseTicket(ticketId: string, agentId?: string, disposition: 'Todo' | 'Blocked' = 'Todo', reason?: string): Promise<boolean> {
+  async releaseTicket(ticketId: string, owner?: TicketClaim, disposition: 'Todo' | 'Blocked' = 'Todo', reason?: string): Promise<boolean> {
     const context = this.execution.getStore();
+    if (context?.signal?.aborted && !owner) throw Error('Cancelled cleanup requires the exact execution lease.');
     if (context && (!context.active || context.authority !== 'project-write')) this.assertCanWrite();
     // As with governance release, cancellation may release only this lease, not grant write authority.
     return this.execution.exit(async () => {
       const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
       if (!ticket) return false;
       if (!ticket.claim) return true;
-      if (agentId && ticket.claim.agentId !== agentId) return false;
+      if (owner && canonical(ticket.claim) !== canonical(owner)) return false;
       const collection = await this.sp.collectionForEntityType(Ticket.dcr);
       const previous = await collection.findById<Record<string, unknown> & {_version: number}>(ticket.id);
+      if (!previous || previous._version !== ticket.version) return false;
       const next = {...previous, claim: null, updatedAt: new Date().toISOString(),
         ...(ticket.lane === 'In Progress' || disposition === 'Blocked' && ticket.lane === 'Todo' ? ticketState(disposition) : {})};
       const events = await ticketChangeEvents(this, ticket.id, previous, next);
       if (reason) events.push(await ticketEventBatch(this, ticket.id, 'failure', reason.slice(0,12000)));
-      this.sqliteStore.applyBatch([{collectionName: collection.name, id: ticket.id,
-        expectedVersion: ticket.version, record: next}, ...events]);
-      return true;
+      try {
+        this.sqliteStore.applyBatch([{collectionName: collection.name, id: ticket.id, expectedVersion: ticket.version, record: next}, ...events]);
+        return true;
+      } catch (error) {
+        if (!String(error).includes('Stale batch revision')) throw error;
+        return false;
+      }
     });
   }
 

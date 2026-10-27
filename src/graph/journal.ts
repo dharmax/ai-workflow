@@ -51,7 +51,7 @@ export async function ticketChangeEvents(store:WorkflowStore,ticketId:string,pre
   if(canonical(previous?.claim)!==canonical(next.claim)) {
     const before=previous?.claim as Ticket['claim'], after=next.claim as Ticket['claim'];
     // Routine lease renewal is noise; record acquisition, owner change and release.
-    if(before?.agentId!==after?.agentId) events.push(await ticketEventBatch(store,ticketId,'lease',after?`Claimed by ${after.agentId}.`:'Released lease.'));
+    if(before?.agentId!==after?.agentId || before?.leaseId!==after?.leaseId) events.push(await ticketEventBatch(store,ticketId,'lease',after?`Claimed by ${after.agentId}.`:'Released lease.'));
   }
   return events;
 }
