@@ -442,10 +442,14 @@ export async function resolveTicket(
                             references:testNodes.map(test=>test.id)})
                         if (currentTests.some(test => !test.passed)) {
                             feedback = currentTests.filter(test => !test.passed).map(test => test.output)
+                            traceResolution('verification failed, repair ' + (attempt + 1) + '/' + (maxRepairs + 1) +
+                                ': ' + currentTests.filter(test => !test.passed).map(test =>
+                                    test.command.join(' ') + '\n' + test.output.slice(-2500)).join('\n'))
                             continue
                         }
                         if (!evidenceComplete) {
                             feedback = ["No current passing TestNode execution proves this verification scope."]
+                            traceResolution('verification evidence incomplete; repair ' + (attempt + 1) + '/' + (maxRepairs + 1))
                             continue
                         }
                         const verificationHashes = hashFiles(store.root, [
