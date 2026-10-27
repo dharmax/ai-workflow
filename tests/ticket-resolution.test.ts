@@ -127,6 +127,15 @@ describe('Ticket-owned bounded resolution', () => {
         expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');expect(await store.getEntity('VERIFY-T')).not.toBeNull();
         expect((await story.getEffectiveState(store)).state).toBe('done');
         if(initial==='green') {
+          // A generated projection may be newly tracked after resolution. Reading the Story
+          // must neither index that unrelated file nor weaken the existing acceptance receipt.
+          expect(fs.existsSync(path.join(root, 'decisions.md'))).toBe(true);
+          git('add', '-f', 'decisions.md');
+          expect(await store.getEntity<FileNode>('decisions.md', FileNode.dcr)).toBeNull();
+          const unchangedWrites=store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count;
+          expect((await story.getEffectiveState(store)).state).toBe('done');
+          expect(store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count).toBe(unchangedWrites);
+          expect(await store.getEntity<FileNode>('decisions.md', FileNode.dcr)).toBeNull();
           const writes=store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count;
           expect((await story.getEffectiveState(store)).state).toBe('done');
           expect(store.db.query<{count:number},[]>("SELECT total_changes() AS count").get()!.count).toBe(writes);
