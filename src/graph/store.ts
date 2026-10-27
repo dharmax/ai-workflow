@@ -152,7 +152,7 @@ export class WorkflowStore {
     const heartbeat = setInterval(() => {
       if (!section.active || renewal) return;
       const started = Date.now();
-      renewal = this.renewGovernance(token, durationMinutes)
+      renewal = this.renewGovernance(token, durationMinutes, 'index')
         .then(() => { section.expiresAt = started + durationMinutes * 60_000 - 1000; })
         .catch(() => { section.active = false; })
         .finally(() => { renewal = undefined; });
@@ -168,7 +168,7 @@ export class WorkflowStore {
       section.active = false;
       clearInterval(heartbeat);
       if (renewal) await renewal;
-      await this.indexSection.exit(() => this.releaseGovernance(token));
+      await this.indexSection.exit(() => this.releaseGovernance(token, 'index'));
     }
   }
 
@@ -195,12 +195,12 @@ export class WorkflowStore {
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) throw Error('Admission requires a positive lease duration.');
     const token = crypto.randomUUID();
     await this.updateGovernanceAdmission(leases => {
-      if (mode === 'index' ? leases.some(lease => lease.mode === 'index') :
-        leases.some(lease => lease.mode !== 'index' && (mode === 'governance' || lease.mode === 'governance')))
+      if (mode === 'index' ? leases.length > 0 :
+        leases.some(lease => mode === 'governance' || lease.mode === 'governance'))
         throw Error(mode === 'index' ? 'Index admission conflict: another refresh is in progress.' :
           'Governance admission conflict: governed work and governance mutation cannot overlap.');
       return [...leases, {token, mode, expiresAt: Date.now() + durationMinutes * 60_000}];
-    });
+    }, mode === 'index' ? 'INDEX-ADMISSION' : 'GOVERNANCE-ADMISSION');
     return token;
   }
 
@@ -209,38 +209,42 @@ export class WorkflowStore {
     const collection = await this.sp.collectionForEntityType(Artifact.dcr);
     const id = this.formatId(Artifact.dcr, 'GOVERNANCE-ADMISSION');
     const row = await collection.findById<{body: string; _version: number}>(id);
-    if (!row || !admissionSchema.parse(JSON.parse(row.body)).some(lease => lease.token === token && lease.mode !== 'index' && lease.expiresAt > Date.now()))
+    if (!row || !admissionSchema.parse(JSON.parse(row.body)).some(lease => lease.token === token && lease.expiresAt > Date.now()))
       throw Error('Governance admission expired or was recovered; retry with a fresh scope.');
     return {collectionName: collection.name, id, expectedVersion: row._version};
   }
 
-  async renewGovernance(token: string, durationMinutes = 30): Promise<void> {
+  async renewGovernance(token: string, durationMinutes = 30, kind: 'governance' | 'index' = 'governance'): Promise<void> {
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) throw Error('Admission requires a positive lease duration.');
     await this.updateGovernanceAdmission(leases => {
       if (!leases.some(lease => lease.token === token)) throw Error('Governance admission expired or was recovered.');
       return leases.map(lease => lease.token === token ? {...lease, expiresAt: Date.now() + durationMinutes * 60_000} : lease);
-    });
+    }, kind === 'index' ? 'INDEX-ADMISSION' : 'GOVERNANCE-ADMISSION');
   }
 
-  async releaseGovernance(token: string): Promise<void> {
+  async releaseGovernance(token: string, kind: 'governance' | 'index' = 'governance'): Promise<void> {
     const context = this.execution.getStore();
     if (context && (!context.active || context.authority !== 'project-write')) this.assertCanWrite();
     // Cancellation must still release this exact admission; it grants no new authority.
     await this.execution.exit(() => this.updateGovernanceAdmission(leases => leases.some(lease => lease.token === token)
-      ? leases.filter(lease => lease.token !== token) : undefined));
+      ? leases.filter(lease => lease.token !== token) : undefined,
+      kind === 'index' ? 'INDEX-ADMISSION' : 'GOVERNANCE-ADMISSION'));
   }
 
-  /** One CAS owner for the canonical admission row; abandoned leases never become active again. */
-  private async updateGovernanceAdmission(update: (leases: AdmissionLease[]) => AdmissionLease[] | undefined): Promise<void> {
+  /** One CAS owner per admission row; abandoned leases never become active again. */
+  private async updateGovernanceAdmission(
+    update: (leases: AdmissionLease[]) => AdmissionLease[] | undefined,
+    rowId: 'GOVERNANCE-ADMISSION' | 'INDEX-ADMISSION' = 'GOVERNANCE-ADMISSION'
+  ): Promise<void> {
     const collection = await this.sp.collectionForEntityType(Artifact.dcr);
-    const id = this.formatId(Artifact.dcr, 'GOVERNANCE-ADMISSION');
+    const id = this.formatId(Artifact.dcr, rowId);
     for (let attempt = 0; attempt < 32; attempt++) {
       const row = await collection.findById<{body: string; _version: number}>(id);
       const leases = update(admissionSchema.parse(row ? JSON.parse(row.body) : []).filter(lease => lease.expiresAt > Date.now()));
       if (!leases) return;
       try {
         this.sqliteStore.applyBatch([{collectionName: collection.name, id, expectedVersion: row?._version ?? null,
-          record: {title: 'Project governance admission', body: JSON.stringify(leases), status: 'active'}}]);
+          record: {title: rowId === 'INDEX-ADMISSION' ? 'Project index admission' : 'Project governance admission', body: JSON.stringify(leases), status: 'active'}}]);
         return;
       } catch (error) { if (!String(error).includes('Stale batch revision')) throw error; }
     }
@@ -448,7 +452,7 @@ export class WorkflowStore {
       if (this.execution.getStore() && previous && fields.kind !== undefined && fields.kind !== (previous.kind ?? 'task'))
         throw Error('Ticket reclassification requires reviewed preview/apply; direct mutation cannot approve it.');
     }
-    if (type === 'Artifact' && id && /^(?:VERIFY-|GOVERNANCE-ADMISSION$)/.test(this.localId(id)))
+    if (type === 'Artifact' && id && /^(?:VERIFY-|GOVERNANCE-ADMISSION$|INDEX-ADMISSION$)/.test(this.localId(id)))
       throw Error('Verification receipts and admission records are owner-managed.');
     if (type === 'Decision' &&
         (!previous || Object.entries(fields).some(([key, value]) => !['id','_id'].includes(key) && canonical(previous[key]) !== canonical(value))))
