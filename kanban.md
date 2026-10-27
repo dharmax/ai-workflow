@@ -171,6 +171,7 @@ kanban-plugin: board
 - [/] **TKT-GRAPH-ISSUE-6**: Complete Issue 6 structural Graph integration and restore runtime correctness
   - Summary: Complete https://github.com/dharmax/ai-workflow/issues/6 per developer mission: audit and correct Graph integration, restore runtime suite, preserve authored anchors and authority, demonstrate real multi-file field-contract migration with exact and textual discovery, guarded changes and independent verification. Historical remote implementation notes are untrusted.
   - **Priority**: 0
+  - Claim: leased by @codex-graph-acceptance until 2026-10-27T08:12:58.647Z
 - [/] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
   - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
   - **Priority**: 1

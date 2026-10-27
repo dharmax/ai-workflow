@@ -9,6 +9,7 @@ import {ensureAstFresh} from '../../src/graph/indexer.ts';
 import {initializeTools, registry} from '../../src/tools/index.ts';
 import {buildSourceScope} from '../../src/ticket/source-scope.ts';
 import type {ChangeRequest} from '../../src/change/types.ts';
+import {acceptProduct} from '../product-review.ts';
 
 const policySource = 'export interface RetryPolicy { waitSeconds: number }\n';
 export const migrationFiles: Record<string, string> = {
@@ -131,15 +132,62 @@ export async function guardedMigrationChange(fixture: MigrationFixture, request:
 export async function executeFieldMigration(fixture: MigrationFixture) {
   const rename = await guardedMigrationChange(fixture,{action:'rename_symbol',target:{type:'position',filePath:'src/policy.ts',
     line:0,character:policySource.indexOf('waitSeconds')},newName:'delayMs'});
+  const changes = migrationContractChanges(fixture);
+  const contracts = await guardedMigrationChange(fixture,{action:'source_change',changes});
+  const after = await registry.execute('search_workspace_text',{text:'waitSeconds',limit:100},fixture.context);
+  const properties = await fixture.store.listEntities<SymbolNode>(SymbolNode.dcr,{title:'delayMs',filePath:'src/policy.ts'});
+  return {rename,contracts,after,properties};
+}
+
+/** Fixture-local meaning authorized by Issue 6; the real project's charter is untouched. */
+export async function acceptMigrationStory(fixture: MigrationFixture) {
+  await acceptProduct(fixture.store,[
+    {kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{
+      title:'Retry policy fixture',purpose:'Load and use a consistent millisecond retry policy',actors:['Application developer'],
+      scope:'Retry policy configuration, consumers and serialization',nonGoals:['Scheduling retries or external services'],
+      bounds:'Isolated Issue 6 migration fixture; strict configuration and millisecond units',status:'accepted'}},
+    {kind:'product_create',entityType:'Feature',id:'RETRY-POLICY',fields:{
+      title:'Millisecond retry policy',body:'Expose a strict retry policy consistently in milliseconds across configuration, consumers and wire format.',status:'accepted'}},
+    {kind:'product_create',entityType:'UserStory',id:'LOAD-POLICY',fields:{
+      title:'Load the configured retry delay in milliseconds',actor:'Application developer',
+      intent:'Obtain a retry delay in milliseconds without implicit unit conversion by callers',
+      initialState:'The repository has a retry configuration representing a three-second delay; a public loadPolicy operation reads and validates it.',
+      action:'Call the public loadPolicy operation to load the configured retry policy.',
+      expectedResult:'Return exactly {delayMs:3000}, a numeric millisecond delay with no legacy waitSeconds field. Keep strict configuration validation. Configuration, consumer and wire-format contracts must agree on milliseconds.',status:'accepted'}},
+    {kind:'product_link',sourceId:'PRODUCT',predicate:'contains',targetId:'RETRY-POLICY'},
+    {kind:'product_link',sourceId:'RETRY-POLICY',predicate:'enables',targetId:'LOAD-POLICY'},
+    {kind:'product_link',sourceId:'FIELD-MIGRATION',predicate:'addresses',targetId:'LOAD-POLICY'}
+  ]);
+}
+
+export const migrationStoryTest = {
+  storyId:'LOAD-POLICY',filePath:'tests/load-policy.test.ts',fixturePath:'src/config.ts',interfaceName:'loadPolicy',
+  body:'const policy = subject();\nexpect(policy).toEqual({delayMs:3000});'
+};
+
+/** Use the existing two-boundary recovery when source indexing precedes canonical linking. */
+export async function reviewMigrationStoryTest(fixture: MigrationFixture) {
+  const reviews=[];
+  for(let attempt=0;attempt<2;attempt++) {
+    const preview=await registry.execute('prepare_story_test',{specification:migrationStoryTest},fixture.context);
+    if(preview.status!=='review') throw Error(JSON.stringify(preview));
+    const result=await fixture.store.withExecutionContext('project-write',undefined,()=>
+      registry.execute('apply_story_test',{specification:migrationStoryTest,fingerprint:preview.fingerprint,decision:'accept'},fixture.context),preview.fingerprint);
+    reviews.push({preview,result});
+    if(result.status==='linked') return reviews;
+    if(result.status!=='file-created-unlinked') throw Error(JSON.stringify(result));
+  }
+  throw Error('Story-test recovery did not link the existing identity.');
+}
+
+/** Exact contract replacements, reused after semantic rename or by Ticket.resolve. */
+export function migrationContractChanges(fixture: MigrationFixture) {
   const changes: Array<{action:'replace_text';filePath:string;oldText:string;newText:string}> = [];
-  for (const filePath of ['src/consumer.ts','src/escaped.ts','src/schema.ts','src/serialization.ts','settings/retry.cfg','fixtures/wire-example.cfg']) {
+  for (const filePath of Object.keys(migrationFiles).filter(file => file.startsWith('src/') || file.endsWith('.cfg'))) {
     const oldText = fs.readFileSync(path.join(fixture.root,filePath),'utf8');
     const newText = filePath.endsWith('.cfg') ? '{"delayMs":3000}\n'
       : oldText.replaceAll('waitSeconds','delayMs').replaceAll(String.raw`wait\u0053econds`,'delayMs').replaceAll(' * 1000','');
     if (newText !== oldText) changes.push({action:'replace_text',filePath,oldText,newText});
   }
-  const contracts = await guardedMigrationChange(fixture,{action:'source_change',changes});
-  const after = await registry.execute('search_workspace_text',{text:'waitSeconds',limit:100},fixture.context);
-  const properties = await fixture.store.listEntities<SymbolNode>(SymbolNode.dcr,{title:'delayMs',filePath:'src/policy.ts'});
-  return {rename,contracts,after,properties};
+  return changes;
 }

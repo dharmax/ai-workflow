@@ -5,18 +5,25 @@ import os from 'node:os';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {createMigrationFixture,discoverMigrationImpact,authorizeMigration,executeFieldMigration,runFixtureCommand,
-  migrationFiles,type MigrationFixture} from '../fixtures/graph-field-migration.ts';
-import {FileNode,SymbolNode} from '../../src/graph/ontology.ts';
+  migrationFiles,acceptMigrationStory,reviewMigrationStoryTest,migrationStoryTest,migrationContractChanges,type MigrationFixture} from '../fixtures/graph-field-migration.ts';
+import {FileNode,SymbolNode,Ticket,UserStory,TestNode,Artifact} from '../../src/graph/ontology.ts';
 import {ensureAstFresh,indexCodebase} from '../../src/graph/indexer.ts';
 import {registry,initializeTools} from '../../src/tools/index.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {resolveCodeTarget} from '../../src/change/target-resolver.ts';
 import {getTsLspClient} from '../../src/change/ts-lsp.ts';
+import {productReviewFixture} from '../product-review-fixture.ts';
+import {acceptProduct,reviewedApply} from '../product-review.ts';
+import {loadConfig,saveConfig} from '../../src/config.ts';
+import {storyTestStatus} from '../../src/product/story-tests.ts';
+import {currentTicketReceipt} from '../../src/ticket/verification.ts';
+import type {ResolutionOptions} from '../../src/ticket-operation-types.ts';
+
 
 describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
   let fixture:MigrationFixture|undefined;
-  afterEach(async()=>{await closeAllTsLspClients();if(fixture){fixture.store.close();fs.rmSync(fixture.root,{recursive:true,force:true});fixture=undefined;}});
+  afterEach(async()=>{await closeAllTsLspClients();if(fixture){fixture.store.close();if(!process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE)fs.rmSync(fixture.root,{recursive:true,force:true});fixture=undefined;}});
 
   it('discovers semantic and textual contracts, applies guarded changes and preserves the genuine oracle',async()=>{
     fixture=await createMigrationFixture();
@@ -61,6 +68,100 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     // Guarded application and a passing test are not an independent acceptance receipt.
     expect(await store.getEntity('VERIFY-FIELD-MIGRATION')).toBeNull();
   },20000);
+
+  it('accepts the public Story through resolve and rejects stale proof after restart',async()=>{
+    fixture=await createMigrationFixture();
+    const {root,store,context}=fixture;
+    const live=Boolean(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE);
+    const evidence:Record<string,unknown>={root,live,startedAt:new Date().toISOString()};
+    const stop=live?()=>{}:await productReviewFixture(store,false);
+    try {
+      if(live) {
+        const config=loadConfig(path.resolve(import.meta.dir,'../..'));
+        saveConfig(root,{gateway:'ollama',ollamaUrl:config.ollamaUrl,model:'ollama/gemma4:e4b',
+          modelRoutes:{critic:'ollama/gemma4:e4b',design:'ollama/gemma4:e4b'},llmOutputTokens:8192});
+      }
+      await acceptMigrationStory(fixture);
+      const story=(await store.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!;
+      expect(story.definitionReview.status).toBe('complete');
+      evidence.reviews=await reviewMigrationStoryTest(fixture);
+      expect((await storyTestStatus(store,'LOAD-POLICY')).state).toBe('skipped');
+      expect((await story.getEffectiveState(store)).state).toBe('ready');
+      const oracle=fs.readFileSync(path.join(root,'tests/policy.test.ts'),'utf8');
+      const publicFixture=fs.readFileSync(path.join(root,'src/config.ts'),'utf8');
+      const skipped=fs.readFileSync(path.join(root,migrationStoryTest.filePath),'utf8');
+      // Commit the reviewed fixture baseline so dirty-target checks retain their normal meaning.
+      expect(runFixtureCommand(root,['git','add','.']).exitCode).toBe(0);
+      expect(runFixtureCommand(root,['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','reviewed migration Story and test']).exitCode).toBe(0);
+      await ensureAstFresh(store,root);
+      for(const file of Object.keys(migrationFiles).filter(file=>file.startsWith('src/'))) {
+        await store.relate(fixture.ticket,'modifies',(await store.getEntity<FileNode>(file,FileNode.dcr))!);
+      }
+      let implementations=0;
+      const options:ResolutionOptions={agentId:'migration-host',maxRepairs:0,systemOne:{assess:async()=>null},
+        authorizedFiles:{'FIELD-MIGRATION':Object.keys(migrationFiles).filter(file=>file.startsWith('src/')||file.endsWith('.cfg'))},
+        testCommands:[['bun','test'],['bun','run','typecheck']],
+        implement:async()=>{
+          implementations++;
+          const baseline=await storyTestStatus(store,'LOAD-POLICY');
+          evidence.baseline=baseline;evidence.activeStory=await story.getEffectiveState(store);
+          expect(baseline.state).toBe('expected-red');expect(baseline.tests[0]!.passed).toBe(false);
+          expect((await story.getEffectiveState(store)).state).toBe('in-progress');
+          const test=(await store.getEntity<TestNode>('test:'+migrationStoryTest.filePath,TestNode.dcr))!;
+          evidence.baselineOutput=test.output;expect(test.output).toContain('Expected');
+          return {changes:[{action:'source_change',changes:migrationContractChanges(fixture!)}],testCommands:[]};
+        },
+        // Controlled acceptance proves regression mechanics only; live mode uses the genuine reviewer.
+        ...(live?{}:{verify:async input=>({criteria:input.dossier.ticket.acceptanceCriteria.map(criterion=>({criterion,passed:input.tests.every(test=>test.passed),evidence:'Controlled regression: unchanged public assertions and typecheck passed.'})),aspects:[],rules:[]})})
+      };
+      const result=await store.withExecutionContext('project-write',undefined,()=>fixture!.ticket.resolve(store,options));
+      evidence.resolution=result;
+      if(result.status!=='complete')throw Error(JSON.stringify(result));
+      expect(implementations).toBe(1);
+      expect(fs.readFileSync(path.join(root,'tests/policy.test.ts'),'utf8')).toBe(oracle);
+      expect(fs.readFileSync(path.join(root,'src/config.ts'),'utf8')).toBe(publicFixture);
+      const active=fs.readFileSync(path.join(root,migrationStoryTest.filePath),'utf8');
+      expect(active).toBe(skipped.replace('it.skip(','it('));
+      expect((await storyTestStatus(store,'LOAD-POLICY')).state).toBe('green');
+      expect((await story.getEffectiveState(store)).state).toBe('done');
+      const receipt=await currentTicketReceipt(store,(await store.getEntity<Ticket>('FIELD-MIGRATION',Ticket.dcr))!);
+      expect(receipt).not.toBeNull();evidence.receipt=receipt;
+      const artifact=await store.getEntity<Artifact>('VERIFY-FIELD-MIGRATION',Artifact.dcr);
+      store.close();fixture.store=new WorkflowStore(root);fixture.context.store=fixture.store;
+      const restarted=fixture.store;
+      const persistedStory=(await restarted.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!;
+      const persistedTicket=(await restarted.getEntity<Ticket>('FIELD-MIGRATION',Ticket.dcr))!;
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toEqual(receipt);
+      expect((await persistedStory.getEffectiveState(restarted)).state).toBe('done');
+      expect((await restarted.getIncoming(persistedStory.id,'verifies')).map(edge=>restarted.localId(edge.sourceId))).toEqual(['test:'+migrationStoryTest.filePath]);
+      evidence.restart={receiptCurrent:true,story:await persistedStory.getEffectiveState(restarted),ticketLane:persistedTicket.lane};
+      // External test edits invalidate the receipt and reviewed oracle without rewriting history.
+      fs.appendFileSync(path.join(root,migrationStoryTest.filePath),'\n// external evidence change\n');
+      expect((await storyTestStatus(restarted,'LOAD-POLICY')).state).toBe('stale');
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toBeNull();
+      expect((await persistedStory.getEffectiveState(restarted)).state).not.toBe('done');
+      fs.writeFileSync(path.join(root,migrationStoryTest.filePath),active);
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toEqual(receipt);
+      // Changed non-TypeScript configuration is also part of receipt freshness.
+      fs.writeFileSync(path.join(root,'settings/retry.cfg'),' {"delayMs":3000}\n');
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toBeNull();
+      fs.writeFileSync(path.join(root,'settings/retry.cfg'),'{"delayMs":3000}\n');
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toEqual(receipt);
+      const request={action:'product_change' as const,mutations:[{kind:'product_update' as const,entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Load the configured millisecond delay'}}]};
+      const pending=await registry.execute('preview_change',request,fixture.context);
+      await acceptProduct(restarted,[{kind:'product_update',entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Read the configured retry delay in milliseconds'}}]);
+      const stale=await reviewedApply(restarted,{request,fingerprint:pending.fingerprint,decision:'accept'});
+      expect(stale.ok).toBe(false);expect(stale.error).toContain('Stale');
+      expect((await storyTestStatus(restarted,'LOAD-POLICY')).state).toBe('stale');
+      expect(await currentTicketReceipt(restarted,persistedTicket)).toBeNull();
+      expect((await (await restarted.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!.getEffectiveState(restarted)).state).not.toBe('done');
+      expect((await restarted.getEntity<Artifact>('VERIFY-FIELD-MIGRATION',Artifact.dcr))!.body).toBe(artifact!.body);
+      evidence.negatives={changedTest:'stale; receipt invalid',changedConfiguration:'receipt invalid',revisedStory:'stale; receipt invalid',staleApproval:stale,historicalReceiptPreserved:true};
+    } finally {
+      stop();
+      if(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE)fs.writeFileSync(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE,JSON.stringify(evidence,null,2));
+    }
+  },300000);
 
   it('reconciles nested/static declarations and durable missing targets across edits, deletion and restart',async()=>{
     fixture=await createMigrationFixture();
