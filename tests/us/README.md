@@ -26,7 +26,7 @@ It is intentionally opt-in to avoid false offline success and unapproved inferen
 costs in routine `bun test` runs:
 
 ```sh
-AIWF_LIVE_US_TESTS=1 bun test tests/us/graph-field-migration.test.ts
+AIWF_LIVE_US_TESTS=1 bun test tests/us/resolve-greeting-story.test.ts
 ```
 
 Set up an available implementation model and an independent reviewer in the
