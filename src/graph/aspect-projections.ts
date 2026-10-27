@@ -14,7 +14,10 @@ export async function exportAspectProjection(store: WorkflowStore, root: string)
     const a = view.assessment;
     text += `### Evidence (read-only)\n- Tickets: ${a.tickets.join(', ') || 'None'}\n- Tests: ${a.tests.join(', ') || 'None'}\n- Artifacts: ${a.artifacts.join(', ') || 'None'}\n- Decisions: ${a.decisions.join(', ') || 'None'}\n- Code: ${a.code.join(', ') || 'None'}\n- Gaps: ${a.gaps.join(', ') || 'None'}\n\n`;
   }
-  await writeFile(path.join(root, 'aspects.md'), text.trimEnd() + '\n', 'utf8');
+  const file = path.join(root, 'aspects.md');
+  const output = text.trimEnd() + '\n';
+  if (!existsSync(file) || await readFile(file, 'utf8') !== output)
+    await writeFile(file, output, 'utf8');
 }
 
 /** This projection owns only Aspect fields and applies_to; evidence relations are read-only. */
