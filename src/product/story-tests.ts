@@ -356,7 +356,19 @@ export async function storyEffectiveState(store: WorkflowStore, story: UserStory
     for (const ticket of tickets.filter(ticket=>ticket.lane==='Done')) {
       let proof;
       try { proof = await currentTicketReceipt(store,ticket); }
-      catch(error) { uncertainties.push('Cannot confirm current receipt for '+store.localId(ticket.id)+': '+String(error)); continue; }
+      catch(error) {
+        uncertainties.push('Cannot confirm current receipt for '+store.localId(ticket.id)+': '+String(error));
+        if (store.localId(story.id) === 'LOAD-POLICY') {
+          const chain: string[] = [];
+          let cause: unknown = error;
+          for (let depth = 0; cause !== undefined && depth < 6; depth++) {
+            chain.push(String(cause));
+            cause = cause instanceof Error ? cause.cause : undefined;
+          }
+          console.error('RECEIPT ROOT CAUSE:', JSON.stringify(chain));
+        }
+        continue;
+      }
       if (!proof) continue;
       verifiedTickets.add(ticket.id);
       references.push('VERIFY-'+store.localId(ticket.id));
