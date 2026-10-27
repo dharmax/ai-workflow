@@ -75,6 +75,21 @@ describe('first-class Aspects', () => {
     await expect(engine.applyChange(request, preview.fingerprint)).rejects.toThrow('fingerprint');
   });
 
+  it('does not rewrite unchanged Aspect projections but updates changed definitions', async () => {
+    await aspect('A');
+    await exportProjections(store, root);
+    const file = path.join(root, 'aspects.md');
+    const original = fs.readFileSync(file, 'utf8');
+    const previous = new Date('2020-01-01T00:00:00Z');
+    fs.utimesSync(file, previous, previous);
+    const mtime = fs.statSync(file).mtimeMs;
+    await exportProjections(store, root);
+    expect(fs.statSync(file).mtimeMs).toBe(mtime);
+    await updateProduct(store, 'Aspect', {id: 'A', body: 'Updated description'});
+    await exportProjections(store, root);
+    expect(fs.readFileSync(file, 'utf8')).not.toBe(original);
+  });
+
   it('round trips owned scopes while ignoring edits to rendered evidence', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const a = await aspect('A'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
