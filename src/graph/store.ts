@@ -68,12 +68,13 @@ export function findProjectRoot(startDir: string = process.cwd()): { root: strin
   return { root: path.resolve(startDir), marker: 'fallback:cwd' };
 }
 
-const admissionSchema = z.array(z.object({token: z.string(), mode: z.enum(['governed', 'governance']), expiresAt: z.number()}));
+const admissionSchema = z.array(z.object({token: z.string(), mode: z.enum(['governed', 'governance', 'index']), expiresAt: z.number()}));
 type BatchEntry = Parameters<SqliteStore['applyBatch']>[0][number];
 type AdmissionLease = z.infer<typeof admissionSchema>[number];
 
 export class WorkflowStore {
   private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean; productFingerprint?: string; productAnswers?: Readonly<Record<string, string>>}>();
+  private readonly indexSection = new AsyncLocalStorage<{active: boolean; expiresAt: number}>();
 
   /** Host context is inherited by every canonical writer, including legacy adapters. */
   async withExecutionContext<T>(authority: 'read-only' | 'project-write', signal: AbortSignal | undefined, work: () => Promise<T>, productFingerprint?: string, productAnswers?: Readonly<Record<string, string>>): Promise<T> {
@@ -104,12 +105,71 @@ export class WorkflowStore {
       context.productFingerprint === fingerprint && !!answer.trim() && context.productAnswers?.[decisionId] === answer;
   }
 
+  /** Read-only callers may inspect an already-fresh index, but cannot refresh it. */
+  isReadOnlyExecution(): boolean {
+    const context = this.execution.getStore();
+    return !!context && (!context.active || context.authority === 'read-only');
+  }
+
   assertCanWrite(): void {
     const context = this.execution.getStore();
     context?.signal?.throwIfAborted();
+    const index = this.indexSection.getStore();
+    if (index && (!index.active || Date.now() >= index.expiresAt))
+      throw Error('Index critical section expired; retry the refresh.');
     if (this.testWrites.getStore()?.active === false) throw Error('Test proof authority expired with its owning operation.');
     if (context && (!context.active || context.authority !== 'project-write'))
       throw Error('Canonical mutation requires project-write authority; read-only execution cannot write.');
+  }
+
+  /**
+   * Serialize index freshness checks and writes across store instances and processes.
+   * Uses the existing database-backed admission record, not a process-local mutex.
+   * Index admission is independent of governed work and authored governance changes.
+   */
+  async withIndexCriticalSection<T>(work: () => Promise<T>): Promise<T> {
+    const inherited = this.indexSection.getStore();
+    if (inherited) {
+      this.assertCanWrite();
+      return work();
+    }
+    this.assertCanWrite();
+    const durationMinutes = 0.5;
+    const deadline = Date.now() + 60_000;
+    let token: string;
+    for (;;) {
+      try {
+        token = await this.admitGovernance('index', durationMinutes);
+        break;
+      } catch (error) {
+        if (!String(error).includes('Index admission conflict')) throw error;
+        if (Date.now() >= deadline) throw Error('Timed out waiting for the project index lock.', {cause: error});
+        await Bun.sleep(40);
+      }
+    }
+    const section = {active: true, expiresAt: Date.now() + durationMinutes * 60_000 - 1000};
+    let renewal: Promise<void> | undefined;
+    const heartbeat = setInterval(() => {
+      if (!section.active || renewal) return;
+      const started = Date.now();
+      renewal = this.renewGovernance(token, durationMinutes)
+        .then(() => { section.expiresAt = started + durationMinutes * 60_000 - 1000; })
+        .catch(() => { section.active = false; })
+        .finally(() => { renewal = undefined; });
+    }, 5000);
+    heartbeat.unref?.();
+    try {
+      return await this.indexSection.run(section, async () => {
+        const value = await work();
+        this.assertCanWrite();
+        return value;
+      });
+    } finally {
+      section.active = false;
+      clearInterval(heartbeat);
+      if (renewal) await renewal;
+      await this.indexSection.exit(() => this.releaseGovernance(token));
+    }
   }
 
   private readonly testWrites = new AsyncLocalStorage<{id: string; active: boolean}>();
@@ -130,13 +190,15 @@ export class WorkflowStore {
   private readonly indexing = new AsyncLocalStorage<{token: string; files: readonly string[]; active: boolean}>();
 
   /** Project-wide shared/exclusive admission. The public conditional batch is the atomic boundary. */
-  async admitGovernance(mode: 'governed' | 'governance', durationMinutes = 30): Promise<string> {
+  async admitGovernance(mode: 'governed' | 'governance' | 'index', durationMinutes = 30): Promise<string> {
     this.assertCanWrite();
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) throw Error('Admission requires a positive lease duration.');
     const token = crypto.randomUUID();
     await this.updateGovernanceAdmission(leases => {
-      if (leases.some(lease => mode === 'governance' || lease.mode === 'governance'))
-        throw Error('Governance admission conflict: governed work and governance mutation cannot overlap.');
+      if (mode === 'index' ? leases.some(lease => lease.mode === 'index') :
+        leases.some(lease => lease.mode !== 'index' && (mode === 'governance' || lease.mode === 'governance')))
+        throw Error(mode === 'index' ? 'Index admission conflict: another refresh is in progress.' :
+          'Governance admission conflict: governed work and governance mutation cannot overlap.');
       return [...leases, {token, mode, expiresAt: Date.now() + durationMinutes * 60_000}];
     });
     return token;
@@ -147,7 +209,7 @@ export class WorkflowStore {
     const collection = await this.sp.collectionForEntityType(Artifact.dcr);
     const id = this.formatId(Artifact.dcr, 'GOVERNANCE-ADMISSION');
     const row = await collection.findById<{body: string; _version: number}>(id);
-    if (!row || !admissionSchema.parse(JSON.parse(row.body)).some(lease => lease.token === token && lease.expiresAt > Date.now()))
+    if (!row || !admissionSchema.parse(JSON.parse(row.body)).some(lease => lease.token === token && lease.mode !== 'index' && lease.expiresAt > Date.now()))
       throw Error('Governance admission expired or was recovered; retry with a fresh scope.');
     return {collectionName: collection.name, id, expectedVersion: row._version};
   }
