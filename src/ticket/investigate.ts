@@ -27,6 +27,7 @@ import {
     withArtifactMetrics,
     cognitionMetrics,
     countEngineering,
+    traceResolution,
     visitMetricArtifact,
     recordMetricCompleteness
 } from "../performance-metrics.ts"
@@ -294,6 +295,7 @@ export async function investigateTicket(
             dossier.provenance.optionalCandidates = optional.length
             countEngineering("optionalCandidates", optional.length)
             countEngineering("systemOneCalls")
+            traceResolution(`investigation System-1 start: ${optional.length} optional symbols, ${mandatory.size} required entities`)
             const assessment = await (options.systemOne ?? new LayaSystemOne())
                 .assess(
                     {
@@ -362,7 +364,8 @@ export async function investigateTicket(
                     },
                     cognitionMetrics()
                 )
-                .catch(() => null)
+                .catch(error => { traceResolution('investigation System-1 failed: ' + String(error)); return null })
+            traceResolution('investigation System-1 finished: ' + (assessment ? assessment.quality : 'unavailable'))
             if (assessment) dossier.provenance.systemOne = { backendId: assessment.backendId, quality: assessment.quality }
             const routes: Record<string, string[]> = {
                 workKind: ["code", "docs", "product", "unknown"],
@@ -486,7 +489,9 @@ export async function investigateTicket(
                             return InvestigationJudgmentSchema.parse(response.data)
                         })
                     countEngineering("reasoningCalls")
+                    traceResolution('investigation semantic reasoning start')
                     const judgment = InvestigationJudgmentSchema.parse(await reason(dossier))
+                    traceResolution('investigation semantic reasoning finished')
                     dossier.provenance.reasoningUsed = true
                     if (judgment.required?.length) return { status: "needs_input", artifactId: id, required: judgment.required }
                     dossier.disposition = judgment.disposition
