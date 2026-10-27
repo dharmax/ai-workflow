@@ -356,19 +356,7 @@ export async function storyEffectiveState(store: WorkflowStore, story: UserStory
     for (const ticket of tickets.filter(ticket=>ticket.lane==='Done')) {
       let proof;
       try { proof = await currentTicketReceipt(store,ticket); }
-      catch(error) {
-        uncertainties.push('Cannot confirm current receipt for '+store.localId(ticket.id)+': '+String(error));
-        if (store.localId(story.id) === 'LOAD-POLICY') {
-          const chain: string[] = [];
-          let cause: unknown = error;
-          for (let depth = 0; cause !== undefined && depth < 6; depth++) {
-            chain.push(String(cause));
-            cause = cause instanceof Error ? cause.cause : undefined;
-          }
-          console.error('RECEIPT ROOT CAUSE:', JSON.stringify(chain));
-        }
-        continue;
-      }
+      catch(error) { uncertainties.push('Cannot confirm current receipt for '+store.localId(ticket.id)+': '+String(error)); continue; }
       if (!proof) continue;
       verifiedTickets.add(ticket.id);
       references.push('VERIFY-'+store.localId(ticket.id));
@@ -377,16 +365,6 @@ export async function storyEffectiveState(store: WorkflowStore, story: UserStory
     if (tickets.length && tickets.every(ticket=>verifiedTickets.has(ticket.id) || ticket.lane==='Cancelled') &&
         coverage.tests.every(test=>accepted.has(test.id)))
       return result('done','All current Story tests have independent acceptance; addressing work is complete.');
-    // Temporary, target-specific diagnostic for Issue 6's failing local Story acceptance.
-    if (store.localId(story.id) === 'LOAD-POLICY') console.error('STORY DIAGNOSTIC:', JSON.stringify({
-      story: store.localId(story.id),
-      tickets: tickets.map(ticket => ({
-        id: store.localId(ticket.id), lane: ticket.lane, currentReceipt: verifiedTickets.has(ticket.id)
-      })),
-      storyTests: coverage.tests.map(test => ({id: test.id, state: test.state})),
-      receiptTests: [...accepted],
-      uncertainties
-    }));
     return result('tested','Current Story tests pass; current independent Story acceptance is incomplete.',...uncertainties);
   }
   return result('ready',...coverage.tests.map(test=>test.state==='stale'
