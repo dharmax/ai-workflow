@@ -31,7 +31,7 @@ import {
 import type { loadConfig } from "../config.ts"
 import {prepareReviewer, recordReviewerResult} from "./reviewer.ts"
 import { buildVerificationContext } from "../verification-context.ts"
-import { countEngineering, cognitionMetrics } from "../performance-metrics.ts"
+import { countEngineering, cognitionMetrics, traceResolution } from "../performance-metrics.ts"
 
 type CheckResults = Pick<ResolutionVerificationInput, 'tests' | 'testNodes'> & {evidenceComplete: boolean}
 type CheckPlan = {commands: string[][]; requiredTestIds: string[]}
@@ -196,6 +196,7 @@ async function createAcceptanceReview(store: WorkflowStore, options: ResolutionO
             throw Error(`Acceptance verification context exceeds 128000 characters after graph narrowing (${serializedContext.length}). Narrow or author verification edges instead of sending incomplete evidence.`)
         countEngineering('sourceReads', context.code?.reduce((count, file) => count + file.snippets.length, 0) ?? 0)
         countEngineering('reasoningCalls')
+        traceResolution('independent acceptance reviewer model call: ' + (model ?? 'routed verification') + ', context chars ' + serializedContext.length)
         const response = await asker.json(renderAcceptancePrompt(serializedContext), acceptanceResponseSchema(context.dossier, validEvidenceIds), {
             ...(model ? {model} : {task: 'verification'}),
             temperature: 0, signal: options.signal, maxRetries: 1, maxTokens: cfg.llmOutputTokens,
@@ -204,6 +205,7 @@ async function createAcceptanceReview(store: WorkflowStore, options: ResolutionO
                 requirements: ['exact criterion/Aspect IDs', 'current source and executed tests', 'strict structured JSON']},
             ...cognitionMetrics({phase: 'acceptance_verification'})
         })
+        traceResolution('independent acceptance reviewer returned: ' + (response.ok ? 'valid JSON' : String(response.failure?.kind ?? 'failure')))
         await recordReviewerResult(store, context.dossier.ticket.id, response, validEvidenceIds)
         if (!response.ok) throw Error(`Acceptance verification failed: ${response.failure?.message}`)
         const acceptance = AcceptanceVerificationSchema.parse(response.data)
