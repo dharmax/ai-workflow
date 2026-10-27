@@ -255,6 +255,10 @@ async function reconcileFileNotes(store: WorkflowStore, file: FileNode, relPath:
 
 /** Remove derived facts but retain authored targets and unresolved import destinations. */
 export async function removeFileFromIndex(store: WorkflowStore, relPath: string): Promise<boolean> {
+  return store.withIndexCriticalSection(() => removeFileFromIndexUnlocked(store, relPath));
+}
+
+async function removeFileFromIndexUnlocked(store: WorkflowStore, relPath: string): Promise<boolean> {
   const file = await store.getEntity<FileNode>(relPath, FileNode.dcr);
   if (!file || file.metadata?.missing === true) return false;
   const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
