@@ -422,7 +422,11 @@ export async function resolveTicket(
                                 let result: Awaited<ReturnType<typeof executeTicketChecks>> | undefined
                                 const observation = await runStoryTest(store, storyId, async () => { result = await execute() },
                                     preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
-                                if (observation.status === 'blocked') return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
+                                if (observation.status === 'blocked') {
+                                    traceResolution('Story ' + storyId + ' checks blocked: ' + observation.reason +
+                                        '\nLast test output:\n' + (observation.output ?? '(no recorded output)').slice(-2400))
+                                    return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
+                                }
                                 return result!
                             }
                         }
