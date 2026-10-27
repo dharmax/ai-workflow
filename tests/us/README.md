@@ -41,6 +41,14 @@ acceptance test. Deterministic scripted resolution and lower-level mechanics
 remain available separately under `tests/integration/` and are not reported as
 independent end-to-end US acceptance.
 
+## Local llm-utils dependency
+
+This project links `@dharmax/llm-utils` from `../llm-utils` (see
+`package.json`). The Actor's bounded schema correction is tracked in
+`dharmax/llm-utils#11`. Until that fix is merged, running the updated
+end-to-end test requires checking out that sibling branch too. Do not
+mistake an AIWF-only checkout for the complete fix.
+
 ## Failure diagnosis
 
 Live acceptance prints `START`, `PASS`, and `STILL` messages with elapsed
