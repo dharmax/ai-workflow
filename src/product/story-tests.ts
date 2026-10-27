@@ -365,6 +365,16 @@ export async function storyEffectiveState(store: WorkflowStore, story: UserStory
     if (tickets.length && tickets.every(ticket=>verifiedTickets.has(ticket.id) || ticket.lane==='Cancelled') &&
         coverage.tests.every(test=>accepted.has(test.id)))
       return result('done','All current Story tests have independent acceptance; addressing work is complete.');
+    // Temporary, target-specific diagnostic for Issue 6's failing local Story acceptance.
+    if (store.localId(story.id) === 'LOAD-POLICY') console.error('STORY DIAGNOSTIC:', JSON.stringify({
+      story: store.localId(story.id),
+      tickets: tickets.map(ticket => ({
+        id: store.localId(ticket.id), lane: ticket.lane, currentReceipt: verifiedTickets.has(ticket.id)
+      })),
+      storyTests: coverage.tests.map(test => ({id: test.id, state: test.state})),
+      receiptTests: [...accepted],
+      uncertainties
+    }));
     return result('tested','Current Story tests pass; current independent Story acceptance is incomplete.',...uncertainties);
   }
   return result('ready',...coverage.tests.map(test=>test.state==='stale'
