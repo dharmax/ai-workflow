@@ -151,8 +151,10 @@ export async function verifyingTestsForTargets(
   store: WorkflowStore,
   targetIds: readonly string[],
   files: readonly string[],
+  options: {ensureArtifacts?: boolean} = {},
 ): Promise<{tests: TestNode[]; uncoveredFiles: string[]}> {
-  await ensureTestArtifacts(store)
+  // Receipt reads must not create missing indexed TestNodes.
+  if (options.ensureArtifacts !== false) await ensureTestArtifacts(store)
   const tests = new Map<string, TestNode>()
   const add = async (id: string) => {
     const entity = await store.getEntity(id)
