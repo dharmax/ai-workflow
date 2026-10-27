@@ -101,23 +101,22 @@ export async function resolveTicket(
             let effectEpoch = 0
             const ctx = { store, projectRoot: store.root, signal: options.signal,
                 get governedAdmission() { return admission } }
-            const blocked = (reason: string): OperationResult<ResolvedTicket> => ({
-                status: "blocked",
-                artifactId: rootId,
-                blockers: [{ reason }]
-            })
-            const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> => ({
-                status: "needs_input",
-                artifactId: rootId,
-                required: [{ question, why, target }]
-            })
+            let stopReason: string | undefined
+            const blocked = (reason: string): OperationResult<ResolvedTicket> => {
+                stopReason = reason
+                return {status: 'blocked', artifactId: rootId, blockers: [{reason}]}
+            }
+            const needs = (question: string, why: string, target: string): OperationResult<ResolvedTicket> => {
+                stopReason = `${question} ${why}`
+                return {status: 'needs_input', artifactId: rootId, required: [{question, why, target}]}
+            }
             const lease = async (ticket: Ticket) => {
                 const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!,
                     active = fresh.claim && Date.parse(fresh.claim.expiresAt) > Date.now()
                 if (active && fresh.claim!.agentId !== agentId) return `Ticket '${store.localId(ticket.id)}' is leased by '${fresh.claim!.agentId}'.`
                 const claim = await store.claimTicket(store.localId(ticket.id), agentId, cfg.defaultLeaseMinutes, false)
                 if (claim.success) {
-                    if (!active) acquired.add(store.localId(ticket.id))
+                    acquired.add(store.localId(ticket.id))
                     return null
                 }
                 return claim.message ?? "Lease unavailable."
@@ -568,9 +567,14 @@ export async function resolveTicket(
                 return blocked(`Ticket resolution failed: ${[message, ...causes].join(' <- ')}`)
             } finally {
                 if (admission) await store.releaseGovernance(admission)
-                for (const id of acquired) await store.releaseTicket(id)
-                const { exportProjections } = await import("../graph/projections.ts")
-                await exportProjections(store)
+                for (const id of acquired) {
+                    const stopped = stopReason && id === store.localId(executingTicket.id)
+                    await store.releaseTicket(id, agentId, stopped ? 'Blocked' : 'Todo', stopped ? stopReason : undefined)
+                }
+                if (!options.signal?.aborted && !store.isReadOnlyExecution()) {
+                    const { exportProjections } = await import('../graph/projections.ts')
+                    await exportProjections(store)
+                }
             }
         }
     )

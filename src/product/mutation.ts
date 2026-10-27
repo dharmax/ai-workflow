@@ -501,7 +501,7 @@ export async function applyProductMutations(
           if (['Epic','Feature','Ticket'].includes(entity.kind)) data.priority ??= 2;
         }
         if (entity.kind === 'Ticket' && (mutation.kind === 'product_create' || mutation.fields.lane))
-          Object.assign(data, ticketState(data.lane as TicketLane));
+          Object.assign(data, ticketState(data.lane as TicketLane), data.lane === 'In Progress' ? {} : {claim:null});
       }
       if (old && Object.entries(data).every(([key, value]) => canonical(old[key]) === canonical(value))) continue;
       const now = new Date().toISOString();

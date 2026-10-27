@@ -53,6 +53,7 @@ export async function exportProjections(store: WorkflowStore, rootDir: string = 
           if (cleanBody) kanban += `  - Summary: ${cleanBody}\n`;
         }
         kanban += `  - **Priority**: ${t.priority}\n`;
+        kanban += `  - Revision: ${t.version}\n`;
         if (t.kind === 'bug') kanban += `  - Type: Bug / severity: ${t.defect?.severity ?? 'unknown'}\n`;
         if ((t as any).claim) {
           const claim = (t as any).claim;
@@ -419,38 +420,36 @@ export async function importProjections(store: WorkflowStore, rootDir: string = 
             if (checkChar === 'x' || checkChar === 'X') resolvedLane = 'Done';
             else if (checkChar === '/') resolvedLane = 'In Progress';
 
-            let summary = '';
+            let summary: string | undefined;
             if (j + 1 < lines.length && lines[j + 1].trim().startsWith('- Summary:')) {
               summary = lines[j + 1].trim().replace(/^- Summary:\s*/, '');
             }
 
             let priority: number | undefined;
+            let revision: number | undefined;
             for (let k = j + 1; k < lines.length; k++) {
               const detail = lines[k].trim();
               if (/^-\s+\[/.test(detail)) break;
               const match = detail.match(/^-\s+\*\*Priority\*\*:\s*(\S+)\s*$/i);
               if (match) priority = PrioritySchema.parse(Number(match[1]));
+              const version = detail.match(/^- Revision:\s*(\d+)\s*$/);
+              if (version) revision = Number(version[1]);
             }
 
             const existingTicket = await store.getEntity<Ticket>(ticketId, Ticket.dcr);
-            const existingClaim = existingTicket ? (existingTicket as any).claim : null;
-            const isClaimActive = existingClaim && new Date(existingClaim.expiresAt) > new Date();
-
-            let claim = existingClaim;
-            if (resolvedLane === 'Done' || resolvedLane === 'Blocked') {
-              claim = null;
-            } else if (isClaimActive && resolvedLane === 'Todo') {
-              resolvedLane = 'In Progress';
-            }
-
+            // Disk mtime cannot establish that a card predates a canonical lifecycle change.
+            // Unversioned legacy cards remain readable but cannot overwrite existing work.
+            if (existingTicket && revision !== existingTicket.version) continue;
+            if (existingTicket?.lane === 'Cancelled' && resolvedLane !== 'Cancelled') continue;
+            const body = summary === undefined || summary === existingTicket?.body?.replace(/\n/g, ' ').trim()
+              ? existingTicket?.body ?? '' : summary;
+            if (existingTicket && title === existingTicket.title && body === existingTicket.body &&
+                (priority === undefined || priority === existingTicket.priority) && resolvedLane === existingTicket.lane) continue;
             await store.upsertEntity<Ticket>(Ticket.dcr, {
-              id: ticketId,
-              title,
-              body: summary,
+              id: ticketId, title, body,
               ...(priority !== undefined ? {priority} : {}),
-              claim,
-              ...ticketState(existingTicket?.lane === 'Cancelled' && resolvedLane === 'Done' ? 'Cancelled' : resolvedLane)
-            });
+              ...ticketState(resolvedLane)
+            }, existingTicket?.version);
             importedChanges++;
           }
         }

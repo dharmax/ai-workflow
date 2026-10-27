@@ -192,6 +192,37 @@ describe('Ticket-owned bounded resolution', () => {
     expect(queryPerformance(root, {operation: 'resolve_ticket', artifactId: 'T'}).rows[0].resolution).toEqual({stage, outcome: `blocked_${stage}`});
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
   });
+  for (const interruption of ['abort','replacement'] as const) it(`public resolution releases only its owned execution after ${interruption}`, async () => {
+    fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a: number, b: number) { return a + b; }\n');
+    await ticket();
+    const oracle=await graphOracle((await store.getEntity<FileNode>('src/add.ts',FileNode.dcr))!);
+    git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','current source');
+    const controller=new AbortController();
+    const completion=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async()=>{
+      expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim?.agentId).toBe('resolver');
+      if(interruption==='replacement') {
+        await store.upsertEntity(Ticket.dcr,{id:'T',claim:{agentId:'resolver',claimedAt:new Date(0).toISOString(),expiresAt:new Date(0).toISOString()}});
+        expect((await store.claimTicket('T','replacement',30)).success).toBe(true);
+      }
+      controller.abort(Error('Interrupted at independent review'));
+      throw controller.signal.reason;
+    });
+    try {
+      initializeTools();
+      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',verifyOnly:true,critic:'none',maxRepairs:0,
+        testCommands:[['bun','test',oracle.filePath!]]},{store,projectRoot:root,executionAuthority:'project-write',signal:controller.signal});
+      expect(result.status).toBe('blocked');
+      const current=await store.getEntity<Ticket>('T',Ticket.dcr);
+      expect(current?.lane).toBe(interruption==='replacement'?'In Progress':'Blocked');
+      expect(current?.claim?.agentId??null).toBe(interruption==='replacement'?'replacement':null);
+      expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+      if(interruption==='abort') {
+        const history=await registry.execute('get_ticket_history',{ticketId:'T',limit:100},{store,projectRoot:root});
+        expect(JSON.stringify(history)).toContain('Interrupted at independent review');
+      }
+      expect(JSON.parse((await store.getEntity<Artifact>('GOVERNANCE-ADMISSION',Artifact.dcr))!.body!)).toEqual([]);
+    } finally {completion.mockRestore();}
+  },30000);
   it('distinguishes newly verified unchanged source from reused proof', async () => {
     fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'correct source');
@@ -248,6 +279,8 @@ describe('Ticket-owned bounded resolution', () => {
     const oracle = await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'verification baseline');
     const source = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
+    await (await import('../src/graph/projections.ts')).exportProjections(store);
+    const staleBoard=fs.readFileSync(path.join(root,'kanban.md'),'utf8');
     const calls: string[] = [];
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
       if (!prompt.includes('Independently verify EVERY')) throw Error('verify-only must not invoke an implementation model');
@@ -265,8 +298,16 @@ describe('Ticket-owned bounded resolution', () => {
       expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.claim).toBeNull();
       const receipt = await store.getEntity<Artifact>('VERIFY-T', Artifact.dcr);
       expect(!!receipt).toBe(implemented);
+      if(implemented) {
+        fs.writeFileSync(path.join(root,'kanban.md'),staleBoard);
+        const later=new Date(Date.now()+5000);fs.utimesSync(path.join(root,'kanban.md'),later,later);
+        const synced=Bun.spawnSync(['bun',path.resolve('src/cli.ts'),'sync'],{cwd:root,stderr:'pipe'});
+        expect(synced.success).toBe(true);
+        expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');
+        expect((await store.getEntity<Artifact>('VERIFY-T',Artifact.dcr))!.body).toBe(receipt!.body);
+      }
       store.close(); store = new WorkflowStore(root);
-      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe(implemented ? 'Done' : 'Todo');
+      expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe(implemented ? 'Done' : 'Blocked');
       if (implemented) expect(queryPerformance(root, {operation: 'resolve_ticket'}).rows[0].resolution?.outcome).toBe('verified_no_change');
       else expect(queryPerformance(root, {operation: 'resolve_ticket'}).rows[0].resolution?.outcome).toBe('blocked_verification');
     } finally { completion.mockRestore(); }
@@ -532,7 +573,7 @@ describe('Ticket-owned bounded resolution', () => {
     const another = await ticket('U', 'Preserve user-edited addition'); fs.appendFileSync(path.join(root, 'src/add.ts'), '// user work\n');
     const dirty = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
     const blocked = await another.resolve(store, fix); expect(blocked.status).toBe('needs_input'); expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(dirty);
-    expect((await store.getEntity<Ticket>('U', Ticket.dcr))!.claim).toBeNull(); expect((await store.getEntity<Ticket>('U', Ticket.dcr))!.lane).toBe('Todo');
+    expect((await store.getEntity<Ticket>('U', Ticket.dcr))!.claim).toBeNull(); expect((await store.getEntity<Ticket>('U', Ticket.dcr))!.lane).toBe('Blocked');
   }, 30000);
 
   it('invalidates Done when the authored test oracle changes', async () => {

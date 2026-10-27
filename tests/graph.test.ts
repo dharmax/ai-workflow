@@ -176,10 +176,9 @@ describe('AST+ Semantic Graph (Semantika)', () => {
       expect(kanbanContent).toContain('Export Validation');
 
       // Mutate kanban.md on disk (simulate human editing Obsidian Kanban)
-      const editedContent = kanbanContent
-        .replace('Export Validation', 'Obsidian Renamed Feature')
-        .replace(/## Todo\n[\s\S]*?(?=## In Progress)/, '## Todo\n\n')
-        .replace('## In Progress\n', '## In Progress\n- [ ] **[TKT-EXPORT-1]**: Obsidian Renamed Feature\n');
+      const card = kanbanContent.match(/- \[ \] \*\*TKT-EXPORT-1\*\*:[\s\S]*?(?=\n\n)/)![0];
+      const editedContent = kanbanContent.replace(card, '')
+        .replace('## In Progress\n', '## In Progress\n' + card.replace('Export Validation', 'Obsidian Renamed Feature') + '\n');
 
       fs.writeFileSync(kanbanFile, editedContent, 'utf8');
 

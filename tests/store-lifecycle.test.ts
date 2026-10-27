@@ -122,3 +122,110 @@ test('effective Story state retains one authoritative definition state without w
   await expect(story.update({status:'done'})).rejects.toThrow();
   expect(story.status).toBe('deprecated');
 });
+
+
+// Lifecycle invariants exercised through installed public transports and disk reconciliation.
+test('public MCP release and cancellation end execution without manufacturing completion', async () => {
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-public-'));store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Retained specification',body:'Keep this work',lane:'Todo'});
+  const {Client}=await import('@modelcontextprotocol/sdk/client/index.js');
+  const {StdioClientTransport}=await import('@modelcontextprotocol/sdk/client/stdio.js');
+  const client=new Client({name:'ticket-lifecycle-regression',version:'1'});
+  const transport=new StdioClientTransport({command:'bun',args:[path.resolve('src/mcp.ts')],cwd:root,
+    env:{...process.env,AIWF_EXECUTION_AUTHORITY:'project-write'} as Record<string,string>,stderr:'pipe'});
+  try {
+    await client.connect(transport);
+    const call=async(name:string,args:Record<string,unknown>)=>{
+      const result=await client.callTool({name,arguments:args});
+      if(result.isError) throw Error(JSON.stringify(result.content));
+      return JSON.parse((result.content as Array<{text:string}>)[0]!.text);
+    };
+    for(const durationMinutes of [0,-1]) {
+      const invalid=await client.callTool({name:'claim_ticket',arguments:{ticketId:'T',agentId:'owner',durationMinutes}});
+      expect(invalid.isError).toBe(true);
+    }
+    expect((await call('claim_ticket',{ticketId:'T',agentId:'owner',durationMinutes:30})).success).toBe(true);
+    await call('release_ticket',{ticketId:'T'});
+    expect(await call('get_ticket',{ticketId:'T'})).toMatchObject({lane:'Todo',claim:null,verification:null,body:'Keep this work'});
+    await call('claim_ticket',{ticketId:'T',agentId:'owner',durationMinutes:30});
+    await call('update_ticket_state',{ticketId:'T',lane:'Cancelled'});
+    expect(await call('get_ticket',{ticketId:'T'})).toMatchObject({lane:'Cancelled',claim:null,verification:null});
+    await call('release_ticket',{ticketId:'T'});
+    expect((await call('get_ticket',{ticketId:'T'})).lane).toBe('Cancelled');
+    const history=await call('get_ticket_history',{ticketId:'T',limit:100});
+    expect(history.entries.some((entry:{message:string})=>entry.message==='In Progress → Todo.')).toBe(true);
+    expect(history.entries.some((entry:{message:string})=>entry.message==='In Progress → Cancelled.')).toBe(true);
+  } finally {await client.close();}
+},30000);
+
+test('interrupted MCP claim expires and recovers through CLI without stale-board resurrection', async () => {
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-recovery-'));store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Interrupted work',body:'Preserve work',lane:'Todo'});
+  const {Client}=await import('@modelcontextprotocol/sdk/client/index.js');
+  const {StdioClientTransport}=await import('@modelcontextprotocol/sdk/client/stdio.js');
+  const client=new Client({name:'interrupted-owner',version:'1'});
+  const transport=new StdioClientTransport({command:'bun',args:[path.resolve('src/mcp.ts')],cwd:root,
+    env:{...process.env,AIWF_EXECUTION_AUTHORITY:'project-write'} as Record<string,string>,stderr:'pipe'});
+  try {
+    await client.connect(transport);
+    const result=await client.callTool({name:'claim_ticket',arguments:{ticketId:'T',agentId:'interrupted',durationMinutes:0.001}});
+    expect(result.isError).not.toBe(true);
+    // End the host session without releasing its Ticket, as after an interrupted execution.
+  } finally {await client.close();}
+  await Bun.sleep(80);
+  expect(await store.isTicketClaimed('T')).toBe(false);
+  const run=(...args:string[])=>{
+    const result=Bun.spawnSync(['bun',path.resolve('src/cli.ts'),...args],{cwd:root,stderr:'pipe'});
+    expect(result.success).toBe(true);return result;
+  };
+  run('claim','T','replacement','30');
+  const board=fs.readFileSync(path.join(root,'kanban.md'),'utf8');
+  run('release','T');
+  for(let iteration=0;iteration<2;iteration++) {
+    fs.writeFileSync(path.join(root,'kanban.md'),board);
+    const later=new Date(Date.now()+5000);fs.utimesSync(path.join(root,'kanban.md'),later,later);
+    run('sync');
+    expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({lane:'Todo',claim:null,body:'Preserve work'});
+  }
+  expect(await store.getEntity('VERIFY-T')).toBeNull();
+},30000);
+
+test('revision-checked Markdown edits preserve current state and repeat without journal churn', async () => {
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-reconcile-'));store=new WorkflowStore(root);
+  const {exportProjections,importProjections}=await import('../src/graph/projections.ts');
+  const {getTicketHistory}=await import('../src/graph/journal.ts');
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Original work',body:'Keep specification',lane:'Todo'});
+  await exportProjections(store);
+  const original=fs.readFileSync(path.join(root,'kanban.md'),'utf8');
+  const replay=async(board:string)=>{
+    fs.writeFileSync(path.join(root,'kanban.md'),board);
+    const later=new Date(Date.now()+5000);fs.utimesSync(path.join(root,'kanban.md'),later,later);
+    await importProjections(store);
+  };
+  await replay(original.replace('Original work','Reviewed title'));
+  expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.title).toBe('Reviewed title');
+  const version=(await store.getEntity<Ticket>('T',Ticket.dcr))!.version;
+  const count=(await getTicketHistory(store,'T')).entries.length;
+  await replay(original);
+  expect((await store.getEntity<Ticket>('T',Ticket.dcr))!).toMatchObject({title:'Reviewed title',version});
+  expect((await getTicketHistory(store,'T')).entries).toHaveLength(count);
+  await store.upsertEntity(Ticket.dcr,{id:'T',lane:'Cancelled'});
+  for(const board of [original,original.replace('## Todo','## In Progress'),original.replace('- [ ] **T**','- [x] **T**')]) {
+    await replay(board);
+    expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Cancelled');
+  }
+});
+
+
+test('public status reports a resolver reservation even before its lane enters In Progress', async () => {
+  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-reservation-'));store=new WorkflowStore(root);
+  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Reserved work',lane:'Todo'});
+  await store.claimTicket('T','reserved-owner',30,false);
+  expect((await store.getActiveClaims()).map(item=>item.ticketId)).toEqual(['T']);
+  const result=Bun.spawnSync(['bun',path.resolve('src/cli.ts'),'status'],{cwd:root,stderr:'pipe'});
+  expect(result.success).toBe(true);
+  expect(result.stdout.toString()).toContain('reserved-owner');
+  await store.releaseTicket('T','reserved-owner');
+  expect((await store.getActiveClaims())).toEqual([]);
+  expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Todo');
+});

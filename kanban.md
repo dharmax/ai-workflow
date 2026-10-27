@@ -9,152 +9,201 @@ kanban-plugin: board
 - [ ] **TKT-RILZ**: R2 — Fix demonstrated navigation root cause
   - Summary: Continue plans/AIWF-ticket-resolution-R2-continuation.md. Preserve completed R1 and R2-S evidence. Ground navigation/handoff corrections in captured real traces, preserve safeguards, and prove actual AIWF implementation, test execution, independent acceptance and durable verification before closure.
   - **Priority**: 1
+  - Revision: 51
 - [ ] **TKT-GB73**: Reject semantic discovery when a capability constraint has no valid values
   - Summary: Reject semantic discovery when a capability constraint has no valid values. Reject a discovery lookup when a supplied capability dimension has no valid values; retain valid OR alternatives and optional mode filtering.
   - **Priority**: 1
+  - Revision: 14
 - [ ] **TKT-SHELL-DOGFOOD-F**: Delete superseded shell machinery and verify operational journeys
   - Summary: Milestone 4 of plans/shell-ux-config-setup.md. Remove unused duplicated progress renderer in favor of shell-ui existing ProcessViewport, update syntax/help/completion and durable architecture/journey/operations docs only after real verification. Dogfood fresh/repeated setup, configuration provenance, interactive claim and explicit CLI parity, artifact result and MCP same graph; preserve exact provider/tool blockers without false live success. Delete plan only when all mandatory acceptance is satisfied. No sibling cleanup while AIWF still consumes legacy tty/prompt APIs.
   - **Priority**: 1
+  - Revision: 19
 - [ ] **TKT-RESOLVE-RECOVERY-R3**: R3 — Live acceptance and closure
   - Summary: Continue Gate 3 of plans/AIWF-ticket-resolution-R2-continuation.md only after qualified recovery. The actual AIWF pipeline must navigate, change source, execute tests, independently accept and persist correct Ticket, lease, receipt and projections. Do not substitute Codex implementation or execute the separate dogfood rename during recovery.
   - **Priority**: 1
+  - Revision: 20
 - [ ] **TKT-TRANSACTION-PRODUCT-BATCH**: Make guarded Product batches atomic through Semantika
   - Summary: Observed AIWF applyProductMutations validates then applies sequentially; a guarded preview is not all-or-nothing persistence. Integrate the public Semantika contract for canonical Product graph and coherent audit. Scope only demonstrated batch failure/concurrency requirements; do not add an AIWF transaction manager.
   - **Priority**: 1
+  - Revision: 12
 - [ ] **TKT-CONSUMER-CRITICAL-CONTRACTS**: Qualify critical Semantika and LLM Utils consumer contracts
   - Summary: Reuse narrow Semantika prerequisite; document and test critical public AIWF consumption. Include existing Gate 5 typecheck/Zod contract evidence without assuming a cause. Compile verified imports/types/examples and explicit failure/concurrency semantics. Other sibling libraries are progressive Epic scope, not speculative tickets.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-WORKFLOW-BASELINE**: Measure Doctrine execution and governance baseline
   - Summary: Use actual Doctrine Gates 3–5 traces and existing performance metrics. Measure elapsed time, tokens, tool calls, repeated retrieval, failed iterations, manual interventions and governance overhead. Missing historical measurements are explicitly unavailable, never invented. Define representative tasks and reproducible measurement before optimization.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-WORKFLOW-FOUNDATION**: Correct demonstrated workflow friction before CodeMutator
   - Summary: After baseline, select smallest demonstrated foundation slices: symbol/public-contract grounding, nonexistent imports/wrong callers/startup failures, bounded context, valid evidence reuse, deterministic circuit breakers and routine bookkeeping. Reuse existing verified capabilities. This ticket is not permission for every conceivable optimization; consequential defects alone gate dogfood.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-BUG-CONTEXTUAL-EDIT**: Bug: shell cannot resolve edit last ticket
   - Summary: Reproduction: edit last ticket Actual: Unsupported editable entity "last ticket". Expected: Resolve the reference to the most recently created/referenced ticket and open it for editing. Source: existing bug_report.txt preserved unchanged. This is a reproducible Bug retained under the current Ticket model, pending native explicit Bug classification; do not convert to a generic feature. Define created/reference precedence and ambiguity from actual shell contracts.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-CODEMUTATOR-GO-NOGO**: CodeMutator dogfooding go/no-go checkpoint
   - Summary: Evaluate independently after the actual refactor, against baseline. Consequential structural workflow defects or substantial manual recovery require corrective tickets and resolved evidence before CPV. Record NO-GO and preserve state until resolved. Minor nonblocking improvements enter backlog without indefinite optimization.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-CPV-REPRESENTATION**: Establish canonical test identity and product evidence relationships
   - Summary: First CPV slice only: reuse TestNode, graph, Story/Feature/Goal, Rules and receipts. Establish grounded suite/individual-test identities, evidence provenance and many-to-many behavior/source relationships. Native standalone Requirement/Risk/individual TestCase authoring gaps need a minimal reviewed representation contract. Do not create a separate test database/governance/scheduler; preserve verified TestNode work.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-CPV-PRODUCT-ACCEPTANCE**: Accept bidirectional Continuous Product Verification
   - Summary: Product-level acceptance checkpoint, not a claim that representation alone delivers CPV. Before execution reconcile/register verified dependencies for slices 2–5: Bun evidence ingestion, governed Bug reconciliation, impact/selection, product evidence/gap queries. Add those concrete dependencies progressively; keep this checkpoint Backlog until all exist and are verified.  Developer-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.  PI-ADV-IMPACT — Advanced Product Intent impact and reconciliation. Extend this existing impact/selection and evidence/gap acceptance responsibility to reveal affected definitions, work, source, tests and potentially stale verification through grounded graph paths. Separate confirmed impacts, inferred possibilities and unknowns. Reconcile existing work and create only genuinely missing work. Never silently rewrite descendants, invalidate unrelated proof or reopen completed historical work. Reuse src/product/impact.ts, coverage.ts, context.ts, graph and existing verification owners; no parallel subsystem or new scheduler/database. Existing CPV prerequisites/acceptance and P1 priority remain intact; this advanced portion is deferred and does not block the basic Product Intent hierarchy. Impact review must preserve unresolved Comments authority, Domain taxonomy/tag composition and fine-grained inherited-definition editing; do not infer decisions from affected paths. References: docs/definitions/project-graph.md, product.md, verification.md; plans/AIWF-DHARMAX-WAY-DESIGN.md §§2.2–2.3.
   - **Priority**: 1
+  - Revision: 5
 - [ ] **TKT-INTELLIGENCE-FIRST-USECASE**: Select first demonstrated graph engineering intelligence use case
   - Summary: After CPV acceptance, select one observed valuable use case (impact, redundant work, orphans, stale evidence, risk/readiness) using real graph evidence. This initial investigation ticket does not authorize a generic subsystem or speculative autonomous housekeeping.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-BUG-SYNC-MODULE-DRIFT**: Bug: repeated sync changes module symbol count without source edits
   - Summary: Observed during roadmap registration fresh consistency verification. Reproduction: run aiwf sync repeatedly with unchanged source, compare seven projection hashes. kanban.md, epics.md, features.md, user-stories.md, decisions.md, aspects.md are byte-stable; modules.md root symbol count changed 189 -> 186 while each invocation reported 7 code-index updates and 0 disk reconciliation changes. Exact cause is not established; investigate actual sync/index/projection callers before fixing. Current native Ticket model lacks explicit Bug typing; preserve this reproduction pending TKT-BUG-TYPE-LANE. Planning only; no repair attempted.  [EXT-SURFACE-21] Seed specification: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Observed basis: Bug: repeated sync changes module symbol count without source edits. Seed summary: Search for existing TKT-BUG-SYNC-MODULE-DRIFT or equivalent and UPDATE it, do not duplicate. Verify whether repeated sync without source changes incorrectly changes indexed Module symbol counts; only keep open if reproduced at current master. If fixed, retain historical evidence without reopening it.
   - **Priority**: 1
+  - Revision: 5
 - [ ] **TKT-V56W**: Fix Ticket resolution context exhaustion for existing narrow evidence
   - Summary: Fix Ticket resolution context exhaustion for existing narrow evidence.
   - **Priority**: 1
+  - Revision: 11
 - [ ] **TKT-DW-S1**: S1: Canonical Story semantics and authoritative Aspect applicability
   - Summary: S1: Canonical Story semantics and authoritative Aspect applicability. Preserve S1 Story/Aspect and legacy-review obligations; no S2 or Gate 5 advancement.  Developer-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.  PI-ADV-ASPECT — Advanced Aspect semantics. One canonical reusable Aspect definition and reviewed applicability. Reconcile the intended optional US --has-aspect--> Aspect with implemented reverse Aspect --applies_to--> UserStory; do not silently equate opposite predicates, add an Aspect US field or replace infrastructure. Applicable accepted Aspect meaning contributes to effective Product/US obligations without copying policy into every consumer. Definition or applicability revisions expose affected entities and potentially stale proof for review, preserving unrelated history. Reuse src/aspects.ts, ontology/mutation, context, coverage and impact owners. Historical AIWF-ASPECTS remains Done, unchanged; its existing infrastructure is the reuse basis, not work to duplicate/reopen. Preserve the historical S1 evidence and existing P1 priority; the advanced portion is deferred separately from basic hierarchy delivery. Open: fine-grained inherited-definition editing and conflicting applicable meaning require reviewed design; no invented composition policy. References: docs/definitions/aspect.md, user-story.md, product.md; plans/AIWF-DHARMAX-WAY-DESIGN.md §2.3.
   - **Priority**: 1
+  - Revision: 11
 - [ ] **TKT-DW-S3**: S3: Usable Workspace for canonical product and Story editing
   - Summary: Authorized S3 only. Concepts: developer edits canonical definitions and reviews inert proposals. Architecture: thin Workspace presentation over S2 operations; inspect shell-ui first. Flow: explore/search -> form -> preview/edit -> explicit save/accept or cancel -> reload. Prove actual browser create/edit/save/reload, reject/cancel, stale concurrency, Aspect revision, CLI/MCP consistency. Preserve Gate 5 and dirty Semantika; no S4.  Current delivery priority: P0 MCP/skill/plugin AI engineering, P1 native Digest, P2 ai-cli dogfooding, P3 Shell, P4 Workspace last. Present Workspace UX remains unaccepted; no current rewrite or vanilla-DOM polish cycle. Retain existing backend, safety regressions, historical proof and independent PC5 obligations. Eventual RiotJS/field-assist/pubsub/state-router/menu-manager Riot component APIs and developer UX discussion precede implementation. This deferral is neither completion nor PC5 acceptance.
   - **Priority**: 1
+  - Revision: 51
 - [ ] **TKT-RF0W**: S4: Derive and reconcile reviewed work and executable Story tests
   - Summary: S4: Derive and reconcile reviewed work and executable Story tests.
   - **Priority**: 1
+  - Revision: 10
 - [ ] **TKT-7MI2**: S5: Activate and execute reviewed Story tests before implementation
   - Summary: S5: Activate and execute reviewed Story tests before implementation.
   - **Priority**: 1
+  - Revision: 13
 - [ ] **TKT-EXT-SURFACE-02**: CLI and shell semantic parity
   - Summary: [EXT-SURFACE-02] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owner: src/artifact-command.ts / shared Commander command tree.  Normalize one parser for topic[:subtopic] verb and approved space equivalents. Shell omits the aiwf binary prefix. Keep ergonomic ticket ID verb syntax. Change unlink to exactly: unlink PREDICATE from A to B. Keep existing aliases only where safe and unambiguous; preserve quoting, explicit help and typed argument checking.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-03**: One public Product Manifest and existing definitions
   - Summary: [EXT-SURFACE-03] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: Product singleton, product/manifest.ts, product/mutation.ts, product/links.ts and current product tools.  Combine 'Charter' and 'Manifest' in the PUBLIC vocabulary: product manifest show/define/edit/export, including canonical membership, linked/unlinked Feature/Goal/Concept visibility, and existing reviewed definition operations. Internally retain one canonical Product entity, reviewed relations and generated product-manifest.md; do NOT make Markdown a second editable store. Retire means reviewed deprecation, not rejecting a preview. Governance blocker EXT-SURFACE-10 is a prerequisite to exposing mutators.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-04**: Architecture Manifest from existing Module state
   - Summary: [EXT-SURFACE-04] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: ModuleNode, indexer and modules.md projection.  Use one arch manifest view over existing indexed Modules, their authored purpose/responsibilities/boundaries and observed structure; simple arch:module show/edit intent. Do not create a new Module-manifest entity/store or rewrite indexed path/containment via generic CRUD.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-05**: Flow planning and practical Ticket verbs
   - Summary: [EXT-SURFACE-05] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: product/process.ts and Ticket investigate/prepare/resolve/lease/state/list/next.  Expose 'flow plan SOURCE' as the single public verb for deriving/reconciling reviewed work from new OR changed accepted intent, reusing existing process machinery; proposal remains inert. Expose only already-supported ticket ID show/status/investigate/prepare/resolve/claim/release/lifecycle and next-task operations. Do not create a competing workflow engine or implement all aspirational Ticket verbs.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-06**: Test/status/evidence façade
   - Summary: [EXT-SURFACE-06] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: current Story test prepare/apply/status/run, test-runner and Ticket verification.  Expose the existing test lifecycle through one coherent 'test' family. Include materialization/review, status, lawful skip/activation, targeted run and actual evidence where supported. Do not introduce generic writes of pass/Verified or a second runner.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-08**: Existing Link and Rule ergonomics
   - Summary: [EXT-SURFACE-08] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: PRODUCT_RELATIONS, product/links.ts, RuleStore and Rule tools.  Use central finite typed predicate/endpoint authorability; expose direct link/unlink verbs and supported note payload (including omitted vs explicit clear). Hidden governed preview/apply is still mandatory when authority requires it. Rule operations stay specialized and cannot be modified through generic artifact fields.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-09**: Existing artifact, knowledge and project/agent read semantics
   - Summary: [EXT-SURFACE-09] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph/ontology, search_graph, kb.ts, current diagnostics/metrics.  Expose a typed cross-kind artifact show/find/links for actually indexed kinds (including file/class/symbol); Knowledge find/show/skill discovery reuses current KnowledgeBaseClient and SkillManager; distinguish existing observed agent and project status/doctor/metrics without fabricating missing telemetry. Include scoped help/describe. Do not implement universal memory or tagging persistence here.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-11**: Crucial SkillManager passthrough
   - Summary: [EXT-SURFACE-11] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing AIWF kb.ts only surfaces search/get/find_skills; @dharmax/skill-manager already documents create, import, review, retrieve, activate and isolated test/demonstrate.  Expose the minimum essential knowledge:skill find/show/create/review/test/activate actions by calling REAL installed SkillManager APIs/CLI behind current execution authority; reuse its configured SkillAuthor/compiler and isolation. Do not implement another skill registry, generator, sandbox or fictional API.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-12**: BUG: do not advertise unreliable authored-state recovery
   - Summary: [EXT-SURFACE-12] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: bug. Priority: P1 WHEN recovery is part of the active public cut; otherwise Backlog with project restore hidden/unavailable.  Observed: product/manifest.ts restoreAuthoredState currently writes entities and relations sequentially. Sync already exports authored snapshot; restore completeness/transactionality is not established by export alone.  Fix only the demonstrated gap in the existing store/manifest owner using supported Semantika batch capabilities. Validate schema, identities, all endpoints, conflict policy and rollback/failure before claiming recovery. Never treat live SQLite DB/WAL as the portable source.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **AIWF-TOPLEVEL1-PHASE-A**: Audit and shrink toplevel1 Phase A baseline
   - Summary: Audit and shrink toplevel1 Phase A baseline. Phase A only; human review precedes Phase B authorization. Preserve canonical authoring and existing state; no Phase B or TKT-8D3F work.
   - **Priority**: 2
+  - Revision: 14
 - [ ] **TKT-DOGFOOD-CODE-MUTATOR**: Dogfood: rename CausalChangeEngine to CodeMutator
   - Summary: Separate follow-up requested after the recovery batch; do not execute during recovery. Rename CausalChangeEngine (currently src/change/engine.ts) to CodeMutator and consider proposed location src/services/code-mutator/code-mutator.ts. Initial responsibility inspection: previewChange uses AST snapshot/buildPreview; code actions resolve exact LSP targets, build edits, hash/fingerprint previews, materialize writes/renames with rollback, reindex, migrate durable anchors and verify. The same class also previews/applies product_change canonical graph mutations. Consumers include Ticket resolve, change tools and code/Product/Aspect tests. This is a rename/move dogfood task, not permission for a new service wrapper, duplicate class, Product split or unrelated refactor. Proposed location remains provisional: inspect exact responsibilities/dependencies and confirm ownership before finalizing the move. Use semantic rename/move primitives, remove superseded paths/imports, preserve current contracts and safeguards. Execute only after R3 is independently verified; use an immutable runner outside source being changed.  Roadmap milestone: first establish actual engine/Product ownership and public consumers. Do not invent ProductMutator for symmetry or retain compatibility scaffolding. Use supported Investigate -> Plan -> Execute -> Verify -> Done, with grounded imports/callers, authoritative scope, guarded mutation, runtime/regression/adversarial tests and independent acceptance. Compare correctness, first-attempt grounding, autonomy, manual recovery, cost/governance overhead and unintended-effect detection against the workflow baseline. Mandatory next checkpoint TKT-CODEMUTATOR-GO-NOGO gates Continuous Product Verification. Planning only; proposed naming/path remain provisional.
   - **Priority**: 2
+  - Revision: 6
 - [ ] **TKT-1585**: Visually distinguish AIWF shell responses from user input
   - Summary: Original registration request (preserved): a Backlog ticket: `TKT-SHELL-RESPONSE-VISIBILITY`  **Title:** Visually distinguish AIWF shell responses from user input  AIWF's responses are currently too easy to miss because they visually blend into the terminal conversation.  Requirements: - Render assistant responses in a distinct, readable color. - Preserve clear differentiation between user input, assistant output, tool activity, warnings and errors. - Respect terminal themes, `NO_COLOR`, non-TTY output and existing color configuration. - Avoid excessive decoration, dependencies or introducing a new rendering abstraction. - Keep output clean and copy/paste-friendly.  Prefer a minimal change to the existing shell renderer.  **Acceptance:** Assistant responses are immediately recognizable in both dark and light terminal themes, without changing their actual textual content.  Check for an equivalent existing ticket before creating. Persist in the canonical DB, synchronize Kanban and verify persistence.  Planning only. No implementation yet.  Reuse the existing shell renderer; no new rendering abstraction or dependency.
   - **Priority**: 2
+  - Revision: 5
 - [ ] **TKT-EXT-SURFACE-13**: Ticket deliberation and rich editing
   - Summary: [EXT-SURFACE-13] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Add bounded interactive view/deliberate, elaborate/refine/simplify, rich external dossier and precise assess; decide promote/demote meaning with user before implementing.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-14**: Observation and RFC semantics
   - Summary: [EXT-SURFACE-14] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Decide whether these warrant first-class canonical kinds or authorized reuse of existing types. Observation requires source/time/provenance plus searchable and act-on-able tags; selecting a tagged item does not grant authority to act. RFC review is not a disguised Ticket. Accept one real end-to-end user Story before schema changes.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-15**: Higher-level source improvements/refactoring
   - Summary: [EXT-SURFACE-15] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Add per-file/symbol enhance, simplify, test, observe and further safe extract/inline/move support only after provider capability inventory. Guard each proposed change, test real output, keep unsupported languages honest; test uses the existing test owner, observe instrumentation requires source review.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-16**: Scoped knowledge memory and cross-kind tags
   - Summary: [EXT-SURFACE-16] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Investigate existing Semantika tags and knowledge owner before adding scoped remember/revise/forget and artifact tag/untag/search/actions with provenance/version. No new tag DB and forgetting an authored note must not destroy source/history. A small needed subset may be promoted only by observed active-slice dependency.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-17**: Extended test-management ergonomics
   - Summary: [EXT-SURFACE-17] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Rich test-case edit/skip/unskip/run history, result observation and UI coverage beyond already-supported Story test operations.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-18**: Dedicated agent/project/flow metrics and Workspace polish
   - Summary: [EXT-SURFACE-18] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Build distinct measured views over existing telemetry, plus Workspace parity only after common typed contract settles. No duplicate counters or ungrounded dashboard figures.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-19**: Advanced Git, publication and portability
   - Summary: [EXT-SURFACE-19] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Add useful Git checkpoint/summary/assisted stage/commit/push and fuller portability only under explicit per-action authority and verified export inputs. No implicit push; never stage secrets or live SQLite/WAL/cache. Reconcile against the existing canonical S8 plan rather than opening a parallel project.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-EXT-SURFACE-20**: Additional skill lifecycle and surface breadth
   - Summary: [EXT-SURFACE-20] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P2.  Import/sync/demonstrate/run and other optional V2 adapters only when an actual workflow needs them. Measure real external agent outcomes, not a 36-tool completeness checklist. Keep one SkillManager and one registry.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **TKT-INTELLIGENT-GIT-WORKFLOW**: Intelligent Git Workflow
   - Summary: Provide a small set of intent-aware Git operations for grounded commits, authorized publication, prudent branching/merging and safe cleanup. Reuse Git, Ticket/Story state, verification evidence, existing authorization and src/tools/git.ts. Default to the primary branch under repository policy; use isolation when justified. Tag only significant verified milestones. Preserve unrelated and concurrent work. No parallel Git model, state machine, policy engine or infrastructure. Backlog registration only; implement later using Dharmax-way/Test First, after the Ticket.body/Semantika journal correction.
   - **Priority**: 2
+  - Revision: 4
 - [ ] **PI-ADV-EPIC**: PI-ADV-EPIC: Epic shared context and effective US inheritance
   - Summary: Developer-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.  PI-ADV-EPIC — At most one designated primary Epic per US. That Epic may supply common Initial State, portions of Expected Result, Domains and Comments. Other Epic relationships confer no inheritance. Actor, Intent and Action remain US-specific. Acceptance and test derivation use the complete effective US. Preserve as undecided: mandatory/default Epic assignment, exact composition, precedence and editing rules for overlapping/conflicting text. Comments as half-formal LLM input versus authoritative requirements, Domain taxonomy/tag composition and fine-grained inherited-definition editing remain open questions here; no additional requirement fields or automatic policy invented. Reuse existing ontology, Product mutation/context and versioned graph owners. References: docs/definitions/epic.md, user-story.md, product.md; Dharmax-way design §1 and §2.
   - **Priority**: 3
+  - Revision: 4
 - [ ] **PI-ADV-SUBUS**: PI-ADV-SUBUS: Effective parent US inheritance and refinement
   - Summary: Developer-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.  PI-ADV-SUBUS — A meaningfully different episode of use, not every conditional outcome. Inherit the entire effective parent US, including applicable Epic material; refine or replace only distinguishing portions. Title: Parent US title - distinction. Retain ordinary exact US field meanings, charter alignment and developer approval. Fine-grained inheritance, editing and revision mechanics remain deferred design work; do not invent them during registration. Coordinate with PI-ADV-EPIC for effective Epic material without making advanced work a prerequisite of basic hierarchy delivery. Preserve unresolved Comments authority and Domain taxonomy/tag composition from parent context; no inferred requirements silently alter accepted Expected Result. Reuse existing Product definitions/mutation/context, graph revision and test owners. References: docs/definitions/sub-user-story.md, user-story.md, epic.md, product.md.
   - **Priority**: 3
+  - Revision: 4
 
 ## Todo
 
 - [ ] **TKT-PC1A**: PC1a: canonical mutation and completion safety
   - Summary: PC1a only: canonical authority/cancellation enforcement and owner-only completion/proof; Decision proposals are inert and full authoring remains deferred. Await independent PC1a review. No PC1b, S6, Gate 5 closure, new permission framework or Markdown migration.
   - **Priority**: 0
+  - Revision: 12
 - [ ] **TKT-EXT-SURFACE-01**: Compact semantic MCP adapter
   - Summary: [EXT-SURFACE-01] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Suggested priority: P1. Existing owners: src/tools/index.ts, registry.ts, surface.ts, mcp.ts.  Deliver a measured, typed, small default MCP interface representing EXISTING operations (agent/project, artifact, product, flow/ticket, test, source/change, link/rule and knowledge as applicable). Dotted names are flat MCP names; finite action/kind schemas and descriptions provide topic/subtopic meaning. One registry, no duplicate domain logic; legacy compatibility is opt-in and still subject to safety. Start with owner inventory in the Ticket, not a speculative wholesale rewrite.
   - **Priority**: 0
+  - Revision: 10
 - [ ] **TKT-ACCEPTANCE-CONTEXT-LIMIT**: Qualify the larger independent acceptance context bound
   - Summary: Technical ownership separated from TKT-PRODUCT-CHARTER-FEATURE by developer instruction at master 0f624b5. Owns the already committed src/ticket/verification.ts verifyTicketAcceptance bound increase from 80000 to 128000 characters for the observed 98187-character review. PRODUCT accepted v1; justified technical maintenance under Ticket, Verification and Prime Directive definitions and three active universal Rules v1. Retain source/test relationships and failed live evidence as history. tests/doctrine-enforcement-live.test.ts remains mandatory for this technical source scope, alongside deterministic doctrine-verifier.test.ts. Its explicit OpenRouter requirement needs developer paid-model authorization; no route change or live activation authorized here. No Product Story invented, no test weakening or acceptance bypass. This ownership reconciliation is not independent acceptance of the technical change.
   - **Priority**: 0
+  - Revision: 8
 - [ ] **TKT-PUBLIC-EDIT-DIRTY-AUTH**: Test and resolve explicit dirty-file authorization in public edit tools
   - Summary: Investigate the public preview_change/apply_change path and CLI source change equivalents when a Ticket-scoped target already contains legitimate uncommitted edits. Establish the actual supported contract before changing it. Reuse the existing source-scope/change engine owners and explicit dirty-target authorization; preserve existing edits, lease requirements, file scope, fingerprint checks and governance. Add a genuine public-interface regression first, observe its baseline, then fix only the demonstrated owner gap if needed. Keep this separate from reviewer reliability and verifier refactoring; no new edit engine or authorization subsystem.
   - **Priority**: 1
+  - Revision: 4
 - [ ] **BUG-STALE-TEST-INDEX**: Deleted tests remain runnable after source reindexing
   - **Priority**: 1
+  - Revision: 4
   - Type: Bug / severity: unknown
 - [ ] **TKT-PC1B**: PC1b: normalized commands and reviewed governed links
   - Summary: PC1b: normalized commands and reviewed governed links. Complete shared Commander help and public Product, Ticket, Config, review and Story-test operations while preserving specialist ownership and shell parity. Independent full acceptance remains required.
   - **Priority**: 2
+  - Revision: 16
 - [ ] **BUG-LINKS-PAGINATION**: Links pagination duplicates Semantika infrastructure
   - **Priority**: 2
+  - Revision: 4
   - Type: Bug / severity: unknown
 
 ## In Progress
@@ -162,232 +211,312 @@ kanban-plugin: board
 - [/] **TKT-LSP-LIFECYCLE-01**: Fix demonstrated LSP request lifecycle and stale preview latency
   - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
   - **Priority**: 0
+  - Revision: 7
 - [/] **TKT-9Z2Z**: Refresh default model map from llm-utils advice snapshot
   - Summary: Developer authorizes completion/integration on current master eeaf9e6 of divergent unfinished-radar-fix f937651, 2026-10-22. Reuse installed @dharmax/llm-utils advice/router; remove redundant native Radar only safely. Accepted Model Advice episode: Developer/AI engineering caller has existing model overrides, routing and possibly a valid advice snapshot. Inspect model/routing through CLI/Shell/diagnostics and explicitly refresh advice. Existing developer model and task overrides stay authoritative; valid advice is consumable; refresh success saves native advice and failed refresh preserves existing usable routing. No hidden refresh, paid research or model pulls, nor unexpected config mutation. Actor routing and observed model reports must agree. Inspect complete touched owners for KISS; no replacement Radar or speculative benchmarks. PRODUCT accepted v1, three active universal Rules v1; this integration fulfills charter engineering quality, reuse, efficiency and truthful proof. Historical TKT-RADAR1 stays Done. Tests at tests/model-advice-story.test.ts exercise real public CLI/Shell/Actor/refresh boundaries with controlled external provider transport. Source targets: src/actor/engine.ts, src/actor/radar.ts, src/config.ts, src/doctor.ts, src/model-command.ts, src/model-runtime.ts, src/ticket/verification.ts, src/tools/index.ts, tests/config.test.ts, tests/model-advice-story.test.ts, tests/radar.test.ts. No stale branch graph/projection snapshots. No Stage 1 provider authorization reused for Radar.  Current developer-authorized continuation (2026-10-25): explicit Radar research to populate a critic recommendation. Its 60-second request timed out; increase the existing research timeout to 180 seconds and rerun through the same native advice owner. Preserve configured routes until valid advice returns; no model pulls or paid research. Technical provider qualification continuation: the Radar-recommended installed critic also hit the existing 60-second review timeout. Developer explicitly authorized extending timeouts after they fire. Extend the shared Critic request timeout to 180 seconds in src/artifact-critic.ts, without changing reviewer schemas, Product authority, verdicts or the separate unaccepted Reviewer Reliability Story. Validate this bounded maintenance with existing public Model Advice and reviewer contract regressions. tests/model-advice-story.test.ts is the existing regression target.
   - **Priority**: 0
+  - Revision: 41
 - [/] **TKT-CORE-LIFECYCLE-01**: Make native investigation and resolution self-contained
   - Summary: Implement the developer-authorized core lifecycle corrections in investigate, prepare and resolve, with public-path regression tests. Settled design 3.3-3.4; preserve safety and independent acceptance. Technical maintenance under accepted PRODUCT revision 1; no new product definitions.
   - **Priority**: 0
+  - Revision: 41
 - [/] **TKT-GRAPH-ISSUE-6**: Complete Issue 6 structural Graph integration and restore runtime correctness
   - Summary: Complete https://github.com/dharmax/ai-workflow/issues/6 per developer mission: audit and correct Graph integration, restore runtime suite, preserve authored anchors and authority, demonstrate real multi-file field-contract migration with exact and textual discovery, guarded changes and independent verification. Historical remote implementation notes are untrusted.
   - **Priority**: 0
+  - Revision: 106
   - Claim: leased by @codex-graph-acceptance until 2026-10-27T08:12:58.647Z
 - [/] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
   - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
   - **Priority**: 1
-- [/] **TKT-LIFECYCLE-STATE**: Unify Ticket state and derive Story effective state
-  - Summary: Developer-authorized Ticket lane unification and read-only Story effective state; preserve independent completion and historical evidence; close incomplete Story bypass.
-  - **Priority**: 1
+  - Revision: 20
 - [/] **TKT-SYNTHESIS-ELIGIBILITY**: Unify grounded authorized source synthesis eligibility
   - Summary: Unify source synthesis eligibility in the existing context builder and Ticket implementation. Optional discoveries are navigation context only. Preserve the grounded simple-fix fast path and bounded Actor fallback. Regressions exercise actual resolution; review full methods and callers; focused/typecheck/proportionate aggregate checks; commit and push correction on master. No Story acceptance or implementation.
   - **Priority**: 1
+  - Revision: 28
+- [/] **TKT-TICKET-LIFECYCLE-INTEGRITY**: Preserve Ticket lifecycle integrity across release recovery and Markdown reconciliation
+  - Summary: Developer-authorized technical lifecycle integrity repair, 2026-10-27. PRODUCT accepted v1; Ticket, Verification and Prime Directive definitions; three universal Rules v1. Audit all 17 existing In Progress/Blocked Tickets without changing their lanes. Repair release, cancellation, resolver recovery and stale Markdown reconciliation in current owners. No sync performance, automatic Done, cleanup scripts or new subsystem.
+  - **Priority**: 1
+  - Revision: 76
+  - Claim: leased by @codex-ticket-integrity until 2026-10-27T18:24:37.862Z
 - [/] **TKT-REVIEWER-RELIABILITY**: Select and qualify independent reviewers within developer spending policy
   - Summary: Implement the developer-approved Reviewer Reliability Story using existing Radar, llm-utils routing, verifier and configuration owners. One public acceptance test first; actual baseline. Preserve mandatory Rules/citations, one targeted correction, observed qualification, approved paid provider/task policy and cumulative operation ceiling. Current definition review has a charter warning pending developer clarification. BASIC #2 stays closed; #3 and Consult excluded.  Current developer-authorized continuation (2026-10-25): repeated charter-alignment Critic calls hit the 60-second timeout. Increase only the existing review request timeout to 180 seconds; preserve review schemas, findings, authority and configured route. The developer separately authorized replacing the critic route with valid Radar advice.
   - **Priority**: 2
+  - Revision: 154
 - [/] **BUG-NUMERIC-PRIORITY**: Enforce canonical numeric priorities across AIWF
   - Summary: Replace legacy P0-P3 priorities with the agreed integer 0-5 contract across canonical storage, CLI, Workspace, MCP, scheduling and validation. Default: 2. Lower means higher priority. Bug severity remains independent.
   - **Priority**: 2
+  - Revision: 32
   - Type: Bug / severity: unknown
 
 ## Done
 
 - [x] **TKT-QRT7**: AIWF-LEGACY-REFACTOR-BRIDGE
   - **Priority**: 0
+  - Revision: 12
 - [x] **AIWF-PERFORMANCE-METRICS**: Gate 6: PERFORMANCE-METRICS
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 11. Gate 6 — AIWF-PERFORMANCE-METRICS  ### Goal  Land enough correlated telemetry to measure the first real end-to-end resolution proof.  ### External gate  `LLMUTILS-PERFORMANCE-METRICS` must be available.  ### Design reference  `docs/performance-metrics.md`.  ### Work  1. Create one trace ID per high-level artifact operation and propagate llm-utils `MetricsContext`. 2. Collect AIWF-owned deterministic counters/outcomes only; never duplicate llm-utils LLM/System-1/Actor token/latency accounting. 3. Produce compact run summaries: operation/artifact/policy/outcome, version/model/backend, artifact visits/creates/reuse, tool/source/edit/test counts, critic rounds, System-1 routing/pruning, correlated LLM usage, verification. 4. Persist one JSON line per completed operation in gitignored `.ai-workflow/metrics.jsonl`; metrics failure never fails engineering work. 5. Repurpose/extend `aiwf metrics` to query/filter useful performance aggregates by operation/artifact/time/tag. 6. No prompt/source/output/tool-argument content in metrics.  ### Acceptance  Prove restart persistence, no duplicate token accounting, correlation across investigate/prepare + nested llm-utils calls, no content leakage, useful median/p95/outcome/repair/System-1/Critic/evidence-reduction metrics, and negligible instrumentation overhead.  Do not build a dashboard, telemetry platform, OpenTelemetry layer, metric graph entities, or synthetic quality score.
   - **Priority**: 0
+  - Revision: 27
 - [x] **TKT-PRODUCT-CHARTER-FEATURE**: Govern Feature acceptance and revision by the current Product charter
   - Summary: Developer establishes Charter and Feature through reviewed public AIWF operations, supplies a complete User Story, reviews/edits its interpretation and explicitly accepts it, so subsequent engineering can work from approved complete Product Intent. Expected: canonical complete fields and current Charter validation; editable inert proposals; grounded material warnings with actual developer answers; one accepted US identity/revision and Feature enables relation; same accepted meaning on read/reopen with Manifest only a projection; rejection/cancellation/unauthorized answers/stale approval preserve accepted intent; precise enough to derive eventual acceptance tests. Implementing the requested software is #3 and excluded.
   - **Priority**: 0
+  - Revision: 140
 - [x] **TKT-TICKET-JOURNAL**: Keep Ticket specifications concise and retain execution history in the Semantika journal
   - Summary: Keep Ticket.body as current developer work specification. Automatically retain meaningful execution history in existing Semantika storage indexed by Ticket ID; provide explicit lossless condensation and reopening. Preserve legacy material before cleaning bodies and retain completed verification. Public Story test first; boundary/regression/typecheck green. BASIC Product Intent #2 remains closed; #3 is out of scope.
   - **Priority**: 0
+  - Revision: 36
 - [x] **TKT-UWR1**: DBG-001: Implement aiwf debug and triage CLI facilities
   - **Priority**: 1
+  - Revision: 14
 - [x] **TKT-AST-001**: Comprehensive AST Symbol Coverage, Incremental Auto-Refresh, and Symbol/Graph Search APIs
   - Summary: Ensure that: 1. The AST graph really covers all symbols (functions, methods, classes, interfaces, types, enums, variables, constants, exports, re-exports, etc., including inside blocks/nested scopes if appropriate, across TS/JS). 2. The AST is always up to date (incremental staleness checking using file mtimes / hashes, auto-refresh on read/query). 3. The MCP and shell expose useful symbol search and graph search APIs (fuzzy/regex/exact symbol search, graph traversal: callers, dependencies, dependents, relations).
   - **Priority**: 1
+  - Revision: 12
 - [x] **AIWF-CHANGE-FOUNDATION**: --id
   - **Priority**: 1
+  - Revision: 12
 - [x] **AIWF-NATIVE-CODE-CHANGE**: --id
   - **Priority**: 1
+  - Revision: 12
 - [x] **TKT-B9BE**: Emit self-contained dist/aiwf binary and install.sh
   - **Priority**: 1
+  - Revision: 11
 - [x] **AIWF-PRIMITIVE-TRUTH**: Gate 1: PRIMITIVE-TRUTH
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 6. Gate 1 — AIWF-PRIMITIVE-TRUTH  ### Goal  Make AIWF's low-level hands truthful, fast, and worthy of autonomous use.  ### Design references  Read only the relevant sections of `docs/artifact-operations.md` and `docs/causal-change-engine.md` after AIWF context has identified the implementation surface.  ### Work  1. Make `aiwf sync` reconcile changed code/index state as well as Markdown projections. 2. Remove unnecessary persistent writes from repeated read/query freshness checks, especially unchanged external dependency indexing. 3. Allow one higher-level operation to perform one bounded freshness reconciliation and reuse that snapshot. 4. Make `get_symbol_source` return the actual symbol body/range when it claims exactness; otherwise explicitly label an excerpt. 5. For correctness-sensitive TS/JS definitions/references/callers, use existing TS LSP facilities; keep AST graph facts for cheap discovery. 6. Add the smallest exact symbol/function replacement capability through the existing safe Causal Change path if current primitives cannot replace a known unit without the caller supplying its old body. 7. Do not build a general AST editor or another exact code graph.  ### Acceptance  On the AIWF repository, prove:  - locate a known symbol; - return its exact source; - find exact TS references; - inspect dependencies; - perform an existing semantic rename/refactor; - replace one known function/method in a disposable worktree/fixture; - run its targeted test; - repeated reads of an unchanged project do not cause graph rewrites/lock noise; - measured result sizes/timings are recorded for comparison.  Then full typecheck/tests + method-by-method KISS audit.
   - **Priority**: 1
+  - Revision: 12
 - [x] **AIWF-OPERATION-POLICY**: Gate 2: OPERATION-POLICY
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 7. Gate 2 — AIWF-OPERATION-POLICY  ### Goal  Add the tiny shared policy substrate required by artifact operations—nothing more.  ### Design reference  `docs/artifact-operations.md` § operation policy/completeness/Critic/depth.  ### Work  Implement:  ~~~ type CompletenessLevel = 'poc' | 'functional' | 'advanced' | 'production'  interface ArtifactOperationOptions {   completeness?: CompletenessLevel   depth?: number | 'all'   maxArtifacts?: number   critic?: ArtifactCritic | { id: string } | 'auto' | 'none' } ~~~  Add optional `completenessTarget` to Module/Epic/Feature/UserStory and a project default. Do **not** persist completeness on Ticket.  Implement deterministic completeness resolution exactly as designed, including scope-specific Ticket completeness context; do not collapse POC Feature + production Module into one semantic scalar.  Add:  - `set_completeness_target` - `get_completeness_target` - shared depth/maxArtifacts validation/accounting - small read-only `ArtifactCritic` contract and transport-ID resolver - derived `CompletenessAssessment` shape without fake percentages.  Remove/deprecate legacy persisted `Module.completionPercent`; ensure `ProjectHealth.completionPercent` is not presented as semantic completeness.  No real AI Critic yet—use injected test critics only.  ### Acceptance  Prove override/inheritance rules, explicit child targets, multi-scope Ticket context, clearing targets, depth semantics and maxArtifacts stop behavior.  Reject generic policy engines, recursive frameworks, critic registries, hard-coded model names, or persisted achieved completeness.  ### Dogfood immediately  After this gate, set `production` completeness targets on the program Epic and every durable Feature created in §3. Re-run coverage/completeness views and keep the target state in AIWF.
   - **Priority**: 1
+  - Revision: 13
 - [x] **AIWF-ASPECTS**: Gate 3: ASPECTS
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 8. Gate 3 — AIWF-ASPECTS  ### Goal  Make Aspects first-class cross-cutting intent before ticket automation depends on them.  ### Design reference  `docs/aspects.md`.  ### Work — checkpoint A: entity + graph semantics  Add a real Semantika `Aspect` entity class + DCR using IntentStatus and optional acceptance criteria.  Add only the new `applies_to` predicate and the relation shapes defined in the design:  - Aspect `applies_to` Idea/Module/Epic/Feature/UserStory; - Ticket `addresses` Aspect; - Test/Artifact `verifies` Aspect; - Decision `governs` Aspect.  Aspect-local behavior lives on `Aspect`; applicable-Aspect behavior lives on the relevant entity classes, backed only by small bounded helpers where genuinely cross-entity.  Extend the existing Product Intent/Causal Change mutation owner. No `AspectService`, `AspectChange`, taxonomy framework or shadow graph.  Add deterministic CRUD/query + `aspects.md` projection with single relation ownership.  ### Work — checkpoint B: applicability + assessment  Implement bounded `get_applicable_aspects` semantics exactly from the design—no unrestricted inheritance traversal.  Implement derived structural Aspect assessment: applicable concerns, addressing work, tests/evidence artifacts, governing Decisions and known gaps. No score/percentage.  ### Work — checkpoint C: cognition  Use System-1 only to shortlist candidate missing Aspects from a bounded vocabulary/project set. Reasoning/Critic adjudicates materiality. No AI silently persists an Aspect.  ### Acceptance  Prove Feature direct Aspect, Story inheritance, Epic→contained-Ticket applicability without contaminating targeted Feature, Module→targeting Ticket, parent/child Ticket handling, dedup/cycle safety, evidence via code/test/report/Decision, and both omission + anti-ceremony behavior.  ### Dogfood immediately  Create/reuse and apply at least these **material** Aspects to this program where appropriate:  - `Maintainability / KISS` — program Epic; - `Robustness / truthfulness` — Truthful Primitives and Ticket Ops Features; - `Execution efficiency / token attention` — Ticket Ops and Primary Interface Features.  Do not add irrelevant standard Aspects merely to exercise the feature.  Run Aspect assessment on the program before proceeding.
   - **Priority**: 1
+  - Revision: 21
 - [x] **AIWF-TICKET-INVESTIGATION**: Gate 4: TICKET-INVESTIGATION
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 9. Gate 4 — AIWF-TICKET-INVESTIGATION  ### Goal  Implement `Ticket.investigate()` plus thin `investigate_ticket` transport operation.  ### External gate  `LLMUTILS-SYSTEM1` must be available.  ### Work  1. Add structured Ticket `acceptanceCriteria?: string[]`. 2. Allow Decision `governs` Ticket. 3. Centralize coherent Ticket lane/status transitions and fix current Blocked→planned behavior. 4. Investigation is semantically read-only; code-index freshness may update. 5. Gather mandatory graph/Product/Decision/Lesson/Aspect/code/test evidence first. 6. Run one compact batched System-1 assessment for work kind/scope/atomicity/reasoning depth/context families. 7. Deterministically retrieve a bounded optional candidate set; System-1 may rank/prune only optional candidates, never mandatory evidence. 8. Use bounded reasoning only for unresolved semantics. 9. Return dossier + proposed enrichments + provenance + disposition (`ready`, `needs_preparation`, `rejectable`) or shared `needs_input`/`blocked`. 10. Investigation itself never writes semantic enrichments, creates children, edits code, or moves lane.  ### Acceptance  Prove:  - well-grounded Ticket avoids unnecessary autoregressive calls; - high-confidence routing avoids irrelevant evidence; - low confidence/contradiction escalates; - System-1 unavailable still yields correct behavior; - stale/missing code target is identified exactly; - ambiguous product ownership yields `needs_input`, not a guess; - duplicate/already-satisfied work yields grounded `rejectable`; - material explicit Aspect is always present and cannot be pruned; - dossier is substantially more useful than today's manual symbol/graph sequence.  ### Dogfood immediately  Run `investigate_ticket` on `AIWF-TICKET-PREPARATION`, save/inspect the dossier, and use it as the primary context for Gate 5.
   - **Priority**: 1
+  - Revision: 20
 - [x] **AIWF-TICKET-PREPARATION**: Gate 5: TICKET-PREPARATION
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 10. Gate 5 — AIWF-TICKET-PREPARATION  ### Goal  Implement `Ticket.prepare()` plus thin `prepare_ticket`, ordinary Ticket→Ticket decomposition, and the first real Critic path.  ### Work  1. Add exactly `Ticket --contains--> Ticket`; no SubTask/ManagementTicket/Plan entity. 2. Start from semantically read-only investigation. 3. If no enrichment/decomposition is needed, return quickly. 4. Claim before the first durable mutation. 5. Apply confirmed investigation enrichments through the canonical safe mutation path. 6. Use System-1 only as atomic-vs-split/escalation hint. 7. When decomposition is genuinely useful, reasoning model proposes a small coherent child set with bodies + acceptance criteria + relevant Product/Aspect/code relations. 8. Add `depends_on` only when real ordering exists and the canonical graph path supports it. 9. Before apply: selected Critic reviews proposal → accept/revise/needs_input/reject → deterministic validation → apply. 10. Built-in `critic=auto` must use an independent review context; advanced/production must not rely on producer self-critique. 11. Bound revision attempts; no silent completeness downgrade. 12. Rerun is idempotent and reuses children. 13. Release leases acquired by the call before returning `needs_input`/`blocked`.  ### Acceptance  Prove atomic Ticket remains atomic, broad Ticket decomposes meaningfully, technical Ticket needs no fake Story, rerun creates no duplicates, dependency cycles reject, Critic catches omission/duplication/ceremony, Critic revision converges, custom critic works, `critic=none` bypasses only semantic critic—not deterministic validation.  ### Dogfood immediately  Run `prepare_ticket` on `AIWF-PERFORMANCE-METRICS` and `AIWF-TICKET-RESOLUTION-FIRST-PROOF`. Honor any justified child decomposition rather than bypassing it.
   - **Priority**: 1
+  - Revision: 15
 - [x] **AIWF-PRODUCT-PROCESSING**: Gate 8: PRODUCT-PROCESSING
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 13. Gate 8 — AIWF-PRODUCT-PROCESSING  ### Goal  Implement entity-owned:  ~~~ UserStory.process() ↔ process_story Feature.process()   ↔ process_feature Epic.process()      ↔ process_epic ~~~  ### Design references  `docs/artifact-operations.md`, `docs/product-intent-graph.md`, `docs/aspects.md`.  ### Rules  - Story reconciles existing work and creates/reuses only necessary addressing Tickets. - Feature creates/reuses meaningful Stories when they clarify observable behavior; direct Tickets remain valid for technical work. - Epic reuses stable Features/Stories; technical Epics may create direct Tickets. - Preserve `Epic targets Feature/UserStory` and `Epic contains Ticket`; never make Epic own Feature. - completeness controls thoroughness, not counts; - depth controls artifact expansion depth; Aspect discovery itself does not consume depth; - maxArtifacts bounds breadth; - every generated batch is reviewed before apply; - advanced/production depth>1 receives final root-level cross-layer Critic review; - raising completeness fills gaps idempotently; lowering never deletes valid work; - applicable Aspects and materially missing candidate Aspects participate in proposal/Critic review.  Epic processing normally uses stronger-than-minimal reasoning after deterministic retrieval + System-1 candidate narrowing.  ### Acceptance  Prove Feature/Story reuse, technical Epic without fake Stories, Story→useful Ticket work, ambiguity→needs_input, rerun idempotence, no duplicate intent/work, coherent Coverage/Impact/AspectAssessment, and POC→production upgrade that adds only genuinely missing work.  ### Dogfood immediately  Run `process_epic` on `EPIC-AIWF-ARTIFACT-OPS` with:  ~~~ completeness: production depth: 1 critic: auto ~~~  Review and accept only real missing intent/work. Do not allow the new processor to manufacture ceremonial artifacts merely to make its own graph look richer.
   - **Priority**: 1
+  - Revision: 15
 - [x] **AIWF-PRIMARY-INTERFACE**: Gate 9: PRIMARY-INTERFACE
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 14. Gate 9 — AIWF-PRIMARY-INTERFACE  ### Goal  Make artifact-level operations the obvious first-choice shell/MCP/skill surface.  ### Work  1. Shell help/natural-language flow prioritizes `resolve_ticket`, `prepare_ticket`, `investigate_ticket`, `process_epic/feature/story`. 2. Shell/MCP expose `completeness`, `depth`, `maxArtifacts`, `critic` consistently; remembering completeness is explicit via completeness-target operations, never a hidden side effect. 3. Installed AIWF skill tells external coding agents to **delegate artifact work first** and use primitives only for explicit drill-down/debugging. 4. Existing low-level primitives remain available. 5. Measure whether legacy bucket-router/WorkflowActor responsibilities are now redundant. Remove/simplify only what the new operations demonstrably replace; do not introduce semantic-registry merely for architectural symmetry. 6. Update README/examples to show the new preferred workflow using commands that are actually verified.  ### Acceptance  An external coding agent given a Ticket should naturally invoke high-level AIWF rather than reproduce the old status→graph→symbol→slice→blast choreography.
   - **Priority**: 1
+  - Revision: 15
 - [x] **AIWF-FINAL-DOGFOOD-AUDIT**: Gate 10: FINAL-DOGFOOD-AUDIT
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 15. Gate 10 — AIWF-FINAL-DOGFOOD-AUDIT  ### Goal  Use the completed system on itself and produce measured evidence that the program succeeded.  ### Self-review  Run the program Epic through the final high-level system:  1. production completeness; 2. applicable Aspect assessment; 3. critic=auto; 4. bounded processing/resolution of any real remaining gaps; 5. Product Coverage and Product Impact; 6. aiwf doctor, aiwf audit, full typecheck/tests; 7. full repository diff/code-method KISS audit.  No known program gap may be hidden merely to complete the Epic. Conversely, do not generate ceremony to chase an imaginary score.  ### Controlled A/B measurement  Use a historical engineering task with a known-good outcome from before this program; prefer the prior AIWF-PRODUCT-CHANGE task if it can be reconstructed safely.  Compare the same external model/task under: A: normal repository/tool workflow B: high-level AIWF delegation first  Measure: - correctness/acceptance outcome; - external paid tokens when actually available; - external source reads/tool calls; - AIWF internal LLM/System-1 tokens/cost/latency; - wall time; - user interventions; - evidence-candidate reduction; - Critic revisions; - first-pass verification/repair loops.  ### Final program state  - all program Tickets terminal and truthful; - no active leases; - no unintended Blocked/In Progress work; - program Features/Stories/Aspects coherent; - Epic coverage/Aspect/completeness assessment has no known material gap at production target; - master green and clean; - projections synced; - relevant README/skill docs current; - Epic marked completed only now.  Produce one concise final report from measured facts. Do not create a new handoff document.
   - **Priority**: 1
+  - Revision: 18
 - [x] **AIWF-PRODUCT-PROCESSING/TICKET-CYCLE-SCOPE**: Restrict work-cycle validation to Ticket endpoints
   - Summary: Observed linking Gate 8 to src/graph/ontology.ts failed on the normal src/artifact-policy.ts import cycle. Product validation incorrectly traversed File depends_on edges as Ticket work cycles. Restrict work-cycle validation to Ticket→Ticket endpoints; preserve rejection of actual containment/dependency cycles.
   - **Priority**: 1
+  - Revision: 10
 - [x] **AIWF-PRODUCT-PROCESSING/PROOF-ANCHORS**: Reverify Done when code verification scope gains an anchor
   - Summary: Resolution reuse must require hashes for every current authored code/test anchor; otherwise adding a modifies relation after an earlier proof can silently reuse evidence for a smaller scope.
   - **Priority**: 1
+  - Revision: 6
 - [x] **AIWF-PRIMARY-INTERFACE/MCP-OBJECT-SCHEMA**: Export valid MCP object envelopes for union parameters
   - Summary: Actual MCP Client.listTools rejects tool63 preview_change because its registered union converts to oneOf without root type:object. Preserve union validation while emitting the mandatory object envelope on live MCP and exported schemas.
   - **Priority**: 1
+  - Revision: 6
 - [x] **AIWF-FINAL-DOGFOOD-AUDIT/VERIFIER-SOURCES**: Verify current authored source during no-edit resolution
   - Summary: Method audit: default acceptance verifier reads only files edited during this call. A no-edit/review resolution has authored code anchors but an empty edited-file set, so the independent verifier must also read those current authored source files.
   - **Priority**: 1
+  - Revision: 8
 - [x] **AIWF-FINAL-DOGFOOD-AUDIT/ROOT-REVIEW-CONTRACT**: Keep root acceptance explicit in final cross-layer Critic input
   - Summary: Final method audit found production depth>1 root-level review included root contracts only indirectly inside earlier review neighborhoods. Pass the authored root acceptanceCriteria directly to the independent final review, so its normal missing-coverage guard applies.
   - **Priority**: 1
+  - Revision: 8
 - [x] **AIWF-FINAL-DOGFOOD-AUDIT/PROCESS-VERIFICATION-EVIDENCE**: Include linked verification evidence in Product processing review
   - Summary: Real production cross-layer program review rejected Performance Metrics because processIntent gave the Critic requirements and structural IDs but omitted linked Test/Artifact verification evidence. Gather actual direct-scope and linked-work Test/Artifact/Decision evidence before independent review, without source preload or a second evidence system.
   - **Priority**: 1
+  - Revision: 8
 - [x] **TKT-YXKK**: Fix Consuela dogfood file targets, bounded Actor continuation, and structured repair
   - Summary: Implement confined bounded workspace reads and exactly-once replace_text via CausalChangeEngine. Actor uses 16-step tranches, maximum three, continuing only after successful edits with refreshed dossier and preserved owned hashes. Seven semantic json calls use maxRetries 1; remove handwritten repair. No duplicate engine or persisted resume. Deterministic Consuela regressions.
   - **Priority**: 1
+  - Revision: 14
 - [x] **TKT-LLPM**: Diagnose fresh Consuela zero-edit exhaustion and Epic timeout
   - Summary: Investigate actual fresh Consuela failures, not only scripted success paths. Saved ai-cli metrics: process_epic timeout at 60002ms; first Ticket 16 successful model calls, 15 source reads, zero edits. Read-only live replay repeats invalid tool parameters file_path instead of filePath for all 16 steps. Compare full dossier/tool catalog transport and active model context window before changing execution. Preserve 16 steps, zero-edit blocking, KISS, current master. No unrelated ai-cli source changes.
   - **Priority**: 1
+  - Revision: 19
 - [x] **TKT-REPEAT-NAV-01**: Prevent identical unchanged navigation from exhausting ticket resolution
   - Summary: Reproduced in ai-cli TKT-CS-TRUTH-01 and llm-utils TKT-AICLI-TRUTH-01 at AIWF 359c1a7. Both hit 16 steps zero edits; sibling final steps 14-16 identical get_file_outline src/session.ts. Existing resolver instructs no repeat but does not enforce. Small repair only in src/graph/ontology.ts implementation tool adapter: repeated identical navigation against unchanged workspace must produce actionable error directing existing read_workspace_file/source/preview/apply tools, rather than silently consuming step budget. Allow same request after actual successful mutation. No new workflow/planner, no budget increase, preserve existing dirty work. Add meaningful deterministic regression, typecheck/focused tests. Then resume consumer tickets.
   - **Priority**: 1
+  - Revision: 36
 - [x] **TKT-3END**: Diagnose and repair escalation routing and shell trace test failures
   - Summary: Diagnose and repair escalation routing and shell trace test failures. Preserve intentional task-class/locality routing, cloud/escalation assertions, real shell viewport controls and zero-Actor-call behavior.
   - **Priority**: 1
+  - Revision: 19
 - [x] **TKT-SUPY**: Audit and canonicalize Ticket.resolve TestNode verification
   - Summary: Audit only Ticket.resolve and TestNode integration against the user supplied lifecycle. Correct demonstrated defects using existing helpers; exclude debug/fix and digest.
   - **Priority**: 1
+  - Revision: 18
 - [x] **TKT-OCTF**: Measured follow-up audit of Ticket.resolve and TestNode freshness
   - Summary: Repeat the Ticket.resolve and TestNode audit against current source, measure AIWF using existing telemetry and timings, and fix only reproduced acceptance/evidence defects. Do not touch debug/fix or digest.
   - **Priority**: 1
+  - Revision: 19
 - [x] **TKT-LBBL**: Make shell trace reliable and inspectable with a floating view
   - Summary: Repair shell trace lifecycle, preserve discovery and failure diagnostics, expose complete observable tool calls/results and a floating scrollable viewer via existing shell-ui contracts. Keep routing repair outside this ticket.
   - **Priority**: 1
+  - Revision: 12
 - [x] **TKT-IEG7**: Repair empty tool discovery and repeated unavailable calls for next-ticket requests
   - Summary: Reproduced live: classifier returns domain ticket, object ticket, action recommend, effect read; recommend_next_task was indexed as next/task and did not match. Fix canonical semantic metadata, surface discovery failures before Actor execution, bound unsuccessful recovery and repeated unavailable calls, remove stale PRODUCT instructions advertising unavailable tools. Preserve narrow AND matching and read-only recommendation semantics.
   - **Priority**: 1
+  - Revision: 12
 - [x] **TKT-4K6K**: Repair Actor capability gaps and repeated unchanged observations
   - Summary: Root-cause audit: semantic tags collapse request constraints, matching was mistaken for capability sufficiency, repeated unchanged successful observations had no runtime guard, and ticket listing omitted authored priority needed for comparison. Qualify candidate descriptions, narrowly rediscover supporting evidence once, enforce bounded read-only progress with replanning, preserve mutation/error/change retries. No least-ticket keyword routing or new ranking tool.
   - **Priority**: 1
+  - Revision: 12
 - [x] **TKT-8D3F**: Restore discovery-independent general Actor agency
   - Summary: Expose canonical tool discovery in the shared Actor using its isolated run catalog. Let the LLM own comparisons and query decomposition, recover lookup failures and reject empty final answers. Follow docs/agency-constitution.md and docs/agency-restoration-plan.md; preserve their acceptance boundaries. No query-specific ranking or second planner.
   - **Priority**: 1
+  - Revision: 55
 - [x] **TKT-ADV-ACTOR-J25**: Dynamic Asker runtime refresh and effective target projection
   - Summary: Fix J2.5 runtime configuration refresh: WorkflowActor retains old Asker after config changes; implement reloadConfig() and getEffectiveRoute() to reflect live router resolution in shell and CLI without restarting processes.
   - **Priority**: 1
+  - Revision: 10
 - [x] **TKT-ADV-ACTOR-J24**: Solve sophisticated compound goals through grounded evidence acquisition (J2.4)
   - Summary: Fix J2.4 compound goal solving and evidence acquisition: normalize semantic discovery domains and objects (e.g. project, goal, hotspots), guide Actor to governing project records (project.md, kanban.md, epics.md) before inspecting auxiliary data, prevent dummy shell echo note-taking, and verify grounded multi-part answers.
   - **Priority**: 1
+  - Revision: 10
 - [x] **TKT-SKILL-MANAGER-UPGRADE**: Integrate @dharmax/skill-manager into AIWF runtime and Actor
   - Summary: Take full advantage of @dharmax/skill-manager in AIWF. Incorporate dynamic skill discovery, multi-function tool activation (such as the new web-ui-design skill), and isolated test execution into the AIWF Actor and KB substrate.
   - **Priority**: 1
+  - Revision: 34
 - [x] **TKT-CODE-SYNTHESIS-ENGINE**: Graph-grounded source synthesis for Ticket.resolve
   - Summary: Implement J3.4 from docs/graph-aware-code-synthesis-architecture.md. Build a small provenance-bearing synthesis context from Ticket/Product/Decision/Aspect graph evidence plus exact TypeScript/LSP facts; route generative source through one backend-neutral SourceSynthesizer boundary; emit only ordinary concrete mutations (replace_symbol/create_file) through the existing CausalChangeEngine; verify against the real project and use refreshed graph/LSP evidence for bounded repair. Deterministic changes bypass synthesis. Do not add synthesize_* ChangeRequests, construct-specific generation architecture, or make text-compiler mandatory before comparison proves it.
   - **Priority**: 1
+  - Revision: 28
 - [x] **TKT-SHELL-CONFIG-A**: Preserve configuration provenance and support explicit scoped overrides
   - Summary: Execute Ticket A of plans/shell-ux-config-setup.md. Source anchors: src/config.ts, src/cli.ts, src/shell.ts. Establish truthful configuration provenance, precedence, secret handling and malformed-configuration behavior through existing owners. Preserve the scoped plan and acceptance contract.
   - **Priority**: 1
+  - Revision: 14
 - [x] **TKT-SHELL-SETUP-B**: Make setup and runtime diagnostics inspectable and truthful
   - Summary: Execute Ticket B in plans/shell-ux-config-setup.md. Reuse concrete setup functions; add small step result shape satisfied/needed/changed/skipped/failed and inspect-only behavior; detected malformed/unwritable host failures must remain visible. Keep repeated setup idempotent. Fix runtime construction errors mislabeled absent without routing redesign. Source anchors src/setup.ts, src/doctor.ts and runtime construction. Preserve host unrelated entries and use backup when needed. Acceptance includes fresh/repeated setup and absent/malformed hosts in isolated home.
   - **Priority**: 1
+  - Revision: 13
 - [x] **TKT-SHELL-CONFIG-C**: Share config semantics across shell and CLI
   - Summary: Ticket C of plans/shell-ux-config-setup.md, after Milestone 1 gate. One config get/set/reset command path calls existing config functions; CLI explicit/nonprompting; interactive shell facilitates only missing key/value using shell-ui and displays renderer-neutral View. Preserve complete fast path and cancellation. Delete duplicated adapters. Architectural gate: less adapter duplication, no new registry/framework, UI has no precedence rules.
   - **Priority**: 1
+  - Revision: 13
 - [x] **TKT-SHELL-SETUP-D**: Share setup inspection and application across shell and CLI
   - Summary: Ticket D of plans/shell-ux-config-setup.md. Reuse setup functions/results; shared command path supports setup --check without writes/prompts, same shell and CLI inspection/application. Interactive setup presents structured state and reviews needed changes before applying. Plain explicit setup remains deterministic. Delete previous CLI setup presentation/business branch.
   - **Priority**: 1
+  - Revision: 13
 - [x] **TKT-SHELL-DAILY-E**: Consolidate daily ticket, artifact, entity and model shell paths
   - Summary: Execute Milestone 3 of plans/shell-ux-config-setup.md after config/setup architecture gate (340 pass). Bounded duplication map: claim/release/move/done repeat parsing/defaults/mutations; shell and CLI artifactCommand already share operation semantics but missing interactive artifact inputs need facilitation; entity-view.ts already owns structured entity queries/editing but plain adapters duplicate inspections; model listing/route mutation/radar formatting duplicate. Reuse registry, artifactCommand, entity views, modelRuntime and shell-ui; preserve complete fast path, plain no prompts, cancellation no mutation; delete superseded adapter paths. Do not migrate trivial one-line source navigation or routing architecture. Acceptance: tests/shell-daily.test.ts proves real CLI and shell lease parity, complete-input no elicitation, eligible bounded claim choices, full entity snapshot unchanged on cancellation, missing lane facilitation, done releases, canonical artifact parser after missing-id facilitation, CLI/plain entity view parity, local-only model route writes and inherited global route preservation. Existing shell/runtime/artifact tests pass. Full suite 346 pass/2 live skips/0 fail; typecheck/pack/diff check pass. Bounded navigation stays unchanged for one-line source/graph commands. More than 500 old adapter lines removed; no registry/state/routing framework added. Delegation User not found/zero edits retained; manual claimed canonical edits.
   - **Priority**: 1
+  - Revision: 12
 - [x] **TKT-ACTOR-ENGINE-KISS**: Simplify WorkflowActor engine and preserve canonical execution authority
   - Summary: Completed scoped Actor cleanup under Prime Directive and am-i-allowed style. Reused native llm-utils Actor, session, router and PromptEngine with bundled templates; native getters expose runtime state and ModelService supplies configured model targets. Fixed local SDK default leakage, SOTA locality and retry discovery-budget reuse. Corrected CLI acceptance fixture project isolation and obsolete credential/model setup; KB search now shows the exact inspection command. Added deterministic regressions and normalized reviewed test headers/formatting without weakening assertions. Final full suite: 380 pass, 2 opt-in live skips, 0 fail; typecheck and compiled build pass. Both opt-in live journeys passed independently: project skill activation with exact CSS tokens and executed tests; exact authored source synthesis with ticket verification. Real compiled Actor returned ready from an isolated external directory. First failed live skill trace retained. EVIDENCE-ACTOR-ENGINE-PUSH-ACCEPTANCE records checks and limits. Applicable Aspects empty. User authorized commit and push to master.
   - **Priority**: 1
+  - Revision: 62
 - [x] **TKT-RESOLVE-RECOVERY-R1**: R1 — Preserve stalled-navigation evidence
   - Summary: Execute Gate 1 of plans/AIWF-ticket-resolution-recovery.md. Preserve bounded recent Actor calls, relevant navigation parameters, outcomes/errors and mutation epoch when the existing local duplicate guard terminates. Reuse the existing compact halt report; preserve guard behavior. Do not self-modify a running resolver.
   - **Priority**: 1
+  - Revision: 9
 - [x] **TKT-DOCTRINE-G1-MODEL**: Gate 1: Native Persisted Rule Model & Scoped Overrides
   - Summary: Implement native Rule entity descriptor, Zod schema validation, individual Semantika persistence, scoped resolution (universal/project/module), versioned bundled defaults with incomplete installation detection, and restart/upgrade test coverage. No public claim of rule enforcement yet.
   - **Priority**: 1
+  - Revision: 7
 - [x] **TKT-DOCTRINE-G2-CONTEXT**: Gate 2: Producer Context & Decision/Aspect Authority Delivery
   - Summary: Deliver resolved applicable rules and inline examples into Ticket investigation, synthesis, and actor prompts. Fix Decision operative fields and Aspect status handling with regression tests.
   - **Priority**: 1
+  - Revision: 22
 - [x] **TKT-DOCTRINE-G3-VERIFIER**: Gate 3: Independent Post-Change Verifier & Proof Closure
   - Summary: Extend independent acceptance schema and ticket verification signature with per-rule verdicts. Enforce mandatory rules on post-change source and block Done on violations. Demonstrate adversarial Ticket failure.
   - **Priority**: 1
+  - Revision: 40
 - [x] **TKT-DOCTRINE-G4-REFS-SURFACE**: Gate 4: Grounded Pinned References, Governed Import/Export & Management Surfaces
   - Summary: Implement resolvable gitRepo references with typed selectors and verified inventory. Implement governed JSON import/export with Semantika atomic batch persistence and failure-injection tests. Expose CLI/MCP/shell management surfaces.
   - **Priority**: 1
+  - Revision: 25
 - [x] **TKT-DOCTRINE-G1-REVISION**: Gate 1 Correction: Scope Contract, Lossless Identifiers & Override Semantics
   - Summary: Correct Gate 1 implementation: eliminate lossy rule entity ID normalization, derive project identity directly from WorkflowStore context, enforce that drafts cannot shadow active inherited rules while disabled rules explicitly suppress, remove redundant full-collection reads in resolveAllRules, and detect outdated/incomplete bundled defaults without overwriting local customizations. Include database restart and partial default regression tests.
   - **Priority**: 1
+  - Revision: 7
 - [x] **TKT-001**: Explore codebase and run diagnostics
   - Summary: Review initial AST+ graph index and verify project health with `aiwf doctor`.
   - **Priority**: 2
+  - Revision: 17
 - [x] **TKT-RADAR1**: Implement Dynamic Cognitive Escalation and Multi-Provider Model Radar
   - Summary: SOTA benchmark Pareto radar discovery, multi-provider credentials, blast radius escalation, and shell/CLI controls.
   - **Priority**: 2
+  - Revision: 9
 - [x] **TKT-KB-001**: Implement Content-Addressable Knowledgebase Ecosystem & Client Integrations
   - Summary: Public registry dharmax/knowledgebase, canonical SHA-256 integrity, local cache, CLI facilities (aiwf kb), and agent tools.
   - **Priority**: 2
+  - Revision: 8
 - [x] **TKT-KRZQ**: AIWF-PRODUCT-GRAPH: Deterministic Product Intent Graph
   - **Priority**: 2
+  - Revision: 11
 - [x] **TKT-OM7L**: AIWF-EPIC-DECOMPOSITION: Semantic Epic Decomposition & Proposal Review
   - **Priority**: 2
+  - Revision: 11
 - [x] **AIWF-PRODUCT-CHANGE**: Product Intent through Causal Change Engine
   - Summary: Verified 2026-10-02: typecheck passed; bun test 117/117; disposable public preview/apply passed; TS7/TS6 code-change suites passed. See docs/product-change-handoff.md.
   - **Priority**: 2
+  - Revision: 12
 - [x] **TKT-ADV-ACTOR-P0**: Audit compound Actor failures and falsify minimal corrections
   - Summary: Audit compound Actor failures and falsify minimal corrections. Phase 0 and initial single-dimension falsification only; no production implementation. Use docs/advanced-actor-phase-0-audit.md and the preserved raw traces for the existing acceptance contract.
   - **Priority**: 2
+  - Revision: 18
 - [x] **TKT-CLIENT-GRAPH-FIRST**: Make client investigation guidance actionable and graph-first
   - Summary: Make repository and sibling-source investigation discoverable through shared AIWF client guidance and scoped navigation. Support explicit projectRoot, correct sibling filePath and exact symbol extraction; preserve active host registration after scoped stores close. No Actor or router changes.
   - **Priority**: 2
+  - Revision: 12
 
 ## Blocked
 
 - [ ] **AIWF-TICKET-RESOLUTION-FIRST-PROOF**: Gate 7: TICKET-RESOLUTION-FIRST-PROOF
   - Summary: Sole plan: docs/artifact-operations-plan.md. Execute in order; gate acceptance before Done.  ## 12. Gate 7 — AIWF-TICKET-RESOLUTION-FIRST-PROOF  ### Goal  Implement `Ticket.resolve()` plus thin `resolve_ticket` and prove that AIWF can actually own engineering work end-to-end.  ### Deterministic lifecycle  ~~~text investigate → claim before first mutation → prepare if needed → resolve ready leaf work → targeted verification → bounded repair → verify Ticket acceptance + material Aspects → verified/Done → release → sync ~~~  Parent Tickets use a bounded child work set, cycle detection and dependency order. Do not implement uncontrolled recursive agent calls.  ### Cognition  - deterministic evidence first; - System-1 for optional evidence pruning, mechanism/failure classification and model-tier hint; - context-manager to pack surviving evidence where useful; - Asker for synthesis not requiring tools; - LLMActor only when implementation genuinely requires tool interaction; - exact refactor/edit/test primitives first choice.  Workspace safety: inspect Git state after targets are known; unrelated dirty files may remain, dirty target requires `needs_input` by default; never reset/stash/commit user work automatically.  ### Acceptance  Prove with deterministic tests/fixtures plus real controlled work:  - surgical code fix; - function-level change; - safe TS refactor; - parent with children; - needs-input case; - failed-test repair loop; - unrelated dirty file allowed; - dirty target safely stops; - no Done unless acceptance is explicitly verified; - metrics record the complete run.  ### Mandatory dogfood transition  After this gate is green, **stop manually implementing later program Tickets by default**.  Use `resolve_ticket` for:  - `AIWF-PRODUCT-PROCESSING` - `AIWF-PRIMARY-INTERFACE` - `AIWF-FINAL-DOGFOOD-AUDIT`  Codex may intervene only when the operation returns `needs_input`/`blocked`, or when a concrete bug in `resolve_ticket` itself must be fixed. Such bugs become child Tickets and are resolved through the same system once fixed.
   - **Priority**: 0
+  - Revision: 50
 - [ ] **TKT-DOCTRINE-SEMANTIKA-CONTRACT**: Prove atomic admission assertions and coherent completion contract
   - Summary: Approved Gate 5 A-E supersedes retrospective phantom selection. Reuse public SqliteStore.applyBatch conditional writes. Narrow provider changes: assertion-only entries sharing an immediate transaction with writes, and working public collection.name for native entity/predicate batches. Prove cross-process shared/exclusive admission, expiry recovery, conditional multi-collection completion, SQL failure rollback and restart. No long-lived SQL transaction, shadow registry or generic lock framework.
   - **Priority**: 0
+  - Revision: 68
 - [ ] **TKT-EXT-SURFACE-10**: BUG: close public Product mutation authority bypass
   - Summary: [EXT-SURFACE-10] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: bug. Priority: P0, prerequisite to ANY exposed Product/Link writing, including EXT-SURFACE-03 and -08.  Observed: direct public writers including define_product/update_product use applyProductMutations independently of the separately available S2 preview/apply review boundary. Investigate actual host execution context and full direct callers first; patch at the canonical owner, not a cosmetic tool allowlist.
   - **Priority**: 0
+  - Revision: 50
 - [ ] **TKT-I1-LSP-CLOSE-RACE**: Handle LSP close racing an in-flight document symbol request
   - Summary: Iteration 1 pristine aggregate failure: resolveRuleReference failed in TsLspClient.getDocumentSymbols because its finally block dereferenced this.connection after concurrent close had nulled it. Preserve one connection per in-flight request and make didClose best-effort when teardown wins. Add a deterministic real JSON-RPC regression with a stalled documentSymbol request, then rerun pristine serialized aggregate.
   - **Priority**: 0
+  - Revision: 10
 - [ ] **TKT-DOCTRINE-G5-RELEASE**: Gate 5: Release Audit & Whole-Method Prime Directive Review
   - Summary: Execute full regression test suite, typecheck, build, DB migration tests, and live configured end-to-end acceptance journey. Perform am-i-allowed whole-method audit across all touched code.  Additional Prime Directive Audit requirement: review actual methods, callers, dependencies and failure paths; identify demonstrated root causes; repair substantive defects without speculative or unrelated refactoring. Passing tests alone does not establish design acceptance. Unresolved structural redesign keeps Gate 5 open.
   - **Priority**: 1
+  - Revision: 53
 - [ ] **TKT-BUG-TYPE-LANE**: Establish explicit Bug typing and lane semantics
   - Summary: Current native Ticket schema has no typed Bug or Bug lane; next-task selection guesses from bug/fix title substrings. Establish the smallest canonical explicit classification and supported CLI/shell/graph behavior, preserving Ticket identities, reproduction, history and governance. No separate Bug database or generic feature conversion.
   - **Priority**: 1
+  - Revision: 10
+- [ ] **TKT-LIFECYCLE-STATE**: Unify Ticket state and derive Story effective state
+  - Summary: Developer-authorized Ticket lane unification and read-only Story effective state; preserve independent completion and historical evidence; close incomplete Story bypass. Developer continuation 2026-10-27: repair claim/release/resolution/cancellation/recovery and stale Markdown lifecycle reconciliation through existing canonical owners. Retain the already-prepared guarded patch and real CLI/MCP regressions; investigate and complete any remaining work through resolve_ticket, then independently verify. No bulk Ticket cleanup, automatic Done, sync/export performance, duplicate implementation subsystem or unrelated repairs. Existing TKT-TICKET-LIFECYCLE-INTEGRITY is an overlapping audit/work record; preserve its evidence pending developer disposition.
+  - **Priority**: 1
+  - Revision: 171
 - [ ] **TKT-BOUNDED-COMPLETION-POLICY**: Distribute bounded completion policy through shared AIWF guidance
   - Summary: Developer-approved instruction maintenance: completion gates do not expand implementation authority. Publish only the requested work when instructed, preserve truthful acceptance states, and defer out-of-scope blockers. Put the policy in shared AIWF guidance and its existing MCP, installed-skill and native Actor consumers. No new reviewer gate, retry loop or governance subsystem.
   - **Priority**: 2
+  - Revision: 22
 - [ ] **TKT-BOUNDED-AUTONOMY-DESIGN**: Review core Bounded Autonomy design and charter/plan amendments
   - Summary: Design only, at developer request. Inspect existing execution, budgeting, delegation, retry, recovery and persistence owners. Propose one minimal shared execution-budget mechanism across all AIWF-controlled autonomous workflows, with terminal outcomes and durable reporting independent of Ticket lifespan. Prepare proposed Product charter and staged-plan amendments for design review. Do not implement runtime behavior, apply Product acceptance, run paid inference, advance stages or change unrelated work.
   - **Priority**: 2
+  - Revision: 15
 
 ## Cancelled
 
 - [ ] **TKT-OH7Y**: Rejected duplicate of TKT-DOGFOOD-CODE-MUTATOR
   - Summary: Reconciled duplicate registration. Canonical actionable milestone is TKT-DOGFOOD-CODE-MUTATOR; its established R3 dependency/history are preserved. This record is rejected, not verified implementation.  Original request preserved: a Backlog ticket: `TKT-DOGFOOD-CODE-MUTATOR`  **Title:** Rename Causal Change Engine → CodeMutator (AIWF dogfooding)  **Description:** Refactor the existing Causal Change Engine into a simpler, more explicit CodeMutator architecture.  - Preferred location: `src/services/code-mutator/code-mutator.ts` - Preferred class: `CodeMutator` - First inspect actual responsibilities, particularly Product mutations. Introduce `ProductMutator` only if justified by a genuine responsibility boundary. - Eliminate obsolete names and transitional abstractions rather than introducing compatibility wrappers. - Preserve behavior, contracts and test coverage. - Perform the refactoring using AIWF's own workflow as a dogfooding exercise.  **Dependency:** R3 / Doctrine Enforcement completion.  Before creating, search the canonical DB, including inactive/archived tickets, for an existing equivalent. Recover it if present; do not duplicate it.  Persist the ticket in the canonical DB, synchronize Kanban and verify it survives a fresh invocation.  **Planning only. Do not implement the refactoring yet.**
   - **Priority**: 2
+  - Revision: 5
 
 %% kanban:settings
 ```

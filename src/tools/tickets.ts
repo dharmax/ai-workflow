@@ -61,7 +61,7 @@ export function registerTicketTools() {
       const ticket = await requireTicket(ctx, ticketId, kind);
       if (ticket.kind === 'bug' && !assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};
       const result=await ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
-      if(ctx.executionAuthority==='project-write') await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'outcome',message:result.status==='complete'?'Resolution complete.':JSON.stringify(result).slice(0,12000),references:result.status==='complete'?[`VERIFY-${ticketId}`]:[]});
+      if(ctx.executionAuthority==='project-write' && !ctx.signal?.aborted) await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'outcome',message:result.status==='complete'?'Resolution complete.':JSON.stringify(result).slice(0,12000),references:result.status==='complete'?[`VERIFY-${ticketId}`]:[]});
       return result;
     }
   });
@@ -90,7 +90,7 @@ export function registerTicketTools() {
     parameters: z.object({
       ticketId: z.string().describe('The ID of the ticket to lease (e.g. TKT-001)'),
       agentId: z.string().default('agent-1').describe('Identifier of the leasing agent'),
-      durationMinutes: z.number().default(30).describe('Lease duration in minutes')
+      durationMinutes: z.number().finite().positive().default(30).describe('Lease duration in minutes')
     }),
     execute: async ({ ticketId, agentId, durationMinutes }, ctx: ToolContext) => {
       const ticket = await requireTicket(ctx, ticketId);
@@ -101,7 +101,7 @@ export function registerTicketTools() {
         try {
           await activateStoryTestsForTicket(ctx.store, ticketId, preview =>
             applyOwnedChange(preview, ctx));
-        } catch (error) { await ctx.store.releaseTicket(ticketId); throw error; }
+        } catch (error) { await ctx.store.releaseTicket(ticketId, agentId); throw error; }
       }
       return result;
     }

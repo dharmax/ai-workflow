@@ -319,7 +319,7 @@ export class WorkflowStore {
             const previous=await collection.findById<Record<string,unknown>&{_version:number}>(id);
             if(!previous) throw Error(`Ticket '${id}' not found.`);
             this.assertEntityWrite('Ticket', id, fields, previous);
-            const next={...previous,...fields};
+            const next={...previous,...fields,...(fields.lane !== undefined && fields.lane !== 'In Progress' ? {claim:null} : {})};
             const events=await ticketChangeEvents(this,id,previous,next);
             return this.sqliteStore.applyBatch([{collectionName:collection.name,id,expectedVersion:version??previous._version,record:next},...events])[0];
           })();
@@ -423,11 +423,11 @@ export class WorkflowStore {
       {collectionName: artifacts.name, id: proofId, expectedVersion: previous?._version ?? null,
         record: {title: `Verified acceptance for ${this.localId(ticket.id)}`, body, status: 'verified'}},
       {collectionName: tickets.name, id: ticket.id, expectedVersion: ticket.version,
-        record: {...record, metadata: {...record.metadata, governedScope: undefined}, ...ticketState('Done'), updatedAt: new Date().toISOString()}}];
+        record: {...record, claim: null, metadata: {...record.metadata, governedScope: undefined}, ...ticketState('Done'), updatedAt: new Date().toISOString()}}];
     if (link) changes.push({collectionName: predicates.name, id: link._id, expectedVersion: link._version});
     else changes.push({collectionName: predicates.name, id: predicates.createId(), expectedVersion: null, record: {
       sourceId: proofId, sourceType: 'Artifact', predicateName: 'verifies', targetId: ticket.id, targetType: 'Ticket', timestamp: Date.now()}});
-    changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,...ticketState('Done')}));
+    changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,claim:null,...ticketState('Done')}));
     this.sqliteStore.applyBatch(changes);
   }
 
@@ -858,6 +858,7 @@ export class WorkflowStore {
     durationMinutes: number = 30,
     moveToInProgress: boolean = true
   ): Promise<{ success: boolean; claim?: TicketClaim; message?: string }> {
+    z.number().finite().positive().parse(durationMinutes);
     const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
     if (!ticket) return { success: false, message: `Ticket not found: ${ticketId}` };
 
@@ -885,14 +886,26 @@ export class WorkflowStore {
     return { success: true, claim };
   }
 
-  /**
-   * Releases an active ticket lease.
-   */
-  async releaseTicket(ticketId: string): Promise<boolean> {
-    const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
-    if (!ticket) return false;
-    await ticket.update({ claim: null }, true, false);
-    return true;
+  /** End owned execution, preserving terminal lanes and any replacement owner's lease. */
+  async releaseTicket(ticketId: string, agentId?: string, disposition: 'Todo' | 'Blocked' = 'Todo', reason?: string): Promise<boolean> {
+    const context = this.execution.getStore();
+    if (context && (!context.active || context.authority !== 'project-write')) this.assertCanWrite();
+    // As with governance release, cancellation may release only this lease, not grant write authority.
+    return this.execution.exit(async () => {
+      const ticket = await this.getEntity<Ticket>(ticketId, Ticket.dcr);
+      if (!ticket) return false;
+      if (!ticket.claim) return true;
+      if (agentId && ticket.claim.agentId !== agentId) return false;
+      const collection = await this.sp.collectionForEntityType(Ticket.dcr);
+      const previous = await collection.findById<Record<string, unknown> & {_version: number}>(ticket.id);
+      const next = {...previous, claim: null, updatedAt: new Date().toISOString(),
+        ...(ticket.lane === 'In Progress' || disposition === 'Blocked' && ticket.lane === 'Todo' ? ticketState(disposition) : {})};
+      const events = await ticketChangeEvents(this, ticket.id, previous, next);
+      if (reason) events.push(await ticketEventBatch(this, ticket.id, 'failure', reason.slice(0,12000)));
+      this.sqliteStore.applyBatch([{collectionName: collection.name, id: ticket.id,
+        expectedVersion: ticket.version, record: next}, ...events]);
+      return true;
+    });
   }
 
   /**
@@ -910,7 +923,7 @@ export class WorkflowStore {
    * Retrieves all currently active ticket claims.
    */
   async getActiveClaims(): Promise<Array<{ ticketId: string; claim: TicketClaim }>> {
-    const tickets = await this.listEntities<Ticket>(Ticket.dcr, { lane: 'In Progress' });
+    const tickets = await this.listEntities<Ticket>(Ticket.dcr);
     const now = new Date();
     const active: Array<{ ticketId: string; claim: TicketClaim }> = [];
 
