@@ -21,10 +21,31 @@ function mustRun(root: string, args: string[]) {
 
 export async function withAcceptedGreetingStory(
   exercise: (project: {root: string; ctx: {store: WorkflowStore; projectRoot: string; executionAuthority: 'project-write'};
-    publicOracle: string}) => Promise<void>
+    publicOracle: string; step: <T>(name: string, run: () => Promise<T>) => Promise<T>}) => Promise<void>
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-us-acceptance-'));
   let store: WorkflowStore | undefined;
+  const startedAt = Date.now();
+  let phase = 'project setup';
+  const report = (message: string) => process.stderr.write(`[US greeting +${((Date.now()-startedAt)/1000).toFixed(1)}s] ${message}\n`);
+  const step = async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+    phase = name;
+    report('START ' + name);
+    try {
+      const value = await run();
+      report('PASS  ' + name);
+      return value;
+    } catch (error) {
+      report('FAIL  ' + name + ': ' + String(error));
+      throw error;
+    }
+  };
+  const heartbeat = setInterval(() => report('STILL ' + phase), 10_000);
+  heartbeat.unref();
+  // Bun may interrupt a timed-out test before its finally block finishes.
+  const exitCleanup = () => fs.rmSync(root, {recursive: true, force: true});
+  process.once('exit', exitCleanup);
+  report('Created isolated project ' + root);
   try {
     const files = {
       '.gitignore': 'node_modules\n.ai-workflow\n',
@@ -54,7 +75,7 @@ export async function withAcceptedGreetingStory(
     const ctx = {store, projectRoot: root, executionAuthority: 'project-write' as const};
 
     // Developer creates the Product, Story, and work using public reviewed changes.
-    await acceptProduct(store, [
+    await step('Accept Product and User Story through public review', () => acceptProduct(store!, [
       {kind: 'product_create', entityType: 'Product', id: 'PRODUCT', fields: {
         title: 'Greeting service', purpose: 'Expose a usable public greeting API', actors: ['Application developer'],
         scope: 'The greeting function', nonGoals: ['Web UI'], bounds: 'Disposable local project', status: 'accepted'}},
@@ -68,19 +89,19 @@ export async function withAcceptedGreetingStory(
         expectedResult: "Return exactly 'Hello, ADA!' without callers transforming the result.", status: 'accepted'}},
       {kind: 'product_link', sourceId: 'PRODUCT', predicate: 'contains', targetId: 'GREETINGS'},
       {kind: 'product_link', sourceId: 'GREETINGS', predicate: 'enables', targetId: 'GREET-USER'}
-    ]);
-    await registry.execute('create_ticket', {id: 'GREET-TICKET', title: 'Implement the greeting Story',
+    ]));
+    await step('Create Ticket through public API', () => registry.execute('create_ticket', {id: 'GREET-TICKET', title: 'Implement the greeting Story',
       body: "Update the public greet(name) behavior for the accepted GREET-USER Story; preserve its signature.",
       acceptanceCriteria: ["Calling greet('Ada') returns exactly 'Hello, ADA!' and the public test passes.",
-        'Typecheck passes and the existing public test is unchanged.']}, ctx);
+        'Typecheck passes and the existing public test is unchanged.']}, ctx)); 
 
-    const symbols = await registry.execute('find_symbol',
-      {name: 'greet', filePath: 'src/greeting.ts', exact: true}, ctx);
+    const symbols = await step('Discover source target', () => registry.execute('find_symbol',
+      {name: 'greet', filePath: 'src/greeting.ts', exact: true}, ctx));
     if (!symbols.some((symbol: {name: string}) => symbol.name === 'greet')) throw Error('Public greeting target not discoverable.');
-    await acceptProduct(store, [
+    await step('Link Ticket to Story and authorized source', () => acceptProduct(store!, [
       {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'addresses', targetId: 'GREET-USER'},
       {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: 'src/greeting.ts'}
-    ]);
+    ]));
 
     // Developer approves the executable public-interface Story test.
     const specification = {storyId: 'GREET-USER', filePath: 'tests/greeting.story.test.ts',
@@ -88,11 +109,13 @@ export async function withAcceptedGreetingStory(
       body: "expect(subject('Ada')).toBe('Hello, ADA!');"};
     let linked = false;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const preview = await registry.execute('prepare_story_test', {specification}, ctx);
+      const preview = await step('Prepare reviewed Story test attempt ' + (attempt+1), () =>
+        registry.execute('prepare_story_test', {specification}, ctx));
       if (preview.status !== 'review') throw Error(JSON.stringify(preview));
-      const applied = await store.withExecutionContext('project-write', undefined, () =>
-        registry.execute('apply_story_test', {specification, fingerprint: preview.fingerprint, decision: 'accept'}, ctx),
-      preview.fingerprint);
+      const applied = await step('Approve Story test attempt ' + (attempt+1), () =>
+        store!.withExecutionContext('project-write', undefined, () =>
+          registry.execute('apply_story_test', {specification, fingerprint: preview.fingerprint, decision: 'accept'}, ctx),
+          preview.fingerprint));
       if (applied.status === 'linked') {linked = true; break;}
       if (applied.status !== 'file-created-unlinked') throw Error(JSON.stringify(applied));
     }
@@ -101,13 +124,17 @@ export async function withAcceptedGreetingStory(
     mustRun(root, ['git', '-c', 'user.name=US Test', '-c', 'user.email=us@example.invalid',
       'commit', '-qm', 'accepted Story and public contract']);
 
-    await exercise({root, ctx, publicOracle});
+    await step('Exercise public US acceptance', () => exercise({root, ctx, publicOracle, step}));
   } finally {
-    // Every failure path deletes the project, regardless of cleanup errors.
+    clearInterval(heartbeat);
+    report('CLEANUP disposable project');
     try { await closeAllTsLspClients(); }
     finally {
       try { store?.close(); }
-      finally { fs.rmSync(root, {recursive: true, force: true}); }
+      finally {
+        try { exitCleanup(); }
+        finally { process.off('exit', exitCleanup); }
+      }
     }
   }
 }
