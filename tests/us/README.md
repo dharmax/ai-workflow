@@ -34,3 +34,12 @@ normal AIWF configuration first. A skipped US test is **not** a passed
 acceptance test. Deterministic scripted resolution and lower-level mechanics
 remain available separately under `tests/integration/` and are not reported as
 independent end-to-end US acceptance.
+
+## Failure diagnosis
+
+Live acceptance prints `START`, `PASS`, and `STILL` messages with elapsed
+seconds for each setup and resolution stage. The `resolve_ticket` operation
+receives a 180-second cancellation signal; Bun's 300-second ceiling is the
+last-resort guard. Read the **last START/STILL stage** to distinguish slow
+Product review/setup from resolution. The project is removed on test failure
+and a process-exit cleanup is also registered for runner-level timeouts.
