@@ -196,7 +196,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
       expect(order).toEqual(['first-enter','first-exit','second-exit']);
       expect(result.updatedFiles).not.toContain(file);
       expect((await other.getEntity<FileNode>(file,FileNode.dcr))?.status).toBe('implemented');
-      fs.writeFileSync(full,'export const concurrent = 43;\n');
+      fs.writeFileSync(full,'export const concurrent = 430;\n');
       const [a,b]=await Promise.all([ensureAstFresh(store,root),ensureAstFresh(other,root)]);
       expect([a,b].filter(value=>value.updatedFiles.includes(file))).toHaveLength(1);
     } finally {other.close();}
