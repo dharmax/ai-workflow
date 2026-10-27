@@ -6,6 +6,7 @@ import {WorkflowStore} from '../../../src/graph/store.ts';
 import {loadConfig, saveConfig} from '../../../src/config.ts';
 import {initializeTools, registry} from '../../../src/tools/index.ts';
 import {acceptProduct} from '../../product-review.ts';
+import {productReviewFixture} from '../../product-review-fixture.ts';
 import {closeAllTsLspClients} from '../../../src/change/ts-lsp.ts';
 
 const repository = path.resolve(import.meta.dir, '../../..');
@@ -25,6 +26,7 @@ export async function withAcceptedGreetingStory(
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-us-acceptance-'));
   let store: WorkflowStore | undefined;
+  let closeDefinitionReviewer: (() => void) | undefined;
   const startedAt = Date.now();
   let phase = 'project setup';
   const report = (message: string) => process.stderr.write(`[US greeting +${((Date.now()-startedAt)/1000).toFixed(1)}s] ${message}\n`);
@@ -74,6 +76,11 @@ export async function withAcceptedGreetingStory(
     initializeTools();
     const ctx = {store, projectRoot: root, executionAuthority: 'project-write' as const};
 
+    // Fixture setup uses a controlled definition Critic via the real public facades.
+    // This does not replace implementation or independent acceptance in resolve_ticket.
+    closeDefinitionReviewer = await step('Start controlled definition reviewer for setup', () =>
+      productReviewFixture(store!, false));
+    try {
     // Developer creates the Product, Story, and work using public reviewed changes.
     await step('Accept Product and User Story through public review', () => acceptProduct(store!, [
       {kind: 'product_create', entityType: 'Product', id: 'PRODUCT', fields: {
@@ -124,9 +131,20 @@ export async function withAcceptedGreetingStory(
     mustRun(root, ['git', '-c', 'user.name=US Test', '-c', 'user.email=us@example.invalid',
       'commit', '-qm', 'accepted Story and public contract']);
 
+    } finally {
+      // Restore the genuine configured models before the operation under test.
+      try { closeDefinitionReviewer?.(); }
+      finally {
+        closeDefinitionReviewer = undefined;
+        saveConfig(root, {gateway: configured.gateway, model: configured.model, modelRoutes: configured.modelRoutes,
+          ollamaUrl: configured.ollamaUrl, llmOutputTokens: configured.llmOutputTokens});
+      }
+    }
+    report('Restored real implementation and independent acceptance models');
     await step('Exercise public US acceptance', () => exercise({root, ctx, publicOracle, step}));
   } finally {
     clearInterval(heartbeat);
+    closeDefinitionReviewer?.();
     report('CLEANUP disposable project');
     try { await closeAllTsLspClients(); }
     finally {
