@@ -542,7 +542,13 @@ export async function resolveTicket(
                     return needs(message, "The Actor selected a target with existing uncommitted work.", "Operation allowDirtyTargets")
                 if (message.includes("Scope expansion requires input:"))
                     return needs(message, 'The preview includes effects outside this Ticket authorization.', 'Operation authorizedFiles')
-                return blocked(`Ticket resolution failed: ${message}`)
+                const causes: string[] = []
+                let cause: unknown = error instanceof Error ? error.cause : undefined
+                for (let depth = 0; cause !== undefined && depth < 4; depth++) {
+                    causes.push(String(cause))
+                    cause = cause instanceof Error ? cause.cause : undefined
+                }
+                return blocked(`Ticket resolution failed: ${[message, ...causes].join(' <- ')}`)
             } finally {
                 if (admission) await store.releaseGovernance(admission)
                 for (const id of acquired) await store.releaseTicket(id)
