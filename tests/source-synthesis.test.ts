@@ -164,6 +164,45 @@ describe('Graph-Grounded Source Synthesis (J3.4 - Gate 0 & Gate 1)', () => {
     })).rejects.toThrow();
   });
 
+  it('repairs an actionable test failure rather than reporting it as missing input', async () => {
+    const prompts: string[] = [];
+    const replies = [
+      {source: '', unresolvedBlocker: "greet returns 'Hello, ADA' without the required exclamation mark"},
+      {source: "export function greet(name: string): string { return 'Hello, ' + name.toUpperCase() + '!'; }"}
+    ];
+    const asker = {json: async (prompt: string) => {
+      prompts.push(prompt);
+      return {ok: true, data: replies[prompts.length - 1]};
+    }} as any;
+    const result = await new HostSourceSynthesizer(asker).synthesize({
+      intent: {summary: 'Correct greeting', acceptanceCriteria: ["greet('Ada') is 'Hello, ADA!'"]},
+      target: {kind: 'existing_symbol', filePath: 'src/greet.ts', symbolName: 'greet',
+        existingSource: "export function greet(name: string): string { return 'Hello, ' + name; }"},
+      evidence: [], verification: [{id: 'ac-1', criterion: "greet('Ada') is 'Hello, ADA!'",
+        mandatory: true, provenance: 'Story acceptance'}]
+    }, {feedback: [{stage: 'project_compatibility', message: "Expected: 'Hello, ADA!' Received: 'Hello, ADA'"}]});
+    expect(result.source).toContain("name.toUpperCase() + '!'");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain('Correction to prior response');
+    expect(prompts[1]).toContain('verificationFeedback');
+  });
+
+  it('still halts after one repair retry when a genuine blocker remains', async () => {
+    let calls = 0;
+    const asker = {json: async () => {
+      calls++;
+      return {ok: true, data: {source: '', unresolvedBlocker: 'Unknown mandatory encryption key'}};
+    }} as any;
+    await expect(new HostSourceSynthesizer(asker).synthesize({
+      intent: {summary: 'Encrypt the output', acceptanceCriteria: ['Use required external key']},
+      target: {kind: 'existing_symbol', filePath: 'src/crypto.ts', symbolName: 'encrypt',
+        existingSource: 'export function encrypt() { return ""; }'},
+      evidence: [], verification: []
+    }, {feedback: [{stage: 'project_compatibility', message: 'Wrong encryption key'}]}))
+      .rejects.toThrow('Unknown mandatory encryption key');
+    expect(calls).toBe(2);
+  });
+
   it('halts with error when synthesizer returns unresolved blocker', async () => {
     const { asker } = createMockAsker({
       source: '',

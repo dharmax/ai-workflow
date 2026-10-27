@@ -7,7 +7,7 @@ import { renderPreparationPrompt } from "./prompts.ts"
 import { Ticket } from "../graph/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type { PreparationOptions, PreparedTicket, OperationResult, TicketDossier } from "../ticket-operation-types.ts"
-import { withArtifactMetrics, cognitionMetrics, countEngineering, recordMetricCompleteness } from "../performance-metrics.ts"
+import { withArtifactMetrics, cognitionMetrics, countEngineering, recordMetricCompleteness, traceResolution } from "../performance-metrics.ts"
 
 export async function prepareTicket(
     ticket: Ticket,
@@ -16,7 +16,9 @@ export async function prepareTicket(
 ): Promise<OperationResult<PreparedTicket>> {
     options.signal?.throwIfAborted()
     return withArtifactMetrics(store.root, "prepare_ticket", store.localId(ticket.id), options, async () => {
+        traceResolution('prepare: investigate Ticket start')
         const investigation = await ticket.investigate(store, options)
+        traceResolution('prepare: investigation ' + investigation.status)
         if (investigation.status !== "complete") return investigation
         const dossier = investigation.value,
             id = dossier.ticket.id
@@ -90,7 +92,9 @@ export async function prepareTicket(
                 })
             let findings: import("../artifact-policy.ts").CriticFinding[] = []
             for (let attempt = 0; attempt < 3; attempt++) {
+                traceResolution('prepare: proposal reasoning start (attempt ' + (attempt+1) + ')')
                 const proposal = TicketPreparationProposalSchema.parse(await propose(dossier, findings))
+                traceResolution('prepare: proposal reasoning finished')
                 const budget = new ArtifactBudget(options, 1, cfg.maxArtifacts)
                 budget.visit(id, 0)
                 for (const child of proposal.children)
@@ -186,7 +190,9 @@ export async function prepareTicket(
                         })
                     )
                     countEngineering("criticRounds")
+                    traceResolution('prepare: independent critic start')
                     const review = CriticResultSchema.parse(await critic.review(input))
+                    traceResolution('prepare: independent critic ' + review.verdict)
                     if (review.verdict === "needs_input")
                         return {
                             status: "needs_input",

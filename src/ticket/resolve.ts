@@ -27,7 +27,8 @@ import {
     countEngineering,
     visitMetricArtifact,
     recordMetricCompleteness,
-    recordResolutionStage
+    recordResolutionStage,
+    traceResolution
 } from "../performance-metrics.ts"
 
 export async function resolveTicket(
@@ -168,7 +169,9 @@ export async function resolveTicket(
                 return result
             }
             try {
+                traceResolution('initial AST refresh start')
                 await ensureAstFresh(store, store.root)
+                traceResolution('initial AST refresh finished')
                 admission = await store.admitGovernance('governed', cfg.defaultLeaseMinutes)
                 // Prepare a bounded closure first, then execute a single dependency order.
                 const queue: Array<{ ticket: Ticket; depth: number }> = [{ ticket: rootTicket, depth: 0 }]
@@ -199,7 +202,9 @@ export async function resolveTicket(
                     }
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
+                    traceResolution('Ticket.prepare start: ' + id)
                     const prepared = await ticket.prepare(store, { ...options, agentId })
+                    traceResolution('Ticket.prepare returned: ' + prepared.status)
                     if (prepared.status !== "complete") return prepared
                     if (prepared.value.dossier.disposition === "rejectable")
                         return needs(
@@ -382,7 +387,9 @@ export async function resolveTicket(
                                             testCommands: proposedTests,
                                             repair: attempt > 0
                                         }))
+                                traceResolution('implementation model start')
                                 const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback))
+                                traceResolution('implementation model returned ' + proposal.changes.length + ' proposed changes')
                                 if (proposal.required?.length) return { status: "needs_input", artifactId: id, required: proposal.required }
                                 let changeBlocked = false
                                 for (const request of proposal.changes) {
@@ -415,11 +422,17 @@ export async function resolveTicket(
                                 let result: Awaited<ReturnType<typeof executeTicketChecks>> | undefined
                                 const observation = await runStoryTest(store, storyId, async () => { result = await execute() },
                                     preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
-                                if (observation.status === 'blocked') return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
+                                if (observation.status === 'blocked') {
+                                    traceResolution('Story ' + storyId + ' checks blocked: ' + observation.reason +
+                                        '\nLast test output:\n' + ('output' in observation && typeof observation.output === 'string' ? observation.output : '(no recorded output)').slice(-2400))
+                                    return {status: 'blocked' as const, artifactId: rootId, blockers: [{reason: `Story '${storyId}' checks: ${observation.reason}`}]}
+                                }
                                 return result!
                             }
                         }
+                        traceResolution('verification test execution start')
                         const checked = await check()
+                        traceResolution('verification test execution returned: ' + checked.status)
                         if (checked.status === 'complete' && stories.length)
                             checked.value.testNodes = await currentTestEvidence(store, checked.value.testNodes.map(test => test.id))
                         if (checked.status !== "complete") return checked
@@ -429,10 +442,14 @@ export async function resolveTicket(
                             references:testNodes.map(test=>test.id)})
                         if (currentTests.some(test => !test.passed)) {
                             feedback = currentTests.filter(test => !test.passed).map(test => test.output)
+                            traceResolution('verification failed, repair ' + (attempt + 1) + '/' + (maxRepairs + 1) +
+                                ': ' + currentTests.filter(test => !test.passed).map(test =>
+                                    test.command.join(' ') + '\n' + test.output.slice(-2500)).join('\n'))
                             continue
                         }
                         if (!evidenceComplete) {
                             feedback = ["No current passing TestNode execution proves this verification scope."]
+                            traceResolution('verification evidence incomplete; repair ' + (attempt + 1) + '/' + (maxRepairs + 1))
                             continue
                         }
                         const verificationHashes = hashFiles(store.root, [

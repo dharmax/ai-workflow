@@ -85,9 +85,18 @@ export function cognitionMetrics(tags?: Record<string, string | number | boolean
   metrics.tags = { ...scope.context.tags, ...tags };
   return { metrics, metricsSink: scope.sink };
 }
+/** Opt-in, read-only phase diagnostics for real resolution runs. Never log prompts or credentials. */
+export function traceResolution(message: string): void {
+  if (process.env.AIWF_TRACE_RESOLUTION !== '1') return;
+  let scope = active.getStore();
+  while (scope && !scope.resolution) scope = scope.parent;
+  const stage = scope?.resolution?.stage ?? 'startup';
+  process.stderr.write(`[AIWF resolve / ${stage}] ${message}\n`);
+}
 export function recordResolutionStage(stage: ResolutionStage, outcome = ''): void {
   const scope = active.getStore();
   if (scope) scope.resolution = {stage, outcome};
+  traceResolution(outcome ? `stage ${stage}: ${outcome}` : `stage ${stage}`);
 }
 
 export function countEngineering(name: EngineeringCounter, amount = 1): void {

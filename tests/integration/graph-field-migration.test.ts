@@ -23,7 +23,7 @@ import type {ResolutionOptions} from '../../src/ticket-operation-types.ts';
 
 describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
   let fixture:MigrationFixture|undefined;
-  afterEach(async()=>{await closeAllTsLspClients();if(fixture){fixture.store.close();if(!process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE)fs.rmSync(fixture.root,{recursive:true,force:true});fixture=undefined;}});
+  afterEach(async()=>{await closeAllTsLspClients();if(fixture){fixture.store.close();fs.rmSync(fixture.root,{recursive:true,force:true});fixture=undefined;}});
 
   it('discovers semantic and textual contracts, applies guarded changes and preserves the genuine oracle',async()=>{
     fixture=await createMigrationFixture();
@@ -69,7 +69,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     expect(await store.getEntity('VERIFY-FIELD-MIGRATION')).toBeNull();
   },20000);
 
-  it('accepts the public Story through resolve and rejects stale proof after restart',async()=>{
+  it('replays scripted resolution and validates its receipts (not an autonomous US acceptance)',async()=>{
     fixture=await createMigrationFixture();
     const {root,store,context}=fixture;
     const live=Boolean(process.env.AIWF_GRAPH_ACCEPTANCE_EVIDENCE);
