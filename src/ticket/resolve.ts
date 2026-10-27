@@ -27,7 +27,8 @@ import {
     countEngineering,
     visitMetricArtifact,
     recordMetricCompleteness,
-    recordResolutionStage
+    recordResolutionStage,
+    traceResolution
 } from "../performance-metrics.ts"
 
 export async function resolveTicket(
@@ -168,7 +169,9 @@ export async function resolveTicket(
                 return result
             }
             try {
+                traceResolution('initial AST refresh start')
                 await ensureAstFresh(store, store.root)
+                traceResolution('initial AST refresh finished')
                 admission = await store.admitGovernance('governed', cfg.defaultLeaseMinutes)
                 // Prepare a bounded closure first, then execute a single dependency order.
                 const queue: Array<{ ticket: Ticket; depth: number }> = [{ ticket: rootTicket, depth: 0 }]
@@ -199,7 +202,9 @@ export async function resolveTicket(
                     }
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
+                    traceResolution('Ticket.prepare start: ' + id)
                     const prepared = await ticket.prepare(store, { ...options, agentId })
+                    traceResolution('Ticket.prepare returned: ' + prepared.status)
                     if (prepared.status !== "complete") return prepared
                     if (prepared.value.dossier.disposition === "rejectable")
                         return needs(
@@ -382,7 +387,9 @@ export async function resolveTicket(
                                             testCommands: proposedTests,
                                             repair: attempt > 0
                                         }))
+                                traceResolution('implementation model start')
                                 const proposal = ResolutionProposalSchema.parse(await implementation(implementationDossier, feedback))
+                                traceResolution('implementation model returned ' + proposal.changes.length + ' proposed changes')
                                 if (proposal.required?.length) return { status: "needs_input", artifactId: id, required: proposal.required }
                                 let changeBlocked = false
                                 for (const request of proposal.changes) {
@@ -419,7 +426,9 @@ export async function resolveTicket(
                                 return result!
                             }
                         }
+                        traceResolution('verification test execution start')
                         const checked = await check()
+                        traceResolution('verification test execution returned: ' + checked.status)
                         if (checked.status === 'complete' && stories.length)
                             checked.value.testNodes = await currentTestEvidence(store, checked.value.testNodes.map(test => test.id))
                         if (checked.status !== "complete") return checked
