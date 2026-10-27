@@ -185,6 +185,9 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
       const order:string[]=[];
       const first=store.withIndexCriticalSection(async()=>{
         order.push('first-enter');
+        // Index synchronization must not block unrelated authored governance work.
+        const governance=await other.admitGovernance('governance');
+        await other.releaseGovernance(governance);
         await Bun.sleep(80);
         await indexSingleFile(store,full,file,root);
         order.push('first-exit');
