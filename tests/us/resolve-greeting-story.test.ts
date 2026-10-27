@@ -11,7 +11,10 @@ const testUS = process.env.AIWF_LIVE_US_TESTS === '1' ? it : it.skip;
 describe('US: As a developer, I can have AIWF implement an accepted Story', () => {
   testUS('Given a failing public greeting, when I resolve its Story, callers receive the requested result', async () => {
     await withAcceptedGreetingStory(async ({root, ctx, publicOracle, step}) => {
-      // GIVEN: the original public behavior does not satisfy the accepted Story.
+      // GIVEN: a publicly accepted, reviewed Story with a failing caller-visible contract.
+      const before = await registry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx);
+      expect(before.status).toBe('accepted');
+      expect(before.effectiveState.state).toBe('ready');
       expect(runInProject(root, ['bun', 'test', 'tests/public-contract.test.ts']).exitCode).not.toBe(0);
 
       // WHEN: invoke the actual public resolver; do not supply code edits or a mock acceptance verdict.
