@@ -324,7 +324,7 @@ export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket,
     const tests = await currentTestEvidence(store, proof.testNodes.map(test => test.id))
     if (tests.length !== proof.testNodes.length || tests.some(test => !test.passed ||
         canonical(test.hashes) !== canonical(proof.testNodes.find(node => node.id === test.id)?.hashes))) return null
-    const graph = await verifyingTestsForTargets(store, [ticket.id, ...proof.scope.authoredTargets.map(target => target.id)], proof.scope.files)
+    const graph = await verifyingTestsForTargets(store, [ticket.id, ...proof.scope.authoredTargets.map(target => target.id)], proof.scope.files, {ensureArtifacts: false})
     const requiredTests = [...graph.tests.map(test => store.localId(test.id)), ...(options.requiredTestIds ?? [])]
     if (requiredTests.some(id => !proof.testNodes.some(test => test.id === id))) return null
     const expectedFiles = [...proof.scope.files, ...(options.expectedFiles ?? []),
@@ -335,7 +335,7 @@ export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket,
         const suite = (await store.listEntities<TestNode>(TestNode.dcr)).filter(test => test.framework === 'bun')
         if (suite.some(test => (test.filePath || test.targetPath) && !((test.filePath || test.targetPath!) in proof.hashes))) return null
     }
-    const governance = await resolveTicketGovernance(store, ticket, proof.scope.files, proof.scope.governance)
+    const governance = await resolveTicketGovernance(store, ticket, proof.scope.files, proof.scope.governance, {refreshIndex: false})
     if (proof.governanceFingerprint !== governance.fingerprint ||
         proof.signature !== await ticketVerificationSignature(store, ticket, options.completeness, [], governance)) return null
     if ((ticket.acceptanceCriteria ?? []).some(criterion => !proof.acceptance.criteria.some(check => check.criterion === criterion && check.passed)) ||
