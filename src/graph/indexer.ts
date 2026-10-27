@@ -114,6 +114,12 @@ type ParsedSymbol = ParsedFile['symbols'][number];
 export async function indexSingleFile(
   store: WorkflowStore, fullPath: string, relPath: string, rootDir: string = store.root
 ): Promise<{symbolsCount: number; notesCount: number}> {
+  return store.withIndexCriticalSection(() => indexSingleFileUnlocked(store, fullPath, relPath, rootDir));
+}
+
+async function indexSingleFileUnlocked(
+  store: WorkflowStore, fullPath: string, relPath: string, rootDir: string
+): Promise<{symbolsCount: number; notesCount: number}> {
   const fileStat = await stat(fullPath);
   const content = await readFile(fullPath, 'utf8');
   const parsed = parseIndexedFile({filePath: relPath, content});
@@ -249,6 +255,10 @@ async function reconcileFileNotes(store: WorkflowStore, file: FileNode, relPath:
 
 /** Remove derived facts but retain authored targets and unresolved import destinations. */
 export async function removeFileFromIndex(store: WorkflowStore, relPath: string): Promise<boolean> {
+  return store.withIndexCriticalSection(() => removeFileFromIndexUnlocked(store, relPath));
+}
+
+async function removeFileFromIndexUnlocked(store: WorkflowStore, relPath: string): Promise<boolean> {
   const file = await store.getEntity<FileNode>(relPath, FileNode.dcr);
   if (!file || file.metadata?.missing === true) return false;
   const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
@@ -287,12 +297,15 @@ export function ensureAstFresh(
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
 ): Promise<FreshnessResult> {
   const scope = freshnessScope.getStore();
-  if (!scope || options?.force) return reconcileAst(store, rootDir, options);
+  const refresh = () => store.isReadOnlyExecution()
+    ? reconcileAst(store, rootDir, options) // An actual mutation still fails at the write guard.
+    : store.withIndexCriticalSection(() => reconcileAst(store, rootDir, options));
+  if (!scope || options?.force) return refresh();
   let roots = scope.get(store);
   if (!roots) { roots = new Map(); scope.set(store, roots); }
   const root = path.resolve(rootDir);
   let pending = roots.get(root);
-  if (!pending) { pending = reconcileAst(store, rootDir, options); roots.set(root, pending); }
+  if (!pending) { pending = refresh(); roots.set(root, pending); }
   return pending;
 }
 
@@ -425,6 +438,12 @@ type DependencyManifest = {
 
 /** Entry and direct-import coverage is explicit; parsing, identity and retirement have one owner. */
 export async function indexExternalDependencies(store: WorkflowStore, rootDir: string): Promise<number> {
+  return store.isReadOnlyExecution()
+    ? indexExternalDependenciesUnlocked(store, rootDir)
+    : store.withIndexCriticalSection(() => indexExternalDependenciesUnlocked(store, rootDir));
+}
+
+async function indexExternalDependenciesUnlocked(store: WorkflowStore, rootDir: string): Promise<number> {
   const manifest = path.join(rootDir, 'package.json');
   if (!existsSync(manifest)) return 0;
   const pkg: DependencyManifest = JSON.parse(await readFile(manifest, 'utf8'));
@@ -475,6 +494,12 @@ export async function indexCodebase(
   store: WorkflowStore,
   rootDir: string = store.root,
   options?: IndexOptions
+): Promise<IndexResult> {
+  return store.withIndexCriticalSection(() => indexCodebaseUnlocked(store, rootDir, options));
+}
+
+async function indexCodebaseUnlocked(
+  store: WorkflowStore, rootDir: string, options?: IndexOptions
 ): Promise<IndexResult> {
   const freshness = await ensureAstFresh(store, rootDir, { force: true, onProgress: options?.onProgress });
 

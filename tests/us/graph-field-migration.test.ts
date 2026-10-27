@@ -7,7 +7,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {createMigrationFixture,discoverMigrationImpact,authorizeMigration,executeFieldMigration,runFixtureCommand,
   migrationFiles,type MigrationFixture} from '../fixtures/graph-field-migration.ts';
 import {FileNode,SymbolNode} from '../../src/graph/ontology.ts';
-import {ensureAstFresh,indexCodebase} from '../../src/graph/indexer.ts';
+import {ensureAstFresh,indexCodebase,indexSingleFile} from '../../src/graph/indexer.ts';
 import {registry,initializeTools} from '../../src/tools/index.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
@@ -174,6 +174,53 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     expect((await ensureAstFresh(fixture.store,fixture.root)).updatedFiles).toContain(file);
     expect((await fixture.store.getEntity<FileNode>(file,FileNode.dcr))!.metadata?.callCandidates).toContainEqual({name:'send',confidence:0.52,provenance:'parser-syntax',resolution:'unresolved'});
   });
+
+  it('serializes index refreshes across independent stores and rechecks after waiting',async()=>{
+    fixture=await createMigrationFixture();
+    const {root,store}=fixture;
+    const other=new WorkflowStore(root);
+    try {
+      const file='src/concurrent.ts',full=path.join(root,file);
+      fs.writeFileSync(full,'export const concurrent = 42;\n');
+      const order:string[]=[];
+      const first=store.withIndexCriticalSection(async()=>{
+        order.push('first-enter');
+        // Index synchronization must not block unrelated authored governance work.
+        const governance=await other.admitGovernance('governance');
+        await other.releaseGovernance(governance);
+        await Bun.sleep(80);
+        await indexSingleFile(store,full,file,root);
+        order.push('first-exit');
+      });
+      while(!order.length) await Bun.sleep(5);
+      const second=ensureAstFresh(other,root).then(result=>{order.push('second-exit');return result;});
+      await first;
+      const result=await second;
+      expect(order).toEqual(['first-enter','first-exit','second-exit']);
+      expect(result.updatedFiles).not.toContain(file);
+      expect((await other.getEntity<FileNode>(file,FileNode.dcr))?.status).toBe('implemented');
+      fs.writeFileSync(full,'export const concurrent = 430;\n');
+      const [a,b]=await Promise.all([ensureAstFresh(store,root),ensureAstFresh(other,root)]);
+      expect([a,b].filter(value=>value.updatedFiles.includes(file))).toHaveLength(1);
+    } finally {other.close();}
+  },20000);
+
+  it('keeps explicit read-only refreshes non-mutating and releases a failed index section',async()=>{
+    fixture=await createMigrationFixture();
+    const {root,store}=fixture;
+    await ensureAstFresh(store,root);
+    const count=(await store.listEntities<FileNode>(FileNode.dcr)).length;
+    await store.withExecutionContext('read-only',undefined,()=>ensureAstFresh(store,root));
+    expect((await store.listEntities<FileNode>(FileNode.dcr)).length).toBe(count);
+    const file='src/new_contract.ts';
+    fs.writeFileSync(path.join(root,file),'export const answer = 42;\n');
+    await expect(store.withExecutionContext('read-only',undefined,()=>ensureAstFresh(store,root)))
+      .rejects.toThrow('Failed to index');
+    expect(await store.getEntity(file,FileNode.dcr)).toBeNull();
+    await expect(store.withIndexCriticalSection(async()=>{throw Error('simulated failure');}))
+      .rejects.toThrow('simulated failure');
+    expect((await ensureAstFresh(store,root)).updatedFiles).toContain(file);
+  },20000);
 
   it('ships Oxc and public Graph/LSP/literal tools in a standalone MCP executable',async()=>{
     const repository=path.resolve(import.meta.dir,'../..');

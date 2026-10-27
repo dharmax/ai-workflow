@@ -260,12 +260,10 @@ export class UserStory extends WorkflowEntity {
 
     async getEffectiveState(store: WorkflowStore) {
         const {storyEffectiveState} = await import("../product/story-tests.ts")
-        return store.withExecutionContext('read-only', undefined, async () => {
-            const current = await store.getEntity<UserStory>(this.id, UserStory.dcr)
-            return current ? storyEffectiveState(store, current) : {
-                state: 'needs-review' as const, reasons: ['Story definition no longer exists.'], references: [store.localId(this.id)]
-            }
-        })
+        const current = await store.getEntity<UserStory>(this.id, UserStory.dcr)
+        return current ? storyEffectiveState(store, current) : {
+            state: 'needs-review' as const, reasons: ['Story definition no longer exists.'], references: [store.localId(this.id)]
+        }
     }
 
     /** Read-time migration: retain historical acceptance and never guess missing scenario content. */
