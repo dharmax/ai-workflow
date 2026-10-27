@@ -21,8 +21,14 @@ outside the project if necessary; never retain the project as a side effect.
 
 ## Run
 
-The primary Story resolution acceptance test invokes **real configured models**.
-It is intentionally opt-in to avoid false offline success and unapproved inference
+The primary Story resolution acceptance test uses the established controlled
+definition reviewer **only to construct its accepted Story initial state through
+public operations**. It restores the actual configured implementation and
+independent acceptance models before calling `resolve_ticket`. This tests real
+Story resolution, not real charter-review model reliability. Charter-review
+model behavior requires a separate, dedicated US test.
+
+The resolution test invokes **real configured models**. It is intentionally opt-in to avoid false offline success and unapproved inference
 costs in routine `bun test` runs:
 
 ```sh
