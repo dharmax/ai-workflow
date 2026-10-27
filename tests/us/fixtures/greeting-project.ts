@@ -55,6 +55,8 @@ export async function withAcceptedGreetingStory(
       'tsconfig.json': JSON.stringify({compilerOptions: {target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler',
         strict: true, noEmit: true, allowImportingTsExtensions: true, types: ['bun']}, include: ['src/**/*.ts', 'tests/**/*.ts']}),
       'src/greeting.ts': "export function greet(name: string): string { return 'Hello, ' + name; }\n",
+      // Stable public-interface adapter: its source must not change when AIWF implements greet.
+      'tests/greeting-interface.ts': "export {greet} from '../src/greeting.ts';\n",
       'tests/public-contract.test.ts': "import {it,expect} from 'bun:test';\nimport {greet} from '../src/greeting.ts';\nit('greeting API satisfies the public contract',()=>expect(greet('Ada')).toBe('Hello, ADA!'));\n"
     };
     for (const [relative, content] of Object.entries(files)) {
@@ -114,7 +116,7 @@ export async function withAcceptedGreetingStory(
 
     // Developer approves the executable public-interface Story test.
     const specification = {storyId: 'GREET-USER', filePath: 'tests/greeting.story.test.ts',
-      fixturePath: 'src/greeting.ts', interfaceName: 'greet',
+      fixturePath: 'tests/greeting-interface.ts', interfaceName: 'greet',
       body: "expect(subject('Ada')).toBe('Hello, ADA!');"};
     let linked = false;
     for (let attempt = 0; attempt < 2; attempt++) {
