@@ -102,12 +102,14 @@ export async function withAcceptedGreetingStory(
       acceptanceCriteria: ["Calling greet('Ada') returns exactly 'Hello, ADA!' and the public test passes.",
         'Typecheck passes and the existing public test is unchanged.']}, ctx)); 
 
-    const symbols = await step('Discover source target', () => registry.execute('find_symbol',
-      {name: 'greet', filePath: 'src/greeting.ts', exact: true}, ctx));
-    if (!symbols.some((symbol: {name: string}) => symbol.name === 'greet')) throw Error('Public greeting target not discoverable.');
-    await step('Link Ticket to Story and authorized source', () => acceptProduct(store!, [
+    const matches = await step('Discover exact greeting symbol through public graph', () =>
+      registry.execute('search_graph', {entityType: 'SymbolNode', query: 'greet'}, ctx));
+    const targets = matches.results.filter((item: {title?: string; filePath?: string; status?: string}) =>
+      item.title === 'greet' && item.filePath === 'src/greeting.ts' && item.status !== 'deprecated');
+    if (targets.length !== 1) throw Error('Expected one indexed public greet symbol; found ' + targets.length);
+    await step('Link Ticket to Story and exact source symbol', () => acceptProduct(store!, [
       {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'addresses', targetId: 'GREET-USER'},
-      {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: 'src/greeting.ts'}
+      {kind: 'product_link', sourceId: 'GREET-TICKET', predicate: 'modifies', targetId: targets[0]!.id}
     ]));
 
     // Developer approves the executable public-interface Story test.
