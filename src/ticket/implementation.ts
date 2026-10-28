@@ -23,6 +23,7 @@ interface ImplementationContext {
     options: ResolutionOptions
     cfg: ReturnType<typeof loadConfig>
     applyChange: (request: ChangeRequest) => Promise<ChangeApplyResult>
+    refreshSource: () => Promise<unknown>
     mutationEpoch: () => number
     ownedFiles: ReadonlySet<string>
     tokenBudget: TokenBudget
@@ -177,6 +178,8 @@ export async function implementTicket(
                         countEngineering("exactSymbolReads")
                     }
                     if (name === "read_workspace_file") countEngineering("sourceReads")
+                    // Refresh derived source state under host authority; navigation itself remains read-only.
+                    await context.refreshSource()
                     const result = await registry.execute(name, params, ctx)
                     if (name === "find_symbol" && Array.isArray(result) && result.length === 0)
                         throw new ToolExecutionError(
@@ -234,10 +237,19 @@ export async function implementTicket(
             }))
         }))
         const observationReport = `mutation epoch ${context.mutationEpoch()}; recent observations: ${JSON.stringify(recentObservations)}`
-        if (controller.signal.aborted)
+        if (controller.signal.aborted) {
+            const changes = output.steps.flatMap(step => step.toolResults).filter(result => result.toolName === "safe_change")
+            const lastCalls = output.steps.at(-1)?.toolCalls ?? []
+            if (output.haltReason === "aborted" && output.steps.every(step => step.action === "tool_call") &&
+                context.mutationEpoch() > changesBefore && changes.every(result => !result.isError) &&
+                lastCalls.length > 0 && lastCalls.every(call => call.toolName !== "safe_change")) {
+                traceResolution("Applied source handed to resolver checks after stalled navigation")
+                return {changes: [], testCommands}
+            }
             throw new Error(
                 `Stalled navigation: implementation tranche ${tranche + 1}/3 terminated after two consecutive duplicate observations without workspace mutation (${output.totalSteps} steps); ${observationReport}`
             )
+        }
         if (output.ok) return ResolutionProposalSchema.parse(output.output)
         const successfulEdits = context.mutationEpoch() - changesBefore
         if (output.haltReason !== "max_steps_exceeded" || !successfulEdits || tranche === 2) {

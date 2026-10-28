@@ -5,6 +5,8 @@ import path from 'node:path';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../../src/mcp.ts';
+import {Ticket} from '../../src/graph/ontology.ts';
+import {currentTicketReceipt} from '../../src/ticket/verification.ts';
 import {loadConfig,saveConfig} from '../../src/config.ts';
 import {registry} from '../../src/tools/index.ts';
 import {withAcceptedGreetingStory, runInProject} from './fixtures/greeting-project.ts';
@@ -22,12 +24,24 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
         saveConfig(root,{modelRoutes:{...configured.modelRoutes,dev:model}});
         process.stderr.write('Live implementation uses configured '+route+' route: '+model+'\n');
       }
+      const implementationModel = process.env.AIWF_LIVE_IMPLEMENTATION_MODEL;
+      const reviewerModel = process.env.AIWF_LIVE_REVIEWER_MODEL;
+      if (implementationModel || reviewerModel) {
+        const configured = loadConfig(root);
+        const ceilingUSD = Number(process.env.AIWF_LIVE_PAID_CEILING_USD);
+        if (!Number.isFinite(ceilingUSD) || ceilingUSD <= 0) throw Error('Live cloud qualification requires an explicit positive spending ceiling.');
+        saveConfig(root, {gateway: 'auto', modelRoutes: {...configured.modelRoutes,
+          ...(implementationModel ? {dev: implementationModel} : {}),
+          ...(reviewerModel ? {critic: reviewerModel} : {})},
+          paidInference: {providers: ['openrouter'], tasks: ['verification'], ceilingUSD}});
+      }
       // GIVEN: a publicly accepted, reviewed Story with a failing caller-visible contract.
       const before = await registry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx);
       expect(before.status).toBe('accepted');
       expect(before.effectiveState.state).toBe('ready');
       expect(runInProject(root, ['bun', 'test', 'tests/public-contract.test.ts']).exitCode).not.toBe(0);
 
+      const publicFacade = fs.readFileSync(path.join(root, 'src/greeting.ts'), 'utf8');
       // WHEN: invoke the actual public resolver; do not supply code edits or a mock acceptance verdict.
       const signal = new AbortController();
       const deadline = setTimeout(() => signal.abort(new Error('US resolution exceeded 60s; see last reported stage')), 60_000);
@@ -42,7 +56,7 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
         resolution = await step('Resolve Story through public resolve_ticket', async () => {
           const response=await client.callTool({name:'resolve_ticket',arguments:{
             ticketId: 'GREET-TICKET', agentId: 'us-acceptance', maxRepairs: 2,
-            authorizedFiles: {'GREET-TICKET': ['src/greeting.ts']},
+            authorizedFiles: {'GREET-TICKET': ['src/greeting.ts', ...(process.env.AIWF_LIVE_INTERACTIVE === '1' ? ['src/salutation.ts'] : [])]},
             testCommands: [['bun', 'test'], ['bun', 'run', 'typecheck']]
           }},undefined,{signal:signal.signal,timeout:65000});
           if(response.isError)throw Error(JSON.stringify(response.content));
@@ -66,6 +80,10 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
       expect(fs.readFileSync(path.join(root, 'tests/public-contract.test.ts'), 'utf8')).toBe(publicOracle);
       expect((await registry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx)).effectiveState.state).toBe('done');
       expect((await registry.execute('get_ticket', {ticketId: 'GREET-TICKET'}, ctx)).lane).toBe('Done');
+      const resolvedTicket = (await ctx.store.getEntity<Ticket>('GREET-TICKET', Ticket.dcr))!;
+      expect(await currentTicketReceipt(ctx.store, resolvedTicket)).not.toBeNull();
+      if (process.env.AIWF_LIVE_INTERACTIVE === '1')
+        expect(fs.readFileSync(path.join(root, 'src/greeting.ts'), 'utf8')).toBe(publicFacade);
     });
   }, 300_000);
 });

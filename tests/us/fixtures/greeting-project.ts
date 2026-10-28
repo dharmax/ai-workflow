@@ -49,7 +49,8 @@ export async function withAcceptedGreetingStory(
   process.once('exit', exitCleanup);
   report('Created isolated project ' + root);
   try {
-    const files = {
+    const delegated = process.env.AIWF_LIVE_INTERACTIVE === '1';
+    const files: Record<string, string> = {
       '.gitignore': 'node_modules\n.ai-workflow\n',
       'package.json': JSON.stringify({scripts: {typecheck: 'tsc --noEmit'}}),
       'tsconfig.json': JSON.stringify({compilerOptions: {target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler',
@@ -59,6 +60,10 @@ export async function withAcceptedGreetingStory(
       'tests/greeting-interface.ts': "export {greet} from '../src/greeting.ts';\n",
       'tests/public-contract.test.ts': "import {it,expect} from 'bun:test';\nimport {greet} from '../src/greeting.ts';\nit('greeting API satisfies the public contract',()=>expect(greet('Ada')).toBe('Hello, ADA!'));\n"
     };
+    if (delegated) {
+      files['src/greeting.ts'] = "import {formatGreeting} from './salutation.ts';\nexport function greet(name: string): string { return formatGreeting(name); }\n";
+      files['src/salutation.ts'] = "export function formatGreeting(name: string): string { return 'Hello, ' + name; }\n";
+    }
     for (const [relative, content] of Object.entries(files)) {
       const dest = path.join(root, relative);
       fs.mkdirSync(path.dirname(dest), {recursive: true});
@@ -100,9 +105,11 @@ export async function withAcceptedGreetingStory(
       {kind: 'product_link', sourceId: 'GREETINGS', predicate: 'enables', targetId: 'GREET-USER'}
     ]));
     await step('Create Ticket through public API', () => registry.execute('create_ticket', {id: 'GREET-TICKET', title: 'Implement the greeting Story',
-      body: "Update the public greet(name) behavior for the accepted GREET-USER Story; preserve its signature.",
+      body: "Update the public greet(name) behavior for the accepted GREET-USER Story; preserve its signature." +
+        (delegated ? " Preserve src/greeting.ts as the unchanged public facade; discover and repair the formatter it delegates to." : ""),
       acceptanceCriteria: ["Calling greet('Ada') returns exactly 'Hello, ADA!' and the public test passes.",
-        'Typecheck passes and the existing public test is unchanged.']}, ctx)); 
+        'Typecheck passes and the existing public test is unchanged.',
+        ...(delegated ? ['The public facade src/greeting.ts remains unchanged; its formatter supplies the requested greeting.'] : [])]}, ctx));
 
     const matches = await step('Discover exact greeting symbol through public graph', () =>
       registry.execute('search_graph', {entityType: 'SymbolNode', query: 'greet'}, ctx));

@@ -1,60 +1,79 @@
-# resolve_ticket reliability — 2026-10-27
+# resolve_ticket reliability — 2026-10-28
 
-**Partial completion.** Engineering corrections have regression evidence; general autonomous resolution and real independent acceptance remain unproved. Starting AIWF master: `9d1c27e`; sibling llm-utils baseline: `2fafca5`, correction: `86a17b0`.
+**Bounded improvement, partial mission completion.** Two fresh native greeting runs completed implementation, real checks and independent acceptance. One recovered from a genuine incomplete edit. AIWF has not completed the broader task requiring source discovery. The separate verification of TKT-LIFECYCLE-STATE failed required checks, so that Ticket remains Blocked. Publishing these fixes does not mean those remaining tasks succeeded.
 
-## Scope, authority and executor
+## Authority and authorship
 
-Reused `TKT-LIFECYCLE-STATE`; inspected `TKT-CORE-LIFECYCLE-01`, preserving its identity and work. Canonical PRODUCT remains accepted revision 1; the three universal engineering Rules remain revision 1. This is developer-authorized technical maintenance, without Product changes, stage advancement or historical Ticket cleanup.
+Starting commits: AIWF `086ce8b`, llm-utils `86a17b0`. Reused `TKT-LIFECYCLE-STATE` and sibling `TKT-GKDN`. PRODUCT is accepted revision 1; the three universal engineering Rules remain revision 1. No Product semantics, global model configuration, historical Ticket dispositions or lifecycle framework were changed.
 
-All production/test corrections in this delivery were **Codex-authored through AIWF preview/fingerprint/apply primitives**, after demonstrated native failures. The sibling repair uses the existing source engine with its explicit sibling project and the upstream canonical repair lease; it creates no duplicate Ticket. Actual AIWF Actor edits described below occurred only in disposable live projects. They are not authorship or acceptance of this patch.
+Production and regression repairs are **Codex-authored**, through existing claimed preview/fingerprint/apply facilities. Successful fixture implementations and the recovery correction are **native model-authored guarded edits**. Controlled Product/Story definition review is fixture setup; implementation and independent acceptance used real configured providers.
 
-## Demonstrated causes and corrections
+The earlier published lifecycle work remains the baseline: exact CAS execution leases, guarded source commit fencing, SDK cancellation, truthful cleanup, current Story baselines and source-derived runner metadata. This delivery does not redo those owners.
 
-| Cause | Existing owner corrected | Observable contract |
+## Demonstrated mechanism and smallest remedies
+
+| Observation | Cause / confidence | Correct owner | Remedy |
+| --- | --- | --- | --- |
+| Mandatory-only dossier omitted current source/test bodies; linked Story supplied little more than its title | Premature return and legacy narrative projection / high | ticket/investigate | Hydrate mandatory evidence before returning; include operative Story fields; keep optional S1/discovery optional |
+| Repeated administrative context competed with the task | Full dossier serialization and verbose instructions / high | ticket/prompts | Project relevant evidence, scope and governance; retain exact constraints and actual failure feedback |
+| Original Qwen edit uppercased the name but omitted `!`, then repeated observations | Semantic omission followed by no public-test feedback; not malformed arguments / high | implementation/resolve boundary | After attributable guarded edits, a strictly bounded navigation stall may hand off to existing real checks and repair |
+| Navigation after source edits failed read-only or index-governance checks | Derived indexing attempted in the Actor's read-only context / high | host resolve context | Refresh through existing governed indexing authority before read-only navigation |
+| Typed final result required a second string encoding | Unnecessary output serialization contract / high | llm-utils Actor | Accept direct JSON final values on typed runs; preserve actual output-schema validation and bounded correction |
+| Rejected malformed final followed by repeated reads could trigger handoff | Handoff did not distinguish tool-only tranches / reproduced red | ticket/implementation | Require aborted, tool-call-only history; retain successful mutation epoch, no failed mutations and navigation-only final calls |
+| GPT-4.1-mini returned `action:"safe_change"` | Model violated a schema carried as text after intentional adapter fallback / high | Actor/provider contract; parser behaved correctly | No alias, normalization shim, adapter rewrite or further model trial |
+
+Single-target synthesis was not eligible: the greeting Ticket authorizes a FileNode, not one exact mandatory SymbolNode. Actor selection is conservative and correct; discovery does not grant mutation authority.
+
+## One captured interactive exchange, replayed locally
+
+Retained real engine request/response: `/tmp/aiwf-mission-cloud-{request,result}-699374-1.json`. The response's exact outer fields were `"action":"safe_change","toolCalls":[]`; its `finalAnswer` contained a source-change proposal. The supplied action enum was `["tool_call","final_answer"]`.
+
+An offline replay through the actual OpenRouter OpenAIAdapter captured the outbound body: `response_format: {"type":"json_object"}`, with the entire pretty-printed schema appended to the user message. Optional Actor fields cause `hasDisallowedOpenAiSchema` to select the existing JSON-mode fallback. Thus the engine's `strict:true` was **not transmitted as provider-enforced schema constraints**. The replay preserved response text byte-for-byte; `createActorDecisionSchema` rejected the action. Tool-argument normalization occurs later and was unreachable.
+
+Historical raw HTTP metadata was not retained; the outbound body is reconstructed by replaying the exact captured input through the adapter, not presented as a historical wire capture. Provider support for the rejected strict schema was not tested: that schema was never sent as a structured constraint. This is a model contract failure under unconstrained JSON mode, with an existing schema-capability mismatch, not evidence of adapter response corruption. Replay cost: zero. Evidence: `/tmp/aiwf-mission-exchange-replay.json`, `/tmp/aiwf-mission-outbound-replay.json`.
+
+## Native results and economics
+
+| Run | Actual outcome | Model calls / input-output tokens | Inference / elapsed / known cost |
+| --- | --- | --- | --- |
+| Narrow greeting with genuine recovery | First edit omitted punctuation; real public failure reached model; guarded correction; unchanged oracle and typecheck passed; independent verdict accepted; Ticket Done and effective Story done | 6 GPT-4o-mini implementation + 1 GPT-4.1-mini review; 37,718 / 1,242 | 34.547s / 37.576s including setup / $0.00539485 |
+| Fresh-fixture repeat | Complete greeting edit; real public checks, independent accepted verdict, Ticket Done and effective Story done | 3 GPT-4o-mini implementation + 1 GPT-4.1-mini review; 19,735 / 715 | 14.853s / 16.965s including setup / $0.00324910 |
+| Delegated interactive fixture | Source discovery succeeded, but failed mutations or invalid decision prevented completion | GPT-4o-mini: failed mutations; GPT-4.1-mini: invalid action on repeated attempts | Blocked; no independent acceptance; no successful repeat |
+| Already-started GPT-4o interactive attempt | Stopped at shared 32-call experiment bound | 7 calls | 16.921s inference; $0.106165; not success |
+
+The exact observed public result in both successes was `Hello, ADA!`. Each invocation used the existing in-memory MCP acceptance test and its unchanged 60-second resolution deadline. Receipt-backed effective Story done was asserted. An explicit `currentTicketReceipt` assertion was added afterward and has not itself been exercised in a successful live run. Independent reviewers took 2.615s and 2.268s respectively. Remaining non-inference time was about 3.03s and 2.11s, including setup; discovery, indexing, mutation and check durations were not separately retained and must not be inferred from those residuals.
+
+Original chronological Qwen episode (responses 0–6 only): system 15,902 characters, goal 5,904, schema 1,755; first prompt 4,901 tokens, seven calls totaling 38,110 input / 703 output, 33.962s inference within 35.3s elapsed. All seven tool argument sets were valid. Later warmed local probe took 43.7s, including 21.8s load; fresh resolver first-call attempts still exceeded 60s. These observations establish a latency/capability boundary, not general local-model incapability. New interactive rejected exchange still had a 15,215-character system and 10,146-character outbound user message including schema/history: context/tool cost remains material.
+
+Across all authorized cloud experiments: **known $0.12915145**, plus **$0.01056980 reserved for canceled inference with unknown final usage**; total accounted/reserved $0.13972125 under the shared $0.25 ceiling. The reservation is not known actual spend. No further paid trials were made after the contract diagnosis; no global settings or models were changed.
+
+## Boundary and regression evidence
+
+Navigation handoff is not acceptance. It requires a real successful guarded mutation in the current epoch, no failed safe_change results, tool-call-only history and a navigation-only terminal step. Caller cancellation takes precedence. The existing resolver then compares baseline/effect hashes, checks pinned governance, executes required tests and obtains independent acceptance under the exact lease before receipt/Done.
+
+Eleven focused boundary cases pass: valid handoff, feedback-driven repair, cancellation, failed mutation, unauthorized mutation, rejected malformed final, unattributed source edit, repeated no-op mutations with/without an earlier edit, and two repeated-navigation cases. The malformed-final case was red before the added tool-only condition and green afterward. Existing lease replacement, stale synchronization and public MCP cancellation tests remain unchanged and pass in the aggregate. No test or graph obligation was weakened.
+
+| Validation | Before | Final |
 | --- | --- | --- |
-| Local stopReason helpers missed direct preparation/investigation/check/proposal results | ticket/resolve | One captured final result governs cleanup of every acquired unfinished reservation. Partial child Done remains preserved. |
-| Agent ID conflated separate executions; acquisition was read/update without CAS | graph/store and TicketClaim | New UUID execution identity; acquisition and release use conditional commits. Renewal, scope persistence and completion require the exact owning claim; expiry cannot silently reacquire. |
-| A replacement installed inside guarded apply still allowed an old execution to write source | change/engine and graph/store | Hold the existing SQLite write lock while checking the exact claim and performing the synchronous filesystem commit. This serializes source commit with lease takeover. |
-| Completion could outlive its initial expiry check while awaiting evidence/admission | graph/store | Recheck expiry immediately before atomic scope/Done persistence. |
-| SDK cancellation was omitted from ToolContext | mcp | Forward the SDK signal through ordinary tools and the Actor. Exact cleanup remains possible after cancellation. |
-| Implementation saw pre-activation skipped-test snapshots and no observed red baseline | ticket/resolve | Refresh the existing dossier after Story baseline and supply the actual bounded test output as feedback. |
-| A failed later proposal skipped tests for already-applied guarded effects | ticket/resolve | Authority/scope failures stop. A preview failure reaches verification only after this execution has attributable effects; unchanged green work cannot turn a rejected request into success. |
-| The existing stalled-tool guard exempted safe_change, allowing repeated no-op mutations | ticket/implementation | Apply the existing observation/epoch guard to effect-free change calls as well as navigation. |
-| llm-utils repeated identical malformed arguments until all 16 steps were spent | llm-utils LLMActor.run | Classify validation rejection as an effect-free result in the existing repeat guard: stop at 3 unchanged failures, while allowing corrected arguments. No parameter shim or model substitution. |
-| Canonical TestNodes retained bun:test while current source inference emits bun | ticket/verification | Reconcile relevant source-derived framework metadata through the existing classifier before selecting runners, preserving identities and all execution/acceptance evidence. No framework-alias registry. |
+| AIWF full suite | 685 pass / 6 skip / 3 fail | **693 pass / 6 skip / 3 fail**, 702 tests, 83 files, 5,281 assertions, 228.46s |
+| llm-utils full suite | 201 pass / 6 skip / 3 fail | **202 pass / 6 skip / 3 fail**, 211 tests, 26 files, 952 assertions |
+| Typechecks | — | Both pass |
+| Definitions / whitespace | — | 21 concepts, 171 links, 9 exact US fields; diff checks pass |
 
-Public release_ticket accepts the returned leaseId for fenced automated cleanup. Omission retains the existing administrative release-current operation; resolver/preparation cleanup always supplies its exact captured claim.
+AIWF retains both Dharmax S2 DW-02 INDEX-ADMISSION snapshot failures and the Actor final-prose assertion expecting two calls where the existing final-schema correction makes three. llm-utils retains the two unsupported-final assertions and the related history assertion. Aggregate failure counts are unchanged, not zero.
 
-## Validation
+## Separately budgeted canonical verification
 
-| Check | Observed result |
-| --- | --- |
-| AIWF before corrections | 665 pass, 6 skip, 3 fail; 674 tests |
-| AIWF final aggregate | **685 pass, 6 skip, 3 fail**; 694 tests across 83 files, 5211 assertions, 213.07 seconds |
-| Focused regression runs | Expected red observed for missing lease identity, SDK cancellation, partial-proposal recovery, stale source ownership and stale runner metadata; corresponding final public cases pass. All 20 added AIWF cases pass in the aggregate. |
-| llm-utils before source correction, including the two new tests | 200 pass, 6 skip, 4 fail; one failure is the new 16-versus-3 regression |
-| llm-utils final aggregate | **201 pass, 6 skip, 3 existing fail**; 210 tests across 26 files |
-| Typecheck | Both repositories pass |
-| Definitions | 21 concepts, 171 internal links, 9 exact US fields pass |
-| Diff whitespace | Pass |
+Inspected all eight acceptance requirements and the pinned 48-file scope: 86 graph TestNodes across 77 distinct file paths, including broad UI, packing, lifecycle and Actor checks. Native MCP `resolve_ticket(TKT-LIFECYCLE-STATE, verifyOnly:true, maxRepairs:0)` retained every graph-required obligation and requested typecheck. Budget: 480s overall, existing 60s per command; **observed 256.4s, blocked without timeout**.
 
-AIWF's unchanged baseline failures are the two Dharmax S2 DW-02 snapshot assertions concerning INDEX-ADMISSION, and the Actor final-prose test expecting 2 calls while the existing bounded final-schema correction makes 3. llm-utils retains its three original unsupported-final-proposal/history assertions from before this source change. None was weakened to produce a green aggregate.
+Required checks retained the three baseline failures. Additional canonical-environment failures include browser executables missing under the isolated XDG cache, packing output denied by the read-only mount, a read-only database write, two bootstrap assertions observing 8,033 characters against an 8,000 limit, and TestNodes pointing at fixture files that Bun does not recognize as tests. These failures are visible in retained diagnostics; they were not suppressed, relabeled as acceptance, or repaired in this mission. Evidence: `/tmp/aiwf-mission-canonical-native-result.json`, `/tmp/aiwf-mission-canonical-inspection.json`.
 
-Public journeys include actual stdio MCP claim/interruption and CLI TTL recovery/sync; SDK client/server cancellation during independent review; same-agent replacement during review and inside source application; nested blocked/needs_input/exception outcomes; concurrent acquisition, renewal, expiry during completion and restart; guarded partial edits and repeated no-ops; already-correct verify-only; stale synchronization preserving genuine fixture receipts. Controlled model/verifier fixtures establish lifecycle invariants, **not general real-model competence or acceptance of this patch**.
+The native run released its claim and minted no receipt. The same Ticket was briefly reclaimed only to consolidate this report, then returned to Blocked. No implementation Actor or independent acceptance was reached in that canonical run. The next canonical action requires separately addressing execution-environment/test-binding blockers and preserving the real aggregate failures.
 
-## Actual configured-provider and MCP outcomes
+## Publication and remaining limits
 
-- Original canonical connected-MCP attempt eventually recorded 16 steps, repeated missing-name find_symbol validation failures, zero edits and no independent acceptance. Interrupting the caller did not stop that old host; its exact abandoned admission was explicitly released. This motivated SDK propagation and the sibling repeat-guard repair.
-- A real small-catalog qwen2.5-coder:7b Actor probe completed in 5.6 seconds with valid name arguments. Raw full-resolver outputs also contained valid read/search/source/change arguments: transport or normalization stripping valid arguments was **not demonstrated**. Normalization returns already-valid arguments unchanged; no shim was added.
-- The early real greeting exercise exposed stale baseline context and partial-proposal recovery. After refreshing context, qwen read real source and applied a guarded uppercase edit but omitted required punctuation. In a bounded fresh MCP exercise it spent 7 decisions, made 1 attributable edit, then repeated graph observations and stopped at 35.3 seconds. It did not reach the workflow test/acceptance stages.
-- The already-configured design route ollama/gemma4:e4b was tested explicitly in the disposable project. Its first request produced no successful response before the 60-second parent cancellation. The repository/global routes were not changed.
-- A separate real malformed-input recovery probe timed out at its 15-second inference bound before a tool decision. It is **not a passed recovery demonstration**; corrected-argument recovery has controlled-provider regression evidence only.
-- A fresh canonical stdio MCP verify-only retry returned needs_input in 19.4 seconds because of stale bun:test metadata. After its source-grounded correction, another real canonical retry progressed into test execution, then hit the explicit 60-second bound. Cancellation durably recorded Blocked, released the exact claim and admission, preserved partial evidence, and minted no receipt.
+The greeting task succeeded twice, including recovery after a real test failure. The broader task requiring source discovery did not complete. TKT-LIFECYCLE-STATE failed its required verification checks and remains Blocked. Eight new AIWF regressions and one llm-utils regression support these fixes; two successes do not establish general reliability.
 
-Raw request/output and execution logs remain under `/tmp/aiwf-real-qwen-bounded`, `/tmp/aiwf-real-design-evidence`, `/tmp/aiwf-real-recovery-result.json`, `/tmp/aiwf-final-native-after-framework.log`, `/tmp/aiwf-resolver-aggregate-delivery.log` and `/tmp/llm-utils-reliability-final.log`. Live provider responses were captured without replacing them or recording credentials.
+The developer accepted publishing the verified correction set with the unchanged baseline failures, overriding the zero-failure commit prerequisite in AGENTS.md:55 for this delivery. Both typechecks pass; neither aggregate introduced additional failures. Only the ten intended AIWF files and two llm-utils files are included; unrelated dirty/generated files remain excluded. Repository and remote master heads were `086ce8b` / `86a17b0` at publication preflight. Publication does not mark the blocked Ticket Done or establish that the broader source-discovery task succeeded.
 
-## Remaining completion boundary
-
-A configured real Actor has not reproduced **LLM → tools → correct source → executed tests → independent accepted receipt/Done**. Default-route semantic/replanning capability, real feedback-driven recovery, independent configured review of a successful edit, and a repeated successful public live path remain unqualified. The design-route observation establishes a latency/cancellation limit, not general model incapability. Existing aggregate failures remain visible.
-
-`TKT-LIFECYCLE-STATE` must remain unverified/Blocked pending genuine acceptance. `TKT-CORE-LIFECYCLE-01` and historical Ticket dispositions are unchanged. No false Done or bulk cleanup occurred. Fresh CLI/SDK/stdio hosts exercised the new source; already-running connected MCP hosts need reconnect/restart to load the published modules and schemas.
+Retained logs: `/tmp/aiwf-mission-cloud-native2.log`, `/tmp/aiwf-mission-cloud-repeat.log`, `/tmp/aiwf-mission-boundary-final.log`, `/tmp/aiwf-mission-publication-aggregate.log`, `/tmp/llm-mission-final-aggregate.log`, both `*-mission-publication-typecheck.log`, and the canonical/replay files above. Credentials are excluded from evidence.

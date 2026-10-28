@@ -102,6 +102,9 @@ export async function investigateTicket(
                     ? [narrative.body, entity.acceptanceCriteria?.length ? `Acceptance Criteria:\n${entity.acceptanceCriteria.map(c => `- ${c}`).join("\n")}` : ""]
                           .filter(Boolean)
                           .join("\n\n")
+                    : entity instanceof UserStory
+                    ? JSON.stringify({actor: entity.actor, intent: entity.intent, initialState: entity.initialState,
+                        action: entity.action, expectedResult: entity.expectedResult, exceptions: entity.exceptions, bounds: entity.bounds})
                     : narrative.body || narrative.story
                 dossier.evidence.push({
                     id: store.localId(entity.id),
@@ -275,12 +278,11 @@ export async function investigateTicket(
                     predicate: "implements",
                     targetId: store.localId(productCandidates[0].id)
                 })
-            if (options.mandatoryEvidenceOnly) return {status: 'complete', artifactId: id, value: dossier}
             const report = [current.title, current.body, ...Object.values(current.defect ?? {}).flat(),
                 ...dossier.evidence.filter(item => ['UserStory', 'TestNode'].includes(item.kind)).map(item => item.body ?? item.title)].join('\n')
-            const codeMentions = [...current.body.matchAll(/`([^`]+)`/g)].map(match => match[1]).join(" ")
+            const codeMentions = [...(current.body ?? '').matchAll(/`([^`]+)`/g)].map(match => match[1]).join(" ")
             const words = new Set(`${current.title} ${codeMentions} ${current.kind === 'bug' ? report : ''}`.match(/[A-Za-z_$][\w$]{2,}/g) ?? [])
-            const optional = (await store.listEntities<SymbolNode>(SymbolNode.dcr))
+            const optional = options.mandatoryEvidenceOnly ? [] : (await store.listEntities<SymbolNode>(SymbolNode.dcr))
                 .filter(
                     s =>
                         s.filePath &&
@@ -294,9 +296,9 @@ export async function investigateTicket(
                 .slice(0, max)
             dossier.provenance.optionalCandidates = optional.length
             countEngineering("optionalCandidates", optional.length)
-            countEngineering("systemOneCalls")
+            if (!options.mandatoryEvidenceOnly) countEngineering("systemOneCalls")
             traceResolution(`investigation System-1 start: ${optional.length} optional symbols, ${mandatory.size} required entities`)
-            const assessment = await (options.systemOne ?? new LayaSystemOne())
+            const assessment = options.mandatoryEvidenceOnly ? null : await (options.systemOne ?? new LayaSystemOne())
                 .assess(
                     {
                         ticket: {
@@ -395,7 +397,7 @@ export async function investigateTicket(
             const readContext = {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const}
             dossier.findings = []
             dossier.uncertainties = current.kind === 'bug' ? ['Reproduction is reported by the developer; this read-only investigation has not executed it.'] : []
-            await collectContractEvidence(store, dossier, selected, codeMentions, max, options.signal)
+            if (!options.mandatoryEvidenceOnly) await collectContractEvidence(store, dossier, selected, codeMentions, max, options.signal)
             // Error/stack paths are clues, never mutation authority. Read only indexed local files.
             const reportedFiles = (await store.listEntities<FileNode>(FileNode.dcr))
                 .filter(file => report.includes(String((file as FileNode & {path?: string}).path ?? store.localId(file.id)))).slice(0, max)
@@ -443,6 +445,7 @@ export async function investigateTicket(
                     dossier.uncertainties.push(`Could not inspect test ${evidence.filePath}: ${String(error)}`)
                 }
             }
+            if (options.mandatoryEvidenceOnly) return {status: 'complete', artifactId: id, value: dossier}
             if (current.kind === 'bug' && !inspected.length) {
                 dossier.disposition = 'needs_preparation'
                 dossier.rationale = 'Cause unknown: no current source location could be resolved from the Bug reproduction, actual error, indexed symbols or linked scope. Reproduction has not been executed. Supply an implicated local symbol, stack location or diagnostic evidence; do not infer a root cause from routing confidence.'

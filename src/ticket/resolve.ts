@@ -10,7 +10,7 @@ import { implementTicket } from "./implementation.ts"
 import {assessBug} from "../graph/ticket-state.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
-import { Ticket, TestNode, Artifact, UserStory } from "../graph/ontology.ts"
+import { Ticket, TestNode, Artifact, UserStory, FileNode } from "../graph/ontology.ts"
 import type {TicketClaim} from "../graph/types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
@@ -386,6 +386,9 @@ export async function resolveTicket(
                                             options,
                                             cfg,
                                             applyChange: apply,
+                                            refreshSource: async () => store.withGovernedIndexing(admission!,
+                                                (await store.listEntities<FileNode>(FileNode.dcr)).map(file => store.localId(file.id)),
+                                                () => ensureAstFresh(store)),
                                             mutationEpoch: () => successfulChanges,
                                             ownedFiles,
                                             tokenBudget: actorTokenBudget,

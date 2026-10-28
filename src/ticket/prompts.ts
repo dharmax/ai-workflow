@@ -46,7 +46,15 @@ export function renderImplementationGoal(
         projectRoot,
         workspaceFiles: JSON.stringify(workspaceFiles),
         testCommands: JSON.stringify(testCommands),
-        dossier: JSON.stringify(dossier),
+        dossier: JSON.stringify({
+            ticket: dossier.ticket,
+            evidence: dossier.evidence.filter(item => item.id !== dossier.ticket.id),
+            scope: dossier.scope && {files: dossier.scope.files, authorizedFiles: dossier.scope.authorizedFiles},
+            governance: dossier.governance,
+            aspects: dossier.aspects,
+            findings: dossier.findings,
+            uncertainties: dossier.uncertainties
+        }),
         feedback: JSON.stringify(feedback)
     })
 }

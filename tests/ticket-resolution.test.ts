@@ -103,6 +103,9 @@ describe('Ticket-owned bounded resolution', () => {
           implementations++;
           expect(prompt).toContain("Story 'S' baseline: expected-red");
           expect(prompt).not.toContain('it.skip(');
+          expect(prompt).toContain('export function add(a: number, b: number) { return a - b; }');
+          expect(prompt).toContain('expect(subject(2,3)).toBe(5)');
+          expect(prompt).toContain('Their sum is returned');
           const baseline=(await store.getEntity<TestNode>('test:tests/signed-story.test.ts',TestNode.dcr))!;
           expect(baseline.testState).toBe('expected-red');expect(baseline.passed).toBe(false);
           const decision=implementations===1
@@ -985,6 +988,81 @@ describe('Ticket-owned bounded resolution', () => {
     }finally{completion.mockRestore();routing.mockRestore();}
   });
 
+  for (const partial of [false, true]) it(`hands an applied edit from stalled navigation to real checks and repair: ${partial}`, async () => {
+    const t = await ticket()
+    let calls = 0, reviews = 0
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const call = ++calls
+      if (call === 1 || call === 5) {
+        if (call === 5) {
+          expect(partial).toBe(true)
+          expect(prompt).toContain('Expected: 5')
+          expect(prompt).toContain('Received: 6')
+        }
+        return {model, ok: true, text: JSON.stringify({thought: 'Apply the grounded arithmetic change', action: 'tool_call',
+          toolCalls: [{name: 'safe_change', parameters: {action: 'replace_text', filePath: 'src/add.ts',
+            oldText: call === 1 ? 'a - b' : 'a + b + 1', newText: call === 1 && partial ? 'a + b + 1' : 'a + b'}}]})}
+      }
+      if (call === 6) return {model, ok: true, text: JSON.stringify({thought: 'Hand off the correction', action: 'final_answer',
+        finalAnswer: {changes: [], testCommands: []}})}
+      return {model, ok: true, text: JSON.stringify({thought: 'Observe the file again', action: 'tool_call',
+        toolCalls: [{name: 'read_workspace_file', parameters: {filePath: 'src/add.ts'}}]})}
+    })
+    try {
+      const result = await t.resolve(store, {systemOne, critic: 'none', maxRepairs: 1,
+        testCommands: [['bun', 'test', 'tests/add.test.ts']], verify: async input => {
+          reviews++
+          expect(input.tests.every(test => test.passed)).toBe(true)
+          return verify(input)
+        }})
+      expect(result.status, JSON.stringify(result)).toBe('complete')
+      expect(calls).toBe(partial ? 6 : 4)
+      expect(reviews).toBe(1)
+      expect(await store.getEntity<Ticket>('T', Ticket.dcr)).toMatchObject({lane: 'Done', claim: null})
+      expect(await store.getEntity('VERIFY-T')).not.toBeNull()
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('return a + b;')
+    } finally { completion.mockRestore() }
+  }, 30000)
+
+  for (const failure of ['cancellation', 'failed-mutation', 'unauthorized-mutation', 'malformed-final', 'unattributed-edit'] as const)
+  it(`keeps guarded navigation handoff fail-closed after ${failure}`, async () => {
+    const t = await ticket()
+    const controller = new AbortController()
+    let calls = 0, reviews = 0
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
+      const call = ++calls
+      if (call === 1) return {model, ok: true, text: JSON.stringify({thought: 'Apply an authorized edit', action: 'tool_call',
+        toolCalls: [{name: 'safe_change', parameters: {action: 'replace_text', filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}}]})}
+      if (call === 2 && (failure === 'failed-mutation' || failure === 'unauthorized-mutation'))
+        return {model, ok: true, text: JSON.stringify({thought: 'Attempt another edit', action: 'tool_call',
+          toolCalls: [{name: 'safe_change', parameters: {action: 'replace_text',
+            filePath: failure === 'unauthorized-mutation' ? 'tests/add.test.ts' : 'src/add.ts',
+            oldText: failure === 'unauthorized-mutation' ? 'toBe(5)' : 'missing source anchor',
+            newText: 'toBe(999)'}}]})}
+      if (call === 2 && failure === 'malformed-final') return {model, ok: true,
+        text: JSON.stringify({thought: 'Done', action: 'final_answer', finalAnswer: 'Finished the edit.'})}
+      if (call === 2 && failure === 'unattributed-edit')
+        fs.appendFileSync(path.join(root, 'src/add.ts'), '// external source modification\n')
+      if (call === 4 && failure === 'cancellation') controller.abort(Error('Cancelled while navigation stalls'))
+      return {model, ok: true, text: JSON.stringify({thought: 'Read again', action: 'tool_call',
+        toolCalls: [{name: 'read_workspace_file', parameters: {filePath: 'src/add.ts'}}]})}
+    })
+    const oracleBefore = fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')
+    try {
+      const result = await t.resolve(store, {systemOne, critic: 'none', maxRepairs: 0, signal: controller.signal,
+        testCommands: [['bun', 'test', 'tests/add.test.ts']], verify: async input => {reviews++; return verify(input)}})
+      expect(result.status, JSON.stringify(result)).toBe('blocked')
+      expect(reviews).toBe(0)
+      expect(calls).toBeLessThanOrEqual(6)
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b')
+      expect(fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')).toBe(oracleBefore)
+      expect(await store.getEntity<Ticket>('T', Ticket.dcr)).toMatchObject({lane: 'Blocked', claim: null})
+      expect(await store.getEntity('VERIFY-T')).toBeNull()
+      if (failure === 'unattributed-edit') expect(JSON.stringify(result)).toContain('outside guarded effects')
+      if (failure === 'cancellation') expect(JSON.stringify(result)).toContain('Cancelled while navigation stalls')
+    } finally { completion.mockRestore() }
+  }, 30000)
+
   it('rejects repeated unchanged navigation and permits re-reading after a real edit', async () => {
     const t = await ticket(); let calls = 0;
     const request = { action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b' };
@@ -1146,6 +1224,35 @@ describe('Ticket-owned bounded resolution', () => {
       expect(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies['@dharmax/context-manager']).toBe('file:../context-manager');
     } finally { server.stop(true); if (previous === undefined) delete process.env.OLLAMA_HOST; else process.env.OLLAMA_HOST = previous; }
   }, 30000);
+
+  it('refreshes derived discovery state before read-only Actor navigation after an edit', async () => {
+    fs.writeFileSync(path.join(root, 'src/helper.ts'), 'export function oldHelper() { return 1; }\n')
+    await indexCodebase(store, root)
+    const t = await ticket()
+    let calls = 0
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      calls++
+      if (calls === 2) {
+        // Simulate an external edit arriving while inference is in flight.
+        fs.writeFileSync(path.join(root, 'src/helper.ts'), 'export function discoveredHelper() { return 42; }\n')
+        return {model, ok: true, text: JSON.stringify({thought: 'Discover the new declaration', action: 'tool_call',
+          toolCalls: [{name: 'find_symbol', parameters: {name: 'discoveredHelper'}}]})}
+      }
+      if (calls === 3) {
+        expect(prompt).not.toContain('read-only execution cannot write')
+        expect(prompt).toContain('"name":"discoveredHelper","fullName":"discoveredHelper"')
+        return {model, ok: true, text: JSON.stringify({thought: 'Hand off for checks', action: 'final_answer',
+          finalAnswer: {changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]}})}
+      }
+      return {model, ok: true, text: JSON.stringify({thought: 'Correct the arithmetic', action: 'tool_call',
+        toolCalls: [{name: 'safe_change', parameters: {action: 'replace_text', filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}}]})}
+    })
+    try {
+      const result = await t.resolve(store, {systemOne, critic: 'none', verify, maxRepairs: 0})
+      expect(result.status, JSON.stringify(result)).toBe('complete')
+      expect(calls).toBe(3)
+    } finally { completion.mockRestore() }
+  }, 30000)
 
   it('uses one guarded safe change after parameter repair and parses a structured final proposal', async () => {
     const t = await ticket()
