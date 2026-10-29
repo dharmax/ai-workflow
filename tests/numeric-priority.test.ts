@@ -6,7 +6,7 @@ import {Database} from 'bun:sqlite';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Epic, Feature, Ticket, UserStory} from '../src/graph/ontology.ts';
 import {initializeTools, registry} from '../src/tools/index.ts';
-import {exportProjections, importProjections} from '../src/graph/projections.ts';
+import {exportProjections, importProjections} from '../src/services/projection-service.ts';
 import {processShellInput} from '../src/shell.ts';
 import {proposeEpicStructure} from '../src/product/decompose.ts';
 import {applyEpicStructure} from '../src/product/apply.ts';

@@ -14,9 +14,9 @@ import {loadConfig} from '../services/config-service.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';
-import {exportProjections} from '../graph/projections.ts';
+import {exportProjections} from '../services/projection-service.ts';
 import {applyOwnedChange} from './change.ts';
-import {TicketEventInputSchema,recordTicketEvent,getTicketHistory,ticketHistoryContext,condenseTicketHistory,migrateTicketBody} from '../graph/journal.ts';
+import {TicketEventInputSchema,recordTicketEvent,getTicketHistory,ticketHistoryContext,condenseTicketHistory,migrateTicketBody} from '../services/journal-service.ts';
 
 async function requireTicket(ctx: ToolContext, ticketId: string, kind?: Ticket['kind']): Promise<Ticket> {
   const ticket = await ctx.store.getEntity<Ticket>(ticketId, Ticket.dcr);

@@ -271,7 +271,7 @@ export async function prepareTicket(
                     countEngineering("artifactsCreated", created.length)
                     countEngineering("artifactsReused", reused.length)
                     if (held) {
-                        const { exportProjections } = await import("../graph/projections.ts")
+                        const { exportProjections } = await import("../services/projection-service.ts")
                         await exportProjections(store)
                     }
                     return {
@@ -291,7 +291,7 @@ export async function prepareTicket(
                     if (acquired) {
                         await store.releaseTicket(id, acquired)
                         if (!options.signal?.aborted) {
-                            const { exportProjections } = await import("../graph/projections.ts")
+                            const { exportProjections } = await import("../services/projection-service.ts")
                             await exportProjections(store)
                         }
                     }

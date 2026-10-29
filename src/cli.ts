@@ -15,7 +15,7 @@ import {isBlockedOperation} from './artifact-policy.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry } from './tools/index.ts';
-import { exportProjections, importProjections } from './graph/projections.ts';
+import { exportProjections, importProjections } from './services/projection-service.ts';
 import { exportProductManifest, exportAuthoredState } from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { startShell } from './shell.ts';

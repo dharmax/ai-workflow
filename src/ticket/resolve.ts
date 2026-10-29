@@ -3,7 +3,7 @@
  * Scope: Dependency order, guarded mutations, repair, receipts and lease lifecycle.
  */
 
-import {recordTicketEvent} from '../graph/journal.ts'
+import {recordTicketEvent} from '../services/journal-service.ts'
 import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
@@ -593,7 +593,7 @@ export async function resolveTicket(
                 const failed = cleanup.find(result => result.status === 'rejected')
                 if (failed?.status === 'rejected') throw failed.reason
                 if (!options.signal?.aborted && !store.isReadOnlyExecution()) {
-                    const { exportProjections } = await import('../graph/projections.ts')
+                    const { exportProjections } = await import('../services/projection-service.ts')
                     await exportProjections(store)
                 }
             }

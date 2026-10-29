@@ -1,6 +1,6 @@
 import {ParameterFacilitator} from '@dharmax/shell-ui';
 import {loadConfig} from './services/config-service.ts';
-import {exportProjections} from './graph/projections.ts';
+import {exportProjections} from './services/projection-service.ts';
 import {registry, type ToolContext} from './tools/index.ts';
 
 export const TICKET_COMMANDS = ['claim', 'release', 'move', 'done'] as const;

@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile, stat } from 'node:fs/promises';
-import { Aspect } from './ontology.ts';
-import type { WorkflowStore } from './store.ts';
-import type { ProductMutation } from '../product/mutation.ts';
+import { Aspect } from '../../graph/ontology.ts';
+import type { WorkflowStore } from '../../graph/store.ts';
+import type { ProductMutation } from '../../product/mutation.ts';
 
 export async function exportAspectProjection(store: WorkflowStore, root: string): Promise<void> {
   let text = '# Aspects & Cross-cutting Intent\n\n';
@@ -50,7 +50,7 @@ export async function importAspectProjection(store: WorkflowStore, root: string,
     count++;
   }
   if (mutations.length) {
-    const {CausalChangeEngine} = await import('../change/engine.ts');
+    const {CausalChangeEngine} = await import('../../change/engine.ts');
     const engine = new CausalChangeEngine({store, projectRoot:root});
     const request = {action:'product_change' as const, mutations};
     const preview = await engine.previewChange(request);

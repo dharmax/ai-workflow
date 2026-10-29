@@ -97,7 +97,7 @@ test('legacy rejection migrates once to Cancelled and retains historical identit
   expect(rejected.body).toBe('Retain exact intent');
   expect(rejected).not.toHaveProperty('status');
   expect((await store.getEntity<Ticket>('H',Ticket.dcr))!.lane).toBe('Done');
-  const {getTicketHistory}=await import('../src/graph/journal.ts');
+  const {getTicketHistory}=await import('../src/services/journal-service.ts');
   const history=await getTicketHistory(store,'R');
   expect(history.entries.filter(event=>event.kind==='legacy')).toHaveLength(1);
   expect(JSON.stringify(history.entries)).toContain('rejected');
@@ -192,8 +192,8 @@ test('interrupted MCP claim expires and recovers through CLI without stale-board
 
 test('revision-checked Markdown edits preserve current state and repeat without journal churn', async () => {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-reconcile-'));store=new WorkflowStore(root);
-  const {exportProjections,importProjections}=await import('../src/graph/projections.ts');
-  const {getTicketHistory}=await import('../src/graph/journal.ts');
+  const {exportProjections,importProjections}=await import('../src/services/projection-service.ts');
+  const {getTicketHistory}=await import('../src/services/journal-service.ts');
   await store.upsertEntity(Ticket.dcr,{id:'T',title:'Original work',body:'Keep specification',lane:'Todo'});
   await exportProjections(store);
   const original=fs.readFileSync(path.join(root,'kanban.md'),'utf8');

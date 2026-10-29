@@ -12,7 +12,7 @@ import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import {PrioritySchema} from './types.ts';
 import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
-import {ticketChangeEvents, ticketEventBatch} from './journal.ts';
+import {ticketChangeEvents, ticketEventBatch} from '../services/journal-service.ts';
 import {
   SemanticPackage,
   SqliteStore,

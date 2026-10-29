@@ -4,7 +4,7 @@ import { Aspect } from '../graph/ontology.ts';
 import { applicableAspects, assessAspects } from '../aspects.ts';
 import { productKind, validateProductRelation } from '../product/mutation.ts';
 import type { WorkflowStore } from '../graph/store.ts';
-import { exportProjections } from '../graph/projections.ts';
+import { exportProjections } from '../services/projection-service.ts';
 
 const fields = z.object({ title: z.string().min(1), body: z.string().optional(), status: z.enum(['draft', 'proposed', 'accepted', 'deprecated']).optional(), acceptanceCriteria: z.array(z.string()).optional() });
 async function loadAspect(store: WorkflowStore, id: string): Promise<Aspect> {

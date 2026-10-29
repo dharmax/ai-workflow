@@ -1,8 +1,8 @@
 /** Ticket execution history in the project's existing Semantika store. */
 import {z} from 'zod';
 import {createHash} from 'node:crypto';
-import type {WorkflowStore} from './store.ts';
-import {Ticket} from './ontology.ts';
+import type {WorkflowStore} from '../graph/store.ts';
+import {Ticket} from '../graph/ontology.ts';
 import {canonical} from '../kb/canonical.ts';
 
 export const TicketEventKindSchema=z.enum(['created','specification','state','lease','decision','action','failure','correction','outcome','legacy']);

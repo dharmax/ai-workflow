@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from './graph/store.ts';
 import { indexCodebase } from './graph/indexer.ts';
-import { exportProjections } from './graph/projections.ts';
+import { exportProjections } from './services/projection-service.ts';
 import { Ticket, Epic } from './graph/ontology.ts';
 import { saveConfig } from './services/config-service.ts';
 import { buildMcpSchemas } from './mcp.ts';

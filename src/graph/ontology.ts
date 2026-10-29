@@ -398,7 +398,7 @@ export class Ticket extends WorkflowEntity {
         return ticketCompleteness(this, store, override)
     }
     async investigate(store: WorkflowStore, options: InvestigationOptions = {}): Promise<OperationResult<TicketDossier>> {
-        const { investigateTicket } = await import("../ticket/investigate.ts")
+        const { investigateTicket } = await import("../services/investigation-service.ts")
         return investigateTicket(this, store, options)
     }
 

@@ -2,7 +2,7 @@
 import {parseModelTarget,type Asker,type ModelTarget,type GenerationResult} from '@dharmax/llm-utils';
 import {ModelService} from '../services/model-service.ts';
 import {inspectConfig, type ProjectConfig} from '../services/config-service.ts';
-import {recordTicketEvent,systemJournal,type JournalEntry} from '../graph/journal.ts';
+import {recordTicketEvent,systemJournal,type JournalEntry} from '../services/journal-service.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {budgetedInference,type PaidUsage} from '../paid-inference.ts';
 

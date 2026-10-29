@@ -17,7 +17,7 @@ import {
   SymbolNode
 } from '../src/graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
-import { exportProjections, importProjections } from '../src/graph/projections.ts';
+import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
 

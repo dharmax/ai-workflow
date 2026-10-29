@@ -390,7 +390,7 @@ describe('Ticket-owned bounded resolution', () => {
     if(implemented==='stale-framework') await store.upsertEntity(TestNode.dcr,{id:oracle.id,framework:'bun:test'});
     git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'verification baseline');
     const source = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8');
-    await (await import('../src/graph/projections.ts')).exportProjections(store);
+    await (await import('../src/services/projection-service.ts')).exportProjections(store);
     const staleBoard=fs.readFileSync(path.join(root,'kanban.md'),'utf8');
     const calls: string[] = [];
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {

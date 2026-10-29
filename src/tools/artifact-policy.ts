@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { registry } from './registry.ts';
 import { CompletenessSchema, requireCompletenessScope } from '../artifact-policy.ts';
-import { exportProjections } from '../graph/projections.ts';
+import { exportProjections } from '../services/projection-service.ts';
 
 export function registerArtifactPolicyTools(): void {
   registry.register({

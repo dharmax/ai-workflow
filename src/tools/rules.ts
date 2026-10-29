@@ -4,7 +4,7 @@ import {registry} from './registry.ts';
 import {RuleStore} from '../rules/store.ts';
 import {RuleScopeSchema} from '../rules/types.ts';
 import {resolveRuleReference} from '../rules/references.ts';
-import {exportProjections} from '../graph/projections.ts';
+import {exportProjections} from '../services/projection-service.ts';
 export const RuleChangeSchema = z.object({
   pack: z.unknown(), reason: z.string().trim().min(1),
   allowWeakening: z.boolean().default(false), approveReferences: z.boolean().default(false),

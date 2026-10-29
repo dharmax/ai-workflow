@@ -7,7 +7,7 @@ export * from './graph/types.ts';
 export * from './graph/ontology.ts';
 export * from './graph/store.ts';
 export * from './graph/indexer.ts';
-export * from './graph/projections.ts';
+export * from './services/projection-service.ts';
 
 // Capabilities & Deterministic Tools
 export * from './tools/registry.ts';

@@ -8,7 +8,7 @@ import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket,Decision,TestNode,Artifact,entityDescriptors} from '../src/graph/ontology.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {spyOn} from 'bun:test';
-import {importProjections} from '../src/graph/projections.ts';
+import {importProjections} from '../src/services/projection-service.ts';
 import {runTicketCommand} from '../src/ticket-command.ts';
 import {z} from 'zod';
 import {ToolRegistry} from '../src/tools/registry.ts';

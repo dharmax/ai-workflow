@@ -563,7 +563,7 @@ export async function applyProductMutations(
     if (!productOwnerWrite(store, mutations, state) && (!reviewed || !store.canReviewProduct(reviewed.fingerprint)))
       throw Error('Product review authority expired before commit.');
     await assessCharterAnswers(store,mutations,initial,reviewed?.request);
-    const {ticketChangeEvents}=await import('../graph/journal.ts');
+    const {ticketChangeEvents}=await import('../services/journal-service.ts');
     const history=[];
     for(const entry of batch.values()) {
       const ticket=state.get(store.localId(entry.id));

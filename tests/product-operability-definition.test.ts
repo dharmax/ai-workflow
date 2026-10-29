@@ -10,7 +10,7 @@ import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProductManifest, generateProductManifest, exportAuthoredState, restoreAuthoredState } from '../src/product/manifest.ts';
 import { buildIntentContext, collectProductMeaning } from '../src/product/context.ts';
-import { exportProjections, importProjections } from '../src/graph/projections.ts';
+import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
 import { PUBLIC_MCP_TOOL_NAMES } from '../src/tools/surface.ts';

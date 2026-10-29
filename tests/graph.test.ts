@@ -15,7 +15,7 @@ import {
 } from '../src/graph/ontology.ts';
 import { ensureAstFresh, indexCodebase, indexSingleFile } from '../src/graph/indexer.ts';
 import { reconcileTestVerificationEdges } from '../src/graph/test-artifacts.ts';
-import { exportProjections, importProjections } from '../src/graph/projections.ts';
+import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 
 describe('AST+ Semantic Graph (Semantika)', () => {
   let store: WorkflowStore;

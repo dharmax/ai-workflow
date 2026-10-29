@@ -7,7 +7,7 @@ import { CompletenessSchema, type CompletenessLevel } from '../artifact-policy.t
 import path from 'node:path';
 import { readFile, writeFile, stat, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { WorkflowStore } from './store.ts';
+import { WorkflowStore } from '../graph/store.ts';
 import {
   Ticket,
   Epic,
@@ -17,12 +17,12 @@ import {
   Decision,
   ModuleNode,
   TestNode
-} from './ontology.ts';
-import {PrioritySchema} from './types.ts';
-import type { TicketLane, EpicStatus, IntentStatus } from './types.ts';
+} from '../graph/ontology.ts';
+import {PrioritySchema} from '../graph/types.ts';
+import type { TicketLane, EpicStatus, IntentStatus } from '../graph/types.ts';
 import { getCoverage } from '../product/coverage.ts';
-import { exportAspectProjection, importAspectProjection } from './aspect-projections.ts';
-import { ticketState } from './ticket-state.ts';
+import { exportAspectProjection, importAspectProjection } from './projection/aspect-projections.ts';
+import { ticketState } from '../graph/ticket-state.ts';
 import { exportProductManifest, exportAuthoredState } from '../product/manifest.ts';
 
 const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'];

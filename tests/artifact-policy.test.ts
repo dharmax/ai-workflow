@@ -6,7 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, ModuleNode, Ticket } from '../src/graph/ontology.ts';
 import { ArtifactBudget, resolveArtifactCritic, type ArtifactCritic } from '../src/artifact-policy.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
-import { exportProjections, importProjections } from '../src/graph/projections.ts';
+import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 
 describe('artifact policy', () => {
   let root: string;
