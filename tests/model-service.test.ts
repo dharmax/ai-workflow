@@ -9,7 +9,7 @@ import os from "node:os"
 import path from "node:path"
 import { saveConfig } from "../src/config.ts"
 import { WorkflowStore } from "../src/graph/store.ts"
-import { WorkflowActor } from "../src/actor/engine.ts"
+import { WorkflowActor } from "../src/helpers/actor/engine.ts"
 import { ModelService, createDefaultAsker } from "../src/model-runtime.ts"
 
 describe("configured model service", () => {

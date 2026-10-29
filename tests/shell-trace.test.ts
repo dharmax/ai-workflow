@@ -6,7 +6,7 @@ import {Writable} from 'node:stream';
 import {LLMSession, type Asker, type ActorStepRecord} from '@dharmax/llm-utils';
 import {FakeRenderer, ProcessViewport} from '@dharmax/shell-ui';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {processShellInput, type ShellSession} from '../src/shell.ts';
 import {shellTracePath} from '../src/shell-trace.ts';

@@ -1,6 +1,6 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui';
 import {inspectConfig, loadConfig, readConfigOverrides, setConfigOverride} from './config.ts';
-import {MODE_CONFIGS, type WorkflowActor} from './actor/engine.ts';
+import {MODE_CONFIGS, type WorkflowActor} from './helpers/actor/engine.ts';
 import {readModelAdvice} from '@dharmax/llm-utils';
 import {refreshDefaultModelAdvice} from './model-runtime.ts';
 

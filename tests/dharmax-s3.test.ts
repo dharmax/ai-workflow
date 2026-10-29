@@ -114,7 +114,7 @@ describe('S3 Workspace public developer journeys', () => {
     const output=await new Response(proc.stdout).text();expect(await proc.exited).toBe(0);
     expect(output).toContain('applied');
     const {processShellInput}=await import('../src/shell.ts');
-    const {WorkflowActor}=await import('../src/actor/engine.ts');
+    const {WorkflowActor}=await import('../src/helpers/actor/engine.ts');
     const result=await processShellInput('link FLOW-NOTE to G-NOTE as serves --note "Shell rationale" --yes',{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
     expect(result.output).toContain('applied');
     let before=await call('link',{action:'inspect',id:'FLOW-NOTE'});

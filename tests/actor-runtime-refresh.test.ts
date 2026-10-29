@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { WorkflowActor } from '../src/actor/engine.ts';
+import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { saveConfig } from '../src/config.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';

@@ -14,7 +14,7 @@ import {z} from 'zod';
 import {ToolRegistry} from '../src/tools/registry.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import type {Asker} from '@dharmax/llm-utils';
 
 describe('PC1a canonical safety through public tools',()=>{

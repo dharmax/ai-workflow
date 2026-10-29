@@ -5,7 +5,7 @@ import path from 'node:path';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import {WorkflowActor} from '../../src/actor/engine.ts';
+import {WorkflowActor} from '../../src/helpers/actor/engine.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {createMcpServer, exportMcpSchemas} from '../../src/mcp.ts';
 import {CANONICAL_SKILL_MD, CODEX_AGENT_RULES, MCP_INSTRUCTIONS_2_0, configureMcp} from '../../src/setup.ts';

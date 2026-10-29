@@ -7,7 +7,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Feature } from '../src/graph/ontology.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { processShellInput } from '../src/shell.ts';
-import { WorkflowActor } from '../src/actor/engine.ts';
+import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { CANONICAL_SKILL_MD, MCP_INSTRUCTIONS_2_0 } from '../src/setup.ts';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';

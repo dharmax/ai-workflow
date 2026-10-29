@@ -4,11 +4,11 @@
  */
 
 import { PromptEngine } from "@dharmax/llm-utils"
-import { BOUNDED_COMPLETION } from "../client-guidance.ts"
+import { BOUNDED_COMPLETION } from "../../client-guidance.ts"
 import { z } from "zod"
 import type { ShellMode } from "./engine.ts"
-import actorTemplate from "./prompts/actor.txt" with { type: "text" }
-import readOnlyTemplate from "./prompts/read-only.txt" with { type: "text" }
+import actorTemplate from "../../actor/prompts/actor.txt" with { type: "text" }
+import readOnlyTemplate from "../../actor/prompts/read-only.txt" with { type: "text" }
 
 const prompts = new PromptEngine()
 const system = prompts.parse(actorTemplate)

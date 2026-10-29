@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {FakeRenderer} from '@dharmax/shell-ui';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {processShellInput, type ShellSession} from '../src/shell.ts';
 import {loadConfig, getConfigPath} from '../src/config.ts';
 import {runConfigCommand} from '../src/config-command.ts';

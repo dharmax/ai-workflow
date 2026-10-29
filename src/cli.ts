@@ -21,7 +21,7 @@ import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { startShell } from './shell.ts';
 import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { WorkflowActor } from './actor/engine.ts';
+import { WorkflowActor } from './helpers/actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
 import { initProject } from './setup.ts';
 import {runSetupCommand, formatSetupResult} from './setup-command.ts';

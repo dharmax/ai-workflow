@@ -15,7 +15,7 @@ export * from './tools/index.ts';
 export * from './tools/compiler.ts';
 
 // Autonomous Cognitive Actor
-export * from './actor/engine.ts';
+export * from './helpers/actor/engine.ts';
 
 // Bridges
 export * from './shell.ts';

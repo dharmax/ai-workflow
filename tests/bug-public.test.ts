@@ -6,7 +6,7 @@ import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket} from '../src/graph/ontology.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {processShellInput} from '../src/shell.ts';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 

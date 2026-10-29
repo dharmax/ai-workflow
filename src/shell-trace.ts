@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {ShellSession} from './shell.ts';
-import type {WorkflowActor, ShellMode} from './actor/engine.ts';
+import type {WorkflowActor, ShellMode} from './helpers/actor/engine.ts';
 
 export interface ShellTrace {
   instruction: string;

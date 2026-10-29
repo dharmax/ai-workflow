@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools } from '../src/tools/index.ts';
-import { WorkflowActor, pubsub } from '../src/actor/engine.ts';
+import { WorkflowActor, pubsub } from '../src/helpers/actor/engine.ts';
 import { resolveCloudCredentials, saveConfig } from '../src/config.ts';
 import { FileNode } from '../src/graph/ontology.ts';
 

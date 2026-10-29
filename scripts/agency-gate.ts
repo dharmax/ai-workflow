@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {WorkflowActor, pubsub} from '../src/actor/engine.ts';
+import {WorkflowActor, pubsub} from '../src/helpers/actor/engine.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {initializeTools, registry} from '../src/tools/index.ts';
 import {loadConfig,resolveCloudCredentials} from '../src/config.ts';

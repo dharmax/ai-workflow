@@ -2,7 +2,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {processShellInput} from '../../src/shell.ts';
 import {lexCommand} from '../../src/artifact-command.ts';
-import {WorkflowActor} from '../../src/actor/engine.ts';
+import {WorkflowActor} from '../../src/helpers/actor/engine.ts';
 import type {Asker} from '@dharmax/llm-utils';
 import {afterEach, beforeEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';

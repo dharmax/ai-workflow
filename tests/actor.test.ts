@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
-import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/actor/engine.ts';
+import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/helpers/actor/engine.ts';
 import { Ticket, Epic, Feature, UserStory, FileNode } from '../src/graph/ontology.ts';
 import type {Asker, ZodType} from '@dharmax/llm-utils';
 

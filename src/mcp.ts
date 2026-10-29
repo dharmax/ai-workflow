@@ -18,7 +18,7 @@ import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from './tools/surface.ts';
-import { WorkflowActor, type ShellMode } from './actor/engine.ts';
+import { WorkflowActor, type ShellMode } from './helpers/actor/engine.ts';
 import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
 import { SemanticPackage } from '@dharmax/semantika';
 import {ensureAstFresh} from './graph/indexer.ts';

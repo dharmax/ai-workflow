@@ -1,4 +1,4 @@
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {ToolRegistry} from '../src/tools/registry.ts';
 import type {Asker,SystemOne} from '@dharmax/llm-utils';
 import {z} from 'zod';

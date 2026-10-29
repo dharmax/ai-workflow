@@ -10,7 +10,7 @@ import {exportProjections, importProjections} from '../src/graph/projections.ts'
 import {processShellInput} from '../src/shell.ts';
 import {proposeEpicStructure} from '../src/product/decompose.ts';
 import {applyEpicStructure} from '../src/product/apply.ts';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 
 let root: string, store: WorkflowStore;
 const cli=path.resolve('src/cli.ts');

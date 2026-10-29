@@ -8,7 +8,7 @@ import {Epic,Goal} from '../src/graph/ontology.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {createCommandTree,type NormalizedCommand} from '../src/artifact-command.ts';
 import {processShellInput} from '../src/shell.ts';
-import {WorkflowActor} from '../src/actor/engine.ts';
+import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 
 const binary=process.env.AIWF_PUBLIC_BINARY;
 const cli=path.resolve(import.meta.dir,'../src/cli.ts');

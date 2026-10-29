@@ -29,7 +29,7 @@ import {
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { Ticket } from './graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
-import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './actor/engine.ts';
+import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './helpers/actor/engine.ts';
 import { exportProjections, importProjections } from './graph/projections.ts';
 import {exportProductManifest,exportAuthoredState} from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';

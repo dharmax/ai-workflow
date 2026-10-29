@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { ProcessViewport, type UiRenderer, type ViewRequest, type ViewResult } from '@dharmax/shell-ui';
-import { WorkflowActor } from '../src/actor/engine.ts';
+import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
 
 class TestViewRenderer implements UiRenderer {
