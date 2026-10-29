@@ -33,8 +33,8 @@ import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './helpers/actor/eng
 import { exportProjections, importProjections } from './graph/projections.ts';
 import {exportProductManifest,exportAuthoredState} from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
-import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
-import { loadConfig, saveConfig } from './config.ts';
+import { runDiagnostics, formatDiagnosticReport } from './services/diagnostics-service.ts';
+import { loadConfig, saveConfig } from './services/config-service.ts';
 import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult, configView} from './config-command.ts';
 import {runRuleCommand} from './rule-command.ts';

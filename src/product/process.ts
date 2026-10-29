@@ -28,11 +28,11 @@ export function processIntent(
             const { IntentProposalSchema } = await import("../product/process-types.ts")
             const { ArtifactBudget, resolveArtifactCritic } = await import("../artifact-policy.ts")
             const { AiArtifactCritic, CriticResultSchema } = await import("../artifact-critic.ts")
-            const { loadConfig } = await import("../config.ts")
+            const { loadConfig } = await import("../services/config-service.ts")
             const { getCoverage } = await import("../product/coverage.ts")
             const { getProductImpact } = await import("../product/impact.ts")
             const { CausalChangeEngine } = await import("../change/engine.ts")
-            const { createDefaultAsker } = await import("../model-runtime.ts")
+            const { createDefaultAsker } = await import("../services/model-service.ts")
             const cfg = loadConfig(store.root),
                 budget = new ArtifactBudget(options, 1, cfg.maxArtifacts)
             const proposals: import('../change/types.ts').ChangePreview[] = []

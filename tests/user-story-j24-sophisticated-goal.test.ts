@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowActor, type ShellMode } from '../src/helpers/actor/engine.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { ToolDiscovery } from '../src/tools/discovery.ts';
 import { Epic, Feature, UserStory, Ticket, TestNode } from '../src/graph/ontology.ts';

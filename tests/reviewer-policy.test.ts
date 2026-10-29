@@ -1,7 +1,7 @@
 import {afterEach,expect,it,spyOn} from 'bun:test';
 import {Asker,z,type ProviderConfig} from '@dharmax/llm-utils';
 import {budgetedInference,type PaidUsage} from '../src/paid-inference.ts';
-import type {ProjectConfig} from '../src/config.ts';
+import type {ProjectConfig} from '../src/services/config-service.ts';
 
 let fetchSpy:ReturnType<typeof spyOn>|undefined;
 afterEach(()=>fetchSpy?.mockRestore());
@@ -96,7 +96,7 @@ it('rejects multiple paid completions before inference',async()=>{
 for(const scenario of ['corrected','exhausted','negative'] as const) it(`definition Critic preserves exact criterion identity and one correction: ${scenario}`,async()=>{
     const fs=await import('node:fs'),os=await import('node:os'),path=await import('node:path');
     const {WorkflowStore}=await import('../src/graph/store.ts');
-    const {saveConfig}=await import('../src/config.ts');
+    const {saveConfig}=await import('../src/services/config-service.ts');
     const {AiArtifactCritic}=await import('../src/artifact-critic.ts');
     const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-critic-identity-')),store=new WorkflowStore(root),prompts:string[]=[];
     const criterion='Review the complete current definition against every charter boundary.';

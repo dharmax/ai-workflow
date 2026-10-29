@@ -1,5 +1,5 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui';
-import {CONFIG_SETTINGS, inspectConfig, parseConfigSetting, resetConfigOverride, setConfigOverride, type ConfigScope} from './config.ts';
+import {CONFIG_SETTINGS, inspectConfig, parseConfigSetting, resetConfigOverride, setConfigOverride, type ConfigScope} from './services/config-service.ts';
 
 export interface ConfigCommandResult {
   rows: ReturnType<typeof inspectConfig>;

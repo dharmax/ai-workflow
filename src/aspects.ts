@@ -3,7 +3,7 @@ import { LayaSystemOne, type SystemOne } from '@dharmax/llm-utils';
 import type { WorkflowStore } from './graph/store.ts';
 import { Aspect, Epic, Feature, UserStory, Ticket, TestNode, Artifact, Decision, type WorkflowEntity } from './graph/ontology.ts';
 import type { ArtifactCritic, CompletenessLevel } from './artifact-policy.ts';
-import { loadConfig } from './config.ts';
+import { loadConfig } from './services/config-service.ts';
 
 export interface AspectAssessment {
   scopeId: string;

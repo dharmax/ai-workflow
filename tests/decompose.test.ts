@@ -13,7 +13,7 @@ import {
 } from '../src/graph/ontology.ts';
 import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
 import { createDefaultAsker, proposeEpicStructure, type EpicStructureProposal } from '../src/product/decompose.ts';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 import { applyEpicStructure as prepareEpicStructure } from '../src/product/apply.ts';
 async function applyEpicStructure(store: WorkflowStore, proposal: EpicStructureProposal) {
   const prepared = await prepareEpicStructure(store, proposal);

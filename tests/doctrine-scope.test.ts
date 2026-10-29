@@ -12,7 +12,7 @@ import {readVerificationReceipt, type ResolutionOptions, type ResolutionVerifica
 import {artifactCommand} from '../src/artifact-command.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {registry} from '../src/tools/registry.ts';
-import {loadConfig, saveConfig} from '../src/config.ts';
+import {loadConfig, saveConfig} from '../src/services/config-service.ts';
 
 const assessment = (input: ResolutionVerificationInput) => ({
   criteria: input.dossier.ticket.acceptanceCriteria.map(criterion => ({criterion, passed: true, evidence: 'Actual assertion execution is independently recorded.'})),

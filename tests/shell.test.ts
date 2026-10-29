@@ -159,7 +159,7 @@ describe('Interactive Shell REPL Bridge', () => {
       {id: 'auto'}, {id: 'local_only'}, {id: 'prompt'}, {id: 'sota'}
     ]})
     expect(result.output).toContain('local_only')
-    const { loadConfig } = await import('../src/config.ts')
+    const { loadConfig } = await import('../src/services/config-service.ts')
     expect(loadConfig(tempDir).escalation?.policy).toBe('local_only')
   })
 

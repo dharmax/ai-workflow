@@ -9,7 +9,7 @@ import { indexCodebase } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { RuleStore } from '../src/rules/store.ts';
 import type { RuleModel } from '../src/rules/types.ts';
-import { loadConfig, saveConfig } from '../src/config.ts';
+import { loadConfig, saveConfig } from '../src/services/config-service.ts';
 import {
   AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt, resolveTicketGovernance,
   ticketVerificationSignature, type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput

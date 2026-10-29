@@ -2,8 +2,8 @@ import {afterEach, beforeEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {modelRuntime} from '../src/model-runtime.ts';
-import {getConfigPath, getGlobalConfigPath, loadConfig, saveConfig, setConfigOverride, resetConfigOverride, inspectConfig, resolveCloudCredentials, DEFAULT_CONFIG} from '../src/config.ts';
+import {modelRuntime} from '../src/services/model-service.ts';
+import {getConfigPath, getGlobalConfigPath, loadConfig, saveConfig, setConfigOverride, resetConfigOverride, inspectConfig, resolveCloudCredentials, DEFAULT_CONFIG} from '../src/services/config-service.ts';
 
 describe('configuration layers', () => {
   let root: string;

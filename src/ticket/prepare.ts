@@ -26,7 +26,7 @@ export async function prepareTicket(
         const { TicketPreparationProposalSchema } = await import("../ticket-operation-types.ts")
         const { resolveArtifactCritic, ArtifactBudget } = await import("../artifact-policy.ts")
         const { AiArtifactCritic, CriticResultSchema } = await import("../artifact-critic.ts")
-        const { loadConfig } = await import("../config.ts")
+        const { loadConfig } = await import("../services/config-service.ts")
         const { CausalChangeEngine } = await import("../change/engine.ts")
         const cfg = loadConfig(store.root),
             agentId = options.agentId ?? cfg.defaultAgentId
@@ -59,7 +59,7 @@ export async function prepareTicket(
             const propose =
                 options.propose ??
                 (async (input: TicketDossier, findings: readonly import("../artifact-policy.ts").CriticFinding[]) => {
-                    const { createDefaultAsker } = await import("../model-runtime.ts")
+                    const { createDefaultAsker } = await import("../services/model-service.ts")
                     const asker = createDefaultAsker(store.root)
                     if (!asker) throw new Error("Preparation reasoning provider unavailable.")
                     countEngineering("reasoningCalls")

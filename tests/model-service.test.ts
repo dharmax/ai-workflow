@@ -7,10 +7,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { saveConfig } from "../src/config.ts"
+import { saveConfig } from "../src/services/config-service.ts"
 import { WorkflowStore } from "../src/graph/store.ts"
 import { WorkflowActor } from "../src/helpers/actor/engine.ts"
-import { ModelService, createDefaultAsker } from "../src/model-runtime.ts"
+import { ModelService, createDefaultAsker } from "../src/services/model-service.ts"
 
 describe("configured model service", () => {
     let root: string

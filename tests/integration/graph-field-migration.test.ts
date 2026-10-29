@@ -15,7 +15,7 @@ import {resolveCodeTarget} from '../../src/change/target-resolver.ts';
 import {getTsLspClient} from '../../src/change/ts-lsp.ts';
 import {productReviewFixture} from '../product-review-fixture.ts';
 import {acceptProduct,reviewedApply} from '../product-review.ts';
-import {loadConfig,saveConfig} from '../../src/config.ts';
+import {loadConfig,saveConfig} from '../../src/services/config-service.ts';
 import {storyTestStatus} from '../../src/product/story-tests.ts';
 import {currentTicketReceipt} from '../../src/ticket/verification.ts';
 import type {ResolutionOptions} from '../../src/ticket-operation-types.ts';

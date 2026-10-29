@@ -3,13 +3,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {modelAdvicePath, readModelAdvice} from '@dharmax/llm-utils'
-import {refreshDefaultModelAdvice} from '../src/model-runtime.ts'
-import {saveConfig, loadConfig} from '../src/config.ts'
+import {refreshDefaultModelAdvice} from '../src/services/model-service.ts'
+import {saveConfig, loadConfig} from '../src/services/config-service.ts'
 import {WorkflowStore} from '../src/graph/store.ts'
 import {WorkflowActor} from '../src/helpers/actor/engine.ts'
 import {initializeTools} from '../src/tools/index.ts'
 import {processShellInput} from '../src/shell.ts'
-import {runDiagnostics} from '../src/doctor.ts'
+import {runDiagnostics} from '../src/services/diagnostics-service.ts'
 
 let store: WorkflowStore | undefined
 let root: string

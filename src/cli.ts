@@ -22,7 +22,7 @@ import { startShell } from './shell.ts';
 import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WorkflowActor } from './helpers/actor/engine.ts';
-import { runDiagnostics, formatDiagnosticReport } from './doctor.ts';
+import { runDiagnostics, formatDiagnosticReport } from './services/diagnostics-service.ts';
 import { initProject } from './setup.ts';
 import {runSetupCommand, formatSetupResult} from './setup-command.ts';
 import {runModelCommand} from './model-command.ts';

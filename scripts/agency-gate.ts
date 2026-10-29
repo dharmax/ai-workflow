@@ -5,7 +5,7 @@ import path from 'node:path';
 import {WorkflowActor, pubsub} from '../src/helpers/actor/engine.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {initializeTools, registry} from '../src/tools/index.ts';
-import {loadConfig,resolveCloudCredentials} from '../src/config.ts';
+import {loadConfig,resolveCloudCredentials} from '../src/services/config-service.ts';
 import {ToolAbortError} from '@dharmax/llm-utils';
 
 const projectRoot=process.cwd();

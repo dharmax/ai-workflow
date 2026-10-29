@@ -12,7 +12,7 @@ import {
   CANONICAL_SKILL_MD,
   MCP_INSTRUCTIONS_2_0
 } from '../src/setup.ts';
-import { runDiagnostics, formatDiagnosticReport } from '../src/doctor.ts';
+import { runDiagnostics, formatDiagnosticReport } from '../src/services/diagnostics-service.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Epic } from '../src/graph/ontology.ts';
 

@@ -10,7 +10,7 @@ import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { registry, type ToolContext } from './registry.ts';
 import { Ticket, Artifact } from '../graph/ontology.ts';
 import {readVerificationReceipt} from '../ticket-operation-types.ts';
-import {loadConfig} from '../config.ts';
+import {loadConfig} from '../services/config-service.ts';
 import type { TicketLane } from '../graph/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';

@@ -8,7 +8,7 @@ import {Ticket, FileNode} from '../../src/graph/ontology.ts';
 import {indexCodebase} from '../../src/graph/indexer.ts';
 import {initializeTools,registry} from '../../src/tools/index.ts';
 import {RuleStore} from '../../src/rules/store.ts';
-import {saveConfig} from '../../src/config.ts';
+import {saveConfig} from '../../src/services/config-service.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
 
 let root:string,store:WorkflowStore|undefined,fetchSpy:ReturnType<typeof spyOn>|undefined;

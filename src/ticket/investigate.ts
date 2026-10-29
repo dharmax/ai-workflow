@@ -42,7 +42,7 @@ export async function investigateTicket(
     const { ensureAstFresh, withAstSnapshot } = await import("../graph/indexer.ts")
     const { LayaSystemOne } = await import("@dharmax/llm-utils")
     const { InvestigationJudgmentSchema } = await import("../ticket-operation-types.ts")
-    const { loadConfig } = await import("../config.ts")
+    const { loadConfig } = await import("../services/config-service.ts")
     const { getExactSymbolSource } = await import("../change/symbol-source.ts")
     const fs = await import("node:fs")
     const path = await import("node:path")
@@ -473,7 +473,7 @@ export async function investigateTicket(
                     const reason =
                         options.reason ??
                         (async (input: TicketDossier) => {
-                            const { createDefaultAsker } = await import("../model-runtime.ts")
+                            const { createDefaultAsker } = await import("../services/model-service.ts")
                             const asker = createDefaultAsker(store.root)
                             if (!asker) throw new Error("Reasoning provider unavailable.")
                             const cfg = loadConfig(store.root)

@@ -7,7 +7,7 @@ import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../../src/mcp.ts';
 import {Ticket} from '../../src/graph/ontology.ts';
 import {currentTicketReceipt} from '../../src/ticket/verification.ts';
-import {loadConfig,saveConfig} from '../../src/config.ts';
+import {loadConfig,saveConfig} from '../../src/services/config-service.ts';
 import {registry} from '../../src/tools/index.ts';
 import {withAcceptedGreetingStory, runInProject} from './fixtures/greeting-project.ts';
 

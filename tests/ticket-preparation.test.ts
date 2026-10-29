@@ -11,7 +11,7 @@ import type { TicketPreparationProposal } from '../src/ticket-operation-types.ts
 import type { SystemOne } from '@dharmax/llm-utils';
 import { applyProductMutations } from '../src/product/mutation.ts';
 import { AiArtifactCritic } from '../src/artifact-critic.ts';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 
 describe('reviewed Ticket preparation', () => {
   let root: string, store: WorkflowStore;

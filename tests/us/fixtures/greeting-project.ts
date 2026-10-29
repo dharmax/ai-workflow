@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../../src/graph/store.ts';
-import {loadConfig, saveConfig} from '../../../src/config.ts';
+import {loadConfig, saveConfig} from '../../../src/services/config-service.ts';
 import {initializeTools, registry} from '../../../src/tools/index.ts';
 import {acceptProduct} from '../../product-review.ts';
 import {productReviewFixture} from '../../product-review-fixture.ts';

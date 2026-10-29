@@ -1,7 +1,7 @@
 /** Verification model eligibility and observed contract evidence; routing stays in llm-utils. */
 import {parseModelTarget,type Asker,type ModelTarget,type GenerationResult} from '@dharmax/llm-utils';
-import {ModelService} from '../model-runtime.ts';
-import {inspectConfig, type ProjectConfig} from '../config.ts';
+import {ModelService} from '../services/model-service.ts';
+import {inspectConfig, type ProjectConfig} from '../services/config-service.ts';
 import {recordTicketEvent,systemJournal,type JournalEntry} from '../graph/journal.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {budgetedInference,type PaidUsage} from '../paid-inference.ts';

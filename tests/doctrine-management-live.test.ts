@@ -4,7 +4,7 @@ import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket, FileNode, Artifact} from '../src/graph/ontology.ts';
 import {RuleStore} from '../src/rules/store.ts';
 import {resolveRuleReference} from '../src/rules/references.ts';
-import {loadConfig, saveConfig} from '../src/config.ts';
+import {loadConfig, saveConfig} from '../src/services/config-service.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
 import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
 import {queryPerformance} from '../src/performance-metrics.ts';

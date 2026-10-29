@@ -6,12 +6,12 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { WorkflowStore } from './graph/store.ts';
-import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from './graph/ontology.ts';
-import {createDefaultAsker} from './model-runtime.ts';
-import { loadConfig, resolveCloudCredentials } from './config.ts';
+import { WorkflowStore } from '../graph/store.ts';
+import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from '../graph/ontology.ts';
+import {createDefaultAsker} from './model-service.ts';
+import { loadConfig, resolveCloudCredentials } from './config-service.ts';
 import {readModelAdvice} from '@dharmax/llm-utils';
-import { resolveTypeScriptRuntime, checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime } from './typescript-runtime.ts';
+import { resolveTypeScriptRuntime, checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime } from '../typescript-runtime.ts';
 
 export interface DiagnosticCheck {
   category: string;
@@ -178,7 +178,7 @@ export async function runDiagnostics(store: WorkflowStore, projectRoot: string):
       details: { tickets: tickets.length, epics: epics.length, features: features.length, stories: stories.length, files: files.length, symbols: symbols.length }
     });
 
-    const { RuleStore } = await import('./rules/store.ts');
+    const { RuleStore } = await import('../rules/store.ts');
     const ruleStore = new RuleStore(store);
     const defaultsCheck = await ruleStore.checkDefaultsInstalled();
     if (!defaultsCheck.complete) {

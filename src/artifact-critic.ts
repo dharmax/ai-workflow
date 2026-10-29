@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { loadConfig } from './config.ts';
-import { createDefaultAsker } from './model-runtime.ts';
+import { loadConfig } from './services/config-service.ts';
+import { createDefaultAsker } from './services/model-service.ts';
 import type { ArtifactCritic, CriticInput, CriticResult } from './artifact-policy.ts';
 import { cognitionMetrics } from './performance-metrics.ts';
 

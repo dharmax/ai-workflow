@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {initializeTools, registry} from '../../src/tools/index.ts';
-import {saveConfig} from '../../src/config.ts';
+import {saveConfig} from '../../src/services/config-service.ts';
 import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
 import type {ChangeRequest} from '../../src/change/types.ts';

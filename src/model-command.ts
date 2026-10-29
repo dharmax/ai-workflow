@@ -1,8 +1,8 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui';
-import {inspectConfig, loadConfig, readConfigOverrides, setConfigOverride} from './config.ts';
+import {inspectConfig, loadConfig, readConfigOverrides, setConfigOverride} from './services/config-service.ts';
 import {MODE_CONFIGS, type WorkflowActor} from './helpers/actor/engine.ts';
 import {readModelAdvice} from '@dharmax/llm-utils';
-import {refreshDefaultModelAdvice} from './model-runtime.ts';
+import {refreshDefaultModelAdvice} from './services/model-service.ts';
 
 export async function runModelCommand(projectRoot: string, actor: WorkflowActor, tokens: string[], facilitator?: ParameterFacilitator): Promise<{output: string; view?: ViewRequest} | null> {
   const action = tokens[0] || 'list';

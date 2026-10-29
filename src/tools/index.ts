@@ -21,7 +21,7 @@ import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { registerAspectTools } from './aspects.ts';
 import { registerRuleTools } from './rules.ts';
 import {z} from 'zod';
-import {refreshDefaultModelAdvice} from '../model-runtime.ts';
+import {refreshDefaultModelAdvice} from '../services/model-service.ts';
 
 let initialized = false;
 

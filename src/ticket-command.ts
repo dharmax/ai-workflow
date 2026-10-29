@@ -1,5 +1,5 @@
 import {ParameterFacilitator} from '@dharmax/shell-ui';
-import {loadConfig} from './config.ts';
+import {loadConfig} from './services/config-service.ts';
 import {exportProjections} from './graph/projections.ts';
 import {registry, type ToolContext} from './tools/index.ts';
 

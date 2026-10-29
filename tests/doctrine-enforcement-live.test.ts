@@ -9,7 +9,7 @@ import type { RuleModel } from '../src/rules/types.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
 import { currentTestEvidence } from '../src/graph/test-artifacts.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
-import { loadConfig, saveConfig } from '../src/config.ts';
+import { loadConfig, saveConfig } from '../src/services/config-service.ts';
 import { readVerificationReceipt, type ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { verifyTicketAcceptance } from '../src/ticket/verification.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';

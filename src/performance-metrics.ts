@@ -8,7 +8,7 @@ declare const AIWF_BUILD_REVISION: string;
 declare const AIWF_BUILD_DIRTY: boolean;
 declare const LLM_UTILS_BUILD_REVISION: string;
 declare const LLM_UTILS_BUILD_DIRTY: boolean;
-import { loadConfig } from './config.ts';
+import { loadConfig } from './services/config-service.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
 export type EngineeringCounter = 'artifactVisits' | 'artifactsCreated' | 'artifactsReused' | 'toolCalls' | 'sourceReads' | 'exactSymbolReads' | 'codeEdits' | 'filesTouched' | 'testsRun' | 'testFailures' | 'repairs' | 'criticRounds' | 'criticRevisions' | 'systemOneCalls' | 'reasoningCalls' | 'optionalCandidates' | 'optionalSelected' | 'humanInterventions';

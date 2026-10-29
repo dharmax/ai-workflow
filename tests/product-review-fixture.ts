@@ -1,4 +1,4 @@
-import {saveConfig} from '../src/config.ts';
+import {saveConfig} from '../src/services/config-service.ts';
 import type {WorkflowStore} from '../src/graph/store.ts';
 import {acceptProduct} from './product-review.ts';
 

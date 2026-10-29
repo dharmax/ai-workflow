@@ -1,4 +1,4 @@
-import type { CompletenessLevel } from './artifact-policy.ts';
+import type { CompletenessLevel } from '../artifact-policy.ts';
 /**
  * Responsibility: Project and Global Configuration Management.
  * Scope: Reads and updates .ai-workflow/config.json with global user fallbacks.

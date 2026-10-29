@@ -9,7 +9,7 @@ import os from "node:os"
 import path from "node:path"
 import { LLMSession, ToolAbortError, z, type Asker } from "@dharmax/llm-utils"
 import { WorkflowActor, classifyIntentMode } from "../src/helpers/actor/engine.ts"
-import { saveConfig } from "../src/config.ts"
+import { saveConfig } from "../src/services/config-service.ts"
 import { WorkflowStore } from "../src/graph/store.ts"
 import { initializeTools, registry, type ToolDefinition } from "../src/tools/index.ts"
 describe("WorkflowActor execution boundaries", () => {

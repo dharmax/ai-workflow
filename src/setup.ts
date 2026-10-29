@@ -11,7 +11,7 @@ import { WorkflowStore } from './graph/store.ts';
 import { indexCodebase } from './graph/indexer.ts';
 import { exportProjections } from './graph/projections.ts';
 import { Ticket, Epic } from './graph/ontology.ts';
-import { saveConfig } from './config.ts';
+import { saveConfig } from './services/config-service.ts';
 import { buildMcpSchemas } from './mcp.ts';
 import { initializeTools, registry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';

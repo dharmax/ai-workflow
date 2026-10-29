@@ -11,7 +11,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { UserStory, Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } from '../src/graph/ontology.ts';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence, verifyingTestsForTargets } from '../src/graph/test-artifacts.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';

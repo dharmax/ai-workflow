@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket } from '../src/graph/ontology.ts';
 import { RemoteSystemOne, Asker, LLMActor } from '@dharmax/llm-utils';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 import { queryPerformance, withArtifactMetrics, cognitionMetrics, countEngineering, performanceQueryArgs, performanceEvidenceBundle } from '../src/performance-metrics.ts';
 
 describe('correlated artifact performance telemetry', () => {

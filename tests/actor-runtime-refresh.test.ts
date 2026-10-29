@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { saveConfig } from '../src/config.ts';
+import { saveConfig } from '../src/services/config-service.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
 
 describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {

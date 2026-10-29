@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {configureMcp} from '../src/setup.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {runDiagnostics} from '../src/doctor.ts';
+import {runDiagnostics} from '../src/services/diagnostics-service.ts';
 
 describe('truthful setup', () => {
   let home: string;

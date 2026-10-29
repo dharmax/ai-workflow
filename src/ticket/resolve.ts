@@ -50,7 +50,7 @@ export async function resolveTicket(
             const { ArtifactBudget } = await import("../artifact-policy.ts")
             const { CausalChangeEngine } = await import("../change/engine.ts")
             const { workspacePath } = await import("../change/workspace-path.ts")
-            const { loadConfig } = await import("../config.ts")
+            const { loadConfig } = await import("../services/config-service.ts")
             const { applyProductMutations } = await import("../product/mutation.ts")
             const { initializeTools } = await import("../tools/index.ts")
             const { z } = await import("zod")

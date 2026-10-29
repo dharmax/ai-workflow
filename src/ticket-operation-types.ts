@@ -164,7 +164,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./graph/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
-  const { loadConfig } = await import('./config.ts');
+  const { loadConfig } = await import('./services/config-service.ts');
   const { ensureAstFresh, resolveModulePath } = await import('./graph/indexer.ts');
   const { applicableAspects, assessAspects } = await import('./aspects.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');

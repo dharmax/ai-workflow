@@ -6,7 +6,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { WorkflowActor, pubsub } from '../src/helpers/actor/engine.ts';
-import { resolveCloudCredentials, saveConfig } from '../src/config.ts';
+import { resolveCloudCredentials, saveConfig } from '../src/services/config-service.ts';
 import { FileNode } from '../src/graph/ontology.ts';
 
 const noTools = (mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({

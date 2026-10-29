@@ -4,8 +4,8 @@
  */
 
 import { Asker, LayaSystemOne, ModelRouter, ModelAdviceResearchSchema, parseModelTarget, readModelAdvice, refreshModelAdvice, type ModelAdviceSnapshot, type ModelTarget, type ProviderConfig } from "@dharmax/llm-utils"
-import { inspectConfig, loadConfig, resolveCloudCredentials, type ProjectConfig } from "./config.ts"
-import { budgetedInference, paidProviderAllowed, type PaidUsage } from "./paid-inference.ts"
+import { inspectConfig, loadConfig, resolveCloudCredentials, type ProjectConfig } from "./config-service.ts"
+import { budgetedInference, paidProviderAllowed, type PaidUsage } from "../paid-inference.ts"
 
 export interface ModelRuntime {
     config: ProjectConfig

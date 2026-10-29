@@ -1,6 +1,6 @@
 /** Developer-approved spending bounds around the existing llm-utils completion adapter. */
 import {CompletionEngine,ProviderDiscovery,calculateUsageCost,type ModelInfo,type ModelTarget,type ProviderConfig,type CompletionOptions,type GenerationResult} from '@dharmax/llm-utils';
-import type {ProjectConfig} from './config.ts';
+import type {ProjectConfig} from './services/config-service.ts';
 
 type Policy=ProjectConfig['paidInference'];
 export type PaidUsage={model:string;costUSD:number|null;spentUSD:number;reservedUSD:number;ceilingUSD:number};

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { loadConfig } from './config.ts';
+import { loadConfig } from './services/config-service.ts';
 import type { WorkflowStore } from './graph/store.ts';
 import { Epic, Feature, UserStory, ModuleNode, Ticket, type WorkflowEntity } from './graph/ontology.ts';
 
