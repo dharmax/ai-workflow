@@ -72,12 +72,15 @@ export function sourceChangeFingerprint(preview: ChangePreview, scope: GovernedC
 export async function assertChangeScope(store: WorkflowStore, ticket: Ticket, scope: GovernedChangeScope, preview: ChangePreview,
   request: ChangeRequest, ownedFiles: ReadonlySet<string>, allowDirtyTargets: readonly string[] = [], effectEpoch = 0,
   migrations: readonly {oldId: string; newId: string}[] = []): Promise<void> {
+  const operationFile = request.action === 'rename_file' ? workspacePath(store.root, request.oldPath)
+    : request.action === 'rename_symbol' || request.action === 'refactor' ? workspacePath(store.root, preview.resolvedTarget!.filePath) : undefined;
   const statePath = '.ai-workflow';
-  for (const file of preview.affectedFiles) {
+  for (const file of new Set([...preview.affectedFiles, ...(operationFile ? [operationFile] : [])])) {
     const relative = workspacePath(store.root, file);
     if (relative === '.git' || relative.startsWith('.git/') || relative === statePath || relative.startsWith(statePath + path.sep))
       throw Error('Source changes cannot mutate canonical workflow, Git or governance state.');
-    if (!scope.authorizedFiles.includes(relative)) {
+    // Authorize the requested refactoring target; LSP owns its generated effects.
+    if ((!operationFile || relative === operationFile) && !scope.authorizedFiles.includes(relative)) {
       if (!scope.authoredFiles.includes(relative)) throw Error(`Scope expansion requires input: ${relative}`);
       let authorized = false;
       for (const target of scope.authoredTargets.filter(target => target.kind === 'SymbolNode' && target.filePath === relative)) {
@@ -107,7 +110,7 @@ export async function assertChangeScope(store: WorkflowStore, ticket: Ticket, sc
   }
   for (const file of preview.affectedFiles) {
     const relative = workspacePath(store.root, file);
-    const expected = [...scope.effects.slice(effectEpoch)].reverse().find(effect => relative in effect.after)?.after[relative] ?? scope.baselines[relative];
+    const expected = [...scope.effects.slice(effectEpoch)].reverse().find(effect => relative in effect.after)?.after[relative] ?? scope.baselines[relative] ?? (operationFile ? preview.originalHashes[relative] : undefined);
     if (expected !== hashFiles(store.root, [relative])[relative]) throw Error(`Unexpected concurrent source modification: ${relative}`);
     if (dirty.has(relative) && !ownedFiles.has(relative) && !allowDirtyTargets.includes(relative)) throw Error(`Dirty target requires input: ${relative}`);
   }

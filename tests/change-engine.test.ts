@@ -265,3 +265,84 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
     });
   });
 });
+
+describe('Governed LSP operation scope', () => {
+  let root: string, store: WorkflowStore;
+  const ctx = () => ({store, projectRoot: root, executionAuthority: 'project-write' as const});
+  const preview = (request: import('../src/change/types.ts').ChangeRequest, agentId = 'operator') =>
+    registry.execute('preview_change', {...request, ticketId: 'LSP', agentId}, ctx());
+  const apply = (request: import('../src/change/types.ts').ChangeRequest, fingerprint: string, agentId = 'operator') =>
+    registry.execute('apply_change', {request, fingerprint, ticketId: 'LSP', agentId}, ctx());
+  beforeEach(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-lsp-scope-'));
+    fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({compilerOptions: {module: 'ESNext', moduleResolution: 'bundler', target: 'ESNext'}}));
+    fs.writeFileSync(path.join(root, 'a.ts'), 'export function calculate(value: number) {\n  const doubled = value * 2;\n  return doubled + 1;\n}\n');
+    fs.writeFileSync(path.join(root, 'b.ts'), 'import { calculate } from "./a";\nexport const answer = calculate(20);\n');
+    Bun.spawnSync(['git', 'init', '-q'], {cwd: root});
+    Bun.spawnSync(['git', 'add', '.'], {cwd: root});
+    Bun.spawnSync(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture'], {cwd: root});
+    store = new WorkflowStore(root); initializeTools();
+    await ensureAstFresh(store, root);
+    const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {id: 'LSP', title: 'Refactor calculate', lane: 'Todo', acceptanceCriteria: ['Preserve behavior']});
+    await store.relate(ticket, 'modifies', (await store.getEntity('a.ts', 'FileNode'))!);
+    await registry.execute('claim_ticket', {ticketId: 'LSP', agentId: 'operator'}, ctx());
+  });
+  afterEach(async () => {await closeAllTsLspClients(); await closeAllTs6RefactorClients(); store.close(); fs.rmSync(root, {recursive: true, force: true});});
+
+  for (const request of [
+    {action: 'rename_file', oldPath: 'a.ts', newPath: 'nested/moved.ts'},
+    {action: 'rename_symbol', target: {type: 'symbol', filePath: 'a.ts', symbolName: 'calculate'}, newName: 'compute'},
+    {action: 'refactor', target: {type: 'symbol', filePath: 'a.ts', symbolName: 'calculate'}, refactorKind: 'refactor.move.newFile', actionName: 'Move to a new file'},
+    {action: 'refactor', target: {type: 'range', filePath: 'a.ts', startLine: 1, startCharacter: 2, endLine: 2, endCharacter: 21}, refactorKind: 'extract', actionName: 'Extract to function in module scope'}
+  ] satisfies import('../src/change/types.ts').ChangeRequest[]) it(`authorizes ${request.action} ${'refactorKind' in request ? request.refactorKind : ''} once and applies exact LSP effects`, async () => {
+    const before = fs.readFileSync(path.join(root, 'b.ts'), 'utf8');
+    const p = await preview(request); expect(p.blocked).toBe(false);
+    expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toBe(before);
+    if (request.action !== 'refactor' || request.refactorKind.includes('move')) expect(p.affectedFiles).toContain('b.ts');
+    const result = await apply(request, p.fingerprint); expect(result.ok).toBe(true);
+    expect(result.filesTouched.every((file: string) => p.affectedFiles.includes(file))).toBe(true);
+    if (request.action === 'rename_file') {
+      expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
+      expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toContain('./nested/moved');
+    }
+    if (request.action === 'rename_symbol') expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toContain('compute(20)');
+  });
+
+  it('rejects unauthorized operations and manual edits outside authored scope', async () => {
+    for (const request of [
+      {action: 'rename_file', oldPath: 'b.ts', newPath: 'other.ts'},
+      {action: 'rename_symbol', target: {type: 'symbol', filePath: 'b.ts', symbolName: 'answer'}, newName: 'result'},
+      {action: 'replace_text', filePath: 'b.ts', oldText: '20', newText: '21'},
+      {action: 'source_change', changes: [{action: 'replace_text', filePath: 'a.ts', oldText: '2', newText: '3'}, {action: 'replace_text', filePath: 'b.ts', oldText: '20', newText: '21'}]}
+    ] satisfies import('../src/change/types.ts').ChangeRequest[]) {
+      let failure: unknown;
+      try {await preview(request);} catch (error) {failure = error;}
+      expect(String(failure)).toContain('Scope expansion');
+    }
+  });
+
+  it('retains lease, dirty generated-file and stale preview protection', async () => {
+    const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'moved.ts'};
+    let failure: unknown;
+    try {await preview(request, 'intruder');} catch (error) {failure = error;}
+    expect(String(failure)).toContain('lease');
+    const p = await preview(request);
+    fs.appendFileSync(path.join(root, 'b.ts'), '// user work\n');
+    failure = undefined;
+    try {await apply(request, p.fingerprint);} catch (error) {failure = error;}
+    expect(String(failure)).toContain('Stale');
+    failure = undefined;
+    try {await preview(request);} catch (error) {failure = error;}
+    expect(String(failure)).toContain('Dirty target');
+    expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(false);
+  });
+
+  it('rejects escaped and protected destinations', async () => {
+    for (const newPath of ['../escape.ts', '.git/moved.ts', '.ai-workflow/moved.ts']) {
+      try {const p = await preview({action: 'rename_file', oldPath: 'a.ts', newPath}); expect(p.blocked).toBe(true);}
+      catch (error) {expect(String(error)).toMatch(/workspace|canonical workflow/);}
+    }
+    expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(true);
+  });
+});
