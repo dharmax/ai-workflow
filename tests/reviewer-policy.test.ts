@@ -97,7 +97,7 @@ for(const scenario of ['corrected','exhausted','negative'] as const) it(`definit
     const fs=await import('node:fs'),os=await import('node:os'),path=await import('node:path');
     const {WorkflowStore}=await import('../src/graph/store.ts');
     const {saveConfig}=await import('../src/services/config-service.ts');
-    const {AiArtifactCritic}=await import('../src/artifact-critic.ts');
+    const {AiArtifactCritic}=await import('../src/services/artifact-critic.ts');
     const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-critic-identity-')),store=new WorkflowStore(root),prompts:string[]=[];
     const criterion='Review the complete current definition against every charter boundary.';
     try {

@@ -16,7 +16,7 @@ import {
 } from '../src/ticket-operation-types.ts';
 import { verifyTicketAcceptance } from '../src/ticket/verification.ts';
 import { currentTestEvidence } from '../src/graph/test-artifacts.ts';
-import { buildVerificationContext } from '../src/verification-context.ts';
+import { buildVerificationContext } from '../src/helpers/verification-context.ts';
 
 describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
   let root: string, store: WorkflowStore, rules: RuleStore, ticket: Ticket;

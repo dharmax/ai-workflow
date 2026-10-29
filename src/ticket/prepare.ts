@@ -25,7 +25,7 @@ export async function prepareTicket(
         recordMetricCompleteness(dossier.completeness)
         const { TicketPreparationProposalSchema } = await import("../ticket-operation-types.ts")
         const { resolveArtifactCritic, ArtifactBudget } = await import("../artifact-policy.ts")
-        const { AiArtifactCritic, CriticResultSchema } = await import("../artifact-critic.ts")
+        const { AiArtifactCritic, CriticResultSchema } = await import("../services/artifact-critic.ts")
         const { loadConfig } = await import("../services/config-service.ts")
         const { CausalChangeEngine } = await import("../change/engine.ts")
         const cfg = loadConfig(store.root),

@@ -27,7 +27,7 @@ export function processIntent(
         async () => {
             const { IntentProposalSchema } = await import("../product/process-types.ts")
             const { ArtifactBudget, resolveArtifactCritic } = await import("../artifact-policy.ts")
-            const { AiArtifactCritic, CriticResultSchema } = await import("../artifact-critic.ts")
+            const { AiArtifactCritic, CriticResultSchema } = await import("../services/artifact-critic.ts")
             const { loadConfig } = await import("../services/config-service.ts")
             const { getCoverage } = await import("../product/coverage.ts")
             const { getProductImpact } = await import("../product/impact.ts")

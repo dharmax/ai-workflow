@@ -22,7 +22,7 @@ import type {
 } from "../ticket-operation-types.ts"
 import { canonical } from "../kb/canonical.ts"
 import path from "node:path"
-import { createActorTokenBudgetPolicy } from "../actor-budget-policy.ts"
+import { createActorTokenBudgetPolicy } from "../helpers/actor/budget-policy.ts"
 import {
     withArtifactMetrics,
     countEngineering,

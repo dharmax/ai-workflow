@@ -10,7 +10,7 @@ import {hashFiles,currentTestEvidence} from './test-artifacts.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import {ticketVerificationSignature} from '../ticket-operation-types.ts';
-import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../verification-context.ts';
+import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../helpers/verification-context.ts';
 import type {TicketDossier} from '../ticket-operation-types.ts';
 import type {ChangePreview,ChangeApplyResult} from '../change/types.ts';
 
@@ -115,7 +115,7 @@ export async function readTechnicalProof(store:WorkflowStore,ticketId:string):Pr
 
 /** A bounded view of the real dossier; every source and test identity belongs to this scope's project. */
 export async function technicalScopeContext(store:WorkflowStore,dossier:TicketDossier,scope:TechnicalProof['scopes'][number]){
- const files:Array<import('../verification-context.ts').VerificationFileContext & {projectRoot:string}>=[];
+ const files:Array<import('../helpers/verification-context.ts').VerificationFileContext & {projectRoot:string}>=[];
  const evidenceIds:string[]=[];
  for(const root of new Set([scope.projectRoot,...scope.sources.map(source=>source.projectRoot??scope.projectRoot)])){
   const context=await withProofProject(store,root,async owner=>{

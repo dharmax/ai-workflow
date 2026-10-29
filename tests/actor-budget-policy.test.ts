@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'bun:test'
-import {createActorTokenBudgetPolicy} from '../src/actor-budget-policy.ts'
+import {createActorTokenBudgetPolicy} from '../src/helpers/actor/budget-policy.ts'
 
 const request = (overrides: Partial<Parameters<ReturnType<typeof createActorTokenBudgetPolicy>>[0]> = {}) => ({
   requiredTokens: 900,

@@ -1,10 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type {WorkflowStore} from './graph/store.ts'
-import {SymbolNode, type TestNode} from './model/ontology.ts'
-import type {TicketDossier} from './ticket-operation-types.ts'
-import {getExactSymbolSource} from './change/symbol-source.ts'
-import {normalizeTestPath} from './graph/test-artifacts.ts'
+import type {WorkflowStore} from '../graph/store.ts'
+import {SymbolNode, type TestNode} from '../model/ontology.ts'
+import type {TicketDossier} from '../ticket-operation-types.ts'
+import {getExactSymbolSource} from '../change/symbol-source.ts'
+import {normalizeTestPath} from '../graph/test-artifacts.ts'
 
 export const DEFAULT_VERIFICATION_CONTEXT_CHARS = 64_000
 const SMALL_FILE_CHARS = 8_000

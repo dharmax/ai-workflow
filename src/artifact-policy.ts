@@ -29,7 +29,7 @@ export interface CriticInput {
 export type CriticResult = (
   | { verdict: 'accept'; findings?: CriticFinding[] }
   | { verdict: 'revise' | 'reject'; findings: CriticFinding[] }
-  | { verdict: 'needs_input'; required: RequiredInput[] }) & {alignment?: import('./artifact-critic.ts').CharterAlignment};
+  | { verdict: 'needs_input'; required: RequiredInput[] }) & {alignment?: import('./services/artifact-critic.ts').CharterAlignment};
 export interface ArtifactCritic { readonly id: string; review(input: CriticInput): Promise<CriticResult> }
 export interface ArtifactOperationOptions {
   /** Internal execution cancellation; deliberately not part of the transport schema. */

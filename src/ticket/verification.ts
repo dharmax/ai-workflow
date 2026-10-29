@@ -31,7 +31,7 @@ import {
 } from "../ticket-operation-types.ts"
 import type { loadConfig } from "../services/config-service.ts"
 import {prepareReviewer, recordReviewerResult} from "./reviewer.ts"
-import { buildVerificationContext } from "../verification-context.ts"
+import { buildVerificationContext } from "../helpers/verification-context.ts"
 import { countEngineering, cognitionMetrics, traceResolution } from "../performance-metrics.ts"
 
 type CheckResults = Pick<ResolutionVerificationInput, 'tests' | 'testNodes'> & {evidenceComplete: boolean}
