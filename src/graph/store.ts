@@ -812,11 +812,14 @@ export class WorkflowStore {
     const query = {sourceId: src?.id || sourceId, predicateName, targetId: tgt?.id || targetId};
     if (src instanceof Ticket || [src, tgt].some(entity => entity && ['Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(entity.typeName())) ||
       predicateName === 'contains' && (src instanceof FileNode || src instanceof SymbolNode) && tgt instanceof SymbolNode) {
-      const rows = await pCol.findSome<{_id: string; _version: number}>(query);
+      const rows = await pCol.findSome<{_id: string; _version: number; payload?: {state?: string}}>(query);
       if (!rows.length) return 0;
       const changes = rows.map(row => ({collectionName: pCol.name, id: row._id, expectedVersion: row._version, record: null}));
       const indexed = this.indexingContext();
-      if (predicateName === 'contains' && tgt instanceof SymbolNode && indexed?.files.includes(tgt.filePath!)) await this.commitIndexedOwnership(changes);
+      const derivedImport = src instanceof FileNode && tgt instanceof ModuleNode &&
+        ['imports', 'depends_on'].includes(predicateName) && indexed?.files.includes(this.localId(src.id)) &&
+        rows.every(row => row.payload?.state === 'derived');
+      if (derivedImport || predicateName === 'contains' && tgt instanceof SymbolNode && indexed?.files.includes(tgt.filePath!)) await this.commitIndexedOwnership(changes);
       else await this.commitGovernance(changes);
       return rows.length;
     }

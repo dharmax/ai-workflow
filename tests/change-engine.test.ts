@@ -266,6 +266,70 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
   });
 });
 
+describe('Public CLI file move with external imports', () => {
+  let root: string;
+  const cli = path.resolve(import.meta.dir, '../src/cli.ts');
+  beforeEach(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-cli-external-move-'));
+    fs.mkdirSync(path.join(root, 'node_modules/external-lib'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({dependencies: {'external-lib': 'file:./node_modules/external-lib'}}));
+    fs.writeFileSync(path.join(root, 'node_modules/external-lib/package.json'), JSON.stringify({name: 'external-lib', main: 'index.ts'}));
+    fs.writeFileSync(path.join(root, 'node_modules/external-lib/index.ts'), 'export const value = 42;\n');
+    fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({compilerOptions: {module: 'ESNext', moduleResolution: 'bundler', target: 'ESNext'}}));
+    fs.writeFileSync(path.join(root, 'a.ts'), 'import {value} from "external-lib";\nexport const answer = value;\n');
+    fs.writeFileSync(path.join(root, 'b.ts'), 'export {answer} from "./a";\n');
+    fs.writeFileSync(path.join(root, '.gitignore'), 'node_modules/\n.ai-workflow/\n');
+    for (const args of [['init', '-q'], ['add', '.'], ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture']]) {
+      expect(Bun.spawnSync(['git', ...args], {cwd: root}).success).toBe(true);
+    }
+    const store = new WorkflowStore(root);
+    try {
+      initializeTools();
+      await ensureAstFresh(store, root);
+      const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {id: 'CLI-MOVE', title: 'Move external importer', body: '', lane: 'Todo', acceptanceCriteria: ['Preserve external imports and public exports']});
+      await store.relate(ticket, 'modifies', (await store.getEntity('a.ts', 'FileNode'))!);
+      await registry.execute('claim_ticket', {ticketId: 'CLI-MOVE', agentId: 'operator'}, {store, projectRoot: root, executionAuthority: 'project-write'});
+      expect((await store.getOutgoing('a.ts', 'imports')).some(edge => edge.targetType === 'ModuleNode')).toBe(true);
+    } finally { store.close(); }
+  });
+  afterEach(() => fs.rmSync(root, {recursive: true, force: true}));
+
+  it('moves through preview/apply CLI processes, persists effects and preserves public exports', async () => {
+    const run = async (args: string[]) => {
+      const child = Bun.spawn(['bun', cli, ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
+      const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+      expect({code, stderr}).toEqual({code: 0, stderr: ''});
+      return JSON.parse(stdout);
+    };
+    for (const [oldPath, newPath] of [['a.ts', 'nested/moved.ts']]) {
+      const request = {action: 'rename_file', oldPath, newPath};
+      const p = await run(['source', 'change', 'preview', JSON.stringify(request), '--ticket', 'CLI-MOVE', '--agent', 'operator']);
+      expect(p.blocked).toBe(false);
+      expect(fs.existsSync(path.join(root, oldPath!))).toBe(true);
+      const result = await run(['source', 'change', 'apply', JSON.stringify(request), '--ticket', 'CLI-MOVE', '--agent', 'operator', '--fingerprint', p.fingerprint]);
+      expect(result.ok).toBe(true);
+      expect(result.verification.passed).toBe(true);
+      expect(result.filesRenamed).toEqual([{from: oldPath, to: newPath}]);
+      expect(fs.existsSync(path.join(root, oldPath!))).toBe(false);
+      expect(fs.readFileSync(path.join(root, newPath!), 'utf8')).toContain('from "external-lib"');
+      const store = new WorkflowStore(root);
+      try {
+        const target = (await store.getEntity(newPath!, 'FileNode'))!;
+        expect(target).not.toBeNull();
+        expect(await store.getOutgoing(oldPath!, 'imports')).toEqual([]);
+        expect((await store.getOutgoing(newPath!, 'imports')).some(edge => edge.targetType === 'ModuleNode')).toBe(true);
+        const ticket = (await store.getEntity<Ticket>('CLI-MOVE', Ticket.dcr))!;
+        expect((await store.getOutgoing(ticket.id, 'modifies')).map(edge => edge.targetId)).toContain(target.id);
+        const scope = (ticket as Ticket & {metadata: {governedScope: {effects: Array<{fingerprint: string; after: Record<string, string>}>}}}).metadata.governedScope;
+        expect(scope.effects.at(-1)?.fingerprint).toBe(p.fingerprint);
+        expect(scope.effects.at(-1)?.after[oldPath!]).toBe('missing');
+      } finally { store.close(); }
+    }
+    expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toContain('./nested/moved');
+    expect((await import(path.join(root, 'b.ts'))).answer).toBe(42);
+  }, 30000);
+});
+
 describe('Governed LSP operation scope', () => {
   let root: string, store: WorkflowStore;
   const ctx = () => ({store, projectRoot: root, executionAuthority: 'project-write' as const});
@@ -336,6 +400,41 @@ describe('Governed LSP operation scope', () => {
     expect(String(failure)).toContain('Dirty target');
     expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(false);
+  });
+
+  it('keeps authored and out-of-scope module relations behind exclusive governance admission', async () => {
+    const {ModuleNode} = await import('../src/graph/ontology.ts');
+    const module = await store.upsertEntity(ModuleNode.dcr, {id: 'mod:dependency', title: 'dependency', path: 'dependency', status: 'implemented'});
+    const file = (await store.getEntity('a.ts', 'FileNode'))!;
+    for (const state of ['authored', 'derived']) {
+      await store.relate(file, 'imports', module, {state});
+      const admission = await store.admitGovernance('governed');
+      try {
+        let failure: unknown;
+        try {
+          await store.withGovernedIndexing(admission, state === 'authored' ? ['a.ts'] : ['b.ts'],
+            () => store.unrelate(file.id, 'imports', module.id));
+        } catch (error) {failure = error;}
+        expect(String(failure)).toContain('Governance admission conflict');
+        expect((await store.getOutgoing(file.id, 'imports')).some(edge => edge.targetId === module.id)).toBe(true);
+      } finally {await store.releaseGovernance(admission);}
+      await store.unrelate(file.id, 'imports', module.id);
+    }
+  });
+
+  it('reports post-write failures as partial application with the nested cause', async () => {
+    const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'moved.ts'};
+    const p = await preview(request);
+    const original = store.withGovernedIndexing;
+    store.withGovernedIndexing = async () => {throw new Error('Index cleanup failed', {cause: new Error('injected persistence failure')});};
+    let failure: unknown;
+    try {await apply(request, p.fingerprint);} catch (error) {failure = error;}
+    finally {store.withGovernedIndexing = original;}
+    expect(String(failure)).toContain('PARTIALLY APPLIED: filesystem changes committed');
+    expect(String(failure)).toContain('Index cleanup failed Caused by: injected persistence failure');
+    expect(String(failure)).toContain('Do not reapply');
+    expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(true);
   });
 
   it('rejects escaped and protected destinations', async () => {
