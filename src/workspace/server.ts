@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { registry, initializeTools } from '../tools/index.ts';
 import type { ToolContext } from '../tools/registry.ts';
 import { ProductMutationSchema, ProductRevisionSchema } from '../product/mutation.ts';
-import { workspacePage } from './page.ts';
+import { workspacePage } from '../ui/workspace/page.ts';
 import { IntentProposalSchema } from '../product/process-types.ts';
 import { Product, ModuleNode } from '../graph/ontology.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';

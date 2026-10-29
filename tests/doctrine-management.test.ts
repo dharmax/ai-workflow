@@ -6,7 +6,7 @@ import {Artifact} from '../src/graph/ontology.ts';
 import type {RuleModel} from '../src/rules/types.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {getPublicMcpTools} from '../src/tools/surface.ts';
-import {buildEntityView, saveEntityView} from '../src/entity-view.ts';
+import {buildEntityView, saveEntityView} from '../src/ui/entity-view.ts';
 import {runRuleCommand} from '../src/rule-command.ts';
 import {resolveRuleReference, validateReferenceSnapshot} from '../src/rules/references.ts';
 import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';

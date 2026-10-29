@@ -29,7 +29,7 @@ import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult} from './config-command.ts';
 import {runTicketCommand} from './ticket-command.ts';
 import {runRuleCommand} from './rule-command.ts';
-import {buildEntityView, formatEntityView} from './entity-view.ts';
+import {buildEntityView, formatEntityView} from './ui/entity-view.ts';
 import {ProcessViewport} from '@dharmax/shell-ui';
 import { KnowledgeBaseClient } from './kb/client.ts';
 import { closeAllTsLspClients } from './change/ts-lsp.ts';

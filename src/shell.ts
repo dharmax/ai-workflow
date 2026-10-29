@@ -40,7 +40,7 @@ import {runConfigCommand, formatConfigResult, configView} from './config-command
 import {runRuleCommand} from './rule-command.ts';
 import {runTicketCommand, TICKET_COMMANDS, type TicketCommand} from './ticket-command.ts';
 import {runSetupCommand, formatSetupResult, setupView} from './setup-command.ts';
-import { buildEntityView, resolveEntityViewKind, saveEntityView, facilitateEntityId, formatEntityView, type EntityViewKind } from './entity-view.ts';
+import { buildEntityView, resolveEntityViewKind, saveEntityView, facilitateEntityId, formatEntityView, type EntityViewKind } from './ui/entity-view.ts';
 
 export interface ShellSession {
   store: WorkflowStore;

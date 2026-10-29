@@ -1,7 +1,7 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
-import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from './graph/ontology.ts'
-import type {ToolContext} from './tools/index.ts'
-import {registry} from './tools/index.ts'
+import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from '../graph/ontology.ts'
+import type {ToolContext} from '../tools/index.ts'
+import {registry} from '../tools/index.ts'
 
 export type EntityViewKind = 'ticket' | 'epic' | 'feature' | 'story' | 'aspect' | 'rule'
 

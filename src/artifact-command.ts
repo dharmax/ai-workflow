@@ -10,7 +10,7 @@ import {LinkActionSchema,type LinkAction,type DefinitionReviewInput} from './pro
 import {normalizeLinkPayload} from './product/mutation.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';
 import type {ToolContext} from './tools/index.ts';
-import {facilitateEntityId, type EntityViewKind} from './entity-view.ts';
+import {facilitateEntityId, type EntityViewKind} from './ui/entity-view.ts';
 import { ArtifactTransportOptionsSchema, CompletenessSchema } from './artifact-policy.ts';
 
 export const ARTIFACT_HELP = `Delegate artifact work first:
