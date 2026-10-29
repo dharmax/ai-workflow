@@ -6,12 +6,12 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Feature, UserStory, Aspect, Decision, FileNode, SymbolNode, ModuleNode } from '../src/graph/ontology.ts';
 import { RuleStore } from '../src/rules/store.ts';
-import { buildSynthesisContext } from '../src/synthesis/context-builder.ts';
+import { buildSynthesisContext } from '../src/helpers/synthesis/context-builder.ts';
 import { buildIntentContext } from '../src/product/context.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import type { TicketDossier } from '../src/ticket-operation-types.ts';
 import type { Asker } from '@dharmax/llm-utils';
-import type { SynthesisEvidence, VerificationExpectation } from '../src/synthesis/types.ts';
+import type { SynthesisEvidence, VerificationExpectation } from '../src/helpers/synthesis/types.ts';
 import { renderImplementationGoal } from '../src/ticket/prompts.ts';
 
 describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery', () => {
@@ -289,7 +289,7 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
   });
 
   it('delivers real Ticket governance to implementation and synthesis payloads without promoting candidates', async () => {
-    const { HostSourceSynthesizer } = await import('../src/synthesis/synthesizer.ts');
+    const { HostSourceSynthesizer } = await import('../src/helpers/synthesis/synthesizer.ts');
 
     // 1. Author source file with exact target
     const targetFile = 'calc.ts';

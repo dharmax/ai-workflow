@@ -13,7 +13,7 @@ import { CodeChangeRequestSchema } from "../tools/change.ts"
 import { registry } from "../tools/registry.ts"
 import { createDefaultAsker } from "../model-runtime.ts"
 import type { loadConfig } from "../config.ts"
-import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../synthesis/index.ts"
+import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../helpers/synthesis/index.ts"
 import { canonical } from "../kb/canonical.ts"
 import { cognitionMetrics, countEngineering, traceResolution } from "../performance-metrics.ts"
 

@@ -5,8 +5,8 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket } from '../src/graph/ontology.ts';
 import { applyProductMutations } from '../src/product/mutation.ts';
-import { buildSynthesisContext } from '../src/synthesis/context-builder.ts';
-import { HostSourceSynthesizer } from '../src/synthesis/synthesizer.ts';
+import { buildSynthesisContext } from '../src/helpers/synthesis/context-builder.ts';
+import { HostSourceSynthesizer } from '../src/helpers/synthesis/synthesizer.ts';
 
 function createMockAsker(payload: any) {
   const recorded = { lastUserPrompt: undefined as string | undefined, lastSystemPrompt: undefined as string | undefined };

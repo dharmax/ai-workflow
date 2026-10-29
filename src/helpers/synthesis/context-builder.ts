@@ -4,7 +4,7 @@
  * Scope: Host-owned context construction for J3.4.
  */
 
-import type { TicketDossier } from '../ticket-operation-types.ts';
+import type { TicketDossier } from '../../ticket-operation-types.ts';
 import type {
   SynthesisContext,
   SynthesisEvidence,
