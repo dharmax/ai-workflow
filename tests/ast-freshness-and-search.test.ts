@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { FileNode, SymbolNode, ModuleNode } from '../src/graph/ontology.ts';
+import { FileNode, SymbolNode, ModuleNode } from '../src/model/ontology.ts';
 import { indexCodebase, ensureAstFresh } from '../src/graph/indexer.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { processShellInput } from '../src/shell.ts';

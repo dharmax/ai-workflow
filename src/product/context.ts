@@ -18,7 +18,7 @@ import {
     Aspect,
     TestNode,
     Artifact
-} from "../graph/ontology.ts"
+} from "../model/ontology.ts"
 import { LayaSystemOne } from "@dharmax/llm-utils"
 import { applicableAspects, assessAspects } from "../aspects.ts"
 import type { CompletenessLevel } from "../artifact-policy.ts"

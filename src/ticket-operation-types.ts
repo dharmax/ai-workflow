@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { canonical } from './kb/canonical.ts';
 import type { WorkflowStore } from './graph/store.ts';
-import type { Ticket, WorkflowEntity } from './graph/ontology.ts';
+import type { Ticket, WorkflowEntity } from './model/ontology.ts';
 import type { CompletenessLevel } from './artifact-policy.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
@@ -27,7 +27,7 @@ export const InvestigationJudgmentSchema = z.object({
 export type InvestigationJudgment = z.infer<typeof InvestigationJudgmentSchema>;
 export interface TicketDossier {
   history?: Awaited<ReturnType<typeof import('./services/journal-service.ts').ticketHistoryContext>>;
-  ticket: { id: string; title: string; body: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./graph/types.ts').TicketDefect };
+  ticket: { id: string; title: string; body: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./model/types.ts').TicketDefect };
   disposition: InvestigationJudgment['disposition']; rationale: string;
   evidence: TicketEvidence[];
   findings?: string[];
@@ -59,7 +59,7 @@ export const TicketPreparationProposalSchema = z.object({
 export type TicketPreparationProposal = z.infer<typeof TicketPreparationProposalSchema>;
 export interface PreparationOptions extends InvestigationOptions {
   /** Exact enclosing execution lease; never supplied by the model transport. */
-  owner?: import("./graph/types.ts").TicketClaim;
+  owner?: import("./model/types.ts").TicketClaim;
   agentId?: string;
   propose?: (dossier: TicketDossier, findings: readonly CriticFinding[]) => Promise<TicketPreparationProposal>;
 }
@@ -161,7 +161,7 @@ export interface TicketGovernance {
 /** One effective Ticket governance view for investigation, production, verification and proof reuse. */
 export async function resolveTicketGovernance(store: WorkflowStore, ticket: WorkflowEntity, files: readonly string[] = [],
   prior?: Pick<TicketGovernance, 'targets' | 'decisions'>, options: {refreshIndex?: boolean} = {}): Promise<TicketGovernance> {
-  const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./graph/ontology.ts');
+  const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./model/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
   const { loadConfig } = await import('./services/config-service.ts');
@@ -179,12 +179,12 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
     if (entity) entities.push(entity);
   }
   for (const filePath of files) {
-    const file = await store.getEntity<import('./graph/ontology.ts').FileNode>(filePath, FileNode.dcr);
+    const file = await store.getEntity<import('./model/ontology.ts').FileNode>(filePath, FileNode.dcr);
     if (file && !entities.some(entity => entity.id === file.id)) entities.push(file);
   }
-  const owners = new Map<string, import('./graph/ontology.ts').ModuleNode>();
+  const owners = new Map<string, import('./model/ontology.ts').ModuleNode>();
   const ownership = new Map<string, string[]>();
-  const sourceFiles = new Map<string, import('./graph/ontology.ts').FileNode | null>();
+  const sourceFiles = new Map<string, import('./model/ontology.ts').FileNode | null>();
   for (const entity of entities) if (entity instanceof FileNode || entity instanceof SymbolNode) {
     const filePath = entity instanceof FileNode ? store.localId(entity.id) : entity.filePath!;
     sourceFiles.set(filePath, entity instanceof FileNode ? entity : await store.getEntity(filePath, FileNode.dcr));
@@ -193,13 +193,13 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   for (const [filePath, file] of sourceFiles) {
     const modules: string[] = [];
     if (file) for (const edge of await store.getIncoming(file.id, 'contains')) {
-      const owner = await store.getEntity<import('./graph/ontology.ts').ModuleNode>(edge.sourceId, ModuleNode.dcr);
+      const owner = await store.getEntity<import('./model/ontology.ts').ModuleNode>(edge.sourceId, ModuleNode.dcr);
       if (owner) { owners.set(owner.id, owner); modules.push(store.localId(owner.id)); }
     }
     else {
       // Retain the original ownership of attributable deletion/rename endpoints; resolve Rules live.
       for (const moduleId of prior?.targets.find(target => target.filePath === filePath)?.moduleIds ?? [`mod:${resolveModulePath(filePath)}`]) {
-        const owner = await store.getEntity<import('./graph/ontology.ts').ModuleNode>(moduleId, ModuleNode.dcr);
+        const owner = await store.getEntity<import('./model/ontology.ts').ModuleNode>(moduleId, ModuleNode.dcr);
         if (!owner && prior?.targets.some(target => target.exists && target.filePath === filePath && target.moduleIds.includes(moduleId)))
           throw Error(`Governed endpoint owner '${moduleId}' disappeared.`);
         if (owner) owners.set(owner.id, owner);
@@ -210,29 +210,29 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   }
   const subjects = [ticket, ...entities, ...owners.values()];
   const meaning = await collectProductMeaning(subjects, store);
-  const selectedAspects = new Map<string, import('./graph/ontology.ts').Aspect>();
+  const selectedAspects = new Map<string, import('./model/ontology.ts').Aspect>();
   for (const subject of [ticket, ...owners.values()])
     for (const aspect of await applicableAspects(subject, store)) selectedAspects.set(aspect.id, aspect);
   const aspects = await assessAspects(ticket, store, [...selectedAspects.values()].sort((a, b) => a.id.localeCompare(b.id)));
   const codeSubjects = [...entities];
   for (const file of sourceFiles.values()) if (file) for (const edge of await store.getOutgoing(file.id, 'contains')) {
-    const symbol = await store.getEntity<import('./graph/ontology.ts').SymbolNode>(edge.targetId, SymbolNode.dcr);
+    const symbol = await store.getEntity<import('./model/ontology.ts').SymbolNode>(edge.targetId, SymbolNode.dcr);
     if (symbol) codeSubjects.push(symbol);
   }
   for (const retained of prior?.decisions ?? []) {
-    const decision = await store.getEntity<import('./graph/ontology.ts').Decision>(retained.id, Decision.dcr);
+    const decision = await store.getEntity<import('./model/ontology.ts').Decision>(retained.id, Decision.dcr);
     if (!decision) throw Error(`Governing Decision '${retained.id}' disappeared.`);
     entities.push(decision);
   }
   for (const subject of [...codeSubjects, ...owners.values()]) for (const edge of await store.getIncoming(subject.id, 'governs')) {
-    const decision = await store.getEntity<import('./graph/ontology.ts').Decision>(edge.sourceId, Decision.dcr);
+    const decision = await store.getEntity<import('./model/ontology.ts').Decision>(edge.sourceId, Decision.dcr);
     if (decision) entities.push(decision);
   }
   const decisions = new Map<string, TicketGovernance['decisions'][number]>();
   for (const entity of [...entities, ...meaning.map(item => item.entity),
     ...await Promise.all(aspects.aspects.flatMap(aspect => aspect.decisions).map(id => store.getEntity(id)))]) {
     if (!(entity instanceof Decision) || ['draft', 'proposed', 'deprecated', 'disabled'].includes(String((entity as {status?: string}).status))) continue;
-    const data = entity as import('./graph/ontology.ts').Decision & { body?: string; status?: string };
+    const data = entity as import('./model/ontology.ts').Decision & { body?: string; status?: string };
     decisions.set(store.localId(entity.id), { id: store.localId(entity.id), decision: data.decision,
       context: data.context, consequences: data.consequences, body: data.body, status: data.status });
   }
@@ -334,7 +334,7 @@ export function ruleAcceptanceFailures(
 
 /** Fingerprint the authored contract and applicable governance, not unrelated advisory records. */
 export async function ticketVerificationSignature(store: WorkflowStore, ticket: Ticket, completeness?: CompletenessLevel, migrations: readonly {oldId: string; newId: string}[] = [], governance?: TicketGovernance) {
-  const {FileNode, SymbolNode, UserStory} = await import('./graph/ontology.ts');
+  const {FileNode, SymbolNode, UserStory} = await import('./model/ontology.ts');
   const targets = new Set<string>();
   const addressedStories = new Map<string, number | null>();
   for (const edge of [...await store.getOutgoing(ticket.id), ...await store.getIncoming(ticket.id)]) {

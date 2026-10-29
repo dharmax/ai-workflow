@@ -7,7 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
-import { Ticket, Decision } from '../graph/ontology.ts';
+import { Ticket, Decision } from '../model/ontology.ts';
 
 export function registerGitTools() {
   registry.register({

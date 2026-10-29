@@ -1,6 +1,6 @@
 /** The resolver and external source tools share one investigated, governed Ticket scope. */
 import path from 'node:path';
-import {Ticket, SymbolNode, Artifact} from '../graph/ontology.ts';
+import {Ticket, SymbolNode, Artifact} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {workspacePath} from '../change/workspace-path.ts';
 import type {ChangeRequest, ChangePreview} from '../change/types.ts';

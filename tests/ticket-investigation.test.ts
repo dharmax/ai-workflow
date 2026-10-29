@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Feature, UserStory, Aspect, Decision, Lesson, FileNode, SymbolNode, TestNode } from '../src/graph/ontology.ts';
+import { Ticket, Feature, UserStory, Aspect, Decision, Lesson, FileNode, SymbolNode, TestNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';

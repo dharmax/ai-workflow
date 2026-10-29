@@ -14,7 +14,7 @@ import {
 } from '../src/setup.ts';
 import { runDiagnostics, formatDiagnosticReport } from '../src/services/diagnostics-service.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Epic } from '../src/graph/ontology.ts';
+import { Ticket, Epic } from '../src/model/ontology.ts';
 
 describe('Project Initialization, Global Setup & Diagnostics Engine', () => {
   let tempDir: string;

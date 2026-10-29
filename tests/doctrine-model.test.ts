@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Rule } from '../src/graph/ontology.ts';
+import { Rule } from '../src/model/ontology.ts';
 import { RuleStore } from '../src/rules/store.ts';
 import { RuleSchema, type RuleModel } from '../src/rules/types.ts';
 

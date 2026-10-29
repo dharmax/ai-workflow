@@ -3,8 +3,8 @@
  */
 
 // Graph & Context Engine
-export * from './graph/types.ts';
-export * from './graph/ontology.ts';
+export * from './model/types.ts';
+export * from './model/ontology.ts';
 export * from './graph/store.ts';
 export * from './graph/indexer.ts';
 export * from './services/projection-service.ts';

@@ -19,7 +19,7 @@ import {
   SymbolNode,
   TestNode,
   Lesson
-} from './ontology.ts';
+} from '../model/ontology.ts';
 import {findTestsVerifying, isTestSource, reconcileTestVerificationEdges, testArtifactId, upsertTestArtifact} from './test-artifacts.ts';
 
 const INDEX_EXCLUSIONS = new Set([

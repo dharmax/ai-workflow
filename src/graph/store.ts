@@ -10,8 +10,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
-import {PrioritySchema} from './types.ts';
-import { ticketState, assertTicketAuthoring } from './ticket-state.ts';
+import {PrioritySchema} from '../model/types.ts';
+import { ticketState, assertTicketAuthoring } from '../model/ticket-state.ts';
 import {ticketChangeEvents, ticketEventBatch} from '../services/journal-service.ts';
 import {
   SemanticPackage,
@@ -40,14 +40,14 @@ import {
   Idea,
   Rule,
   Product
-} from './ontology.ts';
+} from '../model/ontology.ts';
 import type {
   TicketClaim,
   TicketLane,
   ProjectHealth,
   ModuleHealth,
   SemanticPredicateName
-} from './types.ts';
+} from '../model/types.ts';
 
 export function findProjectRoot(startDir: string = process.cwd()): { root: string; marker: string } {
   let current = path.resolve(startDir);

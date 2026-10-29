@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, SymbolNode } from '../src/graph/ontology.ts';
+import { Ticket, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import {
   resolveTypeScriptRuntime,

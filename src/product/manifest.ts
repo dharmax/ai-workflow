@@ -19,7 +19,7 @@ import {
   ModuleNode,
   Epic,
   Ticket
-} from '../graph/ontology.ts';
+} from '../model/ontology.ts';
 import { PRODUCT_RELATIONS, productEdgeRows, type ProductEdgeRow } from './mutation.ts';
 import { canonical } from '../kb/canonical.ts';
 

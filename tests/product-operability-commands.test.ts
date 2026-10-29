@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Epic,Goal} from '../src/graph/ontology.ts';
+import {Epic,Goal} from '../src/model/ontology.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {createCommandTree,type NormalizedCommand} from '../src/artifact-command.ts';
 import {processShellInput} from '../src/shell.ts';
@@ -131,7 +131,7 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
   expect((await processShellInput('link E1 TO G1 AS targets --yes --YES',session)).output).toContain('Duplicate');
   expect(calls).toBe(0);reopen();expect((await store.getEntity('G1',Goal.dcr))!.version).toBe(before);
 
-  const { Feature } = await import('../src/graph/ontology.ts');
+  const { Feature } = await import('../src/model/ontology.ts');
   await store.upsertEntity(Feature.dcr, { id: 'F1', title: 'Feature One', body: 'Owns feature responsibility' });
   const featSpace = run('product', 'feature', 'show', 'F1'), featColon = run('product:feature', 'show', 'F1');
   expect(featSpace.success).toBe(true);expect(featColon.success).toBe(true);

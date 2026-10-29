@@ -2,7 +2,7 @@ import {afterEach, beforeEach, expect, test} from 'bun:test';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {RuleStore} from '../src/rules/store.ts';
-import {Artifact} from '../src/graph/ontology.ts';
+import {Artifact} from '../src/model/ontology.ts';
 import type {RuleModel} from '../src/rules/types.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {getPublicMcpTools} from '../src/tools/surface.ts';

@@ -9,7 +9,7 @@ import { AbstractEntity, EntityDcr, PredicateDcr, RawOntology } from "@dharmax/s
 import {TicketKindSchema, TicketDefectSchema, TicketLaneSchema} from "./ticket-state.ts"
 
 import { CompletenessSchema, scopeTarget, ticketCompleteness, type CompletenessLevel } from "../artifact-policy.ts"
-import type { WorkflowStore } from "./store.ts"
+import type { WorkflowStore } from "../graph/store.ts"
 
 import { applicableAspects, assessAspects, reviewMissingAspects } from "../aspects.ts"
 

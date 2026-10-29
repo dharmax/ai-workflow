@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, SymbolNode } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients, TsLspClient } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
@@ -403,7 +403,7 @@ describe('Governed LSP operation scope', () => {
   });
 
   it('keeps authored and out-of-scope module relations behind exclusive governance admission', async () => {
-    const {ModuleNode} = await import('../src/graph/ontology.ts');
+    const {ModuleNode} = await import('../src/model/ontology.ts');
     const module = await store.upsertEntity(ModuleNode.dcr, {id: 'mod:dependency', title: 'dependency', path: 'dependency', status: 'implemented'});
     const file = (await store.getEntity('a.ts', 'FileNode'))!;
     for (const state of ['authored', 'derived']) {

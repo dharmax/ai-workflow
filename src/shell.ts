@@ -6,7 +6,7 @@
  */
 
 import fs from 'node:fs';
-import {PrioritySchema} from './graph/types.ts';
+import {PrioritySchema} from './model/types.ts';
 import path from 'node:path';
 import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts';
 import { CommanderError } from 'commander';
@@ -27,7 +27,7 @@ import {
   type CommandSchema
 } from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
-import { Ticket } from './graph/ontology.ts';
+import { Ticket } from './model/ontology.ts';
 import { initializeTools, registry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './helpers/actor/engine.ts';
 import { exportProjections, importProjections } from './services/projection-service.ts';

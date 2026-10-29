@@ -5,7 +5,7 @@
  */
 
 import { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode, Decision, FileNode, SymbolNode, ModuleNode } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode, Decision, FileNode, SymbolNode, ModuleNode } from '../model/ontology.ts';
 
 export interface ProductImpact {
   entityId: string;

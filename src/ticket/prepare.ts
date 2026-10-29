@@ -4,7 +4,7 @@
  */
 
 import { renderPreparationPrompt } from "./prompts.ts"
-import { Ticket } from "../graph/ontology.ts"
+import { Ticket } from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type { PreparationOptions, PreparedTicket, OperationResult, TicketDossier } from "../ticket-operation-types.ts"
 import { withArtifactMetrics, cognitionMetrics, countEngineering, recordMetricCompleteness, traceResolution } from "../performance-metrics.ts"
@@ -246,7 +246,7 @@ export async function prepareTicket(
                     return { status: "blocked", artifactId: id, blockers: [{ reason: `Ticket is leased by '${current.claim!.agentId}'.` }] }
                 if (held && !options.owner)
                     return {status: 'blocked', artifactId: id, blockers: [{reason: 'Preparation requires the exact enclosing execution lease; an agent name does not establish ownership.'}]}
-                let acquired: import("../graph/types.ts").TicketClaim | undefined
+                let acquired: import("../model/types.ts").TicketClaim | undefined
                 try {
                     if (options.owner) {
                         const {canonical} = await import('../kb/canonical.ts')

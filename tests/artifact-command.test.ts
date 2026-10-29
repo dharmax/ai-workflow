@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { artifactCommand } from '../src/artifact-command.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Feature } from '../src/graph/ontology.ts';
+import { Ticket, Feature } from '../src/model/ontology.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { processShellInput } from '../src/shell.ts';
 import { WorkflowActor } from '../src/helpers/actor/engine.ts';

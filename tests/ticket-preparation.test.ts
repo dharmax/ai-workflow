@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Aspect, Feature, FileNode } from '../src/graph/ontology.ts';
+import { Ticket, Aspect, Feature, FileNode } from '../src/model/ontology.ts';
 import type { ArtifactCritic } from '../src/artifact-policy.ts';
 import type { TicketPreparationProposal } from '../src/ticket-operation-types.ts';
 import type { SystemOne } from '@dharmax/llm-utils';

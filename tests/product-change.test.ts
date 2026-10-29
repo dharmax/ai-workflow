@@ -8,7 +8,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
-import { TestNode, Decision, Feature, UserStory } from '../src/graph/ontology.ts';
+import { TestNode, Decision, Feature, UserStory } from '../src/model/ontology.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 

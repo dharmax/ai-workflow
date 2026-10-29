@@ -8,13 +8,13 @@ import os from 'node:os'
 import path from 'node:path'
 import {workspacePath} from '../change/workspace-path.ts'
 import { renderAcceptancePrompt } from "./prompts.ts"
-import { Artifact, TestNode, Ticket } from "../graph/ontology.ts"
+import { Artifact, TestNode, Ticket } from "../model/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework } from "../graph/test-artifacts.ts"
 import { registry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
 import {canonical, computeHash} from '../kb/canonical.ts'
 import type { TicketDossier, TicketGovernance, OperationResult } from "../ticket-operation-types.ts"
-import type { TechnicalProof } from "../graph/test-proof-types.ts"
+import type { TechnicalProof } from "../model/test-proof-types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import {
     AcceptanceVerificationSchema,

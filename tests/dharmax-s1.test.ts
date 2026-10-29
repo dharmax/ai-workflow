@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { UserStory, FileNode, SymbolNode, Ticket, TestNode, Artifact, Decision } from '../src/graph/ontology.ts';
+import { UserStory, FileNode, SymbolNode, Ticket, TestNode, Artifact, Decision } from '../src/model/ontology.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';

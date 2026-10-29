@@ -6,7 +6,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {createMigrationFixture,discoverMigrationImpact,authorizeMigration,executeFieldMigration,runFixtureCommand,
   migrationFiles,acceptMigrationStory,reviewMigrationStoryTest,migrationStoryTest,migrationContractChanges,type MigrationFixture} from '../fixtures/graph-field-migration.ts';
-import {FileNode,SymbolNode,Ticket,UserStory,TestNode,Artifact} from '../../src/graph/ontology.ts';
+import {FileNode,SymbolNode,Ticket,UserStory,TestNode,Artifact} from '../../src/model/ontology.ts';
 import {ensureAstFresh,indexCodebase,indexSingleFile} from '../../src/graph/indexer.ts';
 import {registry,initializeTools} from '../../src/tools/index.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';

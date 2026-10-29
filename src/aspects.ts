@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { LayaSystemOne, type SystemOne } from '@dharmax/llm-utils';
 import type { WorkflowStore } from './graph/store.ts';
-import { Aspect, Epic, Feature, UserStory, Ticket, TestNode, Artifact, Decision, type WorkflowEntity } from './graph/ontology.ts';
+import { Aspect, Epic, Feature, UserStory, Ticket, TestNode, Artifact, Decision, type WorkflowEntity } from './model/ontology.ts';
 import type { ArtifactCritic, CompletenessLevel } from './artifact-policy.ts';
 import { loadConfig } from './services/config-service.ts';
 

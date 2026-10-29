@@ -7,7 +7,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools } from '../src/tools/index.ts';
 import { WorkflowActor, pubsub } from '../src/helpers/actor/engine.ts';
 import { resolveCloudCredentials, saveConfig } from '../src/services/config-service.ts';
-import { FileNode } from '../src/graph/ontology.ts';
+import { FileNode } from '../src/model/ontology.ts';
 
 const noTools = (mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
   discover: async () => ({query: {}, mode, tools: []}),

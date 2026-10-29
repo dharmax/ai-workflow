@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Epic, Feature, UserStory, Ticket, Aspect, TestNode, Artifact, Decision } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, Aspect, TestNode, Artifact, Decision } from '../src/model/ontology.ts';
 import type { ProcessOptions, IntentProposal } from '../src/product/process-types.ts';
 import type { ArtifactCritic, CriticInput } from '../src/artifact-policy.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';

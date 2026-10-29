@@ -16,7 +16,7 @@ export function assessBug(ticket: Pick<import('./ontology.ts').Ticket, 'kind' | 
 }
 
 /** Shared public start/selection eligibility; dependency state is read from the canonical graph. */
-export async function ticketEligibility(store: import('./store.ts').WorkflowStore, ticket: import('./ontology.ts').Ticket, agentId?: string) {
+export async function ticketEligibility(store: import('../graph/store.ts').WorkflowStore, ticket: import('./ontology.ts').Ticket, agentId?: string) {
   const reasons: string[] = [];
   if (!['Todo', 'In Progress'].includes(ticket.lane)) reasons.push(`Lane '${ticket.lane}' is not executable.`);
   if (ticket.claim && Date.parse(ticket.claim.expiresAt) > Date.now() && ticket.claim.agentId !== agentId)

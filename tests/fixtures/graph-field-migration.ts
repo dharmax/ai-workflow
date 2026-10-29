@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WorkflowStore} from '../../src/graph/store.ts';
-import {FileNode, SymbolNode, Ticket} from '../../src/graph/ontology.ts';
+import {FileNode, SymbolNode, Ticket} from '../../src/model/ontology.ts';
 import {ensureAstFresh} from '../../src/graph/indexer.ts';
 import {initializeTools, registry} from '../../src/tools/index.ts';
 import {buildSourceScope} from '../../src/ticket/source-scope.ts';

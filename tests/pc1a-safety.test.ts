@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket,Decision,TestNode,Artifact,entityDescriptors} from '../src/graph/ontology.ts';
+import {Ticket,Decision,TestNode,Artifact,entityDescriptors} from '../src/model/ontology.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {spyOn} from 'bun:test';
 import {importProjections} from '../src/services/projection-service.ts';

@@ -3,9 +3,9 @@
  * Scope: CRUD/query for product entities, constrained canonical linking/unlinking, and coverage/impact wrappers.
  */
 
-import {PrioritySchema} from '../graph/types.ts';
+import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
-import {TestBindingSpecificationSchema} from '../graph/test-proof-types.ts';
+import {TestBindingSpecificationSchema} from '../model/test-proof-types.ts';
 import {prepareTestBinding,applyTestBinding} from '../graph/technical-proof.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,14 +24,14 @@ import {
   Epic,
   Feature,
   UserStory
-} from '../graph/ontology.ts';
+} from '../model/ontology.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { getProductImpact } from '../product/impact.ts';
 import { proposeEpicStructure, type EpicStructureProposal } from '../product/decompose.ts';
 import { applyEpicStructure } from '../product/apply.ts';
 import {LinkActionSchema,linkAction,endpoint,previewDefinitionChange,type DefinitionReviewInput} from '../product/links.ts';
 import {computeHash} from '../kb/canonical.ts';
-import {entityDescriptors} from '../graph/ontology.ts';
+import {entityDescriptors} from '../model/ontology.ts';
 import { applyProductMutations, resolveProductEntity, productKind, productDefinitionFields, productDependents } from '../product/mutation.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';

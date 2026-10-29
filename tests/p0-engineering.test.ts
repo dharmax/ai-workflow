@@ -6,7 +6,7 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {configureMcp} from '../src/setup.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket, FileNode} from '../src/graph/ontology.ts';
+import {Ticket, FileNode} from '../src/model/ontology.ts';
 import {parseCommand} from '../src/artifact-command.ts';
 
 const roots: string[] = [];

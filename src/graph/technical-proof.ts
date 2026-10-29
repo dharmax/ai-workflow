@@ -4,7 +4,7 @@
 import path from 'node:path';
 import {z} from 'zod';
 import {WorkflowStore} from './store.ts';
-import {TestNode,Ticket,UserStory,SymbolNode} from './ontology.ts';
+import {TestNode,Ticket,UserStory,SymbolNode} from '../model/ontology.ts';
 import {ensureAstFresh} from './indexer.ts';
 import {hashFiles,currentTestEvidence} from './test-artifacts.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
@@ -14,7 +14,7 @@ import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../ve
 import type {TicketDossier} from '../ticket-operation-types.ts';
 import type {ChangePreview,ChangeApplyResult} from '../change/types.ts';
 
-import {TestBindingSpecificationSchema,TechnicalProofSchema,ScopeSchema,type TestBindingSpecification,type TechnicalProof} from './test-proof-types.ts';
+import {TestBindingSpecificationSchema,TechnicalProofSchema,ScopeSchema,type TestBindingSpecification,type TechnicalProof} from '../model/test-proof-types.ts';
 
 /** Each dependency is indexed, read and hashed by its own store; no external hashFiles mode. */
 export async function withProofProject<T>(store:WorkflowStore,root:string,work:(owner:WorkflowStore)=>Promise<T>):Promise<T>{

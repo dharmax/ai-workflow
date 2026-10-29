@@ -7,7 +7,7 @@ import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
-import { entityDescriptors } from '../src/graph/ontology.ts';
+import { entityDescriptors } from '../src/model/ontology.ts';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 

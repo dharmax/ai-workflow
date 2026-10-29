@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, UserStory, SymbolNode } from '../src/graph/ontology.ts';
+import { Ticket, UserStory, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';

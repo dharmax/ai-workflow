@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket } from '../src/graph/ontology.ts';
+import { Ticket } from '../src/model/ontology.ts';
 import { applyProductMutations } from '../src/product/mutation.ts';
 import { buildSynthesisContext } from '../src/helpers/synthesis/context-builder.ts';
 import { HostSourceSynthesizer } from '../src/helpers/synthesis/synthesizer.ts';

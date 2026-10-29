@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Epic, Feature, UserStory, entityDescriptors } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, entityDescriptors } from '../src/model/ontology.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
 import type { ChangeRequest } from '../src/change/types.ts';

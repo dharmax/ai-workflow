@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {parseIndexedFile} from '@dharmax/codebase-parser';
 import {z} from 'zod';
-import {UserStory,Ticket,TestNode} from '../graph/ontology.ts';
+import {UserStory,Ticket,TestNode} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import {workspacePath} from '../change/workspace-path.ts';

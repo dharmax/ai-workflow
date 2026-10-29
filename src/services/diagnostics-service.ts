@@ -7,7 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../graph/store.ts';
-import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from '../graph/ontology.ts';
+import { Ticket, Epic, Feature, UserStory, ModuleNode, FileNode, SymbolNode, Lesson } from '../model/ontology.ts';
 import {createDefaultAsker} from './model-service.ts';
 import { loadConfig, resolveCloudCredentials } from './config-service.ts';
 import {readModelAdvice} from '@dharmax/llm-utils';

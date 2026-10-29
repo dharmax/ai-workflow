@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {Database} from 'bun:sqlite';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Epic, Feature, Ticket, UserStory} from '../src/graph/ontology.ts';
+import {Epic, Feature, Ticket, UserStory} from '../src/model/ontology.ts';
 import {initializeTools, registry} from '../src/tools/index.ts';
 import {exportProjections, importProjections} from '../src/services/projection-service.ts';
 import {processShellInput} from '../src/shell.ts';

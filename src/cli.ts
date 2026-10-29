@@ -5,7 +5,7 @@
  * release, symbol, slice, outline, blast, index, patch, config, exec, shell, mcp.
  */
 
-import {PrioritySchema} from './graph/types.ts';
+import {PrioritySchema} from './model/types.ts';
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {reviewLink, reviewDefinition, reviewProductChange} from './product/links.ts';

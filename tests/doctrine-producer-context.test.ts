@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Ticket, Feature, UserStory, Aspect, Decision, FileNode, SymbolNode, ModuleNode } from '../src/graph/ontology.ts';
+import { Ticket, Feature, UserStory, Aspect, Decision, FileNode, SymbolNode, ModuleNode } from '../src/model/ontology.ts';
 import { RuleStore } from '../src/rules/store.ts';
 import { buildSynthesisContext } from '../src/helpers/synthesis/context-builder.ts';
 import { buildIntentContext } from '../src/product/context.ts';

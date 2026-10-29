@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { registry } from './registry.ts';
-import { Aspect } from '../graph/ontology.ts';
+import { Aspect } from '../model/ontology.ts';
 import { applicableAspects, assessAspects } from '../aspects.ts';
 import { productKind, validateProductRelation } from '../product/mutation.ts';
 import type { WorkflowStore } from '../graph/store.ts';

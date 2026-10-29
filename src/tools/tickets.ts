@@ -3,15 +3,15 @@
  * Scope: Atomic leases, lane transitions, ticket listing, and next-task recommendation.
  */
 
-import {PrioritySchema} from '../graph/types.ts';
+import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
-import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../graph/ticket-state.ts';
+import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../model/ticket-state.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { registry, type ToolContext } from './registry.ts';
-import { Ticket, Artifact } from '../graph/ontology.ts';
+import { Ticket, Artifact } from '../model/ontology.ts';
 import {readVerificationReceipt} from '../ticket-operation-types.ts';
 import {loadConfig} from '../services/config-service.ts';
-import type { TicketLane } from '../graph/types.ts';
+import type { TicketLane } from '../model/types.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';
 import {exportProjections} from '../services/projection-service.ts';

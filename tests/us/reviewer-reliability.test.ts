@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {modelAdvicePath} from '@dharmax/llm-utils';
 import {WorkflowStore} from '../../src/graph/store.ts';
-import {Ticket, FileNode} from '../../src/graph/ontology.ts';
+import {Ticket, FileNode} from '../../src/model/ontology.ts';
 import {indexCodebase} from '../../src/graph/indexer.ts';
 import {initializeTools,registry} from '../../src/tools/index.ts';
 import {RuleStore} from '../../src/rules/store.ts';

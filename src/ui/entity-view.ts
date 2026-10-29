@@ -1,5 +1,5 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
-import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from '../graph/ontology.ts'
+import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from '../model/ontology.ts'
 import type {ToolContext} from '../tools/index.ts'
 import {registry} from '../tools/index.ts'
 

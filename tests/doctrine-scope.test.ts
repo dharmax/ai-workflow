@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket, FileNode, ModuleNode, Artifact, Aspect, Decision} from '../src/graph/ontology.ts';
+import {Ticket, FileNode, ModuleNode, Artifact, Aspect, Decision} from '../src/model/ontology.ts';
 import {RuleStore} from '../src/rules/store.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
 import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';

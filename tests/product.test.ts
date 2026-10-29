@@ -15,7 +15,7 @@ import {
   Decision,
   FileNode,
   SymbolNode
-} from '../src/graph/ontology.ts';
+} from '../src/model/ontology.ts';
 import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { getCoverage } from '../src/product/coverage.ts';

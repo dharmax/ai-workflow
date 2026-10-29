@@ -6,7 +6,7 @@ import {computeHash} from '../kb/canonical.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import type {ChangeRequest} from '../change/types.ts';
 import type {ToolContext} from '../tools/registry.ts';
-import {entityDescriptors} from '../graph/ontology.ts';
+import {entityDescriptors} from '../model/ontology.ts';
 import {registry} from '../tools/registry.ts';
 
 const kinds=z.enum([...new Set(PRODUCT_RELATIONS.flatMap(row=>[row.sourceKind,row.targetKind]))]);

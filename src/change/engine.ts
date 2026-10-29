@@ -22,7 +22,7 @@ import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
-import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../graph/ontology.ts';
+import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../model/ontology.ts';
 import { validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
 import { getCoverage } from '../product/coverage.ts';
 import type {
@@ -39,7 +39,7 @@ import type {
 } from './types.ts';
 
 export interface ChangeEngineOptions {
-  ticketLease?: {ticketId: string; claim: import('../graph/types.ts').TicketClaim};
+  ticketLease?: {ticketId: string; claim: import('../model/types.ts').TicketClaim};
   governedAdmission?: string;
   store: WorkflowStore;
   projectRoot: string;

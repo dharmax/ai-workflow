@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Epic, Feature, UserStory, ModuleNode, Ticket } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, ModuleNode, Ticket } from '../src/model/ontology.ts';
 import { ArtifactBudget, resolveArtifactCritic, type ArtifactCritic } from '../src/artifact-policy.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';

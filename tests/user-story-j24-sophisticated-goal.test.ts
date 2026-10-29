@@ -7,7 +7,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { saveConfig } from '../src/services/config-service.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { ToolDiscovery } from '../src/tools/discovery.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode } from '../src/graph/ontology.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode } from '../src/model/ontology.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
 import type { Asker } from '@dharmax/llm-utils';

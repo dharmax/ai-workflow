@@ -1,15 +1,15 @@
 /** Shared deterministic Product Intent mutation rules for tools, decomposition, and change preview. */
-import {PrioritySchema} from '../graph/types.ts';
+import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
-import {TechnicalProofSchema} from '../graph/test-proof-types.ts';
+import {TechnicalProofSchema} from '../model/test-proof-types.ts';
 import type { WorkflowStore } from '../graph/store.ts';
-import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../graph/ontology.ts';
+import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../model/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../artifact-critic.ts';
-import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../graph/ticket-state.ts';
+import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket-state.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
-import type { TicketLane } from '../graph/types.ts';
+import type { TicketLane } from '../model/types.ts';
 
 const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;

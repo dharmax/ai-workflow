@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
-import {UserStory,Ticket,Epic,TestNode,FileNode} from '../src/graph/ontology.ts';
+import {UserStory,Ticket,Epic,TestNode,FileNode} from '../src/model/ontology.ts';
 import {indexSingleFile} from '../src/graph/indexer.ts';
 import {chromium,type Browser} from 'playwright';
 import {startWorkspace} from '../src/workspace/server.ts';

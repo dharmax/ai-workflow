@@ -1,7 +1,7 @@
 import {expect, test} from 'bun:test';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket, FileNode, Artifact} from '../src/graph/ontology.ts';
+import {Ticket, FileNode, Artifact} from '../src/model/ontology.ts';
 import {RuleStore} from '../src/rules/store.ts';
 import {resolveRuleReference} from '../src/rules/references.ts';
 import {loadConfig, saveConfig} from '../src/services/config-service.ts';

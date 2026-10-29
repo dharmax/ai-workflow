@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Artifact, FileNode, Ticket } from '../src/graph/ontology.ts';
+import { Artifact, FileNode, Ticket } from '../src/model/ontology.ts';
 import { RuleStore } from '../src/rules/store.ts';
 import type { RuleModel } from '../src/rules/types.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile, stat } from 'node:fs/promises';
-import { Aspect } from '../../graph/ontology.ts';
+import { Aspect } from '../../model/ontology.ts';
 import type { WorkflowStore } from '../../graph/store.ts';
 import type { ProductMutation } from '../../product/mutation.ts';
 

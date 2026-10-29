@@ -1,4 +1,4 @@
-import {Aspect} from '../src/graph/ontology.ts';
+import {Aspect} from '../src/model/ontology.ts';
 import type {WorkflowStore} from '../src/graph/store.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import type {ProductMutation} from '../src/product/mutation.ts';

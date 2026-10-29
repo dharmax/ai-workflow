@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Product, Feature, Goal, Concept, UserStory, ModuleNode, FileNode, SymbolNode } from '../src/graph/ontology.ts';
+import { Product, Feature, Goal, Concept, UserStory, ModuleNode, FileNode, SymbolNode } from '../src/model/ontology.ts';
 import { initializeTools, registry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProductManifest, generateProductManifest, exportAuthoredState, restoreAuthoredState } from '../src/product/manifest.ts';

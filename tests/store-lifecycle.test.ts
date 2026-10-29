@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket, UserStory} from '../src/graph/ontology.ts';
+import {Ticket, UserStory} from '../src/model/ontology.ts';
 
 let root: string;
 let store: WorkflowStore;

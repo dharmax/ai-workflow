@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket} from '../src/graph/ontology.ts';
+import {Ticket} from '../src/model/ontology.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {processShellInput} from '../src/shell.ts';
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';

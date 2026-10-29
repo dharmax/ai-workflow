@@ -8,7 +8,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import {z} from 'zod'
 import {registry, type ToolContext} from './registry.ts'
-import {Ticket} from '../graph/ontology.ts'
+import {Ticket} from '../model/ontology.ts'
 import {ensureAstFresh} from '../graph/indexer.ts'
 import {
   findTestsVerifying,

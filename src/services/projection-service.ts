@@ -17,12 +17,12 @@ import {
   Decision,
   ModuleNode,
   TestNode
-} from '../graph/ontology.ts';
-import {PrioritySchema} from '../graph/types.ts';
-import type { TicketLane, EpicStatus, IntentStatus } from '../graph/types.ts';
+} from '../model/ontology.ts';
+import {PrioritySchema} from '../model/types.ts';
+import type { TicketLane, EpicStatus, IntentStatus } from '../model/types.ts';
 import { getCoverage } from '../product/coverage.ts';
 import { exportAspectProjection, importAspectProjection } from './projection/aspect-projections.ts';
-import { ticketState } from '../graph/ticket-state.ts';
+import { ticketState } from '../model/ticket-state.ts';
 import { exportProductManifest, exportAuthoredState } from '../product/manifest.ts';
 
 const LANES: TicketLane[] = ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'];

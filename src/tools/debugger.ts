@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { WorkflowStore } from '../graph/store.ts';
-import { SymbolNode, FileNode } from '../graph/ontology.ts';
+import { SymbolNode, FileNode } from '../model/ontology.ts';
 import { analyzeBlastRadius } from './graph-queries.ts';
 
 export interface DebugLocation {

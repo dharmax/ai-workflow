@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
 import { WorkflowStore } from '../graph/store.ts';
-import { SymbolNode, FileNode, Ticket } from '../graph/ontology.ts';
+import { SymbolNode, FileNode, Ticket } from '../model/ontology.ts';
 import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
 import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbol-source.ts';

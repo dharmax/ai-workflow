@@ -7,11 +7,11 @@ import {recordTicketEvent} from '../services/journal-service.ts'
 import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
-import {assessBug} from "../graph/ticket-state.ts"
+import {assessBug} from "../model/ticket-state.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
-import { Ticket, TestNode, Artifact, UserStory, FileNode } from "../graph/ontology.ts"
-import type {TicketClaim} from "../graph/types.ts"
+import { Ticket, TestNode, Artifact, UserStory, FileNode } from "../model/ontology.ts"
+import type {TicketClaim} from "../model/types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
     ResolutionOptions,

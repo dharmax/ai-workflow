@@ -184,7 +184,7 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(nextRes.output).toContain('No pending tasks');
 
     // Create a ticket via eval or direct store
-    const { Ticket } = await import('../src/graph/ontology.ts');
+    const { Ticket } = await import('../src/model/ontology.ts');
     await session.store.upsertEntity(Ticket.dcr, {
       id: 'TKT-SHELL-1',
       title: 'Test Shell Verb Execution',
@@ -322,7 +322,7 @@ describe('Interactive Shell REPL Bridge', () => {
 
   it('should dynamically complete tickets and lanes with buildSmartCompleter', async () => {
     const { buildSmartCompleter } = await import('../src/shell.ts');
-    const { Ticket } = await import('../src/graph/ontology.ts');
+    const { Ticket } = await import('../src/model/ontology.ts');
 
     await session.store.upsertEntity(Ticket.dcr, {
       id: 'TKT-AUTOCOMPLETE-99',
@@ -356,7 +356,7 @@ describe('Interactive Shell REPL Bridge', () => {
   });
 
   it('should interactively facilitate missing parameters via InteractivePrompter', async () => {
-    const { Ticket } = await import('../src/graph/ontology.ts');
+    const { Ticket } = await import('../src/model/ontology.ts');
     const { InteractivePrompter, ParameterFacilitator } = await import('@dharmax/shell-ui');
 
     await session.store.upsertEntity(Ticket.dcr, {

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, type ToolContext } from '../src/tools/index.ts';
-import { SymbolNode } from '../src/graph/ontology.ts';
+import { SymbolNode } from '../src/model/ontology.ts';
 
 describe('Greenfield Code Scaffolding (aiwf scaffold)', () => {
   let tempDir: string;

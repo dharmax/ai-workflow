@@ -4,7 +4,7 @@
  */
 
 import { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, Flow, UserStory, Ticket, TestNode, FileNode, SymbolNode, ModuleNode } from '../graph/ontology.ts';
+import { Epic, Feature, Flow, UserStory, Ticket, TestNode, FileNode, SymbolNode, ModuleNode } from '../model/ontology.ts';
 
 export type CoverageGapKind =
   | 'missing_parent'

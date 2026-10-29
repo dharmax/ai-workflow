@@ -5,7 +5,7 @@
 
 import { renderImplementationSystem, renderImplementationGoal } from "./prompts.ts"
 import { LLMActor, ToolExecutionError, type TokenBudget } from "@dharmax/llm-utils"
-import { FileNode, type Ticket } from "../graph/ontology.ts"
+import { FileNode, type Ticket } from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import { ResolutionProposalSchema, type ResolutionProposal, type ResolutionOptions, type TicketDossier } from "../ticket-operation-types.ts"
 import type { ChangeRequest, ChangeApplyResult } from "../change/types.ts"

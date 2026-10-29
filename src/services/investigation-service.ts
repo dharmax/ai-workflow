@@ -20,7 +20,7 @@ import {
     Lesson,
     Decision,
     Artifact
-} from "../graph/ontology.ts"
+} from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import { resolveTicketGovernance, readVerificationReceipt, type InvestigationOptions, type TicketDossier, type OperationResult } from "../ticket-operation-types.ts"
 import {

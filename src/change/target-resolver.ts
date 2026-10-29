@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {workspacePath} from './workspace-path.ts';
 import type {WorkflowStore} from '../graph/store.ts';
-import {SymbolNode, FileNode} from '../graph/ontology.ts';
+import {SymbolNode, FileNode} from '../model/ontology.ts';
 import {ensureAstFresh} from '../graph/indexer.ts';
 import type {TsLspClient} from './ts-lsp.ts';
 import type {ChangeTarget, ResolvedCodeTarget} from './types.ts';

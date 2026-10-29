@@ -4,7 +4,7 @@
  */
 
 import { WorkflowStore } from '../graph/store.ts';
-import { Rule, Artifact, ModuleNode } from '../graph/ontology.ts';
+import { Rule, Artifact, ModuleNode } from '../model/ontology.ts';
 import { createHash } from 'node:crypto';
 import { canonical } from '../kb/canonical.ts';
 import { validateReferenceSnapshot, resolveRuleReference } from './references.ts';

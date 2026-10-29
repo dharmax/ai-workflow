@@ -1,6 +1,6 @@
 /** Prepare an inert Epic structure preview; only explicit reviewed apply_change commits it. */
 import { WorkflowStore } from '../graph/store.ts';
-import { Epic, Feature, UserStory } from '../graph/ontology.ts';
+import { Epic, Feature, UserStory } from '../model/ontology.ts';
 import type { EpicStructureProposal } from './decompose.ts';
 import type { ProductMutation, ProductRevision } from './mutation.ts';
 import { CausalChangeEngine } from '../change/engine.ts';

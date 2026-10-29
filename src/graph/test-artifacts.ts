@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import {createHash} from 'node:crypto'
 import {canonical} from '../kb/canonical.ts'
 import type {WorkflowStore} from './store.ts'
-import {FileNode, SymbolNode, TestNode} from './ontology.ts'
+import {FileNode, SymbolNode, TestNode} from '../model/ontology.ts'
 import {getTsLspClient} from '../change/ts-lsp.ts'
 
 export function normalizeTestPath(value: string): string {

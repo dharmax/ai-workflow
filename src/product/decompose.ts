@@ -4,12 +4,12 @@
  *        reusing existing Features/Stories, surfacing questions, and performing ZERO graph mutation.
  */
 
-import {PrioritySchema} from '../graph/types.ts';
+import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
 import type { Asker } from '@dharmax/llm-utils';
 import { WorkflowStore } from '../graph/store.ts';
-import { Goal, Concept, Flow, Epic, Feature, UserStory, Decision } from '../graph/ontology.ts';
-import type { EpicStatus, IntentStatus } from '../graph/types.ts';
+import { Goal, Concept, Flow, Epic, Feature, UserStory, Decision } from '../model/ontology.ts';
+import type { EpicStatus, IntentStatus } from '../model/types.ts';
 import { loadConfig } from '../services/config-service.ts';
 import type { ProductRevision } from './mutation.ts';
 import { createDefaultAsker } from '../services/model-service.ts';

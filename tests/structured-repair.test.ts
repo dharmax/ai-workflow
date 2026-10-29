@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Asker, CompletionEngine } from '@dharmax/llm-utils';
-import { Ticket } from '../src/graph/ontology.ts';
+import { Ticket } from '../src/model/ontology.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { proposeEpicStructure } from '../src/product/decompose.ts';
 

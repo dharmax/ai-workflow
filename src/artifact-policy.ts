@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { loadConfig } from './services/config-service.ts';
 import type { WorkflowStore } from './graph/store.ts';
-import { Epic, Feature, UserStory, ModuleNode, Ticket, type WorkflowEntity } from './graph/ontology.ts';
+import { Epic, Feature, UserStory, ModuleNode, Ticket, type WorkflowEntity } from './model/ontology.ts';
 
 /** An operation outcome has an artifact/test identity; a Ticket's work status is a separate dimension. */
 export function isBlockedOperation(result: unknown): boolean {

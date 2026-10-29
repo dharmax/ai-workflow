@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {Epic,Goal,Feature,UserStory,Ticket,TestNode,Artifact,ModuleNode,FileNode} from '../src/graph/ontology.ts';
+import {Epic,Goal,Feature,UserStory,Ticket,TestNode,Artifact,ModuleNode,FileNode} from '../src/model/ontology.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {parseCommand,lexCommand} from '../src/artifact-command.ts';
 import {PRODUCT_RELATIONS,productEdgeRows} from '../src/product/mutation.ts';

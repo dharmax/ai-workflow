@@ -1,11 +1,11 @@
-import {PrioritySchema} from './graph/types.ts';
+import {PrioritySchema} from './model/types.ts';
 import { z } from 'zod';
 import {ChangeRequestSchema} from './tools/change.ts';
-import {TestBindingSpecificationSchema} from './graph/test-proof-types.ts';
+import {TestBindingSpecificationSchema} from './model/test-proof-types.ts';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
 import {CONFIG_HELP} from './config-command.ts';
-import {TicketDefectSchema} from './graph/ticket-state.ts';
+import {TicketDefectSchema} from './model/ticket-state.ts';
 import {LinkActionSchema,type LinkAction,type DefinitionReviewInput} from './product/links.ts';
 import {normalizeLinkPayload} from './product/mutation.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';

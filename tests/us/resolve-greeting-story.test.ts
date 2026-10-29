@@ -5,7 +5,7 @@ import path from 'node:path';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../../src/mcp.ts';
-import {Ticket} from '../../src/graph/ontology.ts';
+import {Ticket} from '../../src/model/ontology.ts';
 import {currentTicketReceipt} from '../../src/ticket/verification.ts';
 import {loadConfig,saveConfig} from '../../src/services/config-service.ts';
 import {registry} from '../../src/tools/index.ts';

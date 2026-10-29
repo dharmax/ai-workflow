@@ -11,7 +11,7 @@ import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {initializeTools,registry} from '../src/tools/index.ts';
 import {applyProductMutations} from '../src/product/mutation.ts';
-import {Product,Ticket} from '../src/graph/ontology.ts';
+import {Product,Ticket} from '../src/model/ontology.ts';
 
 describe('EXT-SURFACE-10 Product review authority',()=>{
  let store:WorkflowStore|undefined, root:string;

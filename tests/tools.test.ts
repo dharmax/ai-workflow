@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { initializeTools, type ToolContext } from '../src/tools/index.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { SymbolNode, FileNode, TestNode, Feature } from '../src/graph/ontology.ts';
+import { SymbolNode, FileNode, TestNode, Feature } from '../src/model/ontology.ts';
 
 describe('Tool Registry & Deterministic Facilities', () => {
   let tempDir: string;
