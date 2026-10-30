@@ -1,3 +1,9 @@
+/**
+ * Responsibility: Shared Commander grammar and normalized public command intents.
+ * Scope: CLI argv and once-lexed shell input; domain execution stays in registered owners.
+ */
+import {commandRegistry} from './tools/registry.ts';
+import {projectCommands} from './command-presentation.ts';
 import {PrioritySchema} from './model/types.ts';
 import { z } from 'zod';
 import {ChangeRequestSchema} from './tools/change.ts';
@@ -33,6 +39,26 @@ export async function facilitateArtifactCommand(tokens: string[], ctx: ToolConte
   const words = [...tokens];
   const offset = words[0]?.toLowerCase() === 'please' ? 1 : 0;
   const verb = words[offset]?.toLowerCase();
+  const tree=createCommandTree(()=>{},()=>{},'shell');
+  const normalized=commandTokens(words,tree);
+  const definition=commandRegistry.getCommands('shell').find(c=>{
+    const prefix=[c.topic,...(c.subtopic?[c.subtopic]:[]),c.action];
+    return prefix.every((token,index)=>normalized[index]===token);
+  });
+  if(definition){
+    const start=definition.subtopic?3:2;
+    const positions=definition.positionals??[];
+    for(let index=0;index<positions.length;index++){
+      const field=positions[index]!;
+      if(normalized[start+index]&&!normalized[start+index]!.startsWith('--')||definition.parameters.shape[field]!.isOptional())continue;
+      let value:unknown;
+      if(definition.topic==='ticket'&&field==='ticketId')value=await facilitateEntityId(ctx,'ticket',facilitator);
+      else {const answer=await facilitator.facilitate({[field]:{type:'string',description:field}},{},{interactive:true});value=answer[field];}
+      if(typeof value!=='string')return null;
+      normalized.splice(start+index,0,value);
+    }
+    return normalized;
+  }
   let kind: EntityViewKind;
   let idIndex: number;
   if (verb === 'process') {
@@ -44,6 +70,8 @@ export async function facilitateArtifactCommand(tokens: string[], ctx: ToolConte
     if (!['epic', 'feature', 'story'].includes(words[offset + 1]!)) return words;
     kind = words[offset + 1] as EntityViewKind;
     idIndex = offset + 2;
+  } else if (verb==='ticket'&&['show','status','investigate'].includes(words[offset+1]??'')){
+    kind='ticket';idIndex=offset+2;
   } else if (['resolve', 'prepare', 'investigate', 'resolve_ticket', 'prepare_ticket', 'investigate_ticket'].includes(verb || '')) {
     kind = 'ticket';
     idIndex = offset + 1;
@@ -60,11 +88,12 @@ export async function facilitateArtifactCommand(tokens: string[], ctx: ToolConte
   return words;
 }
 
-export const LINK_HELP = `Governed relations:
+export const LINK_HELP = `Governed relations: use graph:predicate --help and graph:link --help for current support.
+Legacy transitional relations:
   link types [SourceKind [TargetKind]]  Discover H/O/L modes and specialist owners
   links ID [--incoming|--outgoing] [--predicate NAME] [--limit 1..100] [--cursor TOKEN] [--json]
-  link SOURCE to TARGET as PREDICATE [--note TEXT|--clear-note] [--yes]
-  unlink SOURCE from TARGET as PREDICATE [--yes]
+  [legacy] link SOURCE to TARGET as PREDICATE [--note TEXT|--clear-note] [--yes]
+  [legacy] unlink SOURCE from TARGET as PREDICATE [--yes]
 Default: exact preview, interactive human review; noninteractive preview is inert.
 --yes confirms only this deterministic local operation. MCP/Actor cannot self-approve.
 Notes are uninterpreted text, at most 4000 characters. O edges require their owner;
@@ -93,7 +122,7 @@ export function lexCommand(input: string): string[] {
 export function isExplicitCommand(input:string):boolean {
   const [verb,...rest]=input.trim().split(/\s+/);
   const command=createCommandTree(()=>{},()=>{}).commands.find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
-  if(command && (command.name()==='next' || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
+  if(command && (command.name()==='next' || command.name()==='ticket' && rest.length>0 || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
   if(rest.length && command?.registeredArguments.length===0) return true;
   return /^(?:please\s+)?(?:story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product-change|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
 }
@@ -102,7 +131,7 @@ export type NormalizedCommand =
   | {family:'link';tool:'link';args:LinkAction;yes:boolean}
   | {family:'definition';input:DefinitionReviewInput;yes:boolean}
   | {family:'help';tool:'help';args:{text:string}}
-  | {family:'artifact';tool:string;args:Record<string,unknown>;reviewFingerprint?:string}
+  | {family:'artifact';tool:string;args:Record<string,unknown>;reviewFingerprint?:string;review?:import('./tools/registry.ts').CommandDefinition['review'];format?:(value:unknown)=>string}
   | {family:'legacy';command:string;tokens:string[]};
 
 function linkIntent(args: unknown, yes = false): NormalizedCommand {
@@ -138,7 +167,7 @@ function completenessIntent(entityId:string,level:string):NormalizedCommand {
 }
 
 /** One shared syntax tree. Actions only adapt parsed values into domain intent. */
-export function createCommandTree(emit: (intent: NormalizedCommand) => void | Promise<void>, write: (text:string)=>void) {
+export function createCommandTree(emit: (intent: NormalizedCommand) => void | Promise<void>, write: (text:string)=>void, channel:'cli'|'shell'='cli') {
   const root=new Command('aiwf').usage('<topic[:sub-topic]> <VERB> [options]').description('AI-Workflow 2.0')
     .exitOverride().configureOutput({writeOut:write,writeErr:()=>{}}).enablePositionalOptions();
   root.addHelpText('before', ARTIFACT_HELP+'\n');
@@ -200,7 +229,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   completeness.command('get <id>').action((entityId:string)=>emit({family:'artifact',tool:'get_completeness_target',args:{entityId}}));
   completeness.command('set <id> <level>').action((entityId:string,level:string)=>emit(completenessIntent(entityId,level)));
 
-  const link=root.command('link <source> <to> <target> <as> <predicate>').description('Preview a governed relation')
+  const link=root.command('link <source> <to> <target> <as> <predicate>',{hidden:true}).description('Preview a governed relation')
     .addOption(new Option('--note <text>','Replace relation rationale').conflicts('clearNote'))
     .addOption(new Option('--clear-note','Clear rationale, preserving the edge').conflicts('note'))
     .option('--yes','Confirm this exact local deterministic operation');
@@ -215,7 +244,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     const kind=(value:string|undefined)=>value===undefined?undefined:LinkActionSchema.options[0].shape.sourceKind.unwrap().options.find(k=>k.toLowerCase()===value.toLowerCase())??value;
     return emit(linkIntent({action:'allowed',sourceKind:kind(sourceKind),targetKind:kind(targetKind)}));
   });
-  root.command('unlink <source> <from> <target> <as> <predicate>').description('Preview relation removal; endpoints remain')
+  root.command('unlink <source> <from> <target> <as> <predicate>',{hidden:true}).description('Preview relation removal; endpoints remain')
     .option('--yes','Confirm this exact local deterministic operation')
     .action((sourceId:string,from:string,targetId:string,as:string,predicate:string,opts:{yes?:boolean})=>{
       if(from.toLowerCase()!=='from'||as.toLowerCase()!=='as') throw new InvalidArgumentError('Usage: unlink SOURCE from TARGET as PREDICATE');
@@ -486,8 +515,6 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     command.action(()=>emit({family:'legacy',command:command.name(),tokens:command.args}));
   }
   const ticketCommand=root.commands.find(command=>command.name()==='ticket')!;
-  ticketCommand.command('show <id>').description('Show canonical Ticket, dependencies and current verification receipt')
-    .action((ticketId:string)=>emit({family:'artifact',tool:'get_ticket',args:{ticketId}}));
   ticketCommand.command('history <id>').description('Read original journal entries by Ticket ID')
     .option('--limit <count>','Page size').option('--after <id>','Journal cursor')
     .action((ticketId:string,opts:{limit?:string;after?:string})=>emit({family:'artifact',tool:'get_ticket_history',args:{ticketId,...opts,limit:Number(opts.limit??100)}}));
@@ -497,9 +524,6 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .requiredOption('--kind <kind>','decision, action, failure, correction or outcome').requiredOption('--message <text>','Meaningful event')
     .option('--reference <id-or-path>','Evidence reference (repeatable)',collect)
     .action((ticketId:string,opts:{kind:string;message:string;reference?:string[]})=>emit({family:'artifact',tool:'record_ticket_event',args:{ticketId,kind:opts.kind,message:opts.message,references:opts.reference??[]}}));
-  ticketCommand.command('list').description('Filter canonical work by kind, lane and text')
-    .option('--kind <kind>','task or bug').option('--lane <lane>','Kanban lane').option('--query <text>','Find ID/title/body')
-    .action((args:Record<string,unknown>)=>emit({family:'artifact',tool:'list_tickets',args}));
   for(const create of [true,false]) {
     const command=ticketCommand.command(create?'new':'edit <id>').description(create?'Create bounded technical work':'Edit existing work in place');
     if(create) command.option('--id <id>','Stable Ticket ID').requiredOption('--title <text>','Work title');
@@ -536,7 +560,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
   // Retain the established argument owners for specialist grammars, not a second parser here.
   for(const name of ['triage','product-change','metrics','setup','epic-create','epic-add','create','new',
     'claim','symbol','graph','patch','rule','config','exec','eval','model','kb']) {
-    const command=root.command(name+' [args...]', {hidden: name === 'patch'}).description(specialistHelp[name]?.split('\n')[0] ?? name+' operations').allowUnknownOption()
+    const command=(root.commands.find(command=>command.name()===name)??root.command(name+' [args...]', {hidden: name === 'patch'})).description(specialistHelp[name]?.split('\n')[0] ?? name+' operations').allowUnknownOption()
       .action((tokens:string[])=>emit({family:'legacy',command:name,tokens}));
     if(specialistHelp[name]) command.addHelpText('after','\n'+specialistHelp[name]);
   }
@@ -547,6 +571,9 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     .description('Show a canonical Ticket, its relations, dependencies and evidence')
     .addHelpText('after', `
 Related work commands:
+  ticket show|status|investigate <id>   Canonical action-first reads
+  ticket list                          Bounded canonical discovery
+  ticket <id> show|status|investigate   Transitional read-only alias
   tickets [lane]                       List Tickets in a Kanban lane
   ticket new --title <text> [--id <id>] [--body <text>] [--priority 0|1|2|3|4|5]
   claim <id> [agent] [minutes]          Claim through the existing lease owner
@@ -603,6 +630,7 @@ A configured provider is not proof that authentication or inference succeeds.`);
     }
     for(const child of command.commands) configure(child);
   };
+  projectCommands(root,(id,args,definition,format)=>emit({family:'artifact',tool:id,args,review:definition.review,format}),channel);
   configure(root);
   return root;
 }
@@ -611,9 +639,17 @@ A configured provider is not proof that authentication or inference succeeds.`);
 function commandTokens(tokens:string[],root:Command):string[] {
   const words=[...tokens];
   if(words[0]?.toLowerCase()==='please') words.shift();
-  if(words[0]?.includes(':')) words.splice(0,1,...words[0].split(':'));
+  if(words[0]?.includes(':')) {if(words[0].split(':').length!==2)throw new InvalidArgumentError('Only one colon subtopic is supported.');words.splice(0,1,...words[0].split(':'));}
   let command=root,positional=false;
   if(words[0]?.toLowerCase()==='help') {words.shift();words.push('--help');}
+  // Transitional, unambiguous read-only alias. Canonical syntax is action-first.
+  const ticketCommand=root.commands.find(child=>child.name()==='ticket')!;
+  const ticketVerb=words[2]?.toLowerCase();
+  if(words[0]?.toLowerCase()==='ticket' && words[1] &&
+    !ticketCommand.commands.some(child=>[child.name(),...child.aliases()].includes(words[1]!.toLowerCase())) &&
+    ticketVerb && ['show','status','investigate'].includes(ticketVerb)) {
+    words.splice(1,2,ticketVerb,words[1]);
+  }
   for(let i=0;i<words.length;i++) {
     const token=words[i]!;
     if(token==='--') break;
@@ -635,9 +671,9 @@ function commandTokens(tokens:string[],root:Command):string[] {
   return words;
 }
 
-export async function parseCommand(tokens:string[]):Promise<NormalizedCommand> {
+export async function parseCommand(tokens:string[],channel:'cli'|'shell'='cli'):Promise<NormalizedCommand> {
   let intent:NormalizedCommand|undefined,output='';
-  const tree=createCommandTree(value=>{intent=value;},text=>{output+=text;});
+  const tree=createCommandTree(value=>{intent=value;},text=>{output+=text;},channel);
   try {await tree.parseAsync(commandTokens(tokens,tree),{from:'user'});}
   catch(error) {
     if(error instanceof CommanderError&&error.exitCode===0) return {family:'help',tool:'help',args:{text:output}};

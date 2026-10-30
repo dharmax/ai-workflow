@@ -1,6 +1,6 @@
 /**
  * Responsibility: Ticket and Lease Management Facility.
- * Scope: Atomic leases, lane transitions, ticket listing, and next-task recommendation.
+ * Scope: Canonical Ticket reads, bounded lifecycle adapters, leases, lane transitions and work selection.
  */
 
 import {PrioritySchema} from '../model/types.ts';
@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { ticketEligibility } from '../ticket/eligibility.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { Ticket, Artifact } from '../model/ontology.ts';
 import {readVerificationReceipt} from '../ticket-operation-types.ts';
 import {loadConfig} from '../services/config-service.ts';
@@ -26,27 +26,36 @@ async function requireTicket(ctx: ToolContext, ticketId: string, kind?: Ticket['
   return ticket;
 }
 
+export const TicketReadActionSchema=z.discriminatedUnion('action',[
+ z.object({action:z.literal('list'),kind:TicketKindSchema.optional(),lane:TicketLaneSchema.optional(),query:z.string().optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()}).strict(),
+ ...(['show','status','investigate'] as const).map(action=>z.object({action:z.literal(action),ticketId:z.string().min(1).regex(/\S/,'ID must not be blank')}).strict())
+]);
 export function registerTicketTools() {
-  registry.register({name:'record_ticket_event',category:'ticket',description:'Append a meaningful decision, action, failure, correction or outcome to the Semantika system journal. Reference evidence; keep execution history out of Ticket.body.',
+  commandRegistry.register({name:'ticket',category:'ticket',description:'Read canonical Tickets: bounded list, exact show/status, read-only investigate. No lifecycle mutation or approval.',parameters:TicketReadActionSchema,
+    execute:async({action,...args},ctx)=>{
+      if(action==='list')return commandRegistry.execute('list_tickets',{...args,limit:'limit' in args?args.limit??25:25},ctx);
+      return commandRegistry.execute(action==='investigate'?'investigate_ticket':'get_ticket',args,ctx);
+    }});
+  commandRegistry.register({name:'record_ticket_event',category:'ticket',description:'Append a meaningful decision, action, failure, correction or outcome to the Semantika system journal. Reference evidence; keep execution history out of Ticket.body.',
     parameters:TicketEventInputSchema,execute:(input,ctx)=>recordTicketEvent(ctx.store,input)});
-  registry.register({name:'get_ticket_history',category:'ticket',description:'Read original Ticket journal entries. Explicit bounded pagination; normal Ticket reads return compact context instead.',
+  commandRegistry.register({name:'get_ticket_history',category:'ticket',description:'Read original Ticket journal entries. Explicit bounded pagination; normal Ticket reads return compact context instead.',
     parameters:z.object({ticketId:z.string().min(1),limit:z.number().int().min(1).max(100).default(100),after:z.string().regex(/^\d+$/).optional()}),
     execute:async({ticketId,limit,after},ctx)=>{await requireTicket(ctx,ticketId);return getTicketHistory(ctx.store,ticketId,limit,after);}});
-  registry.register({name:'condense_ticket_history',category:'ticket',description:'Explicitly replace the compact deterministic history summary; preserve every original entry and evidence reference. No model calls.',
+  commandRegistry.register({name:'condense_ticket_history',category:'ticket',description:'Explicitly replace the compact deterministic history summary; preserve every original entry and evidence reference. No model calls.',
     parameters:z.object({ticketId:z.string().min(1)}),execute:({ticketId},ctx)=>condenseTicketHistory(ctx.store,ticketId)});
-  registry.register({name:'migrate_ticket_history',category:'ticket',description:'Preserve an exact legacy body in the journal before replacing it with the reviewed current specification. Refuse stale bodies; retain completed verification.',
+  commandRegistry.register({name:'migrate_ticket_history',category:'ticket',description:'Preserve an exact legacy body in the journal before replacing it with the reviewed current specification. Refuse stale bodies; retain completed verification.',
     parameters:z.object({ticketId:z.string().min(1),expectedBody:z.string(),specification:z.string().trim().min(1),references:z.array(z.string()).default([])}),
     execute:async({ticketId,expectedBody,specification,references},ctx)=>{const result=await migrateTicketBody(ctx.store,ticketId,expectedBody,specification,references);if(result.migrated) await exportProjections(ctx.store);return result;}});
-  registry.register({name:'bug_action',category:'ticket',description:'Start, release, block, reopen or cancel a typed Bug through the existing Ticket owners.',
+  commandRegistry.register({name:'bug_action',category:'ticket',description:'Start, release, block, reopen or cancel a typed Bug through the existing Ticket owners.',
     parameters:z.object({action:z.enum(['start','release','block','reopen','cancel']),ticketId:z.string(),agentId:z.string().optional(),durationMinutes:z.number().positive().optional()}),
     execute:async({action,ticketId,agentId,durationMinutes},ctx)=>{
-      await registry.execute('get_bug',{ticketId},ctx);
-      if(action==='start') return registry.execute('claim_ticket',{ticketId,agentId,durationMinutes},ctx);
-      if(action==='release') return registry.execute('release_ticket',{ticketId},ctx);
-      return registry.execute('update_ticket_state',{ticketId,lane:action==='block'?'Blocked':action==='reopen'?'Todo':'Cancelled'},ctx);
+      await commandRegistry.execute('get_bug',{ticketId},ctx);
+      if(action==='start') return commandRegistry.execute('claim_ticket',{ticketId,agentId,durationMinutes},ctx);
+      if(action==='release') return commandRegistry.execute('release_ticket',{ticketId},ctx);
+      return commandRegistry.execute('update_ticket_state',{ticketId,lane:action==='block'?'Blocked':action==='reopen'?'Todo':'Cancelled'},ctx);
     }});
-  registry.register({name:'get_ticket',category:'ticket',description:'Read the canonical Ticket definition and revision.',
-    parameters:z.object({ticketId:z.string().min(1)}),
+  commandRegistry.register({name:'get_ticket',category:'ticket',description:'Show Ticket definition, canonical ID/revision, lane, claim and recorded receipt. Read-only; show/status share this operation. A receipt is not revalidated acceptance.',
+    parameters:z.object({ticketId:z.string().min(1).regex(/\S/,'ID must not be blank')}).strict(),
     execute:async({ticketId},ctx)=>{
       const ticket=await requireTicket(ctx,ticketId);
       const receipt=await ctx.store.getEntity<Artifact>('VERIFY-'+ctx.store.localId(ticket.id),Artifact.dcr);
@@ -55,7 +64,7 @@ export function registerTicketTools() {
         kind:ticket.kind ?? 'task',defect:ticket.defect,priority:ticket.priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
     }});
 
-  registry.register({
+  commandRegistry.register({
     name: 'resolve_ticket', description: 'Own a Ticket through bounded leased preparation, safe implementation, tests, repair and explicit acceptance verification. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional(), verifyOnly: z.boolean().optional().describe("Verify existing work without invoking the implementation Actor or editing source; failed checks block rather than repair. Independent acceptance is still required."), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
@@ -66,7 +75,7 @@ export function registerTicketTools() {
       return result;
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'prepare_ticket', description: 'Make a Ticket executable through read-only investigation, independent proposal review and leased safe enrichment/decomposition. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional() }),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
@@ -76,15 +85,16 @@ export function registerTicketTools() {
       return result;
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'investigate_ticket', description: 'Return a grounded, semantically read-only Ticket dossier with proposed enrichments and precise disposition. OperationResult.status describes this operation outcome; it is not the Ticket Kanban lane.', category: 'ticket',
-    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional() }),
+    parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string().min(1).regex(/\S/,'ID must not be blank'), kind: TicketKindSchema.optional() }).strict(),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
-      return ticket.investigate(ctx.store, { ...options, signal: ctx.signal });
+      return ctx.store.withExecutionContext('read-only', ctx.signal, () =>
+        ticket.investigate(ctx.store, { ...options, signal: ctx.signal }));
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'claim_ticket',
     description: 'Atomically lease a ticket to an agent with a time-to-live to prevent concurrent collisions.',
     category: 'ticket',
@@ -108,7 +118,7 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'release_ticket',
     description: 'Release the exact execution lease by leaseId. Omit leaseId only for an explicit administrative release of current work.',
     category: 'ticket',
@@ -124,7 +134,7 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'create_ticket',
     description: 'Create a new ticket in the AST+ Graph and sync with Kanban.',
     category: 'ticket',
@@ -147,7 +157,7 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_ticket',
     description: 'Edit the current Ticket work specification and optional lane. Preserve developer edits. Record execution logs, test results and progress with record_ticket_event, never append them to body.',
     category: 'ticket',
@@ -190,7 +200,7 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_ticket_state',
     description: 'Transition the authoritative Ticket lane; Done belongs to independent completion.',
     category: 'ticket',
@@ -216,30 +226,36 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'list_tickets',
     description: 'List tickets and their authored priority, lane and claim. Filter by lane; use the returned candidate data for comparisons rather than the next-task selector.',
     category: 'ticket',
     parameters: z.object({
       kind: TicketKindSchema.optional(), severity: TicketDefectSchema.shape.severity, query: z.string().optional(),
-      lane: TicketLaneSchema.optional().describe('Filter by lane')
-    }),
-    execute: async ({ lane, kind, severity, query }, ctx: ToolContext) => {
+      lane: TicketLaneSchema.optional().describe('Filter by lane'),
+      limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()
+    }).strict(),
+    execute: async ({ lane, kind, severity, query, limit, cursor }, ctx: ToolContext) => {
       const tickets = (await ctx.store.listEntities<Ticket>(Ticket.dcr, lane ? {lane} : {})).filter(t =>
         (!kind || (t.kind ?? 'task') === kind) && (!severity || t.defect?.severity === severity) &&
         (!query || [ctx.store.localId(t.id), t.title, t.body].some(value => value?.toLowerCase().includes(query.toLowerCase()))));
-      return tickets.map(t => ({
-        id: ctx.store.localId(t.id),
+      const rows=tickets.sort((a,b)=>ctx.store.localId(a.id).localeCompare(ctx.store.localId(b.id))).map(t => ({
+        id: ctx.store.localId(t.id),version:t.version,
         kind:t.kind ?? 'task', defect:t.defect,
         title: t.title,
         lane: t.lane,
         priority: t.priority,
         claim: t.claim
       }));
+      if(limit===undefined&&cursor===undefined)return rows;
+      const {computeHash}=await import('../kb/canonical.ts');
+      const basis=computeHash({rows,lane,kind,severity,query});let offset=0;
+      if(cursor){try{const page=JSON.parse(Buffer.from(cursor,'base64url').toString());if(page.basis!==basis||!Number.isInteger(page.offset)||page.offset<0||page.offset>=rows.length)throw Error();offset=page.offset;}catch{throw Error('Invalid or stale Ticket cursor; restart listing.');}}
+      const size=limit??25;return {status:'read',tickets:rows.slice(offset,offset+size),cursor:offset+size<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+size})).toString('base64url'):null};
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'recommend_next_task', category: 'ticket',
     description: 'Algorithmic task selector: prioritizes eligible own leases, then In Progress, then Todo; explicit priority, typed Bug severity and creation/ID break ties. Missing prerequisites, partial Bug reports and foreign active leases are excluded.',
     parameters: z.object({agentId:z.string().optional()}),
@@ -263,7 +279,7 @@ export function registerTicketTools() {
     }
   });
 
-  registry.register({name:'create_bug',category:'ticket',description:'Report a first-class Bug on the canonical Ticket store; partial reports retain unknowns.',
+  commandRegistry.register({name:'create_bug',category:'ticket',description:'Report a first-class Bug on the canonical Ticket store; partial reports retain unknowns.',
     parameters:z.object({id:z.string().optional(),title:z.string().min(1),body:z.string().optional(),priority:PrioritySchema.default(2),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional()}),
     execute:async(params,ctx)=>{
       if (Ticket.assessBug({kind:'bug',defect:params.defect}).ready) {
@@ -272,28 +288,28 @@ export function registerTicketTools() {
           keys.every(key=>(ticket.defect?.[key]??'').trim()===(params.defect?.[key]??'').trim()));
         if (duplicate) return {status:'needs_input',artifactId:ctx.store.localId(duplicate.id),required:[{question:'Update or relate the existing Bug '+ctx.store.localId(duplicate.id)+'.',why:'The same reproducible defect is already active.',target:'Bug identity'}]};
       }
-      return registry.execute('create_ticket',{...params,kind:'bug'},ctx);
+      return commandRegistry.execute('create_ticket',{...params,kind:'bug'},ctx);
     }});
-  registry.register({name:'get_bug',category:'ticket',description:'Read an explicitly typed Bug. Tasks are refused.',parameters:z.object({ticketId:z.string()}),
+  commandRegistry.register({name:'get_bug',category:'ticket',description:'Read an explicitly typed Bug. Tasks are refused.',parameters:z.object({ticketId:z.string()}),
     execute:async(params,ctx)=>{
       const ticket=await requireTicket(ctx,params.ticketId);
       if(ticket.kind!=='bug') throw Error(`Ticket '${params.ticketId}' is a task, not a Bug.`);
-      return registry.execute('get_ticket',params,ctx);
+      return commandRegistry.execute('get_ticket',params,ctx);
     }});
-  registry.register({name:'list_bugs',category:'ticket',description:'Filter canonical Bugs by lane, severity or text.',
+  commandRegistry.register({name:'list_bugs',category:'ticket',description:'Filter canonical Bugs by lane, severity or text.',
     parameters:z.object({lane:TicketLaneSchema.optional(),severity:TicketDefectSchema.shape.severity,query:z.string().optional()}),
-    execute:(params,ctx)=>registry.execute('list_tickets',{...params,kind:'bug'},ctx)});
-  registry.register({name:'update_bug',category:'ticket',description:'Complete or edit a Bug report in place, preserving unspecified defect fields.',
+    execute:(params,ctx)=>commandRegistry.execute('list_tickets',{...params,kind:'bug'},ctx)});
+  commandRegistry.register({name:'update_bug',category:'ticket',description:'Complete or edit a Bug report in place, preserving unspecified defect fields.',
     parameters:z.object({ticketId:z.string(),title:z.string().min(1).optional(),body:z.string().optional(),priority:PrioritySchema.optional(),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional(),lane:TicketLaneSchema.optional()}),
     execute:async({ticketId,defect,...fields},ctx)=>{
-      await registry.execute('get_bug',{ticketId},ctx);
+      await commandRegistry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);
-      return registry.execute('update_ticket',{ticketId,...fields,...(defect ? {defect:{...ticket.defect,...defect}} : {})},ctx);
+      return commandRegistry.execute('update_ticket',{ticketId,...fields,...(defect ? {defect:{...ticket.defect,...defect}} : {})},ctx);
     }});
-  registry.register({name:'triage_bug',category:'ticket',description:'Inspect Bug report gaps and claim blockers without competing lifecycle state flags.',
+  commandRegistry.register({name:'triage_bug',category:'ticket',description:'Inspect Bug report gaps and claim blockers without competing lifecycle state flags.',
     parameters:z.object({ticketId:z.string(),agentId:z.string().optional()}),
     execute:async({ticketId,agentId},ctx)=>{
-      const bug=await registry.execute('get_bug',{ticketId},ctx);
+      const bug=await commandRegistry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);
       const report=Ticket.assessBug(ticket);
       const eligibility=await ticketEligibility(ctx.store,ticket,agentId);

@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {FileNode, SymbolNode, Ticket} from '../../src/model/ontology.ts';
 import {ensureAstFresh} from '../../src/graph/indexer.ts';
-import {initializeTools, registry} from '../../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 import {buildSourceScope} from '../../src/ticket/source-scope.ts';
 import type {ChangeRequest} from '../../src/change/types.ts';
 import {acceptProduct} from '../product-review.ts';
@@ -80,7 +80,7 @@ export async function createMigrationFixture(): Promise<MigrationFixture> {
   const store = new WorkflowStore(root);
   initializeTools();
   const context = {store, projectRoot: root, executionAuthority: 'project-write' as const};
-  await registry.execute('create_ticket', {id:'FIELD-MIGRATION',kind:'task',title:'Migrate RetryPolicy.waitSeconds to delayMs',
+  await commandRegistry.execute('create_ticket', {id:'FIELD-MIGRATION',kind:'task',title:'Migrate RetryPolicy.waitSeconds to delayMs',
     body:'Technical field-contract migration authorized by the Issue 6 demonstration: rename `RetryPolicy.waitSeconds` to `delayMs`, convert seconds to milliseconds, update consumers, schemas, wire key, configuration and example; preserve the genuine tests. Discover `waitSeconds` in semantic and literal contracts. Text-only decoys and negative assertions are not active legacy contracts.',
     lane:'Todo',priority:0,acceptanceCriteria:[
       'The delayMs number contract uses milliseconds consistently in configuration, destructured, optional and escaped consumers and serialization.',
@@ -92,10 +92,10 @@ export async function createMigrationFixture(): Promise<MigrationFixture> {
 
 export async function discoverMigrationImpact(fixture: MigrationFixture) {
   const {root,store,context} = fixture;
-  const semantic = await registry.execute('get_exact_references', {filePath:'src/policy.ts',line:0,
+  const semantic = await commandRegistry.execute('get_exact_references', {filePath:'src/policy.ts',line:0,
     character:policySource.indexOf('waitSeconds')}, context);
   const references = semantic.references.map((reference:{uri:string}) => path.relative(root,fileURLToPath(reference.uri)));
-  const text = await registry.execute('search_workspace_text', {text:'waitSeconds',limit:100}, context);
+  const text = await commandRegistry.execute('search_workspace_text', {text:'waitSeconds',limit:100}, context);
   return {semantic, references:[...new Set<string>(references)], text};
 }
 
@@ -115,16 +115,16 @@ export async function authorizeMigration(fixture: MigrationFixture) {
   const admission = await store.admitGovernance('governed');
   try {await store.saveGovernedScope('FIELD-MIGRATION',claim.claim!,admission,scope);}
   finally {await store.releaseGovernance(admission);}
-  const structural = await registry.execute('analyze_blast_radius',{target:'src/policy.ts'},fixture.context);
-  const escaped = await registry.execute('search_workspace_text',{text:String.raw`wait\u0053econds`,limit:100},fixture.context);
+  const structural = await commandRegistry.execute('analyze_blast_radius',{target:'src/policy.ts'},fixture.context);
+  const escaped = await commandRegistry.execute('search_workspace_text',{text:String.raw`wait\u0053econds`,limit:100},fixture.context);
   return {files,dossier:dossier.value,structural,escaped};
 }
 
 export async function guardedMigrationChange(fixture: MigrationFixture, request: ChangeRequest) {
   const options = {ticketId:'FIELD-MIGRATION',agentId:'migration-host'};
-  const preview = await registry.execute('preview_change',{...request,...options},fixture.context);
+  const preview = await commandRegistry.execute('preview_change',{...request,...options},fixture.context);
   if (preview.blocked) throw Error(preview.blockReason);
-  const result = await registry.execute('apply_change',{request,fingerprint:preview.fingerprint,...options},fixture.context);
+  const result = await commandRegistry.execute('apply_change',{request,fingerprint:preview.fingerprint,...options},fixture.context);
   if (!result.ok) throw Error(JSON.stringify(result));
   return {preview,result};
 }
@@ -134,7 +134,7 @@ export async function executeFieldMigration(fixture: MigrationFixture) {
     line:0,character:policySource.indexOf('waitSeconds')},newName:'delayMs'});
   const changes = migrationContractChanges(fixture);
   const contracts = await guardedMigrationChange(fixture,{action:'source_change',changes});
-  const after = await registry.execute('search_workspace_text',{text:'waitSeconds',limit:100},fixture.context);
+  const after = await commandRegistry.execute('search_workspace_text',{text:'waitSeconds',limit:100},fixture.context);
   const properties = await fixture.store.listEntities<SymbolNode>(SymbolNode.dcr,{title:'delayMs',filePath:'src/policy.ts'});
   return {rename,contracts,after,properties};
 }
@@ -169,10 +169,10 @@ export const migrationStoryTest = {
 export async function reviewMigrationStoryTest(fixture: MigrationFixture) {
   const reviews=[];
   for(let attempt=0;attempt<2;attempt++) {
-    const preview=await registry.execute('prepare_story_test',{specification:migrationStoryTest},fixture.context);
+    const preview=await commandRegistry.execute('prepare_story_test',{specification:migrationStoryTest},fixture.context);
     if(preview.status!=='review') throw Error(JSON.stringify(preview));
     const result=await fixture.store.withExecutionContext('project-write',undefined,()=>
-      registry.execute('apply_story_test',{specification:migrationStoryTest,fingerprint:preview.fingerprint,decision:'accept'},fixture.context),preview.fingerprint);
+      commandRegistry.execute('apply_story_test',{specification:migrationStoryTest,fingerprint:preview.fingerprint,decision:'accept'},fixture.context),preview.fingerprint);
     reviews.push({preview,result});
     if(result.status==='linked') return reviews;
     if(result.status!=='file-created-unlinked') throw Error(JSON.stringify(result));

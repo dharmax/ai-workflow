@@ -6,14 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { UserStory, FileNode, SymbolNode, Ticket, TestNode, Artifact, Decision } from '../src/model/ontology.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
 
 describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
   let root: string, store: WorkflowStore;
   let stopReviewer: (()=>void) | undefined;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
+  const call = (name: string, params: Record<string, unknown>) => commandRegistry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = {
     actor: 'signed-in user', intent: 'keep the previewed avatar',
     initialState: 'Preview is open with an unsaved filter and an existing saved avatar',

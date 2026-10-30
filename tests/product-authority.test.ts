@@ -1,5 +1,5 @@
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';
-import {ToolRegistry} from '../src/tools/registry.ts';
+import {CommandRegistry} from '../src/tools/registry.ts';
 import type {Asker,SystemOne} from '@dharmax/llm-utils';
 import {z} from 'zod';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {applyProductMutations} from '../src/product/mutation.ts';
 import {Product,Ticket} from '../src/model/ontology.ts';
 
@@ -20,10 +20,10 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-product-authority-'));
   store=new WorkflowStore(root);initializeTools();
   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
-  await expect(registry.execute('define_product',{title:'Self-approved'},ctx)).rejects.toThrow('review');
+  await expect(commandRegistry.execute('define_product',{title:'Self-approved'},ctx)).rejects.toThrow('review');
   const request={action:'product_change',mutations:[{kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Self-approved'}}]};
-  const preview=await registry.execute('preview_change',request,ctx);
-  const result=await registry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
+  const preview=await commandRegistry.execute('preview_change',request,ctx);
+  const result=await commandRegistry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
   expect(result.ok).toBe(false);
   expect(result.status).toBe('review_required');
   store.close();store=new WorkflowStore(root);
@@ -34,7 +34,7 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   store=new WorkflowStore(root);initializeTools();
   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
   const request={action:'product_change',mutations:[{kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Actor proposal'}}]};
-  const preview=await registry.execute('preview_change',request,ctx);
+  const preview=await commandRegistry.execute('preview_change',request,ctx);
   const calls=[
    {name:'discover_tools',parameters:{request:'Define and accept the Product'}},
    {name:'define_product',parameters:{title:'Actor direct write'}},
@@ -45,7 +45,7 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
    ?{thought:'',action:'tool_call',toolCalls:[calls[step++]]}
    :{thought:'',action:'final_answer',finalAnswer:'Review required'}})} as unknown as Asker;
   const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({
-   query:{},mode:'dev' as const,tools:[registry.get('define_product')!,registry.get('apply_change')!]
+   query:{},mode:'dev' as const,tools:[commandRegistry.get('define_product')!,commandRegistry.get('apply_change')!]
   })}});
   const result=await actor.execute('Define the Product and approve it myself',undefined,{executionAuthority:'project-write'});
   const results=result.events.flatMap(event=>event.toolResults??[]);
@@ -60,8 +60,8 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   store=new WorkflowStore(root);initializeTools();
   const current=store,ctx={store:current,projectRoot:root,executionAuthority:'project-write' as const};
   const request={action:'product_change',mutations:[{kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Reviewed charter'}}]};
-  const preview=await registry.execute('preview_change',request,ctx);
-  const apply=(decision='accept')=>registry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision},ctx);
+  const preview=await commandRegistry.execute('preview_change',request,ctx);
+  const apply=(decision='accept')=>commandRegistry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision},ctx);
   for(const decision of ['reject','cancel']) expect((await apply(decision)).ok).toBe(false);
   expect((await current.withExecutionContext('project-write',undefined,apply,'wrong fingerprint')).status).toBe('review_required');
   const nested=await current.withExecutionContext('project-write',undefined,()=>
@@ -69,7 +69,7 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   expect(nested.status).toBe('review_required');
   const abort=new AbortController();abort.abort();
   await expect(current.withExecutionContext('project-write',abort.signal,apply,preview.fingerprint)).rejects.toThrow();
-  await expect(registry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},
+  await expect(commandRegistry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},
    {...ctx,executionAuthority:'read-only'})).rejects.toThrow('read-only');
   const approved=await current.withExecutionContext('project-write',undefined,apply,preview.fingerprint);
   expect(approved.ok).toBe(true);
@@ -78,10 +78,10 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   expect(await store.getEntity('PRODUCT',Product.dcr)).toMatchObject({title:'Reviewed charter',version:1});
  });
 
- it('refuses raw legacy store writers reached through an actual project-write registry call',async()=>{
+ it('refuses raw legacy store writers reached through an actual project-write commandRegistry call',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-product-legacy-'));
   store=new WorkflowStore(root);initializeTools();
-  const local=new ToolRegistry();
+  const local=new CommandRegistry();
   local.register({name:'legacy_definition',category:'planning',description:'Adversarial legacy writer',
    parameters:z.object({}),execute:(_args,ctx)=>ctx.store.upsertEntity(Product.dcr,{id:'PRODUCT',title:'Unreviewed'})});
   local.register({name:'legacy_mutation',category:'planning',description:'Direct Product mutation owner',parameters:z.object({}),
@@ -142,7 +142,7 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-product-work-'));
   store=new WorkflowStore(root);initializeTools();
   const current=store;
-  await registry.execute('create_ticket',{id:'P',title:'Persist jobs and migrate records',body:'Persist new jobs; migrate historical records separately.',
+  await commandRegistry.execute('create_ticket',{id:'P',title:'Persist jobs and migrate records',body:'Persist new jobs; migrate historical records separately.',
    acceptanceCriteria:['Restart retains jobs','Old records migrate safely']},{store:current,projectRoot:root,executionAuthority:'project-write'});
   const parent=(await current.getEntity<Ticket>('P',Ticket.dcr))!;
   const systemOne: SystemOne={assess:async()=>({backendId:'fixture',quality:'high',latencyMs:0,
@@ -166,13 +166,13 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   store=new WorkflowStore(root);initializeTools();
   const current=store,ctx={store:current,projectRoot:root,executionAuthority:'project-write' as const};
   const request={action:'product_change',mutations:[{kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Expired review'}}]};
-  const preview=await registry.execute('preview_change',request,ctx);
+  const preview=await commandRegistry.execute('preview_change',request,ctx);
   let resume!:()=>void,child!:Promise<unknown>;
   const gate=new Promise<void>(resolve=>{resume=resolve;});
   await current.withExecutionContext('project-write',undefined,async()=>{
    child=current.withExecutionContext('project-write',undefined,async()=>{
     await gate;
-    return registry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
+    return commandRegistry.execute('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'},ctx);
    });
   },preview.fingerprint);
   resume();

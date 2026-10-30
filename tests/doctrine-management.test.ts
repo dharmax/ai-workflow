@@ -11,7 +11,7 @@ import {runRuleCommand} from '../src/rule-command.ts';
 import {resolveRuleReference, validateReferenceSnapshot} from '../src/rules/references.ts';
 import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
 let root: string, upstream: string, store: WorkflowStore, rules: RuleStore;
-const registry = initializeTools();
+const commandRegistry = initializeTools();
 const model = (ruleId = 'test.rule'): RuleModel => ({id: ruleId, ruleId, type: 'coding', scope: {kind: 'universal'},
   importance: 10, rule: 'Use one direct addition owner.', status: 'active', revision: 1, provenance: 'authored',
   examples: [], references: [], test: {kind: 'llm'}});
@@ -30,10 +30,11 @@ beforeEach(async () => {
 afterEach(async () => {await closeAllTsLspClients(); store.close(); fs.rmSync(root, {recursive: true, force: true}); fs.rmSync(upstream, {recursive: true, force: true});});
 test('management uses approved fingerprints, stable IDs, durable audit and atomic stale rejection', async () => {
   const request = {pack: pack(model()), reason: 'Create principle'};
-  const preview = await registry.execute('preview_rule_change', request, {store, projectRoot: root, executionAuthority: 'project-write' as const});
+  const preview = await commandRegistry.execute('preview_rule_change', request, {store, projectRoot: root, executionAuthority: 'project-write' as const});
   expect(await rules.listAllRules()).toEqual([]);
-  await expect(registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('Read-only');
-  await registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'project-write' as const});
+  await expect(commandRegistry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('Read-only');
+  await expect(commandRegistry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'project-write' as const})).rejects.toThrow('Trusted host approval');
+  await store.withExecutionContext('project-write',undefined,()=>commandRegistry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, {store, projectRoot: root, executionAuthority: 'project-write' as const}),preview.fingerprint);
   expect((await rules.listAllRules())[0].id).toBe(RuleStore.entityIdForScope('test.rule', {kind: 'universal'}));
   const artifacts = await store.listEntities<Artifact & {body:string}>(Artifact.dcr);
   expect(artifacts.filter(artifact => store.localId(artifact.id).startsWith('RULE-AUDIT-'))).toHaveLength(1);
@@ -119,7 +120,7 @@ test('CLI adapter, MCP tools and existing entity form share graph truth and expl
   await rules.saveRule(model());
   const id = RuleStore.entityIdForScope('test.rule', {kind: 'universal'});
   expect(JSON.parse(await runRuleCommand(['list', '--status', 'active'], {store, projectRoot: root, executionAuthority: 'project-write' as const}))).toHaveLength(1);
-  expect(getPublicMcpTools(registry).map(tool => tool.name)).toContain('apply_rule_change');
+  expect(getPublicMcpTools(commandRegistry).map(tool => tool.name)).not.toContain('apply_rule_change');
   const view = await buildEntityView({store, projectRoot: root, executionAuthority: 'project-write' as const}, 'rule', id, 'edit');
   expect(view.fields.payload).toBeDefined();
   const values = {payload: JSON.stringify({...model(), title: 'Edited title'}), reason: 'Title correction'};

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
-import {initializeTools, registry} from '../../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 import {saveConfig} from '../../src/services/config-service.ts';
 import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
@@ -24,7 +24,7 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
  let mode:'aligned'|'conflict'|'unknown'|'missing'|'malformed'|'contradictory'|'raw'|'external-conflict'='aligned';
  let prompts:string[];
  const ctx=()=>({store,projectRoot:root,executionAuthority:'project-write' as const});
- const call=(name:string,args:Record<string,unknown>)=>registry.execute(name,args,ctx());
+ const call=(name:string,args:Record<string,unknown>)=>commandRegistry.execute(name,args,ctx());
  const preview=(request:Request)=>call('preview_change',request);
  const apply=async(request:Request)=>{const p=await preview(request);return reviewedApply(store,{request,fingerprint:p.fingerprint,decision:'accept'});};
  const charter=():Request=>({action:'product_change',mutations:[{kind:'product_create',entityType:'Product',id:'PRODUCT',fields:(({id,version,...fields})=>fields)(recorded.charter)}]});

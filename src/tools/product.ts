@@ -12,7 +12,7 @@ import path from 'node:path';
 import { IntentProposalSchema } from '../product/process-types.ts';
 import {StoryTestSpecificationSchema,prepareStoryTest,applyStoryTest,storyTestStatus,runStoryTest} from '../product/story-tests.ts';
 import {applyOwnedChange} from './change.ts';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import {
   Product,
   ModuleNode,
@@ -59,6 +59,7 @@ async function topLevelIntentView(ctx: ToolContext, entity: Goal | Concept | Flo
   });
   return {
     id: ctx.store.localId(entity.id),
+    version: entity.version,
     kind: entity.typeName(),
     title: entity.title,
     body: (entity as any).body || undefined,
@@ -226,7 +227,7 @@ const pageFields={query:z.string().optional(),limit:z.number().int().min(1).max(
 const workFilter=z.object({lane:z.enum(['Backlog','Todo','In Progress','Done','Blocked','Cancelled']).optional(),priority:PrioritySchema.optional(),kind:z.enum(['task','bug']).optional()}).strict();
 const definitionFilter=(kind:ArtifactKind)=>kind==='Ticket'?workFilter:kind==='Bug'?workFilter.extend({kind:z.literal('bug').optional()}):
   z.object({status:(kind==='Epic'?z.enum(EPIC_STATUSES):kind==='Idea'?z.enum(['draft','proposed','accepted','implemented','verified','deprecated']):z.enum(INTENT_STATUSES)).optional()}).strict();
-const artifactBranches:z.ZodType[]=[z.object({action:z.literal('describe'),kind:z.enum(artifactKinds).optional()}).strict()];
+export const artifactBranches:z.ZodType[]=[z.object({action:z.literal('describe'),kind:z.enum(artifactKinds).optional()}).strict()];
 for(const kind of artifactKinds) {
   const identity=kind==='Product'?z.literal('PRODUCT'):artifactId;
   artifactBranches.push(z.object({action:z.literal('list'),kind:z.literal(kind),...pageFields,filter:definitionFilter(kind).optional()}).strict(),
@@ -295,10 +296,10 @@ async function artifactAction(args:ArtifactAction,ctx:ToolContext) {
   if(args.kind==='Bug'&&(data.kind??'task')!=='bug') throw Error(`Ticket '${id}' is a task, not a Bug.`);
   const exactId=ctx.store.localId(entity.id);
   if(args.action==='show') {
-    const definition=kind==='Module'?await registry.execute('get_module',{moduleId:exactId},ctx):data;
+    const definition=kind==='Module'?await commandRegistry.execute('get_module',{moduleId:exactId},ctx):data;
     return {status:'read',kind:args.kind,id:exactId,version:entity.version,...(kind==='Product'?{defined:true}:{}),definition,
       relations:await linkAction(ctx.store,{action:'inspect',id:exactId,limit:25}),
-      evidence:kind==='Ticket'?await registry.execute('get_ticket',{ticketId:exactId},ctx):entity instanceof UserStory?await entity.getEffectiveState(ctx.store):{state:'not-assessed',next:'verify / get_product_coverage; definition acceptance is not satisfaction'}};
+      evidence:kind==='Ticket'?await commandRegistry.execute('get_ticket',{ticketId:exactId},ctx):entity instanceof UserStory?await entity.getEffectiveState(ctx.store):{state:'not-assessed',next:'verify / get_product_coverage; definition acceptance is not satisfaction'}};
   }
   if(entity.version!==args.version) throw Error(`Stale ${args.kind} version; read the current definition and restart review.`);
   const fields=args.action==='preview_retire'?{[kind==='Module'?'intentStatus':'status']:'deprecated'}:args.fields;
@@ -308,17 +309,17 @@ async function artifactAction(args:ArtifactAction,ctx:ToolContext) {
 const artifactPrefixes={Product:'PRODUCT',Goal:'GOAL',Concept:'CONCEPT',Flow:'FLOW',Feature:'FEAT',UserStory:'STORY',Aspect:'ASP',Epic:'EPIC',Ticket:'TKT',Bug:'BUG',Decision:'DEC'} as const;
 
 export function registerProductTools() {
-  registry.register({name:'artifact',category:'planning',description:'Typed definition discovery, bounded reads and inert S2 previews. Use describe for one kind. Product acceptance requires exact developer review.',parameters:ArtifactActionSchema,execute:(args,ctx)=>artifactAction(args as ArtifactAction,ctx)});
-  registry.register({name:'verify',category:'test',description:'Inspect Story S5 execution or recorded Ticket proof; run an activated Story test. Never writes a Ticket receipt or completes work.',parameters:VerifyActionSchema,execute:async(args,ctx)=>{
+  commandRegistry.register({name:'artifact',category:'planning',description:'Typed definition discovery, bounded reads and inert S2 previews. Use describe for one kind. Product acceptance requires exact developer review.',parameters:ArtifactActionSchema,execute:(args,ctx)=>artifactAction(args as ArtifactAction,ctx)});
+  commandRegistry.register({name:'verify',category:'test',description:'Inspect Story S5 execution or recorded Ticket proof; run an activated Story test. Never writes a Ticket receipt or completes work.',parameters:VerifyActionSchema,execute:async(args,ctx)=>{
     if(args.action==='describe') return {status:'read',kinds:['story','ticket'],actions:{story:['show','run'],ticket:['show']},rights:{show:'read-only',run:'project-write; executes the existing activated Story test'},states:'Story evidence is current S5 classification. Ticket receipt is recorded-unchecked until the independent completion owner revalidates current source, tests and governance.',next:'prepare_story_test / apply_story_test; resolve_ticket owns independent Ticket completion'};
     const entity=await endpoint(ctx.store,args.id,args.idMatch);
     const expected=args.kind==='story'?'UserStory':'Ticket';
     if(productKind(entity)!==expected) throw Error(`Expected ${expected} '${args.id}'.`);
     const id=ctx.store.localId(entity.id);
-    if(args.kind==='ticket') return registry.execute('get_ticket',{ticketId:id},ctx);
-    return registry.execute(args.action==='run'?'run_story_test':'get_story_test_status',{storyId:id},ctx);
+    if(args.kind==='ticket') return commandRegistry.execute('get_ticket',{ticketId:id},ctx);
+    return commandRegistry.execute(args.action==='run'?'run_story_test':'get_story_test_status',{storyId:id},ctx);
   }});
-  registry.register({
+  commandRegistry.register({
     name:'get_module', category:'graph',
     description:'Read an exact indexed Module identity, authored intent and current source availability. Source facts are not authorable.',
     parameters:z.object({moduleId:z.string().min(1)}).strict(),
@@ -336,24 +337,24 @@ export function registerProductTools() {
         sourceStatus:sourcePresent?'indexed':'missing_source'};
     }
   });
-  registry.register({name:'get_decision',category:'planning',description:'Read one canonical Decision without changing its approval state.',
+  commandRegistry.register({name:'get_decision',category:'planning',description:'Read one canonical Decision without changing its approval state.',
     parameters:z.object({id:z.string().min(1)}).strict(),execute:async({id},ctx)=>{
       const decision=await ctx.store.getEntity<Decision>(id,Decision.dcr);
       if(!decision) throw Error(`Decision '${id}' not found.`);
       return {...await decision.fullDto<Record<string,unknown>>(),id:ctx.store.localId(decision.id),version:decision.version};
     }});
-  registry.register({name:'list_decisions',category:'planning',description:'List canonical Decisions without accepting or revising definitions.',
+  commandRegistry.register({name:'list_decisions',category:'planning',description:'List canonical Decisions without accepting or revising definitions.',
     parameters:z.object({}).strict(),execute:async(_params,ctx)=>Promise.all((await ctx.store.listEntities<Decision>(Decision.dcr)).map(async decision=>
       ({...await decision.fullDto<Record<string,unknown>>(),id:ctx.store.localId(decision.id),version:decision.version})))});
-  registry.register({name:'link',category:'planning',description:'Discover H/O/L relation types, inspect edges, or prepare an inert reviewed link change. Applying requires separate S2 review; no model approval flag.',parameters:LinkActionSchema,execute:(args,ctx)=>linkAction(ctx.store,args)});
-  registry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
-  registry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>registry.execute('triage_test_failures',{testCommand:command},ctx),preview=>applyOwnedChange(preview,ctx))});
-  registry.register({name:'prepare_test_binding',category:'planning',description:'Preview developer-reviewed bounded technical Ticket proof using existing local and dependency-owned TestNodes; no execution or acceptance is imported.',parameters:z.object({specification:TestBindingSpecificationSchema}).strict(),execute:({specification},ctx)=>prepareTestBinding(ctx.store,specification)});
-  registry.register({name:'apply_test_binding',category:'planning',description:'Bind the exact current technical proof preview only with host-reviewed fingerprint authority. Project-write and model decisions cannot approve proof meaning.',parameters:z.object({specification:TestBindingSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}).strict(),execute:({specification,fingerprint,decision},ctx)=>applyTestBinding(ctx.store,specification,fingerprint,decision,preview=>applyOwnedChange(preview,ctx))});
-  registry.register({name:'prepare_story_test',category:'planning',description:'Preview a reviewed executable public-interface Story suite; missing fixtures remain uncovered.',
+  commandRegistry.register({name:'link',category:'planning',description:'Discover H/O/L relation types, inspect edges, or prepare an inert reviewed link change. Applying requires separate S2 review; no model approval flag.',parameters:LinkActionSchema,execute:(args,ctx)=>linkAction(ctx.store,args)});
+  commandRegistry.register({name:'get_story_test_status',category:'planning',description:'Inspect materialized Story test specification; missing sources are uncovered, never skipped.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>storyTestStatus(ctx.store,storyId)});
+  commandRegistry.register({name:'run_story_test',category:'test',description:'Run an activated Story test through the existing targeted test runner and classify current execution evidence.',parameters:z.object({storyId:z.string().min(1)}),execute:({storyId},ctx)=>runStoryTest(ctx.store,storyId,command=>commandRegistry.execute('triage_test_failures',{testCommand:command},ctx),preview=>applyOwnedChange(preview,ctx))});
+  commandRegistry.register({name:'prepare_test_binding',category:'planning',description:'Preview developer-reviewed bounded technical Ticket proof using existing local and dependency-owned TestNodes; no execution or acceptance is imported.',parameters:z.object({specification:TestBindingSpecificationSchema}).strict(),execute:({specification},ctx)=>prepareTestBinding(ctx.store,specification)});
+  commandRegistry.register({name:'apply_test_binding',category:'planning',description:'Bind the exact current technical proof preview only with host-reviewed fingerprint authority. Project-write and model decisions cannot approve proof meaning.',parameters:z.object({specification:TestBindingSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}).strict(),execute:({specification,fingerprint,decision},ctx)=>applyTestBinding(ctx.store,specification,fingerprint,decision,preview=>applyOwnedChange(preview,ctx))});
+  commandRegistry.register({name:'prepare_story_test',category:'planning',description:'Preview a reviewed executable public-interface Story suite; missing fixtures remain uncovered.',
     parameters:z.object({specification:StoryTestSpecificationSchema}),
     execute:({specification},ctx)=>prepareStoryTest(ctx.store,specification)});
-  registry.register({name:'apply_story_test',category:'planning',description:'Approve guarded test source materialization, then separately link its canonical Test. Reports partial outcomes.',
+  commandRegistry.register({name:'apply_story_test',category:'planning',description:'Approve guarded test source materialization, then separately link its canonical Test. Reports partial outcomes.',
     parameters:z.object({specification:StoryTestSpecificationSchema,fingerprint:z.string().min(1),decision:z.enum(['accept','reject','cancel'])}),
     execute:async({specification,fingerprint,decision},ctx)=>{
       return applyStoryTest(ctx.store,specification,fingerprint,decision,preview=>
@@ -374,7 +375,7 @@ export function registerProductTools() {
     const createSchema = spec.actorFields
       ? z.object({ ...baseFields, actor: z.string().optional(), context: z.string().optional() })
       : z.object(baseFields);
-    registry.register({
+    commandRegistry.register({
       name: `create_${spec.prefix}`,
       description: `Create a durable ${spec.kind} in top-level Product Intent.`,
       category: 'planning',
@@ -389,14 +390,14 @@ export function registerProductTools() {
         return topLevelIntentView(ctx, await requireEntity(ctx, id, spec.ctor.dcr, spec.kind));
       }
     });
-    registry.register({
+    commandRegistry.register({
       name: `get_${spec.prefix}`,
       description: `Get a ${spec.kind} and its semantic relations.`,
       category: 'planning',
       parameters: z.object({ id: z.string() }),
       execute: async ({ id }, ctx: ToolContext) => topLevelIntentView(ctx, await requireEntity(ctx, id, spec.ctor.dcr, spec.kind))
     });
-    registry.register({
+    commandRegistry.register({
       name: `list_${spec.prefix}s`,
       description: `List ${spec.kind} entities.`,
       category: 'planning',
@@ -407,7 +408,7 @@ export function registerProductTools() {
         return status ? views.filter(view => view.status === status) : views;
       }
     });
-    registry.register({
+    commandRegistry.register({
       name: `update_${spec.prefix}`,
       description: `Update a ${spec.kind} without changing its semantic relations.`,
       category: 'planning',
@@ -423,7 +424,7 @@ export function registerProductTools() {
   }
 
   for (const [name, ctor, key] of [['process_epic', Epic, 'epicId'], ['process_feature', Feature, 'featureId'], ['process_story', UserStory, 'storyId']] as const) {
-    registry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
+    commandRegistry.register({ name, category: 'planning', description: 'Reconcile Product Intent into necessary reviewed work, reusing existing capabilities and respecting completeness/depth/breadth.',
       parameters: ArtifactTransportOptionsSchema.extend({ [key]: z.string(), originalRequest: z.string().optional(), proposal: IntentProposalSchema.optional() }),
       execute: async (params, ctx) => {
         const { [key]: id, ...options } = params;
@@ -433,10 +434,13 @@ export function registerProductTools() {
       }
     });
   }
+  commandRegistry.register({name:'plan_intent',category:'planning',description:'Plan bounded delivery work from accepted Epic, Feature or Story through the existing process owner.',
+    parameters:ArtifactTransportOptionsSchema.extend({kind:z.enum(['epic','feature','story']),id:z.string().min(1),originalRequest:z.string().optional(),proposal:IntentProposalSchema.optional()}).strict(),
+    execute:({kind,id,...options},ctx)=>commandRegistry.execute('process_'+kind,{[kind+'Id']:id,...options},ctx)});
   // ---------------------------------------------------------------------------
   // Epic Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'create_epic',
     description: 'Create a new Epic in the Product Intent Graph.',
     category: 'planning',
@@ -456,7 +460,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_epic',
     description: 'Get an Epic with targeted goals/concepts/flows/features/stories and contained tickets.',
     category: 'planning',
@@ -467,7 +471,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'list_epics',
     description: 'List Epics in the Product Intent Graph, optionally filtering by status.',
     category: 'planning',
@@ -482,7 +486,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_epic',
     description: 'Update the title, body, priority, or status of an existing Epic.',
     category: 'planning',
@@ -503,7 +507,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // Feature Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'create_feature',
     description: 'Create a durable Feature entity in the Product Intent Graph.',
     category: 'planning',
@@ -524,7 +528,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_feature',
     description: 'Get a Feature with the Stories it enables, targeting epics, tickets, and tests.',
     category: 'planning',
@@ -535,7 +539,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'list_features',
     description: 'List Features in the Product Intent Graph, optionally filtering by status.',
     category: 'planning',
@@ -550,7 +554,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_feature',
     description: 'Update the title, body, criteria, or status of an existing Feature.',
     category: 'planning',
@@ -572,7 +576,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // User Story Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'create_user_story',
     description: 'Create a first-class user story in the Product Intent Graph.',
     category: 'planning',
@@ -604,7 +608,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_user_story',
     description: 'Get a narrative Story with its containing Flow, enabling Features, targeting epics, tickets, and tests.',
     category: 'planning',
@@ -615,7 +619,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'list_user_stories',
     description: 'List user stories, optionally filtering by status or containing feature.',
     category: 'planning',
@@ -641,7 +645,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_user_story',
     description: 'Update the behavioral content or status of an existing user story without changing graph relations.',
     category: 'planning',
@@ -671,7 +675,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // Constrained Link and Unlink Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'link_product',
     description: 'Connect Product Intent using canonical semantic relations, including Flow serves Goal, Concept governs scopes, Flow contains Story, Feature enables Story, Epic targets intent, and Ticket implements/addresses work.',
     category: 'planning',
@@ -698,7 +702,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'unlink_product',
     description: 'Disconnect product entities linked by canonical relations.',
     category: 'planning',
@@ -728,7 +732,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // Coverage & Impact Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'get_product_coverage',
     description: 'Evaluate structural and causal coverage (work, code grounding, verification, blockers) for an Epic, Feature, or User Story.',
     category: 'planning',
@@ -740,7 +744,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_product_impact',
     description: 'Extract bounded semantic neighborhood (intent, work, code anchors, verification, decisions) for an Epic, Feature, or User Story.',
     category: 'planning',
@@ -755,7 +759,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // Epic Decomposition Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'propose_epic_structure',
     description: 'Propose a structured Epic decomposition into stable Features and observable User Stories with zero graph mutation.',
     category: 'planning',
@@ -772,7 +776,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'apply_epic_structure',
     description: 'Prepare an inert, versioned change preview from Epic decomposition. Review it and use apply_change with decision=accept to commit; reused definitions are preserved.',
     category: 'planning',
@@ -787,7 +791,7 @@ export function registerProductTools() {
   // ---------------------------------------------------------------------------
   // Product Charter Singleton Tools
   // ---------------------------------------------------------------------------
-  registry.register({
+  commandRegistry.register({
     name: 'get_product',
     description: 'Get the top-level Product charter singleton if defined.',
     category: 'planning',
@@ -821,7 +825,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'define_product',
     description: 'Define the initial Product charter singleton.',
     category: 'planning',
@@ -861,7 +865,7 @@ export function registerProductTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'update_product',
     description: 'Update the Product charter singleton.',
     category: 'planning',

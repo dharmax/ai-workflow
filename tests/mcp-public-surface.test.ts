@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {registry} from '../src/tools/index.ts';
+import {commandRegistry} from '../src/tools/index.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';
@@ -94,11 +94,11 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
   });
 
   it('forwards an SDK cancellation notification to the executing tool', async () => {
-    const original=registry.get('get_ticket')!;
+    const original=commandRegistry.get('get_ticket')!;
     let entered!:()=>void, observed!:()=>void;
     const started=new Promise<void>(resolve=>{entered=resolve});
     const cancelled=new Promise<void>(resolve=>{observed=resolve});
-    registry.register({...original,execute:async(_input,ctx)=>{
+    commandRegistry.register({...original,execute:async(_input,ctx)=>{
       entered();
       await new Promise<void>(resolve=>{
         if(ctx.signal?.aborted){observed();resolve();return;}
@@ -113,6 +113,6 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
       await started;controller.abort(Error('Public MCP cancellation'));
       await pending;
       expect(await Promise.race([cancelled.then(()=>true),new Promise<boolean>(resolve=>setTimeout(()=>resolve(false),200))])).toBe(true);
-    } finally {registry.register(original);}
+    } finally {commandRegistry.register(original);}
   });
 });

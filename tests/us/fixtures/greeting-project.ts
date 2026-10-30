@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../../src/graph/store.ts';
 import {loadConfig, saveConfig} from '../../../src/services/config-service.ts';
-import {initializeTools, registry} from '../../../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../../../src/tools/index.ts';
 import {acceptProduct} from '../../product-review.ts';
 import {productReviewFixture} from '../../product-review-fixture.ts';
 import {closeAllTsLspClients} from '../../../src/change/ts-lsp.ts';
@@ -104,7 +104,7 @@ export async function withAcceptedGreetingStory(
       {kind: 'product_link', sourceId: 'PRODUCT', predicate: 'contains', targetId: 'GREETINGS'},
       {kind: 'product_link', sourceId: 'GREETINGS', predicate: 'enables', targetId: 'GREET-USER'}
     ]));
-    await step('Create Ticket through public API', () => registry.execute('create_ticket', {id: 'GREET-TICKET', title: 'Implement the greeting Story',
+    await step('Create Ticket through public API', () => commandRegistry.execute('create_ticket', {id: 'GREET-TICKET', title: 'Implement the greeting Story',
       body: "Update the public greet(name) behavior for the accepted GREET-USER Story; preserve its signature." +
         (delegated ? " Preserve src/greeting.ts as the unchanged public facade; discover and repair the formatter it delegates to." : ""),
       acceptanceCriteria: ["Calling greet('Ada') returns exactly 'Hello, ADA!' and the public test passes.",
@@ -112,7 +112,7 @@ export async function withAcceptedGreetingStory(
         ...(delegated ? ['The public facade src/greeting.ts remains unchanged; its formatter supplies the requested greeting.'] : [])]}, ctx));
 
     const matches = await step('Discover exact greeting symbol through public graph', () =>
-      registry.execute('search_graph', {entityType: 'SymbolNode', query: 'greet'}, ctx));
+      commandRegistry.execute('search_graph', {entityType: 'SymbolNode', query: 'greet'}, ctx));
     const targets = matches.results.filter((item: {title?: string; filePath?: string; status?: string}) =>
       item.title === 'greet' && item.filePath === 'src/greeting.ts' && item.status !== 'deprecated');
     if (targets.length !== 1) throw Error('Expected one indexed public greet symbol; found ' + targets.length);
@@ -128,11 +128,11 @@ export async function withAcceptedGreetingStory(
     let linked = false;
     for (let attempt = 0; attempt < 2; attempt++) {
       const preview = await step('Prepare reviewed Story test attempt ' + (attempt+1), () =>
-        registry.execute('prepare_story_test', {specification}, ctx));
+        commandRegistry.execute('prepare_story_test', {specification}, ctx));
       if (preview.status !== 'review') throw Error(JSON.stringify(preview));
       const applied = await step('Approve Story test attempt ' + (attempt+1), () =>
         store!.withExecutionContext('project-write', undefined, () =>
-          registry.execute('apply_story_test', {specification, fingerprint: preview.fingerprint, decision: 'accept'}, ctx),
+          commandRegistry.execute('apply_story_test', {specification, fingerprint: preview.fingerprint, decision: 'accept'}, ctx),
           preview.fingerprint));
       if (applied.status === 'linked') {linked = true; break;}
       if (applied.status !== 'file-created-unlinked') throw Error(JSON.stringify(applied));

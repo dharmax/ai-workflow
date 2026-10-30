@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { entityDescriptors } from '../src/model/ontology.ts';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -16,7 +16,7 @@ describe('S3 Workspace public developer journeys', () => {
   let root: string, store: WorkflowStore, browser: Browser;
   let workspace: {url: string; stop: () => Promise<void>};
   const binary = process.env.AIWF_WORKSPACE_BINARY ? path.resolve(process.env.AIWF_WORKSPACE_BINARY) : undefined;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, {store, projectRoot: root, executionAuthority: 'project-write' as const});
+  const call = (name: string, params: Record<string, unknown>) => commandRegistry.execute(name, params, {store, projectRoot: root, executionAuthority: 'project-write' as const});
   const scenario = { Actor: 'Signed-in user', Intent: 'Keep my filtered avatar', 'Initial State': 'Unsaved filtered preview; previous saved avatar exists',
     Action: 'Activate Save', 'Expected Result': 'Saved avatar matches preview after reload', Exceptions: 'Failure preserves the previous avatar', Bounds: 'Current account only' };
   const start = async () => {
@@ -37,7 +37,7 @@ describe('S3 Workspace public developer journeys', () => {
       workspace.url = line.slice('AIWF Workspace: '.length).trim();
     } else {
       const {startWorkspace} = await import('../src/workspace/server.ts');
-      const local = startWorkspace({store, projectRoot: root, executionAuthority: 'project-write' as const}, 0);
+      const local = startWorkspace({store, projectRoot: root, executionAuthority: 'project-write' as const}, 0, async()=>true);
       workspace = {url:local.url, stop:async () => { local.server.stop(true); }};
     }
     return workspace.url;

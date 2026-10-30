@@ -13,7 +13,7 @@ import {
 } from '../src/typescript-runtime.ts';
 import { TsLspClient, getTsLspClient, closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { resolveCodeTarget } from '../src/change/target-resolver.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('AIWF-CHANGE-FOUNDATION', () => {
   let tmpDir: string;
@@ -42,7 +42,7 @@ describe('AIWF-CHANGE-FOUNDATION', () => {
     initializeTools();
     const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
     expect(await store.listEntities<SymbolNode>(SymbolNode.dcr)).toHaveLength(0);
-    const ref = await registry.execute('get_exact_references',
+    const ref = await commandRegistry.execute('get_exact_references',
       {filePath: 'src/options.ts', line: 0, character: 28}, ctx);
     expect(ref.exact).toBe(true);
     expect(ref.target.graphEntityId).toBeUndefined();

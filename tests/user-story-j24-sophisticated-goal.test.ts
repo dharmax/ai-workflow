@@ -5,7 +5,7 @@ import path from 'node:path';
 import { WorkflowActor, type ShellMode } from '../src/helpers/actor/engine.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { saveConfig } from '../src/services/config-service.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { ToolDiscovery } from '../src/tools/discovery.ts';
 import { Epic, Feature, UserStory, Ticket, TestNode } from '../src/model/ontology.ts';
 import { getCoverage } from '../src/product/coverage.ts';
@@ -65,7 +65,7 @@ describe('User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4)', () => {
       }
     } as unknown as Asker;
 
-    const discovery = new ToolDiscovery(registry, asker);
+    const discovery = new ToolDiscovery(commandRegistry, asker);
     const discovered = await discovery.discover("what's on the critical path of this project? what's the goal of the project? what's missing?");
 
     // Must not return unsupported capability value error; must discover mapped tools

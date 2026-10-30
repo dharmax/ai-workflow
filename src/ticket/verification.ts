@@ -10,7 +10,7 @@ import {workspacePath} from '../change/workspace-path.ts'
 import { renderAcceptancePrompt } from "./prompts.ts"
 import { Artifact, TestNode, Ticket } from "../model/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework } from "../graph/test-artifacts.ts"
-import { registry } from "../tools/registry.ts"
+import { commandRegistry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
 import {canonical, computeHash} from '../kb/canonical.ts'
 import type { TicketDossier, TicketGovernance, OperationResult } from "../ticket-operation-types.ts"
@@ -68,7 +68,7 @@ async function planTicketChecks(
         : ['bun', 'test', test.filePath || test.targetPath!])
     const fallback: string[][] = []
     for (const filePath of graph.uncoveredFiles) {
-        const target = await registry.execute('resolve_test_target', {filePath}, {store, projectRoot: store.root, signal, executionAuthority: 'project-write'})
+        const target = await commandRegistry.execute('resolve_test_target', {filePath}, {store, projectRoot: store.root, signal, executionAuthority: 'project-write'})
         if (target.found) for (const testFile of target.testFiles) fallback.push(['bun', 'test', testFile])
     }
     // Graph obligations cannot be replaced by a producer's suggested passing test.
@@ -111,7 +111,7 @@ async function runEngineeringCheck(
     fs.rmSync(stdoutPath, {force: true})
     fs.rmSync(stderrPath, {force: true})
     const startedAt = Date.now()
-    const result = await registry.execute('run_command', {
+    const result = await commandRegistry.execute('run_command', {
         command: command.map(quoteCheckArgument).join(' ') + ' > ' + quoteCheckArgument(stdoutPath) + ' 2> ' + quoteCheckArgument(stderrPath), timeoutMs: 60000
     }, {store, projectRoot: store.root, signal, executionAuthority: 'read-only', scratchRoot}) as {
         success: boolean; exitCode: number | null; timedOut: boolean; cancelled: boolean; error?: string; stderr: string

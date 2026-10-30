@@ -1,7 +1,7 @@
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
 import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from '../model/ontology.ts'
 import type {ToolContext} from '../tools/index.ts'
-import {registry} from '../tools/index.ts'
+import {commandRegistry} from '../tools/index.ts'
 
 export type EntityViewKind = 'ticket' | 'epic' | 'feature' | 'story' | 'aspect' | 'rule'
 
@@ -50,7 +50,7 @@ export async function resolveEntityViewKind(ctx: ToolContext, id: string): Promi
 
 export async function facilitateEntityId(ctx: ToolContext, kind: EntityViewKind, facilitator: ParameterFacilitator): Promise<string | null> {
   const tool = {ticket: 'list_tickets', epic: 'list_epics', feature: 'list_features', story: 'list_user_stories', aspect: 'list_aspects', rule: 'list_rules'}[kind];
-  const entities: Array<{id: string}> = await registry.execute(tool, {}, ctx);
+  const entities: Array<{id: string}> = await commandRegistry.execute(tool, {}, ctx);
   const choices = entities.map(entity => entity.id);
   if (!choices.length) throw new Error(`No ${kind} entities available.`);
   const values = await facilitator.facilitate({entityId: {type: 'select', description: `${kind} ID`, choices}}, {}, {interactive: true});
@@ -69,7 +69,7 @@ export async function buildEntityView(
   mode: 'readonly' | 'edit' = 'readonly',
 ): Promise<ViewRequest> {
   if (kind === 'rule') {
-    const result = await registry.execute('get_rule', {ruleId: id}, ctx)
+    const result = await commandRegistry.execute('get_rule', {ruleId: id}, ctx)
     if (!result.rule) throw Error("Rule layer not found.")
     return {id: 'rule:' + id, title: 'Rule · ' + result.rule.ruleId, mode, fields: {
       id: text(id, 'readonly', {label: 'Layer ID'}),
@@ -82,7 +82,7 @@ export async function buildEntityView(
     }}
   }
   if (kind === 'ticket') {
-    const t = await registry.execute('get_ticket',{ticketId:id},ctx)
+    const t = await commandRegistry.execute('get_ticket',{ticketId:id},ctx)
     return {
       id: `ticket:${id}`,
       title: `Ticket · ${id}`,
@@ -112,7 +112,7 @@ export async function buildEntityView(
   }
 
   if (kind === 'epic') {
-    const e = await registry.execute('get_epic', {epicId: id}, ctx)
+    const e = await commandRegistry.execute('get_epic', {epicId: id}, ctx)
     return {
       id: `epic:${id}`,
       title: `Epic · ${id}`,
@@ -131,7 +131,7 @@ export async function buildEntityView(
   }
 
   if (kind === 'feature') {
-    const f = await registry.execute('get_feature', {featureId: id}, ctx)
+    const f = await commandRegistry.execute('get_feature', {featureId: id}, ctx)
     return {
       id: `feature:${id}`,
       title: `Feature · ${id}`,
@@ -155,7 +155,7 @@ export async function buildEntityView(
   }
 
   if (kind === 'story') {
-    const s = await registry.execute('get_user_story', {storyId: id}, ctx)
+    const s = await commandRegistry.execute('get_user_story', {storyId: id}, ctx)
     return {
       id: `story:${id}`,
       title: `Story · ${id}`,
@@ -189,7 +189,7 @@ export async function buildEntityView(
     }
   }
 
-  const a = await registry.execute('get_aspect', {id}, ctx)
+  const a = await commandRegistry.execute('get_aspect', {id}, ctx)
   return {
     id: `aspect:${id}`,
     title: `Aspect · ${id}`,
@@ -216,20 +216,20 @@ export async function saveEntityView(
   confirmRuleChange?: (preview: unknown) => Promise<boolean>,
 ): Promise<void> {
   if (kind === 'rule') {
-    const current = await registry.execute('get_rule', {ruleId: id}, ctx)
+    const current = await commandRegistry.execute('get_rule', {ruleId: id}, ctx)
     const rule = JSON.parse(String(values.payload))
     if (!current.rule || rule.ruleId !== current.rule.ruleId || JSON.stringify(rule.scope) !== JSON.stringify(current.rule.scope))
       throw Error('Rule editor cannot change layer identity.')
     if (rule.revision !== current.rule.revision) throw Error('Stale Rule editor revision; reload before editing.')
     const request = {pack: {version: 1, packName: 'Entity editor', projectOrigin: ctx.store.root, rules: [rule]},
       reason: values.reason, allowWeakening: values.allowWeakening === 'yes', approveReferences: values.approveReferences === 'yes'}
-    const preview = await registry.execute('preview_rule_change', request, ctx)
+    const preview = await commandRegistry.execute('preview_rule_change', request, ctx)
     if (!confirmRuleChange || !await confirmRuleChange(preview)) throw Error('Rule change not approved; graph unchanged.')
-    await registry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, ctx)
+    await ctx.store.withExecutionContext(ctx.executionAuthority??'read-only',ctx.signal,()=>commandRegistry.execute('apply_rule_change', {...request, fingerprint: preview.fingerprint}, ctx),preview.fingerprint)
     return
   }
   if (kind === 'ticket') {
-    await registry.execute('update_ticket', {
+    await commandRegistry.execute('update_ticket', {
       ticketId: id,
       title: values.title,
       lane: values.lane,
@@ -243,7 +243,7 @@ export async function saveEntityView(
   if (kind === 'epic') {
     const priority = Number(values.priority)
     if (!Number.isFinite(priority)) throw new Error('Epic priority must be a number.')
-    await registry.execute('update_epic', {
+    await commandRegistry.execute('update_epic', {
       epicId: id,
       title: values.title,
       status: values.status,
@@ -254,7 +254,7 @@ export async function saveEntityView(
   }
 
   if (kind === 'feature') {
-    await registry.execute('update_feature', {
+    await commandRegistry.execute('update_feature', {
       featureId: id,
       priority: values.priority === undefined ? undefined : Number(values.priority),
       title: values.title,
@@ -266,7 +266,7 @@ export async function saveEntityView(
   }
 
   if (kind === 'story') {
-    await registry.execute('update_user_story', {
+    await commandRegistry.execute('update_user_story', {
       storyId: id,
       title: values.title,
       status: values.status,
@@ -279,7 +279,7 @@ export async function saveEntityView(
     return
   }
 
-  await registry.execute('update_aspect', {
+  await commandRegistry.execute('update_aspect', {
     id,
     title: values.title,
     status: values.status,

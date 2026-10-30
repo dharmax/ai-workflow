@@ -24,13 +24,13 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import type { WorkflowStore } from "../../graph/store.ts"
-import { registry, ToolRegistry, type ToolContext, type ToolDefinition } from "../../tools/registry.ts"
+import { commandRegistry, CommandRegistry, type ToolContext, type ToolDefinition } from "../../tools/registry.ts"
 import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from "../../tools/discovery.ts"
 import { lexCommand, isExplicitCommand, artifactCommand } from "../../artifact-command.ts"
 import { loadConfig } from "../../services/config-service.ts"
 import { ModelService } from "../../services/model-service.ts"
 import { renderActorSystem } from "./prompts.ts"
-import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from "../../tools/surface.ts"
+import { getPublicMcpTools } from "../../tools/surface.ts"
 
 export { pubsub }
 
@@ -185,8 +185,8 @@ export class WorkflowActor {
     }
 
     private createDiscovery(models: ModelService): ToolDiscovery | undefined {
-        const tools = new ToolRegistry()
-        for (const tool of getPublicMcpTools(registry)) tools.register(tool)
+        const tools = new CommandRegistry()
+        for (const tool of getPublicMcpTools(commandRegistry)) tools.register(tool)
         if (this.options.asker) return new ToolDiscovery(tools, this.options.asker)
         const local = models.localModel
         if (!local) return undefined
@@ -288,10 +288,15 @@ export class WorkflowActor {
         ctx: ToolContext,
     ): Promise<WorkflowExecutionResult> {
         try {
-            const tool = registry.get(delegation.tool)
-            if (!tool) throw new Error(`Tool '${delegation.tool}' not found in registry.`)
-            this.assertExecutionAllowed(tool, ctx)
-            const result = await registry.execute(delegation.tool, delegation.args, ctx)
+            if (ctx.signal?.aborted) throw new ToolAbortError("Execution aborted by signal.")
+            const command = commandRegistry.getCommands().find(command =>
+                command.topic + (command.subtopic ? ":" + command.subtopic : "") + " " + command.action === delegation.tool)
+            if (!command) {
+                const tool = commandRegistry.get(delegation.tool)
+                if (!tool) throw new Error(`Tool '${delegation.tool}' not found in commandRegistry.`)
+                this.assertExecutionAllowed(tool, ctx)
+            }
+            const result = await commandRegistry.execute(delegation.tool, delegation.args, ctx)
             const answer = JSON.stringify(result, null, 2)
             const event: ActorStepEvent = {
                 step: 1,
@@ -308,7 +313,7 @@ export class WorkflowActor {
     }
 
     private async executeInstruction(text: string, state: ExecutionState): Promise<WorkflowExecutionResult> {
-        const bootstrap = registry.get("run_command")
+        const bootstrap = commandRegistry.get("run_command")
         if (!bootstrap) return this.executeFailure(state.mode, [], "error", "Bootstrap run_command is not registered.")
         state.options.onDiscovery?.([...state.selectedNames], state.mode)
         const config = loadConfig(this.projectRoot)
@@ -455,7 +460,7 @@ export class WorkflowActor {
         if (!this.toolDiscovery) throw new Error("Specialized discovery is disabled. Continue through run_command.")
         const found = await this.discoverTools(request, state.options.signal)
         if (found.error) throw new Error(found.error)
-        const tools = found.tools.filter(tool => PUBLIC_MCP_TOOL_NAMES.has(tool.name))
+        const tools = found.tools.filter(tool => getPublicMcpTools(commandRegistry).some(publicTool=>publicTool.name===tool.name))
         if (!tools.length)
             throw new Error("No applicable specialized capability discovered. Continue through run_command.")
         for (const tool of tools) state.selectedNames.add(tool.name)

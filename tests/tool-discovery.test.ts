@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'bun:test'
-import {initializeTools, registry} from '../src/tools/index.ts'
+import {initializeTools, commandRegistry} from '../src/tools/index.ts'
 import {ToolDiscovery as ProductionToolDiscovery, semanticsForTool} from '../src/tools/discovery.ts'
 import {getPublicMcpTools} from '../src/tools/surface.ts'
 import type {Asker} from '@dharmax/llm-utils'
@@ -16,7 +16,7 @@ describe('semantic tool discovery and surfaces', () => {
     initializeTools()
     const query = {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}
     const asker = {json: async () => ({ok: true, data: query})} as unknown as Asker
-    const result = await new ToolDiscovery(registry, asker).discover("what's the next recommeded ticket?", 3)
+    const result = await new ToolDiscovery(commandRegistry, asker).discover("what's the next recommeded ticket?", 3)
     expect(result.query).toEqual(query)
     expect(result.tools.map(tool => tool.name)).toEqual(['recommend_next_task'])
     expect(result.error).toBeUndefined()
@@ -25,7 +25,7 @@ describe('semantic tool discovery and surfaces', () => {
   it('reports a valid but unmatched AND query without dropping its constraints', async () => {
     initializeTools()
     const query = {mode: ['product'], domain: ['ticket'], object: ['epic'], action: ['recommend'], effect: ['read']}
-    const result = await new ToolDiscovery(registry, {json: async () => ({ok: true, data: query})} as unknown as Asker).discover('recommend an epic')
+    const result = await new ToolDiscovery(commandRegistry, {json: async () => ({ok: true, data: query})} as unknown as Asker).discover('recommend an epic')
     expect(result.query).toEqual(query)
     expect(result.tools).toEqual([])
     expect(result.error).toContain('No registered tools match')
@@ -33,7 +33,7 @@ describe('semantic tool discovery and surfaces', () => {
 
   it('retains classifier failure details instead of silently returning an empty surface', async () => {
     initializeTools()
-    const result = await new ToolDiscovery(registry, {json: async () => ({ok: false, failure: {message: 'classifier provider unavailable'}})} as unknown as Asker).discover('recommend work')
+    const result = await new ToolDiscovery(commandRegistry, {json: async () => ({ok: false, failure: {message: 'classifier provider unavailable'}})} as unknown as Asker).discover('recommend work')
     expect(result.tools).toEqual([])
     expect(result.error).toContain('classifier provider unavailable')
   })
@@ -57,13 +57,13 @@ describe('semantic tool discovery and surfaces', () => {
       },
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('do we have open tickets?')
 
     expect(calls).toBe(1)
     expect(result.mode).toBe('product')
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
-    expect(result.tools.length).toBeLessThan(registry.getAll().length)
+    expect(result.tools.length).toBeLessThan(commandRegistry.getAll().length)
   })
 
   it('exposes a small composable tool set for a multi-stage intent', async () => {
@@ -79,7 +79,7 @@ describe('semantic tool discovery and surfaces', () => {
       }),
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('choose suitable work and execute it')
 
     expect(result.mode).toBe('dev')
@@ -88,7 +88,7 @@ describe('semantic tool discovery and surfaces', () => {
     )
   })
 
-  it('constrains classifier output to the registry vocabulary before matching', async () => {
+  it('constrains classifier output to the commandRegistry vocabulary before matching', async () => {
     initializeTools()
     const asker = {
       json: async () => ({
@@ -103,7 +103,7 @@ describe('semantic tool discovery and surfaces', () => {
       }),
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('do we have open tickets?')
 
     expect(result.query).toEqual({
@@ -136,7 +136,7 @@ describe('semantic tool discovery and surfaces', () => {
       },
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     await discovery.discover('show tickets', 5, {signal: controller.signal, timeoutMs: 1234})
 
     expect(captured.signal).toBe(controller.signal)
@@ -173,7 +173,7 @@ describe('semantic tool discovery and surfaces', () => {
       },
     } as any
 
-    const discovery = new ToolDiscovery(registry, local, fallback)
+    const discovery = new ToolDiscovery(commandRegistry, local, fallback)
     const result = await discovery.discover('do we have open tickets?')
 
     expect(localCalls).toBe(1)
@@ -211,7 +211,7 @@ describe('semantic tool discovery and surfaces', () => {
 
     for (const item of cases) {
       const asker = {json: async () => ({ok: true, data: item.data})} as any
-      const discovery = new ToolDiscovery(registry, asker)
+      const discovery = new ToolDiscovery(commandRegistry, asker)
       const result = await discovery.discover(item.query)
       expect(result.tools.map(tool => tool.name)).toEqual([item.expected])
     }
@@ -231,19 +231,19 @@ describe('semantic tool discovery and surfaces', () => {
       }),
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('inspect something unknown')
 
     expect(result.tools).toEqual([])
   })
 
-  it('never turns an unclassifiable request into the full registry', async () => {
+  it('never turns an unclassifiable request into the full commandRegistry', async () => {
     initializeTools()
     const asker = {
       json: async () => ({ok: false}),
     } as any
 
-    const discovery = new ToolDiscovery(registry, asker)
+    const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('???')
 
     expect(result.tools).toEqual([])
@@ -251,16 +251,16 @@ describe('semantic tool discovery and surfaces', () => {
 
   it('keeps every registered function semantically distinguishable at the full key tuple', () => {
     initializeTools()
-    const signatures = registry.getAll().map(tool => JSON.stringify(semanticsForTool(tool)))
+    const signatures = commandRegistry.getAll().map(tool => JSON.stringify(semanticsForTool(tool)))
     expect(new Set(signatures).size).toBe(signatures.length)
   })
 
-  it('keeps the public MCP API smaller than the internal implementation registry', () => {
+  it('keeps the public MCP API smaller than the internal implementation commandRegistry', () => {
     initializeTools()
-    const publicTools = getPublicMcpTools(registry)
+    const publicTools = getPublicMcpTools(commandRegistry)
     const publicNames = new Set(publicTools.map(tool => tool.name))
 
-    expect(publicTools.length).toBeLessThan(registry.getAll().length)
+    expect(publicTools.length).toBeLessThan(commandRegistry.getAll().length)
     expect(publicNames.has('resolve_ticket')).toBe(true)
     expect(publicNames.has('find_symbol')).toBe(true)
     expect(publicNames.has('run_command')).toBe(false)
@@ -287,7 +287,7 @@ it('qualifies candidate descriptions and narrowly rediscovers evidence when coar
     if (classifications === 2) expect(prompt).toContain('do not satisfy the full request')
     return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: [classifications === 1 ? 'recommend' : 'list'], effect: ['read']}}
   }} as unknown as Asker
-  const result = await new ProductionToolDiscovery(registry, asker).discover('Compare all candidates to find the least justified one', 5, {signal: controller.signal, timeoutMs: 1234})
+  const result = await new ProductionToolDiscovery(commandRegistry, asker).discover('Compare all candidates to find the least justified one', 5, {signal: controller.signal, timeoutMs: 1234})
   expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
   expect(result.error).toBeUndefined(); expect(classifications).toBe(2); expect(qualifications).toBe(2)
 })
@@ -300,7 +300,7 @@ for (const response of [{ids: []}, {ids: ['non_candidate']}, undefined]) it(`fai
     classifications++
     return {ok: true, data: {domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}}
   }} as unknown as Asker
-  const result = await new ProductionToolDiscovery(registry, asker).discover('A request the selector cannot satisfy')
+  const result = await new ProductionToolDiscovery(commandRegistry, asker).discover('A request the selector cannot satisfy')
   expect(result.tools).toEqual([]); expect(result.error).toBeDefined()
   expect(classifications).toBeLessThanOrEqual(2); expect(qualifications).toBe(1)
 })

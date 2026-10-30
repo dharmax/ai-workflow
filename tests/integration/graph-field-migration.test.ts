@@ -8,7 +8,7 @@ import {createMigrationFixture,discoverMigrationImpact,authorizeMigration,execut
   migrationFiles,acceptMigrationStory,reviewMigrationStoryTest,migrationStoryTest,migrationContractChanges,type MigrationFixture} from '../fixtures/graph-field-migration.ts';
 import {FileNode,SymbolNode,Ticket,UserStory,TestNode,Artifact} from '../../src/model/ontology.ts';
 import {ensureAstFresh,indexCodebase,indexSingleFile} from '../../src/graph/indexer.ts';
-import {registry,initializeTools} from '../../src/tools/index.ts';
+import {commandRegistry,initializeTools} from '../../src/tools/index.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {resolveCodeTarget} from '../../src/change/target-resolver.ts';
@@ -148,7 +148,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
       fs.writeFileSync(path.join(root,'settings/retry.cfg'),'{"delayMs":3000}\n');
       expect(await currentTicketReceipt(restarted,persistedTicket)).toEqual(receipt);
       const request={action:'product_change' as const,mutations:[{kind:'product_update' as const,entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Load the configured millisecond delay'}}]};
-      const pending=await registry.execute('preview_change',request,fixture.context);
+      const pending=await commandRegistry.execute('preview_change',request,fixture.context);
       await acceptProduct(restarted,[{kind:'product_update',entityType:'UserStory',id:'LOAD-POLICY',fields:{title:'Read the configured retry delay in milliseconds'}}]);
       await expect(reviewedApply(restarted,{request,fingerprint:pending.fingerprint,decision:'accept'}))
         .rejects.toThrow('Stale change preview');
@@ -200,7 +200,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     await ensureAstFresh(fixture.store,root);
     const restored=(await fixture.store.getEntity<SymbolNode>(value.id,SymbolNode.dcr))!;
     expect(restored.status).toBe('implemented');expect(restored.metadata?.missing).toBe(false);
-    const outlined=await registry.execute('get_file_outline',{filePath:file},fixture.context);
+    const outlined=await commandRegistry.execute('get_file_outline',{filePath:file},fixture.context);
     expect(outlined.symbols.map((symbol:{name:string})=>symbol.name)).toContain('nested');
   },20000);
 
@@ -209,31 +209,31 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     const {root,store}=fixture;
     const readOnly={...fixture.context,executionAuthority:'read-only' as const};
     const position={filePath:'src/policy.ts',line:0,character:migrationFiles['src/policy.ts']!.indexOf('waitSeconds')};
-    expect((await registry.execute('get_exact_references',position,readOnly)).references.length).toBeGreaterThan(2);
-    expect((await registry.execute('search_workspace_text',{text:'waitSeconds'},readOnly)).matches.length).toBeGreaterThan(4);
+    expect((await commandRegistry.execute('get_exact_references',position,readOnly)).references.length).toBeGreaterThan(2);
+    expect((await commandRegistry.execute('search_workspace_text',{text:'waitSeconds'},readOnly)).matches.length).toBeGreaterThan(4);
     const newConsumer=path.join(root,'src/new_consumer.ts');
     fs.writeFileSync(newConsumer,"import type {RetryPolicy} from './policy.ts'; export const consume=(value:RetryPolicy)=>value.waitSeconds;\n");
-    const afterCreate=await registry.execute('get_exact_references',position,readOnly);
+    const afterCreate=await commandRegistry.execute('get_exact_references',position,readOnly);
     expect(afterCreate.references.some((reference:{uri:string})=>reference.uri.endsWith('/src/new_consumer.ts'))).toBe(true);
     const rename=await getTsLspClient(root).willRenameFiles([{oldPath:'src/policy.ts',newPath:'src/policy_next.ts'}]);
     expect(JSON.stringify(rename)).toContain('new_consumer.ts');
     expect(JSON.stringify(rename)).toContain('policy_next');
     fs.unlinkSync(newConsumer);
-    const afterDelete=await registry.execute('get_exact_references',position,readOnly);
+    const afterDelete=await commandRegistry.execute('get_exact_references',position,readOnly);
     expect(afterDelete.references.some((reference:{uri:string})=>reference.uri.endsWith('/src/new_consumer.ts'))).toBe(false);
 
     expect(await store.listEntities<FileNode>(FileNode.dcr)).toEqual([]);
-    await expect(registry.execute('get_exact_references',{...position,filePath:'../outside.ts'},readOnly)).rejects.toThrow('escapes');
-    await expect(registry.execute('get_exact_references',{...position,line:9999},readOnly)).rejects.toThrow('outside');
-    const exactLimit=await registry.execute('search_workspace_text',{text:'not an active field contract.',limit:1},readOnly);
+    await expect(commandRegistry.execute('get_exact_references',{...position,filePath:'../outside.ts'},readOnly)).rejects.toThrow('escapes');
+    await expect(commandRegistry.execute('get_exact_references',{...position,line:9999},readOnly)).rejects.toThrow('outside');
+    const exactLimit=await commandRegistry.execute('search_workspace_text',{text:'not an active field contract.',limit:1},readOnly);
     expect(exactLimit.matches).toHaveLength(1);expect(exactLimit.truncated).toBe(false);expect(exactLimit.completeWithinScope).toBe(true);
     const outside=path.join(root,'escape.ts');fs.symlinkSync('/etc/passwd',outside);
     fs.writeFileSync(path.join(root,'binary.cfg'),Buffer.from([0,119,97,105,116]));
-    const bounded=await registry.execute('search_workspace_text',{text:'waitSeconds'},readOnly);
+    const bounded=await commandRegistry.execute('search_workspace_text',{text:'waitSeconds'},readOnly);
     expect(bounded.completeWithinScope).toBe(false);
     expect(bounded.skippedFiles).toContain('escape.ts');expect(bounded.skippedFiles).toContain('binary.cfg');
-    await expect(registry.execute('get_exact_references',{...position,filePath:'escape.ts'},readOnly)).rejects.toThrow('symlink');
-    await expect(registry.execute('find_symbol',{name:'RetryPolicy'},readOnly)).rejects.toThrow('AST index is stale; refresh it with project-write authority');
+    await expect(commandRegistry.execute('get_exact_references',{...position,filePath:'escape.ts'},readOnly)).rejects.toThrow('symlink');
+    await expect(commandRegistry.execute('find_symbol',{name:'RetryPolicy'},readOnly)).rejects.toThrow('AST index is stale; refresh it with project-write authority');
     expect(await store.listEntities<FileNode>(FileNode.dcr)).toEqual([]);
   });
   it('uses the same stable structural owner for external public members and retires deleted dependency targets',async()=>{

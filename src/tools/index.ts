@@ -1,9 +1,12 @@
 /**
  * Responsibility: Tools aggregator and initializer.
- * Scope: Exposes registry and registers all domain facilities.
+ * Scope: Exposes commandRegistry and registers all domain facilities.
  */
 
-import { registry, type ToolRegistry, type ToolContext, type ToolDefinition } from './registry.ts';
+import { commandRegistry, type CommandRegistry, type ToolContext, type ToolDefinition } from './registry.ts';
+import {registerHostTools} from './host.ts';
+import {registerAgentTools} from './agent.ts';
+import {registerPublicCommands} from './commands.ts';
 import { registerTicketTools } from './tickets.ts';
 import { registerGraphTools } from './graph-queries.ts';
 import { registerGitTools } from './git.ts';
@@ -21,13 +24,16 @@ import { registerArtifactPolicyTools } from './artifact-policy.ts';
 import { registerAspectTools } from './aspects.ts';
 import { registerRuleTools } from './rules.ts';
 import {z} from 'zod';
+import {GraphPredicateActionSchema,GraphLinkActionSchema,graphPredicateAction,graphLinkAction} from '../product/links.ts';
 import {refreshDefaultModelAdvice} from '../services/model-service.ts';
 
 let initialized = false;
 
-export function initializeTools(): ToolRegistry {
+export function initializeTools(): CommandRegistry {
   if (!initialized) {
     registerTicketTools();
+    commandRegistry.register({name:'graph.predicate',category:'graph',description:'List declared H/O/L predicate descriptors or check an exact source-kind/predicate/target-kind triple; declaration is not write permission.',parameters:GraphPredicateActionSchema,execute:(args,ctx)=>graphPredicateAction(ctx.store,args)});
+    commandRegistry.register({name:'graph.link',category:'graph',description:'Read canonical directed relationships: bounded list scoped to sourceId, or show exact sourceId/predicate/targetId. No mutations.',parameters:GraphLinkActionSchema,execute:(args,ctx)=>graphLinkAction(ctx.store,args)});
     registerGraphTools();
     registerGitTools();
     registerOsTools();
@@ -43,7 +49,7 @@ export function initializeTools(): ToolRegistry {
     registerArtifactPolicyTools();
     registerAspectTools();
     registerRuleTools();
-    registry.register({
+    commandRegistry.register({
       name: 'refresh_model_advice', category: 'kb',
       description: 'Refresh model advice using the explicitly configured Radar research authority and observed provider catalogues; optionally specify a critic focus. Paid research requires explicit spending authorization.',
       parameters: z.object({criticFocus: z.string().trim().min(1).optional()}).strict(),
@@ -52,9 +58,12 @@ export function initializeTools(): ToolRegistry {
         return refreshDefaultModelAdvice(ctx.projectRoot, args.criticFocus);
       }
     });
+    registerAgentTools();
+    registerHostTools();
+    registerPublicCommands();
     initialized = true;
   }
-  return registry;
+  return commandRegistry;
 }
 
-export { registry, type ToolRegistry, type ToolContext, type ToolDefinition };
+export { commandRegistry, type CommandRegistry, type ToolContext, type ToolDefinition };

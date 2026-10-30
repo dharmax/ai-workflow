@@ -10,7 +10,7 @@ import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
 import { TestNode, Decision, Feature, UserStory } from '../src/model/ontology.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 const stops:Array<()=>void>=[];
 const roots: string[] = [];
@@ -192,7 +192,7 @@ describe('Product Intent Causal Change', () => {
     const request = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'PUBLIC-E', fields: { title: 'Public Epic' } }
     ] };
-    const preview = await registry.execute('preview_change', request, ctx);
+    const preview = await commandRegistry.execute('preview_change', request, ctx);
     expect(preview.blocked).toBe(false);
     const result = await reviewedApply(ctx.store, { request, fingerprint: preview.fingerprint, decision: 'accept' });
     expect(result.verification.passed).toBe(true);

@@ -4,6 +4,21 @@
 
 For a new project, establish the initial [Dharmax Architecture](dharmax-architecture.md) from the approved Product charter, **normally before User Stories are elaborated into implementation Tickets**—not necessarily before the first Story is defined. Identify the main domains/resources, entities and their relationships, and scaffold the principal folders/classes as appropriate. This is a flexible default, not a mandatory separate approval gate; initial scaffolding is not proof of implemented Story behavior.
 
+## Continuous improvement and technical debt
+
+Refactoring, simplification and code-quality improvement are integral to everyday engineering. Whenever implementing or modifying functionality:
+
+- Examine the directly affected code and its immediate contracts for cohesion, clarity, correctness and reuse.
+- Correct misplaced responsibility, unnecessary duplication, obsolete code, misleading abstractions and avoidable complexity.
+- Keep technical debt continuously low, resolving consequential debt before extending fragile foundations.
+- Prefer small, behavior-preserving improvements integrated with normal work.
+- Record significant deferred debt with its actual consequences, without creating bureaucratic inventories.
+- Optimize for long-term evolvability: capabilities should be easy to refine, extend, combine and reuse as requirements change.
+
+Balance this against the Prime Directive: no speculative abstraction, limitless cleanup, unnecessary rewriting or new mandatory ceremony.
+
+The [canonical public API contract](../api/public-interface.md) governs interface syntax and semantics; its [implementation plan](../../plans/AIWF-PUBLIC-INTERFACE-IMPLEMENTATION-PLAN.md) governs bounded delivery and actual acceptance.
+
 ## Normal US-driven cycle
 
 1. **Ground the work in the mandatory Product charter.** Review downstream Aspects, Features, Epics and USs against the developer-approved charter. Material conflict, ambiguity or drift must produce a specific warning and receive the developer's explicit answer before the definition is considered aligned/approved. Do not manufacture the missing charter.

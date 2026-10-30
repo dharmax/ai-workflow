@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, ModuleNode, Ticket } from '../src/model/ontology.ts';
 import { ArtifactBudget, resolveArtifactCritic, type ArtifactCritic } from '../src/artifact-policy.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 
 describe('artifact policy', () => {
@@ -28,8 +28,8 @@ describe('artifact policy', () => {
     expect((await f.getCompletenessTarget(store, { descendant: true, inherited: 'production' })).effective).toBe('poc');
     expect((await s.getCompletenessTarget(store, { descendant: true, inherited: 'functional' })).source).toBe('operation');
     const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
-    await registry.execute('set_completeness_target', { entityId: 'F', level: null }, ctx);
-    expect((await registry.execute('get_completeness_target', { entityId: 'F' }, ctx)).effective).toBe('functional');
+    await commandRegistry.execute('set_completeness_target', { entityId: 'F', level: null }, ctx);
+    expect((await commandRegistry.execute('get_completeness_target', { entityId: 'F' }, ctx)).effective).toBe('functional');
     store.close(); store = new WorkflowStore(root);
     const restored = await store.getEntity<Feature>('F', Feature.dcr);
     expect(restored!.completenessTarget).toBeNull();
@@ -42,14 +42,14 @@ describe('artifact policy', () => {
     const m = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, { id: 'M', title: 'Module', path: 'src', completenessTarget: 'production' });
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic', completenessTarget: 'advanced' });
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Work', lane: 'Todo' });
-    await registry.execute('link_product', { sourceId: 'T', predicate: 'targets', targetId: 'M' }, { store, projectRoot: root, executionAuthority: 'project-write' });
+    await commandRegistry.execute('link_product', { sourceId: 'T', predicate: 'targets', targetId: 'M' }, { store, projectRoot: root, executionAuthority: 'project-write' });
     await store.relate(t, 'implements', f); await store.relate(e, 'contains', t);
     const context = await t.getCompletenessContext(store, 'functional');
     expect(context.feature[0].target.effective).toBe('poc');
     expect(context.module[0].target.effective).toBe('production');
     expect(context.epic[0].target.effective).toBe('advanced');
     expect(context.runOverride).toBe('functional'); expect(context.criticStrength).toBe('production');
-    await expect(registry.execute('set_completeness_target', { entityId: 'T', level: 'production' }, { store, projectRoot: root, executionAuthority: 'project-write' })).rejects.toThrow('Only Epic');
+    await expect(commandRegistry.execute('set_completeness_target', { entityId: 'T', level: 'production' }, { store, projectRoot: root, executionAuthority: 'project-write' })).rejects.toThrow('Only Epic');
   });
 
   it('round trips target fields without changing relations or interpreting operational percentages as maturity', async () => {
@@ -88,7 +88,7 @@ describe('artifact policy', () => {
     expect(() => new ArtifactBudget({ maxArtifacts: 0 }, 1, 2)).toThrow();
   });
 
-  it('resolves injected and transport Critics without a registry or semantic writes', async () => {
+  it('resolves injected and transport Critics without a commandRegistry or semantic writes', async () => {
     const critic: ArtifactCritic = { id: 'fixture', review: async () => ({ verdict: 'revise', findings: [{ message: 'Missing failure acceptance' }] }) };
     const resolver = async (id: string) => { expect(['fixture', 'auto']).toContain(id); return critic; };
     expect(await resolveArtifactCritic(critic, resolver)).toBe(critic);

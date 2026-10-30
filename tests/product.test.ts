@@ -16,7 +16,7 @@ import {
   FileNode,
   SymbolNode
 } from '../src/model/ontology.ts';
-import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry, type ToolContext } from '../src/tools/index.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
@@ -130,24 +130,24 @@ describe('Product Intent Graph — Deterministic Substrate (Ticket 1)', () => {
     expect(l9.ok).toBe(true);
 
     // Rejected: Ticket implements Epic
-    expect(registry.execute('link_product', {
+    expect(commandRegistry.execute('link_product', {
       sourceId: 'TKT-1', predicate: 'implements', targetId: 'EPIC-1'
     }, ctx)).rejects.toThrow('Invalid product relation');
 
     // Rejected: Epic contains UserStory (Flow owns Story containment)
-    expect(registry.execute('link_product', {
+    expect(commandRegistry.execute('link_product', {
       sourceId: 'EPIC-1', predicate: 'contains', targetId: 'STORY-1'
     }, ctx)).rejects.toThrow('Invalid product relation');
 
     // Rejected: Arbitrary relation
-    expect(registry.execute('link_product', {
+    expect(commandRegistry.execute('link_product', {
       sourceId: 'FEAT-1', predicate: 'modifies', targetId: 'STORY-1'
     }, ctx)).rejects.toThrow('Invalid product relation');
 
     // Unlink permitted
     const un = await acceptProduct(ctx.store, [{kind:"product_unlink",sourceId: 'EPIC-1',predicate: 'targets',targetId: 'FEAT-1'}]);
     expect(un.ok).toBe(true);
-    const epicView = await registry.execute('get_epic', { epicId: 'EPIC-1' }, ctx);
+    const epicView = await commandRegistry.execute('get_epic', { epicId: 'EPIC-1' }, ctx);
     expect(epicView.targetedFeatures).not.toContain('FEAT-1');
   });
 

@@ -6,12 +6,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket,Decision,TestNode,Artifact,entityDescriptors} from '../src/model/ontology.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {spyOn} from 'bun:test';
 import {importProjections} from '../src/services/projection-service.ts';
 import {runTicketCommand} from '../src/ticket-command.ts';
 import {z} from 'zod';
-import {ToolRegistry} from '../src/tools/registry.ts';
+import {CommandRegistry} from '../src/tools/registry.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';
@@ -21,7 +21,7 @@ describe('PC1a canonical safety through public tools',()=>{
   let root:string,store:WorkflowStore;
   let stopReviewer:(()=>void)|undefined;
   const call=(name:string,params:unknown,executionAuthority:'read-only'|'project-write'='project-write',signal?:AbortSignal)=>
-    registry.execute(name,params,{store,projectRoot:root,executionAuthority,signal});
+    commandRegistry.execute(name,params,{store,projectRoot:root,executionAuthority,signal});
   const reopen=()=>{store.close();store=new WorkflowStore(root);};
   const snapshot=()=>{
     using tables=store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'aiwf_%' ORDER BY name");
@@ -97,8 +97,8 @@ describe('PC1a canonical safety through public tools',()=>{
     expect(await store.getOutgoing((await store.getEntity('A',Artifact.dcr))!.id,'verifies')).toEqual([]);
   });
   it('refuses missing and self-attested authority, including a nested upgrade',async()=>{
-    await expect(registry.execute('create_ticket',{id:'M',title:'Missing authority',executionAuthority:'project-write'},{store,projectRoot:root})).rejects.toThrow('read-only');
-    const local=new ToolRegistry();
+    await expect(commandRegistry.execute('create_ticket',{id:'M',title:'Missing authority',executionAuthority:'project-write'},{store,projectRoot:root})).rejects.toThrow('read-only');
+    const local=new CommandRegistry();
     local.register({name:'nested_write',category:'ticket',parameters:z.object({}),description:'Adversarial host fixture',
       execute:()=>store.withExecutionContext('project-write',undefined,()=>store.upsertEntity(Ticket.dcr,{id:'N',title:'Nested upgrade'}))});
     await expect(local.execute('nested_write',{}, {store,projectRoot:root,executionAuthority:'read-only'})).rejects.toThrow('read-only');
@@ -193,7 +193,9 @@ describe('PC1a canonical safety through public tools',()=>{
       try {
         await client.connect(transport);
         const response=await client.callTool({name:'create_ticket',arguments:{id:authority==='read-only'?'DENIED':'ALLOWED',title:'Public MCP creation',executionAuthority:'project-write'}});
-        expect(response.isError===true).toBe(authority==='read-only');
+        expect(response.isError).toBe(true);
+        const valid=await client.callTool({name:'create_ticket',arguments:{id:authority==='read-only'?'DENIED':'ALLOWED',title:'Public MCP creation'}});
+        expect(valid.isError===true).toBe(authority==='read-only');
         const done=await client.callTool({name:'create_ticket',arguments:{id:'FORGED',title:'Public MCP completion',lane:'Done'}});
         expect(done.isError).toBe(true);
       } finally {await client.close();await transport.close();}
@@ -206,7 +208,7 @@ describe('PC1a canonical safety through public tools',()=>{
 
   it('an abort during native generic persistence is refused at the storage boundary',async()=>{
     const abort=new AbortController(),create=store.sp.createEntity.bind(store.sp);
-    const local=new ToolRegistry();
+    const local=new CommandRegistry();
     local.register({name:'native_write',category:'ticket',parameters:z.object({}),description:'Native persistence cancellation fixture',
       execute:()=>store.upsertEntity(Ticket.dcr,{id:'NATIVE',title:'Must not persist after abort'})});
     const spy=spyOn(store.sp,'createEntity').mockImplementation(async(...args)=>{

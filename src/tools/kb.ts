@@ -1,17 +1,17 @@
 /**
  * Responsibility: Knowledgebase Search & Retrieval Tools for Agents.
- * Scope: Exposes content-addressable knowledgebase tools and dynamic SkillManager capabilities to ToolRegistry and LLMActor.
+ * Scope: Exposes content-addressable knowledgebase tools and dynamic SkillManager capabilities to CommandRegistry and LLMActor.
  */
 
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { KnowledgeBaseClient } from '../kb/client.ts';
 import { getAIWFSkillManager } from '../kb/manager.ts';
 
 const kbClient = new KnowledgeBaseClient();
 
 export function registerKnowledgebaseTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'search_knowledgebase',
     description: 'Search content-addressed knowledgebase of verified operational skills, systemd/docker services, and architecture patterns.',
     category: 'kb',
@@ -61,7 +61,7 @@ export function registerKnowledgebaseTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_knowledge_item',
     description: 'Retrieve verified content and specification of a skill, service recipe, or architecture pattern by its ID.',
     category: 'kb',
@@ -104,7 +104,7 @@ export function registerKnowledgebaseTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'find_skills',
     description: 'Dynamically discover verified operational skills and tools from @dharmax/skill-manager.',
     category: 'kb',

@@ -8,13 +8,13 @@
 import {PrioritySchema} from './model/types.ts';
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
-import {reviewLink, reviewDefinition, reviewProductChange} from './product/links.ts';
+import {reviewLink, reviewDefinition, reviewProductChange, reviewPublicProductChange} from './product/links.ts';
 import { queryPerformance, performanceQueryArgs, performanceEvidenceBundle } from './performance-metrics.ts';
 import { parseCommand } from './artifact-command.ts';
 import {isBlockedOperation} from './artifact-policy.ts';
 import fs from 'node:fs';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
-import { initializeTools, registry } from './tools/index.ts';
+import { initializeTools, commandRegistry } from './tools/index.ts';
 import { exportProjections, importProjections } from './services/projection-service.ts';
 import { exportProductManifest, exportAuthoredState } from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
@@ -95,10 +95,18 @@ async function main() {
     progress?.start(progressMessage);
     let result;
     try {
-      result = await getStore().withExecutionContext('project-write', undefined, () => registry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}), delegation.reviewFingerprint);
+      if(delegation.review){
+        const confirm=process.stdin.isTTY?async(preview:unknown)=>{
+          console.error(JSON.stringify(preview,null,2));const reader=createInterface({input:process.stdin,output:process.stderr});
+          try{return (await reader.question('Apply this exact proposal? [y/N] ')).toLowerCase()==='y';}finally{reader.close();}
+        }:undefined;
+        result=await delegation.review(delegation.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},confirm,process.stdin.isTTY?async question=>{
+          const reader=createInterface({input:process.stdin,output:process.stderr});try{return await reader.question(question);}finally{reader.close();}
+        }:undefined);
+      }else result = await getStore().withExecutionContext('project-write', undefined, () => commandRegistry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}), delegation.reviewFingerprint);
       progress?.stop(isBlockedOperation(result) ? 'fail' : 'success');
     } catch (error) { progress?.stop('fail'); throw error; }
-    console.log(JSON.stringify(result, null, 2));
+    console.log(delegation.format?delegation.format(result):JSON.stringify(result, null, 2));
     if (isBlockedOperation(result)) process.exitCode = 2;
     else if (result?.success === false) process.exitCode = 1;
     getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients();
@@ -132,10 +140,10 @@ async function main() {
 
     case 'status': {
       const store = getStore();
-      const git = await registry.execute('get_git_status', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const git = await commandRegistry.execute('get_git_status', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       const claims = await store.getActiveClaims();
-      const tickets = await registry.execute('list_tickets', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
-      const env = await registry.execute('get_environment_info', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const tickets = await commandRegistry.execute('list_tickets', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const env = await commandRegistry.execute('get_environment_info', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
 
       console.log(`\x1b[1;36m🏛️  AI-Workflow 2.0 Status\x1b[0m`);
       console.log(`Project Root: ${root}`);
@@ -157,7 +165,7 @@ async function main() {
       const testCmd = args.slice(1).join(' ') || 'bun test';
       console.log(`🧪 Triaging test failures with: "${testCmd}"...`);
       const store = getStore();
-      const res = await registry.execute('triage_test_failures', { testCommand: testCmd }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('triage_test_failures', { testCommand: testCmd }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (res.passed) {
         console.log(`\x1b[1;32m✅ ${res.summary || 'All tests passed cleanly!'}\x1b[0m`);
       } else {
@@ -174,9 +182,9 @@ async function main() {
     case 'audit': {
       console.log(`🔍 Auditing AI-Workflow AST+ Graph & Codebase Health...`);
       const store = getStore();
-      const tickets = await registry.execute('list_tickets', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const tickets = await commandRegistry.execute('list_tickets', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       const blocked = tickets.filter((t: any) => t.lane === 'Blocked');
-      const git = await registry.execute('get_git_status', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const git = await commandRegistry.execute('get_git_status', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
 
       let violations = 0;
       if (blocked.length > 0) {
@@ -199,7 +207,7 @@ async function main() {
       const input: unknown = JSON.parse(fs.readFileSync(path.resolve(root, file), 'utf8'));
       const ctx = {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const};
       const result = action === 'preview'
-        ? await registry.execute('preview_change', input, ctx)
+        ? await commandRegistry.execute('preview_change', input, ctx)
         : await reviewProductChange({...input as Parameters<typeof reviewProductChange>[0],decision:action as 'accept'|'reject'|'cancel'},ctx,
           process.stdin.isTTY ? async question => {
             const reader=createInterface({input:process.stdin,output:process.stdout});
@@ -250,7 +258,7 @@ async function main() {
 
     case 'diff': {
       const store = getStore();
-      const diff = await registry.execute('get_git_diff', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const diff = await commandRegistry.execute('get_git_diff', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (diff.diff) {
         console.log(diff.diff.trim());
       } else {
@@ -262,7 +270,7 @@ async function main() {
     case 'tickets': {
       const store = getStore();
       const lane = args[1] as any;
-      const tickets = await registry.execute('list_tickets', { lane }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const tickets = await commandRegistry.execute('list_tickets', { lane }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (tickets.length === 0) {
         console.log(`No tickets found${lane ? ` in lane '${lane}'` : ''}.`);
       } else {
@@ -275,7 +283,7 @@ async function main() {
 
     case 'epics': {
       const store = getStore();
-      const epics = await registry.execute('list_epics', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const epics = await commandRegistry.execute('list_epics', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (epics.length === 0) {
         console.log('No epics found.');
       } else {
@@ -298,7 +306,7 @@ async function main() {
 
     case 'features': {
       const store = getStore();
-      const features = await registry.execute('list_features', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const features = await commandRegistry.execute('list_features', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (features.length === 0) {
         console.log('No features found.');
       } else {
@@ -313,7 +321,7 @@ async function main() {
 
     case 'stories': {
       const store = getStore();
-      const stories = await registry.execute('list_user_stories', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const stories = await commandRegistry.execute('list_user_stories', {}, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (stories.length === 0) {
         console.log('No user stories found.');
       } else {
@@ -333,7 +341,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const cov = await registry.execute('get_product_coverage', { entityId }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const cov = await commandRegistry.execute('get_product_coverage', { entityId }, { store, projectRoot: root, executionAuthority: 'project-write' });
       console.log(`Coverage for ${cov.entityType} '${cov.entityId}':`);
       console.log(`  Complete: ${cov.complete ? 'YES ✅' : 'NO ❌'}`);
       if (cov.gaps.length > 0) {
@@ -359,7 +367,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const imp = await registry.execute('get_product_impact', { entityId }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const imp = await commandRegistry.execute('get_product_impact', { entityId }, { store, projectRoot: root, executionAuthority: 'project-write' });
       console.log(`Product Impact for ${imp.entityType} '${imp.entityId}':`);
       console.log(`  Epics:        ${imp.epics.join(', ') || 'None'}`);
       console.log(`  Features:     ${imp.features.join(', ') || 'None'}`);
@@ -401,7 +409,7 @@ async function main() {
       }
 
       console.log(`🤖 Analyzing Epic draft "${title}" and existing Product Intent Graph...`);
-      const proposal = await registry.execute('propose_epic_structure', {
+      const proposal = await commandRegistry.execute('propose_epic_structure', {
         title,
         body,
         priority,
@@ -438,7 +446,7 @@ async function main() {
         break;
       }
 
-      const prepared = await registry.execute('apply_epic_structure', { proposal }, {store, projectRoot: root, executionAuthority: 'project-write' as const});
+      const prepared = await commandRegistry.execute('apply_epic_structure', { proposal }, {store, projectRoot: root, executionAuthority: 'project-write' as const});
       console.log('\nReview this inert change preview; accept its exact request/fingerprint with product-change accept <preview.json>:');
       console.log(JSON.stringify(prepared.preview, null, 2));
       break;
@@ -463,7 +471,7 @@ async function main() {
       if (idIdx !== -1 && args[idIdx + 1]) id = args[idIdx + 1];
 
       const store = getStore();
-      const res = await registry.execute('create_ticket', { id, title, lane, priority }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('create_ticket', { id, title, lane, priority }, { store, projectRoot: root, executionAuthority: 'project-write' });
       await exportProjections(store, root);
       console.log(`✅ Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.`);
       break;
@@ -472,7 +480,7 @@ async function main() {
     case 'next': {
       const store = getStore();
       const agentId = args[1];
-      const nextTask = await registry.execute('recommend_next_task', { agentId }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const nextTask = await commandRegistry.execute('recommend_next_task', { agentId }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (!nextTask.ticket) {
         console.log(nextTask.reason);
       } else {
@@ -515,7 +523,7 @@ async function main() {
       if (nIdx !== -1 && args[nIdx + 1]) limit = Number(args[nIdx + 1]) || 50;
 
       const store = getStore();
-      const symbols = await registry.execute('find_symbol', {
+      const symbols = await commandRegistry.execute('find_symbol', {
         name,
         filePath,
         kind,
@@ -565,7 +573,7 @@ async function main() {
       if (nIdx !== -1 && args[nIdx + 1]) limit = Number(args[nIdx + 1]) || 50;
 
       const store = getStore();
-      const res = await registry.execute('search_graph', {
+      const res = await commandRegistry.execute('search_graph', {
         query,
         entityType,
         predicate,
@@ -608,7 +616,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const res = await registry.execute('search_graph', {
+      const res = await commandRegistry.execute('search_graph', {
         predicate: 'calls',
         targetId: symbolName
       }, { store, projectRoot: root, executionAuthority: 'project-write' });
@@ -631,7 +639,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const res = await registry.execute('search_graph', {
+      const res = await commandRegistry.execute('search_graph', {
         sourceId: target,
         predicate: 'depends_on'
       }, { store, projectRoot: root, executionAuthority: 'project-write' });
@@ -655,7 +663,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const slice = await registry.execute('get_symbol_source', { filePath, symbolName }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const slice = await commandRegistry.execute('get_symbol_source', { filePath, symbolName }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (!slice.code) {
         console.error(`Symbol '${symbolName}' not found in ${filePath}.`);
         process.exit(1);
@@ -672,7 +680,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const outline = await registry.execute('get_file_outline', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const outline = await commandRegistry.execute('get_file_outline', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (outline.symbols.length === 0) {
         console.log(`No symbols found in ${filePath}.`);
       } else {
@@ -691,7 +699,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const blast = await registry.execute('analyze_blast_radius', { target }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const blast = await commandRegistry.execute('analyze_blast_radius', { target }, { store, projectRoot: root, executionAuthority: 'project-write' });
       console.log(`Blast Radius for '${target}':`);
       console.log(`  Affected Files (${blast.affectedFiles.length}): ${blast.affectedFiles.join(', ') || 'None'}`);
       console.log(`  Recommended Tests (${blast.recommendedTests.length}): ${blast.recommendedTests.join(', ') || 'None'}`);
@@ -710,7 +718,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const res = await registry.execute('debug_target', { target }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('debug_target', { target }, { store, projectRoot: root, executionAuthority: 'project-write' });
       console.log(`\x1b[1;36m🔍 Debug Target Diagnosis: [${res.resolvedKind.toUpperCase()}]\x1b[0m`);
       for (const loc of res.locations) {
         const symInfo = loc.enclosingSymbol ? ` \x1b[90m[enclosing: ${loc.enclosingSymbol.kind} ${loc.enclosingSymbol.name}:${loc.enclosingSymbol.startLine}]\x1b[0m` : '';
@@ -752,7 +760,7 @@ async function main() {
         }
         const specContent = JSON.parse(fs.readFileSync(specPath, 'utf8'));
         const patches = Array.isArray(specContent) ? specContent : [specContent];
-        const res = await registry.execute('apply_block_patch', { patches }, { store, projectRoot: root, executionAuthority: 'project-write' });
+        const res = await commandRegistry.execute('apply_block_patch', { patches }, { store, projectRoot: root, executionAuthority: 'project-write' });
         if (res.success) {
           console.log(`✅ Applied ${patches.length} patch(es) via spec ${specPath} (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes across ${res.filesModified} file(s)).`);
         } else {
@@ -777,7 +785,7 @@ async function main() {
           }
           patches = [{ file: filePath, search: targetContent, replace: stdinText }];
         }
-        const res = await registry.execute('apply_block_patch', { patches }, { store, projectRoot: root, executionAuthority: 'project-write' });
+        const res = await commandRegistry.execute('apply_block_patch', { patches }, { store, projectRoot: root, executionAuthority: 'project-write' });
         if (res.success) {
           console.log(`✅ Applied patch from stdin (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes).`);
         } else {
@@ -797,7 +805,7 @@ async function main() {
   cat code.txt | aiwf patch <filePath> <targetContent> --stdin`);
         process.exit(1);
       }
-      const res = await registry.execute('apply_block_patch', { filePath, targetContent, replacementContent }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('apply_block_patch', { filePath, targetContent, replacementContent }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (res.success) {
         console.log(`✅ Applied patch to ${filePath} (${res.bytesModified > 0 ? `+${res.bytesModified}` : res.bytesModified} bytes).`);
       } else {
@@ -815,7 +823,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const res = await registry.execute('scaffold_file', { targetPath, description }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('scaffold_file', { targetPath, description }, { store, projectRoot: root, executionAuthority: 'project-write' });
       console.log(`✅ Scaffolded ${res.createdFile} (${res.symbol})`);
       if (res.createdTest) {
         console.log(`  Created paired test: ${res.createdTest}`);
@@ -864,7 +872,7 @@ async function main() {
         process.exit(1);
       }
       const store = getStore();
-      const res = await registry.execute('script_eval', { code }, { store, projectRoot: root, executionAuthority: 'project-write' });
+      const res = await commandRegistry.execute('script_eval', { code }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (res.success) {
         console.log(typeof res.result === 'object' ? JSON.stringify(res.result, null, 2) : res.result);
       } else {
@@ -897,7 +905,7 @@ async function main() {
 
       if (sub === 'list') {
         const typeFilter = args[2] as any;
-        const { items } = await registry.execute('search_knowledgebase', { type: typeFilter }, { store: getStore(), projectRoot: root });
+        const { items } = await commandRegistry.execute('search_knowledgebase', { type: typeFilter }, { store: getStore(), projectRoot: root });
         console.log(`\n\x1b[1;36m📚 Knowledgebase Catalog (${items.length} items)\x1b[0m\n`);
         console.log(`  \x1b[1m${'Type'.padEnd(10)} ${'Item ID'.padEnd(34)} ${'Hash'.padEnd(14)} Title & Tags\x1b[0m`);
         console.log(`  ${'─'.repeat(80)}`);
@@ -917,7 +925,7 @@ async function main() {
           console.error('Usage: aiwf kb search <query>');
           process.exit(1);
         }
-        const { items } = await registry.execute('search_knowledgebase', { query }, { store: getStore(), projectRoot: root });
+        const { items } = await commandRegistry.execute('search_knowledgebase', { query }, { store: getStore(), projectRoot: root });
         console.log(`\n\x1b[1;36m🔍 Knowledgebase Search for "${query}" (${items.length} match(es))\x1b[0m\n`);
         for (const item of items) {
           console.log(`  \x1b[1m[${item.type.toUpperCase()}] ${item.id}\x1b[0m (${item.title})`);
@@ -934,7 +942,7 @@ async function main() {
           console.error('Usage: aiwf kb show <itemId>');
           process.exit(1);
         }
-        const item = await registry.execute('get_knowledge_item', { id }, { store: getStore(), projectRoot: root });
+        const item = await commandRegistry.execute('get_knowledge_item', { id }, { store: getStore(), projectRoot: root });
         if (item.error) {
           console.error(item.error);
           process.exit(1);
@@ -960,7 +968,15 @@ async function main() {
       const port = args[1] === undefined ? 0 : Number(args[1]);
       if (port > 65535) throw new Error('Workspace port must be between 0 and 65535.');
       const { startWorkspace } = await import('./workspace/server.ts');
-      const workspace = startWorkspace({store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}, port);
+      const confirm=process.stdin.isTTY?async(preview:unknown)=>{
+        console.log(JSON.stringify(preview,null,2));
+        const reader=createInterface({input:process.stdin,output:process.stdout});
+        try{return (await reader.question('Apply this exact Workspace Product proposal? [y/N] ')).toLowerCase()==='y';}finally{reader.close();}
+      }:undefined;
+      const workspace = startWorkspace({store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}, port,confirm,process.stdin.isTTY?async(question)=>{
+        const reader=createInterface({input:process.stdin,output:process.stdout});
+        try{return await reader.question(question+' ');}finally{reader.close();}
+      }:undefined);
       console.log('AIWF Workspace: ' + workspace.url);
       console.log('Local developer session. Press Ctrl+C to stop.');
       await new Promise<void>(resolve => {
@@ -995,6 +1011,6 @@ main().finally(async () => {
   await closeAllTsLspClients();
   await closeAllTs6RefactorClients();
 }).catch(err => {
-  console.error(`Fatal: ${err.message}`);
+  console.error(argv.includes('--json')?JSON.stringify({status:'failed',error:err.message}):`Fatal: ${err.message}`);
   process.exit(1);
 });

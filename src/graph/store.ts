@@ -129,6 +129,7 @@ export class WorkflowStore {
   }
 
   assertCanWrite(): void {
+    if(this.readOnly)throw new ReadOnlyMutationError('Canonical database is open read-only.');
     const context = this.execution.getStore();
     context?.signal?.throwIfAborted();
     const index = this.indexSection.getStore();
@@ -300,24 +301,26 @@ export class WorkflowStore {
 
   public readonly root: string;
   public readonly db: Database;
+  private readonly readOnly: boolean;
   public readonly sqliteStore: SqliteStore;
   public readonly sp: SemanticPackage;
   private closed = false;
 
   private readonly ready: Promise<void>;
 
-  constructor(projectRoot?: string, inMemory: boolean = false) {
+  constructor(projectRoot?: string, inMemory: boolean = false, options: {readOnly?:boolean} = {}) {
+    this.readOnly=options.readOnly??false;
     this.root = projectRoot ? path.resolve(projectRoot) : findProjectRoot().root;
 
     if (inMemory) {
       this.db = new Database(':memory:');
     } else {
       const stateDir = path.join(this.root, '.ai-workflow', 'state');
-      fs.mkdirSync(stateDir, { recursive: true });
-      this.db = new Database(path.join(stateDir, 'graph.db'));
+      if(!this.readOnly)fs.mkdirSync(stateDir, { recursive: true });
+      this.db = new Database(path.join(stateDir, 'graph.db'),{readonly:this.readOnly});
     }
 
-    this.db.exec('PRAGMA journal_mode = WAL;');
+    if(!this.readOnly)this.db.exec('PRAGMA journal_mode = WAL;');
     this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA busy_timeout = 5000;');
 
@@ -353,6 +356,10 @@ export class WorkflowStore {
       return !!this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table) &&
         !!this.db.query(`SELECT 1 FROM ${table} WHERE json_type(data,'$.priority') IS NOT 'integer' OR json_extract(data,'$.priority') NOT BETWEEN 0 AND 5 LIMIT 1`).get();
     });
+    if(this.readOnly&&(legacy||legacyPriorities)){
+      this.ready=Promise.reject(Error('Stale canonical schema; an authorized host must migrate it before read-only queries.'));
+      void this.ready.catch(()=>{});return;
+    }
     const prioritiesReady = legacyPriorities ? this.migratePriorities() : Promise.resolve();
     this.ready = legacy ? prioritiesReady.then(() => this.migrateTicketStates()) : prioritiesReady;
   }

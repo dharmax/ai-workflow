@@ -11,7 +11,7 @@ import {currentTestEvidence} from '../src/graph/test-artifacts.ts';
 import {readVerificationReceipt, type ResolutionOptions, type ResolutionVerificationInput} from '../src/ticket-operation-types.ts';
 import {artifactCommand} from '../src/artifact-command.ts';
 import {initializeTools} from '../src/tools/index.ts';
-import {registry} from '../src/tools/registry.ts';
+import {commandRegistry} from '../src/tools/registry.ts';
 import {loadConfig, saveConfig} from '../src/services/config-service.ts';
 
 const assessment = (input: ResolutionVerificationInput) => ({
@@ -182,10 +182,10 @@ describe('Gate 5 Actor Stories through public Ticket and governance operations',
     expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.lane).not.toBe('Done');
   });
 
-  test('shared command adapter and MCP registry preserve per-Ticket expansion authorization', async () => {
+  test('shared command adapter and MCP commandRegistry preserve per-Ticket expansion authorization', async () => {
     initializeTools();const command=(await artifactCommand(['resolve','T','--authorize-file','T=src/other.ts','--authorize-file','CHILD=src/new.ts']))!;
     expect(command.args.authorizedFiles).toEqual({T:['src/other.ts'],CHILD:['src/new.ts']});
-    expect(registry.get('resolve_ticket')!.parameters.parse(command.args)).toMatchObject({authorizedFiles:{T:['src/other.ts'],CHILD:['src/new.ts']}});
+    expect(commandRegistry.get('resolve_ticket')!.parameters.parse(command.args)).toMatchObject({authorizedFiles:{T:['src/other.ts'],CHILD:['src/new.ts']}});
     await expect(artifactCommand(['prepare','T','--authorize-file','T=src/other.ts'])).rejects.toThrow('unknown option');
   });
 

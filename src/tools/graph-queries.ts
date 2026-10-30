@@ -6,7 +6,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode, FileNode, Ticket } from '../model/ontology.ts';
 import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
@@ -87,7 +87,7 @@ async function searchWorkspaceText(text: string, limit: number, ctx: ToolContext
 }
 
 export function registerGraphTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'get_exact_callers',
     description: 'Find exact TS/JS incoming calls using TypeScript call hierarchy.',
     category: 'graph',
@@ -98,7 +98,7 @@ export function registerGraphTools() {
       return { exact: true, source: 'typescript-lsp', coverage: referenceCoverage(ctx.projectRoot, target.filePath), target, callers: await client.getIncomingCalls(target.filePath, target.position) };
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'get_exact_references',
     description: 'Find exact TS/JS references using TypeScript LSP; graph call edges are heuristic discovery only.',
     category: 'graph',
@@ -109,14 +109,14 @@ export function registerGraphTools() {
       return { exact: true, source: 'typescript-lsp', coverage: referenceCoverage(ctx.projectRoot, target.filePath), target, references: await client.getReferences(target.filePath, target.position) };
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'search_workspace_text',
     description: 'Find case-sensitive literal contracts in workspace source, schemas, configuration and tests, including unindexed extensions. Text matches are candidates; exclusions and truncation are explicit. Does not mutate the Graph.',
     category: 'graph',
     parameters: z.object({text: z.string().min(1).max(1000), limit: z.number().int().min(1).max(300).optional()}),
     execute: async ({text, limit = 100}, ctx: ToolContext) => searchWorkspaceText(text, limit, ctx)
   });
-  registry.register({
+  commandRegistry.register({
     name: 'find_symbol',
     description: 'Look up AST symbols across the codebase by exact name, fuzzy substring, regex, or kind filter with automatic freshness sync.',
     category: 'graph',
@@ -225,7 +225,7 @@ export function registerGraphTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'search_graph',
     description: 'Query and traverse the AST+ Knowledge Graph across entities, predicates, and semantic connections (callers, dependencies, dependents, containment, implementation).',
     category: 'graph',
@@ -412,7 +412,7 @@ export function registerGraphTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_symbol_source',
     description: 'Extract a surgical slice of a function or class source code without dumping the entire file.',
     category: 'graph',
@@ -424,6 +424,7 @@ export function registerGraphTools() {
       await ensureAstFresh(ctx.store, ctx.projectRoot);
 
       let fullPath = path.resolve(ctx.projectRoot, filePath);
+      if(fs.existsSync(fullPath))fullPath=path.resolve(ctx.projectRoot,workspacePath(ctx.projectRoot,filePath));
       if (!fs.existsSync(fullPath)) {
         const fileNode = await ctx.store.getEntity<FileNode>(filePath);
         if (fileNode && (fileNode as any).metadata?.externalPath && fs.existsSync((fileNode as any).metadata.externalPath)) {
@@ -457,14 +458,16 @@ export function registerGraphTools() {
       }
 
       const symbols = await ctx.store.listEntities<SymbolNode>(SymbolNode.dcr);
-      const sym = symbols.find(s => {
-        const fileMatches = ((s as any).filePath || '').endsWith(filePath);
-        const titleMatches = ((s as any).title || '').toLowerCase() === symbolName.toLowerCase();
-        const container = (s as any).containerName || '';
-        const fullMatches = container ? `${container}.${(s as any).title}`.toLowerCase() === symbolName.toLowerCase() : false;
+      const matches = symbols.filter(s => {
+        const fileMatches = path.resolve(ctx.projectRoot,s.filePath||'')===fullPath;
+        const titleMatches = s.title === symbolName;
+        const container = s.containerName || '';
+        const fullMatches = container ? `${container}.${s.title}` === symbolName : false;
         return fileMatches && (titleMatches || fullMatches);
       });
 
+      if(matches.length>1)return {filePath,symbolName,exact:false,ambiguous:true,candidates:matches.map(s=>({id:ctx.store.localId(s.id),name:s.title,container:s.containerName,line:s.line})),startLine:null,lineCount:0,code:null};
+      const sym=matches[0];
       if (!sym) {
         return {
           filePath,
@@ -491,7 +494,7 @@ export function registerGraphTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_file_outline',
     description: 'Get a concise outline of all exported symbols, classes, functions, and interfaces in a file.',
     category: 'graph',
@@ -530,7 +533,7 @@ export function registerGraphTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'analyze_blast_radius',
     description: 'Calculate the dependency blast radius before modifying a file: finds impacted files, linked tickets, and recommended tests.',
     category: 'graph',
@@ -542,7 +545,7 @@ export function registerGraphTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'estimate_token_budget',
     description: 'Calculate estimated token consumption for targeted files to prevent context window blowouts.',
     category: 'graph',

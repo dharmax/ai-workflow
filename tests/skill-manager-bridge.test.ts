@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { SkillManager } from '@dharmax/skill-manager';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { getAIWFSkillManager, resolveSkillSources } from '../src/kb/manager.ts';
 
 function writeSkill(root: string, id = 'web-ui-design') {
@@ -42,13 +42,13 @@ describe('SkillManager Bridge & Dynamic Skills Integration', () => {
     expect(skills[0].source.repo).toBe(tmpDir);
   });
 
-  it('exposes find_skills through the production registry', async () => {
-    const result = await registry.execute('find_skills', { query: 'web frontend design' }, { store, projectRoot: tmpDir });
+  it('exposes find_skills through the production commandRegistry', async () => {
+    const result = await commandRegistry.execute('find_skills', { query: 'web frontend design' }, { store, projectRoot: tmpDir });
     expect(result.find((s: { id: string }) => s.id === 'web-ui-design').tools).toContain('generateTheme');
   });
 
   it('activates project skill metadata through get_knowledge_item', async () => {
-    const result = await registry.execute('get_knowledge_item', { id: 'web-ui-design' }, { store, projectRoot: tmpDir });
+    const result = await commandRegistry.execute('get_knowledge_item', { id: 'web-ui-design' }, { store, projectRoot: tmpDir });
     expect(result.id).toBe('web-ui-design');
     expect(result.type).toBe('skill');
     expect(result.verified).toBe(true);
@@ -80,7 +80,7 @@ describe('SkillManager Bridge & Dynamic Skills Integration', () => {
       ['search_knowledgebase', { type: 'skill' }],
       ['get_knowledge_item', { id: 'web-ui-design' }]
     ] as const) {
-      await expect(registry.execute(name, params, { store, projectRoot: tmpDir })).rejects.toThrow('SkillManager sync failed');
+      await expect(commandRegistry.execute(name, params, { store, projectRoot: tmpDir })).rejects.toThrow('SkillManager sync failed');
     }
   });
 
@@ -92,7 +92,7 @@ describe('SkillManager Bridge & Dynamic Skills Integration', () => {
     ] as const) {
       const failure = spyOn(SkillManager.prototype, method).mockRejectedValue(new Error('skill runtime failed'));
       try {
-        await expect(registry.execute(name, params, { store, projectRoot: tmpDir })).rejects.toThrow('skill runtime failed');
+        await expect(commandRegistry.execute(name, params, { store, projectRoot: tmpDir })).rejects.toThrow('skill runtime failed');
       } finally { failure.mockRestore(); }
     }
   });

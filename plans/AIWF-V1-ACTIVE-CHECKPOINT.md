@@ -1,8 +1,19 @@
-# AIWF v1 — active checkpoint: User Story lifecycle first (2026-10-25)
+# AIWF v1 — active checkpoint: public interface completion first (2026-10-30)
 
-**Read after AGENTS.md on every continuation.** This replaces the Workspace-first direction in the previous checkpoint. [Release plan](AIWF-USABLE-V1-RELEASE-PLAN.md) contains the governing priority correction, approved gate sequence amendment and retained historical delivery contract. Dharmax-way definitions, host authorization, safety, independent verification and canonical Semantika/Gate 5 obligations remain authoritative. Historical reports are evidence, not competing execution instructions.
+**Read after AGENTS.md on every continuation.** The October 30 decision below supersedes older immediate priority sequencing, including the October 25 lifecycle-first direction. [Release plan](AIWF-USABLE-V1-RELEASE-PLAN.md) contains the governing priority correction, approved gate sequence amendment and retained historical delivery contract. Dharmax-way definitions, host authorization, safety, independent verification and canonical Semantika/Gate 5 obligations remain authoritative. Historical reports are evidence, not competing execution instructions.
 
-## Current developer decision — 2026-10-25 (supersedes older priority sequencing)
+## Current developer decision — 2026-10-30
+
+1. Public API semantics and consistency across CLI, interactive Shell UI, MCP and REST.
+2. `investigate`/`prepare`/`resolve` operational reliability.
+3. Real end-to-end public-path dogfooding.
+4. Continuous justified architectural improvement: cohesion, reuse and consequential debt.
+
+The [public API contract](../docs/api/public-interface.md) owns syntax/semantics; the [public interface implementation plan](AIWF-PUBLIC-INTERFACE-IMPLEMENTATION-PLAN.md) owns sequence and acceptance. The latest published two-pass plan supersedes the earlier six-stage API sequence. The current assignment completes Pass A (one CommandRegistry registration drives all four interfaces) and then Pass B (existing useful capabilities and essential correctness/security fixes), with their real acceptance gates. Graph mutations, resolver redesign and symbol xray are outside this task. A confirmed authority bypass must be repaired at its actual boundary; no expanded write authority. Retain all existing safety, independent verification, canonical Semantika and Gate 5 obligations. Documentation and green internal tests do not accept Gate 5.
+
+**Continuation rule:** check this decision before selecting further work. The October 25 direction and earlier delivery details below are retained history and evidence; they do not override this priority or expand Phase 1.
+
+## Historical developer decision — 2026-10-25 (superseded for immediate sequencing)
 
 **Immediate P0: make the basic User Story lifecycle work reliably at a good-enough level.** The outcome to demonstrate is a real charter-grounded Story progressing through definition/editing and developer approval, processing into useful Tickets, resolution/implementation, genuine Story acceptance and independent current verification, with truthful graph/status/evidence throughout. Scope must be controlled: fix blockers on this path and do not expand to unrelated engineering capabilities, interfaces or polish merely because older plans listed them as P0. "Good enough" means genuinely usable and dependable, not full feature coverage or architectural perfection.
 
@@ -26,7 +37,7 @@ The 2026-10-20/21 P0-first host/MCP qualification and subsequent P1–P4 sequenc
 - Semantic Studio can later provide a substantive Architect implementation for architecture/ontology/scaffolding proposals. Architect produces proposals/source-change requests, **not filesystem mutations**. AIWF owns the existing guarded review/change-application path. No duplicate mutation engine or Semantic Studio dependency inside AIWF.
 - This is a documented design decision, **not** an implemented/accepted runtime capability and **not** authority to interrupt the basic-US critical path.
 
-**Continuation rule:** On every continuation, check this latest developer priority before selecting work from historical gates or plans. Work on the currently blocking US path; surface material conflicts, do not invent completion, and do not add another checkpoint or orchestration subsystem.
+**Historical continuation rule (October 25; superseded above):** the lifecycle-first direction required the then-blocking US path, material conflicts to be surfaced, truthful completion and no new checkpoint or orchestration subsystem.
 
 ## Historical priority order (superseded for immediate sequencing)
 **Historical priority ordering (2026-10-20): superseded for immediate sequencing by the 2026-10-25 developer decision above.** The retained details below are evidence and context, not a mandate to restart that expansion.

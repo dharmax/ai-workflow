@@ -1,4 +1,7 @@
-/** Governed link presentation over the existing Product/S2 owner. */
+/**
+ * Responsibility: Typed Link discovery, canonical relationship reads and governed review presentation.
+ * Scope: Existing Product relation policy and S2 preview/apply; no independent writer authority.
+ */
 import {z} from 'zod';
 import type {WorkflowStore} from '../graph/store.ts';
 import {CharterWarningContextSchema,PRODUCT_RELATIONS,LinkPayloadSchema,normalizeLinkPayload,productKind,resolveProductEntity,productEdgeRows,productRelation} from './mutation.ts';
@@ -6,16 +9,18 @@ import {computeHash} from '../kb/canonical.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import type {ChangeRequest} from '../change/types.ts';
 import type {ToolContext} from '../tools/registry.ts';
+import {semanticPredicates} from '../model/predicates.ts';
 import {entityDescriptors} from '../model/ontology.ts';
-import {registry} from '../tools/registry.ts';
+import {commandRegistry} from '../tools/registry.ts';
 
 const kinds=z.enum([...new Set(PRODUCT_RELATIONS.flatMap(row=>[row.sourceKind,row.targetKind]))]);
+const readPredicates=z.enum(Object.keys(semanticPredicates) as [string,...string[]]);
 const predicates=z.enum([...new Set(PRODUCT_RELATIONS.map(row=>row.predicate))]);
 const id=z.string().min(1).regex(/\S/,'ID must not be blank');
 const idMatch=z.enum(['exact','human']).optional();
 export const LinkActionSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('allowed'),sourceKind:kinds.optional(),targetKind:kinds.optional()}).strict(),
- z.object({action:z.literal('inspect'),id,idMatch,direction:z.enum(['incoming','outgoing','both']).optional(),predicate:predicates.optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()}).strict(),
+ z.object({action:z.literal('inspect'),id,idMatch,direction:z.enum(['incoming','outgoing','both']).optional(),predicate:readPredicates.optional(),targetId:id.optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()}).strict(),
  z.object({action:z.literal('preview_add'),sourceId:id,targetId:id,predicate:predicates,payload:LinkPayloadSchema.optional(),idMatch}).strict(),
  z.object({action:z.literal('preview_remove'),sourceId:id,targetId:id,predicate:predicates,idMatch}).strict()
 ]);
@@ -42,8 +47,8 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
   const entity=await endpoint(store,args.id,args.idMatch);
   const direction=args.direction??'both',limit=args.limit??25;
   const allRows=await productEdgeRows(store,entity.id);
-  const rows=allRows.filter(row=>(direction==='both'||(direction==='outgoing'?row.sourceId===entity.id:row.targetId===entity.id))&&(!args.predicate||row.predicateName===args.predicate));
-  const basis=computeHash({id:entity.id,version:entity.version,direction,predicate:args.predicate??null,rows});
+  const rows=allRows.filter(row=>(direction==='both'||(direction==='outgoing'?row.sourceId===entity.id:row.targetId===entity.id))&&(!args.predicate||row.predicateName===args.predicate)&&(!args.targetId||store.localId(row.targetId)===store.localId(args.targetId)));
+  const basis=computeHash({id:entity.id,version:entity.version,direction,predicate:args.predicate??null,targetId:args.targetId??null,rows});
   let offset=0;
   if(args.cursor) {
    try {const cursor=JSON.parse(Buffer.from(args.cursor,'base64url').toString());if(cursor.basis!==basis||!Number.isInteger(cursor.offset)||cursor.offset<0||cursor.offset>=rows.length) throw Error();offset=cursor.offset;} catch {throw Error('Invalid or stale links cursor; restart inspection.');}
@@ -58,7 +63,7 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
     sourceStatus:source&&'status' in source?source.status:undefined,targetStatus:target&&'status' in target?target.status:undefined,predicate:row.predicateName,direction:row.sourceId===entity.id?'outgoing':'incoming',
     note:row.payload?.note,mode:protectedEndpoint?'O':relation?.mode??'O',owner:protectedEndpoint?'Protected evidence owner':relation?.owner??'Indexed/runtime or unsupported historical relation; manual mutation forbidden'});
   }
-  return {status:'read',id:store.localId(entity.id),version:entity.version,relationsHash:computeHash(allRows),links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
+  return {status:'read',id:store.localId(entity.id),version:entity.version,freshness:{basis:'canonical-relations',sourceIndex:'not-assessed'},relationsHash:computeHash(allRows),links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
  }
  const source=await endpoint(store,args.sourceId,args.idMatch),target=await endpoint(store,args.targetId,args.idMatch);
  const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',mutations:[{
@@ -77,13 +82,13 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
 
 /** Only local deterministic CLI/shell calls enter this review function; never an Actor tool. */
 export async function reviewLink(args:LinkAction,ctx:ToolContext,yes:boolean,confirm?: (preview:unknown)=>Promise<boolean>,present?: (preview:unknown)=>void) {
- const preview=await registry.execute('link',args,ctx);
+ const preview=await commandRegistry.execute('link',args,ctx);
  if(args.action==='allowed'||args.action==='inspect') return preview;
  if(preview.blocked) throw Error(preview.blockReason??'Link preview blocked.');
  present?.(preview);
  if(!yes&&!confirm) return preview;
  if(!yes&&!await confirm!(preview)) return {status:'cancelled',preview};
- const applied=await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only',ctx.signal,()=>registry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+ const applied=await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only',ctx.signal,()=>commandRegistry.execute('apply_change',{request:preview.request,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
  if(!applied.ok) throw Error(applied.error??'Link application failed.');
  if(applied.verification&&!applied.verification.passed) {
   return {
@@ -151,14 +156,14 @@ export async function reviewProductChange(
       if (!basis.success) continue;
       // Obtain the grounded question from the public owner, rather than trusting
       // an agent's account of what warning was raised. Changed/uncertain review fails closed.
-      const raised=await registry.execute('preview_change',basis.data.proposal,ctx);
+      const raised=await commandRegistry.execute('preview_change',basis.data.proposal,ctx);
       if (raised.status!=='needs_input' || raised.fingerprint!==basis.data.reviewFingerprint || !raised.warnings.includes(basis.data.warning)) continue;
       const answer = await respond(`Charter warning: ${basis.data.warning}\nEnter your actual response to this question. Approval of proposed text is separate; if your answer differs, revise the Decision before applying.\nDeveloper response: `,mutation.id);
       if (answer !== undefined) answers[mutation.id] = answer;
     }
   }
   return ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only',ctx.signal,
-    () => registry.execute('apply_change',input,ctx), input.decision === 'accept' ? input.fingerprint : undefined,answers);
+    () => commandRegistry.execute('apply_change',input,ctx), input.decision === 'accept' ? input.fingerprint : undefined,answers);
 }
 
 export async function reviewDefinition(
@@ -174,7 +179,7 @@ export async function reviewDefinition(
   present?.(preview);
   if (!yes && !confirm) return preview;
   if (!yes && !(await confirm!(preview))) return { status: 'cancelled', preview };
-  const applied = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => registry.execute(
+  const applied = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => commandRegistry.execute(
     'apply_change',
     { request: preview.request, fingerprint: preview.fingerprint, decision: 'accept' },
     ctx
@@ -190,4 +195,48 @@ export async function reviewDefinition(
     };
   }
   return { status: 'applied', preview, result: applied };
+}
+
+/** Canonical S1 discovery over the existing finite relation policy. */
+export const GraphPredicateActionSchema=z.discriminatedUnion('action',[
+ z.object({action:z.literal('list')}).strict(),
+ z.object({action:z.literal('check'),sourceKind:kinds,predicate:readPredicates,targetKind:kinds}).strict()
+]);
+export async function graphPredicateAction(store:WorkflowStore,input:z.infer<typeof GraphPredicateActionSchema>){
+ const args=GraphPredicateActionSchema.parse(input);
+ if(args.action==='list')return {...await linkAction(store,{action:'allowed'}),predicates:Object.keys(semanticPredicates).map(name=>({name,relations:PRODUCT_RELATIONS.filter(row=>row.predicate===name),owner:PRODUCT_RELATIONS.some(row=>row.predicate===name)?'Product relation policy':'Graph runtime/index owner; endpoint policy not specified here',authorable:PRODUCT_RELATIONS.some(row=>row.predicate===name&&row.mode==='H')}))};
+ const descriptor=productRelation(args.sourceKind,args.predicate,args.targetKind);
+ return {status:'read',sourceKind:args.sourceKind,predicate:args.predicate,targetKind:args.targetKind,allowed:descriptor?true:PRODUCT_RELATIONS.some(row=>row.predicate===args.predicate)?false:null,descriptor:descriptor??null,...(!descriptor&&!PRODUCT_RELATIONS.some(row=>row.predicate===args.predicate)?{reason:'Endpoint policy belongs to the graph runtime/index owner; no Product authorability is granted.'}:{})};
+}
+export const GraphLinkActionSchema=z.discriminatedUnion('action',[
+ z.object({action:z.literal('list'),sourceId:id,predicate:readPredicates.optional(),targetId:id.optional(),direction:z.enum(['incoming','outgoing','both']).optional(),limit:z.number().int().min(1).max(100).optional(),cursor:z.string().optional()}).strict(),
+ z.object({action:z.literal('show'),sourceId:id,predicate:readPredicates,targetId:id}).strict()
+]);
+export async function graphLinkAction(store:WorkflowStore,input:z.infer<typeof GraphLinkActionSchema>){
+ const args=GraphLinkActionSchema.parse(input);
+ if(args.targetId)await endpoint(store,args.targetId);
+ const {action,sourceId,...options}=args;
+ const result=await linkAction(store,{action:'inspect',id:sourceId,...options,direction:action==='show'?'outgoing':args.action==='list'?args.direction:undefined});
+ if(action==='show'&&'links' in result&&!result.links?.length)throw Error('Graph link not found: '+sourceId+' '+args.predicate+' '+args.targetId);
+ return result;
+}
+
+/** Trusted host review of a registered Product apply; transport input grants no consent. */
+export async function reviewPublicProductChange(input:Parameters<typeof reviewProductChange>[0]&{ticketId?:string;agentId?:string;allowDirtyTargets?:string[]},ctx:ToolContext,confirm?: (preview:unknown)=>Promise<boolean>,respond?:Parameters<typeof reviewProductChange>[2]){
+ if(input.request.action!=='product_change'){
+  if(input.decision==='reject'||input.decision==='cancel')return {status:'cancelled'};
+  if(!input.allowDirtyTargets?.length)return commandRegistry.execute('apply_change',input,ctx);
+  if(!confirm)return {status:'needs_input',error:'Dirty targets require trusted host review; client paths cannot authorize edits.'};
+  const preview=await commandRegistry.execute('preview_change',{...input.request,ticketId:input.ticketId,agentId:input.agentId,allowDirtyTargets:input.allowDirtyTargets},ctx);
+  if(preview.blocked)throw Error(preview.blockReason??'Source preview blocked.');
+  if(preview.fingerprint!==input.fingerprint)throw Error('Stale preview; reload and review.');
+  if(!await confirm(preview))return {status:'cancelled'};
+  return ctx.store.withExecutionContext(ctx.executionAuthority??'read-only',ctx.signal,()=>commandRegistry.execute('apply_change',input,ctx),input.fingerprint);
+ }
+ if(input.decision!=='accept')return reviewProductChange(input,ctx);
+ if(!confirm)return {status:'needs_input',error:'Trusted host review is required; client JSON cannot approve Product meaning.'};
+ const preview=await commandRegistry.execute('preview_change',input.request,ctx);
+ if(preview.fingerprint!==input.fingerprint)throw Error('Stale preview; reload and review.');
+ if(!await confirm(preview))return {status:'cancelled'};
+ return reviewProductChange(input,ctx,respond);
 }

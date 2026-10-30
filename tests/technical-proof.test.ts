@@ -11,7 +11,7 @@ import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket,TestNode,Artifact} from '../src/model/ontology.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 
 const roots:string[]=[];
 const stores:WorkflowStore[]=[];
@@ -25,7 +25,7 @@ async function fixture(){
  await store.upsertEntity(Ticket.dcr,{id:'T',title:'Technical arithmetic proof',body:'Preserve public arithmetic',lane:'Todo',acceptanceCriteria:['public sums']});
  await store.relate('T','modifies','src/add.ts');
  const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
- const call=(name:string,args:unknown)=>registry.execute(name,args,ctx);
+ const call=(name:string,args:unknown)=>commandRegistry.execute(name,args,ctx);
  const specification={ticketId:'T',testId:'test:tests/add.test.ts',scopes:[{id:'public',criteria:['public sums'],testId:'test:tests/add.test.ts',sources:[{filePath:'src/add.ts',symbolName:'add'}]}]};
  return {root,store,call,specification};
 }

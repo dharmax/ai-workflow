@@ -63,10 +63,19 @@ export async function sourceChangeScope(store: WorkflowStore, ticketId: string, 
 }
 
 /** Bind each public preview to its exact source, Ticket, governed scope and revision. */
-export function sourceChangeFingerprint(preview: ChangePreview, scope: GovernedChangeScope): string {
+export function sourceChangeFingerprint(preview: ChangePreview, scope: GovernedChangeScope, dirtyTargets: readonly string[] = [], claim?: Ticket['claim']): string {
   return computeHash({source: preview.fingerprint, ticketId: scope.ticketId, revision: scope.revision,
     intent: scope.intent, targets: scope.authoredTargets, authorizedFiles: scope.authorizedFiles,
-    files: scope.files, baselines: scope.baselines, effects: scope.effects, governance: scope.governance.fingerprint});
+    files: scope.files, baselines: scope.baselines, effects: scope.effects, governance: scope.governance.fingerprint,
+    dirtyTargets: [...dirtyTargets].sort().map(file => ({file, hash: preview.originalHashes[file]})), claim});
+}
+
+/** A proposed exception is bounded to this preview; only the host can approve its fingerprint. */
+export function normalizeDirtyTargets(root: string, preview: ChangePreview, targets: readonly string[] = []): string[] {
+  const normalized = targets.map(file => workspacePath(root, file));
+  if (new Set(normalized).size !== normalized.length) throw Error('Duplicate dirty target.');
+  for (const file of normalized) if (!preview.affectedFiles.includes(file)) throw Error(`Dirty target is outside preview effects: ${file}`);
+  return normalized.sort();
 }
 
 export async function assertChangeScope(store: WorkflowStore, ticket: Ticket, scope: GovernedChangeScope, preview: ChangePreview,

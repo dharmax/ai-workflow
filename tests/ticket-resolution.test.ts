@@ -19,7 +19,7 @@ import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
 import type { ResolutionVerificationInput, ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 
 describe('Ticket-owned bounded resolution', () => {
@@ -54,11 +54,11 @@ describe('Ticket-owned bounded resolution', () => {
       if(initial==='green') fs.writeFileSync(path.join(root,'src/add.ts'),'export function add(a: number,b: number){return a+b;}');
       if(initial==='infrastructure') fs.writeFileSync(path.join(root,'src/add.ts'),'throw new Error("provider unavailable"); export function add(a:number,b:number){return a+b;}');
       const specification={storyId:'S',filePath:'tests/signed-story.test.ts',fixturePath:'src/add.ts',interfaceName:'add',body:'expect(subject(2,3)).toBe(5);expect(subject(-2,3)).toBe(1);'};
-      let preview=await registry.execute('prepare_story_test',{specification},ctx);
-      let applied=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+      let preview=await commandRegistry.execute('prepare_story_test',{specification},ctx);
+      let applied=await store.withExecutionContext('project-write',undefined,()=>commandRegistry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
       if(applied.status==='file-created-unlinked') {
-        preview=await registry.execute('prepare_story_test',{specification},ctx);
-        applied=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+        preview=await commandRegistry.execute('prepare_story_test',{specification},ctx);
+        applied=await store.withExecutionContext('project-write',undefined,()=>commandRegistry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
       }
       expect(applied.status).toBe('linked');
       if(initial==='multiple') {
@@ -66,8 +66,8 @@ describe('Ticket-owned bounded resolution', () => {
         await acceptProduct(store,[{kind:'product_link',sourceId:'T',predicate:'addresses',targetId:'EXISTING'}]);
         const existing={...specification,storyId:'EXISTING',filePath:'tests/zero-story.test.ts',body:'expect(subject(2,0)).toBe(2);'};
         for(let attempt=0;attempt<2;attempt++) {
-          const preview=await registry.execute('prepare_story_test',{specification:existing},ctx);
-          const result=await store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_story_test',{specification:existing,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
+          const preview=await commandRegistry.execute('prepare_story_test',{specification:existing},ctx);
+          const result=await store.withExecutionContext('project-write',undefined,()=>commandRegistry.execute('apply_story_test',{specification:existing,fingerprint:preview.fingerprint,decision:'accept'},ctx),preview.fingerprint);
           if(result.status==='linked')break;
         }
       }
@@ -113,7 +113,7 @@ describe('Ticket-owned bounded resolution', () => {
             : {thought:'Request tests and independent acceptance',action:'final_answer',finalAnswer:JSON.stringify({changes:initial==='public-duplicate'?[{action:'replace_text',filePath:'src/add.ts',oldText:'a - b',newText:'a + b'}]:[],testCommands:[['bun','test','tests/signed-story.test.ts']]})};
           return {model,ok:true,text:JSON.stringify(decision)};
         });
-        try {result=await registry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},ctx);}
+        try {result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},ctx);}
         finally {provider.mockRestore();routing.mockRestore();}
       } else result=await store.withExecutionContext(initial==='read-only'?'read-only':'project-write',undefined,()=>t.resolve(store,options));
       expect(fs.readFileSync(path.join(root,specification.filePath),'utf8')).toBe(
@@ -196,13 +196,13 @@ describe('Ticket-owned bounded resolution', () => {
     });
     try {
       initializeTools();
-      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
+      const result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
         {store,projectRoot:root,executionAuthority:'project-write'});
       expect(result.status).toBe(status==='exception'?'blocked':status);
       for(const id of target==='child'?['T','CHILD']:['T']) {
         expect(await store.getEntity<Ticket>(id,Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
         expect(await store.getEntity('VERIFY-'+id,Artifact.dcr)).toBeNull();
-        const history=await registry.execute('get_ticket_history',{ticketId:id,limit:100},{store,projectRoot:root});
+        const history=await commandRegistry.execute('get_ticket_history',{ticketId:id,limit:100},{store,projectRoot:root});
         expect(JSON.stringify(history)).toContain(status==='exception'?'Preparation exception':status==='blocked'?'Nested preparation blocker':'Nested preparation needs input');
       }
       expect(await store.getActiveClaims()).toEqual([]);
@@ -248,7 +248,7 @@ describe('Ticket-owned bounded resolution', () => {
     });
     try {
       initializeTools();
-      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',verifyOnly:true,critic:'none',maxRepairs:0,
+      const result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',verifyOnly:true,critic:'none',maxRepairs:0,
         testCommands:[['bun','test',oracle.filePath!]]},{store,projectRoot:root,executionAuthority:'project-write',signal:controller.signal});
       expect(result.status).toBe('blocked');
       const current=await store.getEntity<Ticket>('T',Ticket.dcr);
@@ -256,7 +256,7 @@ describe('Ticket-owned bounded resolution', () => {
       expect(current?.claim?.agentId??null).toBe(interruption==='same-agent'?'resolver':interruption==='replacement'?'replacement':null);
       expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
       if(interruption==='abort') {
-        const history=await registry.execute('get_ticket_history',{ticketId:'T',limit:100},{store,projectRoot:root});
+        const history=await commandRegistry.execute('get_ticket_history',{ticketId:'T',limit:100},{store,projectRoot:root});
         expect(JSON.stringify(history)).toContain('Interrupted at independent review');
       }
       expect(JSON.parse((await store.getEntity<Artifact>('GOVERNANCE-ADMISSION',Artifact.dcr))!.body!)).toEqual([]);
@@ -301,7 +301,7 @@ describe('Ticket-owned bounded resolution', () => {
       {status,artifactId:'T',blockers:[{reason:'Investigation stopped'}]}:
       {status,artifactId:'T',required:[{question:'Inspect missing evidence',why:'Investigation stopped',target:'source evidence'}]});
     try{
-      initializeTools();const result=await registry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
+      initializeTools();const result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
       expect(result.status).toBe(status);
       expect(await store.getEntity<Ticket>('T',Ticket.dcr)).toMatchObject({lane:'Blocked',claim:null});
       expect(await store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
@@ -325,7 +325,7 @@ describe('Ticket-owned bounded resolution', () => {
         {thought:'Stop for verification',action:'final_answer',finalAnswer:JSON.stringify({changes:[],testCommands:[['bun','test','tests/add.test.ts']]})})};
     });
     try{
-      initializeTools();const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
+      initializeTools();const result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',agentId:'resolver',maxRepairs:0},{store,projectRoot:root,executionAuthority:'project-write'});
       expect(result.status).toBe('blocked');expect(replaced).toBe(true);
       expect(fs.readFileSync(path.join(root,'src/add.ts'),'utf8')).toContain('a - b');
       expect((await store.getEntity<Ticket>('T',Ticket.dcr))!.claim?.agentId).toBe('resolver');
@@ -402,7 +402,7 @@ describe('Ticket-owned bounded resolution', () => {
     });
     try {
       initializeTools();
-      const result = await registry.execute('resolve_ticket', {ticketId: 'T', verifyOnly: true, critic: 'none', testCommands: [['bun', 'test', oracle.filePath!]]}, {store, projectRoot: root, executionAuthority: 'project-write'});
+      const result = await commandRegistry.execute('resolve_ticket', {ticketId: 'T', verifyOnly: true, critic: 'none', testCommands: [['bun', 'test', oracle.filePath!]]}, {store, projectRoot: root, executionAuthority: 'project-write'});
       expect(result.status).toBe(implemented ? 'complete' : 'blocked');
       expect(calls).toEqual(implemented ? ['acceptance'] : []);
       expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(source);
@@ -437,8 +437,8 @@ describe('Ticket-owned bounded resolution', () => {
     const t = await ticket();
     const target = symbolOnly ? (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === 'src/add.ts' && s.title === 'add')! : (await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!;
     const oracle = await graphOracle(target);
-    const original = registry.execute.bind(registry), fallbackFiles: string[] = [];
-    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbackFiles.push(params.filePath); return original(name, params, ctx); });
+    const original = commandRegistry.execute.bind(commandRegistry), fallbackFiles: string[] = [];
+    const execution = spyOn(commandRegistry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbackFiles.push(params.filePath); return original(name, params, ctx); });
     let sawEvidence = false;
     try {
       const result = await t.resolve(store, {...fix, implement: async () => ({...(await fix.implement!({} as never, [])), testCommands: []}), verify: async input => {
@@ -456,8 +456,8 @@ describe('Ticket-owned bounded resolution', () => {
   it('uses filename fallback only for an uncovered source and persists its canonical evidence', async () => {
     fs.writeFileSync(path.join(root, 'tests/add.test.ts'), 'import {test,expect} from "bun:test"; const modulePath="../src/add"; const {add}=await import(modulePath); test("addition",()=>expect(add(2,3)).toBe(5));');
     await indexCodebase(store, root);
-    const t = await ticket(); const original = registry.execute.bind(registry); let fallbacks = 0;
-    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx); });
+    const t = await ticket(); const original = commandRegistry.execute.bind(commandRegistry); let fallbacks = 0;
+    const execution = spyOn(commandRegistry, 'execute').mockImplementation(async (name, params, ctx) => { if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx); });
     try {
       const result = await t.resolve(store, {...fix, implement: async dossier => ({...(await fix.implement!(dossier, [])), testCommands: []})});
       expect(result.status).toBe('complete'); expect(fallbacks).toBe(1);
@@ -538,8 +538,8 @@ describe('Ticket-owned bounded resolution', () => {
     await graphOracle((await store.getEntity<FileNode>('src/add.ts', FileNode.dcr))!);
     await store.withTestArtifactWrite('test:tests/add.test.ts',async()=>store.deleteEntity((await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr))!.id));
     await store.withTestArtifactWrite('test:tests/contract.spec.ts',async()=>store.deleteEntity((await store.getEntity<TestNode>('test:tests/contract.spec.ts', TestNode.dcr))!.id));
-    const original = registry.execute.bind(registry); let fallbacks = 0;
-    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => {if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx)});
+    const original = commandRegistry.execute.bind(commandRegistry); let fallbacks = 0;
+    const execution = spyOn(commandRegistry, 'execute').mockImplementation(async (name, params, ctx) => {if (name === 'resolve_test_target') fallbacks++; return original(name, params, ctx)});
     try {
       const result = await t.resolve(store, {...fix, testCommands: [['bun', 'test']], implement: async dossier => {
         expect(await store.getEntity<TestNode>('test:tests/add.test.ts', TestNode.dcr)).not.toBeNull();
@@ -978,7 +978,7 @@ describe('Ticket-owned bounded resolution', () => {
     });
     try{
       initializeTools();
-      const result=await registry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
+      const result=await commandRegistry.execute('resolve_ticket',{ticketId:'T',agentId:'executor',maxRepairs:0},
         {store,projectRoot:root,executionAuthority:'project-write'});
       expect(result.status).toBe('blocked');expect(calls).toBe(partial?4:3);
       expect(JSON.stringify(result)).toContain('Stalled navigation');
@@ -1087,8 +1087,8 @@ describe('Ticket-owned bounded resolution', () => {
   for (const name of ['get_file_outline', 'read_workspace_file']) {
     it(`stops identical ${name} observations after three steps and executes once`, async () => {
       const t = await ticket(); let calls = 0, executions = 0;
-      const original = registry.execute.bind(registry);
-      const execution = spyOn(registry, 'execute').mockImplementation(async (tool, params, ctx) => {
+      const original = commandRegistry.execute.bind(commandRegistry);
+      const execution = spyOn(commandRegistry, 'execute').mockImplementation(async (tool, params, ctx) => {
         if (tool === name && calls > 0) executions++;
         return original(tool, params, ctx);
       });
@@ -1142,8 +1142,8 @@ describe('Ticket-owned bounded resolution', () => {
 
   it('allows different observations and rejects reordered canonical parameters', async () => {
     const t = await ticket(); let calls = 0, reads = 0;
-    const original = registry.execute.bind(registry);
-    const execution = spyOn(registry, 'execute').mockImplementation(async (name, params, ctx) => {
+    const original = commandRegistry.execute.bind(commandRegistry);
+    const execution = spyOn(commandRegistry, 'execute').mockImplementation(async (name, params, ctx) => {
       if (name === 'find_symbol') reads++;
       return original(name, params, ctx);
     });

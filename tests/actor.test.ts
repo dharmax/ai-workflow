@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/helpers/actor/engine.ts';
 import { Ticket, Epic, Feature, UserStory, FileNode } from '../src/model/ontology.ts';
 import type {Asker, ZodType} from '@dharmax/llm-utils';
@@ -12,7 +12,7 @@ const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'pro
   discover: async () => ({
     query: {},
     mode,
-    tools: names.map(name => registry.get(name)).filter(Boolean) as any[],
+    tools: names.map(name => commandRegistry.get(name)).filter(Boolean) as any[],
   }),
 })
 
@@ -119,7 +119,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(result.events[3]!.toolResults![0]!.result).toMatchObject({ok: true});
     expect(result.events[4]!.toolResults![0]!.result).toMatchObject({success: true, stdout: '2\n', authority: 'read-only'});
     expect(fs.readFileSync(path.join(tempDir, 'value.ts'), 'utf8')).toBe('export const value = 2;\n');
-    await registry.execute('release_ticket', {ticketId: owner.ticketId}, {store, projectRoot: tempDir, executionAuthority: 'project-write'});
+    await commandRegistry.execute('release_ticket', {ticketId: owner.ticketId}, {store, projectRoot: tempDir, executionAuthority: 'project-write'});
   });
 
   it('maps configured mode routes to semantic tasks, with task routes authoritative', () => {
@@ -232,7 +232,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
   it('bounds explicit discovery attempts including unsuccessful searches', async () => {
     let queries = 0, calls = 0;
     const asker = {json: async () => ++calls <= 3 ? {ok: true, data: {thought: '', action: 'tool_call', toolCalls: [{name: 'discover_tools', parameters: {request: `missing evidence ${calls}`}}]}} : {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'The requested evidence was not available.'}}} as unknown as Asker;
-    const discovery = {discover: async () => ++queries === 1 ? {query: {}, tools: [registry.get('list_tickets')!]} : {query: {}, tools: [], error: 'No applicable capability'}};
+    const discovery = {discover: async () => ++queries === 1 ? {query: {}, tools: [commandRegistry.get('list_tickets')!]} : {query: {}, tools: [], error: 'No applicable capability'}};
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker, toolDiscovery: discovery}).execute('Read unsupported evidence');
     expect(queries).toBe(2); expect(result.stepsCount).toBe(4);
     expect(result.issues?.some(issue => issue.message.includes('exhausted after two attempts'))).toBe(true);
@@ -399,7 +399,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(actorSystem.length).toBeLessThan(8_000)
   });
 
-  it('adds explicitly requested ticket tools without losing the bootstrap or exposing the registry', async () => {
+  it('adds explicitly requested ticket tools without losing the bootstrap or exposing the commandRegistry', async () => {
     let call = 0
     const systems: string[] = []
     const mockAsker = {
@@ -670,7 +670,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
         return {status: 'complete', artifactId: 'TKT-SIGNAL', value: {verification: true}} as any
       }
 
-      await registry.execute('resolve_ticket', {ticketId: 'TKT-SIGNAL'}, {
+      await commandRegistry.execute('resolve_ticket', {ticketId: 'TKT-SIGNAL'}, {
         store,
         projectRoot: tempDir,
         signal: controller.signal,

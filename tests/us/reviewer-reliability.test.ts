@@ -6,7 +6,7 @@ import {modelAdvicePath} from '@dharmax/llm-utils';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {Ticket, FileNode} from '../../src/model/ontology.ts';
 import {indexCodebase} from '../../src/graph/indexer.ts';
-import {initializeTools,registry} from '../../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../../src/tools/index.ts';
 import {RuleStore} from '../../src/rules/store.ts';
 import {saveConfig} from '../../src/services/config-service.ts';
 import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
@@ -44,7 +44,7 @@ it('developer obtains independent verification using advice, observed qualificat
   throw Error('Unexpected provider endpoint: '+url);
  }) as typeof fetch);
  store=new WorkflowStore(root);await indexCodebase(store,root);await new RuleStore(store).installDefaults();initializeTools();
- const call=(name:string,args:unknown)=>registry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
+ const call=(name:string,args:unknown)=>commandRegistry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
  const create=async(id:string)=>{await call('create_ticket',{id,title:`${id}: verify signed addition under its reviewer policy`,body:`Verify direct signed arithmetic for the ${id} reviewer-policy scenario.`,acceptanceCriteria:['Signed addition works']});await store!.relate((await store!.getEntity(id,Ticket.dcr))!,'modifies',(await store!.getEntity('src/add.ts',FileNode.dcr))!);};
  const resolve=(ticketId:string)=>call('resolve_ticket',{ticketId,agentId:'developer',verifyOnly:true,maxRepairs:0,testCommands:[['bun','test','tests/add.test.ts']]});
  await create('FIRST');const first=await resolve('FIRST');console.info('Reviewer baseline:',JSON.stringify({status:first.status,models:calls.map(c=>c.model)}));expect(first.status).toBe('blocked');

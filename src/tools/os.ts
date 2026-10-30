@@ -6,11 +6,11 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { findProjectRoot } from '../graph/store.ts';
 
 export function registerOsTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'run_command',
     description: 'Execute a system command in the project directory with bounded output and timeout.',
     category: 'os',
@@ -108,7 +108,7 @@ export function registerOsTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_environment_info',
     description: 'Detect runtime environment, package manager, platform architecture, and toolchain.',
     category: 'os',
@@ -136,7 +136,7 @@ export function registerOsTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_project_root',
     description: 'Resolve the canonical project root across subdirectories and monorepos.',
     category: 'os',

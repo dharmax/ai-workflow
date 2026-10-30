@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket} from '../src/model/ontology.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {processShellInput} from '../src/shell.ts';
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -74,7 +74,7 @@ describe('first-class Bug public journey',()=>{
  it('selects explicit kinds with priority, dependencies, foreign claims and legacy tasks',async()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-bug-rank-'));initializeTools();store=new WorkflowStore(root);
   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
-  const call=(tool:string,args:unknown)=>registry.execute(tool,args,ctx);
+  const call=(tool:string,args:unknown)=>commandRegistry.execute(tool,args,ctx);
   await call('create_ticket',{id:'T',title:'fix BUG in task title',lane:'Todo',priority:1});
   await call('create_bug',{id:'B',title:'Saved total',priority:1,defect:{reproduction:'total 2 3',expected:'5',actual:'23',severity:'medium'}});
   expect((await call('get_ticket',{ticketId:'T'})).kind).toBe('task');
@@ -92,6 +92,6 @@ describe('first-class Bug public journey',()=>{
   expect(run('ticket','classify','T','bug').success).toBe(true);
   expect((await call('get_ticket',{ticketId:'T'})).kind).toBe('task');
   expect(run('ticket','classify','T','bug','--yes').success).toBe(true);
-  store.close();store=new WorkflowStore(root);expect((await registry.execute('get_ticket',{ticketId:'T'},{...ctx,store})).kind).toBe('bug');
+  store.close();store=new WorkflowStore(root);expect((await commandRegistry.execute('get_ticket',{ticketId:'T'},{...ctx,store})).kind).toBe('bug');
  },30000);
 });

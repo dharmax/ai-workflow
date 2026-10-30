@@ -17,7 +17,7 @@ describe('daily shared shell commands', () => {
   let store: WorkflowStore;
   let session: ShellSession;
   let renderer: FakeRenderer;
-  const registry = initializeTools();
+  const commandRegistry = initializeTools();
   beforeEach(async () => {
     oldHome = process.env.HOME;
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-daily-'));
@@ -30,9 +30,9 @@ describe('daily shared shell commands', () => {
       if(lane==='Done') {
         // A historical completed row is fixture state, never generic creation.
         await store.sp.createEntity(Ticket.dcr,{id:store.formatId(Ticket.dcr,id),_id:store.formatId(Ticket.dcr,id),title:id,lane,status:'verified'},true,false);
-      } else await registry.execute('create_ticket', {id, title: id, lane}, {store, projectRoot: root, executionAuthority: 'project-write'});
+      } else await commandRegistry.execute('create_ticket', {id, title: id, lane}, {store, projectRoot: root, executionAuthority: 'project-write'});
     }
-    await registry.execute('claim_ticket', {ticketId: 'LEASED', agentId: 'other'}, {store, projectRoot: root, executionAuthority: 'project-write'});
+    await commandRegistry.execute('claim_ticket', {ticketId: 'LEASED', agentId: 'other'}, {store, projectRoot: root, executionAuthority: 'project-write'});
   });
   afterEach(() => {
     store.close();

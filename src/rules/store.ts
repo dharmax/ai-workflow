@@ -172,6 +172,7 @@ export class RuleStore {
   async applyPack(raw: unknown, options: Parameters<RuleStore['previewPack']>[1], fingerprint: string): Promise<Rule[]> {
     const preview = await this.previewPack(raw, options);
     if (preview.fingerprint !== fingerprint) throw Error('Stale Rule preview; inspect and approve the current diff.');
+    if(!this.store.canReviewProduct(fingerprint))throw Error('Trusted host approval of the exact Rule preview is required.');
     return this.saveBatch(preview.changes, {reason: preview.reason, before: preview.before});
   }
 

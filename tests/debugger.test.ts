@@ -6,7 +6,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { FileNode, SymbolNode } from '../src/model/ontology.ts';
 import { ensureAstFresh } from '../src/graph/indexer.ts';
 import { parseLocations, extractLineSnippet, diagnoseTarget } from '../src/tools/debugger.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('AIWF Debugger and Triage Facility', () => {
   let root: string;
@@ -70,7 +70,7 @@ describe('AIWF Debugger and Triage Facility', () => {
 
   test('debug_target independently executes read-only on a fresh index without mutations', async () => {
     const before = store.db.query('SELECT total_changes() AS count').get();
-    const report = await registry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root});
+    const report = await commandRegistry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root});
     expect(report.resolvedKind).toBe('symbol');
     expect(report.locations[0]).toMatchObject({
       filePath: 'src/greet.ts', line: 1,
@@ -86,7 +86,7 @@ describe('AIWF Debugger and Triage Facility', () => {
       if (change === 'created') fs.writeFileSync(path.join(root, 'src/added.ts'), 'export const added = 1;\n');
       if (change === 'deleted') fs.unlinkSync(path.join(root, 'src/greet.ts'));
       const before = store.db.query('SELECT total_changes() AS count').get();
-      await expect(registry.execute('debug_target', {target: 'src/greet.ts:2'}, {store, projectRoot: root}))
+      await expect(commandRegistry.execute('debug_target', {target: 'src/greet.ts:2'}, {store, projectRoot: root}))
         .rejects.toThrow('AST index is stale');
       expect(store.db.query('SELECT total_changes() AS count').get()).toEqual(before);
       expect(await store.listEntities<SymbolNode>(SymbolNode.dcr, {title: 'added'})).toHaveLength(0);
@@ -104,14 +104,14 @@ describe('AIWF Debugger and Triage Facility', () => {
   test('aborted fresh read-only diagnostics do not return a current result', async () => {
     const controller = new AbortController();
     controller.abort(new Error('diagnostic cancelled'));
-    await expect(registry.execute('debug_target', {target: 'src/greet.ts:2'},
+    await expect(commandRegistry.execute('debug_target', {target: 'src/greet.ts:2'},
       {store, projectRoot: root, signal: controller.signal})).rejects.toThrow('diagnostic cancelled');
   });
 
   test('cancellation during a fresh read settles before store cleanup', async () => {
     const controller = new AbortController();
     const before = store.db.query('SELECT total_changes() AS count').get();
-    const operation = registry.execute('debug_target', {target: 'greet'},
+    const operation = commandRegistry.execute('debug_target', {target: 'greet'},
       {store, projectRoot: root, signal: controller.signal});
     controller.abort(new Error('read cancelled'));
     await expect(operation).rejects.toThrow('read cancelled');
@@ -125,10 +125,10 @@ describe('AIWF Debugger and Triage Facility', () => {
     fs.writeFileSync(path.join(dependency, 'index.ts'), 'export const value = 1;');
     fs.writeFileSync(path.join(root, 'package.json'), '{"dependencies":{"local":"file:./node_modules/local"}}');
     await store.withExecutionContext('project-write', undefined, () => ensureAstFresh(store, root));
-    await registry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root});
+    await commandRegistry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root});
     fs.writeFileSync(path.join(dependency, 'index.ts'), 'export const value = 123;');
     const before = store.db.query('SELECT total_changes() AS count').get();
-    await expect(registry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root}))
+    await expect(commandRegistry.execute('debug_target', {target: 'greet'}, {store, projectRoot: root}))
       .rejects.toThrow('AST index is stale');
     expect(store.db.query('SELECT total_changes() AS count').get()).toEqual(before);
   });

@@ -1,13 +1,13 @@
 /**
  * Responsibility: JIT Codelet Compilation, Execution, Promotion, and AST Block Patching Facility.
- * Scope: Codelet synthesis via @dharmax/text-compiler, verification test execution, promotion to ToolRegistry,
+ * Scope: Codelet synthesis via @dharmax/text-compiler, verification test execution, promotion to CommandRegistry,
  * and deterministic file patching via @dharmax/block-patcher.
  */
 
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 
 /**
  * Extracts executable code from optional markdown fences.
@@ -54,7 +54,7 @@ export interface CodeletRecord {
 }
 
 export function registerCompilerTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'compile_codelet',
     description: 'Synthesize an atomic, tested ESM codelet and persist to .ai-workflow/codelets.',
     category: 'compiler',
@@ -121,7 +121,7 @@ export function registerCompilerTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'run_codelet',
     description: 'Execute a stored codelet by ID with supplied arguments.',
     category: 'compiler',
@@ -147,7 +147,7 @@ export function registerCompilerTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'apply_block_patch',
     description: 'Deterministically replace an AST code block in a file using @dharmax/block-patcher.',
     category: 'compiler',
@@ -166,9 +166,9 @@ export function registerCompilerTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'promote_codelet',
-    description: 'Promote a verified codelet into the live ToolRegistry as a custom tool accessible by agents and MCP.',
+    description: 'Promote a verified codelet into the live CommandRegistry as a custom tool accessible by agents and MCP.',
     category: 'compiler',
     parameters: z.object({
       codeletId: z.string().describe('Identifier of the stored codelet to promote')
@@ -187,7 +187,7 @@ export function registerCompilerTools() {
       const toolName = `custom_${record.name.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
       const callable = createCallableFunction(record.sourceCode);
 
-      registry.register({
+      commandRegistry.register({
         name: toolName,
         description: `[Custom Codelet]: ${record.description}`,
         category: 'compiler',

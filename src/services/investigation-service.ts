@@ -391,7 +391,7 @@ export async function investigateTicket(
             // Routing confidence cannot discard concrete Bug clues or stand in for source inspection.
             const selected = optional.filter(s => current.kind === 'bug' || !confident || assessment?.answers[store.localId(s.id)]?.choice !== "omit")
             for (const candidate of selected) add(candidate, "Bounded optional code candidate", false)
-            const { registry, initializeTools } = await import('../tools/index.ts')
+            const { commandRegistry, initializeTools } = await import('../tools/index.ts')
             const { verifyingTestsForTargets } = await import('../graph/test-artifacts.ts')
             initializeTools()
             const readContext = {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'read-only' as const}
@@ -419,7 +419,7 @@ export async function investigateTicket(
                             evidence.symbolKind = source.kind
                             countEngineering('exactSymbolReads')
                         } else {
-                            evidence.source = (await registry.execute('read_workspace_file', {filePath}, readContext)).content
+                            evidence.source = (await commandRegistry.execute('read_workspace_file', {filePath}, readContext)).content
                         }
                         countEngineering('sourceReads')
                     }
@@ -438,7 +438,7 @@ export async function investigateTicket(
                 evidence.body = JSON.stringify({command: test.command, lastRun: test.lastRun, passed: test.passed, output: test.output})
                 if (!evidence.filePath) continue
                 try {
-                    evidence.source = (await registry.execute('read_workspace_file', {filePath: evidence.filePath}, readContext)).content
+                    evidence.source = (await commandRegistry.execute('read_workspace_file', {filePath: evidence.filePath}, readContext)).content
                     countEngineering('sourceReads')
                     dossier.findings.push(`Inspected regression ${evidence.filePath}; stored executions are historical until freshness is checked.`)
                 } catch (error) {
@@ -517,7 +517,7 @@ export async function investigateTicket(
 /** Optional source discovery provides evidence, never permission to edit a discovered file. */
 async function collectContractEvidence(store: WorkflowStore, dossier: TicketDossier, symbols: SymbolNode[], codeMentions: string,
   max: number, signal?: AbortSignal): Promise<void> {
-    const {registry} = await import('../tools/registry.ts');
+    const {commandRegistry} = await import('../tools/registry.ts');
     const context = {store, projectRoot: store.root, signal, executionAuthority: 'read-only' as const};
     const inspectedFiles = new Set<string>();
     for (const symbol of symbols.slice(0, Math.min(max, 8))) {
@@ -525,7 +525,7 @@ async function collectContractEvidence(store: WorkflowStore, dossier: TicketDoss
         try {
             if (!inspectedFiles.has(symbol.filePath)) {
                 inspectedFiles.add(symbol.filePath);
-                const impact = await registry.execute('analyze_blast_radius', {target: symbol.filePath}, context);
+                const impact = await commandRegistry.execute('analyze_blast_radius', {target: symbol.filePath}, context);
                 for (const filePath of impact.affectedFiles.slice(0, max)) {
                     const file = await store.getEntity<FileNode>(filePath, FileNode.dcr);
                     if (file && !dossier.evidence.some(evidence => evidence.id === store.localId(file.id)))
@@ -534,7 +534,7 @@ async function collectContractEvidence(store: WorkflowStore, dossier: TicketDoss
                 }
                 if (impact.affectedFiles.length > max) dossier.uncertainties!.push('Structural impact exceeded maxArtifacts; additional consumers need follow-up.');
             }
-            const result = await registry.execute('get_exact_references', {filePath: symbol.filePath,
+            const result = await commandRegistry.execute('get_exact_references', {filePath: symbol.filePath,
                 line: symbol.line - 1, character: symbol.column - 1}, context);
             dossier.evidence.push({id: 'references:' + store.localId(symbol.id), kind: 'SemanticReferences',
                 title: symbol.title ?? '', mandatory: false, provenance: 'TypeScript LSP; project scope is explicit',
@@ -549,7 +549,7 @@ async function collectContractEvidence(store: WorkflowStore, dossier: TicketDoss
         .map(term => term.split('.').at(-1)!).concat(symbols.map(symbol => symbol.title!).filter(Boolean)))];
     let remaining = max;
     for (const term of terms.slice(0, 4)) {
-        const result = await registry.execute('search_workspace_text', {text: term, limit: Math.min(300, max * 8)}, context);
+        const result = await commandRegistry.execute('search_workspace_text', {text: term, limit: Math.min(300, max * 8)}, context);
         const byFile = new Map<string, string[]>();
         for (const match of result.matches) byFile.set(match.filePath, [...byFile.get(match.filePath) ?? [], `${match.line}:${match.column} ${match.text}`]);
         for (const [filePath, lines] of byFile) {

@@ -7,7 +7,7 @@ import {
   type IRegistryItem,
 } from '@dharmax/semantic-registry'
 import {z, type Asker} from '@dharmax/llm-utils'
-import type {ToolDefinition, ToolRegistry} from './registry.ts'
+import type {ToolDefinition, CommandRegistry} from './registry.ts'
 
 const QUERY_SCHEMA = z.record(z.string(), z.array(z.string()))
 
@@ -158,7 +158,7 @@ export class ToolDiscovery {
   private readonly refiner: (query: string | RegistryQuery, items: readonly IRegistryItem[], options: {signal?: AbortSignal; timeoutMs?: number}) => Promise<IRegistryItem[]>
 
   constructor(
-    private readonly tools: ToolRegistry,
+    private readonly tools: CommandRegistry,
     asker: Asker,
     fallbackAsker?: Asker,
     refiner?: RegistryRefiner,

@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
-import {initializeTools, registry} from '../../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 import {saveConfig} from '../../src/services/config-service.ts';
 import {Product, Feature, Decision} from '../../src/model/ontology.ts';
 import {reviewedApply} from '../product-review.ts';
@@ -27,7 +27,7 @@ describe('Product charter governs Feature acceptance and revision through public
  let root:string,store:WorkflowStore,server:ReturnType<typeof Bun.serve>,previousHost:string|undefined;
  let verdict:'aligned'|'conflict'|'unknown'|'generic'='aligned';
  let prompts:string[];
- const call=(tool:string,args:Record<string,unknown>)=>registry.execute(tool,args,{store,projectRoot:root,executionAuthority:'project-write'});
+ const call=(tool:string,args:Record<string,unknown>)=>commandRegistry.execute(tool,args,{store,projectRoot:root,executionAuthority:'project-write'});
  const accept=async(request:ProductRequest)=>{
   const preview=await call('preview_change',request);
   return reviewedApply(store,{request,fingerprint:preview.fingerprint,decision:'accept'});
@@ -116,10 +116,11 @@ describe('Product charter governs Feature acceptance and revision through public
   try {
    await client.connect(transport);
    const result=await client.callTool({name:'apply_change',arguments:{request:revised,fingerprint:p.fingerprint,decision:'accept',developerAnswers:{'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'}}});
-   expect(result.isError).not.toBe(true);expect(JSON.parse((result.content as Array<{text:string}>)[0]!.text).status).toBe('needs_input');
+   expect(result.isError).toBe(true);expect(JSON.stringify(result.content)).toContain('developerAnswers');expect(await store.getEntity('AGENT-ANSWER',Decision.dcr)).toBeNull();
   } finally {await client.close();}
   // Trusted Workspace host receives the response separately from request/approval.
-  const workspace=startWorkspace(ctx),url=new URL(workspace.url),token=url.hash.slice(1);
+  let hostAnswer:string|undefined;
+  const workspace=startWorkspace(ctx,0,async()=>true,async()=>hostAnswer),url=new URL(workspace.url),token=url.hash.slice(1);
   try {
    const apply=async(developerAnswers?:Record<string,string>,request=revised,fingerprint=p.fingerprint)=>{
     const response=await fetch(url.origin+'/api/apply',{method:'POST',headers:{'x-aiwf-token':token,'content-type':'application/json'},body:JSON.stringify({request,fingerprint,decision:'accept',developerAnswers})});
@@ -127,8 +128,10 @@ describe('Product charter governs Feature acceptance and revision through public
    };
    expect((await apply()).status).toBe('needs_input');
    const changed:ProductRequest={...revised,mutations:revised.mutations.map(m=>m.kind==='product_create'&&m.entityType==='Feature'?{...m,fields:{...m.fields,body:'Different repository diagnostic proposal'}}:m)};
-   expect((await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'},changed)).error).toContain('Developer answer required');
-   const success=await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'});expect(success.ok).toBe(true);
+   expect((await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'},changed)).error).toContain('Stale preview');
+   expect((await apply({'AGENT-ANSWER':'Remove poetry and restrict F to developer repository diagnostics.'})).status).toBe('needs_input');
+   hostAnswer='Remove poetry and restrict F to developer repository diagnostics.';
+   const success=await apply();expect(success.ok).toBe(true);
    expect((await call('get_decision',{id:'AGENT-ANSWER'})).context).toContain(warning);
   } finally {workspace.server.stop(true);}
 
@@ -196,7 +199,7 @@ describe('Product charter governs Feature acceptance and revision through public
   const preview=await call('preview_change',feature());let step=0;
   const calls=[{name:'discover_tools',parameters:{request:'Review and apply the proposed Feature'}},{name:'apply_change',parameters:{request:feature(),fingerprint:preview.fingerprint,decision:'accept'}}];
   const asker={json:async()=>({ok:true,data:step<calls.length?{thought:'',action:'tool_call',toolCalls:[calls[step++]]}:{thought:'',action:'final_answer',finalAnswer:'Developer input required'}})} as unknown as Asker;
-  const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({query:{},mode:'dev' as const,tools:[registry.get('apply_change')!]})}});
+  const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({query:{},mode:'dev' as const,tools:[commandRegistry.get('apply_change')!]})}});
   // Supply the existing apply tool directly through discovery, then exercise its execution boundary.
   const result=await actor.execute('Accept this conflicting Feature using apply_change',undefined,{executionAuthority:'project-write'});
   expect(JSON.stringify(result.events.flatMap(event=>event.toolResults??[]))).toContain('needs_input');

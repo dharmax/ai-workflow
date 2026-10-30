@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { ProcessViewport, type UiRenderer, type ViewRequest, type ViewResult } from '@dharmax/shell-ui';
 import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { processShellInput, type ShellSession } from '../src/shell.ts';
@@ -230,7 +230,7 @@ describe('Interactive Shell REPL Bridge', () => {
   });
 
   it('should open and save Ticket Views through the canonical update tool', async () => {
-    await registry.execute('create_ticket', {
+    await commandRegistry.execute('create_ticket', {
       id: 'TKT-VIEW-1',
       title: 'Original title',
       lane: 'Todo',

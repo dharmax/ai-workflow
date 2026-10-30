@@ -273,9 +273,9 @@ export async function resolveTicket(
                             if (ticket.lane === 'Done') await applyProductMutations(store, [
                                 {kind: 'product_update', entityType: 'Ticket', id, fields: {lane: 'In Progress'}}
                             ])
-                            const {registry} = await import('../tools/index.ts')
+                            const {commandRegistry} = await import('../tools/index.ts')
                             const baseline = await runStoryTest(store, storyId,
-                                command => registry.execute('triage_test_failures', {testCommand: command},
+                                command => commandRegistry.execute('triage_test_failures', {testCommand: command},
                                     {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'project-write'}),
                                 preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
                             if (baseline.status !== 'expected-red' && baseline.status !== 'green') return blocked(`Story '${storyId}' baseline: ${baseline.reason}`)

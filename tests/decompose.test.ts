@@ -11,7 +11,7 @@ import {
   Ticket,
   Decision
 } from '../src/model/ontology.ts';
-import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry, type ToolContext } from '../src/tools/index.ts';
 import { createDefaultAsker, proposeEpicStructure, type EpicStructureProposal } from '../src/product/decompose.ts';
 import { saveConfig } from '../src/services/config-service.ts';
 import { applyEpicStructure as prepareEpicStructure } from '../src/product/apply.ts';

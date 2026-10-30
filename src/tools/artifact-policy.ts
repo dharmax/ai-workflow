@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { registry } from './registry.ts';
+import { commandRegistry } from './registry.ts';
 import { CompletenessSchema, requireCompletenessScope } from '../artifact-policy.ts';
 import { exportProjections } from '../services/projection-service.ts';
 
 export function registerArtifactPolicyTools(): void {
-  registry.register({
+  commandRegistry.register({
     name: 'get_completeness_target', description: 'Read explicit/effective target and constrained inheritance provenance.', category: 'planning',
     parameters: z.object({ entityId: z.string() }),
     execute: async ({ entityId }, ctx) => {
@@ -14,7 +14,7 @@ export function registerArtifactPolicyTools(): void {
       return entity.getCompletenessTarget(ctx.store);
     }
   });
-  registry.register({
+  commandRegistry.register({
     name: 'set_completeness_target', description: 'Explicitly remember or clear a durable scope target; Tickets have no persisted target.', category: 'planning',
     parameters: z.object({ entityId: z.string(), level: CompletenessSchema.nullable() }),
     execute: async ({ entityId, level }, ctx) => {

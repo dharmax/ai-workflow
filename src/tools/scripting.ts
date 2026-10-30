@@ -1,15 +1,15 @@
 /**
  * Responsibility: On-the-fly JavaScript Scripting Facility.
- * Scope: Direct eval execution in the Bun context with store, sp, and registry exposed for instant power queries.
+ * Scope: Direct eval execution in the Bun context with store, sp, and commandRegistry exposed for instant power queries.
  */
 
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 
 export function registerScriptingTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'script_eval',
-    description: 'Directly evaluate JavaScript in the Bun context with store, registry, and sp exposed for instant queries.',
+    description: 'Directly evaluate JavaScript in the Bun context with store, commandRegistry, and sp exposed for instant queries.',
     category: 'script' as any,
     parameters: z.object({
       code: z.string().describe('JavaScript code to evaluate (can be async or sync)')
@@ -24,8 +24,8 @@ export function registerScriptingTools() {
           ? trimmed
           : `return (${trimmed});`;
 
-        const fn = new AsyncFunction('store', 'sp', 'registry', 'ctx', body);
-        const result = await fn(ctx.store, ctx.store.sp, registry, ctx);
+        const fn = new AsyncFunction('store', 'sp', 'commandRegistry', 'ctx', body);
+        const result = await fn(ctx.store, ctx.store.sp, commandRegistry, ctx);
         return {
           success: true,
           result: result === undefined ? null : result

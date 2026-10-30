@@ -10,7 +10,7 @@ describe('Tool Registry & Deterministic Facilities', () => {
   let tempDir: string;
   let store: WorkflowStore;
   let ctx: ToolContext;
-  const registry = initializeTools();
+  const commandRegistry = initializeTools();
 
   beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-tools-test-'));
@@ -28,8 +28,8 @@ describe('Tool Registry & Deterministic Facilities', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('should initialize registry with all standard facilities', () => {
-    const allTools = registry.getAll();
+  it('should initialize commandRegistry with all standard facilities', () => {
+    const allTools = commandRegistry.getAll();
     expect(allTools.length).toBeGreaterThanOrEqual(15);
 
     const categories = new Set(allTools.map(t => t.category));
@@ -43,7 +43,7 @@ describe('Tool Registry & Deterministic Facilities', () => {
   });
 
   it('should create, list, lease, prioritize, and transition tickets', async () => {
-    const created = await registry.execute('create_ticket', {
+    const created = await commandRegistry.execute('create_ticket', {
       title: 'Implement JIT Compiler',
       lane: 'Todo',
       priority: 1,
@@ -54,13 +54,13 @@ describe('Tool Registry & Deterministic Facilities', () => {
     expect(created.lane).toBe('Todo');
     expect(created.title).toBe('Implement JIT Compiler');
 
-    const listed = await registry.execute('list_tickets', { lane: 'Todo' }, ctx);
+    const listed = await commandRegistry.execute('list_tickets', { lane: 'Todo' }, ctx);
     expect(listed.length).toBe(1);
     expect(listed[0].id).toBe(created.id);
     expect(listed[0].title).toBe('Implement JIT Compiler');
 
     // 1. Claim ticket for agent-alpha -> moves lane to In Progress
-    const claimRes = await registry.execute('claim_ticket', {
+    const claimRes = await commandRegistry.execute('claim_ticket', {
       ticketId: created.id,
       agentId: 'agent-alpha',
       durationMinutes: 10
@@ -69,14 +69,14 @@ describe('Tool Registry & Deterministic Facilities', () => {
     expect(claimRes.claim?.agentId).toBe('agent-alpha');
 
     // 2. recommend_next_task should return the actively leased task
-    const nextTaskActive = await registry.execute('recommend_next_task', { agentId: 'agent-alpha' }, ctx);
+    const nextTaskActive = await commandRegistry.execute('recommend_next_task', { agentId: 'agent-alpha' }, ctx);
     expect(nextTaskActive.ticket).not.toBeNull();
     expect(nextTaskActive.ticket!.id).toBe(created.id);
     expect(nextTaskActive.ticket!.lane).toBe('In Progress');
     expect(nextTaskActive.reason).toContain('Active task currently in progress');
 
     // 3. Create a high-priority bug in Todo
-    const bugTicket = await registry.execute('create_ticket', {
+    const bugTicket = await commandRegistry.execute('create_ticket', {
       id: 'BUG-001',
       kind:'bug',
       defect:{reproduction:'Index an empty source file',expected:'Empty module is indexed without an exception',actual:'Null pointer exception',severity:'high'},
@@ -87,45 +87,45 @@ describe('Tool Registry & Deterministic Facilities', () => {
     }, ctx);
 
     // 4. Release lease on the first ticket
-    const releaseRes = await registry.execute('release_ticket', {
+    const releaseRes = await commandRegistry.execute('release_ticket', {
       ticketId: created.id
     }, ctx);
     expect(releaseRes.success).toBe(true);
 
     // Put first ticket back to Todo
-    await registry.execute('update_ticket_state', {
+    await commandRegistry.execute('update_ticket_state', {
       ticketId: created.id,
       lane: 'Todo'
     }, ctx);
 
     // 5. recommend_next_task must prioritize the BUG over normal Todo task
-    const nextTaskBug = await registry.execute('recommend_next_task', {}, ctx);
+    const nextTaskBug = await commandRegistry.execute('recommend_next_task', {}, ctx);
     expect(nextTaskBug.ticket).not.toBeNull();
     expect(nextTaskBug.ticket!.id).toBe('BUG-001');
     expect(nextTaskBug.reason).toContain('High-priority bug fix');
 
     // Generic completion is denied. A blocked bug is also excluded from recommendations.
-    await expect(registry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Done'}, ctx)).rejects.toThrow('independent Ticket completion');
-    await registry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Blocked'}, ctx);
+    await expect(commandRegistry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Done'}, ctx)).rejects.toThrow('independent Ticket completion');
+    await commandRegistry.execute('update_ticket_state', {ticketId:'BUG-001',lane:'Blocked'}, ctx);
 
     // 7. Now recommend_next_task selects the normal Todo task
-    const nextTaskTodo = await registry.execute('recommend_next_task', {}, ctx);
+    const nextTaskTodo = await commandRegistry.execute('recommend_next_task', {}, ctx);
     expect(nextTaskTodo.ticket).not.toBeNull();
     expect(nextTaskTodo.ticket!.id).toBe(created.id);
     expect(nextTaskTodo.reason).toContain('Next planned task in Todo lane');
 
     // 7b. Move task to In Progress without lease, verify recommend_next_task selects it
-    await registry.execute('update_ticket_state', {
+    await commandRegistry.execute('update_ticket_state', {
       ticketId: created.id,
       lane: 'In Progress'
     }, ctx);
-    const nextTaskUnleased = await registry.execute('recommend_next_task', {}, ctx);
+    const nextTaskUnleased = await commandRegistry.execute('recommend_next_task', {}, ctx);
     expect(nextTaskUnleased.ticket).not.toBeNull();
     expect(nextTaskUnleased.ticket!.id).toBe(created.id);
     expect(nextTaskUnleased.reason).toContain('Unleased task in In Progress lane ready for pickup');
 
     // 8. Negative test: updating non-existent ticket must throw Error
-    expect(registry.execute('update_ticket_state', {
+    expect(commandRegistry.execute('update_ticket_state', {
       ticketId: 'TKT-NON-EXISTENT',
       lane: 'Done'
     }, ctx)).rejects.toThrow('Ticket TKT-NON-EXISTENT not found');
@@ -173,37 +173,37 @@ export class Calculator {
     });
 
     // 1. Query existing symbol
-    const found = await registry.execute('find_symbol', { name: 'add' }, ctx);
+    const found = await commandRegistry.execute('find_symbol', { name: 'add' }, ctx);
     expect(found.length).toBe(1);
     expect(found[0].name).toBe('add');
     expect(found[0].kind).toBe('function');
     expect(found[0].line).toBe(2);
 
     // 2. Query non-existent symbol returns empty array
-    const notFound = await registry.execute('find_symbol', { name: 'non_existent_fn' }, ctx);
+    const notFound = await commandRegistry.execute('find_symbol', { name: 'non_existent_fn' }, ctx);
     expect(notFound.length).toBe(0);
 
     // 3. File outline returns structured symbols
-    const outline = await registry.execute('get_file_outline', { filePath: 'src/sample.ts' }, ctx);
+    const outline = await commandRegistry.execute('get_file_outline', { filePath: 'src/sample.ts' }, ctx);
     expect(outline.symbolCount).toBe(3);
     expect(outline.symbols.map((s: any) => s.name)).toEqual(['add', 'Calculator', 'multiply']);
 
     // 4. Symbol source slice
-    const slice = await registry.execute('get_symbol_source', {
+    const slice = await commandRegistry.execute('get_symbol_source', {
       filePath: 'src/sample.ts',
       symbolName: 'add'
     }, ctx);
     expect(slice.code).toContain('export function add(a: number, b: number): number {');
 
     // 5. Slice non-existent symbol returns null code
-    const missingSlice = await registry.execute('get_symbol_source', {
+    const missingSlice = await commandRegistry.execute('get_symbol_source', {
       filePath: 'src/sample.ts',
       symbolName: 'non_existent'
     }, ctx);
     expect(missingSlice.code).toBeNull();
 
     // 6. Token budget estimation
-    const budget = await registry.execute('estimate_token_budget', {
+    const budget = await commandRegistry.execute('estimate_token_budget', {
       filePaths: ['src/sample.ts']
     }, ctx);
     expect(budget.fileCount).toBe(1);
@@ -211,7 +211,7 @@ export class Calculator {
     expect(budget.contextRisk).toBe('Low');
 
     // 7. Blast radius
-    const blast = await registry.execute('analyze_blast_radius', { target: 'src/sample.ts' }, ctx);
+    const blast = await commandRegistry.execute('analyze_blast_radius', { target: 'src/sample.ts' }, ctx);
     expect(blast.target).toBe('src/sample.ts');
     expect(blast.affectedFiles).toContain('src/sample.ts');
   });
@@ -225,7 +225,7 @@ export class Calculator {
       'export class OtherActor { constructor() {} }'
     ].join('\n'));
 
-    const ambiguous = await registry.execute('get_symbol_source', {
+    const ambiguous = await commandRegistry.execute('get_symbol_source', {
       filePath: 'src/actors.ts',
       symbolName: 'constructor'
     }, ctx);
@@ -235,7 +235,7 @@ export class Calculator {
       'OtherActor.constructor'
     ]);
 
-    const exact = await registry.execute('get_symbol_source', {
+    const exact = await commandRegistry.execute('get_symbol_source', {
       filePath: 'src/actors.ts',
       symbolName: 'LLMActor.constructor'
     }, ctx);
@@ -244,35 +244,35 @@ export class Calculator {
   });
 
   it('should run git and os facilities with error handling', async () => {
-    const envInfo = await registry.execute('get_environment_info', {}, ctx);
+    const envInfo = await commandRegistry.execute('get_environment_info', {}, ctx);
     expect(envInfo.root).toBe(tempDir);
     expect(typeof envInfo.platform).toBe('string');
     expect(typeof envInfo.runtime).toBe('string');
 
-    const rootRes = await registry.execute('get_project_root', { startDir: tempDir }, ctx);
+    const rootRes = await commandRegistry.execute('get_project_root', { startDir: tempDir }, ctx);
     expect(rootRes.root).toBe(tempDir);
 
-    const cmdRes = await registry.execute('run_command', {
+    const cmdRes = await commandRegistry.execute('run_command', {
       command: 'echo "hello ai-workflow"'
     }, ctx);
     expect(cmdRes.success).toBe(true);
     expect(cmdRes.output.trim()).toBe('hello ai-workflow');
 
     // Test failing command execution
-    const failCmd = await registry.execute('run_command', {
+    const failCmd = await commandRegistry.execute('run_command', {
       command: 'bun -e "process.exit(42)"'
     }, ctx);
     expect(failCmd.success).toBe(false);
     expect(failCmd.exitCode).toBe(42);
 
-    const gitStatus = await registry.execute('get_git_status', {}, ctx);
+    const gitStatus = await commandRegistry.execute('get_git_status', {}, ctx);
     expect(typeof gitStatus.clean).toBe('boolean');
     expect(Array.isArray(gitStatus.modifiedFiles)).toBe(true);
 
   });
 
   it('should propose ADRs and manage scratchpad notes', async () => {
-    const adr = await registry.execute('propose_decision', {
+    const adr = await commandRegistry.execute('propose_decision', {
       title: 'Use Dual-Storage Semantika Architecture',
       decision: 'Split into SQLite disk and SQLite in-memory',
       context: 'Zero disk bloat for expression traces'
@@ -281,23 +281,23 @@ export class Calculator {
     expect(adr.id).toBeDefined();
     expect(adr.title).toBe('Use Dual-Storage Semantika Architecture');
 
-    const appendRes = await registry.execute('append_scratchpad_note', {
+    const appendRes = await commandRegistry.execute('append_scratchpad_note', {
       note: 'Verified dual-storage architecture with unit tests'
     }, ctx);
     expect(appendRes.note).toContain('Verified dual-storage');
 
-    const pad = await registry.execute('read_scratchpad', {}, ctx);
+    const pad = await commandRegistry.execute('read_scratchpad', {}, ctx);
     expect(pad.notesCount).toBe(1);
     expect(pad.content).toContain('Verified dual-storage');
   });
 
   it('should resolve test targets and triage test runs', async () => {
-    const resolved = await registry.execute('resolve_test_target', {
+    const resolved = await commandRegistry.execute('resolve_test_target', {
       filePath: 'src/tools/registry.ts'
     }, ctx);
     expect(resolved.sourceFile).toBe('src/tools/registry.ts');
 
-    const triage = await registry.execute('triage_test_failures', {
+    const triage = await commandRegistry.execute('triage_test_failures', {
       testCommand: 'bun -e "process.exit(0)"'
     }, ctx);
     expect(triage.passed).toBe(true);
@@ -305,7 +305,7 @@ export class Calculator {
     expect(triage.summary).toContain('passed cleanly');
 
     // Test failure triage capturing error lines
-    const triageFail = await registry.execute('triage_test_failures', {
+    const triageFail = await commandRegistry.execute('triage_test_failures', {
       testCommand: 'bun -e "console.error(\\"FAIL: arithmetic test\\"); process.exit(1)"'
     }, ctx);
     expect(triageFail.passed).toBe(false);
@@ -328,7 +328,7 @@ test('adds', () => expect(add(1, 2)).toBe(4))
 `,
     );
 
-    const resolved = await registry.execute('resolve_test_target', {
+    const resolved = await commandRegistry.execute('resolve_test_target', {
       filePath: 'src/math.ts'
     }, ctx);
     expect(resolved.source).toBe('graph');
@@ -342,7 +342,7 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(indexedTest).not.toBeNull();
     await store.withTestArtifactWrite(indexedTest!.id,()=>store.relate(indexedTest!, 'verifies', feature));
 
-    const blast = await registry.execute('analyze_blast_radius', {
+    const blast = await commandRegistry.execute('analyze_blast_radius', {
       target: 'src/math.ts'
     }, ctx);
     expect(blast.recommendedTests).toContain('tests/math.test.ts');
@@ -350,13 +350,13 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     const addSymbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: 'add' }))
       .find(symbol => symbol.filePath === 'src/math.ts');
     expect(addSymbol).toBeDefined();
-    const symbolBlast = await registry.execute('analyze_blast_radius', {
+    const symbolBlast = await commandRegistry.execute('analyze_blast_radius', {
       target: store.localId(addSymbol!.id)
     }, ctx);
     expect(symbolBlast.affectedFiles).toContain('src/math.ts');
     expect(symbolBlast.recommendedTests).toContain('tests/math.test.ts');
 
-    const triage = await registry.execute('triage_test_failures', {
+    const triage = await commandRegistry.execute('triage_test_failures', {
       testCommand: 'bun test tests/math.test.ts'
     }, ctx);
 
@@ -378,14 +378,14 @@ test('adds', () => expect(add(1, 2)).toBe(4))
   });
 
   it('should evaluate custom JS scripts on the fly and catch errors with script_eval', async () => {
-    const evalRes = await registry.execute('script_eval', {
+    const evalRes = await commandRegistry.execute('script_eval', {
       code: 'return ctx.projectRoot;'
     }, ctx);
 
     expect(evalRes.success).toBe(true);
     expect(evalRes.result).toBe(tempDir);
 
-    const evalStoreRes = await registry.execute('script_eval', {
+    const evalStoreRes = await commandRegistry.execute('script_eval', {
       code: 'const tickets = await store.listEntities("Ticket"); return tickets.length;'
     }, ctx);
 
@@ -393,14 +393,14 @@ test('adds', () => expect(add(1, 2)).toBe(4))
     expect(typeof evalStoreRes.result).toBe('number');
 
     // Negative test 1: Syntax error
-    const syntaxErrRes = await registry.execute('script_eval', {
+    const syntaxErrRes = await commandRegistry.execute('script_eval', {
       code: 'const x = ;'
     }, ctx);
     expect(syntaxErrRes.success).toBe(false);
     expect(syntaxErrRes.error).toBeDefined();
 
     // Negative test 2: Runtime thrown exception
-    const runtimeErrRes = await registry.execute('script_eval', {
+    const runtimeErrRes = await commandRegistry.execute('script_eval', {
       code: 'throw new Error("Intentional test explosion");'
     }, ctx);
     expect(runtimeErrRes.success).toBe(false);

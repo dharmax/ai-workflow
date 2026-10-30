@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Epic,Goal,Feature,UserStory,Ticket,TestNode,Artifact,ModuleNode,FileNode} from '../src/model/ontology.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {parseCommand,lexCommand} from '../src/artifact-command.ts';
 import {PRODUCT_RELATIONS,productEdgeRows} from '../src/product/mutation.ts';
 import {processShellInput} from '../src/shell.ts';
@@ -19,7 +19,7 @@ const binary=process.env.AIWF_PUBLIC_BINARY;
 const cli=path.resolve(import.meta.dir,'../src/cli.ts');
 describe('PC1b governed relation public proof',()=>{
  let root:string,store:WorkflowStore;
- const call=(name:string,args:unknown,authority:'project-write'|'read-only'='project-write')=>registry.execute(name,args,{store,projectRoot:root,executionAuthority:authority});
+ const call=(name:string,args:unknown,authority:'project-write'|'read-only'='project-write')=>commandRegistry.execute(name,args,{store,projectRoot:root,executionAuthority:authority});
  const preview=(extra:Record<string,unknown>={})=>call('link',{action:'preview_add',sourceId:'E1',targetId:'G1',predicate:'targets',...extra});
  const accept=(p:any,decision='accept',authority:'project-write'|'read-only'='project-write')=>store.withExecutionContext(authority,undefined,()=>call('apply_change',{request:p.request,fingerprint:p.fingerprint,decision},authority),p.fingerprint);
  const rows=async()=>productEdgeRows(store,(await store.getEntity('E1',Epic.dcr))!.id);
@@ -140,13 +140,13 @@ describe('PC1b governed relation public proof',()=>{
   } finally {await client.close();await transport.close();}reopen();expect(await rows()).toEqual([]);
  },30000);
  it('fails closed when an advertised tool schema cannot be converted',()=>{
-  const tool=registry.get('link')!;const original=tool.parameters;
-  try {registry.register({...tool,parameters:z.custom()});expect(()=>buildMcpSchemas()).toThrow();}
-  finally {registry.register({...tool,parameters:original});}
+  const tool=commandRegistry.get('link')!;const original=tool.parameters;
+  try {commandRegistry.register({...tool,parameters:z.custom()});expect(()=>buildMcpSchemas()).toThrow();}
+  finally {commandRegistry.register({...tool,parameters:original});}
  });
  it('distinguishes clean application from committed mutation whose verification failed and reports recovery guidance',async()=>{
   const {reviewLink}=await import('../src/product/links.ts');
-  const applyChange=registry.get('apply_change')!;
+  const applyChange=commandRegistry.get('apply_change')!;
   const originalExecute=applyChange.execute;
   try {
    applyChange.execute=async(args,ctx)=>{

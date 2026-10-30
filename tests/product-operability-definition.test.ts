@@ -6,14 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Product, Feature, Goal, Concept, UserStory, ModuleNode, FileNode, SymbolNode } from '../src/model/ontology.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProductManifest, generateProductManifest, exportAuthoredState, restoreAuthoredState } from '../src/product/manifest.ts';
 import { buildIntentContext, collectProductMeaning } from '../src/product/context.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
-import { PUBLIC_MCP_TOOL_NAMES } from '../src/tools/surface.ts';
+import { getPublicMcpTools } from '../src/tools/surface.ts';
 
 const binary = process.env.AIWF_PUBLIC_BINARY;
 const cli = path.resolve(import.meta.dir, '../src/cli.ts');
@@ -28,7 +28,7 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
     Bun.spawnSync(binary ? [binary, ...args] : ['bun', cli, ...args], { cwd: root, stderr: 'pipe' });
 
   const call = (name: string, params: Record<string, unknown>, authority: 'project-write' | 'read-only' = 'project-write') =>
-    registry.execute(name, params, { store, projectRoot: root, executionAuthority: authority });
+    commandRegistry.execute(name, params, { store, projectRoot: root, executionAuthority: authority });
 
   const reopen = () => {
     store.close();
@@ -332,10 +332,10 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
       expect(manifestWithStandalone).toContain('**feat:standalone**: Standalone Feature');
 
       // h) TKT-EXT-SURFACE-10: Public MCP surface does not expose direct bypass mutators (define_product, update_product)
-      expect(PUBLIC_MCP_TOOL_NAMES.has('define_product')).toBe(false);
-      expect(PUBLIC_MCP_TOOL_NAMES.has('update_product')).toBe(false);
-      expect(PUBLIC_MCP_TOOL_NAMES.has('link')).toBe(true);
-      expect(PUBLIC_MCP_TOOL_NAMES.has('get_product')).toBe(true);
+      expect(new Set(getPublicMcpTools(commandRegistry).map(t=>t.name)).has('define_product')).toBe(false);
+      expect(new Set(getPublicMcpTools(commandRegistry).map(t=>t.name)).has('update_product')).toBe(false);
+      expect(new Set(getPublicMcpTools(commandRegistry).map(t=>t.name)).has('link')).toBe(true);
+      expect(new Set(getPublicMcpTools(commandRegistry).map(t=>t.name)).has('get_product')).toBe(true);
 
       // i) TKT-EXT-SURFACE-10: Read-only / external agent without project-write authority cannot apply changes even with decision: accept
       const unauthorizedReq: ChangeRequest = {

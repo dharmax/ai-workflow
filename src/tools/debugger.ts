@@ -6,7 +6,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { SymbolNode } from '../model/ontology.ts';
 import { ensureAstFresh, withAstSnapshot } from '../graph/indexer.ts';
@@ -212,7 +212,7 @@ export async function diagnoseTarget(
 }
 
 export function registerDebuggerTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'debug_target',
     description: 'Diagnose a symbol, source file:line location, or stack trace with code slicing and blast analysis.',
     category: 'test',

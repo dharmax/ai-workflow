@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {UserStory,Ticket,Epic,TestNode,FileNode} from '../src/model/ontology.ts';
 import {indexSingleFile} from '../src/graph/indexer.ts';
 import {chromium,type Browser} from 'playwright';
@@ -13,7 +13,7 @@ import {startWorkspace} from '../src/workspace/server.ts';
 describe('S4 reviewed derivation through Workspace',()=>{
  let stopReviewer:(()=>void)|undefined;
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
- const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
+ const call=(name:string,params:unknown)=>commandRegistry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  afterEach(async()=>{
   stopReviewer?.();stopReviewer=undefined;
   await browser?.close();browser=undefined as any;
@@ -27,7 +27,7 @@ describe('S4 reviewed derivation through Workspace',()=>{
   fs.mkdirSync(path.join(root,'src'));fs.writeFileSync(path.join(root,'src/avatar.ts'),"export function saveAvatar(file:string,value:string){return {file,value}}");
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted',priority:1});
-  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const},0,async()=>true);
   browser=await chromium.launch({headless:true});const page=await browser.newPage();page.setDefaultTimeout(3000);
   await page.goto(host.url);await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
   await page.getByRole('button',{name:'Derive work',exact:true}).click();
@@ -154,7 +154,7 @@ export function createAvatar(file:string) {
   await indexSingleFile(store,path.join(root,'src/avatar.ts'),'src/avatar.ts',root);
   await createProduct(store, "Feature", {id:'F',title:'Avatar Filters',body:'Preview and save filtered avatars',status:'accepted'});
   await browser?.close();
-  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const},0,async()=>true);browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(3000);await page.goto(host.url);
   await page.getByRole('button',{name:'Avatar Filters',exact:true}).click();
   await page.getByRole('button',{name:'Derive work',exact:true}).click();
@@ -225,9 +225,9 @@ export function createAvatar(file:string) {
   expect(fs.existsSync(path.join(root,specification.filePath))).toBe(false);
   preview=await call('prepare_story_test',{specification});
   const readOnly={store,projectRoot:root,executionAuthority:'read-only' as const};
-  await expect(registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},readOnly)).rejects.toThrow('read-only');
+  await expect(commandRegistry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},readOnly)).rejects.toThrow('read-only');
   const abort=new AbortController();abort.abort();
-  await expect(registry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},{store,projectRoot:root,signal:abort.signal})).rejects.toThrow();
+  await expect(commandRegistry.execute('apply_story_test',{specification,fingerprint:preview.fingerprint,decision:'accept'},{store,projectRoot:root,signal:abort.signal})).rejects.toThrow();
   fs.mkdirSync(path.join(root,'tests'));fs.writeFileSync(path.join(root,specification.filePath),'// unrelated user test');
   await expect(call('prepare_story_test',{specification})).rejects.toThrow('unattributed');
   expect(fs.readFileSync(path.join(root,specification.filePath),'utf8')).toBe('// unrelated user test');

@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { WorkflowStore } from '../src/graph/store.ts'
 import { Goal, Concept, Flow, Epic, Feature, UserStory, Ticket } from '../src/model/ontology.ts'
-import { initializeTools, registry, type ToolContext } from '../src/tools/index.ts'
+import { initializeTools, commandRegistry, type ToolContext } from '../src/tools/index.ts'
 import { exportProjections, importProjections } from '../src/services/projection-service.ts'
 import { getCoverage } from '../src/product/coverage.ts'
 
@@ -30,6 +30,14 @@ describe('top-level Product Intent journey mechanisms', () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
+  it('shows the current canonical Goal revision through the command owner', async () => {
+    await createProduct(store, 'Goal', {id:'GOAL-VERSION',title:'Current entity revision',body:'Expose the persisted revision.'})
+    const entity = (await store.getEntity<Goal>('GOAL-VERSION', Goal.dcr))!
+    const shown = await commandRegistry.execute('product:goal show', {id:'GOAL-VERSION'}, ctx)
+    expect(shown.id).toBe('GOAL-VERSION')
+    expect(shown.version).toBe(entity.version)
+    expect(typeof shown.version).toBe('number')
+  })
   it('J1.2 extends an actor journey with a reusable capability instead of making the Feature own the Story', async () => {
     await createProduct(ctx.store, "Goal", {
       id: 'GOAL-TRUST',
@@ -74,8 +82,8 @@ describe('top-level Product Intent journey mechanisms', () => {
     await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FLOW-DAILY',predicate: 'contains',targetId: 'STORY-NEXT'}])
     await acceptProduct(ctx.store, [{kind:"product_link",sourceId: 'FEAT-RECOMMEND',predicate: 'enables',targetId: 'STORY-NEXT'}])
 
-    const story = await registry.execute('get_user_story', { storyId: 'STORY-NEXT' }, ctx)
-    const feature = await registry.execute('get_feature', { featureId: 'FEAT-RECOMMEND' }, ctx)
+    const story = await commandRegistry.execute('get_user_story', { storyId: 'STORY-NEXT' }, ctx)
+    const feature = await commandRegistry.execute('get_feature', { featureId: 'FEAT-RECOMMEND' }, ctx)
 
     expect(story.containingFlows).toEqual(['FLOW-DAILY'])
     expect(story.enablingFeatures).toEqual(['FEAT-RECOMMEND'])
@@ -208,9 +216,9 @@ describe('top-level Product Intent journey mechanisms', () => {
     const feature = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F-OLD', title: 'Existing capability' })
     const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S-OLD', title: 'Existing episode', status: 'accepted' })
     await store.relate(feature, 'contains', story)
-    expect((await registry.execute('get_user_story', { storyId: 'S-OLD' }, ctx)).enablingFeatures).toEqual(['F-OLD'])
+    expect((await commandRegistry.execute('get_user_story', { storyId: 'S-OLD' }, ctx)).enablingFeatures).toEqual(['F-OLD'])
     expect((await getCoverage(store, 'S-OLD')).gaps.some(gap => gap.kind === 'missing_parent')).toBe(false)
-    await expect(registry.execute('link_product', { sourceId: 'F-OLD', predicate: 'contains', targetId: 'S-OLD' }, ctx)).rejects.toThrow('not allowed')
+    await expect(commandRegistry.execute('link_product', { sourceId: 'F-OLD', predicate: 'contains', targetId: 'S-OLD' }, ctx)).rejects.toThrow('not allowed')
     await exportProjections(store, root)
     const featurePath = path.join(root, 'features.md')
     const markdown = fs.readFileSync(featurePath, 'utf8')

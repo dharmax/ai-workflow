@@ -97,8 +97,8 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   const actor = new WorkflowActor({store, projectRoot: root, toolDiscovery: null})
   const previousRoute = actor.resolveRoute('dev')
   expect(calls).toEqual([])
-  const registry = initializeTools()
-  await registry.execute('refresh_model_advice', {criticFocus: 'TypeScript/Bun architecture'}, {store, projectRoot: root, executionAuthority: 'project-write'})
+  const commandRegistry = initializeTools()
+  await commandRegistry.execute('refresh_model_advice', {criticFocus: 'TypeScript/Bun architecture'}, {store, projectRoot: root, executionAuthority: 'project-write'})
   const snapshot = readModelAdvice()!
   expect(snapshot.updatedAt).not.toBe(old.updatedAt)
   expect(snapshot.advisor).toContain('ollama/research-specialist:14b')
@@ -181,8 +181,8 @@ it('public inspection and explicit model choices preserve routing without refres
   }
   expect(calls).toEqual([])
   expect(fs.readFileSync(configFile, 'utf8')).toBe(before)
-  const registry = initializeTools()
-  await expect(registry.execute('refresh_model_advice', {}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('project-write')
+  const commandRegistry = initializeTools()
+  await expect(commandRegistry.execute('refresh_model_advice', {}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('project-write')
   expect(calls).toEqual([])
   const set = await processShellInput('model set dev openrouter/developer-code', {store, projectRoot: root, actor})
   expect(set.output).toContain('developer-code')

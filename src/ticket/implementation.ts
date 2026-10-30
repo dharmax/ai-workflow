@@ -10,7 +10,7 @@ import type { WorkflowStore } from "../graph/store.ts"
 import { ResolutionProposalSchema, type ResolutionProposal, type ResolutionOptions, type TicketDossier } from "../ticket-operation-types.ts"
 import type { ChangeRequest, ChangeApplyResult } from "../change/types.ts"
 import { CodeChangeRequestSchema } from "../tools/change.ts"
-import { registry } from "../tools/registry.ts"
+import { commandRegistry } from "../tools/registry.ts"
 import { createDefaultAsker } from "../services/model-service.ts"
 import type { loadConfig } from "../services/config-service.ts"
 import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../helpers/synthesis/index.ts"
@@ -146,7 +146,7 @@ export async function implementTicket(
                               "Safely apply one direct code ChangeRequest. AIWF handles preview/fingerprint/apply, lease, dirty-target and verification checks.",
                           parameters: CodeChangeRequestSchema
                       }
-                    : registry.get(name)
+                    : commandRegistry.get(name)
             if (!tool) continue
             actor.registerTool({
                 name,
@@ -180,7 +180,7 @@ export async function implementTicket(
                     if (name === "read_workspace_file") countEngineering("sourceReads")
                     // Refresh derived source state under host authority; navigation itself remains read-only.
                     await context.refreshSource()
-                    const result = await registry.execute(name, params, ctx)
+                    const result = await commandRegistry.execute(name, params, ctx)
                     if (name === "find_symbol" && Array.isArray(result) && result.length === 0)
                         throw new ToolExecutionError(
                             "No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file, or search_workspace_text for literal contracts. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.",
@@ -263,7 +263,7 @@ export async function implementTicket(
         currentDossier = refreshed.value
         for (const evidence of currentDossier.evidence) {
             if (evidence.filePath && ownedFiles.has(evidence.filePath) && !evidence.exact) {
-                const file = await registry.execute("read_workspace_file", { filePath: evidence.filePath }, ctx)
+                const file = await commandRegistry.execute("read_workspace_file", { filePath: evidence.filePath }, ctx)
                 evidence.source = file.content
             }
         }

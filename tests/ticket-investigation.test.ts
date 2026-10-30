@@ -7,7 +7,7 @@ import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Feature, UserStory, Aspect, Decision, Lesson, FileNode, SymbolNode, TestNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
@@ -39,7 +39,7 @@ describe('grounded Ticket investigation', () => {
       return {model,ok:true,text:JSON.stringify({disposition:'ready',rationale:'Source queue.ts unconditionally throws. Reported enqueue failure is consistent with this candidate cause; runtime reproduction has not been executed. Preserve tests/queue.test.ts as the submission regression.'})};
     });
     let result:Awaited<ReturnType<typeof t.investigate>>;
-    try {result=await registry.execute('investigate_ticket',{ticketId:'BUG'},{store,projectRoot:root});}
+    try {result=await commandRegistry.execute('investigate_ticket',{ticketId:'BUG'},{store,projectRoot:root});}
     finally {provider.mockRestore();route.mockRestore();}
     expect(reasoningCalls).toBe(1);
     expect(result.status).toBe('complete'); if(result.status!=='complete') throw Error(JSON.stringify(result));
@@ -172,7 +172,7 @@ describe('grounded Ticket investigation', () => {
   it('centralizes Blocked and rejected states and validates complete mutation batches before writes', async () => {
     const t = await ticket();
     const ctx = { store, projectRoot: root, executionAuthority: 'project-write' as const };
-    await registry.execute('update_ticket_state', { ticketId: 'T', lane: 'Blocked' }, ctx);
+    await commandRegistry.execute('update_ticket_state', { ticketId: 'T', lane: 'Blocked' }, ctx);
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe('Blocked');
     await expect(store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' })).rejects.toThrow('Ticket.status was removed');
     expect(await store.getEntity('R', Ticket.dcr)).toBeNull();

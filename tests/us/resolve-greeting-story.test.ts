@@ -8,7 +8,7 @@ import {createMcpServer} from '../../src/mcp.ts';
 import {Ticket} from '../../src/model/ontology.ts';
 import {currentTicketReceipt} from '../../src/ticket/verification.ts';
 import {loadConfig,saveConfig} from '../../src/services/config-service.ts';
-import {registry} from '../../src/tools/index.ts';
+import {commandRegistry} from '../../src/tools/index.ts';
 import {withAcceptedGreetingStory, runInProject} from './fixtures/greeting-project.ts';
 
 // No model configured or authorized? Report SKIPPED, never a false PASS.
@@ -36,7 +36,7 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
           paidInference: {providers: ['openrouter'], tasks: ['verification'], ceilingUSD}});
       }
       // GIVEN: a publicly accepted, reviewed Story with a failing caller-visible contract.
-      const before = await registry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx);
+      const before = await commandRegistry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx);
       expect(before.status).toBe('accepted');
       expect(before.effectiveState.state).toBe('ready');
       expect(runInProject(root, ['bun', 'test', 'tests/public-contract.test.ts']).exitCode).not.toBe(0);
@@ -45,7 +45,7 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
       // WHEN: invoke the actual public resolver; do not supply code edits or a mock acceptance verdict.
       const signal = new AbortController();
       const deadline = setTimeout(() => signal.abort(new Error('US resolution exceeded 60s; see last reported stage')), 60_000);
-      let resolution: Awaited<ReturnType<typeof registry.execute>>;
+      let resolution: Awaited<ReturnType<typeof commandRegistry.execute>>;
       const previousTrace = process.env.AIWF_TRACE_RESOLUTION;
       process.env.AIWF_TRACE_RESOLUTION = '1';
       const server=createMcpServer({store:ctx.store,projectRoot:root,executionAuthority:'project-write'}).server;
@@ -78,8 +78,8 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
       const oracle = runInProject(root, ['bun', 'test', 'tests/public-contract.test.ts']);
       expect(oracle.exitCode, oracle.output).toBe(0);
       expect(fs.readFileSync(path.join(root, 'tests/public-contract.test.ts'), 'utf8')).toBe(publicOracle);
-      expect((await registry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx)).effectiveState.state).toBe('done');
-      expect((await registry.execute('get_ticket', {ticketId: 'GREET-TICKET'}, ctx)).lane).toBe('Done');
+      expect((await commandRegistry.execute('get_user_story', {storyId: 'GREET-USER'}, ctx)).effectiveState.state).toBe('done');
+      expect((await commandRegistry.execute('get_ticket', {ticketId: 'GREET-TICKET'}, ctx)).lane).toBe('Done');
       const resolvedTicket = (await ctx.store.getEntity<Ticket>('GREET-TICKET', Ticket.dcr))!;
       expect(await currentTicketReceipt(ctx.store, resolvedTicket)).not.toBeNull();
       if (process.env.AIWF_LIVE_INTERACTIVE === '1')

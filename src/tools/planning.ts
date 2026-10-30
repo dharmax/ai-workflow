@@ -7,13 +7,13 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { queryPerformance } from '../performance-metrics.ts';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 
 export function registerPlanningTools() {
-  registry.register({ name: 'get_performance_metrics', description: 'Query compact persisted engineering performance summaries; root runs by default avoid nested token duplication.', category: 'planning',
+  commandRegistry.register({ name: 'get_performance_metrics', description: 'Query compact persisted engineering performance summaries; root runs by default avoid nested token duplication.', category: 'planning',
     parameters: z.object({ operation: z.string().optional(), artifactId: z.string().optional(), since: z.string().optional(), tag: z.string().optional(), includeNested: z.boolean().optional() }),
     execute: (query, ctx) => queryPerformance(ctx.projectRoot, query) });
-  registry.register({
+  commandRegistry.register({
     name: 'propose_decision',
     description: 'Return an inert Architectural Decision proposal without changing canonical state.',
     category: 'planning',
@@ -31,7 +31,7 @@ export function registerPlanningTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'read_scratchpad',
     description: 'Read the shared agent scratchpad notes.',
     category: 'planning',
@@ -47,7 +47,7 @@ export function registerPlanningTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'append_scratchpad_note',
     description: 'Append a durable note or finding to the project scratchpad.',
     category: 'planning',

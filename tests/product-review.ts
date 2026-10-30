@@ -1,11 +1,11 @@
 import {Aspect} from '../src/model/ontology.ts';
 import type {WorkflowStore} from '../src/graph/store.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import type {ProductMutation} from '../src/product/mutation.ts';
 
 export function reviewedApply(store: WorkflowStore, params: Record<string,unknown>) {
  const ctx={store,projectRoot:store.root,executionAuthority:'project-write' as const};
- return store.withExecutionContext('project-write',undefined,()=>registry.execute('apply_change',params,ctx),
+ return store.withExecutionContext('project-write',undefined,()=>commandRegistry.execute('apply_change',params,ctx),
   typeof params.fingerprint==='string'?params.fingerprint:undefined);
 }
 
@@ -14,7 +14,7 @@ export async function acceptProduct(store: WorkflowStore, mutations: ProductMuta
  initializeTools();
  const ctx={store,projectRoot:store.root,executionAuthority:'project-write' as const};
  const request={action:'product_change' as const,mutations};
- const preview=await registry.execute('preview_change',request,ctx);
+ const preview=await commandRegistry.execute('preview_change',request,ctx);
  if(preview.blocked) throw Error(preview.blockReason);
  const result=await reviewedApply(store,{request,fingerprint:preview.fingerprint,decision:'accept'});
  if(!result.ok || !result.verification.passed) throw Error(result.error ?? result.verification.errors.join('; '));
@@ -24,7 +24,7 @@ type DefinitionKind='Goal'|'Concept'|'Flow'|'Epic'|'Feature'|'UserStory'|'Aspect
 async function readProduct(store: WorkflowStore, kind: DefinitionKind, id: string) {
  const readers: Record<DefinitionKind,[string,string]>={Goal:['get_goal','id'],Concept:['get_concept','id'],Flow:['get_flow','id'],Epic:['get_epic','epicId'],Feature:['get_feature','featureId'],UserStory:['get_user_story','storyId'],Aspect:['get_aspect','id']};
  const [name,key]=readers[kind];
- return registry.execute(name,{[key]:id},{store,projectRoot:store.root});
+ return commandRegistry.execute(name,{[key]:id},{store,projectRoot:store.root});
 }
 export async function createAspect(store: WorkflowStore, data: {id:string;[key:string]:unknown}) {
  const {id,...fields}=data;

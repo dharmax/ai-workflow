@@ -121,6 +121,6 @@ it('P0 default installed host refuses self-granted write authority and raw patch
 it('P0 canonical source namespace forms share the CLI and Shell parser', async () => {
   for (const topic of [['source:change'], ['source', 'change']]) {
     const parsed = await parseCommand([...topic, 'PREVIEW', '{"action":"delete_file","filePath":"obsolete.ts"}', '--ticket', 'T-P0', '--agent', 'external-p0']);
-    expect(parsed).toMatchObject({family: 'artifact', tool: 'preview_change', args: {action: 'delete_file', filePath: 'obsolete.ts', ticketId: 'T-P0', agentId: 'external-p0'}});
+    expect(parsed).toMatchObject({family: 'artifact', tool: 'source:change preview', args: {request:{action: 'delete_file', filePath: 'obsolete.ts'}, ticketId: 'T-P0', agentId: 'external-p0'}});
   }
 });

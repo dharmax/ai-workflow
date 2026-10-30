@@ -1,7 +1,7 @@
 import {ParameterFacilitator} from '@dharmax/shell-ui';
 import {loadConfig} from './services/config-service.ts';
 import {exportProjections} from './services/projection-service.ts';
-import {registry, type ToolContext} from './tools/index.ts';
+import {commandRegistry, type ToolContext} from './tools/index.ts';
 
 export const TICKET_COMMANDS = ['claim', 'release', 'move', 'done'] as const;
 export type TicketCommand = typeof TICKET_COMMANDS[number];
@@ -28,7 +28,7 @@ export async function runTicketCommand(command: TicketCommand, tokens: string[],
   let ticketId = positional[0];
   let lane = command === 'move' && positional.length > 1 ? positional.slice(1).join(' ').replace(/^(['"])(.*)\1$/, '$2') : undefined;
   if (!ticketId && facilitator) {
-    const candidates: TicketCandidate[] = await registry.execute('list_tickets', {}, ctx);
+    const candidates: TicketCandidate[] = await commandRegistry.execute('list_tickets', {}, ctx);
     const choices = candidates.filter(ticket => {
       const active = ticket.claim && new Date(ticket.claim.expiresAt).getTime() > Date.now();
       if (command === 'release') return Boolean(active);
@@ -50,16 +50,16 @@ export async function runTicketCommand(command: TicketCommand, tokens: string[],
   if (command === 'move' && !lane) throw new Error(usage);
   let output: string;
   if (command === 'claim') {
-    const result: {success: boolean; message?: string} = await registry.execute('claim_ticket', {ticketId, agentId, durationMinutes}, ctx);
+    const result: {success: boolean; message?: string} = await commandRegistry.execute('claim_ticket', {ticketId, agentId, durationMinutes}, ctx);
     if (!result.success) return {output: `Failed to claim: ${result.message}`, success: false};
     output = `Claimed ticket ${ticketId} for ${durationMinutes}m by '${agentId}'.`;
   } else if (command === 'release') {
-    const result: {success: boolean} = await registry.execute('release_ticket', {ticketId}, ctx);
+    const result: {success: boolean} = await commandRegistry.execute('release_ticket', {ticketId}, ctx);
     if (!result.success) return {output: `Ticket '${ticketId}' not found or lease inactive.`, success: false};
     output = `Released ticket ${ticketId}.`;
   } else {
-    await registry.execute('update_ticket_state', {ticketId, lane: command === 'done' ? 'Done' : lane}, ctx);
-    if (command === 'done') await registry.execute('release_ticket', {ticketId}, ctx);
+    await commandRegistry.execute('update_ticket_state', {ticketId, lane: command === 'done' ? 'Done' : lane}, ctx);
+    if (command === 'done') await commandRegistry.execute('release_ticket', {ticketId}, ctx);
     output = command === 'done' ? `Marked ticket '${ticketId}' as Done and synced Kanban.` : `Moved ticket '${ticketId}' to '${lane}'.`;
   }
   await exportProjections(ctx.store, ctx.projectRoot);

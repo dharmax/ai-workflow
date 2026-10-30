@@ -8,14 +8,14 @@ import {chromium,type Browser} from 'playwright';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {TestNode,UserStory} from '../src/model/ontology.ts';
 import {indexSingleFile} from '../src/graph/indexer.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {startWorkspace} from '../src/workspace/server.ts';
 import {CausalChangeEngine} from '../src/change/engine.ts';
 
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  let stopReviewer: (()=>void) | undefined;
- const call=(name:string,params:unknown)=>registry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
+ const call=(name:string,params:unknown)=>commandRegistry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
  const applySource=(preview:{request: import('../src/change/types.ts').ChangeRequest; fingerprint:string})=>
   store.withExecutionContext('project-write',undefined,()=>new CausalChangeEngine({store,projectRoot:root}).applyChange(preview.request,preview.fingerprint));
  afterEach(async()=>{
@@ -57,7 +57,7 @@ describe('S5 Story test-first lifecycle',()=>{
   expect((changed as any).lane).toBe('In Progress');
   expect(fs.readFileSync(path.join(root,specification.filePath),'utf8')).not.toContain('it.skip');
   let test=await store.getEntity<TestNode>(stableId,TestNode.dcr);expect(test?.testState).toBe('not-run');
-  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const});browser=await chromium.launch({headless:true});
+  host=startWorkspace({store,projectRoot:root,executionAuthority:'project-write' as const},0,async()=>true);browser=await chromium.launch({headless:true});
   const page=await browser.newPage();page.setDefaultTimeout(5000);await page.goto(host.url);
   await page.getByRole('button',{name:'Save filtered avatar',exact:true}).click();
   await page.getByRole('button',{name:'Specify Story test',exact:true}).click();

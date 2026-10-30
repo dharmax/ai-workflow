@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, entityDescriptors } from '../src/model/ontology.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
 import type { ChangeRequest } from '../src/change/types.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -15,7 +15,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 describe('Dharmax S2 reviewed canonical product edits', () => {
   let stopReviewer: (()=>void) | undefined;
   let root: string, store: WorkflowStore;
-  const call = (name: string, params: Record<string, unknown>) => registry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
+  const call = (name: string, params: Record<string, unknown>) => commandRegistry.execute(name, params, { store, projectRoot: root, executionAuthority: 'project-write' });
   const scenario = { actor: 'Signed-in user', intent: 'Keep my filtered avatar', initialState: 'Unsaved filtered preview and previous saved avatar exist', action: 'Activate Save', expectedResult: 'Saved avatar matches preview after reload', exceptions: 'Failure preserves previous avatar', bounds: 'Current account' };
   const snapshot = (admission = true) => {
     using tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
@@ -65,7 +65,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     expect((await call('list_features', {})).length).toBe(1);
   });
 
-  it('DW-01 uses the same reviewed operation from the real CLI and MCP registry', async () => {
+  it('DW-01 uses the same reviewed operation from the real CLI and MCP commandRegistry', async () => {
     const cli = path.resolve(import.meta.dir, '../src/cli.ts');
     const invoke = async (...args: string[]) => {
       const proc = Bun.spawn(['bun', cli, 'product-change', ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
@@ -233,9 +233,9 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
 
   it('DW-09 refuses cancellation, read-only authority and stale proposal sources before any write', async () => {
     const proposal = request(), preview = await call('preview_change', proposal), before = snapshot();
-    await expect(registry.execute('apply_change', {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('read-only');
+    await expect(commandRegistry.execute('apply_change', {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('read-only');
     const controller = new AbortController(); controller.abort();
-    await expect(registry.execute('apply_change', {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: root, signal: controller.signal})).rejects.toThrow();
+    await expect(commandRegistry.execute('apply_change', {request: proposal, fingerprint: preview.fingerprint, decision: 'accept'}, {store, projectRoot: root, signal: controller.signal})).rejects.toThrow();
     expect(snapshot()).toEqual(before);
     const pending = await call('propose_epic_structure', {title: 'Avatar delivery', existingEpicId: 'E', injectedSemanticOutput: {features: [], stories: [], questions: []}});
     expect(pending.basis).toContainEqual({id: 'E', entityType: 'Epic', version: (await store.getEntity('E'))!.version});

@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { FileNode, SymbolNode, ModuleNode } from '../src/model/ontology.ts';
 import { indexCodebase, ensureAstFresh } from '../src/graph/indexer.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { processShellInput } from '../src/shell.ts';
 
 describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
@@ -45,8 +45,8 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     expect(declarations).toHaveLength(2);
     for (const declaration of declarations) expect(await store.getIncoming(declaration.id, 'calls')).toHaveLength(0);
     const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
-    expect(await registry.execute('find_symbol', {name: 'helper', exact: true}, ctx)).toHaveLength(2);
-    const outline = await registry.execute('get_file_outline', {filePath: 'src/caller.ts'}, ctx);
+    expect(await commandRegistry.execute('find_symbol', {name: 'helper', exact: true}, ctx)).toHaveLength(2);
+    const outline = await commandRegistry.execute('get_file_outline', {filePath: 'src/caller.ts'}, ctx);
     expect(outline.callCandidates).toEqual(candidates);
     await indexCodebase(store, tmpDir);
     expect((await store.getEntity<FileNode>(file.id, FileNode.dcr))!.metadata?.callCandidates).toEqual(candidates);
@@ -63,12 +63,12 @@ describe('AST Coverage, Incremental Freshness, and Graph Search API', () => {
     fs.writeFileSync(path.join(tmpDir, 'settings.json'), '{"defaultPriority": "priority"}');
     await indexCodebase(store, tmpDir);
     const ctx = {store, projectRoot: tmpDir, executionAuthority: 'project-write' as const};
-    const result = await registry.execute('search_workspace_text', {text: 'priority'}, ctx);
+    const result = await commandRegistry.execute('search_workspace_text', {text: 'priority'}, ctx);
     expect(result.exact).toBe(false);
     expect(result.completeWithinScope).toBe(true);
     expect(result.matches.some((item: any) => item.filePath === 'src/record.ts')).toBe(true);
     expect(result.matches.some((item: any) => item.filePath === 'settings.json')).toBe(true);
-    const bounded = await registry.execute('search_workspace_text', {text: 'priority', limit: 1}, ctx);
+    const bounded = await commandRegistry.execute('search_workspace_text', {text: 'priority', limit: 1}, ctx);
     expect(bounded.truncated).toBe(true);
     expect(bounded.completeWithinScope).toBe(false);
     expect(bounded.matches).toHaveLength(1);
@@ -269,23 +269,23 @@ export const initTimeout = 5000;
     const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
     // 1. Substring search matches all 3
-    const allInit = await registry.execute('find_symbol', { name: 'init' }, ctx);
+    const allInit = await commandRegistry.execute('find_symbol', { name: 'init' }, ctx);
     expect(allInit.length).toBe(3);
 
     // 2. Exact match matches only exact title 'initRoutes' or container 'AppRouter.initRoutes'
-    const exactMatch = await registry.execute('find_symbol', { name: 'initRoutes', exact: true }, ctx);
+    const exactMatch = await commandRegistry.execute('find_symbol', { name: 'initRoutes', exact: true }, ctx);
     expect(exactMatch.length).toBe(2);
     expect(exactMatch.some((s: any) => s.containerName === 'AppRouter')).toBe(true);
 
     // 3. Kind filter for 'method'
-    const methodOnly = await registry.execute('find_symbol', { name: 'init', kind: 'method' }, ctx);
+    const methodOnly = await commandRegistry.execute('find_symbol', { name: 'init', kind: 'method' }, ctx);
     expect(methodOnly.length).toBe(1);
     expect(methodOnly[0].name).toBe('initRoutes');
     expect(methodOnly[0].containerName).toBe('AppRouter');
     expect(methodOnly[0].kind).toBe('method');
 
     // 4. Regex match
-    const regexMatch = await registry.execute('find_symbol', { name: '^init.*out$', regex: true }, ctx);
+    const regexMatch = await commandRegistry.execute('find_symbol', { name: '^init.*out$', regex: true }, ctx);
     expect(regexMatch.length).toBe(1);
     expect(regexMatch[0].name).toBe('initTimeout');
   });
@@ -317,13 +317,13 @@ export function utilB() { return 123; }
     const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
     // 1. Entity search
-    const entitySearch = await registry.execute('search_graph', { query: 'runA' }, ctx);
+    const entitySearch = await commandRegistry.execute('search_graph', { query: 'runA' }, ctx);
     expect(entitySearch.mode).toBe('entity_search');
     expect(entitySearch.count).toBeGreaterThanOrEqual(1);
     expect(entitySearch.results[0].title).toBe('runA');
 
     // 2. Predicate search (imports)
-    const importsSearch = await registry.execute('search_graph', {
+    const importsSearch = await commandRegistry.execute('search_graph', {
       sourceId: 'src/moduleA.ts',
       predicate: 'imports'
     }, ctx);
@@ -331,16 +331,16 @@ export function utilB() { return 123; }
     expect(importsSearch.results.some((r: any) => r.targetId.includes('moduleB'))).toBe(true);
 
     // 3. Syntactic names are available as unresolved source evidence, never declaration call edges.
-    const callsSearch = await registry.execute('search_graph', {
+    const callsSearch = await commandRegistry.execute('search_graph', {
       sourceId: 'src/moduleA.ts',
       predicate: 'calls'
     }, ctx);
     expect(callsSearch.results).toEqual([]);
-    const outline = await registry.execute('get_file_outline', {filePath: 'src/moduleA.ts'}, ctx);
+    const outline = await commandRegistry.execute('get_file_outline', {filePath: 'src/moduleA.ts'}, ctx);
     expect(outline.callCandidates).toContainEqual({name: 'utilB', confidence: 0.52, provenance: 'parser-syntax', resolution: 'unresolved'});
 
     // 4. Graph traversal
-    const traversal = await registry.execute('search_graph', {
+    const traversal = await commandRegistry.execute('search_graph', {
       sourceId: 'src/moduleA.ts',
       maxDepth: 2
     }, ctx);

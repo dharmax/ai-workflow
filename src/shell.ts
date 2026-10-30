@@ -12,7 +12,7 @@ import { queryPerformance, performanceQueryArgs } from './performance-metrics.ts
 import { CommanderError } from 'commander';
 import { parseCommand, lexCommand, isExplicitCommand, facilitateArtifactCommand, type NormalizedCommand } from './artifact-command.ts';
 import os from 'node:os';
-import {reviewLink,reviewDefinition,reviewProductChange} from './product/links.ts';
+import {reviewLink,reviewDefinition,reviewProductChange,reviewPublicProductChange} from './product/links.ts';
 import {isBlockedOperation} from './artifact-policy.ts';
 import {formatShellTrace, saveShellTrace, openShellTrace, type ShellTrace} from './shell-trace.ts';
 import type {ActorStepRecord} from '@dharmax/llm-utils';
@@ -28,7 +28,8 @@ import {
 } from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { Ticket } from './model/ontology.ts';
-import { initializeTools, registry, type ToolContext } from './tools/index.ts';
+import {commandDiscovery} from './command-presentation.ts';
+import { initializeTools, commandRegistry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './helpers/actor/engine.ts';
 import { exportProjections, importProjections } from './services/projection-service.ts';
 import {exportProductManifest,exportAuthoredState} from './product/manifest.ts';
@@ -81,7 +82,7 @@ async function presentEntityView(
 }
 
 export const SHELL_COMMANDS = [
-  'link', 'links', 'unlink',
+  ...commandDiscovery().builtins,
   'resolve', 'prepare', 'investigate', 'process', 'completeness',
   'resolve_ticket', 'prepare_ticket', 'investigate_ticket', 'process_epic', 'process_feature', 'process_story',
   'status',
@@ -166,12 +167,12 @@ export async function processShellInput(
       const tokens=lexCommand(line);
       let command: NormalizedCommand;
       try {
-        command=await parseCommand(tokens);
+        command=await parseCommand(tokens,'shell');
       } catch(error) {
         if(!isInteractive || !(error instanceof CommanderError) || !['commander.missingArgument','commander.help'].includes(error.code)) throw error;
         const facilitated=await facilitateArtifactCommand(tokens,ctx,facilitator);
         if(!facilitated) return {output:'Cancelled.'};
-        command=await parseCommand(facilitated);
+        command=await parseCommand(facilitated,'shell');
       }
       if(command?.family==='help') return {output:command.args.text};
       if(command.family==='link' || command.family==='definition') {
@@ -189,7 +190,7 @@ export async function processShellInput(
         const [action,file,...extra]=command.tokens;
         if (!file || extra.length || !['preview','accept','reject','cancel'].includes(action!)) throw Error('Usage: product-change preview <request.json> | accept|reject|cancel <preview.json>');
         const input=JSON.parse(fs.readFileSync(path.resolve(ctx.projectRoot,file),'utf8'));
-        const result=action==='preview' ? await registry.execute('preview_change',input,ctx) : await reviewProductChange({...input,decision:action},ctx,
+        const result=action==='preview' ? await commandRegistry.execute('preview_change',input,ctx) : await reviewProductChange({...input,decision:action},ctx,
           isInteractive ? async question => {
             const response=await facilitator.facilitate({answer:{type:'string',description:question}},{},{interactive:true});
             return typeof response.answer==='string' ? response.answer : undefined;
@@ -202,7 +203,7 @@ export async function processShellInput(
         return {output:`Exported ${path.relative(ctx.projectRoot,manifest)} and ${path.relative(ctx.projectRoot,snapshot)}`};
       }
       if(command.family==='legacy' && command.command==='next') {
-        const nextTask=await registry.execute('recommend_next_task',{agentId:command.tokens[0]},ctx);
+        const nextTask=await commandRegistry.execute('recommend_next_task',{agentId:command.tokens[0]},ctx);
         return {output:nextTask.ticket
           ? `Recommended Task: [${nextTask.ticket.id}] ${nextTask.ticket.title} (${nextTask.ticket.lane})\nReason: ${nextTask.reason}`
           : nextTask.reason};
@@ -213,9 +214,13 @@ export async function processShellInput(
           ? 'Resolving ticket… first model inference may take a while; a local model may still be loading or processing a large prompt.'
           : `Running ${command.tool}...`);
         try {
-          const result = await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => registry.execute(command.tool, command.args, ctx), command.reviewFingerprint);
+          const result = command.review?await command.review(command.args,ctx,isInteractive?async preview=>{
+            const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});return answer.approval==='apply';
+          }:undefined,isInteractive?async question=>{
+            const answer=await facilitator.facilitate({answer:{type:'string',description:question}},{},{interactive:true});return typeof answer.answer==='string'?answer.answer:undefined;
+          }:undefined):await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => commandRegistry.execute(command.tool, command.args, ctx), command.reviewFingerprint);
           progress.stop(isBlockedOperation(result) ? 'fail' : 'success');
-          return {output: JSON.stringify(result, null, 2)};
+          return {output: command.format?command.format(result):JSON.stringify(result, null, 2)};
         } catch (error) { progress.stop('fail'); throw error; }
       }
 
@@ -228,7 +233,7 @@ export async function processShellInput(
   }
 
   if (lower === '/help' || lower === 'help') {
-    const help=await parseCommand(['--help']);
+    const help=await parseCommand(['--help'],'shell');
     return {output:'AI-Workflow 2.0 Terminal REPL\n'+(help.family==='help'?help.args.text:'')};
   }
 
@@ -305,7 +310,7 @@ export async function processShellInput(
 
   // 2. Deterministic Fast-Paths (<5ms, 0 tokens)
   if (lower === 'status') {
-    const gitStatus = await registry.execute('get_git_status', {}, ctx);
+    const gitStatus = await commandRegistry.execute('get_git_status', {}, ctx);
     const claims = await session.store.getActiveClaims();
     let text = `[Git]: Branch '${gitStatus.branch || 'unknown'}' (${gitStatus.clean ? 'Clean' : `${gitStatus.totalChanges} uncommitted changes`})\n`;
     text += `[Active Leases]: ${claims.length === 0 ? 'None' : claims.map(c => `${c.ticketId} (${c.claim.agentId})`).join(', ')}`;
@@ -344,7 +349,7 @@ export async function processShellInput(
     }
 
     if (!args.title) return { output: 'Usage: create <title>' };
-    const res = await registry.execute('create_ticket', { title: args.title, lane: 'Todo' }, ctx);
+    const res = await commandRegistry.execute('create_ticket', { title: args.title, lane: 'Todo' }, ctx);
     await exportProjections(session.store, session.projectRoot);
     return { output: `Created ticket '${res.id}' in lane '${res.lane}' and synced Kanban.` };
   }
@@ -385,7 +390,7 @@ export async function processShellInput(
   if (lower.startsWith('tickets') || lower === 'list') {
     const parts = line.split(/\s+/);
     const lane = parts[1] as any;
-    const tickets = await registry.execute('list_tickets', { lane }, ctx);
+    const tickets = await commandRegistry.execute('list_tickets', { lane }, ctx);
     if (tickets.length === 0) return { output: `No tickets found${lane ? ` in lane '${lane}'` : ''}.` };
     return {
       output: tickets.map((t: any) => `[${t.lane}] ${t.id}: ${t.title}${t.claim ? ` (Claimed: ${t.claim.agentId})` : ''}`).join('\n')
@@ -394,7 +399,7 @@ export async function processShellInput(
 
   if (lower === 'epics' || lower.startsWith('epics ')) {
     const status = line.split(/\s+/)[1] as any;
-    const epics = await registry.execute('list_epics', { status }, ctx);
+    const epics = await commandRegistry.execute('list_epics', { status }, ctx);
     if (epics.length === 0) return { output: 'No epics found.' };
     return {
       output: epics.map((e: any) => `[${e.status}] ${e.id}: ${e.title} (Priority: ${e.priority})`).join('\n')
@@ -448,7 +453,7 @@ export async function processShellInput(
     if (!args.title) return { output: 'Usage: epic-create "<title>" [--body <description>] [--priority <number>] [--no-decompose] [--apply]' };
 
     if (flags.noDecompose) {
-      const created = await registry.execute('create_epic', {
+      const created = await commandRegistry.execute('create_epic', {
         title: args.title,
         body: flags.body,
         priority: flags.priority ?? 2,
@@ -458,7 +463,7 @@ export async function processShellInput(
       return { output: `Created Epic '${created.id}' without decomposition and synced projections.` };
     }
 
-    const proposal = await registry.execute('propose_epic_structure', {
+    const proposal = await commandRegistry.execute('propose_epic_structure', {
       title: args.title,
       body: flags.body,
       priority: flags.priority ?? 2,
@@ -507,14 +512,14 @@ export async function processShellInput(
       return { output: lines.join('\n') };
     }
 
-    const applied = await registry.execute('apply_epic_structure', { proposal }, ctx);
+    const applied = await commandRegistry.execute('apply_epic_structure', { proposal }, ctx);
     await exportProjections(session.store, session.projectRoot);
     lines.push(`\n✅ Applied Epic structure to graph and synced projections:`);
     lines.push(`  Epic:     ${applied.epicId}`);
     lines.push(`  Features: ${applied.featureIds.join(', ') || 'None'}`);
     lines.push(`  Stories:  ${applied.storyIds.join(', ') || 'None'}`);
 
-    const cov = await registry.execute('get_product_coverage', { entityId: applied.epicId }, ctx);
+    const cov = await commandRegistry.execute('get_product_coverage', { entityId: applied.epicId }, ctx);
     lines.push(`\nStructural Coverage for ${applied.epicId}: ${cov.complete ? 'COMPLETE ✅' : 'IN PROGRESS (gaps present)'}`);
     if (cov.gaps.length > 0) {
       for (const g of cov.gaps) lines.push(`  - [${g.kind}] ${g.message}`);
@@ -525,7 +530,7 @@ export async function processShellInput(
 
   if (lower === 'features' || lower.startsWith('features ')) {
     const status = line.split(/\s+/)[1] as any;
-    const features = await registry.execute('list_features', { status }, ctx);
+    const features = await commandRegistry.execute('list_features', { status }, ctx);
     if (features.length === 0) return { output: 'No features found.' };
     return {
       output: features.map((f: any) => `[${f.status}] ${f.id}: ${f.title}`).join('\n')
@@ -536,7 +541,7 @@ export async function processShellInput(
 
   if (lower === 'stories' || lower.startsWith('stories ')) {
     const status = line.split(/\s+/)[1] as any;
-    const stories = await registry.execute('list_user_stories', { status }, ctx);
+    const stories = await commandRegistry.execute('list_user_stories', { status }, ctx);
     if (stories.length === 0) return { output: 'No user stories found.' };
     return {
       output: stories.map((s: any) => `[${s.status}] ${s.id}: ${s.title}`).join('\n')
@@ -551,7 +556,7 @@ export async function processShellInput(
     const entityId = line.replace(/^coverage\s*/i, '').trim();
     if (!entityId) return { output: 'Usage: coverage <entityId>' };
     try {
-      const cov = await registry.execute('get_product_coverage', { entityId }, ctx);
+      const cov = await commandRegistry.execute('get_product_coverage', { entityId }, ctx);
       const lines = [
         `Coverage for ${cov.entityType} '${cov.entityId}':`,
         `  Complete: ${cov.complete ? 'YES ✅' : 'NO ❌'}`
@@ -577,7 +582,7 @@ export async function processShellInput(
     const entityId = line.replace(/^impact\s*/i, '').trim();
     if (!entityId) return { output: 'Usage: impact <entityId>' };
     try {
-      const imp = await registry.execute('get_product_impact', { entityId }, ctx);
+      const imp = await commandRegistry.execute('get_product_impact', { entityId }, ctx);
       return {
         output: [
           `Product Impact for ${imp.entityType} '${imp.entityId}':`,
@@ -605,7 +610,7 @@ export async function processShellInput(
   }
 
   if (lower === 'diff') {
-    const diff = await registry.execute('get_git_diff', {}, ctx);
+    const diff = await commandRegistry.execute('get_git_diff', {}, ctx);
     return { output: diff.diff ? diff.diff.trim() : 'Working tree is clean. No uncommitted changes.' };
   }
 
@@ -643,7 +648,7 @@ export async function processShellInput(
       }
     }
 
-    const symbols = await registry.execute('find_symbol', { name, exact, regex, kind }, ctx);
+    const symbols = await commandRegistry.execute('find_symbol', { name, exact, regex, kind }, ctx);
     if (symbols.length === 0) return { output: `No symbol found matching '${name}'${kind ? ` (kind: ${kind})` : ''}.` };
     return {
       output: symbols.map((s: any) => `[${s.kind}] ${s.fullName || s.name} -> ${s.filePath}:${s.line || 1}${s.exported ? ' (exported)' : ''}${s.signature ? ` // ${s.signature}` : ''}`).join('\n')
@@ -675,7 +680,7 @@ export async function processShellInput(
     const dIdx = parts.indexOf('--depth') !== -1 ? parts.indexOf('--depth') : parts.indexOf('-d');
     if (dIdx !== -1 && parts[dIdx + 1]) maxDepth = Number(parts[dIdx + 1]) || 1;
 
-    const res = await registry.execute('search_graph', {
+    const res = await commandRegistry.execute('search_graph', {
       query,
       entityType,
       predicate,
@@ -724,7 +729,7 @@ export async function processShellInput(
       : { action: 'rename_symbol', target: { type: 'symbol', symbolName: targetArg, filePath: fileFilter || '' }, newName };
 
     try {
-      const preview = await registry.execute('preview_change', changeReq, ctx);
+      const preview = await commandRegistry.execute('preview_change', changeReq, ctx);
       if (preview.blocked) {
         return { output: `❌ Cannot rename: ${preview.blockReason}` };
       }
@@ -740,7 +745,7 @@ export async function processShellInput(
       }
 
       if (confirmed) {
-        const applyRes = await registry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
+        const applyRes = await commandRegistry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
         if (applyRes.ok) {
           lines.push(`\n✅ Applied successfully. Touched: ${applyRes.filesTouched.join(', ') || 'none'}. Verification: ${applyRes.verification.passed ? 'PASSED' : 'CHECK FAILED'}`);
         } else {
@@ -802,7 +807,7 @@ export async function processShellInput(
     };
 
     try {
-      const preview = await registry.execute('preview_change', changeReq, ctx);
+      const preview = await commandRegistry.execute('preview_change', changeReq, ctx);
       if (preview.blocked) {
         if (preview.requiredArguments && preview.requiredArguments.length > 0) {
           return { output: `⚠️  Refactor requires missing argument(s): ${preview.requiredArguments.join(', ')}\n${preview.blockReason}` };
@@ -821,7 +826,7 @@ export async function processShellInput(
       }
 
       if (confirmed) {
-        const applyRes = await registry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
+        const applyRes = await commandRegistry.execute('apply_change', { request: changeReq, fingerprint: preview.fingerprint }, ctx);
         if (applyRes.ok) {
           lines.push(`\n✅ Applied successfully. Touched: ${applyRes.filesTouched.join(', ') || 'none'}. Verification: ${applyRes.verification.passed ? 'PASSED' : 'CHECK FAILED'}`);
         } else {
@@ -840,7 +845,7 @@ export async function processShellInput(
   if (lower === 'callers' || lower.startsWith('callers ')) {
     const sym = line.replace(/^callers\s*/i, '').trim();
     if (!sym) return { output: 'Usage: callers <symbolName>' };
-    const res = await registry.execute('search_graph', { predicate: 'calls', targetId: sym }, ctx);
+    const res = await commandRegistry.execute('search_graph', { predicate: 'calls', targetId: sym }, ctx);
     if (res.results.length === 0) return { output: `No recorded call sites found calling '${sym}'.` };
     return {
       output: res.results.map((p: any) => `${p.sourceId} calls ${p.targetId}`).join('\n')
@@ -850,7 +855,7 @@ export async function processShellInput(
   if (lower === 'deps' || lower.startsWith('deps ')) {
     const target = line.replace(/^deps\s*/i, '').trim();
     if (!target) return { output: 'Usage: deps <fileOrModule>' };
-    const res = await registry.execute('search_graph', { sourceId: target, predicate: 'depends_on' }, ctx);
+    const res = await commandRegistry.execute('search_graph', { sourceId: target, predicate: 'depends_on' }, ctx);
     if (res.results.length === 0) return { output: `No dependencies recorded for '${target}'.` };
     return {
       output: res.results.map((p: any) => `- ${p.targetId}`).join('\n')
@@ -889,7 +894,7 @@ export async function processShellInput(
       return { output: 'Usage: slice <filePath> <symbolName>' };
     }
 
-    const slice = await registry.execute('get_symbol_source', { filePath: args.filePath, symbolName: args.symbolName }, ctx);
+    const slice = await commandRegistry.execute('get_symbol_source', { filePath: args.filePath, symbolName: args.symbolName }, ctx);
     if (!slice.code) return { output: `Symbol '${args.symbolName}' not found in ${args.filePath}.` };
     return { output: `// ${slice.exact ? 'exact' : 'excerpt'} ${args.filePath}:${slice.startLine}-${slice.endLine}\n${slice.code}` };
   }
@@ -917,7 +922,7 @@ export async function processShellInput(
       return { output: 'Usage: outline <filePath>' };
     }
 
-    const outline = await registry.execute('get_file_outline', { filePath: args.filePath }, ctx);
+    const outline = await commandRegistry.execute('get_file_outline', { filePath: args.filePath }, ctx);
     if (outline.symbols.length === 0) return { output: `No symbols indexed for ${args.filePath}.` };
     return {
       output: `${args.filePath} (${outline.symbolCount} symbols):\n` +
@@ -948,7 +953,7 @@ export async function processShellInput(
       return { output: 'Usage: blast <target>' };
     }
 
-    const blast = await registry.execute('analyze_blast_radius', { target: args.target }, ctx);
+    const blast = await commandRegistry.execute('analyze_blast_radius', { target: args.target }, ctx);
     let out = `Blast Radius for '${args.target}':\n`;
     out += `  Affected Files (${blast.affectedFiles.length}): ${blast.affectedFiles.join(', ') || 'None'}\n`;
     out += `  Recommended Tests (${blast.recommendedTests.length}): ${blast.recommendedTests.join(', ') || 'None'}\n`;
@@ -967,9 +972,9 @@ export async function processShellInput(
   }
 
   if (lower === 'audit') {
-    const tickets = await registry.execute('list_tickets', {}, ctx);
+    const tickets = await commandRegistry.execute('list_tickets', {}, ctx);
     const blocked = tickets.filter((t: any) => t.lane === 'Blocked');
-    const git = await registry.execute('get_git_status', {}, ctx);
+    const git = await commandRegistry.execute('get_git_status', {}, ctx);
 
     let violations = 0;
     let out = '🔍 AI-Workflow Audit:\n';
@@ -1047,7 +1052,7 @@ export async function processShellInput(
 
   if (lower.startsWith('eval ')) {
     const code = line.slice(5).trim();
-    const res = await registry.execute('script_eval', { code }, ctx);
+    const res = await commandRegistry.execute('script_eval', { code }, ctx);
     return {
       output: res.success ? JSON.stringify(res.result, null, 2) : `Script Error: ${res.error}`
     };
@@ -1119,7 +1124,7 @@ export function getTicketIdsSync(store: WorkflowStore): string[] {
 
 export function buildSmartCompleter(session: ShellSession): SmartCompleter {
   const completer = new SmartCompleter({
-    builtins: SHELL_COMMANDS,
+    builtins: [...new Set([...SHELL_COMMANDS,...commandDiscovery().builtins])],
     subcommands: {
       move: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'],
       tickets: ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'],
@@ -1130,7 +1135,8 @@ export function buildSmartCompleter(session: ShellSession): SmartCompleter {
       trace: ['on', 'off', 'full', 'fold', 'compact', 'show', 'open'],
       radar: ['refresh'],
       '/radar': ['refresh'],
-      graph: ['--type', '--pred', '--from', '--to', '--depth']
+      ...commandDiscovery().subcommands,
+      graph: ['predicate','link','--type', '--pred', '--from', '--to', '--depth']
     }
   });
 

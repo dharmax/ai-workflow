@@ -1,6 +1,9 @@
-/** Local presentation adapter. Product rules, review and persistence belong to S2. */
+/**
+ * Responsibility: Local Workspace HTTP presentation and canonical S1 REST adapter.
+ * Scope: Loopback authenticated host; domain reads/review/persistence retain their owners.
+ */
 import { z } from 'zod';
-import { registry, initializeTools } from '../tools/index.ts';
+import { commandRegistry, initializeTools } from '../tools/index.ts';
 import type { ToolContext } from '../tools/registry.ts';
 import { ProductMutationSchema, ProductRevisionSchema } from '../product/mutation.ts';
 import { workspacePage } from '../ui/workspace/page.ts';
@@ -8,6 +11,7 @@ import { IntentProposalSchema } from '../product/process-types.ts';
 import { Product, ModuleNode } from '../model/ontology.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
 import {reviewProductChange} from '../product/links.ts';
+import {publicApi,publicApiError,compilePublicRoutes} from './public-api.ts';
 
 const reads = {
   Feature: ['list_features', 'get_feature', 'featureId'],
@@ -27,10 +31,10 @@ const requestSchema = z.object({action:z.literal('product_change'), mutations:z.
 const applySchema = z.object({request:requestSchema, fingerprint:z.string().min(1), decision:z.enum(['accept','reject','cancel']),developerAnswers:z.record(z.string(),z.string()).optional()}).strict();
 
 /** Caller owns the store; stop the returned server before closing it. Bind only loopback. */
-export function startWorkspace(ctx: ToolContext, port = 0) {
+export function startWorkspace(ctx: ToolContext, port = 0, confirm?: (preview:unknown)=>Promise<boolean>, respond?: Parameters<typeof reviewProductChange>[2]) {
   initializeTools();
+  let routes=compilePublicRoutes(!!confirm),revision=commandRegistry.commandRevision;
   const token = crypto.randomUUID(), nonce = crypto.randomUUID();
-  const call = (name: string, params: unknown) => registry.execute(name, params, ctx);
   const server = Bun.serve({
     hostname:'127.0.0.1', port, maxRequestBodySize:1024 * 1024,
     async fetch(req, server) {
@@ -44,10 +48,15 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
           'Content-Security-Policy':"default-src 'none'; script-src 'nonce-" + nonce + "'; style-src 'nonce-" + nonce + "'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"}});
       if (!url.pathname.startsWith('/api/')) return json({error:'Not found'},404);
       if (req.headers.get('x-aiwf-token') !== token) return json({error:'Open the Workspace URL printed by aiwf workspace.'},403);
+      const readContext={...ctx,executionAuthority:'read-only' as const,signal:req.signal};
+      const call=(name:string,params:unknown)=>commandRegistry.execute(name,params,req.method==='GET'?readContext:{...ctx,signal:req.signal});
       try {
+        if(url.pathname.startsWith('/api/v1/')){
+          if(revision!==commandRegistry.commandRevision){routes=compilePublicRoutes(!!confirm);revision=commandRegistry.commandRevision;}
+          const result=await publicApi(req,req.method==='GET'?readContext:{...ctx,signal:req.signal},routes,confirm?{confirm,respond}:undefined);return json(result.body,result.status??200);}
         if (req.method === 'GET' && url.pathname === '/api/catalog') {
           const groups = await Promise.all(Object.entries(reads).map(async ([kind,[list]]) => {
-            if (kind === 'Module') await ensureAstFresh(ctx.store);
+            if (kind === 'Module') await ctx.store.withExecutionContext('read-only',req.signal,()=>ensureAstFresh(ctx.store));
             const rows: Array<Record<string,unknown>> = typeof list === 'string' ? await call(list,{}) as Array<Record<string,unknown>>
               : await Promise.all((await ctx.store.listEntities(list)).map(async entity=>({...await entity.fullDto<Record<string,unknown>>(),id:ctx.store.localId(entity.id),version:entity.version})));
             return rows.map(row=>({...row,...(kind==='Ticket'?{ticketKind:row.kind??'task'}:{}),kind}));
@@ -60,7 +69,7 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
         }
         if (req.method === 'GET' && url.pathname === '/api/entity') {
           const {kind,id} = querySchema.parse(Object.fromEntries(url.searchParams));
-          if (kind === 'Module') await ensureAstFresh(ctx.store);
+          if (kind === 'Module') await ctx.store.withExecutionContext('read-only',req.signal,()=>ensureAstFresh(ctx.store));
           const reader = reads[kind];
           const canonical = await ctx.store.getEntity(id);
           if (canonical && canonical.typeName() !== (kind === 'Module' ? 'ModuleNode' : kind)) return json({error:'Entity kind mismatch'},400);
@@ -97,12 +106,18 @@ export function startWorkspace(ctx: ToolContext, port = 0) {
         }
         if (req.method === 'POST' && url.pathname === '/api/apply') {
           const input = applySchema.parse(await req.json());
-          return json(await reviewProductChange({request:input.request,fingerprint:input.fingerprint,decision:input.decision},ctx,
-            async (_question,id) => input.developerAnswers?.[id]));
+          if(input.decision==='accept'){
+            if(!confirm)return json({status:'review_required',error:'Trusted host human review is unavailable; client decision/token cannot approve Product changes.'},403);
+            const preview=await call('preview_change',input.request);
+            if(preview.fingerprint!==input.fingerprint)return json({status:'stale',error:'Stale preview; reload and review.'},409);
+            if(!await confirm(preview))return json({status:'cancelled'},200);
+          }
+          return json(await reviewProductChange({request:input.request,fingerprint:input.fingerprint,decision:input.decision},{...ctx,signal:req.signal},
+            respond));
         }
         return json({error:'Not found'},404);
       } catch (error) {
-        return json({error:error instanceof Error ? error.message : String(error)},400);
+        const failure=publicApiError(error);return json(failure.body,failure.status);
       }
     }
   });

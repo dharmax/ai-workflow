@@ -7,7 +7,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import {z} from 'zod'
-import {registry, type ToolContext} from './registry.ts'
+import {commandRegistry, type ToolContext} from './registry.ts'
 import {Ticket} from '../model/ontology.ts'
 import {ensureAstFresh} from '../graph/indexer.ts'
 import {
@@ -18,7 +18,7 @@ import {
 } from '../graph/test-artifacts.ts'
 
 export function registerTestTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'resolve_test_target',
     description: 'Resolve tests verifying a source file from the graph first, with filename pairing only as a fallback.',
     category: 'test',
@@ -83,7 +83,7 @@ export function registerTestTools() {
     }
   })
 
-  registry.register({
+  commandRegistry.register({
     name: 'triage_test_failures',
     description: 'Run tests, persist pass/fail evidence on TestNodes, and return concise failures plus graph-local likely causes.',
     category: 'test',
@@ -166,7 +166,7 @@ export function registerTestTools() {
     }
   })
 
-  registry.register({
+  commandRegistry.register({
     name: 'run_playwright',
     description: 'Run headless Playwright tests, persist TestNode evidence, and optionally record a bug ticket.',
     category: 'test',

@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../src/graph/store.ts';
-import {initializeTools,registry} from '../src/tools/index.ts';
+import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 describe('run_command observation contract',()=>{
  let root:string,store:WorkflowStore;
  beforeEach(()=>{root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-os-'));store=new WorkflowStore(root,true);initializeTools()});
  afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true})});
- const run=(command:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>registry.execute('run_command',{command,...extra},{projectRoot:root,store,signal,executionAuthority:'project-write'});
+ const run=(command:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>commandRegistry.execute('run_command',{command,...extra},{projectRoot:root,store,signal,executionAuthority:'project-write'});
  it('distinguishes empty success and nonzero exit with both streams',async()=>{
   expect(await run('true')).toMatchObject({success:true,exitCode:0,stdout:'',stderr:'',stdoutTruncated:false,stderrTruncated:false});
   expect(await run('printf out; printf err >&2; exit 7')).toMatchObject({success:false,exitCode:7,stdout:'out',stderr:'err',timedOut:false,cancelled:false});
@@ -37,7 +37,7 @@ describe('run_command observation contract',()=>{
   const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-scratch-'));
   try{
    fs.writeFileSync(path.join(root,'records.json'),'[3,4]');
-   const scoped=(command:string)=>registry.execute('run_command',{command,timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot:scratch});
+   const scoped=(command:string)=>commandRegistry.execute('run_command',{command,timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot:scratch});
    const denied=await scoped("printf 'fabricated' > records.json");
    expect(denied.success).toBe(false);
    expect(fs.readFileSync(path.join(root,'records.json'),'utf8')).toBe('[3,4]');
@@ -56,7 +56,7 @@ describe('run_command observation contract',()=>{
   try{
    fs.writeFileSync(path.join(root,'records'),'real');
    fs.symlinkSync(root,path.join(scratch,'source'));
-   const runScoped=(scratchRoot:string,command:string)=>registry.execute('run_command',{command,timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot});
+   const runScoped=(scratchRoot:string,command:string)=>commandRegistry.execute('run_command',{command,timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot});
    expect((await runScoped(scratch,'printf fake > "$TMPDIR/source/records"')).success).toBe(false);
    expect(await runScoped(root,'printf fake > records')).toMatchObject({success:false,exitCode:null});
    expect(fs.readFileSync(path.join(root,'records'),'utf8')).toBe('real');
@@ -68,7 +68,7 @@ describe('run_command observation contract',()=>{
    fs.mkdirSync(path.join(root,'dependency'));
    fs.writeFileSync(path.join(root,'dependency/package.json'),JSON.stringify({name:'fixture-dep',version:'1.0.0'}));
    fs.writeFileSync(path.join(root,'package.json'),JSON.stringify({dependencies:{'fixture-dep':'file:./dependency'}}));
-   const result=await registry.execute('run_command',{command:'bun install --offline --ignore-scripts',timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot:scratch});
+   const result=await commandRegistry.execute('run_command',{command:'bun install --offline --ignore-scripts',timeoutMs:5000},{projectRoot:root,store,executionAuthority:'read-only',scratchRoot:scratch});
    expect(result.success).toBe(false);
    expect(fs.existsSync(path.join(root,'node_modules'))).toBe(false);
    expect(fs.existsSync(path.join(root,'bun.lock'))).toBe(false);

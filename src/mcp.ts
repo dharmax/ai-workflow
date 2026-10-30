@@ -16,14 +16,14 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
-import { initializeTools, registry, type ToolContext } from './tools/index.ts';
-import { getPublicMcpTools, PUBLIC_MCP_TOOL_NAMES } from './tools/surface.ts';
+import { initializeTools, commandRegistry, type ToolContext } from './tools/index.ts';
+import { getPublicMcpTools } from './tools/surface.ts';
 import { WorkflowActor, type ShellMode } from './helpers/actor/engine.ts';
 import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
 import { SemanticPackage } from '@dharmax/semantika';
 import {ensureAstFresh} from './graph/indexer.ts';
 
-function toolInputSchema(tool: NonNullable<ReturnType<typeof registry.get>>): McpTool['inputSchema'] {
+function toolInputSchema(tool: NonNullable<ReturnType<typeof commandRegistry.get>>): McpTool['inputSchema'] {
   const converted=zodToJsonSchema(tool.parameters);
   if(!converted.ok) throw Error(`Cannot expose MCP tool '${tool.name}': ${converted.reason}`);
   return withProjectRoot({...converted.schema,type:'object'});
@@ -83,29 +83,8 @@ export function createMcpServer(options: McpServerOptions = {}) {
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const tools: McpTool[] = [];
 
-    // Autonomous wish tool
-    tools.push({
-      name: 'execute_shell_wish',
-      description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
-      inputSchema: withProjectRoot({
-        type: 'object',
-        properties: {
-          wish: {
-            type: 'string',
-            description: 'The natural language instruction, wish, or question to execute'
-          },
-          mode: {
-            type: 'string',
-            enum: ['design', 'dev', 'triage', 'product'],
-            description: 'Optional manual mode override'
-          }
-        },
-        required: ['wish']
-      })
-    });
-
-    // Domain facilities from the same registry; compact advertisement is host opt-in.
-    for (const t of getPublicMcpTools(registry,options.compactSurface??process.env.AIWF_MCP_SURFACE==='compact')) {
+    // Domain facilities from the same commandRegistry; compact advertisement is host opt-in.
+    for (const t of getPublicMcpTools(commandRegistry,options.compactSurface??process.env.AIWF_MCP_SURFACE==='compact')) {
       tools.push({
         name: t.name,
         description: `[${t.category.toUpperCase()}]: ${t.description}`,
@@ -125,6 +104,16 @@ export function createMcpServer(options: McpServerOptions = {}) {
     let activeStore = store;
 
     try {
+      const publicTool=getPublicMcpTools(commandRegistry).find(t=>t.name===name);
+      if (!publicTool) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Tool '${name}' is not exposed by the AI-Workflow MCP surface.` }]
+        };
+      }
+
+      const tool = publicTool;
+      tool.parameters.parse(toolArgs);
       if (requestedRoot !== undefined) {
         if (typeof requestedRoot !== 'string' || !requestedRoot.trim()) throw new Error('projectRoot must be a non-empty directory path.');
         activeRoot = path.resolve(root, requestedRoot);
@@ -147,53 +136,19 @@ export function createMcpServer(options: McpServerOptions = {}) {
         // Cross-project source investigation uses an ephemeral AST graph when this host lacks
         // a write grant. Do not mutate the sibling's canonical database just to answer a read.
         const sourceRead = ['find_symbol', 'get_symbol_source', 'get_file_outline',
-          'get_exact_callers', 'get_exact_references', 'analyze_blast_radius'].includes(name);
+          'get_exact_callers', 'get_exact_references', 'analyze_blast_radius','read_workspace_file','search_workspace_text'].includes(name)||name==='source.file'||name==='source.symbol';
         // An ungranted sibling must never create persistent state, including for rejected writes.
-        const ephemeral = targetAuthority === 'read-only';
-        activeStore = new WorkflowStore(activeRoot, ephemeral);
+        const ephemeral = targetAuthority === 'read-only' && sourceRead;
+        activeStore = new WorkflowStore(activeRoot, ephemeral,{readOnly:targetAuthority==='read-only'&&!ephemeral});
         await activeStore.sp.ready();
         if (ephemeral && sourceRead) await activeStore.withExecutionContext('project-write', undefined,
           () => ensureAstFresh(activeStore, activeRoot));
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
-        executionAuthority: targetAuthority, signal: extra.signal};
-
-      if (name === 'execute_shell_wish') {
-        const wish = String(toolArgs.wish || '');
-        const mode = toolArgs.mode as ShellMode | undefined;
-        const activeActor = activeRoot === root ? actor : new WorkflowActor({
-          store: activeStore,
-          projectRoot: activeRoot,
-          preferLocal: true
-        });
-        const res = await activeActor.execute(wish, mode, {executionAuthority: ctx.executionAuthority, signal: extra.signal});
-
-        let text = `### [AI-Workflow: ${res.mode.toUpperCase()}]\n${res.answer}`;
-        if (res.stepsCount > 0) {
-          text += `\n\n*Executed ${res.stepsCount} autonomous step(s).*`;
-        }
-        return {
-          content: [{ type: 'text', text }]
-        };
-      }
-
-      if (!PUBLIC_MCP_TOOL_NAMES.has(name)) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: `Tool '${name}' is not exposed by the AI-Workflow MCP surface.` }]
-        };
-      }
-
-      const tool = registry.get(name);
-      if (!tool) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: `Tool '${name}' is not registered in AI-Workflow.` }]
-        };
-      }
+        executionAuthority: targetAuthority, signal: extra.signal,actor:activeRoot===root?actor:undefined};
 
       toolInputSchema(tool);
-      const result = await registry.execute(name, toolArgs, ctx);
+      const result = await tool.execute(tool.parameters.parse(toolArgs),ctx);
       return {
         content: [
           {
@@ -226,32 +181,8 @@ export function buildMcpSchemas(): Record<string, string> {
   initializeTools();
   const schemas: Record<string, string> = {};
 
-  // 1. Wish tool
-  const wishSchema = {
-    name: 'execute_shell_wish',
-    description: 'Execute an autonomous coding wish or high-level task via AI-Workflow cognitive engine with automatic mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]).',
-    parameters: withProjectRoot({
-      $schema: 'https://json-schema.org/draft/2020-12/schema',
-      type: 'object',
-      properties: {
-        wish: {
-          type: 'string',
-          description: 'The natural language instruction, wish, or question to execute'
-        },
-        mode: {
-          type: 'string',
-          enum: ['design', 'dev', 'triage', 'product'],
-          description: 'Optional manual mode override'
-        }
-      },
-      required: ['wish'],
-      additionalProperties: false
-    })
-  };
-  schemas['execute_shell_wish.json'] = JSON.stringify(wishSchema, null, 2);
-
   // 2. All domain tools
-  for (const t of getPublicMcpTools(registry)) {
+  for (const t of getPublicMcpTools(commandRegistry)) {
     const parameters = {$schema:'https://json-schema.org/draft/2020-12/schema',...toolInputSchema(t)};
 
     const toolJson = {

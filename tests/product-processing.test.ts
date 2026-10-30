@@ -8,7 +8,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, Ticket, Aspect, TestNode, Artifact, Decision } from '../src/model/ontology.ts';
 import type { ProcessOptions, IntentProposal } from '../src/product/process-types.ts';
 import type { ArtifactCritic, CriticInput } from '../src/artifact-policy.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 const empty = (patch: Partial<IntentProposal> = {}): IntentProposal => ({ items: [], aspectIds: [], gaps: [], required: [], rationale: 'Only necessary work', ...patch });
 const item = (id: string, kind: 'Feature' | 'UserStory' | 'Ticket', title = id) => ({ id, kind, title, body: 'Concrete behavior', acceptanceCriteria: ['Concrete outcome has regression proof'] });
@@ -134,10 +134,10 @@ describe('entity-owned Product Intent processing', () => {
     } } }); expect(result.status).toBe('complete');
   });
 
-  it('thin registry adapters use the same entity path and preserve read-only completion targets', async () => {
+  it('thin commandRegistry adapters use the same entity path and preserve read-only completion targets', async () => {
     const s = await story(); initializeTools(); const original = UserStory.prototype.process;
     try { UserStory.prototype.process = async function (_store, opts) { expect(this.id).toBe(s.id); expect(opts).toMatchObject({ completeness: 'production', depth: 0, critic: 'none' }); return { status: 'blocked', artifactId: 'S', blockers: [{ reason: 'adapter proof' }] }; };
-      const result = await registry.execute('process_story', { storyId: 'S', completeness: 'production', depth: 0, critic: 'none' }, { store, projectRoot: root, executionAuthority: 'project-write' }); expect(result.status).toBe('blocked');
+      const result = await commandRegistry.execute('process_story', { storyId: 'S', completeness: 'production', depth: 0, critic: 'none' }, { store, projectRoot: root, executionAuthority: 'project-write' }); expect(result.status).toBe('blocked');
     } finally { UserStory.prototype.process = original; }
   });
 });

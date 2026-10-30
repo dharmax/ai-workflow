@@ -98,8 +98,8 @@ it('PC5 compact advertisement is opt-in and retains legacy calls with identical 
  const [all,small]=await Promise.all([legacy.client.listTools(),compact.client.listTools()]);
  expect(all.tools.some(tool=>tool.name==='get_goal')).toBe(true);
  expect(small.tools.some(tool=>tool.name==='get_goal')).toBe(false);
- for(const name of ['artifact','link','verify','resolve_ticket','prepare_story_test','apply_story_test','preview_change','apply_change','claim_ticket','release_ticket','find_symbol','preview_rule_change']) expect(small.tools.some(tool=>tool.name===name)).toBe(true);
- expect(small.tools.find(tool=>tool.name==='artifact')!.inputSchema).toEqual(all.tools.find(tool=>tool.name==='artifact')!.inputSchema);
+ for(const name of ['artifact.discovery','graph.link','ticket','test.story','source.change','source.symbol','rule.change']) expect(small.tools.some(tool=>tool.name===name)).toBe(true);
+ expect(small.tools.find(tool=>tool.name==='product.feature')!.inputSchema).toEqual(all.tools.find(tool=>tool.name==='product.feature')!.inputSchema);
  expect((await compact.client.callTool({name:'get_product',arguments:{}})).isError).not.toBe(true);
  console.info(JSON.stringify({measurement:'actual stdio tools/list serialized UTF8 bytes; no paid-token or usability inference',legacy:{tools:all.tools.length,bytes:Buffer.byteLength(JSON.stringify(all))},compact:{tools:small.tools.length,bytes:Buffer.byteLength(JSON.stringify(small))}}));
 },15000);

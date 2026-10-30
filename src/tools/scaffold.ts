@@ -6,7 +6,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { indexCodebase } from '../graph/indexer.ts';
 
 export function toPascalCase(str: string): string {
@@ -16,7 +16,7 @@ export function toPascalCase(str: string): string {
 }
 
 export function registerScaffoldTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'scaffold_file',
     description: 'Scaffold a new typed source file paired with an automated test suite and index it immediately.',
     category: 'compiler',

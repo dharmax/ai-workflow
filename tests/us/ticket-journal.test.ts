@@ -6,14 +6,14 @@ import {WorkflowStore} from '../../src/graph/store.ts';
 import {Ticket,Artifact} from '../../src/model/ontology.ts';
 import {ticketVerificationSignature} from '../../src/ticket-operation-types.ts';
 import {systemJournal} from '../../src/services/journal-service.ts';
-import {initializeTools, registry} from '../../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 
 let root: string, store: WorkflowStore | undefined;
 afterEach(() => {store?.close(); if(root) fs.rmSync(root,{recursive:true,force:true});});
 it('keeps the current specification through progression, durable history, condensation and reopening', async () => {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-ticket-journal-'));
   store=new WorkflowStore(root); initializeTools();
-  const call=(name:string, args:unknown) => registry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
+  const call=(name:string, args:unknown) => commandRegistry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
   const ticketId='JOURNEY', body='Repair the saved total. Preserve decimal precision.';
   await call('create_ticket',{id:ticketId,title:'Repair saved total',body});
   expect((await call('get_ticket',{ticketId})).body).toBe(body);
@@ -48,7 +48,7 @@ it('keeps the current specification through progression, durable history, conden
 
 it('preserves legacy bodies and evidence atomically, retains historical verification, and rejects stale or unreviewed cleanup', async () => {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-journal-migration-'));store=new WorkflowStore(root);initializeTools();
-  const call=(name:string,args:unknown)=>registry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
+  const call=(name:string,args:unknown)=>commandRegistry.execute(name,args,{store:store!,projectRoot:root,executionAuthority:'project-write'});
   const ticketId='LEGACY',specification='Preserve decimal precision.',body=specification+'\n\nHistorical run: failed, corrected, passed. Evidence: tests/total.test.ts';
   await call('create_ticket',{id:ticketId,title:'Decimal total',body});
   // Existing owner seeds a controlled historical completion; this fixture is not current product acceptance.
@@ -84,7 +84,7 @@ it('preserves legacy bodies and evidence atomically, retains historical verifica
 
 it('bounds default context, paginates all originals, replaces only summaries and enforces write authority', async () => {
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-journal-bounds-'));store=new WorkflowStore(root);initializeTools();
-  const call=(name:string,args:unknown,executionAuthority:'read-only'|'project-write'='project-write')=>registry.execute(name,args,{store:store!,projectRoot:root,executionAuthority});
+  const call=(name:string,args:unknown,executionAuthority:'read-only'|'project-write'='project-write')=>commandRegistry.execute(name,args,{store:store!,projectRoot:root,executionAuthority});
   const ticketId='BOUNDS';await call('create_ticket',{id:ticketId,title:'Bounded history',body:'Current specification.'});
   for(let i=0;i<23;i++) await call('record_ticket_event',{ticketId,kind:'action',message:`Action ${i}: `+'detail '.repeat(100),references:[`docs/evidence/${i}.json`]});
   const first=await call('get_ticket_history',{ticketId,limit:7});

@@ -9,7 +9,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
   let tempDir: string;
   let store: WorkflowStore;
   let ctx: ToolContext;
-  const registry = initializeTools();
+  const commandRegistry = initializeTools();
 
   beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-compiler-test-'));
@@ -26,7 +26,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
   });
 
   it('should compile an atomic codelet and run its verification harness', async () => {
-    const res = await registry.execute('compile_codelet', {
+    const res = await commandRegistry.execute('compile_codelet', {
       name: 'add_numbers',
       description: 'Add two numbers together',
       sourceCode: 'return (args.a || 0) + (args.b || 0);',
@@ -40,7 +40,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(res.verified).toBe(true);
     expect(fs.existsSync(res.filePath)).toBe(true);
 
-    const runRes = await registry.execute('run_codelet', {
+    const runRes = await commandRegistry.execute('run_codelet', {
       codeletId: res.id,
       args: { a: 100, b: 50 }
     }, ctx);
@@ -51,7 +51,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
 
   it('should reject invalid syntax and failing verification tests in compile_codelet', async () => {
     // 1. Syntax error in codelet
-    const syntaxFail = await registry.execute('compile_codelet', {
+    const syntaxFail = await commandRegistry.execute('compile_codelet', {
       name: 'broken_syntax',
       description: 'Contains broken javascript syntax',
       sourceCode: 'return const = ;'
@@ -61,7 +61,7 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(syntaxFail.verificationError).toBeDefined();
 
     // 2. Assertion failure in test harness
-    const assertFail = await registry.execute('compile_codelet', {
+    const assertFail = await commandRegistry.execute('compile_codelet', {
       name: 'failed_math',
       description: 'Returns wrong answer',
       sourceCode: 'return 100;',
@@ -75,22 +75,22 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     expect(assertFail.verificationError).toContain('Expected 999');
 
     // 3. Attempting to promote an unverified codelet must throw an error
-    expect(registry.execute('promote_codelet', {
+    expect(commandRegistry.execute('promote_codelet', {
       codeletId: assertFail.id
     }, ctx)).rejects.toThrow('Cannot promote unverified codelet');
 
     // 4. Attempting to promote or run a non-existent codelet must throw an error
-    expect(registry.execute('promote_codelet', {
+    expect(commandRegistry.execute('promote_codelet', {
       codeletId: 'codelet-does_not_exist'
     }, ctx)).rejects.toThrow('not found');
 
-    expect(registry.execute('run_codelet', {
+    expect(commandRegistry.execute('run_codelet', {
       codeletId: 'codelet-does_not_exist'
     }, ctx)).rejects.toThrow('not found');
   });
 
-  it('should promote a verified codelet dynamically into ToolRegistry and execute it', async () => {
-    const compileRes = await registry.execute('compile_codelet', {
+  it('should promote a verified codelet dynamically into CommandRegistry and execute it', async () => {
+    const compileRes = await commandRegistry.execute('compile_codelet', {
       name: 'format_currency',
       description: 'Format a number to USD string',
       sourceCode: 'return "$" + Number(args.amount).toFixed(2);',
@@ -102,18 +102,18 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
 
     expect(compileRes.verified).toBe(true);
 
-    const promoRes = await registry.execute('promote_codelet', {
+    const promoRes = await commandRegistry.execute('promote_codelet', {
       codeletId: compileRes.id
     }, ctx);
 
     expect(promoRes.promoted).toBe(true);
     expect(promoRes.toolName).toBe('custom_format_currency');
 
-    // Tool should now be in the live registry!
-    const tool = registry.get('custom_format_currency');
+    // Tool should now be in the live commandRegistry!
+    const tool = commandRegistry.get('custom_format_currency');
     expect(tool).toBeDefined();
 
-    const executed = await registry.execute('custom_format_currency', { amount: 123.45 }, ctx);
+    const executed = await commandRegistry.execute('custom_format_currency', { amount: 123.45 }, ctx);
     expect(executed).toBe('$123.45');
   });
 
@@ -121,10 +121,10 @@ describe('Codelet Compiler, Promotion & Two-Tier Routing', () => {
     const fileA = path.join(tempDir, 'fileA.ts'), fileB = path.join(tempDir, 'fileB.ts');
     fs.writeFileSync(fileA, 'const a = 1;\n');
     fs.writeFileSync(fileB, 'const b = 2;\n');
-    await expect(registry.execute('apply_block_patch', {
+    await expect(commandRegistry.execute('apply_block_patch', {
       filePath: 'fileA.ts', targetContent: 'const a = 1;', replacementContent: 'const a = 3;'
     }, ctx)).rejects.toThrow('retired');
-    await expect(registry.execute('apply_block_patch', {patches: [
+    await expect(commandRegistry.execute('apply_block_patch', {patches: [
       {file: 'fileA.ts', search: 'const a = 1;', replace: 'const a = 3;'},
       {file: 'fileB.ts', search: 'const b = 2;', replace: 'const b = 4;'}
     ]}, ctx)).rejects.toThrow('retired');

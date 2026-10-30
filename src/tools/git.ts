@@ -6,11 +6,11 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { registry, type ToolContext } from './registry.ts';
+import { commandRegistry, type ToolContext } from './registry.ts';
 import { Ticket, Decision } from '../model/ontology.ts';
 
 export function registerGitTools() {
-  registry.register({
+  commandRegistry.register({
     name: 'get_git_status',
     description: 'Get structured git status showing staged, modified, and untracked files.',
     category: 'git',
@@ -73,7 +73,7 @@ export function registerGitTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_git_diff',
     description: 'Inspect uncommitted git diff in the working tree or for a specific file.',
     category: 'git',
@@ -101,7 +101,7 @@ export function registerGitTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'create_snapshot_checkpoint',
     description: 'Save a non-destructive patch backup of uncommitted changes before risky operations.',
     category: 'git',
@@ -135,7 +135,7 @@ export function registerGitTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'get_git_hotspots',
     description: 'Identify files with the highest commit churn to locate unstable areas.',
     category: 'git',
@@ -171,7 +171,7 @@ export function registerGitTools() {
     }
   });
 
-  registry.register({
+  commandRegistry.register({
     name: 'generate_pr_summary',
     description: 'Generate conventional commit and PR summary grounded in ticket context and ADRs.',
     category: 'git',

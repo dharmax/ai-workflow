@@ -13,7 +13,7 @@ import { exportProjections } from './services/projection-service.ts';
 import { Ticket, Epic } from './model/ontology.ts';
 import { saveConfig } from './services/config-service.ts';
 import { buildMcpSchemas } from './mcp.ts';
-import { initializeTools, registry } from './tools/index.ts';
+import { initializeTools, commandRegistry } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
 import { checkHostTypeScriptCompatibility, resolveTs6RefactorRuntime, ensureHostTypeScript7, ensureTs6RefactorRuntime, type TsProvisionResult, type TsResolverSeams } from './typescript-runtime.ts';
 import {PRIME_DIRECTIVE, MCP_INSTRUCTIONS_2_0, REPOSITORY_INVESTIGATION, BOUNDED_COMPLETION} from './client-guidance.ts';
@@ -400,7 +400,7 @@ export function configureMcp(optionsOrCliPath?: string | ConfigureMcpOptions): M
   const pkgRoot = path.resolve(__dirname, '..');
   const resolvedMcp = options.mcpPath ? path.resolve(options.mcpPath) : path.resolve(__dirname, 'mcp.ts');
   initializeTools();
-  const allToolNames = ['execute_shell_wish', ...getPublicMcpTools(registry).map(t => t.name)];
+  const allToolNames = ['execute_shell_wish', ...getPublicMcpTools(commandRegistry).map(t => t.name)];
   const installed = options.binaryPath || options.cliPath || path.join(home, '.local', 'bin', 'aiwf');
   const isBunRuntime = path.basename(process.execPath, '.exe') === 'bun';
   const useBinary = !options.link && (options.binaryPath || options.cliPath || fs.existsSync(installed) || !isBunRuntime);

@@ -5,7 +5,7 @@ import os from 'node:os';
 import { canonical, computeHash } from '../src/kb/canonical.ts';
 import { KnowledgeBaseClient } from '../src/kb/client.ts';
 import type { KnowledgeManifest } from '../src/kb/types.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('Content-Addressable Knowledgebase Client & Registry', () => {
   let tempCacheDir: string;
@@ -166,8 +166,8 @@ describe('Content-Addressable Knowledgebase Client & Registry', () => {
   });
 
   it('should have search_knowledgebase and get_knowledge_item tools registered', async () => {
-    const searchTool = registry.get('search_knowledgebase');
-    const getTool = registry.get('get_knowledge_item');
+    const searchTool = commandRegistry.get('search_knowledgebase');
+    const getTool = commandRegistry.get('get_knowledge_item');
 
     expect(searchTool).toBeDefined();
     expect(getTool).toBeDefined();

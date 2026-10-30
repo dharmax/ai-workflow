@@ -5,7 +5,7 @@ import path from 'node:path';
 import {Database} from 'bun:sqlite';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {Epic, Feature, Ticket, UserStory} from '../src/model/ontology.ts';
-import {initializeTools, registry} from '../src/tools/index.ts';
+import {initializeTools, commandRegistry} from '../src/tools/index.ts';
 import {exportProjections, importProjections} from '../src/services/projection-service.ts';
 import {processShellInput} from '../src/shell.ts';
 import {proposeEpicStructure} from '../src/product/decompose.ts';
@@ -14,7 +14,7 @@ import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 
 let root: string, store: WorkflowStore;
 const cli=path.resolve('src/cli.ts');
-const call=(name: string,args: Record<string,unknown>)=>registry.execute(name,args,{store,projectRoot:root,executionAuthority:'project-write'});
+const call=(name: string,args: Record<string,unknown>)=>commandRegistry.execute(name,args,{store,projectRoot:root,executionAuthority:'project-write'});
 const run=(...args: string[])=>Bun.spawnSync(['bun',cli,...args],{cwd:root,stderr:'pipe'});
 beforeEach(()=>{root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-numeric-priority-'));store=new WorkflowStore(root);initializeTools();});
 afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
@@ -22,7 +22,7 @@ afterEach(()=>{store.close();fs.rmSync(root,{recursive:true,force:true});});
 describe('canonical numeric priority migration',()=>{
  it('uses integers 0-5/default 2 through public Ticket/Bug APIs and validates all Product schemas',async()=>{
   for(const kind of ['Epic','Feature','Ticket']) {
-   const fields=registry.get(kind==='Ticket'?'create_ticket':kind==='Epic'?'create_epic':'create_feature')!.parameters;
+   const fields=commandRegistry.get(kind==='Ticket'?'create_ticket':kind==='Epic'?'create_epic':'create_feature')!.parameters;
    expect(fields.safeParse({title:'Default'}).success).toBe(true);
    for(const priority of [-1,6,1.5,'P1','2',null]) expect(fields.safeParse({title:'Invalid',priority}).success).toBe(false);
    for(const priority of [0,1,2,3,4,5]) expect(fields.safeParse({title:'Valid',priority}).success).toBe(true);

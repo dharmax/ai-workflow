@@ -8,7 +8,7 @@ import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients, TsLspClient } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
-import { initializeTools, registry } from '../src/tools/index.ts';
+import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('AIWF-NATIVE-CODE-CHANGE', () => {
   let tmpDir: string;
@@ -242,7 +242,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       const ctx = { store, projectRoot: tmpDir, executionAuthority: 'project-write' as const };
 
       // Tool call: preview_change
-      const preview: any = await registry.execute('preview_change', {
+      const preview: any = await commandRegistry.execute('preview_change', {
         action: 'rename_symbol',
         target: { type: 'symbol', filePath: 'foo.ts', symbolName: 'calculateValue' },
         newName: 'getVal'
@@ -257,7 +257,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
         target: {type: 'symbol' as const, filePath: 'foo.ts', symbolName: 'calculateValue'},
         newName: 'getVal'
       };
-      await expect(registry.execute('apply_change', {request, fingerprint: preview.fingerprint}, ctx))
+      await expect(commandRegistry.execute('apply_change', {request, fingerprint: preview.fingerprint}, ctx))
         .rejects.toThrow('ticketId');
       const applyResult = await new CausalChangeEngine({store, projectRoot:tmpDir}).applyChange(request, preview.fingerprint);
       expect(applyResult.ok).toBe(true);
@@ -288,7 +288,7 @@ describe('Public CLI file move with external imports', () => {
       await ensureAstFresh(store, root);
       const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {id: 'CLI-MOVE', title: 'Move external importer', body: '', lane: 'Todo', acceptanceCriteria: ['Preserve external imports and public exports']});
       await store.relate(ticket, 'modifies', (await store.getEntity('a.ts', 'FileNode'))!);
-      await registry.execute('claim_ticket', {ticketId: 'CLI-MOVE', agentId: 'operator'}, {store, projectRoot: root, executionAuthority: 'project-write'});
+      await commandRegistry.execute('claim_ticket', {ticketId: 'CLI-MOVE', agentId: 'operator'}, {store, projectRoot: root, executionAuthority: 'project-write'});
       expect((await store.getOutgoing('a.ts', 'imports')).some(edge => edge.targetType === 'ModuleNode')).toBe(true);
     } finally { store.close(); }
   });
@@ -334,9 +334,9 @@ describe('Governed LSP operation scope', () => {
   let root: string, store: WorkflowStore;
   const ctx = () => ({store, projectRoot: root, executionAuthority: 'project-write' as const});
   const preview = (request: import('../src/change/types.ts').ChangeRequest, agentId = 'operator') =>
-    registry.execute('preview_change', {...request, ticketId: 'LSP', agentId}, ctx());
+    commandRegistry.execute('preview_change', {...request, ticketId: 'LSP', agentId}, ctx());
   const apply = (request: import('../src/change/types.ts').ChangeRequest, fingerprint: string, agentId = 'operator') =>
-    registry.execute('apply_change', {request, fingerprint, ticketId: 'LSP', agentId}, ctx());
+    commandRegistry.execute('apply_change', {request, fingerprint, ticketId: 'LSP', agentId}, ctx());
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-lsp-scope-'));
     fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({compilerOptions: {module: 'ESNext', moduleResolution: 'bundler', target: 'ESNext'}}));
@@ -349,7 +349,7 @@ describe('Governed LSP operation scope', () => {
     await ensureAstFresh(store, root);
     const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {id: 'LSP', title: 'Refactor calculate', lane: 'Todo', acceptanceCriteria: ['Preserve behavior']});
     await store.relate(ticket, 'modifies', (await store.getEntity('a.ts', 'FileNode'))!);
-    await registry.execute('claim_ticket', {ticketId: 'LSP', agentId: 'operator'}, ctx());
+    await commandRegistry.execute('claim_ticket', {ticketId: 'LSP', agentId: 'operator'}, ctx());
   });
   afterEach(async () => {await closeAllTsLspClients(); await closeAllTs6RefactorClients(); store.close(); fs.rmSync(root, {recursive: true, force: true});});
 

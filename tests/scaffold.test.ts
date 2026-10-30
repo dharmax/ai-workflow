@@ -10,7 +10,7 @@ describe('Greenfield Code Scaffolding (aiwf scaffold)', () => {
   let tempDir: string;
   let store: WorkflowStore;
   let ctx: ToolContext;
-  const registry = initializeTools();
+  const commandRegistry = initializeTools();
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-scaffold-test-'));
@@ -24,7 +24,7 @@ describe('Greenfield Code Scaffolding (aiwf scaffold)', () => {
   });
 
   it('scaffolds a new typed module paired with a test suite and indexes it', async () => {
-    const res = await registry.execute('scaffold_file', {
+    const res = await commandRegistry.execute('scaffold_file', {
       targetPath: 'src/services/payment-processor.ts',
       description: 'Handles online payments and refunds'
     }, ctx);
@@ -61,7 +61,7 @@ describe('Greenfield Code Scaffolding (aiwf scaffold)', () => {
     fs.mkdirSync(path.dirname(srcFile), { recursive: true });
     fs.writeFileSync(srcFile, 'export const x = 1;');
 
-    expect(registry.execute('scaffold_file', {
+    expect(commandRegistry.execute('scaffold_file', {
       targetPath: 'src/utils.ts'
     }, ctx)).rejects.toThrow('Target file already exists');
   });
