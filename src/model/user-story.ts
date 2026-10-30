@@ -1,5 +1,9 @@
+/**
+ * Responsibility: Own the UserStory domain entity and its contracts.
+ * Scope: Scenario fields, definition review, completeness and derived-state access.
+ */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity } from './workflow-entity.ts'
+import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -10,8 +14,26 @@ import { z } from 'zod'
 
 export const UserStoryStateSchema = z.enum(["draft", "proposed", "accepted", "deprecated"])
 
+import type { IntentStatus } from './types.ts'
+
+export interface UserStoryData extends BaseEntityData {
+  intent?: string;
+  initialState?: string;
+  action?: string;
+  expectedResult?: string;
+  exceptions?: string;
+  bounds?: string;
+  completenessTarget?: CompletenessLevel | null;
+  status?: IntentStatus;
+  actor?: string;
+  story?: string;
+  context?: string;
+  acceptanceCriteria?: string[];
+  sla?: string;
+}
+
 export class UserStory extends WorkflowEntity {
-    declare status: import('./types.ts').IntentStatus
+    declare status: IntentStatus
     declare actor?: string
     declare intent?: string
     declare initialState?: string
@@ -38,8 +60,9 @@ export class UserStory extends WorkflowEntity {
             .filter(field => typeof this[field] !== "string" || !this[field]?.trim())
         return { status: missingFields.length ? "needs_review" as const : "complete" as const, missingFields }
     }
-    process(store: WorkflowStore, options: ProcessOptions = {}) {
-        return WorkflowEntity.processIntent(this, store, options)
+    async process(store: WorkflowStore, options: ProcessOptions = {}) {
+        const { processIntent } = await import('../product/process.ts')
+        return processIntent(store, this, options)
     }
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)

@@ -1,6 +1,18 @@
+/**
+ * Responsibility: Own the TestNode domain entity and its contracts.
+ * Scope: Test execution, Story evidence and technical proof references.
+ */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity } from './workflow-entity.ts'
+import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
+
+
+export interface TestData extends BaseEntityData {
+  targetPath: string;
+  framework?: string;
+  lastRun?: string;
+  passed?: boolean;
+}
 
 export class TestNode extends WorkflowEntity {
     declare status?: string

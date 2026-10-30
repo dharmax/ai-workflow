@@ -8,14 +8,8 @@ import { Rule, Artifact, ModuleNode } from '../model/ontology.ts';
 import { createHash } from 'node:crypto';
 import { canonical } from '../kb/canonical.ts';
 import { validateReferenceSnapshot, resolveRuleReference } from './references.ts';
-import {
-  RuleSchema,
-  RulePackSchema,
-  type RuleModel,
-  type RulePack,
-  type ResolvedRule,
-  type RuleScope
-} from './types.ts';
+import { RuleSchema, type RuleModel, type RuleScope } from '../model/rule.ts';
+import { RulePackSchema, type RulePack, type ResolvedRule } from './types.ts';
 import defaultsData from './defaults.json' with { type: 'json' };
 
 export class RuleStore {

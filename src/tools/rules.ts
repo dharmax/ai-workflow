@@ -2,7 +2,7 @@
 import {z} from 'zod';
 import {registry} from './registry.ts';
 import {RuleStore} from '../rules/store.ts';
-import {RuleScopeSchema} from '../rules/types.ts';
+import {RuleScopeSchema} from '../model/rule.ts';
 import {resolveRuleReference} from '../rules/references.ts';
 import {exportProjections} from '../services/projection-service.ts';
 export const RuleChangeSchema = z.object({

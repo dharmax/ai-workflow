@@ -27,7 +27,7 @@ export const InvestigationJudgmentSchema = z.object({
 export type InvestigationJudgment = z.infer<typeof InvestigationJudgmentSchema>;
 export interface TicketDossier {
   history?: Awaited<ReturnType<typeof import('./services/journal-service.ts').ticketHistoryContext>>;
-  ticket: { id: string; title: string; body: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./model/types.ts').TicketDefect };
+  ticket: { id: string; title: string; body: string; lane: string; acceptanceCriteria: string[]; kind?: 'task'|'bug'; defect?: import('./model/ticket.ts').TicketDefect };
   disposition: InvestigationJudgment['disposition']; rationale: string;
   evidence: TicketEvidence[];
   findings?: string[];
@@ -59,7 +59,7 @@ export const TicketPreparationProposalSchema = z.object({
 export type TicketPreparationProposal = z.infer<typeof TicketPreparationProposalSchema>;
 export interface PreparationOptions extends InvestigationOptions {
   /** Exact enclosing execution lease; never supplied by the model transport. */
-  owner?: import("./model/types.ts").TicketClaim;
+  owner?: import("./model/ticket.ts").TicketClaim;
   agentId?: string;
   propose?: (dossier: TicketDossier, findings: readonly CriticFinding[]) => Promise<TicketPreparationProposal>;
 }
@@ -152,7 +152,7 @@ export interface GovernedChangeScope {
 
 export interface TicketGovernance {
   fingerprint: string;
-  rules: Array<import('./rules/types.ts').RuleModel & { fingerprint: string }>;
+  rules: Array<import('./model/rule.ts').RuleModel & { fingerprint: string }>;
   decisions: Array<{ id: string; decision?: string; context?: string; consequences?: string; body?: string; status?: string }>;
   aspects: import('./aspects.ts').AspectAssessment;
   targets: Array<{filePath: string; moduleIds: string[]; language?: string; exists: boolean}>;

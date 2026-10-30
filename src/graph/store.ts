@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import {PrioritySchema} from '../model/types.ts';
-import { ticketState, assertTicketAuthoring } from '../model/ticket-state.ts';
+import { ticketState, assertTicketAuthoring } from '../model/ticket.ts';
 import {ticketChangeEvents, ticketEventBatch} from '../services/journal-service.ts';
 import {
   SemanticPackage,
@@ -41,13 +41,28 @@ import {
   Rule,
   Product
 } from '../model/ontology.ts';
-import type {
-  TicketClaim,
-  TicketLane,
-  ProjectHealth,
-  ModuleHealth,
-  SemanticPredicateName
-} from '../model/types.ts';
+import type { TicketClaim, TicketLane } from '../model/ticket.ts';
+import type { SemanticPredicateName } from '../model/predicates.ts';
+import type { CompletenessLevel } from '../artifact-policy.ts';
+
+export interface ModuleHealth {
+  name: string;
+  path: string;
+  completenessTarget?: CompletenessLevel | null;
+  symbolCount: number;
+  bugsCount: number;
+  bugNotesCount: number;
+  activeTickets: string[];
+}
+
+export interface ProjectHealth {
+  totalTickets: number;
+  byLane: Record<TicketLane, number>;
+  /** Operational ticket progress only; never semantic completeness. */
+  completionPercent: number;
+  modules: ModuleHealth[];
+  activeClaims: Array<{ ticketId: string; claim: TicketClaim }>;
+}
 
 export function findProjectRoot(startDir: string = process.cwd()): { root: string; marker: string } {
   let current = path.resolve(startDir);

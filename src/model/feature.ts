@@ -1,5 +1,9 @@
+/**
+ * Responsibility: Own the Feature domain entity and its contracts.
+ * Scope: Capability definitions, priority, completeness and Product processing.
+ */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity } from './workflow-entity.ts'
+import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -7,6 +11,15 @@ import { scopeTarget } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 import type { ProcessOptions } from '../product/process-types.ts'
 import { PrioritySchema } from './types.ts'
+
+import type { IntentStatus } from './types.ts'
+
+export interface FeatureData extends BaseEntityData {
+  priority?: number;
+  completenessTarget?: CompletenessLevel | null;
+  status?: IntentStatus;
+  acceptanceCriteria?: string[];
+}
 
 export class Feature extends WorkflowEntity {
     declare status?: string
@@ -16,8 +29,9 @@ export class Feature extends WorkflowEntity {
     declare boundaries?: string
     declare behavioralRules?: string[]
     declare acceptanceCriteria?: string[]
-    process(store: WorkflowStore, options: ProcessOptions = {}) {
-        return WorkflowEntity.processIntent(this, store, options)
+    async process(store: WorkflowStore, options: ProcessOptions = {}) {
+        const { processIntent } = await import('../product/process.ts')
+        return processIntent(store, this, options)
     }
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)

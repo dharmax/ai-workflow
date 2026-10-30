@@ -1,4 +1,7 @@
-// Explicit ontology composition; entity implementations own their descriptors.
+/**
+ * Responsibility: Compose and publish the canonical graph ontology.
+ * Scope: Descriptor order, durable/ephemeral registration and stable entity exports.
+ */
 import { RawOntology } from '@dharmax/semantika'
 import { Idea } from './idea.ts'
 import { Goal } from './goal.ts'

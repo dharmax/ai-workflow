@@ -246,7 +246,7 @@ export async function prepareTicket(
                     return { status: "blocked", artifactId: id, blockers: [{ reason: `Ticket is leased by '${current.claim!.agentId}'.` }] }
                 if (held && !options.owner)
                     return {status: 'blocked', artifactId: id, blockers: [{reason: 'Preparation requires the exact enclosing execution lease; an agent name does not establish ownership.'}]}
-                let acquired: import("../model/types.ts").TicketClaim | undefined
+                let acquired: import("../model/ticket.ts").TicketClaim | undefined
                 try {
                     if (options.owner) {
                         const {canonical} = await import('../kb/canonical.ts')

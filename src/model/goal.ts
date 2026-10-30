@@ -1,3 +1,7 @@
+/**
+ * Responsibility: Own the Goal domain entity and its contracts.
+ * Scope: Product outcomes and Aspect assessment.
+ */
 import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate } from './entity-templates.ts'

@@ -6,10 +6,10 @@ import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../model/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../services/artifact-critic.ts';
-import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket-state.ts';
+import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
-import type { TicketLane } from '../model/types.ts';
+import type { TicketLane } from '../model/ticket.ts';
 
 const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;
 export type ProductKind = keyof typeof kinds;

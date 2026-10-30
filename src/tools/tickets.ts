@@ -5,13 +5,14 @@
 
 import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
-import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema, assessBug, ticketEligibility } from '../model/ticket-state.ts';
+import { ticketState, TicketLaneSchema, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
+import { ticketEligibility } from '../ticket/eligibility.ts';
 import { ArtifactTransportOptionsSchema } from '../artifact-policy.ts';
 import { registry, type ToolContext } from './registry.ts';
 import { Ticket, Artifact } from '../model/ontology.ts';
 import {readVerificationReceipt} from '../ticket-operation-types.ts';
 import {loadConfig} from '../services/config-service.ts';
-import type { TicketLane } from '../model/types.ts';
+import type { TicketLane } from '../model/ticket.ts';
 import { applyProductMutations } from '../product/mutation.ts';
 import { activateStoryTestsForTicket } from '../product/story-tests.ts';
 import {exportProjections} from '../services/projection-service.ts';
@@ -59,7 +60,7 @@ export function registerTicketTools() {
     parameters: ArtifactTransportOptionsSchema.extend({ ticketId: z.string(), kind: TicketKindSchema.optional(), agentId: z.string().optional(), verifyOnly: z.boolean().optional().describe("Verify existing work without invoking the implementation Actor or editing source; failed checks block rather than repair. Independent acceptance is still required."), maxRepairs: z.number().int().min(0).max(3).optional(), allowDirtyTargets: z.array(z.string()).optional(), authorizedFiles: z.record(z.string(), z.array(z.string())).optional(), testCommands: z.array(z.array(z.string()).min(1)).optional() }),
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
-      if (ticket.kind === 'bug' && !assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};
+      if (ticket.kind === 'bug' && !Ticket.assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:Ticket.assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};
       const result=await ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
       if(ctx.executionAuthority==='project-write' && !ctx.signal?.aborted) await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'outcome',message:result.status==='complete'?'Resolution complete.':JSON.stringify(result).slice(0,12000),references:result.status==='complete'?[`VERIFY-${ticketId}`]:[]});
       return result;
@@ -265,7 +266,7 @@ export function registerTicketTools() {
   registry.register({name:'create_bug',category:'ticket',description:'Report a first-class Bug on the canonical Ticket store; partial reports retain unknowns.',
     parameters:z.object({id:z.string().optional(),title:z.string().min(1),body:z.string().optional(),priority:PrioritySchema.default(2),defect:TicketDefectSchema.optional(),acceptanceCriteria:z.array(z.string()).optional()}),
     execute:async(params,ctx)=>{
-      if (assessBug({kind:'bug',defect:params.defect}).ready) {
+      if (Ticket.assessBug({kind:'bug',defect:params.defect}).ready) {
         const keys=['reproduction','expected','actual','environment'] as const;
         const duplicate=(await ctx.store.listEntities<Ticket>(Ticket.dcr)).find(ticket=>ticket.kind==='bug' && !['Done','Backlog'].includes(ticket.lane) &&
           keys.every(key=>(ticket.defect?.[key]??'').trim()===(params.defect?.[key]??'').trim()));
@@ -294,7 +295,7 @@ export function registerTicketTools() {
     execute:async({ticketId,agentId},ctx)=>{
       const bug=await registry.execute('get_bug',{ticketId},ctx);
       const ticket=await requireTicket(ctx,ticketId);
-      const report=assessBug(ticket);
+      const report=Ticket.assessBug(ticket);
       const eligibility=await ticketEligibility(ctx.store,ticket,agentId);
       return {...bug,missing:report.missing,reasons:eligibility.reasons};
     }});

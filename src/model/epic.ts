@@ -1,5 +1,9 @@
+/**
+ * Responsibility: Own the Epic domain entity and its contracts.
+ * Scope: Delivery grouping, priority, completeness and Product processing.
+ */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity } from './workflow-entity.ts'
+import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
 import { baseTemplate, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -8,11 +12,25 @@ import type { CompletenessLevel } from '../artifact-policy.ts'
 import type { ProcessOptions } from '../product/process-types.ts'
 import { PrioritySchema } from './types.ts'
 
+
+export interface EpicData extends BaseEntityData {
+  completenessTarget?: CompletenessLevel | null;
+  status?: EpicStatus;
+  priority?: number;
+}
+export type EpicStatus =
+  | 'draft'
+  | 'planned'
+  | 'active'
+  | 'completed'
+  | 'cancelled';
+
 export class Epic extends WorkflowEntity {
     declare priority: number
     declare status?: string
-    process(store: WorkflowStore, options: ProcessOptions = {}) {
-        return WorkflowEntity.processIntent(this, store, options)
+    async process(store: WorkflowStore, options: ProcessOptions = {}) {
+        const { processIntent } = await import('../product/process.ts')
+        return processIntent(store, this, options)
     }
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)

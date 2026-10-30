@@ -39,7 +39,7 @@ import type {
 } from './types.ts';
 
 export interface ChangeEngineOptions {
-  ticketLease?: {ticketId: string; claim: import('../model/types.ts').TicketClaim};
+  ticketLease?: {ticketId: string; claim: import('../model/ticket.ts').TicketClaim};
   governedAdmission?: string;
   store: WorkflowStore;
   projectRoot: string;

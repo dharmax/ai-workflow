@@ -5,7 +5,7 @@ import {TestBindingSpecificationSchema} from './model/test-proof-types.ts';
 import {Command,CommanderError,InvalidArgumentError,Option} from 'commander';
 import {formatBuildInfo} from './version.ts';
 import {CONFIG_HELP} from './config-command.ts';
-import {TicketDefectSchema} from './model/ticket-state.ts';
+import {TicketDefectSchema} from './model/ticket.ts';
 import {LinkActionSchema,type LinkAction,type DefinitionReviewInput} from './product/links.ts';
 import {normalizeLinkPayload} from './product/mutation.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';

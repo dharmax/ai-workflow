@@ -1,3 +1,7 @@
+/**
+ * Responsibility: Define cross-entity technical proof and binding contracts.
+ * Scope: Reviewed Ticket/Test scope bindings and hashed technical proof contracts.
+ */
 import {z} from 'zod';
 const SourceSchema=z.object({projectRoot:z.string().min(1).optional(),filePath:z.string().min(1),symbolName:z.string().min(1).optional()}).strict();
 export const ScopeSchema=z.object({

@@ -1,3 +1,7 @@
+/**
+ * Responsibility: Own the Concept domain entity and its contracts.
+ * Scope: Shared Product meaning and Aspect assessment.
+ */
 import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate } from './entity-templates.ts'

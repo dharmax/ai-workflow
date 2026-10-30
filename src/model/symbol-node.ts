@@ -1,6 +1,20 @@
+/**
+ * Responsibility: Own the SymbolNode domain entity and its contracts.
+ * Scope: Indexed declaration identity, source coordinates and signature.
+ */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity } from './workflow-entity.ts'
+import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
+
+
+export interface SymbolData extends BaseEntityData {
+  filePath: string;
+  kind: 'function' | 'class' | 'method' | 'type' | 'interface' | 'variable' | 'const' | 'enum';
+  exported: boolean;
+  line: number;
+  column: number;
+  signature?: string;
+}
 
 export class SymbolNode extends WorkflowEntity {
     declare title?: string

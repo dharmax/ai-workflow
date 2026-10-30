@@ -1,3 +1,7 @@
+/**
+ * Responsibility: Own the Flow domain entity and its contracts.
+ * Scope: Product journey context and Aspect assessment.
+ */
 import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'

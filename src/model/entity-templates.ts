@@ -1,3 +1,7 @@
+/**
+ * Responsibility: Provide validators and field defaults shared by entity descriptors.
+ * Scope: Common field defaults, passthrough validation and completeness validation.
+ */
 import { z } from 'zod'
 
 export const CompletenessSchema = z.enum(['poc', 'functional', 'advanced', 'production']);

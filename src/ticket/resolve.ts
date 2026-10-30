@@ -7,11 +7,10 @@ import {recordTicketEvent} from '../services/journal-service.ts'
 import {assertChangeScope, buildSourceScope} from './source-scope.ts'
 import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
-import {assessBug} from "../model/ticket-state.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
 import { Ticket, TestNode, Artifact, UserStory, FileNode } from "../model/ontology.ts"
-import type {TicketClaim} from "../model/types.ts"
+import type { TicketClaim } from '../model/ticket.ts';
 import type { WorkflowStore } from "../graph/store.ts"
 import type {
     ResolutionOptions,
@@ -185,8 +184,8 @@ export async function resolveTicket(
                     if (ticket.lane === 'Cancelled')
                         return needs(`Reopen cancelled Ticket '${id}' before resolving it.`,
                             'Cancellation is not successful completion and cannot silently resume execution.', 'Ticket lane')
-                    if (ticket.kind === 'bug' && !assessBug(ticket).ready)
-                        return needs(`Complete Bug report '${id}': ${assessBug(ticket).missing.join(', ')}.`,
+                    if (ticket.kind === 'bug' && !Ticket.assessBug(ticket).ready)
+                        return needs(`Complete Bug report '${id}': ${Ticket.assessBug(ticket).missing.join(', ')}.`,
                             'A partial defect report is not an executable implementation contract.', 'Bug reproduction')
                     for (const edge of await store.getOutgoing(ticket.id, 'addresses')) {
                         const story = await store.getEntity<UserStory>(edge.targetId, UserStory.dcr)

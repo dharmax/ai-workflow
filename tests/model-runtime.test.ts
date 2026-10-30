@@ -7,6 +7,8 @@ import {SemanticPackage, SqliteStore} from '@dharmax/semantika';
 import * as ontology from '../src/model/ontology.ts';
 import {WorkflowEntity} from '../src/model/workflow-entity.ts';
 import contracts from './fixtures/model-contract.json';
+// These public type exports predate decomposition; typecheck must keep resolving every name.
+import type { TicketLane, EntityStatus, EpicStatus, IntentStatus, TicketClaim, BaseEntityData, IdeaData, EpicData, AspectData, FeatureData, UserStoryData, TicketDefect, TicketData, ModuleData, FileData, SymbolData, TestData, DecisionData, LessonData, ArtifactData, CallSiteData, TraceData, SemanticPredicatePayload, SemanticPredicateName, ModuleHealth, ProjectHealth } from '../src/index.ts';
 
 // Frozen before extraction using native model construction; not inferred from the refactored classes.
 const names = contracts.map(contract => contract.descriptor.name);
@@ -57,6 +59,10 @@ it('preserves descriptor contracts, defaults, typed persistence, reload and rela
   const policy = await import('../src/artifact-policy.ts');
   const templates = await import('../src/model/entity-templates.ts');
   expect(policy.CompletenessSchema).toBe(templates.CompletenessSchema);
+  const ruleContracts = await import('../src/rules/types.ts');
+  const ruleEntity = await import('../src/model/rule.ts');
+  for (const name of ["RuleTypeSchema","RuleScopeSchema","RuleExampleSchema","RuleReferenceSelectorSchema","RuleReferenceSnapshotSchema","RuleReferenceSchema","RuleTestSchema","RuleSchema"] as const)
+    expect(ruleContracts[name]).toBe(ruleEntity[name]);
   for (const [alias, name] of Object.entries(aliases)) {
     const exports = ontology as unknown as Record<string, typeof WorkflowEntity>;
     expect(exports[alias]).toBe(exports[name]);

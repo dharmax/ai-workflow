@@ -1,5 +1,39 @@
+/**
+ * Responsibility: Own semantic relationship descriptors and their contracts.
+ * Scope: Relationship names, payload contracts and unchanged Semantika descriptors.
+ */
 import { PredicateDcr } from '@dharmax/semantika'
 import { passthroughValidator } from './entity-templates.ts'
+
+
+export interface SemanticPredicatePayload {
+  confidence?: 'speculative' | 'probable' | 'confirmed';
+  state?: 'abstract' | 'designed' | 'implemented' | 'verified';
+  weight?: number; // 0.0 - 1.0 for fuzzy/speculative ranking
+  note?: string;
+  sourceRange?: { startLine: number; endLine: number };
+  timestamp?: number;
+  [key: string]: any;
+}
+export type SemanticPredicateName =
+  | 'applies_to'
+  | 'contains'
+  | 'calls'
+  | 'inherits'
+  | 'depends_on'
+  | 'imports'
+  | 'implements'
+  | 'addresses'
+  | 'modifies'
+  | 'targets'
+  | 'verifies'
+  | 'fuzzy_relates'
+  | 'potentially_affects'
+  | 'governs'
+  | 'blocks'
+  | 'inspires'
+  | 'generates'
+  | 'trace_links';
 
 export const predicatePayloadTemplate = {
     confidence: passthroughValidator,

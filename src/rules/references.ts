@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {getTsLspClient, type LspDocumentSymbol} from '../change/ts-lsp.ts';
 import {getExactSymbolSource} from '../change/symbol-source.ts';
 import {canonical} from '../kb/canonical.ts';
-import {RuleReferenceSchema, RuleReferenceSnapshotSchema, type RuleReference, type RuleReferenceSnapshot} from './types.ts';
+import {RuleReferenceSchema, RuleReferenceSnapshotSchema, type RuleReference, type RuleReferenceSnapshot} from '../model/rule.ts';
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const kinds: Record<number, string> = {5: 'class', 6: 'method', 9: 'constructor', 10: 'enum', 11: 'interface', 12: 'function', 13: 'variable', 14: 'constant'};
 function manifest(snapshot: RuleReferenceSnapshot): string {
