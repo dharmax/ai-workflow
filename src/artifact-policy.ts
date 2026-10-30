@@ -1,7 +1,13 @@
+import { CompletenessSchema } from './model/entity-templates.ts';
 import { z } from 'zod';
 import { loadConfig } from './services/config-service.ts';
 import type { WorkflowStore } from './graph/store.ts';
-import { Epic, Feature, UserStory, ModuleNode, Ticket, type WorkflowEntity } from './model/ontology.ts';
+import { Epic } from './model/epic.ts';
+import { Feature } from './model/feature.ts';
+import { UserStory } from './model/user-story.ts';
+import { ModuleNode } from './model/module-node.ts';
+import { Ticket } from './model/ticket.ts';
+import { type WorkflowEntity } from './model/workflow-entity.ts';
 
 /** An operation outcome has an artifact/test identity; a Ticket's work status is a separate dimension. */
 export function isBlockedOperation(result: unknown): boolean {
@@ -9,7 +15,7 @@ export function isBlockedOperation(result: unknown): boolean {
     'status' in result && (result.status === 'blocked' || result.status === 'needs_input');
 }
 
-export const CompletenessSchema = z.enum(['poc', 'functional', 'advanced', 'production']);
+export { CompletenessSchema } from './model/entity-templates.ts';
 export type CompletenessLevel = z.infer<typeof CompletenessSchema>;
 export interface CriticFinding { readonly message: string; readonly artifactId?: string }
 export interface RequiredInput { readonly question: string; readonly artifactId?: string }
