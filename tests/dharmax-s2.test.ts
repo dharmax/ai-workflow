@@ -22,7 +22,14 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
     return Object.fromEntries((tables.all() as Array<{name:string}>).map(({name}) => {
       using rows = store.db.prepare('SELECT * FROM "' + name + '" ORDER BY rowid');
       return [name, (rows.all() as Record<string,unknown>[])
-        .filter(row => admission || !String(row._id).endsWith('GOVERNANCE-ADMISSION'))];
+        .filter(row => {
+          if (name === 'aiwf_Artifact' && row._id === 'aiwf_Artifact_INDEX-ADMISSION') {
+            // Index coordination is operational, but every admission must be released.
+            expect(JSON.parse(String(row.data))).toEqual({title: 'Project index admission', body: '[]', status: 'active'});
+            return false;
+          }
+          return admission || !String(row._id).endsWith('GOVERNANCE-ADMISSION');
+        })];
     }));
   };
   const reopen = async () => {

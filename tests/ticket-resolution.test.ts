@@ -1290,16 +1290,30 @@ describe('Ticket-owned bounded resolution', () => {
     }
   }, 30000)
 
-  it('keeps an actual Actor edit unaccepted when final prose supplies no structured proposal', async () => {
+  for (const correctsFinal of [false, true]) it(`bounds Actor final-prose correction and requires a structured proposal: correction=${correctsFinal}`, async () => {
+    const original = fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8') + 'export function unrelated() { return 42; }\n'
+    fs.writeFileSync(path.join(root, 'src/add.ts'), original)
+    git('add', 'src/add.ts')
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'unrelated symbol fixture')
+    await indexCodebase(store, root)
+    const testSource = fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')
     const t = await ticket()
-    let calls = 0
+    const phases: string[] = []
     let acceptanceCalls = 0
     const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}
-    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
-      calls++
-      const decision = calls === 1
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
+      const correction = prompt.includes('## Final-answer correction')
+      phases.push(correction ? 'schema-correction' : phases.length === 0 ? 'guarded-edit' : 'invalid-final')
+      expect(phases.length).toBeLessThanOrEqual(3)
+      if (correction) {
+        expect(prompt).toContain('failed the required output schema')
+        expect(prompt).toContain('That answer was not accepted')
+      }
+      const decision = phases.length === 1
         ? {thought: 'Apply grounded change', action: 'tool_call', toolCalls: [{name: 'safe_change', parameters: request}]}
-        : {thought: 'Done', action: 'final_answer', finalAnswer: 'The implementation is complete.'}
+        : {thought: 'Done', action: 'final_answer', finalAnswer: correction && correctsFinal
+          ? JSON.stringify({changes: [], testCommands: [['bun', 'test', 'tests/add.test.ts']]})
+          : 'The implementation is complete.'}
       return {model, ok: true, text: JSON.stringify(decision)}
     })
     try {
@@ -1307,13 +1321,20 @@ describe('Ticket-owned bounded resolution', () => {
         acceptanceCalls++
         return verify(input)
       }})
-      expect(result.status).toBe('blocked')
-      expect(calls).toBe(2)
-      expect(acceptanceCalls).toBe(0)
-      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toContain('a + b')
-      expect(await store.getEntity('VERIFY-T')).toBeNull()
+      expect(phases).toEqual(['guarded-edit', 'invalid-final', 'schema-correction'])
+      expect(result.status).toBe(correctsFinal ? 'complete' : 'blocked')
+      expect(acceptanceCalls).toBe(correctsFinal ? 1 : 0)
+      expect(fs.readFileSync(path.join(root, 'src/add.ts'), 'utf8')).toBe(original.replace('a - b', 'a + b'))
+      expect(fs.readFileSync(path.join(root, 'tests/add.test.ts'), 'utf8')).toBe(testSource)
+      const receipt = await store.getEntity('VERIFY-T')
       const current = await store.getEntity<Ticket>('T', Ticket.dcr)
-      expect(current?.lane).not.toBe('Done')
+      if (correctsFinal) {
+        expect(receipt).not.toBeNull()
+        expect(current?.lane).toBe('Done')
+      } else {
+        expect(receipt).toBeNull()
+        expect(current?.lane).not.toBe('Done')
+      }
       expect(current?.claim).toBeNull()
     } finally {
       completion.mockRestore()
