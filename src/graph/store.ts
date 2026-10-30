@@ -87,6 +87,8 @@ const admissionSchema = z.array(z.object({token: z.string(), mode: z.enum(['gove
 type BatchEntry = Parameters<SqliteStore['applyBatch']>[0][number];
 type AdmissionLease = z.infer<typeof admissionSchema>[number];
 
+export class ReadOnlyMutationError extends Error {}
+
 export class WorkflowStore {
   private readonly execution = new AsyncLocalStorage<{authority: 'read-only' | 'project-write'; signal?: AbortSignal; active: boolean; productFingerprint?: string; productAnswers?: Readonly<Record<string, string>>}>();
   private readonly indexSection = new AsyncLocalStorage<{active: boolean; expiresAt: number}>();
@@ -134,7 +136,7 @@ export class WorkflowStore {
       throw Error('Index critical section expired; retry the refresh.');
     if (this.testWrites.getStore()?.active === false) throw Error('Test proof authority expired with its owning operation.');
     if (context && (!context.active || context.authority !== 'project-write'))
-      throw Error('Canonical mutation requires project-write authority; read-only execution cannot write.');
+      throw new ReadOnlyMutationError('Canonical mutation requires project-write authority; read-only execution cannot write.');
   }
 
   /**

@@ -233,7 +233,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     expect(bounded.completeWithinScope).toBe(false);
     expect(bounded.skippedFiles).toContain('escape.ts');expect(bounded.skippedFiles).toContain('binary.cfg');
     await expect(registry.execute('get_exact_references',{...position,filePath:'escape.ts'},readOnly)).rejects.toThrow('symlink');
-    await expect(registry.execute('find_symbol',{name:'RetryPolicy'},readOnly)).rejects.toThrow('Failed to index');
+    await expect(registry.execute('find_symbol',{name:'RetryPolicy'},readOnly)).rejects.toThrow('AST index is stale; refresh it with project-write authority');
     expect(await store.listEntities<FileNode>(FileNode.dcr)).toEqual([]);
   });
   it('uses the same stable structural owner for external public members and retires deleted dependency targets',async()=>{
@@ -318,7 +318,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
     const file='src/new_contract.ts';
     fs.writeFileSync(path.join(root,file),'export const answer = 42;\n');
     await expect(store.withExecutionContext('read-only',undefined,()=>ensureAstFresh(store,root)))
-      .rejects.toThrow('Failed to index');
+      .rejects.toThrow('AST index is stale; refresh it with project-write authority');
     expect(await store.getEntity(file,FileNode.dcr)).toBeNull();
     await expect(store.withIndexCriticalSection(async()=>{throw Error('simulated failure');}))
       .rejects.toThrow('simulated failure');

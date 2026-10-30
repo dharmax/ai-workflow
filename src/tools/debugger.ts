@@ -7,8 +7,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { registry, type ToolContext } from './registry.ts';
-import { WorkflowStore } from '../graph/store.ts';
-import { SymbolNode, FileNode } from '../model/ontology.ts';
+import type { WorkflowStore } from '../graph/store.ts';
+import { SymbolNode } from '../model/ontology.ts';
+import { ensureAstFresh, withAstSnapshot } from '../graph/indexer.ts';
 import { analyzeBlastRadius } from './graph-queries.ts';
 
 export interface DebugLocation {
@@ -113,17 +114,18 @@ export async function diagnoseTarget(
   target: string,
   projectRoot: string
 ): Promise<DebugReport> {
-  const locations = parseLocations(target, projectRoot);
+  return withAstSnapshot(async () => {
+    await ensureAstFresh(store, projectRoot);
+    const locations = parseLocations(target, projectRoot);
 
-  if (locations.length > 0) {
-    const debugLocations: DebugLocation[] = [];
+    if (locations.length > 0) {
+      const debugLocations: DebugLocation[] = [];
 
-    for (const loc of locations.slice(0, 5)) {
-      const snippet = extractLineSnippet(loc.filePath, loc.line, projectRoot);
+      for (const loc of locations.slice(0, 5)) {
+        const snippet = extractLineSnippet(loc.filePath, loc.line, projectRoot);
 
-      // Query AST symbol enclosing this line
-      let enclosingSymbol: DebugLocation['enclosingSymbol'];
-      try {
+        // Query AST symbol enclosing this line
+        let enclosingSymbol: DebugLocation['enclosingSymbol'];
         const fileSymbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {
           filePath: loc.filePath
         });
@@ -131,82 +133,82 @@ export async function diagnoseTarget(
         // Find closest symbol starting before or at targetLine
         let closest: SymbolNode | undefined;
         for (const s of fileSymbols) {
-          const sLine = (s as any).startLine || 0;
-          if (sLine <= loc.line && (!closest || sLine > ((closest as any).startLine || 0))) {
+          const sLine = s.line || 1;
+          if (sLine <= loc.line && (!closest || sLine > (closest.line || 1))) {
             closest = s;
           }
         }
 
         if (closest) {
           enclosingSymbol = {
-            name: (closest as any).name || (closest as any).title,
-            kind: (closest as any).kind || 'symbol',
-            startLine: (closest as any).startLine || 0
+            name: closest.title!,
+            kind: closest.kind || 'symbol',
+            startLine: closest.line || 1
           };
         }
-      } catch {}
 
-      debugLocations.push({
-        filePath: loc.filePath,
-        line: loc.line,
-        column: loc.col,
-        snippet,
-        enclosingSymbol
-      });
+        debugLocations.push({
+          filePath: loc.filePath,
+          line: loc.line,
+          column: loc.col,
+          snippet,
+          enclosingSymbol
+        });
+      }
+
+      const blast = await analyzeBlastRadius(store, locations[0].filePath, projectRoot);
+
+      return {
+        target,
+        resolvedKind: locations.length > 1 ? 'stack_trace' : 'location',
+        locations: debugLocations,
+        blastRadius: {
+          affectedFiles: blast.affectedFiles,
+          recommendedTests: blast.recommendedTests
+        }
+      };
     }
 
-    const blast = await analyzeBlastRadius(store, locations[0].filePath, projectRoot);
+    // Symbol lookup mode
+    const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { title: target });
+    const sym = symbols.find(symbol => symbol.status !== 'deprecated' && symbol.filePath);
+    if (sym) {
+      const filePath = sym.filePath!;
+      const snippet = extractLineSnippet(filePath, sym.line || 1, projectRoot, 6);
+      const blast = await analyzeBlastRadius(store, target, projectRoot);
+
+      return {
+        target,
+        resolvedKind: 'symbol',
+        locations: [{
+          filePath,
+          line: sym.line || 1,
+          snippet,
+          enclosingSymbol: { name: sym.title!, kind: sym.kind || 'symbol', startLine: sym.line || 1 }
+        }],
+        symbolDetails: {
+          name: sym.title!,
+          kind: sym.kind || 'symbol',
+          filePath,
+          codeSlice: snippet
+        },
+        blastRadius: {
+          affectedFiles: blast.affectedFiles,
+          recommendedTests: blast.recommendedTests
+        }
+      };
+    }
 
     return {
       target,
-      resolvedKind: locations.length > 1 ? 'stack_trace' : 'location',
-      locations: debugLocations,
-      blastRadius: {
-        affectedFiles: blast.affectedFiles,
-        recommendedTests: blast.recommendedTests
-      }
-    };
-  }
-
-  // Symbol lookup mode
-  const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, { name: target });
-  if (symbols.length > 0) {
-    const sym = symbols[0] as any;
-    const filePath = sym.filePath;
-    const snippet = extractLineSnippet(filePath, sym.startLine || 1, projectRoot, 6);
-    const blast = await analyzeBlastRadius(store, target, projectRoot);
-
-    return {
-      target,
-      resolvedKind: 'symbol',
+      resolvedKind: 'location',
       locations: [{
-        filePath,
-        line: sym.startLine || 1,
-        snippet,
-        enclosingSymbol: { name: sym.name, kind: sym.kind, startLine: sym.startLine || 1 }
-      }],
-      symbolDetails: {
-        name: sym.name,
-        kind: sym.kind,
-        filePath,
-        codeSlice: snippet
-      },
-      blastRadius: {
-        affectedFiles: blast.affectedFiles,
-        recommendedTests: blast.recommendedTests
-      }
+        filePath: target,
+        line: 1,
+        snippet: extractLineSnippet(target, 1, projectRoot)
+      }]
     };
-  }
-
-  return {
-    target,
-    resolvedKind: 'location',
-    locations: [{
-      filePath: target,
-      line: 1,
-      snippet: extractLineSnippet(target, 1, projectRoot)
-    }]
-  };
+  });
 }
 
 export function registerDebuggerTools() {
@@ -218,8 +220,10 @@ export function registerDebuggerTools() {
       target: z.string().describe('Symbol name, file:line target, or error stack trace snippet')
     }),
     execute: async ({ target }, ctx: ToolContext) => {
-      const store = ctx.store || new WorkflowStore(ctx.projectRoot);
-      return diagnoseTarget(store, target, ctx.projectRoot);
+      ctx.signal?.throwIfAborted();
+      const report = await diagnoseTarget(ctx.store, target, ctx.projectRoot);
+      ctx.signal?.throwIfAborted();
+      return report;
     }
   });
 }

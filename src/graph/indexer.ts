@@ -8,7 +8,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, statSync, lstatSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { parseIndexedFile } from '@dharmax/codebase-parser';
-import { WorkflowStore } from './store.ts';
+import { WorkflowStore, ReadOnlyMutationError } from './store.ts';
 import type {AbstractEntity} from '@dharmax/semantika';
 import type {Stats} from 'node:fs';
 import {canonical} from '../kb/canonical.ts';
@@ -297,9 +297,22 @@ export function ensureAstFresh(
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
 ): Promise<FreshnessResult> {
   const scope = freshnessScope.getStore();
-  const refresh = () => store.isReadOnlyExecution()
-    ? reconcileAst(store, rootDir, options) // An actual mutation still fails at the write guard.
-    : store.withIndexCriticalSection(() => reconcileAst(store, rootDir, options));
+  const refresh = async () => {
+    if (!store.isReadOnlyExecution())
+      return store.withIndexCriticalSection(() => reconcileAst(store, rootDir, options));
+    try {
+      return await reconcileAst(store, rootDir, options);
+    } catch (error) {
+      // The existing storage guard remains authoritative, including local dependencies.
+      let cause = error;
+      while (cause instanceof Error) {
+        if (cause instanceof ReadOnlyMutationError)
+          throw new Error('AST index is stale; refresh it with project-write authority before running read-only diagnostics.', {cause: error});
+        cause = cause.cause;
+      }
+      throw error;
+    }
+  };
   if (!scope || options?.force) return refresh();
   let roots = scope.get(store);
   if (!roots) { roots = new Map(); scope.set(store, roots); }
