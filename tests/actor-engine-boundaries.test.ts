@@ -1,6 +1,6 @@
 /**
  * Responsibility: Verify WorkflowActor execution boundaries.
- * Scope: Mode parsing, authority, cancellation, discovery and model overrides.
+ * Scope: Workload inference, authority, cancellation, discovery and model overrides.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
@@ -8,7 +8,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { LLMSession, ToolAbortError, z, type Asker } from "@dharmax/llm-utils"
-import { WorkflowActor, classifyIntentMode } from "../src/helpers/actor/engine.ts"
+import { WorkflowActor } from "../src/helpers/actor/engine.ts"
 import { saveConfig } from "../src/services/config-service.ts"
 import { WorkflowStore } from "../src/graph/store.ts"
 import { initializeTools, commandRegistry, type ToolDefinition } from "../src/tools/index.ts"
@@ -82,19 +82,62 @@ describe("WorkflowActor execution boundaries", () => {
         runtime.localProviders = ["ollama"]
         return actor
     }
-    it("parses complete mode tokens and preserves the rest of the instruction", async () => {
-        const prompts: string[] = []
-        const asker = { json: async (prompt: string) => {
-                prompts.push(prompt)
-                return answer()
-            } } as unknown as Asker
-        const actor = new WorkflowActor({ store, projectRoot: root, asker, toolDiscovery: null, mode: "product" })
-        expect(classifyIntentMode("/development", "product")).toBe("product")
-        expect(classifyIntentMode("/DESIGN inspect")).toBe("design")
-        expect((await actor.execute("  /TRIAGE inspect failure")).mode).toBe("triage")
-        expect(prompts[0]).not.toContain("/TRIAGE")
-        expect((await actor.execute("/development details")).mode).toBe("triage")
-        expect(prompts[1]).toContain("/development details")
+    it("infers each workload through native System-1 without retaining task state", async () => {
+        const tasks = ["code", "creative"];
+        const routed: string[] = [];
+        const asker = {json: async (_prompt: string, _schema: unknown, options: {task?:string}) => {
+            routed.push(options.task!); return answer();
+        }} as unknown as Asker;
+        const actor = new WorkflowActor({store, projectRoot:root, asker, toolDiscovery:null,
+            systemOne: {assess:async()=>({answers:{task:{choice:tasks.shift()}},backendId:"fixture",quality:"high",latencyMs:0})}});
+        await actor.execute("Implement the correction");
+        await actor.execute("Clarify the product goal");
+        expect(routed).toEqual(["code", "creative"]);
+        expect(actor).not.toHaveProperty("mode");
+    })
+    it.each(["automatic", "normal", "high", "critical"] as const)("keeps %s intelligence separate from source permission and project writes", async intelligence => {
+        let options: Record<string, unknown> = {};
+        const asker = {json: async (_prompt:string,_schema:unknown,input:Record<string,unknown>) => {options=input;return answer()}} as unknown as Asker;
+        const actor = new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:null,
+            systemOne:{assess:async()=>({answers:{task:{choice:"code",codeMutationAllowed:true}},backendId:"fixture",quality:"high",latencyMs:0})}});
+        await actor.execute("Implement the requested change",{intelligence,executionAuthority:"project-write",codeMutationAllowed:false});
+        expect(options.task).toBe("code");
+        expect(options).not.toHaveProperty("codeMutationAllowed");
+        expect(JSON.stringify(options.routingContext)).toContain(intelligence === "automatic" ? '"requirements":[]' : intelligence);
+        const ctx={store,projectRoot:root,executionAuthority:"project-write" as const,codeMutationAllowed:false};
+        await commandRegistry.execute("create_ticket",{id:"NON-CODE",title:"Record legitimate work"},ctx);
+        expect(await store.getEntity("NON-CODE")).not.toBeNull();
+        await expect(commandRegistry.execute("apply_change",{request:{action:"create_file",filePath:"forbidden.ts",content:"export const x=1"},fingerprint:"fixture",ticketId:"NON-CODE",agentId:"fixture"},ctx)).rejects.toThrow("Code mutation is forbidden");
+        const {CausalChangeEngine}=await import("../src/change/engine.ts");
+        const engine=new CausalChangeEngine(ctx);
+        const request={action:"create_file" as const,filePath:"forbidden.ts",content:"export const x=1"};
+        const preview=await engine.previewChange(request);
+        expect(preview.blocked).toBe(false);
+        await expect(engine.applyChange(request,preview.fingerprint)).rejects.toThrow("Code mutation is forbidden");
+        expect(fs.existsSync(path.join(root,"forbidden.ts"))).toBe(false);
+    })
+    it("passes source constraints into resolution without forbidding non-code work", async () => {
+        const {Ticket}=await import("../src/model/ontology.ts");
+        await store.upsertEntity(Ticket.dcr,{id:"NON-CODE",title:"Inspect the recorded work",lane:"Todo"});
+        const original=Ticket.prototype.resolve;
+        let calls=0;
+        try {
+            Ticket.prototype.resolve=async function (_store,options) {
+                calls++;expect(options?.codeMutationAllowed).toBe(false);
+                return {status:"needs_input",artifactId:"NON-CODE",required:[{question:"Review recorded work",why:"Fixture",target:"acceptance"}]};
+            };
+            const result=await commandRegistry.execute("resolve_ticket",{ticketId:"NON-CODE"},{store,projectRoot:root,executionAuthority:"project-write",codeMutationAllowed:false});
+            expect(result.status).toBe("needs_input");expect(calls).toBe(1);
+        } finally {Ticket.prototype.resolve=original;}
+    })
+    it("inherits host authority in public agent dispatch without allowing model permission arguments", async () => {
+        const seen: unknown[]=[];
+        const actor={execute:async (_wish:string,options:unknown)=>{seen.push(options);return {stepsCount:0,answer:"observed",events:[]}}} as unknown as WorkflowActor;
+        for(const executionAuthority of ["read-only","project-write"] as const)
+            await commandRegistry.execute("agent exec",{wish:"Inspect the project",intelligence:"critical"},{store,projectRoot:root,actor,executionAuthority,codeMutationAllowed:false});
+        expect(seen).toEqual([expect.objectContaining({executionAuthority:"read-only",codeMutationAllowed:false,intelligence:"critical"}),expect.objectContaining({executionAuthority:"project-write",codeMutationAllowed:false,intelligence:"critical"})]);
+        for(const extra of [{mode:"dev"},{codeMutationAllowed:true}])
+            await expect(commandRegistry.execute("agent exec",{wish:"Inspect",...extra},{store,projectRoot:root,actor})).rejects.toThrow();
     })
     it("dispatches canonical ticket show without a provider and retains cancellation", async () => {
         const {Ticket} = await import("../src/model/ontology.ts")
@@ -108,7 +151,7 @@ describe("WorkflowActor execution boundaries", () => {
         expect(shown.version).toBe(ticket.version)
         const controller = new AbortController()
         controller.abort()
-        const cancelled = await actor.execute("ticket show T1", undefined, {signal: controller.signal})
+        const cancelled = await actor.execute("ticket show T1", {signal: controller.signal})
         expect(cancelled.haltReason).toBe("aborted")
     })
     it("denies cancelled explicit delegation before invoking a mutating capability", async () => {
@@ -121,7 +164,7 @@ describe("WorkflowActor execution boundaries", () => {
         const controller = new AbortController()
         controller.abort()
         const actor = new WorkflowActor({ store, projectRoot: root, offline: true })
-        const result = await actor.execute("resolve T", undefined, { signal: controller.signal })
+        const result = await actor.execute("resolve T", { signal: controller.signal })
         expect(result.failed).toBe(true)
         expect(result.haltReason).toBe("aborted")
         expect(calls).toBe(0)
@@ -134,7 +177,7 @@ describe("WorkflowActor execution boundaries", () => {
                 return { status: "complete" }
             } })
         const result = await new WorkflowActor({ store, projectRoot: root, offline: true })
-            .execute("resolve T", undefined, { executionAuthority: "read-only" })
+            .execute("resolve T", { executionAuthority: "read-only" })
         expect(result.failed).toBe(true)
         expect(result.answer).toContain("Read-only authority")
         expect(calls).toBe(0)
@@ -144,7 +187,7 @@ describe("WorkflowActor execution boundaries", () => {
         overrideTool({ ...tool, execute: () => {
                 throw "delegation failed"
             } })
-        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",undefined,{executionAuthority:"project-write"})
+        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",{executionAuthority:"project-write"})
         expect(result.failed).toBe(true)
         expect(result.answer).toContain("delegation failed")
     })
@@ -153,7 +196,7 @@ describe("WorkflowActor execution boundaries", () => {
         overrideTool({ ...tool, execute: () => {
                 throw new ToolAbortError("User refused execution")
             } })
-        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",undefined,{executionAuthority:"project-write"})
+        const result = await new WorkflowActor({ store, projectRoot: root, offline: true }).execute("resolve T",{executionAuthority:"project-write"})
         expect(result.failed).toBe(true)
         expect(result.haltReason).toBe("aborted")
         expect(result.answer).toContain("User refused execution")
@@ -176,7 +219,7 @@ describe("WorkflowActor execution boundaries", () => {
         const result = await new WorkflowActor({
             store, projectRoot: root, asker,
             toolDiscovery: { discover: async () => ({ query: {}, tools: [tool] }) }
-        }).execute("Use the custom host capability",undefined,{executionAuthority:"project-write"})
+        }).execute("Use the custom host capability",{executionAuthority:"project-write"})
         expect(result.failed).toBeUndefined()
         expect(value).toBe("input!")
         expect(result.events[1]!.toolResult).toEqual(["observed"])
@@ -194,7 +237,7 @@ describe("WorkflowActor execution boundaries", () => {
         const result = await new WorkflowActor({
             store, projectRoot: root, asker,
             toolDiscovery: { discover: async () => ({ query: {}, tools: [tool] }) }
-        }).execute("Inspect state", undefined, { executionAuthority: "read-only" })
+        }).execute("Inspect state", { executionAuthority: "read-only" })
         expect(invoked).toBe(false)
         expect(result.events[1]!.toolResults![0]!.error).toContain("Read-only authority")
     })
@@ -219,7 +262,7 @@ describe("WorkflowActor execution boundaries", () => {
                 calls++
                 return { ok: false, failure: { message: "Provider unavailable" } }
             } } as unknown as Asker
-        const result = await routedActor(asker).execute("Perform the task", undefined, { forceModel: "ollama/chosen" })
+        const result = await routedActor(asker).execute("Perform the task", { forceModel: "ollama/chosen" })
         expect(result.failed).toBe(true)
         expect(result.escalated).toBe(false)
         expect(result.targetModel).toBe("ollama/chosen")
@@ -235,7 +278,7 @@ describe("WorkflowActor execution boundaries", () => {
                 options = supplied
                 return answer()
             } } as unknown as Asker
-        const result = await routedActor(asker).execute("Perform the task", undefined, { forceCloud: true })
+        const result = await routedActor(asker).execute("Perform the task", { intelligence: "critical" })
         expect(result.escalated).toBe(false)
         expect(options?.preferLocal).toBe(true)
         expect(options?.allowedProviders).toEqual(["ollama"])

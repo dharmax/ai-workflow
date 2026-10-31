@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { WorkflowActor, type ShellMode } from '../src/helpers/actor/engine.ts';
+import { WorkflowActor } from '../src/helpers/actor/engine.ts';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { saveConfig } from '../src/services/config-service.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
@@ -23,9 +23,9 @@ describe('User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4)', () => {
     saveConfig(root, {
       model: 'ollama/qwen2.5-coder:7b',
       modelRoutes: {
-        dev: 'ollama/qwen2.5-coder:7b',
+        code: 'ollama/qwen2.5-coder:7b',
         product: 'ollama/qwen2.5-coder:7b',
-        design: 'openai/o3-mini',
+        reasoning: 'openai/o3-mini',
       }
     });
     store = new WorkflowStore(root, true);
@@ -46,7 +46,6 @@ describe('User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4)', () => {
           return {
             ok: true,
             data: {
-              mode: ['product'],
               domain: ['project'],
               object: ['goal', 'hotspots'],
               action: ['get', 'analyze'],

@@ -62,49 +62,21 @@ describe('Interactive Shell REPL Bridge', () => {
     expect(helpRes.output).toContain('AI-Workflow 2.0 Terminal REPL');
   });
 
-  it('should dynamically switch modes', async () => {
-    const designRes = await processShellInput('/design', session);
-    expect(designRes.newMode).toBe('design');
-    expect(session.actor.mode).toBe('design');
-    expect(session.modeOverride).toBe('design');
-
-    const triageRes = await processShellInput('/triage', session);
-    expect(triageRes.newMode).toBe('triage');
-    expect(session.actor.mode).toBe('triage');
-    expect(session.modeOverride).toBe('triage');
-
-    const autoRes = await processShellInput('/auto', session);
-    expect(autoRes.output).toContain('[AUTO]');
-    expect(session.modeOverride).toBeUndefined();
+  it('sets intelligence and code permission independently through explicit commands', async () => {
+    expect((await processShellInput('/intelligence high', session)).output).toBe('Intelligence: high');
+    expect(session.codeMutationAllowed).toBeUndefined();
+    expect((await processShellInput('/code allow', session)).output).toBe('Code mutation: allowed');
+    expect(session.intelligence).toBe('high');
+    expect((await processShellInput('/code forbid', session)).output).toBe('Code mutation: forbidden');
+    expect(session.intelligence).toBe('high');
   });
 
-  it('should not force the current mode for ordinary input in auto mode', async () => {
-    let forcedMode: any = 'unset'
-    const autoSession: ShellSession = {
-      store,
-      projectRoot: tempDir,
-      actor: {
-        mode: 'dev',
-        execute: async (_line: string, mode?: any) => {
-          forcedMode = mode
-          return {mode: 'product', stepsCount: 0, answer: 'selected', events: []}
-        },
-      } as any,
-    }
-
-    const res = await processShellInput('list current project tickets', autoSession)
-    expect(forcedMode).toBeUndefined()
-    expect(res.output.startsWith('[PRODUCT]')).toBe(true)
-  })
-
-  it('should preserve the selected shell mode for natural-language instructions', async () => {
-    await processShellInput('/design', session);
-    const res = await processShellInput('review the README against the implementation', session);
-    expect(res.output.startsWith('[DESIGN]')).toBe(true);
-    expect(res.output).toContain('LLM unavailable');
-
-    const inline = await processShellInput('/triage check the failing tests', session);
-    expect(inline.output.startsWith('[TRIAGE]')).toBe(true);
+  it('passes host constraints to natural language execution with no task state', async () => {
+    let options: unknown;
+    const actor = {execute: async (_line:string, input:unknown) => {options=input;return {stepsCount:0,answer:'selected',events:[]}}};
+    const res = await processShellInput('inspect current project tickets', {...session,actor:actor as any,intelligence:'critical',codeMutationAllowed:false});
+    expect(options).toMatchObject({intelligence:'critical',codeMutationAllowed:false,executionAuthority:'project-write'});
+    expect(res.output.startsWith('[AIWF]')).toBe(true);
   });
 
   it('should handle trace controls as deterministic shell commands', async () => {
@@ -278,9 +250,11 @@ describe('Interactive Shell REPL Bridge', () => {
     const [docHits] = shellCompleter('doc');
     expect(docHits).toContain('doctor');
 
-    const [modeHits] = shellCompleter('/d');
-    expect(modeHits).toContain('/design');
-    expect(modeHits).toContain('/dev');
+    const [modeHits] = shellCompleter('/i');
+    expect(modeHits).toContain('/intelligence');
+    const [codeHits] = shellCompleter('/c');
+    expect(codeHits).toContain('/code');
+    expect(shellCompleter('/d')[0]).not.toContain('/design');
   });
 
   it('should delegate complex natural language wishes to cognitive actor', async () => {

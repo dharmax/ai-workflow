@@ -1,11 +1,12 @@
 /**
- * Responsibility: Autonomous Cognitive Actor Engine & Dynamic Mode Switcher.
- * Scope: Built on @dharmax/llm-utils (LLMActor, model routing/advice), with deterministic
- * mode selection ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), bounded ReAct loop, pubsub telemetry,
- * and honest offline failure reporting.
+ * Responsibility: Autonomous Cognitive Actor Engine.
+ * Scope: Native llm-utils workload inference, model routing and bounded Actor execution,
+ * with pubsub telemetry and honest offline failure reporting.
  */
 
 import {
+    LayaSystemOne,
+    type SystemOne,
     LLMActor,
     LLMSession,
     Asker,
@@ -19,6 +20,7 @@ import {
     type LlmMetricEvent,
     type ToolDefinition as ActorTool,
 } from "@dharmax/llm-utils"
+import {z} from "zod"
 import pubsub from "@dharmax/pubsub"
 import fs from "node:fs"
 import os from "node:os"
@@ -28,38 +30,17 @@ import { commandRegistry, CommandRegistry, type ToolContext, type ToolDefinition
 import { ToolDiscovery, semanticsForTool, type DiscoveredTools } from "../../tools/discovery.ts"
 import { lexCommand, isExplicitCommand, artifactCommand } from "../../artifact-command.ts"
 import { loadConfig } from "../../services/config-service.ts"
-import { ModelService } from "../../services/model-service.ts"
+import { ModelService, MODEL_WORKLOADS } from "../../services/model-service.ts"
 import { renderActorSystem } from "./prompts.ts"
 import { getPublicMcpTools } from "../../tools/surface.ts"
 
 export { pubsub }
 
-export type ShellMode = "design" | "dev" | "triage" | "product"
-
-export interface ModeRoutingConfig {
-    mode: ShellMode
-    taskClass: "reasoning" | "code" | "fast" | "creative"
-}
-
-export const MODE_CONFIGS: Record<ShellMode, ModeRoutingConfig> = {
-    design: { mode: "design", taskClass: "reasoning" },
-    dev: { mode: "dev", taskClass: "code" },
-    triage: { mode: "triage", taskClass: "fast" },
-    product: { mode: "product", taskClass: "creative" },
-}
-
-/**
- * Parses explicit shell mode syntax only. Natural-language mode selection belongs
- * to the Actor itself; mode is a preference rather than an entrance classifier.
- */
-export function classifyIntentMode(text: string, fallback: ShellMode = "dev"): ShellMode {
-    const mode = text.trim().match(/^\/(\S+)/)?.[1]?.toLowerCase()
-    return Object.values(MODE_CONFIGS).find(config => config.mode === mode)?.mode ?? fallback
-}
+export const IntelligenceSchema = z.enum(["automatic", "normal", "high", "critical"])
+export type Intelligence = z.infer<typeof IntelligenceSchema>
 
 export interface ActorStepEvent {
     step: number
-    mode: ShellMode
     thought?: string
     toolCall?: {
         name: string
@@ -72,7 +53,6 @@ export interface ActorStepEvent {
 }
 
 export interface CapabilityDiscoveryEvent {
-    mode: ShellMode
     tools: string[]
     request?: string
     query?: DiscoveredTools["query"]
@@ -87,7 +67,7 @@ export interface WorkflowActorOptions {
     store: WorkflowStore
     projectRoot: string
     asker?: Asker | null
-    mode?: ShellMode
+    systemOne?: SystemOne
     maxSteps?: number
     preferLocal?: boolean
     offline?: boolean
@@ -96,16 +76,16 @@ export interface WorkflowActorOptions {
 }
 
 export interface WorkflowExecutionOptions {
-    forceCloud?: boolean
+    intelligence?: Intelligence
+    codeMutationAllowed?: boolean
     forceModel?: string
     executionAuthority?: ToolContext["executionAuthority"]
     signal?: AbortSignal
     onStep?: (step: ActorStepRecord) => void | Promise<void>
-    onDiscovery?: (tools: string[], mode: ShellMode) => void
+    onDiscovery?: (tools: string[]) => void
 }
 
 export interface WorkflowExecutionResult {
-    mode: ShellMode
     stepsCount: number
     answer: string
     events: ActorStepEvent[]
@@ -122,7 +102,7 @@ export interface WorkflowExecutionResult {
 }
 
 interface ExecutionState {
-    mode: ShellMode
+    task: string
     ctx: ToolContext
     options: WorkflowExecutionOptions
     events: ActorStepEvent[]
@@ -133,7 +113,6 @@ interface ExecutionState {
 }
 
 export class WorkflowActor {
-    public mode: ShellMode
     public readonly store: WorkflowStore
     public readonly projectRoot: string
     public readonly maxSteps: number
@@ -152,7 +131,6 @@ export class WorkflowActor {
         this.options = { ...options }
         this.store = options.store
         this.projectRoot = options.projectRoot
-        this.mode = options.mode || "dev"
         this.maxSteps = options.maxSteps ?? 10
         this.timeoutMs = options.timeoutMs ?? 60000
         this.preferLocal = options.preferLocal ?? true
@@ -173,10 +151,7 @@ export class WorkflowActor {
             this.toolDiscovery = undefined
             return
         }
-        const tasks = Object.fromEntries(
-            Object.entries(MODE_CONFIGS).map(([mode, settings]) => [mode, settings.taskClass]),
-        )
-        this._asker = this.options.asker ?? models.createAsker(tasks, this.preferLocal)
+        this._asker = this.options.asker ?? models.createAsker(this.preferLocal)
         this.session = new LLMSession(this._asker, { maxHistoryTurns: 20, maxHistoryChars: 12_000 })
         this.toolDiscovery =
             this.options.toolDiscovery !== undefined
@@ -214,16 +189,13 @@ export class WorkflowActor {
     }
 
     public resolveRoute(
-        modeOrTask: ShellMode | string = this.mode,
+        task = "reasoning",
     ): {
         providerId: string
         modelId: string
         target: string
     } | undefined {
         if (!this._asker || typeof this._asker.getRouter !== "function") return undefined
-        const task = Object.hasOwn(MODE_CONFIGS, modeOrTask)
-            ? MODE_CONFIGS[modeOrTask as ShellMode].taskClass
-            : modeOrTask
         const cfg = loadConfig(this.projectRoot)
         const policy = cfg.escalation?.policy || "auto"
         const eligibleProviders = policy === "local_only" ? this.localProviders : this._configuredProviders
@@ -254,24 +226,27 @@ export class WorkflowActor {
     /** llm-utils owns reasoning and model selection; this host supplies authority and observations. */
     async execute(
         instruction: string,
-        forcedMode?: ShellMode,
         options: WorkflowExecutionOptions = {},
     ): Promise<WorkflowExecutionResult> {
-        const mode = forcedMode ?? classifyIntentMode(instruction, this.mode)
-        const text = instruction.trim().replace(/^\/(design|dev|triage|product|auto)(?=\s|$)\s*/i, "")
+        const text = instruction.trim()
+        const intelligence = IntelligenceSchema.parse(options.intelligence ?? "automatic")
+        options = {...options, intelligence}
         const ctx: ToolContext = {
             store: this.store,
             projectRoot: this.projectRoot,
             executionAuthority: options.executionAuthority ?? 'read-only',
+            codeMutationAllowed: options.codeMutationAllowed === true,
             signal: options.signal,
         }
-        const delegation = /^\/(design|dev|triage|product|auto)(?=\s|$)/i.test(instruction.trim()) ? null
-            : await artifactCommand(isExplicitCommand(text) ? lexCommand(text) : text.trim().split(/\s+/))
-        if (delegation) return this.executeDelegation(mode, delegation, ctx)
-        if (!this._asker) return this.executeOfflineFallback(mode, "No LLM provider is configured.")
-        this.mode = mode
+        const delegation = await artifactCommand(isExplicitCommand(text) ? lexCommand(text) : text.trim().split(/\s+/))
+        if (delegation) return this.executeDelegation(delegation, ctx)
+        if (!this._asker) return this.executeOfflineFallback("No LLM provider is configured.")
+        const assessment = await (this.options.systemOne ?? new LayaSystemOne()).assess(
+            {query: text}, {task: {type: "choice", instructions: "Select the workload for this operation. This is model routing advice only.", criteria: MODEL_WORKLOADS}},
+        ).catch(() => null)
+        const inferred = assessment?.answers.task?.choice
         const state: ExecutionState = {
-            mode,
+            task: inferred && Object.hasOwn(MODEL_WORKLOADS, inferred) ? inferred : "reasoning",
             ctx,
             options,
             events: [],
@@ -283,7 +258,6 @@ export class WorkflowActor {
     }
 
     private async executeDelegation(
-        mode: ShellMode,
         delegation: NonNullable<Awaited<ReturnType<typeof artifactCommand>>>,
         ctx: ToolContext,
     ): Promise<WorkflowExecutionResult> {
@@ -300,26 +274,25 @@ export class WorkflowActor {
             const answer = JSON.stringify(result, null, 2)
             const event: ActorStepEvent = {
                 step: 1,
-                mode,
                 thought: "Explicit artifact delegation",
                 toolCall: { name: delegation.tool, params: delegation.args },
                 toolResult: result,
                 finalAnswer: answer,
             }
-            return { mode, stepsCount: 1, answer, events: [event] }
+            return { stepsCount: 1, answer, events: [event] }
         } catch (error) {
-            return this.executeFailure(mode, [], this.failureReason(error, ctx.signal), this.errorMessage(error))
+            return this.executeFailure([], this.failureReason(error, ctx.signal), this.errorMessage(error))
         }
     }
 
     private async executeInstruction(text: string, state: ExecutionState): Promise<WorkflowExecutionResult> {
         const bootstrap = commandRegistry.get("run_command")
-        if (!bootstrap) return this.executeFailure(state.mode, [], "error", "Bootstrap run_command is not registered.")
-        state.options.onDiscovery?.([...state.selectedNames], state.mode)
+        if (!bootstrap) return this.executeFailure([], "error", "Bootstrap run_command is not registered.")
+        state.options.onDiscovery?.([...state.selectedNames])
         const config = loadConfig(this.projectRoot)
         const policy = config.escalation?.policy || "auto"
-        if (this.hasCloudProvider() && policy !== "local_only" && (policy === "sota" || state.options.forceCloud)) {
-            this.recordEscalation(state, MODE_CONFIGS[state.mode].taskClass, "SOTA / forceCloud requested")
+        if (this.hasCloudProvider() && policy !== "local_only" && (policy === "sota" || state.options.intelligence === "critical")) {
+            this.recordEscalation(state, state.task, "Critical intelligence / SOTA requested")
         }
         try {
             state.ctx.scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "aiwf-scratch-"))
@@ -331,7 +304,6 @@ export class WorkflowActor {
         } catch (error) {
             return {
                 ...this.executeFailure(
-                    state.mode,
                     state.events,
                     this.failureReason(error, state.ctx.signal),
                     this.errorMessage(error),
@@ -343,10 +315,10 @@ export class WorkflowActor {
         }
     }
 
-    private createActor({ mode, ctx }: ExecutionState): LLMActor {
+    private createActor({ ctx }: ExecutionState): LLMActor {
         return new LLMActor(this._asker!, {
             maxSteps: this.maxSteps,
-            system: renderActorSystem(mode, this.projectRoot, ctx.scratchRoot),
+            system: renderActorSystem(this.projectRoot, ctx.scratchRoot, ctx.codeMutationAllowed === true),
         })
     }
 
@@ -363,7 +335,7 @@ export class WorkflowActor {
             askOptions: {
                 ...(state.options.forceModel
                     ? { model: state.options.forceModel }
-                    : { task: MODE_CONFIGS[state.mode].taskClass }),
+                    : { task: state.task }),
                 preferLocal: this.locality(policy, state.escalated),
                 ...(policy === "local_only" ? { allowedProviders: this.localProviders } : {}),
                 maxTokens: config.llmOutputTokens,
@@ -383,7 +355,7 @@ export class WorkflowActor {
         policy: string,
     ): Promise<ActorRunResult> {
         const routedOptions = {...options, askOptions: {...options.askOptions,
-            routingContext: {query: text, role: state.mode}}}
+            routingContext: {query: text, requirements: state.options.intelligence === "automatic" ? [] : [`Intelligence preference: ${state.options.intelligence}. ${state.options.intelligence === "normal" ? "Balance quality, cost and latency." : "Prioritize reasoning quality and accuracy."}`]}}}
         const result = await this.session!.run(actor, text, routedOptions)
         if (!this.canEscalate(result, state, policy)) return result
         const reason =
@@ -415,11 +387,10 @@ export class WorkflowActor {
         )
     }
 
-    private recordEscalation(state: ExecutionState, taskClass: ModeRoutingConfig["taskClass"], reason: string): void {
+    private recordEscalation(state: ExecutionState, taskClass: string, reason: string): void {
         state.escalated = true
         state.escalationReason = reason
         pubsub.trigger("aiwf", "actor:escalate", {
-            mode: state.mode,
             targetModel: state.options.forceModel,
             taskClass,
             preferLocal: false,
@@ -464,7 +435,7 @@ export class WorkflowActor {
         if (!tools.length)
             throw new Error("No applicable specialized capability discovered. Continue through run_command.")
         for (const tool of tools) state.selectedNames.add(tool.name)
-        state.options.onDiscovery?.([...state.selectedNames], state.mode)
+        state.options.onDiscovery?.([...state.selectedNames])
         this.recordDiscovery(state, {
             request,
             query: found.query,
@@ -475,8 +446,8 @@ export class WorkflowActor {
         return tools.map((tool) => this.wrapTool(tool, state.ctx))
     }
 
-    private recordDiscovery(state: ExecutionState, detail: Omit<CapabilityDiscoveryEvent, "mode" | "tools">): void {
-        const event = { ...detail, mode: state.mode, tools: [...state.selectedNames] }
+    private recordDiscovery(state: ExecutionState, detail: Omit<CapabilityDiscoveryEvent, "tools">): void {
+        const event = { ...detail, tools: [...state.selectedNames] }
         state.discoveryEvents.push(event)
         pubsub.trigger("aiwf", "actor:discovery", event)
     }
@@ -485,7 +456,6 @@ export class WorkflowActor {
         const firstCall = step.toolCalls[0]
         const event: ActorStepEvent = {
             step: step.step,
-            mode: state.mode,
             toolCalls: step.toolCalls,
             toolResults: step.toolResults,
             toolCall: firstCall ? { name: firstCall.toolName, params: firstCall.parameters } : undefined,
@@ -499,10 +469,9 @@ export class WorkflowActor {
 
     private executionResult(result: ActorRunResult, state: ExecutionState): WorkflowExecutionResult {
         if (!result.ok)
-            return this.executeFailure(state.mode, state.events, result.haltReason, result.error, result.issues)
+            return this.executeFailure(state.events, result.haltReason, result.error, result.issues)
         const lastStep = result.steps?.[result.steps.length - 1]
         return {
-            mode: state.mode,
             stepsCount: state.events.length,
             answer: result.finalText || lastStep?.finalAnswer || "Instruction processed.",
             events: state.events,
@@ -517,7 +486,7 @@ export class WorkflowActor {
         return {
             discoveryEvents: state.discoveryEvents,
             discoveredTools: [...state.selectedNames],
-            targetModel: state.options.forceModel ?? executedTarget ?? this.resolveRoute(state.mode)?.target,
+            targetModel: state.options.forceModel ?? executedTarget ?? this.resolveRoute(state.task)?.target,
             escalated: state.escalated,
             escalationReason: state.escalationReason,
             stepBudget: this.maxSteps,
@@ -612,7 +581,6 @@ export class WorkflowActor {
     }
 
     private executeFailure(
-        mode: ShellMode,
         events: ActorStepEvent[],
         haltReason: string,
         error?: string,
@@ -626,7 +594,6 @@ export class WorkflowActor {
         const detail = error || "Execution did not complete."
         const issueText = summary.length ? ` Issues: ${summary.join(" | ")}` : ""
         return {
-            mode,
             stepsCount: events.length,
             answer: `Execution stopped after ${events.length} step(s) (${haltReason}): ${detail}.${issueText}`,
             events,
@@ -640,11 +607,10 @@ export class WorkflowActor {
      * Natural-language execution requires an LLM. Deterministic shell commands are
      * handled by the shell before this path, so failure must not invent intent.
      */
-    private executeOfflineFallback(mode: ShellMode, reason?: string): WorkflowExecutionResult {
+    private executeOfflineFallback(reason?: string): WorkflowExecutionResult {
         const detail = reason ? ` (${reason})` : ""
         const answer = `LLM unavailable${detail}. Natural-language execution was not attempted.`
         return {
-            mode,
             stepsCount: 0,
             answer,
             events: [],

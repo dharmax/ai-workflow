@@ -79,7 +79,7 @@ describe('Issue 6 real field-contract migration and structural lifecycle',()=>{
       if(live) {
         const config=loadConfig(path.resolve(import.meta.dir,'../..'));
         saveConfig(root,{gateway:'ollama',ollamaUrl:config.ollamaUrl,model:'ollama/gemma4:e4b',
-          modelRoutes:{critic:'ollama/gemma4:e4b',design:'ollama/gemma4:e4b'},llmOutputTokens:8192});
+          modelRoutes:{critic:'ollama/gemma4:e4b',reasoning:'ollama/gemma4:e4b'},llmOutputTokens:8192});
       }
       await acceptMigrationStory(fixture);
       const story=(await store.getEntity<UserStory>('LOAD-POLICY',UserStory.dcr))!;

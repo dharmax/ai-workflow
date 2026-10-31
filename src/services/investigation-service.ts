@@ -478,7 +478,7 @@ export async function investigateTicket(
                             if (!asker) throw new Error("Reasoning provider unavailable.")
                             const cfg = loadConfig(store.root)
                             const response = await asker.json(renderInvestigationPrompt(input), InvestigationJudgmentSchema, {
-                                model: cfg.modelRoutes?.design ?? cfg.model,
+                                model: cfg.modelRoutes?.reasoning ?? cfg.model,
                                 temperature: 0,
                                 signal: options.signal,
                                 maxRetries: 1,

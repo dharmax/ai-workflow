@@ -23,11 +23,11 @@ async function installed(authority?: 'project-write') {
   fs.mkdirSync(path.join(home, '.cursor'), {recursive: true});
   const file = path.join(home, '.cursor', 'mcp.json');
   fs.writeFileSync(file, JSON.stringify({mcpServers: {'ai-workflow': {
-    env: authority ? {AIWF_EXECUTION_AUTHORITY: authority} : {}
+    env: authority ? {AIWF_EXECUTION_AUTHORITY: authority, AIWF_ALLOW_CODE_MUTATION: 'true'} : {}
   }}}));
   configureMcp({homeDir: home, link: true, mcpPath: path.resolve(import.meta.dir, '../src/mcp.ts')});
   const entry = JSON.parse(fs.readFileSync(file, 'utf8')).mcpServers['ai-workflow'];
-  expect(entry.env ?? {}).toEqual(authority ? {AIWF_EXECUTION_AUTHORITY: authority} : {});
+  expect(entry.env ?? {}).toEqual(authority ? {AIWF_EXECUTION_AUTHORITY: authority, AIWF_ALLOW_CODE_MUTATION: 'true'} : {});
   const git = (...args: string[]) => {
     const result = Bun.spawnSync(['git', ...args], {cwd: root});
     if (!result.success) throw Error(result.stderr.toString());

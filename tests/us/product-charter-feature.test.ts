@@ -201,7 +201,7 @@ describe('Product charter governs Feature acceptance and revision through public
   const asker={json:async()=>({ok:true,data:step<calls.length?{thought:'',action:'tool_call',toolCalls:[calls[step++]]}:{thought:'',action:'final_answer',finalAnswer:'Developer input required'}})} as unknown as Asker;
   const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({query:{},mode:'dev' as const,tools:[commandRegistry.get('apply_change')!]})}});
   // Supply the existing apply tool directly through discovery, then exercise its execution boundary.
-  const result=await actor.execute('Accept this conflicting Feature using apply_change',undefined,{executionAuthority:'project-write'});
+  const result=await actor.execute('Accept this conflicting Feature using apply_change',{executionAuthority:'project-write'});
   expect(JSON.stringify(result.events.flatMap(event=>event.toolResults??[]))).toContain('needs_input');
   expect(await store.getEntity('F',Feature.dcr)).toBeNull();
  },15000);

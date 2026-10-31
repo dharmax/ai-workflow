@@ -105,12 +105,12 @@ describe('daily shared shell commands', () => {
     expect(renderer.requests).toEqual([]);
   });
   it('updates only local model routes and shares model inspection with CLI', async () => {
-    setConfigOverride(root, 'modelRoutes', '{"design":"ollama/global-design"}', 'global');
-    expect((await processShellInput('model set dev ollama/project-dev', session)).output).toContain('project-dev');
-    expect(readConfigOverrides(root).modelRoutes).toEqual({dev: 'ollama/project-dev'});
-    expect(loadConfig(root).modelRoutes?.design).toBe('ollama/global-design');
-    expect((await execCli(['model', 'set', 'triage', 'ollama/project-triage'])).code).toBe(0);
-    expect(loadConfig(root).modelRoutes?.triage).toBe('ollama/project-triage');
+    setConfigOverride(root, 'modelRoutes', '{"reasoning":"ollama/global-design"}', 'global');
+    expect((await processShellInput('model set code ollama/project-dev', session)).output).toContain('project-dev');
+    expect(readConfigOverrides(root).modelRoutes).toEqual({code: 'ollama/project-dev'});
+    expect(loadConfig(root).modelRoutes?.reasoning).toBe('ollama/global-design');
+    expect((await execCli(['model', 'set', 'fast', 'ollama/project-triage'])).code).toBe(0);
+    expect(loadConfig(root).modelRoutes?.fast).toBe('ollama/project-triage');
     session.actor.reloadConfig();
     session.interactive = false;
     expect((await processShellInput('model', session)).output).toContain('Configured Providers:');

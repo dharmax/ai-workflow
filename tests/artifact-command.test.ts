@@ -39,8 +39,8 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true }); let calls = 0;
     const original = Ticket.prototype.resolve;
     try { Ticket.prototype.resolve = async function (_store, options) { calls++; expect(this.title).toBe('Concrete task'); expect(options?.depth).toBe(0); return { status: 'needs_input', artifactId: 'T', required: [{ question: 'Authored review required', why: 'Precise blocker', target: 'acceptance' }] }; };
-      const shell = await processShellInput('please resolve ticket T --depth 0', { store, projectRoot: root, actor }); expect(JSON.parse(shell.output).status).toBe('needs_input'); expect(calls).toBe(1);
-      const direct = await actor.execute('resolve ticket T --depth 0',undefined,{executionAuthority:'project-write'}); expect(direct.stepsCount).toBe(1); expect(direct.events[0].toolCall?.name).toBe('resolve_ticket'); expect(calls).toBe(2);
+      const shell = await processShellInput('please resolve ticket T --depth 0', { store, projectRoot: root, actor, codeMutationAllowed:true }); expect(JSON.parse(shell.output).status).toBe('needs_input'); expect(calls).toBe(1);
+      const direct = await actor.execute('resolve ticket T --depth 0',{executionAuthority:'project-write',codeMutationAllowed:true}); expect(direct.stepsCount).toBe(1); expect(direct.events[0].toolCall?.name).toBe('resolve_ticket'); expect(calls).toBe(2);
     } finally { Ticket.prototype.resolve = original; }
   });
   it('persists completeness only on explicit set/clear and keeps help/installed skill artifact-first', async () => {

@@ -14,7 +14,7 @@ class ToolDiscovery extends ProductionToolDiscovery {
 describe('semantic tool discovery and surfaces', () => {
   it('matches the live classified recommend-ticket tuple to the existing selector', async () => {
     initializeTools()
-    const query = {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}
+    const query = {domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}
     const asker = {json: async () => ({ok: true, data: query})} as unknown as Asker
     const result = await new ToolDiscovery(commandRegistry, asker).discover("what's the next recommeded ticket?", 3)
     expect(result.query).toEqual(query)
@@ -24,7 +24,7 @@ describe('semantic tool discovery and surfaces', () => {
 
   it('reports a valid but unmatched AND query without dropping its constraints', async () => {
     initializeTools()
-    const query = {mode: ['product'], domain: ['ticket'], object: ['epic'], action: ['recommend'], effect: ['read']}
+    const query = {domain: ['ticket'], object: ['epic'], action: ['recommend'], effect: ['read']}
     const result = await new ToolDiscovery(commandRegistry, {json: async () => ({ok: true, data: query})} as unknown as Asker).discover('recommend an epic')
     expect(result.query).toEqual(query)
     expect(result.tools).toEqual([])
@@ -47,7 +47,6 @@ describe('semantic tool discovery and surfaces', () => {
         return {
           ok: true,
           data: {
-            mode: ['product'],
             domain: ['ticket'],
             object: ['ticket'],
             action: ['list'],
@@ -61,7 +60,7 @@ describe('semantic tool discovery and surfaces', () => {
     const result = await discovery.discover('do we have open tickets?')
 
     expect(calls).toBe(1)
-    expect(result.mode).toBe('product')
+    expect(result).not.toHaveProperty('mode');
     expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])
     expect(result.tools.length).toBeLessThan(commandRegistry.getAll().length)
   })
@@ -72,7 +71,6 @@ describe('semantic tool discovery and surfaces', () => {
       json: async () => ({
         ok: true,
         data: {
-          mode: ['dev'],
           domain: ['ticket'],
           action: ['recommend', 'resolve'],
         },
@@ -82,7 +80,7 @@ describe('semantic tool discovery and surfaces', () => {
     const discovery = new ToolDiscovery(commandRegistry, asker)
     const result = await discovery.discover('choose suitable work and execute it')
 
-    expect(result.mode).toBe('dev')
+    expect(result).not.toHaveProperty('mode');
     expect(new Set(result.tools.map(tool => tool.name))).toEqual(
       new Set(['recommend_next_task', 'resolve_ticket']),
     )
@@ -94,7 +92,6 @@ describe('semantic tool discovery and surfaces', () => {
       json: async () => ({
         ok: true,
         data: {
-          mode: ['product', 'invented-mode'],
           domain: ['ticket', 'invented-domain'],
           object: ['ticket', 'invented-object'],
           action: ['list', 'invented-action'],
@@ -107,7 +104,6 @@ describe('semantic tool discovery and surfaces', () => {
     const result = await discovery.discover('do we have open tickets?')
 
     expect(result.query).toEqual({
-      mode: ['product'],
       domain: ['ticket'],
       object: ['ticket'],
       action: ['list'],
@@ -126,7 +122,6 @@ describe('semantic tool discovery and surfaces', () => {
         return {
           ok: true,
           data: {
-            mode: ['product'],
             domain: ['ticket'],
             object: ['ticket'],
             action: ['list'],
@@ -163,7 +158,6 @@ describe('semantic tool discovery and surfaces', () => {
         return {
           ok: true,
           data: {
-            mode: ['product'],
             domain: ['ticket'],
             object: ['ticket'],
             action: ['list'],
@@ -189,22 +183,22 @@ describe('semantic tool discovery and surfaces', () => {
     const cases = [
       {
         query: 'who calls parseConfig?',
-        data: {mode: ['dev'], domain: ['graph'], object: ['caller'], action: ['inspect'], effect: ['read']},
+        data: {domain: ['graph'], object: ['caller'], action: ['inspect'], effect: ['read']},
         expected: 'get_exact_callers',
       },
       {
         query: 'show the source of parseConfig',
-        data: {mode: ['dev'], domain: ['graph'], object: ['source'], action: ['get'], effect: ['read']},
+        data: {domain: ['graph'], object: ['source'], action: ['get'], effect: ['read']},
         expected: 'get_symbol_source',
       },
       {
         query: 'fix the failing auth test',
-        data: {mode: ['triage'], domain: ['test'], object: ['test'], action: ['debug'], effect: ['execution']},
+        data: {domain: ['test'], object: ['test'], action: ['debug'], effect: ['execution']},
         expected: 'triage_test_failures',
       },
       {
         query: 'show git status',
-        data: {mode: ['dev'], domain: ['git'], object: ['status'], action: ['get'], effect: ['read']},
+        data: {domain: ['git'], object: ['status'], action: ['get'], effect: ['read']},
         expected: 'get_git_status',
       },
     ]
@@ -223,7 +217,6 @@ describe('semantic tool discovery and surfaces', () => {
       json: async () => ({
         ok: true,
         data: {
-          mode: ['dev'],
           domain: ['planning'],
           object: ['nonexistent-object'],
           effect: ['read'],
@@ -285,7 +278,7 @@ it('qualifies candidate descriptions and narrowly rediscovers evidence when coar
     }
     classifications++
     if (classifications === 2) expect(prompt).toContain('do not satisfy the full request')
-    return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: [classifications === 1 ? 'recommend' : 'list'], effect: ['read']}}
+    return {ok: true, data: {domain: ['ticket'], object: ['ticket'], action: [classifications === 1 ? 'recommend' : 'list'], effect: ['read']}}
   }} as unknown as Asker
   const result = await new ProductionToolDiscovery(commandRegistry, asker).discover('Compare all candidates to find the least justified one', 5, {signal: controller.signal, timeoutMs: 1234})
   expect(result.tools.map(tool => tool.name)).toEqual(['list_tickets'])

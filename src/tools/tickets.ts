@@ -70,7 +70,7 @@ export function registerTicketTools() {
     execute: async ({ ticketId, kind, ...options }, ctx) => {
       const ticket = await requireTicket(ctx, ticketId, kind);
       if (ticket.kind === 'bug' && !Ticket.assessBug(ticket).ready) return {status:'needs_input',artifactId:ticketId,required:Ticket.assessBug(ticket).missing.map(field=>({question:`Complete Bug ${field}.`,why:'Missing reproducible defect contract.',target:field}))};
-      const result=await ticket.resolve(ctx.store, { ...options, signal: ctx.signal });
+      const result=await ticket.resolve(ctx.store, { ...options, codeMutationAllowed:ctx.codeMutationAllowed, signal: ctx.signal });
       if(ctx.executionAuthority==='project-write' && !ctx.signal?.aborted) await recordTicketEvent(ctx.store,{ticketId,kind:result.status==='blocked'?'failure':'outcome',message:result.status==='complete'?'Resolution complete.':JSON.stringify(result).slice(0,12000),references:result.status==='complete'?[`VERIFY-${ticketId}`]:[]});
       return result;
     }

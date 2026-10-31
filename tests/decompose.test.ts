@@ -48,7 +48,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
         ollama: { top_k: 32, top_p: 0.85 }
       },
       modelRoutes: {
-        design: 'openrouter/deepseek/deepseek-chat',
+        reasoning: 'openrouter/deepseek/deepseek-chat',
         'digest.review': 'google/gemini-review'
       }
     });
@@ -62,7 +62,7 @@ describe('Epic Decomposition & Apply (Ticket 2)', () => {
       providerId: 'ollama',
       modelId: 'qwen-project'
     });
-    expect(asker.getRouter().resolve('design', ['ollama', 'openrouter', 'google'])).toEqual({
+    expect(asker.getRouter().resolve('reasoning', ['ollama', 'openrouter', 'google'])).toEqual({
       providerId: 'openrouter',
       modelId: 'deepseek/deepseek-chat'
     });

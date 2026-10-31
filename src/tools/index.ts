@@ -32,7 +32,7 @@ let initialized = false;
 export function initializeTools(): CommandRegistry {
   if (!initialized) {
     registerTicketTools();
-    commandRegistry.register({name:'graph.predicate',category:'graph',description:'List declared H/O/L predicate descriptors or check an exact source-kind/predicate/target-kind triple; declaration is not write permission.',parameters:GraphPredicateActionSchema,execute:(args,ctx)=>graphPredicateAction(ctx.store,args)});
+    commandRegistry.register({name:'graph.predicate',category:'graph',description:'List declared valid predicate triples or check an exact source-kind/predicate/target-kind triple; declaration is not write permission.',parameters:GraphPredicateActionSchema,execute:(args,ctx)=>graphPredicateAction(ctx.store,args)});
     commandRegistry.register({name:'graph.link',category:'graph',description:'Read canonical directed relationships: bounded list scoped to sourceId, or show exact sourceId/predicate/targetId. No mutations.',parameters:GraphLinkActionSchema,execute:(args,ctx)=>graphLinkAction(ctx.store,args)});
     registerGraphTools();
     registerGitTools();

@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {ShellSession} from './shell.ts';
-import type {WorkflowActor, ShellMode} from './helpers/actor/engine.ts';
+import type {WorkflowActor} from './helpers/actor/engine.ts';
 
 export interface ShellTrace {
   instruction: string;
-  mode: ShellMode;
   initialTools?: string[];
   discoveryElapsedMs?: number;
   tools?: string[];
@@ -23,12 +22,11 @@ export function formatShellTrace(session: ShellSession): string {
     const saved = shellTracePath(session);
     return fs.existsSync(saved) ? fs.readFileSync(saved, 'utf8') : 'No shell execution trace recorded yet.';
   }
-  const {instruction, mode, tools, result, error} = session.trace;
+  const {instruction, tools, result, error} = session.trace;
   const run = session.viewport!.getRun();
   return [
     'AIWF shell execution trace',
     `Request: ${instruction}`,
-    `Mode: ${mode.toUpperCase()}`,
     `Status: ${run.status} · ${run.elapsedMs} ms · ${session.viewport!.getSteps().length} steps`,
     `Step budget: ${result?.stepBudget ?? session.actor.maxSteps}`,
     session.trace.discoveryElapsedMs !== undefined ? `Bootstrap available at +${session.trace.discoveryElapsedMs} ms` : '',

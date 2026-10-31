@@ -76,7 +76,7 @@ export async function prepareTicket(
                         ),
                         TicketPreparationProposalSchema,
                         {
-                            model: cfg.modelRoutes?.design ?? cfg.model,
+                            model: cfg.modelRoutes?.reasoning ?? cfg.model,
                             temperature: 0,
                             signal: options.signal,
                             maxRetries: 1,

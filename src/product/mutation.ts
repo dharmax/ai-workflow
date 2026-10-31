@@ -73,18 +73,16 @@ const relationTriples: Array<[ProductKind, string, ProductKind]> = [
   ['Decision', 'governs', 'Ticket']
 ];
 
-/** One authorship policy; ontology registration alone never grants human authorship. */
+/** Valid Product relationship triples; declaration does not confer write authority. */
 export const PRODUCT_RELATIONS = [
-  ...relationTriples.map(([sourceKind, predicate, targetKind]) => ({sourceKind, predicate, targetKind,
-    mode: predicate === 'verifies' ? 'O' as const : 'H' as const,
-    owner: predicate === 'verifies' ? 'Story-test, test-execution or independent completion owner' : 'Reviewed Product change'})),
-  {sourceKind:'Feature',predicate:'contains',targetKind:'UserStory',mode:'L',owner:'Legacy relation; remove only'},
-  {sourceKind:'Module',predicate:'serves',targetKind:'Goal',mode:'H',owner:'Reviewed Product change'},
-  {sourceKind:'Concept',predicate:'governs',targetKind:'Module',mode:'H',owner:'Reviewed Product change'},
-  {sourceKind:'Product',predicate:'contains',targetKind:'Goal',mode:'H',owner:'Reviewed Product change'},
-  {sourceKind:'Product',predicate:'contains',targetKind:'Concept',mode:'H',owner:'Reviewed Product change'},
-  {sourceKind:'Product',predicate:'contains',targetKind:'Feature',mode:'H',owner:'Reviewed Product change'},
-  {sourceKind:'Aspect',predicate:'applies_to',targetKind:'Product',mode:'H',owner:'Reviewed Product change'}
+  ...relationTriples.map(([sourceKind, predicate, targetKind]) => ({sourceKind, predicate, targetKind})),
+  {sourceKind:'Feature',predicate:'contains',targetKind:'UserStory'},
+  {sourceKind:'Module',predicate:'serves',targetKind:'Goal'},
+  {sourceKind:'Concept',predicate:'governs',targetKind:'Module'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Goal'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Concept'},
+  {sourceKind:'Product',predicate:'contains',targetKind:'Feature'},
+  {sourceKind:'Aspect',predicate:'applies_to',targetKind:'Product'}
 ] as const;
 export function productRelation(sourceKind: string, predicate: string, targetKind: string) {
   return PRODUCT_RELATIONS.find(row => row.sourceKind === sourceKind && row.predicate === predicate && row.targetKind === targetKind);
@@ -114,7 +112,7 @@ export function productKind(entity: unknown): ProductKind | undefined {
 
 export function validateProductRelation(source: ProductKind, predicate: string, target: ProductKind): void {
   const relation=productRelation(source,predicate,target);
-  if (!relation || relation.mode === 'L') {
+  if (!relation || source === 'Feature' && predicate === 'contains' && target === 'UserStory') {
     throw new Error(`Invalid product relation: '${source} ${predicate} ${target}' is not allowed.`);
   }
 }
@@ -319,11 +317,8 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
       if (mutation.sourceId === mutation.targetId) throw Error('Self-links are not allowed.');
       const relation = productRelation(source.kind, mutation.predicate, target.kind);
       if (!relation) throw Error(`Invalid product relation: '${source.kind} ${mutation.predicate} ${target.kind}' is not allowed.`);
-      if (relation.mode === 'O') {
-        store.assertTestArtifactWrite(mutation.sourceId);
-        if ('payload' in mutation) throw Error('Owner-managed proof does not accept human payload.');
-      }
-      if (relation.mode === 'L' && mutation.kind !== 'product_unlink') throw Error('New legacy relation authorship is not allowed; existing edges are removal-only.');
+      if (mutation.predicate === 'verifies' && 'payload' in mutation) throw Error('Verification evidence does not accept human payload.');
+      if (source.kind === 'Feature' && mutation.predicate === 'contains' && target.kind === 'UserStory' && mutation.kind !== 'product_unlink') throw Error('New legacy relation authorship is not allowed; existing edges are removal-only.');
       const edgeKey = key(mutation.sourceId, mutation.predicate, mutation.targetId);
       if (mutation.kind === 'product_link' && !edges.has(edgeKey) && [source,target].some(entity=>entity.fields.status === 'deprecated'))
         throw Error('New links to retired endpoints are refused.');

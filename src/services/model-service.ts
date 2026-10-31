@@ -125,15 +125,12 @@ export class ModelService {
         return eligible.includes(target.providerId) ? target : undefined
     }
 
-    public createAsker(taskAliases: Record<string, string> = {}, preferLocal = false, failedVerificationModels: ReadonlySet<string> = new Set()): Asker {
+    public createAsker(preferLocal = false, failedVerificationModels: ReadonlySet<string> = new Set()): Asker {
         const { config, providers } = this.runtime
         const routes = { ...config.modelRoutes }
         const fallbacks: Record<string, string[]> = {}
         const local = this.localModel
-        for (const [alias, task] of Object.entries(taskAliases)) {
-            const primary = routes[task] ?? routes[alias]
-            if (!primary) continue
-            routes[task] = primary
+        for (const [task, primary] of Object.entries(routes)) {
             fallbacks[task] = [
                 ...this.gatewayFallback(primary),
                 config.model,
@@ -178,8 +175,8 @@ export function createDefaultAsker(projectRoot: string = process.cwd()): Asker |
     }
 }
 
-/** Native llm-utils workload keys also used by the Actor's mode aliases. */
-const MODEL_WORKLOADS = {
+/** Native llm-utils workloads and their routing criteria. */
+export const MODEL_WORKLOADS = {
     fast: 'Lightweight source and capability discovery; low latency and tool-use reliability.',
     code: 'Engineering implementation and correction; tool use, accurate source changes and tests.',
     reasoning: 'Architecture and requirements reasoning; complex constraints and long context.',

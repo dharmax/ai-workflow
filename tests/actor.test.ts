@@ -4,19 +4,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { WorkflowActor, classifyIntentMode, type ShellMode, pubsub } from '../src/helpers/actor/engine.ts';
+import { WorkflowActor, pubsub } from '../src/helpers/actor/engine.ts';
 import { Ticket, Epic, Feature, UserStory, FileNode } from '../src/model/ontology.ts';
 import type {Asker, ZodType} from '@dharmax/llm-utils';
 
-const discover = (names: string[] = [], mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
+const discover = (names: string[] = []) => ({
   discover: async () => ({
     query: {},
-    mode,
     tools: names.map(name => commandRegistry.get(name)).filter(Boolean) as any[],
   }),
 })
 
-describe('Cognitive Actor & Mode Switcher', () => {
+describe('Cognitive Actor', () => {
   let tempDir: string;
   let store: WorkflowStore;
 
@@ -63,7 +62,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
           : {thought: '', action: 'final_answer', finalAnswer: 'Project writes refused; scratch succeeded'}};
     }} as unknown as Asker;
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute(
-      'Try the bogus-file workaround', undefined, {executionAuthority: 'project-write'});
+      'Try the bogus-file workaround', {executionAuthority: 'project-write'});
     expect(result.failed, JSON.stringify(result)).not.toBe(true);
     expect(candidates).toContain('apply_change');
     for (const name of ['script_eval', 'compile_codelet', 'run_codelet', 'apply_block_patch', 'promote_codelet'])
@@ -106,7 +105,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     }} as unknown as Asker;
     const result = await new WorkflowActor({store, projectRoot: tempDir, asker,
       toolDiscovery: discover(['claim_ticket', 'preview_change', 'apply_change'])}).execute(
-      'Set value to two through its Ticket', undefined, {executionAuthority: 'project-write', onStep: step => {
+      'Set value to two through its Ticket', {executionAuthority: 'project-write', codeMutationAllowed: true, onStep: step => {
         if (step.toolCalls[0]?.toolName === 'preview_change') {
           const preview = step.toolResults[0]!.result as {fingerprint: string; blocked: boolean};
           expect(preview.blocked).toBe(false);
@@ -122,23 +121,16 @@ describe('Cognitive Actor & Mode Switcher', () => {
     await commandRegistry.execute('release_ticket', {ticketId: owner.ticketId}, {store, projectRoot: tempDir, executionAuthority: 'project-write'});
   });
 
-  it('maps configured mode routes to semantic tasks, with task routes authoritative', () => {
-    const configPath=path.join(tempDir,'.ai-workflow/config.json');
+  it('keeps native workload routes authoritative', () => {
+    const configPath=path.join(tempDir,'.ai-workflow','config.json');
     fs.mkdirSync(path.dirname(configPath),{recursive:true});
-    for (const taskRoute of [undefined,'openai/gpt-4o-mini']) {
-      fs.writeFileSync(configPath,JSON.stringify({model:'ollama/qwen2.5-coder:7b',modelRoutes:{dev:'openrouter/openai/gpt-4o-mini',...(taskRoute?{code:taskRoute}:{})}}));
-      const actor=new WorkflowActor({store,projectRoot:tempDir,toolDiscovery:null});
-      const asker=(actor as unknown as {asker:Asker}).asker;
-      expect(asker.getRouter().resolve('code',['openai','openrouter','ollama'],true)).toEqual(taskRoute?{providerId:'openai',modelId:'gpt-4o-mini'}:{providerId:'openrouter',modelId:'openai/gpt-4o-mini'});
-      // No concrete cloud target is configured for fast: do not invent a
-      // gateway equivalent for an Ollama-local model when local is unavailable.
-      expect(asker.getRouter().resolve('fast',['openrouter'],true)).toEqual({providerId:'ollama',modelId:'qwen2.5-coder:7b'});
-    }
+    fs.writeFileSync(configPath,JSON.stringify({model:'ollama/qwen2.5-coder:7b',modelRoutes:{code:'openrouter/openai/gpt-4o-mini'}}));
+    const actor=new WorkflowActor({store,projectRoot:tempDir,toolDiscovery:null});
+    expect(actor.asker!.getRouter().resolve('code',['openai','openrouter','ollama'],true)).toEqual({providerId:'openrouter',modelId:'openai/gpt-4o-mini'});
   });
-
   it('uses enforced shell observation effects to stop repeated reads within read-only authority', async () => {
     const asker = {json: async () => ({ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'ls .'}}]}})} as unknown as Asker;
-    const result = await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null,maxSteps:10}).execute('Inspect project evidence',undefined,{executionAuthority:'read-only'});
+    const result = await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null,maxSteps:10}).execute('Inspect project evidence',{executionAuthority:'read-only'});
     expect(result.failed).toBe(true);
     expect(result.haltReason).toBe('error');
     expect(result.stepsCount).toBe(3);
@@ -154,7 +146,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
     const commands=['printf fake > records.json','printf x >> "$TMPDIR/counter"','printf x >> "$TMPDIR/counter"','cat "$TMPDIR/counter"'];
     fs.writeFileSync(path.join(tempDir,'records.json'),'real');
     const asker={json:async()=>({ok:true,data:count<commands.length?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:commands[count++]}}]}:{thought:'',action:'final_answer',finalAnswer:'xx from scratch; source unchanged'}})} as unknown as Asker;
-    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null}).execute('Compute without changing source',undefined,{executionAuthority:'read-only'});
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:null}).execute('Compute without changing source',{executionAuthority:'read-only'});
     expect(result.failed, JSON.stringify(result)).not.toBe(true);
     expect(result.events[0]!.toolResults![0]!.isError).toBe(true);
     expect(result.events[1]!.toolResults![0]!.isError).toBe(false);
@@ -170,7 +162,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
       if (options.system?.includes('Classify one AI-Workflow request')) {
         classifierCalls++;
-        return {ok: true, data: {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
+        return {ok: true, data: {domain: ['ticket'], object: ['ticket'], action: ['recommend'], effect: ['read']}};
       }
       actorCalls++;
       if (actorCalls === 1) return {ok:true,data:{thought:'',action:'tool_call',toolCalls:[{name:'discover_tools',parameters:{request:'Recommend next ticket'}}]}};
@@ -211,7 +203,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       if (options.system?.startsWith('Qualify semantic discovery')) return {ok: true, data: {ids: JSON.parse(prompt).candidates.map((candidate: {id: string}) => candidate.id)}};
       if (options.system?.includes('Classify one AI-Workflow request')) {
         discoveries++;
-        return {ok: true, data: discoveries === 1 ? {mode: ['product'], domain: ['ticket'], object: ['ticket'], action: ['list'], effect: ['read']} : {domain: ['graph'], object: ['graph'], action: ['search'], effect: ['read']}};
+        return {ok: true, data: discoveries === 1 ? {domain: ['ticket'], object: ['ticket'], action: ['list'], effect: ['read']} : {domain: ['graph'], object: ['graph'], action: ['search'], effect: ['read']}};
       }
       actorCalls++;
       expect(options.system).toContain('discover_tools'); expect(options.system).toContain('every requested part');
@@ -222,7 +214,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       expect(prompt).toContain('SHARED'); expect(prompt).toContain('STORY-HIGH'); expect(prompt).toContain('STORY-LOW');
       return {ok: true, data: {thought: '', action: 'final_answer', finalAnswer: 'HIGH is most and LOW least by priority; both trace through separate stories and features to SHARED.'}};
     }} as unknown as Asker;
-    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute('Compare most and least recommended tickets and their main artifacts', undefined, {onDiscovery: tools => toolSnapshots.push(tools)});
+    const result = await new WorkflowActor({store, projectRoot: tempDir, asker}).execute('Compare most and least recommended tickets and their main artifacts', {onDiscovery: tools => toolSnapshots.push(tools)});
     expect(result.failed).toBeUndefined(); expect(result.stepsCount).toBe(5); expect(discoveries).toBe(2);
     expect(result.discoveredTools).toEqual(['run_command', 'discover_tools', 'list_tickets', 'search_graph']);
     expect(toolSnapshots.at(-1)).toEqual(result.discoveredTools); expect(result.answer).toContain('SHARED');
@@ -245,7 +237,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       expect(options.system).not.toContain('### Tool: script_eval');
       return {ok:true,data:++calls===1?{thought:'',action:'tool_call',toolCalls:[{name:'run_command',parameters:{command:'printf observed'}}]}:{thought:'',action:'final_answer',finalAnswer:'observed'}};
     }} as unknown as Asker;
-    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:discovery}).execute('Inspect evidence','dev');
+    const result=await new WorkflowActor({store,projectRoot:tempDir,asker,toolDiscovery:discovery}).execute('Inspect evidence');
     expect(result.failed).toBeUndefined();expect(result.discoveredTools).toEqual(['run_command','discover_tools']);
     expect(result.events[0].toolResults?.[0].result).toMatchObject({stdout:'observed',success:true});
   });
@@ -288,19 +280,6 @@ describe('Cognitive Actor & Mode Switcher', () => {
     expect(result.events[1].toolResults?.[0]).toMatchObject({isError:false,result:{success:true,stdout:'recovered',exitCode:0}});
   });
 
-  it('parses explicit mode preferences without linguistic routing', () => {
-    // Explicit commands
-    expect(classifyIntentMode('/design what is our database strategy?')).toBe('design');
-    expect(classifyIntentMode('/dev create a patch for store.ts')).toBe('dev');
-    expect(classifyIntentMode('/triage why are playwright tests failing?')).toBe('triage');
-    expect(classifyIntentMode('/product prioritize next sprint backlog')).toBe('product');
-
-    // Natural-language mode selection is semantic and happens in ToolDiscovery.
-    // This helper only parses explicit operator syntax and otherwise falls back to dev.
-    expect(classifyIntentMode('How should we design the architecture?')).toBe('dev');
-    expect(classifyIntentMode('Add a new Epic for user onboarding')).toBe('dev');
-  });
-
   it('should report natural-language LLM unavailability without inventing intent', async () => {
     const actor = new WorkflowActor({
       store,
@@ -310,7 +289,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     const res = await actor.execute('unsure readme is aligned with latest changes');
 
-    expect(res.mode).toBe('dev');
+    expect(res).not.toHaveProperty('mode');
     expect(res.offlineFallback).toBe(true);
     expect(res.answer).toContain('LLM unavailable');
     expect(res.answer).not.toContain('Target Domain');
@@ -339,13 +318,13 @@ describe('Cognitive Actor & Mode Switcher', () => {
       store,
       projectRoot: tempDir,
       asker: mockAsker,
-      toolDiscovery: discover(['get_git_status', 'resolve_test_target'], 'dev')
+      toolDiscovery: discover(['get_git_status', 'resolve_test_target'])
     });
 
     const res = await actor.execute('unsure readme is aligned with latest changes');
 
     expect(res.answer).toBe('README checked.');
-    expect(capturedOptions.task).toBe('code');
+    expect(capturedOptions.task).toBe('reasoning');
     expect(capturedOptions.model).toBeUndefined();
     expect(capturedOptions.system).toContain('run_command');
     expect(capturedOptions.system).not.toContain('### Tool: resolve_test_target');
@@ -362,7 +341,6 @@ describe('Cognitive Actor & Mode Switcher', () => {
           return {
             ok: true,
             data: {
-              mode: ['product'],
               domain: ['ticket'],
               object: ['ticket'],
               action: ['list'],
@@ -391,7 +369,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
 
     const res = await actor.execute('do we have open tickets?')
 
-    expect(res.mode).toBe('dev')
+    expect(res).not.toHaveProperty('mode');
     expect(classifierCalls).toBe(0)
     expect(actorSystem).not.toContain('### Tool: list_tickets')
     expect(actorSystem).not.toContain('### Tool: resolve_ticket')
@@ -433,12 +411,12 @@ describe('Cognitive Actor & Mode Switcher', () => {
       store,
       projectRoot: tempDir,
       asker: mockAsker,
-      toolDiscovery: discover(['list_tickets'], 'product'),
+      toolDiscovery: discover(['list_tickets']),
     })
 
     const res = await actor.execute('do we have open tickets?')
 
-    expect(res.mode).toBe('dev')
+    expect(res).not.toHaveProperty('mode');
     expect(res.answer).toBe('There are open tickets.')
     expect(res.discoveredTools).toEqual(['run_command','discover_tools','list_tickets'])
     expect(systems[0]).not.toContain('### Tool: list_tickets')
@@ -472,7 +450,6 @@ describe('Cognitive Actor & Mode Switcher', () => {
             return {
               ok: true,
               data: {
-                mode: ['dev'],
                 domain: ['ticket'],
                 action: ['recommend', 'resolve'],
               },
@@ -561,7 +538,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       store,
       projectRoot: tempDir,
       asker: mockAsker,
-      toolDiscovery: discover(['get_git_status'], 'dev'),
+      toolDiscovery: discover(['get_git_status']),
     })
 
     const result = await actor.execute('inspect status')
@@ -616,11 +593,11 @@ describe('Cognitive Actor & Mode Switcher', () => {
       projectRoot: tempDir,
       asker: mockAsker,
       toolDiscovery: {
-        discover: async () => ({query: {}, mode: 'dev' as const, tools: [tool] as any[]}),
+        discover: async () => ({query: {}, tools: [tool] as any[]}),
       },
     })
 
-    const result = await actor.execute('run the selected capability', undefined, {signal: controller.signal,executionAuthority:'project-write'})
+    const result = await actor.execute('run the selected capability', {signal: controller.signal,executionAuthority:'project-write'})
 
     expect(result.answer).toBe('done')
     expect(modelSignal).toBe(controller.signal)
@@ -643,7 +620,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       projectRoot: tempDir,
       asker: mockAsker,
       maxSteps: 1,
-      toolDiscovery: discover(['get_git_status'], 'dev'),
+      toolDiscovery: discover(['get_git_status']),
     })
 
     const result = await actor.execute('inspect until complete')
@@ -706,7 +683,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       store,
       projectRoot: tempDir,
       asker: mockAsker,
-      toolDiscovery: discover([], 'dev')
+      toolDiscovery: discover([])
     });
 
     await actor.execute('ensure the readme is aligned with latest changes');
@@ -750,7 +727,7 @@ describe('Cognitive Actor & Mode Switcher', () => {
       projectRoot: tempDir,
       asker: mockAsker,
       maxSteps: 5,
-      toolDiscovery: discover(['get_git_status'], 'triage')
+      toolDiscovery: discover(['get_git_status'])
     });
 
     const actorEvents: any[] = [];
@@ -758,9 +735,9 @@ describe('Cognitive Actor & Mode Switcher', () => {
       actorEvents.push(ev.data);
     });
 
-    const res = await actor.execute('/triage check environment state');
+    const res = await actor.execute('check environment state');
 
-    expect(res.mode).toBe('triage');
+    expect(res).not.toHaveProperty('mode');
     expect(res.answer).toContain('verified and operational');
     expect(res.stepsCount).toBe(2);
     expect(actorEvents.length).toBeGreaterThanOrEqual(1);

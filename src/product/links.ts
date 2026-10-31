@@ -42,7 +42,7 @@ export async function endpoint(store:WorkflowStore,id:string,match:'exact'|'huma
 
 export async function linkAction(store:WorkflowStore,input:LinkAction) {
  const args=LinkActionSchema.parse(input);
- if(args.action==='allowed') return {status:'read',relations:PRODUCT_RELATIONS.filter(row=>(!args.sourceKind||row.sourceKind===args.sourceKind)&&(!args.targetKind||row.targetKind===args.targetKind)),payload:{note:'Optional uninterpreted rationale, at most 4000 characters; empty clears'},modes:{H:'Reviewed human add/remove/note',O:'Owner-managed; specialist operation only',L:'Legacy; remove only'}};
+ if(args.action==='allowed') return {status:'read',relations:PRODUCT_RELATIONS.filter(row=>(!args.sourceKind||row.sourceKind===args.sourceKind)&&(!args.targetKind||row.targetKind===args.targetKind)),payload:{note:'Optional uninterpreted rationale, at most 4000 characters; empty clears'}};
  if(args.action==='inspect') {
   const entity=await endpoint(store,args.id,args.idMatch);
   const direction=args.direction??'both',limit=args.limit??25;
@@ -57,11 +57,9 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
   for(const row of rows.slice(offset,offset+limit)) {
    const source=await store.getEntity(row.sourceId),target=await store.getEntity(row.targetId);
    const sourceKind=productKind(source),targetKind=productKind(target);
-   const relation=productRelation(sourceKind??row.sourceType,row.predicateName,targetKind??row.targetType);
-   const protectedEndpoint=[source,target].some(e=>e?.typeName()==='Artifact'&&/^(VERIFY-|GOVERNANCE-ADMISSION$)/.test(store.localId(e.id)));
    links.push({id:row._id,version:row._version,sourceId:store.localId(row.sourceId),targetId:store.localId(row.targetId),sourceKind:sourceKind??row.sourceType,targetKind:targetKind??row.targetType,
     sourceStatus:source&&'status' in source?source.status:undefined,targetStatus:target&&'status' in target?target.status:undefined,predicate:row.predicateName,direction:row.sourceId===entity.id?'outgoing':'incoming',
-    note:row.payload?.note,mode:protectedEndpoint?'O':relation?.mode??'O',owner:protectedEndpoint?'Protected evidence owner':relation?.owner??'Indexed/runtime or unsupported historical relation; manual mutation forbidden'});
+    note:row.payload?.note});
   }
   return {status:'read',id:store.localId(entity.id),version:entity.version,freshness:{basis:'canonical-relations',sourceIndex:'not-assessed'},relationsHash:computeHash(allRows),links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
  }
@@ -204,7 +202,7 @@ export const GraphPredicateActionSchema=z.discriminatedUnion('action',[
 ]);
 export async function graphPredicateAction(store:WorkflowStore,input:z.infer<typeof GraphPredicateActionSchema>){
  const args=GraphPredicateActionSchema.parse(input);
- if(args.action==='list')return {...await linkAction(store,{action:'allowed'}),predicates:Object.keys(semanticPredicates).map(name=>({name,relations:PRODUCT_RELATIONS.filter(row=>row.predicate===name),owner:PRODUCT_RELATIONS.some(row=>row.predicate===name)?'Product relation policy':'Graph runtime/index owner; endpoint policy not specified here',authorable:PRODUCT_RELATIONS.some(row=>row.predicate===name&&row.mode==='H')}))};
+ if(args.action==='list')return {...await linkAction(store,{action:'allowed'}),predicates:Object.keys(semanticPredicates).map(name=>({name,relations:PRODUCT_RELATIONS.filter(row=>row.predicate===name)}))};
  const descriptor=productRelation(args.sourceKind,args.predicate,args.targetKind);
  return {status:'read',sourceKind:args.sourceKind,predicate:args.predicate,targetKind:args.targetKind,allowed:descriptor?true:PRODUCT_RELATIONS.some(row=>row.predicate===args.predicate)?false:null,descriptor:descriptor??null,...(!descriptor&&!PRODUCT_RELATIONS.some(row=>row.predicate===args.predicate)?{reason:'Endpoint policy belongs to the graph runtime/index owner; no Product authorability is granted.'}:{})};
 }

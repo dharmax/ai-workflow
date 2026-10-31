@@ -21,7 +21,7 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
       if(route) {
         const configured=loadConfig(root),model=configured.modelRoutes?.[route];
         if(!model)throw Error('Live test route is not configured: '+route);
-        saveConfig(root,{modelRoutes:{...configured.modelRoutes,dev:model}});
+        saveConfig(root,{modelRoutes:{...configured.modelRoutes,code:model}});
         process.stderr.write('Live implementation uses configured '+route+' route: '+model+'\n');
       }
       const implementationModel = process.env.AIWF_LIVE_IMPLEMENTATION_MODEL;
@@ -31,7 +31,7 @@ describe('US: As a developer, I can have AIWF implement an accepted Story', () =
         const ceilingUSD = Number(process.env.AIWF_LIVE_PAID_CEILING_USD);
         if (!Number.isFinite(ceilingUSD) || ceilingUSD <= 0) throw Error('Live cloud qualification requires an explicit positive spending ceiling.');
         saveConfig(root, {gateway: 'auto', modelRoutes: {...configured.modelRoutes,
-          ...(implementationModel ? {dev: implementationModel} : {}),
+          ...(implementationModel ? {code: implementationModel} : {}),
           ...(reviewerModel ? {critic: reviewerModel} : {})},
           paidInference: {providers: ['openrouter'], tasks: ['verification'], ceilingUSD}});
       }

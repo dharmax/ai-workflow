@@ -90,14 +90,14 @@ export async function facilitateArtifactCommand(tokens: string[], ctx: ToolConte
 
 export const LINK_HELP = `Governed relations: use graph:predicate --help and graph:link --help for current support.
 Legacy transitional relations:
-  link types [SourceKind [TargetKind]]  Discover H/O/L modes and specialist owners
+  link types [SourceKind [TargetKind]]  Discover valid relationship triples
   links ID [--incoming|--outgoing] [--predicate NAME] [--limit 1..100] [--cursor TOKEN] [--json]
   [legacy] link SOURCE to TARGET as PREDICATE [--note TEXT|--clear-note] [--yes]
   [legacy] unlink SOURCE from TARGET as PREDICATE [--yes]
 Default: exact preview, interactive human review; noninteractive preview is inert.
 --yes confirms only this deterministic local operation. MCP/Actor cannot self-approve.
-Notes are uninterpreted text, at most 4000 characters. O edges require their owner;
-L edges can only be removed. Source/test identities require exact spelling.`;
+Notes are uninterpreted text, at most 4000 characters. Verification evidence requires
+its genuine proof operation; legacy Feature containment is removal-only. Source/test identities require exact spelling.`;
 
 /** Shell-only lexical pass: no expansion, substitution or evaluation. CLI passes argv directly. */
 export function lexCommand(input: string): string[] {
@@ -239,7 +239,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     return emit(linkIntent({action:'preview_add',sourceId,targetId,predicate:predicate.toLowerCase(),idMatch:'human',
       ...(opts.note!==undefined?{payload:normalizeLinkPayload({note:opts.note})}:opts.clearNote?{payload:{}}:{})},opts.yes));
   });
-  link.command('types [sourceKind] [targetKind]').description('Discover H/O/L relations and owning operations').action((sourceKind?:string,targetKind?:string)=>{
+  link.command('types [sourceKind] [targetKind]').description('Discover valid relationship triples').action((sourceKind?:string,targetKind?:string)=>{
     if(Object.keys(link.opts()).length) throw new InvalidArgumentError('link types cannot combine with mutation flags.');
     const kind=(value:string|undefined)=>value===undefined?undefined:LinkActionSchema.options[0].shape.sourceKind.unwrap().options.find(k=>k.toLowerCase()===value.toLowerCase())??value;
     return emit(linkIntent({action:'allowed',sourceKind:kind(sourceKind),targetKind:kind(targetKind)}));
@@ -553,7 +553,7 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
     symbol:'symbol <name> [--exact|-e] [--regex|-r] [--kind|-k <kind>] [--file|-f <path>] [--exported] [-n|--limit <count>]',
     graph:'graph [query] [--type|-t <type>] [--pred|-p <predicate>] [--from|--source <id>] [--to|--target <id>] [--depth|-d <number>] [-n|--limit <count>]',
     patch:'Retired raw patch alias. Use source:change PREVIEW/APPLY with JSON, --ticket, --agent and the exact preview fingerprint.',
-    exec:'exec "<instruction or wish>"\nRuns the configured Actor; Product proposals still require host-owned review.',
+    exec:'exec "<instruction or wish>" [--intelligence automatic|normal|high|critical] [--allow-code-mutation|--forbid-code-mutation]\nRuns the configured Actor; Product proposals still require host-owned review.',
     eval:'eval "<code>"\nExecutes JavaScript through the existing sandbox tool.',
     kb:'kb sync [--force] | list [service|skill|pattern] | search <query> | show <id>'
   };

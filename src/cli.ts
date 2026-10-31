@@ -21,7 +21,7 @@ import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
 import { startShell } from './shell.ts';
 import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { WorkflowActor } from './helpers/actor/engine.ts';
+import { WorkflowActor, IntelligenceSchema } from './helpers/actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './services/diagnostics-service.ts';
 import { initProject } from './setup.ts';
 import {runSetupCommand, formatSetupResult} from './setup-command.ts';
@@ -843,9 +843,19 @@ async function main() {
     }
 
     case 'exec': {
-      const wish = args.slice(1).join(' ');
+      const tokens = args.slice(1);
+      let intelligence = IntelligenceSchema.parse('automatic');
+      let codeMutationAllowed = false;
+      const words: string[] = [];
+      for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i] === '--intelligence') intelligence = IntelligenceSchema.parse(tokens[++i]);
+        else if (tokens[i] === '--allow-code-mutation') codeMutationAllowed = true;
+        else if (tokens[i] === '--forbid-code-mutation') codeMutationAllowed = false;
+        else words.push(tokens[i]);
+      }
+      const wish = words.join(' ');
       if (!wish) {
-        console.error(`Usage: aiwf exec "<instruction or wish>"`);
+        console.error(`Usage: aiwf exec "<instruction or wish>" [--intelligence automatic|normal|high|critical] [--allow-code-mutation|--forbid-code-mutation]`);
         process.exit(1);
       }
       const store = getStore();
@@ -853,10 +863,9 @@ async function main() {
       progress.start(`Executing: "${wish.slice(0, 35)}..."`);
       try {
         const actor = new WorkflowActor({ store, projectRoot: root, preferLocal: true });
-        const res = await actor.execute(wish, undefined, {executionAuthority: 'project-write'});
+        const res = await actor.execute(wish, {executionAuthority: 'project-write', codeMutationAllowed, intelligence});
         progress.stop('success');
-        console.log(`Executed in ${res.mode.toUpperCase()} mode`);
-        console.log(`\n[${res.mode.toUpperCase()}] ${res.answer}`);
+        console.log(`\n[AIWF] ${res.answer}`);
       } catch (err: any) {
         progress.stop('fail');
         console.error(`Execution failed: ${err.message || err}`);

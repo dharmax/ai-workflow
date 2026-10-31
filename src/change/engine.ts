@@ -39,6 +39,7 @@ import type {
 } from './types.ts';
 
 export interface ChangeEngineOptions {
+  codeMutationAllowed?: boolean;
   ticketLease?: {ticketId: string; claim: import('../model/ticket.ts').TicketClaim};
   governedAdmission?: string;
   store: WorkflowStore;
@@ -232,6 +233,7 @@ export function computeChangeFingerprint(
 export class CausalChangeEngine {
   public readonly store: WorkflowStore;
   private readonly governedAdmission?: string;
+  private readonly codeMutationAllowed?: boolean;
   private readonly ticketLease: ChangeEngineOptions['ticketLease'];
   private lastPreview?: Pick<ChangePreview, 'fingerprint' | 'originalHashes'>;
   public readonly projectRoot: string;
@@ -240,6 +242,7 @@ export class CausalChangeEngine {
 
   constructor(options: ChangeEngineOptions) {
     this.store = options.store;
+    this.codeMutationAllowed = options.codeMutationAllowed;
     this.governedAdmission = options.governedAdmission;
     this.ticketLease = options.ticketLease;
     this.projectRoot = path.resolve(options.projectRoot);
@@ -732,6 +735,7 @@ export class CausalChangeEngine {
    */
   async applyChange(request: ChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
     this.store.assertCanWrite();
+    if (request.action !== 'product_change' && this.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
     // Reject known stale sources before AST/LSP work. A different engine/process still
     // recomputes the complete preview below; these retained hashes never authorize edits.
     if (this.lastPreview?.fingerprint === fingerprint) {

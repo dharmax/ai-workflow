@@ -189,11 +189,11 @@ export function workspaceClient() {
     const kind=current?.entity.kind||$('forms').querySelector('.entity-form')?.dataset.kind;
     const target=catalog.find(entity=>entity.id===$('relationship-target').value)?.kind;
     const incoming=$('relationship-direction').value==='incoming';
-    const rows=linkTypes.filter(row=>row[incoming?'targetKind':'sourceKind']===kind&&(!target||row[incoming?'sourceKind':'targetKind']===target));
+    const rows=linkTypes.filter(row=>row[incoming?'targetKind':'sourceKind']===kind&&(!target||row[incoming?'sourceKind':'targetKind']===target)&&row.predicate!=='verifies'&&!(row.sourceKind==='Feature'&&row.predicate==='contains'&&row.targetKind==='UserStory'));
     const select=$('relationship-kind'),previous=select.value;select.replaceChildren();
-    for(const row of rows.filter((row,index,all)=>all.findIndex(other=>other.predicate===row.predicate)===index)) option(select,row.predicate,row.predicate+' · '+row.mode,row.mode!=='H');
-    if(rows.some(row=>row.predicate===previous&&row.mode==='H')) select.value=previous;
-    else select.value=rows.find(row=>row.mode==='H')?.predicate||'';
+    for(const row of rows.filter((row,index,all)=>all.findIndex(other=>other.predicate===row.predicate)===index)) option(select,row.predicate,row.predicate);
+    if(rows.some(row=>row.predicate===previous)) select.value=previous;
+    else select.value=rows[0]?.predicate||'';
     $('add-relationship').disabled=!target||!select.value;
   }
   function entityLabel(id) {
@@ -212,15 +212,16 @@ export function workspaceClient() {
     if(!relations.length) el('p','No linked objects. Unlinked effects are unknown.',$('related'));
     for(const edge of relations) {
       const row=el('div',undefined,$('related'),{className:'edge'});
-      el('span',entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId)+' · '+edge.mode+' · '+edge.owner,row);
-      if(edge.mode==='H') {
+      const relation=linkTypes.find(type=>type.sourceKind===edge.sourceKind&&type.predicate===edge.predicate&&type.targetKind===edge.targetKind);
+      el('span',entityLabel(edge.sourceId)+' → '+edge.predicate+' → '+entityLabel(edge.targetId),row);
+      if(relation&&edge.predicate!=='verifies'&&!(edge.sourceKind==='Feature'&&edge.predicate==='contains'&&edge.targetKind==='UserStory')) {
         const label=el('label','Relationship note '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row);
         const note=el('textarea',undefined,label,{maxLength:4000});
         const change=pending.find(p=>p.kind==='product_link'&&sameEdge(p,edge));
         note.value=change?.payload?.note??edge.note??'';
         note.oninput=()=>{pending=pending.filter(p=>!sameEdge(p,edge));pending.push({kind:'product_link',...edgeIdentity(edge),payload:{note:note.value}});invalidate();};
       } else if(edge.note) el('p','Note: '+edge.note,row);
-      if(edge.mode!=='O'&&editable.includes(current.entity.kind)) button('Remove '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row,()=>{
+      if(relation&&edge.predicate!=='verifies'&&editable.includes(current.entity.kind)) button('Remove '+edge.sourceId+' '+edge.predicate+' '+edge.targetId,row,()=>{
         const removed=pending.some(p=>p.kind==='product_unlink'&&sameEdge(p,edge));
         pending=pending.filter(p=>!sameEdge(p,edge));
         if(!removed) pending.push({kind:'product_unlink',...edgeIdentity(edge)});

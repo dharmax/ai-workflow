@@ -110,3 +110,26 @@ it('validates JSON file/stdin, pagination, exact references and finite MCP schem
  for(const name of ['ticket','graph.predicate','graph.link'])expect(tools.tools.some(tool=>tool.name===name)).toBe(true);
  expect((await client.callTool({name:'graph.link',arguments:{action:'create',sourceId:'T2',predicate:'blocks',targetId:'T1'}})).isError).toBe(true);
 },30000);
+
+it('runs mode-free agent execution and rejects client permission fields through CLI, MCP and REST',async()=>{
+ const input={wish:'ticket show T1',intelligence:'critical'};
+ const cliResult=json('agent','exec',input.wish,'--intelligence',input.intelligence,'--json');
+ expect(cliResult).toContain('"id": "T1"');
+ expect(cliResult).not.toMatch(/\[(DESIGN|DEV|TRIAGE|PRODUCT)\]/);
+ const mcp=await client.callTool({name:'agent',arguments:{action:'exec',...input}});
+ expect(mcp.isError).not.toBe(true);
+ const mcpText=(mcp.content as {text:string}[])[0]!.text;
+ expect(mcpText).toBe(cliResult);
+ const response=await http('/api/v1/agent/exec',{method:'POST',body:JSON.stringify(input)});
+ expect(response.status).toBe(200);
+ expect(await response.json()).toBe(cliResult);
+ for(const extra of [{mode:'dev'},{codeMutationAllowed:true}]){
+  expect(run('agent','exec',input.wish,'--data-json',JSON.stringify({intelligence:input.intelligence,...extra})).success).toBe(false);
+  expect((await client.callTool({name:'agent',arguments:{action:'exec',...input,...extra}})).isError).toBe(true);
+  expect((await http('/api/v1/agent/exec',{method:'POST',body:JSON.stringify({...input,...extra})})).status).toBe(400);
+ }
+ const agent=(await client.listTools()).tools.find(tool=>tool.name==='agent')!;
+ const schema=JSON.stringify(agent.inputSchema);
+ expect(schema).toContain('intelligence');expect(schema).toContain('automatic');
+ expect(schema).not.toContain('codeMutationAllowed');expect(schema).not.toContain('"mode"');
+},30000);

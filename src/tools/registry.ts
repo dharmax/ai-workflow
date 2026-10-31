@@ -13,6 +13,8 @@ export interface ToolContext {
   projectRoot: string;
   signal?: AbortSignal;
   executionAuthority?: 'read-only' | 'project-write';
+  /** Host-owned source permission, independent of project data writes. */
+  codeMutationAllowed?: boolean;
   scratchRoot?: string;
   [key: string]: any;
 }
@@ -40,7 +42,8 @@ export interface CommandDefinition {
   cliParse?: Record<string,(value:string)=>unknown>;
   format?: (result:unknown)=>string;
   exposure: CommandChannel[];
-  authority: 'read-only' | 'project-write';
+  /** Omission inherits the host context; GET always requires explicit read-only. */
+  authority?: 'read-only' | 'project-write';
   http: {method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; identity?: string; queryIdentity?: string[]};
   /** Existing protocol names remain transitional views of this command. */
   legacyMcp?: Array<string | {name:string; action?:string; kind?:string}>;

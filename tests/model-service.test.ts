@@ -55,26 +55,26 @@ describe("configured model service", () => {
         expect(models.resolveModel("reasoning", true)).toEqual({ providerId: "ollama", modelId: "fixture-discovery" })
     })
 
-    it("keeps semantic task routes authoritative over mode aliases", () => {
+    it("uses native workload routes directly", () => {
         saveConfig(root, {
-            modelRoutes: { dev: "ollama/fixture-legacy", code: "ollama/fixture-code" },
+            modelRoutes: { code: "ollama/fixture-code" },
         })
         const models = new ModelService(root)
-        const asker = models.createAsker({ dev: "code" }, true)
+        const asker = models.createAsker(true)
         expect(asker.getRouter().resolve("code")).toEqual({ providerId: "ollama", modelId: "fixture-code" })
     })
 
     it("keeps a global default as fallback rather than disguising it as a task override", () => {
-        const asker = new ModelService(root).createAsker({dev: "code"})
+        const asker = new ModelService(root).createAsker()
         expect(asker.getRouter().resolve("code")).toEqual({providerId: "ollama", modelId: "fixture-default"})
     })
 
     it("reloads configured defaults on the same Actor without cached model names", () => {
         const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null })
-        expect(actor.resolveRoute("dev")?.target).toBe("ollama/fixture-default")
+        expect(actor.resolveRoute("code")?.target).toBe("ollama/fixture-default")
         saveConfig(root, { model: "ollama/fixture-updated" })
         actor.reloadConfig()
-        expect(actor.resolveRoute("dev")?.target).toBe("ollama/fixture-updated")
+        expect(actor.resolveRoute("code")?.target).toBe("ollama/fixture-updated")
         expect(new ModelService(root).localModel?.modelId).toBe("fixture-updated")
     })
     it("never fabricates a local default but accepts an explicit local task route", () => {

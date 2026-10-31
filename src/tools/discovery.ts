@@ -50,7 +50,6 @@ const EXECUTION_ACTIONS = new Set(['run', 'resolve', 'debug', 'triage', 'compile
 
 export interface DiscoveredTools {
   query: RegistryQuery
-  mode?: 'design' | 'dev' | 'triage' | 'product'
   tools: ToolDefinition[]
   error?: string
 }
@@ -88,7 +87,6 @@ function classifierSystem(vocabulary: Vocabulary): string {
 Output a JSON object whose values are arrays. Use only the dimensions and values listed below.
 Never invent a value. Omit a dimension when none of its allowed values clearly applies.
 
-mode: design, dev, triage, product
 domain: ${domains}
 object: ${objects}
 action: ${actions}
@@ -104,10 +102,10 @@ Include effect only when it applies to every required stage; otherwise omit it s
 does not overconstrain capability discovery.
 
 Examples:
-"do we have open tickets?" -> {"mode":["product"],"domain":["ticket"],"object":["ticket"],"action":["list"],"effect":["read"]}
-"who calls parseConfig?" -> {"mode":["dev"],"domain":["graph"],"object":["caller"],"action":["inspect"],"effect":["read"]}
-"show the source of parseConfig" -> {"mode":["dev"],"domain":["graph"],"object":["source"],"action":["get"],"effect":["read"]}
-"fix the failing auth test" -> {"mode":["triage"],"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
+"do we have open tickets?" -> {"domain":["ticket"],"object":["ticket"],"action":["list"],"effect":["read"]}
+"who calls parseConfig?" -> {"domain":["graph"],"object":["caller"],"action":["inspect"],"effect":["read"]}
+"show the source of parseConfig" -> {"domain":["graph"],"object":["source"],"action":["get"],"effect":["read"]}
+"fix the failing auth test" -> {"domain":["test"],"object":["test"],"action":["debug"],"effect":["execution"]}
 
 Return semantic intent only. Do not answer the request.`
 }
@@ -144,7 +142,7 @@ export class AiWorkflowRegistryClassifier implements RegistryClassifier {
     if (!result.ok || !result.data) throw new Error(`Semantic classification failed: ${result.failure?.message ?? 'No valid classification was returned.'}`)
     const query = normalizeQuery(result.data)
     const constrained = constrainQuery(query, vocabulary)
-    if (Object.keys(withoutMode(query)).length && !Object.keys(withoutMode(constrained)).length) {
+    if (Object.keys(query).length && !Object.keys(constrained).length) {
       throw new Error(`Semantic classification used unsupported capability values: ${JSON.stringify(query)}`)
     }
     return constrained
@@ -187,30 +185,28 @@ export class ToolDiscovery {
     let query: RegistryQuery
     try { query = await this.classifier.classify(text, options) }
     catch (error) { return {query: {}, tools: [], error: error instanceof Error ? error.message : String(error)} }
-    const mode = readMode(query)
-    const searchable = withoutMode(query)
-    if (Object.keys(searchable).length === 0) return {query, mode, tools: []}
+    if (Object.keys(query).length === 0) return {query, tools: []}
 
-    const candidates = async (intent: RegistryQuery) => (await this.index.search(withoutMode(intent), limit))
+    const candidates = async (intent: RegistryQuery) => (await this.index.search(intent, limit))
       .map(id => this.tools.get(id)).filter((tool): tool is ToolDefinition => tool !== undefined)
     const initial = await candidates(query)
-    if (!initial.length) return {query, mode, tools: [], error: `No registered tools match semantic intent: ${JSON.stringify(searchable)}`}
+    if (!initial.length) return {query, tools: [], error: `No registered tools match semantic intent: ${JSON.stringify(query)}`}
     const qualify = async (tools: ToolDefinition[]) => {
       const accepted = await this.refiner(text, tools.map(tool => ({id: tool.name, functionalDescription: tool.description})), options)
       return tools.filter(tool => accepted.some(item => item.id === tool.name))
     }
     try {
       let matches = await qualify(initial)
-      if (matches.length) return {query, mode, tools: matches}
+      if (matches.length) return {query, tools: matches}
       // One constrained rediscovery, with the failed candidate descriptions as evidence.
       const revised = await this.classifier.classify(`Request: ${text}\nThese candidates do not satisfy the full request: ${JSON.stringify(initial.map(tool => ({name: tool.name, description: tool.description})))}\nCapability to discover: read or list the underlying inputs and evidence needed to independently reason about this request, rather than performing the rejected selection/action. Classify this evidence-gathering capability; the original request is context, not the action to repeat.`, options)
-      if (Object.keys(withoutMode(revised)).length) {
+      if (Object.keys(revised).length) {
         const alternatives = (await candidates(revised)).filter(tool => !initial.some(rejected => rejected.name === tool.name))
         if (alternatives.length) matches = await qualify(alternatives)
-        if (matches.length) return {query: revised, mode, tools: matches}
+        if (matches.length) return {query: revised, tools: matches}
       }
-      return {query, mode, tools: [], error: 'No qualified capability satisfies the full request; semantic candidates were insufficient.'}
-    } catch (error) { return {query, mode, tools: [], error: error instanceof Error ? error.message : String(error)} }
+      return {query, tools: [], error: 'No qualified capability satisfies the full request; semantic candidates were insufficient.'}
+    } catch (error) { return {query, tools: [], error: error instanceof Error ? error.message : String(error)} }
   }
 
   private async sync(): Promise<void> {
@@ -291,28 +287,13 @@ function normalizeObject(value: string): string {
   return canonical[value] ?? value
 }
 
-function readMode(query: RegistryQuery): DiscoveredTools['mode'] {
-  const value = query.mode?.[0]
-  return value === 'design' || value === 'dev' || value === 'triage' || value === 'product'
-    ? value
-    : undefined
-}
-
-function withoutMode(query: RegistryQuery): RegistryQuery {
-  return Object.fromEntries(
-    Object.entries(query).filter(([key, values]) => key !== 'mode' && values.length > 0),
-  )
-}
-
 function constrainQuery(query: RegistryQuery, vocabulary: Vocabulary): RegistryQuery {
   const constrained: Record<string, readonly string[]> = {}
   for (const [key, values] of Object.entries(query)) {
-    const allowed = new Set(key === 'mode'
-      ? ['design', 'dev', 'triage', 'product']
-      : vocabulary[key] ?? [])
+    const allowed = new Set(vocabulary[key] ?? [])
     const valid = values.filter(value => allowed.has(value))
     // Dropping an unsupported capability dimension would broaden an AND query.
-    if (key !== 'mode' && valid.length === 0) return {}
+    if (valid.length === 0) return {}
     if (valid.length > 0) constrained[key] = valid
   }
   return constrained

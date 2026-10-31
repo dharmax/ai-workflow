@@ -17,8 +17,8 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     saveConfig(root, {
       model: 'ollama/qwen2.5-coder:7b',
       modelRoutes: {
-        dev: 'ollama/qwen2.5-coder:7b',
-        design: 'openai/o3-mini',
+        code: 'ollama/qwen2.5-coder:7b',
+        reasoning: 'openai/o3-mini',
       }
     });
     store = new WorkflowStore(root, true);
@@ -32,35 +32,35 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
 
   it('resolves initial effective route based on configured providers and routes', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null });
-    const effectiveDev = actor.resolveRoute('dev');
+    const effectiveDev = actor.resolveRoute('code');
     expect(effectiveDev).toBeDefined();
     expect(effectiveDev?.target).toBe('ollama/qwen2.5-coder:7b');
 
-    const effectiveDesign = actor.resolveRoute('design');
+    const effectiveDesign = actor.resolveRoute('reasoning');
     expect(effectiveDesign).toBeDefined();
     expect(effectiveDesign?.target).toBe('openai/o3-mini');
   });
 
   it('updates resolved routes dynamically after saveConfig and reloadConfig on the same instance', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, toolDiscovery: null });
-    expect(actor.resolveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
+    expect(actor.resolveRoute('code')?.target).toBe('ollama/qwen2.5-coder:7b');
 
     // Update config on disk
     saveConfig(root, {
       modelRoutes: {
-        dev: 'openrouter/anthropic/claude-sonnet-4.6',
-        design: 'openai/o3-mini',
+        code: 'openrouter/anthropic/claude-sonnet-4.6',
+        reasoning: 'openai/o3-mini',
       }
     });
 
     // Before reloadConfig, same actor still sees old route
-    expect(actor.resolveRoute('dev')?.target).toBe('ollama/qwen2.5-coder:7b');
+    expect(actor.resolveRoute('code')?.target).toBe('ollama/qwen2.5-coder:7b');
 
     // Trigger runtime reload
     actor.reloadConfig();
 
     // Now the same actor instance reflects the new target
-    expect(actor.resolveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
+    expect(actor.resolveRoute('code')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
   });
 
   it('preserves injected mock askers during reloadConfig', () => {
@@ -74,7 +74,7 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     expect(actor.asker).toBe(mockAsker);
 
     saveConfig(root, {
-      modelRoutes: { dev: 'some/other-model' }
+      modelRoutes: { code: 'some/other-model' }
     });
     actor.reloadConfig();
 
@@ -96,11 +96,11 @@ describe('WorkflowActor runtime refresh & effective target (J2.5)', () => {
     expect(modelOut1.output).toContain('ollama/qwen2.5-coder:7b');
 
     // 2. Run model set in shell
-    const setOut = await processShellInput('model set dev openrouter/anthropic/claude-sonnet-4.6', session);
-    expect(setOut.output).toContain('Set model for [DEV] to: openrouter/anthropic/claude-sonnet-4.6');
+    const setOut = await processShellInput('model set code openrouter/anthropic/claude-sonnet-4.6', session);
+    expect(setOut.output).toContain('Set model for [CODE] to: openrouter/anthropic/claude-sonnet-4.6');
 
     // 3. session.actor has been reloaded dynamically
-    expect(session.actor.resolveRoute('dev')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
+    expect(session.actor.resolveRoute('code')?.target).toBe('openrouter/anthropic/claude-sonnet-4.6');
 
     // 4. Subsequent /model reflects updated effective target
     const modelOut2 = await processShellInput('model', session);

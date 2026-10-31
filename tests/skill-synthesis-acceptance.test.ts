@@ -75,9 +75,9 @@ describe("Skill and synthesis production journeys", () => {
         fs.symlinkSync(path.resolve(import.meta.dir, "../node_modules"), path.join(root, "node_modules"))
         fs.mkdirSync(path.join(root, "tests"))
         fs.writeFileSync(path.join(root, "tests/theme.test.ts"), "import {test,expect} from \"bun:test\"; import fs from \"node:fs\"; import {Window} from \"happy-dom\"; test(\"checkout CSS parses\",async()=>{const w=new Window();try{const s=new w.CSSStyleSheet();s.replaceSync(fs.readFileSync(\"theme.css\",\"utf8\"));expect(Array.from(s.cssRules).map(r=>(\"selectorText\" in r?r.selectorText:\"\"))).toContain(\".checkout-card\")}finally{await w.happyDOM.close()}});")
-        saveConfig(root, { model, modelRoutes: { dev: model, critic: model, design: model } })
+        saveConfig(root, { model, modelRoutes: { code: model, critic: model, reasoning: model } })
         const actor = new WorkflowActor({ store, projectRoot: root, maxSteps: 8, timeoutMs: 60000 })
-        const result = await actor.execute("I need a checkout card stylesheet consistent with this project. Discover and read the project frontend design skill, then create theme.css following its exact design tokens and checkout-card rules. Run bun test tests/theme.test.ts and fix any failure before concluding. Report the skill ID. You can use aiwf kb search <query> and aiwf kb show <id> through run_command.", "dev", { forceModel: model })
+        const result = await actor.execute("I need a checkout card stylesheet consistent with this project. Discover and read the project frontend design skill, then create theme.css following its exact design tokens and checkout-card rules. Run bun test tests/theme.test.ts and fix any failure before concluding. Report the skill ID. You can use aiwf kb search <query> and aiwf kb show <id> through run_command.", { forceModel: model })
         console.log(JSON.stringify({ journey: "actor-skill", model: result.targetModel, failed: result.failed, events: result.events, answer: result.answer }))
         expect(result.failed).not.toBe(true)
         expect(result.events.some(event => event.toolCall || event.toolCalls?.length)).toBe(true)
@@ -117,7 +117,7 @@ describe("Skill and synthesis production journeys", () => {
         for (const args of [["init", "-q"], ["add", "."], ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"]]) {
             expect(Bun.spawnSync(["git", ...args], { cwd: root, stderr: "pipe" }).success).toBe(true)
         }
-        saveConfig(root, { model, modelRoutes: { dev: model, critic: model, design: model } })
+        saveConfig(root, { model, modelRoutes: { code: model, critic: model, reasoning: model } })
         await indexCodebase(store, root)
         const symbol = (await store.listEntities<SymbolNode>(SymbolNode.dcr)).find(s => s.filePath === "src/price.ts" && s.title === "totalWithAdjustment")!
         const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, { id: "LIVE-EXACT", title: "Correct checkout adjustments", body: "A checkout customer pays the subtotal plus a signed adjustment: a positive surcharge raises the total, a negative discount lowers it, and zero leaves it unchanged. Preserve totalWithAdjustment and its signature.", lane: "Todo", acceptanceCriteria: ["Checkout totals correctly apply surcharges, discounts, and zero adjustments"] })

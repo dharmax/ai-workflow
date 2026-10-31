@@ -74,9 +74,13 @@ describe('PC1b governed relation public proof',()=>{
   expect((await preview({sourceId:'T3',targetId:'T1',predicate:'depends_on'})).blocked).toBe(true);
   expect((await preview({sourceId:'T1',targetId:'T1',predicate:'depends_on'})).blocked).toBe(true);
  });
- it('enforces H/O/L policy including protected evidence and indexed relationships',async()=>{
+ it('protects verification evidence, legacy triples and indexed relationships',async()=>{
   await store.upsertEntity(Feature.dcr,{id:'F',title:'Feature'});await store.upsertEntity(UserStory.dcr,{id:'S',title:'Story'});
   await store.relate('F','contains','S');
+  const {exportAuthoredState}=await import('../src/product/manifest.ts');
+  const snapshot=JSON.parse(fs.readFileSync(await exportAuthoredState(store,root),'utf8'));
+  expect(snapshot.relations.some((r:any)=>r.sourceId==='F'&&r.predicate==='contains'&&r.targetId==='S')).toBe(false);
+  expect((await call('link',{action:'inspect',id:'F'})).links.some((r:any)=>r.predicate==='contains'&&r.targetId==='S')).toBe(true);
   expect((await preview({sourceId:'F',targetId:'S',predicate:'contains'})).blocked).toBe(true);
   const legacy=await call('link',{action:'preview_remove',sourceId:'F',targetId:'S',predicate:'contains'});await accept(legacy);expect(await store.getOutgoing('F','contains')).toEqual([]);
   await store.withTestArtifactWrite('TEST',()=>store.upsertEntity(TestNode.dcr,{id:'TEST',title:'Owned Test'}));
@@ -87,7 +91,7 @@ describe('PC1b governed relation public proof',()=>{
   await store.upsertEntity(ModuleNode.dcr,{id:'mod:src',title:'Module',path:'src'});await store.upsertEntity(FileNode.dcr,{id:'src/a.ts',title:'a.ts'});
   expect((await preview({sourceId:'mod:src',targetId:'src/a.ts',predicate:'contains'})).blocked).toBe(true);
   const descriptor=await call('link',{action:'allowed'});expect(descriptor.relations).toEqual(PRODUCT_RELATIONS);
-  expect(descriptor.relations.some((r:any)=>r.mode==='O')).toBe(true);expect(descriptor.relations.some((r:any)=>r.mode==='L')).toBe(true);
+  expect(descriptor).not.toHaveProperty('modes');expect(descriptor.relations.every((r:any)=>!('mode' in r)&&!('owner' in r))).toBe(true);
  });
  it('requires human confirmation; cancel/reject, model yes and read-only application are inert',async()=>{
   const actor=new WorkflowActor({store,projectRoot:root,offline:true});const session={store,projectRoot:root,actor,interactive:true};
@@ -96,7 +100,7 @@ describe('PC1b governed relation public proof',()=>{
   const approved={facilitate:async()=>({approval:'apply'})};
   expect((await processShellInput('link E1 to G1 as targets --note confirmed',{...session,facilitator:approved as any})).output).toContain('applied');
   await store.unrelate('E1','targets','G1');
-  await actor.execute('link E1 to G1 as targets --yes',undefined,{executionAuthority:'project-write'});expect(await rows()).toEqual([]);
+  await actor.execute('link E1 to G1 as targets --yes',{executionAuthority:'project-write'});expect(await rows()).toEqual([]);
   const p=await preview();for(const decision of ['reject','cancel']) expect((await accept(p,decision)).ok).toBe(false);
   await expect(accept(p,'accept','read-only')).rejects.toThrow('read-only');expect(await rows()).toEqual([]);
  });

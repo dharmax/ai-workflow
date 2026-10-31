@@ -225,7 +225,7 @@ Relations are owned canonically by `graph:link`; `artifact show REF` may *displa
 
 | Resource | Core actions | Conditional / later actions | Semantics |
 |---|---|---|---|
-| `graph:predicate` | `list`, `show`, `check` | — | Single finite H/O/L predicate descriptor: allowed source/target kinds, payload, lifecycle, authorability |
+| `graph:predicate` | `list`, `show`, `check` | — | Single finite predicate descriptor: valid source/predicate/target triples and payload |
 | `graph:link` | `list`, `show`, `create`, `update`, `delete` | — | Exact directed triple operations. `update` changes only authorized edge payload, not endpoints |
 | `graph:query` | `search`, `traverse` | `path` (conditional) | Bounded typed graph queries; no generalized SQL/raw mutation tool |
 | `graph:index` | `status`, `refresh` | `rebuild` (conditional) | Source-derived index authority, not user-authored Product mutation; refresh/rebuild may write and require host permission |
@@ -272,7 +272,7 @@ Only declared authorable predicate/endpoint combinations can be changed. O/evide
 | `ticket resolve` | `TICKET_ID [--verify-only] [--max-repairs N] ...` | Existing bounded Actor/synthesis/test/proof path; no invented Done |
 | `graph:link list` | `[--source REF] [--target REF] [--predicate P] [--direction incoming|outgoing]` | At least one scoped endpoint or tight bound; provider may enforce stricter filter |
 | `graph:link show/create/update/delete` | `SOURCE PREDICATE TARGET` | Same exact order and type validation for every action |
-| `graph:predicate check` | `SOURCE_KIND PREDICATE TARGET_KIND` | Reports supported mode and payload, not mutation permission grant |
+| `graph:predicate check` | `SOURCE_KIND PREDICATE TARGET_KIND` | Reports valid triples and payload; declaration does not grant mutation permission |
 | `source:change apply` | Bound reviewed change receipt/fingerprint | Existing source-change owner remains sole writer |
 | `rule:change apply` | Bound reviewed rule-change receipt/fingerprint | Existing RuleStore remains sole writer |
 | `project restore` | Validated authored snapshot + explicit trusted local approval | **Unavailable until atomic restore verified**; never copy active SQLite/WAL blindly |
@@ -380,7 +380,7 @@ A result includes: exact affected kind/ID and revision where relevant; evidence/
 - **No model self-consent:** read ≠ propose ≠ approve ≠ apply. MCP caller flags, AI-selected JSON, `--yes`, or an LLM message cannot create developer authorization.
 - One existing S2 Product/relation review boundary, one guarded Causal Change Engine, one RuleStore, one Semantika store, one test/proof owner. Explicit review is binding to current exact target, version, source basis and fingerprint; rejection/stale/cancel leaves state unchanged.
 - Product charter and Story definition require developer approval; no silent auto-accept or manufacture of missing criteria. `product:manifest` is not a separate mutable store.
-- `graph:predicate` descriptor is central, finite and reused by CLI/MCP/help/validation; authorable H relations differ from owner-only O and derived/legacy L. No generic `graph:link create` proof/verification edges.
+- `graph:predicate` descriptor is central, finite and reused by CLI/MCP/help/validation; valid endpoint triples do not grant write permission. Verification evidence remains protected by its proof operation; historical Feature containment is removal-only. No generic `graph:link create` proof/verification edges.
 - Source write scoped by actual Ticket/host, dirty targets and independent acceptance; no producer-set `Verified` or receipt hash. `ticket resolve` still owns actual completion.
 - Read-only queries may inspect a **fresh** index without writing it. Stale state must fail or present a clearly stale result; `graph:index refresh` is a separate controlled write-capable operation.
 - Project recovery is *not* advertised until atomic/validated restore and fresh independent replay are demonstrated. Authored snapshots are portable; active SQLite/WAL/cache are not Git artifacts.

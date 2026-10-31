@@ -89,6 +89,7 @@ export function registerChangeTools() {
         return await new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).applyChange(request as ChangeRequest, fingerprint);
       }
       ctx.store.assertCanWrite();
+      if (ctx.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
       if (!ticketId || !agentId) throw Error('Source application requires ticketId and the active lease agentId.');
       const admission = await ctx.store.admitGovernance('governed');
       try {

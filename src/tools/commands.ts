@@ -90,7 +90,9 @@ function registerExistingCommands(){
  add('completeness','set','set_completeness_target',['entityId','level'],true,'POST');
  add('model','list','inspect_models');
  add('source:file','show','read_workspace_file',['filePath']);
- add('agent','exec','execute_shell_wish',['wish'],false,'POST');
+ const agent=r.get('execute_shell_wish')!;
+ r.registerCommand({topic:'agent',action:'exec',owner:agent.name,description:agent.description,parameters:agent.parameters as z.ZodObject,
+  positionals:['wish'],exposure:[...all],http:{method:'POST'},legacyMcp:[agent.name]});
  // Process owners produce inert delivery proposals; no resolver or decomposition redesign.
  add('flow','plan','plan_intent',['kind','id'],false,'POST',['process_epic','process_feature','process_story']);
  for(const action of ['preview','apply'] as const){

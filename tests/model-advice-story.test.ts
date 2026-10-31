@@ -95,7 +95,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   const configFile = path.join(root, '.ai-workflow/config.json')
   const configBefore = fs.readFileSync(configFile, 'utf8')
   const actor = new WorkflowActor({store, projectRoot: root, toolDiscovery: null})
-  const previousRoute = actor.resolveRoute('dev')
+  const previousRoute = actor.resolveRoute('code')
   expect(calls).toEqual([])
   const commandRegistry = initializeTools()
   await commandRegistry.execute('refresh_model_advice', {criticFocus: 'TypeScript/Bun architecture'}, {store, projectRoot: root, executionAuthority: 'project-write'})
@@ -107,10 +107,10 @@ it('Actor refreshes and uses native model advice while preserving developer choi
     id: 'vendor/current-coder', contextWindow: 128000, inputPer1M: 0.2, outputPer1M: 0.8,
     supportedParameters: ['tools', 'structured_outputs']}))
   expect(snapshot.workloads.code?.primary.evidence).toContain('https://openrouter.ai/api/v1/models')
-  expect(actor.resolveRoute('dev')).toEqual(previousRoute) // Refresh cannot switch an existing runtime.
-  const fresh = new WorkflowActor({store, projectRoot: root, toolDiscovery: null})
-  expect(fresh.resolveRoute('dev')?.target).toBe('openrouter/vendor/current-coder')
-  expect(fresh.resolveRoute('design')?.target).toBe('openrouter/vendor/developer-choice')
+  expect(actor.resolveRoute('code')).toEqual(previousRoute) // Refresh cannot switch an existing runtime.
+  const fresh = new WorkflowActor({store, projectRoot: root, toolDiscovery: null, systemOne:{assess:async()=>({answers:{task:{choice:'code'}},backendId:'fixture',quality:'high',latencyMs:0})}})
+  expect(fresh.resolveRoute('code')?.target).toBe('openrouter/vendor/current-coder')
+  expect(fresh.resolveRoute('reasoning')?.target).toBe('openrouter/vendor/developer-choice')
   const result = await fresh.execute('Complete this bounded engineering task and report completion.')
   expect(result).toMatchObject({answer: 'engineering completed'})
   expect(inferenceModels).toContain('vendor/current-coder')
@@ -135,7 +135,7 @@ it('Actor refreshes and uses native model advice while preserving developer choi
   const ineligible = await processShellInput('model radar refresh --critic TypeScript/Bun architecture', {store, projectRoot: root, actor: fresh})
   expect(ineligible.output).toContain('unavailable or unobserved model: openrouter/vendor/not-observed')
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
-  expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('dev')?.target).toBe('openrouter/vendor/current-coder')
+  expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('code')?.target).toBe('openrouter/vendor/current-coder')
   expect(fs.readFileSync(configFile, 'utf8')).toBe(configBefore)
   expect(calls.some(url => url.includes('/pull'))).toBe(false)
   expect(calls.filter(url => url.endsWith('/chat/completions'))).toHaveLength(1)
@@ -169,8 +169,8 @@ it('public inspection and explicit model choices preserve routing without refres
     throw new Error('Inspection must not make provider requests')
   }) as typeof fetch)
   const actor = new WorkflowActor({store, projectRoot: root, toolDiscovery: null})
-  expect(actor.resolveRoute('dev')?.target).toBe('ollama/developer-default')
-  expect(actor.resolveRoute('product')?.target).toBe('openrouter/developer-product')
+  expect(actor.resolveRoute('code')?.target).toBe('ollama/developer-default')
+  expect(actor.resolveRoute('creative')?.target).toBe('openrouter/developer-product')
   expect(actor.resolveRoute('verification')?.target).toBe('ollama/developer-default')
   const configFile = path.join(root, '.ai-workflow/config.json')
   const before = fs.readFileSync(configFile, 'utf8')
@@ -184,10 +184,10 @@ it('public inspection and explicit model choices preserve routing without refres
   const commandRegistry = initializeTools()
   await expect(commandRegistry.execute('refresh_model_advice', {}, {store, projectRoot: root, executionAuthority: 'read-only'})).rejects.toThrow('project-write')
   expect(calls).toEqual([])
-  const set = await processShellInput('model set dev openrouter/developer-code', {store, projectRoot: root, actor})
+  const set = await processShellInput('model set code openrouter/developer-code', {store, projectRoot: root, actor})
   expect(set.output).toContain('developer-code')
-  expect(actor.resolveRoute('dev')?.target).toBe('openrouter/developer-code')
-  expect(actor.resolveRoute('design')?.target).toBe('ollama/developer-default')
+  expect(actor.resolveRoute('code')?.target).toBe('openrouter/developer-code')
+  expect(actor.resolveRoute('reasoning')?.target).toBe('ollama/developer-default')
   expect(calls).toEqual([])
   expect(fs.readFileSync(adviceFile, 'utf8')).toBe(retained)
   fetchSpy.mockImplementation((async input => {
@@ -206,7 +206,7 @@ it('public inspection and explicit model choices preserve routing without refres
   calls.length = 0
   // A broken snapshot is ignored; an explicit choice stays usable.
   fs.writeFileSync(adviceFile, '{invalid JSON')
-  expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('dev')?.target).toBe('openrouter/developer-code')
+  expect(new WorkflowActor({store, projectRoot: root, toolDiscovery: null}).resolveRoute('code')?.target).toBe('openrouter/developer-code')
   expect(calls).toEqual([])
 })
 

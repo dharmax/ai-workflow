@@ -53,7 +53,7 @@ export class AiArtifactCritic implements ArtifactCritic {
   constructor(readonly id: string, private readonly projectRoot: string, private readonly signal?: AbortSignal) {}
   async review(input: CriticInput): Promise<CriticResult> {
     const cfg = loadConfig(this.projectRoot);
-    const model = this.id === 'auto' ? cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model : cfg.modelRoutes?.[`critic:${this.id}`];
+    const model = this.id === 'auto' ? cfg.modelRoutes?.critic ?? cfg.modelRoutes?.reasoning ?? cfg.model : cfg.modelRoutes?.[`critic:${this.id}`];
     if (!model) throw new Error(`Critic '${this.id}' has no configured model route.`);
     const asker = createDefaultAsker(this.projectRoot);
     if (!asker) throw new Error('Independent Critic provider unavailable.');

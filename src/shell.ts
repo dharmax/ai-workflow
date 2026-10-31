@@ -1,7 +1,7 @@
 /**
  * Responsibility: Interactive Terminal REPL & Shell Bridge.
  * Scope: Dual-nature REPL supporting deterministic fast-path commands (<5ms),
- * mode switching ([DESIGN], [DEV], [TRIAGE], [PRODUCT]), and autonomous LLM wish execution.
+ * and autonomous LLM wish execution.
  * Powered by @dharmax/shell-ui for raw TTY editing, smart completions, and interactive facilitation.
  */
 
@@ -30,7 +30,7 @@ import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { Ticket } from './model/ontology.ts';
 import {commandDiscovery} from './command-presentation.ts';
 import { initializeTools, commandRegistry, type ToolContext } from './tools/index.ts';
-import { WorkflowActor, type ShellMode, MODE_CONFIGS } from './helpers/actor/engine.ts';
+import { WorkflowActor, type Intelligence, IntelligenceSchema } from './helpers/actor/engine.ts';
 import { exportProjections, importProjections } from './services/projection-service.ts';
 import {exportProductManifest,exportAuthoredState} from './product/manifest.ts';
 import { indexCodebase, ensureAstFresh } from './graph/indexer.ts';
@@ -53,8 +53,8 @@ export interface ShellSession {
   viewport?: ProcessViewport<ActorStepRecord & {elapsedMs?: number}>;
   trace?: ShellTrace;
   renderer?: UiRenderer;
-  /** Undefined means semantic auto-mode; set by standalone /design|/dev|/triage|/product. */
-  modeOverride?: ShellMode;
+  intelligence?: Intelligence;
+  codeMutationAllowed?: boolean;
 }
 
 async function presentEntityView(
@@ -129,15 +129,12 @@ export const SHELL_COMMANDS = [
   'eval',
   'model',
   '/model',
+  '/intelligence',
+  '/code',
   'radar',
   '/radar',
   'escalate',
   '/escalate',
-  '/design',
-  '/dev',
-  '/triage',
-  '/product',
-  '/auto',
   'help',
   '/help',
   'exit',
@@ -147,7 +144,7 @@ export const SHELL_COMMANDS = [
 export async function processShellInput(
   input: string,
   session: ShellSession
-): Promise<{ output: string; exit?: boolean; newMode?: ShellMode }> {
+): Promise<{ output: string; exit?: boolean }> {
   const line = input.trim();
   if (!line) return { output: '' };
 
@@ -155,7 +152,8 @@ export async function processShellInput(
   const ctx: ToolContext = {
     store: session.store,
     projectRoot: session.projectRoot,
-    executionAuthority: 'project-write'
+    executionAuthority: 'project-write',
+    codeMutationAllowed: session.codeMutationAllowed === true
   };
 
   const facilitator = session.facilitator || new ParameterFacilitator(session.renderer || session.prompter);
@@ -283,29 +281,16 @@ export async function processShellInput(
     };
   }
 
-  if (lower === '/design') {
-    session.modeOverride = 'design';
-    session.actor.mode = 'design';
-    return { output: 'Locked mode to [DESIGN] (Reasoning & Architecture)', newMode: 'design' };
+  if (lower === '/intelligence' || lower.startsWith('/intelligence ')) {
+    const value = line.split(/\s+/)[1];
+    if (value) session.intelligence = IntelligenceSchema.parse(value);
+    return {output: 'Intelligence: ' + (session.intelligence ?? 'automatic')};
   }
-  if (lower === '/dev') {
-    session.modeOverride = 'dev';
-    session.actor.mode = 'dev';
-    return { output: 'Locked mode to [DEV] (Implementation & Patching)', newMode: 'dev' };
-  }
-  if (lower === '/triage') {
-    session.modeOverride = 'triage';
-    session.actor.mode = 'triage';
-    return { output: 'Locked mode to [TRIAGE] (Diagnostics & Test Triage)', newMode: 'triage' };
-  }
-  if (lower === '/product') {
-    session.modeOverride = 'product';
-    session.actor.mode = 'product';
-    return { output: 'Locked mode to [PRODUCT] (Roadmap & Story Grooming)', newMode: 'product' };
-  }
-  if (lower === '/auto') {
-    session.modeOverride = undefined;
-    return { output: 'Switched to [AUTO] semantic mode selection.' };
+  if (lower === '/code' || lower.startsWith('/code ')) {
+    const value = line.split(/\s+/)[1];
+    if (value && value !== 'allow' && value !== 'forbid') throw Error('Usage: /code [allow|forbid]');
+    if (value) session.codeMutationAllowed = value === 'allow';
+    return {output: 'Code mutation: ' + (session.codeMutationAllowed ? 'allowed' : 'forbidden')};
   }
 
   // 2. Deterministic Fast-Paths (<5ms, 0 tokens)
@@ -1059,29 +1044,28 @@ export async function processShellInput(
   }
 
   // 3. Autonomous Cognitive Fallback
-  const inlineMode = /^\/(design|dev|triage|product|auto)\b/i.test(line);
   session.viewport ??= new ProcessViewport({mode: 'fold', interactive: false, traceHint: 'trace show · trace open'});
-  session.trace = {instruction: line, mode: session.actor.mode};
+  session.trace = {instruction: line};
   session.viewport.start('Discovering tools...');
   const startedAt = Date.now();
   let result;
   try {
     result = await session.actor.execute(
       line,
-      inlineMode ? undefined : session.modeOverride,
       {
         executionAuthority: 'project-write',
-        onDiscovery: (tools, mode) => {
+        codeMutationAllowed: session.codeMutationAllowed === true,
+        intelligence: session.intelligence,
+        onDiscovery: (tools) => {
           session.trace!.initialTools ??= tools;
           session.trace!.discoveryElapsedMs ??= Date.now() - startedAt;
-          session.trace!.tools = tools; session.trace!.mode = mode;
+          session.trace!.tools = tools;
         },
         onStep: ({thought: _privateReasoning, ...step}) => session.viewport!.onStep({...step, thought: '', elapsedMs: Date.now() - startedAt})
       }
     );
     const {events: _privateEvents, ...summary} = result;
     session.trace.result = summary;
-    session.trace.mode = result.mode;
     session.trace.tools = result.discoveredTools ?? session.trace.tools;
   } catch (error) {
     session.trace.error = error instanceof Error ? error.message : String(error);
@@ -1092,7 +1076,7 @@ export async function processShellInput(
     catch (error) { console.error(`Could not save shell trace: ${error instanceof Error ? error.message : String(error)}`); }
   }
 
-  let prefix = `[${result.mode.toUpperCase()}]`;
+  let prefix = `[AIWF]`;
   if (result.escalated) {
     prefix += result.targetModel
       ? ` \x1b[35m[Escalated ➜ ${result.targetModel}]\x1b[0m`
@@ -1258,7 +1242,7 @@ export async function startShell(options: {
   } catch {}
 
   while (true) {
-    const promptStr = session.modeOverride ? `aiwf/${session.modeOverride}> ` : 'aiwf> ';
+    const promptStr = 'aiwf> ';
     const line = await tty.readLine(promptStr, {
       completer,
       history,

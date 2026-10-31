@@ -92,8 +92,8 @@ export async function implementTicket(
     if (options.systemOne) countEngineering("systemOneCalls")
     const model =
         mechanism?.quality === "high" && mechanism.answers.modelTier?.choice === "stronger"
-            ? (cfg.modelRoutes?.design ?? cfg.modelRoutes?.dev ?? cfg.model)
-            : (cfg.modelRoutes?.dev ?? cfg.model)
+            ? (cfg.modelRoutes?.reasoning ?? cfg.modelRoutes?.code ?? cfg.model)
+            : (cfg.modelRoutes?.code ?? cfg.model)
     if (synthesisTarget && !(mechanism?.quality === "high" && mechanism.answers.mechanism?.choice === "interactive")) {
         countEngineering("reasoningCalls")
         const synthesisCtx = buildSynthesisContext({ dossier: input, target: synthesisTarget })

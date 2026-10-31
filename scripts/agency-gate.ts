@@ -37,7 +37,6 @@ const cases=[
  {id:'F-analysis-paraphrase',request:'Explain our intended outcome, the prerequisite sequence holding up delivery, and the evidence we still lack.',kind:'off',expect:['orchard','migration','validation','restore']},
  {id:'F-second-paraphrase',request:'Which eligible work item occupies the runner-up position under the documented recommendation policy?',kind:'off',expect:['ORCH-B']},
  {id:'F-comparison-paraphrase',request:'Identify the two extremes of the eligible work ordering and compare their principal artifact associations.',kind:'off',expect:['ORCH-A','ORCH-C','inventory-engine']},
- {id:'G-forced-dev',request:requests.analysis,kind:'off',expect:['orchard','migration','validation','restore']},
  {id:'H-throw',request:requests.analysis+' Check specialized discovery once, then inspect local evidence if it fails.',kind:'throw',expect:['orchard','migration','validation','restore']},
  {id:'H-latency',request:requests.analysis+' Check specialized discovery once, then inspect local evidence if it fails.',kind:'slow',expect:['orchard','migration','validation','restore']},
  {id:'TRACE-interrupted-command',request:'Execute a command that prints started, waits 60 seconds, then prints finished. Report completion only after observing it.',kind:'off',expect:[]},
@@ -80,10 +79,10 @@ for(const test of selection==='live'?Object.entries(requests).map(([id,request])
    return {query:{},tools:[registry.get('get_environment_info')!]};
   }};
   const actor=new WorkflowActor({store,projectRoot:root,toolDiscovery});
-  const result=await actor.execute(test.request,test.id==='G-forced-dev'?'dev':undefined,{
+  const result=await actor.execute(test.request,{
    executionAuthority:'read-only',
    signal:controller.signal,
-   onDiscovery:(tools,mode)=>{catalogs.push({elapsedMs:Date.now()-started,tools,mode})},
+   onDiscovery:(tools)=>{catalogs.push({elapsedMs:Date.now()-started,tools})},
    onStep:step=>{const {thought,...observations}=step;steps.push(observations)},
   });
   const text=result.answer.toLowerCase();

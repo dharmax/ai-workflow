@@ -25,7 +25,7 @@ The TypeScript sources live under `src/`:
 - `graph/`: Semantika AST+ knowledge graph (`store.ts`, `ontology.ts`, `indexer.ts`, `projections.ts`).
 - `tools/`: Deterministic domain tools registered into `registry.ts` (`tickets.ts`, `product.ts`, `graph-queries.ts`, `git.ts`, `compiler.ts`, `debugger.ts`, `kb.ts`, `scaffold.ts`).
 - `product/`: existing Product Intent Graph owners (`mutation.ts`, `process.ts`, `context.ts`, `coverage.ts`, `impact.ts`); review current semantics before changing them.
-- `actor/`: Cognitive Actor with dynamic mode routing (`/design`, `/dev`, `/triage`, `/product`), Ollama, OpenRouter, and model radar.
+- `helpers/actor/`: Cognitive Actor with per-operation native workload inference, independent host code permission, intelligence preferences, and llm-utils model routing.
 
 Tests reside in `tests/` following the `*.test.ts` naming convention and executed via `bun test`.
 Shared configuration and database live under `.ai-workflow/` (`state/`, `config.json`).

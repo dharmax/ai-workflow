@@ -99,7 +99,7 @@ export async function resolveTicket(
             let admission: string | undefined
             let scope: import('../ticket-operation-types.ts').GovernedChangeScope
             let effectEpoch = 0
-            const ctx = { store, projectRoot: store.root, signal: options.signal,
+            const ctx = { store, projectRoot: store.root, signal: options.signal, codeMutationAllowed: options.codeMutationAllowed,
                 get governedAdmission() { return admission },
                 get ticketLease() {
                     const ticketId = store.localId(executingTicket.id), claim = acquired.get(ticketId)

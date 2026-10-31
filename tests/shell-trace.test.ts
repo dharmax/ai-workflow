@@ -29,7 +29,7 @@ describe('Shell failure trace and floating inspection', () => {
     const asker = {json: async () => ({ok: true, data: {thought: 'PRIVATE reasoning must not appear', action: 'tool_call',
       toolCalls: [{callId: String(++calls), name: 'get_product_coverage', parameters: {entityId: 'EPIC-MISSING'}}]}})} as unknown as Asker;
     session.actor = new WorkflowActor({store, projectRoot: root, asker, maxSteps: 3,
-      toolDiscovery: {discover: async () => ({query: {}, mode: 'product', tools: []})}});
+      toolDiscovery: {discover: async () => ({query: {}, tools: []})}});
     const result = await processShellInput("what's the next recommended ticket?", session);
     expect(result.output).toContain('Repeated unavailable tool calls');
     expect(session.viewport!.getRun().status).toBe('fail');
@@ -39,7 +39,7 @@ describe('Shell failure trace and floating inspection', () => {
     try {
       const trace = (await processShellInput('trace show', session)).output;
       expect(trace).toContain('Request: what\'s the next recommended ticket?');
-      expect(trace).toContain('Mode: DEV');
+      expect(trace).not.toContain('Mode:');
       expect(trace).toContain('Available tools: run_command, discover_tools');
       expect(trace).toContain('Termination: error');
       expect(trace).toContain('Step 1:');
@@ -58,8 +58,8 @@ describe('Shell failure trace and floating inspection', () => {
   });
 
   it('stops on a thrown error, preserves partial evidence, and reads it after restart', async () => {
-    const execute = spyOn(session.actor, 'execute').mockImplementation(async (_input, _mode, options) => {
-      options?.onDiscovery?.(['read_workspace_file'], 'dev');
+    const execute = spyOn(session.actor, 'execute').mockImplementation(async (_input, options) => {
+      options?.onDiscovery?.(['read_workspace_file']);
       options?.onStep?.({step: 1, thought: 'PRIVATE', action: 'tool_call',
         toolCalls: [{callId: 'a', toolName: 'read_workspace_file', parameters: {path: 'README.md'}}],
         toolResults: [{callId: 'a', toolName: 'read_workspace_file', isError: false, result: {summary: 'read file', completeContents: 'Complete evidence survives'}}]});
@@ -105,9 +105,9 @@ describe('Shell failure trace and floating inspection', () => {
     const step: ActorStepRecord = {step: 1, thought: 'PRIVATE', action: 'final_answer', finalAnswer: answer,
       toolCalls: [{callId: 'a', toolName: 'first', parameters: {}}, {callId: 'b', toolName: 'second', parameters: {}}],
       toolResults: [{callId: 'a', toolName: 'first', isError: false, result: 'one'}, {callId: 'b', toolName: 'second', isError: true, error: 'second failed'}]};
-    const execute = spyOn(session.actor, 'execute').mockImplementation(async (_input, _mode, options) => {
+    const execute = spyOn(session.actor, 'execute').mockImplementation(async (_input, options) => {
       options?.onStep?.(step);
-      return {mode: 'dev', stepsCount: 1, answer, events: [], discoveredTools: ['first', 'second'], haltReason: 'completed'};
+      return {stepsCount: 1, answer, events: [], discoveredTools: ['first', 'second'], haltReason: 'completed'};
     });
     try {await processShellInput('first request', session); await processShellInput('second request', session);}
     finally {execute.mockRestore();}

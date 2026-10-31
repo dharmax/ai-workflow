@@ -25,6 +25,7 @@ export function registerScaffoldTools() {
       description: z.string().optional().describe('Optional description of the module')
     }),
     execute: async ({ targetPath, description }, ctx: ToolContext) => {
+      if (ctx.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
       const fullPath = path.resolve(ctx.projectRoot, targetPath);
       if (fs.existsSync(fullPath)) {
         throw new Error(`Target file already exists: ${targetPath}`);

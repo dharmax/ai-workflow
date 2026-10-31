@@ -25,8 +25,8 @@ export async function failedVerificationModels(store:WorkflowStore):Promise<Set<
 export async function prepareReviewer(store:WorkflowStore,cfg:ProjectConfig,ticketId:string):Promise<{asker:Asker;model?:ModelTarget}> {
     const failed=await failedVerificationModels(store);
     const service=new ModelService(store.root);
-    const asker=service.createAsker({},false,failed);
-    const explicit=cfg.modelRoutes?.critic??cfg.modelRoutes?.design??cfg.modelRoutes?.verification??
+    const asker=service.createAsker(false,failed);
+    const explicit=cfg.modelRoutes?.critic??cfg.modelRoutes?.reasoning??cfg.modelRoutes?.verification??
         (inspectConfig(store.root,'model')[0]?.source!=='default'?cfg.model:undefined);
     const generate=budgetedInference(cfg.paidInference,'verification',usage=>recordPaidUsage(store,ticketId,usage));
     guardReviewerModels(asker,service.runtime.providers,failed,generate);

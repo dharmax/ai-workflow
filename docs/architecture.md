@@ -165,6 +165,12 @@ Cheap/System-1 assessment may classify or advise tactics. It is advisory. Low-co
 
 Model adequacy matters, but AIWF does not own vendor routing. `llm-utils` resolves configured task routes, providers, fallback and model advice. AIWF may request an appropriate task class or reasoning level; it should not grow another router.
 
+Each Actor operation asks the existing System-1 assessment API for a native llm-utils workload, with reasoning as the fallback when assessment is unavailable. Workload inference has no persistent mode, prompt variant or permission effect. Model routes use native workload keys (fast, code, reasoning, creative, summarization, verification); retired design/dev/triage/product aliases are not consulted.
+
+Intelligence is automatic by default, or normal, high or critical. An explicit preference supplies model-selection requirements; critical also requests the existing cloud escalation where host provider policy permits it. Explicit model routes and local-only policy remain binding.
+
+The Actor defaults to read-only project authority and forbidden code mutation. Hosts independently supply project-write authority and codeMutationAllowed; the model-facing agent schema exposes neither permission. Authorized non-code operations remain available when code mutation is forbidden. CLI exec accepts --intelligence and --allow-code-mutation/--forbid-code-mutation; the interactive shell uses /intelligence and /code allow|forbid. MCP requires host project-write authority plus AIWF_ALLOW_CODE_MUTATION=true (or the host server option) for source mutation. Explicit deterministic source commands still require their existing Ticket lease, scope, review and fingerprint.
+
 Runtime observations should report what actually executed, not infer success from configured credentials or model names.
 
 ## 8. Skills and knowledge

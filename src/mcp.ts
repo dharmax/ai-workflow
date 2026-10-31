@@ -18,7 +18,7 @@ import { zodToJsonSchema } from '@dharmax/llm-utils';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { initializeTools, commandRegistry, type ToolContext } from './tools/index.ts';
 import { getPublicMcpTools } from './tools/surface.ts';
-import { WorkflowActor, type ShellMode } from './helpers/actor/engine.ts';
+import { WorkflowActor } from './helpers/actor/engine.ts';
 import { MCP_INSTRUCTIONS_2_0 } from './client-guidance.ts';
 import { SemanticPackage } from '@dharmax/semantika';
 import {ensureAstFresh} from './graph/indexer.ts';
@@ -46,6 +46,7 @@ export interface McpServerOptions {
   projectRoot?: string;
   actor?: WorkflowActor;
   executionAuthority?: ToolContext['executionAuthority'];
+  codeMutationAllowed?: boolean;
   compactSurface?: boolean;
 }
 
@@ -145,7 +146,7 @@ export function createMcpServer(options: McpServerOptions = {}) {
           () => ensureAstFresh(activeStore, activeRoot));
       }
       const ctx: ToolContext = {store: activeStore, projectRoot: activeRoot,
-        executionAuthority: targetAuthority, signal: extra.signal,actor:activeRoot===root?actor:undefined};
+        executionAuthority: targetAuthority, codeMutationAllowed: options.codeMutationAllowed ?? process.env.AIWF_ALLOW_CODE_MUTATION === 'true', signal: extra.signal,actor:activeRoot===root?actor:undefined};
 
       toolInputSchema(tool);
       const result = await tool.execute(tool.parameters.parse(toolArgs),ctx);

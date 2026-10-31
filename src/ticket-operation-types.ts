@@ -99,6 +99,8 @@ export const AcceptanceVerificationSchema = AcceptanceAssessmentSchema.safeExten
 export type AcceptanceVerification = z.infer<typeof AcceptanceVerificationSchema>;
 export interface ResolutionVerificationInput { dossier: TicketDossier; files: string[]; tests: Array<{ command: string[]; passed: boolean; output: string }>; children: string[]; testNodes: Awaited<ReturnType<typeof import('./graph/test-artifacts.ts').currentTestEvidence>> }
 export interface ResolutionOptions extends PreparationOptions {
+  /** Host source constraint; does not forbid non-code project operations. */
+  codeMutationAllowed?: boolean;
   /** Cumulative implementation Actor token budget override. Explicit values are treated as hard caps. */
   maxActorTokens?: number;
   /** Verify existing work without source implementation or repair; independent acceptance remains mandatory. */
@@ -255,7 +257,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
     contexts.set(canonical({moduleId}), {moduleId});
   if (!contexts.size) contexts.set('{}', {});
   const cfg = loadConfig(store.root);
-  const checker = { version: DOCTRINE_VERIFIER_VERSION, model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.design ?? cfg.model,
+  const checker = { version: DOCTRINE_VERIFIER_VERSION, model: cfg.modelRoutes?.critic ?? cfg.modelRoutes?.reasoning ?? cfg.model,
     promptFingerprint: createHash('sha256').update(renderAcceptancePrompt('')).digest('hex') };
   const ruleStore = new RuleStore(store);
   const rules = new Map<string, TicketGovernance['rules'][number]>();

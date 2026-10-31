@@ -372,7 +372,7 @@ export class MathHelper {
       store,
       projectRoot: tmpDir,
       actor: {
-        execute: async () => ({ mode: 'dev', answer: 'fallback' })
+        execute: async () => ({ answer: 'fallback' })
       }
     };
 

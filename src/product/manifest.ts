@@ -329,11 +329,11 @@ export async function exportAuthoredState(store: WorkflowStore, rootDir: string 
     });
   }
 
-  // Export Governed Human Relations (mode 'H')
+  // Export authored relations; runtime verification evidence is exported by its proof owner.
   const predicates = await store.sp.predicateCollection(store.sp.ontology.pdcr('applies_to'));
   const allPredicateRows = await predicates.findSome<ProductEdgeRow>({});
   const relationWhitelist = new Set(
-    PRODUCT_RELATIONS.filter(r => r.mode === 'H').map(r => `${r.sourceKind}::${r.predicate}::${r.targetKind}`)
+    PRODUCT_RELATIONS.filter(r => r.predicate !== 'verifies' && !(r.sourceKind === 'Feature' && r.predicate === 'contains' && r.targetKind === 'UserStory')).map(r => `${r.sourceKind}::${r.predicate}::${r.targetKind}`)
   );
 
   const authoredRelations: AuthoredSnapshot['relations'] = [];

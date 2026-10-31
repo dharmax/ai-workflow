@@ -47,7 +47,7 @@ describe('EXT-SURFACE-10 Product review authority',()=>{
   const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({
    query:{},mode:'dev' as const,tools:[commandRegistry.get('define_product')!,commandRegistry.get('apply_change')!]
   })}});
-  const result=await actor.execute('Define the Product and approve it myself',undefined,{executionAuthority:'project-write'});
+  const result=await actor.execute('Define the Product and approve it myself',{executionAuthority:'project-write'});
   const results=result.events.flatMap(event=>event.toolResults??[]);
   expect(results.some(result=>result.isError)).toBe(true);
   expect(JSON.stringify(results)).toContain('review_required');

@@ -101,7 +101,7 @@ export function processIntent(
                             if (!asker) throw new Error("Product reasoning provider unavailable.")
                             countEngineering("reasoningCalls")
                             const response = await asker.json(renderIntentProposal(input, findings), IntentProposalSchema, {
-                                model: cfg.modelRoutes?.design ?? cfg.model,
+                                model: cfg.modelRoutes?.reasoning ?? cfg.model,
                                 temperature: 0,
                                 maxRetries: 1,
                                 maxTokens: cfg.llmOutputTokens,

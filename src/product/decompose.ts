@@ -222,7 +222,7 @@ RULES:
 Respond ONLY with valid JSON conforming to the schema.`;
 
     const cfg = loadConfig(store.root);
-    const modelTarget = options?.model || cfg.modelRoutes?.design || cfg.model;
+    const modelTarget = options?.model || cfg.modelRoutes?.reasoning || cfg.model;
     const response = await asker.json(prompt, SemanticDecompositionOutputSchema, {
       model: modelTarget, temperature: 0.2, maxRetries: 1, maxTokens: cfg.llmOutputTokens
     });

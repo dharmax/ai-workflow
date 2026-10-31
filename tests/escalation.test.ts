@@ -9,8 +9,8 @@ import { WorkflowActor, pubsub } from '../src/helpers/actor/engine.ts';
 import { resolveCloudCredentials, saveConfig } from '../src/services/config-service.ts';
 import { FileNode } from '../src/model/ontology.ts';
 
-const noTools = (mode: 'design' | 'dev' | 'triage' | 'product' = 'dev') => ({
-  discover: async () => ({query: {}, mode, tools: []}),
+const noTools = () => ({
+  discover: async () => ({query: {}, tools: []}),
 })
 
 describe('Cognitive Escalation & Multi-Provider Engine', () => {
@@ -91,7 +91,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       toolDiscovery: noTools()
     });
 
-    const res = await actor.execute('/design propose system architecture');
+    const res = await actor.execute('propose system architecture');
     expect(res.escalated).toBeFalsy();
     expect(res.targetModel).toBeUndefined();
     expect(askOptions.task).toBe('reasoning');
@@ -145,18 +145,18 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     (actor as unknown as {_asker: Asker})._asker = mockAsker;
     (actor as any).session = new (await import('@dharmax/llm-utils')).LLMSession(mockAsker);
 
-    const res = await actor.execute('/dev resolve complex state issue');
+    const res = await actor.execute('Explain the complex state issue');
 
     expect(res.escalated).toBe(true);
     expect(res.escalationReason).toBeDefined();
     expect(res.answer).toContain('Escalated reasoning completed');
     expect(escalationEventReceived).not.toBeNull();
-    expect(escalationEventReceived.mode).toBe('dev');
+    expect(escalationEventReceived).not.toHaveProperty('mode');
     expect(escalationEventReceived.taskClass).toBe('reasoning');
     expect(escalationEventReceived.preferLocal).toBe(false);
 
-    // Initial attempts were on 'code' task with local preference
-    expect(recordedAskOptions[0].task).toBe('code');
+    // Unavailable System-1 falls back to reasoning with local preference
+    expect(recordedAskOptions[0].task).toBe('reasoning');
     expect(recordedAskOptions[0].preferLocal).toBe(true);
     // Escalated attempt was on 'reasoning' task with remote allowance
     const lastAsk = recordedAskOptions[recordedAskOptions.length - 1];
@@ -168,7 +168,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
     process.env.OPENROUTER_API_KEY = 'sk-or-test1234';
     saveConfig(tempDir, {
       modelRoutes: {
-        dev: 'anthropic/claude-3.7-sonnet'
+        code: 'anthropic/claude-3.7-sonnet'
       }
     });
 
@@ -194,10 +194,10 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       toolDiscovery: noTools()
     });
 
-    const res = await actor.execute('/dev write unit test', undefined, {forceCloud: true});
+    const res = await actor.execute('write unit test', {intelligence: "critical"});
     expect(res.escalated).toBe(true);
     expect(askOptions.model).toBeUndefined();
-    expect(askOptions.task).toBe('code');
+    expect(askOptions.task).toBe('reasoning');
     expect(askOptions.preferLocal).toBe(false);
   });
 
@@ -242,7 +242,7 @@ describe('Cognitive Escalation & Multi-Provider Engine', () => {
       toolDiscovery: noTools()
     });
 
-    const res = await actor.execute('/dev attempt stall in local-only');
+    const res = await actor.execute('attempt stall in local-only');
     expect(res.escalated).toBeFalsy();
     expect(escalationTriggered).toBe(false);
     expect(res.failed).toBe(true);
