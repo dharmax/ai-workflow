@@ -70,7 +70,7 @@ describe('Product charter governs Feature acceptance and revision through public
   const answers:string[]=[];
   fs.writeFileSync(path.join(root,'answer-preview.json'),JSON.stringify({request:revised,fingerprint:current.fingerprint}));
   const facilitator=new ParameterFacilitator({elicit:async request=>{answers.push(JSON.stringify(request));return {status:'answered',id:request.id,value:'Revise F to repository defect diagnosis for developers; remove unrestricted discussion and poetry.'};},form:async()=>({status:'unavailable'}),review:async()=>({status:'unavailable'}),view:async()=>({status:'unavailable'})});
-  const applied=await processShellInput('product-change accept answer-preview.json',{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:true,facilitator});
+  const applied=await processShellInput('product-change accept answer-preview.json --full-json',{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:true,facilitator});
   expect(JSON.parse(applied.output).ok).toBe(true);
   expect(answers).toHaveLength(1);expect(answers[0]).toContain(warning);
   store.close();store=new WorkflowStore(root);
@@ -105,7 +105,7 @@ describe('Product charter governs Feature acceptance and revision through public
    expect((await reviewProductChange({request:revised,fingerprint:p.fingerprint,decision:'accept'},ctx,async()=>'Remove poetry and restrict F to developer repository diagnostics.')).ok).toBe(false);
   },p.fingerprint);
   fs.writeFileSync(path.join(root,'answer-preview.json'),JSON.stringify({request:revised,fingerprint:p.fingerprint}));
-  const command='product-change accept answer-preview.json';
+  const command='product-change accept answer-preview.json --full-json';
   const shell=await processShellInput(command,{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
   expect(JSON.parse(shell.output).status).toBe('needs_input');
   const binary=process.env.AIWF_PUBLIC_BINARY,cli=path.resolve(import.meta.dir,'../../src/cli.ts');
@@ -179,7 +179,7 @@ describe('Product charter governs Feature acceptance and revision through public
   const args={action:'preview_new',kind:'Feature',id:'F',fields:{title:'Conversation',body:'Discuss any topic and write poems',status:'accepted'}};
   const facade=await call('artifact',args);expect(facade.status).toBe('needs_input');
   await expect(call('create_feature',{featureId:'F',title:'Conversation',body:'Discuss any topic',status:'accepted'})).rejects.toThrow('review');
-  const command='product feature new --id F --title Conversation --body "Discuss any topic and write poems" --status accepted --yes';
+  const command='product feature new --id F --title Conversation --body "Discuss any topic and write poems" --status accepted --yes --full-json';
   const shell=await processShellInput(command,{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
   expect(JSON.parse(shell.output).status).toBe('needs_input');
   const binary=process.env.AIWF_PUBLIC_BINARY;

@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import {formatOutput,formatOutputError} from './ui/result-view.ts';
+import {extractOutputOptions} from './command-presentation.ts';
 /**
  * Responsibility: Unified CLI entrypoint for AI-Workflow 2.0.
  * Scope: sync, status, audit, doctor, metrics, init, setup, diff, tickets, next, claim,
@@ -51,13 +53,13 @@ async function main() {
   if (parsed?.family === 'link') {
     try {
       const confirm = process.stdin.isTTY ? async (preview: unknown) => {
-        console.log(JSON.stringify(preview, null, 2));
-        const reader=createInterface({input:process.stdin,output:process.stdout});
+        console.error(formatOutput(preview,{verbosity:3},'Review exact proposal'));
+        const reader=createInterface({input:process.stdin,output:process.stderr});
         try { return (await reader.question('Apply this exact link change? [y/N] ')).toLowerCase()==='y'; }
         finally { reader.close(); }
       } : undefined;
-      const result=await reviewLink(parsed.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},parsed.yes,confirm,parsed.yes?preview=>console.error(JSON.stringify(preview,null,2)):undefined);
-      console.log(JSON.stringify(result,null,2));
+      const result=await reviewLink(parsed.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},parsed.yes,confirm,parsed.yes?preview=>console.error(formatOutput(preview,{verbosity:3},'Review exact proposal')):undefined);
+      console.log(formatOutput(result,parsed.output));
       if (result.status === 'committed-verification-failed' || result.result?.verification?.passed === false) {
         process.exitCode = 1;
       }
@@ -67,8 +69,8 @@ async function main() {
   if (parsed?.family === 'definition') {
     try {
       const confirm = process.stdin.isTTY ? async (preview: unknown) => {
-        console.log(JSON.stringify(preview, null, 2));
-        const reader = createInterface({ input: process.stdin, output: process.stdout });
+        console.error(formatOutput(preview,{verbosity:3},'Review exact proposal'));
+        const reader = createInterface({ input: process.stdin, output: process.stderr });
         try { return (await reader.question('Apply this definition change? [y/N] ')).toLowerCase() === 'y'; }
         finally { reader.close(); }
       } : undefined;
@@ -77,9 +79,9 @@ async function main() {
         { store: getStore(), projectRoot: root, executionAuthority: 'project-write' },
         parsed.yes,
         confirm,
-        parsed.yes ? preview => console.error(JSON.stringify(preview, null, 2)) : undefined
+        parsed.yes ? preview => console.error(formatOutput(preview,{verbosity:3},'Review exact proposal')) : undefined
       );
-      console.log(JSON.stringify(result, null, 2));
+      console.log(formatOutput(result,parsed.output));
       if (result.status === 'committed-verification-failed' || ('result' in result && result.result?.verification?.passed === false)) {
         process.exitCode = 1;
       }
@@ -97,7 +99,7 @@ async function main() {
     try {
       if(delegation.review){
         const confirm=process.stdin.isTTY?async(preview:unknown)=>{
-          console.error(JSON.stringify(preview,null,2));const reader=createInterface({input:process.stdin,output:process.stderr});
+          console.error(formatOutput(preview,{verbosity:3},'Review exact proposal'));const reader=createInterface({input:process.stdin,output:process.stderr});
           try{return (await reader.question('Apply this exact proposal? [y/N] ')).toLowerCase()==='y';}finally{reader.close();}
         }:undefined;
         result=await delegation.review(delegation.args,{store:getStore(),projectRoot:root,executionAuthority:'project-write'},confirm,process.stdin.isTTY?async question=>{
@@ -106,7 +108,7 @@ async function main() {
       }else result = await getStore().withExecutionContext('project-write', undefined, () => commandRegistry.execute(delegation.tool, delegation.args, {store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}), delegation.reviewFingerprint);
       progress?.stop(isBlockedOperation(result) ? 'fail' : 'success');
     } catch (error) { progress?.stop('fail'); throw error; }
-    console.log(delegation.format?delegation.format(result):JSON.stringify(result, null, 2));
+    console.log(formatOutput(result,delegation.output,delegation.tool,delegation.format));
     if (isBlockedOperation(result)) process.exitCode = 2;
     else if (result?.success === false) process.exitCode = 1;
     getStore().close(); await closeAllTsLspClients(); await closeAllTs6RefactorClients();
@@ -210,10 +212,10 @@ async function main() {
         ? await commandRegistry.execute('preview_change', input, ctx)
         : await reviewProductChange({...input as Parameters<typeof reviewProductChange>[0],decision:action as 'accept'|'reject'|'cancel'},ctx,
           process.stdin.isTTY ? async question => {
-            const reader=createInterface({input:process.stdin,output:process.stdout});
+            const reader=createInterface({input:process.stdin,output:process.stderr});
             try { return await reader.question(question); } finally { reader.close(); }
           } : undefined);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(formatOutput(result,parsed.output));
       if (result.blocked || action === 'accept' && !result.ok) process.exitCode = 1;
       break;
     }
@@ -232,8 +234,7 @@ async function main() {
         break;
       }
       const { rows, ...summary } = queryPerformance(root, performanceQueryArgs(args.slice(1)));
-      console.log('📊 AIWF Performance Metrics');
-      console.log(JSON.stringify(summary, null, 2));
+      console.log(formatOutput(summary,parsed.output,'Performance Metrics'));
       break;
     }
 
@@ -402,9 +403,9 @@ async function main() {
         const result=await reviewDefinition({kind:'Epic',id:'EPIC-'+crypto.randomUUID().slice(0,8),create:true,
           fields:{title,body:body??'',priority,status:'planned'}},
           {store,projectRoot:root,executionAuthority:'project-write'},args.includes('--yes'),undefined,
-          preview=>console.error(JSON.stringify(preview,null,2)));
+          preview=>console.error(formatOutput(preview,{verbosity:3},'Review exact proposal')));
         if(result.status==='applied') await exportProjections(store,root);
-        console.log(JSON.stringify(result,null,2));
+        console.log(formatOutput(result,parsed.output));
         break;
       }
 
@@ -448,7 +449,7 @@ async function main() {
 
       const prepared = await commandRegistry.execute('apply_epic_structure', { proposal }, {store, projectRoot: root, executionAuthority: 'project-write' as const});
       console.log('\nReview this inert change preview; accept its exact request/fingerprint with product-change accept <preview.json>:');
-      console.log(JSON.stringify(prepared.preview, null, 2));
+      console.log(formatOutput(prepared.preview,parsed.output,'Review exact proposal'));
       break;
     }
 
@@ -883,7 +884,7 @@ async function main() {
       const store = getStore();
       const res = await commandRegistry.execute('script_eval', { code }, { store, projectRoot: root, executionAuthority: 'project-write' });
       if (res.success) {
-        console.log(typeof res.result === 'object' ? JSON.stringify(res.result, null, 2) : res.result);
+        console.log(formatOutput(res.result,parsed.output));
       } else {
         console.error(`Eval Error: ${res.error}`);
         process.exit(1);
@@ -963,7 +964,7 @@ async function main() {
         console.log(`Description: ${item.description}`);
         if (item.tools?.length) console.log(`Tools:       ${item.tools.map((tool: { name: string }) => tool.name).join(', ')}`);
         console.log(`\x1b[1m─── Content ───\x1b[0m`);
-        console.log(typeof item.content === 'string' ? item.content.trim() : JSON.stringify(item.content, null, 2));
+        console.log(formatOutput(item.content,parsed.output,'Content'));
         break;
       }
 
@@ -978,12 +979,12 @@ async function main() {
       if (port > 65535) throw new Error('Workspace port must be between 0 and 65535.');
       const { startWorkspace } = await import('./workspace/server.ts');
       const confirm=process.stdin.isTTY?async(preview:unknown)=>{
-        console.log(JSON.stringify(preview,null,2));
-        const reader=createInterface({input:process.stdin,output:process.stdout});
+        console.log(formatOutput(preview,{verbosity:3},'Review exact proposal'));
+        const reader=createInterface({input:process.stdin,output:process.stderr});
         try{return (await reader.question('Apply this exact Workspace Product proposal? [y/N] ')).toLowerCase()==='y';}finally{reader.close();}
       }:undefined;
       const workspace = startWorkspace({store: getStore(), projectRoot: root, executionAuthority: 'project-write' as const}, port,confirm,process.stdin.isTTY?async(question)=>{
-        const reader=createInterface({input:process.stdin,output:process.stdout});
+        const reader=createInterface({input:process.stdin,output:process.stderr});
         try{return await reader.question(question+' ');}finally{reader.close();}
       }:undefined);
       console.log('AIWF Workspace: ' + workspace.url);
@@ -1020,6 +1021,7 @@ main().finally(async () => {
   await closeAllTsLspClients();
   await closeAllTs6RefactorClients();
 }).catch(err => {
-  console.error(argv.includes('--json')?JSON.stringify({status:'failed',error:err.message}):`Fatal: ${err.message}`);
+  let output;try{output=extractOutputOptions(argv).options;}catch{output={verbosity:1 as const,...(argv.includes('--full-json')||argv.includes('--json')?{fullJson:true}:{})};}
+  console.error(formatOutputError(err,output));
   process.exit(1);
 });

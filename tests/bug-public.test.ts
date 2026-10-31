@@ -13,7 +13,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 const cli=path.resolve('src/cli.ts');
 let root:string,store:WorkflowStore|undefined;
 const run=(...args:string[])=>Bun.spawnSync(process.env.AIWF_TEST_BINARY?[process.env.AIWF_TEST_BINARY,...args]:['bun',cli,...args],{cwd:root,stderr:'pipe'});
-function json(...args:string[]){const r=run(...args);if(!r.success) throw Error(r.stderr.toString()+r.stdout.toString());return JSON.parse(r.stdout.toString());}
+function json(...args:string[]){const r=run(...args,...(args.includes('--json')||args.includes('--full-json')?[]:['--full-json']));if(!r.success) throw Error(r.stderr.toString()+r.stdout.toString());return JSON.parse(r.stdout.toString());}
 afterEach(()=>{store?.close();store=undefined;if(root)fs.rmSync(root,{recursive:true,force:true});});
 describe('first-class Bug public journey',()=>{
  it('reports unknowns, completes triage, preserves identity through edit, sync, shell and reopen',async()=>{
@@ -51,7 +51,7 @@ describe('first-class Bug public journey',()=>{
   expect(run('sync').success).toBe(true);expect(json('bug','show','B1').title).toBe('Incorrect saved total');
   initializeTools();store=new WorkflowStore(root);
   const actor=new WorkflowActor({store,projectRoot:root,offline:true});
-  const shown=await processShellInput('bug show B1',{store,projectRoot:root,actor,interactive:false});expect(JSON.parse(shown.output).kind).toBe('bug');
+  const shown=await processShellInput('bug show B1 --full-json',{store,projectRoot:root,actor,interactive:false});expect(JSON.parse(shown.output).kind).toBe('bug');
   expect((await processShellInput('bug --help',{store,projectRoot:root,actor,interactive:false})).output).toContain('triage');
   const client=new Client({name:'iteration1-bug',version:'1'});
   const binary=process.env.AIWF_TEST_BINARY;

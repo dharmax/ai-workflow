@@ -288,7 +288,7 @@ describe('PC1a canonical safety through public tools',()=>{
       {kind:'product_create',entityType:'Feature',id:'PARTIAL',fields:{title:'Must not be accepted',status:'accepted'}},
       {kind:'product_update',entityType:'Ticket',id:'CLI',fields:{lane:'Done'}}
     ]}));
-    const preview=await run('product-change','preview','forgery.json');
+    const preview=await run('product-change','preview','forgery.json','--full-json');
     expect(JSON.parse(preview.stdout).blocked).toBe(true);
     reopen();
     expect(await store.getEntity('CLI',Ticket.dcr)).toMatchObject({lane:'Todo'});

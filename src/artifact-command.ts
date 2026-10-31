@@ -1,9 +1,10 @@
+import type {OutputOptions} from './ui/result-view.ts';
 /**
  * Responsibility: Shared Commander grammar and normalized public command intents.
  * Scope: CLI argv and once-lexed shell input; domain execution stays in registered owners.
  */
 import {commandRegistry} from './tools/registry.ts';
-import {projectCommands} from './command-presentation.ts';
+import {extractOutputOptions,projectCommands} from './command-presentation.ts';
 import {PrioritySchema} from './model/types.ts';
 import { z } from 'zod';
 import {ChangeRequestSchema} from './tools/change.ts';
@@ -124,15 +125,15 @@ export function isExplicitCommand(input:string):boolean {
   const command=createCommandTree(()=>{},()=>{}).commands.find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
   if(command && (command.name()==='next' || command.name()==='ticket' && rest.length>0 || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
   if(rest.length && command?.registeredArguments.length===0) return true;
-  return /^(?:please\s+)?(?:story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product-change|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
+  return /^(?:please\s+)?(?:status|doctor|next|diff|tickets|features|stories|epics|story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product-change|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());
 }
 
-export type NormalizedCommand =
+export type NormalizedCommand = (
   | {family:'link';tool:'link';args:LinkAction;yes:boolean}
   | {family:'definition';input:DefinitionReviewInput;yes:boolean}
   | {family:'help';tool:'help';args:{text:string}}
   | {family:'artifact';tool:string;args:Record<string,unknown>;reviewFingerprint?:string;review?:import('./tools/registry.ts').CommandDefinition['review'];format?:(value:unknown)=>string}
-  | {family:'legacy';command:string;tokens:string[]};
+  | {family:'legacy';command:string;tokens:string[]}) & {output?:OutputOptions};
 
 function linkIntent(args: unknown, yes = false): NormalizedCommand {
   return {family:'link',tool:'link',yes,args:LinkActionSchema.parse(args)};
@@ -621,7 +622,7 @@ A configured provider is not proof that authentication or inference succeeds.`);
   const configure=(command:Command)=>{
     command.allowExcessArguments(false);
     if(command.commands.length && command.registeredArguments.length===0) {command.addHelpCommand();command.action(()=>command.help());}
-    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule','reference'].includes(option.name())) {
+    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule','reference','verbose'].includes(option.name())) {
       const parse=option.parseArg;
       option.argParser((value,previous:unknown)=>{
         if(previous!==undefined) throw new InvalidArgumentError(`Duplicate option '${option.flags}'.`);
@@ -630,7 +631,7 @@ A configured provider is not proof that authentication or inference succeeds.`);
     }
     for(const child of command.commands) configure(child);
   };
-  projectCommands(root,(id,args,definition,format)=>emit({family:'artifact',tool:id,args,review:definition.review,format}),channel);
+  projectCommands(root,(id,args,definition,format,output)=>emit({family:'artifact',tool:id,args,review:definition.review,format,...(output?{output}:{})}),channel);
   configure(root);
   return root;
 }
@@ -640,6 +641,12 @@ function commandTokens(tokens:string[],root:Command):string[] {
   const words=[...tokens];
   if(words[0]?.toLowerCase()==='please') words.shift();
   if(words[0]?.includes(':')) {if(words[0].split(':').length!==2)throw new InvalidArgumentError('Only one colon subtopic is supported.');words.splice(0,1,...words[0].split(':'));}
+  if(words[0]?.toLowerCase()==='ticket'&&words[1]&&!words[1].startsWith('-')&&words.length===2&&!root.commands.find(child=>child.name()==='ticket')!.commands.some(child=>[child.name(),...child.aliases()].includes(words[1]!.toLowerCase())))words.splice(1,0,'show');
+  const entityAliases:Record<string,string[]>={status:['project','status'],doctor:['project','doctor'],next:['flow','next'],diff:['git','diff'],epic:['flow','epic','show'],feature:['product','feature','show'],story:['product','story','show'],features:['product','feature','list'],stories:['product','story','list'],epics:['flow','epic','list']};
+  if(words[0]?.toLowerCase()==='next'&&words[1]&&!words[1].startsWith('-'))words.splice(1,1,'--agent-id',words[1]);
+  if(['features','stories'].includes(words[0]?.toLowerCase()??'')&&words[1]&&!words[1].startsWith('-'))words.splice(1,1,'--status',words[1]);
+  const alias=entityAliases[words[0]?.toLowerCase()??''];if(alias)words.splice(0,1,...alias);
+  if(words[0]==='tickets')words.splice(0,words[1]&&!words[1].startsWith('-')?2:1,'ticket','list',...(words[1]&&!words[1].startsWith('-')?['--lane',words[1]]:[]));
   let command=root,positional=false;
   if(words[0]?.toLowerCase()==='help') {words.shift();words.push('--help');}
   // Transitional, unambiguous read-only alias. Canonical syntax is action-first.
@@ -674,13 +681,15 @@ function commandTokens(tokens:string[],root:Command):string[] {
 export async function parseCommand(tokens:string[],channel:'cli'|'shell'='cli'):Promise<NormalizedCommand> {
   let intent:NormalizedCommand|undefined,output='';
   const tree=createCommandTree(value=>{intent=value;},text=>{output+=text;},channel);
-  try {await tree.parseAsync(commandTokens(tokens,tree),{from:'user'});}
+  const presentation=extractOutputOptions(tokens,tree);
+  try {await tree.parseAsync(commandTokens(presentation.tokens,tree),{from:'user'});}
   catch(error) {
     if(error instanceof CommanderError&&error.exitCode===0) return {family:'help',tool:'help',args:{text:output}};
     throw error;
   }
+  if(presentation.options&&intent?.family==='legacy'&&!['product-change','eval','metrics'].includes(intent.command))throw Error('Output options are available on canonical commands. Use the matching project, ticket, source, graph, product, git or knowledge command; see aiwf help.');
   if(!intent) return {family:'help',tool:'help',args:{text:output||tree.helpInformation()}};
-  return intent;
+  return presentation.options?{...intent,output:presentation.options,...(intent.family==='artifact'&&presentation.options.fullJson?{format:undefined}:{})}:intent;
 }
 
 /** Actor adaptation strips local confirmation; it can only obtain a link preview. */

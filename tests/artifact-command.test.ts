@@ -39,7 +39,7 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
     const actor = new WorkflowActor({ store, projectRoot: root, offline: true }); let calls = 0;
     const original = Ticket.prototype.resolve;
     try { Ticket.prototype.resolve = async function (_store, options) { calls++; expect(this.title).toBe('Concrete task'); expect(options?.depth).toBe(0); return { status: 'needs_input', artifactId: 'T', required: [{ question: 'Authored review required', why: 'Precise blocker', target: 'acceptance' }] }; };
-      const shell = await processShellInput('please resolve ticket T --depth 0', { store, projectRoot: root, actor, codeMutationAllowed:true }); expect(JSON.parse(shell.output).status).toBe('needs_input'); expect(calls).toBe(1);
+      const shell = await processShellInput('please resolve ticket T --depth 0 --full-json', { store, projectRoot: root, actor, codeMutationAllowed:true }); expect(JSON.parse(shell.output).status).toBe('needs_input'); expect(calls).toBe(1);
       const direct = await actor.execute('resolve ticket T --depth 0',{executionAuthority:'project-write',codeMutationAllowed:true}); expect(direct.stepsCount).toBe(1); expect(direct.events[0].toolCall?.name).toBe('resolve_ticket'); expect(calls).toBe(2);
     } finally { Ticket.prototype.resolve = original; }
   });
@@ -54,9 +54,9 @@ describe('artifact-first shell/CLI/Actor delegation', () => {
   it('runs documented CLI investigation and completeness commands in a real outside repository', async () => {
     const cli = path.resolve(import.meta.dir, '../src/cli.ts');
     const run = (...args: string[]) => Bun.spawnSync(['bun', cli, ...args], { cwd: root, stderr: 'pipe' });
-    const investigation = run('investigate', 'T'); expect(investigation.success).toBe(true); expect(JSON.parse(investigation.stdout.toString()).status).toBe('complete');
+    const investigation = run('investigate', 'T','--full-json'); expect(investigation.success).toBe(true); expect(JSON.parse(investigation.stdout.toString()).status).toBe('complete');
     const set = run('completeness', 'set', 'F', 'production'); expect(set.success).toBe(true);
-    const get = run('completeness', 'get', 'F'); expect(get.success).toBe(true); expect(JSON.parse(get.stdout.toString()).effective).toBe('production');
+    const get = run('completeness', 'get', 'F','--full-json'); expect(get.success).toBe(true); expect(JSON.parse(get.stdout.toString()).effective).toBe('production');
     const invalid = run('process', 'story', 'S', '--depth', 'invalid'); expect(invalid.success).toBe(false);
   }, 30000);
   it('advertises delegation and identical policy over the actual MCP protocol', async () => {

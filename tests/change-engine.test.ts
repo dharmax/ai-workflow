@@ -296,7 +296,7 @@ describe('Public CLI file move with external imports', () => {
 
   it('moves through preview/apply CLI processes, persists effects and preserves public exports', async () => {
     const run = async (args: string[]) => {
-      const child = Bun.spawn(['bun', cli, ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
+      const child = Bun.spawn(['bun', cli, ...args,'--full-json'], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
       const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
       expect({code, stderr}).toEqual({code: 0, stderr: ''});
       return JSON.parse(stdout);

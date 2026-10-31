@@ -12,7 +12,7 @@ describe('CLI help has no operation side effects', () => {
     for (const args of [['next', '--help'], ['init', '--help'], ['resolve', 'T', '--help'], ['claim', 'T', '-h']]) {
       const result = Bun.spawnSync([process.execPath, path.resolve(import.meta.dir, '../src/cli.ts'), ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
       expect(result.success).toBe(true);
-      expect(result.stdout.toString()).toContain('Usage: aiwf '+args[0]);
+      expect(result.stdout.toString()).toContain('Usage: aiwf '+(args[0]==='next'?'flow next':args[0]));
       expect(result.stdout.toString()).not.toContain('Recommended Task:');
       expect(fs.readdirSync(root)).toEqual([]);
     }

@@ -138,8 +138,8 @@ describe('Interactive Shell REPL Bridge', () => {
   it('should execute all domain fast-paths without LLM invocation', async () => {
     // 1. Status & Diff
     const statusRes = await processShellInput('status', session);
-    expect(statusRes.output).toContain('[Git]');
-    expect(statusRes.output).toContain('[Active Leases]');
+    expect(statusRes.output).toContain('Git');
+    expect(statusRes.output).toContain('Project Root');
 
     const diffRes = await processShellInput('diff', session);
     expect(typeof diffRes.output).toBe('string');
@@ -150,7 +150,7 @@ describe('Interactive Shell REPL Bridge', () => {
 
     // 3. Tickets, Claim, Next, Release
     const emptyTickets = await processShellInput('tickets', session);
-    expect(emptyTickets.output).toContain('No tickets found');
+    expect(emptyTickets.output).toContain('No records');
 
     const nextRes = await processShellInput('next', session);
     expect(nextRes.output).toContain('No pending tasks');

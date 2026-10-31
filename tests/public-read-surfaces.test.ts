@@ -20,7 +20,7 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
  let root:string,store:WorkflowStore,client:Client,actor:WorkflowActor,actorCalls:number;
  const run=(...args:string[])=>Bun.spawnSync(binary?[binary,...args]:['bun',cli,...args],{cwd:root,stderr:'pipe',env:{...process.env,AIWF_EXECUTION_AUTHORITY:'read-only'},timeout:15000});
  const json=(...args:string[])=>{
-  const result=run(...args);
+  const result=run(...args,...(args.includes('--json')||args.includes('--full-json')?[]:['--full-json']));
   if(!result.success) throw Error(result.stderr.toString()+'\n'+result.stdout.toString());
   return JSON.parse(result.stdout.toString());
  };
@@ -52,7 +52,7 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
   const expected=value(await call('get_ticket',{ticketId:'READ-1'}));
   for(const args of [['ticket','show','READ-1'],['ticket','status','READ-1'],['ticket','READ-1','show'],['ticket','READ-1','status']]){
    expect(json(...args)).toEqual(expected);
-   expect(JSON.parse((await shell(args.join(' '))).output)).toEqual(expected);
+   expect(JSON.parse((await shell(args.join(' ')+' --full-json')).output)).toEqual(expected);
   }
   store.close();store=new WorkflowStore(root);
   expect(value(await call('get_ticket',{ticketId:'READ-1'}))).toEqual(expected);
@@ -62,12 +62,12 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
  it('discovers Link types and identical bounded canonical relationships',async()=>{
   const types=value(await call('link',{action:'allowed',sourceKind:'Ticket',targetKind:'Ticket'}));
   expect(json('link','types','Ticket','Ticket')).toEqual(types);
-  expect(JSON.parse((await shell('link types Ticket Ticket')).output)).toEqual(types);
+  expect(JSON.parse((await shell('link types Ticket Ticket --full-json')).output)).toEqual(types);
   expect(types.relations.some((row:{predicate:string})=>row.predicate==='depends_on')).toBe(true);
   const links=value(await call('link',{action:'inspect',id:'READ-1',direction:'incoming',limit:1}));
   expect(links.links[0]).toMatchObject({sourceId:'BLOCK-1',targetId:'READ-1',predicate:'blocks'});
   expect(json('links','READ-1','--incoming','--limit','1')).toEqual(links);
-  expect(JSON.parse((await shell('links READ-1 --incoming --limit 1')).output)).toEqual(links);
+  expect(JSON.parse((await shell('links READ-1 --incoming --limit 1 --full-json')).output)).toEqual(links);
   expect(links.freshness).toEqual({basis:'canonical-relations',sourceIndex:'not-assessed'});
  },30000);
  it('returns truthful blocked investigation with read-only authority and no canonical mutation',async()=>{
@@ -75,8 +75,8 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
   const expected={status:'blocked',artifactId:'READ-1',blockers:[{artifactId:'BLOCK-1',reason:'Explicit graph blocker'}]};
   expect(value(await call('investigate_ticket',{ticketId:'READ-1'}))).toEqual(expected);
   for(const args of [['investigate','READ-1'],['ticket','investigate','READ-1'],['ticket','READ-1','investigate']]){
-   const result=run(...args);expect(result.exitCode).toBe(2);expect(JSON.parse(result.stdout.toString())).toEqual(expected);
-   expect(JSON.parse((await shell(args.join(' '))).output)).toEqual(expected);
+   const result=run(...args,'--full-json');expect(result.exitCode).toBe(2);expect(JSON.parse(result.stdout.toString())).toEqual(expected);
+   expect(JSON.parse((await shell(args.join(' ')+' --full-json')).output)).toEqual(expected);
   }
   expect(value(await call('get_ticket',{ticketId:'READ-1'}))).toEqual(before);
   expect(actorCalls).toBe(0);
@@ -89,7 +89,7 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
   expect(expected).toMatchObject({status:'complete',artifactId:'DUP-1',value:{ticket:{id:'DUP-1',lane:'Todo'},disposition:'rejectable'}});
   expect(expected.value.evidence.some((item:{id:string;provenance:string})=>item.id==='READ-1'&&item.provenance==='Identical existing work contract')).toBe(true);
   expect(json('ticket','DUP-1','investigate')).toEqual(expected);
-  expect(JSON.parse((await shell('ticket DUP-1 investigate')).output)).toEqual(expected);
+  expect(JSON.parse((await shell('ticket DUP-1 investigate --full-json')).output)).toEqual(expected);
   expect(value(await call('get_ticket',{ticketId:'DUP-1'}))).toEqual(before);
   expect(actorCalls).toBe(0);
  },30000);

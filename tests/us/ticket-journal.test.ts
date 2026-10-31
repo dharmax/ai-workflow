@@ -104,7 +104,7 @@ it('bounds default context, paginates all originals, replaces only summaries and
   const cli=path.resolve('src/cli.ts');
   const binary=process.env.AIWF_TEST_BINARY;
   const run=(...args:string[])=>Bun.spawnSync(binary?[binary,...args]:['bun',cli,...args],{cwd:root,stderr:'pipe'});
-  const result=run('ticket','history',ticketId,'--limit','2');expect(result.success).toBe(true);expect(JSON.parse(result.stdout.toString()).entries).toHaveLength(2);
+  const result=run('ticket','history',ticketId,'--limit','2','--full-json');expect(result.success).toBe(true);expect(JSON.parse(result.stdout.toString()).entries).toHaveLength(2);
   expect(run('ticket','condense',ticketId).success).toBe(true);
   expect(run('ticket','record',ticketId,'--kind','correction','--message','CLI correction','--reference','src/total.ts').success).toBe(true);
 });

@@ -1,3 +1,4 @@
+import {formatDiagnosticReport,type DiagnosticReport} from '../services/diagnostics-service.ts';
 /**
  * Responsibility: Explicit public command contracts over registered domain owners.
  * Scope: One registration path for CLI, Shell UI, MCP and Workspace projections.
@@ -82,6 +83,7 @@ function registerExistingCommands(){
  r.registerCommand({topic:'rule',subtopic:'change',action:'apply',owner:'apply_rule_change',description:'Apply the exact Rule preview only after trusted host review.',parameters:(ruleApply.parameters as z.ZodObject).strict(),exposure:['cli','shell','rest'],authority:'project-write',http:{method:'POST'},review:reviewRuleChange});
  add('project','status','project_status');
  add('project','doctor','project_doctor',[],false,'POST');
+ r.getCommands().find(command=>command.topic==='project'&&command.action==='doctor')!.format=result=>formatDiagnosticReport(result as DiagnosticReport);
  add('project','export','export_project',[],true,'POST');
  add('graph:index','refresh','refresh_graph_index',[],true,'POST');
  add('config','list','inspect_config');

@@ -19,7 +19,7 @@ import {TestBindingSpecificationSchema,TechnicalProofSchema,ScopeSchema,type Tes
 /** Each dependency is indexed, read and hashed by its own store; no external hashFiles mode. */
 export async function withProofProject<T>(store:WorkflowStore,root:string,work:(owner:WorkflowStore)=>Promise<T>):Promise<T>{
  if(path.resolve(root)===store.root)return work(store);
- const owner=new WorkflowStore(root);
+ const owner=new WorkflowStore(root,false,{readOnly:store.isReadOnlyExecution()});
  try{return await work(owner);}finally{owner.close();}
 }
 

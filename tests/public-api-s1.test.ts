@@ -13,7 +13,7 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 const cli=path.resolve(import.meta.dir,'../src/cli.ts');
 let root:string,store:WorkflowStore,workspace:ReturnType<typeof startWorkspace>,client:Client;
 const run=(...args:string[])=>Bun.spawnSync(['bun',cli,...args],{cwd:root,stderr:'pipe',timeout:15000});
-const json=(...args:string[])=>{const r=run(...args);if(!r.success)throw Error(r.stderr.toString());return JSON.parse(r.stdout.toString());};
+const json=(...args:string[])=>{const r=run(...args,...(args.includes('--json')||args.includes('--full-json')?[]:['--full-json']));if(!r.success)throw Error(r.stderr.toString());return JSON.parse(r.stdout.toString());};
 const http=async(route:string,init:RequestInit={})=>fetch(workspace.url.split('/#')[0]+route,{...init,headers:{'x-aiwf-token':workspace.url.split('#')[1]!,...init.headers}});
 beforeEach(async()=>{
  root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-s1-'));Bun.spawnSync(['git','init','-q'],{cwd:root});
@@ -79,8 +79,8 @@ it('executes all S1 reads through the installed shell-ui on a real PTY',async()=
    ['graph:predicate check Feature enables UserStory --json',/"allowed": true/],
    ['graph:link list --source T2 --json',/"predicate": "blocks"/],['graph:link show T2 blocks T1 --json',/"targetId": "T1"/]
   ] as const)await command(text,pattern);
-  output='';proc.terminal!.write('ticket sh\t');await wait(/ticket show/);proc.terminal!.write(' T1\r');await wait(/"id": "T1"[\s\S]*aiwf> /);
-  output='';proc.terminal!.write('ticket show\r');await wait(/ticket ID/);proc.terminal!.write('T1\r');await wait(/"id": "T1"/);await wait(/aiwf> /);
+  output='';proc.terminal!.write('ticket sh\t');await wait(/ticket show/);proc.terminal!.write(' T1\r');await wait(/Ticket T1[\s\S]*aiwf> /);
+  output='';proc.terminal!.write('ticket show\r');await wait(/ticket ID/);proc.terminal!.write('T1\r');await wait(/Ticket T1/);await wait(/aiwf> /);
   await command('ticket nonsense T1',/Error:/);
   output='';proc.terminal!.write('ticket show T1');proc.terminal!.write('\x03');await wait(/aiwf> /);
   proc.terminal!.write('exit\r');await proc.exited;expect(proc.exitCode).toBe(0);

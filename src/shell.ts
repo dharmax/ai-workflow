@@ -1,3 +1,4 @@
+import {formatOutput,formatOutputError} from './ui/result-view.ts';
 /**
  * Responsibility: Interactive Terminal REPL & Shell Bridge.
  * Scope: Dual-nature REPL supporting deterministic fast-path commands (<5ms),
@@ -28,7 +29,7 @@ import {
 } from '@dharmax/shell-ui';
 import { WorkflowStore, findProjectRoot } from './graph/store.ts';
 import { Ticket } from './model/ontology.ts';
-import {commandDiscovery} from './command-presentation.ts';
+import {extractOutputOptions,commandDiscovery} from './command-presentation.ts';
 import { initializeTools, commandRegistry, type ToolContext } from './tools/index.ts';
 import { WorkflowActor, type Intelligence, IntelligenceSchema } from './helpers/actor/engine.ts';
 import { exportProjections, importProjections } from './services/projection-service.ts';
@@ -71,7 +72,7 @@ async function presentEntityView(
   if (result.status === 'submitted') {
     await saveEntityView(ctx, kind, id, result.values, async preview => {
       const facilitator = new ParameterFacilitator(session.renderer || session.prompter);
-      const answer = await facilitator.facilitate({approval: {type: 'select', description: 'Review Rule diff: ' + JSON.stringify(preview),
+      const answer = await facilitator.facilitate({approval: {type: 'select', description: 'Review Rule diff:\n' + formatOutput(preview,{verbosity:3}),
         choices: ['cancel', 'apply']}}, {}, {interactive: true});
       return answer.approval === 'apply';
     })
@@ -173,16 +174,20 @@ export async function processShellInput(
         command=await parseCommand(facilitated,'shell');
       }
       if(command?.family==='help') return {output:command.args.text};
+      if(isInteractive&&!command.output&&tokens.length===2&&['ticket','epic','feature','story'].includes(tokens[0]!.toLowerCase())&&command.family==='artifact'&&command.tool.endsWith(' show')&&Object.values(command.args)[0]===tokens[1]){
+        const viewed=await presentEntityView(session,ctx,tokens[0]!.toLowerCase() as EntityViewKind,tokens[1]!,'edit');
+        if(viewed!==null)return {output:viewed};
+      }
       if(command.family==='link' || command.family==='definition') {
         const confirm=isInteractive?async(preview:unknown)=>{
-          const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact '+command.family+' change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});
+          const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact '+command.family+' change:\n'+formatOutput(preview,{verbosity:3}),choices:['cancel','apply']}},{},{interactive:true});
           return answer.approval==='apply';
         }:undefined;
-        const present=command.yes?(preview:unknown)=>console.error(JSON.stringify(preview,null,2)):undefined;
+        const present=command.yes?(preview:unknown)=>console.error(formatOutput(preview,{verbosity:3},'Review exact proposal')):undefined;
         const result=command.family==='link'
           ? await reviewLink(command.args,ctx,command.yes,confirm,present)
           : await reviewDefinition(command.input,ctx,command.yes,confirm,present);
-        return {output:JSON.stringify(result,null,2)};
+        return {output:formatOutput(result,command.output)};
       }
       if(command.family==='legacy' && command.command==='product-change') {
         const [action,file,...extra]=command.tokens;
@@ -193,7 +198,7 @@ export async function processShellInput(
             const response=await facilitator.facilitate({answer:{type:'string',description:question}},{},{interactive:true});
             return typeof response.answer==='string' ? response.answer : undefined;
           } : undefined);
-        return {output:JSON.stringify(result,null,2)};
+        return {output:formatOutput(result,command.output)};
       }
       if(command.family==='legacy' && command.command==='product-export') {
         const manifest=await exportProductManifest(ctx.store,ctx.projectRoot);
@@ -213,16 +218,16 @@ export async function processShellInput(
           : `Running ${command.tool}...`);
         try {
           const result = command.review?await command.review(command.args,ctx,isInteractive?async preview=>{
-            const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact change: '+JSON.stringify(preview),choices:['cancel','apply']}},{},{interactive:true});return answer.approval==='apply';
+            const answer=await facilitator.facilitate({approval:{type:'select',description:'Review exact change:\n'+formatOutput(preview,{verbosity:3}),choices:['cancel','apply']}},{},{interactive:true});return answer.approval==='apply';
           }:undefined,isInteractive?async question=>{
             const answer=await facilitator.facilitate({answer:{type:'string',description:question}},{},{interactive:true});return typeof answer.answer==='string'?answer.answer:undefined;
           }:undefined):await ctx.store.withExecutionContext(ctx.executionAuthority ?? 'read-only', ctx.signal, () => commandRegistry.execute(command.tool, command.args, ctx), command.reviewFingerprint);
           progress.stop(isBlockedOperation(result) ? 'fail' : 'success');
-          return {output: command.format?command.format(result):JSON.stringify(result, null, 2)};
+          return {output:formatOutput(result,command.output,command.tool,command.format)};
         } catch (error) { progress.stop('fail'); throw error; }
       }
 
-    } catch(error) {return {output:'Error: '+(error instanceof Error?error.message:String(error))};}
+    } catch(error) {let output;try{output=extractOutputOptions(lexCommand(line)).options;}catch{output={verbosity:1 as const,...(/--(?:full-json|json)\b/.test(line)?{fullJson:true}:{})};}return {output:formatOutputError(error,output)};}
   }
 
   // 1. Session Control & Mode Switching
@@ -975,8 +980,8 @@ export async function processShellInput(
   }
 
   if (lower === 'metrics' || lower.startsWith('metrics ')) {
-    const { rows, ...summary } = queryPerformance(session.projectRoot, performanceQueryArgs(line.trim().split(/\s+/).slice(1)));
-    return { output: '📊 AIWF Performance Metrics\n' + JSON.stringify(summary, null, 2) };
+    const { rows, ...summary } = queryPerformance(session.projectRoot, performanceQueryArgs(extractOutputOptions(lexCommand(line)).tokens.slice(1)));
+    return { output: formatOutput(summary,extractOutputOptions(lexCommand(line)).options,'Performance Metrics') };
   }
 
   if (lower === 'trace' || lower.startsWith('trace ')) {
@@ -1039,7 +1044,7 @@ export async function processShellInput(
     const code = line.slice(5).trim();
     const res = await commandRegistry.execute('script_eval', { code }, ctx);
     return {
-      output: res.success ? JSON.stringify(res.result, null, 2) : `Script Error: ${res.error}`
+      output: res.success ? formatOutput(res.result) : `Script Error: ${res.error}`
     };
   }
 

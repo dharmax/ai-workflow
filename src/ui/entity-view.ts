@@ -1,3 +1,4 @@
+import {resultView,formatView,humanValue,type OutputOptions} from './result-view.ts';
 import {ParameterFacilitator, type ViewRequest} from '@dharmax/shell-ui'
 import {Aspect, Epic, Feature, Ticket, UserStory, Rule} from '../model/ontology.ts'
 import type {ToolContext} from '../tools/index.ts'
@@ -58,23 +59,23 @@ export async function facilitateEntityId(ctx: ToolContext, kind: EntityViewKind,
   if (!choices.includes(values.entityId)) throw new Error(`Invalid ${kind} selection.`);
   return values.entityId;
 }
-export function formatEntityView(view: ViewRequest): string {
-  return [view.title || view.id, ...Object.entries(view.fields).map(([key, field]) => `${field.label || key}: ${Array.isArray(field.value) ? field.value.join(', ') : field.value}`.trimEnd())].join('\n');
-}
+export function formatEntityView(view:ViewRequest,options?:OutputOptions):string {return formatView(view,options);}
 
 export async function buildEntityView(
   ctx: ToolContext,
   kind: EntityViewKind,
   id: string,
   mode: 'readonly' | 'edit' = 'readonly',
+  options?:OutputOptions,
 ): Promise<ViewRequest> {
   if (kind === 'rule') {
     const result = await commandRegistry.execute('get_rule', {ruleId: id}, ctx)
     if (!result.rule) throw Error("Rule layer not found.")
+    if(mode==='readonly')return resultView(result,options,'rule');
     return {id: 'rule:' + id, title: 'Rule · ' + result.rule.ruleId, mode, fields: {
       id: text(id, 'readonly', {label: 'Layer ID'}),
       revision: text(result.rule.revision, 'readonly', {label: 'Revision'}),
-      effective: text(JSON.stringify(result.effective, null, 2), 'readonly', {label: 'Effective rule / inheritance'}),
+      effective: text(humanValue(result.effective), 'readonly', {label: 'Effective rule / inheritance'}),
       payload: text(JSON.stringify(result.rule, null, 2), 'edit', {label: 'Rule JSON (examples, references, checker)', multiline: true, grow: true}),
       reason: text('', 'edit', {label: 'Reason'}),
       allowWeakening: choice('no', ['no', 'yes'], {label: 'Authorize mandatory Rule change'}),
@@ -83,17 +84,18 @@ export async function buildEntityView(
   }
   if (kind === 'ticket') {
     const t = await commandRegistry.execute('get_ticket',{ticketId:id},ctx)
+    if(mode==='readonly')return resultView(t,options,'ticket');
     return {
       id: `ticket:${id}`,
       title: `Ticket · ${id}`,
       mode,
       fields: {
         id: text(id, 'readonly', {label: 'ID'}),
-        relations: text(JSON.stringify({incoming:t.incoming,outgoing:t.outgoing},null,2),'readonly',{label:'Relations and dependencies'}),
-        verification: text(JSON.stringify({state:t.verificationState,receipt:t.verification},null,2),'readonly',{label:'Recorded verification; current freshness requires resolver checks'}),
-        history: text(JSON.stringify(t.history,null,2),'readonly',{label:'Execution history; use ticket history for original entries'}),
+        relations: text(humanValue([...t.incoming,...t.outgoing]),'readonly',{label:'Relations and dependencies'}),
+        verification: text(resultView(t).fields.verification?.value,'readonly',{label:'Verification'}),
+        history: text(humanValue(t.history),'readonly',{label:'Execution history; use ticket history for original entries'}),
         kind: text(t.kind ?? 'task', 'readonly', {label:'Type'}),
-        defect: text(t.defect ? JSON.stringify(t.defect,null,2) : '', 'readonly', {label:'Defect report; use bug edit to complete'}),
+        ...(t.kind==='bug'&&t.defect?{defect:text(humanValue(t.defect),'readonly',{label:'Bug report; use bug edit to complete'})}:{}),
         title: text(t.title, 'edit', {label: 'Title'}),
         lane: choice(t.lane ?? 'Todo', ['Backlog', 'Todo', 'In Progress', 'Done', 'Blocked', 'Cancelled'], {label: 'Lane'}),
         priority: choice(String(t.priority ?? 2), ['0', '1', '2', '3', '4', '5'], {label: 'Priority'}),
@@ -102,17 +104,18 @@ export async function buildEntityView(
           label: 'Acceptance criteria',
           multiline: true,
         }),
-        claim: text(
+        ...(t.claim&&Date.parse(t.claim.expiresAt)>Date.now()?{claim: text(
           t.claim ? `${t.claim.agentId ?? ''}${t.claim.expiresAt ? ` until ${t.claim.expiresAt}` : ''}` : '',
           'readonly',
-          {label: 'Lease'},
-        ),
+          {label: 'Active lease'},
+        )}:{}),
       },
     }
   }
 
   if (kind === 'epic') {
     const e = await commandRegistry.execute('get_epic', {epicId: id}, ctx)
+    if(mode==='readonly')return resultView(e,options,'epic');
     return {
       id: `epic:${id}`,
       title: `Epic · ${id}`,
@@ -132,6 +135,7 @@ export async function buildEntityView(
 
   if (kind === 'feature') {
     const f = await commandRegistry.execute('get_feature', {featureId: id}, ctx)
+    if(mode==='readonly')return resultView(f,options,'feature');
     return {
       id: `feature:${id}`,
       title: `Feature · ${id}`,
@@ -156,6 +160,7 @@ export async function buildEntityView(
 
   if (kind === 'story') {
     const s = await commandRegistry.execute('get_user_story', {storyId: id}, ctx)
+    if(mode==='readonly')return resultView(s,options,'story');
     return {
       id: `story:${id}`,
       title: `Story · ${id}`,
@@ -190,6 +195,7 @@ export async function buildEntityView(
   }
 
   const a = await commandRegistry.execute('get_aspect', {id}, ctx)
+    if(mode==='readonly')return resultView(a,options,'aspect');
   return {
     id: `aspect:${id}`,
     title: `Aspect · ${id}`,
@@ -229,13 +235,15 @@ export async function saveEntityView(
     return
   }
   if (kind === 'ticket') {
+    const current=await commandRegistry.execute('get_ticket',{ticketId:id},ctx);
+    const original=current.acceptanceCriteria??[];
     await commandRegistry.execute('update_ticket', {
       ticketId: id,
       title: values.title,
       lane: values.lane,
-      priority: Number(values.priority),
+      priority: values.priority===undefined?undefined:Number(values.priority),
       body: values.body,
-      acceptanceCriteria: lines(values.acceptanceCriteria),
+      acceptanceCriteria:values.acceptanceCriteria===undefined?undefined:String(values.acceptanceCriteria)===original.join('\n')?original:lines(values.acceptanceCriteria),
     }, ctx)
     return
   }

@@ -105,6 +105,25 @@ aiwf resolve TICKET-ID --completeness production --critic auto
 
 Consult the installed command's `--help` for exact options. `init` creates local project state; it **does not invent or approve a Product charter**. To register **AIWF's own already-approved charter**, preview with `bun run register:charter`, then run `bun run register:charter --apply` from this checkout; the script uses the reviewed Product command and verifies/re-exports canonical state. Current supported public operations and release limitations are described in [Operations](docs/operations.md) and the [active checkpoint](plans/AIWF-V1-ACTIVE-CHECKPOINT.md).
 
+## Human and machine output
+
+CLI and Shell commands show readable domain information by default. Use `-q` / `--brief` for essentials, `-v` / `--verbose` for evidence and explanation, and `-vv` for exhaustive human detail. Select applicable sections independently, for example:
+
+```sh
+aiwf ticket show TKT-123
+aiwf ticket show TKT-123 -vv
+aiwf ticket show TKT-123 --brief --sections=criteria,verification
+aiwf ticket show TKT-123 --full-json
+```
+
+Ticket sections include `summary`, `criteria`, `dependencies`, `files`, `stories`, `tests`, `relations`, `verification` and `history`; Bug reports, current leases and revisions appear when applicable. Other resources expose their own meaningful sections. Invalid section names list the available sections. A selected section is shown even at brief detail.
+
+`--full-json` returns the complete authorized canonical command result as pure JSON. It cannot be combined with human detail or section options. The existing `--json` spelling remains an alias for current automation. Domain pagination still applies; JSON output adds no filtering or truncation. Errors use a failing exit status and a structured error on stderr. Review prompts and progress also stay on stderr. MCP and REST continue to return structured domain results directly.
+
+Passing tests are shown separately from verified acceptance. A recorded receipt is identified as current, stale or of unknown freshness using the existing verifier; reading it never completes work or creates a receipt. Editing uses the complete original values, independently of the read-only projection.
+
+Use canonical namespaced commands for output options on older specialist aliases, for example `source:file read`, `source:symbol find` and `graph:query search`. Interactive sessions and setup commands do not accept output modes.
+
 ## Development and verification
 
 ```bash

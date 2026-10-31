@@ -83,13 +83,13 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
   const actor=new WorkflowActor({store,projectRoot:root,offline:true});
   actor.execute=async()=>{throw Error('Explicit commands must not reach the Actor');};
   const session={store,projectRoot:root,actor,interactive:false};
-  const defined=await processShellInput('product define --title "Example Product" --purpose "Support a public journey" --scope "Current project" --actor Developer --status accepted --yes',session);
+  const defined=await processShellInput('product define --title "Example Product" --purpose "Support a public journey" --scope "Current project" --actor Developer --status accepted --yes --full-json',session);
   expect(JSON.parse(defined.output).status).toBe('applied');
   expect(run('product','show').stdout.toString()).toContain('Example Product');
-  const story=await processShellInput('product story new --id S-SHELL --title "Inspect output" --actor Developer --intent "Understand current behavior" --initial-state "Executable public CLI" --action "Run show" --expected-result "Current output is visible" --status accepted --yes',session);
+  const story=await processShellInput('product story new --id S-SHELL --title "Inspect output" --actor Developer --intent "Understand current behavior" --initial-state "Executable public CLI" --action "Run show" --expected-result "Current output is visible" --status accepted --yes --full-json',session);
   expect(JSON.parse(story.output).status).toBe('applied');
-  expect(JSON.parse(run('product','story','show','S-SHELL').stdout.toString()).expectedResult).toBe('Current output is visible');
-  const ticket=await processShellInput('ticket new --id T-SHELL --title "Implement output" --body "Accepted Story work" --criterion "Show current output"',session);
+  expect(JSON.parse(run('product','story','show','S-SHELL','--full-json').stdout.toString()).expectedResult).toBe('Current output is visible');
+  const ticket=await processShellInput('ticket new --id T-SHELL --title "Implement output" --body "Accepted Story work" --criterion "Show current output" --full-json',session);
   expect(JSON.parse(ticket.output).kind).toBe('task');
   expect((await processShellInput('product export',session)).output).toContain('product-manifest.md');
   expect(fs.readFileSync(path.join(root,'product-manifest.md'),'utf8')).toContain('Example Product');
@@ -115,7 +115,7 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
   expect(await store.getOutgoing('E1','targets')).toEqual([]);
  });
  it('shares Commander routing for namespaced Goal reads through CLI and shell',async()=>{
-  const space=run('product','goal','show','G1'),colon=run('product:goal','show','G1');
+  const space=run('product','goal','show','G1','--full-json'),colon=run('product:goal','show','G1','--full-json');
   expect(space.success).toBe(true);expect(colon.success).toBe(true);expect(JSON.parse(colon.stdout.toString())).toEqual(JSON.parse(space.stdout.toString()));
   const actor=new WorkflowActor({store,projectRoot:root,offline:true});let calls=0;
   actor.execute=async()=>{calls++;throw Error('Actor must not run');};
@@ -133,7 +133,7 @@ print(json.dumps({'code':code,'output':output.decode(errors='replace'),'answered
 
   const { Feature } = await import('../src/model/ontology.ts');
   await store.upsertEntity(Feature.dcr, { id: 'F1', title: 'Feature One', body: 'Owns feature responsibility' });
-  const featSpace = run('product', 'feature', 'show', 'F1'), featColon = run('product:feature', 'show', 'F1');
+  const featSpace = run('product', 'feature', 'show', 'F1'), featColon = run('product:feature', 'show', 'F1','--full-json');
   expect(featSpace.success).toBe(true);expect(featColon.success).toBe(true);
   expect(JSON.parse(featColon.stdout.toString()).title).toBe('Feature One');
   expect((await processShellInput('product:feature show F1', { ...session, store })).output).toContain('Feature One');

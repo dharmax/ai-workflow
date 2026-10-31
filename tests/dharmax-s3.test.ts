@@ -249,10 +249,10 @@ describe('S3 Workspace public developer journeys', () => {
     expect(await page.getByLabel('Responsibilities', {exact:true}).inputValue()).toBe('Total\nMean');
     const moduleEdit = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','edit',moduleId,'--status','accepted','--body','Own decimal operations','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
     expect(moduleEdit.exitCode).toBe(0);
-    const modules = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','list'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    const modules = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','list','--full-json'],{cwd:root,stdout:'pipe',stderr:'pipe'});
     expect(modules.exitCode).toBe(0);
     expect(JSON.parse(modules.stdout.toString()).results.some((item:{id:string})=>item.id===moduleId)).toBe(true);
-    const moduleRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','show',moduleId],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    const moduleRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'arch','module','show',moduleId,'--full-json'],{cwd:root,stdout:'pipe',stderr:'pipe'});
     expect(moduleRead.exitCode).toBe(0);
     expect(JSON.parse(moduleRead.stdout.toString())).toMatchObject({id:moduleId,body:'Own decimal operations',intentStatus:'accepted',sourceStatus:'indexed'});
     const linked = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'link',moduleId,'to','G','as','serves','--yes'],{cwd:root,stdout:'pipe',stderr:'pipe'});
@@ -270,7 +270,7 @@ describe('S3 Workspace public developer journeys', () => {
       const missing = await client.callTool({name:'get_module',arguments:{moduleId}});
       expect(JSON.parse((missing.content as Array<{text:string}>)[0]!.text)).toMatchObject({id:moduleId,body:'Own decimal operations',sourceStatus:'missing_source'});
     } finally { await client.close(); }
-    const productRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','show'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    const productRead = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','show','--full-json'],{cwd:root,stdout:'pipe',stderr:'pipe'});
     expect(JSON.parse(productRead.stdout.toString()).product.actors).toEqual(['Accountant','Auditor']);
     const product = await call('get_product', {});
     expect(product.product.actors).toEqual(['Accountant','Auditor']);
@@ -311,7 +311,7 @@ describe('S3 Workspace public developer journeys', () => {
     await page.goto(await start());
     await page.getByRole('button',{name:'Keep calculations local',exact:true}).click();
     expect(await page.getByLabel('Decision',{exact:true}).inputValue()).toBe('Compute locally with exact decimal arithmetic');
-    const read = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','decision','show','ADR-LOCAL'],{cwd:root,stdout:'pipe',stderr:'pipe'});
+    const read = Bun.spawnSync(['bun',path.resolve(import.meta.dir,'../src/cli.ts'),'product','decision','show','ADR-LOCAL','--full-json'],{cwd:root,stdout:'pipe',stderr:'pipe'});
     expect(read.exitCode).toBe(0);
     expect(JSON.parse(read.stdout.toString())).toMatchObject({id:'ADR-LOCAL',decision:'Compute locally with exact decimal arithmetic',context:'Offline use',consequences:'No remote synchronization',status:'accepted'});
     await page.getByLabel('Decision',{exact:true}).fill('');

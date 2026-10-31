@@ -68,7 +68,7 @@ describe('Dharmax S2 reviewed canonical product edits', () => {
   it('DW-01 uses the same reviewed operation from the real CLI and MCP commandRegistry', async () => {
     const cli = path.resolve(import.meta.dir, '../src/cli.ts');
     const invoke = async (...args: string[]) => {
-      const proc = Bun.spawn(['bun', cli, 'product-change', ...args], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
+      const proc = Bun.spawn(['bun', cli, 'product-change', ...args,'--full-json'], {cwd: root, stdout: 'pipe', stderr: 'pipe'});
       const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
       return {stdout, stderr, code};
     };

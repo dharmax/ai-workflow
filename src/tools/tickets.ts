@@ -1,3 +1,5 @@
+import {currentTicketReceipt} from '../ticket/verification.ts';
+import {currentTestEvidence} from '../graph/test-artifacts.ts';
 /**
  * Responsibility: Ticket and Lease Management Facility.
  * Scope: Canonical Ticket reads, bounded lifecycle adapters, leases, lane transitions and work selection.
@@ -54,13 +56,20 @@ export function registerTicketTools() {
       if(action==='release') return commandRegistry.execute('release_ticket',{ticketId},ctx);
       return commandRegistry.execute('update_ticket_state',{ticketId,lane:action==='block'?'Blocked':action==='reopen'?'Todo':'Cancelled'},ctx);
     }});
-  commandRegistry.register({name:'get_ticket',category:'ticket',description:'Show Ticket definition, canonical ID/revision, lane, claim and recorded receipt. Read-only; show/status share this operation. A receipt is not revalidated acceptance.',
+  commandRegistry.register({name:'get_ticket',category:'ticket',description:'Show Ticket definition, canonical ID/revision, lane, claim and recorded receipt. Read-only; show/status share this operation. Report recorded receipt freshness and current linked test evidence without changing acceptance.',
     parameters:z.object({ticketId:z.string().min(1).regex(/\S/,'ID must not be blank')}).strict(),
     execute:async({ticketId},ctx)=>{
       const ticket=await requireTicket(ctx,ticketId);
       const receipt=await ctx.store.getEntity<Artifact>('VERIFY-'+ctx.store.localId(ticket.id),Artifact.dcr);
+      const incoming=await ctx.store.getIncoming(ticket.id),outgoing=await ctx.store.getOutgoing(ticket.id);
+      const verification=readVerificationReceipt(receipt?.body);
+      const testEvidence=await currentTestEvidence(ctx.store,incoming.filter(edge=>edge.predicateName==='verifies'&&edge.sourceType==='TestNode').map(edge=>edge.sourceId));
+      let verificationCurrent:boolean|null=null,verificationIssue:string|undefined;
+      if(verification)try{verificationCurrent=Boolean(await ctx.store.withExecutionContext('read-only',ctx.signal,()=>currentTicketReceipt(ctx.store,ticket)));}
+      catch(error){verificationIssue=error instanceof Error?error.message:String(error);}
+
       return {id:ctx.store.localId(ticket.id),title:ticket.title,body:ticket.body,lane:ticket.lane,history:await ticketHistoryContext(ctx.store,ticket.id),
-        verification:readVerificationReceipt(receipt?.body),outgoing:await ctx.store.getOutgoing(ticket.id),incoming:await ctx.store.getIncoming(ticket.id),
+        verification,verificationCurrent,verificationIssue,testEvidence,outgoing,incoming,
         kind:ticket.kind ?? 'task',defect:ticket.defect,priority:ticket.priority,acceptanceCriteria:ticket.acceptanceCriteria,claim:ticket.claim,version:ticket.version};
     }});
 
