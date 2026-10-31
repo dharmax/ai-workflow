@@ -457,11 +457,30 @@ export class WorkflowStore {
     const record = await tickets.findById<Record<string, unknown> & {claim?: TicketClaim; _version: number; metadata?: Record<string, unknown>}>(ticket.id);
     if (!record || !record.claim || record._version !== ticket.version || canonical(record.claim) !== canonical(owner) || Date.parse(record.claim.expiresAt) <= Date.now())
       throw Error('Ticket or claim changed before coherent completion.');
+    const {readVerificationReceipt} = await import('../ticket-operation-types.ts');
+    const {assertTechnicalReviews} = await import('./technical-proof.ts');
+    const {currentTestEvidence,hashFiles} = await import('./test-artifacts.ts');
+    const proof = readVerificationReceipt(body);
+    const evidenceGuards:BatchEntry[] = [];
+    if(proof) {
+      const tests = await this.sp.collectionForEntityType(TestNode.dcr);
+      for(const test of proof.testNodes) {
+        const id = this.formatId(TestNode.dcr,test.id);
+        const record = await tests.findById<{_version:number}>(id);
+        if(!record)throw Error('Completion test evidence disappeared: '+test.id);
+        evidenceGuards.push({collectionName:tests.name,id,expectedVersion:record._version});
+      }
+      await assertTechnicalReviews(this,this.localId(ticket.id),proof.acceptance);
+      const executions = await currentTestEvidence(this,proof.testNodes.map(test=>test.id));
+      if(executions.length!==proof.testNodes.length||executions.some(test=>!test.passed||
+          canonical(test.hashes)!==canonical(proof.testNodes.find(node=>node.id===test.id)?.hashes)))
+        throw Error('Test evidence changed before coherent completion.');
+    }
     const proofId = this.formatId(Artifact.dcr, `VERIFY-${this.localId(ticket.id)}`);
     const previous = await artifacts.findById<{_version: number}>(proofId);
     const link = (await predicates.findSome<IPredicateRecord & {_id: string; _version: number}>({sourceId: proofId, predicateName: 'verifies', targetId: ticket.id}))[0];
     const assertion = await this.governanceAssertion(admission);
-    const changes: BatchEntry[] = [assertion,
+    const changes: BatchEntry[] = [assertion,...evidenceGuards,
       {collectionName: artifacts.name, id: proofId, expectedVersion: previous?._version ?? null,
         record: {title: `Verified acceptance for ${this.localId(ticket.id)}`, body, status: 'verified'}},
       {collectionName: tickets.name, id: ticket.id, expectedVersion: ticket.version,
@@ -470,6 +489,8 @@ export class WorkflowStore {
     else changes.push({collectionName: predicates.name, id: predicates.createId(), expectedVersion: null, record: {
       sourceId: proofId, sourceType: 'Artifact', predicateName: 'verifies', targetId: ticket.id, targetType: 'Ticket', timestamp: Date.now()}});
     changes.push(...await ticketChangeEvents(this,ticket.id,record,{...record,claim:null,...ticketState('Done')}));
+    if(proof&&canonical(proof.hashes)!==canonical(hashFiles(this.root,Object.keys(proof.hashes))))
+      throw Error('Source or test changed before coherent completion.');
     if (Date.parse(owner.expiresAt) <= Date.now()) throw Error('Ticket execution lease expired before coherent completion.');
     this.sqliteStore.applyBatch(changes);
   }

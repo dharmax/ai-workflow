@@ -5,7 +5,6 @@
 
 import {recordTicketEvent} from '../services/journal-service.ts'
 import {assertChangeScope, buildSourceScope} from './source-scope.ts'
-import {assertTechnicalReviews} from '../graph/technical-proof.ts'
 import { implementTicket } from "./implementation.ts"
 import {requireStoryTests, activateStoryTestsForTicket, runStoryTest, storyTestStatus} from "../product/story-tests.ts"
 import { executeTicketChecks, verifyTicketAcceptance, currentTicketReceipt } from "./verification.ts"
@@ -197,26 +196,26 @@ export async function resolveTicket(
                     }
                     const leaseError = await lease(ticket)
                     if (leaseError) return blocked(leaseError)
-                    traceResolution('Ticket.prepare start: ' + id)
-                    const prepared = await ticket.prepare(store, { ...options, agentId, owner: acquired.get(id) })
-                    traceResolution('Ticket.prepare returned: ' + prepared.status)
-                    if (prepared.status !== "complete") return prepared
-                    if (prepared.value.dossier.disposition === "rejectable")
-                        return needs(
-                            `Review rejection evidence for '${id}': ${prepared.value.dossier.rationale}`,
-                            "Rejection is grounded but requires explicit disposition approval.",
-                            "Ticket lifecycle"
-                        )
+                    // Verification observes the existing specification and containment. It never
+                    // plans, enriches or decomposes work to manufacture a verifiable contract.
+                    const prepared = options.verifyOnly ? null : await ticket.prepare(store, { ...options, agentId, owner: acquired.get(id) })
+                    if (prepared && prepared.status !== 'complete') return prepared
+                    if (prepared?.value.dossier.disposition === 'rejectable')
+                        return needs(`Review rejection evidence for '${id}': ${prepared.value.dossier.rationale}`,
+                            'Rejection is grounded but requires explicit disposition approval.', 'Ticket lifecycle')
                     const fresh = (await store.getEntity<Ticket>(ticket.id, Ticket.dcr))!
-                    const grounded = prepared.value.applied
-                        ? await fresh.investigate(store, options)
-                        : { status: "complete" as const, value: prepared.value.dossier }
-                    if (grounded.status !== "complete") return grounded
+                    const grounded = prepared && !prepared.value.applied
+                        ? {status: 'complete' as const, value: prepared.value.dossier}
+                        : await fresh.investigate(store, options.verifyOnly ? {...options, mandatoryEvidenceOnly: true} : options)
+                    if (grounded.status !== 'complete') return grounded
                     work.set(id, fresh)
                     dossiers.set(id, grounded.value)
                     visitMetricArtifact(id)
-                    for (const child of prepared.value.children)
-                        queue.push({ ticket: (await store.getEntity<Ticket>(child, Ticket.dcr))!, depth: depth + 1 })
+                    const children = prepared ? prepared.value.children : (await store.getOutgoing(ticket.id, 'contains')).map(edge => store.localId(edge.targetId))
+                    for (const child of children) {
+                        const childTicket = await store.getEntity<Ticket>(child, Ticket.dcr)
+                        if (childTicket) queue.push({ticket: childTicket, depth: depth + 1})
+                    }
                 }
                 const order: string[] = [],
                     visiting = new Set<string>(),
@@ -231,7 +230,7 @@ export async function resolveTicket(
                             if (!target) continue
                             const targetId = store.localId(target.id)
                             if (work.has(targetId)) await visit(targetId)
-                            else if (edge.predicateName === "depends_on" && !(target.lane === "Done"))
+                            else if (edge.predicateName === "depends_on" && !await currentTicketReceipt(store, target))
                                 throw new Error(`Unresolved prerequisite '${targetId}' outside the bounded work set.`)
                         }
                     visiting.delete(id)
@@ -254,7 +253,10 @@ export async function resolveTicket(
                     const baselineFindings: string[] = []
                     for (const storyId of stories) {
                         const coverage = await storyTestStatus(store, storyId)
-                        if (coverage.tests.some(test => test.state === 'skipped' || test.state === 'not-run')) {
+                        if (options.verifyOnly && coverage.tests.some(test => test.state === 'skipped'))
+                            return needs('Activate the reviewed Story test before verification: ' + storyId,
+                                'Verification-only cannot edit or activate skipped test source.', 'Story test activation')
+                        if (!options.verifyOnly && coverage.tests.some(test => test.state === 'skipped' || test.state === 'not-run')) {
                             const activated = await activateStoryTestsForTicket(store, id, preview =>
                                 new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
                             for (const testId of activated.tests) {
@@ -365,7 +367,7 @@ export async function resolveTicket(
                             countEngineering("repairs")
                             await recordTicketEvent(store,{ticketId:id,kind:'correction',message:`Repair attempt ${attempt}; addressing prior failed checks.`,references:[]})
                         }
-                        recordResolutionStage("implementation")
+                        if (!options.verifyOnly) recordResolutionStage("implementation")
                         const current = attempt ? await ticket.investigate(store, options) : null
                         if (current && current.status !== "complete") return current
                         if ((await resolveTicketGovernance(store, ticket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
@@ -510,15 +512,13 @@ export async function resolveTicket(
                         }
                         for (const childId of children) {
                             const child = await store.getEntity<Ticket>(childId, Ticket.dcr)
-                            const record = await store.getEntity<Artifact>(`VERIFY-${childId}`, Artifact.dcr)
-                            const childProof = record && readVerificationReceipt(record.body)
-                            const evidence = childProof ? await currentTestEvidence(store, childProof.testNodes.map(test => test.id)) : []
-                            if (!child || child.lane !== 'Done' || !childProof ||
-                                childProof.signature !== await ticketVerificationSignature(store, child, options.completeness, [],
-                                  await resolveTicketGovernance(store, child, childProof.scope.files, childProof.scope.governance)) ||
-                                canonical(childProof.hashes) !== canonical(hashFiles(store.root, Object.keys(childProof.hashes))) ||
-                                evidence.length !== childProof.testNodes.length || evidence.some(test => !test.passed))
+                            if (!child || !await currentTicketReceipt(store, child))
                                 throw Error(`Child '${childId}' no longer has current independently accepted proof.`)
+                        }
+                        for (const edge of await store.getOutgoing(ticket.id, 'depends_on')) {
+                            const dependency = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr)
+                            if (!dependency || !await currentTicketReceipt(store, dependency))
+                                throw Error('Prerequisite lacks current accepted proof: ' + store.localId(edge.targetId))
                         }
                         const leaseError = await lease(ticket)
                         if (leaseError) return blocked(leaseError)
@@ -532,9 +532,6 @@ export async function resolveTicket(
                         if ((await resolveTicketGovernance(store, currentTicket, scope.files, scope.governance)).fingerprint !== governance.fingerprint)
                             return needs("Review changed governance and retry.", "Governance changed before proof closure.", "Ticket governance")
                         const verifiedSignature = await ticketVerificationSignature(store, currentTicket, options.completeness, [], scope.governance)
-                        if (canonical(verificationHashes) !== canonical(hashFiles(store.root, Object.keys(verificationHashes))))
-                            throw Error('Source or test changed before coherent completion.')
-                        await assertTechnicalReviews(store, id, acceptance)
                         await store.completeTicket(currentTicket, acquired.get(id)!, admission!, JSON.stringify({
                                 scope,
                                 governanceVersion: DOCTRINE_VERIFIER_VERSION,

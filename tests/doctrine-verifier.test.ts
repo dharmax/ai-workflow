@@ -14,7 +14,8 @@ import {
   AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt, resolveTicketGovernance,
   ticketVerificationSignature, type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput
 } from '../src/ticket-operation-types.ts';
-import { verifyTicketAcceptance } from '../src/ticket/verification.ts';
+import {initializeTools} from '../src/tools/index.ts';
+import { executeTicketChecks, verifyTicketAcceptance } from '../src/ticket/verification.ts';
 import { currentTestEvidence } from '../src/graph/test-artifacts.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';
 
@@ -33,6 +34,12 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     testCommands: [['bun', 'test', 'tests/add.test.ts']],
     implement: async () => ({ changes: [], testCommands: [] })
   });
+  async function reviewInput(dossier:ResolutionVerificationInput['dossier']):Promise<ResolutionVerificationInput> {
+    initializeTools();
+    const checks=await executeTicketChecks(store,dossier,[],[['bun','test','tests/add.test.ts']],undefined,'T');
+    if(checks.status!=='complete'||!checks.value.evidenceComplete)throw Error(JSON.stringify(checks));
+    return {dossier,files:[],...checks.value,children:[]};
+  }
   // These injected verdicts test controller contracts; live semantic acceptance is run separately.
   const assessments = (input: ResolutionVerificationInput): AcceptanceVerification => ({
     criteria: input.dossier.ticket.acceptanceCriteria.map(criterion => ({ criterion, passed: true, evidence: 'Deterministic controller fixture; actual arithmetic test execution is checked separately.' })),
@@ -396,7 +403,7 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
       saveConfig(root, {model: 'ollama/fixture', modelRoutes: {critic: 'ollama/fixture'}, ollamaUrl: server.url.toString()});
       const investigation = await ticket.investigate(store, options());
       if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
-      const input = {dossier: investigation.value, files: [], tests: [], testNodes: [], children: []};
+      const input = await reviewInput(investigation.value);
       acceptance = assessments(input);
       const expected = input.dossier.governance!.rules.find(item => item.ruleId === 'engineering.expected')!;
       acceptance.rules.push({
@@ -438,7 +445,7 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
         saveConfig(root, {model: 'ollama/fixture', modelRoutes: {critic: 'ollama/fixture'}, ollamaUrl: server.url.toString()});
         const investigation = await ticket.investigate(store, options());
         if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
-        const input = {dossier: investigation.value, files: [], tests: [], testNodes: [], children: []};
+        const input = await reviewInput(investigation.value);
         acceptance = assessments(input);
         const result = verifyTicketAcceptance(store, input, options(), loadConfig(root));
         if (['failed Rule', 'inconclusive Rule'].includes(defect)) {

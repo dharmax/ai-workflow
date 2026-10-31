@@ -1,5 +1,5 @@
 /** Developer-reviewed technical acceptance bindings on real, existing TestNodes.
- * A scope is a semantic review partition, never a new test or execution record.
+ * A scope binds exact criteria to reviewed tests and source, never a new execution record.
  */
 import path from 'node:path';
 import {z} from 'zod';
@@ -23,6 +23,15 @@ export async function withProofProject<T>(store:WorkflowStore,root:string,work:(
  try{return await work(owner);}finally{owner.close();}
 }
 
+/** The fresh source index owns declaration identity; immutable source hashes protect its reviewed meaning. */
+function proofSourceSymbol(symbols:SymbolNode[],source:TechnicalProof['scopes'][number]['sources'][number]):SymbolNode {
+ const matches=symbols.filter(symbol=>symbol.filePath===source.filePath&&symbol.status!=='deprecated'&&
+  symbol.kind!=='call-candidate'&&symbol.kind!=='export'&&
+  (symbol.containerName?symbol.containerName+'.'+symbol.title:symbol.title)===source.symbolName);
+ if(matches.length!==1)throw Error('Missing or ambiguous exact technical proof symbol '+source.symbolName);
+ return matches[0]!;
+}
+
 async function scopeSnapshot(store:WorkflowStore,scope:z.infer<typeof ScopeSchema>){
  const projectRoot=path.resolve(store.root,scope.projectRoot??'.');
  const test=await withProofProject(store,projectRoot,async owner=>{
@@ -37,6 +46,11 @@ async function scopeSnapshot(store:WorkflowStore,scope:z.infer<typeof ScopeSchem
   await withProofProject(store,root,async owner=>{
    await ensureAstFresh(owner,owner.root);
    const files=[...(root===projectRoot?[test.filePath]:[]),...sources.filter(source=>source.projectRoot===root).map(source=>source.filePath)];
+   const namedSources=sources.filter(source=>source.projectRoot===root&&source.symbolName);
+   if(namedSources.length){
+    const symbols=await owner.listEntities<SymbolNode>(SymbolNode.dcr);
+    for(const source of namedSources)proofSourceSymbol(symbols,source);
+   }
    for(const [file,hash] of Object.entries(hashFiles(owner.root,files))){
     if(hash==='missing')throw Error('Acceptance source or test is missing.');
     hashes[owner.root+'::'+file]=hash;
@@ -124,9 +138,7 @@ export async function technicalScopeContext(store:WorkflowStore,dossier:TicketDo
    const evidence:TicketDossier['evidence']=[];
    for(const source of scope.sources.filter(source=>(source.projectRoot??scope.projectRoot)===root)){
     if(source.symbolName){
-     const symbol=symbols.find(item=>item.filePath===source.filePath&&
-      (item.containerName?item.containerName+'.'+item.title:item.title)===source.symbolName&&item.status!=='deprecated');
-     if(!symbol)throw Error('Missing exact technical proof symbol '+source.symbolName);
+     const symbol=proofSourceSymbol(symbols,source);
      evidence.push({id:owner.localId(symbol.id),kind:'SymbolNode',title:symbol.title!,filePath:source.filePath,
       symbolName:symbol.title,containerName:symbol.containerName,mandatory:true,provenance:'Reviewed technical scope'});
     }else evidence.push({id:source.filePath,kind:'FileNode',title:source.filePath,filePath:source.filePath,mandatory:true,provenance:'Reviewed technical scope'});
@@ -157,21 +169,28 @@ export async function assertTechnicalExecutions(store:WorkflowStore,proof:Techni
  });
 }
 
-/** Match every independently assessed scope to current accepted meaning and real owner execution. */
+/** Validate deterministic binding proof or legacy semantic scopes against current owner execution. */
 export async function assertTechnicalReviews(store:WorkflowStore,ticketId:string,acceptance:import('../ticket-operation-types.ts').AcceptanceVerification){
  const proof=await readTechnicalProof(store,ticketId);
  const reviews=acceptance.scopeReviews??[];
- if(!proof){if(reviews.length)throw Error('Technical reviews have no current authored binding.');return;}
+ if(!proof){if(reviews.length||acceptance.technicalProofHash)throw Error('Technical proof has no current authored binding.');return;}
+ if(acceptance.technicalProofHash&&acceptance.technicalProofHash!==computeHash(proof))throw Error('Stale deterministic technical proof binding.');
+ for(const scope of proof.scopes)
+  if(scope.criteria.some(criterion=>!acceptance.criteria.some(check=>check.criterion===criterion&&check.passed)))
+   throw Error('Missing accepted technical criterion in '+scope.id);
+ // A reviewed binding establishes test adequacy. Current passing execution proves its
+ // exact criteria; semantic scope reviews exist only when other obligations required them.
+ if(!reviews.length&&acceptance.technicalProofHash){await assertTechnicalExecutions(store,proof);return;}
  if(reviews.length!==proof.scopes.length)throw Error('Missing independently assessed technical scope.');
  for(const scope of proof.scopes){
   const matches=reviews.filter(review=>review.id===scope.id);
   const review=matches[0];
   if(matches.length!==1||review.bindingHash!==computeHash(proof)||review.projectRoot!==scope.projectRoot||review.testId!==scope.testId||
-   canonical(review.hashes)!==canonical(scope.hashes)||scope.criteria.some(criterion=>!review.assessment.criteria.some(check=>check.criterion===criterion&&check.passed)))
+   canonical(review.hashes)!==canonical(scope.hashes)||!acceptance.technicalProofHash&&scope.criteria.some(criterion=>!review.assessment.criteria.some(check=>check.criterion===criterion&&check.passed)))
    throw Error('Missing, stale or inconclusive technical scope: '+scope.id);
   await withProofProject(store,scope.projectRoot,async owner=>{
    const execution=(await currentTestEvidence(owner,[scope.testId]))[0];
-   if(!execution?.passed||execution.lastRun!==review.execution.lastRun||canonical(execution.hashes)!==canonical(review.execution.hashes))
+   if(!execution?.passed||canonical(execution.hashes)!==canonical(review.execution.hashes))
     throw Error('Missing, changed or failing technical execution: '+scope.id);
   });
  }

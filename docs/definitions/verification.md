@@ -10,6 +10,14 @@ Keep these distinctions truthful:
 - A pass applies only to the specific current definition, applicable policy, test, source/fixture and relevant environment basis. Material changes require impact review and appropriate re-verification; retain historical evidence as history, not current proof.
 - Missing charter or an unanswered material [charter-alignment warning](product.md) cannot be hidden by a passing test.
 
+## Evidence-first acceptance
+
+Independent verification is independent of the implementation's claims; it does not require a second AI. A current developer-reviewed technical binding establishes adequacy for its exact Ticket criteria. An approved, complete Story's reviewed public-interface test establishes its exact Expected Result. Green counts, names, textual similarity and arbitrary graph links establish neither adequacy nor criterion coverage.
+
+AIWF combines that reviewed meaning with current passing executions, source/test hashes, applicable mandatory obligations and dependencies. Already established criteria need no further semantic approval. Only remaining criteria, Aspects or mandatory Rules go to the semantic reviewer with their relevant evidence. Technical scope assessments combine directly; there is no additional model call to approve their composition. Unavailable review leaves the exact outstanding obligations blocked.
+
+Verification-only observes existing work, runs checks and may acquire a completion lease and atomically persist genuine verified closure. It never invokes implementation or preparation, rewrites specifications, or activates skipped test source. Changed definitions, stale bindings, failing/skipped evidence, unresolved mandatory obligations, concurrent edits and expired leases prevent completion. Current receipts remain reusable; deterministic technical acceptance records the exact binding hash in the existing acceptance schema, without changing the receipt version or fabricating semantic scope reviews.
+
 ## Mutation-proportional postconditions
 
 **Verification and acceptance effort must be proportional to the actual change, its impact, uncertainty and applicable obligations.** A diff's line count is only a weak signal: select the narrowest current tests and review evidence that genuinely cover the affected behavior and credible blast radius. Reuse still-valid evidence for unaffected parts, rather than rerunning everything automatically.

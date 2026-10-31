@@ -81,6 +81,23 @@ export async function storyTestStatus(store:WorkflowStore,storyId:string) {
     state:tests.length===1?tests[0]!.state:tests.length?tests.map(test=>test.state):'uncovered',tests};
 }
 
+/** Reviewed Story tests prove the approved exact result, not arbitrary Ticket criteria. */
+export async function storyAcceptanceEvidence(store:WorkflowStore,ticket:Ticket,testIds:readonly string[]) {
+  const criteria:import('../ticket-operation-types.ts').AcceptanceVerification['criteria']=[];
+  for(const edge of await store.getOutgoing(ticket.id,'addresses')) {
+    const story=await store.getEntity<UserStory>(edge.targetId,UserStory.dcr);
+    if(!story)continue;
+    if(story.status!=='accepted'||story.definitionReview.status!=='complete')
+      throw Error('Story definition is not currently approved and complete: '+store.localId(story.id));
+    const coverage=await storyTestStatus(store,store.localId(story.id));
+    if(!coverage.tests.length||coverage.tests.some(test=>test.state!=='green'||!testIds.includes(test.id)))
+      throw Error('Missing current passing reviewed Story execution: '+store.localId(story.id));
+    criteria.push({criterion:story.expectedResult!,passed:true,
+      evidence:'Approved Story '+store.localId(story.id)+' revision '+story.version+'; reviewed public-interface tests: '+coverage.tests.map(test=>test.id).join(', ')});
+  }
+  return criteria;
+}
+
 /** Activate the reviewed skipped source before the existing Ticket lane operation starts implementation. */
 export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:string,apply:(preview:ChangePreview)=>Promise<ChangeApplyResult>) {
   const ticket=await store.getEntity<Ticket>(ticketId,Ticket.dcr);

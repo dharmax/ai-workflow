@@ -1,3 +1,5 @@
+import {executeTicketChecks} from '../src/ticket/verification.ts';
+import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
 import {afterEach,expect,it,spyOn} from 'bun:test';
 import {parseCommand,artifactCommand} from '../src/artifact-command.ts';
 import {RuleStore} from '../src/rules/store.ts';
@@ -15,7 +17,7 @@ import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 
 const roots:string[]=[];
 const stores:WorkflowStore[]=[];
-afterEach(()=>{for(const store of stores.splice(0))store.close();for(const root of roots.splice(0))fs.rmSync(root,{recursive:true,force:true});});
+afterEach(async()=>{await closeAllTsLspClients();for(const store of stores.splice(0))store.close();for(const root of roots.splice(0))fs.rmSync(root,{recursive:true,force:true});});
 async function fixture(){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-technical-proof-'));roots.push(root);
  fs.mkdirSync(path.join(root,'tests'));fs.mkdirSync(path.join(root,'src'));
@@ -49,7 +51,9 @@ it('refuses stale review and generic TestNode proof writes and links',async()=>{
  const {root,store,call,specification}=await fixture();
  const preview=await call('prepare_test_binding',{specification});
  fs.appendFileSync(path.join(root,'src/add.ts'),'// changed\n');
- await expect(store.withExecutionContext('project-write',undefined,()=>call('apply_test_binding',{specification,fingerprint:preview.fingerprint,decision:'accept'}),preview.fingerprint)).rejects.toThrow('Stale');
+ let refusal:unknown;
+ try{await store.withExecutionContext('project-write',undefined,()=>call('apply_test_binding',{specification,fingerprint:preview.fingerprint,decision:'accept'}),preview.fingerprint);}catch(error){refusal=error;}
+ expect(refusal).toBeInstanceOf(Error);expect(String(refusal)).toContain('Stale');
  const test=(await store.getEntity<TestNode>(specification.testId,TestNode.dcr))!;
  await expect(test.update({technicalProofs:[{ticketId:'T'}]})).rejects.toThrow('Test proof');
  await expect(store.relate(test,'verifies',(await store.getEntity<Ticket>('T',Ticket.dcr))!)).rejects.toThrow('Test proof');
@@ -75,7 +79,7 @@ it('native technical scopes retain regression execution and dependency ownership
  if(mode==='failed-dependency')fs.writeFileSync(path.join(dependency.root,'src/add.ts'),'export function add(a:number,b:number){return a-b;}\n');
  fs.writeFileSync(path.join(local.root,'tests/regression.test.ts'),'import {it,expect} from "bun:test";import {add} from "../src/add";it("regression",()=>expect(add(-2,3)).toBe(1));\n// REGRESSION_SOURCE_MUST_NOT_REACH_REVIEW '+ 'x'.repeat(70000));
  await indexCodebase(local.store,local.root);
- if(mode==='rule-inconclusive')await new RuleStore(local.store).saveRule({id:'direct',ruleId:'engineering.direct',title:'Direct arithmetic',scope:{kind:'universal'},type:'architecture',importance:10,rule:'Keep arithmetic in its existing public owner.',status:'active',revision:1,provenance:'fixture',examples:[],references:[],test:{kind:'llm'}});
+ await new RuleStore(local.store).saveRule({id:'direct',ruleId:'engineering.direct',title:'Direct arithmetic',scope:{kind:'universal'},type:'architecture',importance:10,rule:'Keep arithmetic in its existing public owner.',status:'active',revision:1,provenance:'fixture',examples:[],references:[],test:{kind:'llm'}});
  if(mode==='aspect-missing'){const aspect=await createAspect(local.store,{id:'A',title:'Arithmetic truth',status:'accepted',acceptanceCriteria:['Evidence reflects actual sums']});await local.store.relate('T','addresses',aspect);}
  await bind(local);
  commitFixture(local.root);commitFixture(dependency.root);
@@ -90,7 +94,7 @@ it('native technical scopes retain regression execution and dependency ownership
   const refused=mode==='inconclusive'&&context.scope?.id==='completion';
   if(context.scope?.id==='dependency'&&mode.startsWith('changed-'))
    fs.appendFileSync(path.join(mode==='changed-local'?local.root:dependency.root,'src/add.ts'),'// changed during review\n');
-  return {model,ok:true,text:JSON.stringify({criteria:context.dossier.ticket.acceptanceCriteria.map((criterion:string)=>({criterion,passed:!refused,evidence:refused?'Missing independent evidence':'Actual public sums assertion, passing owner execution and supplied add source agree.'})),aspects:[],rules:context.dossier.governance.rules.map((rule:{ruleId:string;revision:number;fingerprint:string})=>({ruleId:rule.ruleId,revision:rule.revision,fingerprint:rule.fingerprint,verdict:mode==='rule-inconclusive'&&context.scope?.id==='completion'?'inconclusive':'pass',evidence:'Supplied current arithmetic owner and public assertions.',evidenceIds:['src/add.ts'],limitations:[]}))})};
+  return {model,ok:true,text:JSON.stringify({criteria:context.dossier.ticket.acceptanceCriteria.map((criterion:string)=>({criterion,passed:!refused,evidence:refused?'Missing independent evidence':'Actual public sums assertion, passing owner execution and supplied add source agree.'})),aspects:[],rules:context.dossier.governance.rules.map((rule:{ruleId:string;revision:number;fingerprint:string})=>({ruleId:rule.ruleId,revision:rule.revision,fingerprint:rule.fingerprint,verdict:['rule-inconclusive','inconclusive'].includes(mode)&&context.scope?.id==='completion'?'inconclusive':'pass',evidence:'Supplied current arithmetic owner and public assertions.',evidenceIds:[context.validEvidenceIds.find((id:string)=>id.endsWith('src/add.ts'))],limitations:[]}))})};
  });
  try{
   const result=await local.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,critic:'none',depth:0,maxArtifacts:4,testCommands:[['bun','test']]});
@@ -103,7 +107,7 @@ it('native technical scopes retain regression execution and dependency ownership
   expect(external.passed).toBe(!['failed-dependency','changed-dependency'].includes(mode));
   expect(await local.store.listEntities(TestNode.dcr)).toHaveLength(2);
   if(mode==='accept'){
-   expect(contexts).toHaveLength(4);
+   expect(contexts).toHaveLength(3);
    expect(contexts.find(context=>context.scope?.id==='completion')!.code.map((file:{projectRoot:string})=>file.projectRoot)).toContain(dependency.root);
    expect(contexts.filter(context=>context.scope).map(context=>context.scope.id)).toEqual(['public','completion','dependency']);
    const body=JSON.parse(receipt!.body!);expect(body.testNodes).toHaveLength(2);expect(body.acceptance.scopeReviews).toHaveLength(3);
@@ -111,14 +115,25 @@ it('native technical scopes retain regression execution and dependency ownership
    local.store.close();const reopened=new WorkflowStore(local.root);stores.push(reopened);
    expect((await reopened.getEntity<Ticket>('T',Ticket.dcr))!.lane).toBe('Done');
    await assertTechnicalReviews(reopened,'T',body.acceptance);
+   // A legacy-shaped assessment is a compatibility fixture, never a newly persisted reviewer claim.
+   const legacy={...body.acceptance,technicalProofHash:undefined,scopeReviews:body.acceptance.scopeReviews.map((review:NonNullable<import('../src/ticket-operation-types.ts').AcceptanceVerification['scopeReviews']>[number])=>({...review,assessment:{...review.assessment,criteria:body.acceptance.criteria}}))};
+   await assertTechnicalReviews(reopened,'T',legacy);
+   const priorRun=legacy.scopeReviews.find((review:{id:string})=>review.id==='dependency').execution.lastRun;
+   const dependencyTicket=(await dependency.store.getEntity<Ticket>('T',Ticket.dcr))!;
+   const dossier=await dependencyTicket.investigate(dependency.store,{mandatoryEvidenceOnly:true});
+   if(dossier.status!=='complete')throw Error(JSON.stringify(dossier));
+   const rerun=await executeTicketChecks(dependency.store,dossier.value,['src/add.ts'],[['bun','test','tests/add.test.ts']],undefined,'T');
+   expect(rerun.status).toBe('complete');
+   expect((await currentTestEvidence(dependency.store,['test:tests/add.test.ts']))[0].lastRun).not.toBe(priorRun);
+   await assertTechnicalReviews(reopened,'T',legacy);
    // Missing structured review and missing execution cannot be replaced by three stored accept strings.
-   await expect(assertTechnicalReviews(reopened,'T',{...body.acceptance,scopeReviews:[]})).rejects.toThrow('Missing independently');
+   await expect(assertTechnicalReviews(reopened,'T',{...body.acceptance,technicalProofHash:undefined,scopeReviews:[]})).rejects.toThrow('Missing independently');
    await dependency.store.withTestArtifactWrite('test:tests/add.test.ts',async()=>{
     const test=(await dependency.store.getEntity<TestNode>('test:tests/add.test.ts',TestNode.dcr))!;await test.update({passed:false});
    });
    await expect(assertTechnicalReviews(reopened,'T',body.acceptance)).rejects.toThrow('execution');
   }else{
-   const causes={'inconclusive':'Independent technical scope refused: completion','changed-local':'Stale technical binding: source or TestNode changed in public','changed-dependency':'Stale technical binding: source or TestNode changed in completion','failed-dependency':'Dependency-owned technical execution refused','sql-failure':'injected completion failure','rule-inconclusive':"Mandatory Rule 'engineering.direct': inconclusive",'aspect-missing':'Missing Aspect assessment: A'};
+   const causes={'inconclusive':"Mandatory Rule 'engineering.direct': inconclusive",'changed-local':'Stale technical binding: source or TestNode changed in public','changed-dependency':'Stale technical binding: source or TestNode changed in completion','failed-dependency':'Dependency-owned technical execution refused','sql-failure':'injected completion failure','rule-inconclusive':"Mandatory Rule 'engineering.direct': inconclusive",'aspect-missing':'Missing Aspect assessment: A'};
    expect(JSON.stringify(result)).toContain(causes[mode]);
    if(mode==='aspect-missing')expect(contexts).toHaveLength(2);
    const reopened=new WorkflowStore(local.root);stores.push(reopened);

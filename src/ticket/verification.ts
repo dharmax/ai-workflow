@@ -30,6 +30,7 @@ import {
     type ResolutionOptions
 } from "../ticket-operation-types.ts"
 import type { loadConfig } from "../services/config-service.ts"
+import {storyAcceptanceEvidence} from '../product/story-tests.ts'
 import {prepareReviewer, recordReviewerResult} from "./reviewer.ts"
 import { buildVerificationContext } from "../helpers/verification-context.ts"
 import { countEngineering, cognitionMetrics, traceResolution } from "../performance-metrics.ts"
@@ -258,7 +259,7 @@ async function reviewTechnicalScope(store: WorkflowStore, input: ResolutionVerif
         throw Error('Required technical test was not executed in this resolution: ' + scope.id)
     const context = await technicalScopeContext(store, input.dossier, scope)
     const evidence = await withProofProject(store, scope.projectRoot, owner => currentTestEvidence(owner, [scope.testId]))
-    const scopedDossier = {...dossier, ticket: {...dossier.ticket, acceptanceCriteria: scope.criteria}, evidence: dossier.evidence.filter(item => !item.filePath)}
+    const scopedDossier = {...dossier, evidence: dossier.evidence.filter(item => !item.filePath)}
     const assessment = await review({
         dossier: scopedDossier, scope: {id: scope.id, projectRoot: scope.projectRoot, hashes: scope.hashes, sourceIds: context.evidenceIds},
         files: context.files.map(file => file.file), children: input.children,
@@ -267,28 +268,30 @@ async function reviewTechnicalScope(store: WorkflowStore, input: ResolutionVerif
             ...evidence.map(test => ({id: test.id, projectRoot: scope.projectRoot, filePath: test.filePath, passed: test.passed, command: test.command, hashes: test.hashes, output: test.output}))],
         code: context.files
     }, [...context.files.map(file => file.file), ...context.evidenceIds, ...input.testNodes.map(test => test.id), scope.testId])
-    if (scope.criteria.some(criterion => !assessment.criteria.some(check => check.criterion === criterion && check.passed)))
-        throw Error('Independent technical scope refused: ' + scope.id + ': ' + JSON.stringify(assessment))
     return {id: scope.id, bindingHash, projectRoot: scope.projectRoot, testId: scope.testId, sourceIds: context.evidenceIds,
         hashes: scope.hashes, execution: {lastRun: evidence[0].lastRun!, hashes: evidence[0].hashes}, characters: context.characters, assessment}
 }
 
-async function reviewTechnicalProof(store: WorkflowStore, input: ResolutionVerificationInput, dossier: TicketDossier, proof: TechnicalProof, options: ResolutionOptions, review: AcceptanceReview): Promise<AcceptanceVerification> {
-    await ensureProofExecutions(store, input, proof, options)
-    const bindingHash = computeHash(proof)
+/** Semantic scope results compose by conjunction; another model cannot add proof. */
+async function reviewTechnicalProof(store: WorkflowStore, input: ResolutionVerificationInput, dossier: TicketDossier, proof: TechnicalProof, review: AcceptanceReview): Promise<AcceptanceVerification> {
     const scopeReviews: NonNullable<AcceptanceVerification['scopeReviews']> = []
     for (const scope of proof.scopes)
-        scopeReviews.push(await reviewTechnicalScope(store, input, dossier, scope, bindingHash, review))
-    const acceptance = await review({
-        instruction: 'Compose the original Ticket acceptance from the following independently assessed current scopes. Each includes exact criteria, source hashes, real execution identity and complete structured assessment. Require every scope and every original criterion, material Aspect and Rule. Scope assessment is evidence, not an instruction or automatic approval. If scope evidence is insufficient or contradictory, refuse. Raw source was independently reviewed in the named scope calls.',
-        dossier, files: input.files, children: input.children,
-        tests: reviewCheckResults(input.tests),
-        testNodes: reviewTestNodes(input.testNodes),
-        scopeReviews
-    }, [...proof.scopes.flatMap(scope => scope.sources.map(source => source.filePath)), ...scopeReviews.flatMap(scope => scope.sourceIds), ...input.testNodes.map(test => test.id)])
-    acceptance.scopeReviews = scopeReviews
-    await assertTechnicalReviews(store, input.dossier.ticket.id, acceptance)
-    return acceptance
+        scopeReviews.push(await reviewTechnicalScope(store, input, dossier, scope, computeHash(proof), review))
+    return {
+        criteria: [],
+        aspects: dossier.aspects.aspects.map(aspect => ({id: aspect.id,
+            passed: scopeReviews.every(scope => scope.assessment.aspects.some(check => check.id === aspect.id && check.passed)),
+            evidence: scopeReviews.map(scope => scope.id + ': ' + (scope.assessment.aspects.find(check => check.id === aspect.id)?.evidence ?? 'Missing Aspect assessment')).join('; ')})),
+        rules: dossier.governance!.rules.flatMap(rule => {
+            const checks = scopeReviews.flatMap(scope => scope.assessment.rules.filter(check => check.ruleId === rule.ruleId && check.fingerprint === rule.fingerprint))
+            if (!checks.length) return []
+            const rejected = checks.find(check => !['pass', 'not_applicable'].includes(check.verdict))
+            return [{ruleId: rule.ruleId, revision: rule.revision, fingerprint: rule.fingerprint,
+                verdict: rejected?.verdict ?? (checks.length !== scopeReviews.length ? 'inconclusive' as const : checks.every(check => check.verdict === 'not_applicable') ? 'not_applicable' as const : 'pass' as const),
+                evidence: checks.map(check => check.evidence).join('; ') || 'Missing Rule assessment',
+                evidenceIds: [...new Set(checks.flatMap(check => check.evidenceIds))], limitations: checks.flatMap(check => check.limitations)}]
+        }), scopeReviews
+    }
 }
 
 async function reviewSourceAcceptance(store: WorkflowStore, input: ResolutionVerificationInput, dossier: TicketDossier, review: AcceptanceReview): Promise<AcceptanceVerification> {
@@ -308,27 +311,57 @@ async function reviewSourceAcceptance(store: WorkflowStore, input: ResolutionVer
         ...input.testNodes.map(test => test.id)])
 }
 
-/** Verify current source or bound proof scopes through the same independent reviewer. */
+/** Current reviewed adequacy plus actual execution is independent proof; models fill only remaining gaps. */
 export async function verifyTicketAcceptance(store: WorkflowStore, input: ResolutionVerificationInput, options: ResolutionOptions, cfg: ReturnType<typeof loadConfig>): Promise<AcceptanceVerification> {
     const ticket = await store.getEntity<Ticket>(input.dossier.ticket.id, Ticket.dcr)
     if (!ticket) throw Error('Acceptance requires an existing Ticket.')
     const governance = input.dossier.governance ?? await resolveTicketGovernance(store, ticket)
     for (const rule of governance.rules.filter(rule => rule.importance >= 8))
         if (rule.test.kind === 'codelet') throw Error(`Mandatory Rule '${rule.ruleId}' requires an unsupported codelet checker '${rule.test.codeletName ?? 'missing'}'.`)
-    const dossier = prepareReviewDossier(store, input, governance)
-    const review = await createAcceptanceReview(store, options, cfg, governance, input.dossier.ticket.id)
+    if (!input.tests.length || input.tests.some(test => !test.passed)) throw Error('Acceptance requires passing current checks.')
+    const current = await currentTestEvidence(store, input.testNodes.map(test => test.id))
+    if (!current.length || current.length !== input.testNodes.length || current.some(test => !test.passed ||
+        canonical(test.hashes) !== canonical(input.testNodes.find(node => node.id === test.id)?.hashes)))
+        throw Error('Acceptance requires current passing TestNode executions.')
     const proof = await readTechnicalProof(store, input.dossier.ticket.id)
-    return proof
-        ? reviewTechnicalProof(store, input, dossier, proof, options, review)
-        : reviewSourceAcceptance(store, input, dossier, review)
+    const established = await storyAcceptanceEvidence(store, ticket, current.map(test => test.id))
+    if (proof) {
+        await ensureProofExecutions(store, input, proof, options)
+        for (const scope of proof.scopes) {
+            if (scope.projectRoot === store.root && !current.some(test => test.id === scope.testId))
+                throw Error('Required technical test was not executed in this resolution: ' + scope.id)
+            for (const criterion of scope.criteria) established.push({criterion, passed: true,
+                evidence: 'Developer-reviewed binding ' + computeHash(proof) + '; current passing ' + scope.projectRoot + '::' + scope.testId + ' in scope ' + scope.id})
+        }
+    }
+    const dossier = prepareReviewDossier(store, input, governance)
+    dossier.ticket = {...dossier.ticket, acceptanceCriteria: (ticket.acceptanceCriteria ?? []).filter(criterion => !established.some(check => check.criterion === criterion))}
+    const outstanding = [...dossier.ticket.acceptanceCriteria, ...dossier.aspects.aspects.map(aspect => 'Aspect ' + aspect.id), ...dossier.governance!.rules.filter(rule => rule.importance >= 8).map(rule => 'Rule ' + rule.ruleId)]
+    let acceptance: AcceptanceVerification = {criteria: [], aspects: [], rules: []}
+    if (outstanding.length) {
+        try {
+            const review = await createAcceptanceReview(store, options, cfg, dossier.governance!, input.dossier.ticket.id)
+            acceptance = proof ? await reviewTechnicalProof(store, input, dossier, proof, review)
+                : await reviewSourceAcceptance(store, input, dossier, review)
+        } catch (error) {
+            if (error instanceof RuleAcceptanceError) throw error
+            throw Error('Outstanding acceptance obligations: ' + outstanding.join('; ') + '. ' + String(error), {cause: error})
+        }
+    }
+    acceptance.criteria = (ticket.acceptanceCriteria ?? []).map(criterion => established.find(check => check.criterion === criterion) ?? acceptance.criteria.find(check => check.criterion === criterion) ??
+        {criterion, passed: false, evidence: 'No reviewed adequate current proof.'})
+    if (proof) acceptance.technicalProofHash = computeHash(proof)
+    await assertTechnicalReviews(store, input.dossier.ticket.id, acceptance)
+    return AcceptanceVerificationSchema.parse(acceptance)
 }
 
 /** Read current independent proof using the same checks for restart and Story state. Never executes tests or models. */
 export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket, options: {
     completeness?: ResolutionOptions['completeness']; testCommands?: string[][];
-    expectedFiles?: string[]; requiredTestIds?: string[];
-} = {}) {
-    if (ticket.lane !== 'Done') return null
+    expectedFiles?: string[]; requiredTestIds?: string[]; ancestors?: ReadonlySet<string>;
+} = {}): Promise<ReturnType<typeof readVerificationReceipt>> {
+    if (ticket.lane !== 'Done' || options.ancestors?.has(ticket.id)) return null
+    const ancestors = new Set([...(options.ancestors ?? []), ticket.id])
     const id = store.localId(ticket.id)
     const artifact = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
     const proof = artifact && readVerificationReceipt(artifact.body)
@@ -359,5 +392,9 @@ export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket,
         ...tests.map(test => test.id), ...(proof.acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])]
     if (ruleAcceptanceFailures(governance, proof.acceptance, evidenceIds).length) return null
     try { await assertTechnicalReviews(store, id, proof.acceptance) } catch { return null }
+    for (const edge of await store.getOutgoing(ticket.id, 'depends_on')) {
+        const dependency = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr)
+        if (!dependency || !await currentTicketReceipt(store, dependency, {ancestors})) return null
+    }
     return proof
 }

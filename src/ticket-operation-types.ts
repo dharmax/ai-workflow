@@ -93,6 +93,8 @@ export const AcceptanceAssessmentSchema = z.object({
   }
 });
 export const AcceptanceVerificationSchema = AcceptanceAssessmentSchema.safeExtend({
+  /** Exact reviewed adequacy binding used for deterministic criteria; absent on older receipts. */
+  technicalProofHash:z.string().regex(/^[a-f0-9]{64}$/).optional(),
   scopeReviews:z.array(z.object({id:z.string(),bindingHash:z.string(),projectRoot:z.string(),testId:z.string(),
     sourceIds:z.array(z.string()),hashes:z.record(z.string(),z.string()),execution:z.object({lastRun:z.string(),hashes:z.record(z.string(),z.string())}),characters:z.number().int().nonnegative(),assessment:AcceptanceAssessmentSchema})).optional()
 });
