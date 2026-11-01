@@ -34,8 +34,9 @@ async function runDiagnosticCommand(command: string[], purpose: string, options:
       ctx.onCommandAttempt?.(attempt)
     }}) as {success: boolean; exitCode: number | null; timedOut: boolean; cancelled: boolean; error?: string}
     const read = (file: string) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+    const stdout = read(stdoutPath), stderr = read(stderrPath)
     return {...result, durationMs: Date.now() - started,
-      combined: read(stdoutPath) + '\n' + read(stderrPath) + (result.error ? '\n' + result.error : '')}
+      combined: stdout + '\n' + stderr + (result.error && !stderr.includes(result.error) ? '\n' + result.error : '')}
   } finally {
     fs.rmSync(scratch, {recursive: true, force: true})
   }

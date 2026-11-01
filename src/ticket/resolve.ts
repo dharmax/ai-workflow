@@ -423,7 +423,7 @@ export async function resolveTicket(
                             return needs("Review changed governance and retry.", "Governance changed during implementation; self-weakening cannot proceed.", "Ticket governance")
                         recordResolutionStage("verification")
                         await ensureAstFresh(store, store.root)
-                        let check = () => executeTicketChecks(store, dossier, [...scope.files], proposedTests, options.signal, rootId)
+                        let check = () => executeTicketChecks(store, dossier, [...scope.files], proposedTests, options.signal, rootId, options.repeatableChecks)
                         // Each existing Story owner observes the same check execution. Nest callbacks
                         // so all tests execute once and each classification captures its own prior run.
                         for (const storyId of stories) {

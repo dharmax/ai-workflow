@@ -102,7 +102,7 @@ function quoteCheckArgument(value: string): string {
 }
 
 async function runEngineeringCheck(
-    store: WorkflowStore, ticketId: string, artifactId: string, command: string[], scratchRoot: string, signal?: AbortSignal
+    store: WorkflowStore, ticketId: string, artifactId: string, command: string[], scratchRoot: string, signal: AbortSignal | undefined, retrySafe: boolean
 ): Promise<OperationResult<CheckExecution>> {
     if (!isSupportedCheck(command)) return checkNeedsInput(artifactId,
         `Supply a project test/typecheck/build command for '${ticketId}'.`,
@@ -114,8 +114,8 @@ async function runEngineeringCheck(
     const startedAt = Date.now()
     const result = await commandRegistry.execute('run_command', {
         command: command.map(quoteCheckArgument).join(' '), timeoutMs: 60000,
-        taskDescription: `Verify Ticket ${ticketId} (artifact ${artifactId}) using ${command.join(' ')}. Read-only project with disposable scratch output; retain every attempt as engineering evidence.`.slice(0, 4000),
-        retrySafe: true, maxRetries: 2, totalBudgetMs: 420000
+        taskDescription: `Verify Ticket ${ticketId} (artifact ${artifactId}) using ${command.join(' ')}. Read-only project with disposable scratch output. Repeatability including external effects: ${retrySafe ? 'explicitly declared' : 'not declared'}. Retain every attempt as engineering evidence.`.slice(0, 4000),
+        retrySafe, maxRetries: 2, totalBudgetMs: 420000
     }, {store, projectRoot: store.root, signal, executionAuthority: 'read-only', scratchRoot,
         onCommandAttempt: ({stdout, stderr}) => {
             fs.appendFileSync(stdoutPath, stdout)
@@ -153,7 +153,7 @@ async function collectCheckEvidence(store: WorkflowStore, tests: CheckResults['t
 /** Execute graph-required checks and record their TestNodes before semantic acceptance. */
 export async function executeTicketChecks(
     store: WorkflowStore, dossier: TicketDossier, files: string[], commands: string[][],
-    signal: AbortSignal | undefined, artifactId: string
+    signal: AbortSignal | undefined, artifactId: string, repeatableChecks: readonly string[][] = []
 ): Promise<OperationResult<CheckResults>> {
     const plan = await planTicketChecks(store, dossier, files, commands, signal, artifactId)
     if (plan.status !== 'complete') return plan
@@ -162,7 +162,8 @@ export async function executeTicketChecks(
     const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-checks-'))
     try {
         for (const command of plan.value.commands) {
-            const checked = await runEngineeringCheck(store, dossier.ticket.id, artifactId, command, scratchRoot, signal)
+            const checked = await runEngineeringCheck(store, dossier.ticket.id, artifactId, command, scratchRoot, signal,
+                repeatableChecks.some(declared => canonical(declared) === canonical(command)))
             if (checked.status !== 'complete') return checked
             for (const id of await recordCheckExecution(store, command, checked.value, baseline)) executedNodes.add(id)
             tests.push({command, passed: checked.value.passed, output: checked.value.fullOutput.slice(-16000)})

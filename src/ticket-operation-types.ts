@@ -108,6 +108,8 @@ export interface ResolutionOptions extends PreparationOptions {
   /** Verify existing work without source implementation or repair; independent acceptance remains mandatory. */
   verifyOnly?: boolean;
   maxRepairs?: number; allowDirtyTargets?: string[]; testCommands?: string[][];
+  /** Exact local check argv explicitly safe to repeat, including external effects. Never inferred from sandbox authority. */
+  repeatableChecks?: string[][];
   /** Explicit per-Ticket authorization for files outside authored source targets, including new/rename endpoints. */
   authorizedFiles?: Record<string, string[]>;
   implement?: (dossier: TicketDossier, feedback: readonly string[]) => Promise<ResolutionProposal>;

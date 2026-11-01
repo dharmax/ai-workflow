@@ -293,7 +293,7 @@ function testOutputSections(output: string, root: string, filePaths: readonly st
   let current: string | undefined
   for (const line of output.replace(/\u001b\[[0-9;]*m/g, '').split(/\r?\n/)) {
     const file = line.endsWith(':') ? labels.get(line.slice(0, -1)) : undefined
-    if (file) { current = file; sections.set(file, []) }
+    if (file) { current = file; if (!sections.has(file)) sections.set(file, []) }
     else if (/\.[cm]?[jt]sx?:$/.test(line)) current = undefined
     if (current) sections.get(current)!.push(line)
   }
@@ -330,6 +330,7 @@ export async function recordTestOutcome(
       exitCode: outcome.exitCode,
       durationMs: outcome.durationMs,
       command: outcome.command,
+      // TestNode stores a bounded excerpt; recordTestExecution receives the complete all-attempt log.
       output: testOutput.slice(-16000),
       executionHashes: outcome.hashesBefore?.[test.id] ?? await testEvidenceHashes(store, test),
       status: outcome.passed ? 'verified' : 'failing',

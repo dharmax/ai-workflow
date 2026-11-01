@@ -30,7 +30,7 @@ export const ARTIFACT_HELP = `Delegate artifact work first:
 
 Operation options: --completeness <level> --depth <N|all> --max-artifacts <N>
                    --critic <auto|none|configured-id> --tag <key=value> (repeatable)
-Resolution options: --agent <id> --verify-only --max-repairs <0..3> --allow-dirty-target <path> --authorize-file <ticketId=path>
+Resolution options: --agent <id> --verify-only --max-repairs <0..3> --allow-dirty-target <path> --authorize-file <ticketId=path> --repeatable-check <argv-json>
 Completeness on an operation is temporary. Persist it only with completeness set.
 needs_input/blocked are results to inspect; Done requires explicit acceptance proof.
 Use symbol/graph/slice/blast/change/test primitives for explicit drill-down.`;
@@ -140,7 +140,7 @@ function linkIntent(args: unknown, yes = false): NormalizedCommand {
 }
 
 function artifactIntent(tool: string, id: string, input: Record<string, unknown>): NormalizedCommand {
-  const {tag, authorizeFile, allowDirtyTarget, agent, ...options} = input;
+  const {tag, authorizeFile, allowDirtyTarget, repeatableCheck, agent, ...options} = input;
   if(agent!==undefined) options.agentId=agent;
   if (tag) options.tags = Object.fromEntries((tag as string[]).map(value => {
     const split=value.indexOf('=');
@@ -157,8 +157,9 @@ function artifactIntent(tool: string, id: string, input: Record<string, unknown>
     options.authorizedFiles=files;
   }
   if(allowDirtyTarget) options.allowDirtyTargets=allowDirtyTarget;
+  if(repeatableCheck) options.repeatableChecks=(repeatableCheck as string[]).map(value=>JSON.parse(value));
   if(typeof options.critic==='string' && !['auto','none'].includes(options.critic)) options.critic={id:options.critic};
-  const schema=ArtifactTransportOptionsSchema.extend({agentId:z.string().optional(),verifyOnly:z.boolean().optional(),maxRepairs:z.number().int().min(0).max(3).optional(),allowDirtyTargets:z.array(z.string()).optional(),authorizedFiles:z.record(z.string(),z.array(z.string())).optional()}).strict();
+  const schema=ArtifactTransportOptionsSchema.extend({agentId:z.string().optional(),verifyOnly:z.boolean().optional(),maxRepairs:z.number().int().min(0).max(3).optional(),allowDirtyTargets:z.array(z.string()).optional(),authorizedFiles:z.record(z.string(),z.array(z.string())).optional(),repeatableChecks:z.array(z.array(z.string().min(1)).min(1)).optional()}).strict();
   const key=tool.endsWith('_ticket')?'ticketId':tool==='process_epic'?'epicId':tool==='process_feature'?'featureId':'storyId';
   return {family:'artifact',tool,args:{[key]:id,...schema.parse(options)}};
 }
@@ -186,7 +187,8 @@ export function createCommandTree(emit: (intent: NormalizedCommand) => void | Pr
       .option('--verify-only','Verify existing work without implementation or source repair')
       .option('--max-repairs <count>','Repair bound',Number)
       .option('--allow-dirty-target <path>','Authorized dirty path (repeatable)',collect)
-      .option('--authorize-file <ticket=path>','Authorized scope (repeatable)',collect);
+      .option('--authorize-file <ticket=path>','Authorized scope (repeatable)',collect)
+      .option('--repeatable-check <argv-json>','Exact local check argv safe to repeat, including external effects (repeatable)',collect);
     command.action((id:string,opts:Record<string,unknown>)=>{
       const intent=artifactIntent(tool,id,opts);
       if(kind && intent.family==='artifact') intent.args.kind=kind;
@@ -622,7 +624,7 @@ A configured provider is not proof that authentication or inference succeeds.`);
   const configure=(command:Command)=>{
     command.allowExcessArguments(false);
     if(command.commands.length && command.registeredArguments.length===0) {command.addHelpCommand();command.action(()=>command.help());}
-    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule','reference','verbose'].includes(option.name())) {
+    for(const option of command.options) if(!['tag','allow-dirty-target','authorize-file','repeatable-check','criterion','evidence','actor','non-goal','responsibility','outcome','behavioral-rule','reference','verbose'].includes(option.name())) {
       const parse=option.parseArg;
       option.argParser((value,previous:unknown)=>{
         if(previous!==undefined) throw new InvalidArgumentError(`Duplicate option '${option.flags}'.`);

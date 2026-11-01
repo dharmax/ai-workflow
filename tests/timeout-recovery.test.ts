@@ -81,6 +81,13 @@ describe('bounded timeout selection', () => {
     expect(performance.now() - started).toBeLessThan(500)
   })
 
+  it('parses exact repeatable check declarations through the shared command grammar', async () => {
+    const {artifactCommand} = await import('../src/artifact-command.ts')
+    const result = await artifactCommand(['resolve', 'T', '--repeatable-check', '["bun","test","tests/a.test.ts"]', '--repeatable-check', '["bun","run","typecheck"]'])
+    expect(result?.args.repeatableChecks).toEqual([['bun', 'test', 'tests/a.test.ts'], ['bun', 'run', 'typecheck']])
+    await expect(artifactCommand(['resolve', 'T', '--repeatable-check', '[]'])).rejects.toThrow()
+  })
+
 })
 
 describe('timeout recovery through execution callers', () => {
@@ -116,12 +123,23 @@ describe('timeout recovery through execution callers', () => {
   })
   it('diagnostic tests have a bounded executor and preserve complete output', async () => {
     fs.mkdirSync(path.join(root, 'tests'))
-    fs.writeFileSync(path.join(root, 'tests/slow.test.ts'), "import {test} from 'bun:test'; test('healthy', async()=>{console.log('x'.repeat(18000)); await Bun.sleep(140)})")
-    const result = await commandRegistry.execute('triage_test_failures', {testCommand: 'bun test tests/slow.test.ts', timeoutMs: 80, retrySafe: true, totalBudgetMs: 2000}, {projectRoot: root, store, executionAuthority: 'project-write'})
+    fs.writeFileSync(path.join(root, 'tests/slow.test.ts'), "import {test} from 'bun:test'; test('healthy', async()=>{console.log('x'.repeat(18000)); console.error('attempt-evidence'); await Bun.sleep(140)})")
+    const artifacts = await import('../src/graph/test-artifacts.ts')
+    const originalRecord = artifacts.recordTestExecution
+    let ownerInput = ''
+    const record = spyOn(artifacts, 'recordTestExecution').mockImplementation((...args) => {
+      ownerInput = args[3].output ?? ''
+      return originalRecord(...args)
+    })
+    const result = await commandRegistry.execute('triage_test_failures', {testCommand: 'bun test tests/slow.test.ts', timeoutMs: 80, retrySafe: true, totalBudgetMs: 2000}, {projectRoot: root, store, executionAuthority: 'project-write'}).finally(() => record.mockRestore())
+    expect(ownerInput.length).toBeGreaterThan(36000)
+    expect(ownerInput.match(/attempt-evidence/g)).toHaveLength(2)
     expect(result.passed).toBe(true)
     const {TestNode} = await import('../src/model/ontology.ts')
-    const nodes = await store.listEntities(TestNode.dcr)
+    const nodes = await store.listEntities<import('../src/model/ontology.ts').TestNode>(TestNode.dcr)
     expect(JSON.stringify(nodes)).toContain('healthy')
+    expect(nodes[0]?.output?.match(/attempt-evidence/g)).toHaveLength(2)
+    expect(nodes[0]?.output?.length).toBeLessThanOrEqual(16000)
     expect(JSON.stringify(advice.mock.calls)).toContain('Diagnose test failures')
   })
   it('Ticket engineering checks share recovery and retain all attempt evidence', async () => {
@@ -136,7 +154,7 @@ describe('timeout recovery through execution callers', () => {
     const execute = spyOn(commandRegistry, 'execute').mockImplementation((name, params, ctx) =>
       original(name, name === 'run_command' ? {...params, timeoutMs: 80, totalBudgetMs: 2000} : params, ctx))
     try {
-      const result = await executeTicketChecks(store, investigated.value, [], [['bun', 'test', 'tests/slow.test.ts']], undefined, 'T-1')
+      const result = await executeTicketChecks(store, investigated.value, [], [['bun', 'test', 'tests/slow.test.ts']], undefined, 'T-1', [['bun', 'test', 'tests/slow.test.ts']])
       expect(result.status).toBe('complete')
       if (result.status === 'complete') {
         expect(result.value.tests[0]?.passed).toBe(true)
@@ -190,6 +208,29 @@ describe('timeout recovery through execution callers', () => {
         projectRoot: root, store, executionAuthority: 'project-write',
       })).toMatchObject({passed: false, cancelled: true, createdTicketId: null})
     } finally {execute.mockRestore()}
+  })
+
+  it.each(['undeclared', 'different-command'])('does not infer repeatability from the engineering sandbox: %s', async mode => {
+    const {Ticket} = await import('../src/model/ontology.ts')
+    const {executeTicketChecks} = await import('../src/ticket/verification.ts')
+    let requests = 0
+    const server = Bun.serve({port: 0, hostname: '127.0.0.1', fetch: () => {requests++; return new Response('observed')}})
+    fs.mkdirSync(path.join(root, 'tests'))
+    fs.writeFileSync(path.join(root, 'tests/external.test.ts'), `import {test} from 'bun:test';test('external effect',async()=>{await fetch('http://127.0.0.1:${server.port}');await Bun.sleep(140)})`)
+    const ticket = await store.upsertEntity<import('../src/model/ontology.ts').Ticket>(Ticket.dcr, {id: 'T-EXTERNAL', title: 'Check external effects', body: 'Known fixture server receives calls', lane: 'Todo', acceptanceCriteria: ['Do not repeat undeclared effects']})
+    const investigated = await ticket.investigate(store, {mandatoryEvidenceOnly: true})
+    if (investigated.status !== 'complete') throw Error(investigated.status)
+    const original = commandRegistry.execute.bind(commandRegistry)
+    const execute = spyOn(commandRegistry, 'execute').mockImplementation((name, params, ctx) =>
+      original(name, name === 'run_command' ? {...params, timeoutMs: 80, totalBudgetMs: 2000} : params, ctx))
+    try {
+      const declarations = mode === 'undeclared' ? undefined : [['bun', 'test', 'tests/different.test.ts']]
+      const result = await executeTicketChecks(store, investigated.value, [], [['bun', 'test', 'tests/external.test.ts']], undefined, 'T-EXTERNAL', declarations)
+      expect(result.status).toBe('complete')
+      if (result.status === 'complete') expect(result.value.tests[0]?.passed).toBe(false)
+      expect(requests).toBe(1)
+      expect(advice.mock.calls).toHaveLength(0)
+    } finally {execute.mockRestore(); server.stop(true)}
   })
 
 })
