@@ -126,7 +126,8 @@ export async function collectAuthoredEvidence(store: WorkflowStore, current: Tic
         'verifies',
       ].includes(edge.predicateName)
     )
-      add(entity, `Ticket ${edge.predicateName}`);
+      add(entity, `Ticket ${edge.predicateName}`,
+        edge.sourceId === current.id || ['verifies', 'governs'].includes(edge.predicateName));
   }
   // Expand authored Product Intent so implementation sees the actor journey and reason behind the work.
   const semanticSeeds = [...mandatory.values()].filter(
@@ -139,9 +140,15 @@ export async function collectAuthoredEvidence(store: WorkflowStore, current: Tic
       entity instanceof Goal ||
       entity instanceof Concept,
   );
-  for (const { entity, provenance } of await collectProductMeaning(semanticSeeds, store)) add(entity, provenance);
-  // Scope verification remains mandatory, including legacy project evidence.
+  const requiredScopes = new Set(mandatory.keys());
+  for (const { entity, provenance } of await collectProductMeaning(semanticSeeds, store)) {
+    add(entity, provenance);
+    if (entity instanceof UserStory) requiredScopes.add(entity.id);
+  }
+  // Governing definitions remain mandatory context. Their broader verification
+  // belongs here only when the Ticket actually undertakes that scope's work.
   for (const item of [...mandatory.values()]) {
+    if (!requiredScopes.has(item.id)) continue;
     if (!(item instanceof Epic || item instanceof Feature || item instanceof UserStory || item instanceof Flow))
       continue;
     for (const edge of await store.getIncoming(item.id, 'verifies')) {

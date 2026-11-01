@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {CompletionEngine} from '@dharmax/llm-utils';
 import {WorkflowStore} from '../src/graph/store.ts';
+import type {AbstractEntity} from '@dharmax/semantika';
 import {Ticket,TestNode,Artifact} from '../src/model/ontology.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
 import {initializeTools,commandRegistry} from '../src/tools/index.ts';
@@ -106,7 +107,12 @@ for(const mode of ['green','skipped','changed-definition','uncovered-criterion']
  const result=await f.resolve();expect(result.status,JSON.stringify(result)).toBe(mode==='green'?'complete':['uncovered-criterion','changed-definition'].includes(mode)?'blocked':'needs_input');
  expect(fs.readFileSync(path.join(f.root,'tests/add-story.test.ts'),'utf8')).toBe(before);
  expect(await f.store.getEntity('VERIFY-T',Artifact.dcr)!==null).toBe(mode==='green');
- if(mode==='green'){expect(model).not.toHaveBeenCalled();expect(await currentTicketReceipt(f.store,(await f.store.getEntity<Ticket>('T',Ticket.dcr))!)).not.toBeNull();}
+ if(mode==='green'){
+  expect(model).not.toHaveBeenCalled();expect(await currentTicketReceipt(f.store,(await f.store.getEntity<Ticket>('T',Ticket.dcr))!)).not.toBeNull();
+  await f.call('update_ticket_state',{ticketId:'T',lane:'Todo'});const commands=observeChecks();
+  const reused=await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none'});
+  expect(reused.status,JSON.stringify(reused)).toBe('complete');expect(commands).toEqual([]);expect(model).not.toHaveBeenCalled();
+ }
  if(mode==='changed-definition'){expect(JSON.stringify(result)).toContain('Story revision changed since test review');expect(model).not.toHaveBeenCalled();}
  if(mode==='uncovered-criterion')expect(JSON.stringify(result)).toContain('Every input is handled within one millisecond.');
 },20000);
@@ -130,3 +136,109 @@ it('refuses a binding whose claimed exact source declaration does not exist',asy
  expect(refusal).toBeInstanceOf(Error);expect(String(refusal)).toContain('missing');
  expect(await f.store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
 });
+
+function observeChecks(){
+ const commands:string[]=[];
+ const execute=commandRegistry.execute.bind(commandRegistry);
+ const spy=spyOn(commandRegistry,'execute').mockImplementation(async(name,args,ctx)=>{
+  if(name==='run_command')commands.push((args as {command:string}).command);
+  return execute(name,args,ctx);
+ });restores.push(()=>spy.mockRestore());return commands;
+}
+for(const command of [['bun','test','tests/add.test.ts'],['bun','test']])it('reuses current proof from '+command.join(' ')+' when closing a reopened technical Ticket',async()=>{
+ const f=await fixture();noLLM();expect((await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none',testCommands:[command]})).status).toBe('complete');
+ await f.call('update_ticket_state',{ticketId:'T',lane:'Todo'});
+ const commands=observeChecks();
+ const result=await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none'});
+ expect(result.status,JSON.stringify(result)).toBe('complete');expect(commands).toEqual([]);
+});
+it('reusing proof does not rehash unrelated TestNode executions',async()=>{
+ const f=await fixture();noLLM();
+ fs.writeFileSync(path.join(f.root,'tests/unrelated.test.ts'),"import {it,expect} from 'bun:test';it('unrelated',()=>expect(true).toBe(true));\n");
+ await indexCodebase(f.store,f.root);expect((await f.resolve()).status).toBe('complete');
+ await f.call('update_ticket_state',{ticketId:'T',lane:'Todo'});
+ let unrelatedReads=0;const read=f.store.getEntity.bind(f.store);
+ const spy=spyOn(f.store,'getEntity').mockImplementation(async <T extends AbstractEntity = AbstractEntity>(...args:Parameters<WorkflowStore['getEntity']>)=>{
+  const entity=await read<T>(...args);
+  if(entity instanceof TestNode && f.store.localId(entity.id)==='test:tests/unrelated.test.ts'){
+   const hashes=entity.executionHashes;Object.defineProperty(entity,'executionHashes',{get:()=>{unrelatedReads++;return hashes;}});
+  }
+  return entity;
+ });
+ restores.push(()=>spy.mockRestore());
+ const result=await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none'});
+ expect(result.status,JSON.stringify(result)).toBe('complete');expect(unrelatedReads).toBe(0);
+});
+it('reports the affected source and missing proof without running an unrelated suite',async()=>{
+ const f=await fixture({unbound:true});noLLM();
+ fs.writeFileSync(path.join(f.root,'src/maintenance.ts'),'export const configuration = 1;\n');
+ await indexCodebase(f.store,f.root);await f.store.unrelate('T','modifies','src/add.ts');await f.store.relate('T','modifies','src/maintenance.ts');
+ const commands=observeChecks();
+ const result=await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none'});
+ expect(result.status,JSON.stringify(result)).toBe('needs_input');expect(JSON.stringify(result)).toContain('src/maintenance.ts');expect(commands).toEqual([]);
+});
+it('an unrelated passing requested test cannot provide missing affected-behavior proof',async()=>{
+ const f=await fixture({unbound:true});noLLM();
+ fs.writeFileSync(path.join(f.root,'src/maintenance.ts'),'export const configuration = 1;\n');
+ await indexCodebase(f.store,f.root);await f.store.unrelate('T','modifies','src/add.ts');await f.store.relate('T','modifies','src/maintenance.ts');
+ const result=await f.resolve();expect(result.status,JSON.stringify(result)).toBe('needs_input');expect(JSON.stringify(result)).toContain('src/maintenance.ts');
+ expect(await f.store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+});
+for(const required of [false,true])it('a release journey gates a technical Ticket only when required: '+required,async()=>{
+ const f=await fixture();noLLM();const close=await productReviewFixture(f.store);
+ try{await createProduct(f.store,'Epic',{id:'RELEASE',title:'Live release acceptance',body:'Six live journeys remain unexecuted.',status:'active'});}
+ finally{close();}
+ await f.store.relate('RELEASE','contains','T');
+
+ // An unexecuted release check must remain visible without becoming this fix's proof.
+ fs.writeFileSync(path.join(f.root,'tests/release.test.ts'),"import {it} from 'bun:test';it('live journey',()=>{throw Error('live environment unavailable')});\n");
+ await indexCodebase(f.store,f.root);await f.store.withTestArtifactWrite('test:tests/release.test.ts',()=>f.store.relate('test:tests/release.test.ts','verifies','RELEASE'));
+ if(required){const ticket=(await f.store.getEntity<Ticket>('T',Ticket.dcr))!;await ticket.update({acceptanceCriteria:[...ticket.acceptanceCriteria!,'The live journey passes.']});}
+ const scopes=[{id:'public',criteria:['Adding 2 and 3 returns 5.'],testId:'test:tests/add.test.ts',sources:[{filePath:'src/add.ts'}]}];
+ if(required)scopes.push({id:'live',criteria:['The live journey passes.'],testId:'test:tests/release.test.ts',sources:[{filePath:'src/add.ts'}]});
+ const specification={ticketId:'T',testId:'test:tests/add.test.ts',scopes};
+ const preview=await f.call('prepare_test_binding',{specification});
+ await f.store.withExecutionContext('project-write',undefined,()=>f.call('apply_test_binding',{specification,fingerprint:preview.fingerprint,decision:'accept'}),preview.fingerprint);
+ const commands=observeChecks();const result=await f.resolve();
+ expect(result.status,JSON.stringify(result)).toBe(required?'blocked':'complete');expect(commands.some(command=>command.includes('release.test.ts'))).toBe(required);
+ const live=(await f.store.getEntity<TestNode>('test:tests/release.test.ts',TestNode.dcr))!;
+ if(required)expect(live.passed).toBe(false);else expect(live.lastRun).toBeUndefined();
+});
+it('shared affected behavior selects every dependent check, including a failing consumer',async()=>{
+ const f=await fixture();noLLM();
+ fs.writeFileSync(path.join(f.root,'src/consumer.ts'),"import {add} from './add.ts';export const total=()=>add(2,3);\n");
+ fs.writeFileSync(path.join(f.root,'tests/consumer.test.ts'),"import {it,expect} from 'bun:test';import {total} from '../src/consumer.ts';it('shared caller',()=>expect(total()).toBe(6));\n");
+ await indexCodebase(f.store,f.root);
+ const commands=observeChecks();const result=await f.resolve();
+ expect(result.status,JSON.stringify(result)).toBe('blocked');expect(commands.some(command=>command.includes('consumer.test.ts'))).toBe(true);
+ expect(await f.store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+});
+it('missing proof stops ordinary resolution without speculative implementation repair',async()=>{
+ const f=await fixture({unbound:true});noLLM();
+ fs.writeFileSync(path.join(f.root,'src/maintenance.ts'),'export const configuration = 1;\n');
+ await indexCodebase(f.store,f.root);await f.store.unrelate('T','modifies','src/add.ts');await f.store.relate('T','modifies','src/maintenance.ts');
+ const ticket=(await f.store.getEntity<Ticket>('T',Ticket.dcr))!;
+ const dossier=await ticket.investigate(f.store,{mandatoryEvidenceOnly:true});expect(dossier.status).toBe('complete');
+ if(dossier.status!=='complete')return;
+ const prepare=spyOn(Ticket.prototype,'prepare').mockResolvedValue({status:'complete',artifactId:'T',value:{dossier:dossier.value,children:[],created:[],reused:[],applied:false,criticRounds:0,rationale:'Existing bounded maintenance contract.'}});
+ restores.push(()=>prepare.mockRestore());let implementations=0,reviews=0;
+ const result=await ticket.resolve(f.store,{maxRepairs:3,depth:0,critic:'none',implement:async()=>{implementations++;return {changes:[],testCommands:[]};},verify:async()=>{reviews++;throw Error('Missing proof cannot reach acceptance');}});
+ expect(result.status,JSON.stringify(result)).toBe('needs_input');expect(JSON.stringify(result)).toContain('src/maintenance.ts');
+ expect(implementations).toBe(1);expect(reviews).toBe(0);expect(await f.store.getEntity('VERIFY-T',Artifact.dcr)).toBeNull();
+});
+it('technical maintenance can use an actual compiler check and substantive source acceptance',async()=>{
+ const f=await fixture({unbound:true});
+ fs.writeFileSync(path.join(f.root,'src/maintenance.ts'),'export const configuration: number = 1;\n');
+ fs.writeFileSync(path.join(f.root,'package.json'),JSON.stringify({scripts:{typecheck:'tsc --noEmit --skipLibCheck --target esnext --module esnext --moduleResolution bundler src/maintenance.ts'}}));
+ await indexCodebase(f.store,f.root);await f.store.unrelate('T','modifies','src/add.ts');await f.store.relate('T','modifies','src/maintenance.ts');
+ const ticket=(await f.store.getEntity<Ticket>('T',Ticket.dcr))!;await ticket.update({acceptanceCriteria:['The numeric configuration remains a valid exported number.']});
+ const model=spyOn(CompletionEngine.prototype,'generate').mockImplementation(async(prompt,model)=>{
+  expect(prompt).toContain('configuration: number = 1');expect(prompt).toContain('typecheck');
+  return {model,ok:true,text:JSON.stringify({criteria:[{criterion:'The numeric configuration remains a valid exported number.',passed:true,evidence:'Current exported numeric declaration and passing real TypeScript compilation establish this maintenance contract.'}],aspects:[],rules:[]})};
+ });restores.push(()=>model.mockRestore());
+ const result=await f.call('resolve_ticket',{ticketId:'T',verifyOnly:true,maxRepairs:0,depth:0,critic:'none',testCommands:[['bun','run','typecheck']]});
+ expect(result.status,JSON.stringify(result)).toBe('complete');expect(model).toHaveBeenCalledTimes(1);
+ const after=(await f.store.getEntity<Ticket>('T',Ticket.dcr))!;expect(await currentTicketReceipt(f.store,after)).not.toBeNull();
+ const receipt=(await f.store.getEntity<Artifact>('VERIFY-T',Artifact.dcr))!;expect(JSON.parse(receipt.body!).testNodes).toEqual([]);
+ fs.appendFileSync(path.join(f.root,'package.json'),'\n');expect(await currentTicketReceipt(f.store,after)).toBeNull();
+},20000);

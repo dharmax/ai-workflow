@@ -54,7 +54,7 @@ export async function resolveTicket(
             const { z } = await import("zod")
             const { ToolExecutionError } = await import("@dharmax/llm-utils")
             const { ensureAstFresh } = await import("../graph/indexer.ts")
-            const { verifyingTestsForTargets, currentTestEvidence, hashFiles, testPathsFromCommand } =
+            const { currentTestEvidence, hashFiles, testPathsFromCommand } =
                 await import("../graph/test-artifacts.ts")
             initializeTools()
             const cfg = loadConfig(store.root),
@@ -295,7 +295,6 @@ export async function resolveTicket(
                         dossier = refreshed.value
                     }
                     await requireStoryTests(store, ticket)
-                    const scopeFiles = dossier.evidence.filter(item => item.mandatory && item.filePath).map(item => item.filePath!)
                     await ensureAstFresh(store, store.root)
                     const receipt = await store.getEntity<Artifact>(`VERIFY-${id}`, Artifact.dcr)
                     const proof = receipt && readVerificationReceipt((receipt as Artifact & {body: string}).body)
@@ -312,25 +311,9 @@ export async function resolveTicket(
                     dossier.aspects = scope.governance.aspects
                     dossier.scope = scope
                     const signature = await ticketVerificationSignature(store, ticket, options.completeness, [], scope.governance)
-                    const graphScope = await verifyingTestsForTargets(
-                        store,
-                        dossier.evidence.filter(item => item.mandatory).map(item => item.id),
-                        scopeFiles
-                    )
-                    for (const test of graphScope.tests)
-                        if (!dossier.evidence.some(item => item.id === store.localId(test.id)))
-                            dossier.evidence.push({
-                                id: store.localId(test.id),
-                                kind: "TestNode",
-                                title: test.title || store.localId(test.id),
-                                filePath: test.filePath || test.targetPath,
-                                mandatory: true,
-                                provenance: "Graph verifies code target"
-                            })
                     const currentReceipt = await currentTicketReceipt(store, ticket, {
                         completeness: options.completeness, testCommands: options.testCommands,
-                        expectedFiles: [...scope.files, ...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root))],
-                        requiredTestIds: graphScope.tests.map(test => store.localId(test.id))
+                        expectedFiles: [...scope.files, ...(options.testCommands ?? []).flatMap(command => testPathsFromCommand(command, store.root))]
                     })
                     if (currentReceipt) {
                         acceptance = AcceptanceVerificationSchema.parse(currentReceipt.acceptance)
@@ -427,6 +410,8 @@ export async function resolveTicket(
                         // Each existing Story owner observes the same check execution. Nest callbacks
                         // so all tests execute once and each classification captures its own prior run.
                         for (const storyId of stories) {
+                            const coverage = await storyTestStatus(store, storyId)
+                            if (coverage.tests.length && coverage.tests.every(test => test.state === 'green')) continue
                             const execute = check
                             check = async () => {
                                 let result: Awaited<ReturnType<typeof executeTicketChecks>> | undefined
@@ -446,7 +431,7 @@ export async function resolveTicket(
                         if (checked.status === 'complete' && stories.length)
                             checked.value.testNodes = await currentTestEvidence(store, checked.value.testNodes.map(test => test.id))
                         if (checked.status !== "complete") return checked
-                        const { tests: currentTests, testNodes, evidenceComplete } = checked.value
+                        const { tests: currentTests, testNodes, evidenceComplete, hashes: verificationHashes } = checked.value
                         await recordTicketEvent(store,{ticketId:id,kind:currentTests.some(test=>!test.passed)?'failure':'outcome',
                             message:`Verification checks: ${currentTests.filter(test=>test.passed).length} passing, ${currentTests.filter(test=>!test.passed).length} failing; evidence ${evidenceComplete?'complete':'incomplete'}.`,
                             references:testNodes.map(test=>test.id)})
@@ -457,15 +442,8 @@ export async function resolveTicket(
                                     test.command.join(' ') + '\n' + test.output.slice(-2500)).join('\n'))
                             continue
                         }
-                        if (!evidenceComplete) {
-                            feedback = ["No current passing TestNode execution proves this verification scope."]
-                            traceResolution('verification evidence incomplete; repair ' + (attempt + 1) + '/' + (maxRepairs + 1))
-                            continue
-                        }
-                        const verificationHashes = hashFiles(store.root, [
-                            ...scope.files,
-                            ...testNodes.flatMap(test => Object.keys(test.hashes))
-                        ])
+                        if (!evidenceComplete) return needs('Provide current relevant proof for ' + id + '.',
+                            'Required engineering evidence is incomplete; missing proof does not authorize implementation repair.', 'Ticket verification evidence')
                         recordResolutionStage("acceptance")
                         let rejectedRules: string[] | undefined
                         try {

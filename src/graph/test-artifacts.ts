@@ -180,6 +180,21 @@ export async function verifyingTestsForTargets(
     }
     if (!covered && ![...tests.values()].some(test => normalizeTestPath(test.filePath || test.targetPath || '') === file)) uncoveredFiles.push(file)
   }
+  // Include consumers behind intermediate modules without revisiting shared paths.
+  const dependents = new Set(files.map(normalizeTestPath).filter(file =>
+    targetIds.some(id => store.localId(id) === file) || !exactTargets.some(symbol => symbol.filePath === file)))
+  for (const dependent of dependents) {
+    await add(testArtifactId(dependent))
+    for (const edge of await store.getIncoming(dependent, 'imports')) {
+      const importer = await store.getEntity<FileNode>(edge.sourceId, FileNode.dcr)
+      if (!importer) continue
+      const relative = store.localId(importer.id)
+      if (!dependents.has(relative)) {
+        dependents.add(relative)
+        await add(relative)
+      }
+    }
+  }
   return {tests: [...tests.values()].filter(test => Boolean(test.filePath || test.targetPath)), uncoveredFiles}
 }
 

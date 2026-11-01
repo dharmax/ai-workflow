@@ -132,8 +132,10 @@ export const VerificationReceiptSchema = z.object({
       after: z.record(z.string(), z.string().nullable()), renames: z.array(z.object({from: z.string(), to: z.string()}))}))}),
   signature: z.string(), hashes: z.record(z.string(), z.string()), acceptance: AcceptanceVerificationSchema,
   tests: z.array(z.object({command: z.array(z.string()), passed: z.boolean()})),
-  testNodes: z.array(z.object({id: z.string(), hashes: z.record(z.string(), z.string())})).min(1)
-});
+  testNodes: z.array(z.object({id: z.string(), hashes: z.record(z.string(), z.string())}))
+}).refine(proof => proof.testNodes.length > 0 || proof.tests.some(test => test.passed &&
+  test.command[0] === 'bun' && test.command[1] === 'run' && ['typecheck', 'build'].includes(test.command[2] ?? '')),
+  'A receipt requires current TestNode evidence or an independently assessed engineering check.');
 export function readVerificationReceipt(body: unknown) {
   try {
     const parsed = VerificationReceiptSchema.safeParse(JSON.parse(String(body)));

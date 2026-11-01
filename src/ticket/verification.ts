@@ -8,8 +8,8 @@ import os from 'node:os'
 import path from 'node:path'
 import {workspacePath} from '../change/workspace-path.ts'
 import { renderAcceptancePrompt } from "./prompts.ts"
-import { Artifact, TestNode, Ticket } from "../model/ontology.ts"
-import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework } from "../graph/test-artifacts.ts"
+import { Artifact, FileNode, TestNode, Ticket } from "../model/ontology.ts"
+import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework, testArtifactId } from "../graph/test-artifacts.ts"
 import { commandRegistry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
 import {canonical, computeHash} from '../kb/canonical.ts'
@@ -35,9 +35,9 @@ import {prepareReviewer, recordReviewerResult} from "./reviewer.ts"
 import { buildVerificationContext } from "../helpers/verification-context.ts"
 import { countEngineering, cognitionMetrics, traceResolution } from "../performance-metrics.ts"
 
-type CheckResults = Pick<ResolutionVerificationInput, 'tests' | 'testNodes'> & {evidenceComplete: boolean}
-type CheckPlan = {commands: string[][]; requiredTestIds: string[]}
-type CheckBaseline = {indexedTests: TestNode[]; hashesBefore: Record<string, Record<string, string>>}
+type CheckResults = Pick<ResolutionVerificationInput, 'tests' | 'testNodes'> & {evidenceComplete: boolean; hashes: Record<string, string>}
+type CheckPlan = {commands: string[][]; requiredTestIds: string[]; reused: ResolutionVerificationInput['testNodes']}
+type CheckBaseline = {indexedTests: TestNode[]; hashesBefore: Record<string, Record<string, string>>; hashes: Record<string, string>}
 type CheckExecution = {passed: boolean; fullOutput: string; exitCode: number | null; durationMs: number}
 
 function checkNeedsInput(artifactId: string, question: string, why: string, target: string): OperationResult<never> {
@@ -48,7 +48,21 @@ async function planTicketChecks(
     store: WorkflowStore, dossier: TicketDossier, files: string[], requested: string[][],
     signal: AbortSignal | undefined, artifactId: string
 ): Promise<OperationResult<CheckPlan>> {
-    const graph = await verifyingTestsForTargets(store, dossier.evidence.filter(item => item.mandatory).map(item => item.id), files)
+    // Product lineage supplies governing meaning; its tests are selected by the
+    // investigation owner only for requirements this Ticket actually undertakes.
+    const targets = dossier.evidence.filter(item => item.mandatory &&
+        !['Product', 'Epic', 'Feature', 'Flow', 'Goal', 'Concept'].includes(item.kind)).map(item => item.id)
+    const proof = await readTechnicalProof(store, dossier.ticket.id)
+    targets.push(...(proof?.scopes.filter(scope => scope.projectRoot === store.root).map(scope => scope.testId) ?? []))
+    // Contained/prerequisite proof supplies candidate evidence. Independent
+    // acceptance still judges this Ticket's own criteria.
+    for (const edge of await store.getOutgoing(dossier.ticket.id)) {
+        if (!['contains', 'depends_on'].includes(edge.predicateName)) continue
+        const child = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr)
+        const receipt = child && await currentTicketReceipt(store, child)
+        if (receipt) targets.push(...receipt.testNodes.map(test => test.id))
+    }
+    const graph = await verifyingTestsForTargets(store, targets, files)
     // Framework is source-derived tooling metadata, not acceptance evidence. Older
     // indexed rows must not choose a different runner from the current test source.
     for (let index = 0; index < graph.tests.length; index++) {
@@ -72,12 +86,25 @@ async function planTicketChecks(
         const target = await commandRegistry.execute('resolve_test_target', {filePath}, {store, projectRoot: store.root, signal, executionAuthority: 'project-write'})
         if (target.found) for (const testFile of target.testFiles) fallback.push(['bun', 'test', testFile])
     }
-    // Graph obligations cannot be replaced by a producer's suggested passing test.
-    let commands = [...new Map([...required, ...fallback, ...requested].map(command => [canonical(command), command])).values()]
-    if (!commands.length) commands = [['bun', 'test']]
+    // Discovery selects candidate coverage; only reviewed meaning or independent
+    // acceptance can establish adequacy. An unrelated requested pass proves nothing.
+    const relevant = [...new Map([...required, ...fallback].map(command => [canonical(command), command])).values()]
+    const requiredTestIds = [...new Set([...graph.tests.map(test => store.localId(test.id)),
+        ...fallback.map(command => testArtifactId(command[2]!))])]
+    const alternative = requested.some(command => command[0] === 'bun' && command[1] === 'run' && ['typecheck', 'build'].includes(command[2] ?? ''))
+    if (!relevant.length && !alternative && (files.length > 0 || !requested.length)) return checkNeedsInput(artifactId,
+        'Provide relevant engineering proof for ' + (files.join(', ') || dossier.ticket.id) + '.',
+        'No discoverable test covers the affected scope. Required acceptance: ' + dossier.ticket.acceptanceCriteria.join('; ') +
+        '. Supply a relevant test or a justified typecheck/build check for independent assessment.', 'Affected behavior proof')
+    const current = await currentTestEvidence(store, requiredTestIds)
+    const reused = current.filter(test => test.passed && test.command?.length &&
+        !requested.some(command => command.length === 2 && command[0] === 'bun' && command[1] === 'test' ||
+            canonical(command) === canonical(test.command)))
+    let commands = [...new Map([...relevant.filter(command => !reused.some(test =>
+        test.filePath === command.at(-1))), ...requested].map(command => [canonical(command), command])).values()]
     if (commands.some(command => command.length === 2 && command[0] === 'bun' && command[1] === 'test'))
         commands = commands.filter(command => command[0] !== 'bun' || command[1] !== 'test' || command.length === 2)
-    return {status: 'complete', artifactId, value: {commands, requiredTestIds: graph.tests.map(test => store.localId(test.id))}}
+    return {status: 'complete', artifactId, value: {commands, requiredTestIds, reused}}
 }
 
 async function captureCheckBaseline(store: WorkflowStore, files: string[]): Promise<CheckBaseline> {
@@ -85,7 +112,7 @@ async function captureCheckBaseline(store: WorkflowStore, files: string[]): Prom
     const evidence = await currentTestEvidence(store, indexedTests.map(test => test.id))
     const sourceHashes = hashFiles(store.root, files)
     const hashesBefore = Object.fromEntries(evidence.map(test => [store.formatId(TestNode.dcr, test.id), {...test.hashes, ...sourceHashes}]))
-    return {indexedTests, hashesBefore}
+    return {indexedTests, hashesBefore, hashes: sourceHashes}
 }
 
 function isPlaywrightCheck(command: string[]): boolean {
@@ -143,11 +170,13 @@ async function recordCheckExecution(store: WorkflowStore, command: string[], res
     return baseline.indexedTests.filter(test => execution.testFiles.includes(test.filePath || test.targetPath || '')).map(test => test.id)
 }
 
-async function collectCheckEvidence(store: WorkflowStore, tests: CheckResults['tests'], executedNodes: Set<string>, requiredTestIds: string[]): Promise<CheckResults> {
+async function collectCheckEvidence(store: WorkflowStore, tests: CheckResults['tests'], executedNodes: Set<string>, requiredTestIds: string[], hashes: Record<string, string>): Promise<CheckResults> {
     const testNodes = tests.some(test => !test.passed) ? [] : await currentTestEvidence(store, [...executedNodes])
-    const evidenceComplete = testNodes.length > 0 && testNodes.every(test => test.passed) &&
-        requiredTestIds.every(id => testNodes.some(test => test.id === id))
-    return {tests, testNodes, evidenceComplete}
+    const evidenceComplete = tests.length > 0 && tests.every(test => test.passed) && testNodes.every(test => test.passed) &&
+        (testNodes.length > 0 || tests.some(test => test.command[1] === 'run')) &&
+        requiredTestIds.every(id => testNodes.some(test => test.id === id && test.passed))
+    return {tests, testNodes, evidenceComplete, hashes: {...hashes,
+        ...Object.fromEntries(testNodes.flatMap(test => Object.entries(test.hashes)))}}
 }
 
 /** Execute graph-required checks and record their TestNodes before semantic acceptance. */
@@ -157,8 +186,14 @@ export async function executeTicketChecks(
 ): Promise<OperationResult<CheckResults>> {
     const plan = await planTicketChecks(store, dossier, files, commands, signal, artifactId)
     if (plan.status !== 'complete') return plan
-    const baseline = await captureCheckBaseline(store, files)
-    const tests: CheckResults['tests'] = [], executedNodes = new Set<string>()
+    const baseline: CheckBaseline = plan.value.commands.length
+        ? await captureCheckBaseline(store, plan.value.commands.some(command => command[1] === 'run')
+            ? [...files, 'package.json', 'bun.lock', 'bunfig.toml', 'tsconfig.json',
+                ...(await store.listEntities<FileNode>(FileNode.dcr)).filter(file => file.language !== 'markdown').map(file => store.localId(file.id))]
+            : files)
+        : {indexedTests: [], hashesBefore: {}, hashes: hashFiles(store.root, files)}
+    const tests: CheckResults['tests'] = plan.value.reused.map(test => ({command: test.command!, passed: true, output: test.output})),
+        executedNodes = new Set(plan.value.reused.map(test => test.id))
     const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-checks-'))
     try {
         for (const command of plan.value.commands) {
@@ -168,7 +203,14 @@ export async function executeTicketChecks(
             for (const id of await recordCheckExecution(store, command, checked.value, baseline)) executedNodes.add(id)
             tests.push({command, passed: checked.value.passed, output: checked.value.fullOutput.slice(-16000)})
         }
-        return {status: 'complete', artifactId, value: await collectCheckEvidence(store, tests, executedNodes, plan.value.requiredTestIds)}
+        if (canonical(baseline.hashes) !== canonical(hashFiles(store.root, Object.keys(baseline.hashes))))
+            return checkNeedsInput(artifactId, 'Repeat verification against the changed source/check inputs.',
+                'Source or check configuration changed during engineering checks.', 'Evidence freshness')
+        const evidence = await collectCheckEvidence(store, tests, executedNodes, plan.value.requiredTestIds, baseline.hashes)
+        if (tests.every(test => test.passed) && !evidence.evidenceComplete) return {status: 'blocked', artifactId, blockers: [{
+            reason: 'Missing current passing required TestNode executions: ' + plan.value.requiredTestIds.filter(id => !evidence.testNodes.some(test => test.id === id && test.passed)).join(', ') +
+                '. Passing commands cannot establish skipped, absent or stale affected-behavior proof.'}]}
+        return {status: 'complete', artifactId, value: evidence}
     } finally {
         fs.rmSync(scratchRoot, {recursive: true, force: true})
     }
@@ -241,6 +283,8 @@ async function ensureProofExecutions(store: WorkflowStore, input: ResolutionVeri
     for (const scope of proof.scopes) {
         const key = canonical([scope.projectRoot, scope.testId])
         if (scope.projectRoot === store.root || executed.has(key)) continue
+        const current = await withProofProject(store, scope.projectRoot, owner => currentTestEvidence(owner, [scope.testId]))
+        if (current[0]?.passed) { executed.add(key); continue }
         await withProofProject(store, scope.projectRoot, async owner => {
             const checked = await executeTicketChecks(owner, {
                 ...input.dossier, scope: undefined,
@@ -328,7 +372,7 @@ export async function verifyTicketAcceptance(store: WorkflowStore, input: Resolu
         if (rule.test.kind === 'codelet') throw Error(`Mandatory Rule '${rule.ruleId}' requires an unsupported codelet checker '${rule.test.codeletName ?? 'missing'}'.`)
     if (!input.tests.length || input.tests.some(test => !test.passed)) throw Error('Acceptance requires passing current checks.')
     const current = await currentTestEvidence(store, input.testNodes.map(test => test.id))
-    if (!current.length || current.length !== input.testNodes.length || current.some(test => !test.passed ||
+    if (current.length !== input.testNodes.length || current.some(test => !test.passed ||
         canonical(test.hashes) !== canonical(input.testNodes.find(node => node.id === test.id)?.hashes)))
         throw Error('Acceptance requires current passing TestNode executions.')
     const proof = await readTechnicalProof(store, input.dossier.ticket.id)
@@ -337,7 +381,7 @@ export async function verifyTicketAcceptance(store: WorkflowStore, input: Resolu
         await ensureProofExecutions(store, input, proof, options)
         for (const scope of proof.scopes) {
             if (scope.projectRoot === store.root && !current.some(test => test.id === scope.testId))
-                throw Error('Required technical test was not executed in this resolution: ' + scope.id)
+                throw Error('Missing current passing required technical execution: ' + scope.id)
             for (const criterion of scope.criteria) established.push({criterion, passed: true,
                 evidence: 'Developer-reviewed binding ' + computeHash(proof) + '; current passing ' + scope.projectRoot + '::' + scope.testId + ' in scope ' + scope.id})
         }
@@ -386,10 +430,12 @@ export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket,
         ...graph.tests.map(test => test.filePath || test.targetPath!).filter(Boolean)]
     if (expectedFiles.some(file => !(file in proof.hashes))) return null
     if ((options.testCommands ?? []).some(command => !proof.tests.some(test => canonical(test.command) === canonical(command)))) return null
-    if (proof.tests.some(test => canonical(test.command) === canonical(['bun', 'test']))) {
+    if ((options.testCommands ?? []).some(command => canonical(command) === canonical(['bun', 'test']))) {
         const suite = (await store.listEntities<TestNode>(TestNode.dcr)).filter(test => test.framework === 'bun')
         if (suite.some(test => (test.filePath || test.targetPath) && !((test.filePath || test.targetPath!) in proof.hashes))) return null
     }
+    if (proof.tests.some(test => test.command[1] === 'run') &&
+        (await store.listEntities<FileNode>(FileNode.dcr)).some(file => file.language !== 'markdown' && !(store.localId(file.id) in proof.hashes))) return null
     const governance = await resolveTicketGovernance(store, ticket, proof.scope.files, proof.scope.governance, {refreshIndex: false})
     if (proof.governanceFingerprint !== governance.fingerprint ||
         proof.signature !== await ticketVerificationSignature(store, ticket, options.completeness, [], governance)) return null
@@ -400,7 +446,8 @@ export async function currentTicketReceipt(store: WorkflowStore, ticket: Ticket,
         ...tests.map(test => test.id), ...(proof.acceptance.scopeReviews?.flatMap(review => review.sourceIds) ?? [])]
     if (ruleAcceptanceFailures(governance, proof.acceptance, evidenceIds).length) return null
     try { await assertTechnicalReviews(store, id, proof.acceptance) } catch { return null }
-    for (const edge of await store.getOutgoing(ticket.id, 'depends_on')) {
+    for (const edge of await store.getOutgoing(ticket.id)) {
+        if (!['depends_on', 'contains'].includes(edge.predicateName)) continue
         const dependency = await store.getEntity<Ticket>(edge.targetId, Ticket.dcr)
         if (!dependency || !await currentTicketReceipt(store, dependency, {ancestors})) return null
     }
