@@ -46,6 +46,12 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
       expect(tools.tools.some(item => item.name === name)).toBe(false);
     }
     expect(tools.tools.find(item=>item.name==='execute_shell_wish')?.description).toContain('AI-Workflow cognitive engine');
+    const blast = tools.tools.find(item => item.name === 'analyze_blast_radius');
+    expect(blast?.description).toContain('required `target` field');
+    const input = blast?.inputSchema as {required?: string[]; properties?: Record<string, {description?: string}>};
+    expect(input?.required).toContain('target');
+    expect(input?.properties?.target?.description).toContain('src/tools/os.ts');
+    expect(input?.properties?.filePath).toBeUndefined();
     const schemas = path.join(root, 'schemas');
     fs.mkdirSync(schemas,{recursive:true});
     fs.writeFileSync(path.join(schemas,'run_command.json'),'{}');
@@ -57,6 +63,8 @@ describe('MCP public domain surface (historical US-E05 cases awaiting digestion)
     const claim=JSON.parse(fs.readFileSync(path.join(schemas,'claim_ticket.json'),'utf8'));
     expect(claim).toMatchObject({name:'claim_ticket'});
     expect(claim.parameters.properties.ticketId).toBeDefined();
+    const blastExport = JSON.parse(fs.readFileSync(path.join(schemas, 'analyze_blast_radius.json'), 'utf8'));
+    expect(blastExport.parameters.properties.target.description).toContain('src/tools/os.ts');
   });
 
   it('allows advertised domain calls but refuses hidden/unknown primitives through an actual MCP client',async()=>{

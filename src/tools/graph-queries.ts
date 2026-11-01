@@ -535,10 +535,10 @@ export function registerGraphTools() {
 
   commandRegistry.register({
     name: 'analyze_blast_radius',
-    description: 'Calculate the dependency blast radius before modifying a file: finds impacted files, linked tickets, and recommended tests.',
+    description: 'Analyze the dependency blast radius of a file, module, or symbol. Supply its path or identifier in the required `target` field; returns impacted files, linked tickets, and recommended tests.'
     category: 'graph',
     parameters: z.object({
-      target: z.string().describe('File path or module to analyze')
+      target: z.string().describe('Required project-relative file path, module name, or symbol identifier (e.g. src/tools/os.ts)')
     }),
     execute: async ({ target }, ctx: ToolContext) => {
       return analyzeBlastRadius(ctx.store, target, ctx.projectRoot);
