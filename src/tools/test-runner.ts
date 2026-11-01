@@ -6,6 +6,7 @@
 
 import path from 'node:path'
 import fs from 'node:fs'
+import os from 'node:os'
 import {z} from 'zod'
 import {commandRegistry, type ToolContext} from './registry.ts'
 import {Ticket} from '../model/ontology.ts'
@@ -16,6 +17,35 @@ import {
   recordTestExecution,
   testPathsFromCommand,
 } from '../graph/test-artifacts.ts'
+
+/** Diagnostic callers retain all attempt output; run_command owns execution and recovery. */
+async function runDiagnosticCommand(command: string[], purpose: string, options: {timeoutMs: number; retrySafe: boolean; totalBudgetMs?: number}, ctx: ToolContext) {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-diagnostic-'))
+  const stdoutPath = path.join(scratch, 'stdout'), stderrPath = path.join(scratch, 'stderr')
+  const started = Date.now()
+  try {
+    const result = await commandRegistry.execute('run_command', {
+      command: command.map(arg => "'" + arg.replaceAll("'", "'\\''") + "'").join(' '),
+      taskDescription: `${purpose}. Command: ${command.join(' ')}. Project: ${ctx.projectRoot}; repeatability explicitly supplied by caller.`.slice(0, 4000),
+      ...options,
+    }, {...ctx, onCommandAttempt: attempt => {
+      fs.appendFileSync(stdoutPath, attempt.stdout)
+      fs.appendFileSync(stderrPath, attempt.stderr)
+      ctx.onCommandAttempt?.(attempt)
+    }}) as {success: boolean; exitCode: number | null; timedOut: boolean; cancelled: boolean; error?: string}
+    const read = (file: string) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+    return {...result, durationMs: Date.now() - started,
+      combined: read(stdoutPath) + '\n' + read(stderrPath) + (result.error ? '\n' + result.error : '')}
+  } finally {
+    fs.rmSync(scratch, {recursive: true, force: true})
+  }
+}
+
+const diagnosticTimeoutParameters = {
+  timeoutMs: z.number().int().positive().max(2_147_483_647).default(60000),
+  retrySafe: z.boolean().default(false).describe('Declare the test command safe to repeat after termination'),
+  totalBudgetMs: z.number().int().positive().max(2_147_483_647).optional(),
+}
 
 export function registerTestTools() {
   commandRegistry.register({
@@ -88,34 +118,26 @@ export function registerTestTools() {
     description: 'Run tests, persist pass/fail evidence on TestNodes, and return concise failures plus graph-local likely causes.',
     category: 'test',
     parameters: z.object({
-      testCommand: z.string().default('bun test').describe('Test runner command to execute')
+      testCommand: z.string().default('bun test').describe('Test runner command to execute'),
+      ...diagnosticTimeoutParameters
     }),
-    execute: async ({testCommand}, ctx: ToolContext) => {
+    execute: async ({testCommand, ...timeoutOptions}, ctx: ToolContext) => {
       ctx.store.assertCanWrite()
       const started = Date.now()
       await ensureAstFresh(ctx.store, ctx.projectRoot)
       const targetedPaths = testPathsFromCommand(testCommand, ctx.projectRoot)
 
       try {
-        const proc = Bun.spawn(testCommand.split(/\s+/), {
-          cwd: ctx.projectRoot,
-          stdout: 'pipe',
-          stderr: 'pipe'
-        })
-
-        const [stdout, stderr, exitCode] = await Promise.all([
-          new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited
-        ])
-        const durationMs = Date.now() - started
-        const combined = stdout + '\n' + stderr
+        const execution = await runDiagnosticCommand(testCommand.split(/\s+/), 'Diagnose test failures and persist complete TestNode evidence', timeoutOptions, ctx)
+        const {exitCode, durationMs, combined, timedOut, cancelled} = execution
         const graphRun = await recordTestExecution(
           ctx.store,
           ctx.projectRoot,
           testCommand,
-          {passed: exitCode === 0, output: combined, exitCode, durationMs},
+          {passed: execution.success, output: combined, exitCode: exitCode ?? undefined, durationMs},
         )
 
-        if (exitCode === 0) {
+        if (execution.success) {
           return {
             passed: true,
             failingCount: 0,
@@ -138,7 +160,7 @@ export function registerTestTools() {
         }
 
         return {
-          passed: false,
+          passed: false, timedOut, cancelled, error: execution.error,
           failingCount: failureLines.length || 1,
           failures: failureLines.slice(0, 5),
           failedTestFiles: graphRun.testFiles.length > 0 ? graphRun.testFiles : targetedPaths,
@@ -146,18 +168,19 @@ export function registerTestTools() {
           likelyCauses: graphRun.graphEvidence.likelyCauses,
           rawSnippet: combined.slice(0, 1500)
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
         const durationMs = Date.now() - started
         const graphRun = await recordTestExecution(
           ctx.store,
           ctx.projectRoot,
           testCommand,
-          {passed: false, output: err.message, durationMs},
+          {passed: false, output: message, durationMs},
         )
         return {
           passed: false,
           failingCount: 1,
-          failures: [{testName: 'Runner error', error: err.message}],
+          failures: [{testName: 'Runner error', error: message}],
           failedTestFiles: graphRun.testFiles.length > 0 ? graphRun.testFiles : targetedPaths,
           graphEvidence: graphRun.graphEvidence,
           likelyCauses: graphRun.graphEvidence.likelyCauses
@@ -172,9 +195,10 @@ export function registerTestTools() {
     category: 'test',
     parameters: z.object({
       specPath: z.string().optional().describe('Optional specific spec file or folder to run'),
-      createBugOnFailure: z.boolean().default(false).describe('Report a partial priority-1 Bug on failure; expected behavior requires triage')
+      createBugOnFailure: z.boolean().default(false).describe('Report a partial priority-1 Bug on failure; expected behavior requires triage'),
+      ...diagnosticTimeoutParameters
     }),
-    execute: async ({specPath, createBugOnFailure}, ctx: ToolContext) => {
+    execute: async ({specPath, createBugOnFailure, ...timeoutOptions}, ctx: ToolContext) => {
       ctx.store.assertCanWrite()
       await ensureAstFresh(ctx.store, ctx.projectRoot)
       const cmd = ['bunx', 'playwright', 'test']
@@ -182,25 +206,16 @@ export function registerTestTools() {
       const started = Date.now()
 
       try {
-        const proc = Bun.spawn(cmd, {
-          cwd: ctx.projectRoot,
-          stdout: 'pipe',
-          stderr: 'pipe'
-        })
-
-        const [stdout, stderr, exitCode] = await Promise.all([
-          new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited
-        ])
-        const durationMs = Date.now() - started
-        const combined = stdout + '\n' + stderr
+        const execution = await runDiagnosticCommand(cmd, `Verify Playwright target ${specPath ?? 'test suite'} and persist TestNode evidence`, timeoutOptions, ctx)
+        const {exitCode, durationMs, combined, timedOut, cancelled} = execution
         const graphRun = await recordTestExecution(
           ctx.store,
           ctx.projectRoot,
           cmd,
-          {passed: exitCode === 0, output: combined, exitCode, durationMs},
+          {passed: execution.success, output: combined, exitCode: exitCode ?? undefined, durationMs},
         )
 
-        if (exitCode === 0) {
+        if (execution.success) {
           return {
             passed: true,
             testArtifactsUpdated: graphRun.testFiles.length,
@@ -210,7 +225,7 @@ export function registerTestTools() {
 
         const failureOutput = combined.slice(0, 3000)
         let createdTicketId: string | null = null
-        if (createBugOnFailure) {
+        if (createBugOnFailure && !timedOut && !cancelled && exitCode !== null) {
           const ticket = await ctx.store.upsertEntity<Ticket>(Ticket.dcr, {
             id: `BUG-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
             title: `Playwright regression in ${specPath || 'test suite'}`,
@@ -224,7 +239,7 @@ export function registerTestTools() {
         }
 
         return {
-          passed: false,
+          passed: false, timedOut, cancelled, error: execution.error,
           exitCode,
           failedTestFiles: graphRun.testFiles,
           graphEvidence: graphRun.graphEvidence,
@@ -232,20 +247,21 @@ export function registerTestTools() {
           failureSnippet: failureOutput,
           createdTicketId
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
         const durationMs = Date.now() - started
         const graphRun = await recordTestExecution(
           ctx.store,
           ctx.projectRoot,
           cmd,
-          {passed: false, output: err.message, durationMs},
+          {passed: false, output: message, durationMs},
         )
         return {
           passed: false,
           failedTestFiles: graphRun.testFiles,
           graphEvidence: graphRun.graphEvidence,
           likelyCauses: graphRun.graphEvidence.likelyCauses,
-          error: err.message
+          error: message
         }
       }
     }

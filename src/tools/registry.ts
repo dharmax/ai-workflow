@@ -12,6 +12,8 @@ export interface ToolContext {
   actor?: import('../helpers/actor/engine.ts').WorkflowActor;
   projectRoot: string;
   signal?: AbortSignal;
+  /** Host-owned full attempt evidence, before the public output bounds are applied. */
+  onCommandAttempt?: (attempt: {stdout: string; stderr: string; durationMs: number; timedOut: boolean; exitCode: number | null; terminated: boolean}) => void;
   executionAuthority?: 'read-only' | 'project-write';
   /** Host-owned source permission, independent of project data writes. */
   codeMutationAllowed?: boolean;

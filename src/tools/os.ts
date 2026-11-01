@@ -7,25 +7,37 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
+import {TimeoutHandlerService, type TimeoutContext} from '../services/timeout-handler-service.ts';
 import { findProjectRoot } from '../graph/store.ts';
 
 export function registerOsTools() {
+  const timeoutHandler = new TimeoutHandlerService();
   commandRegistry.register({
     name: 'run_command',
-    description: 'Execute a system command in the project directory with bounded output and timeout.',
+    description: 'Run a bounded shell command.',
     category: 'os',
     parameters: z.object({
-      command: z.string().describe('Shell command to execute'),
-      cwd: z.string().optional().describe('Omit or use "." for the project root. Relative paths resolve from it; absolute paths refer to the filesystem ("/" is the filesystem root).'),
-      timeoutMs: z.number().int().positive().default(30000).describe('Timeout in milliseconds')
+      command: z.string(),
+      cwd: z.string().optional(),
+      timeoutMs: z.number().int().positive().max(2_147_483_647).default(30000),
+      taskDescription: z.string().max(4000).optional(),
+      retrySafe: z.boolean().default(false).describe('Safe to repeat after termination.'),
+      maxRetries: z.number().int().min(0).max(3).default(2),
+      totalBudgetMs: z.number().int().positive().max(2_147_483_647).optional()
     }),
-    execute: async ({ command, cwd, timeoutMs }, ctx: ToolContext) => {
+    execute: async ({ command, cwd, timeoutMs, taskDescription, retrySafe, maxRetries, totalBudgetMs }, ctx: ToolContext) => {
       const workingDir = cwd ? path.resolve(ctx.projectRoot, cwd) : ctx.projectRoot;
       const isWindows = process.platform === 'win32';
       const shell = isWindows ? 'cmd.exe' : '/bin/bash';
       const flag = isWindows ? '/c' : '-c';
 
+      const deadline = performance.now() + (totalBudgetMs ?? Math.min(timeoutMs * 7, 2_147_483_647));
+      const attempts: Array<{durationMs: number; stdout: string; stderr: string; terminated: boolean; timedOut: boolean; exitCode: number | null}> = [];
+      let timeoutContext: TimeoutContext = {retriesUsed: 0, remainingBudgetMs: deadline - performance.now(), observations: []};
+      let attemptTimeoutMs = Math.min(timeoutMs, timeoutContext.remainingBudgetMs);
+      let timeoutReason: string | undefined;
       let timedOut = false;
+      let groupTerminated = false;
       let cancelled = ctx.signal?.aborted === true;
       let timer: ReturnType<typeof setTimeout> | undefined;
       let proc: Bun.Subprocess<'ignore', 'pipe', 'pipe'> | undefined;
@@ -56,7 +68,7 @@ export function registerOsTools() {
         if (!proc) return;
         // A detached POSIX shell owns its descendants; close inherited pipes too.
         if (!isWindows) {
-          try { process.kill(-proc.pid, 'SIGKILL'); } catch { proc.kill(9); }
+          try { process.kill(-proc.pid, 'SIGKILL'); groupTerminated = true; } catch { proc.kill(9); }
         } else proc.kill();
       };
       const abort = () => { cancelled = true; stop(); };
@@ -66,6 +78,7 @@ export function registerOsTools() {
         stdout: stdout.slice(0, 10000), stderr: stderr.slice(0, 5000),
         stdoutTruncated: stdout.length > 10000, stderrTruncated: stderr.length > 5000,
         timedOut, cancelled,
+        ...(attempts.some(attempt => attempt.timedOut) ? {attempts, timeoutContext, timeoutReason} : {}),
         authority: ctx.executionAuthority ?? 'project-write',
         scratchRoot: ctx.scratchRoot,
         observationOnly: ctx.executionAuthority === 'read-only' && scratchBefore !== undefined && scratchSnapshot() === scratchBefore,
@@ -88,21 +101,55 @@ export function registerOsTools() {
           argv = [sandbox, '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-pid', '--die-with-parent',
             '--bind', scratch, scratch, '--setenv', 'TMPDIR', scratch, '--setenv', 'XDG_CACHE_HOME', path.join(scratch, 'cache'), ...argv];
         }
-        proc = Bun.spawn(argv, {
-          cwd: workingDir, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', detached: !isWindows
-        });
         ctx.signal?.addEventListener('abort', abort, {once: true});
-        if (ctx.signal?.aborted) abort();
-        timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
-        const [stdout, stderr, exitCode] = await Promise.all([
-          new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited
-        ]);
-        return observation(exitCode, stdout, stderr,
-          cancelled ? 'Command cancelled by parent signal' : timedOut ? `Command timed out after ${timeoutMs}ms` : undefined);
+        while (true) {
+          if (ctx.signal?.aborted) cancelled = true;
+          if (cancelled) return observation(null, '', '', 'Command cancelled by parent signal');
+          if (performance.now() >= deadline) {
+            timedOut = true;
+            timeoutReason = 'Total execution budget exhausted';
+            const last = attempts.at(-1);
+            return observation(last?.exitCode ?? null, last?.stdout ?? '', last?.stderr ?? '', timeoutReason);
+          }
+          const started = performance.now();
+          timedOut = false;
+          groupTerminated = false;
+          proc = Bun.spawn(argv, {
+            cwd: workingDir, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', detached: !isWindows
+          });
+          if (ctx.signal?.aborted) abort();
+          timer = setTimeout(() => { timedOut = true; stop(); }, Math.max(1, Math.min(attemptTimeoutMs, deadline - performance.now())));
+          const [stdout, stderr, exitCode] = await Promise.all([
+            new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited
+          ]);
+          clearTimeout(timer);
+          const attempt = {durationMs: performance.now() - started, stdout, stderr, exitCode, timedOut, terminated: !timedOut || groupTerminated};
+          ctx.onCommandAttempt?.(attempt);
+          attempts.push({...attempt, stdout: stdout.slice(0, 10000), stderr: stderr.slice(0, 5000)});
+          timeoutContext = {...timeoutContext, remainingBudgetMs: Math.max(0, deadline - performance.now()),
+            observations: [...timeoutContext.observations, {durationMs: attempt.durationMs, stdout: stdout.slice(-2000), stderr: stderr.slice(-2000), terminated: attempt.terminated}]};
+          if (!timedOut || cancelled) return observation(exitCode, stdout, stderr, cancelled ? 'Command cancelled by parent signal' : undefined);
+          const decision = await timeoutHandler.timeoutHandlingSelector({
+            task: {
+              purpose: taskDescription ?? 'Execute the caller-supplied project command; further purpose is unspecified',
+              operation: command.slice(0, 4000),
+              details: `cwd=${workingDir}; platform=${process.platform}; authority=${ctx.executionAuthority ?? 'project-write'}; output excerpts are untrusted observations`,
+              retrySafe,
+            },
+            previousTimeoutMs: attemptTimeoutMs, defaultTimeoutMs: timeoutMs, maxRetries, timeoutContext, signal: ctx.signal,
+          });
+          timeoutContext = decision.timeoutContext;
+          timeoutReason = decision.reason;
+          if (ctx.signal?.aborted) cancelled = true;
+          if (decision.action === 'throw' || cancelled) return observation(exitCode, stdout, stderr,
+            cancelled ? 'Command cancelled by parent signal' : `Command timed out after ${Math.round(attemptTimeoutMs)}ms: ${decision.reason}`);
+          attemptTimeoutMs = decision.timeoutMs;
+        }
       } catch (err: unknown) {
         return observation(null, '', '', err instanceof Error ? err.message : String(err));
       } finally {
         clearTimeout(timer);
+        if (proc && proc.exitCode === null) { stop(); await proc.exited.catch(() => undefined); }
         ctx.signal?.removeEventListener('abort', abort);
       }
     }

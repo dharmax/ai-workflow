@@ -113,8 +113,15 @@ async function runEngineeringCheck(
     fs.rmSync(stderrPath, {force: true})
     const startedAt = Date.now()
     const result = await commandRegistry.execute('run_command', {
-        command: command.map(quoteCheckArgument).join(' ') + ' > ' + quoteCheckArgument(stdoutPath) + ' 2> ' + quoteCheckArgument(stderrPath), timeoutMs: 60000
-    }, {store, projectRoot: store.root, signal, executionAuthority: 'read-only', scratchRoot}) as {
+        command: command.map(quoteCheckArgument).join(' '), timeoutMs: 60000,
+        taskDescription: `Verify Ticket ${ticketId} (artifact ${artifactId}) using ${command.join(' ')}. Read-only project with disposable scratch output; retain every attempt as engineering evidence.`.slice(0, 4000),
+        retrySafe: true, maxRetries: 2, totalBudgetMs: 420000
+    }, {store, projectRoot: store.root, signal, executionAuthority: 'read-only', scratchRoot,
+        onCommandAttempt: ({stdout, stderr}) => {
+            fs.appendFileSync(stdoutPath, stdout)
+            fs.appendFileSync(stderrPath, stderr)
+        }
+    }) as {
         success: boolean; exitCode: number | null; timedOut: boolean; cancelled: boolean; error?: string; stderr: string
     }
     if (result.cancelled) signal?.throwIfAborted()
