@@ -224,10 +224,11 @@ export async function reviewPublicProductChange(input:Parameters<typeof reviewPr
  if(input.request.action!=='product_change'){
   if(input.decision==='reject'||input.decision==='cancel')return {status:'cancelled'};
   if(!input.allowDirtyTargets?.length)return commandRegistry.execute('apply_change',input,ctx);
-  if(!confirm)return {status:'needs_input',error:'Dirty targets require trusted host review; client paths cannot authorize edits.'};
   const preview=await commandRegistry.execute('preview_change',{...input.request,ticketId:input.ticketId,agentId:input.agentId,allowDirtyTargets:input.allowDirtyTargets},ctx);
   if(preview.blocked)throw Error(preview.blockReason??'Source preview blocked.');
   if(preview.fingerprint!==input.fingerprint)throw Error('Stale preview; reload and review.');
+  if(!preview.dirtyTargetApprovalRequired)return commandRegistry.execute('apply_change',input,ctx);
+  if(!confirm)return {status:'needs_input',error:'Dirty targets require trusted host review; client paths cannot authorize edits.'};
   if(!await confirm(preview))return {status:'cancelled'};
   return ctx.store.withExecutionContext(ctx.executionAuthority??'read-only',ctx.signal,()=>commandRegistry.execute('apply_change',input,ctx),input.fingerprint);
  }

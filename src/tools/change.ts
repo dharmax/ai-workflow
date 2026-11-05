@@ -21,6 +21,11 @@ export const DirtyTargetsSchema = z.array(z.string().min(1)).max(256).optional()
 const previewOptions = ChangeRequestSchema.options.map(schema => schema.extend({ticketId: z.string().min(1).optional(), agentId: z.string().min(1).optional(), allowDirtyTargets: DirtyTargetsSchema}).strict());
 
 export function registerChangeTools() {
+  const ownedFiles = (root: string, scope: Awaited<ReturnType<typeof sourceChangeScope>>['scope']) => {
+    const latest = new Map<string, string | null>();
+    for (const effect of scope.effects) for (const [file, hash] of Object.entries(effect.after)) latest.set(file, hash);
+    return new Set([...latest].filter(([file, hash]) => hashFiles(root, [file])[file] === hash).map(([file]) => file));
+  };
   commandRegistry.register({
     name: 'read_workspace_file',
     description: 'Read an existing regular workspace file, up to 64 KiB, without shell execution.',
@@ -57,8 +62,8 @@ export function registerChangeTools() {
       if (allowDirtyTargets?.length && (request.action === 'product_change' || !ticketId || !agentId)) throw Error('Dirty targets require a governed source Ticket and active lease.');
       if (request.action !== 'product_change' && ticketId && agentId && !preview.blocked) {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
-        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets);
-        const owned = new Set(scope.effects.flatMap(effect => Object.keys(effect.after).filter(file => hashFiles(ctx.projectRoot, [file])[file] === effect.after[file])));
+        const owned = ownedFiles(ctx.projectRoot, scope);
+        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets).filter(file => !owned.has(file));
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned, dirtyTargets);
         return {...preview, allowDirtyTargets: dirtyTargets, dirtyTargetApprovalRequired: dirtyTargets.length > 0, fingerprint: sourceChangeFingerprint(preview, scope, dirtyTargets, ticket.claim)};
       }
@@ -97,11 +102,11 @@ export function registerChangeTools() {
         const engine = new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission, ticketLease: {ticketId, claim: ticket.claim!}});
         const preview = await engine.previewChange(request as ChangeRequest);
         if (preview.blocked) throw Error(preview.blockReason ?? 'Source preview blocked.');
-        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets);
+        const owned = ownedFiles(ctx.projectRoot, scope);
+        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets).filter(file => !owned.has(file));
         const expected = sourceChangeFingerprint(preview, scope, dirtyTargets, ticket.claim);
         if (expected !== fingerprint) throw Error('Stale change preview: source, Ticket scope or governance fingerprint changed.');
         if (dirtyTargets.length && !ctx.store.canReviewProduct(fingerprint)) throw Error('Dirty targets require trusted host approval of this exact source preview.');
-        const owned = new Set(scope.effects.flatMap(effect => Object.keys(effect.after).filter(file => hashFiles(ctx.projectRoot, [file])[file] === effect.after[file])));
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned, dirtyTargets);
         await requireStoryTests(ctx.store, ticket);
         await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, scope);

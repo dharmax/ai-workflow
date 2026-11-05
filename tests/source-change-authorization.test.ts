@@ -73,6 +73,21 @@ it('rejects a changed governed scope revision before asking the host again',asyn
  try{await store.saveGovernedScope('EDIT',ticket.claim!,next,{...scope,revision:scope.revision+1});}finally{await store.releaseGovernance(next);}
  await failure(()=>reviewPublicProductChange(input(p.fingerprint),ctx(),async()=>{throw Error('must not review stale revision');}),'Stale');
 });
+it('adopts a reviewed dirty file and reuses its latest recorded effect without another review',async()=>{
+ const first=await preview();
+ expect((await reviewPublicProductChange(input(first.fingerprint),ctx(),async()=>true)).ok).toBe(true);
+ const nextRequest={...request,oldText:'return 2',newText:'return 3'};
+ const next=await commandRegistry.execute('source:change preview',{request:nextRequest,...context},ctx());
+ expect(next.dirtyTargetApprovalRequired).toBe(false);
+ const applied=await reviewPublicProductChange({request:nextRequest,...context,fingerprint:next.fingerprint,decision:'accept'},ctx());
+ expect(applied.ok).toBe(true);
+ expect(fs.readFileSync(path.join(root,'a.ts'),'utf8')).toContain('return 3');
+ expect(fs.readFileSync(path.join(root,'b.ts'),'utf8')).toContain('// unrelated user work');
+ fs.appendFileSync(path.join(root,'a.ts'),'// another user edit\\n');
+ await ensureAstFresh(store,root);
+ const third={...request,oldText:'return 3',newText:'return 4'};
+ await failure(()=>commandRegistry.execute('source:change preview',{request:third,ticketId:'EDIT',agentId:'owner'},ctx()),'Unexpected concurrent source modification');
+});
 it('rejects read-only callers and client-supplied approval fields',async()=>{
  const p=await preview();
  await failure(()=>reviewPublicProductChange(input(p.fingerprint),{...ctx(),executionAuthority:'read-only'},async()=>true),'read-only');
