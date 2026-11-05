@@ -184,7 +184,7 @@ kanban-plugin: board
 - [ ] **TKT-EXT-SURFACE-01**: Compact semantic MCP adapter
   - Summary: [EXT-SURFACE-01] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Suggested priority: P1. Existing owners: src/tools/index.ts, registry.ts, surface.ts, mcp.ts.  Deliver a measured, typed, small default MCP interface representing EXISTING operations (agent/project, artifact, product, flow/ticket, test, source/change, link/rule and knowledge as applicable). Dotted names are flat MCP names; finite action/kind schemas and descriptions provide topic/subtopic meaning. One registry, no duplicate domain logic; legacy compatibility is opt-in and still subject to safety. Start with owner inventory in the Ticket, not a speculative wholesale rewrite.
   - **Priority**: 0
-  - Revision: 10
+  - Revision: 27
 - [ ] **TKT-ACCEPTANCE-CONTEXT-LIMIT**: Qualify the larger independent acceptance context bound
   - Summary: Technical ownership separated from TKT-PRODUCT-CHARTER-FEATURE by developer instruction at master 0f624b5. Owns the already committed src/ticket/verification.ts verifyTicketAcceptance bound increase from 80000 to 128000 characters for the observed 98187-character review. PRODUCT accepted v1; justified technical maintenance under Ticket, Verification and Prime Directive definitions and three active universal Rules v1. Retain source/test relationships and failed live evidence as history. tests/doctrine-enforcement-live.test.ts remains mandatory for this technical source scope, alongside deterministic doctrine-verifier.test.ts. Its explicit OpenRouter requirement needs developer paid-model authorization; no route change or live activation authorized here. No Product Story invented, no test weakening or acceptance bypass. This ownership reconciliation is not independent acceptance of the technical change.
   - **Priority**: 0
@@ -197,10 +197,10 @@ kanban-plugin: board
   - **Priority**: 1
   - Revision: 4
   - Type: Bug / severity: unknown
-- [ ] **TKT-TICKET-LIFECYCLE-INTEGRITY**: Preserve Ticket lifecycle integrity across release recovery and Markdown reconciliation
-  - Summary: Developer-authorized technical lifecycle integrity repair, 2026-10-27. PRODUCT accepted v1; Ticket, Verification and Prime Directive definitions; three universal Rules v1. Audit all 17 existing In Progress/Blocked Tickets without changing their lanes. Repair release, cancellation, resolver recovery and stale Markdown reconciliation in current owners. No sync performance, automatic Done, cleanup scripts or new subsystem.
+- [ ] **TKT-STRUCTURAL-RELOCATION-P1**: Execute approved 22-file structural relocation manifest
+  - Summary: Developer-approved mechanical relocation only, on refactor1. Approved 22 moves: synthesis/{types,context-builder,synthesizer,index}.ts -> helpers/synthesis/; workspace/{client.js,page.ts} -> ui/workspace/; entity-view.ts -> ui/entity-view.ts; actor/{engine.ts,prompts.ts,prompts/actor.txt,prompts/read-only.txt} -> helpers/actor/; config.ts -> services/config-service.ts; model-runtime.ts -> services/model-service.ts; doctor.ts -> services/diagnostics-service.ts; graph/aspect-projections.ts -> services/projection/aspect-projections.ts; graph/projections.ts -> services/projection-service.ts; graph/journal.ts -> services/journal-service.ts; ticket/investigate.ts -> services/investigation-service.ts; graph/{test-proof-types,ticket-state,types,ontology}.ts -> model/. All paths relative to src/. Scope includes required import/export/path corrections in src/, tests/, scripts/agency-gate.ts. No algorithms, API symbols, dependencies, schemas or engine changes. Preserve pre-existing dirty authored snapshot and projections. Run full baseline, focused tests/typecheck each batch, final full regressions/build/public API/restart checks; stop on unexpected differences. Graph semantics/identity migration require explicit verification before proceeding with high-risk model moves.  Execution stopped 2026-10-29 before source mutation. First rename preview src/synthesis/types.ts -> src/helpers/synthesis/types.ts refused: Scope expansion requires input: src/helpers/synthesis/types.ts. Public preview schema does not expose authorizedFiles; existing sourceChangeScope derives authorization from authored graph evidence. No apply attempted and no engine/governance bypass. Lease 7a48019d-1759-4169-8bc1-e5fcf57b8029 released. Baseline at 8b2e165 on refactor1: typecheck exit 0; bun test exit 1, 693 pass / 6 skip / 3 fail, 702 tests across 83 files, 300.37s, 5281 assertions. Failures: dharmax-s2 DW-02 complete S1 content inert processing; dharmax-s2 DW-02 critic-approved proposals inert; ticket-resolution actual Actor edit remains unaccepted without structured proposal. Full output /tmp/aiwf-refactor1-baseline.log. Zero of 22 moves applied; no post-move equivalence/public API/merge verification claimed.
   - **Priority**: 1
-  - Revision: 85
+  - Revision: 69
 - [ ] **TKT-PC1B**: PC1b: normalized commands and reviewed governed links
   - Summary: PC1b: normalized commands and reviewed governed links. Complete shared Commander help and public Product, Ticket, Config, review and Story-test operations while preserving specialist ownership and shell parity. Independent full acceptance remains required.
   - **Priority**: 2
@@ -212,40 +212,10 @@ kanban-plugin: board
 
 ## In Progress
 
-- [/] **TKT-LSP-LIFECYCLE-01**: Fix demonstrated LSP request lifecycle and stale preview latency
-  - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
-  - **Priority**: 0
-  - Revision: 7
-- [/] **TKT-9Z2Z**: Refresh default model map from llm-utils advice snapshot
-  - Summary: Developer authorizes completion/integration on current master eeaf9e6 of divergent unfinished-radar-fix f937651, 2026-10-22. Reuse installed @dharmax/llm-utils advice/router; remove redundant native Radar only safely. Accepted Model Advice episode: Developer/AI engineering caller has existing model overrides, routing and possibly a valid advice snapshot. Inspect model/routing through CLI/Shell/diagnostics and explicitly refresh advice. Existing developer model and task overrides stay authoritative; valid advice is consumable; refresh success saves native advice and failed refresh preserves existing usable routing. No hidden refresh, paid research or model pulls, nor unexpected config mutation. Actor routing and observed model reports must agree. Inspect complete touched owners for KISS; no replacement Radar or speculative benchmarks. PRODUCT accepted v1, three active universal Rules v1; this integration fulfills charter engineering quality, reuse, efficiency and truthful proof. Historical TKT-RADAR1 stays Done. Tests at tests/model-advice-story.test.ts exercise real public CLI/Shell/Actor/refresh boundaries with controlled external provider transport. Source targets: src/actor/engine.ts, src/actor/radar.ts, src/config.ts, src/doctor.ts, src/model-command.ts, src/model-runtime.ts, src/ticket/verification.ts, src/tools/index.ts, tests/config.test.ts, tests/model-advice-story.test.ts, tests/radar.test.ts. No stale branch graph/projection snapshots. No Stage 1 provider authorization reused for Radar.  Current developer-authorized continuation (2026-10-25): explicit Radar research to populate a critic recommendation. Its 60-second request timed out; increase the existing research timeout to 180 seconds and rerun through the same native advice owner. Preserve configured routes until valid advice returns; no model pulls or paid research. Technical provider qualification continuation: the Radar-recommended installed critic also hit the existing 60-second review timeout. Developer explicitly authorized extending timeouts after they fire. Extend the shared Critic request timeout to 180 seconds in src/artifact-critic.ts, without changing reviewer schemas, Product authority, verdicts or the separate unaccepted Reviewer Reliability Story. Validate this bounded maintenance with existing public Model Advice and reviewer contract regressions. tests/model-advice-story.test.ts is the existing regression target.
-  - **Priority**: 0
-  - Revision: 41
-- [/] **TKT-CORE-LIFECYCLE-01**: Make native investigation and resolution self-contained
-  - Summary: Implement the developer-authorized core lifecycle corrections in investigate, prepare and resolve, with public-path regression tests. Settled design 3.3-3.4; preserve safety and independent acceptance. Technical maintenance under accepted PRODUCT revision 1; no new product definitions.
-  - **Priority**: 0
-  - Revision: 41
-- [/] **TKT-GRAPH-ISSUE-6**: Complete Issue 6 structural Graph integration and restore runtime correctness
-  - Summary: Complete https://github.com/dharmax/ai-workflow/issues/6 per developer mission: audit and correct Graph integration, restore runtime suite, preserve authored anchors and authority, demonstrate real multi-file field-contract migration with exact and textual discovery, guarded changes and independent verification. Historical remote implementation notes are untrusted.
-  - **Priority**: 0
-  - Revision: 106
-  - Claim: leased by @codex-graph-acceptance until 2026-10-27T08:12:58.647Z
-- [/] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
-  - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
-  - **Priority**: 1
-  - Revision: 20
-- [/] **TKT-SYNTHESIS-ELIGIBILITY**: Unify grounded authorized source synthesis eligibility
-  - Summary: Unify source synthesis eligibility in the existing context builder and Ticket implementation. Optional discoveries are navigation context only. Preserve the grounded simple-fix fast path and bounded Actor fallback. Regressions exercise actual resolution; review full methods and callers; focused/typecheck/proportionate aggregate checks; commit and push correction on master. No Story acceptance or implementation.
-  - **Priority**: 1
-  - Revision: 28
 - [/] **TKT-REVIEWER-RELIABILITY**: Select and qualify independent reviewers within developer spending policy
   - Summary: Implement the developer-approved Reviewer Reliability Story using existing Radar, llm-utils routing, verifier and configuration owners. One public acceptance test first; actual baseline. Preserve mandatory Rules/citations, one targeted correction, observed qualification, approved paid provider/task policy and cumulative operation ceiling. Current definition review has a charter warning pending developer clarification. BASIC #2 stays closed; #3 and Consult excluded.  Current developer-authorized continuation (2026-10-25): repeated charter-alignment Critic calls hit the 60-second timeout. Increase only the existing review request timeout to 180 seconds; preserve review schemas, findings, authority and configured route. The developer separately authorized replacing the critic route with valid Radar advice.
   - **Priority**: 2
   - Revision: 154
-- [/] **BUG-NUMERIC-PRIORITY**: Enforce canonical numeric priorities across AIWF
-  - Summary: Replace legacy P0-P3 priorities with the agreed integer 0-5 contract across canonical storage, CLI, Workspace, MCP, scheduling and validation. Default: 2. Lower means higher priority. Bug severity remains independent.
-  - **Priority**: 2
-  - Revision: 32
-  - Type: Bug / severity: unknown
 
 ## Done
 
@@ -489,6 +459,34 @@ kanban-plugin: board
   - Summary: Iteration 1 pristine aggregate failure: resolveRuleReference failed in TsLspClient.getDocumentSymbols because its finally block dereferenced this.connection after concurrent close had nulled it. Preserve one connection per in-flight request and make didClose best-effort when teardown wins. Add a deterministic real JSON-RPC regression with a stalled documentSymbol request, then rerun pristine serialized aggregate.
   - **Priority**: 0
   - Revision: 10
+- [ ] **TKT-LSP-LIFECYCLE-01**: Fix demonstrated LSP request lifecycle and stale preview latency
+  - Summary: Bounded developer-authorized maintenance for Bun 1.4.3 LSP timeouts in change-bridge, change-engine and doctrine-verifier. Preserve stale edit refusal, exact missing-declaration proof and cross-process fingerprint validation. Diagnosis and current execution evidence: docs/lsp-lifecycle-2026-10-20.md. Keep independent acceptance distinct from technical checks.
+  - **Priority**: 0
+  - Revision: 13
+- [ ] **TKT-9Z2Z**: Refresh default model map from llm-utils advice snapshot
+  - Summary: Developer authorizes completion/integration on current master eeaf9e6 of divergent unfinished-radar-fix f937651, 2026-10-22. Reuse installed @dharmax/llm-utils advice/router; remove redundant native Radar only safely. Accepted Model Advice episode: Developer/AI engineering caller has existing model overrides, routing and possibly a valid advice snapshot. Inspect model/routing through CLI/Shell/diagnostics and explicitly refresh advice. Existing developer model and task overrides stay authoritative; valid advice is consumable; refresh success saves native advice and failed refresh preserves existing usable routing. No hidden refresh, paid research or model pulls, nor unexpected config mutation. Actor routing and observed model reports must agree. Inspect complete touched owners for KISS; no replacement Radar or speculative benchmarks. PRODUCT accepted v1, three active universal Rules v1; this integration fulfills charter engineering quality, reuse, efficiency and truthful proof. Historical TKT-RADAR1 stays Done. Tests at tests/model-advice-story.test.ts exercise real public CLI/Shell/Actor/refresh boundaries with controlled external provider transport. Source targets: src/actor/engine.ts, src/actor/radar.ts, src/config.ts, src/doctor.ts, src/model-command.ts, src/model-runtime.ts, src/ticket/verification.ts, src/tools/index.ts, tests/config.test.ts, tests/model-advice-story.test.ts, tests/radar.test.ts. No stale branch graph/projection snapshots. No Stage 1 provider authorization reused for Radar.  Current developer-authorized continuation (2026-10-25): explicit Radar research to populate a critic recommendation. Its 60-second request timed out; increase the existing research timeout to 180 seconds and rerun through the same native advice owner. Preserve configured routes until valid advice returns; no model pulls or paid research. Technical provider qualification continuation: the Radar-recommended installed critic also hit the existing 60-second review timeout. Developer explicitly authorized extending timeouts after they fire. Extend the shared Critic request timeout to 180 seconds in src/artifact-critic.ts, without changing reviewer schemas, Product authority, verdicts or the separate unaccepted Reviewer Reliability Story. Validate this bounded maintenance with existing public Model Advice and reviewer contract regressions. tests/model-advice-story.test.ts is the existing regression target.
+  - **Priority**: 0
+  - Revision: 44
+- [ ] **TKT-CORE-LIFECYCLE-01**: Make native investigation and resolution self-contained
+  - Summary: Implement the developer-authorized core lifecycle corrections in investigate, prepare and resolve, with public-path regression tests. Settled design 3.3-3.4; preserve safety and independent acceptance. Technical maintenance under accepted PRODUCT revision 1; no new product definitions.
+  - **Priority**: 0
+  - Revision: 44
+- [ ] **TKT-GRAPH-ISSUE-6**: Complete Issue 6 structural Graph integration and restore runtime correctness
+  - Summary: Complete https://github.com/dharmax/ai-workflow/issues/6 per developer mission: audit and correct Graph integration, restore runtime suite, preserve authored anchors and authority, demonstrate real multi-file field-contract migration with exact and textual discovery, guarded changes and independent verification. Historical remote implementation notes are untrusted.
+  - **Priority**: 0
+  - Revision: 109
+- [ ] **TKT-EVIDENCE-FIRST-VERIFICATION**: Complete proven Tickets from current adequate evidence without mandatory AI approval
+  - Summary: Developer-authorized canonical evidence-first verifier correction, verification-only reconciliation of seven named Tickets, focused regressions, full deterministic suite, typecheck/build and master publication. Reuse reviewed proof, schemas, receipts and atomic completion; retain all mandatory obligations, freshness, source consistency and leases. Semantic review only for obligations not established by current adequate independent evidence.
+  - **Priority**: 0
+  - Revision: 67
+- [ ] **TKT-INVESTIGATION-COHESION**: Refactor investigation service into focused cohesive operations
+  - Summary: Developer explicitly requests whole-file Prime Directive refactor of src/services/investigation-service.ts. Split monolithic investigation into clear-responsibility functions, preserve public behavior, evidence, read-only semantics and readiness contracts; verify focused regressions and aggregate with the authorized evidence-first correction.
+  - **Priority**: 0
+  - Revision: 16
+- [ ] **TKT-HUMAN-MACHINE-OUTPUT**: Unify progressive human output and complete machine JSON
+  - Summary: Implement the developer-provided Canonical Human and Machine Output Contract at existing CLI/Shell presentation boundaries. Default human output, brief/verbose/exhaustive levels, applicable sections and explicit complete full-json; preserve necessary json alias compatibility, canonical domain DTOs, MCP/REST semantics, editing and access constraints. Reuse ViewRequest and canonical command descriptors; no formatter framework or duplicate models. Representative public regressions, full deterministic suite, typecheck/build and safe master publication.
+  - **Priority**: 0
+  - Revision: 54
 - [ ] **TKT-DOCTRINE-G5-RELEASE**: Gate 5: Release Audit & Whole-Method Prime Directive Review
   - Summary: Execute full regression test suite, typecheck, build, DB migration tests, and live configured end-to-end acceptance journey. Perform am-i-allowed whole-method audit across all touched code.  Additional Prime Directive Audit requirement: review actual methods, callers, dependencies and failure paths; identify demonstrated root causes; repair substantive defects without speculative or unrelated refactoring. Passing tests alone does not establish design acceptance. Unresolved structural redesign keeps Gate 5 open.
   - **Priority**: 1
@@ -497,10 +495,26 @@ kanban-plugin: board
   - Summary: Current native Ticket schema has no typed Bug or Bug lane; next-task selection guesses from bug/fix title substrings. Establish the smallest canonical explicit classification and supported CLI/shell/graph behavior, preserving Ticket identities, reproduction, history and governance. No separate Bug database or generic feature conversion.
   - **Priority**: 1
   - Revision: 10
+- [ ] **TKT-EXT-SURFACE-07**: Source navigation and governed change façade
+  - Summary: [EXT-SURFACE-07] Seed path: plans/AIWF-EXTERNAL-SURFACE-ISSUE-SEED.md Kind: task. Priority: P1. Existing owners: graph queries, TS/LSP source slices, blast radius and Causal Change Engine.  Expose existing find/outline/source/callers/references/dependency/blast and preview/apply as useful file/symbol semantics. Preserve exact targets, fingerprint, scope and source edit governance. Do not promise extract/inline or high-level improvement algorithms in this slice.
+  - **Priority**: 1
+  - Revision: 23
 - [ ] **TKT-LIFECYCLE-STATE**: Unify Ticket state and derive Story effective state
   - Summary: Developer-authorized Ticket lane unification and read-only Story effective state; preserve independent completion and historical evidence; close incomplete Story bypass. Developer continuation 2026-10-27: repair claim/release/resolution/cancellation/recovery and stale Markdown lifecycle reconciliation through existing canonical owners. Retain the already-prepared guarded patch and real CLI/MCP regressions; investigate and complete any remaining work through resolve_ticket, then independently verify. No bulk Ticket cleanup, automatic Done, sync/export performance, duplicate implementation subsystem or unrelated repairs. Existing TKT-TICKET-LIFECYCLE-INTEGRITY is an overlapping audit/work record; preserve its evidence pending developer disposition. Developer mission: make resolve_ticket ownership and all exit outcomes reliable; reproduce SDK cancellation and actual configured Actor tool calls, repair demonstrated owners through governed changes, then retry native public resolution. No autonomous success claim without real model/tool/source/test/independent acceptance evidence.
   - **Priority**: 1
-  - Revision: 269
+  - Revision: 328
+- [ ] **TKT-SYNTHESIS-ELIGIBILITY**: Unify grounded authorized source synthesis eligibility
+  - Summary: Unify source synthesis eligibility in the existing context builder and Ticket implementation. Optional discoveries are navigation context only. Preserve the grounded simple-fix fast path and bounded Actor fallback. Regressions exercise actual resolution; review full methods and callers; focused/typecheck/proportionate aggregate checks; commit and push correction on master. No Story acceptance or implementation.
+  - **Priority**: 1
+  - Revision: 31
+- [ ] **TKT-LSP-MOVE-RECOVERY**: Repair external-import file-move cleanup and partial-application reporting
+  - Summary: Developer-authorized 2026-10-29: repair confirmed nested governance admission in derived external-import cleanup using existing mechanisms; public CLI regression; unmistakable post-write partial-application errors. Preserve refactor1 dirty work. Recover existing synthesizer move through supported owners after exact saved-preview reconstruction, then only one additional real CLI move under TKT-STRUCTURAL-RELOCATION-P1. No other relocations, no merge, no store redesign or weakened unrelated protections.
+  - **Priority**: 1
+  - Revision: 24
+- [ ] **TKT-DEBUGGER-ISOLATION**: Fix debugger test isolation and authorized freshness lifetime
+  - Summary: Technical maintenance authorized 2026-10-30: fix deterministic debugger diagnostics and fresh/stale read-only boundaries; verify cancellation/lifetime before fixture close. Targets: tests/debugger.test.ts, src/tools/debugger.ts, src/graph/indexer.ts; src/graph/store.ts only for an actually demonstrated lifetime defect. Current baseline 6 debugger tests pass after graph navigation warmed real index, showing environmental dependency; no invented expected red. Approved charter docs/product-charter.md 2026-10-21; canonical registration/alignment unverified (existing index warning). No Product meaning changes/Story creation. Applicable Prime Directive, Test invariant exception, Ticket lease, host read-only authority. Required focused repeated/independent debugger; fresh read-only positive and stale negative; index concurrency/lifecycle; typecheck/build; full suite once. Commit intended source/tests only on master. Preserve unrelated dirty projections.
+  - **Priority**: 1
+  - Revision: 21
 - [ ] **TKT-BOUNDED-COMPLETION-POLICY**: Distribute bounded completion policy through shared AIWF guidance
   - Summary: Developer-approved instruction maintenance: completion gates do not expand implementation authority. Publish only the requested work when instructed, preserve truthful acceptance states, and defer out-of-scope blockers. Put the policy in shared AIWF guidance and its existing MCP, installed-skill and native Actor consumers. No new reviewer gate, retry loop or governance subsystem.
   - **Priority**: 2
@@ -509,9 +523,42 @@ kanban-plugin: board
   - Summary: Design only, at developer request. Inspect existing execution, budgeting, delegation, retry, recovery and persistence owners. Propose one minimal shared execution-budget mechanism across all AIWF-controlled autonomous workflows, with terminal outcomes and durable reporting independent of Ticket lifespan. Prepare proposed Product charter and staged-plan amendments for design review. Do not implement runtime behavior, apply Product acceptance, run paid inference, advance stages or change unrelated work.
   - **Priority**: 2
   - Revision: 15
+- [ ] **BUG-NUMERIC-PRIORITY**: Enforce canonical numeric priorities across AIWF
+  - Summary: Replace legacy P0-P3 priorities with the agreed integer 0-5 contract across canonical storage, CLI, Workspace, MCP, scheduling and validation. Default: 2. Lower means higher priority. Bug severity remains independent.
+  - **Priority**: 2
+  - Revision: 35
+  - Type: Bug / severity: unknown
+- [ ] **TKT-LSP-OPERATION-SCOPE**: Fix operation authorization for LSP refactoring
+  - Summary: Repair assertChangeScope and immediate contracts for authorized LSP rename, move and extract: authorize requested operation, allow LSP-generated effects without separate file authorization. Preserve manual edit scope, workspace/governance boundaries, active leases, dirty/concurrent protection, exact fingerprints/application. Focused positive/negative tests; retry original relocation CLI preview only, no relocations. Technical maintenance per developer request 2026-10-29; PRODUCT v1 accepted; no product definition changes.
+  - **Priority**: 2
+  - Revision: 12
+- [ ] **TKT-SEMANTIC-ARCH-S1**: Classify current architecture and relocate three cohesive facilities
+  - Summary: Developer-authorized technical maintenance, 2026-10-29. Source targets: `src/artifact-critic.ts`, `src/actor-budget-policy.ts`, `src/verification-context.ts`. Move mechanically to services/artifact-critic.ts, helpers/actor/budget-policy.ts, helpers/verification-context.ts after inspecting implementation and callers. Preserve all APIs, behavior, imports and graph references. Record compact classification and later-stage backlog in plans/AIWF-SEMANTIC-ARCHITECTURE.md. No entity decomposition, predicate redesign, RuleStore or WorkflowStore internal edits, prompt asset relocation, new branches or Stage 1 merge. Product PRODUCT accepted revision 1; charter-alignment warnings must remain intact. Direct technical work does not author new product meaning.
+  - **Priority**: 2
+  - Revision: 12
+- [ ] **TKT-SEMANTIC-ARCH-S2**: Decompose model entities while preserving ontology runtime contracts
+  - Summary: Developer-authorized Stage 2C baseline repair on refactor1 after f01a005. Diagnose two inert Product snapshot failures in tests/dharmax-s2.test.ts and one Actor unstructured-final call-count failure in tests/ticket-resolution.test.ts. Establish exact SQLite discrepancy, inactive index admissions and existing concurrent index behavior. Trace actual Actor purposes and bounded schema correction. Apply smallest justified corrections without weakening authored Product/graph/governance invariants, target selection, source isolation, verification or bounded execution. Update plans/AIWF-SEMANTIC-ARCHITECTURE.md; focused tests, typecheck/build, full suite once; commit scoped fixes. No architectural refactor, merge or Stage 3. Product PRODUCT accepted revision 1; no applicable Aspects; preserve historical warnings, dirty projections and existing acceptance boundaries.
+  - **Priority**: 2
+  - Revision: 46
+- [ ] **TKT-SIMPLIFY-MODES**: Remove relationship classifications and Actor modes; preserve independent authority and native routing
+  - Summary: Implement developer-approved simplification on local master: remove relationship H/O/L classifications and Actor design/dev/triage/product modes. Reuse native System-1/llm-utils workload/model selection; intelligence automatic/normal/high/critical affects routing only. Keep code mutation explicitly host-controlled, independent of non-code project writes. Remove dead consumers/config/tests/docs; preserve integrity, concurrency, current verification and legacy data compatibility. Verify deterministic public boundaries and full suite/typecheck/build, then commit and push master. Preserve pre-existing dirty projections.
+  - **Priority**: 2
+  - Revision: 52
+- [ ] **TKT-INTELLIGENT-TIMEOUT**: Bound intelligent timeout recovery at the existing command executor
+  - Summary: Developer request 2026-11-01: implement TimeoutHandlerService.timeoutHandlingSelector with injectable llm-utils System-1, bounded categorical choices and deterministic fallback. Reuse run_command execution owner for Ticket checks and diagnostic tests. Preserve cancellation, sandbox authority, unsafe repetition prevention, full test evidence and confirmed process termination. Technical maintenance grounded in PRODUCT v1; no new product definitions or stage advancement. Verify fake intelligence cases, three integrations, full deterministic suite, typecheck, pack; commit and fast-forward push only scoped source/tests.
+  - **Priority**: 2
+  - Revision: 29
+- [ ] **TKT-PROPORTIONAL-VERIFICATION**: Verify bounded engineering obligations with proportionate current proof
+  - Summary: Correct existing Ticket verification in src/ticket/verification.ts and src/ticket/resolve.ts, requirement context in src/services/investigation-evidence.ts, and immediate receipt and test-selection contracts in src/ticket-operation-types.ts and src/graph/test-artifacts.ts. Extend tests/evidence-first-verification.test.ts first. Select meaningful checks from approved obligations and affected scope; reuse current proof; return precise missing evidence; separate unrelated release readiness. Preserve authority, freshness, independent acceptance and atomic closure. Developer-authorized scope and regression cases are specified in the current mission.
+  - **Priority**: 2
+  - Revision: 44
 
 ## Cancelled
 
+- [ ] **TKT-TICKET-LIFECYCLE-INTEGRITY**: Preserve Ticket lifecycle integrity across release recovery and Markdown reconciliation
+  - Summary: Developer-authorized technical lifecycle integrity repair, 2026-10-27. PRODUCT accepted v1; Ticket, Verification and Prime Directive definitions; three universal Rules v1. Audit all 17 existing In Progress/Blocked Tickets without changing their lanes. Repair release, cancellation, resolver recovery and stale Markdown reconciliation in current owners. No sync performance, automatic Done, cleanup scripts or new subsystem.
+  - **Priority**: 1
+  - Revision: 86
 - [ ] **TKT-OH7Y**: Rejected duplicate of TKT-DOGFOOD-CODE-MUTATOR
   - Summary: Reconciled duplicate registration. Canonical actionable milestone is TKT-DOGFOOD-CODE-MUTATOR; its established R3 dependency/history are preserved. This record is rejected, not verified implementation.  Original request preserved: a Backlog ticket: `TKT-DOGFOOD-CODE-MUTATOR`  **Title:** Rename Causal Change Engine → CodeMutator (AIWF dogfooding)  **Description:** Refactor the existing Causal Change Engine into a simpler, more explicit CodeMutator architecture.  - Preferred location: `src/services/code-mutator/code-mutator.ts` - Preferred class: `CodeMutator` - First inspect actual responsibilities, particularly Product mutations. Introduce `ProductMutator` only if justified by a genuine responsibility boundary. - Eliminate obsolete names and transitional abstractions rather than introducing compatibility wrappers. - Preserve behavior, contracts and test coverage. - Perform the refactoring using AIWF's own workflow as a dogfooding exercise.  **Dependency:** R3 / Doctrine Enforcement completion.  Before creating, search the canonical DB, including inactive/archived tickets, for an existing equivalent. Recover it if present; do not duplicate it.  Persist the ticket in the canonical DB, synchronize Kanban and verify it survives a fresh invocation.  **Planning only. Do not implement the refactoring yet.**
   - **Priority**: 2
