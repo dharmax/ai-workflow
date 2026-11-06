@@ -166,6 +166,10 @@ kanban-plugin: board
   - Summary: Provide a small set of intent-aware Git operations for grounded commits, authorized publication, prudent branching/merging and safe cleanup. Reuse Git, Ticket/Story state, verification evidence, existing authorization and src/tools/git.ts. Default to the primary branch under repository policy; use isolation when justified. Tag only significant verified milestones. Preserve unrelated and concurrent work. No parallel Git model, state machine, policy engine or infrastructure. Backlog registration only; implement later using Dharmax-way/Test First, after the Ticket.body/Semantika journal correction.
   - **Priority**: 2
   - Revision: 4
+- [ ] **TKT-VERIFIER-CHOICE**: Select a required verifier per Ticket
+  - Summary: Future capability: allow a Ticket to require human, normal AI, or high AI verification. Normal AI is the default; basic AI and normal AI are the same mode. Define and review actual human and high-AI behavior, routing, authorization, and acceptance before implementation. Preserve proportionate evidence-based verification and paid-inference controls.
+  - **Priority**: 2
+  - Revision: 2
 - [ ] **PI-ADV-EPIC**: PI-ADV-EPIC: Epic shared context and effective US inheritance
   - Summary: Developer-approved deferred advanced Product Intent registration, 2026-10-22. This is future design/implementation work, not a prerequisite for finishing the basic Product Intent hierarchy. No implementation or acceptance is claimed by registration. Mandatory current charter alignment and explicit developer approval apply to all proposed/revised Product definitions. Preserve existing identities, history, relationships and evidence; genuine unchanged public-interface acceptance tests and independent current verification are required for future completion. Reuse existing canonical owners, not a replacement subsystem.  PI-ADV-EPIC — At most one designated primary Epic per US. That Epic may supply common Initial State, portions of Expected Result, Domains and Comments. Other Epic relationships confer no inheritance. Actor, Intent and Action remain US-specific. Acceptance and test derivation use the complete effective US. Preserve as undecided: mandatory/default Epic assignment, exact composition, precedence and editing rules for overlapping/conflicting text. Comments as half-formal LLM input versus authoritative requirements, Domain taxonomy/tag composition and fine-grained inherited-definition editing remain open questions here; no additional requirement fields or automatic policy invented. Reuse existing ontology, Product mutation/context and versioned graph owners. References: docs/definitions/epic.md, user-story.md, product.md; Dharmax-way design §1 and §2.
   - **Priority**: 3
@@ -192,7 +196,7 @@ kanban-plugin: board
 - [ ] **TKT-PUBLIC-EDIT-DIRTY-AUTH**: Test and resolve explicit dirty-file authorization in public edit tools
   - Summary: Investigate the public preview_change/apply_change path and CLI source change equivalents when a Ticket-scoped target already contains legitimate uncommitted edits. Establish the actual supported contract before changing it. Reuse the existing source-scope/change engine owners and explicit dirty-target authorization; preserve existing edits, lease requirements, file scope, fingerprint checks and governance. Add a genuine public-interface regression first, observe its baseline, then fix only the demonstrated owner gap if needed. Keep this separate from reviewer reliability and verifier refactoring; no new edit engine or authorization subsystem.
   - **Priority**: 1
-  - Revision: 4
+  - Revision: 16
 - [ ] **BUG-STALE-TEST-INDEX**: Deleted tests remain runnable after source reindexing
   - **Priority**: 1
   - Revision: 4
@@ -205,17 +209,22 @@ kanban-plugin: board
   - Summary: PC1b: normalized commands and reviewed governed links. Complete shared Commander help and public Product, Ticket, Config, review and Story-test operations while preserving specialist ownership and shell parity. Independent full acceptance remains required.
   - **Priority**: 2
   - Revision: 16
+- [ ] **TKT-REVIEWER-RELIABILITY**: Verify Tickets reliably with the normal AI route
+  - Summary: Prove and, where necessary, repair the existing normal AI Ticket verification path using current evidence and configured routing. Verification is independent of implementation claims and proportionate to the work. Preserve mandatory Rules, evidence validity, explicit routing and paid-inference authorization. Human and high-AI selection per Ticket are deferred to backlog; no new reviewer mode field or routing framework in this work.
+  - **Priority**: 2
+  - Revision: 164
 - [ ] **BUG-LINKS-PAGINATION**: Links pagination duplicates Semantika infrastructure
   - **Priority**: 2
   - Revision: 4
   - Type: Bug / severity: unknown
+- [ ] **TKT-XQDR**: Report actual Ticket reviewer model in model list
+  - Summary: Report the actual Ticket reviewer selection in public model inspection. Ticket verification uses an explicit verification route or developer-selected default, otherwise llm-utils verification advice and fallback; critic and reasoning routes retain their separate purposes. Preserve existing overrides and cover reviewer qualification and the live Story reviewer override.
+  - **Priority**: 2
+  - Revision: 59
 
 ## In Progress
 
-- [/] **TKT-REVIEWER-RELIABILITY**: Select and qualify independent reviewers within developer spending policy
-  - Summary: Implement the developer-approved Reviewer Reliability Story using existing Radar, llm-utils routing, verifier and configuration owners. One public acceptance test first; actual baseline. Preserve mandatory Rules/citations, one targeted correction, observed qualification, approved paid provider/task policy and cumulative operation ceiling. Current definition review has a charter warning pending developer clarification. BASIC #2 stays closed; #3 and Consult excluded.  Current developer-authorized continuation (2026-10-25): repeated charter-alignment Critic calls hit the 60-second timeout. Increase only the existing review request timeout to 180 seconds; preserve review schemas, findings, authority and configured route. The developer separately authorized replacing the critic route with valid Radar advice.
-  - **Priority**: 2
-  - Revision: 154
+- No items
 
 ## Done
 

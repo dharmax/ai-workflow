@@ -137,7 +137,7 @@
   - [ ] No autonomous repair/housekeeping is implied by a recommendation.
 - **Coverage**: missing_parent, missing_work, missing_verification
 
-## US-REVIEWER-RELIABILITY: Developer obtains reliable independent verification within approved spending
+## US-REVIEWER-RELIABILITY: Developer verifies work using the normal AI route
 - **Status**: `proposed`
 - **Actor**: Developer or delegated coding agent
 - **Story**: 

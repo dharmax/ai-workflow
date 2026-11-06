@@ -6,7 +6,7 @@
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | `root` | project default | 337 | 0 | 0 | None |
 | `src/graph` | project default | 1336 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-LSP-MOVE-RECOVERY, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION |
-| `src/tools` | project default | 3316 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-DEBUGGER-ISOLATION |
+| `src/tools` | project default | 3321 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-DEBUGGER-ISOLATION |
 | `src/actor` | project default | 0 | 0 | 0 | TKT-EXT-SURFACE-07, TKT-STRUCTURAL-RELOCATION-P1 |
 | `src/mcp` | project default | 95 | 0 | 0 | TKT-LIFECYCLE-STATE |
 | `src/shell` | project default | 587 | 0 | 0 | TKT-LIFECYCLE-STATE |
@@ -15,7 +15,7 @@
 | `src/config` | project default | 0 | 0 | 0 | None |
 | `src/doctor` | project default | 0 | 0 | 0 | None |
 | `src/setup` | project default | 305 | 0 | 0 | None |
-| `tests` | project default | 17120 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-LSP-MOVE-RECOVERY, TKT-SEMANTIC-ARCH-S2, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION |
+| `tests` | project default | 17352 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-REVIEWER-RELIABILITY, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-LSP-MOVE-RECOVERY, TKT-SEMANTIC-ARCH-S2, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION, TKT-XQDR |
 | `skills` | project default | 13 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 21 | 0 | 0 | None |
@@ -28,7 +28,7 @@
 | `@external/@dharmax/shell-ui` | project default | 390 | 0 | 0 | None |
 | `src/kb` | project default | 124 | 0 | 0 | None |
 | `docs` | project default | 1182 | 0 | 0 | None |
-| `src/product` | project default | 2378 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE |
+| `src/product` | project default | 2474 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE |
 | `src/change` | project default | 1155 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-GRAPH-ISSUE-6, TKT-LSP-MOVE-RECOVERY |
 | `src/typescript-runtime` | project default | 200 | 0 | 0 | None |
 | `src/artifact-policy` | project default | 126 | 0 | 0 | None |
@@ -51,9 +51,9 @@
 | `src/config-command` | project default | 36 | 0 | 0 | None |
 | `src/setup-command` | project default | 18 | 0 | 0 | None |
 | `src/ticket-command` | project default | 64 | 0 | 0 | TKT-LIFECYCLE-STATE |
-| `src/model-command` | project default | 49 | 0 | 0 | None |
+| `src/model-command` | project default | 49 | 0 | 0 | TKT-XQDR |
 | `src/actor-budget-policy` | project default | 0 | 0 | 0 | None |
-| `src/ticket` | project default | 1146 | 0 | 0 | TKT-ACCEPTANCE-CONTEXT-LIMIT, TKT-REVIEWER-RELIABILITY, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-PROPORTIONAL-VERIFICATION |
+| `src/ticket` | project default | 1146 | 0 | 0 | TKT-ACCEPTANCE-CONTEXT-LIMIT, TKT-REVIEWER-RELIABILITY, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-PROPORTIONAL-VERIFICATION, TKT-XQDR |
 | `src/rules` | project default | 363 | 0 | 0 | None |
 | `src/rule-command` | project default | 12 | 0 | 0 | None |
 | `node_modules` | project default | 79 | 0 | 0 | None |
