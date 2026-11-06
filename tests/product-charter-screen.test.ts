@@ -2,7 +2,8 @@ import {describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type {SystemOne, SystemOneAnswer} from '@dharmax/llm-utils';
+import {LayaSystemOne, type SystemOne, type SystemOneAnswer} from '@dharmax/llm-utils';
+import {CausalChangeEngine} from '../src/change/engine.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {validateProductMutations, assessCharterAlignment, type ProductMutation} from '../src/product/mutation.ts';
 import {screenCharter, clearlyAlignedToCharter} from '../src/product/charter-screen.ts';
@@ -158,7 +159,7 @@ describe('Product charter System-1 clause screening', () => {
     expect(Object.keys(special.judgments)).toEqual(['__proto__']);
   });
 
-  it('is opt-in at the real Product acceptance boundary and never writes a graph', async () => {
+  it('can use an injected System-1 at the Product boundary without writing a graph', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-charter-screen-'));
     const store = new WorkflowStore(root);
     try {
@@ -177,4 +178,43 @@ describe('Product charter System-1 clause screening', () => {
       fs.rmSync(root, {recursive: true, force: true});
     }
   });
+
+  it('automatically uses local System-1 in ordinary preview and approved commit', async () => {
+    // Exercise the public engine without an explicit System-1 argument or a cloud Critic.
+    const originalAssess = LayaSystemOne.prototype.assess;
+    let calls = 0;
+    LayaSystemOne.prototype.assess = async (_state, questions) => {
+      const key = Object.keys(questions)[0]!;
+      calls++;
+      return {backendId: 'laya', quality: 'high', latencyMs: 0,
+        usage: {input_tokens: 160}, answers: {[key]: score(0.98)}};
+    };
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-charter-production-'));
+    const store = new WorkflowStore(root);
+    try {
+      const mutations: ProductMutation[] = [
+        {kind: 'product_create', entityType: 'Product', id: 'PRODUCT',
+          fields: {title: 'Engineering assistant', ...charter, status: 'accepted'}},
+        {kind: 'product_create', entityType: 'Feature', id: 'F',
+          fields: {title: 'Diagnostics', body: 'Help developers diagnose compiler errors', status: 'accepted'}},
+      ];
+      const request = {action: 'product_change' as const, mutations};
+      const engine = new CausalChangeEngine({store, projectRoot: root});
+      const preview = await engine.previewChange(request);
+      expect(preview.blocked).toBe(false);
+      expect(calls).toBeGreaterThan(0);
+      expect(await store.getEntity('F')).toBeNull();
+      const previewCalls = calls;
+      const result = await store.withExecutionContext('project-write', undefined,
+        () => engine.applyChange(request, preview.fingerprint), preview.fingerprint);
+      expect(result.ok).toBe(true);
+      expect(calls).toBeGreaterThan(previewCalls);
+      expect(await store.getEntity('F')).not.toBeNull();
+    } finally {
+      LayaSystemOne.prototype.assess = originalAssess;
+      store.close();
+      fs.rmSync(root, {recursive: true, force: true});
+    }
+  });
+
 });
