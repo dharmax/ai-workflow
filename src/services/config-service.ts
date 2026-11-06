@@ -22,6 +22,7 @@ export interface CloudCredentials {
   anthropicApiKey?: string;
   geminiApiKey?: string;
   openaiApiKey?: string;
+  typesafeApiKey?: string;
 }
 
 export const PaidInferencePolicySchema = z.object({providers:z.array(z.string().min(1)),tasks:z.array(z.string().min(1)),ceilingUSD:z.number().finite().positive()}).strict();
@@ -32,6 +33,8 @@ export interface ProjectConfig {
   defaultAgentId: string;
   defaultLeaseMinutes: number;
   ollamaUrl: string;
+  systemOneUrl?: string;
+  systemOneProvider?: 'laya' | 'jev';
   ollamaContextWindow: number;
   llmOutputTokens: number;
   /** Baseline cumulative token budget for implementation Actor inference during one resolution. */
@@ -79,6 +82,8 @@ export const CONFIG_SETTINGS = {
   defaultAgentId: { schema: z.string().min(1), description: 'Default leasing agent', type: 'string' },
   defaultLeaseMinutes: { schema: positiveInt, description: 'Ticket lease duration in minutes', type: 'number' },
   ollamaUrl: { schema: z.url(), description: 'Ollama server URL', type: 'string' },
+  systemOneUrl: { schema: z.url(), description: 'Remote Laya System-1 server URL', type: 'string' },
+  systemOneProvider: { schema: z.enum(['laya', 'jev']), description: 'Product alignment System-1 provider', type: 'string' },
   ollamaContextWindow: { schema: positiveInt, description: 'Ollama context window', type: 'number' },
   llmOutputTokens: { schema: positiveInt, description: 'Maximum model output tokens', type: 'number' },
   actorTokenBudget: { schema: positiveInt, description: 'Baseline implementation Actor token budget per resolution', type: 'number' },
@@ -205,6 +210,7 @@ export function resolveCloudCredentials(): CloudCredentials {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || credential('anthropicApiKey', 'anthropic'),
     geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || credential('geminiApiKey', 'google'),
     openaiApiKey: process.env.OPENAI_API_KEY || credential('openaiApiKey', 'openai'),
+    typesafeApiKey: process.env.TYPESAFE_API_KEY || credential('typesafeApiKey', 'typesafe'),
   };
 }
 

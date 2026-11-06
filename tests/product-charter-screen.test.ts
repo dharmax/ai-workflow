@@ -2,13 +2,14 @@ import {describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
+import {JevSystemOne, LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
 import {CausalChangeEngine} from '../src/change/engine.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {screenCharter} from '../src/product/charter-screen.ts';
 import type {ProductMutation} from '../src/product/mutation.ts';
 import {initializeTools, commandRegistry} from '../src/tools/index.ts';
 import {reviewProductChange} from '../src/product/links.ts';
+import {saveConfig} from '../src/services/config-service.ts';
 
 const charter = {purpose: 'Help developers', actors: ['Developer'], scope: 'Engineering tools', nonGoals: ['Write poetry', 'Act without approval'], bounds: 'Preserve source'};
 const target = {id: 'F', kind: 'Feature', fields: {title: 'Diagnostics', body: 'Find defects'}};
@@ -85,6 +86,93 @@ describe('Product alignment advice', () => {
     }
   });
 
+  it('uses configured remote Laya for Product previews', async () => {
+    const originalFetch = globalThis.fetch;
+    const oldKey = process.env.TYPESAFE_API_KEY;
+    const oldUrl = process.env.LAYA_URL;
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-remote-laya-'));
+    const store = new WorkflowStore(root);
+    try {
+      delete process.env.TYPESAFE_API_KEY; delete process.env.LAYA_URL;
+      saveConfig(root, {systemOneUrl:'http://laya.test:7890'});
+      let calls = 0;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        expect(String(input)).toBe('http://laya.test:7890/classify'); calls++;
+        const request = JSON.parse(String(init?.body));
+        return Response.json({answers:answers(request.questions), usage:{input_tokens:100}});
+      }) as typeof fetch;
+      const mutations: ProductMutation[] = [
+        {kind:'product_create', entityType:'Product', id:'PRODUCT', fields:{title:'Product', ...charter, status:'accepted'}},
+        {kind:'product_create', entityType:'Feature', id:'F', fields:{...target.fields, status:'accepted'}},
+      ];
+      const preview = await new CausalChangeEngine({store, projectRoot:root}).previewChange({action:'product_change', mutations});
+      expect(preview.blocked).toBe(false); expect(preview.warnings).toEqual([]); expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch=originalFetch;
+      if(oldKey===undefined) delete process.env.TYPESAFE_API_KEY; else process.env.TYPESAFE_API_KEY=oldKey;
+      if(oldUrl===undefined) delete process.env.LAYA_URL; else process.env.LAYA_URL=oldUrl;
+      store.close();fs.rmSync(root,{recursive:true,force:true});
+    }
+  });
+
+  it('uses Jev with the environment credential without a new SDK dependency', async () => {
+    const originalFetch=globalThis.fetch, oldKey=process.env.TYPESAFE_API_KEY;
+    let calls=0;
+    try {
+      process.env.TYPESAFE_API_KEY='fixture-key';
+      globalThis.fetch=(async (input: RequestInfo | URL,init?: RequestInit)=>{
+        expect(String(input)).toBe('https://api.typesafe.ai/v1/systemone');
+        expect((init?.headers as Record<string,string>).Authorization).toBe('Bearer fixture-key');
+        const request=JSON.parse(String(init?.body));calls++;
+        return Response.json({model:'fixture', answers:answers(request.questions)});
+      }) as typeof fetch;
+      const local: SystemOne = {assess:async()=>{throw Error('Jev should handle the full context');}};
+      expect(await screenCharter(charter,[target],local,true)).toEqual([]);
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch=originalFetch;
+      if(oldKey===undefined) delete process.env.TYPESAFE_API_KEY; else process.env.TYPESAFE_API_KEY=oldKey;
+    }
+  });
+
+  it('selects Jev for a configured Product preview', async () => {
+    const originalFetch=globalThis.fetch, oldKey=process.env.TYPESAFE_API_KEY, oldHome=process.env.HOME;
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-jev-preview-'));
+    const home=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-jev-home-'));
+    const store=new WorkflowStore(root);
+    try {
+      delete process.env.TYPESAFE_API_KEY; process.env.HOME=home;
+      fs.mkdirSync(path.join(home,'.ai-workflow'));
+      fs.writeFileSync(path.join(home,'.ai-workflow/config.json'),JSON.stringify({providers:{typesafe:{apiKey:'fixture-key'}}}),{mode:0o600});
+      saveConfig(root,{systemOneProvider:'jev'});
+      let calls=0;
+      globalThis.fetch=(async (input: RequestInfo | URL,init?: RequestInit)=>{
+        calls++;
+        if (String(input)==='http://laya.test:7890/classify') return new Response('',{status:503});
+        expect(String(input)).toBe('https://api.typesafe.ai/v1/systemone');
+        expect((init?.headers as Record<string,string>).Authorization).toBe('Bearer fixture-key');
+        const request=JSON.parse(String(init?.body));
+        return Response.json({model:'fixture',answers:answers(request.questions)});
+      }) as typeof fetch;
+      const mutations: ProductMutation[]=[
+        {kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Product',...charter,status:'accepted'}},
+        {kind:'product_create',entityType:'Feature',id:'F',fields:{...target.fields,status:'accepted'}},
+      ];
+      const engine=new CausalChangeEngine({store,projectRoot:root});
+      const preview=await engine.previewChange({action:'product_change',mutations});
+      expect(preview.blocked).toBe(false);expect(preview.warnings).toEqual([]);expect(calls).toBe(1);
+      saveConfig(root,{systemOneProvider:'laya',systemOneUrl:'http://laya.test:7890'});
+      const fallback=await engine.previewChange({action:'product_change',mutations});
+      expect(fallback.fingerprint).toBe(preview.fingerprint);
+      expect(fallback.blocked).toBe(false);expect(fallback.warnings).toEqual([]);expect(calls).toBe(3);
+    } finally {
+      globalThis.fetch=originalFetch;
+      if(oldKey===undefined) delete process.env.TYPESAFE_API_KEY; else process.env.TYPESAFE_API_KEY=oldKey;
+      if(oldHome===undefined) delete process.env.HOME; else process.env.HOME=oldHome;
+      store.close();fs.rmSync(root,{recursive:true,force:true});fs.rmSync(home,{recursive:true,force:true});
+    }
+  });
+
   it('requires a separate host answer for a Decision recording an advisory warning', async () => {
     const original = LayaSystemOne.prototype.assess;
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-answer-'));
@@ -121,6 +209,32 @@ describe('Product alignment advice', () => {
       LayaSystemOne.prototype.assess = original;
       store.close();
       fs.rmSync(root, {recursive:true, force:true});
+    }
+  });
+
+  it('retries an unavailable assessment for the same proposal', async () => {
+    const original=LayaSystemOne.prototype.assess, originalJev=JevSystemOne.prototype.assess;
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-retry-system1-'));
+    const store=new WorkflowStore(root);let calls=0;
+    try {
+      JevSystemOne.prototype.assess=async()=>null;
+      LayaSystemOne.prototype.assess=async (_state,questions)=>{
+        calls++;
+        return calls===1 ? null : {backendId:'fixture',quality:'high',latencyMs:0,answers:answers(questions)};
+      };
+      const mutations: ProductMutation[]=[
+        {kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Product',...charter,status:'accepted'}},
+        {kind:'product_create',entityType:'Feature',id:'F',fields:{...target.fields,status:'accepted'}},
+      ];
+      const engine=new CausalChangeEngine({store,projectRoot:root});
+      const request={action:'product_change' as const,mutations};
+      const first=await engine.previewChange(request);
+      expect(first.warnings.join(' ')).toContain('unavailable');
+      const second=await engine.previewChange(request);
+      expect(second.fingerprint).toBe(first.fingerprint);expect(second.warnings).toEqual([]);expect(calls).toBe(2);
+    } finally {
+      LayaSystemOne.prototype.assess=original;JevSystemOne.prototype.assess=originalJev;
+      store.close();fs.rmSync(root,{recursive:true,force:true});
     }
   });
 

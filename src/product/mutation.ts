@@ -6,7 +6,8 @@ import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../model/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {screenCharter} from './charter-screen.ts';
-import {LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
+import {LayaSystemOne, RemoteSystemOne, type SystemOne} from '@dharmax/llm-utils';
+import {loadConfig, resolveCloudCredentials} from '../services/config-service.ts';
 import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
@@ -408,9 +409,9 @@ async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMuta
   }
 }
 
-const alignmentCache = new WeakMap<WorkflowStore, {fingerprint: string; warnings: string[]}>();
+const alignmentCache = new WeakMap<WorkflowStore, {fingerprint: string; route: string; systemOne?: SystemOne; warnings: string[]}>();
 
-export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne: SystemOne = new LayaSystemOne()): Promise<string[]> {
+export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne?: SystemOne): Promise<string[]> {
   await assessCharterAnswers(store,mutations,validated,request);
   if (!validated.alignmentTargets.length) return [];
   const product = validated.state.get('PRODUCT');
@@ -428,10 +429,17 @@ export async function assessCharterAlignment(store: WorkflowStore, mutations: Pr
     return {id, kind: entity.kind, fields: entity.fields, context};
   });
   const fingerprint = request && computeHash({request, snapshot: validated.snapshot});
+  const config = loadConfig(store.root);
+  const url = process.env.LAYA_URL || config.systemOneUrl;
+  const preferJev = !systemOne && config.systemOneProvider === 'jev';
+  const key = !systemOne && config.systemOneProvider ? resolveCloudCredentials().typesafeApiKey : undefined;
+  const route = computeHash({provider:config.systemOneProvider, url, credential:key ? computeHash(key) : undefined});
   const cached = alignmentCache.get(store);
-  if (fingerprint && cached?.fingerprint === fingerprint) return cached.warnings;
-  const warnings = await screenCharter(product.fields, targets, systemOne);
-  if (fingerprint) alignmentCache.set(store, {fingerprint, warnings});
+  if (fingerprint && cached?.fingerprint === fingerprint && cached.route === route && cached.systemOne === systemOne) return cached.warnings;
+  const model = systemOne ?? (url ? new RemoteSystemOne({url, id:'laya', timeoutMs:20000}) : new LayaSystemOne());
+  const warnings = await screenCharter(product.fields, targets, model, preferJev, key);
+  if (fingerprint && !warnings.some(warning => warning.includes('System-1 assessment') || warning.includes('System-1 alignment assessment unavailable')))
+    alignmentCache.set(store, {fingerprint, route, systemOne, warnings});
   return warnings;
 }
 
