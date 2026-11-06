@@ -156,7 +156,7 @@ export async function screenCharter(
   }
 }
 
-/** Experimental only: normal Product acceptance still uses its governed reviewer. */
+/** High-confidence screening can establish alignment; uncertain results retain governed reviewer and developer authority. */
 export async function clearlyAlignedToCharter(
   charter: Readonly<Record<string, unknown>>,
   targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>}[],
