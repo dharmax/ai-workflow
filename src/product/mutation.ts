@@ -6,6 +6,8 @@ import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../model/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../services/artifact-critic.ts';
+import {clearlyAlignedToCharter} from './charter-screen.ts';
+import type {SystemOne} from '@dharmax/llm-utils';
 import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
@@ -401,7 +403,7 @@ async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMuta
   }
 }
 
-export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>): Promise<void> {
+export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne?: SystemOne): Promise<void> {
   await assessCharterAnswers(store,mutations,validated,request);
   if (!validated.alignmentTargets.length) return;
   const product = validated.state.get('PRODUCT');
@@ -409,6 +411,13 @@ export async function assessCharterAlignment(store: WorkflowStore, mutations: Pr
     validated.alignmentTargets.map(artifactId => ({artifactId, question: `Review ${artifactId} against the current accepted Product charter and explicitly answer the warning by revising the definition or leaving it unresolved.`})));
   if (!product?.exists || product.fields.status !== 'accepted')
     throw ask(['Feature/UserStory acceptance requires an actual current accepted Product charter (PRODUCT). Register or accept it through the governed Product path.']);
+  if (systemOne) {
+    const targets = validated.alignmentTargets.map(id => {
+      const entity = validated.state.get(id)!;
+      return {id, kind: entity.kind, fields: entity.fields};
+    });
+    if (await clearlyAlignedToCharter(product.fields, targets, systemOne)) return;
+  }
   const criterion = 'Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature or complete UserStory aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised definition must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.';
   let review;
   try {
