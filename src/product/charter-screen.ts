@@ -1,4 +1,4 @@
-import {JevSystemOne, type SystemOne, type SystemOneAnswer, type SystemOneQuestion} from '@dharmax/llm-utils';
+import {JevSystemOne, type SystemOne, type SystemOneAnswer, type SystemOneQuestion, type SystemOneState, type SystemOneValue} from '@dharmax/llm-utils';
 
 const levels = [
   'Clearly violates or falls outside this constraint',
@@ -68,12 +68,21 @@ function judgment(answer: SystemOneAnswer | undefined, backend: string): Adheren
     ? {score: answer.score, probabilities: answer.probabilities, backend} : null;
 }
 
+async function boundedAssessment(model: SystemOne, state: SystemOneState, questions: Record<string, SystemOneQuestion>, signal: AbortSignal) {
+  if (signal.aborted) return null;
+  let abort!: () => void;
+  const timeout = new Promise<null>(resolve => { abort = () => resolve(null); signal.addEventListener('abort', abort, {once: true}); });
+  try { return await Promise.race([model.assess(state, questions), timeout]); }
+  finally { signal.removeEventListener('abort', abort); }
+}
+
 async function assess(
   local: SystemOne,
   remote: SystemOne,
   key: string,
-  state: Record<string, unknown>,
+  state: SystemOneState,
   instructions: string,
+  signal: AbortSignal,
 ): Promise<AdherenceJudgment | null> {
   const questions: Record<string, SystemOneQuestion> = {
     [key]: {type: 'score', instructions, criteria: levels},
@@ -83,7 +92,7 @@ async function assess(
       ? judgment(result.answers[key], backend) : null;
 
   try {
-    const result = await local.assess(state, questions);
+    const result = await boundedAssessment(local, state, questions, AbortSignal.any([signal, AbortSignal.timeout(1000)]));
     const tokens = result?.usage?.input_tokens;
     if (result && typeof tokens === 'number' && Number.isInteger(tokens) &&
         tokens > 0 && tokens < layaLimit) {
@@ -91,8 +100,9 @@ async function assess(
       if (checked) return checked;
     }
   } catch { /* Local unavailable or oversized: try the configured Jev adapter. */ }
+  if (signal.aborted) return null;
   try {
-    return valid(await remote.assess(state, questions), 'jev');
+    return valid(await boundedAssessment(remote, state, questions, signal), 'jev');
   } catch {
     return null;
   }
@@ -108,6 +118,7 @@ export async function screenCharter(
   targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>}[],
   laya?: SystemOne,
   jev: SystemOne = new JevSystemOne(),
+  signal: AbortSignal = AbortSignal.timeout(5000),
 ): Promise<CharterScreen> {
   const judgments: CharterScreen['judgments'] = Object.create(null);
   if (!laya || !targets.length) return {judgments, complete: false};
@@ -118,7 +129,7 @@ export async function screenCharter(
       const definition = Object.fromEntries(Object.entries(target.fields).filter(([key, value]) =>
         !['kind', 'status', 'priority', 'completenessTarget', 'version', 'updatedAt'].includes(key) &&
         value != null && value !== '' && (!Array.isArray(value) || value.length > 0)));
-      const proposed = {kind: target.kind, ...definition};
+      const proposed = JSON.parse(JSON.stringify({kind: target.kind, ...definition})) as Record<string, SystemOneValue>;
       const perTarget: Record<string, AdherenceJudgment> = Object.create(null);
       judgments[target.id] = perTarget;
       for (const key of fields) {
@@ -137,7 +148,7 @@ export async function screenCharter(
             bounds: 'Does the proposal respect this mandatory boundary without material contradiction?',
           }[key];
           const found = await assess(laya, jev, id,
-            {product: {[key]: clause}, proposed}, instructions);
+            {product: {[key]: clause}, proposed}, instructions, signal);
           if (!found) return {judgments, complete: false};
           perTarget[id] = found;
         }
@@ -146,7 +157,7 @@ export async function screenCharter(
       const found = await assess(laya, jev, id, {proposed},
         target.kind === 'UserStory'
           ? 'Is this Story coherent and testable from Actor, Intent, Initial State, Action and Expected Result?'
-          : 'Is this Feature a coherent, sufficiently precise responsibility?');
+          : 'Is this Feature a coherent, sufficiently precise responsibility?', signal);
       if (!found) return {judgments, complete: false};
       perTarget[id] = found;
     }
@@ -156,7 +167,7 @@ export async function screenCharter(
   }
 }
 
-/** High-confidence screening can establish alignment; uncertain results retain governed reviewer and developer authority. */
+/** Diagnostic summary only; the governed reviewer retains authority. */
 export async function clearlyAlignedToCharter(
   charter: Readonly<Record<string, unknown>>,
   targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>}[],

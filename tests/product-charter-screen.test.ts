@@ -134,6 +134,15 @@ describe('Product charter System-1 clause screening', () => {
     expect(failure.complete).toBe(false);
   });
 
+  it('returns an incomplete screen when a backend hangs, without starting further calls', async () => {
+    let remoteCalls = 0;
+    const hung: SystemOne = {assess: () => new Promise(() => {})};
+    const remote: SystemOne = {assess: async () => { remoteCalls++; return null; }};
+    const result = await screenCharter(charter, [target], hung, remote, AbortSignal.timeout(25));
+    expect(result.complete).toBe(false);
+    expect(remoteCalls).toBe(0);
+  });
+
   it('rejects invalid scores, invented answer keys, and partial results', async () => {
     const invalid: SystemOne = {assess: async (_state, questions) => {
       const key = Object.keys(questions)[0]!;
@@ -160,6 +169,9 @@ describe('Product charter System-1 clause screening', () => {
   });
 
   it('can use an injected System-1 at the Product boundary without writing a graph', async () => {
+    const {AiArtifactCritic} = await import('../src/services/artifact-critic.ts');
+    const originalReview = AiArtifactCritic.prototype.review;
+    AiArtifactCritic.prototype.review = async () => ({verdict: 'accept', findings: [], required: [], alignment: {status: 'aligned', explanation: 'Aligned', observations: [], conflicts: []}});
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-charter-screen-'));
     const store = new WorkflowStore(root);
     try {
@@ -174,6 +186,7 @@ describe('Product charter System-1 clause screening', () => {
         {action: 'product_change', mutations}, model());
       expect(await store.getEntity('F')).toBeNull();
     } finally {
+      AiArtifactCritic.prototype.review = originalReview;
       store.close();
       fs.rmSync(root, {recursive: true, force: true});
     }
@@ -181,6 +194,16 @@ describe('Product charter System-1 clause screening', () => {
 
   it('automatically uses local System-1 in ordinary preview and approved commit', async () => {
     // Exercise the public engine without an explicit System-1 argument or a cloud Critic.
+    const {AiArtifactCritic} = await import("../src/services/artifact-critic.ts");
+    const originalReview = AiArtifactCritic.prototype.review;
+    let reviewCalls = 0;
+    let rejectOn = 0;
+    AiArtifactCritic.prototype.review = async () => {
+      reviewCalls++;
+      return reviewCalls === rejectOn
+        ? {verdict: 'needs_input', findings: [], required: [{artifactId: 'F', question: 'Resolve the conflict'}], alignment: {status: 'uncertain', explanation: 'Uncertain', observations: [], conflicts: []}}
+        : {verdict: 'accept', findings: [], required: [], alignment: {status: 'aligned', explanation: 'Aligned', observations: [], conflicts: []}};
+    };
     const originalAssess = LayaSystemOne.prototype.assess;
     let calls = 0;
     LayaSystemOne.prototype.assess = async (_state, questions) => {
@@ -203,15 +226,26 @@ describe('Product charter System-1 clause screening', () => {
       const preview = await engine.previewChange(request);
       expect(preview.blocked).toBe(false);
       expect(calls).toBeGreaterThan(0);
+      expect(reviewCalls).toBeGreaterThan(0);
       expect(await store.getEntity('F')).toBeNull();
+      rejectOn = reviewCalls + 2; // Recomputed preview accepts; commit review refuses.
+      const rejected = await store.withExecutionContext('project-write', undefined,
+        () => engine.applyChange(request, preview.fingerprint), preview.fingerprint);
+      expect(rejected.ok).toBe(false);
+      expect(rejected.status).toBe('needs_input');
+      expect(await store.getEntity('F')).toBeNull();
+      rejectOn = 0;
       const previewCalls = calls;
+      const previewReviews = reviewCalls;
       const result = await store.withExecutionContext('project-write', undefined,
         () => engine.applyChange(request, preview.fingerprint), preview.fingerprint);
       expect(result.ok).toBe(true);
       expect(calls).toBeGreaterThan(previewCalls);
+      expect(reviewCalls).toBeGreaterThan(previewReviews);
       expect(await store.getEntity('F')).not.toBeNull();
     } finally {
       LayaSystemOne.prototype.assess = originalAssess;
+      AiArtifactCritic.prototype.review = originalReview;
       store.close();
       fs.rmSync(root, {recursive: true, force: true});
     }
