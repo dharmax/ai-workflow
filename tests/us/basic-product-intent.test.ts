@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
-import {saveConfig} from '../../src/services/config-service.ts';
+import {LayaSystemOne} from '@dharmax/llm-utils';
 import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
 import type {ChangeRequest} from '../../src/change/types.ts';
@@ -12,15 +12,13 @@ import type {ChangeRequest} from '../../src/change/types.ts';
 type Request=Extract<ChangeRequest,{action:'product_change'}>;
 const recorded=JSON.parse(fs.readFileSync(new URL('../../docs/evidence/product-charter-feature-o3-2026-10-22/evidence.json',import.meta.url),'utf8'));
 const aligned=recorded.cases[0];
-const {parseStructuredJsonResult}=await import('@dharmax/llm-utils');
-const parsed=parseStructuredJsonResult<{criteria:Array<{evidence:string}>,review:{verdict:string,findings:Array<{artifactId:string,message:string}>}}>(JSON.parse(aligned.transport[0].rawResponse).choices[0].message.content);
-if(!parsed.ok)throw Error(parsed.message);
-const originalResponse=parsed.data;
 const storyFields={title:'Inspect a repository defect',actor:'Developer',intent:'Locate the cause of a failing repository test to decide a repair',initialState:'A repository has an existing failing test and indexed source; no diagnosis is accepted',action:'Submit the failing test and request diagnosis',expectedResult:'Return the failing test, exact implicated source references and a proposed causal explanation for developer review. Preserve source and accepted definitions. If evidence is insufficient, report the missing evidence and leave the diagnosis unresolved.'};
-const warning='PRODUCT excludes general-purpose content generation; US proposes poems unrelated to software engineering. Revise US to repository diagnosis or defer it.';
+
 
 describe('Basic Product Intent: developer reviews Charter, Feature and complete Story',()=>{
- let root:string,store:WorkflowStore,server:ReturnType<typeof Bun.serve>,previousHost:string|undefined;
+ let root:string,store:WorkflowStore;
+ const originalAssess = LayaSystemOne.prototype.assess;
+ let warning:string;
  let mode:'aligned'|'conflict'|'unknown'|'missing'|'malformed'|'contradictory'|'raw'|'external-conflict'='aligned';
  let prompts:string[];
  const ctx=()=>({store,projectRoot:root,executionAuthority:'project-write' as const});
@@ -32,39 +30,29 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
  const story=(fields=storyFields):Request=>({action:'product_change',mutations:[{kind:'product_create',entityType:'UserStory',id:'US',fields:{...fields,status:'accepted'}},{kind:'product_link',sourceId:'QUALIFY-ALIGNED',predicate:'enables',targetId:'US'}]});
  beforeEach(()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-basic-intent-'));store=new WorkflowStore(root);initializeTools();mode='aligned';prompts=[];
-  server=Bun.serve({port:0,fetch:async req=>{
-   const body=await req.json() as {messages:Array<{content:string}>};const prompt=body.messages.map(m=>m.content).join('\n');prompts.push(prompt);
-   const input=JSON.parse(prompt.split('Review context: ')[1]!.split('\n')[0]!);
-   if(mode==='external-conflict'){
-    const live=JSON.parse(fs.readFileSync(new URL('../../docs/evidence/basic-product-intent-2026-10-23/live.json',import.meta.url),'utf8'));
-    const response=live.cases[1].transport.at(-1).response.choices[0].message.content;
-    return Response.json({message:{content:response}});
-   }
-   if(mode==='raw')return Response.json({message:{content:JSON.stringify(originalResponse)}});
-   const ids=input.charterAlignment?.artifactIds??['QUALIFY-ALIGNED'];
-   const conflicts=mode==='conflict'||mode==='contradictory'?[{artifactId:ids[0],message:warning,charterEvidence:recorded.charter.nonGoals[1],definitionEvidence:'Generate poems unrelated to software engineering',question:'Revise the episode to engineering diagnosis or defer it?'}]:[];
-   const assessment={status:mode==='unknown'?'uncertain':mode==='conflict'?'conflict':'aligned',explanation:originalResponse.criteria[0].evidence,observations:originalResponse.review.findings,conflicts};
-   return Response.json({message:{content:JSON.stringify({
-    criteria:(input.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:true,evidence:originalResponse.criteria[0].evidence})),aspects:[],
-    review:{...originalResponse.review,...(mode==='conflict'?{findings:[{artifactId:ids[0],message:'General Critic paraphrase: this is outside the engineering charter.'}]}:{}),...(mode==='unknown'?{verdict:'needs_input',required:[{artifactId:ids[0],question:'Clarify the intended scope'}]}:{})},
-    ...(mode==='missing'?{}:{alignment:mode==='malformed'?{status:'aligned'}:assessment})
-   })}});
-  }});
-  previousHost=process.env.OLLAMA_HOST;process.env.OLLAMA_HOST=server.url.toString();saveConfig(root,{model:'ollama/controlled-reviewer',ollamaUrl:server.url.toString()});
+  LayaSystemOne.prototype.assess=async (state,questions)=>{
+   prompts.push(JSON.stringify({state,questions}));
+   if(mode==='unknown'||mode==='missing') return null;
+   return {backendId:'fixture',quality:'high',latencyMs:0,answers:Object.fromEntries(Object.keys(questions).map(key=>[key,
+    mode==='malformed' ? {type:'score',score:NaN} : {type:'score',score:(mode==='conflict'||mode==='contradictory'||mode==='external-conflict') && key==='nonGoals_1'?0:4}]))};
+  };
  });
- afterEach(()=>{server.stop(true);if(previousHost===undefined)delete process.env.OLLAMA_HOST;else process.env.OLLAMA_HOST=previousHost;store.close();fs.rmSync(root,{recursive:true,force:true});});
+ afterEach(()=>{LayaSystemOne.prototype.assess=originalAssess;store.close();fs.rmSync(root,{recursive:true,force:true});});
  it('accepts the recorded positive observation with an explicit aligned assessment',async()=>{
   expect((await apply(charter())).ok).toBe(true);
   const p=await preview(feature());expect(p.blocked).toBe(false);expect(p.warnings).toEqual([]);
   expect((await apply(feature())).ok).toBe(true);
  });
- it('blocks an accept verdict containing a substantive explicit conflict',async()=>{
-  await apply(charter());mode='conflict';const p=await preview(feature());expect(p.status).toBe('needs_input');expect(p.warnings).toContain(warning);
+ it('shows the exact charter clause when the assessment is questionable',async()=>{
+  await apply(charter());mode='conflict';const p=await preview(feature());
+  expect(p.blocked).toBe(false);expect(p.warnings.join(' ')).toContain(recorded.charter.nonGoals[1]);
+  expect(await call('list_features',{})).toHaveLength(0);
  });
- it('keeps legacy responses, malformed assessments, contradictions and uncertainty closed',async()=>{
+ it('reports unavailable and malformed assessments without inventing approval',async()=>{
   await apply(charter());
-  for(const outcome of ['raw','missing','malformed','contradictory','unknown'] as const){
-   mode=outcome;const p=await preview(feature());expect(p.status).toBe('needs_input');
+  for(const outcome of ['missing','malformed','unknown'] as const){
+   mode=outcome;const request=feature();request.originalRequest=outcome;
+   const p=await preview(request);expect(p.blocked).toBe(false);expect(p.warnings.join(' ')).toMatch(/unavailable|uncertain/);
    expect(await call('list_features',{})).toHaveLength(0);
   }
  });
@@ -86,7 +74,7 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
   expect((await apply(revision)).ok).toBe(true);
   const before=await call('get_user_story',{storyId:'US'}),featureBefore=await call('get_feature',{featureId:'QUALIFY-ALIGNED'});
   expect(before.definitionReview).toEqual({status:'complete',missingFields:[]});expect(before.expectedResult).toBe(expected);expect(before.version).toBe(2);
-  expect(prompts.join('\n')).toContain(recorded.charter.purpose.slice(0,60));expect(prompts.join('\n')).toContain(expected);
+  expect(prompts.join('\n')).toContain(recorded.charter.purpose.slice(0,60));expect(prompts.join('\n')).toContain(expected);expect(prompts.join('\n')).toContain('QUALIFY-ALIGNED');
   const cli=path.resolve(import.meta.dir,'../../src/cli.ts');
   const exported=Bun.spawn(['bun',cli,'product','export'],{cwd:root,stdout:'pipe',stderr:'pipe'});
   expect(await exported.exited).toBe(0);
@@ -96,7 +84,7 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
   expect(await call('get_user_story',{storyId:'US'})).toEqual(before);expect(await call('get_feature',{featureId:'QUALIFY-ALIGNED'})).toEqual(featureBefore);
   expect((await call('link',{action:'inspect',id:'US',predicate:'enables'})).links).toEqual([expect.objectContaining({sourceId:'QUALIFY-ALIGNED',targetId:'US',predicate:'enables'})]);
   const drift:Request={action:'product_change',mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{expectedResult:'Generate poems unrelated to software engineering'}}]};
-  mode='conflict';const raised=await preview(drift);expect(raised.status).toBe('needs_input');expect(raised.warnings).toContain(warning);expect((await apply(drift)).ok).toBe(false);
+  mode='conflict';const raised=await preview(drift);expect(raised.blocked).toBe(false);warning=raised.warnings[0];expect(warning).toContain(recorded.charter.nonGoals[1]);expect(await call('get_user_story',{storyId:'US'})).toEqual(before);
   const response='Keep repository test diagnosis and exact source references; remove poetry and unrelated content generation.';
   mode='aligned';
   const resolved:Request={action:'product_change',mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{expectedResult:expected+' Restrict the explanation to the submitted repository.'}},{kind:'product_create',entityType:'Decision',id:'ANSWER',fields:{title:'Keep diagnosis within software engineering',context:JSON.stringify({warning,proposal:drift,reviewFingerprint:raised.fingerprint,charterRevision:1}),decision:response,status:'accepted'}},{kind:'product_link',sourceId:'ANSWER',predicate:'governs',targetId:'US'}]};
@@ -119,13 +107,12 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
   const staleAnswer:Request={...resolved,mutations:resolved.mutations.map(m=>m.kind==='product_create'&&m.id==='ANSWER'?{...m,id:'STALE-ANSWER'}:m.kind==='product_link'&&m.sourceId==='ANSWER'?{...m,sourceId:'STALE-ANSWER'}:m)};
   expect((await preview(staleAnswer)).status).toBe('needs_input');
  });
- it('preserves the grounded conflict from the actual o3-mini response despite paraphrased general findings',async()=>{
+ it('screens a recorded conflicting proposal against the actual charter',async()=>{
   await apply(charter());mode='external-conflict';
   const live=JSON.parse(fs.readFileSync(new URL('../../docs/evidence/basic-product-intent-2026-10-23/live.json',import.meta.url),'utf8'));
-  const response=JSON.parse(live.cases[1].transport.at(-1).response.choices[0].message.content);
   const p=await preview(live.cases[1].request);
-  expect(p.status).toBe('needs_input');expect(p.warnings).toContain(response.alignment.conflicts[0].message);
-  expect(p.required).toContainEqual({artifactId:'QUALIFY-CONTRADICTORY',question:response.alignment.conflicts[0].question});
+  expect(p.blocked).toBe(false);expect(p.warnings.join(' ')).toContain(recorded.charter.nonGoals[1]);
+  expect(await call('list_features',{})).toHaveLength(0);
  });
  it('refuses incomplete acceptance without changing accepted intent',async()=>{
   expect((await apply(charter())).ok).toBe(true);
@@ -146,6 +133,10 @@ describe('Basic Product Intent: developer reviews Charter, Feature and complete 
   expect((await apply(charter())).ok).toBe(true);
   expect((await apply(feature())).ok).toBe(true);
   expect((await apply(story())).ok).toBe(true);
+  const inherited:Request={action:'product_change',mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{title:'Review source diagnosis'}}]};
+  const beforeParentChange=await preview(inherited);
+  expect((await apply({action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'QUALIFY-ALIGNED',fields:{body:'Diagnose source defects for developers'}}]})).ok).toBe(true);
+  await expect(reviewedApply(store,{request:inherited,fingerprint:beforeParentChange.fingerprint,decision:'accept'})).rejects.toThrow('Stale');
   const pending:Request={action:'product_change',basis:[{id:'US',entityType:'UserStory',version:1}],mutations:[{kind:'product_update',entityType:'UserStory',id:'US',fields:{expectedResult:storyFields.expectedResult+' Show the test command.'}}]};
   const old=await preview(pending);
   const revised={...storyFields,expectedResult:storyFields.expectedResult+' Include source file and line references.'};

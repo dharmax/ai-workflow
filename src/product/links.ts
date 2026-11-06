@@ -155,7 +155,7 @@ export async function reviewProductChange(
       // Obtain the grounded question from the public owner, rather than trusting
       // an agent's account of what warning was raised. Changed/uncertain review fails closed.
       const raised=await commandRegistry.execute('preview_change',basis.data.proposal,ctx);
-      if (raised.status!=='needs_input' || raised.fingerprint!==basis.data.reviewFingerprint || !raised.warnings.includes(basis.data.warning)) continue;
+      if (raised.fingerprint!==basis.data.reviewFingerprint || !raised.warnings.includes(basis.data.warning)) continue;
       const answer = await respond(`Charter warning: ${basis.data.warning}\nEnter your actual response to this question. Approval of proposed text is separate; if your answer differs, revise the Decision before applying.\nDeveloper response: `,mutation.id);
       if (answer !== undefined) answers[mutation.id] = answer;
     }

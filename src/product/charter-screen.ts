@@ -1,187 +1,65 @@
-import {JevSystemOne, type SystemOne, type SystemOneAnswer, type SystemOneQuestion, type SystemOneState, type SystemOneValue} from '@dharmax/llm-utils';
+import {JevSystemOne, LayaSystemOne, type SystemOne, type SystemOneQuestion, type SystemOneValue} from '@dharmax/llm-utils';
 
-const levels = [
-  'Clearly violates or falls outside this constraint',
-  'Probably violates or falls outside this constraint',
-  'Uncertain',
-  'Probably compatible',
-  'Clearly compatible',
-] as const;
-const layaLimit = 512;
-const confident = 0.95;
+const levels = ['Clearly incompatible', 'Probably incompatible', 'Uncertain', 'Probably compatible', 'Clearly compatible'] as const;
 
-export interface AdherenceJudgment {
-  score: number;
-  probabilities: Readonly<Record<string, number>>;
-  backend: string;
-}
-export interface CharterScreen {
-  judgments: Record<string, Record<string, AdherenceJudgment>>;
-  complete: boolean;
+async function assess(model: SystemOne, state: Record<string, SystemOneValue>, questions: Record<string, SystemOneQuestion>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try { return await Promise.race([model.assess(state, questions), new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 5000); })]); }
+  finally { if (timer) clearTimeout(timer); }
 }
 
-/** These fields have different logical meanings: alternatives vs. veto constraints. */
-const fields = ['purpose', 'actors', 'scope', 'nonGoals', 'bounds'] as const;
-const alternatives = new Set(['actors', 'scope']);
-
-function parts(value: unknown, splitLines: boolean): string[] {
-  const sources = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
-  const result: string[] = [];
-  for (const source of sources) {
-    if (typeof source !== 'string') continue;
-    if (!splitLines) {
-      if (source.trim()) result.push(source.trim());
-      continue;
-    }
-    let heading = '';
-    let clause = '';
-    const flush = () => { if (clause) result.push(clause); clause = ''; };
-    for (const raw of source.split(/\n/)) {
-      const line = raw.trim();
-      if (!line) { flush(); continue; }
-      if (/^\*\*[^*]+\*\*:?$/.test(line) || /^[^.!?]{5,100}:$/.test(line)) {
-        flush();
-        heading = line;
-      } else if (/^(?:[-*] |\d+[.)] )/.test(line)) {
-        flush();
-        clause = heading ? `${heading} ${line}` : line;
-      } else {
-        // Wrapped paragraphs and multi-line list items remain one obligation.
-        clause = clause ? `${clause} ${line}` : heading ? `${heading} ${line}` : line;
-      }
-    }
-    flush();
-    if (heading && !result.some(item => item.startsWith(heading))) result.push(heading);
-  }
-  return result;
-}
-
-function judgment(answer: SystemOneAnswer | undefined, backend: string): AdherenceJudgment | null {
-  if (answer?.type !== 'score' || typeof answer.score !== 'number' ||
-      !Number.isFinite(answer.score) || !answer.probabilities) return null;
-  const p = levels.map((_, i) => answer.probabilities?.[String(i)]);
-  if (Object.keys(answer.probabilities).length !== levels.length ||
-      !p.every(v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1)) return null;
-  const total = p.reduce<number>((sum, v) => sum + (v ?? 0), 0);
-  const weighted = p.reduce<number>((sum, v, i) => sum + (v ?? 0) * i, 0);
-  return Math.abs(total - 1) < 0.01 && Math.abs(weighted - answer.score) < 0.05
-    ? {score: answer.score, probabilities: answer.probabilities, backend} : null;
-}
-
-async function boundedAssessment(model: SystemOne, state: SystemOneState, questions: Record<string, SystemOneQuestion>, signal: AbortSignal) {
-  if (signal.aborted) return null;
-  let abort!: () => void;
-  const timeout = new Promise<null>(resolve => { abort = () => resolve(null); signal.addEventListener('abort', abort, {once: true}); });
-  try { return await Promise.race([model.assess(state, questions), timeout]); }
-  finally { signal.removeEventListener('abort', abort); }
-}
-
-async function assess(
-  local: SystemOne,
-  remote: SystemOne,
-  key: string,
-  state: SystemOneState,
-  instructions: string,
-  signal: AbortSignal,
-): Promise<AdherenceJudgment | null> {
-  const questions: Record<string, SystemOneQuestion> = {
-    [key]: {type: 'score', instructions, criteria: levels},
-  };
-  const valid = (result: Awaited<ReturnType<SystemOne['assess']>>, backend: string) =>
-    result && Object.keys(result.answers).length === 1
-      ? judgment(result.answers[key], backend) : null;
-
-  try {
-    const result = await boundedAssessment(local, state, questions, AbortSignal.any([signal, AbortSignal.timeout(1000)]));
-    const tokens = result?.usage?.input_tokens;
-    if (result && typeof tokens === 'number' && Number.isInteger(tokens) &&
-        tokens > 0 && tokens < layaLimit) {
-      const checked = valid(result, result.backendId);
-      if (checked) return checked;
-    }
-  } catch { /* Local unavailable or oversized: try the configured Jev adapter. */ }
-  if (signal.aborted) return null;
-  try {
-    return valid(await boundedAssessment(remote, state, questions, signal), 'jev');
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Each result is tied to an exact Product clause. No prose is removed or
- * summarized; oversized clauses go to Jev instead of silent Laya truncation.
- * This is diagnostic screening, not authority to approve a Product definition.
- */
+/** System-1 advises on the actual charter text; it never grants approval. */
 export async function screenCharter(
   charter: Readonly<Record<string, unknown>>,
-  targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>}[],
-  laya?: SystemOne,
-  jev: SystemOne = new JevSystemOne(),
-  signal: AbortSignal = AbortSignal.timeout(5000),
-): Promise<CharterScreen> {
-  const judgments: CharterScreen['judgments'] = Object.create(null);
-  if (!laya || !targets.length) return {judgments, complete: false};
-  try {
-    for (const target of targets) {
-      if (!['Feature', 'UserStory'].includes(target.kind) || Object.hasOwn(judgments, target.id))
-        return {judgments, complete: false};
-      const definition = Object.fromEntries(Object.entries(target.fields).filter(([key, value]) =>
-        !['kind', 'status', 'priority', 'completenessTarget', 'version', 'updatedAt'].includes(key) &&
-        value != null && value !== '' && (!Array.isArray(value) || value.length > 0)));
-      const proposed = JSON.parse(JSON.stringify({kind: target.kind, ...definition})) as Record<string, SystemOneValue>;
-      const perTarget: Record<string, AdherenceJudgment> = Object.create(null);
-      judgments[target.id] = perTarget;
-      for (const key of fields) {
-        const clauses = parts(charter[key], key === 'scope' || key === 'bounds' || key === 'purpose');
-        if (!clauses.length) {
-          if (key === 'purpose' || key === 'actors' || key === 'scope') return {judgments, complete: false};
-          continue;
-        }
-        for (const [i, clause] of clauses.entries()) {
-          const id = `${key}.${i}`;
-          const instructions = {
-            purpose: 'Is the proposal consistent with this Product purpose? It need not achieve every ambition alone.',
-            actors: 'Does the proposed actor fit this permitted role? Other roles are checked separately.',
-            scope: 'Does the proposal fit this permitted area? Other areas are checked separately.',
-            nonGoals: 'Does the proposal respect this exclusion by NOT offering the excluded capability?',
-            bounds: 'Does the proposal respect this mandatory boundary without material contradiction?',
-          }[key];
-          const found = await assess(laya, jev, id,
-            {product: {[key]: clause}, proposed}, instructions, signal);
-          if (!found) return {judgments, complete: false};
-          perTarget[id] = found;
-        }
-      }
-      const id = 'definition';
-      const found = await assess(laya, jev, id, {proposed},
-        target.kind === 'UserStory'
-          ? 'Is this Story coherent and testable from Actor, Intent, Initial State, Action and Expected Result?'
-          : 'Is this Feature a coherent, sufficiently precise responsibility?', signal);
-      if (!found) return {judgments, complete: false};
-      perTarget[id] = found;
+  targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>; context?: readonly Readonly<Record<string, unknown>>[]}[],
+  systemOne: SystemOne = new LayaSystemOne(),
+): Promise<string[]> {
+  const warnings: string[] = [];
+  for (const target of targets) {
+    const questions: Record<string, SystemOneQuestion> = {};
+    const clauses: Record<string, string> = {};
+    const add = (key: string, clause: string, instruction: string) => {
+      clauses[key] = clause;
+      questions[key] = {type: 'score', instructions: `${instruction}\n${clause}`, criteria: levels};
+    };
+    for (const [field, instruction] of Object.entries({
+      purpose: 'Is the proposal relevant to this Product purpose?',
+      actors: 'Is the proposal compatible with these intended actors?',
+      scope: 'Does the proposal fit this Product scope?',
+      nonGoals: 'Does the proposal respect this Product non-goal?',
+      bounds: 'Does the proposal respect this Product boundary?',
+    })) {
+      const value = charter[field];
+      const entries = field === 'actors' && Array.isArray(value) ? [value.join('\n')] : Array.isArray(value) ? value : [value];
+      for (const [i, clause] of entries.entries())
+        if (typeof clause === 'string' && clause.trim()) add(`${field}_${i}`, clause, instruction);
     }
-    return {judgments, complete: true};
-  } catch {
-    return {judgments, complete: false};
+    add('coherence', `Proposed ${target.kind} definition`, 'Is the proposed definition coherent?');
+    const definition = Object.fromEntries(Object.entries(target.fields).filter(([key, value]) =>
+      !['kind', 'status', 'priority', 'completenessTarget', 'version', 'updatedAt'].includes(key) && value != null && value !== ''));
+    const proposed = JSON.parse(JSON.stringify({kind: target.kind, ...definition})) as Record<string, SystemOneValue>;
+    const state = JSON.parse(JSON.stringify({proposed, context: target.context ?? []})) as Record<string, SystemOneValue>;
+    let result: Awaited<ReturnType<SystemOne['assess']>> = null;
+    try {
+      result = await assess(systemOne, state, questions);
+      // Laya can truncate its context. Never treat an oversized assessment as complete.
+      if (!result || result.backendId === 'laya' && (typeof result.usage?.input_tokens !== 'number' || result.usage.input_tokens >= 512))
+        result = await assess(new JevSystemOne(), state, questions);
+    } catch { result = null; }
+    if (!result) {
+      warnings.push(`${target.id}: System-1 alignment assessment unavailable; Product alignment is unknown.`);
+      continue;
+    }
+    for (const [key, clause] of Object.entries(clauses)) {
+      const answer = result?.answers[key];
+      if (answer?.type !== 'score' || typeof answer.score !== 'number' || !Number.isFinite(answer.score) || answer.score < 0 || answer.score > 4) {
+        warnings.push(`${target.id}: System-1 assessment unavailable or uncertain for ${key}: ${clause}`);
+      } else if (answer.confidence !== undefined && (!Number.isFinite(answer.confidence) || answer.confidence < 0.5 || answer.confidence > 1)) {
+        warnings.push(`${target.id}: System-1 assessment uncertain for ${key}: ${clause}`);
+      } else if (answer.score < 3) {
+        warnings.push(`${target.id}: ${key} scored ${Math.round(answer.score * 25)}/100; review against: ${clause}`);
+      }
+    }
   }
-}
-
-/** Diagnostic summary only; the governed reviewer retains authority. */
-export async function clearlyAlignedToCharter(
-  charter: Readonly<Record<string, unknown>>,
-  targets: readonly {id: string; kind: string; fields: Readonly<Record<string, unknown>>}[],
-  laya?: SystemOne,
-  jev?: SystemOne,
-): Promise<boolean> {
-  const result = await screenCharter(charter, targets, laya, jev);
-  if (!result.complete) return false;
-  return Object.values(result.judgments).every(perTarget =>
-    fields.every(key => {
-      const scores = Object.entries(perTarget)
-        .filter(([id]) => id.startsWith(key + '.'))
-        .map(([, value]) => value.probabilities['4'] ?? 0);
-      if (!scores.length) return key === 'nonGoals' || key === 'bounds';
-      return alternatives.has(key) ? scores.some(p => p >= confident) : scores.every(p => p >= confident);
-    }) && (perTarget.definition?.probabilities['4'] ?? 0) >= confident);
+  return warnings;
 }

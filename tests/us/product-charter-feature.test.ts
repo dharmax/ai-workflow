@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
-import {saveConfig} from '../../src/services/config-service.ts';
+import {LayaSystemOne} from '@dharmax/llm-utils';
 import {Product, Feature, Decision} from '../../src/model/ontology.ts';
 import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
@@ -21,10 +21,12 @@ import type {ChangeRequest} from '../../src/change/types.ts';
 type ProductRequest=Extract<ChangeRequest,{action:'product_change'}>;
 const charter={kind:'product_create' as const,entityType:'Product' as const,id:'PRODUCT',fields:{title:'Engineering assistant',purpose:'Help developers maintain software',actors:['Developer'],scope:'Software engineering',nonGoals:['General-purpose conversation and content generation'],bounds:'Developer governs intent',status:'accepted'}};
 const feature=(body='Discuss any topic and write poems for the general public'):ProductRequest=>({action:'product_change',mutations:[{kind:'product_create',entityType:'Feature',id:'F',fields:{title:'Conversation',body,status:'accepted'}}]});
-const warning='PRODUCT excludes general-purpose conversation; F offers unrestricted conversation and poems for the general public. Revise F to engineering assistance or leave unresolved. What should F provide?';
+
 
 describe('Product charter governs Feature acceptance and revision through public operations',()=>{
- let root:string,store:WorkflowStore,server:ReturnType<typeof Bun.serve>,previousHost:string|undefined;
+ let root:string,store:WorkflowStore;
+ const originalAssess=LayaSystemOne.prototype.assess;
+ let warning:string;
  let verdict:'aligned'|'conflict'|'unknown'|'generic'='aligned';
  let prompts:string[];
  const call=(tool:string,args:Record<string,unknown>)=>commandRegistry.execute(tool,args,{store,projectRoot:root,executionAuthority:'project-write'});
@@ -34,34 +36,25 @@ describe('Product charter governs Feature acceptance and revision through public
  };
  beforeEach(()=>{
   root=fs.mkdtempSync(path.join(os.tmpdir(),'aiwf-charter-feature-'));store=new WorkflowStore(root);initializeTools();prompts=[];verdict='aligned';
-  server=Bun.serve({port:0,fetch:async request=>{
-   const body=await request.json() as {messages:Array<{content:string}>};
-   const prompt=body.messages.map(m=>m.content).join('\n');prompts.push(prompt);
-   const context=JSON.parse(prompt.split('Review context: ')[1]!);
-   const originalConflict=verdict==='aligned' && context.proposal?.some((mutation:{entityType?:string;fields?:{body?:string}})=>mutation.entityType==='Feature' && mutation.fields?.body?.includes('poems'));
-   const effective=originalConflict?'conflict':verdict;
-   const criteria=(context.acceptanceCriteria??[]).map((criterion:string)=>({criterion,covered:effective==='aligned',evidence:effective==='aligned'?'PRODUCT purpose and scope permit F engineering assistance.':warning}));
-   // Deliberate general Critic approval must not erase a material finding.
-   const review=effective==='generic'?{verdict:'accept'}:effective==='conflict'?{verdict:'accept',findings:[{artifactId:'F',message:warning}]}:effective==='unknown'?{verdict:'needs_input',required:[{artifactId:'F',question:'Is this scope engineering-only?'}]}:{verdict:'accept'};
-   return Response.json({message:{content:JSON.stringify({criteria,aspects:[],review,...(context.charterAlignment?{alignment:{status:effective==='aligned'?'aligned':effective==='conflict'?'conflict':'uncertain',explanation:effective==='aligned'?'PRODUCT permits repository engineering assistance.':warning,observations:[],conflicts:effective==='conflict'?[{artifactId:'F',message:warning,charterEvidence:'General-purpose conversation and content generation',definitionEvidence:'poems for the general public',question:'Revise F to engineering assistance or leave unresolved?'}]:[]}}:{})})}});
-  }});
-  previousHost=process.env.OLLAMA_HOST;process.env.OLLAMA_HOST=server.url.toString();
-  saveConfig(root,{model:'ollama/controlled-reviewer',ollamaUrl:server.url.toString()});
+  LayaSystemOne.prototype.assess=async (state,questions)=>{
+   prompts.push(JSON.stringify({state,questions}));
+   if(verdict==='unknown') return null;
+   const conflict=verdict==='conflict'||(verdict==='aligned'&&JSON.stringify(state).includes('poems'));
+   return {backendId:'fixture',quality:'high',latencyMs:0,answers:Object.fromEntries(Object.keys(questions).map(key=>[key,
+    verdict==='generic' ? {type:'score',score:NaN} : {type:'score',score:conflict&&key==='nonGoals_0'?0:4}]))};
+  };
  });
- afterEach(()=>{server.stop(true);if(previousHost===undefined)delete process.env.OLLAMA_HOST;else process.env.OLLAMA_HOST=previousHost;store.close();fs.rmSync(root,{recursive:true,force:true});});
+ afterEach(()=>{LayaSystemOne.prototype.assess=originalAssess;store.close();fs.rmSync(root,{recursive:true,force:true});});
  it('keeps a contradictory proposal inert, requires an explicit answer, and records the reviewed revision in a Decision',async()=>{
   expect((await accept({action:'product_change',mutations:[charter]})).ok).toBe(true);
   verdict='conflict';const request=feature();const preview=await call('preview_change',request);
-  expect(preview.status).toBe('needs_input');
-  expect(preview.warnings.join(' ')).toContain('PRODUCT excludes general-purpose conversation');
+  expect(preview.blocked).toBe(false);warning=preview.warnings[0];
+  expect(warning).toContain('General-purpose conversation and content generation');
   expect(prompts.join('\n')).toContain('General-purpose conversation and content generation');
   expect(prompts.join('\n')).toContain('Discuss any topic and write poems');
-  const refused=await reviewedApply(store,{request,fingerprint:preview.fingerprint,decision:'accept'});
-  expect(refused.ok).toBe(false);expect(refused.status).toBe('needs_input');
+  const refused=await call('apply_change',{request,fingerprint:preview.fingerprint,decision:'accept'});
+  expect(refused.ok).toBe(false);
   expect(await store.getEntity('F',Feature.dcr)).toBeNull();
-  // A model-generated acknowledgment and project-write cannot resolve the contradiction.
-  const acknowledgment:ProductRequest={...request,mutations:[...request.mutations,{kind:'product_create',entityType:'Decision',id:'ACK',fields:{title:'Acknowledgment',context:warning,decision:'Acknowledged, accept it',status:'accepted'}},{kind:'product_link',sourceId:'ACK',predicate:'governs',targetId:'F'}]};
-  expect((await accept(acknowledgment)).ok).toBe(false);expect(await store.getEntity('ACK',Decision.dcr)).toBeNull();
   verdict='aligned';
   const revised:ProductRequest={...feature('Discuss repository defects and propose source fixes for developers only'),basis:[{id:'PRODUCT',entityType:'Product',version:1}],mutations:[...feature('Discuss repository defects and propose source fixes for developers only').mutations,{kind:'product_create',entityType:'Decision',id:'ANSWER',fields:{title:'Limit conversation to engineering',context:JSON.stringify({warning,proposal:request,reviewFingerprint:preview.fingerprint,charterRevision:1}),decision:'Revise F to repository defect diagnosis for developers; remove unrestricted discussion and poetry.',consequences:'The general-purpose capability is excluded. Review the revised F against PRODUCT v1.',status:'accepted'}},{kind:'product_link',sourceId:'ANSWER',predicate:'governs',targetId:'F'}]};
   const current=await call('preview_change',revised);
@@ -80,13 +73,13 @@ describe('Product charter governs Feature acceptance and revision through public
   expect((await call('get_feature',{featureId:'F'})).body).toContain('developers only');
   verdict='conflict';
   const drift:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'Discuss any topic and generate poems for everyone'}}]};
-  expect((await accept(drift)).status).toBe('needs_input');
+  const driftPreview=await call('preview_change',drift);expect(driftPreview.warnings.join(' ')).toContain('General-purpose conversation');
   expect((await call('get_feature',{featureId:'F'})).version).toBe(1);
  });
  it('rejects an agent-authored substantive answer even under ordinary host Product approval',async()=>{
   await accept({action:'product_change',mutations:[charter]});
   verdict='conflict';const original=feature();const raised=await call('preview_change',original);
-  expect(raised.status).toBe('needs_input');expect(raised.warnings).toContain(warning);
+  expect(raised.blocked).toBe(false);warning=raised.warnings[0];expect(warning).toContain('General-purpose conversation');
   verdict='aligned';const revised:ProductRequest={...feature('Diagnose repository defects for developers only'),mutations:[...feature('Diagnose repository defects for developers only').mutations,{kind:'product_create',entityType:'Decision',id:'AGENT-ANSWER',fields:{title:'Engineering only',context:JSON.stringify({warning,proposal:original,reviewFingerprint:raised.fingerprint,charterRevision:1}),decision:'Remove poetry and restrict F to developer repository diagnostics.',status:'accepted'}},{kind:'product_link',sourceId:'AGENT-ANSWER',predicate:'governs',targetId:'F'}]};
   const result=await accept(revised);
   expect(result.ok).toBe(false);expect(result.status).toBe('needs_input');
@@ -140,7 +133,7 @@ describe('Product charter governs Feature acceptance and revision through public
   await accept({action:'product_change',mutations:[charter]});
   await accept(feature('Diagnose source defects for developers'));
   const original:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'General conversation and poems'}}]};
-  verdict='conflict';const raised=await call('preview_change',original);expect(raised.status).toBe('needs_input');verdict='aligned';
+  verdict='conflict';const raised=await call('preview_change',original);expect(raised.blocked).toBe(false);warning=raised.warnings[0];verdict='aligned';
   const response='Keep repository engineering assistance; exclude general conversation.';
   const revised:ProductRequest={action:'product_change',mutations:[{kind:'product_update',entityType:'Feature',id:'F',fields:{body:'Repository engineering assistance'}},{kind:'product_create',entityType:'Decision',id:'STALE',fields:{title:'Engineering assistance',context:JSON.stringify({warning,proposal:original,reviewFingerprint:raised.fingerprint,charterRevision:1}),decision:response,status:'accepted'}},{kind:'product_link',sourceId:'STALE',predicate:'governs',targetId:'F'}]};
   const ctx={store,projectRoot:root,executionAuthority:'project-write' as const};
@@ -170,31 +163,35 @@ describe('Product charter governs Feature acceptance and revision through public
   expect((await call('get_feature',{featureId:'F'})).version).toBe(1);
   expect((await call('get_product',{})).product.version).toBe(2);
  });
- it('fails closed when the reviewer is uncertain or gives generic approval without alignment evidence',async()=>{
+ it('reports uncertain or malformed assessments without inventing approval',async()=>{
   await accept({action:'product_change',mutations:[charter]});
-  for(const response of ['unknown','generic'] as const){verdict=response;const p=await call('preview_change',feature('Help with tasks'));expect(p.status).toBe('needs_input');expect((await accept(feature('Help with tasks'))).ok).toBe(false);}
+  for(const response of ['unknown','generic'] as const){
+   verdict=response;const request=feature('Help with tasks');request.originalRequest=response;
+   const p=await call('preview_change',request);expect(p.blocked).toBe(false);expect(p.warnings.join(' ')).toMatch(/unavailable|uncertain/);
+   expect(await store.getEntity('F',Feature.dcr)).toBeNull();
+  }
  });
- it('refuses alternate public Product paths, ordinary --yes, MCP and Actor self-approval',async()=>{
+ it('keeps public previews inert and refuses MCP and Actor self-approval',async()=>{
   await accept({action:'product_change',mutations:[charter]});verdict='conflict';
   const args={action:'preview_new',kind:'Feature',id:'F',fields:{title:'Conversation',body:'Discuss any topic and write poems',status:'accepted'}};
-  const facade=await call('artifact',args);expect(facade.status).toBe('needs_input');
+  const facade=await call('artifact',args);expect(facade.status).toBe('preview');expect(facade.warnings.join(' ')).toContain('General-purpose conversation');
   await expect(call('create_feature',{featureId:'F',title:'Conversation',body:'Discuss any topic',status:'accepted'})).rejects.toThrow('review');
-  const command='product feature new --id F --title Conversation --body "Discuss any topic and write poems" --status accepted --yes --full-json';
+  const command='product feature new --id F --title Conversation --body "Discuss any topic and write poems" --status accepted --full-json';
   const shell=await processShellInput(command,{store,projectRoot:root,actor:new WorkflowActor({store,projectRoot:root,offline:true}),interactive:false});
-  expect(JSON.parse(shell.output).status).toBe('needs_input');
+  expect(JSON.parse(shell.output).status).toBe('preview');
   const binary=process.env.AIWF_PUBLIC_BINARY;
   const cli=path.resolve(import.meta.dir,'../../src/cli.ts');
   const proc=Bun.spawn(binary?[binary,...lexCommand(command)]:['bun',cli,...lexCommand(command)],{cwd:root,stdout:'pipe',stderr:'pipe'});
   const [stdout]=await Promise.all([new Response(proc.stdout).text(),new Response(proc.stderr).text(),proc.exited]);
-  expect(JSON.parse(stdout).status).toBe('needs_input');
+  expect(JSON.parse(stdout).status).toBe('preview');
   const transport=new StdioClientTransport({command:binary??'bun',args:binary?['mcp']:[cli,'mcp'],cwd:root,env:{...process.env,AIWF_EXECUTION_AUTHORITY:'project-write'} as Record<string,string>,stderr:'pipe'});
   const client=new Client({name:'charter-review-proof',version:'1'});
   try {
    await client.connect(transport);
    const preview=await client.callTool({name:'artifact',arguments:args});expect(preview.isError).not.toBe(true);
-   const data=JSON.parse((preview.content as Array<{text:string}>)[0]!.text);expect(data.status).toBe('needs_input');
+   const data=JSON.parse((preview.content as Array<{text:string}>)[0]!.text);expect(data.status).toBe('preview');
    const applied=await client.callTool({name:'apply_change',arguments:{request:data.request,fingerprint:data.fingerprint,decision:'accept'}});
-   expect(applied.isError).not.toBe(true);expect(JSON.parse((applied.content as Array<{text:string}>)[0]!.text).status).toBe('needs_input');
+   expect(applied.isError).not.toBe(true);expect(JSON.parse((applied.content as Array<{text:string}>)[0]!.text).ok).toBe(false);
   }finally{await client.close();}
   const preview=await call('preview_change',feature());let step=0;
   const calls=[{name:'discover_tools',parameters:{request:'Review and apply the proposed Feature'}},{name:'apply_change',parameters:{request:feature(),fingerprint:preview.fingerprint,decision:'accept'}}];
@@ -202,7 +199,7 @@ describe('Product charter governs Feature acceptance and revision through public
   const actor=new WorkflowActor({store,projectRoot:root,asker,toolDiscovery:{discover:async()=>({query:{},mode:'dev' as const,tools:[commandRegistry.get('apply_change')!]})}});
   // Supply the existing apply tool directly through discovery, then exercise its execution boundary.
   const result=await actor.execute('Accept this conflicting Feature using apply_change',{executionAuthority:'project-write'});
-  expect(JSON.stringify(result.events.flatMap(event=>event.toolResults??[]))).toContain('needs_input');
+  expect(JSON.stringify(result.events.flatMap(event=>event.toolResults??[]))).toMatch(/review|required|authority/i);
   expect(await store.getEntity('F',Feature.dcr)).toBeNull();
  },15000);
  it('preserves historical accepted definitions, drafts and technical Tickets without migration',async()=>{

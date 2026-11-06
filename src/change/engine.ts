@@ -654,7 +654,7 @@ export class CausalChangeEngine {
     try {
       const validated = await validateProductMutations(this.store, request.mutations, request.basis);
       const {snapshot} = validated;
-      await assessCharterAlignment(this.store, request.mutations, validated, request);
+      const alignmentWarnings = await assessCharterAlignment(this.store, request.mutations, validated, request);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
       const affected = new Set<string>();
@@ -674,7 +674,7 @@ export class CausalChangeEngine {
         fingerprint, summary: `${request.mutations.length} Product Intent mutation(s): ${[...affected].sort().join(', ')}`,
         request, mutations: request.mutations, affectedFiles: [], originalHashes: {},
         affectedProducts: [...affected].sort(), productImpact: productImpacts[0], productImpacts,
-        dependents, warnings: dependents.length ? [`Explicit deletion affects ${dependents.length} relation(s).`] : [],
+        dependents, warnings: [...alignmentWarnings, ...(dependents.length ? [`Explicit deletion affects ${dependents.length} relation(s).`] : [])],
         blocked: false, verification: { diagnosticsExpected: false, typecheck: false, targetedTests: [], graphChecks: {} }
       };
     } catch (error) {

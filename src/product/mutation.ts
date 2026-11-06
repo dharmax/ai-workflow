@@ -5,7 +5,6 @@ import {TechnicalProofSchema} from '../model/test-proof-types.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNode, Aspect, Idea, Goal, Concept, Flow, Artifact, FileNode, SymbolNode } from '../model/ontology.ts';
 import { CompletenessSchema } from '../artifact-policy.ts';
-import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../services/artifact-critic.ts';
 import {screenCharter} from './charter-screen.ts';
 import {LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
 import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
@@ -346,8 +345,14 @@ export async function validateProductMutations(store: WorkflowStore, mutations: 
   // The current charter is causal input even for an unlinked Feature or UserStory. Including
   // absence/version in the snapshot also makes concurrent registration/revision stale.
   const alignmentTargets = [...new Set(mutations.flatMap(m =>
-    (m.kind === 'product_create' || m.kind === 'product_update') && ['Feature', 'UserStory'].includes(m.entityType) ? [m.id] : []))]
-    .filter(id => state.get(id)?.fields.status === 'accepted');
+    (m.kind === 'product_create' || m.kind === 'product_update') && ['Feature', 'UserStory', 'Epic', 'Aspect'].includes(m.entityType) ? [m.id] : []))];
+  // Relevant inherited definitions are part of both the assessment and its freshness basis.
+  for (const edge of [...edges.values()]) {
+    if (!alignmentTargets.includes(edge.targetId) || !['targets', 'enables', 'contains', 'applies_to', 'governs'].includes(edge.predicate)) continue;
+    if (state.has(edge.sourceId)) continue;
+    const source = await store.getEntity(edge.sourceId);
+    if (source && ['Epic', 'Feature', 'Aspect', 'Concept'].includes(productKind(source) ?? '')) await load(edge.sourceId);
+  }
   const warningDecisions = [...state.values()].some(entity => entity.kind === 'Decision' && entity.fields.status === 'accepted' && typeof entity.fields.context === 'string' && entity.fields.context.includes('\"warning\"'));
   if ((alignmentTargets.length || warningDecisions) && !state.has('PRODUCT')) {
     const product = await store.getEntity('PRODUCT', Product.dcr);
@@ -403,38 +408,31 @@ async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMuta
   }
 }
 
-export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne: SystemOne = new LayaSystemOne()): Promise<void> {
+const alignmentCache = new WeakMap<WorkflowStore, {fingerprint: string; warnings: string[]}>();
+
+export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne: SystemOne = new LayaSystemOne()): Promise<string[]> {
   await assessCharterAnswers(store,mutations,validated,request);
-  if (!validated.alignmentTargets.length) return;
+  if (!validated.alignmentTargets.length) return [];
   const product = validated.state.get('PRODUCT');
   const ask = (warnings: string[]) => new ProductAlignmentRequired(warnings,
     validated.alignmentTargets.map(artifactId => ({artifactId, question: `Review ${artifactId} against the current accepted Product charter and explicitly answer the warning by revising the definition or leaving it unresolved.`})));
-  if (!product?.exists || product.fields.status !== 'accepted')
-    throw ask(['Feature/UserStory acceptance requires an actual current accepted Product charter (PRODUCT). Register or accept it through the governed Product path.']);
+  if (!product?.exists || product.fields.status !== 'accepted') {
+    if (validated.alignmentTargets.some(id => { const entity = validated.state.get(id)!; return ['Feature', 'UserStory'].includes(entity.kind) && entity.fields.status === 'accepted'; }))
+      throw ask(['Feature/UserStory acceptance requires an actual current accepted Product charter (PRODUCT). Register or accept it through the governed Product path.']);
+    return ['Product alignment unavailable: no current accepted Product charter.'];
+  }
   const targets = validated.alignmentTargets.map(id => {
     const entity = validated.state.get(id)!;
-    return {id, kind: entity.kind, fields: entity.fields};
+    const context = [...validated.edges.values()].filter(edge => edge.targetId === id && ['targets', 'enables', 'contains', 'applies_to', 'governs'].includes(edge.predicate))
+      .flatMap(edge => { const parent = validated.state.get(edge.sourceId); return parent && ['Epic', 'Feature', 'Aspect', 'Concept'].includes(parent.kind) ? [{id:edge.sourceId, kind:parent.kind, fields:Object.fromEntries(Object.entries(parent.fields).filter(([key,value]) => !['kind','status','priority','completenessTarget','version','updatedAt'].includes(key) && value != null && value !== ''))}] : []; });
+    return {id, kind: entity.kind, fields: entity.fields, context};
   });
-  const screening = await screenCharter(product.fields, targets, systemOne);
-  const criterion = 'Review definition acceptance only, not implementation or verified behavior. The actual current and proposed definitions are the evidence for alignment; implemented functionality is not required here. Every proposed accepted Feature or complete UserStory aligns with PRODUCT purpose, actors, scope, non-goals and bounds. Material contradiction, ambiguity or drift requires a specific warning grounded in both definitions and an explicit developer answer. Critic approval, generic acknowledgment and decision: accept are not answers. A revised definition must resolve the warning; any proposed Decision must preserve its warning, substantive developer answer and revision context. Do not authorize charter amendments or exceptions in this review.';
-  let review;
-  try {
-    review = CriticResultSchema.extend({alignment: CharterAlignmentSchema}).parse(await new AiArtifactCritic('auto', store.root).review({
-      artifactId: 'PRODUCT', intent: criterion, charterAlignment: {artifactIds: validated.alignmentTargets},
-      neighborhood: [...validated.state].map(([id, entity]) => ({id, entityType: entity.kind, ...entity.fields})),
-      proposal: mutations, applicableAspects: [], candidateAspects: [], completeness: 'production', depth: 0,
-      acceptanceCriteria: [criterion], evidence: [JSON.stringify({current: validated.snapshot, proposedDefinitions: validated.alignmentTargets}), `Advisory System-1 screening, not proof or approval: ${JSON.stringify(screening)}`]
-    }));
-  } catch (error) {
-    throw ask([`Cannot establish definition alignment with PRODUCT: ${error instanceof Error ? error.message : String(error)}`]);
-  }
-  const {alignment} = review;
-  if (review.verdict !== 'accept' || alignment.status !== 'aligned' || alignment.conflicts.length || review.required.length)
-    throw new ProductAlignmentRequired(
-      alignment.conflicts.length ? alignment.conflicts.map(item => item.message) :
-        review.required.length ? review.required.map(item => item.question) : [alignment.explanation],
-      alignment.conflicts.length ? alignment.conflicts.map(({artifactId,question}) => ({artifactId,question})) :
-        review.required.length ? review.required : validated.alignmentTargets.map(artifactId => ({artifactId, question: 'Please explicitly answer the charter warning by revising this definition or leaving it unresolved.'})));
+  const fingerprint = request && computeHash({request, snapshot: validated.snapshot});
+  const cached = alignmentCache.get(store);
+  if (fingerprint && cached?.fingerprint === fingerprint) return cached.warnings;
+  const warnings = await screenCharter(product.fields, targets, systemOne);
+  if (fingerprint) alignmentCache.set(store, {fingerprint, warnings});
+  return warnings;
 }
 
 function productOwnerWrite(store: WorkflowStore, mutations: ProductMutation[], state: Map<string, {kind: ProductKind}>): boolean {
