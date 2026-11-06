@@ -7,7 +7,7 @@ import { Product, Epic, Feature, UserStory, Ticket, TestNode, Decision, ModuleNo
 import { CompletenessSchema } from '../artifact-policy.ts';
 import {AiArtifactCritic, CriticResultSchema, CharterAlignmentSchema} from '../services/artifact-critic.ts';
 import {clearlyAlignedToCharter} from './charter-screen.ts';
-import type {SystemOne} from '@dharmax/llm-utils';
+import {LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
 import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
 import type { ChangeRequest } from '../change/types.ts';
@@ -403,7 +403,7 @@ async function assessCharterAnswers(store: WorkflowStore, mutations: ProductMuta
   }
 }
 
-export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne?: SystemOne): Promise<void> {
+export async function assessCharterAlignment(store: WorkflowStore, mutations: ProductMutation[], validated: Awaited<ReturnType<typeof validateProductMutations>>, request?: Extract<ChangeRequest, {action: 'product_change'}>, systemOne: SystemOne = new LayaSystemOne()): Promise<void> {
   await assessCharterAnswers(store,mutations,validated,request);
   if (!validated.alignmentTargets.length) return;
   const product = validated.state.get('PRODUCT');
