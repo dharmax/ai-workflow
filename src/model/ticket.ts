@@ -3,7 +3,7 @@
  * Scope: Work specification, defect assessment, lifecycle invariants and operation entry points.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -33,15 +33,6 @@ export interface TicketClaim {
   claimedAt: string;
   expiresAt: string;
 }
-export interface TicketData extends Omit<BaseEntityData, 'status'> {
-  kind?: 'task' | 'bug';
-  defect?: TicketDefect;
-  acceptanceCriteria?: string[];
-  lane: TicketLane;
-  priority?: number;
-  claim?: TicketClaim;
-  estimateTokens?: number;
-}
 export type TicketLane = z.infer<typeof TicketLaneSchema>;
 
 export class Ticket extends WorkflowEntity {
@@ -52,6 +43,7 @@ export class Ticket extends WorkflowEntity {
     declare lane: TicketLane
     declare acceptanceCriteria?: string[]
     declare claim?: TicketClaim | null
+    declare estimateTokens?: number
     /** Assess report completeness for persisted Tickets and prospective Bug reports. */
     static assessBug(ticket: Pick<Ticket, 'kind' | 'defect'>) {
         const missing = ticket.kind === 'bug' ? ['reproduction', 'expected', 'actual'].filter(key =>

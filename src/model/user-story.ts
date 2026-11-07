@@ -3,7 +3,7 @@
  * Scope: Scenario fields, definition review, completeness and derived-state access.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -16,21 +16,6 @@ export const UserStoryStateSchema = z.enum(["draft", "proposed", "accepted", "de
 
 import type { IntentStatus } from './types.ts'
 
-export interface UserStoryData extends BaseEntityData {
-  intent?: string;
-  initialState?: string;
-  action?: string;
-  expectedResult?: string;
-  exceptions?: string;
-  bounds?: string;
-  completenessTarget?: CompletenessLevel | null;
-  status?: IntentStatus;
-  actor?: string;
-  story?: string;
-  context?: string;
-  acceptanceCriteria?: string[];
-  sla?: string;
-}
 
 export class UserStory extends WorkflowEntity {
     declare status: IntentStatus

@@ -3,7 +3,7 @@
  * Scope: Module intent, source path, completeness and Aspect assessment.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -11,13 +11,10 @@ import { scopeTarget } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 
 
-export interface ModuleData extends BaseEntityData {
-  completenessTarget?: CompletenessLevel | null;
-  path: string;
-}
 
 export class ModuleNode extends WorkflowEntity {
     declare status?: string
+    declare path?: string
     declare responsibilities?: string[]
     declare boundaries?: string
     declare intentStatus?: "draft" | "proposed" | "accepted" | "deprecated"

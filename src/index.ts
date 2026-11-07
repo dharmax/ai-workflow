@@ -5,9 +5,7 @@
 // Graph & Context Engine
 export * from './model/types.ts';
 export type { EpicStatus } from './model/epic.ts';
-export type { UserStoryData } from './model/user-story.ts';
-export type { TicketClaim, TicketData, TicketLane } from './model/ticket.ts';
-export type { ModuleData } from './model/module-node.ts';
+export type { TicketClaim, TicketLane } from './model/ticket.ts';
 export type { BaseEntityData } from './model/workflow-entity.ts';
 export type { SemanticPredicatePayload, SemanticPredicateName } from './model/predicates.ts';
 export type { TicketDefect } from './model/ticket.ts';
