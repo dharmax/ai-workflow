@@ -148,3 +148,64 @@ Do this as **three separately testable commits**, not one 300-line transplant:
 Stop at the current stage on any unaccounted-for public shape change; Product/source trust-boundary widening; lost or duplicated graph anchors; any source write during denied/stale preview; index or filesystem partial state falsely reported as success; flaky LSP teardown; unclassified test failure; or a new circular dependency. Revert the stage's isolated commit if safe rather than layering patches. If a narrow real security defect is found, isolate a red regression test and fix it in its canonical owner first; don't disguise it as a relocation.
 
 **Definition of complete:** no `src/change/`; one narrow Code Mutation Service facade and meaningful internals; independent TS tooling; Product changes owned by Product; thin public adapter; justified (not ceremonial) entity behavior; unchanged permissions and external semantics; clean focused, full and real public-path qualification. Green tests alone are insufficient if responsibility/complexity is worse.
+
+## Stage 0 audit record — 2026-11-07
+
+**Status: inventory complete for tracked TypeScript; local execution gate not run. Stage 1 NOT authorized by Gate 0.**
+
+### Repository and execution evidence
+
+- Inspected remote `master` at `b203e6be8a504d3990887372aa5c9d5783639f88` and this branch at its plan-only commit `b8f70f0848764555e126b2cf94a0d3f45b8f44d6`. The branch started from exactly that master commit. No source edits performed in Stage 0.
+- Scanned **all 136 `src/**/*.ts` files and 100 `tests/**/*.ts` files** in the starting master Git tree for static, dynamic, and type-only imports from `src/change/` (including the in-folder relative references).
+- Local execution is unavailable in the current review environment: **no Bun executable, no mounted AIWF checkout, and outbound GitHub DNS unavailable**. GitHub connector provides source inspection and branch commits, not a Bun test runner. No fresh typecheck, pack, test counts or live public-host results can be asserted here.
+- The remote tree has **no `.github/workflows/` files**. Historical GitHub Actions run discovered (2026-10-04) is unrelated and failed; it does not qualify this branch.
+- User-confirmed latest focused tests on the same master were green (Aspects/Doctrine/Ticket investigation); this is **not** a fresh full source-change baseline.
+
+### Import inventory (external to `src/change/`, grouped by owner)
+
+| Owner | Files and imported roles |
+|---|---|
+| CLI | `src/cli.ts` — TS7/TS6 shutdown |
+| Graph | `src/graph/indexer.ts` — workspace paths; `technical-proof.ts` — engine and preview/apply types; `test-artifacts.ts` — LSP client |
+| Helpers/Rules | `src/helpers/verification-context.ts`, `src/rules/references.ts` — exact symbol source/LSP |
+| Product | `src/product/{apply,links,process,story-tests}.ts` — engine, types, paths; `{mutation,process-types}.ts` — shared change type coupling |
+| Services | `src/services/investigation-evidence.ts` — exact source; `src/services/projection/aspect-projections.ts` — engine (dynamic) |
+| Tickets | `src/ticket-operation-types.ts` — request schema / LSP types; `src/ticket/{implementation,prepare,resolve,source-scope,verification}.ts` — engine, change types, paths and symbol source; several dynamic imports |
+| Tools | `src/tools/change.ts` — engine, schema and file paths; `src/tools/graph-queries.ts` — LSP, source lookup, target resolver, workspace paths |
+
+**22 external source files**, with internal `src/change/*` imports additionally present. No one-to-one public service rename is safe until these callers are migrated.
+
+**Test files with change imports (32):**
+
+- Core: `actor-engine-boundaries`, `aspects`, `change-bridge`, `change-engine`, `change-foundation`, `dharmax-s1`, `dharmax-s2`, `dharmax-s5`, `evidence-first-verification`, `lsp-shutdown`, `primitive-truth`, `source-change-authorization`, `technical-proof`, `ticket-investigation`, `ticket-resolution`, `ts6-refactor-sync`, `workspace-text`.
+- Doctrine: `doctrine-enforcement-live`, `doctrine-management-live`, `doctrine-management`, `doctrine-scope`, `doctrine-verifier`.
+- Product: `product-change`, `product-charter-screen`, `product-operability-definition`.
+- Other and Story/fixtures: `skill-synthesis-acceptance`, `fixtures/graph-field-migration`, `integration/graph-field-migration`, `us/basic-product-intent`, `us/fixtures/greeting-project`, `us/product-charter-feature`, `us/reviewer-reliability`.
+
+Paths in those groups resolve under `tests/` (with their given subdirectories); count includes fixtures because they are import consumers. These tests must migrate with their owning production modules.
+
+### Critical observed contracts and extraction order
+
+1. **Public transport:** `src/tools/change.ts` registers `read_workspace_file`, `preview_change`, `apply_change`; code operations require scope, claim and trusted admission. Product review is separately host-owned in `src/product/links.ts`. Preserve command IDs, Zod request union, fingerprints and error statuses.
+2. **Product:** `src/change/engine.ts` lines 653–695 own `previewProductChange`; lines 768–809 own Product commit/verification dispatch. `src/product/mutation.ts` already owns validation, charter checks and coherent `applyBatch`. Stage 2 moves just those branches, not the entire engine.
+3. **Source:** lines 256–651 prepare edits/fingerprints; 736–766 recheck preview; 811–934 materialize and write; 935–1039 reindex, migrate anchors, check exact effects and report partial application. Do not break the lease/admission boundary inside this flow.
+4. **Shared tooling:** TS7 client, TS6 refactor sidecar and source lookup have read-only callers unrelated to mutation. They move only after Product/source separation and stable code-only APIs.
+5. **Unproven potential defect:** `applyTextEdits` clamps invalid position values and has no overlap check. First produce reproducing red tests; do not silently alter supported semantics.
+
+### Required local Gate 0 report
+
+From a clean working tree at this branch, record the exact `HEAD`, `origin/master`, Bun/TypeScript/sibling dependency versions, and actual outcomes of:
+
+```bash
+git status --short
+git rev-parse HEAD
+bun --version
+bun run typecheck
+bun run pack
+bun test
+bun test tests/change-foundation.test.ts tests/change-engine.test.ts tests/change-bridge.test.ts tests/source-change-authorization.test.ts tests/product-change.test.ts tests/product-charter-screen.test.ts tests/ticket-resolution.test.ts tests/lsp-shutdown.test.ts tests/public-api-s1.test.ts
+```
+
+Also execute representative **real public-path** source and Product preview/apply cases under a disposable project, with stale/denied cases, source rename/anchor preservation and explicit no-write-on-preview observations. Summarize failures/skips and actual fingerprints/output shape; isolate local environment limitations rather than modifying assertions.
+
+**Gate status: BLOCKED on execution evidence.** Stage 1 can begin after the baseline is established and any baseline failure is classified. No production change, status promotion, or claim of zero regressions is justified yet.
