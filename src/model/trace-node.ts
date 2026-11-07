@@ -3,20 +3,17 @@
  * Scope: Ephemeral execution steps, input, output and duration.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 
 
-export interface TraceData extends BaseEntityData {
-  traceId: string;
-  step: number;
-  input?: any;
-  output?: any;
-  durationMs?: number;
-}
-
 export class TraceNode extends WorkflowEntity {
     declare status?: string
+    declare traceId?: string
+    declare step?: number
+    declare input?: unknown
+    declare output?: unknown
+    declare durationMs?: number
     static template = {
         ...baseTemplate,
         traceId: passthroughValidator,

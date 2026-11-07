@@ -8,7 +8,7 @@ import * as ontology from '../src/model/ontology.ts';
 import {WorkflowEntity} from '../src/model/workflow-entity.ts';
 import contracts from './fixtures/model-contract.json';
 // Supported public type exports must remain resolvable.
-import type { TicketLane, EntityStatus, EpicStatus, IntentStatus, TicketClaim, BaseEntityData, EpicData, AspectData, FeatureData, UserStoryData, TicketDefect, TicketData, ModuleData, LessonData, CallSiteData, TraceData, SemanticPredicatePayload, SemanticPredicateName, ModuleHealth, ProjectHealth } from '../src/index.ts';
+import type { TicketLane, EntityStatus, EpicStatus, IntentStatus, TicketClaim, BaseEntityData, EpicData, AspectData, FeatureData, UserStoryData, TicketDefect, TicketData, ModuleData, SemanticPredicatePayload, SemanticPredicateName, ModuleHealth, ProjectHealth } from '../src/index.ts';
 
 // Frozen before extraction using native model construction; not inferred from the refactored classes.
 const names = contracts.map(contract => contract.descriptor.name);
