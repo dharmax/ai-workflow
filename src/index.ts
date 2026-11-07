@@ -6,7 +6,6 @@
 export * from './model/types.ts';
 export type { EpicStatus } from './model/epic.ts';
 export type { TicketClaim, TicketLane } from './model/ticket.ts';
-export type { BaseEntityData } from './model/workflow-entity.ts';
 export type { SemanticPredicatePayload, SemanticPredicateName } from './model/predicates.ts';
 export type { TicketDefect } from './model/ticket.ts';
 export * from './model/ontology.ts';

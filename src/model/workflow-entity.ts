@@ -4,17 +4,6 @@
  */
 import {AbstractEntity, type EntityDcr} from '@dharmax/semantika';
 
-/** Legacy DTO contract; consolidate entity field typing in a later, separate change. */
-export interface BaseEntityData {
-    id: string;
-    title: string;
-    status?: string;
-    body?: string;
-    metadata?: Record<string, any>;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
 export abstract class WorkflowEntity extends AbstractEntity {
     declare title?: string;
     declare body?: string;
