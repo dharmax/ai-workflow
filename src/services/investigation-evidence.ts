@@ -156,14 +156,6 @@ export async function collectAuthoredEvidence(store: WorkflowStore, current: Tic
       if (test) add(test, 'Scope verification');
     }
   }
-  for (const concern of dossier.aspects.aspects) {
-    const aspect = await store.getEntity<Aspect>(concern.id, Aspect.dcr);
-    if (aspect) add(aspect, 'Applicable Aspect');
-    for (const evidenceId of [...concern.tests, ...concern.artifacts, ...concern.decisions]) {
-      const entity = await store.getEntity(evidenceId);
-      if (entity) add(entity, 'Aspect evidence');
-    }
-  }
 
   return { mandatory, neighbors };
 }
@@ -255,6 +247,22 @@ export async function collectGovernanceEvidence(
   }
   // The same effective snapshot reaches producers, acceptance and proof closure.
   dossier.governance = await resolveTicketGovernance(store, current);
+  dossier.aspects = dossier.governance.aspects;
+  for (const concern of dossier.aspects.aspects) {
+    const aspect = await store.getEntity<Aspect>(concern.id, Aspect.dcr);
+    if (!aspect) continue;
+    add(aspect, 'Governing Aspect');
+    // Verification links identify context; they do not establish adherence.
+    for (const edge of await store.getIncoming(aspect.id, 'verifies')) {
+      const linked = await store.getEntity(edge.sourceId);
+      if (linked instanceof TestNode || linked instanceof Artifact)
+        add(linked, 'Aspect-linked verification (unassessed)');
+    }
+  }
+  for (const decision of dossier.governance.decisions) {
+    const entity = await store.getEntity<Decision>(decision.id, Decision.dcr);
+    if (entity) add(entity, 'Governing Decision');
+  }
   for (const rule of dossier.governance.rules) {
     const examplesBody = rule.examples.length
       ? ['\nExamples:', ...rule.examples.map((ex) => `[${ex.kind}] ${ex.description} -> Lesson: ${ex.lesson}`)].join(

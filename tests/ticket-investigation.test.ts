@@ -81,6 +81,10 @@ describe('grounded Ticket investigation', () => {
     if (result.status !== 'complete') throw Error(JSON.stringify(result));
     expect(result.value.disposition).toBe('ready');
     expect(result.value.evidence.filter(e => e.mandatory).map(e => e.id)).toEqual(expect.arrayContaining(['T', 'F', 'S', 'D', 'A', 'TEST', 'L', 'queue.ts']));
+    expect(result.value.aspects).toMatchObject({ assessed: false, aspects: [{id: 'A', criteria: ['Preserve jobs']}] });
+    expect(result.value.evidence.find(e => e.id === 'TEST')).toMatchObject({
+      mandatory: true, provenance: 'Aspect-linked verification (unassessed)'
+    });
     expect(result.value.completeness.story).toBeDefined();
     expect(result.value.provenance).toMatchObject({ reasoningUsed: false, freshnessReconciliations: 1 });
     expect(calls).toBe(0);

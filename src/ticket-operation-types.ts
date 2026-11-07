@@ -219,7 +219,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const subjects = [ticket, ...entities, ...owners.values()];
   const meaning = await collectProductMeaning(subjects, store);
   const selectedAspects = new Map<string, import('./model/ontology.ts').Aspect>();
-  for (const subject of [ticket, ...owners.values()])
+  for (const subject of [...subjects, ...meaning.map(item => item.entity)])
     for (const aspect of (await Aspect.getAspectList(subject)).filter(a => a.status === 'accepted')) selectedAspects.set(aspect.id, aspect);
   const aspects = await assessAspects(ticket, store, [...selectedAspects.values()].sort((a, b) => a.id.localeCompare(b.id)));
   const codeSubjects = [...entities];
