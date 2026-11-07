@@ -38,7 +38,7 @@ describe('first-class Aspects', () => {
     expect((await robust.view(store)).scopes).toContain('T');
     expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative', 'robust']);
     await store.relate(c, 'contains', t);
-    await expect(Aspect.getAspectList(c)).rejects.toThrow('containment cycle');
+    await expect(Aspect.getAspectList(c)).rejects.toThrow('Containment cycle');
     await expect(acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}])).rejects.toThrow('cycle');
   });
 
