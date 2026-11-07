@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import {PrioritySchema} from '../model/types.ts';
-import {bindWorkflowEntityResolver, type WorkflowEntity} from '../model/workflow-entity.ts';
+import type {WorkflowEntity} from '../model/workflow-entity.ts';
 import { ticketState, assertTicketAuthoring } from '../model/ticket.ts';
 import {ticketChangeEvents, ticketEventBatch} from '../services/journal-service.ts';
 import {
@@ -350,7 +350,6 @@ export class WorkflowStore {
       return collection;
     };
     this.sp = new SemanticPackage('aiwf', graphOntology, this.sqliteStore);
-    bindWorkflowEntityResolver(this.sp, id => this.getEntity(id));
     const ticketsExist = this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='aiwf_Ticket'").get();
     const legacy = ticketsExist && this.db.query("SELECT 1 FROM aiwf_Ticket WHERE json_type(data,'$.status') IS NOT NULL LIMIT 1").get();
     const legacyPriorities = ['Epic', 'Feature', 'Ticket'].some(kind => {

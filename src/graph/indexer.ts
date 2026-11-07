@@ -140,7 +140,6 @@ async function indexSingleFileUnlocked(
     ? previousHash !== hash
     : existing.mtime !== fileStat.mtimeMs || existing.size !== fileStat.size || existing.metadata?.ctimeMs !== fileStat.ctimeMs);
   const change: FileChangeEventData = {filePath: relPath, previousHash, hash};
-  if (existing && changed) await existing.handleEvent('node-changed', existing, change);
   const parsed = parseIndexedFile({filePath: relPath, content});
   const modName = resolveModulePath(relPath);
   const module = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr)
@@ -164,7 +163,7 @@ async function indexSingleFileUnlocked(
   const test = isTestSource(relPath, content) ? await upsertTestArtifact(store, file, relPath, content) : null;
   if (test) await reconcileTestVerificationEdges(store, test);
   await reconcileFileNotes(store, file, relPath, parsed);
-  if (!existing) await file.handleEvent('node-changed', file, change);
+  if (changed) await file.handleEvent('fileChanged', file, change);
   return {symbolsCount: parsed.symbols.length, notesCount: parsed.notes.length};
 }
 
@@ -285,7 +284,7 @@ async function removeFileFromIndexUnlocked(store: WorkflowStore, relPath: string
   if (!existsSync(physicalPath)) {
     const previousHash = (file as FileNode & {hash?: string}).hash ?? null;
     const change: FileChangeEventData = {filePath: relPath, previousHash, hash: null};
-    await file.handleEvent('node-changed', file, change);
+    await file.handleEvent('fileChanged', file, change);
   }
   const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
   let retain = await hasAuthoredAnchor(store, file.id);
@@ -462,7 +461,6 @@ async function indexExternalFile(store: WorkflowStore, fullPath: string, relPath
   const previousHash = previous?.metadata?.missing === true ? null : previous?.hash ?? null;
   const changed = !previous || previousHash !== hash || previous.metadata?.missing === true;
   const change: FileChangeEventData = {filePath: relPath, previousHash, hash};
-  if (previous && changed) await previous.handleEvent('node-changed', previous, change);
   const parsed = parseIndexedFile({filePath: relPath, content: bytes.toString('utf8')});
   const imports = parsed.facts.filter(fact => fact.predicate === 'imports').map(fact => fact.objectText)
     .filter((text): text is string => typeof text === 'string');
@@ -476,7 +474,7 @@ async function indexExternalFile(store: WorkflowStore, fullPath: string, relPath
     .map(symbol => [symbol.containerName, symbol.name].filter(Boolean).join('.'));
   await reconcileFileSymbols(store, file, relPath, parsed.symbols.filter(symbol => symbol.exported ||
     publicContainers.some(container => symbol.containerName === container)));
-  if (!previous) await file.handleEvent('node-changed', file, change);
+  if (changed) await file.handleEvent('fileChanged', file, change);
   return {changed: true, imports};
 }
 
