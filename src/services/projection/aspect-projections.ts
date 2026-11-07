@@ -11,8 +11,7 @@ export async function exportAspectProjection(store: WorkflowStore, root: string)
     const view = await aspect.view(store);
     text += `## ${view.id}: ${view.title}\n\n- **Status**: \`${view.status}\`\n- **Scopes**: ${view.scopes.map(id => `\`${id}\``).join(', ') || 'None'}\n\n`;
     text += `### Description\n${view.body || ''}\n\n### Acceptance Criteria\n${view.acceptanceCriteria.map(c => `- [ ] ${c}`).join('\n')}\n\n`;
-    const a = view.assessment;
-    text += `### Evidence (read-only)\n- Tickets: ${a.tickets.join(', ') || 'None'}\n- Tests: ${a.tests.join(', ') || 'None'}\n- Artifacts: ${a.artifacts.join(', ') || 'None'}\n- Decisions: ${a.decisions.join(', ') || 'None'}\n- Code: ${a.code.join(', ') || 'None'}\n- Gaps: ${a.gaps.join(', ') || 'None'}\n\n`;
+    text += `### Assessment\nNot assessed (implementation deferred).\n\n`;
   }
   const file = path.join(root, 'aspects.md');
   const output = text.trimEnd() + '\n';

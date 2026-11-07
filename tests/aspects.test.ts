@@ -54,10 +54,10 @@ describe('first-class Aspects', () => {
     ]);
     await store.relate(parent, 'contains', child);
     expect((await Aspect.getAspectList(child)).map(a => store.localId(a.id))).toEqual(['approved', 'proposed']);
-    expect((await child.assessAspects(store)).aspects.map(a => a.id)).toEqual(['approved']);
+    expect(await child.assessAspects(store)).toMatchObject({ assessed: false, aspects: [{ id: 'approved', criteria: ['Relevant evidence supports the concern'] }] });
   });
 
-  it('accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work', async () => {
+  it('does not invent Aspect adherence evidence or gaps while assessment is deferred', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const a = await aspect('robust'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const entities = [
@@ -73,7 +73,7 @@ describe('first-class Aspects', () => {
     const code = await store.upsertEntity<FileNode>(FileNode.dcr, { id: 'src/unit.ts', title: 'unit.ts' });
     await store.relate(entities[0], 'modifies', code);
     const assessment = await f.assessAspects(store);
-    expect(assessment.aspects[0]).toMatchObject({ tickets: ['T'], tests: ['TEST'], artifacts: ['REPORT'], decisions: ['DEC'], code: ['src/unit.ts'], gaps: [] });
+    expect(assessment).toMatchObject({ assessed: false, aspects: [{ id: 'robust', tickets: [], tests: [], artifacts: [], decisions: [], code: [], gaps: [] }] });
     expect(assessment.knownGaps).toEqual([]);
     expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(1);
   });
@@ -99,6 +99,8 @@ describe('first-class Aspects', () => {
     await exportProjections(store, root);
     const file = path.join(root, 'aspects.md');
     const original = fs.readFileSync(file, 'utf8');
+    expect(original).toContain('Not assessed (implementation deferred).');
+    expect(original).not.toContain('### Evidence (read-only)');
     const previous = new Date('2020-01-01T00:00:00Z');
     fs.utimesSync(file, previous, previous);
     const mtime = fs.statSync(file).mtimeMs;
@@ -109,13 +111,13 @@ describe('first-class Aspects', () => {
     expect(fs.readFileSync(file, 'utf8')).not.toBe(original);
   });
 
-  it('round trips owned scopes while ignoring edits to rendered evidence', async () => {
+  it('round trips owned scopes while ignoring edits to the assessment notice', async () => {
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const a = await aspect('A'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Existing work', lane: 'Todo' });
     await store.relate(t, 'addresses', a); await exportProjections(store, root);
     const file = path.join(root, 'aspects.md');
-    const text = fs.readFileSync(file, 'utf8').replace('**Scopes**: `F`', '**Scopes**: None').replace('Tickets: T', 'Tickets: invented');
+    const text = fs.readFileSync(file, 'utf8').replace('**Scopes**: `F`', '**Scopes**: None').replace('Not assessed (implementation deferred).', 'Invented assessment verdict');
     fs.writeFileSync(file, text); fs.utimesSync(file, new Date(Date.now() + 1000), new Date(Date.now() + 1000));
     await importProjections(store, root);
     expect((await store.getOutgoing(a.id, 'applies_to')).length).toBe(0);

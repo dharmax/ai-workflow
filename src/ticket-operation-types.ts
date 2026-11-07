@@ -236,9 +236,14 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
     const decision = await store.getEntity<import('./model/ontology.ts').Decision>(edge.sourceId, Decision.dcr);
     if (decision) entities.push(decision);
   }
+  // Aspect-governing Decisions remain authoritative even while adherence assessment is deferred.
+  for (const aspect of selectedAspects.values())
+    for (const edge of await store.getIncoming(aspect.id, 'governs')) {
+      const decision = await store.getEntity(edge.sourceId);
+      if (decision) entities.push(decision);
+    }
   const decisions = new Map<string, TicketGovernance['decisions'][number]>();
-  for (const entity of [...entities, ...meaning.map(item => item.entity),
-    ...await Promise.all(aspects.aspects.flatMap(aspect => aspect.decisions).map(id => store.getEntity(id)))]) {
+  for (const entity of [...entities, ...meaning.map(item => item.entity)]) {
     if (!(entity instanceof Decision) || ['draft', 'proposed', 'deprecated', 'disabled'].includes(String((entity as {status?: string}).status))) continue;
     const data = entity as import('./model/ontology.ts').Decision & { body?: string; status?: string };
     decisions.set(store.localId(entity.id), { id: store.localId(entity.id), decision: data.decision,
