@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { canonical } from '../kb/canonical.ts';
 import { Database } from 'bun:sqlite';
 import {PrioritySchema} from '../model/types.ts';
+import {bindWorkflowEntityResolver, type WorkflowEntity} from '../model/workflow-entity.ts';
 import { ticketState, assertTicketAuthoring } from '../model/ticket.ts';
 import {ticketChangeEvents, ticketEventBatch} from '../services/journal-service.ts';
 import {
@@ -349,6 +350,7 @@ export class WorkflowStore {
       return collection;
     };
     this.sp = new SemanticPackage('aiwf', graphOntology, this.sqliteStore);
+    bindWorkflowEntityResolver(this.sp, id => this.getEntity(id));
     const ticketsExist = this.db.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='aiwf_Ticket'").get();
     const legacy = ticketsExist && this.db.query("SELECT 1 FROM aiwf_Ticket WHERE json_type(data,'$.status') IS NOT NULL LIMIT 1").get();
     const legacyPriorities = ['Epic', 'Feature', 'Ticket'].some(kind => {
@@ -644,7 +646,7 @@ export class WorkflowStore {
     const dcr = this.getDescriptor(typeOrDcr);
     const rawId = data.id || data._id;
     const formattedId = rawId ? this.formatId(dcr, rawId) : undefined;
-    const previous = formattedId ? await this.getEntity(formattedId, dcr) : null;
+    const previous = formattedId ? await this.getEntity<T>(formattedId, dcr) : null;
     if (expectedVersion !== undefined && previous?.version !== expectedVersion) throw Error('Stale governance entity revision.');
     this.assertEntityWrite(dcr.name, formattedId, data, previous as unknown as Record<string, unknown> | undefined);
     if (['Product', 'Rule', 'Decision', 'Aspect', 'ModuleNode', 'Goal', 'Concept', 'Flow', 'Epic', 'Feature', 'UserStory'].includes(dcr.name)) {
@@ -697,7 +699,7 @@ export class WorkflowStore {
   /**
    * Fetches an entity by ID (handles both local IDs and fully qualified IDs).
    */
-  async getEntity<T extends AbstractEntity = AbstractEntity>(
+  async getEntity<T extends AbstractEntity = WorkflowEntity>(
     id: string,
     typeOrDcr?: string | EntityDcr
   ): Promise<T | null> {

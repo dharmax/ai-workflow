@@ -212,7 +212,7 @@ kanban-plugin: board
 - [ ] **TKT-REVIEWER-RELIABILITY**: Verify Tickets reliably with the normal AI route
   - Summary: Prove and, where necessary, repair the existing normal AI Ticket verification path using current evidence and configured routing. Verification is independent of implementation claims and proportionate to the work. Preserve mandatory Rules, evidence validity, explicit routing and paid-inference authorization. Human and high-AI selection per Ticket are deferred to backlog; no new reviewer mode field or routing framework in this work.
   - **Priority**: 2
-  - Revision: 164
+  - Revision: 174
 - [ ] **BUG-LINKS-PAGINATION**: Links pagination duplicates Semantika infrastructure
   - **Priority**: 2
   - Revision: 4
@@ -220,11 +220,23 @@ kanban-plugin: board
 - [ ] **TKT-XQDR**: Report actual Ticket reviewer model in model list
   - Summary: Report the actual Ticket reviewer selection in public model inspection. Ticket verification uses an explicit verification route or developer-selected default, otherwise llm-utils verification advice and fallback; critic and reasoning routes retain their separate purposes. Preserve existing overrides and cover reviewer qualification and the live Story reviewer override.
   - **Priority**: 2
-  - Revision: 59
+  - Revision: 61
+- [ ] **TKT-SERVICE-UNAVAILABILITY**: Explain unavailable services that hinder requested work
+  - Summary: When a service required for the requested operation is unavailable, AIWF should clearly identify the unavailable service, explain which requested work is hindered and how, and provide an actionable next step when known. Distinguish required services from optional advisory services or successful fallbacks; report uncertainty honestly. Context: Laya and Jev were unavailable during Product alignment assessment.
+  - **Priority**: 2
+  - Revision: 1
+- [ ] **TKT-PREPARE-STORY-TEST**: Prepare missing Story tests during Ticket preparation
+  - Summary: When preparing a Ticket addressing an accepted Story without behavioral coverage, use the existing Story-test workflow to prepare and materialize a genuine executable test while preserving developer review and existing authority boundaries.
+  - **Priority**: 2
+  - Revision: 5
 
 ## In Progress
 
-- No items
+- [/] **TKT-FILE-NODE-EVENTS**: Deliver node-changed events for file changes
+  - Summary: Implement general entity event propagation in WorkflowEntity using Semantika relationships. File changes and stale hashes initiate node-changed with source and data. Resolve related entities through the existing store ownership checks.
+  - **Priority**: 1
+  - Revision: 85
+  - Claim: leased by @codex until 2026-11-07T08:24:34.482Z
 
 ## Done
 

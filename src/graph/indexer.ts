@@ -87,6 +87,16 @@ export interface IndexOptions {
   onProgress?: (current: number, total: number, label: string) => void;
 }
 
+export interface FileChangeEventData {
+  filePath: string;
+  previousHash: string | null;
+  hash: string | null;
+}
+
+function contentHash(content: Uint8Array): string {
+  return new Bun.CryptoHasher('sha256').update(content).digest('hex');
+}
+
 export interface FreshnessResult {
   updatedFiles: string[];
   deletedFiles: string[];
@@ -121,20 +131,28 @@ async function indexSingleFileUnlocked(
   store: WorkflowStore, fullPath: string, relPath: string, rootDir: string
 ): Promise<{symbolsCount: number; notesCount: number}> {
   const fileStat = await stat(fullPath);
-  const content = await readFile(fullPath, 'utf8');
+  const bytes = await readFile(fullPath);
+  const content = bytes.toString('utf8');
+  const hash = contentHash(bytes);
+  const existing = await store.getEntity<FileNode & {hash?: string}>(relPath, FileNode.dcr);
+  const previousHash = existing?.metadata?.missing === true ? null : existing?.hash ?? null;
+  const changed = !existing || existing.metadata?.missing === true || (previousHash !== null
+    ? previousHash !== hash
+    : existing.mtime !== fileStat.mtimeMs || existing.size !== fileStat.size || existing.metadata?.ctimeMs !== fileStat.ctimeMs);
+  const change: FileChangeEventData = {filePath: relPath, previousHash, hash};
+  if (existing && changed) await existing.handleEvent('node-changed', existing, change);
   const parsed = parseIndexedFile({filePath: relPath, content});
   const modName = resolveModulePath(relPath);
   const module = await store.getEntity<ModuleNode>(`mod:${modName}`, ModuleNode.dcr)
     ?? await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {
       id: `mod:${modName}`, title: modName, path: modName, status: 'implemented'
     });
-  const existing = await store.getEntity<FileNode>(relPath, FileNode.dcr);
   if (existing) for (const predicate of ['calls'])
     for (const edge of await store.getOutgoing(existing.id, predicate))
       await store.unrelate(existing.id, predicate, edge.targetId);
   const file = await upsertSource<FileNode>(store, FileNode.dcr, {
     id: relPath, title: path.basename(relPath), path: relPath,
-    language: parsed.language, fileKind: parsed.fileKind, size: fileStat.size, mtime: fileStat.mtimeMs,
+    language: parsed.language, fileKind: parsed.fileKind, size: fileStat.size, mtime: fileStat.mtimeMs, hash,
     status: 'implemented', metadata: {...existing?.metadata, ...parsed.metadata, missing: false, isStub: false, ctimeMs: fileStat.ctimeMs, structureVersion: 2,
       callCandidates: parsed.facts.filter(fact => fact.predicate === 'calls').map(fact => ({
         name: fact.objectText, confidence: fact.confidence, provenance: 'parser-syntax', resolution: 'unresolved'
@@ -146,6 +164,7 @@ async function indexSingleFileUnlocked(
   const test = isTestSource(relPath, content) ? await upsertTestArtifact(store, file, relPath, content) : null;
   if (test) await reconcileTestVerificationEdges(store, test);
   await reconcileFileNotes(store, file, relPath, parsed);
+  if (!existing) await file.handleEvent('node-changed', file, change);
   return {symbolsCount: parsed.symbols.length, notesCount: parsed.notes.length};
 }
 
@@ -261,6 +280,13 @@ export async function removeFileFromIndex(store: WorkflowStore, relPath: string)
 async function removeFileFromIndexUnlocked(store: WorkflowStore, relPath: string): Promise<boolean> {
   const file = await store.getEntity<FileNode>(relPath, FileNode.dcr);
   if (!file || file.metadata?.missing === true) return false;
+  const physicalPath = typeof file.metadata?.externalPath === 'string'
+    ? file.metadata.externalPath : path.resolve(store.root, relPath);
+  if (!existsSync(physicalPath)) {
+    const previousHash = (file as FileNode & {hash?: string}).hash ?? null;
+    const change: FileChangeEventData = {filePath: relPath, previousHash, hash: null};
+    await file.handleEvent('node-changed', file, change);
+  }
   const symbols = await store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: relPath});
   let retain = await hasAuthoredAnchor(store, file.id);
   for (const symbol of symbols) {
@@ -328,18 +354,24 @@ async function reconcileAst(
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
 ): Promise<FreshnessResult> {
   const discovered = await discoverWorkspaceFiles(rootDir);
-  const candidateFiles: Array<{fullPath: string; relPath: string; stat: Stats}> = [];
-  for (const relPath of discovered.files) {
-    if (relPath.split(path.sep).some(part => INDEX_EXCLUSIONS.has(part)) || !SUPPORTED_EXTENSIONS.has(path.extname(relPath).toLowerCase())) continue;
-    const fullPath = path.resolve(rootDir, relPath);
-    candidateFiles.push({fullPath, relPath, stat: await stat(fullPath)});
-  }
-
   const existingFiles = await store.listEntities<FileNode>(FileNode.dcr);
-  const existingMap = new Map<string, { mtime?: number; size?: number; id: string; isExternal?: boolean; isStub?: boolean; ctimeMs?: number; structureVersion?: number }>();
+  const knownFiles = new Set(existingFiles.filter(file => !file.metadata?.isExternal)
+    .map(file => file.path ?? store.localId(file.id)));
+  const candidateFiles: Array<{fullPath: string; relPath: string; stat: Stats}> = [];
+  for (const relPath of [...new Set([...discovered.files, ...knownFiles])].sort()) {
+    if (relPath.split(path.sep).some(part => INDEX_EXCLUSIONS.has(part)) ||
+        !knownFiles.has(relPath) && !SUPPORTED_EXTENSIONS.has(path.extname(relPath).toLowerCase())) continue;
+    let relative: string;
+    try { relative = workspacePath(rootDir, relPath); } catch { continue; }
+    const fullPath = path.resolve(rootDir, relative);
+    const info = lstatSync(fullPath, {throwIfNoEntry: false});
+    if (info?.isFile()) candidateFiles.push({fullPath, relPath: relative, stat: info});
+  }
+  const existingMap = new Map<string, { hash?: string; mtime?: number; size?: number; id: string; isExternal?: boolean; isStub?: boolean; ctimeMs?: number; structureVersion?: number }>();
   for (const f of existingFiles) {
     const localId = (f as FileNode & {path?: string}).path ?? store.localId(f.id);
     existingMap.set(localId, {
+      hash: (f as FileNode & {hash?: string}).hash,
       mtime: (f as any).mtime,
       size: (f as any).size,
       id: f.id,
@@ -375,7 +407,8 @@ async function reconcileAst(
       options?.force ||
       !existing.mtime ||
       s.mtimeMs !== existing.mtime ||
-      s.size !== existing.size || s.ctimeMs !== existing.ctimeMs || existing.structureVersion !== 2
+      s.size !== existing.size || s.ctimeMs !== existing.ctimeMs || existing.structureVersion !== 2 ||
+      typeof existing.hash === 'string' && existing.hash !== contentHash(await readFile(fullPath))
     );
 
     if (isNew || isModified) {
@@ -417,15 +450,24 @@ async function reconcileAst(
 /** Index an external public surface through the same declaration reconciliation owner. */
 async function indexExternalFile(store: WorkflowStore, fullPath: string, relPath: string, module: ModuleNode) {
   const info = await stat(fullPath);
-  const previous = await store.getEntity<FileNode & {mtime?: number; size?: number}>(relPath, FileNode.dcr);
-  if (previous?.mtime === info.mtimeMs && previous.size === info.size &&
-      previous.metadata?.ctimeMs === info.ctimeMs && previous.metadata?.structureVersion === 2)
-    return {changed: false, imports: (previous.metadata.importSpecifiers ?? []) as string[]};
-  const parsed = parseIndexedFile({filePath: relPath, content: await readFile(fullPath, 'utf8')});
+  const previous = await store.getEntity<FileNode & {hash?: string}>(relPath, FileNode.dcr);
+  const sameStat = previous?.mtime === info.mtimeMs && previous.size === info.size &&
+    previous.metadata?.ctimeMs === info.ctimeMs && previous.metadata?.structureVersion === 2;
+  if (sameStat && previous.hash === undefined)
+    return {changed: false, imports: (previous.metadata?.importSpecifiers ?? []) as string[]};
+  const bytes = await readFile(fullPath);
+  const hash = contentHash(bytes);
+  if (sameStat && previous?.hash === hash)
+    return {changed: false, imports: (previous.metadata?.importSpecifiers ?? []) as string[]};
+  const previousHash = previous?.metadata?.missing === true ? null : previous?.hash ?? null;
+  const changed = !previous || previousHash !== hash || previous.metadata?.missing === true;
+  const change: FileChangeEventData = {filePath: relPath, previousHash, hash};
+  if (previous && changed) await previous.handleEvent('node-changed', previous, change);
+  const parsed = parseIndexedFile({filePath: relPath, content: bytes.toString('utf8')});
   const imports = parsed.facts.filter(fact => fact.predicate === 'imports').map(fact => fact.objectText)
     .filter((text): text is string => typeof text === 'string');
   const file = await upsertSource<FileNode>(store, FileNode.dcr, {id: relPath, title: path.basename(fullPath), path: relPath,
-    language: parsed.language, fileKind: parsed.fileKind, size: info.size, mtime: info.mtimeMs, status: 'implemented',
+    language: parsed.language, fileKind: parsed.fileKind, size: info.size, mtime: info.mtimeMs, hash, status: 'implemented',
     metadata: {...previous?.metadata, isExternal: true, externalPath: fullPath, ctimeMs: info.ctimeMs,
       structureVersion: 2, missing: false, isStub: false, importSpecifiers: imports,
       coverage: 'Exported declarations and members in the package entry and its direct local imports; not the whole dependency.'}});
@@ -434,6 +476,7 @@ async function indexExternalFile(store: WorkflowStore, fullPath: string, relPath
     .map(symbol => [symbol.containerName, symbol.name].filter(Boolean).join('.'));
   await reconcileFileSymbols(store, file, relPath, parsed.symbols.filter(symbol => symbol.exported ||
     publicContainers.some(container => symbol.containerName === container)));
+  if (!previous) await file.handleEvent('node-changed', file, change);
   return {changed: true, imports};
 }
 
@@ -458,8 +501,7 @@ export async function indexExternalDependencies(store: WorkflowStore, rootDir: s
 
 async function indexExternalDependenciesUnlocked(store: WorkflowStore, rootDir: string): Promise<number> {
   const manifest = path.join(rootDir, 'package.json');
-  if (!existsSync(manifest)) return 0;
-  const pkg: DependencyManifest = JSON.parse(await readFile(manifest, 'utf8'));
+  const pkg: DependencyManifest = existsSync(manifest) ? JSON.parse(await readFile(manifest, 'utf8')) : {};
   const retained = new Set<string>();
   let indexed = 0;
   for (const [name, version] of Object.entries({...pkg.dependencies, ...pkg.devDependencies})) {

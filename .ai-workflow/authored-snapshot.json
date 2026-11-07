@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exportedAt": "2026-11-06T10:40:24.660Z",
+  "exportedAt": "2026-11-07T06:55:40.560Z",
   "entities": [
     {
       "id": "ASP-AIWF-EFFICIENCY",
@@ -462,7 +462,7 @@
       "kind": "UserStory",
       "fields": {
         "title": "Developer verifies work using the normal AI route",
-        "status": "proposed",
+        "status": "accepted",
         "actor": "Developer or delegated coding agent",
         "intent": "Obtain trustworthy, proportionate verification of engineering work using current evidence and the configured normal AI route.",
         "initialState": "A Ticket has applicable requirements and actual current test evidence, and a normal AI verification route is configured.",

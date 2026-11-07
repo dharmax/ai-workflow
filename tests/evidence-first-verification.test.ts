@@ -242,3 +242,36 @@ it('technical maintenance can use an actual compiler check and substantive sourc
  const receipt=(await f.store.getEntity<Artifact>('VERIFY-T',Artifact.dcr))!;expect(JSON.parse(receipt.body!).testNodes).toEqual([]);
  fs.appendFileSync(path.join(f.root,'package.json'),'\n');expect(await currentTicketReceipt(f.store,after)).toBeNull();
 },20000);
+
+it.skipIf(process.env.AIWF_LIVE_REVIEWER !== '1')('public Ticket verification calls a real normal reviewer for a qualitative rule', async () => {
+const {withAcceptedGreetingStory}=await import('./us/fixtures/greeting-project.ts');
+const {saveConfig}=await import('../src/services/config-service.ts');
+const {spawnSync}=await import('node:child_process');
+await withAcceptedGreetingStory(async ({root,ctx})=>{
+ saveConfig(root,{modelRoutes:{critic:'ollama/qwen2.5-coder:7b'}});
+ const call=(name:string,args:unknown)=>commandRegistry.execute(name,args,ctx);
+ fs.writeFileSync(root+'/src/greeting.ts',"export function greet(name: string): string { return 'Hello, ' + name.toUpperCase() + '!'; }\n");
+ await indexCodebase(ctx.store,root);
+ await call('create_ticket',{id:'LIVE-VERIFY',title:'Verify the greeting implementation',body:'Preserve the current greeting.',acceptanceCriteria:["Calling greet('Ada') returns 'Hello, ADA!'."]});
+ await ctx.store.relate('LIVE-VERIFY','modifies','src/greeting.ts');
+ await new RuleStore(ctx.store).saveRule({id:'direct',ruleId:'engineering.fixture-direct',title:'Direct greeting',scope:{kind:'universal'},type:'architecture',importance:10,rule:'Keep the greeting implementation direct and readable.',status:'active',revision:1,provenance:'fixture',examples:[],references:[],test:{kind:'llm'}});
+ const specification={ticketId:'LIVE-VERIFY',testId:'test:tests/public-contract.test.ts',scopes:[{id:'greeting',criteria:["Calling greet('Ada') returns 'Hello, ADA!'."],testId:'test:tests/public-contract.test.ts',sources:[{filePath:'src/greeting.ts'}]}]};
+ const preview=await call('prepare_test_binding',{specification}); expect(preview.status).toBe('review');
+ const linked=await ctx.store.withExecutionContext('project-write',undefined,()=>call('apply_test_binding',{specification,fingerprint:preview.fingerprint,decision:'accept'}),preview.fingerprint);expect(linked.status).toBe('bound');
+ expect((await call('claim_ticket',{ticketId:'GREET-TICKET',agentId:'fixture'})).success).toBe(true);
+ expect((await call('run_story_test',{storyId:'GREET-USER'})).status).toBe('green');
+ for(const args of [['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','test']]){const p=spawnSync('git',args,{cwd:root,encoding:'utf8'});if(p.status)throw Error(p.stderr)}
+ let calls=0, responses=0; const originalFetch=globalThis.fetch;
+ const fetchSpy=spyOn(globalThis,'fetch').mockImplementation((async (input,init)=>{
+  const url=String(input);
+  if(url.includes('/api/chat') || url.includes('/api/generate')){
+   const request=JSON.parse(String(init?.body));expect(request.model).toBe('qwen2.5-coder:7b');calls++;
+  }
+  const response=await originalFetch(input,init);
+  if((url.includes('/api/chat') || url.includes('/api/generate')) && response.ok) { const data=await response.clone().json() as {message?:{content?:string};response?:string}; if(data.message?.content || data.response) responses++; }
+  return response;
+ }) as typeof fetch);
+ try{const result=await call('resolve_ticket',{ticketId:'LIVE-VERIFY',verifyOnly:true,maxRepairs:0,depth:0,critic:'none',testCommands:[['bun','test','tests/public-contract.test.ts']]});console.info('Live Ticket reviewer result:', JSON.stringify(result)); expect(calls).toBeGreaterThan(0); expect(responses).toBeGreaterThan(0); const history=JSON.stringify(await call('get_ticket_history',{ticketId:'LIVE-VERIFY'})); expect(history).toContain('ollama/qwen2.5-coder:7b'); if(result.status==='blocked'){expect(JSON.stringify(result)).toContain('engineering.fixture-direct');expect(await ctx.store.getEntity('VERIFY-LIVE-VERIFY')).toBeNull();} else expect(result.status,JSON.stringify(result)).toBe('complete');}
+ finally{fetchSpy.mockRestore();}
+});
+},180000);

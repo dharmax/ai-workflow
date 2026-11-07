@@ -138,9 +138,10 @@
 - **Coverage**: missing_parent, missing_work, missing_verification
 
 ## US-REVIEWER-RELIABILITY: Developer verifies work using the normal AI route
-- **Status**: `proposed`
+- **Status**: `accepted`
 - **Actor**: Developer or delegated coding agent
 - **Story**: 
 - **Tickets**: `TKT-REVIEWER-RELIABILITY`
-- **Coverage**: Complete
+- **Tests**: `test:tests/us/reviewer-reliability.story.test.ts`
+- **Coverage**: missing_parent, missing_acceptance_contract
 
