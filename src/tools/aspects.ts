@@ -45,7 +45,7 @@ export function registerAspectTools(): void {
       if (name === 'link_aspect') await aspect.applyTo(scope, ctx.store); else await aspect.removeFrom(scope, ctx.store);
       await exportProjections(ctx.store, ctx.projectRoot); return aspect.view(ctx.store);
     } });
-  commandRegistry.register({ name: 'get_applicable_aspects', description: 'Resolve defined scope inheritance with deduplication and Ticket cycle detection.', category: 'planning',
+  commandRegistry.register({ name: 'get_applicable_aspects', description: 'Resolve direct and containing-scope Aspects with deduplication and cycle detection.', category: 'planning',
     parameters: z.object({ entityId: z.string() }), execute: async ({ entityId }, ctx) => {
       const scope = await loadScope(ctx.store, entityId);
       return Promise.all(((await Aspect.getAspectList(scope)).filter(a => a.status === 'accepted')).map(a => a.view(ctx.store)));
