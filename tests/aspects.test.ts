@@ -17,25 +17,44 @@ describe('first-class Aspects', () => {
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
   const aspect = (id: string) => createAspect(store,{ id, title: id, status: 'accepted', acceptanceCriteria: ['Relevant evidence supports the concern'] });
 
-  it('keeps Epic concerns on its work, inherits Feature concerns into Story work, and deduplicates Module/parent paths', async () => {
+  it('inherits Aspects through contains, not through targets/implements/addresses', async () => {
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic' });
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const s = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Story' });
+    const enabled = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S-ENABLED', title: 'Enabled only' });
     const m = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, { id: 'M', title: 'Module' });
     const t = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'T', title: 'Parent', lane: 'Todo' });
     const c = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'C', title: 'Child', lane: 'Todo' });
     const initiative = await aspect('initiative'), robust = await aspect('robust'), module = await aspect('module');
-    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(initiative.id),predicate:"applies_to",targetId:store.localId(e.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(f.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(s.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(module.id),predicate:"applies_to",targetId:store.localId(m.id)}]);
+    await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(initiative.id),predicate:"applies_to",targetId:store.localId(e.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(f.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(module.id),predicate:"applies_to",targetId:store.localId(m.id)}]);
     await store.relate(e, 'targets', f); await store.relate(f, 'contains', s); await store.relate(e, 'contains', t);
+    await store.relate(f, 'enables', enabled);
     await store.relate(t, 'implements', f); await store.relate(t, 'addresses', s); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
-    expect((await Aspect.getAspectList(f, store)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect((await Aspect.getAspectList(s, store)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect((await Aspect.getAspectList(c, store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
+    expect((await Aspect.getAspectList(f)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect((await Aspect.getAspectList(s)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect(await Aspect.getAspectList(enabled)).toEqual([]);
+    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative']);
     await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}]);
     expect((await robust.view(store)).scopes).toContain('T');
+    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative', 'robust']);
     await store.relate(c, 'contains', t);
-    await expect(Aspect.getAspectList(c, store)).rejects.toThrow('containment cycle');
+    await expect(Aspect.getAspectList(c)).rejects.toThrow('containment cycle');
     await expect(acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}])).rejects.toThrow('cycle');
+  });
+
+  it('returns direct and inherited Aspects regardless of status; assessment remains accepted-only', async () => {
+    const parent = await store.upsertEntity<Epic>(Epic.dcr, { id: 'P', title: 'Parent' });
+    const child = await store.upsertEntity<Ticket>(Ticket.dcr, { id: 'C', title: 'Child', lane: 'Todo' });
+    const approved = await aspect('approved');
+    const proposed = await createAspect(store, {id: 'proposed', title: 'Proposed', status: 'proposed'});
+    await acceptProduct(store, [
+      {kind: 'product_link', sourceId: store.localId(approved.id), predicate: 'applies_to', targetId: store.localId(parent.id)},
+      {kind: 'product_link', sourceId: store.localId(approved.id), predicate: 'applies_to', targetId: store.localId(child.id)},
+      {kind: 'product_link', sourceId: store.localId(proposed.id), predicate: 'applies_to', targetId: store.localId(parent.id)}
+    ]);
+    await store.relate(parent, 'contains', child);
+    expect((await Aspect.getAspectList(child)).map(a => store.localId(a.id))).toEqual(['approved', 'proposed']);
+    expect((await child.assessAspects(store)).aspects.map(a => a.id)).toEqual(['approved']);
   });
 
   it('accepts work, code, tests, reports and Decisions as evidence without manufacturing dedicated work', async () => {

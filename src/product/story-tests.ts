@@ -22,7 +22,7 @@ export type StoryTestSpecification=z.infer<typeof StoryTestSpecificationSchema>;
 type StoryTestState = 'skipped' | 'not-run' | 'expected-red' | 'green' | 'blocked' | 'stale' | 'uncovered';
 
 async function storyTestBasis(store:WorkflowStore,story:UserStory) {
-  const aspects=await Aspect.getAspectList(story,store);
+  const aspects=(await Aspect.getAspectList(story)).filter(a => a.status === 'accepted');
   const revisions=aspects.map(aspect=>({id:store.localId(aspect.id),version:aspect.version})).sort((a,b)=>a.id.localeCompare(b.id));
   return {aspects,hash:computeHash(canonical({story:{id:store.localId(story.id),version:story.version},aspects:revisions}))};
 }

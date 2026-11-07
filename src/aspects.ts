@@ -19,7 +19,7 @@ export interface AspectAssessment {
 
 export async function assessAspects(entity: WorkflowEntity, store: WorkflowStore, selected?: Aspect[]): Promise<AspectAssessment> {
   const aspects: AspectAssessment['aspects'] = [];
-  for (const aspect of selected ?? await Aspect.getAspectList(entity, store)) {
+  for (const aspect of selected ?? (await Aspect.getAspectList(entity)).filter(a => a.status === 'accepted')) {
     const item: AspectAssessment['aspects'][number] = { id: store.localId(aspect.id), title: aspect.title, status: aspect.status,
       criteria: aspect.acceptanceCriteria ?? [], tickets: [], tests: [], artifacts: [], decisions: [], code: [], gaps: [] };
     for (const edge of await store.getIncoming(aspect.id)) {
@@ -47,7 +47,7 @@ export async function reviewMissingAspects(entity: WorkflowEntity, store: Workfl
   critic: ArtifactCritic;
   systemOne?: SystemOne;
 }) {
-  const applicable = await Aspect.getAspectList(entity, store);
+  const applicable = (await Aspect.getAspectList(entity)).filter(a => a.status === 'accepted');
   const candidates = z.array(z.object({ id: z.string(), title: z.string(), body: z.string().optional() })).max(loadConfig(store.root).maxArtifacts).parse(options.candidates)
     .filter(c => !applicable.some(a => store.localId(a.id) === c.id));
   const assessment = await (options.systemOne ?? new LayaSystemOne()).assess(

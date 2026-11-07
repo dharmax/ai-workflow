@@ -389,7 +389,7 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
     expect(invResult.status).toBe('complete');
     if (invResult.status !== 'complete') throw new Error(JSON.stringify(invResult));
     const dossier = invResult.value;
-    expect((await Aspect.getAspectList(ticket, store)).map(a => store.localId(a.id))).toEqual(['ASP-GOV-1']);
+    expect((await Aspect.getAspectList(ticket)).map(a => store.localId(a.id))).toEqual(['ASP-GOV-1']);
     expect(dossier.aspects.aspects.map(a => a.id)).toEqual(['ASP-GOV-1']);
     expect(dossier.evidence.find(e => e.id === 'ASP-PROPOSED')).toMatchObject({ mandatory: false });
     const operativeDecision = [

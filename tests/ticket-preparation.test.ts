@@ -62,7 +62,7 @@ describe('reviewed Ticket preparation', () => {
     expect(result.value.created).toEqual(['P/persist', 'P/migrate']); expect(result.value.criticRounds).toBe(1);
     expect((await store.getOutgoing('P/migrate', 'depends_on')).map(e => store.localId(e.targetId))).toEqual(['P/persist']);
     expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.claim).toBeNull(); expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.lane).toBe('Todo');
-    expect((await Aspect.getAspectList((await store.getEntity<Ticket>('P/persist', Ticket.dcr))!, store)).map(a => store.localId(a.id))).toContain('A');
+    expect((await Aspect.getAspectList((await store.getEntity<Ticket>('P/persist', Ticket.dcr))!)).map(a => store.localId(a.id))).toContain('A');
     const rerun = await t.prepare(store, options); expect(rerun.status).toBe('complete'); if (rerun.status === 'complete') { expect(rerun.value.applied).toBe(false); expect(rerun.value.reused.sort()).toEqual(['P/migrate', 'P/persist']); }
     expect(calls).toBe(1); expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(3);
   });

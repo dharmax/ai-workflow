@@ -48,7 +48,7 @@ export function registerAspectTools(): void {
   commandRegistry.register({ name: 'get_applicable_aspects', description: 'Resolve defined scope inheritance with deduplication and Ticket cycle detection.', category: 'planning',
     parameters: z.object({ entityId: z.string() }), execute: async ({ entityId }, ctx) => {
       const scope = await loadScope(ctx.store, entityId);
-      return Promise.all((await Aspect.getAspectList(scope, ctx.store)).map(a => a.view(ctx.store)));
+      return Promise.all(((await Aspect.getAspectList(scope)).filter(a => a.status === 'accepted')).map(a => a.view(ctx.store)));
     } });
   commandRegistry.register({ name: 'assess_aspects', description: 'Derive concern/work/evidence/Decision gaps without a score.', category: 'planning',
     parameters: z.object({ entityId: z.string() }), execute: async ({ entityId }, ctx) => assessAspects(await loadScope(ctx.store, entityId), ctx.store) });

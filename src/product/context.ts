@@ -46,7 +46,7 @@ export async function buildIntentContext(
     const edges = [...(await store.getOutgoing(entity.id)), ...(await store.getIncoming(entity.id))]
     const linked = new Set(edges.map(edge => (edge.sourceId === entity.id ? edge.targetId : edge.sourceId)))
     const optional = all.filter(item => !linked.has(item.id) && item.id !== entity.id).slice(0, maxArtifacts)
-    const aspects = await Aspect.getAspectList(entity, store)
+    const aspects = (await Aspect.getAspectList(entity)).filter(a => a.status === 'accepted')
     const candidates = (await store.listEntities<Aspect>(Aspect.dcr))
         .filter(a => !aspects.some(existing => existing.id === a.id) && a.status !== "deprecated")
         .slice(0, maxArtifacts)

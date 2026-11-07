@@ -329,7 +329,7 @@ export function processIntent(
                             intent: (root as WorkflowEntity & { body?: string }).body ?? root.title!,
                             neighborhood: reviewInputs.map(input => ({ ...input })),
                             proposal: [],
-                            applicableAspects: (await Aspect.getAspectList(root, store)).map(a => store.localId(a.id)),
+                            applicableAspects: ((await Aspect.getAspectList(root)).filter(a => a.status === 'accepted')).map(a => store.localId(a.id)),
                             candidateAspects: [],
                             completeness: rootTarget,
                             depth: 0,
