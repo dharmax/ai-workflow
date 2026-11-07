@@ -6,16 +6,13 @@ import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
+import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 
 
 export class Idea extends WorkflowEntity {
     declare status?: string
     declare feasibility?: 'low' | 'medium' | 'high'
     declare impact?: 'low' | 'medium' | 'high'
-    applicableAspects(store: WorkflowStore) {
-        return applicableAspects(this, store)
-    }
     assessAspects(store: WorkflowStore) {
         return assessAspects(this, store)
     }

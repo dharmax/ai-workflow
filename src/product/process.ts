@@ -5,8 +5,8 @@
 
 import { renderIntentProposal } from "./prompts.ts"
 import { type CompletenessLevel, scopeTarget } from "../artifact-policy.ts"
-import { applicableAspects, assessAspects } from "../aspects.ts"
-import { Epic, Feature, UserStory, WorkflowEntity, Ticket } from "../model/ontology.ts"
+import { assessAspects } from "../aspects.ts"
+import { Epic, Feature, UserStory, WorkflowEntity, Ticket, Aspect } from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import { withArtifactMetrics, visitMetricArtifact, cognitionMetrics, countEngineering } from "../performance-metrics.ts"
 import { buildIntentContext } from "./context.ts"
@@ -329,7 +329,7 @@ export function processIntent(
                             intent: (root as WorkflowEntity & { body?: string }).body ?? root.title!,
                             neighborhood: reviewInputs.map(input => ({ ...input })),
                             proposal: [],
-                            applicableAspects: (await applicableAspects(root, store)).map(a => store.localId(a.id)),
+                            applicableAspects: (await Aspect.getAspectList(root, store)).map(a => store.localId(a.id)),
                             candidateAspects: [],
                             completeness: rootTarget,
                             depth: 0,

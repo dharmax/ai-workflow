@@ -6,7 +6,7 @@ import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
+import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 import { scopeTarget } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 import type { ProcessOptions } from '../product/process-types.ts'
@@ -48,9 +48,6 @@ export class UserStory extends WorkflowEntity {
     async process(store: WorkflowStore, options: ProcessOptions = {}) {
         const { processIntent } = await import('../product/process.ts')
         return processIntent(store, this, options)
-    }
-    applicableAspects(store: WorkflowStore) {
-        return applicableAspects(this, store)
     }
     assessAspects(store: WorkflowStore) {
         return assessAspects(this, store)

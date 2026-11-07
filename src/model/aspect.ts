@@ -11,6 +11,57 @@ import { assessAspects } from '../aspects.ts'
 
 
 export class Aspect extends WorkflowEntity {
+    /**
+     * Direct applies_to is exact for supported product and engineering artifacts.
+     * Stories inherit enabling Features (and legacy containing Features).
+     * Tickets inherit parent Tickets/Epics and implemented/addressed/targeted scopes.
+     * File/Symbol/Test/Artifact tags are direct only; evidence and Epic targets never propagate policy.
+     */
+    static async getAspectList(entity: WorkflowEntity, store: WorkflowStore): Promise<Aspect[]> {
+        const { productKind, validateProductRelation } = await import('../product/mutation.ts');
+        const { Epic, Feature, UserStory, Ticket } = await import('./ontology.ts');
+        const result = new Map<string, Aspect>();
+        const visited = new Set<string>();
+        const active = new Set<string>();
+        async function visit(scope: WorkflowEntity): Promise<void> {
+          if (active.has(scope.id)) throw new Error(`Ticket containment cycle at '${store.localId(scope.id)}'.`);
+          if (visited.has(scope.id)) return;
+          visited.add(scope.id); active.add(scope.id);
+          const kind = productKind(scope);
+          if (!kind) throw new Error(`Applicable Aspects are unsupported for '${scope.typeName()}'.`);
+          validateProductRelation('Aspect', 'applies_to', kind);
+          for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
+            const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
+            if (aspect && aspect.status === 'accepted') result.set(aspect.id, aspect);
+          }
+          if (scope instanceof Ticket) {
+            for (const edge of await store.getIncoming(scope.id, 'contains')) {
+              const parent = await store.getEntity(edge.sourceId);
+              if (parent instanceof Ticket || parent instanceof Epic) await visit(parent);
+            }
+            for (const edge of await store.getOutgoing(scope.id)) {
+              const target = await store.getEntity(edge.targetId);
+              if ((edge.predicateName === 'implements' && target instanceof Feature)
+                || (edge.predicateName === 'addresses' && target instanceof UserStory)
+                || (['targets', 'modifies'].includes(edge.predicateName) && ['Module', 'File', 'Symbol'].includes(productKind(target) ?? ''))) {
+                if (target) await visit(target);
+              }
+              // Only accepted concerns govern explicit addressing, even without an applies_to edge.
+              if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status === 'accepted') result.set(target.id, target);
+            }
+          } else if (scope instanceof UserStory) {
+            for (const predicate of ['enables', 'contains']) {
+              for (const edge of await store.getIncoming(scope.id, predicate)) {
+                const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
+                if (parent) await visit(parent);
+              }
+            }
+          }
+          active.delete(scope.id);
+        }
+        await visit(entity);
+        return [...result.values()].sort((a, b) => store.localId(a.id).localeCompare(store.localId(b.id)));
+    }
     declare title: string
     declare body: string
     declare status: "draft" | "proposed" | "accepted" | "deprecated"

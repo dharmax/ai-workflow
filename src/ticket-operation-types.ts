@@ -169,12 +169,12 @@ export interface TicketGovernance {
 /** One effective Ticket governance view for investigation, production, verification and proof reuse. */
 export async function resolveTicketGovernance(store: WorkflowStore, ticket: WorkflowEntity, files: readonly string[] = [],
   prior?: Pick<TicketGovernance, 'targets' | 'decisions'>, options: {refreshIndex?: boolean} = {}): Promise<TicketGovernance> {
-  const { FileNode, SymbolNode, ModuleNode, Decision } = await import('./model/ontology.ts');
+  const { FileNode, SymbolNode, ModuleNode, Decision, Aspect } = await import('./model/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
   const { loadConfig } = await import('./services/config-service.ts');
   const { ensureAstFresh, resolveModulePath } = await import('./graph/indexer.ts');
-  const { applicableAspects, assessAspects } = await import('./aspects.ts');
+  const { assessAspects } = await import('./aspects.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
   const { renderRuleReferences } = await import('./rules/references.ts');
   // Receipt inspection uses the current canonical Graph without mutating it.
@@ -220,7 +220,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const meaning = await collectProductMeaning(subjects, store);
   const selectedAspects = new Map<string, import('./model/ontology.ts').Aspect>();
   for (const subject of [ticket, ...owners.values()])
-    for (const aspect of await applicableAspects(subject, store)) selectedAspects.set(aspect.id, aspect);
+    for (const aspect of await Aspect.getAspectList(subject, store)) selectedAspects.set(aspect.id, aspect);
   const aspects = await assessAspects(ticket, store, [...selectedAspects.values()].sort((a, b) => a.id.localeCompare(b.id)));
   const codeSubjects = [...entities];
   for (const file of sourceFiles.values()) if (file) for (const edge of await store.getOutgoing(file.id, 'contains')) {

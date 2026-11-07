@@ -2,9 +2,6 @@ import { z } from 'zod';
 import { LayaSystemOne, type SystemOne } from '@dharmax/llm-utils';
 import type { WorkflowStore } from './graph/store.ts';
 import { Aspect } from './model/aspect.ts';
-import { Epic } from './model/epic.ts';
-import { Feature } from './model/feature.ts';
-import { UserStory } from './model/user-story.ts';
 import { Ticket } from './model/ticket.ts';
 import { TestNode } from './model/test-node.ts';
 import { Artifact } from './model/artifact.ts';
@@ -19,60 +16,10 @@ export interface AspectAssessment {
   knownGaps: string[];
 }
 
-/**
- * Direct applies_to is exact for supported product and engineering artifacts.
- * Stories inherit enabling Features (and legacy containing Features).
- * Tickets inherit parent Tickets/Epics and implemented/addressed/targeted scopes.
- * File/Symbol/Test/Artifact tags are direct only; evidence and Epic targets never propagate policy.
- */
-export async function applicableAspects(entity: WorkflowEntity, store: WorkflowStore): Promise<Aspect[]> {
-  const { productKind, validateProductRelation } = await import('./product/mutation.ts');
-  const result = new Map<string, Aspect>();
-  const visited = new Set<string>();
-  const active = new Set<string>();
-  async function visit(scope: WorkflowEntity): Promise<void> {
-    if (active.has(scope.id)) throw new Error(`Ticket containment cycle at '${store.localId(scope.id)}'.`);
-    if (visited.has(scope.id)) return;
-    visited.add(scope.id); active.add(scope.id);
-    const kind = productKind(scope);
-    if (!kind) throw new Error(`Applicable Aspects are unsupported for '${scope.typeName()}'.`);
-    validateProductRelation('Aspect', 'applies_to', kind);
-    for (const edge of await store.getIncoming(scope.id, 'applies_to')) {
-      const aspect = await store.getEntity<Aspect>(edge.sourceId, Aspect.dcr);
-      if (aspect && aspect.status === 'accepted') result.set(aspect.id, aspect);
-    }
-    if (scope instanceof Ticket) {
-      for (const edge of await store.getIncoming(scope.id, 'contains')) {
-        const parent = await store.getEntity(edge.sourceId);
-        if (parent instanceof Ticket || parent instanceof Epic) await visit(parent);
-      }
-      for (const edge of await store.getOutgoing(scope.id)) {
-        const target = await store.getEntity(edge.targetId);
-        if ((edge.predicateName === 'implements' && target instanceof Feature)
-          || (edge.predicateName === 'addresses' && target instanceof UserStory)
-          || (['targets', 'modifies'].includes(edge.predicateName) && ['Module', 'File', 'Symbol'].includes(productKind(target) ?? ''))) {
-          if (target) await visit(target);
-        }
-        // Only accepted concerns govern explicit addressing, even without an applies_to edge.
-        if (edge.predicateName === 'addresses' && target instanceof Aspect && target.status === 'accepted') result.set(target.id, target);
-      }
-    } else if (scope instanceof UserStory) {
-      for (const predicate of ['enables', 'contains']) {
-        for (const edge of await store.getIncoming(scope.id, predicate)) {
-          const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
-          if (parent) await visit(parent);
-        }
-      }
-    }
-    active.delete(scope.id);
-  }
-  await visit(entity);
-  return [...result.values()].sort((a, b) => store.localId(a.id).localeCompare(store.localId(b.id)));
-}
 
 export async function assessAspects(entity: WorkflowEntity, store: WorkflowStore, selected?: Aspect[]): Promise<AspectAssessment> {
   const aspects: AspectAssessment['aspects'] = [];
-  for (const aspect of selected ?? await applicableAspects(entity, store)) {
+  for (const aspect of selected ?? await Aspect.getAspectList(entity, store)) {
     const item: AspectAssessment['aspects'][number] = { id: store.localId(aspect.id), title: aspect.title, status: aspect.status,
       criteria: aspect.acceptanceCriteria ?? [], tickets: [], tests: [], artifacts: [], decisions: [], code: [], gaps: [] };
     for (const edge of await store.getIncoming(aspect.id)) {
@@ -100,7 +47,7 @@ export async function reviewMissingAspects(entity: WorkflowEntity, store: Workfl
   critic: ArtifactCritic;
   systemOne?: SystemOne;
 }) {
-  const applicable = await applicableAspects(entity, store);
+  const applicable = await Aspect.getAspectList(entity, store);
   const candidates = z.array(z.object({ id: z.string(), title: z.string(), body: z.string().optional() })).max(loadConfig(store.root).maxArtifacts).parse(options.candidates)
     .filter(c => !applicable.some(a => store.localId(a.id) === c.id));
   const assessment = await (options.systemOne ?? new LayaSystemOne()).assess(

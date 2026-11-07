@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { commandRegistry } from './registry.ts';
 import { Aspect } from '../model/ontology.ts';
-import { applicableAspects, assessAspects } from '../aspects.ts';
+import { assessAspects } from '../aspects.ts';
 import { productKind, validateProductRelation } from '../product/mutation.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { exportProjections } from '../services/projection-service.ts';
@@ -48,7 +48,7 @@ export function registerAspectTools(): void {
   commandRegistry.register({ name: 'get_applicable_aspects', description: 'Resolve defined scope inheritance with deduplication and Ticket cycle detection.', category: 'planning',
     parameters: z.object({ entityId: z.string() }), execute: async ({ entityId }, ctx) => {
       const scope = await loadScope(ctx.store, entityId);
-      return Promise.all((await applicableAspects(scope, ctx.store)).map(a => a.view(ctx.store)));
+      return Promise.all((await Aspect.getAspectList(scope, ctx.store)).map(a => a.view(ctx.store)));
     } });
   commandRegistry.register({ name: 'assess_aspects', description: 'Derive concern/work/evidence/Decision gaps without a score.', category: 'planning',
     parameters: z.object({ entityId: z.string() }), execute: async ({ entityId }, ctx) => assessAspects(await loadScope(ctx.store, entityId), ctx.store) });

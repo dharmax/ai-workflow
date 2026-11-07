@@ -3,13 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {parseIndexedFile} from '@dharmax/codebase-parser';
 import {z} from 'zod';
-import {UserStory,Ticket,TestNode} from '../model/ontology.ts';
+import {UserStory,Ticket,TestNode,Aspect} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {CausalChangeEngine} from '../change/engine.ts';
 import {workspacePath} from '../change/workspace-path.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
 import type {ChangeRequest,ChangePreview,ChangeApplyResult} from '../change/types.ts';
-import {applicableAspects} from '../aspects.ts';
 import {testArtifactId,normalizeTestPath,currentTestEvidence} from '../graph/test-artifacts.ts';
 
 export const StoryTestSpecificationSchema=z.object({
@@ -23,7 +22,7 @@ export type StoryTestSpecification=z.infer<typeof StoryTestSpecificationSchema>;
 type StoryTestState = 'skipped' | 'not-run' | 'expected-red' | 'green' | 'blocked' | 'stale' | 'uncovered';
 
 async function storyTestBasis(store:WorkflowStore,story:UserStory) {
-  const aspects=await applicableAspects(story,store);
+  const aspects=await Aspect.getAspectList(story,store);
   const revisions=aspects.map(aspect=>({id:store.localId(aspect.id),version:aspect.version})).sort((a,b)=>a.id.localeCompare(b.id));
   return {aspects,hash:computeHash(canonical({story:{id:store.localId(story.id),version:story.version},aspects:revisions}))};
 }

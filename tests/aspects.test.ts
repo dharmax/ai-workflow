@@ -28,13 +28,13 @@ describe('first-class Aspects', () => {
     await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(initiative.id),predicate:"applies_to",targetId:store.localId(e.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(f.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(s.id)}]); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(module.id),predicate:"applies_to",targetId:store.localId(m.id)}]);
     await store.relate(e, 'targets', f); await store.relate(f, 'contains', s); await store.relate(e, 'contains', t);
     await store.relate(t, 'implements', f); await store.relate(t, 'addresses', s); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
-    expect((await f.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect((await s.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect((await c.applicableAspects(store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
+    expect((await Aspect.getAspectList(f, store)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect((await Aspect.getAspectList(s, store)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect((await Aspect.getAspectList(c, store)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
     await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}]);
     expect((await robust.view(store)).scopes).toContain('T');
     await store.relate(c, 'contains', t);
-    await expect(c.applicableAspects(store)).rejects.toThrow('containment cycle');
+    await expect(Aspect.getAspectList(c, store)).rejects.toThrow('containment cycle');
     await expect(acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}])).rejects.toThrow('cycle');
   });
 
