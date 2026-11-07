@@ -184,6 +184,22 @@ Stop at the current stage on any unaccounted-for public shape change; Product/so
 
 Paths in those groups resolve under `tests/` (with their given subdirectories); count includes fixtures because they are import consumers. These tests must migrate with their owning production modules.
 
+### Export ownership inventory (all nine original files)
+
+| Existing file | Exported API groups | Target owner |
+|---|---|---|
+| `engine.ts` | `CausalChangeEngine`, `ChangeEngineOptions`, `computeFileSha256`, `applyTextEdits`, `normalizeWorkspaceEdit`, `computeChangeFingerprint` | Code service facade, edit/fingerprint helpers; product branch removed |
+| `ts-lsp.ts` | `TsLspClient`, client factory/shutdown, capability and LSP query contracts | Independent TypeScript facilities |
+| `ts6-refactor.ts` | `Ts6RefactorClient`, client factory/shutdown, applicable refactor/action contracts | Independent TypeScript facilities |
+| `target-resolver.ts` | `resolveCodeTarget` | Shared source lookup helper; depends on LSP and Semantika |
+| `symbol-source.ts` | `findExactSymbolCandidates`, `getExactSymbolSource`, candidate contract | Shared read-only source lookup |
+| `types.ts` | LSP edit/position/range/WorkspaceEdit types; code target/request/mutation; mixed Code/Product `ChangeRequest`, preview/apply result and verification contracts | TypeScript types, code service types, Product types; public union only at adapter |
+| `request-schema.ts` | `CodeChangeRequestSchema`, `ChangeRequestSchema` | Code service + combined public adapter schema |
+| `workspace-path.ts` | `workspacePath` | Shared workspace path helper |
+| `lsp-shutdown.ts` | `closeLspTransport` | TypeScript facilities |
+
+The inventory is based on actual `export` declarations, **not** a proposed API. Do not blindly move public contracts to match folder structure: verify direct consumers, then place each type next to its semantic owner.
+
 ### Critical observed contracts and extraction order
 
 1. **Public transport:** `src/tools/change.ts` registers `read_workspace_file`, `preview_change`, `apply_change`; code operations require scope, claim and trusted admission. Product review is separately host-owned in `src/product/links.ts`. Preserve command IDs, Zod request union, fingerprints and error statuses.
