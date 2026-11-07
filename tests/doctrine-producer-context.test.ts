@@ -234,6 +234,7 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
       ],
       completeness: { story: 'tax', criteria: [] } as any,
       aspects: {
+        assessed: false,
         scopeId: 'TKT-SYNTH',
         aspects: [
           {
