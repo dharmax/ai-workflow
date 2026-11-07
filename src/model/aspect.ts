@@ -52,7 +52,7 @@ export class Aspect extends WorkflowEntity {
           } else if (scope instanceof UserStory) {
             for (const predicate of ['enables', 'contains']) {
               for (const edge of await store.getIncoming(scope.id, predicate)) {
-                const parent = await store.getEntity<Feature>(edge.sourceId, Feature.dcr);
+                const parent = await store.getEntity<import('./feature.ts').Feature>(edge.sourceId, Feature.dcr);
                 if (parent) await visit(parent);
               }
             }
