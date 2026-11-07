@@ -381,6 +381,7 @@ describe('Doctrine Gate 2: Producer Context & Decision/Aspect Authority Delivery
     await store.relate(ticket, 'addresses', acceptedAspect);
     await store.relate(ticket, 'addresses', draftAspect);
     await store.relate(ticket, 'addresses', proposedAspect);
+    await acceptProduct(store, [{kind:'product_link',sourceId:store.localId(acceptedAspect.id),predicate:'applies_to',targetId:store.localId(ticket.id)}]);
     await store.relate(ticket, 'implements', feature);
     await store.relate(decision, 'governs', ticket);
 

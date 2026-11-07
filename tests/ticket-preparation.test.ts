@@ -54,6 +54,7 @@ describe('reviewed Ticket preparation', () => {
   it('creates meaningful ordinary children with real ordering, holds a lease only during apply and reuses on rerun', async () => {
     const t = await parent();
     const a = await createAspect(store,{ id: 'A', title: 'Robust persistence', status: 'accepted', acceptanceCriteria: ['Preserve jobs'] }); await store.relate(t, 'addresses', a);
+    await acceptProduct(store,[{kind:'product_link',sourceId:'A',predicate:'applies_to',targetId:'P'}]);
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Durable jobs', completenessTarget: 'production' }); await store.relate(t, 'implements', f);
     let calls = 0;
     const options = { systemOne: split, critic: { id: 'custom', review: async (input: Parameters<ArtifactCritic['review']>[0]) => { calls++; expect(input.applicableAspects).toContain('A'); expect(input.completeness).toBe('production'); expect((await store.getEntity<Ticket>('P', Ticket.dcr))!.claim).toBeUndefined(); return { verdict: 'accept' as const }; } }, propose: async () => { const p = proposal(); for (const child of p.children) child.relations.push({ predicate: 'implements', targetId: 'F' }); return p; } };
