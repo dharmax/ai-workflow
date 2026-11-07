@@ -3,7 +3,7 @@
  * Scope: Delivery grouping, priority, completeness and Product processing.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -13,11 +13,6 @@ import type { ProcessOptions } from '../product/process-types.ts'
 import { PrioritySchema } from './types.ts'
 
 
-export interface EpicData extends BaseEntityData {
-  completenessTarget?: CompletenessLevel | null;
-  status?: EpicStatus;
-  priority?: number;
-}
 export type EpicStatus =
   | 'draft'
   | 'planned'

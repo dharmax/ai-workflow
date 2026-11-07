@@ -3,17 +3,12 @@
  * Scope: Authored acceptance criteria, governed revisions and applicability.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { assessAspects } from '../aspects.ts'
 
-import type { IntentStatus } from './types.ts'
 
-export interface AspectData extends BaseEntityData {
-  status?: IntentStatus;
-  acceptanceCriteria?: string[];
-}
 
 export class Aspect extends WorkflowEntity {
     declare title: string

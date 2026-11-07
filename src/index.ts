@@ -4,9 +4,7 @@
 
 // Graph & Context Engine
 export * from './model/types.ts';
-export type { EpicData, EpicStatus } from './model/epic.ts';
-export type { AspectData } from './model/aspect.ts';
-export type { FeatureData } from './model/feature.ts';
+export type { EpicStatus } from './model/epic.ts';
 export type { UserStoryData } from './model/user-story.ts';
 export type { TicketClaim, TicketData, TicketLane } from './model/ticket.ts';
 export type { ModuleData } from './model/module-node.ts';

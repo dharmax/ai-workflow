@@ -3,7 +3,7 @@
  * Scope: Capability definitions, priority, completeness and Product processing.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
@@ -12,14 +12,7 @@ import type { CompletenessLevel } from '../artifact-policy.ts'
 import type { ProcessOptions } from '../product/process-types.ts'
 import { PrioritySchema } from './types.ts'
 
-import type { IntentStatus } from './types.ts'
 
-export interface FeatureData extends BaseEntityData {
-  priority?: number;
-  completenessTarget?: CompletenessLevel | null;
-  status?: IntentStatus;
-  acceptanceCriteria?: string[];
-}
 
 export class Feature extends WorkflowEntity {
     declare status?: string
