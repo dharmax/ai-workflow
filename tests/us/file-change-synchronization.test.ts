@@ -49,11 +49,11 @@ it('developer changes a source file; graph dependents learn of it and existing t
         const notifiedFiles: string[] = [], notifiedTests: string[] = [];
         const originalFile = FileNode.prototype.handleEvent;
         const originalBase = WorkflowEntity.prototype.handleEvent;
-        const fileSpy = spyOn(FileNode.prototype, 'handleEvent').mockImplementation(function (type, source, data, visited) {
+        const fileSpy = spyOn(FileNode.prototype, 'handleEvent').mockImplementation(function (this: FileNode, type, source, data, visited) {
             if (type === 'fileChanged') notifiedFiles.push(this.path ?? '');
             return originalFile.call(this, type, source, data, visited);
         });
-        const baseSpy = spyOn(WorkflowEntity.prototype, 'handleEvent').mockImplementation(function (type, source, data, visited) {
+        const baseSpy = spyOn(WorkflowEntity.prototype, 'handleEvent').mockImplementation(function (this: WorkflowEntity, type, source, data, visited) {
             if (type === 'fileChanged' && this instanceof TestNode) notifiedTests.push(this.filePath ?? '');
             return originalBase.call(this, type, source, data, visited);
         });

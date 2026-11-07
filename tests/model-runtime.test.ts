@@ -7,8 +7,8 @@ import {SemanticPackage, SqliteStore} from '@dharmax/semantika';
 import * as ontology from '../src/model/ontology.ts';
 import {WorkflowEntity} from '../src/model/workflow-entity.ts';
 import contracts from './fixtures/model-contract.json';
-// These public type exports predate decomposition; typecheck must keep resolving every name.
-import type { TicketLane, EntityStatus, EpicStatus, IntentStatus, TicketClaim, BaseEntityData, IdeaData, EpicData, AspectData, FeatureData, UserStoryData, TicketDefect, TicketData, ModuleData, FileData, SymbolData, TestData, DecisionData, LessonData, ArtifactData, CallSiteData, TraceData, SemanticPredicatePayload, SemanticPredicateName, ModuleHealth, ProjectHealth } from '../src/index.ts';
+// Supported public type exports must remain resolvable.
+import type { TicketLane, EntityStatus, EpicStatus, IntentStatus, TicketClaim, BaseEntityData, IdeaData, EpicData, AspectData, FeatureData, UserStoryData, TicketDefect, TicketData, ModuleData, DecisionData, LessonData, ArtifactData, CallSiteData, TraceData, SemanticPredicatePayload, SemanticPredicateName, ModuleHealth, ProjectHealth } from '../src/index.ts';
 
 // Frozen before extraction using native model construction; not inferred from the refactored classes.
 const names = contracts.map(contract => contract.descriptor.name);
