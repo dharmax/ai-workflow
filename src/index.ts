@@ -4,16 +4,13 @@
 
 // Graph & Context Engine
 export * from './model/types.ts';
-export type { IdeaData } from './model/idea.ts';
 export type { EpicData, EpicStatus } from './model/epic.ts';
 export type { AspectData } from './model/aspect.ts';
 export type { FeatureData } from './model/feature.ts';
 export type { UserStoryData } from './model/user-story.ts';
 export type { TicketClaim, TicketData, TicketLane } from './model/ticket.ts';
 export type { ModuleData } from './model/module-node.ts';
-export type { DecisionData } from './model/decision.ts';
 export type { LessonData } from './model/lesson.ts';
-export type { ArtifactData } from './model/artifact.ts';
 export type { CallSiteData } from './model/call-site.ts';
 export type { TraceData } from './model/trace-node.ts';
 export type { BaseEntityData } from './model/workflow-entity.ts';

@@ -3,19 +3,16 @@
  * Scope: Feasibility, impact and Aspect assessment.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
 import { applicableAspects, assessAspects, reviewMissingAspects } from '../aspects.ts'
 
 
-export interface IdeaData extends BaseEntityData {
-  feasibility?: 'low' | 'medium' | 'high';
-  impact?: 'low' | 'medium' | 'high';
-}
-
 export class Idea extends WorkflowEntity {
     declare status?: string
+    declare feasibility?: 'low' | 'medium' | 'high'
+    declare impact?: 'low' | 'medium' | 'high'
     applicableAspects(store: WorkflowStore) {
         return applicableAspects(this, store)
     }

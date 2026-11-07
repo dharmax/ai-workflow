@@ -3,19 +3,16 @@
  * Scope: Execution artifacts, outputs and report references.
  */
 import { EntityDcr } from '@dharmax/semantika'
-import { WorkflowEntity, type BaseEntityData } from './workflow-entity.ts'
+import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 
 
-export interface ArtifactData extends BaseEntityData {
-  action: string;
-  output?: string;
-  patchPath?: string;
-  reportUrl?: string;
-}
-
 export class Artifact extends WorkflowEntity {
     declare status?: string
+    declare action?: string
+    declare output?: string
+    declare patchPath?: string
+    declare reportUrl?: string
     static template = {
         ...baseTemplate,
         action: passthroughValidator,
