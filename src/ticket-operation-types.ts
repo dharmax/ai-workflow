@@ -6,7 +6,7 @@ import type { Ticket, WorkflowEntity } from './model/ontology.ts';
 import type { CompletenessLevel } from './artifact-policy.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, RequiredInput, TicketCompletenessContext, CriticFinding } from './artifact-policy.ts';
-import type { AspectAssessment } from './aspects.ts';
+import type { AspectAssessment } from './services/assessment-service.ts';
 import { ChangeRequestSchema } from './change/request-schema.ts';
 
 export type OperationResult<T> =
@@ -162,7 +162,7 @@ export interface TicketGovernance {
   fingerprint: string;
   rules: Array<import('./model/rule.ts').RuleModel & { fingerprint: string }>;
   decisions: Array<{ id: string; decision?: string; context?: string; consequences?: string; body?: string; status?: string }>;
-  aspects: import('./aspects.ts').AspectAssessment;
+  aspects: import('./services/assessment-service.ts').AspectAssessment;
   targets: Array<{filePath: string; moduleIds: string[]; language?: string; exists: boolean}>;
 }
 
@@ -174,7 +174,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const { collectProductMeaning } = await import('./product/context.ts');
   const { loadConfig } = await import('./services/config-service.ts');
   const { ensureAstFresh, resolveModulePath } = await import('./graph/indexer.ts');
-  const { assessAspects } = await import('./aspects.ts');
+  const { assessAspects } = await import('./services/assessment-service.ts');
   const { renderAcceptancePrompt } = await import('./ticket/prompts.ts');
   const { renderRuleReferences } = await import('./rules/references.ts');
   // Receipt inspection uses the current canonical Graph without mutating it.

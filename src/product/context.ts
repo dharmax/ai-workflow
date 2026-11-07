@@ -20,7 +20,7 @@ import {
     Artifact
 } from "../model/ontology.ts"
 import { LayaSystemOne } from "@dharmax/llm-utils"
-import { assessAspects } from "../aspects.ts"
+import { assessAspects } from "../services/assessment-service.ts"
 import type { CompletenessLevel } from "../artifact-policy.ts"
 import type { ProcessOptions, IntentContext } from "./process-types.ts"
 import { getCoverage } from "./coverage.ts"

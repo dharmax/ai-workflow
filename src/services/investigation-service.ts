@@ -1,5 +1,6 @@
 /** Investigate current authored work through canonical evidence, advisory routing and explicit readiness. */
 import type { WorkflowStore } from '../graph/store.ts';
+import { assessAspects } from './assessment-service.ts';
 import type { InvestigationOptions, TicketDossier, OperationResult } from '../ticket-operation-types.ts';
 import { Ticket, Feature, UserStory } from '../model/ontology.ts';
 
@@ -37,7 +38,7 @@ async function createDossier(store: WorkflowStore, current: Ticket, options: Inv
     rationale: 'Existing acceptance and mandatory evidence define executable work.',
     evidence: [],
     completeness: await current.getCompletenessContext(store, options.completeness),
-    aspects: await current.assessAspects(store),
+    aspects: await assessAspects(current, store),
     proposedEnrichments: { relations: [] },
     provenance: {
       systemOne: null,

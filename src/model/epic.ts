@@ -6,7 +6,6 @@ import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 import { scopeTarget } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 import type { ProcessOptions } from '../product/process-types.ts'
@@ -26,12 +25,6 @@ export class Epic extends WorkflowEntity {
     async process(store: WorkflowStore, options: ProcessOptions = {}) {
         const { processIntent } = await import('../product/process.ts')
         return processIntent(store, this, options)
-    }
-    assessAspects(store: WorkflowStore) {
-        return assessAspects(this, store)
-    }
-    reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) {
-        return reviewMissingAspects(this, store, options)
     }
     declare completenessTarget?: CompletenessLevel | null
     getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) {

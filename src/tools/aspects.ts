@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { commandRegistry } from './registry.ts';
 import { Aspect } from '../model/ontology.ts';
-import { assessAspects } from '../aspects.ts';
+import { assessAspects } from '../services/assessment-service.ts';
 import { productKind, validateProductRelation } from '../product/mutation.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { exportProjections } from '../services/projection-service.ts';

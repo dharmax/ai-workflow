@@ -6,7 +6,7 @@ import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { assessAspects } from '../aspects.ts'
+import { assessAspects } from '../services/assessment-service.ts'
 
 
 
@@ -93,8 +93,5 @@ export class Aspect extends WorkflowEntity {
         await applyProductMutations(store, [
             { kind: "product_unlink", sourceId: store.localId(this.id), predicate: "applies_to", targetId: store.localId(scope.id) }
         ])
-    }
-    assess(scope: WorkflowEntity, store: WorkflowStore) {
-        return assessAspects(scope, store, [this])
     }
 }

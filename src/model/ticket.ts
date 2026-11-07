@@ -6,7 +6,6 @@ import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 import { ticketCompleteness } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 import { PrioritySchema } from './types.ts'
@@ -51,12 +50,6 @@ export class Ticket extends WorkflowEntity {
         return {ready: missing.length === 0, missing};
     }
 
-    assessAspects(store: WorkflowStore) {
-        return assessAspects(this, store)
-    }
-    reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) {
-        return reviewMissingAspects(this, store, options)
-    }
     getCompletenessContext(store: WorkflowStore, override?: CompletenessLevel) {
         return ticketCompleteness(this, store, override)
     }

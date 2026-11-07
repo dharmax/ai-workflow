@@ -1,21 +1,13 @@
 /**
  * Responsibility: Own the Flow domain entity and its contracts.
- * Scope: Product journey context and Aspect assessment.
+ * Scope: Product journey context.
  */
 import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator } from './entity-templates.ts'
-import type { WorkflowStore } from '../graph/store.ts'
-import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 
 export class Flow extends WorkflowEntity {
     declare status?: string
-    assessAspects(store: WorkflowStore) {
-        return assessAspects(this, store)
-    }
-    reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) {
-        return reviewMissingAspects(this, store, options)
-    }
     static template = {
         ...baseTemplate,
         status: { validate: (v: unknown) => ({ value: v ?? "draft" }) },

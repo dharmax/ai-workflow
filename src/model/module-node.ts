@@ -1,12 +1,11 @@
 /**
  * Responsibility: Own the ModuleNode domain entity and its contracts.
- * Scope: Module intent, source path, completeness and Aspect assessment.
+ * Scope: Module intent, source path and completeness.
  */
 import { EntityDcr } from '@dharmax/semantika'
 import { WorkflowEntity } from './workflow-entity.ts'
 import { baseTemplate, passthroughValidator, completenessValidator, CompletenessSchema } from './entity-templates.ts'
 import type { WorkflowStore } from '../graph/store.ts'
-import { assessAspects, reviewMissingAspects } from '../aspects.ts'
 import { scopeTarget } from '../artifact-policy.ts'
 import type { CompletenessLevel } from '../artifact-policy.ts'
 
@@ -18,12 +17,6 @@ export class ModuleNode extends WorkflowEntity {
     declare responsibilities?: string[]
     declare boundaries?: string
     declare intentStatus?: "draft" | "proposed" | "accepted" | "deprecated"
-    assessAspects(store: WorkflowStore) {
-        return assessAspects(this, store)
-    }
-    reviewMissingAspects(store: WorkflowStore, options: Parameters<typeof reviewMissingAspects>[2]) {
-        return reviewMissingAspects(this, store, options)
-    }
     declare completenessTarget?: CompletenessLevel | null
     getCompletenessTarget(store: WorkflowStore, options?: Parameters<typeof scopeTarget>[2]) {
         return scopeTarget(this, store, options)

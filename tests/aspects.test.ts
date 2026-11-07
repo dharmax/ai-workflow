@@ -9,7 +9,7 @@ import { Aspect, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifac
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
-import type { SystemOne } from '@dharmax/llm-utils';
+import { assessAspects } from '../src/services/assessment-service.ts';
 
 describe('first-class Aspects', () => {
   let root: string, store: WorkflowStore;
@@ -54,7 +54,7 @@ describe('first-class Aspects', () => {
     ]);
     await store.relate(parent, 'contains', child);
     expect((await Aspect.getAspectList(child)).map(a => store.localId(a.id))).toEqual(['approved', 'proposed']);
-    expect(await child.assessAspects(store)).toMatchObject({ assessed: false, aspects: [{ id: 'approved', criteria: ['Relevant evidence supports the concern'] }] });
+    expect(await assessAspects(child, store)).toMatchObject({ assessed: false, aspects: [{ id: 'approved', criteria: ['Relevant evidence supports the concern'] }] });
   });
 
   it('does not invent Aspect adherence evidence or gaps while assessment is deferred', async () => {
@@ -72,7 +72,7 @@ describe('first-class Aspects', () => {
     for (const i of [0,3]) await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(entities[i].id),predicate:i===0?'addresses':'governs',targetId:'robust'}]);
     const code = await store.upsertEntity<FileNode>(FileNode.dcr, { id: 'src/unit.ts', title: 'unit.ts' });
     await store.relate(entities[0], 'modifies', code);
-    const assessment = await f.assessAspects(store);
+    const assessment = await assessAspects(f, store);
     expect(assessment).toMatchObject({ assessed: false, aspects: [{ id: 'robust', tickets: [], tests: [], artifacts: [], decisions: [], code: [], gaps: [] }] });
     expect(assessment.knownGaps).toEqual([]);
     expect((await store.listEntities<Ticket>(Ticket.dcr)).length).toBe(1);
@@ -126,20 +126,4 @@ describe('first-class Aspects', () => {
     expect((await store.getEntity<Aspect>('A', Aspect.dcr))!.acceptanceCriteria).toEqual(['Relevant evidence supports the concern']);
   });
 
-  it('shortlists only optional candidates and lets independent review catch omission and ceremony without writes', async () => {
-    const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Reliable persistent queue' });
-    const a = await aspect('mandatory'); await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(a.id),predicate:"applies_to",targetId:store.localId(f.id)}]);
-    const systemOne: SystemOne = { assess: async () => ({ answers: { persistence: { choice: 'omit' }, localization: { choice: 'consider' } }, backendId: 'fixture', quality: 'high', latencyMs: 0 }) };
-    const result = await f.reviewMissingAspects(store, { completeness: 'production', systemOne,
-      candidates: [{ id: 'mandatory', title: 'Required concern' }, { id: 'persistence', title: 'Persistence' }, { id: 'localization', title: 'Localization' }],
-      critic: { id: 'independent', review: async input => {
-        expect(input.applicableAspects).toContain('mandatory'); expect(input.candidateAspects).toContain('persistence');
-        expect(input.proposal.map(p => p.id)).toEqual(['localization']);
-        return { verdict: 'revise', findings: [{ message: 'Persistence was omitted' }, { message: 'Localization is ceremonial here' }] };
-      } } });
-    expect(result.review.verdict).toBe('revise');
-    expect((await store.listEntities<Aspect>(Aspect.dcr)).length).toBe(1);
-    const fallback = await f.reviewMissingAspects(store, { completeness: 'production', candidates: [{ id: 'persistence', title: 'Persistence' }], systemOne: { assess: async () => null }, critic: { id: 'review', review: async () => ({ verdict: 'accept' }) } });
-    expect(fallback.shortlisted.length).toBe(1);
-  });
 });

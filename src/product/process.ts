@@ -5,7 +5,7 @@
 
 import { renderIntentProposal } from "./prompts.ts"
 import { type CompletenessLevel, scopeTarget } from "../artifact-policy.ts"
-import { assessAspects } from "../aspects.ts"
+import { assessAspects } from "../services/assessment-service.ts"
 import { Epic, Feature, UserStory, WorkflowEntity, Ticket, Aspect } from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import { withArtifactMetrics, visitMetricArtifact, cognitionMetrics, countEngineering } from "../performance-metrics.ts"
