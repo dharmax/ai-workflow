@@ -171,6 +171,45 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     expect(await ticketVerificationSignature(store, ticket)).not.toBe(checked);
   });
 
+  it('pins full Aspect meaning and applicability without unrelated policy drift', async () => {
+    const aspect = await createAspect(store, {
+      id: 'A', title: 'Signed arithmetic', body: 'Preserve negative operands.',
+      status: 'accepted', acceptanceCriteria: ['Signed inputs remain supported']
+    });
+    await store.relate(ticket, 'addresses', aspect);
+    const original = await ticketVerificationSignature(store, ticket);
+    const governance = await resolveTicketGovernance(store, ticket);
+    expect(governance.aspects.aspects).toContainEqual(expect.objectContaining({
+      id: 'A', title: 'Signed arithmetic', body: 'Preserve negative operands.'
+    }));
+
+    await updateProduct(store, 'Aspect', {id: 'A', body: 'Preserve negative operands and signed zero.'});
+    const changedBody = await ticketVerificationSignature(store, ticket);
+    expect(changedBody).not.toBe(original);
+
+    await updateProduct(store, 'Aspect', {id: 'A', title: 'Signed arithmetic, reviewed'});
+    expect(await ticketVerificationSignature(store, ticket)).not.toBe(changedBody);
+
+    await createAspect(store, {id: 'B', title: 'Unrelated', status: 'accepted', body: 'Separate concern'});
+    const beforeLink = await ticketVerificationSignature(store, ticket);
+    await store.relate('B', 'applies_to', ticket);
+    expect(await ticketVerificationSignature(store, ticket)).not.toBe(beforeLink);
+  });
+
+  it('rejects missing independent Aspect acceptance despite passing source tests', async () => {
+    const aspect = await createAspect(store, {
+      id: 'A', title: 'Signed arithmetic', status: 'accepted',
+      acceptanceCriteria: ['Signed inputs remain supported']
+    });
+    await store.relate(ticket, 'addresses', aspect);
+    const result = await ticket.resolve(store, {
+      ...options(), verify: async input => assessments(input)
+    });
+    expect(result.status).toBe('blocked');
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).not.toBe('Done');
+    expect(await store.getEntity('VERIFY-T', Artifact.dcr)).toBeNull();
+  });
+
   for (const stage of ['implementation', 'acceptance'] as const) it(`rejects governance weakening during ${stage} without a receipt`, async () => {
     let reviews = 0;
     const result = await ticket.resolve(store, { ...options(),
