@@ -12,7 +12,7 @@ import {applyTextEdits, normalizeWorkspaceEdit} from '../src/change/engine.ts';
 const range = (line: number, start: number, end: number) =>
   ({start: {line, character: start}, end: {line, character: end}});
 
-describe('Code Mutation Stage 1A: existing edit contracts', () => {
+describe('Code Mutation Stages 1A/1B: edit contracts', () => {
   let root: string;
   const lsp = {fromUri: (uri: string) => fileURLToPath(uri)} as Parameters<typeof normalizeWorkspaceEdit>[1];
   const uri = (file: string) => pathToFileURL(path.join(root, file)).href;
@@ -55,6 +55,78 @@ describe('Code Mutation Stage 1A: existing edit contracts', () => {
     expect(result.fileDeletes).toEqual(['remove.ts']);
     expect(fs.existsSync(path.join(root, 'created.ts'))).toBe(false);
     expect(fs.readFileSync(path.join(root, 'remove.ts'), 'utf8')).toBe('old');
+  });
+
+  it('rejects nonfinite, negative, fractional and out-of-bounds UTF-16 positions', () => {
+    for (const position of [
+      {line: -1, character: 0}, {line: 1.5, character: 0},
+      {line: Number.NaN, character: 0}, {line: Number.POSITIVE_INFINITY, character: 0},
+      {line: 1, character: 0}, {line: 0, character: -1},
+      {line: 0, character: 1.5}, {line: 0, character: Number.POSITIVE_INFINITY},
+      {line: 0, character: 4}
+    ]) {
+      expect(() => applyTextEdits('a😀', [
+        {range: {start: position, end: position}, newText: 'X'}
+      ])).toThrow();
+    }
+    expect(applyTextEdits('a😀', [{range: range(0, 3, 3), newText: 'X'}])).toBe('a😀X');
+  });
+
+  it('rejects reversed and overlapping ranges but permits adjacent edits and boundary insertions', () => {
+    const edit = (start: number, end: number, newText: string) =>
+      ({range: range(0, start, end), newText});
+    expect(() => applyTextEdits('abcdef', [edit(4, 2, 'X')])).toThrow();
+    expect(() => applyTextEdits('abcdef', [edit(1, 4, 'X'), edit(2, 5, 'Y')])).toThrow();
+    expect(() => applyTextEdits('abcdef', [edit(1, 4, 'X'), edit(2, 2, 'Y')])).toThrow();
+    expect(() => applyTextEdits('abcdef', [edit(1, 4, 'X'), edit(1, 4, 'X')])).toThrow();
+    expect(applyTextEdits('abcdef', [edit(1, 3, 'X'), edit(3, 5, 'Y')])).toBe('aXYf');
+    expect(applyTextEdits('abcdef', [edit(1, 3, 'X'), edit(3, 3, '!')])).toBe('aX!def');
+  });
+
+  it('rejects invalid WorkspaceEdit ranges during normalization, not only apply', () => {
+    fs.writeFileSync(path.join(root, 'unit.ts'), 'abc');
+    const invalid = {changes: {[uri('unit.ts')]: [{range: range(0, 0, 99), newText: 'X'}]}};
+    expect(() => normalizeWorkspaceEdit(invalid, lsp, root)).toThrow();
+    expect(fs.readFileSync(path.join(root, 'unit.ts'), 'utf8')).toBe('abc');
+  });
+
+  it('rejects conflicting create, delete and rename operations before writes', () => {
+    fs.writeFileSync(path.join(root, 'a.ts'), 'old');
+    fs.writeFileSync(path.join(root, 'other.ts'), 'other');
+    const create = (file: string) => ({kind: 'create' as const, uri: uri(file)});
+    const del = (file: string) => ({kind: 'delete' as const, uri: uri(file)});
+    const rename = (from: string, to: string) =>
+      ({kind: 'rename' as const, oldUri: uri(from), newUri: uri(to)});
+    for (const documentChanges of [
+      [create('new.ts'), create('new.ts')],
+      [del('a.ts'), del('a.ts')],
+      [rename('a.ts', 'new.ts'), rename('a.ts', 'new2.ts')],
+      [rename('a.ts', 'new.ts'), rename('other.ts', 'new.ts')],
+      [rename('a.ts', 'a.ts')],
+      [rename('a.ts', 'other.ts')],
+      [create('new.ts'), del('new.ts')],
+      [create('new.ts'), rename('a.ts', 'new.ts')],
+      [rename('a.ts', 'new.ts'), rename('new.ts', 'new2.ts')],
+      [rename('a.ts', 'new.ts'), del('a.ts')]
+    ]) expect(() => normalizeWorkspaceEdit({documentChanges}, lsp, root)).toThrow();
+    expect(fs.readFileSync(path.join(root, 'a.ts'), 'utf8')).toBe('old');
+    expect(fs.readFileSync(path.join(root, 'other.ts'), 'utf8')).toBe('other');
+    expect(fs.existsSync(path.join(root, 'new.ts'))).toBe(false);
+  });
+
+  it('rejects unrecognized or unsupported file operations and dangling symlink targets', () => {
+    fs.writeFileSync(path.join(root, 'a.ts'), 'old');
+    const unknown = {documentChanges: [{kind: 'copy', uri: uri('new.ts')}]};
+    expect(() => normalizeWorkspaceEdit(unknown as unknown as Parameters<typeof normalizeWorkspaceEdit>[0], lsp, root)).toThrow();
+    expect(() => normalizeWorkspaceEdit({documentChanges: [
+      {kind: 'create', uri: uri('new.ts'), options: {overwrite: true}}
+    ]}, lsp, root)).toThrow();
+    expect(() => normalizeWorkspaceEdit({documentChanges: [
+      {kind: 'rename', oldUri: uri('a.ts'), newUri: uri('new.ts'), options: {overwrite: true}}
+    ]}, lsp, root)).toThrow();
+    fs.symlinkSync(path.join(root, 'missing-target'), path.join(root, 'dangling.ts'));
+    expect(() => normalizeWorkspaceEdit({changes: {'dangling.ts': []}}, lsp, root)).toThrow();
+    expect(fs.lstatSync(path.join(root, 'dangling.ts')).isSymbolicLink()).toBe(true);
   });
 
   it('rejects lexical and symlink escapes without touching outside files', () => {
