@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
+import {previewProductChange} from '../src/product/change-operations.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
 import { TestNode, Decision, Feature, UserStory } from '../src/model/ontology.ts';
@@ -29,6 +30,47 @@ function fixture() {
 }
 
 describe('Product Intent Causal Change', () => {
+  it('keeps exact Product previews and blocked fingerprints across direct, legacy and public entry points', async () => {
+    const {store, engine} = fixture();
+    stops.push(await productReviewFixture(store));
+    const valid: Extract<ChangeRequest, {action: 'product_change'}> = {action: 'product_change', mutations: [
+      {kind: 'product_create', entityType: 'Epic', id: 'S2-E', fields: {title: 'Stage 2 product'}}
+    ]};
+    const direct = await previewProductChange(store, valid);
+    const legacy = await engine.previewChange(valid);
+    initializeTools();
+    const ctx = {store, projectRoot: store.root, executionAuthority: 'project-write' as const};
+    const publicPreview = await commandRegistry.execute('preview_change', valid, ctx);
+    expect(direct).toEqual(legacy);
+    expect(publicPreview).toEqual(direct);
+    expect(direct.affectedFiles).toEqual([]);
+    expect(direct.originalHashes).toEqual({});
+    const invalid: Extract<ChangeRequest, {action: 'product_change'}> = {action: 'product_change', mutations: [
+      {kind: 'product_update', entityType: 'Epic', id: 'MISSING-EPIC', fields: {title: 'Wrong'}}
+    ]};
+    const denied = await previewProductChange(store, invalid);
+    expect(denied.blocked).toBe(true);
+    expect(await engine.previewChange(invalid)).toEqual(denied);
+    expect(await commandRegistry.execute('preview_change', invalid, ctx)).toEqual(denied);
+  });
+
+  it('does not accept forged Product fingerprints or an unapproved public Product write', async () => {
+    const {store} = fixture();
+    stops.push(await productReviewFixture(store));
+    initializeTools();
+    const ctx = {store, projectRoot: store.root, executionAuthority: 'project-write' as const};
+    const request: Extract<ChangeRequest, {action: 'product_change'}> = {action: 'product_change', mutations: [
+      {kind: 'product_create', entityType: 'Epic', id: 'S2-DENIED', fields: {title: 'Unapproved epic'}}
+    ]};
+    const preview = await commandRegistry.execute('preview_change', request, ctx);
+    expect(preview.blocked).toBe(false);
+    await expect(reviewedApply(store, {request, fingerprint: 'forged', decision: 'accept'})).rejects.toThrow(/Stale change preview/);
+    expect(await store.getEntity('S2-DENIED')).toBeNull();
+    const rejected = await reviewedApply(store, {request, fingerprint: preview.fingerprint, decision: 'reject'});
+    expect(rejected.ok).toBe(false);
+    expect(await store.getEntity('S2-DENIED')).toBeNull();
+  });
+
   it('previews a coherent create/link set without writing and verifies coverage and impact after apply', async () => {
     const { store, engine } = fixture();
     stops.push(await productReviewFixture(store));
