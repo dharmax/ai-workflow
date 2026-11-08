@@ -143,3 +143,65 @@ export function normalizeWorkspaceEdit(
   }
   return {fileEdits, fileRenames, fileDeletes};
 }
+
+
+/** A single validated effect set for preview, fingerprinting and guarded apply.
+ * individual retains original WorkspaceEdit grouping for legacy fingerprint compatibility.
+ */
+export function normalizeWorkspaceEdits(edits: readonly WorkspaceEditLike[], lspClient: TsLspClient, projectRoot: string) {
+  const individual = edits.map(edit => normalizeWorkspaceEdit(edit, lspClient, projectRoot));
+  const fileEdits = new Map<string, LspTextEdit[]>();
+  const fileRenames: Array<{from: string; to: string}> = [];
+  const fileDeletes: string[] = [];
+  const creates = new Set<string>();
+  const missingEdits = new Set<string>();
+
+  for (let i = 0; i < individual.length; i++) {
+    const group = individual[i]!;
+    for (const operation of edits[i]!.documentChanges ?? []) {
+      if ('kind' in operation && operation.kind === 'create') {
+        const file = workspacePath(projectRoot, lspClient.fromUri(operation.uri));
+        if (creates.has(file)) throw Error('Conflicting workspace creations.');
+        creates.add(file);
+      }
+    }
+    for (const [file, changes] of group.fileEdits) {
+      if (!fs.lstatSync(path.resolve(projectRoot, file), {throwIfNoEntry: false})) {
+        if (missingEdits.has(file)) throw Error('Conflicting edits of a missing workspace file.');
+        missingEdits.add(file);
+      }
+      fileEdits.set(file, [...(fileEdits.get(file) ?? []), ...changes]);
+    }
+    fileRenames.push(...group.fileRenames);
+    fileDeletes.push(...group.fileDeletes);
+  }
+
+  const renameEndpoints = new Set<string>();
+  for (const rename of fileRenames) {
+    if (renameEndpoints.has(rename.from) || renameEndpoints.has(rename.to) ||
+      creates.has(rename.from) || creates.has(rename.to) ||
+      !fs.lstatSync(path.resolve(projectRoot, rename.from), {throwIfNoEntry: false})?.isFile())
+      throw Error('Conflicting workspace renames.');
+    renameEndpoints.add(rename.from);
+    renameEndpoints.add(rename.to);
+    if (fileEdits.has(rename.to)) throw Error('Conflicting rename destination edits.');
+  }
+  if (new Set(fileDeletes).size !== fileDeletes.length ||
+    fileDeletes.some(file => fileEdits.has(file) || renameEndpoints.has(file) || creates.has(file)) ||
+    [...creates].some(file => renameEndpoints.has(file)))
+    throw Error('Conflicting workspace file operations.');
+
+  // Validate the combined ranges, not merely each original WorkspaceEdit.
+  for (const [file, changes] of fileEdits) {
+    if (!changes.length && !creates.has(file) &&
+      !fs.lstatSync(path.resolve(projectRoot, file), {throwIfNoEntry: false}))
+      throw Error('Empty edit cannot implicitly create a workspace file.');
+    const source = fs.lstatSync(path.resolve(projectRoot, file), {throwIfNoEntry: false});
+    applyTextEdits(source ? fs.readFileSync(path.resolve(projectRoot, file), 'utf8') : '', changes);
+  }
+  const affectedFiles = [...new Set([...fileEdits.keys(), ...fileDeletes,
+    ...fileRenames.flatMap(rename => [rename.from, rename.to])])].sort();
+  return {individual, fileEdits, fileRenames, fileDeletes, affectedFiles};
+}
+
+export type WorkspaceEditPlan = ReturnType<typeof normalizeWorkspaceEdits>;
