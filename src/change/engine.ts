@@ -19,13 +19,14 @@ import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import {previewProductChange, commitProductChange} from '../product/change-operations.ts';
 import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from './fingerprint.ts';
 export {computeChangeFingerprint, computeFileSha256} from './fingerprint.ts';
-import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
+import { ensureAstFresh, withAstSnapshot } from '../graph/indexer.ts';
 import { workspacePath } from './workspace-path.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
 import {prepareSourceCommit, commitSourceFiles} from '../services/code-mutation/source-commit.ts';
+import {reconcileCommittedSource} from '../services/code-mutation/source-reconciliation.ts';
 import {prepareSourceOperation} from '../services/code-mutation/preview-operations.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
-import { SymbolNode, FileNode, Ticket, Decision } from '../model/ontology.ts';
+
 import type {
   ChangeRequest,
   ChangePreview,
@@ -245,84 +246,13 @@ export class CausalChangeEngine {
     else commit();
 
     try {
-      // Preserve durable source-anchor identities and provenance before re-indexing.
-      const anchorSources: Array<{oldId: string; symbol?: SymbolNode; relations: Array<{sourceId: string; predicate: string}>}> = [];
-      const renameFile = request.action === 'rename_file';
-      const migrating = renameFile || request.action === 'rename_symbol' ||
-        (request.action === 'refactor' && /move|extract/i.test(request.refactorKind));
-      const anchors: Array<FileNode | SymbolNode> = [];
-      if (renameFile) {
-        const file = await this.store.getEntity<FileNode>(workspacePath(this.projectRoot, request.oldPath), FileNode.dcr);
-        if (file) anchors.push(file);
-        anchors.push(...(await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {filePath: workspacePath(this.projectRoot, request.oldPath)}))
-          .filter(symbol => symbol.status !== 'deprecated'));
-      } else if (migrating && preview.resolvedTarget?.graphEntityId) {
-        const symbol = await this.store.getEntity<SymbolNode>(preview.resolvedTarget.graphEntityId, SymbolNode.dcr);
-        if (symbol) anchors.push(symbol);
-      }
-      for (const anchor of anchors) {
-        const relations: Array<{sourceId: string; predicate: string}> = [];
-        for (const predicate of ['modifies', 'targets', 'governs'])
-          for (const edge of await this.store.getIncoming(anchor.id, predicate)) relations.push({sourceId: edge.sourceId, predicate});
-        if (relations.length) anchorSources.push({oldId: anchor.id, symbol: anchor instanceof SymbolNode ? anchor : undefined, relations});
-      }
-
-      // 6b. Re-index touched files
-      const reindexedFiles: string[] = [];
-      const filesToReindex = new Set<string>([...preview.affectedFiles, ...combinedFileEdits.keys()]);
-      const reindex = async () => {
-      for (const f of filesToReindex) {
-        const abs = path.resolve(this.projectRoot, f);
-        if (fs.existsSync(abs)) {
-          await indexSingleFile(this.store, abs, f, this.projectRoot);
-          reindexedFiles.push(f);
-        }
-      }
-      };
-      if (this.governedAdmission) await this.store.withGovernedIndexing(this.governedAdmission, preview.affectedFiles, reindex);
-      else await reindex();
-
-      // Migrate only existing durable authority; failures cannot silently lose source obligations.
-      const migratedAnchors: Array<{oldId: string; newId: string}> = [];
-      for (const anchor of anchorSources) {
-        let target: FileNode | SymbolNode | null = null;
-        if (renameFile && !anchor.symbol) target = await this.store.getEntity<FileNode>(workspacePath(this.projectRoot, request.newPath), FileNode.dcr);
-        else {
-          const title = request.action === 'rename_symbol' ? request.newName : anchor.symbol!.title;
-          const candidates = (await this.store.listEntities<SymbolNode>(SymbolNode.dcr, {title}))
-            .filter(symbol => symbol.status !== 'deprecated' && symbol.containerName === anchor.symbol!.containerName &&
-              filesToReindex.has(symbol.filePath!) && (!renameFile || symbol.filePath === workspacePath(this.projectRoot, request.newPath)));
-          if (candidates.length === 1) target = candidates[0];
-        }
-        if (!target) throw Error(`Durable anchor '${anchor.oldId}' lacks an unambiguous post-change target.`);
-        for (const relation of anchor.relations)
-          await this.store.migrateCodeAnchor(relation.sourceId, relation.predicate, anchor.oldId, target, this.governedAdmission);
-        migratedAnchors.push({oldId: anchor.oldId, newId: target.id});
-      }
-      const refresh = () => ensureAstFresh(this.store, this.projectRoot);
-      if (this.governedAdmission) await this.store.withGovernedIndexing(this.governedAdmission, preview.affectedFiles, refresh);
-      else await refresh();
-
-      // 8. Verification checks
-      const verificationErrors: string[] = [];
-
-      // Check expected definition in TS7 LSP
-      if (preview.verification.graphChecks.expectedDefinition && preview.resolvedTarget) {
-        try {
-          const defs = await this.lspClient.getDefinition(preview.resolvedTarget.filePath, preview.resolvedTarget.position);
-          if (defs.length === 0) {
-            verificationErrors.push(`Post-change verification: definition for '${preview.verification.graphChecks.expectedDefinition}' could not be resolved.`);
-          }
-        } catch (err: any) {
-          verificationErrors.push(`Post-change LSP probe failed: ${err.message}`);
-        }
-      }
-
-      for (const [file, expected] of Object.entries(expectedAfter)) {
-        const absolute = path.resolve(this.projectRoot, file);
-        const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
-        if (actual !== expected) verificationErrors.push(`Observed effect for '${file}' differs from the guarded preview.`);
-      }
+      const {reindexedFiles, migratedAnchors, verificationErrors} = await reconcileCommittedSource(
+        {
+          store: this.store, projectRoot: this.projectRoot,
+          lspClient: this.lspClient, governedAdmission: this.governedAdmission
+        },
+        request, preview, combinedFileEdits, expectedAfter
+      );
       const passed = verificationErrors.length === 0;
 
       return {
