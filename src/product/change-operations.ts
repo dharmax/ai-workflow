@@ -97,3 +97,20 @@ export async function commitProductChange(store: WorkflowStore, request: Product
         verification: { passed: errors.length === 0, diagnosticsOk: errors.length === 0, errors }
       };
 }
+
+/** Recompute Product evidence before commit; trusted host review is enforced by the Product mutation owner. */
+export async function applyProductChange(store: WorkflowStore, request: ProductChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
+  store.assertCanWrite();
+  const preview = await previewProductChange(store, request);
+  if (preview.blocked) {
+    return {
+      ok: false, fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
+      verification: {passed: false, diagnosticsOk: false, errors: [preview.blockReason || 'Preview blocked']},
+      error: preview.blockReason,
+      ...(preview.status === 'needs_input' ? {status: 'needs_input' as const, preview} : {})
+    };
+  }
+  if (preview.fingerprint !== fingerprint)
+    throw Error(`Stale change preview: fingerprint mismatch (expected '${fingerprint}', recomputed '${preview.fingerprint}'). Workspace or causal graph modified since preview.`);
+  return commitProductChange(store, request, fingerprint, preview);
+}
