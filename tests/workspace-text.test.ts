@@ -56,6 +56,22 @@ describe('Consuela ordinary workspace targets', () => {
     expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('second=fresh\n');
   });
 
+  it('keeps composite source preview inert and reports a rejected later child without partial edits', async () => {
+    fs.writeFileSync(path.join(root, 'a.txt'), 'one=old\n');
+    fs.writeFileSync(path.join(root, 'b.txt'), 'two=old\n');
+    const request = {action: 'source_change' as const, changes: [
+      {action: 'replace_text' as const, filePath: 'a.txt', oldText: 'old', newText: 'new'},
+      {action: 'replace_text' as const, filePath: 'b.txt', oldText: 'missing', newText: 'new'}
+    ]};
+    const preview = await engine.previewChange(request);
+    expect(preview.blocked).toBe(true);
+    expect(preview.blockReason).toContain('oldText must occur exactly once');
+    expect(preview.affectedFiles).toEqual([]);
+    expect(preview.mutations).toEqual([]);
+    expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('one=old\n');
+    expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('two=old\n');
+  });
+
   it('rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets', async () => {
     fs.writeFileSync(path.join(root, 'config.txt'), 'aaa');
     for (const [filePath, oldText] of [['config.txt', 'missing'], ['config.txt', 'aa'], ['config.txt', ''], ['absent', 'a'], ['.ai-workflow', 'a'], ['../outside', 'a'], [path.join(root, 'config.txt'), 'a']]) {
