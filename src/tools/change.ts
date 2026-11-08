@@ -90,7 +90,7 @@ export function registerChangeTools() {
           verification: {passed: false, errors: []}, error: `Product proposal ${decision === 'reject' ? 'rejected' : 'cancelled'}; no changes applied.`};
       }
       if (request.action === 'product_change') {
-        return applyProductChange(ctx.store, request, fingerprint);
+        return applyProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>, fingerprint);
       }
       ctx.store.assertCanWrite();
       if (ctx.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
