@@ -55,7 +55,7 @@ test('TS6 tsserver positions at one past a newline-terminated line are adapted w
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-ts6-position-'))
   roots.push(root)
   const file = path.join(root, 'sample.ts')
-  const source = 'export function f() {\\n  return 1;\\n}\\n'.replaceAll('\\n', '\n')
+  const source = 'export function f() {\n  return 1;\n}\n'
   fs.writeFileSync(file, source)
   const client = new Ts6RefactorClient({projectRoot: root})
   const toLsp = {fromUri: fileURLToPath} as Parameters<typeof normalizeWorkspaceEdit>[1]
