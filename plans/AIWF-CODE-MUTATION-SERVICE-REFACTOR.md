@@ -121,24 +121,25 @@ Local results supplied by developer: `bun run typecheck` passed; 80 focused test
 
 These are **classified, unresolved** failures; full-suite green is **not** claimed. Do not change them within this bounded Code Mutation Service extraction or amend an assertion merely to force green. Stage 3 proceeds only as a separately gated slice.
 
-### Stage 3 — introduce the actual Code Mutation Service and extract preview
+### Stage 3 — complexity-first decomposition (before facade)
 
-- Create the **real** `src/services/code-mutation-service.ts` facade with code-only preview/apply entry points, clear options and minimal state; no duplicate engine or registry. Temporarily delegate from the old engine path while callers migrate.
-- Move source-preview dispatch out of `buildPreview`. Group handlers by **behavior**: file edits; symbol rename/replace; source actions and TS refactors. Where a handler is large, separate it only on a real boundary (e.g. TS7-first/TS6-fallback refactor selection).
-- Separate canonical fingerprinting from preview orchestration; retain product-context impact as an optional read-only input, *not* Product mutation authority.
-- Make each helper describe one observable responsibility. Aim for short operations (normally tens of lines; investigate any method > ~50–60 lines). Avoid one-line forwarding helpers, generalized visitor frameworks and one module per switch case.
+**Design constraint:** no hundred-line operation branches living inside a dispatcher. One request = one explicitly named operation. The dispatch switch, if retained, contains *only calls* (no branch implementation). Avoid micro-files and arbitrary line-count rules: move cohesive work behind meaningful semantic boundaries, not wrapper methods. Split mechanics and behavioral changes into different commits. Preserve the old API and runtime ownership until Step 3C passes.
 
-**Gate 3:** each request family yields identical applicable LSP edits, affected-file set, hashes, summaries, blocked errors and fingerprints. Preview stays inert. Focused engine/bridge/graph-query/Story-test tests green.
+**3A — source preparation operations (first gate).** Characterize edge cases first, then extract the existing `buildPreview` request-handling cases into a small, explicitly typed source preparation module, grouping ordinary files, symbol operations and source actions. Move the TS7-first / TS6-fallback refactor selection into one separately named function/file because it is sizeable. Composite `source_change` recursion must retain its current child preview semantics, summaries, warnings, blocked reasons and no-write contract. The dispatcher must not own any case implementation. Keep original path/LSP checks and exact return shapes, including unusual errors.
 
-### Stage 4 — extract guarded source commit and post-commit reconciliation
+**Gate 3A:** targeted tests first, then `bun run typecheck`, `tests/change-edits.test.ts`, `tests/workspace-text.test.ts`, `tests/change-engine.test.ts`, `tests/change-bridge.test.ts`, `tests/ts6-refactor-sync.test.ts`, and governed source authorization. Check exact positive and blocked previews, TS7 preference, TS6 fallbacks, fingerprints, unchanged files, and public operations. Do not proceed without passing local evidence.
 
-Do this as **three separately testable commits**, not one 300-line transplant:
+**3B — apply preflight, materialization and synchronous commit.** Keep `CausalChangeEngine.applyChange` as the public compatibility entry. Mechanically move source preflight/materialization and the fenced, synchronous filesystem commit/rollback into small cohesive functions, preserving ordered edits, backups, rename/delete order, unchanged stale and partial-error text, and immediate source recheck **inside** the existing Ticket lease. Do not add a second validator or a new authority owner.
 
-- **4A Preflight/materialization:** verify the exact current preview, guard scope/lease/fingerprint and all source hashes, normalize once, produce an immutable in-memory file effect plan. No filesystem writes yet.
-- **4B Commit/rollback:** one bounded synchronous guarded commit of creates/edits/deletes/renames under existing lease/admission; preserve best-effort rollback only for commit-phase failure. No swallowed exceptions or claim that rollback covers post-commit effects.
-- **4C After-commit:** re-index, reconcile durable FileNode/SymbolNode anchors and linked obligations through the current graph owner, then compare observed file effects and report incomplete/partially applied states precisely. Do not introduce an independent verifier or reimplement graph persistence.
+**Gate 3B:** Stage 3A plus race tests, write-failure rollback, stale hashes, dirty-file approval and lease fencing. No authority bypass or partial-effect misreporting.
 
-**Gate 4:** targeted tests for stale-before-write, dirty-file rejection, mixed multi-file edits, rename/delete conflicts, simulated write failure, index/reconciliation failure, partial-commit reporting, anchor continuity and exact effects. No false `ok`/verification/receipt claims. Run full deterministic suite after 4C.
+**3C — post-commit reconciliation and service facade.** Move graph reindexing, durable-anchor migration and post-write observations into a cohesive module while leaving post-commit failure classification explicit. Only **after** those extractions pass, introduce the real `src/services/code-mutation-service.ts` entry points and migrate public/internal code callers. Retain the legacy engine as an adapter temporarily; remove it at a final explicitly tested boundary. Code service must have no Product mutation authority; Product domain stays in `src/product/change-operations.ts`.
+
+**Gate 3C:** all source families identical in LSP edits, summaries, affected files, hashes, fingerprints and observed disk effects; source and Product tests plus full deterministic suite (classify existing unrelated failures). No false `ok`, no regression to post-commit partial-application semantics. Only then plan legacy adapter removal.
+
+### Stage 4 — code-service consolidation and architecture audit
+
+After 3C, check the architecture as a whole: class/module sizes, cohesion, public API stability, import cycles, direct public bypasses, duplicate policies, duplicated request preparation and LSP lifecycle ownership. Resolve concrete defects as individually gated patches, **not** speculative rewrites. Preserve the already-established 3A–3C test evidence. No facade-only wrappers, framework layers or new generalized registry. Run full deterministic suite; retain classified unrelated failures as such.
 
 ### Stage 5 — clean public orchestration and entity responsibilities
 
