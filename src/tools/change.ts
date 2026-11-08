@@ -12,6 +12,7 @@ import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
+import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
 import type { ChangeRequest } from '../change/types.ts';
 
 import {ChangeRequestSchema} from '../change/request-schema.ts';
@@ -54,11 +55,9 @@ export function registerChangeTools() {
     category: 'change',
     parameters: z.discriminatedUnion('action', [previewOptions[0]!, ...previewOptions.slice(1)]),
     execute: async ({ticketId, agentId, allowDirtyTargets, ...request}, ctx: ToolContext) => {
-      const engine = new CausalChangeEngine({
-        store: ctx.store,
-        projectRoot: ctx.projectRoot
-      });
-      const preview = await engine.previewChange(request as ChangeRequest);
+      const preview = request.action === 'product_change'
+        ? await previewProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>)
+        : await new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).previewChange(request as ChangeRequest);
       if (allowDirtyTargets?.length && (request.action === 'product_change' || !ticketId || !agentId)) throw Error('Dirty targets require a governed source Ticket and active lease.');
       if (request.action !== 'product_change' && ticketId && agentId && !preview.blocked) {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
@@ -91,7 +90,7 @@ export function registerChangeTools() {
           verification: {passed: false, errors: []}, error: `Product proposal ${decision === 'reject' ? 'rejected' : 'cancelled'}; no changes applied.`};
       }
       if (request.action === 'product_change') {
-        return await new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).applyChange(request as ChangeRequest, fingerprint);
+        return applyProductChange(ctx.store, request, fingerprint);
       }
       ctx.store.assertCanWrite();
       if (ctx.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
