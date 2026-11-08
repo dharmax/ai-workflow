@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {applyTextEdits, normalizeWorkspaceEdit} from '../src/change/engine.ts';
+import crypto from 'node:crypto';
+import {applyTextEdits, normalizeWorkspaceEdit, computeChangeFingerprint, computeFileSha256} from '../src/change/engine.ts';
 import {normalizeWorkspaceEdits} from '../src/services/code-mutation/edits.ts';
 
 const range = (line: number, start: number, end: number) =>
@@ -191,5 +192,31 @@ describe('Code Mutation Stages 1A/1B: edit contracts', () => {
     expect(plan.individual).toHaveLength(3);
     expect(applyTextEdits('abcdef', plan.fileEdits.get('a.ts')!)).toBe('aXYf');
     expect(fs.readFileSync(path.join(root, 'a.ts'), 'utf8')).toBe('abcdef');
+  });
+
+  it('retains legacy fingerprint bytes for valid multi-file source edits', () => {
+    fs.writeFileSync(path.join(root, 'a.ts'), 'abcdef');
+    fs.writeFileSync(path.join(root, 'b.ts'), 'other');
+    const one = {range: range(0, 1, 3), newText: 'X'};
+    const two = {range: range(0, 0, 3), newText: 'Y'};
+    const mutations = [
+      {kind: 'workspace_edit' as const, source: 'workspace-text' as const,
+        edit: {changes: {[uri('a.ts')]: [one]}}},
+      {kind: 'workspace_edit' as const, source: 'workspace-text' as const,
+        edit: {changes: {[uri('b.ts')]: [two]}}}
+    ];
+    const request = {action: 'source_change' as const, changes: [
+      {action: 'replace_text' as const, filePath: 'a.ts', oldText: 'bc', newText: 'X'},
+      {action: 'replace_text' as const, filePath: 'b.ts', oldText: 'oth', newText: 'Y'}
+    ]};
+    const sortedHashes = { 'a.ts': computeFileSha256('abcdef'), 'b.ts': computeFileSha256('other') };
+    const legacyPayload = {
+      request, resolvedTarget: undefined,
+      canonicalFileEdits: [{file: 'a.ts', edits: [one]}, {file: 'b.ts', edits: [two]}],
+      canonicalRenames: [], canonicalDeletes: [],
+      sortedHashes, productContext: undefined
+    };
+    const reference = crypto.createHash('sha256').update(JSON.stringify(legacyPayload)).digest('hex');
+    expect(computeChangeFingerprint(request, undefined, mutations, sortedHashes, undefined, lsp, root)).toBe(reference);
   });
 });
