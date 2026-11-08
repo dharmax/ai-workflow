@@ -437,6 +437,24 @@ describe('Governed LSP operation scope', () => {
     expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(true);
   });
 
+  it('rejects a rename destination created while waiting to acquire the Ticket write lease', async () => {
+    const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'late.ts'};
+    const proposed = await preview(request);
+    expect(proposed.originalHashes['late.ts']).toBe('missing');
+    const original = store.commitWithTicketLease.bind(store);
+    store.commitWithTicketLease = async (...args: Parameters<typeof original>) => {
+      fs.writeFileSync(path.join(root, 'late.ts'), 'external writer');
+      return original(...args);
+    };
+    try {
+      await expect(apply(request, proposed.fingerprint)).rejects.toThrow(/changed before guarded commit/);
+      expect(fs.readFileSync(path.join(root, 'late.ts'), 'utf8')).toBe('external writer');
+      expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(true);
+    } finally {
+      store.commitWithTicketLease = original;
+    }
+  });
+
   it('rejects escaped and protected destinations', async () => {
     for (const newPath of ['../escape.ts', '.git/moved.ts', '.ai-workflow/moved.ts']) {
       try {const p = await preview({action: 'rename_file', oldPath: 'a.ts', newPath}); expect(p.blocked).toBe(true);}
