@@ -21,7 +21,8 @@ import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from 
 export {computeChangeFingerprint, computeFileSha256} from './fingerprint.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { workspacePath } from './workspace-path.ts';
-import {applyTextEdits, normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
+import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
+import {prepareSourceCommit, commitSourceFiles} from '../services/code-mutation/source-commit.ts';
 import {prepareSourceOperation} from '../services/code-mutation/preview-operations.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
 import { SymbolNode, FileNode, Ticket, Decision } from '../model/ontology.ts';
@@ -227,121 +228,20 @@ export class CausalChangeEngine {
 
     if (request.action === 'product_change') return commitProductChange(this.store, request, fingerprint, preview);
 
-    // 2. Validate current disk hashes against preview original hashes
-    for (const [relPath, expectedHash] of Object.entries(preview.originalHashes)) {
-      const absPath = path.resolve(this.projectRoot, relPath);
-      if (expectedHash === 'missing') {
-        if (fs.existsSync(absPath)) throw Error(`File '${relPath}' appeared after preview. Aborting apply.`);
-        continue;
-      }
-      if (!fs.existsSync(absPath)) {
-        throw new Error(`File '${relPath}' was removed after preview was computed.`);
-      }
-      const currentContent = fs.readFileSync(absPath, 'utf8');
-      const currentHash = computeFileSha256(currentContent);
-      if (currentHash !== expectedHash) {
-        throw new Error(`File '${relPath}' has been modified since preview. Aborting apply.`);
-      }
-    }
+    // Build the same aggregate edit plan and in-memory results before touching disk.
+    const prepared = prepareSourceCommit(this.projectRoot, this.lspClient, preview);
+    const {fileEdits: combinedFileEdits, fileDeletes: combinedDeletes} = prepared.editPlan;
+    const {expectedAfter} = prepared;
 
-    // 3. Rebuild the identical aggregate validator from the fresh source preview.
-    const editPlan = normalizeWorkspaceEdits(
-      preview.mutations.filter(m => m.kind === 'workspace_edit').map(m => m.edit),
-      this.lspClient, this.projectRoot
-    );
-    if (JSON.stringify(editPlan.affectedFiles) !== JSON.stringify(preview.affectedFiles))
-      throw Error('Source preview effects differ from the validated edit plan.');
-    const {fileEdits: combinedFileEdits, fileRenames: combinedRenames, fileDeletes: combinedDeletes} = editPlan;
-
-    // 4. Materialize every resulting file in memory before touching disk
-    const materializedFiles = new Map<string, string>();
-    const originalBackups = new Map<string, string | null>();
-
-    for (const [relPath, edits] of combinedFileEdits) {
-      const absPath = path.resolve(this.projectRoot, relPath);
-      let original = '';
-      if (fs.existsSync(absPath)) {
-        original = fs.readFileSync(absPath, 'utf8');
-        originalBackups.set(absPath, original);
-      } else {
-        originalBackups.set(absPath, null); // Newly created file
-      }
-      const updated = applyTextEdits(original, edits);
-      materializedFiles.set(absPath, updated);
-    }
-
-    for (const file of combinedDeletes) {
-      if (combinedFileEdits.has(file) || combinedRenames.some(rename => rename.from === file || rename.to === file))
-        throw Error('Conflicting deletion; refusing partial effects.');
-      const absolute = path.resolve(this.projectRoot, file);
-      originalBackups.set(absolute, fs.readFileSync(absolute, 'utf8'));
-    }
-    const expectedAfter = {...preview.originalHashes};
-    for (const file of combinedDeletes) expectedAfter[file] = 'missing';
-    for (const [absolute, content] of materializedFiles)
-      expectedAfter[path.relative(this.projectRoot, absolute)] = computeFileSha256(content);
-    for (const rename of combinedRenames) {
-      expectedAfter[rename.to] = expectedAfter[rename.from];
-      expectedAfter[rename.from] = 'missing';
-    }
-    // Admission and Ticket lease acquisition may await; recheck inside the synchronous
-    // write boundary so a newly appeared destination or changed source cannot slip through.
+    // Admission may await. The final source hash check remains inside the
+    // synchronous Ticket-lease write boundary.
     if (this.governedAdmission) await this.store.governanceAssertion(this.governedAdmission);
-
-    // 5. Commit phase with best-effort rollback on filesystem error
-    const writtenFiles: string[] = [];
-    const executedRenames: Array<{ from: string; to: string }> = [];
-
+    let executedRenames: Array<{from: string; to: string}> = [];
     const commit = () => {
-    for (const [file, expected] of Object.entries(preview.originalHashes)) {
-      workspacePath(this.projectRoot, file);
-      const absolute = path.resolve(this.projectRoot, file);
-      const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
-      if (actual !== expected) throw Error(`File '${file}' changed before guarded commit.`);
-    }
-    try {
-      // 5a. Write modified / new file contents
-      for (const [absPath, content] of materializedFiles) {
-        fs.mkdirSync(path.dirname(absPath), { recursive: true });
-        writtenFiles.push(absPath);
-        fs.writeFileSync(absPath, content, 'utf8');
-      }
-
-      // 5b. Execute file renames
-      for (const r of combinedRenames) {
-        const fromAbs = path.resolve(this.projectRoot, r.from);
-        const toAbs = path.resolve(this.projectRoot, r.to);
-        fs.mkdirSync(path.dirname(toAbs), { recursive: true });
-        fs.renameSync(fromAbs, toAbs);
-        executedRenames.push(r);
-      }
-      for (const file of combinedDeletes) {
-        const absolute = path.resolve(this.projectRoot, file);
-        writtenFiles.push(absolute);
-        fs.unlinkSync(absolute);
-      }
-    } catch (err: any) {
-      // Best-effort rollback
-      for (const r of executedRenames.reverse()) {
-        try {
-          fs.renameSync(path.resolve(this.projectRoot, r.to), path.resolve(this.projectRoot, r.from));
-        } catch {}
-      }
-      for (const abs of writtenFiles) {
-        try {
-          const original = originalBackups.get(abs);
-          if (original !== null && original !== undefined) {
-            fs.writeFileSync(abs, original, 'utf8');
-          } else if (original === null) {
-            fs.unlinkSync(abs);
-          }
-        } catch {}
-      }
-      throw new Error(`Failed to commit change to disk; rolled back touches: ${err.message}`);
-    }
-
+      executedRenames = commitSourceFiles(this.projectRoot, prepared, preview.originalHashes);
     };
-    if (this.ticketLease) await this.store.commitWithTicketLease(this.ticketLease.ticketId, this.ticketLease.claim, commit);
+    if (this.ticketLease)
+      await this.store.commitWithTicketLease(this.ticketLease.ticketId, this.ticketLease.claim, commit);
     else commit();
 
     try {
