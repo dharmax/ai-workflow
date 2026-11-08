@@ -188,12 +188,36 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     expect(changedBody).not.toBe(original);
 
     await updateProduct(store, 'Aspect', {id: 'A', title: 'Signed arithmetic, reviewed'});
-    expect(await ticketVerificationSignature(store, ticket)).not.toBe(changedBody);
+    const changedTitle = await ticketVerificationSignature(store, ticket);
+    expect(changedTitle).not.toBe(changedBody);
 
     await createAspect(store, {id: 'B', title: 'Unrelated', status: 'accepted', body: 'Separate concern'});
     const beforeLink = await ticketVerificationSignature(store, ticket);
+    expect(beforeLink).toBe(changedTitle);
     await store.relate('B', 'applies_to', ticket);
     expect(await ticketVerificationSignature(store, ticket)).not.toBe(beforeLink);
+  });
+
+  it('invalidates a current receipt after applicable Aspect meaning changes', async () => {
+    const aspect = await createAspect(store, {
+      id: 'A', title: 'Signed arithmetic', body: 'Preserve signed operands.',
+      status: 'accepted', acceptanceCriteria: ['Signed inputs remain supported']
+    });
+    await store.relate(ticket, 'addresses', aspect);
+    const result = await ticket.resolve(store, {
+      ...options(), verify: async input => ({
+        ...assessments(input),
+        aspects: input.dossier.aspects.aspects.map(a => ({
+          id: a.id, passed: true, evidence: 'Fixture accepts the current signed-arithmetic proof.'
+        }))
+      })
+    });
+    expect(result.status).toBe('complete');
+    const {currentTicketReceipt} = await import('../src/ticket/verification.ts');
+    expect(await currentTicketReceipt(store, ticket)).not.toBeNull();
+    await updateProduct(store, 'Aspect', {id: 'A', body: 'Preserve signed operands and signed zero.'});
+    expect(await currentTicketReceipt(store, ticket)).toBeNull();
+    expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe('Done');
   });
 
   it('rejects missing independent Aspect acceptance despite passing source tests', async () => {
