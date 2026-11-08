@@ -64,6 +64,7 @@ describe('Product Intent Causal Change', () => {
     ]};
     const preview = await commandRegistry.execute('preview_change', request, ctx);
     expect(preview.blocked).toBe(false);
+    await expect(commandRegistry.execute('apply_change', {request, fingerprint: preview.fingerprint}, ctx)).rejects.toThrow(/explicit developer approval/);
     await expect(reviewedApply(store, {request, fingerprint: 'forged', decision: 'accept'})).rejects.toThrow(/Stale change preview/);
     expect(await store.getEntity('S2-DENIED')).toBeNull();
     const rejected = await reviewedApply(store, {request, fingerprint: preview.fingerprint, decision: 'reject'});
