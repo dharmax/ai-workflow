@@ -19,7 +19,7 @@ function validatedTextEdits(content: string, edits: readonly LspTextEdit[]): Off
   const offset = (pos: LspPosition): number => {
     if (!pos || !Number.isSafeInteger(pos.line) || pos.line < 0 || pos.line >= lines.length ||
       !Number.isSafeInteger(pos.character) || pos.character < 0 || pos.character > lines[pos.line]!.length)
-      throw Error('Invalid or out-of-bounds UTF-16 edit position.');
+      throw Error(`Invalid or out-of-bounds UTF-16 edit position ${JSON.stringify(pos)}; document lines=${lines.length}, last line UTF-16 length=${lines.at(-1)?.length ?? 0}.`);
     return starts[pos.line]! + pos.character;
   };
   const ranges = edits.map(edit => {
@@ -134,7 +134,12 @@ export function normalizeWorkspaceEdit(
       throw Error(`Editing non-regular workspace target '${file}' is forbidden.`);
     // New source files start empty; creating them is still only authorized by the caller.
     const original = source ? fs.readFileSync(path.resolve(projectRoot, file), 'utf8') : '';
-    validatedTextEdits(original, edits);
+    try {
+      validatedTextEdits(original, edits);
+    } catch (cause) {
+      const ranges = edits.slice(0, 8).map(item => item.range);
+      throw new Error(`Invalid WorkspaceEdit in '${file}' (${source ? 'existing' : 'missing'}, UTF-16 length=${original.length}, ranges=${JSON.stringify(ranges)}): ${String(cause)}`, {cause});
+    }
   }
   return {fileEdits, fileRenames, fileDeletes};
 }
