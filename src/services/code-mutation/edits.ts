@@ -1,6 +1,6 @@
 /**
- * Responsibility: Source edit application and workspace-edit normalization.
- * Scope: Behavioral extraction from CausalChangeEngine; validation changes occur in Stage 1B.
+ * Responsibility: Validate, normalize and apply source edits.
+ * Scope: LSP UTF-16 text ranges and workspace file operations; request-wide aggregation follows in Stage 1C.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,111 +8,133 @@ import type {TsLspClient} from '../../change/ts-lsp.ts';
 import type {LspPosition, LspTextEdit, WorkspaceEditLike} from '../../change/types.ts';
 import {workspacePath} from '../../change/workspace-path.ts';
 
-/**
- * Applies a list of LspTextEdits to file text in memory (0-based line/col).
- * Applies edits in reverse order so line/column offsets remain stable.
- */
-export function applyTextEdits(content: string, edits: LspTextEdit[]): string {
-  if (edits.length === 0) return content;
+type OffsetEdit = {start: number; end: number; text: string};
 
+/** Validate all positions against the same original UTF-16 document, before editing. */
+function validatedTextEdits(content: string, edits: readonly LspTextEdit[]): OffsetEdit[] {
   const lines = content.split('\n');
+  const starts = [0];
+  for (let i = 1; i < lines.length; i++) starts.push(starts[i - 1]! + lines[i - 1]!.length + 1);
 
-  // Convert position to char offset
-  function posToOffset(pos: LspPosition): number {
-    let offset = 0;
-    for (let i = 0; i < Math.min(pos.line, lines.length); i++) {
-      offset += lines[i].length + 1; // +1 for \n
-    }
-    if (pos.line < lines.length) {
-      offset += Math.min(pos.character, lines[pos.line].length);
-    }
-    return offset;
-  }
-
-  // Sort edits descending by start offset
-  const sortedEdits = [...edits].sort((a, b) => {
-    if (a.range.start.line !== b.range.start.line) {
-      return b.range.start.line - a.range.start.line;
-    }
-    return b.range.start.character - a.range.start.character;
+  const offset = (pos: LspPosition): number => {
+    if (!pos || !Number.isSafeInteger(pos.line) || pos.line < 0 || pos.line >= lines.length ||
+      !Number.isSafeInteger(pos.character) || pos.character < 0 || pos.character > lines[pos.line]!.length)
+      throw Error('Invalid or out-of-bounds UTF-16 edit position.');
+    return starts[pos.line]! + pos.character;
+  };
+  const ranges = edits.map(edit => {
+    if (typeof edit?.newText !== 'string' || !edit.range)
+      throw Error('Invalid text edit.');
+    const start = offset(edit.range.start), end = offset(edit.range.end);
+    if (start > end) throw Error('Reversed text edit range.');
+    return {start, end, text: edit.newText};
   });
 
-  let result = content;
-  for (const edit of sortedEdits) {
-    const startOff = posToOffset(edit.range.start);
-    const endOff = posToOffset(edit.range.end);
-    result = result.slice(0, startOff) + edit.newText + result.slice(endOff);
+  // Zero-width insertions may share a position. Insertions inside a replaced span may not.
+  const ascending = [...ranges].sort((a, b) => a.start - b.start || a.end - b.end);
+  let coveredEnd = -1;
+  for (const range of ascending) {
+    if (range.start < coveredEnd) throw Error('Overlapping text edits.');
+    coveredEnd = Math.max(coveredEnd, range.end);
   }
+  return ranges;
+}
 
+/** Apply edits in reverse source order, preserving the previous stable same-position behavior. */
+export function applyTextEdits(content: string, edits: LspTextEdit[]): string {
+  if (!edits.length) return content;
+  const validated = validatedTextEdits(content, edits);
+  // Stable sorting retains original order for same-offset insertions.
+  const descending = validated.sort((a, b) => b.start - a.start);
+  let result = content;
+  for (const edit of descending)
+    result = result.slice(0, edit.start) + edit.text + result.slice(edit.end);
   return result;
 }
 
-/**
- * Normalizes all edits from a WorkspaceEdit into a standard map:
- * relPath -> LspTextEdit[]
- * plus any file renames: Array<{ from: string; to: string }>
- */
+/** Normalize one WorkspaceEdit, rejecting unsupported or internally conflicting operations. */
 export function normalizeWorkspaceEdit(
   edit: WorkspaceEditLike,
   lspClient: TsLspClient,
   projectRoot: string
 ): {
   fileEdits: Map<string, LspTextEdit[]>;
-  fileRenames: Array<{ from: string; to: string }>;
+  fileRenames: Array<{from: string; to: string}>;
   fileDeletes: string[];
 } {
   const fileEdits = new Map<string, LspTextEdit[]>();
-  const fileRenames: Array<{ from: string; to: string }> = [];
+  const fileRenames: Array<{from: string; to: string}> = [];
   const fileDeletes: string[] = [];
+  const fileCreates = new Set<string>();
 
-  // 1. Direct changes map { [uri]: edits }
-  if (edit.changes) {
-    for (const [uriOrPath, edits] of Object.entries(edit.changes)) {
-      const absPath = uriOrPath.startsWith('file://') ? lspClient.fromUri(uriOrPath) : uriOrPath;
-      const relPath = path.isAbsolute(absPath) ? path.relative(projectRoot, absPath) : absPath;
-      const existing = fileEdits.get(relPath) || [];
-      existing.push(...edits);
-      fileEdits.set(relPath, existing);
-    }
-  }
+  const relative = (uriOrPath: string): string => {
+    const file = uriOrPath.startsWith('file://') ? lspClient.fromUri(uriOrPath) : uriOrPath;
+    return workspacePath(projectRoot, path.isAbsolute(file) ? path.relative(projectRoot, file) : file);
+  };
+  const addEdits = (file: string, edits: LspTextEdit[]) => {
+    const list = fileEdits.get(file) ?? [];
+    list.push(...edits);
+    fileEdits.set(file, list);
+  };
+  const stat = (file: string) => fs.lstatSync(path.resolve(projectRoot, file), {throwIfNoEntry: false});
 
-  // 2. documentChanges array
-  if (edit.documentChanges) {
-    for (const docChange of edit.documentChanges) {
-      if ('kind' in docChange && docChange.kind === 'rename') {
-        const fromAbs = lspClient.fromUri(docChange.oldUri);
-        const toAbs = lspClient.fromUri(docChange.newUri);
-        fileRenames.push({
-          from: path.relative(projectRoot, fromAbs),
-          to: path.relative(projectRoot, toAbs)
-        });
-      } else if ('kind' in docChange) {
-        if (docChange.kind === 'delete') {
-          const relative = workspacePath(projectRoot, lspClient.fromUri(docChange.uri));
-          if (docChange.options?.recursive || !fs.lstatSync(path.resolve(projectRoot, relative)).isFile())
-            throw Error('Deletion requires an existing regular file; recursive deletion is forbidden.');
-          fileDeletes.push(relative);
-          continue;
-        }
-        const relative = path.relative(projectRoot, lspClient.fromUri(docChange.uri));
-        if (fs.existsSync(path.resolve(projectRoot, relative))) throw Error(`Workspace creation would overwrite '${relative}'.`);
-        if (!fileEdits.has(relative)) fileEdits.set(relative, []);
-      } else if ('textDocument' in docChange) {
-        const absPath = lspClient.fromUri(docChange.textDocument.uri);
-        const relPath = path.relative(projectRoot, absPath);
-        const existing = fileEdits.get(relPath) || [];
-        existing.push(...docChange.edits);
-        fileEdits.set(relPath, existing);
+  for (const [uriOrPath, edits] of Object.entries(edit.changes ?? {}))
+    addEdits(relative(uriOrPath), edits);
+
+  for (const operation of edit.documentChanges ?? []) {
+    if ('kind' in operation) {
+      if (operation.kind === 'create') {
+        const file = relative(operation.uri);
+        if (operation.options?.overwrite || operation.options?.ignoreIfExists)
+          throw Error('Workspace creation with overwrite/ignoreIfExists is unsupported.');
+        if (fileCreates.has(file) || stat(file))
+          throw Error(`Workspace creation would overwrite or duplicate '${file}'.`);
+        fileCreates.add(file);
+        if (!fileEdits.has(file)) fileEdits.set(file, []);
+      } else if (operation.kind === 'delete') {
+        const file = relative(operation.uri);
+        if (operation.options?.recursive || operation.options?.ignoreIfNotExists || !stat(file)?.isFile())
+          throw Error('Deletion requires an existing regular file; recursive/optional deletion is forbidden.');
+        fileDeletes.push(file);
+      } else if (operation.kind === 'rename') {
+        const from = relative(operation.oldUri), to = relative(operation.newUri);
+        if (operation.options?.overwrite || operation.options?.ignoreIfExists)
+          throw Error('Workspace rename with overwrite/ignoreIfExists is unsupported.');
+        if (from === to || stat(to) || (stat(from) && !stat(from)?.isFile()))
+          throw Error('Workspace rename requires distinct paths and a free destination.');
+        fileRenames.push({from, to});
+      } else {
+        throw Error('Unsupported WorkspaceEdit file operation.');
       }
+    } else if ('textDocument' in operation) {
+      addEdits(relative(operation.textDocument.uri), operation.edits);
+    } else {
+      throw Error('Unsupported WorkspaceEdit document change.');
     }
   }
 
-  if (fileRenames.some(rename => fileEdits.has(rename.to)))
-    throw Error('Editing a rename destination in the same workspace edit is unsupported; refusing partial effects.');
-  for (const file of [...fileEdits.keys(), ...fileDeletes, ...fileRenames.flatMap(rename => [rename.from, rename.to])])
-    workspacePath(projectRoot, file);
-  if (new Set(fileDeletes).size !== fileDeletes.length || fileDeletes.some(file => fileEdits.has(file) || fileRenames.some(rename => rename.from === file || rename.to === file)))
-    throw Error('Conflicting workspace deletion; refusing partial effects.');
-  return { fileEdits, fileRenames, fileDeletes };
-}
+  const renameEndpoints = new Set<string>();
+  for (const {from, to} of fileRenames) {
+    if (renameEndpoints.has(from) || renameEndpoints.has(to))
+      throw Error('Conflicting workspace renames.');
+    renameEndpoints.add(from);
+    renameEndpoints.add(to);
+    if (fileEdits.has(to))
+      throw Error('Editing a rename destination in the same workspace edit is unsupported; refusing partial effects.');
+  }
 
+  if (new Set(fileDeletes).size !== fileDeletes.length ||
+    fileDeletes.some(file => fileEdits.has(file) || renameEndpoints.has(file)) ||
+    [...fileCreates].some(file => fileDeletes.includes(file) || renameEndpoints.has(file)))
+    throw Error('Conflicting workspace file operations; refusing partial effects.');
+
+  for (const [file, edits] of fileEdits) {
+    const source = stat(file);
+    if (source && !source.isFile())
+      throw Error(`Editing non-regular workspace target '${file}' is forbidden.`);
+    // New source files start empty; creating them is still only authorized by the caller.
+    const original = source ? fs.readFileSync(path.resolve(projectRoot, file), 'utf8') : '';
+    validatedTextEdits(original, edits);
+  }
+  return {fileEdits, fileRenames, fileDeletes};
+}
