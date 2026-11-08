@@ -1,6 +1,6 @@
 # AIWF — Code Mutation Service: staged refactoring plan
 
-**Status:** Proposed for implementation review. Plan only; no production code changed.
+**Status:** Active staged plan; scoped baseline repairs were committed on this branch, but no Code Mutation Service extraction has begun. Stage gates remain evidence-driven.
 **Work branch:** `refactor/code-mutation-service` (one short-lived branch, not a branch per step).
 **Starting remote `master`:** `b203e6be8a504d3990887372aa5c9d5783639f88` (2026-11-07).
 **Governing principles:** [Dharmax Architecture](../docs/definitions/dharmax-architecture.md), [Prime Directive](../docs/definitions/prime-directive.md), [active checkpoint](AIWF-V1-ACTIVE-CHECKPOINT.md). This is a bounded refactor, not a new runtime, manager framework, change format, or release-stage advancement.
@@ -9,13 +9,14 @@
 
 Replace the misleading `src/change/` catch-all with a cohesive **Code Mutation Service**, an intentionally small facade, focused internals, a thin public adapter, and independently reusable TypeScript/source helpers. Restore semantic ownership of Product changes. Keep the same observed contracts and permissions.
 
-At the starting commit:
+At the original starting commit (historical observations; rechecked against the 2026-11-08 working branch):
 - `src/change/engine.ts` is ~1,039 lines. `CausalChangeEngine` mixes `product_change` preview/apply with source edits, TypeScript rename/refactor, fingerprinting, filesystem commit/rollback, index/anchor reconciliation and post-commit checks.
 - The existing Product authority and atomic graph mutation owner is `src/product/mutation.ts` (`validateProductMutations`, `applyProductMutations`, charter/review checks). **Reuse it.**
 - `src/tools/change.ts` owns public `preview_change`/`apply_change`, Ticket scope/lease, dirty-target approval and host context. Moving code between files must not bypass these checks.
 - `src/change/ts-lsp.ts`, `ts6-refactor.ts` and `symbol-source.ts` are also used by read-only graph queries, test artifacts, Rules and investigation; they are **not** exclusively mutation internals.
 - `src/change/types.ts` and `request-schema.ts` mix LSP/code types with Product mutation and public union contracts. Public input/output shape and strict schema must remain stable during migration.
-- `applyTextEdits` silently clamps out-of-range positions, with no explicit overlap rejection. This is a **potential correctness defect**; reproduce with a failing test before correcting it. Preserve legitimate edit semantics (including multiple same-offset insertions, if supported).
+- `applyTextEdits` silently clamps out-of-range positions and does not reject overlaps or reversed ranges; `normalizeWorkspaceEdit` also mixes conversion with disk/path checks. These are **confirmed code risks**, not yet independently reproduced failures. Preserve valid UTF-16, CRLF and existing stable-edit-order behavior until characterization tests establish the contract.
+- Preview gathers affected files and hashes via individual normalizations; fingerprinting normalizes again; apply merges all mutations and normalizes again before materialization. Cross-mutation conflicts can therefore escape per-WorkspaceEdit validation. **One aggregate plan** must be the authority for the same effect set at preview, fingerprint and commit; neither the product nor source authorization layers may use a narrower list.
 - The starting master and this document do **not** prove a fresh full-suite baseline. Record it locally before implementation; do not confuse previously green targeted tests with a full qualification.
 
 ## Target ownership (no new framework)
@@ -65,7 +66,7 @@ src/tools/
 - Preview never changes source files or accepted Product definitions. Incidental read-model indexing, if already authorized, is not permission to mutate authored state.
 - Source apply retains active Ticket lease, bounded authorized source scope, host-owned approval, dirty-file policy, stable fingerprint and pre-write freshness/ABA checks; a stale preview cannot write.
 - Product apply retains trusted host review, charter answers, exact revisions, coherent Semantika batch, and independent post-commit validation. The client-supplied `decision:'accept'` field is **not itself** developer authorization.
-- Edit normalization validates every touched file/path (including generated edits, deletions and renames), and rejects ambiguous/conflicting LSP edit sets before any filesystem write.
+- Edit normalization validates every touched file/path (including generated edits, deletions and renames), and rejects ambiguous/conflicting LSP edit sets **across the complete request**, before fingerprint approval and before any filesystem write. Every affected path, including rename destinations and newly created files, is included in guarded preview evidence.
 - File commit failure has the existing best-effort rollback contract; **after** an actual commit, failures in index/anchor/postconditions must truthfully report partial application and must never silently retry, roll back verified user changes, or mark a Ticket done.
 - Durable graph anchors, tests, receipts, version/history, source provenance and relevant governance remain intact. Actual independent acceptance continues to be owned by Ticket verification, not the mutation service.
 - A public source write must not become possible by calling an internal helper. No broadened `read-only` scope, arbitrary `codeMutationAllowed` defaults, implicit review or direct SQL workaround.
@@ -81,16 +82,28 @@ src/tools/
 - Run full `bun test`, `bun run typecheck`, and `bun run pack` locally. Collect targeted tests for source edits, Product preview/apply, CLI/MCP/REST, LSP teardown, Ticket resolution and post-commit graph anchors. Document failures/skips if present; do not call an unknown baseline green.
 - Capture observable reference behavior for: a valid Product preview/apply, a guarded source preview/apply, a stale preview, a denied public source write, and a rename with anchor migration. Capture returned JSON/fingerprint where deterministic.
 
-**Gate 0:** reproducible baseline and a finite external contract inventory. No new implementation while existing failures remain unclassified.
+**Gate 0:** reproducible baseline and a finite external contract inventory. No new implementation while existing failures remain unclassified. A *classified* pre-existing failure is recorded, not repaired under this refactor unless it blocks the code-change contract; full green is not an invented precondition.
 
-### Stage 1 — precise source edit primitives (one narrow correctness slice)
+### Stage 1 — exact edit semantics, in three small commits
 
-- Extract the pure `applyTextEdits` and `normalizeWorkspaceEdit` logic into the code-mutation internal `edits.ts`. Retain temporary named exports at their old paths only for existing callers until migration.
-- First add red tests for invalid line/character, reversed range, overlapping nonempty edits, conflicting create/rename/delete, escaped/symlink paths, and multiple insertions at one position. Validate UTF-16 offsets and preserve already-supported line-ending behavior; do not silently invent ordering rules.
-- Make a minimal canonical validator and ensure **the same validated edit plan** is used to compute the preview, fingerprint, expected-after hashes and eventual commit. Do not fork edit application/normalization in two places.
-- Reuse the existing `workspacePath` boundary (moving its file can wait). Keep edit parsing independent of LSP startup where possible.
+**1A — Characterize and extract, no behavioral change.**
+- First pin current supported effects in `tests/change-edits.test.ts`: ordinary replacements, UTF-16 surrogate positions, CRLF, multiple edits, same-position insertions, direct `changes`, `documentChanges`, rename/delete/create and path rejection. Record **current** insertion order; do not claim it is correct for all LSP producers.
+- Move `applyTextEdits` and `normalizeWorkspaceEdit` to `src/services/code-mutation/edits.ts`. Keep the old `engine.ts` named exports as thin aliases; imports still come from `src/change/types.ts` until Stage 6. The current normalizer performs filesystem checks and is **not pure**. Separate a pure parser only where a real boundary warrants it.
+- Keep preview, fingerprints, disk effects and error strings unchanged. No broad refactor, no SourceManager work in 1A.
 
-**Gate 1:** malformed/conflicting edits fail **before** writes; valid edits have identical bytes, touched paths and fingerprints to baseline. Focus: change foundation/engine/bridge, source authorization, public preview.
+**1B — Validate exact source edit sets (security/correctness change, red tests first).**
+- Add failing tests: negative/fractional/NaN/Infinity/out-of-bounds line or UTF-16 character; reversed range; overlapping nonempty ranges; overlapping replacements plus insertions; duplicate/contradictory creates, deletes and renames; conflicting operations **across multiple mutations**; symlink/lexical escapes and protected paths.
+- Explicitly characterize CRLF: `replace_text` computes raw-string offsets, whereas LSP positions are UTF-16 line coordinates. Do **not** silently reinterpret existing valid internal replacements; make a deliberate, tested mapping or reject ambiguous input.
+- `documentChanges` is ordered in LSP; current code flattens it. Preserve supported sequences; reject unsupported dependent sequences before writes rather than silently reordering them. Same-offset insertions must have one documented, deterministic rule; if changing the old observable order, isolate that as a deliberate contract change.
+- Route all paths through the existing `workspacePath` owner, including **every** rename endpoint; validate unknown `kind` values rather than treating them as implicit creates. Do not add a second path policy.
+
+**1C — One aggregate validated plan (source-only).**
+- Build one bounded aggregate of **all** source mutations, text edits, creates/deletes/renames, affected paths and file hash basis. Normalize/validate before preview approval. Compute the fingerprint from the same canonical effect set that apply re-materializes. Preserve the old fingerprint bytes for valid unchanged effects; if impossible, surface the exact difference and isolate a documented breaking change—never silently invalidate external previews.
+- Apply independently rebuilds and checks the entire plan from the current request/graph/files, never trusts a client-supplied plan, then rechecks hashes, scope, admission and lease **immediately before the commit boundary**. Avoid a second validator in the commit path.
+- Include rename destinations in `originalHashes` (missing sentinel where appropriate); guard create-after-preview races, rename targets, direct source actions and LSP-generated edits. Preserve existing filesystem commit/rollback and anchor reconciliation; extraction of those belongs to Stage 4.
+- Tests must prove **no writes** on any rejected edit, source and Product previews remain separate, and valid multi-file preview/commit effects exactly match.
+
+**Gate 1A:** pure relocation with identical existing outputs and targeted tests green. **Gate 1B:** invalid edits blocked with unchanged files; accepted cases still match the characterization baseline. **Gate 1C:** preview fingerprint, authorized scope, materialization and guarded commit all cover precisely the same aggregate paths/effects. Typecheck, pack and focused public-denial tests pass at each gate. **Do not merge these gates into one giant patch.**
 
 ### Stage 2 — remove Product change behavior from the mutation engine
 
@@ -224,4 +237,14 @@ bun test tests/change-foundation.test.ts tests/change-engine.test.ts tests/chang
 
 Also execute representative **real public-path** source and Product preview/apply cases under a disposable project, with stale/denied cases, source rename/anchor preservation and explicit no-write-on-preview observations. Summarize failures/skips and actual fingerprints/output shape; isolate local environment limitations rather than modifying assertions.
 
-**Gate status: BLOCKED on execution evidence.** Stage 1 can begin after the baseline is established and any baseline failure is classified. No production change, status promotion, or claim of zero regressions is justified yet.
+**Historical Gate 0 status (2026-11-07): BLOCKED on execution evidence.** This was the state at the original plan-only commit, not the current branch status.
+
+## 2026-11-08 revalidation / next executable handoff
+
+- Current branch is `refactor/code-mutation-service`; subsequent commits repaired **Aspect** applicability and governance independently. User reports targeted `tests/aspects.test.ts`, `tests/doctrine-verifier.test.ts`, and `tests/technical-proof.test.ts` passing. These changes do not constitute Code Mutation Service work.
+- Earlier user-reported full baseline: **828 pass, 6 fail, 7 skip** (before Aspect repairs). Four failures were Aspect-related; the other known classes concern model-header metadata and CLI/Shell help presentation. **Do not infer a fresh full-suite status from the targeted runs.**
+- Re-inspection confirms `engine.ts` implements repeated workspace normalizations at preview, fingerprint and apply, and stages edits/renames/deletes in distinct steps. Its conflict checks are per-normalization and per-delete, not a complete cross-mutation effect validator. This is the **first code-change target**, not a reason to continue unrelated baseline cleanup.
+- **User-operated local gate:** from a clean branch, record `git status --short`, `git rev-parse HEAD`, `bun --version`, `bun run typecheck`, `bun run pack`, focused change tests and the full suite when practicable. Identify pre-existing failures explicitly. Capture representative preview JSON/fingerprints and exact output for `replace_text`, `source_change`, `rename_file`, Product preview and denied source apply. Do not commit golden values recorded under a different Bun/sibling-dependency version.
+- **Next coding commit = Stage 1A only:** add characterization tests, then behavior-preserving helper extraction. The user runs Bun checks; do not claim tests passed without their actual output. Advance to 1B only when 1A passes.
+
+**Stop conditions specific to Stage 1:** unclear same-offset insertion semantics; an unrecognized LSP `documentChanges` dependency; changed valid-output fingerprints; missing rename-destination hash in a guarded preview; path normalization bypass; failure in public denied/stale apply. Document the exact counterexample before extending the implementation.
