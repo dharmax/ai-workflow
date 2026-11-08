@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { Aspect, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifact, Decision, FileNode } from '../src/model/ontology.ts';
+import { Aspect, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifact, Decision, FileNode, SymbolNode } from '../src/model/ontology.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
@@ -17,7 +17,7 @@ describe('first-class Aspects', () => {
   afterEach(() => { store.close(); fs.rmSync(root, { recursive: true, force: true }); });
   const aspect = (id: string) => createAspect(store,{ id, title: id, status: 'accepted', acceptanceCriteria: ['Relevant evidence supports the concern'] });
 
-  it('inherits Aspects through contains, not through targets/implements/addresses', async () => {
+  it('inherits defined Story and Ticket scopes without propagating Epic targets', async () => {
     const e = await store.upsertEntity<Epic>(Epic.dcr, { id: 'E', title: 'Epic' });
     const f = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Feature' });
     const s = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Story' });
@@ -32,14 +32,51 @@ describe('first-class Aspects', () => {
     await store.relate(t, 'implements', f); await store.relate(t, 'addresses', s); await store.relate(t, 'targets', m); await store.relate(t, 'contains', c);
     expect((await Aspect.getAspectList(f)).map(a => store.localId(a.id))).toEqual(['robust']);
     expect((await Aspect.getAspectList(s)).map(a => store.localId(a.id))).toEqual(['robust']);
-    expect(await Aspect.getAspectList(enabled)).toEqual([]);
-    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative']);
+    expect((await Aspect.getAspectList(enabled)).map(a => store.localId(a.id))).toEqual(['robust']);
+    expect((await Aspect.getAspectList(t)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
+    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
     await acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}]);
     expect((await robust.view(store)).scopes).toContain('T');
-    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative', 'robust']);
+    expect((await Aspect.getAspectList(c)).map(a => store.localId(a.id))).toEqual(['initiative', 'module', 'robust']);
     await store.relate(c, 'contains', t);
     await expect(Aspect.getAspectList(c)).rejects.toThrow('Containment cycle');
     await expect(acceptProduct(store, [{kind:"product_link",sourceId:store.localId(robust.id),predicate:"applies_to",targetId:store.localId(t.id)}])).rejects.toThrow('cycle');
+  });
+
+  it('retains directly addressed Aspect obligations and code-target concerns on Tickets', async () => {
+    const ticket = await store.upsertEntity<Ticket>(Ticket.dcr, {id: 'T', title: 'Work', lane: 'Todo'});
+    const file = await store.upsertEntity<FileNode>(FileNode.dcr, {id: 'FILE', title: 'Implementation', path: 'src/add.ts'});
+    await aspect('contract');
+    await aspect('file-guard');
+    await createAspect(store, {id: 'proposed', title: 'Not approved', status: 'proposed'});
+    await acceptProduct(store, [
+      {kind: 'product_link', sourceId: 'T', predicate: 'addresses', targetId: 'contract'},
+      {kind: 'product_link', sourceId: 'T', predicate: 'addresses', targetId: 'proposed'},
+      {kind: 'product_link', sourceId: 'file-guard', predicate: 'applies_to', targetId: 'FILE'}
+    ]);
+    await store.relate(ticket, 'modifies', file);
+    const effective = await commandRegistry.execute('get_applicable_aspects', {entityId: 'T'},
+      {store, projectRoot: root, executionAuthority: 'project-write'});
+    expect(effective.map((a: {id: string}) => a.id)).toEqual(['contract', 'file-guard']);
+  });
+
+  it('does not propagate Aspect policy through incidental code containment', async () => {
+    const module = await store.upsertEntity<ModuleNode>(ModuleNode.dcr, {id: 'MOD', title: 'Module'});
+    const file = await store.upsertEntity<FileNode>(FileNode.dcr, {id: 'FILE', title: 'File', path: 'src/unit.ts'});
+    const symbol = await store.upsertEntity<SymbolNode>(SymbolNode.dcr,
+      {id: 'SYM', title: 'run', kind: 'function', filePath: 'src/unit.ts'});
+    await aspect('module-tag');
+    await aspect('file-tag');
+    await aspect('symbol-tag');
+    await acceptProduct(store, [
+      {kind: 'product_link', sourceId: 'module-tag', predicate: 'applies_to', targetId: 'MOD'},
+      {kind: 'product_link', sourceId: 'file-tag', predicate: 'applies_to', targetId: 'FILE'},
+      {kind: 'product_link', sourceId: 'symbol-tag', predicate: 'applies_to', targetId: 'SYM'}
+    ]);
+    await store.relate(module, 'contains', file);
+    await store.relate(file, 'contains', symbol);
+    expect((await Aspect.getAspectList(file)).map(a => store.localId(a.id))).toEqual(['file-tag']);
+    expect((await Aspect.getAspectList(symbol)).map(a => store.localId(a.id))).toEqual(['symbol-tag']);
   });
 
   it('returns direct and inherited Aspects regardless of status; assessment remains accepted-only', async () => {
