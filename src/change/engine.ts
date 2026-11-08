@@ -12,21 +12,20 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import crypto from 'node:crypto';
-import { computeHash } from '../kb/canonical.ts';
 import type { WorkflowStore } from '../graph/store.ts';
 import { getTsLspClient, TsLspClient } from './ts-lsp.ts';
 import { getTs6RefactorClient, Ts6RefactorClient } from './ts6-refactor.ts';
 import { resolveCodeTarget } from './target-resolver.ts';
 import { getProductImpact, type ProductImpact } from '../product/impact.ts';
+import {previewProductChange, commitProductChange} from '../product/change-operations.ts';
+import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from './fingerprint.ts';
+export {computeChangeFingerprint, computeFileSha256} from './fingerprint.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
 import {applyTextEdits, normalizeWorkspaceEdit, normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
-import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../model/ontology.ts';
-import { validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
-import { getCoverage } from '../product/coverage.ts';
+import { SymbolNode, FileNode, Ticket, Decision } from '../model/ontology.ts';
 import type {
   ChangeRequest,
   ChangePreview,
@@ -47,79 +46,6 @@ export interface ChangeEngineOptions {
   projectRoot: string;
   lspClient?: TsLspClient;
   ts6Client?: Ts6RefactorClient;
-}
-
-export function computeFileSha256(content: string): string {
-  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-}
-
-/**
- * Computes deterministic fingerprint from normalized request, targets, edits, and file hashes.
- */
-export function computeChangeFingerprint(
-  request: ChangeRequest,
-  resolvedTarget: ResolvedCodeTarget | undefined,
-  mutations: ChangeMutation[],
-  originalHashes: Record<string, string>,
-  productImpact?: ProductImpact,
-  lspClient?: TsLspClient,
-  projectRoot?: string,
-  editPlan?: WorkspaceEditPlan
-): string {
-  // Sort original hashes by file path
-  const sortedHashes: Record<string, string> = {};
-  for (const k of Object.keys(originalHashes).sort()) {
-    sortedHashes[k] = originalHashes[k];
-  }
-
-  // Canonicalize mutations: extract and sort all text edits and renames by file path
-  const canonicalFileEdits: Array<{ file: string; edits: LspTextEdit[] }> = [];
-  const canonicalRenames: Array<{ from: string; to: string }> = [];
-  const canonicalDeletes: string[] = [];
-
-  const groups = editPlan?.individual ?? (lspClient && projectRoot
-    ? normalizeWorkspaceEdits(mutations.filter(m => m.kind === 'workspace_edit').map(m => m.edit), lspClient, projectRoot).individual
-    : []);
-  for (const norm of groups) {
-    for (const [file, edits] of norm.fileEdits.entries()) {
-      const sortedEdits = [...edits].sort((a, b) => {
-        if (a.range.start.line !== b.range.start.line) return a.range.start.line - b.range.start.line;
-        if (a.range.start.character !== b.range.start.character) return a.range.start.character - b.range.start.character;
-        return a.newText.localeCompare(b.newText);
-      });
-      canonicalFileEdits.push({ file, edits: sortedEdits });
-    }
-    canonicalDeletes.push(...norm.fileDeletes);
-    canonicalRenames.push(...norm.fileRenames);
-  }
-
-  canonicalFileEdits.sort((a, b) => a.file.localeCompare(b.file));
-  canonicalRenames.sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
-
-  const payload = {
-    request,
-    resolvedTarget: resolvedTarget
-      ? {
-          filePath: resolvedTarget.filePath,
-          symbolName: resolvedTarget.symbolName,
-          containerName: resolvedTarget.containerName,
-          position: resolvedTarget.position
-        }
-      : undefined,
-    canonicalFileEdits,
-    canonicalRenames,
-    canonicalDeletes: canonicalDeletes.sort(),
-    sortedHashes,
-    productContext: productImpact
-      ? {
-          id: productImpact.entityId,
-          tickets: [...productImpact.tickets].sort(),
-          code: [...productImpact.code].sort()
-        }
-      : undefined
-  };
-
-  return crypto.createHash('sha256').update(JSON.stringify(payload), 'utf8').digest('hex');
 }
 
 export class CausalChangeEngine {
@@ -153,7 +79,7 @@ export class CausalChangeEngine {
   }
 
   private async buildPreview(request: ChangeRequest): Promise<ChangePreview> {
-    if (request.action === 'product_change') return this.previewProductChange(request);
+    if (request.action === 'product_change') return previewProductChange(this.store, request);
     if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh start');
     await ensureAstFresh(this.store, this.projectRoot);
     if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh end');
@@ -545,50 +471,6 @@ export class CausalChangeEngine {
     };
   }
 
-  private async previewProductChange(request: Extract<ChangeRequest, { action: 'product_change' }>): Promise<ChangePreview> {
-    try {
-      const validated = await validateProductMutations(this.store, request.mutations, request.basis);
-      const {snapshot} = validated;
-      const alignmentWarnings = await assessCharterAlignment(this.store, request.mutations, validated, request);
-      const deleted = request.mutations.filter(m => m.kind === 'product_delete');
-      const dependents = (await Promise.all(deleted.map(m => productDependents(this.store, m.id)))).flat();
-      const affected = new Set<string>();
-      for (const mutation of request.mutations) {
-        if ('id' in mutation) affected.add(mutation.id);
-        else { affected.add(mutation.sourceId); affected.add(mutation.targetId); }
-      }
-      const productImpacts: ProductImpact[] = [];
-      for (const id of affected) {
-        const entity = await this.store.getEntity(id);
-        if (entity && ['Epic', 'Feature', 'UserStory'].includes(entity.typeName())) {
-          productImpacts.push(await getProductImpact(this.store, id));
-        }
-      }
-      const fingerprint = computeHash({ request, snapshot });
-      return {
-        fingerprint, summary: `${request.mutations.length} Product Intent mutation(s): ${[...affected].sort().join(', ')}`,
-        request, mutations: request.mutations, affectedFiles: [], originalHashes: {},
-        affectedProducts: [...affected].sort(), productImpact: productImpacts[0], productImpacts,
-        dependents, warnings: [...alignmentWarnings, ...(dependents.length ? [`Explicit deletion affects ${dependents.length} relation(s).`] : [])],
-        blocked: false, verification: { diagnosticsExpected: false, typecheck: false, targetedTests: [], graphChecks: {} }
-      };
-    } catch (error) {
-      const blocked = this.createBlockedPreview(request, error instanceof Error ? error.message : String(error), []);
-      const deleted = request.mutations.filter(m => m.kind === 'product_delete');
-      if (error instanceof ProductAlignmentRequired) {
-        const {snapshot} = await validateProductMutations(this.store, request.mutations, request.basis);
-        blocked.fingerprint = computeHash({request, snapshot});
-        blocked.status = 'needs_input';
-        blocked.warnings = error.warnings;
-        blocked.required = error.required;
-      }
-      blocked.dependents = (await Promise.all(deleted.map(async m => {
-        try { return await productDependents(this.store, m.id); } catch { return []; }
-      }))).flat();
-      return blocked;
-    }
-  }
-
   private createBlockedPreview(
     request: ChangeRequest,
     reason: string,
@@ -596,33 +478,7 @@ export class CausalChangeEngine {
     productImpact?: ProductImpact,
     requiredArguments?: string[]
   ): ChangePreview {
-    return {
-      fingerprint: computeChangeFingerprint(
-        request,
-        undefined,
-        [],
-        {},
-        productImpact,
-        this.lspClient,
-        this.projectRoot
-      ),
-      summary: `Blocked: ${reason}`,
-      request,
-      mutations: [],
-      affectedFiles: [],
-      originalHashes: {},
-      productImpact,
-      verification: {
-        diagnosticsExpected: false,
-        typecheck: false,
-        targetedTests: [],
-        graphChecks: {}
-      },
-      warnings,
-      blocked: true,
-      blockReason: reason,
-      requiredArguments
-    };
+    return blockedChangePreview(request, reason, warnings, productImpact, requiredArguments);
   }
 
   /**
@@ -660,48 +516,7 @@ export class CausalChangeEngine {
       throw new Error(`Stale change preview: fingerprint mismatch (expected '${fingerprint}', recomputed '${preview.fingerprint}'). Workspace or causal graph modified since preview.`);
     }
 
-    if (request.action === 'product_change') {
-      let committed: Awaited<ReturnType<typeof applyProductMutations>>;
-      try { committed = await applyProductMutations(this.store, request.mutations, {request, fingerprint}); }
-      catch (error) {
-        if (!(error instanceof ProductReviewRequired)) throw error;
-        if (error instanceof ProductAlignmentRequired) {
-          preview.status = 'needs_input';
-          preview.blocked = true;
-          preview.blockReason = error.message;
-          preview.warnings = error.warnings;
-          preview.required = error.required;
-        }
-        return {ok: false, status: error instanceof ProductAlignmentRequired ? 'needs_input' : 'review_required', fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
-          verification: {passed: false, errors: []}, error: error.message, preview};
-      }
-      const errors: string[] = [];
-      for (const mutation of request.mutations) {
-        if (mutation.kind === 'product_delete') {
-          if (await this.store.getEntity(mutation.id)) errors.push(`Deleted entity '${mutation.id}' remains.`);
-        } else if ('id' in mutation) {
-          if (!await this.store.getEntity(mutation.id)) errors.push(`Entity '${mutation.id}' is missing after apply.`);
-          if (mutation.entityType === 'Aspect') {
-            const aspect = await this.store.getEntity<Aspect>(mutation.id, Aspect.dcr);
-            if (aspect) await aspect.view(this.store);
-          } else if (['Epic', 'Feature', 'UserStory'].includes(mutation.entityType)) {
-            try { await getCoverage(this.store, mutation.id); await getProductImpact(this.store, mutation.id); }
-            catch (error) { errors.push(String(error)); }
-          }
-        } else {
-          const key = JSON.stringify([mutation.sourceId, mutation.predicate, mutation.targetId]);
-          const source = await this.store.getEntity(mutation.sourceId);
-          const target = await this.store.getEntity(mutation.targetId);
-          const outgoing = source ? await this.store.getOutgoing(source.id, mutation.predicate) : [];
-          const linked = outgoing.some(edge => edge.targetId === target?.id);
-          if (linked !== committed.edges.has(key)) errors.push(`Relation '${mutation.sourceId} ${mutation.predicate} ${mutation.targetId}' verification failed.`);
-        }
-      }
-      return {
-        ok: true, fingerprint, filesTouched: [], filesRenamed: [], reindexedFiles: [], migratedAnchors: [],
-        verification: { passed: errors.length === 0, diagnosticsOk: errors.length === 0, errors }
-      };
-    }
+    if (request.action === 'product_change') return commitProductChange(this.store, request, fingerprint, preview);
 
     // 2. Validate current disk hashes against preview original hashes
     for (const [relPath, expectedHash] of Object.entries(preview.originalHashes)) {
