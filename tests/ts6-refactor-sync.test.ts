@@ -122,5 +122,25 @@ test('TS6 tsserver positions at one past a newline-terminated line are adapted w
   const fallbackEdits = normalizeWorkspaceEdit(adaptedFallback!, toLsp, root).fileEdits.get('sample.ts')!
   expect(fallbackEdits[0]!.range.start).toEqual({line: 2, character: 1})
   expect(applyTextEdits(source, fallbackEdits)).toBe(source.replace('}\n', '}\nexport const extra = 2;\n'))
+
+  // The same TS6 fallback correction must cover LSP documentChanges, not just changes.
+  const docFallback = {documentChanges: [{
+    textDocument: {uri: client.toUri(file), version: null},
+    edits: [{range: {start: {line: 2, character: 2}, end: {line: 2, character: 2}},
+      newText: '\nexport const docExtra = 3;'}]
+  }]}
+  Object.assign(client, {
+    connection: {sendRequest: async (method: string, request: any) => {
+      if (method === 'textDocument/codeAction') return [{title: 'extract', command: {command: 'ts6.apply'}}]
+      if (method === 'workspace/executeCommand' && request.command === 'ts6.apply')
+        Object.assign(client, {interceptedWorkspaceEdit: docFallback})
+      return {}
+    }}
+  })
+  const adaptedDocument = await client.getEditsForRefactor(file, range, 'extract', 'extract')
+  expect(adaptedDocument).not.toBeNull()
+  const docEdits = normalizeWorkspaceEdit(adaptedDocument!, toLsp, root).fileEdits.get('sample.ts')!
+  expect(docEdits[0]!.range.start).toEqual({line: 2, character: 1})
+  expect(applyTextEdits(source, docEdits)).toBe(source.replace('}\n', '}\nexport const docExtra = 3;\n'))
   expect(fs.readFileSync(file, 'utf8')).toBe(source)
 })
