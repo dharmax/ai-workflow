@@ -760,19 +760,21 @@ export class CausalChangeEngine {
       expectedAfter[rename.to] = expectedAfter[rename.from];
       expectedAfter[rename.from] = 'missing';
     }
-    // Admission may await; revalidate source once more immediately before synchronous filesystem writes.
+    // Admission and Ticket lease acquisition may await; recheck inside the synchronous
+    // write boundary so a newly appeared destination or changed source cannot slip through.
     if (this.governedAdmission) await this.store.governanceAssertion(this.governedAdmission);
-    for (const [file, expected] of Object.entries(preview.originalHashes)) {
-      const absolute = path.resolve(this.projectRoot, file);
-      const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
-      if (actual !== expected) throw Error(`File '${file}' changed before guarded commit.`);
-    }
 
     // 5. Commit phase with best-effort rollback on filesystem error
     const writtenFiles: string[] = [];
     const executedRenames: Array<{ from: string; to: string }> = [];
 
     const commit = () => {
+    for (const [file, expected] of Object.entries(preview.originalHashes)) {
+      workspacePath(this.projectRoot, file);
+      const absolute = path.resolve(this.projectRoot, file);
+      const actual = fs.existsSync(absolute) ? computeFileSha256(fs.readFileSync(absolute, 'utf8')) : 'missing';
+      if (actual !== expected) throw Error(`File '${file}' changed before guarded commit.`);
+    }
     try {
       // 5a. Write modified / new file contents
       for (const [absPath, content] of materializedFiles) {
