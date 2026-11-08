@@ -34,7 +34,7 @@ function adaptTs6WorkspaceEdit(edit: WorkspaceEditLike, root: string): Workspace
     const absolute = path.resolve(root, relative)
     const lines = (fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : '').split('\n')
     const adapt = (pos: LspPosition): LspPosition => {
-      const line = lines[pos?.line]
+      const line = lines[pos.line]
       return line !== undefined && pos.line < lines.length - 1 && pos.character === line.length + 1
         ? {...pos, character: line.length} : pos
     }
