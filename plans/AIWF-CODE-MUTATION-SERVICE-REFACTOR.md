@@ -1,6 +1,6 @@
 # AIWF — Code Mutation Service: staged refactoring plan
 
-**Status:** Stage 1A–1C implementation completed; user reported the focused Stage 1C gate passing (2026-11-08). Stage 2 Product extraction and public routing are committed; **Stage 2 local test gate pending**. Full-suite green status has not been established.
+**Status:** Stage 1A–1C passed focused local gates. Stage 2 Product extraction and public routing passed typecheck, 80/80 focused tests and pack. Full suite: 855 pass, 7 skip, 2 fail (both classified outside Stage 2, detailed below). Stage 3 is **not started**.
 **Work branch:** `refactor/code-mutation-service` (one short-lived branch, not a branch per step).
 **Starting remote `master`:** `b203e6be8a504d3990887372aa5c9d5783639f88` (2026-11-07).
 **Governing principles:** [Dharmax Architecture](../docs/definitions/dharmax-architecture.md), [Prime Directive](../docs/definitions/prime-directive.md), [active checkpoint](AIWF-V1-ACTIVE-CHECKPOINT.md). This is a bounded refactor, not a new runtime, manager framework, change format, or release-stage advancement.
@@ -113,7 +113,13 @@ src/tools/
 
 **Gate 2:** Product tests, charter alignment, revisions/ABA, review-denied cases, failure atomicity, projection round-trips, Product preview fingerprints and public CLI/MCP behavior all unchanged. No Product source operation reaches code apply. Run the full deterministic suite at this architecture boundary.
 
-**Stage 2 execution checkpoint (2026-11-08, pending local verification):** `src/product/change-operations.ts` now owns Product preview, fresh fingerprint check, and post-commit validation over the existing atomic `product/mutation.ts` owner. `CausalChangeEngine` delegates Product requests for compatibility; registered public `preview_change`/`apply_change` dispatch Product directly without constructing a code engine. Existing exported engine fingerprint functions remain re-exported via `src/change/fingerprint.ts`, preserving the unchanged source digest implementation and blocked-preview shape. Regression tests compare direct, legacy and public Product previews and denial paths. Do not advance to Stage 3 until the Product-oriented focused tests, typecheck, package build, and full deterministic suite are classified. Treat existing unrelated baseline failures separately; never claim full green based solely on focused tests.
+**Stage 2 qualification checkpoint (2026-11-08):** `src/product/change-operations.ts` now owns Product preview, fresh fingerprint check, and post-commit validation over the existing atomic `product/mutation.ts` owner. `CausalChangeEngine` delegates Product requests for compatibility; registered public `preview_change`/`apply_change` dispatch Product directly without constructing a code engine. Engine fingerprint exports remain re-exported from `src/change/fingerprint.ts`; serialization is unchanged. Direct/legacy/public Product preview parity and denial tests passed.
+
+Local results supplied by developer: `bun run typecheck` passed; 80 focused tests in 9 files passed, 0 failed; `bun run pack` succeeded; full `bun test` reported **855 pass / 2 fail / 7 skip** (864 total). Classified failures:
+- `tests/model-headers.test.ts` requires `Scope:` on the second header line; `src/model/workflow-entity.ts` uses a different second-line description. The test and file are byte-identical on `master` and this branch. Not caused by Stage 2.
+- `tests/doctrine-producer-context.test.ts:394` expects only `ASP-GOV-1` from `Aspect.getAspectList(ticket)` but receives additionally `ASP-DRAFT-2` and `ASP-PROPOSED`. Its assertion is byte-identical on `master`, and `tests/aspects.test.ts` explicitly establishes `getAspectList()` returning draft/proposed candidates; assessment/governance filters are separate. Not caused by Stage 2. The branch contains an earlier change to `src/model/aspect.ts`, outside Stage 2; the specific conflicting test expectation exists in `master` too.
+
+These are **classified, unresolved** failures; full-suite green is **not** claimed. Do not change them within this bounded Code Mutation Service extraction or amend an assertion merely to force green. Stage 3 proceeds only as a separately gated slice.
 
 ### Stage 3 — introduce the actual Code Mutation Service and extract preview
 
