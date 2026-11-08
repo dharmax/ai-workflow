@@ -88,5 +88,39 @@ test('TS6 tsserver positions at one past a newline-terminated line are adapted w
   })
   const invalid = await client.getEditsForRefactor(file, range, 'extract', 'extract')
   expect(() => normalizeWorkspaceEdit(invalid!, toLsp, root)).toThrow(/out-of-bounds/)
+  // TS6 tsserver emits 0/0 for insertion into a newly created file.
+  const created = path.join(root, 'generated.ts')
+  Object.assign(client, {
+    connection: {sendRequest: async () => ({body: {edits: [{fileName: created, isNewFile: true, textChanges: [
+      {start: {line: 0, offset: 0}, end: {line: 0, offset: 0}, newText: 'export const generated = 1;\n'}
+    ]}]}})}
+  })
+  const generated = await client.getEditsForRefactor(file, range, 'move', 'move')
+  const generatedEdits = normalizeWorkspaceEdit(generated!, toLsp, root).fileEdits.get('generated.ts')!
+  expect(generatedEdits[0]!.range).toEqual({
+    start: {line: 0, character: 0}, end: {line: 0, character: 0}
+  })
+  expect(applyTextEdits('', generatedEdits)).toBe('export const generated = 1;\n')
+  expect(fs.existsSync(created)).toBe(false)
+
+  // TS6 codeAction fallback returns LSP-shaped edits without passing the direct
+  // tsserverRequest position converter. Adapt only the known newline boundary.
+  const fallback = {changes: {[client.toUri(file)]: [{
+    range: {start: {line: 2, character: 2}, end: {line: 2, character: 2}},
+    newText: '\nexport const extra = 2;'
+  }]}}
+  Object.assign(client, {
+    connection: {sendRequest: async (method: string, request: any) => {
+      if (method === 'textDocument/codeAction') return [{title: 'extract', command: {command: 'ts6.apply'}}]
+      if (method === 'workspace/executeCommand' && request.command === 'ts6.apply')
+        Object.assign(client, {interceptedWorkspaceEdit: fallback})
+      return {}
+    }}
+  })
+  const adaptedFallback = await client.getEditsForRefactor(file, range, 'extract', 'extract')
+  expect(adaptedFallback).not.toBeNull()
+  const fallbackEdits = normalizeWorkspaceEdit(adaptedFallback!, toLsp, root).fileEdits.get('sample.ts')!
+  expect(fallbackEdits[0]!.range.start).toEqual({line: 2, character: 1})
+  expect(applyTextEdits(source, fallbackEdits)).toBe(source.replace('}\n', '}\nexport const extra = 2;\n'))
   expect(fs.readFileSync(file, 'utf8')).toBe(source)
 })
