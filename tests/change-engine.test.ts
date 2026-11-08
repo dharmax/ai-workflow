@@ -437,6 +437,28 @@ describe('Governed LSP operation scope', () => {
     expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(true);
   });
 
+  it('identifies unexpected disk changes after indexing as incomplete post-commit verification', async () => {
+    const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'moved.ts'};
+    const p = await preview(request);
+    const original = store.withGovernedIndexing.bind(store);
+    let calls = 0;
+    store.withGovernedIndexing = async <T>(token: string, files: readonly string[], work: () => Promise<T>): Promise<T> => {
+      const value = await original(token, files, work);
+      if (++calls === 2) fs.appendFileSync(path.join(root, 'moved.ts'), '// external change\n');
+      return value;
+    };
+    try {
+      const result = await apply(request, p.fingerprint);
+      expect(result.verification.passed).toBe(false);
+      expect(result.error).toContain('PARTIALLY APPLIED: filesystem changes committed; post-write verification failed.');
+      expect(result.verification.errors).toContain("Observed effect for 'moved.ts' differs from the guarded preview.");
+      expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
+      expect(fs.readFileSync(path.join(root, 'moved.ts'), 'utf8')).toContain('// external change');
+    } finally {
+      store.withGovernedIndexing = original;
+    }
+  });
+
   it('rejects a rename destination created while waiting to acquire the Ticket write lease', async () => {
     const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'late.ts'};
     const proposed = await preview(request);
