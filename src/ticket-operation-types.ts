@@ -300,7 +300,7 @@ export async function resolveTicketGovernance(store: WorkflowStore, ticket: Work
   const selectedDecisions = [...decisions.values()].sort((a, b) => a.id.localeCompare(b.id));
   const fingerprint = createHash('sha256').update(canonical({
     checker, rules: selectedRules.filter(rule => rule.importance >= 5).map(rule => ({ ruleId: rule.ruleId, fingerprint: rule.fingerprint })),
-    decisions: selectedDecisions, aspects: aspects.aspects.map(aspect => ({ id: aspect.id, status: aspect.status, criteria: aspect.criteria }))
+    decisions: selectedDecisions, aspects: aspects.aspects.map(aspect => ({ id: aspect.id, title: aspect.title, body: aspect.body, status: aspect.status, criteria: aspect.criteria }))
   })).digest('hex');
   return { fingerprint, rules: selectedRules, decisions: selectedDecisions, aspects, targets: targets.sort((a, b) => a.filePath.localeCompare(b.filePath)) };
 }
