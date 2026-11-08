@@ -10,7 +10,7 @@ export interface AspectAssessment {
   assessed: boolean;
   scopeId: string;
   aspects: Array<{
-    id: string; title: string; status: string; criteria: string[];
+    id: string; title: string; body?: string; status: string; criteria: string[];
     tickets: string[]; tests: string[]; artifacts: string[];
     decisions: string[]; code: string[]; gaps: string[];
   }>;
@@ -26,7 +26,7 @@ export async function assessAspects(
     assessed: false,
     scopeId: store.localId(entity.id),
     aspects: aspects.map(a => ({
-      id: store.localId(a.id), title: a.title, status: a.status,
+      id: store.localId(a.id), title: a.title, body: a.body, status: a.status,
       criteria: a.acceptanceCriteria ?? [],
       tickets: [], tests: [], artifacts: [], decisions: [], code: [], gaps: []
     })),
