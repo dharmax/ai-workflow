@@ -15,6 +15,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
 import { closeLspTransport } from './lsp-shutdown.ts';
+import {workspacePath} from './workspace-path.ts';
 import { resolveTs6RefactorRuntime } from '../typescript-runtime.ts';
 import type {
   LspPosition,
@@ -297,18 +298,21 @@ export class Ts6RefactorClient {
         // Convert tsserver edits format to WorkspaceEditLike
         const changes: Record<string, LspTextEdit[]> = {};
         for (const fileEdit of body.edits) {
-          const fileUri = this.toUri(fileEdit.fileName);
+          const relative = workspacePath(this.projectRoot, fileEdit.fileName);
+          const absolute = path.resolve(this.projectRoot, relative);
+          const fileUri = this.toUri(absolute);
+          const lines = (fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : '').split('\n');
+          const position = (point: {line: number; offset: number}): LspPosition => {
+            const line = point.line - 1, character = point.offset - 1;
+            // tsserver refactors sometimes address the newline after a closing brace
+            // as one column past EOL. The legacy engine applied this at EOL.
+            // Adapt only that exact TS6 convention; ordinary LSP ranges remain strict.
+            const text = lines[line];
+            return {line, character: text !== undefined && line < lines.length - 1 &&
+              character === text.length + 1 ? text.length : character};
+          };
           const edits: LspTextEdit[] = (fileEdit.textChanges || []).map((tc: any) => ({
-            range: {
-              start: {
-                line: Math.max(0, tc.start.line - 1),
-                character: Math.max(0, tc.start.offset - 1)
-              },
-              end: {
-                line: Math.max(0, tc.end.line - 1),
-                character: Math.max(0, tc.end.offset - 1)
-              }
-            },
+            range: {start: position(tc.start), end: position(tc.end)},
             newText: tc.newText || ''
           }));
           changes[fileUri] = edits;
