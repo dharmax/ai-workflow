@@ -214,9 +214,9 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     });
     expect(result.status).toBe('complete');
     const {currentTicketReceipt} = await import('../src/ticket/verification.ts');
-    expect(await currentTicketReceipt(store, ticket)).not.toBeNull();
+    expect(await currentTicketReceipt(store, (await store.getEntity<Ticket>('T', Ticket.dcr))!)).not.toBeNull();
     await updateProduct(store, 'Aspect', {id: 'A', body: 'Preserve signed operands and signed zero.'});
-    expect(await currentTicketReceipt(store, ticket)).toBeNull();
+    expect(await currentTicketReceipt(store, (await store.getEntity<Ticket>('T', Ticket.dcr))!)).toBeNull();
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe('Done');
   });
 
