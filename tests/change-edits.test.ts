@@ -129,6 +129,15 @@ describe('Code Mutation Stages 1A/1B: edit contracts', () => {
     expect(fs.lstatSync(path.join(root, 'dangling.ts')).isSymbolicLink()).toBe(true);
   });
 
+  it('rejects protected metadata paths and dangling intermediate symlinks', () => {
+    for (const file of ['.git/config', '.ai-workflow/decisions.md'])
+      expect(() => normalizeWorkspaceEdit({changes: {[file]: []}}, lsp, root)).toThrow();
+    const outside = path.join(os.tmpdir(), 'aiwf-absent-target-' + path.basename(root));
+    fs.symlinkSync(outside, path.join(root, 'dangling-dir'));
+    expect(() => normalizeWorkspaceEdit({changes: {'dangling-dir/new.ts': []}}, lsp, root)).toThrow();
+    expect(fs.existsSync(outside)).toBe(false);
+  });
+
   it('rejects lexical and symlink escapes without touching outside files', () => {
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-change-outside-'));
     try {
