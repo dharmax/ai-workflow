@@ -22,7 +22,7 @@ import { getProductImpact, type ProductImpact } from '../product/impact.ts';
 import { ensureAstFresh, indexSingleFile, withAstSnapshot } from '../graph/indexer.ts';
 import { getExactSymbolSource } from './symbol-source.ts';
 import { workspacePath } from './workspace-path.ts';
-import {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
+import {applyTextEdits, normalizeWorkspaceEdit, normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
 import { SymbolNode, FileNode, Ticket, Decision, Aspect } from '../model/ontology.ts';
 import { validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents } from '../product/mutation.ts';
@@ -63,7 +63,8 @@ export function computeChangeFingerprint(
   originalHashes: Record<string, string>,
   productImpact?: ProductImpact,
   lspClient?: TsLspClient,
-  projectRoot?: string
+  projectRoot?: string,
+  editPlan?: WorkspaceEditPlan
 ): string {
   // Sort original hashes by file path
   const sortedHashes: Record<string, string> = {};
@@ -76,22 +77,20 @@ export function computeChangeFingerprint(
   const canonicalRenames: Array<{ from: string; to: string }> = [];
   const canonicalDeletes: string[] = [];
 
-  for (const mutation of mutations) {
-    if (mutation.kind === 'workspace_edit' && lspClient && projectRoot) {
-      const norm = normalizeWorkspaceEdit(mutation.edit, lspClient, projectRoot);
-      for (const [file, edits] of norm.fileEdits.entries()) {
-        const sortedEdits = [...edits].sort((a, b) => {
-          if (a.range.start.line !== b.range.start.line) return a.range.start.line - b.range.start.line;
-          if (a.range.start.character !== b.range.start.character) return a.range.start.character - b.range.start.character;
-          return a.newText.localeCompare(b.newText);
-        });
-        canonicalFileEdits.push({ file, edits: sortedEdits });
-      }
-      canonicalDeletes.push(...norm.fileDeletes);
-      for (const r of norm.fileRenames) {
-        canonicalRenames.push(r);
-      }
+  const groups = editPlan?.individual ?? (lspClient && projectRoot
+    ? normalizeWorkspaceEdits(mutations.filter(m => m.kind === 'workspace_edit').map(m => m.edit), lspClient, projectRoot).individual
+    : []);
+  for (const norm of groups) {
+    for (const [file, edits] of norm.fileEdits.entries()) {
+      const sortedEdits = [...edits].sort((a, b) => {
+        if (a.range.start.line !== b.range.start.line) return a.range.start.line - b.range.start.line;
+        if (a.range.start.character !== b.range.start.character) return a.range.start.character - b.range.start.character;
+        return a.newText.localeCompare(b.newText);
+      });
+      canonicalFileEdits.push({ file, edits: sortedEdits });
     }
+    canonicalDeletes.push(...norm.fileDeletes);
+    canonicalRenames.push(...norm.fileRenames);
   }
 
   canonicalFileEdits.sort((a, b) => a.file.localeCompare(b.file));
@@ -486,15 +485,17 @@ export class CausalChangeEngine {
       }
     }
 
-    // Include every secondary edit, creation and both rename endpoints before authorization/fingerprinting.
-    for (const mutation of mutations) if (mutation.kind === 'workspace_edit') {
-      const normalized = normalizeWorkspaceEdit(mutation.edit, this.lspClient, this.projectRoot);
-      for (const file of [...normalized.fileEdits.keys(), ...normalized.fileDeletes]) affectedFilesSet.add(file);
-      for (const rename of normalized.fileRenames) { affectedFilesSet.add(rename.from); affectedFilesSet.add(rename.to); }
+    // A single aggregate source plan covers all secondary edits and both rename endpoints.
+    let editPlan: WorkspaceEditPlan;
+    try {
+      editPlan = normalizeWorkspaceEdits(
+        mutations.filter(m => m.kind === 'workspace_edit').map(m => m.edit),
+        this.lspClient, this.projectRoot
+      );
+    } catch (error) {
+      return this.createBlockedPreview(request, String(error), warnings, productImpact);
     }
-    const affectedFiles = Array.from(affectedFilesSet).sort();
-    try { for (const file of affectedFiles) workspacePath(this.projectRoot, file); }
-    catch (error) { return this.createBlockedPreview(request, String(error), warnings, productImpact); }
+    const affectedFiles = editPlan.affectedFiles;
 
     // Read and record original hashes
     for (const f of affectedFiles) {
@@ -525,7 +526,8 @@ export class CausalChangeEngine {
       originalHashes,
       productImpact,
       this.lspClient,
-      this.projectRoot
+      this.projectRoot,
+      editPlan
     );
 
     return {
@@ -718,23 +720,14 @@ export class CausalChangeEngine {
       }
     }
 
-    // 3. Normalize all edits across all mutations
-    const combinedFileEdits = new Map<string, LspTextEdit[]>();
-    const combinedRenames: Array<{ from: string; to: string }> = [];
-    const combinedDeletes: string[] = [];
-
-    for (const mutation of preview.mutations) {
-      if (mutation.kind === 'workspace_edit') {
-        const norm = normalizeWorkspaceEdit(mutation.edit, this.lspClient, this.projectRoot);
-        for (const [f, edits] of norm.fileEdits) {
-          const list = combinedFileEdits.get(f) || [];
-          list.push(...edits);
-          combinedFileEdits.set(f, list);
-        }
-        combinedRenames.push(...norm.fileRenames);
-        combinedDeletes.push(...norm.fileDeletes);
-      }
-    }
+    // 3. Rebuild the identical aggregate validator from the fresh source preview.
+    const editPlan = normalizeWorkspaceEdits(
+      preview.mutations.filter(m => m.kind === 'workspace_edit').map(m => m.edit),
+      this.lspClient, this.projectRoot
+    );
+    if (JSON.stringify(editPlan.affectedFiles) !== JSON.stringify(preview.affectedFiles))
+      throw Error('Source preview effects differ from the validated edit plan.');
+    const {fileEdits: combinedFileEdits, fileRenames: combinedRenames, fileDeletes: combinedDeletes} = editPlan;
 
     // 4. Materialize every resulting file in memory before touching disk
     const materializedFiles = new Map<string, string>();
