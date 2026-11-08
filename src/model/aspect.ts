@@ -11,8 +11,13 @@ import { assessAspects } from '../services/assessment-service.ts'
 
 
 export class Aspect extends WorkflowEntity {
-    /** Direct and containing-entity Aspects; status policy belongs to callers. */
+    /**
+     * Direct tags plus explicitly defined inheritance paths.
+     * Product/code containment is not general policy inheritance.
+     * Callers select accepted Aspects for effective governance.
+     */
     static async getAspectList(entity: WorkflowEntity): Promise<Aspect[]> {
+        const {Epic, Feature, UserStory, Ticket, ModuleNode, FileNode, SymbolNode} = await import('./ontology.ts')
         const aspects = new Map<string, Aspect>()
         const visited = new Set<string>()
         const active = new Set<string>()
@@ -21,14 +26,41 @@ export class Aspect extends WorkflowEntity {
             if (active.has(scope.id)) throw Error(`Containment cycle at '${scope.id}'.`)
             if (visited.has(scope.id)) return
             active.add(scope.id)
+
             for (const edge of await scope.incomingPreds('applies_to')) {
                 const aspect = await edge.getSource<Aspect>()
                 if (aspect instanceof Aspect) aspects.set(aspect.id, aspect)
             }
-            for (const edge of await scope.incomingPreds('contains')) {
-                const parent = await edge.getSource<WorkflowEntity>()
-                if (parent) await visit(parent)
+
+            if (scope instanceof UserStory) {
+                for (const predicate of ['enables', 'contains']) {
+                    for (const edge of await scope.incomingPreds(predicate)) {
+                        const feature = await edge.getSource<WorkflowEntity>()
+                        if (feature instanceof Feature) await visit(feature)
+                    }
+                }
+            } else if (scope instanceof Ticket) {
+                for (const edge of await scope.incomingPreds('contains')) {
+                    const parent = await edge.getSource<WorkflowEntity>()
+                    if (parent instanceof Ticket || parent instanceof Epic) await visit(parent)
+                }
+                for (const edge of await scope.outgoingPreds('implements')) {
+                    const target = await edge.getTarget()
+                    if (target instanceof Feature) await visit(target)
+                }
+                for (const edge of await scope.outgoingPreds('addresses')) {
+                    const target = await edge.getTarget()
+                    if (target instanceof UserStory) await visit(target)
+                    if (target instanceof Aspect && target.status === 'accepted') aspects.set(target.id, target)
+                }
+                for (const predicate of ['targets', 'modifies']) {
+                    for (const edge of await scope.outgoingPreds(predicate)) {
+                        const target = await edge.getTarget()
+                        if (target instanceof ModuleNode || target instanceof FileNode || target instanceof SymbolNode) await visit(target)
+                    }
+                }
             }
+
             active.delete(scope.id)
             visited.add(scope.id)
         }
