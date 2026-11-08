@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {applyTextEdits, normalizeWorkspaceEdit} from '../src/change/engine.ts';
+import {normalizeWorkspaceEdits} from '../src/services/code-mutation/edits.ts';
 
 const range = (line: number, start: number, end: number) =>
   ({start: {line, character: start}, end: {line, character: end}});
@@ -146,5 +147,49 @@ describe('Code Mutation Stages 1A/1B: edit contracts', () => {
       expect(() => normalizeWorkspaceEdit({changes: {'escape/secret.ts': []}}, lsp, root)).toThrow('symlink');
       expect(fs.readdirSync(outside)).toEqual([]);
     } finally {fs.rmSync(outside, {recursive: true, force: true});}
+  });
+
+  it('rejects overlaps and file-operation conflicts spanning separate WorkspaceEdits', () => {
+    fs.writeFileSync(path.join(root, 'a.ts'), 'abcdef');
+    fs.writeFileSync(path.join(root, 'b.ts'), 'other');
+    const a = (start: number, end: number, text: string) =>
+      ({changes: {[uri('a.ts')]: [{range: range(0, start, end), newText: text}]}});
+    const rename = (from: string, to: string) =>
+      ({documentChanges: [{kind: 'rename' as const, oldUri: uri(from), newUri: uri(to)}]});
+    const del = (file: string) =>
+      ({documentChanges: [{kind: 'delete' as const, uri: uri(file)}]});
+    const create = (file: string) =>
+      ({documentChanges: [{kind: 'create' as const, uri: uri(file)}]});
+
+    expect(() => normalizeWorkspaceEdits([a(1, 4, 'X'), a(2, 5, 'Y')], lsp, root)).toThrow(/Overlapping/);
+    expect(() => normalizeWorkspaceEdits([del('a.ts'), a(0, 1, 'X')], lsp, root)).toThrow(/Conflicting/);
+    expect(() => normalizeWorkspaceEdits([del('a.ts'), del('a.ts')], lsp, root)).toThrow(/Conflicting/);
+    expect(() => normalizeWorkspaceEdits([rename('a.ts', 'moved.ts'), rename('b.ts', 'moved.ts')], lsp, root)).toThrow(/Conflicting/);
+    expect(() => normalizeWorkspaceEdits([create('new.ts'), create('new.ts')], lsp, root)).toThrow(/Conflicting/);
+    expect(() => normalizeWorkspaceEdits([create('new.ts'), rename('a.ts', 'new.ts')], lsp, root)).toThrow(/Conflicting/);
+    expect(() => normalizeWorkspaceEdits([
+      {changes: {[uri('new.ts')]: [{range: range(0, 0, 0), newText: 'A'}]}},
+      {changes: {[uri('new.ts')]: [{range: range(0, 0, 0), newText: 'B'}]}}
+    ], lsp, root)).toThrow(/Conflicting/);
+    expect(fs.readFileSync(path.join(root, 'a.ts'), 'utf8')).toBe('abcdef');
+    expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toBe('other');
+    expect(fs.existsSync(path.join(root, 'new.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(false);
+  });
+
+  it('unifies valid disjoint edits and both rename endpoints without changing order', () => {
+    fs.writeFileSync(path.join(root, 'a.ts'), 'abcdef');
+    fs.writeFileSync(path.join(root, 'b.ts'), 'other');
+    const edits = [
+      {changes: {[uri('a.ts')]: [{range: range(0, 1, 3), newText: 'X'}]}},
+      {changes: {[uri('a.ts')]: [{range: range(0, 3, 5), newText: 'Y'}]}},
+      {documentChanges: [{kind: 'rename' as const, oldUri: uri('b.ts'), newUri: uri('moved.ts')}]}
+    ];
+    const plan = normalizeWorkspaceEdits(edits, lsp, root);
+    expect(plan.affectedFiles).toEqual(['a.ts', 'b.ts', 'moved.ts']);
+    expect(plan.fileRenames).toEqual([{from: 'b.ts', to: 'moved.ts'}]);
+    expect(plan.individual).toHaveLength(3);
+    expect(applyTextEdits('abcdef', plan.fileEdits.get('a.ts')!)).toBe('aXYf');
+    expect(fs.readFileSync(path.join(root, 'a.ts'), 'utf8')).toBe('abcdef');
   });
 });
