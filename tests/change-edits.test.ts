@@ -48,7 +48,7 @@ describe('Code Mutation Stage 1A: existing edit contracts', () => {
     };
     const result = normalizeWorkspaceEdit(edit, lsp, root);
     expect([...result.fileEdits]).toEqual([
-      ['one.ts', [...edit.changes[uri('one.ts')], ...edit.documentChanges[0].edits]],
+      ['one.ts', [{range: range(0, 0, 0), newText: 'one'}, {range: range(0, 0, 0), newText: 'again'}]],
       ['created.ts', []]
     ]);
     expect(result.fileRenames).toEqual([{from: 'old.ts', to: 'moved.ts'}]);
