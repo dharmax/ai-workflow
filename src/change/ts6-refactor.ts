@@ -24,6 +24,34 @@ import type {
   WorkspaceEditLike
 } from './types.ts';
 
+/** Adapt the one-past-EOL range convention produced by some TS6 refactors.
+ * Only this TS6 boundary may correct it; ordinary LSP edits remain strict.
+ */
+function adaptTs6WorkspaceEdit(edit: WorkspaceEditLike, root: string): WorkspaceEditLike {
+  const adaptEdits = (uri: string, edits: LspTextEdit[]): LspTextEdit[] => {
+    const file = uri.startsWith('file://') ? fileURLToPath(uri) : uri
+    const relative = workspacePath(root, file)
+    const absolute = path.resolve(root, relative)
+    const lines = (fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : '').split('\n')
+    const adapt = (pos: LspPosition): LspPosition => {
+      const line = lines[pos?.line]
+      return line !== undefined && pos.line < lines.length - 1 && pos.character === line.length + 1
+        ? {...pos, character: line.length} : pos
+    }
+    return edits.map(item => ({...item, range: {
+      start: adapt(item.range.start), end: adapt(item.range.end)
+    }}))
+  }
+  return {
+    ...edit,
+    ...(edit.changes ? {changes: Object.fromEntries(Object.entries(edit.changes)
+      .map(([uri, edits]) => [uri, adaptEdits(uri, edits)]))} : {}),
+    ...(edit.documentChanges ? {documentChanges: edit.documentChanges.map(operation =>
+      'textDocument' in operation ? {...operation, edits: adaptEdits(operation.textDocument.uri, operation.edits)} : operation
+    )} : {})
+  }
+}
+
 export interface Ts6RefactorClientOptions {
   projectRoot: string;
 }
@@ -301,23 +329,18 @@ export class Ts6RefactorClient {
           const relative = workspacePath(this.projectRoot, fileEdit.fileName);
           const absolute = path.resolve(this.projectRoot, relative);
           const fileUri = this.toUri(absolute);
-          const lines = (fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : '').split('\n');
-          const position = (point: {line: number; offset: number}): LspPosition => {
-            const line = point.line - 1, character = point.offset - 1;
-            // tsserver refactors sometimes address the newline after a closing brace
-            // as one column past EOL. The legacy engine applied this at EOL.
-            // Adapt only that exact TS6 convention; ordinary LSP ranges remain strict.
-            const text = lines[line];
-            return {line, character: text !== undefined && line < lines.length - 1 &&
-              character === text.length + 1 ? text.length : character};
-          };
+          const isNewFile = !fs.existsSync(absolute);
+          const position = (point: {line: number; offset: number}): LspPosition =>
+            isNewFile && point.line === 0 && point.offset === 0
+              ? {line: 0, character: 0}
+              : {line: point.line - 1, character: point.offset - 1};
           const edits: LspTextEdit[] = (fileEdit.textChanges || []).map((tc: any) => ({
             range: {start: position(tc.start), end: position(tc.end)},
             newText: tc.newText || ''
           }));
           changes[fileUri] = edits;
         }
-        return { changes };
+        return adaptTs6WorkspaceEdit({changes}, this.projectRoot);
       }
     } catch {}
 
@@ -342,7 +365,7 @@ export class Ts6RefactorClient {
       if (targetAction?.command) {
         await this.connection!.sendRequest('workspace/executeCommand', targetAction.command);
         if (this.interceptedWorkspaceEdit) {
-          return this.interceptedWorkspaceEdit;
+          return adaptTs6WorkspaceEdit(this.interceptedWorkspaceEdit, this.projectRoot);
         }
       }
     } catch {}
