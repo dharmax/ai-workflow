@@ -35,6 +35,27 @@ describe('Consuela ordinary workspace targets', () => {
     expect(result.ok && result.verification.passed).toBe(true); expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(after);
   });
 
+  it('previews and applies two distinct source edits from one aggregate plan', async () => {
+    fs.writeFileSync(path.join(root, 'a.txt'), 'first=old\n');
+    fs.writeFileSync(path.join(root, 'b.txt'), 'second=old\n');
+    const request = {action: 'source_change' as const, changes: [
+      {action: 'replace_text' as const, filePath: 'a.txt', oldText: 'old', newText: 'new'},
+      {action: 'replace_text' as const, filePath: 'b.txt', oldText: 'old', newText: 'fresh'}
+    ]};
+    const preview = await engine.previewChange(request);
+    expect(preview.blocked).toBe(false);
+    expect(preview.affectedFiles).toEqual(['a.txt', 'b.txt']);
+    expect(preview.originalHashes['a.txt']).toMatch(/^[a-f0-9]{64}$/);
+    expect(preview.originalHashes['b.txt']).toMatch(/^[a-f0-9]{64}$/);
+    expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('first=old\n');
+    expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('second=old\n');
+    const result = await engine.applyChange(request, preview.fingerprint);
+    expect(result.ok && result.verification.passed).toBe(true);
+    expect(result.filesTouched).toEqual(['a.txt', 'b.txt']);
+    expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('first=new\n');
+    expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('second=fresh\n');
+  });
+
   it('rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets', async () => {
     fs.writeFileSync(path.join(root, 'config.txt'), 'aaa');
     for (const [filePath, oldText] of [['config.txt', 'missing'], ['config.txt', 'aa'], ['config.txt', ''], ['absent', 'a'], ['.ai-workflow', 'a'], ['../outside', 'a'], [path.join(root, 'config.txt'), 'a']]) {
