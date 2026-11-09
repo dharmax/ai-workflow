@@ -69,6 +69,8 @@ export class CodeMutationService {
    * Previews a change request without mutating disk.
    */
   async previewChange(request: SourceChangeRequest): Promise<ChangePreview> {
+    if ((request as ChangeRequest).action === 'product_change')
+      throw Error('Product changes require the Product change owner.');
     const preview = await withAstSnapshot(() => this.buildPreview(request));
     // Retain only rejection evidence; acceptance always recomputes the full fingerprint.
     if (!preview.blocked) this.lastPreview = { fingerprint: preview.fingerprint, originalHashes: {...preview.originalHashes} };
@@ -194,6 +196,8 @@ export class CodeMutationService {
    * Safely applies the previewed change.
    */
   async applyChange(request: SourceChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
+    if ((request as ChangeRequest).action === 'product_change')
+      throw Error('Product changes require the Product change owner.');
     this.store.assertCanWrite();
     if (this.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
     // Reject known stale sources before AST/LSP work. A different engine/process still
