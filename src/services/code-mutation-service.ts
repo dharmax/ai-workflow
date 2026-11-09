@@ -1,8 +1,8 @@
 /**
  * Responsibility: Source-only Code Mutation Service; real preview and guarded apply owner.
  * Scope:
- *   - previewChange(request, options): computes preview, mutations, affected files, hashes, impact, verification, fingerprint.
- *   - applyChange(request, fingerprint, options): verifies fingerprint freshness, validates edits, executes disk mutations with rollback safety, re-indexes, migrates durable anchors, and verifies.
+ *   - previewCodeChange(request): computes preview, mutations, affected files, hashes, impact, verification, fingerprint.
+ *   - applyCodeChange(request, fingerprint): verifies fingerprint freshness, validates edits, executes disk mutations with rollback safety, re-indexes, migrates durable anchors, and verifies.
  * Rules:
  *   - Zero disk writes during preview.
  *   - No home-grown AST parsing/refactoring; uses TS7 LSP WorkspaceEdits.
@@ -68,7 +68,7 @@ export class CodeMutationService {
   /**
    * Previews a change request without mutating disk.
    */
-  async previewChange(request: SourceChangeRequest): Promise<ChangePreview> {
+  async previewCodeChange(request: SourceChangeRequest): Promise<ChangePreview> {
     if ((request as ChangeRequest).action === 'product_change')
       throw Error('Product changes require the Product change owner.');
     const preview = await withAstSnapshot(() => this.buildPreview(request));
@@ -195,7 +195,7 @@ export class CodeMutationService {
   /**
    * Safely applies the previewed change.
    */
-  async applyChange(request: SourceChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
+  async applyCodeChange(request: SourceChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
     if ((request as ChangeRequest).action === 'product_change')
       throw Error('Product changes require the Product change owner.');
     this.store.assertCanWrite();
@@ -210,7 +210,7 @@ export class CodeMutationService {
       }
     }
     // 1. Recompute preview immediately and assert fingerprint matches
-    const preview = await this.previewChange(request);
+    const preview = await this.previewCodeChange(request);
     if (preview.blocked) {
       return {
         ok: false,
