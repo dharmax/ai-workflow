@@ -245,36 +245,51 @@ export class CodeMutationService {
       await this.store.commitWithTicketLease(this.ticketLease.ticketId, this.ticketLease.claim, commit);
     else commit();
 
+    // Files are committed at this point. Any subsequent failure must preserve
+    // the attributable effects and distinguish incomplete reconciliation.
+    const effects = {
+      before: preview.originalHashes, after: expectedAfter,
+      edits: [...combinedFileEdits].map(([filePath, edits]) => ({filePath, edits}))
+    };
+    let reindexedFiles: string[] = [];
+    let migratedAnchors: Array<{oldId: string; newId: string}> = [];
+    let verificationErrors: string[] = [];
+    let status: ChangeApplyResult['status'];
+    let error: string | undefined;
     try {
-      const {reindexedFiles, migratedAnchors, verificationErrors} = await reconcileCommittedSource(
+      const result = await reconcileCommittedSource(
         {
           store: this.store, projectRoot: this.projectRoot,
           lspClient: this.lspClient, governedAdmission: this.governedAdmission
         },
         request, preview, combinedFileEdits, expectedAfter
       );
-      const passed = verificationErrors.length === 0;
-
-      return {
-        ok: true,
-        ...(!passed ? {error: 'PARTIALLY APPLIED: filesystem changes committed; post-write verification failed. ' + verificationErrors.join('; ')} : {}),
-        fingerprint,
-        filesTouched: [...combinedFileEdits.keys(), ...combinedDeletes],
-        filesRenamed: executedRenames,
-        reindexedFiles,
-        migratedAnchors,
-        effects: {before: preview.originalHashes, after: expectedAfter,
-          edits: [...combinedFileEdits].map(([filePath, edits]) => ({filePath, edits}))},
-        verification: {
-          passed,
-          errors: verificationErrors
-        }
-      };
+      reindexedFiles = result.reindexedFiles;
+      migratedAnchors = result.migratedAnchors;
+      verificationErrors = result.verificationErrors;
+      if (verificationErrors.length) {
+        status = 'committed_verification_failed';
+        error = 'PARTIALLY APPLIED: filesystem changes committed; post-write verification failed. ' + verificationErrors.join('; ');
+      }
     } catch (cause) {
       const messages: string[] = [];
-      for (let error: unknown = cause; error; error = error instanceof Error ? error.cause : undefined)
-        messages.push(error instanceof Error ? error.message : String(error));
-      throw new Error(`PARTIALLY APPLIED: filesystem changes committed; post-write indexing, anchor migration or verification failed. Do not reapply the operation. ${messages.join(' Caused by: ')}`, {cause});
+      for (let current: unknown = cause; current; current = current instanceof Error ? current.cause : undefined)
+        messages.push(current instanceof Error ? current.message : String(current));
+      status = 'committed_unreconciled';
+      verificationErrors = [messages.join(' Caused by: ')];
+      error = 'PARTIALLY APPLIED: filesystem changes committed; post-write indexing, anchor migration or verification failed. Do not reapply the operation. ' + verificationErrors[0];
     }
+
+    return {
+      ok: true, // disk commit succeeded; never means independent acceptance passed
+      ...(status ? {status, error} : {}),
+      fingerprint,
+      filesTouched: [...combinedFileEdits.keys(), ...combinedDeletes],
+      filesRenamed: executedRenames,
+      reindexedFiles,
+      migratedAnchors,
+      effects,
+      verification: {passed: verificationErrors.length === 0, errors: verificationErrors}
+    };
   }
 }
