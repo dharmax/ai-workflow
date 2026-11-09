@@ -1275,7 +1275,7 @@ describe('Ticket-owned bounded resolution', () => {
       freshnessChecks++;
       return originalCheck();
     });
-    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
       const step = ++calls;
       if (step === 1) {
         beforeNavigation = freshnessChecks;
@@ -1283,12 +1283,14 @@ describe('Ticket-owned bounded resolution', () => {
           toolCalls:[{name:'read_workspace_file', parameters:{filePath:'src/add.ts'}}]})};
       }
       if (step === 2) {
+        expect(prompt).toContain('export function add(a: number, b: number) { return a + b; }');
         expect(freshnessChecks - beforeNavigation).toBe(0);
         beforeNavigation = freshnessChecks;
         return {model, ok:true, text:JSON.stringify({thought:'Search the current workspace', action:'tool_call',
           toolCalls:[{name:'search_workspace_text', parameters:{text:'return a + b'}}]})};
       }
       expect(step).toBe(3);
+      expect(prompt).toContain('return a + b');
       expect(freshnessChecks - beforeNavigation).toBe(0);
       return {model, ok:true, text:JSON.stringify({thought:'Relevant source is already correct', action:'final_answer',
         finalAnswer:{changes:[], testCommands:[['bun','test','tests/add.test.ts']]}})};
