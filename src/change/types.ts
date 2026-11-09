@@ -168,7 +168,8 @@ export interface ChangePreview {
 }
 
 export interface ChangeApplyResult {
-  status?: 'review_required' | 'needs_input';
+  /** Source mutation has already committed; distinguish failed postconditions from interrupted reconciliation. */
+  status?: 'review_required' | 'needs_input' | 'committed_verification_failed' | 'committed_unreconciled';
   preview?: ChangePreview;
   ok: boolean;
   fingerprint: string;
