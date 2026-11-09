@@ -5,7 +5,8 @@ import {parseIndexedFile} from '@dharmax/codebase-parser';
 import {z} from 'zod';
 import {UserStory,Ticket,TestNode,Aspect} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
-import {CausalChangeEngine} from '../change/engine.ts';
+import {CodeMutationService, type SourceChangeRequest} from '../services/code-mutation-service.ts';
+import {previewProductChange} from './change-operations.ts';
 import {workspacePath} from '../change/workspace-path.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
 import type {ChangeRequest,ChangePreview,ChangeApplyResult} from '../change/types.ts';
@@ -125,8 +126,7 @@ export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:s
         if(!recovery) {
           const active=source.replace(/\bit\.skip\s*\(/g,'it(');
           if(active===source) throw new Error('Reviewed Story test skip marker is missing; preserve and review its source before activation.');
-          const engine=new CausalChangeEngine({store,projectRoot:store.root});
-          const preview=await engine.previewChange({action:'replace_text',filePath,oldText:source,newText:active});
+          const preview=await new CodeMutationService({store,projectRoot:store.root}).previewCodeChange({action:'replace_text',filePath,oldText:source,newText:active});
           if(preview.blocked) throw new Error(preview.blockReason||'Guarded Story-test activation was blocked.');
           const result=await apply(preview);
           if(!result.ok) throw new Error((result.error||'Guarded Story-test activation failed.')+' The same TestNode can be reconciled by retrying the Ticket start.');
@@ -135,9 +135,8 @@ export async function activateStoryTestsForTicket(store:WorkflowStore,ticketId:s
       const activeSource=fs.readFileSync(path.join(store.root,workspacePath(store.root,test.filePath!)),'utf8');
       const currentTest=await store.getEntity<TestNode>(test.id,TestNode.dcr);
       if(!currentTest) throw new Error('Activated Story-test identity disappeared; preserve the source and reconcile this same TestNode.');
-      const engine=new CausalChangeEngine({store,projectRoot:store.root});
-      const request:ChangeRequest={action:'product_change',basis:[{id:store.localId(currentTest.id),entityType:'TestNode',version:currentTest.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Activate reviewed Story test for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(test.id),fields:{testState:'not-run',testStateReason:'Ticket started; run this active Story test before implementation.',testSourceHash:computeHash(activeSource),storyVersion:story.version,storyBasisHash:basis.hash}}]};
-      const preview=await store.withTestArtifactWrite(test.id,()=>engine.previewChange(request));
+            const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',basis:[{id:store.localId(currentTest.id),entityType:'TestNode',version:currentTest.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Activate reviewed Story test for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(test.id),fields:{testState:'not-run',testStateReason:'Ticket started; run this active Story test before implementation.',testSourceHash:computeHash(activeSource),storyVersion:story.version,storyBasisHash:basis.hash}}]};
+      const preview=await store.withTestArtifactWrite(test.id,()=>previewProductChange(store,request));
       if(preview.blocked) throw new Error(preview.blockReason||'Canonical Story-test activation was blocked.');
       const result=await store.withTestArtifactWrite(test.id,()=>apply(preview));
       if(!result.ok) throw new Error(result.error||'Canonical Story-test activation failed after source activation. Reconcile the same Story and TestNode.');
@@ -197,9 +196,8 @@ export async function runStoryTest(store:WorkflowStore,storyId:string,run:(comma
   const expectedAssertion=/error:\s*expect\(|Expected:|expect\(received\)/i.test(current.output||'');
   const state=current.passed===true?'green':current.passed===false&&fixtureHash===test.fixtureHash&&expectedAssertion?'expected-red':'blocked';
   const reason=state==='green'?'Existing Bun runner passed the active public-interface Story test.':state==='expected-red'?'Current reviewed fixture failed a test assertion before implementation.':current.passed===false?'Test failed without attributable product assertion evidence; fixture, syntax, infrastructure or runner failure is blocked.':'Runner outcome is unknown.';
-  const engine=new CausalChangeEngine({store,projectRoot:store.root});
-  const request:ChangeRequest={action:'product_change',basis:[{id:store.localId(current.id),entityType:'TestNode',version:current.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Classify current Story-test execution for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(current.id),fields:{testState:state,testStateReason:reason,testSourceHash:computeHash(source),fixtureHash,storyVersion:story.version,storyBasisHash:basis.hash}}]};
-  const preview=await store.withTestArtifactWrite(current.id,()=>engine.previewChange(request));
+    const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',basis:[{id:store.localId(current.id),entityType:'TestNode',version:current.version},{id:store.localId(story.id),entityType:'UserStory',version:story.version}],originalRequest:'Classify current Story-test execution for '+store.localId(story.id),mutations:[{kind:'product_update',entityType:'Test',id:store.localId(current.id),fields:{testState:state,testStateReason:reason,testSourceHash:computeHash(source),fixtureHash,storyVersion:story.version,storyBasisHash:basis.hash}}]};
+  const preview=await store.withTestArtifactWrite(current.id,()=>previewProductChange(store,request));
   if(preview.blocked) return {status:'blocked',reason:'Execution was recorded but classification could not be applied: '+preview.blockReason,testId:store.localId(current.id),lastRun:current.lastRun};
   const applied=await store.withTestArtifactWrite(current.id,()=>apply(preview));
   if(!applied.ok) return {status:'blocked',reason:'Execution was recorded but canonical classification failed: '+(applied.error||'unknown apply failure'),testId:store.localId(current.id),lastRun:current.lastRun};
@@ -268,22 +266,21 @@ export async function prepareStoryTest(store:WorkflowStore,specification:StoryTe
   const current=fs.existsSync(absoluteTest)?fs.readFileSync(absoluteTest,'utf8'):undefined;
   if(current!==undefined && current!==content && (!previous?.testSourceHash || computeHash(current)!==previous.testSourceHash))
     throw new Error('Test file contains unattributed changes. Preserve and review them first.');
-  const engine=new CausalChangeEngine({store,projectRoot:store.root});
-  let sourcePreview:ChangePreview|undefined;
+    let sourcePreview:ChangePreview|undefined;
   if(current!==content) {
-    const request:ChangeRequest=current===undefined?{action:'create_file',filePath,content,productContextEntityId:spec.storyId}
+    const request:SourceChangeRequest=current===undefined?{action:'create_file',filePath,content,productContextEntityId:spec.storyId}
       :{action:'replace_text',filePath,oldText:current,newText:content};
-    sourcePreview=await engine.previewChange(request);
+    sourcePreview=await new CodeMutationService({store,projectRoot:store.root}).previewCodeChange(request);
     if(sourcePreview.blocked) return {status:'uncovered' as const,reason:sourcePreview.blockReason};
   }
   const fixtureHash=computeHash(fixture),testSourceHash=computeHash(content);
-  const request:ChangeRequest={action:'product_change',basis,originalRequest:'Developer-reviewed executable Story test for '+spec.storyId,mutations:[
+  const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',basis,originalRequest:'Developer-reviewed executable Story test for '+spec.storyId,mutations:[
     {kind:previous?'product_update':'product_create',entityType:'Test',id:spec.testId,fields:{
       title:story.title,filePath,framework:'bun',command:['bun','test',filePath],fixturePath,interfaceName:spec.interfaceName,
       storyVersion:story.version,testState,testStateReason,testSourceHash,fixtureHash,storyBasisHash:currentBasis.hash}},
     {kind:'product_link',sourceId:spec.testId,predicate:'verifies',targetId:spec.storyId}
   ]};
-  const linkPreview=await store.withTestArtifactWrite(spec.testId,()=>engine.previewChange(request));
+  const linkPreview=await store.withTestArtifactWrite(spec.testId,()=>previewProductChange(store,request));
   if(linkPreview.blocked) return {status:'uncovered' as const,reason:linkPreview.blockReason};
   return {status:'review' as const,specification:supplied,content,testState,fixtureHash,sourcePreview,linkPreview,
     fingerprint:computeHash(canonical({spec,source:sourcePreview?.fingerprint,link:linkPreview.fingerprint,testSourceHash,fixtureHash}))};
