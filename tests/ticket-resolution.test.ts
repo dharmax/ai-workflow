@@ -21,6 +21,7 @@ import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
+import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 
 describe('Ticket-owned bounded resolution', () => {
   let root: string, store: WorkflowStore;
@@ -310,8 +311,8 @@ describe('Ticket-owned bounded resolution', () => {
 
   it('public resolver fences source commit after same-agent replacement inside guarded apply',async()=>{
     await ticket();let calls=0,replaced=false;
-    const original=CausalChangeEngine.prototype.applyChange;
-    const guarded=spyOn(CausalChangeEngine.prototype,'applyChange').mockImplementation(async function(this:CausalChangeEngine,request,fingerprint){
+    const original=CodeMutationService.prototype.applyCodeChange;
+    const guarded=spyOn(CodeMutationService.prototype,'applyCodeChange').mockImplementation(async function(this:CodeMutationService,request,fingerprint){
       if(!replaced && request.action==='replace_text' && request.filePath==='src/add.ts') {
         replaced=true;expect((await store.claimTicket('T','resolver',30,false)).success).toBe(true);
       }
@@ -1258,7 +1259,7 @@ describe('Ticket-owned bounded resolution', () => {
     const t = await ticket()
     let calls = 0
     const request = {action: 'replace_text' as const, filePath: 'src/add.ts', oldText: 'a - b', newText: 'a + b'}
-    const applies = spyOn(CausalChangeEngine.prototype, 'applyChange')
+    const applies = spyOn(CodeMutationService.prototype, 'applyCodeChange')
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model, _provider, options) => {
       calls++
       if (calls === 1) {
