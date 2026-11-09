@@ -3,6 +3,7 @@
  * Scope: Ticket authorization, reviewed dirty targets, lease admission and attributable effect recording.
  */
 import {hashFiles} from '../graph/test-artifacts.ts';
+import type {ChangePreview} from '../change/types.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {requireStoryTests} from '../product/story-tests.ts';
 import {assertChangeScope, normalizeDirtyTargets, sourceChangeFingerprint, sourceChangeScope} from '../ticket/source-scope.ts';
@@ -21,6 +22,7 @@ export interface SourceOperationOptions {
 }
 
 type SourceScope = Awaited<ReturnType<typeof sourceChangeScope>>['scope'];
+export type SourceChangePreview = ChangePreview & {allowDirtyTargets?: string[]; dirtyTargetApprovalRequired?: boolean};
 
 function ownedFiles(root: string, scope: SourceScope): Set<string> {
   const latest = new Map<string, string | null>();
@@ -34,7 +36,7 @@ function ownedFiles(root: string, scope: SourceScope): Set<string> {
 export class SourceManager {
   constructor(private readonly options: SourceManagerOptions) {}
 
-  async previewSourceChange(request: SourceChangeRequest, options: SourceOperationOptions = {}) {
+  async previewSourceChange(request: SourceChangeRequest, options: SourceOperationOptions = {}): Promise<SourceChangePreview> {
     const {store, projectRoot} = this.options;
     const preview = await new CodeMutationService({store, projectRoot}).previewCodeChange(request);
     const {ticketId, agentId, allowDirtyTargets} = options;
