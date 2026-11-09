@@ -1,9 +1,16 @@
 # AIWF — reduce engineering friction without reducing trust
 
-**Status:** Proposed engineering plan; no production implementation accepted or started.
+**Status:** Stage 0 counters and Stage 1 Actor-navigation fix are committed on `perf/streamline-freshness` but **not locally executed or accepted**. The prior 866/0/7 full-suite report belongs to the older refactor gate; no fresh benchmark or focused gate has run here. Stages 2–5 remain planned only.
 **Reviewed base:** `master` `960f9f9` (2026-11-09).
 **Scope:** Existing Ticket investigation, source navigation/index freshness, effective governance, proof collection and lease ergonomics. No new command framework, policy engine, database, agent, risk taxonomy or parallel implementation path.
 **Developer constraint:** At most one *AIWF user* operates on a particular branch/worktree at once. That **does not** guarantee no concurrent processes, editors, test subprocesses, crashes, or independent modifications to code/config/graph. This plan supersedes older sequencing only if the developer explicitly authorizes this work; it does not mark release Gate 5 complete.
+
+## Execution checkpoint — 2026-11-09
+
+- `4de2821`: add `astReconciliations` and `astFilesConsidered` engineering counters inside the existing metrics/indexer owners; baseline **not measured** yet.
+- `48d7dad` and `251cbd1`: regression cases for one graph navigation reconciliation, zero AST reconciliation for raw disk/text Actor navigation, observed responses and optional `AIWF_BENCH_FRESHNESS=1` output. The new regression would be expected to fail before the implementation; red test execution was **not observed** in this remote environment.
+- `20fc5d2`: existing `withAstSnapshot` encloses host-authorized refresh and subsequent read-only graph navigation; disk-only tools bypass the extra graph refresh. Source mutation, governed scope, preview fingerprints and independent acceptance are unchanged.
+- **Next:** developer runs local typecheck and focused tests on this branch; capture actual metrics/latency. If green, run proportionate full suite and dogfood real read/guarded edit before any Stage 2 work. Do not merge on remote-only static inspection.
 
 ## Goal
 
