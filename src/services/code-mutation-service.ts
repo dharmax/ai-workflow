@@ -7,7 +7,7 @@ import path from 'node:path';
 import type {WorkflowStore} from '../graph/store.ts';
 import {getTsLspClient, type TsLspClient} from './typescript/ts-lsp.ts';
 import {getTs6RefactorClient, type Ts6RefactorClient} from './typescript/ts6-refactor.ts';
-import {computeFileSha256} from '../change/fingerprint.ts';
+import {computeFileSha256} from './code-mutation/fingerprint.ts';
 import {withAstSnapshot} from '../graph/indexer.ts';
 import type {ChangeRequest, ChangePreview, ChangeApplyResult} from '../change/types.ts';
 import {buildSourcePreview, type SourceChangeRequest} from './code-mutation/preview.ts';

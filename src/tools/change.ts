@@ -14,8 +14,9 @@ import {SourceManager} from '../managers/source-manager.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
 import type { ChangeRequest } from '../change/types.ts';
 
-import {ChangeRequestSchema} from '../change/request-schema.ts';
-export {ChangeRequestSchema, CodeChangeRequestSchema} from '../change/request-schema.ts';
+import {ChangeRequestSchema} from './change-request.ts';
+export {ChangeRequestSchema} from './change-request.ts';
+export {CodeChangeRequestSchema} from '../services/code-mutation/request-schema.ts';
 
 export const DirtyTargetsSchema = z.array(z.string().min(1)).max(256).optional();
 const previewOptions = ChangeRequestSchema.options.map(schema => schema.extend({ticketId: z.string().min(1).optional(), agentId: z.string().min(1).optional(), allowDirtyTargets: DirtyTargetsSchema}).strict());

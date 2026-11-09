@@ -1,6 +1,5 @@
-/** Request contracts shared by Ticket resolution and the public change adapter. No tool/runtime imports. */
+/** Code-only source mutation request schema. Public Code/Product union is assembled by the adapter. */
 import {z} from 'zod';
-import {ProductMutationSchema, ProductRevisionSchema} from '../product/mutation.ts';
 
 const ChangeTargetSchema = z.discriminatedUnion('type', [
   z.object({
@@ -77,10 +76,5 @@ export const CodeChangeRequestSchema = z.discriminatedUnion('action', [
     arguments: z.record(z.string(), z.any()).optional().describe('Optional refactoring parameters (e.g. targetFile for Move to file)'),
     productContextEntityId: z.string().optional().describe('Optional Feature, Story, or Epic ID for causal grounding')
   })
-]);
-
-export const ChangeRequestSchema = z.discriminatedUnion('action', [
-  ...CodeChangeRequestSchema.options,
-  z.object({ action: z.literal('product_change'), mutations: z.array(ProductMutationSchema).min(1), basis: z.array(ProductRevisionSchema).optional(), originalRequest: z.string().optional() })
 ]);
 

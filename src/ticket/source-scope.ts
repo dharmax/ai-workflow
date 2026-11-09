@@ -100,7 +100,7 @@ export async function assertChangeScope(store: WorkflowStore, ticket: Ticket, sc
         if (preview.resolvedTarget?.graphEntityId === symbol.id) {authorized = true; break;}
         const changes = request.action === 'source_change' ? request.changes : [request];
         for (const change of changes) if (change.action === 'replace_text' && change.filePath === relative) {
-          const {getExactSymbolSource} = await import('../change/symbol-source.ts');
+          const {getExactSymbolSource} = await import('../helpers/source-lookup.ts');
           const source = await getExactSymbolSource(store.root, path.resolve(store.root, relative), symbol.containerName ? `${symbol.containerName}.${symbol.title}` : symbol.title!);
           if (source.code.includes(change.oldText)) authorized = true;
         }

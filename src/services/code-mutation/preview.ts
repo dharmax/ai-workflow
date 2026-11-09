@@ -8,7 +8,7 @@ import type {WorkflowStore} from '../../graph/store.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
 import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 import {getProductImpact, type ProductImpact} from '../../product/impact.ts';
-import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from '../../change/fingerprint.ts';
+import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from './fingerprint.ts';
 import {ensureAstFresh} from '../../graph/indexer.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';

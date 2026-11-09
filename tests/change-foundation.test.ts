@@ -12,7 +12,7 @@ import {
   isCompatibleTsVersion
 } from '../src/typescript-runtime.ts';
 import { TsLspClient, getTsLspClient, closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
-import { resolveCodeTarget } from '../src/change/target-resolver.ts';
+import { resolveCodeTarget } from '../src/helpers/target-resolver.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('AIWF-CHANGE-FOUNDATION', () => {

@@ -7,12 +7,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {withAstSnapshot} from '../graph/indexer.ts';
 import {previewProductChange, commitProductChange} from '../product/change-operations.ts';
-import {computeFileSha256} from './fingerprint.ts';
+import {computeFileSha256} from '../services/code-mutation/fingerprint.ts';
 import {CodeMutationService, type CodeMutationServiceOptions} from '../services/code-mutation-service.ts';
 import type {ChangeRequest, ChangePreview, ChangeApplyResult} from './types.ts';
 
 export type ChangeEngineOptions = CodeMutationServiceOptions;
-export {computeChangeFingerprint, computeFileSha256} from './fingerprint.ts';
+export {computeChangeFingerprint, computeFileSha256} from '../services/code-mutation/fingerprint.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
 
 export class CausalChangeEngine extends CodeMutationService {

@@ -4,7 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import {computeFileSha256} from '../../change/fingerprint.ts';
+import {computeFileSha256} from './fingerprint.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
 import type {ChangePreview} from '../../change/types.ts';

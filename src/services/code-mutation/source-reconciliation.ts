@@ -7,7 +7,7 @@ import path from 'node:path';
 import type {WorkflowStore} from '../../graph/store.ts';
 import {ensureAstFresh, indexSingleFile} from '../../graph/indexer.ts';
 import {FileNode, SymbolNode} from '../../model/ontology.ts';
-import {computeFileSha256} from '../../change/fingerprint.ts';
+import {computeFileSha256} from './fingerprint.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
 import type {ChangePreview, ChangeRequest, LspTextEdit} from '../../change/types.ts';

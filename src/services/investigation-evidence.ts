@@ -24,7 +24,7 @@ import { countEngineering, visitMetricArtifact } from '../performance-metrics.ts
 
 import { resolveTicketGovernance, readVerificationReceipt } from '../ticket-operation-types.ts';
 import { collectProductMeaning } from '../product/context.ts';
-import { getExactSymbolSource } from '../change/symbol-source.ts';
+import { getExactSymbolSource } from '../helpers/source-lookup.ts';
 
 function evidenceBody(entity: WorkflowEntity): string | undefined {
   const narrative = entity as WorkflowEntity & {

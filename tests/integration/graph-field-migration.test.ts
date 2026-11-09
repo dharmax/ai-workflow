@@ -11,7 +11,7 @@ import {ensureAstFresh,indexCodebase,indexSingleFile} from '../../src/graph/inde
 import {commandRegistry,initializeTools} from '../../src/tools/index.ts';
 import {closeAllTsLspClients} from '../../src/services/typescript/ts-lsp.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
-import {resolveCodeTarget} from '../../src/change/target-resolver.ts';
+import {resolveCodeTarget} from '../../src/helpers/target-resolver.ts';
 import {getTsLspClient} from '../../src/services/typescript/ts-lsp.ts';
 import {productReviewFixture} from '../product-review-fixture.ts';
 import {acceptProduct,reviewedApply} from '../product-review.ts';

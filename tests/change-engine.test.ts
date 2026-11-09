@@ -475,7 +475,7 @@ describe('Governed LSP operation scope', () => {
       expect(scope?.effects.at(-1)?.fingerprint).toBe(p.fingerprint);
       expect(scope?.effects.at(-1)?.after['moved.ts']).toBe(result.effects?.after['moved.ts']);
       expect(scope?.effects.at(-1)?.after['moved.ts']).not.toBe(
-        (await import('../src/change/fingerprint.ts')).computeFileSha256(fs.readFileSync(path.join(root, 'moved.ts'), 'utf8'))
+        (await import('../src/services/code-mutation/fingerprint.ts')).computeFileSha256(fs.readFileSync(path.join(root, 'moved.ts'), 'utf8'))
       );
     } finally {
       store.withGovernedIndexing = original;

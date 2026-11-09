@@ -3,7 +3,7 @@ import path from 'node:path'
 import type {WorkflowStore} from '../graph/store.ts'
 import {SymbolNode, type TestNode} from '../model/ontology.ts'
 import type {TicketDossier} from '../ticket-operation-types.ts'
-import {getExactSymbolSource} from '../change/symbol-source.ts'
+import {getExactSymbolSource} from './source-lookup.ts'
 import {normalizeTestPath} from '../graph/test-artifacts.ts'
 
 export const DEFAULT_VERIFICATION_CONTEXT_CHARS = 64_000

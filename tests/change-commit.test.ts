@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {computeFileSha256} from '../src/change/fingerprint.ts';
+import {computeFileSha256} from '../src/services/code-mutation/fingerprint.ts';
 import {prepareSourceCommit, commitSourceFiles} from '../src/services/code-mutation/source-commit.ts';
 
 let root: string;

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {getTsLspClient, type LspDocumentSymbol} from '../services/typescript/ts-lsp.ts';
-import {getExactSymbolSource} from '../change/symbol-source.ts';
+import {getExactSymbolSource} from '../helpers/source-lookup.ts';
 import {canonical} from '../kb/canonical.ts';
 import {RuleReferenceSchema, RuleReferenceSnapshotSchema, type RuleReference, type RuleReferenceSnapshot} from '../model/rule.ts';
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');

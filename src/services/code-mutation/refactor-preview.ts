@@ -1,6 +1,6 @@
 /** TS7-first, TS6-fallback source refactor preparation. No source writes. */
-import {resolveCodeTarget} from '../../change/target-resolver.ts';
-import {blockedChangePreview} from '../../change/fingerprint.ts';
+import {resolveCodeTarget} from '../../helpers/target-resolver.ts';
+import {blockedChangePreview} from './fingerprint.ts';
 import {normalizeWorkspaceEdit} from './edits.ts';
 import type {ChangeRequest, ChangePreview, LspRange} from '../../change/types.ts';
 import type {SourcePreviewContext, PreparedSourceOperation} from './preview-operations.ts';

@@ -5,7 +5,7 @@ import {Aspect} from '../model/ontology.ts';
 import {getCoverage} from './coverage.ts';
 import {getProductImpact, type ProductImpact} from './impact.ts';
 import {validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents} from './mutation.ts';
-import {blockedChangePreview} from '../change/fingerprint.ts';
+import {blockedChangePreview} from '../services/code-mutation/fingerprint.ts';
 import type {ChangeRequest, ChangePreview, ChangeApplyResult} from '../change/types.ts';
 
 type ProductChangeRequest = Extract<ChangeRequest, {action: 'product_change'}>;
