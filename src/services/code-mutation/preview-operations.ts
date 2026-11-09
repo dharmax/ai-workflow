@@ -1,9 +1,6 @@
 /** Prepare one source operation without writes; no Product mutation authorization lives here. */
 import fs from 'node:fs';
 import path from 'node:path';
-import type {WorkflowStore} from '../../graph/store.ts';
-import type {TsLspClient} from '../typescript/ts-lsp.ts';
-import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 import {resolveCodeTarget} from '../../helpers/target-resolver.ts';
 import {getExactSymbolSource} from '../../helpers/source-lookup.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
@@ -11,21 +8,10 @@ import {blockedChangePreview} from './fingerprint.ts';
 import {normalizeWorkspaceEdit} from './edits.ts';
 import {prepareRefactor} from './refactor-preview.ts';
 import type {ProductImpact} from '../../product/impact.ts';
-import type {SourceChangeMutation as ChangeMutation, SourceChangePreview as ChangePreview, SourceChangeRequest as ChangeRequest, ResolvedCodeTarget} from './types.ts';
+import type {SourceChangeMutation as ChangeMutation, SourceChangePreview as ChangePreview, SourceChangeRequest as ChangeRequest, ResolvedCodeTarget, SourcePreviewContext, PreparedSourceOperation} from './types.ts';
 import type {LspRange, WorkspaceEditLike} from '../typescript/types.ts';
 
-export interface SourcePreviewContext {
-  store: WorkflowStore;
-  projectRoot: string;
-  lspClient: TsLspClient;
-  ts6Client: Ts6RefactorClient;
-}
 export type DirectSourceRequest = Exclude<ChangeRequest, {action: 'source_change'}>;
-export interface PreparedSourceOperation {
-  mutation: Extract<ChangeMutation, {kind: 'workspace_edit'}>;
-  summary: string;
-  resolvedTarget?: ResolvedCodeTarget;
-}
 type Result = PreparedSourceOperation | ChangePreview;
 
 function prepareDeleteFile(ctx: SourcePreviewContext, request: Extract<ChangeRequest, {action: 'delete_file'}>, impact?: ProductImpact, warnings: string[] = []): Result {

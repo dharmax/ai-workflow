@@ -4,26 +4,16 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import type {WorkflowStore} from '../../graph/store.ts';
-import type {TsLspClient} from '../typescript/ts-lsp.ts';
-import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 import {getProductImpact, type ProductImpact} from '../../product/impact.ts';
 import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from './fingerprint.ts';
 import {ensureAstFresh} from '../../graph/indexer.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';
 import {prepareSourceOperation} from './preview-operations.ts';
-import type {SourceChangeRequest, SourceChangePreview as ChangePreview, SourceChangeMutation as ChangeMutation, ResolvedCodeTarget} from './types.ts';
+import type {SourceChangeRequest, SourceChangePreview as ChangePreview, SourceChangeMutation as ChangeMutation, ResolvedCodeTarget, SourcePreviewContext} from './types.ts';
 import type {VerificationPlan} from '../../model/change-result.ts';
 
 export type {SourceChangeRequest} from './types.ts';
-
-export interface SourcePreviewContext {
-  store: WorkflowStore;
-  projectRoot: string;
-  lspClient: TsLspClient;
-  ts6Client: Ts6RefactorClient;
-}
 
 export async function buildSourcePreview(ctx: SourcePreviewContext, request: SourceChangeRequest): Promise<ChangePreview> {
   if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh start');

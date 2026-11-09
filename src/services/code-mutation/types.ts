@@ -1,8 +1,24 @@
 /** Source-only request, target and mutation contracts. */
 import type {LspPosition, LspRange, WorkspaceEditLike} from '../typescript/types.ts';
 import type {ChangePreview as Preview, ChangeApplyResult as ApplyResult} from '../../model/change-result.ts';
+import type {WorkflowStore} from '../../graph/store.ts';
+import type {TsLspClient} from '../typescript/ts-lsp.ts';
+import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 
 export type SourceChangeMutation = {kind: 'workspace_edit'; source: 'typescript-lsp' | 'typescript6-refactor' | 'workspace-text'; edit: WorkspaceEditLike};
+
+export interface SourcePreviewContext {
+  store: WorkflowStore;
+  projectRoot: string;
+  lspClient: TsLspClient;
+  ts6Client: Ts6RefactorClient;
+}
+
+export interface PreparedSourceOperation {
+  mutation: SourceChangeMutation;
+  summary: string;
+  resolvedTarget?: ResolvedCodeTarget;
+}
 
 export interface ResolvedCodeTarget {
   filePath: string;
