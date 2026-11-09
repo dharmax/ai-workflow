@@ -16,16 +16,16 @@ export {computeChangeFingerprint, computeFileSha256} from './fingerprint.ts';
 export {applyTextEdits, normalizeWorkspaceEdit} from '../services/code-mutation/edits.ts';
 
 export class CausalChangeEngine extends CodeMutationService {
-  override async previewChange(request: ChangeRequest): Promise<ChangePreview> {
-    if (request.action !== 'product_change') return super.previewChange(request);
+  async previewChange(request: ChangeRequest): Promise<ChangePreview> {
+    if (request.action !== 'product_change') return super.previewCodeChange(request);
     const preview = await withAstSnapshot(() => previewProductChange(this.store, request));
     if (!preview.blocked)
       this.lastPreview = {fingerprint: preview.fingerprint, originalHashes: {...preview.originalHashes}};
     return preview;
   }
 
-  override async applyChange(request: ChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
-    if (request.action !== 'product_change') return super.applyChange(request, fingerprint);
+  async applyChange(request: ChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
+    if (request.action !== 'product_change') return super.applyCodeChange(request, fingerprint);
     this.store.assertCanWrite();
     if (this.lastPreview?.fingerprint === fingerprint) {
       for (const [file, expected] of Object.entries(this.lastPreview.originalHashes)) {
