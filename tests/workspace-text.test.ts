@@ -77,14 +77,14 @@ describe('Consuela ordinary workspace targets', () => {
     fs.writeFileSync(path.join(root, 'service.txt'), 'before\n');
     const service = new CodeMutationService({store, projectRoot: root});
     const request = {action: 'replace_text' as const, filePath: 'service.txt', oldText: 'before', newText: 'after'};
-    const direct = await service.previewChange(request);
+    const direct = await service.previewCodeChange(request);
     const legacy = await engine.previewChange(request);
     const publicPreview = await commandRegistry.execute('preview_change', request,
       {store, projectRoot: root, executionAuthority: 'project-write'});
     expect(direct).toEqual(legacy);
     expect(publicPreview).toEqual(direct);
     expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('before\n');
-    const applied = await service.applyChange(request, direct.fingerprint);
+    const applied = await service.applyCodeChange(request, direct.fingerprint);
     expect(applied.ok && applied.verification.passed).toBe(true);
     expect(applied.effects?.before['service.txt']).toBe(direct.originalHashes['service.txt']);
     expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('after\n');
@@ -92,18 +92,18 @@ describe('Consuela ordinary workspace targets', () => {
 
   it('rejects an untyped Product request at the source-only service boundary', async () => {
     const service = new CodeMutationService({store, projectRoot: root});
-    const productRequest = {action: 'product_change', mutations: []} as unknown as Parameters<typeof service.previewChange>[0];
-    await expect(service.previewChange(productRequest)).rejects.toThrow(/Product changes require the Product change owner/);
-    await expect(service.applyChange(productRequest, 'forged')).rejects.toThrow(/Product changes require the Product change owner/);
+    const productRequest = {action: 'product_change', mutations: []} as unknown as Parameters<typeof service.previewCodeChange>[0];
+    await expect(service.previewCodeChange(productRequest)).rejects.toThrow(/Product changes require the Product change owner/);
+    await expect(service.applyCodeChange(productRequest, 'forged')).rejects.toThrow(/Product changes require the Product change owner/);
   });
 
   it('keeps host-forbidden source apply blocked through the new service', async () => {
     fs.writeFileSync(path.join(root, 'locked.txt'), 'old');
     const service = new CodeMutationService({store, projectRoot: root, codeMutationAllowed: false});
     const request = {action: 'replace_text' as const, filePath: 'locked.txt', oldText: 'old', newText: 'new'};
-    const preview = await service.previewChange(request);
+    const preview = await service.previewCodeChange(request);
     expect(preview.blocked).toBe(false);
-    await expect(service.applyChange(request, preview.fingerprint)).rejects.toThrow(/forbidden by the host/);
+    await expect(service.applyCodeChange(request, preview.fingerprint)).rejects.toThrow(/forbidden by the host/);
     expect(fs.readFileSync(path.join(root, 'locked.txt'), 'utf8')).toBe('old');
   });
 
