@@ -90,6 +90,13 @@ describe('Consuela ordinary workspace targets', () => {
     expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('after\n');
   });
 
+  it('rejects an untyped Product request at the source-only service boundary', async () => {
+    const service = new CodeMutationService({store, projectRoot: root});
+    const productRequest = {action: 'product_change', mutations: []} as unknown as Parameters<typeof service.previewChange>[0];
+    await expect(service.previewChange(productRequest)).rejects.toThrow(/Product changes require the Product change owner/);
+    await expect(service.applyChange(productRequest, 'forged')).rejects.toThrow(/Product changes require the Product change owner/);
+  });
+
   it('keeps host-forbidden source apply blocked through the new service', async () => {
     fs.writeFileSync(path.join(root, 'locked.txt'), 'old');
     const service = new CodeMutationService({store, projectRoot: root, codeMutationAllowed: false});
