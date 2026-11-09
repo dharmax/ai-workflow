@@ -9,7 +9,7 @@ import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
-import {type SourceChangeRequest} from '../services/code-mutation-service.ts';
+import type {SourceChangeRequest} from '../services/code-mutation-service.ts';
 import {SourceManager} from '../managers/source-manager.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
 import type { ChangeRequest } from '../change/types.ts';
