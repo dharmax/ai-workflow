@@ -1,6 +1,6 @@
 # AIWF — Code Mutation Service: staged refactoring plan
 
-**Status:** Stage 1A–1C passed focused local gates. Stage 2 Product extraction passed typecheck, 80/80 focused tests and pack; full suite: 855 pass, 7 skip, 2 classified unrelated failures. Stage 3A passed local typecheck, 62/62 focused tests and pack. Stage 3B passed local typecheck, 158/158 focused tests and pack. Stage 3C reconciliation extraction passed local typecheck, 159/159 focused tests and pack. Stage 3C source-only service ownership, public source routing and compatibility adapter are committed; **facade/full-suite gate pending**. Stage 4 not started.
+**Status:** Stage 1A–1C passed focused local gates. Stage 2 Product extraction passed typecheck, 80/80 focused tests and pack; full suite: 855 pass, 7 skip, 2 classified unrelated failures. Stage 3A passed local typecheck, 62/62 focused tests and pack. Stage 3B passed local typecheck, 158/158 focused tests and pack. Stage 3C reconciliation extraction passed local typecheck, 159/159 focused tests and pack. Stage 3C source-only service ownership, public source routing and compatibility adapter passed typecheck, 162/162 focused tests, and packaging. Full suite: **862 pass / 2 previously classified unrelated failures / 7 skip** (871 total). Stage 4 audit is next; no new service-related failures reported.
 **Work branch:** `refactor/code-mutation-service` (one short-lived branch, not a branch per step).
 **Starting remote `master`:** `b203e6be8a504d3990887372aa5c9d5783639f88` (2026-11-07).
 **Governing principles:** [Dharmax Architecture](../docs/definitions/dharmax-architecture.md), [Prime Directive](../docs/definitions/prime-directive.md), [active checkpoint](AIWF-V1-ACTIVE-CHECKPOINT.md). This is a bounded refactor, not a new runtime, manager framework, change format, or release-stage advancement.
@@ -60,6 +60,13 @@ src/tools/
 4. **TypeScript service / helpers:** independently usable language tooling and read-only symbol/navigation. One shared TS7/TS6 client lifecycle; no speculative common superclass or bespoke LSP protocol. Leave `src/typescript-runtime.ts` as the established runtime resolver unless a concrete ownership issue is demonstrated.
 5. **Entities:** move *intrinsic entity behavior* into `FileNode`/`SymbolNode`/`Ticket` only when inspection shows an actual cohesive method. Keep graph relationship persistence/atomicity in Semantika/WorkflowStore and multi-file LSP, filesystem writes, lease admission and source authorization in their proper owners. `FileNode.handleEvent` is already entity-owned; do not create artificial entity methods to fill the architecture.
 6. **Contracts:** keep one validated request source for each domain. The combined Code/Product public union belongs at the transport boundary, not in a code-only service. Preserve old wire IDs, command schemas, shape/fingerprint behavior, and observed errors during the extraction; any intentional tightening requires a separate test and explanation.
+
+## Verification cadence (updated 2026-11-09)
+
+- After ordinary code changes: run TypeScript typecheck and the smallest relevant regression group; no routine `pack`.
+- At architectural trust boundaries: run the broader targeted/regression suite; full suite when integration or completion requires it.
+- Run `bun run pack` **only** when packaging/bundling/distribution behavior changes, at a release/merge candidate, or if a concrete failure implicates the build. Previously repeated packs at every small stage were unnecessary.
+- Preserve exact test counts, skips, failures and whether a check was local/remote; build success is not proof of behavior. Commands should capture errors and copy output with `wl-copy` when requested.
 
 ## Non-negotiable safety invariants
 
