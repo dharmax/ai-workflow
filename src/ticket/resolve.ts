@@ -46,7 +46,7 @@ export async function resolveTicket(
             const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, VerificationReceiptSchema, ticketVerificationSignature, resolveTicketGovernance, ruleAcceptanceFailures, RuleAcceptanceError, DOCTRINE_VERIFIER_VERSION } =
                 await import("../ticket-operation-types.ts")
             const { ArtifactBudget } = await import("../artifact-policy.ts")
-            const { CausalChangeEngine } = await import("../change/engine.ts")
+            const {applyProductChange} = await import("../product/change-operations.ts")
             const { CodeMutationService } = await import("../services/code-mutation-service.ts")
             const { workspacePath } = await import("../change/workspace-path.ts")
             const { loadConfig } = await import("../services/config-service.ts")
@@ -116,6 +116,11 @@ export async function resolveTicket(
                 acquired.set(id, claim.claim!)
                 return null
             }
+            // Internal reviewed Story-test ownership (not a public source-write route).
+            const applyReviewed = (preview: import("../change/types.ts").ChangePreview) =>
+                preview.request.action === "product_change"
+                    ? applyProductChange(store, preview.request, preview.fingerprint)
+                    : new CodeMutationService(ctx).applyCodeChange(preview.request, preview.fingerprint)
             const apply = async (request: import("../change/types.ts").ChangeRequest) => {
                 await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
                 const leaseError = await lease(executingTicket)
@@ -259,7 +264,7 @@ export async function resolveTicket(
                                 'Verification-only cannot edit or activate skipped test source.', 'Story test activation')
                         if (!options.verifyOnly && coverage.tests.some(test => test.state === 'skipped' || test.state === 'not-run')) {
                             const activated = await activateStoryTestsForTicket(store, id, preview =>
-                                new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                                applyReviewed(preview))
                             for (const testId of activated.tests) {
                                 const test = await store.getEntity<TestNode>(testId, TestNode.dcr)
                                 if (test?.filePath) ownedFiles.add(test.filePath)
@@ -280,7 +285,7 @@ export async function resolveTicket(
                             const baseline = await runStoryTest(store, storyId,
                                 command => commandRegistry.execute('triage_test_failures', {testCommand: command},
                                     {store, projectRoot: store.root, signal: options.signal, executionAuthority: 'project-write'}),
-                                preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                                preview => applyReviewed(preview))
                             if (baseline.status !== 'expected-red' && baseline.status !== 'green') return blocked(`Story '${storyId}' baseline: ${baseline.reason}`)
                             state = baseline.status
                         }
@@ -417,7 +422,7 @@ export async function resolveTicket(
                             check = async () => {
                                 let result: Awaited<ReturnType<typeof executeTicketChecks>> | undefined
                                 const observation = await runStoryTest(store, storyId, async () => { result = await execute() },
-                                    preview => new CausalChangeEngine(ctx).applyChange(preview.request, preview.fingerprint))
+                                    preview => applyReviewed(preview))
                                 if (observation.status === 'blocked') {
                                     traceResolution('Story ' + storyId + ' checks blocked: ' + observation.reason +
                                         '\nLast test output:\n' + ('output' in observation && typeof observation.output === 'string' ? observation.output : '(no recorded output)').slice(-2400))
