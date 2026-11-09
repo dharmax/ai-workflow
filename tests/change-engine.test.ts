@@ -7,7 +7,7 @@ import { Epic, Feature, UserStory, Ticket, SymbolNode } from '../src/model/ontol
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients, TsLspClient } from '../src/services/typescript/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 describe('AIWF-NATIVE-CODE-CHANGE', () => {
@@ -76,10 +76,10 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       const oldSymbolAnchor = oldSymbols[0];
       await store.relate(ticket, 'modifies', oldSymbolAnchor);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
 
       // 1. PREVIEW CHANGE
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'rename_symbol',
         target: { type: 'symbol', filePath: 'a.ts', symbolName: 'parseData' },
         newName: 'parseSafeInt',
@@ -97,7 +97,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       expect(fs.readFileSync(bFile, 'utf8')).toContain('parseData');
 
       // 2. APPLY CHANGE
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'rename_symbol',
         target: { type: 'symbol', filePath: 'a.ts', symbolName: 'parseData' },
         newName: 'parseSafeInt',
@@ -140,8 +140,8 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       fs.writeFileSync(srcFile, 'export let count = 0;\nexport function increment() { count++; }\n');
       await indexSingleFile(store, srcFile, 'counter.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'rename_symbol',
         target: { type: 'symbol', filePath: 'counter.ts', symbolName: 'count' },
         newName: 'totalCount'
@@ -154,7 +154,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
 
       // Applying with prior preview fingerprint MUST throw / reject before any mutation
       await expect(
-        engine.applyChange({
+        engine.applyCodeChange({
           action: 'rename_symbol',
           target: { type: 'symbol', filePath: 'counter.ts', symbolName: 'count' },
           newName: 'totalCount'
@@ -162,8 +162,8 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       ).rejects.toThrow(/modified since preview/i);
 
       // A new engine has no retained preview: the full fingerprint check still rejects.
-      const freshEngine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const failure = await freshEngine.applyChange(preview.request, preview.fingerprint)
+      const freshEngine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const failure = await freshEngine.applyCodeChange(preview.request, preview.fingerprint)
         .then(() => null, error => error as Error);
       expect(failure).toBeInstanceOf(Error);
       expect(failure!.message).toMatch(/Stale change preview|modified since preview/i);
@@ -182,10 +182,10 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       await indexSingleFile(store, utilFile, 'util.ts', tmpDir);
       await indexSingleFile(store, mainFile, 'main.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
       const newPath = 'core/util.ts';
 
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'rename_file',
         oldPath: 'util.ts',
         newPath
@@ -194,7 +194,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       expect(preview.blocked).toBe(false);
       expect(preview.affectedFiles).toContain('util.ts');
 
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'rename_file',
         oldPath: 'util.ts',
         newPath
@@ -218,8 +218,8 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       fs.writeFileSync(srcFile, 'export function compute() { const x = 10 + 20; return x; }\n');
       await indexSingleFile(store, srcFile, 'calc.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: { type: 'symbol', filePath: 'calc.ts', symbolName: 'compute' },
         refactorKind: 'unsupported_magic_transform'
@@ -259,7 +259,7 @@ describe('AIWF-NATIVE-CODE-CHANGE', () => {
       };
       await expect(commandRegistry.execute('apply_change', {request, fingerprint: preview.fingerprint}, ctx))
         .rejects.toThrow('ticketId');
-      const applyResult = await new CausalChangeEngine({store, projectRoot:tmpDir}).applyChange(request, preview.fingerprint);
+      const applyResult = await new CodeMutationService({store, projectRoot:tmpDir}).applyCodeChange(request, preview.fingerprint);
       expect(applyResult.ok).toBe(true);
       expect(fs.readFileSync(fooFile, 'utf8')).toContain('export function getVal');
     });
@@ -333,9 +333,9 @@ describe('Public CLI file move with external imports', () => {
 describe('Governed LSP operation scope', () => {
   let root: string, store: WorkflowStore;
   const ctx = () => ({store, projectRoot: root, executionAuthority: 'project-write' as const});
-  const preview = (request: import('../src/change/types.ts').ChangeRequest, agentId = 'operator') =>
+  const preview = (request: import('../src/services/code-mutation/types.ts').SourceChangeRequest, agentId = 'operator') =>
     commandRegistry.execute('preview_change', {...request, ticketId: 'LSP', agentId}, ctx());
-  const apply = (request: import('../src/change/types.ts').ChangeRequest, fingerprint: string, agentId = 'operator') =>
+  const apply = (request: import('../src/services/code-mutation/types.ts').SourceChangeRequest, fingerprint: string, agentId = 'operator') =>
     commandRegistry.execute('apply_change', {request, fingerprint, ticketId: 'LSP', agentId}, ctx());
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-lsp-scope-'));
@@ -358,7 +358,7 @@ describe('Governed LSP operation scope', () => {
     {action: 'rename_symbol', target: {type: 'symbol', filePath: 'a.ts', symbolName: 'calculate'}, newName: 'compute'},
     {action: 'refactor', target: {type: 'symbol', filePath: 'a.ts', symbolName: 'calculate'}, refactorKind: 'refactor.move.newFile', actionName: 'Move to a new file'},
     {action: 'refactor', target: {type: 'range', filePath: 'a.ts', startLine: 1, startCharacter: 2, endLine: 2, endCharacter: 21}, refactorKind: 'extract', actionName: 'Extract to function in module scope'}
-  ] satisfies import('../src/change/types.ts').ChangeRequest[]) it(`authorizes ${request.action} ${'refactorKind' in request ? request.refactorKind : ''} once and applies exact LSP effects`, async () => {
+  ] satisfies import('../src/services/code-mutation/types.ts').SourceChangeRequest[]) it(`authorizes ${request.action} ${'refactorKind' in request ? request.refactorKind : ''} once and applies exact LSP effects`, async () => {
     const before = fs.readFileSync(path.join(root, 'b.ts'), 'utf8');
     const p = await preview(request); expect(p.blocked).toBe(false);
     expect(fs.readFileSync(path.join(root, 'b.ts'), 'utf8')).toBe(before);
@@ -378,7 +378,7 @@ describe('Governed LSP operation scope', () => {
       {action: 'rename_symbol', target: {type: 'symbol', filePath: 'b.ts', symbolName: 'answer'}, newName: 'result'},
       {action: 'replace_text', filePath: 'b.ts', oldText: '20', newText: '21'},
       {action: 'source_change', changes: [{action: 'replace_text', filePath: 'a.ts', oldText: '2', newText: '3'}, {action: 'replace_text', filePath: 'b.ts', oldText: '20', newText: '21'}]}
-    ] satisfies import('../src/change/types.ts').ChangeRequest[]) {
+    ] satisfies import('../src/services/code-mutation/types.ts').SourceChangeRequest[]) {
       let failure: unknown;
       try {await preview(request);} catch (error) {failure = error;}
       expect(String(failure)).toContain('Scope expansion');

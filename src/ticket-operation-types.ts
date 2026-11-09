@@ -153,7 +153,7 @@ export interface GovernedChangeScope {
   readonly authorizedFiles: readonly string[];
   readonly files: readonly string[];
   readonly baselines: Readonly<Record<string, string>>;
-  readonly effects: readonly {fingerprint: string; edits: readonly {filePath: string; edits: readonly import('./change/types.ts').LspTextEdit[]}[]; before: Readonly<Record<string, string | null>>;
+  readonly effects: readonly {fingerprint: string; edits: readonly {filePath: string; edits: readonly import('./services/typescript/types.ts').LspTextEdit[]}[]; before: Readonly<Record<string, string | null>>;
     after: Readonly<Record<string, string | null>>; renames: readonly {from: string; to: string}[]}[];
   readonly governance: TicketGovernance;
 }

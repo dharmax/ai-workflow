@@ -6,9 +6,9 @@ import {getCoverage} from './coverage.ts';
 import {getProductImpact, type ProductImpact} from './impact.ts';
 import {validateProductMutations, assessCharterAlignment, applyProductMutations, ProductReviewRequired, ProductAlignmentRequired, productDependents} from './mutation.ts';
 import {blockedChangePreview} from '../services/code-mutation/fingerprint.ts';
-import type {ChangeRequest, ChangePreview, ChangeApplyResult} from '../change/types.ts';
+import type {ProductChangeRequest, ProductChangePreview as ChangePreview, ProductChangeApplyResult as ChangeApplyResult} from './change-types.ts';
+import type {ProductMutation} from './mutation.ts';
 
-type ProductChangeRequest = Extract<ChangeRequest, {action: 'product_change'}>;
 
 export async function previewProductChange(store: WorkflowStore, request: ProductChangeRequest): Promise<ChangePreview> {
     try {
@@ -38,7 +38,7 @@ export async function previewProductChange(store: WorkflowStore, request: Produc
         blocked: false, verification: { diagnosticsExpected: false, typecheck: false, targetedTests: [], graphChecks: {} }
       };
     } catch (error) {
-      const blocked = blockedChangePreview(request, error instanceof Error ? error.message : String(error), []);
+      const blocked = blockedChangePreview<ProductChangeRequest, ProductMutation>(request, error instanceof Error ? error.message : String(error), []);
       const deleted = request.mutations.filter(m => m.kind === 'product_delete');
       if (error instanceof ProductAlignmentRequired) {
         const {snapshot} = await validateProductMutations(store, request.mutations, request.basis);

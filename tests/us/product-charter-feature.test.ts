@@ -16,7 +16,7 @@ import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
 import {startWorkspace} from '../../src/workspace/server.ts';
 import {ParameterFacilitator} from '@dharmax/shell-ui';
-import type {ChangeRequest} from '../../src/change/types.ts';
+import type {ProductChangeRequest as ChangeRequest} from '../../src/product/change-types.ts';
 
 type ProductRequest=Extract<ChangeRequest,{action:'product_change'}>;
 const charter={kind:'product_create' as const,entityType:'Product' as const,id:'PRODUCT',fields:{title:'Engineering assistant',purpose:'Help developers maintain software',actors:['Developer'],scope:'Software engineering',nonGoals:['General-purpose conversation and content generation'],bounds:'Developer governs intent',status:'accepted'}};

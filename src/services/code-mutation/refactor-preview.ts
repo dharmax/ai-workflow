@@ -2,7 +2,8 @@
 import {resolveCodeTarget} from '../../helpers/target-resolver.ts';
 import {blockedChangePreview} from './fingerprint.ts';
 import {normalizeWorkspaceEdit} from './edits.ts';
-import type {ChangeRequest, ChangePreview, LspRange} from '../../change/types.ts';
+import type {SourceChangeRequest as ChangeRequest, SourceChangePreview as ChangePreview} from './types.ts';
+import type {LspRange} from '../typescript/types.ts';
 import type {SourcePreviewContext, PreparedSourceOperation} from './preview-operations.ts';
 
 type RefactorRequest = Extract<ChangeRequest, {action: 'refactor'}>;

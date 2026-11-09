@@ -10,7 +10,7 @@ import {LayaSystemOne, RemoteSystemOne, type SystemOne} from '@dharmax/llm-utils
 import {loadConfig, resolveCloudCredentials} from '../services/config-service.ts';
 import { ticketState, TicketLaneSchema, assertTicketAuthoring, TicketKindSchema, TicketDefectSchema } from '../model/ticket.ts';
 import { canonical, computeHash } from '../kb/canonical.ts';
-import type { ChangeRequest } from '../change/types.ts';
+import type { ProductChangeRequest as ChangeRequest } from './change-types.ts';
 import type { TicketLane } from '../model/ticket.ts';
 
 const kinds = { Product, Aspect, Idea, Goal, Concept, Flow, Artifact, Epic, Feature, UserStory, Ticket, Test: TestNode, Decision, Module: ModuleNode, File: FileNode, Symbol: SymbolNode } as const;

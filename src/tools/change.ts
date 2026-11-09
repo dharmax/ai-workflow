@@ -12,7 +12,7 @@ import { CodeMutationService } from '../services/code-mutation-service.ts';
 import type {SourceChangeRequest} from '../services/code-mutation-service.ts';
 import {SourceManager} from '../managers/source-manager.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
-import type { ChangeRequest } from '../change/types.ts';
+import type {ChangeRequest, ChangePreview} from './change-types.ts';
 
 import {ChangeRequestSchema} from './change-request.ts';
 export {ChangeRequestSchema} from './change-request.ts';
@@ -88,7 +88,7 @@ export function registerChangeTools() {
 }
 
 /** Internal owners of reviewed Story-test source/metadata retain their existing change-engine lifecycle. */
-export function applyOwnedChange(preview: import('../change/types.ts').ChangePreview, ctx: ToolContext) {
+export function applyOwnedChange(preview: ChangePreview, ctx: ToolContext) {
   return preview.request.action === 'product_change'
     ? applyProductChange(ctx.store, preview.request, preview.fingerprint)
     : new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot, codeMutationAllowed: ctx.codeMutationAllowed}).applyCodeChange(preview.request, preview.fingerprint);

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { UserStory, FileNode, SymbolNode, Ticket, TestNode, Artifact, Decision } from '../src/model/ontology.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import {previewProductChange, applyProductChange} from '../src/product/change-operations.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
 
 describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
@@ -47,8 +47,8 @@ describe('Dharmax S1 public Story definitions and Aspect applicability', () => {
     await expect(createProduct(store, "UserStory", { id: 'BAD', title: 'Save', status: 'accepted' })).rejects.toThrow('Story');
     expect(await store.getEntity('BAD')).toBeNull();
     await createProduct(store, "UserStory", { id: 'S', title: 'Save', status: 'proposed' });
-    const engine = new CausalChangeEngine({ store, projectRoot: root });
-    const preview = await engine.previewChange({ action: 'product_change', mutations: [
+    
+    const preview = await previewProductChange(store, { action: 'product_change', mutations: [
       { kind: 'product_update', entityType: 'UserStory', id: 'S', fields: { status: 'accepted' } }
     ] });
     expect(preview.blocked).toBe(true);

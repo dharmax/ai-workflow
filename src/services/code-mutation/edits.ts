@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
-import type {LspPosition, LspTextEdit, WorkspaceEditLike} from '../../change/types.ts';
+import type {LspPosition, LspTextEdit, WorkspaceEditLike} from '../typescript/types.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 
 type OffsetEdit = {start: number; end: number; text: string};

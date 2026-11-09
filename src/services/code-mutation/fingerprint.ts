@@ -1,9 +1,11 @@
-/** Deterministic public change fingerprints shared by legacy source and Product preview contracts. */
+/** Deterministic source change fingerprint and blocked-preview compatibility fingerprint. */
 import crypto from 'node:crypto';
 import type {ProductImpact} from '../../product/impact.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';
-import type {ChangeRequest, ChangeMutation, LspTextEdit, ResolvedCodeTarget, ChangePreview} from '../../change/types.ts';
+import type {SourceChangeMutation, ResolvedCodeTarget} from './types.ts';
+import type {LspTextEdit} from '../typescript/types.ts';
+import type {ChangePreview} from '../../model/change-result.ts';
 
 export function computeFileSha256(content: string): string {
   return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
@@ -12,10 +14,10 @@ export function computeFileSha256(content: string): string {
 /**
  * Computes deterministic fingerprint from normalized request, targets, edits, and file hashes.
  */
-export function computeChangeFingerprint(
-  request: ChangeRequest,
+export function computeChangeFingerprint<Request>(
+  request: Request,
   resolvedTarget: ResolvedCodeTarget | undefined,
-  mutations: ChangeMutation[],
+  mutations: SourceChangeMutation[],
   originalHashes: Record<string, string>,
   productImpact?: ProductImpact,
   lspClient?: TsLspClient,
@@ -79,7 +81,9 @@ export function computeChangeFingerprint(
 }
 
 /** Construct the exact legacy blocked-preview shape, without requiring an LSP client. */
-export function blockedChangePreview(request: ChangeRequest, reason: string, warnings: string[], productImpact?: ProductImpact, requiredArguments?: string[]): ChangePreview {
+export function blockedChangePreview<Request, Mutation = SourceChangeMutation>(
+  request: Request, reason: string, warnings: string[], productImpact?: ProductImpact, requiredArguments?: string[]
+): ChangePreview<Request, Mutation> {
   return {
     fingerprint: computeChangeFingerprint(request, undefined, [], {}, productImpact),
     summary: `Blocked: ${reason}`, request, mutations: [], affectedFiles: [], originalHashes: {},

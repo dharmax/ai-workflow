@@ -10,9 +10,10 @@ import {FileNode, SymbolNode} from '../../model/ontology.ts';
 import {computeFileSha256} from './fingerprint.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
-import type {ChangePreview, ChangeRequest, LspTextEdit} from '../../change/types.ts';
+import type {SourceChangePreview as ChangePreview, SourceChangeRequest as ChangeRequest} from './types.ts';
+import type {LspTextEdit} from '../typescript/types.ts';
 
-type SourceRequest = Exclude<ChangeRequest, {action: 'product_change'}>;
+type SourceRequest = ChangeRequest;
 type Anchor = {oldId: string; symbol?: SymbolNode; relations: Array<{sourceId: string; predicate: string}>};
 
 export interface SourceReconciliationContext {

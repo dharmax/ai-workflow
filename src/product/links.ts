@@ -7,7 +7,8 @@ import type {WorkflowStore} from '../graph/store.ts';
 import {CharterWarningContextSchema,PRODUCT_RELATIONS,LinkPayloadSchema,normalizeLinkPayload,productKind,resolveProductEntity,productEdgeRows,productRelation} from './mutation.ts';
 import {computeHash} from '../kb/canonical.ts';
 import {previewProductChange} from './change-operations.ts';
-import type {ChangeRequest} from '../change/types.ts';
+import type {ChangeRequest} from '../tools/change-types.ts';
+import type {ProductChangeRequest} from './change-types.ts';
 import type {ToolContext} from '../tools/registry.ts';
 import {semanticPredicates} from '../model/predicates.ts';
 import {entityDescriptors} from '../model/ontology.ts';
@@ -64,7 +65,7 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
   return {status:'read',id:store.localId(entity.id),version:entity.version,freshness:{basis:'canonical-relations',sourceIndex:'not-assessed'},relationsHash:computeHash(allRows),links,cursor:offset+limit<rows.length?Buffer.from(JSON.stringify({basis,offset:offset+limit})).toString('base64url'):null};
  }
  const source=await endpoint(store,args.sourceId,args.idMatch),target=await endpoint(store,args.targetId,args.idMatch);
- const request:Extract<ChangeRequest,{action:'product_change'}>={action:'product_change',mutations:[{
+ const request:ProductChangeRequest={action:'product_change',mutations:[{
   kind:args.action==='preview_add'?'product_link':'product_unlink',sourceId:store.localId(source.id),targetId:store.localId(target.id),predicate:args.predicate,
   ...(args.action==='preview_add'&&args.payload!==undefined?{payload:normalizeLinkPayload(args.payload)}:{})
  }],basis:[source,target].map(e=>({id:store.localId(e.id),entityType:e.typeName(),version:e.version}))};
@@ -112,7 +113,7 @@ export async function previewDefinitionChange(ctx: ToolContext, input: Definitio
     basis.push({ id: ctx.store.localId(existing.id), entityType: existing.typeName(), version: existing.version });
   }
 
-  const request: Extract<ChangeRequest, { action: 'product_change' }> = {
+  const request: ProductChangeRequest = {
     action: 'product_change',
     mutations: [
       input.create
@@ -138,7 +139,7 @@ export async function previewDefinitionChange(ctx: ToolContext, input: Definitio
 /** Existing local review, with a separate question/response step for charter Decisions.
  * The callback is host UI code, never an Actor/tool argument. */
 export async function reviewProductChange(
-  input: {request: import('../change/types.ts').ChangeRequest; fingerprint:string; decision:'accept'|'reject'|'cancel'},
+  input: {request: ChangeRequest; fingerprint:string; decision:'accept'|'reject'|'cancel'},
   ctx: ToolContext,
   respond?: (question:string, decisionId:string) => Promise<string | undefined>
 ) {

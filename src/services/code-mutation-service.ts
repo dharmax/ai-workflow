@@ -9,7 +9,7 @@ import {getTsLspClient, type TsLspClient} from './typescript/ts-lsp.ts';
 import {getTs6RefactorClient, type Ts6RefactorClient} from './typescript/ts6-refactor.ts';
 import {computeFileSha256} from './code-mutation/fingerprint.ts';
 import {withAstSnapshot} from '../graph/indexer.ts';
-import type {ChangeRequest, ChangePreview, ChangeApplyResult} from '../change/types.ts';
+import type {SourceChangeRequest as ChangeRequest, SourceChangePreview as ChangePreview, SourceChangeApplyResult as ChangeApplyResult} from './code-mutation/types.ts';
 import {buildSourcePreview, type SourceChangeRequest} from './code-mutation/preview.ts';
 import {applyValidatedSourceChange} from './code-mutation/apply.ts';
 
@@ -33,7 +33,7 @@ export class CodeMutationService {
   private readonly codeMutationAllowed?: boolean;
   private readonly ticketLease: CodeMutationServiceOptions['ticketLease'];
   private readonly governedAdmission?: string;
-  protected lastPreview?: Pick<ChangePreview, 'fingerprint' | 'originalHashes'>;
+  private lastPreview?: Pick<ChangePreview, 'fingerprint' | 'originalHashes'>;
 
   constructor(options: CodeMutationServiceOptions) {
     this.store = options.store;
@@ -46,7 +46,7 @@ export class CodeMutationService {
   }
 
   async previewCodeChange(request: SourceChangeRequest): Promise<ChangePreview> {
-    if ((request as ChangeRequest).action === 'product_change')
+    if ((request as {action: string}).action === 'product_change')
       throw Error('Product changes require the Product change owner.');
     const preview = await withAstSnapshot(() => buildSourcePreview(this, request));
     if (!preview.blocked)
@@ -55,7 +55,7 @@ export class CodeMutationService {
   }
 
   async applyCodeChange(request: SourceChangeRequest, fingerprint: string): Promise<ChangeApplyResult> {
-    if ((request as ChangeRequest).action === 'product_change')
+    if ((request as {action: string}).action === 'product_change')
       throw Error('Product changes require the Product change owner.');
     this.store.assertCanWrite();
     if (this.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');

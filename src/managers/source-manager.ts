@@ -3,7 +3,7 @@
  * Scope: Ticket authorization, reviewed dirty targets, lease admission and attributable effect recording.
  */
 import {hashFiles} from '../graph/test-artifacts.ts';
-import type {ChangePreview} from '../change/types.ts';
+import type {SourceChangePreview as ChangePreview} from '../services/code-mutation/types.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {requireStoryTests} from '../product/story-tests.ts';
 import {assertChangeScope, normalizeDirtyTargets, sourceChangeFingerprint, sourceChangeScope} from '../ticket/source-scope.ts';

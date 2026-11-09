@@ -68,7 +68,7 @@ export async function resolveTicket(
             let executingTicket: Ticket = rootTicket,
                 successfulChanges = 0,
                 reusedProofs = 0
-            let anchorMigrations: import("../change/types.ts").ChangeApplyResult["migratedAnchors"] = []
+            let anchorMigrations: import("../tools/change-types.ts").ChangeApplyResult["migratedAnchors"] = []
             const maxRepairs = z
                 .number()
                 .int()
@@ -117,11 +117,11 @@ export async function resolveTicket(
                 return null
             }
             // Internal reviewed Story-test ownership (not a public source-write route).
-            const applyReviewed = (preview: import("../change/types.ts").ChangePreview) =>
+            const applyReviewed = (preview: import("../tools/change-types.ts").ChangePreview) =>
                 preview.request.action === "product_change"
                     ? applyProductChange(store, preview.request, preview.fingerprint)
                     : new CodeMutationService(ctx).applyCodeChange(preview.request, preview.fingerprint)
-            const apply = async (request: import("../change/types.ts").ChangeRequest) => {
+            const apply = async (request: import("../tools/change-types.ts").ChangeRequest) => {
                 await store.renewGovernance(admission!, cfg.defaultLeaseMinutes)
                 const leaseError = await lease(executingTicket)
                 if (leaseError) throw new Error(leaseError)

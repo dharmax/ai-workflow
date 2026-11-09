@@ -7,7 +7,7 @@ import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Aspect, Epic, Feature, UserStory, Ticket, ModuleNode, TestNode, Artifact, Decision, FileNode, SymbolNode } from '../src/model/ontology.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import {previewProductChange, applyProductChange} from '../src/product/change-operations.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { assessAspects } from '../src/services/assessment-service.ts';
 
@@ -117,18 +117,18 @@ describe('first-class Aspects', () => {
 
   it('uses the same preview/fingerprint boundary for Aspect mutation and rejects invalid later links before writes', async () => {
     await store.sp.createEntity<Decision>(Decision.dcr, { id:store.formatId(Decision.dcr,"D"),_id:store.formatId(Decision.dcr,"D"), title: 'Engineering decision' },true,false);
-    const engine = new CausalChangeEngine({ store, projectRoot: root });
+    
     const bad = { action: 'product_change' as const, mutations: [
       { kind: 'product_create' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Concern', status: 'accepted' } },
       { kind: 'product_link' as const, sourceId: 'A', predicate: 'applies_to', targetId: 'D' }
     ] };
-    expect((await engine.previewChange(bad)).blocked).toBe(true);
+    expect((await previewProductChange(store, bad)).blocked).toBe(true);
     expect(await store.getEntity('A', Aspect.dcr)).toBeNull();
     const a = await aspect('A');
     const request = { action: 'product_change' as const, mutations: [{ kind: 'product_update' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Updated concern' } }] };
-    const preview = await engine.previewChange(request);
+    const preview = await previewProductChange(store, request);
     await updateProduct(store, "Aspect", {id:store.localId(a.id),body: 'Concurrent change'});
-    await expect(engine.applyChange(request, preview.fingerprint)).rejects.toThrow('fingerprint');
+    await expect(applyProductChange(store, request, preview.fingerprint)).rejects.toThrow('fingerprint');
   });
 
   it('does not rewrite unchanged Aspect projections but updates changed definitions', async () => {

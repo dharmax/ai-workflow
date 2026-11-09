@@ -108,12 +108,12 @@ describe("WorkflowActor execution boundaries", () => {
         await commandRegistry.execute("create_ticket",{id:"NON-CODE",title:"Record legitimate work"},ctx);
         expect(await store.getEntity("NON-CODE")).not.toBeNull();
         await expect(commandRegistry.execute("apply_change",{request:{action:"create_file",filePath:"forbidden.ts",content:"export const x=1"},fingerprint:"fixture",ticketId:"NON-CODE",agentId:"fixture"},ctx)).rejects.toThrow("Code mutation is forbidden");
-        const {CausalChangeEngine}=await import("../src/change/engine.ts");
-        const engine=new CausalChangeEngine(ctx);
+        const {CodeMutationService}=await import("../src/services/code-mutation-service.ts");
+        const engine=new CodeMutationService(ctx);
         const request={action:"create_file" as const,filePath:"forbidden.ts",content:"export const x=1"};
-        const preview=await engine.previewChange(request);
+        const preview=await engine.previewCodeChange(request);
         expect(preview.blocked).toBe(false);
-        await expect(engine.applyChange(request,preview.fingerprint)).rejects.toThrow("Code mutation is forbidden");
+        await expect(engine.applyCodeChange(request,preview.fingerprint)).rejects.toThrow("Code mutation is forbidden");
         expect(fs.existsSync(path.join(root,"forbidden.ts"))).toBe(false);
     })
     it("passes source constraints into resolution without forbidding non-code work", async () => {

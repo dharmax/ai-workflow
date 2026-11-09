@@ -8,7 +8,7 @@ import { LLMActor, ToolExecutionError, type TokenBudget } from "@dharmax/llm-uti
 import { FileNode, type Ticket } from "../model/ontology.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import { ResolutionProposalSchema, type ResolutionProposal, type ResolutionOptions, type TicketDossier } from "../ticket-operation-types.ts"
-import type { ChangeRequest, ChangeApplyResult } from "../change/types.ts"
+import type {SourceChangeRequest as ChangeRequest, SourceChangeApplyResult as ChangeApplyResult} from '../services/code-mutation/types.ts';
 import { CodeChangeRequestSchema } from "../tools/change.ts"
 import { commandRegistry } from "../tools/registry.ts"
 import { createDefaultAsker } from "../services/model-service.ts"

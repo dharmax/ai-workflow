@@ -13,9 +13,10 @@ import {ensureAstFresh} from '../../graph/indexer.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';
 import {prepareSourceOperation} from './preview-operations.ts';
-import type {ChangeRequest, ChangePreview, ChangeMutation, ResolvedCodeTarget, VerificationPlan} from '../../change/types.ts';
+import type {SourceChangeRequest, SourceChangePreview as ChangePreview, SourceChangeMutation as ChangeMutation, ResolvedCodeTarget} from './types.ts';
+import type {VerificationPlan} from '../../model/change-result.ts';
 
-export type SourceChangeRequest = Exclude<ChangeRequest, {action: 'product_change'}>;
+export type {SourceChangeRequest} from './types.ts';
 
 export interface SourcePreviewContext {
   store: WorkflowStore;

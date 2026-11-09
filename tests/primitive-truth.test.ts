@@ -5,7 +5,7 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { ensureAstFresh, withAstSnapshot } from '../src/graph/indexer.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 
@@ -38,12 +38,12 @@ describe('truthful primitives', () => {
     expect(references.references.some((r: { uri: string }) => r.uri.endsWith('/caller.ts'))).toBe(true);
     const callers = await commandRegistry.execute('get_exact_callers', { filePath: 'unit.ts', symbolName: 'compute' }, ctx);
     expect(callers.callers.some((call: { from: { uri: string } }) => call.from.uri.endsWith('/caller.ts'))).toBe(true);
-    const engine = new CausalChangeEngine({ store, projectRoot: root });
+    const engine = new CodeMutationService({ store, projectRoot: root });
     const request = { action: 'replace_symbol' as const, target: { type: 'symbol' as const, filePath: 'unit.ts', symbolName: 'compute' }, replacement: 'export function compute(value: number): number { return value + 2; }' };
-    const preview = await engine.previewChange(request);
+    const preview = await engine.previewCodeChange(request);
     expect(preview.blocked).toBe(false);
     expect(fs.readFileSync(path.join(root, 'unit.ts'), 'utf8')).toContain('return value + 1');
-    const applied = await engine.applyChange(request, preview.fingerprint);
+    const applied = await engine.applyCodeChange(request, preview.fingerprint);
     expect(applied.ok).toBe(true);
     expect(fs.readFileSync(path.join(root, 'unit.ts'), 'utf8')).toBe(`${request.replacement}\nexport function neighbor() { return 99; }\n`);
     const module = await import(path.join(root, 'unit.ts'));

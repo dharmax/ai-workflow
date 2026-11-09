@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {JevSystemOne, LayaSystemOne, type SystemOne} from '@dharmax/llm-utils';
-import {CausalChangeEngine} from '../src/change/engine.ts';
+import {previewProductChange, applyProductChange} from '../src/product/change-operations.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
 import {screenCharter} from '../src/product/charter-screen.ts';
 import type {ProductMutation} from '../src/product/mutation.ts';
@@ -47,8 +47,8 @@ describe('Product alignment advice', () => {
         {kind:'product_create', entityType:'Product', id:'PRODUCT', fields:{title:'Product', ...charter, status:'accepted'}},
         {kind:'product_create', entityType:'Feature', id:'F', fields:{...target.fields, status:'accepted'}},
       ];
-      const engine = new CausalChangeEngine({store, projectRoot:root});
-      const preview = await engine.previewChange({action:'product_change', mutations});
+      
+      const preview = await previewProductChange(store, {action:'product_change', mutations});
       expect(preview.blocked).toBe(false);
       expect(preview.warnings).toEqual([expect.stringContaining('Write poetry')]);
       expect(await store.getEntity('F')).toBeNull();
@@ -69,13 +69,13 @@ describe('Product alignment advice', () => {
         seen.push((state as {proposed: {kind: string}}).proposed.kind);
         return {backendId:'fixture', quality:'high', latencyMs:0, answers:answers(questions)};
       };
-      const engine = new CausalChangeEngine({store, projectRoot:root});
+      
       for (const entityType of ['Feature', 'UserStory', 'Epic', 'Aspect'] as const) {
         const mutations: ProductMutation[] = [
           {kind:'product_create', entityType:'Product', id:'PRODUCT', fields:{title:'Product', ...charter, status:'accepted'}},
           {kind:'product_create', entityType, id:'ITEM', fields:{title:'Definition', ...(entityType==='UserStory' ? {intent:'Help developers'} : {body:'Help developers'}), status:'draft'}},
         ];
-        const preview = await engine.previewChange({action:'product_change', mutations});
+        const preview = await previewProductChange(store, {action:'product_change', mutations});
         if (preview.blocked) throw Error(`${entityType}: ${preview.blockReason}`);
       }
       expect(seen).toEqual(['Feature', 'UserStory', 'Epic', 'Aspect']);
@@ -105,7 +105,7 @@ describe('Product alignment advice', () => {
         {kind:'product_create', entityType:'Product', id:'PRODUCT', fields:{title:'Product', ...charter, status:'accepted'}},
         {kind:'product_create', entityType:'Feature', id:'F', fields:{...target.fields, status:'accepted'}},
       ];
-      const preview = await new CausalChangeEngine({store, projectRoot:root}).previewChange({action:'product_change', mutations});
+      const preview = await previewProductChange(store, {action:'product_change', mutations});
       expect(preview.blocked).toBe(false); expect(preview.warnings).toEqual([]); expect(calls).toBe(1);
     } finally {
       globalThis.fetch=originalFetch;
@@ -158,11 +158,11 @@ describe('Product alignment advice', () => {
         {kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Product',...charter,status:'accepted'}},
         {kind:'product_create',entityType:'Feature',id:'F',fields:{...target.fields,status:'accepted'}},
       ];
-      const engine=new CausalChangeEngine({store,projectRoot:root});
-      const preview=await engine.previewChange({action:'product_change',mutations});
+      
+      const preview=await previewProductChange(store, {action:'product_change',mutations});
       expect(preview.blocked).toBe(false);expect(preview.warnings).toEqual([]);expect(calls).toBe(1);
       saveConfig(root,{systemOneProvider:'laya',systemOneUrl:'http://laya.test:7890'});
-      const fallback=await engine.previewChange({action:'product_change',mutations});
+      const fallback=await previewProductChange(store, {action:'product_change',mutations});
       expect(fallback.fingerprint).toBe(preview.fingerprint);
       expect(fallback.blocked).toBe(false);expect(fallback.warnings).toEqual([]);expect(calls).toBe(3);
     } finally {
@@ -226,11 +226,11 @@ describe('Product alignment advice', () => {
         {kind:'product_create',entityType:'Product',id:'PRODUCT',fields:{title:'Product',...charter,status:'accepted'}},
         {kind:'product_create',entityType:'Feature',id:'F',fields:{...target.fields,status:'accepted'}},
       ];
-      const engine=new CausalChangeEngine({store,projectRoot:root});
+      
       const request={action:'product_change' as const,mutations};
-      const first=await engine.previewChange(request);
+      const first=await previewProductChange(store, request);
       expect(first.warnings.join(' ')).toContain('unavailable');
-      const second=await engine.previewChange(request);
+      const second=await previewProductChange(store, request);
       expect(second.fingerprint).toBe(first.fingerprint);expect(second.warnings).toEqual([]);expect(calls).toBe(2);
     } finally {
       LayaSystemOne.prototype.assess=original;JevSystemOne.prototype.assess=originalJev;
@@ -253,20 +253,20 @@ describe('Product alignment advice', () => {
         {kind:'product_create', entityType:'Feature', id:'F', fields:{...target.fields, status:'accepted'}},
       ];
       const request = {action:'product_change' as const, mutations};
-      const engine = new CausalChangeEngine({store, projectRoot:root});
-      const preview = await engine.previewChange(request);
+      
+      const preview = await previewProductChange(store, request);
       expect(preview.blocked).toBe(false);
       expect(preview.warnings).toEqual([]);
       expect(calls).toBe(1);
       expect(await store.getEntity('F')).toBeNull();
-      const denied = await store.withExecutionContext('project-write', undefined, () => engine.applyChange(request, preview.fingerprint));
+      const denied = await store.withExecutionContext('project-write', undefined, () => applyProductChange(store, request, preview.fingerprint));
       expect(denied.ok).toBe(false);
       expect(await store.getEntity('F')).toBeNull();
       const changed = {...request, mutations: [mutations[0]!, {...mutations[1]!, fields:{...target.fields, title:'Changed', status:'accepted'}}] as ProductMutation[]};
-      await expect(store.withExecutionContext('project-write', undefined, () => engine.applyChange(changed, preview.fingerprint), preview.fingerprint)).rejects.toThrow('Stale change preview');
-      const fresh = await engine.previewChange(request);
+      await expect(store.withExecutionContext('project-write', undefined, () => applyProductChange(store, changed, preview.fingerprint), preview.fingerprint)).rejects.toThrow('Stale change preview');
+      const fresh = await previewProductChange(store, request);
       const before = calls;
-      const applied = await store.withExecutionContext('project-write', undefined, () => engine.applyChange(request, fresh.fingerprint), fresh.fingerprint);
+      const applied = await store.withExecutionContext('project-write', undefined, () => applyProductChange(store, request, fresh.fingerprint), fresh.fingerprint);
       expect(applied.ok).toBe(true);
       expect(calls).toBe(before);
       expect(await store.getEntity('F')).not.toBeNull();

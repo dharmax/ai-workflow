@@ -7,7 +7,7 @@ import { Ticket, UserStory, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
 import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 
 describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
   let tmpDir: string;
@@ -46,10 +46,10 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
 `);
       await indexSingleFile(store, srcFile, 'math.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
 
       // Range: lines 1-2 (0-based)
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'range',
@@ -74,7 +74,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       expect(contentBefore).not.toContain('function newFunction');
 
       // Apply
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'range',
@@ -111,9 +111,9 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       await indexSingleFile(store, bFile, 'dest.ts', tmpDir);
       await indexSingleFile(store, consumerFile, 'consumer.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
 
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',
@@ -130,7 +130,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       expect(preview.mutations[0].source).toBe('typescript6-refactor');
 
       // Apply move
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',
@@ -159,9 +159,9 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       fs.writeFileSync(srcFile, `export function myHelper(): string {\n  return "hello";\n}\n\nexport function runner() {\n  return myHelper();\n}\n`);
       await indexSingleFile(store, srcFile, 'service.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
 
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',
@@ -175,7 +175,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       expect(preview.blocked).toBe(false);
       expect(preview.mutations[0].source).toBe('typescript6-refactor');
 
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',
@@ -199,9 +199,9 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       fs.writeFileSync(srcFile, `export function testInline() {\n  const x = 10;\n  const y = x + 5;\n  return y;\n}\n`);
       await indexSingleFile(store, srcFile, 'inline.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
 
-      const preview = await engine.previewChange({
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'position',
@@ -216,7 +216,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       expect(preview.blocked).toBe(false);
       expect(preview.mutations[0].source).toBe('typescript6-refactor');
 
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'position',
@@ -241,8 +241,8 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       fs.writeFileSync(srcFile, `export function greet(): string { return "hi"; }\n`);
       await indexSingleFile(store, srcFile, 'pref.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'rename_symbol',
         target: { type: 'symbol', filePath: 'pref.ts', symbolName: 'greet' },
         newName: 'sayHello'
@@ -259,8 +259,8 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       fs.writeFileSync(srcFile, `export function funcToMove() { return 1; }\n`);
       await indexSingleFile(store, srcFile, 'move-arg.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: { type: 'symbol', filePath: 'move-arg.ts', symbolName: 'funcToMove' },
         refactorKind: 'move to file'
@@ -278,8 +278,8 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       fs.writeFileSync(srcFile, `export function add(a: number, b: number) {\n  const sum = a + b;\n  return sum;\n}\n`);
       await indexSingleFile(store, srcFile, 'stale.ts', tmpDir);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'range',
@@ -299,7 +299,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       const changedSource = fs.readFileSync(srcFile, 'utf8');
       const recompute = spyOn(engine, 'previewChange');
 
-      await expect(engine.applyChange({
+      await expect(engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'range',
@@ -333,8 +333,8 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       expect(syms.length).toBe(1);
       await store.relate(ticket, 'modifies', syms[0]);
 
-      const engine = new CausalChangeEngine({ store, projectRoot: tmpDir });
-      const preview = await engine.previewChange({
+      const engine = new CodeMutationService({ store, projectRoot: tmpDir });
+      const preview = await engine.previewCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',
@@ -347,7 +347,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
 
       expect(preview.blocked).toBe(false);
 
-      const applyRes = await engine.applyChange({
+      const applyRes = await engine.applyCodeChange({
         action: 'refactor',
         target: {
           type: 'symbol',

@@ -12,7 +12,7 @@ import {previewProductChange} from '../product/change-operations.ts';
 import {ticketVerificationSignature} from '../ticket-operation-types.ts';
 import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../helpers/verification-context.ts';
 import type {TicketDossier} from '../ticket-operation-types.ts';
-import type {ChangePreview,ChangeApplyResult} from '../change/types.ts';
+import type {ChangePreview,ChangeApplyResult} from '../tools/change-types.ts';
 
 import {TestBindingSpecificationSchema,TechnicalProofSchema,ScopeSchema,type TestBindingSpecification,type TechnicalProof} from '../model/test-proof-types.ts';
 

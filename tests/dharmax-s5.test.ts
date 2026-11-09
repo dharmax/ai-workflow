@@ -10,14 +10,14 @@ import {TestNode,UserStory} from '../src/model/ontology.ts';
 import {indexSingleFile} from '../src/graph/indexer.ts';
 import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {startWorkspace} from '../src/workspace/server.ts';
-import {CausalChangeEngine} from '../src/change/engine.ts';
+import {CodeMutationService} from '../src/services/code-mutation-service.ts';
 
 describe('S5 Story test-first lifecycle',()=>{
  let root:string,store:WorkflowStore,browser:Browser,host:ReturnType<typeof startWorkspace>;
  let stopReviewer: (()=>void) | undefined;
  const call=(name:string,params:unknown)=>commandRegistry.execute(name,params,{store,projectRoot:root,executionAuthority:'project-write' as const});
- const applySource=(preview:{request: import('../src/change/types.ts').ChangeRequest; fingerprint:string})=>
-  store.withExecutionContext('project-write',undefined,()=>new CausalChangeEngine({store,projectRoot:root}).applyChange(preview.request,preview.fingerprint));
+ const applySource=(preview:{request: import('../src/services/code-mutation/types.ts').SourceChangeRequest; fingerprint:string})=>
+  store.withExecutionContext('project-write',undefined,()=>new CodeMutationService({store,projectRoot:root}).applyCodeChange(preview.request,preview.fingerprint));
  afterEach(async()=>{
   stopReviewer?.();
   await browser?.close();browser=undefined as any;

@@ -20,7 +20,7 @@ import type { ResolutionVerificationInput, ResolutionOptions } from '../src/tick
 import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 
 describe('Ticket-owned bounded resolution', () => {
@@ -748,14 +748,14 @@ describe('Ticket-owned bounded resolution', () => {
   });
 
   it('creates missing source through Causal Change, refuses overwrite and rejects symlink/path escapes', async () => {
-    const engine = new CausalChangeEngine({ store, projectRoot: root });
+    const engine = new CodeMutationService({ store, projectRoot: root });
     const request = { action: 'create_file' as const, filePath: 'src/new.ts', content: 'export function fresh() { return 1; }\n' };
-    const preview = await engine.previewChange(request); expect(preview.blocked).toBe(false); expect(fs.existsSync(path.join(root, 'src/new.ts'))).toBe(false);
-    expect((await engine.applyChange(request, preview.fingerprint)).verification.passed).toBe(true);
-    expect((await engine.previewChange(request)).blocked).toBe(true);
-    expect((await engine.previewChange({ ...request, filePath: '../escape.ts' })).blocked).toBe(true);
+    const preview = await engine.previewCodeChange(request); expect(preview.blocked).toBe(false); expect(fs.existsSync(path.join(root, 'src/new.ts'))).toBe(false);
+    expect((await engine.applyCodeChange(request, preview.fingerprint)).verification.passed).toBe(true);
+    expect((await engine.previewCodeChange(request)).blocked).toBe(true);
+    expect((await engine.previewCodeChange({ ...request, filePath: '../escape.ts' })).blocked).toBe(true);
     fs.symlinkSync(os.tmpdir(), path.join(root, 'outside'));
-    expect((await engine.previewChange({ ...request, filePath: 'outside/escape.ts' })).blocked).toBe(true);
+    expect((await engine.previewCodeChange({ ...request, filePath: 'outside/escape.ts' })).blocked).toBe(true);
   }, 30000);
 
   it('reviews the complete authored checkout test while retaining broader regression executions', async () => {

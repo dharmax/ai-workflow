@@ -7,12 +7,11 @@ import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Product, Feature, Goal, Concept, UserStory, ModuleNode, FileNode, SymbolNode } from '../src/model/ontology.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
 import { exportProductManifest, generateProductManifest, exportAuthoredState, restoreAuthoredState } from '../src/product/manifest.ts';
 import { buildIntentContext, collectProductMeaning } from '../src/product/context.ts';
 import { exportProjections, importProjections } from '../src/services/projection-service.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
-import type { ChangeRequest } from '../src/change/types.ts';
+import type {ProductChangeRequest as ChangeRequest} from '../src/product/change-types.ts';
 import { getPublicMcpTools } from '../src/tools/surface.ts';
 
 const binary = process.env.AIWF_PUBLIC_BINARY;
@@ -22,7 +21,6 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
   let stopReviewer: (()=>void) | undefined;
   let root: string;
   let store: WorkflowStore;
-  let engine: CausalChangeEngine;
 
   const run = (...args: string[]) =>
     Bun.spawnSync(binary ? [binary, ...args] : ['bun', cli, ...args], { cwd: root, stderr: 'pipe' });
@@ -33,13 +31,11 @@ describe('PC2: Product Definition & Manifest public acceptance journeys', () => 
   const reopen = () => {
     store.close();
     store = new WorkflowStore(root);
-    engine = new CausalChangeEngine({ store, projectRoot: root });
   };
 
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-pc2-definition-'));
     store = new WorkflowStore(root);
-    engine = new CausalChangeEngine({ store, projectRoot: root });
     initializeTools();
     stopReviewer=await productReviewFixture(store, false);
   });

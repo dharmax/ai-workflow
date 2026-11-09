@@ -7,7 +7,7 @@ import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 import {LayaSystemOne} from '@dharmax/llm-utils';
 import {reviewedApply} from '../product-review.ts';
 import {reviewProductChange} from '../../src/product/links.ts';
-import type {ChangeRequest} from '../../src/change/types.ts';
+import type {ProductChangeRequest as ChangeRequest} from '../../src/product/change-types.ts';
 
 type Request=Extract<ChangeRequest,{action:'product_change'}>;
 const recorded=JSON.parse(fs.readFileSync(new URL('../../docs/evidence/product-charter-feature-o3-2026-10-22/evidence.json',import.meta.url),'utf8'));

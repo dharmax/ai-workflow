@@ -8,7 +8,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, Feature, UserStory, Aspect, Decision, Lesson, FileNode, SymbolNode, TestNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
+import {previewProductChange, applyProductChange} from '../src/product/change-operations.ts';
 import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 
@@ -180,8 +180,8 @@ describe('grounded Ticket investigation', () => {
     expect((await store.getEntity<Ticket>('T', Ticket.dcr))!.lane).toBe('Blocked');
     await expect(store.upsertEntity(Ticket.dcr, { id: 'R', title: 'Rejected', lane: 'Done', status: 'rejected' })).rejects.toThrow('Ticket.status was removed');
     expect(await store.getEntity('R', Ticket.dcr)).toBeNull();
-    const engine = new CausalChangeEngine(ctx);
-    const preview = await engine.previewChange({ action: 'product_change', mutations: [
+    
+    const preview = await previewProductChange(store, { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Ticket', id: 'NEW', fields: { title: 'New' } },
       { kind: 'product_update', entityType: 'Ticket', id: 'T', fields: { lane: 'Blocked', status: 'planned' } }
     ] });
@@ -191,10 +191,10 @@ describe('grounded Ticket investigation', () => {
   });
 
   it('successfully verifies Aspect creation through the shared Causal Change owner', async () => {
-    const engine = new CausalChangeEngine({ store, projectRoot: root });
+    
     const request = { action: 'product_change' as const, mutations: [{ kind: 'product_create' as const, entityType: 'Aspect' as const, id: 'A', fields: { title: 'Truth', acceptanceCriteria: ['Exact facts'] } }] };
-    const preview = await engine.previewChange(request);
-    const result = await engine.applyChange(request, preview.fingerprint);
+    const preview = await previewProductChange(store, request);
+    const result = await applyProductChange(store, request, preview.fingerprint);
     expect(result.verification.passed).toBe(true);
     expect((await store.getEntity<Aspect>('A', Aspect.dcr))!.acceptanceCriteria).toEqual(['Exact facts']);
   });

@@ -3,7 +3,7 @@ import path from 'node:path';
 import {Ticket, SymbolNode, Artifact} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {workspacePath} from '../helpers/workspace-path.ts';
-import type {ChangeRequest, ChangePreview} from '../change/types.ts';
+import type {SourceChangeRequest as ChangeRequest, SourceChangePreview as ChangePreview} from '../services/code-mutation/types.ts';
 import {hashFiles} from '../graph/test-artifacts.ts';
 import {canonical, computeHash} from '../kb/canonical.ts';
 import {resolveTicketGovernance, VerificationReceiptSchema, readVerificationReceipt, type TicketDossier, type GovernedChangeScope} from '../ticket-operation-types.ts';

@@ -5,12 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
-import {previewProductChange} from '../src/product/change-operations.ts';
+import {previewProductChange, applyProductChange} from '../src/product/change-operations.ts';
 import { getCoverage } from '../src/product/coverage.ts';
 import { getProductImpact } from '../src/product/impact.ts';
 import { TestNode, Decision, Feature, UserStory } from '../src/model/ontology.ts';
-import type { ChangeRequest } from '../src/change/types.ts';
+import type {ProductChangeRequest as ChangeRequest} from '../src/product/change-types.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 
 const stops:Array<()=>void>=[];
@@ -26,23 +25,21 @@ function fixture() {
   roots.push(root);
   const store = new WorkflowStore(root);
   stores.push(store);
-  return { store, engine: new CausalChangeEngine({ store, projectRoot: root }) };
+  return {store};
 }
 
 describe('Product Intent Causal Change', () => {
-  it('keeps exact Product previews and blocked fingerprints across direct, legacy and public entry points', async () => {
-    const {store, engine} = fixture();
+  it('keeps exact Product previews and blocked fingerprints across Product owner and public entry points', async () => {
+    const {store} = fixture();
     stops.push(await productReviewFixture(store));
     const valid: Extract<ChangeRequest, {action: 'product_change'}> = {action: 'product_change', mutations: [
       {kind: 'product_create', entityType: 'Epic', id: 'S2-E', fields: {title: 'Stage 2 product'}}
     ]};
     const direct = await previewProductChange(store, valid);
-    const legacy = await engine.previewChange(valid);
-    initializeTools();
+        initializeTools();
     const ctx = {store, projectRoot: store.root, executionAuthority: 'project-write' as const};
     const publicPreview = await commandRegistry.execute('preview_change', valid, ctx);
-    expect(direct).toEqual(legacy);
-    expect(publicPreview).toEqual(direct);
+        expect(publicPreview).toEqual(direct);
     expect(direct.affectedFiles).toEqual([]);
     expect(direct.originalHashes).toEqual({});
     const invalid: Extract<ChangeRequest, {action: 'product_change'}> = {action: 'product_change', mutations: [
@@ -50,7 +47,7 @@ describe('Product Intent Causal Change', () => {
     ]};
     const denied = await previewProductChange(store, invalid);
     expect(denied.blocked).toBe(true);
-    expect(await engine.previewChange(invalid)).toEqual(denied);
+    expect(await previewProductChange(store, invalid)).toEqual(denied);
     expect(await commandRegistry.execute('preview_change', invalid, ctx)).toEqual(denied);
   });
 
@@ -73,7 +70,7 @@ describe('Product Intent Causal Change', () => {
   });
 
   it('previews a coherent create/link set without writing and verifies coverage and impact after apply', async () => {
-    const { store, engine } = fixture();
+    const {store} = fixture();
     stops.push(await productReviewFixture(store));
     const request: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic', status: 'planned' } },
@@ -88,10 +85,10 @@ describe('Product Intent Causal Change', () => {
       { kind: 'product_link', sourceId: 'T1', predicate: 'implements', targetId: 'F1' },
       { kind: 'product_link', sourceId: 'T1', predicate: 'addresses', targetId: 'S1' }
     ] };
-    const preview = await engine.previewChange(request);
+    const preview = await previewProductChange(store, request);
     expect(preview.blocked).toBe(false);
     expect(await store.getEntity('E1')).toBeNull();
-    const result = await engine.applyChange(request, preview.fingerprint);
+    const result = await applyProductChange(store, request, preview.fingerprint);
     expect(result.verification.passed).toBe(true);
     expect((await getCoverage(store, 'E1')).related.features).toEqual(['F1']);
     expect((await getProductImpact(store, 'F1')).tickets).toContain('T1');
@@ -101,45 +98,45 @@ describe('Product Intent Causal Change', () => {
       { kind: 'product_update', entityType: 'UserStory', id: 'S1', fields: { title: 'Story revised' } },
       { kind: 'product_update', entityType: 'Ticket', id: 'T1', fields: { title: 'Ticket revised' } }
     ] };
-    const revised = await engine.previewChange(updates);
+    const revised = await previewProductChange(store, updates);
     expect(revised.blocked).toBe(false);
-    expect((await engine.applyChange(updates, revised.fingerprint)).verification.passed).toBe(true);
+    expect((await applyProductChange(store, updates, revised.fingerprint)).verification.passed).toBe(true);
     for (const [id, title] of [['E1', 'Epic revised'], ['F1', 'Feature revised'], ['S1', 'Story revised'], ['T1', 'Ticket revised']]) {
       expect((await store.getEntity(id) as any).title).toBe(title);
     }
   });
 
   it('rejects an invalid later mutation before any write', async () => {
-    const { store, engine } = fixture();
+    const {store} = fixture();
     const request: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic' } },
       { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature' } },
       { kind: 'product_link', sourceId: 'F1', predicate: 'targets', targetId: 'E1' }
     ] };
-    const preview = await engine.previewChange(request);
+    const preview = await previewProductChange(store, request);
     expect(preview.blocked).toBe(true);
     expect(await store.getEntity('E1')).toBeNull();
-    expect((await engine.applyChange(request, preview.fingerprint)).ok).toBe(false);
+    expect((await applyProductChange(store, request, preview.fingerprint)).ok).toBe(false);
     expect(await store.getEntity('E1')).toBeNull();
   });
 
   it('rejects stale fingerprints and requires explicit unlink before deletion', async () => {
-    const { store, engine } = fixture();
+    const {store} = fixture();
     const create: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_create', entityType: 'Epic', id: 'E1', fields: { title: 'Epic' } },
       { kind: 'product_create', entityType: 'Feature', id: 'F1', fields: { title: 'Feature' } },
       { kind: 'product_link', sourceId: 'E1', predicate: 'targets', targetId: 'F1' }
     ] };
-    const first = await engine.previewChange(create);
-    await engine.applyChange(create, first.fingerprint);
+    const first = await previewProductChange(store, create);
+    await applyProductChange(store, create, first.fingerprint);
     const update: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_update', entityType: 'Feature', id: 'F1', fields: { title: 'Revised' } }
     ] };
-    const stale = await engine.previewChange(update);
+    const stale = await previewProductChange(store, update);
     const feature = await store.getEntity('F1');
     await feature!.update({ title: 'External' }, true, false);
-    expect(engine.applyChange(update, stale.fingerprint)).rejects.toThrow(/Stale change preview/);
-    const blocked = await engine.previewChange({ action: 'product_change', mutations: [
+    expect(applyProductChange(store, update, stale.fingerprint)).rejects.toThrow(/Stale change preview/);
+    const blocked = await previewProductChange(store, { action: 'product_change', mutations: [
       { kind: 'product_delete', entityType: 'Feature', id: 'F1' }
     ] });
     expect(blocked.blocked).toBe(true);
@@ -149,22 +146,22 @@ describe('Product Intent Causal Change', () => {
       { kind: 'product_unlink', sourceId: 'E1', predicate: 'targets', targetId: 'F1' },
       { kind: 'product_delete', entityType: 'Feature', id: 'F1' }
     ] };
-    const deletion = await engine.previewChange(deleteRequest);
+    const deletion = await previewProductChange(store, deleteRequest);
     expect(deletion.blocked).toBe(false);
     expect(deletion.dependents?.length).toBe(1);
-    expect((await engine.applyChange(deleteRequest, deletion.fingerprint)).ok).toBe(true);
+    expect((await applyProductChange(store, deleteRequest, deletion.fingerprint)).ok).toBe(true);
     expect(await store.getEntity('F1')).toBeNull();
   });
 
   it('links and unlinks every canonical relation and rejects invalid lifecycle fields', async () => {
-    const { store, engine } = fixture();
+    const {store} = fixture();
     for (const [entityType, id] of [['Epic', 'E'], ['Feature', 'F'], ['UserStory', 'S'], ['Ticket', 'T']] as const) {
       const request: ChangeRequest = { action: 'product_change', mutations: [
         { kind: 'product_create', entityType, id, fields: { title: id } }
       ] };
-      const preview = await engine.previewChange(request);
+      const preview = await previewProductChange(store, request);
       expect(preview.blocked).toBe(false);
-      await engine.applyChange(request, preview.fingerprint);
+      await applyProductChange(store, request, preview.fingerprint);
     }
     await store.upsertEntity(TestNode.dcr, { id: 'TEST', title: 'Test', targetPath: 'a.test.ts' });
     await store.sp.createEntity(Decision.dcr, { id:store.formatId(Decision.dcr,"ADR"),_id:store.formatId(Decision.dcr,"ADR"), title: 'Decision', decision: 'Use graph' },true,false);
@@ -177,54 +174,54 @@ describe('Product Intent Causal Change', () => {
       const link: ChangeRequest = { action: 'product_change', mutations: [
         { kind: 'product_link', sourceId, predicate, targetId }
       ] };
-      const preview = await engine.previewChange(link);
+      const preview = await previewProductChange(store, link);
       if (predicate === 'verifies') { expect(preview.blocked).toBe(true); continue; }
       expect(preview.blocked).toBe(false);
-      expect((await engine.applyChange(link, preview.fingerprint)).verification.passed).toBe(true);
+      expect((await applyProductChange(store, link, preview.fingerprint)).verification.passed).toBe(true);
     }
     for (const [sourceId, predicate, targetId] of relations) {
       const unlink: ChangeRequest = { action: 'product_change', mutations: [
         { kind: 'product_unlink', sourceId, predicate, targetId }
       ] };
-      const preview = await engine.previewChange(unlink);
+      const preview = await previewProductChange(store, unlink);
       if (predicate === 'verifies') { expect(preview.blocked).toBe(true); continue; }
       expect(preview.blocked).toBe(false);
-      expect((await engine.applyChange(unlink, preview.fingerprint)).verification.passed).toBe(true);
+      expect((await applyProductChange(store, unlink, preview.fingerprint)).verification.passed).toBe(true);
     }
     for (const [entityType, id, status] of [['Epic', 'E', 'cancelled'], ['Feature', 'F', 'deprecated'], ['UserStory', 'S', 'deprecated']] as const) {
       const update: ChangeRequest = { action: 'product_change', mutations: [
         { kind: 'product_update', entityType, id, fields: { status } }
       ] };
-      const preview = await engine.previewChange(update);
+      const preview = await previewProductChange(store, update);
       expect(preview.blocked).toBe(false);
-      await engine.applyChange(update, preview.fingerprint);
+      await applyProductChange(store, update, preview.fingerprint);
       expect((await store.getEntity(id) as any).status).toBe(status);
     }
-    const invalid = await engine.previewChange({ action: 'product_change', mutations: [
+    const invalid = await previewProductChange(store, { action: 'product_change', mutations: [
       { kind: 'product_update', entityType: 'Feature', id: 'F', fields: { status: 'active' } }
     ] });
     expect(invalid.blocked).toBe(true);
   });
 
   it('rejects new legacy containment through preview while allowing explicit removal of existing state', async () => {
-    const { store, engine } = fixture();
+    const {store} = fixture();
     const feature = await store.upsertEntity<Feature>(Feature.dcr, { id: 'F', title: 'Existing capability' });
     const story = await store.upsertEntity<UserStory>(UserStory.dcr, { id: 'S', title: 'Existing episode' });
     await store.relate(feature, 'contains', story);
     const author: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_link', sourceId: 'F', predicate: 'contains', targetId: 'S' }
     ] };
-    const blocked = await engine.previewChange(author);
+    const blocked = await previewProductChange(store, author);
     expect(blocked.blocked).toBe(true);
     expect(blocked.blockReason).toContain('not allowed');
-    expect((await engine.applyChange(author, blocked.fingerprint)).ok).toBe(false);
+    expect((await applyProductChange(store, author, blocked.fingerprint)).ok).toBe(false);
     expect(await store.getOutgoing(feature.id, 'contains')).toHaveLength(1);
     const remove: ChangeRequest = { action: 'product_change', mutations: [
       { kind: 'product_unlink', sourceId: 'F', predicate: 'contains', targetId: 'S' }
     ] };
-    const preview = await engine.previewChange(remove);
+    const preview = await previewProductChange(store, remove);
     expect(preview.blocked).toBe(false);
-    expect((await engine.applyChange(remove, preview.fingerprint)).verification.passed).toBe(true);
+    expect((await applyProductChange(store, remove, preview.fingerprint)).verification.passed).toBe(true);
     expect(await store.getOutgoing(feature.id, 'contains')).toEqual([]);
   });
 

@@ -8,7 +8,7 @@ import {FileNode, SymbolNode, Ticket} from '../../src/model/ontology.ts';
 import {ensureAstFresh} from '../../src/graph/indexer.ts';
 import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 import {buildSourceScope} from '../../src/ticket/source-scope.ts';
-import type {ChangeRequest} from '../../src/change/types.ts';
+import type {ChangeRequest} from '../../src/tools/change-types.ts';
 import {acceptProduct} from '../product-review.ts';
 
 const policySource = 'export interface RetryPolicy { waitSeconds: number }\n';

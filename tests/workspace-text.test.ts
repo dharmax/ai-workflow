@@ -3,17 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
-import { CausalChangeEngine } from '../src/change/engine.ts';
 import {CodeMutationService} from '../src/services/code-mutation-service.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 
 describe('Consuela ordinary workspace targets', () => {
-  let root: string, store: WorkflowStore, engine: CausalChangeEngine;
+  let root: string, store: WorkflowStore, engine: CodeMutationService;
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'aiwf-text-'));
-    store = new WorkflowStore(root); engine = new CausalChangeEngine({ store, projectRoot: root }); initializeTools();
+    store = new WorkflowStore(root); engine = new CodeMutationService({ store, projectRoot: root }); initializeTools();
   });
   afterEach(async () => { await closeAllTsLspClients(); await closeAllTs6RefactorClients(); store.close(); fs.rmSync(root, { recursive: true, force: true }); });
 
@@ -26,13 +25,13 @@ describe('Consuela ordinary workspace targets', () => {
     const request = { action: 'replace_text' as const, filePath, oldText, newText };
     const preview = await commandRegistry.execute('preview_change', request, { store, projectRoot: root, executionAuthority: 'project-write' });
     expect(preview.blocked).toBe(false); expect(preview.originalHashes[filePath]).toMatch(/^[a-f0-9]{64}$/);
-    expect((await engine.previewChange(request)).fingerprint).toBe(preview.fingerprint);
+    expect((await engine.previewCodeChange(request)).fingerprint).toBe(preview.fingerprint);
     expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(before);
     expect(await commandRegistry.execute('read_workspace_file', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' })).toEqual({ filePath, content: before });
     // Direct primitive test: the public writer deliberately requires an owning Ticket.
     await expect(commandRegistry.execute('apply_change', {request, fingerprint: preview.fingerprint},
       {store, projectRoot: root, executionAuthority: 'project-write'})).rejects.toThrow('ticketId');
-    const result = await engine.applyChange(request, preview.fingerprint);
+    const result = await engine.applyCodeChange(request, preview.fingerprint);
     expect(result.ok && result.verification.passed).toBe(true); expect(fs.readFileSync(path.join(root, filePath), 'utf8')).toBe(after);
   });
 
@@ -43,14 +42,14 @@ describe('Consuela ordinary workspace targets', () => {
       {action: 'replace_text' as const, filePath: 'a.txt', oldText: 'old', newText: 'new'},
       {action: 'replace_text' as const, filePath: 'b.txt', oldText: 'old', newText: 'fresh'}
     ]};
-    const preview = await engine.previewChange(request);
+    const preview = await engine.previewCodeChange(request);
     expect(preview.blocked).toBe(false);
     expect(preview.affectedFiles).toEqual(['a.txt', 'b.txt']);
     expect(preview.originalHashes['a.txt']).toMatch(/^[a-f0-9]{64}$/);
     expect(preview.originalHashes['b.txt']).toMatch(/^[a-f0-9]{64}$/);
     expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('first=old\n');
     expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('second=old\n');
-    const result = await engine.applyChange(request, preview.fingerprint);
+    const result = await engine.applyCodeChange(request, preview.fingerprint);
     expect(result.ok && result.verification.passed).toBe(true);
     expect(result.filesTouched).toEqual(['a.txt', 'b.txt']);
     expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('first=new\n');
@@ -64,7 +63,7 @@ describe('Consuela ordinary workspace targets', () => {
       {action: 'replace_text' as const, filePath: 'a.txt', oldText: 'old', newText: 'new'},
       {action: 'replace_text' as const, filePath: 'b.txt', oldText: 'missing', newText: 'new'}
     ]};
-    const preview = await engine.previewChange(request);
+    const preview = await engine.previewCodeChange(request);
     expect(preview.blocked).toBe(true);
     expect(preview.blockReason).toContain('oldText must occur exactly once');
     expect(preview.affectedFiles).toEqual([]);
@@ -73,15 +72,15 @@ describe('Consuela ordinary workspace targets', () => {
     expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('two=old\n');
   });
 
-  it('routes source preview and apply directly through the Code Mutation Service with legacy fingerprint parity', async () => {
+  it('routes source preview and apply directly through the Code Mutation Service with public fingerprint parity', async () => {
     fs.writeFileSync(path.join(root, 'service.txt'), 'before\n');
     const service = new CodeMutationService({store, projectRoot: root});
     const request = {action: 'replace_text' as const, filePath: 'service.txt', oldText: 'before', newText: 'after'};
     const direct = await service.previewCodeChange(request);
-    const legacy = await engine.previewChange(request);
+    const independent = await engine.previewCodeChange(request);
     const publicPreview = await commandRegistry.execute('preview_change', request,
       {store, projectRoot: root, executionAuthority: 'project-write'});
-    expect(direct).toEqual(legacy);
+    expect(direct).toEqual(independent);
     expect(publicPreview).toEqual(direct);
     expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('before\n');
     const applied = await service.applyCodeChange(request, direct.fingerprint);
@@ -110,7 +109,7 @@ describe('Consuela ordinary workspace targets', () => {
   it('rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets', async () => {
     fs.writeFileSync(path.join(root, 'config.txt'), 'aaa');
     for (const [filePath, oldText] of [['config.txt', 'missing'], ['config.txt', 'aa'], ['config.txt', ''], ['absent', 'a'], ['.ai-workflow', 'a'], ['../outside', 'a'], [path.join(root, 'config.txt'), 'a']]) {
-      expect((await engine.previewChange({ action: 'replace_text', filePath, oldText, newText: 'x' })).blocked).toBe(true);
+      expect((await engine.previewCodeChange({ action: 'replace_text', filePath, oldText, newText: 'x' })).blocked).toBe(true);
     }
     expect(fs.readFileSync(path.join(root, 'config.txt'), 'utf8')).toBe('aaa');
   });
@@ -118,9 +117,9 @@ describe('Consuela ordinary workspace targets', () => {
   it('rejects stale content even when oldText still uniquely matches', async () => {
     fs.writeFileSync(path.join(root, 'config.txt'), 'old\n');
     const request = { action: 'replace_text' as const, filePath: 'config.txt', oldText: 'old', newText: 'new' };
-    const preview = await engine.previewChange(request);
+    const preview = await engine.previewCodeChange(request);
     fs.appendFileSync(path.join(root, 'config.txt'), 'user work\n');
-    await expect(engine.applyChange(request, preview.fingerprint)).rejects.toThrow(/fingerprint|modified/i);
+    await expect(engine.applyCodeChange(request, preview.fingerprint)).rejects.toThrow(/fingerprint|modified/i);
     expect(fs.readFileSync(path.join(root, 'config.txt'), 'utf8')).toBe('old\nuser work\n');
   });
 
@@ -133,7 +132,7 @@ describe('Consuela ordinary workspace targets', () => {
         await expect(commandRegistry.execute('read_workspace_file', { filePath }, { store, projectRoot: root, executionAuthority: 'project-write' })).rejects.toThrow();
       }
       expect((await commandRegistry.execute('read_workspace_file', { filePath: 'limit' }, { store, projectRoot: root, executionAuthority: 'project-write' })).content.length).toBe(65536);
-      expect((await engine.previewChange({ action: 'replace_text', filePath: 'escape', oldText: 'outside', newText: 'changed' })).blocked).toBe(true);
+      expect((await engine.previewCodeChange({ action: 'replace_text', filePath: 'escape', oldText: 'outside', newText: 'changed' })).blocked).toBe(true);
       expect(fs.readFileSync(path.join(outside, 'secret'), 'utf8')).toBe('outside');
     } finally { fs.rmSync(outside, { recursive: true, force: true }); }
   });

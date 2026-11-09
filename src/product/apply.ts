@@ -4,7 +4,7 @@ import { Epic, Feature, UserStory } from '../model/ontology.ts';
 import type { EpicStructureProposal } from './decompose.ts';
 import type { ProductMutation, ProductRevision } from './mutation.ts';
 import {previewProductChange} from './change-operations.ts';
-import type { ChangePreview } from '../change/types.ts';
+import type {ProductChangePreview as ChangePreview} from './change-types.ts';
 
 export interface ApplyResult {
   applied: false;

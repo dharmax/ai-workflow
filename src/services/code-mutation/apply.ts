@@ -2,7 +2,7 @@
  * Responsibility: Commit an already authorized and fingerprint-validated source preview.
  * Scope: Lease-fenced disk effects, post-commit graph reconciliation and honest outcome reporting.
  */
-import type {ChangeApplyResult, ChangePreview} from '../../change/types.ts';
+import type {SourceChangeApplyResult as ChangeApplyResult, SourceChangePreview as ChangePreview} from './types.ts';
 import type {SourceChangeRequest} from './preview.ts';
 import {prepareSourceCommit, commitSourceFiles} from './source-commit.ts';
 import {reconcileCommittedSource, type SourceReconciliationContext} from './source-reconciliation.ts';

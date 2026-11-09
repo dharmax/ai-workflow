@@ -1,6 +1,6 @@
 import {PrioritySchema} from '../model/types.ts';
 import { z } from 'zod';
-import type { ChangePreview } from '../change/types.ts';
+import type {ProductChangePreview as ChangePreview} from './change-types.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 import type { ArtifactOperationOptions, CompletenessLevel } from '../artifact-policy.ts';
 

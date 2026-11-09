@@ -19,7 +19,7 @@ import type {
   LspRange,
   LspTextEdit,
   WorkspaceEditLike
-} from '../../change/types.ts';
+} from './types.ts';
 
 export interface TsLspServerCapabilities {
   renameProvider?: boolean | { prepareProvider?: boolean };

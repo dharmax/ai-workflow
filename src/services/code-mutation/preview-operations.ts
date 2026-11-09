@@ -11,7 +11,8 @@ import {blockedChangePreview} from './fingerprint.ts';
 import {normalizeWorkspaceEdit} from './edits.ts';
 import {prepareRefactor} from './refactor-preview.ts';
 import type {ProductImpact} from '../../product/impact.ts';
-import type {ChangeMutation, ChangePreview, ChangeRequest, LspRange, ResolvedCodeTarget, WorkspaceEditLike} from '../../change/types.ts';
+import type {SourceChangeMutation as ChangeMutation, SourceChangePreview as ChangePreview, SourceChangeRequest as ChangeRequest, ResolvedCodeTarget} from './types.ts';
+import type {LspRange, WorkspaceEditLike} from '../typescript/types.ts';
 
 export interface SourcePreviewContext {
   store: WorkflowStore;
@@ -19,7 +20,7 @@ export interface SourcePreviewContext {
   lspClient: TsLspClient;
   ts6Client: Ts6RefactorClient;
 }
-export type DirectSourceRequest = Exclude<ChangeRequest, {action: 'product_change' | 'source_change'}>;
+export type DirectSourceRequest = Exclude<ChangeRequest, {action: 'source_change'}>;
 export interface PreparedSourceOperation {
   mutation: Extract<ChangeMutation, {kind: 'workspace_edit'}>;
   summary: string;

@@ -7,7 +7,7 @@ import path from 'node:path';
 import {computeFileSha256} from './fingerprint.ts';
 import {workspacePath} from '../../helpers/workspace-path.ts';
 import type {TsLspClient} from '../typescript/ts-lsp.ts';
-import type {ChangePreview} from '../../change/types.ts';
+import type {SourceChangePreview as ChangePreview} from './types.ts';
 import {applyTextEdits, normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';
 
 export interface PreparedSourceCommit {

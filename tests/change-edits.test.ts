@@ -8,7 +8,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import crypto from 'node:crypto';
-import {applyTextEdits, normalizeWorkspaceEdit, computeChangeFingerprint, computeFileSha256} from '../src/change/engine.ts';
+import {applyTextEdits, normalizeWorkspaceEdit} from '../src/services/code-mutation/edits.ts';
+import {computeChangeFingerprint, computeFileSha256} from '../src/services/code-mutation/fingerprint.ts';
 import {normalizeWorkspaceEdits} from '../src/services/code-mutation/edits.ts';
 
 const range = (line: number, start: number, end: number) =>

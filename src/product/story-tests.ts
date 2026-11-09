@@ -9,7 +9,7 @@ import {CodeMutationService, type SourceChangeRequest} from '../services/code-mu
 import {previewProductChange} from './change-operations.ts';
 import {workspacePath} from '../helpers/workspace-path.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
-import type {ChangeRequest,ChangePreview,ChangeApplyResult} from '../change/types.ts';
+import type {ChangeRequest,ChangePreview,ChangeApplyResult} from '../tools/change-types.ts';
 import {testArtifactId,normalizeTestPath,currentTestEvidence} from '../graph/test-artifacts.ts';
 
 export const StoryTestSpecificationSchema=z.object({

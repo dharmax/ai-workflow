@@ -8,7 +8,7 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, entityDescriptors } from '../src/model/ontology.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { applyEpicStructure } from '../src/product/apply.ts';
-import type { ChangeRequest } from '../src/change/types.ts';
+import type {ProductChangeRequest as ChangeRequest} from '../src/product/change-types.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 

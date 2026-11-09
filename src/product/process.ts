@@ -35,7 +35,7 @@ export function processIntent(
             const { createDefaultAsker } = await import("../services/model-service.ts")
             const cfg = loadConfig(store.root),
                 budget = new ArtifactBudget(options, 1, cfg.maxArtifacts)
-            const proposals: import('../change/types.ts').ChangePreview[] = []
+            const proposals: import('./change-types.ts').ProductChangePreview[] = []
             const reused = new Set<string>(),
                 processed: string[] = [],
                 knownGaps: string[] = []
