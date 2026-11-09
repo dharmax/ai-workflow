@@ -55,7 +55,8 @@ export function registerChangeTools() {
       }
       const manager = new SourceManager({store: ctx.store, projectRoot: ctx.projectRoot, codeMutationAllowed: ctx.codeMutationAllowed});
       return manager.previewSourceChange(request as SourceChangeRequest, {ticketId, agentId, allowDirtyTargets});
-
+    }
+  });
 
   commandRegistry.register({
     name: 'apply_change',
