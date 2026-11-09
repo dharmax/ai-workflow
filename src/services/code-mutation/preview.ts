@@ -5,12 +5,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {WorkflowStore} from '../../graph/store.ts';
-import type {TsLspClient} from '../../change/ts-lsp.ts';
-import type {Ts6RefactorClient} from '../../change/ts6-refactor.ts';
+import type {TsLspClient} from '../typescript/ts-lsp.ts';
+import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 import {getProductImpact, type ProductImpact} from '../../product/impact.ts';
 import {computeChangeFingerprint, computeFileSha256, blockedChangePreview} from '../../change/fingerprint.ts';
 import {ensureAstFresh} from '../../graph/indexer.ts';
-import {workspacePath} from '../../change/workspace-path.ts';
+import {workspacePath} from '../../helpers/workspace-path.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from './edits.ts';
 import {prepareSourceOperation} from './preview-operations.ts';
 import type {ChangeRequest, ChangePreview, ChangeMutation, ResolvedCodeTarget, VerificationPlan} from '../../change/types.ts';

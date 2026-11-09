@@ -13,7 +13,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
 import { closeLspTransport } from './lsp-shutdown.ts';
-import { resolveTypeScriptRuntime, type TsResolverSeams } from '../typescript-runtime.ts';
+import { resolveTypeScriptRuntime, type TsResolverSeams } from '../../typescript-runtime.ts';
 import type {
   LspPosition,
   LspRange,

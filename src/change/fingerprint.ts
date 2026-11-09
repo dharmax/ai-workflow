@@ -1,7 +1,7 @@
 /** Deterministic public change fingerprints shared by legacy source and Product preview contracts. */
 import crypto from 'node:crypto';
 import type {ProductImpact} from '../product/impact.ts';
-import type {TsLspClient} from './ts-lsp.ts';
+import type {TsLspClient} from '../services/typescript/ts-lsp.ts';
 import {normalizeWorkspaceEdits, type WorkspaceEditPlan} from '../services/code-mutation/edits.ts';
 import type {ChangeRequest, ChangeMutation, LspTextEdit, ResolvedCodeTarget, ChangePreview} from './types.ts';
 

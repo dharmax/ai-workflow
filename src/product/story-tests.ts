@@ -7,7 +7,7 @@ import {UserStory,Ticket,TestNode,Aspect} from '../model/ontology.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {CodeMutationService, type SourceChangeRequest} from '../services/code-mutation-service.ts';
 import {previewProductChange} from './change-operations.ts';
-import {workspacePath} from '../change/workspace-path.ts';
+import {workspacePath} from '../helpers/workspace-path.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
 import type {ChangeRequest,ChangePreview,ChangeApplyResult} from '../change/types.ts';
 import {testArtifactId,normalizeTestPath,currentTestEvidence} from '../graph/test-artifacts.ts';

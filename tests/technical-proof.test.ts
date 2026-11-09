@@ -1,5 +1,5 @@
 import {executeTicketChecks} from '../src/ticket/verification.ts';
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 import {afterEach,expect,it,spyOn} from 'bun:test';
 import {parseCommand,artifactCommand} from '../src/artifact-command.ts';
 import {RuleStore} from '../src/rules/store.ts';

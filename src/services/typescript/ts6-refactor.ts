@@ -15,8 +15,8 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as rpc from 'vscode-jsonrpc/node';
 import { closeLspTransport } from './lsp-shutdown.ts';
-import {workspacePath} from './workspace-path.ts';
-import { resolveTs6RefactorRuntime } from '../typescript-runtime.ts';
+import {workspacePath} from '../../helpers/workspace-path.ts';
+import { resolveTs6RefactorRuntime } from '../../typescript-runtime.ts';
 import type {
   LspPosition,
   LspRange,

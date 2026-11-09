@@ -9,10 +9,10 @@ import {createMigrationFixture,discoverMigrationImpact,authorizeMigration,execut
 import {FileNode,SymbolNode,Ticket,UserStory,TestNode,Artifact} from '../../src/model/ontology.ts';
 import {ensureAstFresh,indexCodebase,indexSingleFile} from '../../src/graph/indexer.ts';
 import {commandRegistry,initializeTools} from '../../src/tools/index.ts';
-import {closeAllTsLspClients} from '../../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../../src/services/typescript/ts-lsp.ts';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {resolveCodeTarget} from '../../src/change/target-resolver.ts';
-import {getTsLspClient} from '../../src/change/ts-lsp.ts';
+import {getTsLspClient} from '../../src/services/typescript/ts-lsp.ts';
 import {productReviewFixture} from '../product-review-fixture.ts';
 import {acceptProduct,reviewedApply} from '../product-review.ts';
 import {loadConfig,saveConfig} from '../../src/services/config-service.ts';

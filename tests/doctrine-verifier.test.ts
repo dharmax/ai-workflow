@@ -6,7 +6,7 @@ import path from 'node:path';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Artifact, Aspect, Decision, FileNode, ModuleNode, Ticket, SymbolNode, TestNode } from '../src/model/ontology.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import { RuleStore } from '../src/rules/store.ts';
 import type { RuleModel } from '../src/rules/types.ts';
 import { loadConfig, saveConfig } from '../src/services/config-service.ts';

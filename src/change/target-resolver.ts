@@ -1,11 +1,11 @@
 /** Resolve exact source identity; explicit positions do not depend on Graph admission. */
 import path from 'node:path';
 import fs from 'node:fs';
-import {workspacePath} from './workspace-path.ts';
+import {workspacePath} from '../helpers/workspace-path.ts';
 import type {WorkflowStore} from '../graph/store.ts';
 import {SymbolNode, FileNode} from '../model/ontology.ts';
 import {ensureAstFresh} from '../graph/indexer.ts';
-import type {TsLspClient} from './ts-lsp.ts';
+import type {TsLspClient} from '../services/typescript/ts-lsp.ts';
 import type {ChangeTarget, ResolvedCodeTarget} from './types.ts';
 
 function resolvePosition(target: Extract<ChangeTarget, {type:'position'}>, client: TsLspClient, root: string): ResolvedCodeTarget {

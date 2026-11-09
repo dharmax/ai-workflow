@@ -9,7 +9,7 @@ import { Ticket, Feature, UserStory, Aspect, Decision, Lesson, FileNode, SymbolN
 import { indexSingleFile } from '../src/graph/indexer.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
 import type { SystemOne } from '@dharmax/llm-utils';
 
 describe('grounded Ticket investigation', () => {

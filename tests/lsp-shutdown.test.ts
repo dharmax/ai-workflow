@@ -2,8 +2,8 @@ import {afterEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {TsLspClient} from '../src/change/ts-lsp.ts';
-import {Ts6RefactorClient} from '../src/change/ts6-refactor.ts';
+import {TsLspClient} from '../src/services/typescript/ts-lsp.ts';
+import {Ts6RefactorClient} from '../src/services/typescript/ts6-refactor.ts';
 
 // The subprocess speaks real JSON-RPC; shutdown stalls and ignores TERM deliberately.
 // This isolates transport ownership, including concurrent close and a stuck child.

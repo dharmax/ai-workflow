@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {workspacePath} from '../change/workspace-path.ts'
+import {workspacePath} from '../helpers/workspace-path.ts'
 import { renderAcceptancePrompt } from "./prompts.ts"
 import { Artifact, FileNode, TestNode, Ticket } from "../model/ontology.ts"
 import { currentTestEvidence, hashFiles, recordTestExecution, verifyingTestsForTargets, inferTestFramework, testArtifactId } from "../graph/test-artifacts.ts"

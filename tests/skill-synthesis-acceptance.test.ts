@@ -13,8 +13,8 @@ import { Ticket, SymbolNode } from "../src/model/ontology.ts"
 import { initializeTools } from "../src/tools/index.ts"
 import { saveConfig, loadConfig } from "../src/services/config-service.ts"
 import { indexCodebase } from "../src/graph/indexer.ts"
-import { closeAllTsLspClients } from "../src/change/ts-lsp.ts"
-import { closeAllTs6RefactorClients } from "../src/change/ts6-refactor.ts"
+import { closeAllTsLspClients } from "../src/services/typescript/ts-lsp.ts"
+import { closeAllTs6RefactorClients } from "../src/services/typescript/ts6-refactor.ts"
 import { Window, type CSSStyleRule } from "happy-dom"
 
 const cli = path.resolve(import.meta.dir, "../src/cli.ts")

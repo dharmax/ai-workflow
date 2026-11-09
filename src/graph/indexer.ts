@@ -12,7 +12,7 @@ import { WorkflowStore, ReadOnlyMutationError } from './store.ts';
 import type {AbstractEntity} from '@dharmax/semantika';
 import type {Stats} from 'node:fs';
 import {canonical} from '../kb/canonical.ts';
-import {workspacePath} from '../change/workspace-path.ts';
+import {workspacePath} from '../helpers/workspace-path.ts';
 import {
   ModuleNode,
   FileNode,

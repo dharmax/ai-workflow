@@ -6,8 +6,8 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import {CodeMutationService} from '../src/services/code-mutation-service.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 
 describe('Consuela ordinary workspace targets', () => {
   let root: string, store: WorkflowStore, engine: CausalChangeEngine;

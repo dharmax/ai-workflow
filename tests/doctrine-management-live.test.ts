@@ -6,7 +6,7 @@ import {RuleStore} from '../src/rules/store.ts';
 import {resolveRuleReference} from '../src/rules/references.ts';
 import {loadConfig, saveConfig} from '../src/services/config-service.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 import {queryPerformance} from '../src/performance-metrics.ts';
 import {currentTestEvidence} from '../src/graph/test-artifacts.ts';
 import {readVerificationReceipt} from '../src/ticket-operation-types.ts';

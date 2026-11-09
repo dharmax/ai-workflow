@@ -5,7 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { workspacePath } from '../change/workspace-path.ts';
+import { workspacePath } from '../helpers/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
 import { CodeMutationService } from '../services/code-mutation-service.ts';

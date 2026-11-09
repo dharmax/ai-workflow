@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getTsLspClient, type LspDocumentSymbol, type TsLspClient } from './ts-lsp.ts';
+import { getTsLspClient, type LspDocumentSymbol, type TsLspClient } from '../services/typescript/ts-lsp.ts';
 import type { LspRange } from './types.ts';
 
 export interface ExactSymbolCandidate {

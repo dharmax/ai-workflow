@@ -6,8 +6,8 @@ import { WorkflowStore } from '../src/graph/store.ts';
 import { ensureAstFresh, withAstSnapshot } from '../src/graph/indexer.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 
 describe('truthful primitives', () => {
   let root: string;

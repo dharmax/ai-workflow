@@ -9,7 +9,7 @@ import {getPublicMcpTools} from '../src/tools/surface.ts';
 import {buildEntityView, saveEntityView} from '../src/ui/entity-view.ts';
 import {runRuleCommand} from '../src/rule-command.ts';
 import {resolveRuleReference, validateReferenceSnapshot} from '../src/rules/references.ts';
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 let root: string, upstream: string, store: WorkflowStore, rules: RuleStore;
 const commandRegistry = initializeTools();
 const model = (ruleId = 'test.rule'): RuleModel => ({id: ruleId, ruleId, type: 'coding', scope: {kind: 'universal'},

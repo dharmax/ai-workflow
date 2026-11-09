@@ -34,8 +34,8 @@ import {runRuleCommand} from './rule-command.ts';
 import {buildEntityView, formatEntityView} from './ui/entity-view.ts';
 import {ProcessViewport} from '@dharmax/shell-ui';
 import { KnowledgeBaseClient } from './kb/client.ts';
-import { closeAllTsLspClients } from './change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from './change/ts6-refactor.ts';
+import { closeAllTsLspClients } from './services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from './services/typescript/ts6-refactor.ts';
 
 const argv = process.argv.slice(2);
 

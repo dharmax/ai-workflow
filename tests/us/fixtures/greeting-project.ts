@@ -7,7 +7,7 @@ import {loadConfig, saveConfig} from '../../../src/services/config-service.ts';
 import {initializeTools, commandRegistry} from '../../../src/tools/index.ts';
 import {acceptProduct} from '../../product-review.ts';
 import {productReviewFixture} from '../../product-review-fixture.ts';
-import {closeAllTsLspClients} from '../../../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../../../src/services/typescript/ts-lsp.ts';
 
 const repository = path.resolve(import.meta.dir, '../../..');
 

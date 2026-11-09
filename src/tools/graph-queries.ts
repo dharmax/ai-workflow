@@ -12,9 +12,9 @@ import { SymbolNode, FileNode, Ticket } from '../model/ontology.ts';
 import { findTestsVerifying, normalizeTestPath } from '../graph/test-artifacts.ts';
 import { ensureAstFresh } from '../graph/indexer.ts';
 import { findExactSymbolCandidates, getExactSymbolSource } from '../change/symbol-source.ts';
-import { getTsLspClient } from '../change/ts-lsp.ts';
+import { getTsLspClient } from '../services/typescript/ts-lsp.ts';
 import { resolveCodeTarget } from '../change/target-resolver.ts';
-import {workspacePath} from '../change/workspace-path.ts';
+import {workspacePath} from '../helpers/workspace-path.ts';
 import {discoverWorkspaceFiles} from '../graph/indexer.ts';
 
 const referenceTargetSchema = z.object({

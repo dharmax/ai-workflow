@@ -14,8 +14,8 @@ import { UserStory, Ticket, FileNode, Aspect, SymbolNode, TestNode, Artifact } f
 import { saveConfig } from '../src/services/config-service.ts';
 import { recordTestExecution, reconcileTestVerificationEdges, currentTestEvidence, verifyingTestsForTargets } from '../src/graph/test-artifacts.ts';
 import { indexCodebase } from '../src/graph/indexer.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 import type { ResolutionVerificationInput, ResolutionOptions } from '../src/ticket-operation-types.ts';
 import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';

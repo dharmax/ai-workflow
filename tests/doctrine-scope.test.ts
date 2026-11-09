@@ -6,7 +6,7 @@ import {WorkflowStore} from '../src/graph/store.ts';
 import {Ticket, FileNode, ModuleNode, Artifact, Aspect, Decision} from '../src/model/ontology.ts';
 import {RuleStore} from '../src/rules/store.ts';
 import {indexCodebase} from '../src/graph/indexer.ts';
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 import {currentTestEvidence} from '../src/graph/test-artifacts.ts';
 import {readVerificationReceipt, type ResolutionOptions, type ResolutionVerificationInput} from '../src/ticket-operation-types.ts';
 import {artifactCommand} from '../src/artifact-command.ts';

@@ -8,7 +8,7 @@ import {Ticket} from '../src/model/ontology.ts';
 import {ensureAstFresh} from '../src/graph/indexer.ts';
 import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {reviewPublicProductChange} from '../src/product/links.ts';
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 import {sourceChangeScope} from '../src/ticket/source-scope.ts';
 import {SourceManager} from '../src/managers/source-manager.ts';
 

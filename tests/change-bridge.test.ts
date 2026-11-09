@@ -5,8 +5,8 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Ticket, UserStory, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile } from '../src/graph/indexer.ts';
-import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
+import { closeAllTsLspClients } from '../src/services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 
 describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {

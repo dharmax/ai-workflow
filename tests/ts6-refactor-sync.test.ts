@@ -2,7 +2,7 @@ import {afterEach, expect, test} from 'bun:test'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {Ts6RefactorClient} from '../src/change/ts6-refactor.ts'
+import {Ts6RefactorClient} from '../src/services/typescript/ts6-refactor.ts'
 import {fileURLToPath} from 'node:url'
 import {normalizeWorkspaceEdit, applyTextEdits} from '../src/services/code-mutation/edits.ts'
 

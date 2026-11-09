@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto'
 import {canonical} from '../kb/canonical.ts'
 import type {WorkflowStore} from './store.ts'
 import {FileNode, SymbolNode, TestNode} from '../model/ontology.ts'
-import {getTsLspClient} from '../change/ts-lsp.ts'
+import {getTsLspClient} from '../services/typescript/ts-lsp.ts'
 
 export function normalizeTestPath(value: string): string {
   return value.replace(/\\/g, '/').replace(/^\.\//, '')

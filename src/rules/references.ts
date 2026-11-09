@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {getTsLspClient, type LspDocumentSymbol} from '../change/ts-lsp.ts';
+import {getTsLspClient, type LspDocumentSymbol} from '../services/typescript/ts-lsp.ts';
 import {getExactSymbolSource} from '../change/symbol-source.ts';
 import {canonical} from '../kb/canonical.ts';
 import {RuleReferenceSchema, RuleReferenceSnapshotSchema, type RuleReference, type RuleReferenceSnapshot} from '../model/rule.ts';

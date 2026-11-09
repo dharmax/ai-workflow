@@ -5,8 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {WorkflowStore} from '../graph/store.ts';
-import {getTsLspClient, type TsLspClient} from '../change/ts-lsp.ts';
-import {getTs6RefactorClient, type Ts6RefactorClient} from '../change/ts6-refactor.ts';
+import {getTsLspClient, type TsLspClient} from './typescript/ts-lsp.ts';
+import {getTs6RefactorClient, type Ts6RefactorClient} from './typescript/ts6-refactor.ts';
 import {computeFileSha256} from '../change/fingerprint.ts';
 import {withAstSnapshot} from '../graph/indexer.ts';
 import type {ChangeRequest, ChangePreview, ChangeApplyResult} from '../change/types.ts';

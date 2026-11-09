@@ -2,11 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {WorkflowStore} from '../../graph/store.ts';
-import type {TsLspClient} from '../../change/ts-lsp.ts';
-import type {Ts6RefactorClient} from '../../change/ts6-refactor.ts';
+import type {TsLspClient} from '../typescript/ts-lsp.ts';
+import type {Ts6RefactorClient} from '../typescript/ts6-refactor.ts';
 import {resolveCodeTarget} from '../../change/target-resolver.ts';
 import {getExactSymbolSource} from '../../change/symbol-source.ts';
-import {workspacePath} from '../../change/workspace-path.ts';
+import {workspacePath} from '../../helpers/workspace-path.ts';
 import {blockedChangePreview} from '../../change/fingerprint.ts';
 import {normalizeWorkspaceEdit} from './edits.ts';
 import {prepareRefactor} from './refactor-preview.ts';

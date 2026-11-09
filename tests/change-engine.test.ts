@@ -5,8 +5,8 @@ import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { Epic, Feature, UserStory, Ticket, SymbolNode } from '../src/model/ontology.ts';
 import { indexSingleFile, ensureAstFresh } from '../src/graph/indexer.ts';
-import { closeAllTsLspClients, TsLspClient } from '../src/change/ts-lsp.ts';
-import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
+import { closeAllTsLspClients, TsLspClient } from '../src/services/typescript/ts-lsp.ts';
+import { closeAllTs6RefactorClients } from '../src/services/typescript/ts6-refactor.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 

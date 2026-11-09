@@ -1,4 +1,4 @@
-import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
+import {closeAllTsLspClients} from '../src/services/typescript/ts-lsp.ts';
 import {afterEach,expect,it,spyOn} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
