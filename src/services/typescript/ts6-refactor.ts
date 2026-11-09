@@ -22,7 +22,7 @@ import type {
   LspRange,
   LspTextEdit,
   WorkspaceEditLike
-} from './types.ts';
+} from '../../change/types.ts';
 
 /** Adapt the one-past-EOL range convention produced by some TS6 refactors.
  * Only this TS6 boundary may correct it; ordinary LSP edits remain strict.
