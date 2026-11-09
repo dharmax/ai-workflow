@@ -8,7 +8,7 @@ import path from 'node:path';
 import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
-import { CausalChangeEngine } from '../change/engine.ts';
+import { CodeMutationService } from '../services/code-mutation-service.ts';
 import type {SourceChangeRequest} from '../services/code-mutation-service.ts';
 import {SourceManager} from '../managers/source-manager.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
@@ -88,5 +88,7 @@ export function registerChangeTools() {
 
 /** Internal owners of reviewed Story-test source/metadata retain their existing change-engine lifecycle. */
 export function applyOwnedChange(preview: import('../change/types.ts').ChangePreview, ctx: ToolContext) {
-  return new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).applyChange(preview.request, preview.fingerprint);
+  return preview.request.action === 'product_change'
+    ? applyProductChange(ctx.store, preview.request, preview.fingerprint)
+    : new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot, codeMutationAllowed: ctx.codeMutationAllowed}).applyCodeChange(preview.request, preview.fingerprint);
 }
