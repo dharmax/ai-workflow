@@ -422,19 +422,32 @@ describe('Governed LSP operation scope', () => {
     }
   });
 
-  it('reports post-write failures as partial application with the nested cause', async () => {
+  it('reports post-commit reconciliation failure without losing authorized source effects or nested cause', async () => {
     const request = {action: 'rename_file' as const, oldPath: 'a.ts', newPath: 'moved.ts'};
     const p = await preview(request);
     const original = store.withGovernedIndexing;
     store.withGovernedIndexing = async () => {throw new Error('Index cleanup failed', {cause: new Error('injected persistence failure')});};
-    let failure: unknown;
-    try {await apply(request, p.fingerprint);} catch (error) {failure = error;}
-    finally {store.withGovernedIndexing = original;}
-    expect(String(failure)).toContain('PARTIALLY APPLIED: filesystem changes committed');
-    expect(String(failure)).toContain('Index cleanup failed Caused by: injected persistence failure');
-    expect(String(failure)).toContain('Do not reapply');
-    expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
-    expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(true);
+    try {
+      const result = await apply(request, p.fingerprint);
+      expect(result.ok).toBe(true); // disk commit occurred; not independent acceptance
+      expect(result.status).toBe('committed_unreconciled');
+      expect(result.verification.passed).toBe(false);
+      expect(result.error).toContain('PARTIALLY APPLIED: filesystem changes committed');
+      expect(result.error).toContain('Index cleanup failed Caused by: injected persistence failure');
+      expect(result.error).toContain('Do not reapply');
+      expect(result.filesRenamed).toEqual([{from: 'a.ts', to: 'moved.ts'}]);
+      const ticket = (await store.getEntity<Ticket>('LSP', Ticket.dcr))!;
+      const scope = (ticket as Ticket & {metadata?: {governedScope?: {
+        effects: Array<{fingerprint: string; after: Record<string, string>}>
+      }}}).metadata?.governedScope;
+      expect(scope?.effects.at(-1)?.fingerprint).toBe(p.fingerprint);
+      expect(scope?.effects.at(-1)?.after['a.ts']).toBe('missing');
+      expect(scope?.effects.at(-1)?.after['moved.ts']).toBeDefined();
+      expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
+      expect(fs.existsSync(path.join(root, 'moved.ts'))).toBe(true);
+    } finally {
+      store.withGovernedIndexing = original;
+    }
   });
 
   it('identifies unexpected disk changes after indexing as incomplete post-commit verification', async () => {
@@ -450,10 +463,20 @@ describe('Governed LSP operation scope', () => {
     try {
       const result = await apply(request, p.fingerprint);
       expect(result.verification.passed).toBe(false);
+      expect(result.status).toBe('committed_verification_failed');
       expect(result.error).toContain('PARTIALLY APPLIED: filesystem changes committed; post-write verification failed.');
       expect(result.verification.errors).toContain("Observed effect for 'moved.ts' differs from the guarded preview.");
       expect(fs.existsSync(path.join(root, 'a.ts'))).toBe(false);
       expect(fs.readFileSync(path.join(root, 'moved.ts'), 'utf8')).toContain('// external change');
+      const ticket = (await store.getEntity<Ticket>('LSP', Ticket.dcr))!;
+      const scope = (ticket as Ticket & {metadata?: {governedScope?: {
+        effects: Array<{fingerprint: string; after: Record<string, string>}>
+      }}}).metadata?.governedScope;
+      expect(scope?.effects.at(-1)?.fingerprint).toBe(p.fingerprint);
+      expect(scope?.effects.at(-1)?.after['moved.ts']).toBe(result.effects?.after['moved.ts']);
+      expect(scope?.effects.at(-1)?.after['moved.ts']).not.toBe(
+        (await import('../src/change/fingerprint.ts')).computeFileSha256(fs.readFileSync(path.join(root, 'moved.ts'), 'utf8'))
+      );
     } finally {
       store.withGovernedIndexing = original;
     }
