@@ -12,6 +12,7 @@ import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
+import {CodeMutationService, type SourceChangeRequest} from '../services/code-mutation-service.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
 import type { ChangeRequest } from '../change/types.ts';
 
@@ -57,7 +58,7 @@ export function registerChangeTools() {
     execute: async ({ticketId, agentId, allowDirtyTargets, ...request}, ctx: ToolContext) => {
       const preview = request.action === 'product_change'
         ? await previewProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>)
-        : await new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot}).previewChange(request as ChangeRequest);
+        : await new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot}).previewChange(request as SourceChangeRequest);
       if (allowDirtyTargets?.length && (request.action === 'product_change' || !ticketId || !agentId)) throw Error('Dirty targets require a governed source Ticket and active lease.');
       if (request.action !== 'product_change' && ticketId && agentId && !preview.blocked) {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
@@ -98,8 +99,8 @@ export function registerChangeTools() {
       const admission = await ctx.store.admitGovernance('governed');
       try {
         const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
-        const engine = new CausalChangeEngine({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission, ticketLease: {ticketId, claim: ticket.claim!}});
-        const preview = await engine.previewChange(request as ChangeRequest);
+        const engine = new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission, ticketLease: {ticketId, claim: ticket.claim!}});
+        const preview = await engine.previewChange(request as SourceChangeRequest);
         if (preview.blocked) throw Error(preview.blockReason ?? 'Source preview blocked.');
         const owned = ownedFiles(ctx.projectRoot, scope);
         const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets).filter(file => !owned.has(file));
@@ -109,7 +110,7 @@ export function registerChangeTools() {
         await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned, dirtyTargets);
         await requireStoryTests(ctx.store, ticket);
         await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, scope);
-        const result = await engine.applyChange(request as ChangeRequest, preview.fingerprint);
+        const result = await engine.applyChange(request as SourceChangeRequest, preview.fingerprint);
         if (result.ok && result.effects) await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, {...scope, revision: scope.revision + 1,
           effects: [...scope.effects, {fingerprint, ...result.effects, renames: result.filesRenamed}]});
         return {...result, fingerprint};
