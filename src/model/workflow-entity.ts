@@ -1,6 +1,6 @@
 /**
  * Responsibility: Common identity and optional domain-event handling for workflow entities.
- * Semantika owns entity loading and graph relationships.
+ * Scope: Shared workflow entity identity and optional event handling; Semantika owns loading and relationships.
  */
 import {AbstractEntity, type EntityDcr} from '@dharmax/semantika';
 

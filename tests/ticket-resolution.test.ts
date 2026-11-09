@@ -21,7 +21,6 @@ import { queryPerformance } from '../src/performance-metrics.ts';
 import { buildVerificationContext } from '../src/helpers/verification-context.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { CodeMutationService } from '../src/services/code-mutation-service.ts';
-import { CodeMutationService } from '../src/services/code-mutation-service.ts';
 
 describe('Ticket-owned bounded resolution', () => {
   let root: string, store: WorkflowStore;

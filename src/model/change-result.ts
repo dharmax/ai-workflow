@@ -1,4 +1,7 @@
-/** Shared preview/commit result shape; request and mutation semantics remain with their domains. */
+/**
+ * Responsibility: Define transport-neutral preview and commit result contracts.
+ * Scope: Shared observable result fields; domain-specific requests and mutations remain with their owners.
+ */
 import type {ProductImpact} from '../product/impact.ts';
 import type {LspTextEdit} from '../services/typescript/types.ts';
 

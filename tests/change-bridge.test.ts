@@ -297,7 +297,7 @@ describe('AIWF-LEGACY-REFACTOR-BRIDGE', () => {
       // Mutate file on disk to simulate concurrent edit
       fs.appendFileSync(srcFile, `\n// modified\n`);
       const changedSource = fs.readFileSync(srcFile, 'utf8');
-      const recompute = spyOn(engine, 'previewChange');
+      const recompute = spyOn(engine, 'previewCodeChange');
 
       await expect(engine.applyCodeChange({
         action: 'refactor',
