@@ -47,6 +47,7 @@ export async function resolveTicket(
                 await import("../ticket-operation-types.ts")
             const { ArtifactBudget } = await import("../artifact-policy.ts")
             const { CausalChangeEngine } = await import("../change/engine.ts")
+            const { CodeMutationService } = await import("../services/code-mutation-service.ts")
             const { workspacePath } = await import("../change/workspace-path.ts")
             const { loadConfig } = await import("../services/config-service.ts")
             const { applyProductMutations } = await import("../product/mutation.ts")
@@ -121,8 +122,8 @@ export async function resolveTicket(
                 if (leaseError) throw new Error(leaseError)
                 if (request.action === "product_change")
                     throw new Error("Implementation cannot mutate Product/Ticket semantics through code tools.")
-                const engine = new CausalChangeEngine(ctx),
-                    preview = await engine.previewChange(request)
+                const service = new CodeMutationService(ctx),
+                    preview = await service.previewCodeChange(request)
                 if (preview.blocked)
                     throw new ToolExecutionError(
                         `Change preview blocked: ${preview.blockReason ?? preview.summary}. For replace_text, replace an existing anchor that occurs exactly once in the current file; read current source before retrying.`,
@@ -134,7 +135,7 @@ export async function resolveTicket(
                 await applyProductMutations(store, [
                     { kind: "product_update", entityType: "Ticket", id: store.localId(executingTicket.id), fields: { lane: "In Progress" } }
                 ])
-                const result = await engine.applyChange(request, preview.fingerprint)
+                const result = await service.applyCodeChange(request, preview.fingerprint)
                 const observed = [...new Set([...result.filesTouched, ...result.filesRenamed.flatMap(rename => [rename.from, rename.to])])].sort()
                 if (observed.some(file => !preview.affectedFiles.includes(file)))
                     throw Error('Observed effects exceed the authorized preview; independent acceptance cannot proceed.')
