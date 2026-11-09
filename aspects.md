@@ -12,13 +12,8 @@
 - [ ] Entity-owned behavior and thin adapters; no service wrappers, shadow graph or generic workflow infrastructure.
 - [ ] Method-level review finds the smallest implementation that meets acceptance.
 
-### Evidence (read-only)
-- Tickets: TKT-RESOLVE-RECOVERY-R3, TKT-RILZ
-- Tests: None
-- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
-- Decisions: None
-- Code: None
-- Gaps: None
+### Assessment
+Not assessed (implementation deferred).
 
 ## ASP-AIWF-TRUTH: Robustness / truthfulness
 
@@ -32,13 +27,8 @@
 - [ ] Exact facts use language tooling; heuristic facts and excerpts are labelled.
 - [ ] Completion requires verified acceptance; missing capability or evidence returns a truthful blocker.
 
-### Evidence (read-only)
-- Tickets: None
-- Tests: None
-- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
-- Decisions: None
-- Code: None
-- Gaps: None
+### Assessment
+Not assessed (implementation deferred).
 
 ## ASP-AIWF-EFFICIENCY: Execution efficiency / token attention
 
@@ -52,13 +42,8 @@
 - [ ] Bounded retrieval and freshness reuse avoid unnecessary writes/source exposure.
 - [ ] Token savings are claimed only when measured; deterministic operation timings and result sizes are recorded.
 
-### Evidence (read-only)
-- Tickets: None
-- Tests: None
-- Artifacts: REPORT-AIWF-GATE10, REPORT-AIWF-GATE7, REPORT-AIWF-GATES-1-2, REPORT-AIWF-GATES8-9
-- Decisions: None
-- Code: None
-- Gaps: None
+### Assessment
+Not assessed (implementation deferred).
 
 ## ASP-AIWF-EXECUTION-ACCEPTANCE: Bounded, proportional and measured autonomous acceptance
 
@@ -75,10 +60,5 @@ Complements existing KISS, truthfulness and efficiency Aspects with the new road
 - [ ] Inspect actual touched methods, callers, public contracts, ownership and failure paths; consequential defects, silent failures and invalid verification block release despite green tests.
 - [ ] Use existing leases, preview fingerprints, guarded mutations, tests, independent acceptance, receipts and projection sync under the user workflow; minimize manual bookkeeping without weakening guarantees.
 
-### Evidence (read-only)
-- Tickets: None
-- Tests: None
-- Artifacts: None
-- Decisions: None
-- Code: None
-- Gaps: missing_work_or_evidence
+### Assessment
+Not assessed (implementation deferred).

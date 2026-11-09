@@ -229,13 +229,17 @@ kanban-plugin: board
   - Summary: When preparing a Ticket addressing an accepted Story without behavioral coverage, use the existing Story-test workflow to prepare and materialize a genuine executable test while preserving developer review and existing authority boundaries.
   - **Priority**: 2
   - Revision: 5
+- [ ] **TKT-TIMEOUT-HANDLER-REFACTOR**: Refactor timeout handler into cohesive functions
+  - Summary: Refactor the timeout selector in src/services/timeout-handler-service.ts into cohesive functions while preserving its existing behavior.
+  - **Priority**: 2
+  - Revision: 6
 
 ## In Progress
 
 - [/] **TKT-FILE-NODE-EVENTS**: Deliver node-changed events for file changes
   - Summary: Implement general entity event propagation in WorkflowEntity using Semantika relationships. File changes and stale hashes initiate node-changed with source and data. Resolve related entities through the existing store ownership checks.
   - **Priority**: 1
-  - Revision: 85
+  - Revision: 117
   - Claim: leased by @codex until 2026-11-07T08:24:34.482Z
 
 ## Done

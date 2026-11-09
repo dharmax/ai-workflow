@@ -41,24 +41,42 @@ export class TimeoutHandlerService {
   constructor(private readonly systemOne: SystemOne = new LayaSystemOne()) {}
 
   async timeoutHandlingSelector(request: TimeoutRequest): Promise<TimeoutDecision> {
-    const {task, previousTimeoutMs, defaultTimeoutMs, maxRetries, signal} = request
+    const {previousTimeoutMs, defaultTimeoutMs, signal} = request
     const context = {...request.timeoutContext}
     const stop = (reason: string): TimeoutDecision => ({action: 'throw', reason, timeoutContext: context})
-    if (signal?.aborted) return stop('Operation cancelled')
-    if (!task.retrySafe) return stop('Repetition is not declared safe')
-    if (![previousTimeoutMs, defaultTimeoutMs, maxRetries, context.retriesUsed, context.remainingBudgetMs].every(Number.isFinite) ||
-        previousTimeoutMs <= 0 || defaultTimeoutMs <= 0 || !Number.isInteger(maxRetries) || maxRetries < 0 ||
-        !Number.isInteger(context.retriesUsed) || context.retriesUsed < 0) return stop('Invalid timeout bounds')
-    if (context.retriesUsed >= maxRetries) return stop('Retry ceiling reached')
-    if (!context.observations.at(-1)?.terminated) return stop('Previous process termination is unconfirmed')
-    if (context.remainingBudgetMs <= previousTimeoutMs) return stop('Insufficient budget for a longer attempt')
+    const invalidReason = this.stopReason(request, context)
+    if (invalidReason) return stop(invalidReason)
+
     const base = Math.max(previousTimeoutMs, defaultTimeoutMs)
     const bounded = (factor: number) => Math.floor(Math.min(base * factor, context.remainingBudgetMs, 2_147_483_647))
     const choices = {'retry-small': bounded(1.5), 'retry-medium': bounded(2), 'retry-large': bounded(4)}
+    const choice = await this.assess(request, context, choices)
+    if (signal?.aborted) return stop('Operation cancelled')
+    if (choice === 'throw') return stop('System-1 advises stopping')
+    const valid = choice !== undefined && Object.hasOwn(choices, choice)
+    const timeoutMs = Math.floor(Math.min(choices[valid ? choice as keyof typeof choices : 'retry-small'], context.remainingBudgetMs))
+    if (timeoutMs <= previousTimeoutMs) return stop('Insufficient budget for a longer attempt')
+    context.retriesUsed++
+    return {action: 'retry', timeoutMs, reason: valid ? `System-1 selected ${choice}` : 'System-1 unavailable or malformed; bounded small fallback', timeoutContext: context}
+  }
+
+  private stopReason(request: TimeoutRequest, context: TimeoutContext): string | undefined {
+    const {task, previousTimeoutMs, defaultTimeoutMs, maxRetries, signal} = request
+    if (signal?.aborted) return 'Operation cancelled'
+    if (!task.retrySafe) return 'Repetition is not declared safe'
+    if (![previousTimeoutMs, defaultTimeoutMs, maxRetries, context.retriesUsed, context.remainingBudgetMs].every(Number.isFinite) ||
+        previousTimeoutMs <= 0 || defaultTimeoutMs <= 0 || !Number.isInteger(maxRetries) || maxRetries < 0 ||
+        !Number.isInteger(context.retriesUsed) || context.retriesUsed < 0) return 'Invalid timeout bounds'
+    if (context.retriesUsed >= maxRetries) return 'Retry ceiling reached'
+    if (!context.observations.at(-1)?.terminated) return 'Previous process termination is unconfirmed'
+    if (context.remainingBudgetMs <= previousTimeoutMs) return 'Insufficient budget for a longer attempt'
+  }
+
+  private async assess(request: TimeoutRequest, context: TimeoutContext, choices: Record<string, number>): Promise<string | undefined> {
+    const {signal} = request
     const started = performance.now()
     let timer: ReturnType<typeof setTimeout> | undefined
     let abort: (() => void) | undefined
-    let choice: string | undefined
     try {
       const interrupted = new Promise<null>(resolve => {
         timer = setTimeout(() => resolve(null), Math.min(1000, context.remainingBudgetMs))
@@ -67,30 +85,28 @@ export class TimeoutHandlerService {
         if (signal?.aborted) abort()
       })
       const response = await Promise.race([
-        Promise.resolve().then(() => this.systemOne.assess({
-          task: {...task}, previousTimeoutMs, defaultTimeoutMs, maxRetries,
-          retriesUsed: context.retriesUsed, remainingBudgetMs: context.remainingBudgetMs,
-          observations: context.observations.slice(-Math.min(maxRetries + 1, 4)).map(o => ({
-            ...o, stdout: o.stdout.slice(-2000), stderr: o.stderr.slice(-2000),
-          })),
-        }, {timeout: {type: 'choice', instructions: question, criteria: {
-          throw: 'Stop; another attempt is unlikely to help.',
-          ...Object.fromEntries(Object.entries(choices).map(([key, ms]) => [key, `Retry with ${ms}ms for the next attempt.`])),
-        }}})).catch(() => null),
+        this.requestAdvice(request, context, choices),
         interrupted,
       ])
-      choice = response?.answers?.timeout?.choice
+      return response?.answers?.timeout?.choice
     } finally {
       clearTimeout(timer)
       if (abort) signal?.removeEventListener('abort', abort)
       context.remainingBudgetMs = Math.max(0, context.remainingBudgetMs - (performance.now() - started))
     }
-    if (signal?.aborted) return stop('Operation cancelled')
-    if (choice === 'throw') return stop('System-1 advises stopping')
-    const valid = choice !== undefined && Object.hasOwn(choices, choice)
-    const timeoutMs = Math.floor(Math.min(choices[valid ? choice as keyof typeof choices : 'retry-small'], context.remainingBudgetMs))
-    if (timeoutMs <= previousTimeoutMs) return stop('Insufficient budget for a longer attempt')
-    context.retriesUsed++
-    return {action: 'retry', timeoutMs, reason: valid ? `System-1 selected ${choice}` : 'System-1 unavailable or malformed; bounded small fallback', timeoutContext: context}
+  }
+
+  private requestAdvice(request: TimeoutRequest, context: TimeoutContext, choices: Record<string, number>) {
+    const {task, previousTimeoutMs, defaultTimeoutMs, maxRetries} = request
+    return Promise.resolve().then(() => this.systemOne.assess({
+      task: {...task}, previousTimeoutMs, defaultTimeoutMs, maxRetries,
+      retriesUsed: context.retriesUsed, remainingBudgetMs: context.remainingBudgetMs,
+      observations: context.observations.slice(-Math.min(maxRetries + 1, 4)).map(o => ({
+        ...o, stdout: o.stdout.slice(-2000), stderr: o.stderr.slice(-2000),
+      })),
+    }, {timeout: {type: 'choice', instructions: question, criteria: {
+      throw: 'Stop; another attempt is unlikely to help.',
+      ...Object.fromEntries(Object.entries(choices).map(([key, ms]) => [key, `Retry with ${ms}ms for the next attempt.`])),
+    }}})).catch(() => null)
   }
 }

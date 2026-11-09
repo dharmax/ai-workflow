@@ -5,17 +5,17 @@
 | Module | Completeness Target | Symbols | Outstanding Bugs 🔴 | Source BUG Notes | Linked Unfinished Tickets |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | `root` | project default | 342 | 0 | 0 | None |
-| `src/graph` | project default | 1372 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-LSP-MOVE-RECOVERY, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION, TKT-FILE-NODE-EVENTS |
+| `src/graph` | project default | 1376 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-LSP-MOVE-RECOVERY, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION, TKT-FILE-NODE-EVENTS |
 | `src/tools` | project default | 3321 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-10, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-DEBUGGER-ISOLATION |
 | `src/actor` | project default | 0 | 0 | 0 | TKT-EXT-SURFACE-07, TKT-STRUCTURAL-RELOCATION-P1 |
 | `src/mcp` | project default | 95 | 0 | 0 | TKT-LIFECYCLE-STATE |
 | `src/shell` | project default | 587 | 0 | 0 | TKT-LIFECYCLE-STATE |
 | `src/cli` | project default | 479 | 0 | 0 | TKT-EXT-SURFACE-10 |
-| `src/index` | project default | 22 | 0 | 0 | None |
+| `src/index` | project default | 6 | 0 | 0 | None |
 | `src/config` | project default | 0 | 0 | 0 | None |
 | `src/doctor` | project default | 0 | 0 | 0 | None |
 | `src/setup` | project default | 305 | 0 | 0 | None |
-| `tests` | project default | 17601 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-REVIEWER-RELIABILITY, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-LSP-MOVE-RECOVERY, TKT-SEMANTIC-ARCH-S2, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION, TKT-XQDR, TKT-PREPARE-STORY-TEST, TKT-FILE-NODE-EVENTS |
+| `tests` | project default | 17540 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-EXT-SURFACE-07, TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-REVIEWER-RELIABILITY, TKT-PUBLIC-EDIT-DIRTY-AUTH, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-SYNTHESIS-ELIGIBILITY, TKT-GRAPH-ISSUE-6, TKT-LSP-OPERATION-SCOPE, TKT-LSP-MOVE-RECOVERY, TKT-SEMANTIC-ARCH-S2, TKT-DEBUGGER-ISOLATION, TKT-PROPORTIONAL-VERIFICATION, TKT-XQDR, TKT-PREPARE-STORY-TEST, TKT-FILE-NODE-EVENTS |
 | `skills` | project default | 13 | 0 | 0 | None |
 | `src/terminal` | project default | 0 | 0 | 0 | None |
 | `@external/@dharmax/block-patcher` | project default | 21 | 0 | 0 | None |
@@ -32,8 +32,8 @@
 | `src/change` | project default | 1156 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-GRAPH-ISSUE-6, TKT-LSP-MOVE-RECOVERY |
 | `src/typescript-runtime` | project default | 200 | 0 | 0 | None |
 | `src/artifact-policy` | project default | 123 | 0 | 0 | None |
-| `src/aspects` | project default | 93 | 0 | 0 | None |
-| `src/ticket-operation-types` | project default | 447 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-PROPORTIONAL-VERIFICATION |
+| `src/aspects` | project default | 43 | 0 | 0 | None |
+| `src/ticket-operation-types` | project default | 450 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-PROPORTIONAL-VERIFICATION |
 | `src/artifact-critic` | project default | 0 | 0 | 0 | None |
 | `src/performance-metrics` | project default | 410 | 0 | 0 | None |
 | `src/artifact-command` | project default | 582 | 0 | 0 | None |
@@ -61,10 +61,11 @@
 | `src/paid-inference` | project default | 54 | 0 | 0 | None |
 | `src/helpers` | project default | 568 | 0 | 0 | TKT-EXT-SURFACE-07, TKT-SYNTHESIS-ELIGIBILITY, TKT-STRUCTURAL-RELOCATION-P1, TKT-SEMANTIC-ARCH-S1 |
 | `src/ui` | project default | 690 | 0 | 0 | TKT-LIFECYCLE-STATE, TKT-STRUCTURAL-RELOCATION-P1 |
-| `src/services` | project default | 1576 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-REVIEWER-RELIABILITY, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-SEMANTIC-ARCH-S1, TKT-PROPORTIONAL-VERIFICATION |
-| `src/model` | project default | 845 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-SEMANTIC-ARCH-S2, TKT-FILE-NODE-EVENTS |
+| `src/services` | project default | 1618 | 0 | 0 | TKT-EXT-SURFACE-10, TKT-9Z2Z, TKT-REVIEWER-RELIABILITY, TKT-CORE-LIFECYCLE-01, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-SEMANTIC-ARCH-S1, TKT-PROPORTIONAL-VERIFICATION, TKT-TIMEOUT-HANDLER-REFACTOR |
+| `src/model` | project default | 755 | 0 | 0 | AIWF-TICKET-RESOLUTION-FIRST-PROOF, TKT-LIFECYCLE-STATE, TKT-GRAPH-ISSUE-6, TKT-SEMANTIC-ARCH-S2, TKT-FILE-NODE-EVENTS |
 | `src/public-json` | project default | 27 | 0 | 0 | None |
 | `src/command-presentation` | project default | 60 | 0 | 0 | None |
+| `.ollamassist` | project default | 5 | 0 | 0 | None |
 
 ## Dependency Diagram
 
