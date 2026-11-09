@@ -6,7 +6,7 @@ import {z} from 'zod';
 import type {WorkflowStore} from '../graph/store.ts';
 import {CharterWarningContextSchema,PRODUCT_RELATIONS,LinkPayloadSchema,normalizeLinkPayload,productKind,resolveProductEntity,productEdgeRows,productRelation} from './mutation.ts';
 import {computeHash} from '../kb/canonical.ts';
-import {CausalChangeEngine} from '../change/engine.ts';
+import {previewProductChange} from './change-operations.ts';
 import type {ChangeRequest} from '../change/types.ts';
 import type {ToolContext} from '../tools/registry.ts';
 import {semanticPredicates} from '../model/predicates.ts';
@@ -68,8 +68,7 @@ export async function linkAction(store:WorkflowStore,input:LinkAction) {
   kind:args.action==='preview_add'?'product_link':'product_unlink',sourceId:store.localId(source.id),targetId:store.localId(target.id),predicate:args.predicate,
   ...(args.action==='preview_add'&&args.payload!==undefined?{payload:normalizeLinkPayload(args.payload)}:{})
  }],basis:[source,target].map(e=>({id:store.localId(e.id),entityType:e.typeName(),version:e.version}))};
- const engine=new CausalChangeEngine({store,projectRoot:store.root});
- const preview=await engine.previewChange(request);
+ const preview=await previewProductChange(store,request);
  const old=(await productEdgeRows(store,source.id)).filter(row=>row.sourceId===source.id&&row.targetId===target.id&&row.predicateName===args.predicate);
  const mutation=request.mutations[0]!;
  const desired=args.action==='preview_remove'?null:args.payload===undefined?old[0]?.payload?.note:normalizeLinkPayload(args.payload).note;
@@ -123,8 +122,7 @@ export async function previewDefinitionChange(ctx: ToolContext, input: Definitio
     ...(basis.length ? { basis } : {})
   };
 
-  const engine = new CausalChangeEngine({ store: ctx.store, projectRoot: ctx.projectRoot });
-  const preview = await engine.previewChange(request);
+  const preview = await previewProductChange(ctx.store,request);
   return {
     ...preview,
     status: preview.status ?? (preview.blocked ? 'blocked' : 'preview'),
