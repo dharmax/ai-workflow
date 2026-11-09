@@ -1226,6 +1226,12 @@ describe('Ticket-owned bounded resolution', () => {
   }, 30000);
 
   it('refreshes derived discovery state before read-only Actor navigation after an edit', async () => {
+    let freshnessChecks = 0, beforeNavigation = 0;
+    const originalCheck = store.isReadOnlyExecution.bind(store);
+    const freshnessSpy = spyOn(store, 'isReadOnlyExecution').mockImplementation(() => {
+      freshnessChecks++;
+      return originalCheck();
+    });
     fs.writeFileSync(path.join(root, 'src/helper.ts'), 'export function oldHelper() { return 1; }\n')
     await indexCodebase(store, root)
     const t = await ticket()
@@ -1233,12 +1239,15 @@ describe('Ticket-owned bounded resolution', () => {
     const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (prompt, model) => {
       calls++
       if (calls === 2) {
+        beforeNavigation = freshnessChecks;
         // Simulate an external edit arriving while inference is in flight.
         fs.writeFileSync(path.join(root, 'src/helper.ts'), 'export function discoveredHelper() { return 42; }\n')
         return {model, ok: true, text: JSON.stringify({thought: 'Discover the new declaration', action: 'tool_call',
           toolCalls: [{name: 'find_symbol', parameters: {name: 'discoveredHelper'}}]})}
       }
       if (calls === 3) {
+        // One host-authorized reconciliation, not a second scan in the read-only graph handler.
+        expect(freshnessChecks - beforeNavigation).toBe(1);
         expect(prompt).not.toContain('read-only execution cannot write')
         expect(prompt).toContain('"name":"discoveredHelper","fullName":"discoveredHelper"')
         return {model, ok: true, text: JSON.stringify({thought: 'Hand off for checks', action: 'final_answer',
@@ -1251,7 +1260,44 @@ describe('Ticket-owned bounded resolution', () => {
       const result = await t.resolve(store, {systemOne, critic: 'none', verify, maxRepairs: 0})
       expect(result.status, JSON.stringify(result)).toBe('complete')
       expect(calls).toBe(3)
-    } finally { completion.mockRestore() }
+      const metric = queryPerformance(root, {operation:'resolve_ticket', artifactId:'T'}).rows[0];
+      expect(metric.counters.astReconciliations).toBeGreaterThan(0);
+      if (process.env.AIWF_BENCH_FRESHNESS === '1') console.log('AST_FRESHNESS_BENCH '+JSON.stringify({durationMs:metric.durationMs, counters:metric.counters, calls}));
+    } finally { completion.mockRestore(); freshnessSpy.mockRestore() }
+  }, 30000)
+
+  it('reads current raw files and literal workspace text without graph reconciliation', async () => {
+    fs.writeFileSync(path.join(root, 'src/add.ts'), 'export function add(a: number, b: number) { return a + b; }\n');
+    const t = await ticket();
+    let freshnessChecks = 0, beforeNavigation = 0, calls = 0;
+    const originalCheck = store.isReadOnlyExecution.bind(store);
+    const freshnessSpy = spyOn(store, 'isReadOnlyExecution').mockImplementation(() => {
+      freshnessChecks++;
+      return originalCheck();
+    });
+    const completion = spyOn(CompletionEngine.prototype, 'generate').mockImplementation(async (_prompt, model) => {
+      const step = ++calls;
+      if (step === 1) {
+        beforeNavigation = freshnessChecks;
+        return {model, ok:true, text:JSON.stringify({thought:'Read the current file', action:'tool_call',
+          toolCalls:[{name:'read_workspace_file', parameters:{filePath:'src/add.ts'}}]})};
+      }
+      if (step === 2) {
+        expect(freshnessChecks - beforeNavigation).toBe(0);
+        beforeNavigation = freshnessChecks;
+        return {model, ok:true, text:JSON.stringify({thought:'Search the current workspace', action:'tool_call',
+          toolCalls:[{name:'search_workspace_text', parameters:{text:'return a + b'}}]})};
+      }
+      expect(step).toBe(3);
+      expect(freshnessChecks - beforeNavigation).toBe(0);
+      return {model, ok:true, text:JSON.stringify({thought:'Relevant source is already correct', action:'final_answer',
+        finalAnswer:{changes:[], testCommands:[['bun','test','tests/add.test.ts']]}})};
+    });
+    try {
+      const result = await t.resolve(store, {systemOne, critic:'none', verify, maxRepairs:0});
+      expect(result.status, JSON.stringify(result)).toBe('complete');
+      expect(calls).toBe(3);
+    } finally {completion.mockRestore(); freshnessSpy.mockRestore()}
   }, 30000)
 
   it('uses one guarded safe change after parameter repair and parses a structured final proposal', async () => {
