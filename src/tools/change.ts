@@ -4,15 +4,13 @@
  */
 
 import fs from 'node:fs';
-import {hashFiles} from '../graph/test-artifacts.ts';
-import {sourceChangeScope, assertChangeScope, sourceChangeFingerprint, normalizeDirtyTargets} from '../ticket/source-scope.ts';
-import {requireStoryTests} from '../product/story-tests.ts';
 import path from 'node:path';
 import { workspacePath } from '../change/workspace-path.ts';
 import { z } from 'zod';
 import { commandRegistry, type ToolContext } from './registry.ts';
 import { CausalChangeEngine } from '../change/engine.ts';
-import {CodeMutationService, type SourceChangeRequest} from '../services/code-mutation-service.ts';
+import {type SourceChangeRequest} from '../services/code-mutation-service.ts';
+import {SourceManager} from '../managers/source-manager.ts';
 import {previewProductChange, applyProductChange} from '../product/change-operations.ts';
 import type { ChangeRequest } from '../change/types.ts';
 
@@ -23,11 +21,6 @@ export const DirtyTargetsSchema = z.array(z.string().min(1)).max(256).optional()
 const previewOptions = ChangeRequestSchema.options.map(schema => schema.extend({ticketId: z.string().min(1).optional(), agentId: z.string().min(1).optional(), allowDirtyTargets: DirtyTargetsSchema}).strict());
 
 export function registerChangeTools() {
-  const ownedFiles = (root: string, scope: Awaited<ReturnType<typeof sourceChangeScope>>['scope']) => {
-    const latest = new Map<string, string | null>();
-    for (const effect of scope.effects) for (const [file, hash] of Object.entries(effect.after)) latest.set(file, hash);
-    return new Set([...latest].filter(([file, hash]) => hashFiles(root, [file])[file] === hash).map(([file]) => file));
-  };
   commandRegistry.register({
     name: 'read_workspace_file',
     description: 'Read an existing regular workspace file, up to 64 KiB, without shell execution.',
@@ -56,20 +49,13 @@ export function registerChangeTools() {
     category: 'change',
     parameters: z.discriminatedUnion('action', [previewOptions[0]!, ...previewOptions.slice(1)]),
     execute: async ({ticketId, agentId, allowDirtyTargets, ...request}, ctx: ToolContext) => {
-      const preview = request.action === 'product_change'
-        ? await previewProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>)
-        : await new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot}).previewChange(request as SourceChangeRequest);
-      if (allowDirtyTargets?.length && (request.action === 'product_change' || !ticketId || !agentId)) throw Error('Dirty targets require a governed source Ticket and active lease.');
-      if (request.action !== 'product_change' && ticketId && agentId && !preview.blocked) {
-        const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
-        const owned = ownedFiles(ctx.projectRoot, scope);
-        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets).filter(file => !owned.has(file));
-        await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned, dirtyTargets);
-        return {...preview, allowDirtyTargets: dirtyTargets, dirtyTargetApprovalRequired: dirtyTargets.length > 0, fingerprint: sourceChangeFingerprint(preview, scope, dirtyTargets, ticket.claim)};
+      if (request.action === 'product_change') {
+        if (allowDirtyTargets?.length) throw Error('Dirty targets require a governed source Ticket and active lease.');
+        return previewProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>);
       }
-      return preview;
-    }
-  });
+      const manager = new SourceManager({store: ctx.store, projectRoot: ctx.projectRoot, codeMutationAllowed: ctx.codeMutationAllowed});
+      return manager.previewSourceChange(request as SourceChangeRequest, {ticketId, agentId, allowDirtyTargets});
+
 
   commandRegistry.register({
     name: 'apply_change',
@@ -93,28 +79,8 @@ export function registerChangeTools() {
       if (request.action === 'product_change') {
         return applyProductChange(ctx.store, request as Extract<ChangeRequest, {action: 'product_change'}>, fingerprint);
       }
-      ctx.store.assertCanWrite();
-      if (ctx.codeMutationAllowed === false) throw Error('Code mutation is forbidden by the host.');
-      if (!ticketId || !agentId) throw Error('Source application requires ticketId and the active lease agentId.');
-      const admission = await ctx.store.admitGovernance('governed');
-      try {
-        const {ticket, scope} = await sourceChangeScope(ctx.store, ticketId, agentId);
-        const engine = new CodeMutationService({store: ctx.store, projectRoot: ctx.projectRoot, governedAdmission: admission, ticketLease: {ticketId, claim: ticket.claim!}});
-        const preview = await engine.previewChange(request as SourceChangeRequest);
-        if (preview.blocked) throw Error(preview.blockReason ?? 'Source preview blocked.');
-        const owned = ownedFiles(ctx.projectRoot, scope);
-        const dirtyTargets = normalizeDirtyTargets(ctx.projectRoot, preview, allowDirtyTargets).filter(file => !owned.has(file));
-        const expected = sourceChangeFingerprint(preview, scope, dirtyTargets, ticket.claim);
-        if (expected !== fingerprint) throw Error('Stale change preview: source, Ticket scope or governance fingerprint changed.');
-        if (dirtyTargets.length && !ctx.store.canReviewProduct(fingerprint)) throw Error('Dirty targets require trusted host approval of this exact source preview.');
-        await assertChangeScope(ctx.store, ticket, scope, preview, request as ChangeRequest, owned, dirtyTargets);
-        await requireStoryTests(ctx.store, ticket);
-        await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, scope);
-        const result = await engine.applyChange(request as SourceChangeRequest, preview.fingerprint);
-        if (result.ok && result.effects) await ctx.store.saveGovernedScope(ticketId, ticket.claim!, admission, {...scope, revision: scope.revision + 1,
-          effects: [...scope.effects, {fingerprint, ...result.effects, renames: result.filesRenamed}]});
-        return {...result, fingerprint};
-      } finally { await ctx.store.releaseGovernance(admission); }
+      const manager = new SourceManager({store: ctx.store, projectRoot: ctx.projectRoot, codeMutationAllowed: ctx.codeMutationAllowed});
+      return manager.applySourceChange(request as SourceChangeRequest, fingerprint, {ticketId, agentId, allowDirtyTargets});
     }
   });
 }
