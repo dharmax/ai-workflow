@@ -15,6 +15,7 @@ import { createDefaultAsker } from "../services/model-service.ts"
 import type { loadConfig } from "../services/config-service.ts"
 import { buildSynthesisContext, findSynthesisTarget, HostSourceSynthesizer } from "../helpers/synthesis/index.ts"
 import { canonical } from "../kb/canonical.ts"
+import { withAstSnapshot } from "../graph/indexer.ts"
 import { cognitionMetrics, countEngineering, traceResolution } from "../performance-metrics.ts"
 
 interface ImplementationContext {
@@ -178,9 +179,14 @@ export async function implementTicket(
                         countEngineering("exactSymbolReads")
                     }
                     if (name === "read_workspace_file") countEngineering("sourceReads")
-                    // Refresh derived source state under host authority; navigation itself remains read-only.
-                    await context.refreshSource()
-                    const result = await commandRegistry.execute(name, params, ctx)
+                    // Raw disk tools need no graph scan. Graph tools share one host refresh
+                    // with their own read-only freshness checks, scoped to this call only.
+                    const result = name === "read_workspace_file" || name === "search_workspace_text"
+                        ? await commandRegistry.execute(name, params, ctx)
+                        : await withAstSnapshot(async () => {
+                            await context.refreshSource()
+                            return commandRegistry.execute(name, params, ctx)
+                        })
                     if (name === "find_symbol" && Array.isArray(result) && result.length === 0)
                         throw new ToolExecutionError(
                             "No TypeScript/JavaScript symbol matched. Package dependencies, JSON, configuration and Markdown contents are not indexed symbols: use read_workspace_file for an existing file, or search_workspace_text for literal contracts. For code, use get_file_outline to discover actual declarations. Do not repeat the same unmatched lookup.",
