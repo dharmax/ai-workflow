@@ -165,6 +165,8 @@ These are **classified, unresolved** failures; full-suite green is **not** claim
 
 After 3C, check the architecture as a whole: class/module sizes, cohesion, public API stability, import cycles, direct public bypasses, duplicate policies, duplicated request preparation and LSP lifecycle ownership. Resolve concrete defects as individually gated patches, **not** speculative rewrites. Preserve the already-established 3A–3C test evidence. No facade-only wrappers, framework layers or new generalized registry. Run full deterministic suite; retain classified unrelated failures as such.
 
+**Stage 5 gate checkpoint (2026-11-09):** User-run `tsc --noEmit` passed. Focused suite: 184 pass / 2 fail across 10 files. Both failures in `tests/ticket-resolution.test.ts` were outdated spies on `CausalChangeEngine.applyChange` after the Ticket resolver source path migrated to `CodeMutationService.applyCodeChange`; the first could no longer inject lease replacement, and the second counted zero calls. Updated those two test spies to the real method in commit `77cd844`; all original assertions, including lease fencing and single genuine apply, remain unchanged. This narrow correction is **awaiting developer-run tests**. No production behavior changed; no pack or full-suite gate yet.
+
 ### Stage 5 — clean public orchestration and entity responsibilities
 
 - Move the substantial Ticket-scope, claim, dirty-target, review and governance orchestration out of `src/tools/change.ts` to a small stateless `src/managers/source-manager.ts` **if that extraction removes real adapter business logic**. Keep existing `ticket/source-scope.ts` and `WorkflowStore` as their current canonical enforcement owners; do not duplicate them in the manager or service.
