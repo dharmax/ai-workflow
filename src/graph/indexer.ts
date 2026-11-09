@@ -12,6 +12,7 @@ import { WorkflowStore, ReadOnlyMutationError } from './store.ts';
 import type {AbstractEntity} from '@dharmax/semantika';
 import type {Stats} from 'node:fs';
 import {canonical} from '../kb/canonical.ts';
+import {countEngineering} from '../performance-metrics.ts';
 import {workspacePath} from '../helpers/workspace-path.ts';
 import {
   ModuleNode,
@@ -352,6 +353,7 @@ async function reconcileAst(
   rootDir: string = store.root,
   options?: { force?: boolean; onProgress?: (current: number, total: number, label: string) => void }
 ): Promise<FreshnessResult> {
+  countEngineering('astReconciliations');
   const discovered = await discoverWorkspaceFiles(rootDir);
   const existingFiles = await store.listEntities<FileNode>(FileNode.dcr);
   const knownFiles = new Set(existingFiles.filter(file => !file.metadata?.isExternal)
@@ -366,6 +368,7 @@ async function reconcileAst(
     const info = lstatSync(fullPath, {throwIfNoEntry: false});
     if (info?.isFile()) candidateFiles.push({fullPath, relPath: relative, stat: info});
   }
+  countEngineering('astFilesConsidered', candidateFiles.length);
   const existingMap = new Map<string, { hash?: string; mtime?: number; size?: number; id: string; isExternal?: boolean; isStub?: boolean; ctimeMs?: number; structureVersion?: number }>();
   for (const f of existingFiles) {
     const localId = (f as FileNode & {path?: string}).path ?? store.localId(f.id);
