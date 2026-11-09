@@ -154,6 +154,9 @@ These are **classified, unresolved** failures; full-suite green is **not** claim
 
 ### Stage 4 — code-service consolidation and architecture audit
 
+**Stage 4 preliminary contract audit (2026-11-09):** The source service currently reports `{ok:true, verification:{passed:false}, error:'PARTIALLY APPLIED...'}` when disk commits but post-write hash/definition checks fail. This is inherited behavior and the preceding extraction preserved it. The change tool persists governed scope effects only under `result.ok && result.effects`; `src/ticket/resolve.ts` persists effects before separately requiring `result.ok && result.verification.passed`; internal Story-test and technical-proof consumers often check only `ok`. Thus changing `ok` to false without a proper committed-effects persistence path would lose needed recovery evidence, while leaving it true can mislead some consumers. **Do not blindly flip the boolean.** Design and test explicit `committed` vs `verified` semantics and recoverable partial status across all involved owners; distinguish actual observed hashes from the expected authorized effect, never attribute a foreign post-write edit to the source mutation. This is a separate behavior-change gate, not a mechanical move.
+
+
 After 3C, check the architecture as a whole: class/module sizes, cohesion, public API stability, import cycles, direct public bypasses, duplicate policies, duplicated request preparation and LSP lifecycle ownership. Resolve concrete defects as individually gated patches, **not** speculative rewrites. Preserve the already-established 3A–3C test evidence. No facade-only wrappers, framework layers or new generalized registry. Run full deterministic suite; retain classified unrelated failures as such.
 
 ### Stage 5 — clean public orchestration and entity responsibilities
