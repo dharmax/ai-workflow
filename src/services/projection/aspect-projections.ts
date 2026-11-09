@@ -49,12 +49,11 @@ export async function importAspectProjection(store: WorkflowStore, root: string,
     count++;
   }
   if (mutations.length) {
-    const {CausalChangeEngine} = await import('../../change/engine.ts');
-    const engine = new CausalChangeEngine({store, projectRoot:root});
+    const {previewProductChange, applyProductChange} = await import('../../product/change-operations.ts');
     const request = {action:'product_change' as const, mutations};
-    const preview = await engine.previewChange(request);
+    const preview = await previewProductChange(store, request);
     if (preview.blocked) throw Error(preview.blockReason);
-    const applied = await engine.applyChange(request, preview.fingerprint);
+    const applied = await applyProductChange(store, request, preview.fingerprint);
     if (!applied.ok || !applied.verification.passed) throw Error(applied.error ?? applied.verification.errors.join('; '));
   }
   return count;

@@ -31,7 +31,7 @@ export function processIntent(
             const { loadConfig } = await import("../services/config-service.ts")
             const { getCoverage } = await import("../product/coverage.ts")
             const { getProductImpact } = await import("../product/impact.ts")
-            const { CausalChangeEngine } = await import("../change/engine.ts")
+            const {previewProductChange} = await import("./change-operations.ts")
             const { createDefaultAsker } = await import("../services/model-service.ts")
             const cfg = loadConfig(store.root),
                 budget = new ArtifactBudget(options, 1, cfg.maxArtifacts)
@@ -269,9 +269,8 @@ export function processIntent(
                             }
                         }
                         if (mutations.length) {
-                            const engine = new CausalChangeEngine({ store, projectRoot: store.root }),
-                                request = { action: "product_change" as const, mutations, basis, originalRequest: options.originalRequest ?? context.body }
-                            const preview = await engine.previewChange(request)
+                            const request = { action: "product_change" as const, mutations, basis, originalRequest: options.originalRequest ?? context.body }
+                            const preview = await previewProductChange(store, request)
                             if (preview.blocked) throw new Error(preview.blockReason)
                             proposals.push(preview)
                         }

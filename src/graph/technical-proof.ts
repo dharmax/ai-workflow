@@ -8,7 +8,7 @@ import {TestNode,Ticket,UserStory,SymbolNode} from '../model/ontology.ts';
 import {ensureAstFresh} from './indexer.ts';
 import {hashFiles,currentTestEvidence} from './test-artifacts.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
-import {CausalChangeEngine} from '../change/engine.ts';
+import {previewProductChange} from '../product/change-operations.ts';
 import {ticketVerificationSignature} from '../ticket-operation-types.ts';
 import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../helpers/verification-context.ts';
 import type {TicketDossier} from '../ticket-operation-types.ts';
@@ -82,7 +82,6 @@ export async function prepareTestBinding(store:WorkflowStore,raw:TestBindingSpec
  if(!scopes.some(scope=>scope.projectRoot===store.root&&scope.testId===store.localId(test.id)))
   throw Error('Binding owner must be one of the real local acceptance tests.');
  const technicalProof:TechnicalProof={ticketId:store.localId(ticket.id),basisHash:await ticketVerificationSignature(store,ticket),scopes};
- const engine=new CausalChangeEngine({store,projectRoot:store.root});
  const request={action:'product_change' as const,basis:[
   {id:store.localId(ticket.id),entityType:ticket.typeName(),version:ticket.version},
   {id:store.localId(test.id),entityType:test.typeName(),version:test.version}
@@ -90,7 +89,7 @@ export async function prepareTestBinding(store:WorkflowStore,raw:TestBindingSpec
   {kind:'product_update' as const,entityType:'Test' as const,id:store.localId(test.id),fields:{technicalProofs:[...(test.technicalProofs??[]).filter(proof=>proof.ticketId!==technicalProof.ticketId),technicalProof]}},
   {kind:'product_link' as const,sourceId:store.localId(test.id),predicate:'verifies',targetId:store.localId(ticket.id)}
  ]};
- const preview=await store.withTestArtifactWrite(test.id,()=>engine.previewChange(request));
+ const preview=await store.withTestArtifactWrite(test.id,()=>previewProductChange(store,request));
  if(preview.blocked)throw Error(preview.blockReason);
  return {status:'review' as const,specification,technicalProof,preview,fingerprint:preview.fingerprint};
 }

@@ -3,7 +3,7 @@ import { WorkflowStore } from '../graph/store.ts';
 import { Epic, Feature, UserStory } from '../model/ontology.ts';
 import type { EpicStructureProposal } from './decompose.ts';
 import type { ProductMutation, ProductRevision } from './mutation.ts';
-import { CausalChangeEngine } from '../change/engine.ts';
+import {previewProductChange} from './change-operations.ts';
 import type { ChangePreview } from '../change/types.ts';
 
 export interface ApplyResult {
@@ -53,8 +53,7 @@ export async function applyEpicStructure(store: WorkflowStore, proposal: EpicStr
     mutations.push({ kind: 'product_link', sourceId: proposal.epic.id, predicate: 'targets', targetId: s.id });
     if (s.featureId) mutations.push({ kind: 'product_link', sourceId: s.featureId, predicate: 'enables', targetId: s.id });
   }
-  const engine = new CausalChangeEngine({store, projectRoot: store.root});
-  const preview = await engine.previewChange({action: 'product_change', mutations, basis: [...new Map(basis.map(source => [source.entityType + ':' + source.id, source])).values()], originalRequest: proposal.originalRequest ?? proposal.epic.body ?? proposal.epic.title});
+  const preview = await previewProductChange(store, {action: 'product_change', mutations, basis: [...new Map(basis.map(source => [source.entityType + ':' + source.id, source])).values()], originalRequest: proposal.originalRequest ?? proposal.epic.body ?? proposal.epic.title});
   if (preview.blocked) throw new Error(preview.blockReason);
   return { applied: false, preview, epicId: proposal.epic.id, featureIds: proposal.features.map(f => f.id), storyIds: proposal.stories.map(s => s.id) };
 }

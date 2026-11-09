@@ -27,7 +27,7 @@ export async function prepareTicket(
         const { resolveArtifactCritic, ArtifactBudget } = await import("../artifact-policy.ts")
         const { AiArtifactCritic, CriticResultSchema } = await import("../services/artifact-critic.ts")
         const { loadConfig } = await import("../services/config-service.ts")
-        const { CausalChangeEngine } = await import("../change/engine.ts")
+        const {previewProductChange, applyProductChange} = await import("../product/change-operations.ts")
         const cfg = loadConfig(store.root),
             agentId = options.agentId ?? cfg.defaultAgentId
         const children: Ticket[] = []
@@ -215,9 +215,8 @@ export async function prepareTicket(
                         continue
                     }
                 }
-                const engine = new CausalChangeEngine({ store, projectRoot: store.root })
                 const request = { action: "product_change" as const, mutations }
-                const validated = await engine.previewChange(request)
+                const validated = await previewProductChange(store, request)
                 if (validated.blocked)
                     return {
                         status: "blocked",
@@ -263,9 +262,9 @@ export async function prepareTicket(
                         acquired = lease.claim!
                     }
                     // Claim changed the durable fingerprint, so preview again under the lease.
-                    const preview = await engine.previewChange(request)
+                    const preview = await previewProductChange(store, request)
                     if (preview.blocked) throw new Error(`Preparation changed before apply: ${preview.blockReason}`)
-                    const applied = await engine.applyChange(request, preview.fingerprint)
+                    const applied = await applyProductChange(store, request, preview.fingerprint)
                     if (!applied.ok || !applied.verification.passed)
                         throw new Error(`Preparation apply verification failed: ${JSON.stringify(applied.verification)}`)
                     countEngineering("artifactsCreated", created.length)
