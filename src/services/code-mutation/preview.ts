@@ -25,24 +25,24 @@ export interface SourcePreviewContext {
 }
 
 export async function buildSourcePreview(ctx: SourcePreviewContext, request: SourceChangeRequest): Promise<ChangePreview> {
-    if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh start');
-    await ensureAstFresh(ctx.store, ctx.projectRoot);
-    if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh end');
+  if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh start');
+  await ensureAstFresh(ctx.store, ctx.projectRoot);
+  if (process.env.DEBUG_LSP) console.error('[LSP boundary] ensureAstFresh end');
 
-    let productImpact: ProductImpact | undefined;
-    if ('productContextEntityId' in request && request.productContextEntityId) {
-      try {
-        productImpact = await getProductImpact(ctx.store, request.productContextEntityId);
-      } catch {}
-    }
+  let productImpact: ProductImpact | undefined;
+  if ('productContextEntityId' in request && request.productContextEntityId) {
+    try {
+      productImpact = await getProductImpact(ctx.store, request.productContextEntityId);
+    } catch {}
+  }
 
-    const warnings: string[] = [];
-    const mutations: ChangeMutation[] = [];
-    let resolvedTarget: ResolvedCodeTarget | undefined;
-    let summary = '';
-    const originalHashes: Record<string, string> = {};
+  const warnings: string[] = [];
+  const mutations: ChangeMutation[] = [];
+  let resolvedTarget: ResolvedCodeTarget | undefined;
+  let summary = '';
+  const originalHashes: Record<string, string> = {};
 
-    if (request.action === 'source_change') {
+  if (request.action === 'source_change') {
     // Composite changes retain their existing child-preview recursion and no-write contract.
     const seen = new Set<string>();
     for (const change of request.changes) {
