@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { WorkflowStore } from '../src/graph/store.ts';
 import { CausalChangeEngine } from '../src/change/engine.ts';
+import {CodeMutationService} from '../src/services/code-mutation-service.ts';
 import { initializeTools, commandRegistry } from '../src/tools/index.ts';
 import { closeAllTsLspClients } from '../src/change/ts-lsp.ts';
 import { closeAllTs6RefactorClients } from '../src/change/ts6-refactor.ts';
@@ -70,6 +71,33 @@ describe('Consuela ordinary workspace targets', () => {
     expect(preview.mutations).toEqual([]);
     expect(fs.readFileSync(path.join(root, 'a.txt'), 'utf8')).toBe('one=old\n');
     expect(fs.readFileSync(path.join(root, 'b.txt'), 'utf8')).toBe('two=old\n');
+  });
+
+  it('routes source preview and apply directly through the Code Mutation Service with legacy fingerprint parity', async () => {
+    fs.writeFileSync(path.join(root, 'service.txt'), 'before\n');
+    const service = new CodeMutationService({store, projectRoot: root});
+    const request = {action: 'replace_text' as const, filePath: 'service.txt', oldText: 'before', newText: 'after'};
+    const direct = await service.previewChange(request);
+    const legacy = await engine.previewChange(request);
+    const publicPreview = await commandRegistry.execute('preview_change', request,
+      {store, projectRoot: root, executionAuthority: 'project-write'});
+    expect(direct).toEqual(legacy);
+    expect(publicPreview).toEqual(direct);
+    expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('before\n');
+    const applied = await service.applyChange(request, direct.fingerprint);
+    expect(applied.ok && applied.verification.passed).toBe(true);
+    expect(applied.effects?.before['service.txt']).toBe(direct.originalHashes['service.txt']);
+    expect(fs.readFileSync(path.join(root, 'service.txt'), 'utf8')).toBe('after\n');
+  });
+
+  it('keeps host-forbidden source apply blocked through the new service', async () => {
+    fs.writeFileSync(path.join(root, 'locked.txt'), 'old');
+    const service = new CodeMutationService({store, projectRoot: root, codeMutationAllowed: false});
+    const request = {action: 'replace_text' as const, filePath: 'locked.txt', oldText: 'old', newText: 'new'};
+    const preview = await service.previewChange(request);
+    expect(preview.blocked).toBe(false);
+    await expect(service.applyChange(request, preview.fingerprint)).rejects.toThrow(/forbidden by the host/);
+    expect(fs.readFileSync(path.join(root, 'locked.txt'), 'utf8')).toBe('old');
   });
 
   it('rejects missing, ambiguous, empty, nonexistent, directory and escaped replacement targets', async () => {
