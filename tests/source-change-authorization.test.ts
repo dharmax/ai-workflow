@@ -10,6 +10,7 @@ import {initializeTools,commandRegistry} from '../src/tools/index.ts';
 import {reviewPublicProductChange} from '../src/product/links.ts';
 import {closeAllTsLspClients} from '../src/change/ts-lsp.ts';
 import {sourceChangeScope} from '../src/ticket/source-scope.ts';
+import {SourceManager} from '../src/managers/source-manager.ts';
 
 let root:string,store:WorkflowStore;
 const ctx=()=>({store,projectRoot:root,executionAuthority:'project-write' as const});
@@ -44,6 +45,33 @@ it('requires host approval, rejects host refusal and applies exactly reviewed di
  });
  expect(result.ok).toBe(true);expect(fs.readFileSync(path.join(root,'a.ts'),'utf8')).toBe(before.replace('return 1','return 2'));expect(fs.readFileSync(path.join(root,'b.ts'),'utf8')).toBe(unrelated);
 });
+it('exposes transport-independent manager operations with exact public preview and guarded apply parity',async()=>{
+ const first=await preview();
+ expect((await reviewPublicProductChange(input(first.fingerprint),ctx(),async()=>true)).ok).toBe(true);
+ const manager=new SourceManager({store,projectRoot:root});
+ const nextRequest={...request,oldText:'return 2',newText:'return 3'};
+ const options={ticketId:'EDIT',agentId:'owner'};
+ const direct=await manager.previewSourceChange(nextRequest,options);
+ const publicPreview=await commandRegistry.execute('source:change preview',{request:nextRequest,...options},ctx());
+ expect(direct).toEqual(publicPreview);
+ expect(direct.dirtyTargetApprovalRequired).toBe(false);
+ const result=await manager.applySourceChange(nextRequest,direct.fingerprint,options);
+ expect(result.ok&&result.verification.passed).toBe(true);
+ expect(result.fingerprint).toBe(direct.fingerprint);
+ expect(fs.readFileSync(path.join(root,'a.ts'),'utf8')).toContain('return 3');
+ const {scope}=await sourceChangeScope(store,'EDIT','owner');
+ expect(scope.effects.at(-1)?.fingerprint).toBe(direct.fingerprint);
+});
+
+it('manager refuses source apply without active Ticket ownership or trusted host source permission',async()=>{
+ const manager=new SourceManager({store,projectRoot:root});
+ await failure(()=>manager.applySourceChange(request,'forged',{}),'ticketId');
+ const denied=new SourceManager({store,projectRoot:root,codeMutationAllowed:false});
+ const p=await denied.previewSourceChange(request,context);
+ await failure(()=>denied.applySourceChange(request,p.fingerprint,context),'forbidden by the host');
+ expect(fs.readFileSync(path.join(root,'a.ts'),'utf8')).toContain('return 1');
+});
+
 it('rejects unauthorized, duplicate and extraneous targets without broadening Ticket scope',async()=>{
  await failure(()=>commandRegistry.execute('preview_change',{...request,ticketId:'EDIT',agentId:'owner'},ctx()),'Dirty target');
  await failure(()=>commandRegistry.execute('source:change preview',{request,...context,allowDirtyTargets:['a.ts','./a.ts']},ctx()),'Duplicate');
