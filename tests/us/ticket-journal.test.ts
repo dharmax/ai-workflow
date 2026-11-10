@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {WorkflowStore} from '../../src/graph/store.ts';
 import {Ticket,Artifact} from '../../src/model/ontology.ts';
-import {ticketVerificationSignature} from '../../src/ticket-operation-types.ts';
+import {ticketVerificationSignature} from '../../src/ticket/verification-contract.ts';
 import {systemJournal} from '../../src/services/journal-service.ts';
 import {initializeTools, commandRegistry} from '../../src/tools/index.ts';
 

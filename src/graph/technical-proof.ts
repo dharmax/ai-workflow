@@ -9,7 +9,7 @@ import {ensureAstFresh} from './indexer.ts';
 import {hashFiles,currentTestEvidence} from './test-artifacts.ts';
 import {canonical,computeHash} from '../kb/canonical.ts';
 import {previewProductChange} from '../product/change-operations.ts';
-import {ticketVerificationSignature} from '../ticket-operation-types.ts';
+import {ticketVerificationSignature} from '../ticket/verification-contract.ts';
 import {buildVerificationContext,DEFAULT_VERIFICATION_CONTEXT_CHARS} from '../helpers/verification-context.ts';
 import type {TicketDossier} from '../ticket-operation-types.ts';
 import type {ChangePreview,ChangeApplyResult} from '../tools/change-types.ts';

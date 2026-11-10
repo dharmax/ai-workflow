@@ -8,7 +8,8 @@ import {Ticket} from '../src/model/ontology.ts';
 import {WorkflowActor} from '../src/helpers/actor/engine.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import {processShellInput, type ShellSession} from '../src/shell.ts';
-import {artifactCommand, facilitateArtifactCommand} from '../src/artifact-command.ts';
+import {artifactCommand} from '../src/artifact-command.ts';
+import {facilitateArtifactCommand} from '../src/ui/command-facilitation.ts';
 import {loadConfig, readConfigOverrides, setConfigOverride} from '../src/services/config-service.ts';
 const cli = path.resolve(import.meta.dir, '../src/cli.ts');
 describe('daily shared shell commands', () => {
