@@ -34,7 +34,6 @@ describe('grounded Ticket investigation', () => {
     const reason = async () => {
       reasoningCalls++;
       throw Error('Unnecessary semantic reasoning');
-      return {disposition: 'ready' as const, rationale: 'unused'};
     };
     const investigation = await t.investigate(store, {systemOne, reason});
     expect(investigation.status).toBe('complete');
@@ -48,7 +47,6 @@ describe('grounded Ticket investigation', () => {
     const prepared = await t.prepare(store, {systemOne, reason, propose: async () => {
       proposals++;
       throw Error('Atomic contract must not be decomposed');
-      return {rationale:'unused', children:[]};
     }});
     expect(prepared.status).toBe('complete');
     if (prepared.status !== 'complete') throw Error(JSON.stringify(prepared));
@@ -75,6 +73,22 @@ describe('grounded Ticket investigation', () => {
     expect(second.status).toBe('complete');
     expect(calls).toBe(2);
     if (second.status === 'complete') expect(second.value.provenance.optionalCandidates).toBeGreaterThan(0);
+  });
+
+  it('retains advisory classification for an anchored Ticket governed by Product intent', async () => {
+    const relative = 'handler.ts';
+    fs.writeFileSync(path.join(root, relative), 'export function processJob() { return 1; }\n');
+    await indexSingleFile(store, path.join(root, relative), relative);
+    const t = await ticket('PRODUCT-LINKED', 'Repair processing contract');
+    const feature = await store.upsertEntity<Feature>(Feature.dcr, {id:'F', title:'Processing', completenessTarget:'production'});
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>(relative, FileNode.dcr))!);
+    await store.relate(t, 'implements', feature);
+    let calls = 0;
+    const systemOne: SystemOne = {assess: async () => {calls++; return null;}};
+    const result = await t.investigate(store, {systemOne});
+    expect(result.status).toBe('complete');
+    expect(calls).toBe(1);
+    if (result.status === 'complete') expect(result.value.evidence.some(e => e.id === 'F' && e.mandatory)).toBe(true);
   });
 
   it('does not skip advisory routing when an anchored file could not be read', async () => {
