@@ -120,9 +120,21 @@ export function lexCommand(input: string): string[] {
   return tokens;
 }
 
+// Classification needs command names/aliases, not a fresh Commander tree on every input.
+// This is a grammar cache only: registered command changes invalidate it; execution
+// still validates current registration and authority at the actual call boundary.
+let classificationTree: Command | undefined;
+let classificationRevision = -1;
+function classificationCommands(): readonly Command[] {
+  if (!classificationTree || classificationRevision !== commandRegistry.commandRevision) {
+    classificationTree = createCommandTree(()=>{},()=>{});
+    classificationRevision = commandRegistry.commandRevision;
+  }
+  return classificationTree.commands;
+}
 export function isExplicitCommand(input:string):boolean {
   const [verb,...rest]=input.trim().split(/\s+/);
-  const command=createCommandTree(()=>{},()=>{}).commands.find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
+  const command=classificationCommands().find(command=>[command.name(),...command.aliases()].includes(verb!.toLowerCase()));
   if(command && (command.name()==='next' || command.name()==='ticket' && rest.length>0 || rest.some(token=>token.toLowerCase()==='--help'||token.toLowerCase()==='-h') || command.commands.some(child=>[child.name(),...child.aliases()].includes(rest[0]?.toLowerCase()??'')))) return true;
   if(rest.length && command?.registeredArguments.length===0) return true;
   return /^(?:please\s+)?(?:status|doctor|next|diff|tickets|features|stories|epics|story-test|bug|bugs|link|links|unlink|resolve|prepare|investigate|process|completeness|product-change|product|arch|work|verify|resolve_ticket|prepare_ticket|investigate_ticket|process_epic|process_feature|process_story)(?:[:\s]|$)/i.test(input.trim()) || /^(?:[^\s:]+:|help(?:\s|$))/i.test(input.trim());

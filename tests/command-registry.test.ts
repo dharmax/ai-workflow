@@ -6,7 +6,7 @@ import {it,expect} from 'bun:test';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {z} from 'zod';
 import {commandRegistry as r,commandId} from '../src/tools/registry.ts';
 import {initializeTools} from '../src/tools/index.ts';
-import {parseCommand} from '../src/artifact-command.ts';
+import {parseCommand,isExplicitCommand} from '../src/artifact-command.ts';
 import {commandDiscovery} from '../src/command-presentation.ts';
 import {startWorkspace} from '../src/workspace/server.ts';
 import {WorkflowStore} from '../src/graph/store.ts';
@@ -20,6 +20,7 @@ it('one registration adds and removes all projections, dispatch and OpenAPI; rep
  let host:ReturnType<typeof startWorkspace>|undefined;let client:Client|undefined;let mcp:ReturnType<typeof createMcpServer>|undefined;
  try{
   expect(()=>r.registerCommand(c)).toThrow('Duplicate');
+  expect(isExplicitCommand('fixture status')).toBe(true);
   const help=await parseCommand(['fixture','--help']);expect(JSON.stringify(help)).toContain('Actual repository status');
   expect(commandDiscovery().subcommands.fixture).toEqual(['status']);
   const input=await parseCommand(['fixture','status','--json']);expect(input).toMatchObject({tool:'fixture status',args:{}});
@@ -31,6 +32,7 @@ it('one registration adds and removes all projections, dispatch and OpenAPI; rep
   expect((await client.listTools()).tools.find(t=>t.name==='fixture')?.inputSchema).toBeDefined();
   const result=await client.callTool({name:'fixture',arguments:{action:'status'}});if(result.isError)throw Error(JSON.stringify(result));expect(result.isError).not.toBe(true);
   r.removeCommand(commandId(c));
+  expect(isExplicitCommand('fixture status')).toBe(false);
   expect(commandDiscovery().builtins).not.toContain('fixture');
   await expect(parseCommand(['fixture','status'])).rejects.toThrow();
   expect((await client.listTools()).tools.some(t=>t.name==='fixture')).toBe(false);
