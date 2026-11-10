@@ -13,13 +13,14 @@
 5. At least one supporting TestNode/verifies relationship (where available) should point to the correct accepted US without lying about whether a test is genuine acceptance. Filename/header links are navigation, **not** graph proof.
 6. Track no-loss case migration. During split/move, compare test names and before/after counts; verify typecheck, targeted suite, then broad suite. A skipped/live US test is not passed acceptance.
 
-## First migration checkpoint (unexecuted test gate)
+## First migration checkpoint (developer reports passed local gate)
 
 - `07acf25` — moved `tests/us/story-aiwf-sophisticated-goal.test.ts` → `tests/us/story-aiwf-sophisticated-goal.test.ts`, rebased 8 source imports, zero assertion/case changes. Existing projection: `STORY-AIWF-SOPHISTICATED-GOAL`; full canonical effective Story definition still needs checking.
 - `9f707ca` — moved `tests/us/story-aiwf-report-bug.test.ts` → `tests/us/story-aiwf-report-bug.test.ts`, rebased 5 source imports, zero assertion/case changes. Existing projection: `STORY-AIWF-REPORT-BUG`; full canonical definition still needs checking.
 - `83c9c56` — moved fixture-only `tests/integration/file-change-synchronization.test.ts` → `tests/integration/file-change-synchronization.test.ts` **byte for byte**. Its internally created `US-FILE-CHANGE` was not proof of an official persisted US.
 - Repository tree audit confirms **97/97 test files still present** and recognized as moves. `package.json` does not refer to the old paths. No runtime tests were executed remotely.
-- **Next required gate:** TypeScript check and the three relocated suites locally, then full suite. Do not move additional suites until green.
+- **Gate disposition (2026-11-10):** developer reports the three relocated suites, TypeScript check and full suite passed after this migration. Exact logs/counts were not supplied; treat this as reported green, not independently observed execution. The intermittent CLI/Shell help-parity mismatch previously seen in an aggregated run is not root-caused merely because a subsequent run passed.
+- **Next:** reconcile effective canonical US definitions, review the proposed missing actor episodes with the developer, then move genuinely mixed suites by public episode. Do not mass-rename or auto-accept Product state.
 
 ## Findings
 
