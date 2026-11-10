@@ -147,8 +147,8 @@ export async function investigateTicket(
       const target = targets[0];
       const deterministic = !options.mandatoryEvidenceOnly &&
         current.kind !== 'bug' &&
-        current.acceptanceCriteria?.length > 0 &&
-        current.acceptanceCriteria.every(criterion => criterion.trim().length > 0) &&
+        current.acceptanceCriteria?.length === 1 &&
+        !!current.acceptanceCriteria[0]?.trim() &&
         dossier.disposition === 'ready' &&
         !dossier.proposedEnrichments.relations.length &&
         !dossier.proposedEnrichments.acceptanceCriteria &&

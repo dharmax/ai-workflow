@@ -75,6 +75,22 @@ describe('grounded Ticket investigation', () => {
     if (second.status === 'complete') expect(second.value.provenance.optionalCandidates).toBeGreaterThan(0);
   });
 
+  it('keeps multi-criterion technical work on the normal classification path', async () => {
+    const relative = 'handler.ts';
+    fs.writeFileSync(path.join(root, relative), 'export function processJob() { return 1; }\n');
+    await indexSingleFile(store, path.join(root, relative), relative);
+    const t = await store.upsertEntity<Ticket>(Ticket.dcr, {
+      id:'MULTI', title:'Repair processing contract', body:'Repair the existing implementation.',
+      lane:'Todo', acceptanceCriteria:['Processing works', 'State survives retries']
+    });
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>(relative, FileNode.dcr))!);
+    let calls = 0;
+    const systemOne: SystemOne = {assess: async () => {calls++; return null;}};
+    const result = await t.investigate(store, {systemOne});
+    expect(result.status).toBe('complete');
+    expect(calls).toBe(1);
+  });
+
   it('retains advisory classification for an anchored Ticket governed by Product intent', async () => {
     const relative = 'handler.ts';
     fs.writeFileSync(path.join(root, relative), 'export function processJob() { return 1; }\n');
