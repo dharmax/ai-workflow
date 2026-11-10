@@ -88,9 +88,7 @@ export class ModelService {
         this.runtime = modelRuntime(projectRoot)
         this.configuredModel = inspectConfig(projectRoot, "model")[0]?.source !== "default"
         const { config, providers } = this.runtime
-        const routes = { ...config.modelRoutes }
-        if (this.configuredModel)
-            for (const task of Object.keys(MODEL_WORKLOADS)) routes[task] ??= config.model
+        const routes = this.workloadRoutes()
         if (!routes.local && providers[this.defaultModel.providerId]?.local) routes.local = config.model
         this.router = new ModelRouter({ providers, routes, defaultModel: config.model, adviceSnapshot: this.advice, advicePath: false })
     }
@@ -125,9 +123,19 @@ export class ModelService {
         return eligible.includes(target.providerId) ? target : undefined
     }
 
+    /** Never use llm-utils' historical hard-coded cloud task models as implicit AIWF routes. */
+    private workloadRoutes(): Record<string, string> {
+        const {config} = this.runtime
+        const routes = {...config.modelRoutes}
+        for (const task of Object.keys(MODEL_WORKLOADS))
+            if (!routes[task] && (this.configuredModel || !this.advice?.workloads[task]))
+                routes[task] = config.model
+        return routes
+    }
+
     public createAsker(preferLocal = false, failedVerificationModels: ReadonlySet<string> = new Set()): Asker {
         const { config, providers } = this.runtime
-        const routes = { ...config.modelRoutes }
+        const routes = this.workloadRoutes()
         const fallbacks: Record<string, string[]> = {}
         const local = this.localModel
         for (const [task, primary] of Object.entries(routes)) {
