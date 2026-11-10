@@ -97,7 +97,12 @@ describe('Phase 1 public Ticket and Link semantics',()=>{
   const before=value(await call('get_ticket',{ticketId:'READ-1'}));
   for(const args of [['ticket','--help'],['ticket','READ-1','--help'],['help','ticket'],['help','link','types']]){
    const result=run(...args);expect(result.success).toBe(true);
-   expect((await shell(args.join(' '))).output.trim()).toBe(result.stdout.toString().trim());
+   const cliHelp=result.stdout.toString().trim(), shellHelp=(await shell(args.join(' '))).output.trim();
+   if(shellHelp!==cliHelp) throw Error(
+     'CLI/Shell help mismatch for '+JSON.stringify(args)+' (full outputs follow)\n'+
+     'CLI ('+cliHelp.length+' chars):\n'+cliHelp+'\n'+
+     'SHELL ('+shellHelp.length+' chars):\n'+shellHelp
+   );
   }
   for(const args of [['ticket','READ-1','unknown'],['ticket','status'],['ticket','READ-1','show','--yes'],['link','types','NoSuchKind'],['links','READ-1','--limit','0']]){
    expect(run(...args).success).toBe(false);
