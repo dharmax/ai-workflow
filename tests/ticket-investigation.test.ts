@@ -20,6 +20,79 @@ describe('grounded Ticket investigation', () => {
   const ticket = (id = 'T', title = 'Repair queue') => store.upsertEntity<Ticket>(Ticket.dcr, { id, title, body: 'Fix the queue while preserving existing results.', lane: 'Todo', acceptanceCriteria: ['Failed jobs remain recoverable'] });
   const routing = (quality: 'low' | 'high', overrides: Record<string, string> = {}): SystemOne => ({ assess: async (_state, questions) => ({ backendId: 'fixture', quality, latencyMs: 0, answers: Object.fromEntries(Object.keys(questions).map(id => { const choice = overrides[id] ?? ({ workKind: 'code', atomicity: 'atomic', scope: 'grounded', context: 'code', depth: 'deterministic' }[id] ?? 'omit'); return [id, { choice, probabilities: { [choice]: 0.99 } }]; })) }) });
 
+
+  it('skips advisory System-1 only for a grounded single-source technical Ticket and reuses atomic preparation', async () => {
+    const relative = 'handler.ts';
+    const source = 'export function processJob() { return 1; }\n';
+    fs.writeFileSync(path.join(root, relative), source);
+    await indexSingleFile(store, path.join(root, relative), relative);
+    const t = await ticket('GROUNDED', 'Repair processing contract');
+    const file = (await store.getEntity<FileNode>(relative, FileNode.dcr))!;
+    await store.relate(t, 'modifies', file);
+    let routingCalls = 0, reasoningCalls = 0, proposals = 0;
+    const systemOne: SystemOne = {assess: async () => {routingCalls++; throw Error('Unnecessary advisory call');}};
+    const reason = async () => {
+      reasoningCalls++;
+      throw Error('Unnecessary semantic reasoning');
+      return {disposition: 'ready' as const, rationale: 'unused'};
+    };
+    const investigation = await t.investigate(store, {systemOne, reason});
+    expect(investigation.status).toBe('complete');
+    if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
+    expect(investigation.value.disposition).toBe('ready');
+    expect(investigation.value.evidence.find(e => e.id === relative)).toMatchObject({mandatory:true, source});
+    expect(investigation.value.rationale).toContain('advisory');
+    expect(investigation.value.provenance).toMatchObject({
+      systemOne: null, reasoningUsed:false, optionalCandidates:0, optionalSelected:0
+    });
+    const prepared = await t.prepare(store, {systemOne, reason, propose: async () => {
+      proposals++;
+      throw Error('Atomic contract must not be decomposed');
+      return {rationale:'unused', children:[]};
+    }});
+    expect(prepared.status).toBe('complete');
+    if (prepared.status !== 'complete') throw Error(JSON.stringify(prepared));
+    expect(prepared.value.applied).toBe(false);
+    expect(prepared.value.children).toEqual([]);
+    expect([routingCalls, reasoningCalls, proposals]).toEqual([0, 0, 0]);
+    expect(await store.getOutgoing(t.id, 'modifies')).toHaveLength(1);
+  });
+
+  it('keeps advisory routing for unanchored or optionally-discovered technical work', async () => {
+    let calls = 0;
+    const systemOne: SystemOne = {assess: async () => {calls++; return null;}};
+    const unanchored = await ticket('UNANCHORED', 'Repair processing contract');
+    const first = await unanchored.investigate(store, {systemOne});
+    expect(first.status).toBe('complete');
+    expect(calls).toBe(1);
+
+    const relative = 'queue.ts';
+    fs.writeFileSync(path.join(root, relative), 'export function queue() { return 1; }\n');
+    await indexSingleFile(store, path.join(root, relative), relative);
+    const t = await ticket('OPTIONAL', 'Repair queue');
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>(relative, FileNode.dcr))!);
+    const second = await t.investigate(store, {systemOne});
+    expect(second.status).toBe('complete');
+    expect(calls).toBe(2);
+    if (second.status === 'complete') expect(second.value.provenance.optionalCandidates).toBeGreaterThan(0);
+  });
+
+  it('does not skip advisory routing when an anchored file could not be read', async () => {
+    const relative = 'large.ts';
+    fs.writeFileSync(path.join(root, relative),
+      'export function processJob() { return 1; }\n/*' + 'x'.repeat(66_000) + '*/\n');
+    await indexSingleFile(store, path.join(root, relative), relative);
+    const t = await ticket('LARGE', 'Repair processing contract');
+    await store.relate(t, 'modifies', (await store.getEntity<FileNode>(relative, FileNode.dcr))!);
+    let calls = 0;
+    const systemOne: SystemOne = {assess: async () => {calls++; return null;}};
+    const result = await t.investigate(store, {systemOne});
+    expect(result.status).toBe('complete');
+    expect(calls).toBe(1);
+    if (result.status === 'complete')
+      expect(result.value.uncertainties?.join(' ')).toContain('Could not inspect candidate');
+  });
+
   it('investigates an unanchored Bug using its reproduction, error location and actual source', async () => {
     fs.writeFileSync(path.join(root, 'queue.ts'), 'export function enqueue(job: string) { throw new Error("queue unavailable"); }');
     await indexSingleFile(store, path.join(root, 'queue.ts'), 'queue.ts');
