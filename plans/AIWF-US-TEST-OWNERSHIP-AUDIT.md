@@ -57,16 +57,16 @@ Categories above overlap only in the separate proposed-owner metric; the four ro
 
 | Earlier duplicate draft | Prior candidate US(s) | Overlap |
 | --- | --- | --- |
-| `US-A08` | `US-A08` / `US-T01` | Read existing work |
-| `US-E03` | `US-E03` | CLI/Shell/MCP parity |
-| `US-E02` | `US-E02` / `US-E04` | Reviewed source changes |
-| `US-P03` | `US-P03` / `US-P01` | Product definition and review |
-| `US-T04` | `US-T04` / `US-T05` | Rule management and proof |
-| `US-A04` | `US-A04` | Model routing |
-| `US-A06` | `US-A06` / `US-E05` | Setup and MCP installation |
-| `US-A02` | `US-A02` / `US-A05` | Capability/skill discovery |
-| `US-E01` | `US-E01` | Sibling repository inspection |
-| `US-A07` | `US-A07` | Traces and execution metrics |
+| `P-READ` | `US-A08` / `US-T01` | Read existing work |
+| `P-CMD` | `US-E03` | CLI/Shell/MCP parity |
+| `P-SOURCE` | `US-E02` / `US-E04` | Reviewed source changes |
+| `P-PRODUCT` | `US-P03` / `US-P01` | Product definition and review |
+| `P-RULE` | `US-T04` / `US-T05` | Rule management and proof |
+| `P-MODEL` | `US-A04` | Model routing |
+| `P-SETUP` | `US-A06` / `US-E05` | Setup and MCP installation |
+| `P-CAP` | `US-A02` / `US-A05` | Capability/skill discovery |
+| `P-REPO` | `US-E01` | Sibling repository inspection |
+| `P-METRICS` | `US-A07` | Traces and execution metrics |
 
 **No ten new User Stories are needed.** Existing 30 proposed US-E/P/T/A episodes already cover these domains; actual canonical acceptance must be checked independently. The mappings below are **file-level starting points**—mixed files can contain cases for different Stories.
 
