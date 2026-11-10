@@ -1246,8 +1246,9 @@ describe('Ticket-owned bounded resolution', () => {
           toolCalls: [{name: 'find_symbol', parameters: {name: 'discoveredHelper'}}]})}
       }
       if (calls === 3) {
-        // One host-authorized reconciliation, not a second scan in the read-only graph handler.
-        expect(freshnessChecks - beforeNavigation).toBe(1);
+        // One reconciliation invokes isReadOnlyExecution twice: ensureAstFresh
+        // and indexExternalDependencies. A second graph-tool refresh would make four.
+        expect(freshnessChecks - beforeNavigation).toBe(2);
         expect(prompt).not.toContain('read-only execution cannot write')
         expect(prompt).toContain('"name":"discoveredHelper","fullName":"discoveredHelper"')
         return {model, ok: true, text: JSON.stringify({thought: 'Hand off for checks', action: 'final_answer',
