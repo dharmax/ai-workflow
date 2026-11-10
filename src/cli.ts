@@ -25,7 +25,7 @@ import { createMcpServer } from './mcp.ts';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WorkflowActor, IntelligenceSchema } from './helpers/actor/engine.ts';
 import { runDiagnostics, formatDiagnosticReport } from './services/diagnostics-service.ts';
-import { initProject } from './setup.ts';
+import { initProject, selectInitRoot } from './setup.ts';
 import {runSetupCommand, formatSetupResult} from './setup-command.ts';
 import {runModelCommand} from './model-command.ts';
 import {runConfigCommand, formatConfigResult} from './config-command.ts';
@@ -42,7 +42,17 @@ const argv = process.argv.slice(2);
 async function main() {
   const parsed = await parseCommand(argv.length ? argv : [process.stdin.isTTY ? 'shell' : '--help']);
   if (parsed.family === 'help') { console.log(parsed.args.text); return; }
-  const root = findProjectRoot().root;
+  const selectedRoot = parsed.family === 'legacy' && parsed.command === 'init'
+    ? await selectInitRoot(process.cwd(), async question => {
+        if (!process.stdin.isTTY)
+          throw new Error('aiwf init needs directory confirmation when .git is absent. Run it interactively or create a .git marker in the intended directory first.');
+        const reader = createInterface({input: process.stdin, output: process.stderr});
+        try { return /^(y|yes)$/i.test((await reader.question(question + ' [y/N] ')).trim()); }
+        finally { reader.close(); }
+      })
+    : findProjectRoot().root;
+  if (!selectedRoot) { console.log('Initialization cancelled; no files changed.'); return; }
+  const root = selectedRoot;
   let storeInstance: WorkflowStore | null = null;
   const getStore = () => {
     if (!storeInstance) storeInstance = new WorkflowStore(root);
@@ -240,7 +250,7 @@ async function main() {
 
     case 'init': {
       console.log(`🚀 Initializing AI-Workflow in ${root}...`);
-      const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: Boolean(process.stderr.isTTY)});
+      const progress = new ProcessViewport({mode: 'fold', stream: process.stderr, interactive: false});
       progress.start('Scaffolding project and indexing AST graph...');
       const initRes = await initProject(root);
       progress.stop('success');
@@ -865,8 +875,10 @@ async function main() {
       try {
         const actor = new WorkflowActor({ store, projectRoot: root, preferLocal: true });
         const res = await actor.execute(wish, {executionAuthority: 'project-write', codeMutationAllowed, intelligence});
-        progress.stop('success');
+        const failed = res.haltReason === 'error' || res.haltReason === 'aborted';
+        progress.stop(failed ? 'fail' : 'success');
         console.log(`\n[AIWF] ${res.answer}`);
+        if (failed) process.exitCode = 1;
       } catch (err: any) {
         progress.stop('fail');
         console.error(`Execution failed: ${err.message || err}`);
