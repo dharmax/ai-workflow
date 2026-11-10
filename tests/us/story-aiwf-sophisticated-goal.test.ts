@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { WorkflowActor } from '../src/helpers/actor/engine.ts';
-import { WorkflowStore } from '../src/graph/store.ts';
-import { saveConfig } from '../src/services/config-service.ts';
-import { initializeTools, commandRegistry } from '../src/tools/index.ts';
-import { ToolDiscovery } from '../src/tools/discovery.ts';
-import { Epic, Feature, UserStory, Ticket, TestNode } from '../src/model/ontology.ts';
-import { getCoverage } from '../src/product/coverage.ts';
-import { getProductImpact } from '../src/product/impact.ts';
+import { WorkflowActor } from '../../src/helpers/actor/engine.ts';
+import { WorkflowStore } from '../../src/graph/store.ts';
+import { saveConfig } from '../../src/services/config-service.ts';
+import { initializeTools, commandRegistry } from '../../src/tools/index.ts';
+import { ToolDiscovery } from '../../src/tools/discovery.ts';
+import { Epic, Feature, UserStory, Ticket, TestNode } from '../../src/model/ontology.ts';
+import { getCoverage } from '../../src/product/coverage.ts';
+import { getProductImpact } from '../../src/product/impact.ts';
 import type { Asker } from '@dharmax/llm-utils';
 
 describe('User Story: STORY-AIWF-SOPHISTICATED-GOAL (J2.4)', () => {
