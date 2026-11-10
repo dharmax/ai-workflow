@@ -140,6 +140,47 @@ export async function investigateTicket(
         max,
         options,
       );
+      // Only skip advisory classification for one explicitly authored, current source
+      // target with a complete technical contract. Inspection must confirm no unknowns.
+      const targets = dossier.evidence.filter(item =>
+        item.mandatory && ['FileNode', 'SymbolNode'].includes(item.kind));
+      const target = targets[0];
+      const deterministic = !options.mandatoryEvidenceOnly &&
+        current.kind !== 'bug' &&
+        current.acceptanceCriteria?.length > 0 &&
+        current.acceptanceCriteria.every(criterion => criterion.trim().length > 0) &&
+        dossier.disposition === 'ready' &&
+        !dossier.proposedEnrichments.relations.length &&
+        !dossier.proposedEnrichments.acceptanceCriteria &&
+        targets.length === 1 && !!target?.filePath &&
+        authored.neighbors.some(edge => edge.sourceId === current.id &&
+          ['modifies', 'targets'].includes(edge.predicateName) &&
+          store.localId(edge.targetId) === target.id) &&
+        !authored.neighbors.some(edge => edge.sourceId === current.id &&
+          ['contains', 'depends_on'].includes(edge.predicateName)) &&
+        !dossier.evidence.some(item => item.mandatory &&
+          ['Product', 'Epic', 'Feature', 'UserStory', 'Flow', 'Goal', 'Concept'].includes(item.kind)) &&
+        candidates.optional.length === 0 && !candidates.codeMentions.trim();
+
+      // Without optional candidates, evidence inspection is independent of routing.
+      // Reuse it if inspection reveals an uncertainty requiring ordinary routing.
+      const early = deterministic
+        ? await inspectInvestigationEvidence(
+            store, current, dossier, [], candidates.codeMentions, candidates.report, max, options)
+        : undefined;
+      if (deterministic && target?.source !== undefined &&
+          (target.kind !== 'SymbolNode' || target.exact === true) &&
+          !dossier.uncertainties?.length &&
+          !dossier.evidence.some(item => !item.mandatory &&
+            ['FileNode', 'SymbolNode'].includes(item.kind) &&
+            item.filePath && item.filePath !== target.filePath)) {
+        dossier.rationale = [
+          ...(dossier.findings ?? []),
+          'Advisory System-1 routing skipped: one current authored source target and complete technical acceptance; no unresolved investigation evidence.'
+        ].join(' ');
+        return {status: 'complete', artifactId: dossier.ticket.id, value: dossier};
+      }
+
       const routing = await selectInvestigationCandidates(
         store,
         current,
@@ -150,7 +191,7 @@ export async function investigateTicket(
       );
       for (const candidate of routing.selected)
         addEvidence(store, dossier, candidate, 'Bounded optional code candidate', false);
-      const inspected = await inspectInvestigationEvidence(
+      const inspected = early ?? await inspectInvestigationEvidence(
         store,
         current,
         dossier,
