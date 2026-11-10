@@ -1,6 +1,6 @@
 # AIWF — reduce engineering friction without reducing trust
 
-**Status:** Stage 1 tests and full suite passed per developer report (2026-11-10; exact latest suite counts and timings not supplied). Stage 2 conservative investigation bypass and tests committed to `perf/streamline-freshness`, **pending developer-run TypeScript/focused/full gates**. Stages 3–5 remain planned only. No measured speedup asserted.
+**Status:** Stage 1, Stage 2 and the first US test-suite relocation are green **per developer-reported local focused/full test gates** (2026-11-10; raw logs/counts not available). Stage 3 has instrumentation only, not a validated governance optimization. Stages 4–5 remain planned. The intermittent public CLI/Shell help mismatch is not root-caused. No measured speedup asserted.
 **Reviewed base:** `master` `960f9f9` (2026-11-09).
 **Scope:** Existing Ticket investigation, source navigation/index freshness, effective governance, proof collection and lease ergonomics. No new command framework, policy engine, database, agent, risk taxonomy or parallel implementation path.
 **Developer constraint:** At most one *AIWF user* operates on a particular branch/worktree at once. That **does not** guarantee no concurrent processes, editors, test subprocesses, crashes, or independent modifications to code/config/graph. This plan supersedes older sequencing only if the developer explicitly authorizes this work; it does not mark release Gate 5 complete.
