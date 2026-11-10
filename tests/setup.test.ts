@@ -71,6 +71,20 @@ describe('Project Initialization, Global Setup & Diagnostics Engine', () => {
     expect(fs.readdirSync(current)).toEqual([]);
   });
 
+  it('CLI init without a Git marker refuses noninteractive ancestor selection before writes', () => {
+    const parent = path.join(tempDir, 'home-with-existing-aiwf');
+    const current = path.join(parent, 'new-project');
+    fs.mkdirSync(path.join(parent, '.ai-workflow'), {recursive: true});
+    fs.mkdirSync(current);
+    const proc = Bun.spawnSync([process.execPath, path.resolve(import.meta.dir, '../src/cli.ts'), 'init'], {
+      cwd: current, stdout: 'pipe', stderr: 'pipe', stdin: 'ignore',
+    });
+    expect(proc.success).toBe(false);
+    expect(proc.stderr.toString()).toContain('needs directory confirmation');
+    expect(fs.readdirSync(current)).toEqual([]);
+    expect(fs.readdirSync(path.join(parent, '.ai-workflow'))).toEqual([]);
+  });
+
   it('CLI init in a nested Git working tree completes without moving to its parent', () => {
     const parent = path.join(tempDir, 'parent');
     const current = path.join(parent, 'child');
