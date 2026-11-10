@@ -1,7 +1,7 @@
 # AIWF test suites → User Story ownership audit
 
 **Status:** audited candidate map, not a rewritten oracle, accepted Product state, or passing migration test.
-**Snapshot:** `59abe33` of `perf/streamline-freshness`; `user-stories.md` and each of the **97 test files** inspected (suite titles, representative cases, source imports). **All 97 are accounted for exactly once.**
+**Audit basis:** `59abe33` of `perf/streamline-freshness`; current file locations reflected after relocation at `83c9c56`; `user-stories.md` and each of the **97 test files** inspected (suite titles, representative cases, source imports). **All 97 are accounted for exactly once.**
 **Important:** `user-stories.md` is a projection, not proof that a full effective US meets the current required fields. It lists **12 `STORY-*` entries plus `US-REVIEWER-RELIABILITY`**; several have only a narrative + checklists, without Actor, Intent, Initial State, Action and Expected Result as separate canonical fields. Verify the live graph before declaring them complete. A fixture US created inside a test is *not* proof of a persisted, accepted product US.
 
 ## Operational rules
@@ -12,6 +12,14 @@
 4. Proposed US IDs `P-*` below are **planning placeholders**, not accepted entities. Do not persist them as accepted without actual developer/charter review.
 5. At least one supporting TestNode/verifies relationship (where available) should point to the correct accepted US without lying about whether a test is genuine acceptance. Filename/header links are navigation, **not** graph proof.
 6. Track no-loss case migration. During split/move, compare test names and before/after counts; verify typecheck, targeted suite, then broad suite. A skipped/live US test is not passed acceptance.
+
+## First migration checkpoint (unexecuted test gate)
+
+- `07acf25` — moved `tests/us/story-aiwf-sophisticated-goal.test.ts` → `tests/us/story-aiwf-sophisticated-goal.test.ts`, rebased 8 source imports, zero assertion/case changes. Existing projection: `STORY-AIWF-SOPHISTICATED-GOAL`; full canonical effective Story definition still needs checking.
+- `9f707ca` — moved `tests/us/story-aiwf-report-bug.test.ts` → `tests/us/story-aiwf-report-bug.test.ts`, rebased 5 source imports, zero assertion/case changes. Existing projection: `STORY-AIWF-REPORT-BUG`; full canonical definition still needs checking.
+- `83c9c56` — moved fixture-only `tests/integration/file-change-synchronization.test.ts` → `tests/integration/file-change-synchronization.test.ts` **byte for byte**. Its internally created `US-FILE-CHANGE` was not proof of an official persisted US.
+- Repository tree audit confirms **97/97 test files still present** and recognized as moves. `package.json` does not refer to the old paths. No runtime tests were executed remotely.
+- **Next required gate:** TypeScript check and the three relocated suites locally, then full suite. Do not move additional suites until green.
 
 ## Findings
 
@@ -74,7 +82,7 @@ Do not create all proposals mechanically. Reconcile each with existing canonical
 | `tests/artifact-policy.test.ts` | Supporting checks | `P-PRODUCT` | Proposed Story only; do not count as accepted US proof |
 | `tests/aspects.test.ts` | Supporting checks | `P-PRODUCT` | Proposed Story only; do not count as accepted US proof |
 | `tests/ast-freshness-and-search.test.ts` | Supporting checks | `P-REPO` | Proposed Story only; do not count as accepted US proof |
-| `tests/bug-public.test.ts` | US candidate (public behavior) | `STORY-AIWF-REPORT-BUG` | Associate to confirmed US; remain supplemental until proven end-to-end |
+| `tests/us/story-aiwf-report-bug.test.ts` | US candidate (public behavior) | `STORY-AIWF-REPORT-BUG` | Associate to confirmed US; remain supplemental until proven end-to-end |
 | `tests/change-bridge.test.ts` | Supporting checks | `P-SOURCE` | Proposed Story only; do not count as accepted US proof |
 | `tests/change-commit.test.ts` | TECHNICAL exception | `P-SOURCE` | Proposed Story only; do not count as accepted US proof |
 | `tests/change-edits.test.ts` | TECHNICAL exception | `P-SOURCE` | Proposed Story only; do not count as accepted US proof |
@@ -154,18 +162,18 @@ Do not create all proposals mechanically. Reconcile each with existing canonical
 | `tests/ts6-refactor-sync.test.ts` | TECHNICAL exception | `P-SOURCE` | Proposed Story only; do not count as accepted US proof |
 | `tests/us/basic-product-intent.test.ts` | US candidate (public behavior) | `P-PRODUCT` | Proposed Story only; do not count as accepted US proof |
 | `tests/us/e01-investigate-sibling.test.ts` | US candidate (public behavior) | `P-REPO` | Proposed Story only; do not count as accepted US proof |
-| `tests/us/file-change-synchronization.test.ts` | Supporting checks | `P-REPO` | Proposed Story only; do not count as accepted US proof |
+| `tests/integration/file-change-synchronization.test.ts` | Supporting checks | `P-REPO` | Proposed Story only; do not count as accepted US proof |
 | `tests/us/product-charter-feature.test.ts` | US candidate (public behavior) | `P-PRODUCT` | Proposed Story only; do not count as accepted US proof |
 | `tests/us/resolve-greeting-story.test.ts` | US candidate (public behavior) | `STORY-AIWF-RESOLVE-TICKET` | Confirm official definition/real acceptance, then retain |
 | `tests/us/reviewer-reliability.story.test.ts` | US candidate (public behavior) | `US-REVIEWER-RELIABILITY` | Confirm official definition/real acceptance, then retain |
 | `tests/us/reviewer-reliability.test.ts` | Supporting checks | `US-REVIEWER-RELIABILITY` | Confirm official definition/real acceptance, then retain |
 | `tests/us/ticket-journal.test.ts` | Supporting checks | `P-READ` | Proposed Story only; do not count as accepted US proof |
-| `tests/user-story-j24-sophisticated-goal.test.ts` | US candidate (public behavior) | `STORY-AIWF-SOPHISTICATED-GOAL` | Associate to confirmed US; remain supplemental until proven end-to-end |
+| `tests/us/story-aiwf-sophisticated-goal.test.ts` | US candidate (public behavior) | `STORY-AIWF-SOPHISTICATED-GOAL` | Associate to confirmed US; remain supplemental until proven end-to-end |
 | `tests/workspace-text.test.ts` | Supporting checks | `P-SOURCE` | Proposed Story only; do not count as accepted US proof |
 
 ## Migration order and acceptance gates
 
-**M1 (low risk, first):** Move the already explicitly labeled `STORY-AIWF-SOPHISTICATED-GOAL` suite under `tests/us/`, adjusting imports only; preserve byte-identical test assertions/cases, report that its canonical Story definition still requires validation. Do not claim a new accepted US. Run its targeted and full-suite tests before any additional move.
+**M1 (move completed; runtime gate pending):** The `STORY-AIWF-SOPHISTICATED-GOAL` and `STORY-AIWF-REPORT-BUG` public suites now reside in `tests/us/`. The fixture-only file-change check is in `tests/integration/`. Validate the moved suites and full suite before more changes; do not claim canonical US completeness from filename relocation.
 
 **M2 (product authority):** Inspect effective canonical US definitions (not just Markdown projection). Draft missing required US fields and the genuinely new episodes below, ask developer for substantive acceptance, then persist through the governed Product operation. No automatic status upgrade.
 

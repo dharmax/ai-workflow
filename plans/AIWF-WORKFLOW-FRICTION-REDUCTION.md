@@ -114,6 +114,8 @@ A well-grounded, one-file technical change should require **one meaningful work 
 
 ## US-driven test migration (developer directive, 2026-11-10)
 
+- **Audit and first migration:** see `plans/AIWF-US-TEST-OWNERSHIP-AUDIT.md` (all 97 suites) and `plans/AIWF-MISSING-US-DRAFTS.md` (10 proposed episodes, none accepted). Moved two already-labeled public Story suites into `tests/us/`, and one internal fixture suite into `tests/integration/` without changing assertions. Local targeted and full suite gates are pending; do not generalize this move into mass renaming.
+
 - **US first, tests second.** Every new user-visible behavior begins with an official accepted US (Actor, Intent, Initial State, Action, Expected Result), then its genuine acceptance tests. Do not infer the oracle from implementation or green historical tests.
 - **File ownership:** default one cohesive acceptance-test file per US; split into multiple files tied to the *same US* when length/clarity justifies it. Require a clear US ID reference in each file; filenames alone are not semantic authority.
 - **Historical inventory:** map the existing `tests/**/*.test.ts` files/cases to accepted US IDs and identify genuine gaps. Verify existing `user-stories.md`/canonical graph entries first. Draft missing real-world episodes, secure Product acceptance, and then adjust tests. Preserve valuable legacy coverage throughout migration.
