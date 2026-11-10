@@ -123,13 +123,12 @@ export class ModelService {
         return eligible.includes(target.providerId) ? target : undefined
     }
 
-    /** Never use llm-utils' historical hard-coded cloud task models as implicit AIWF routes. */
+    /** Keep construction and execution aligned when the developer explicitly overrides the default model. */
     private workloadRoutes(): Record<string, string> {
         const {config} = this.runtime
         const routes = {...config.modelRoutes}
-        for (const task of Object.keys(MODEL_WORKLOADS))
-            if (!routes[task] && (this.configuredModel || !this.advice?.workloads[task]))
-                routes[task] = config.model
+        if (this.configuredModel)
+            for (const task of Object.keys(MODEL_WORKLOADS)) routes[task] ??= config.model
         return routes
     }
 
