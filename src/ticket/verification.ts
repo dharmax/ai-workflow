@@ -15,16 +15,13 @@ import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnica
 import {canonical, computeHash} from '../kb/canonical.ts'
 import type { TicketDossier, TicketGovernance, OperationResult } from "../ticket-operation-types.ts"
 import {resolveTicketGovernance} from './governance.ts'
+import {RuleAcceptanceError, ruleAcceptanceFailures, ruleAssessmentContractFailures, ticketVerificationSignature} from './verification-contract.ts'
 import type { TechnicalProof } from "../model/test-proof-types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import {
     AcceptanceVerificationSchema,
     AcceptanceAssessmentSchema,
-    RuleAcceptanceError,
-    ruleAcceptanceFailures,
-    ruleAssessmentContractFailures,
     readVerificationReceipt,
-    ticketVerificationSignature,
     type AcceptanceVerification,
     type ResolutionVerificationInput,
     type ResolutionOptions

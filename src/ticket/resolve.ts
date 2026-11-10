@@ -43,8 +43,9 @@ export async function resolveTicket(
         { ...options, depth: options.depth ?? "all" },
         async () => {
             recordResolutionStage("preparation")
-            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, VerificationReceiptSchema, ticketVerificationSignature, ruleAcceptanceFailures, RuleAcceptanceError, DOCTRINE_VERIFIER_VERSION } =
+            const { ResolutionProposalSchema, AcceptanceVerificationSchema, readVerificationReceipt, VerificationReceiptSchema, DOCTRINE_VERIFIER_VERSION } =
                 await import("../ticket-operation-types.ts")
+            const { ticketVerificationSignature, ruleAcceptanceFailures, RuleAcceptanceError } = await import("./verification-contract.ts")
             const { resolveTicketGovernance } = await import("./governance.ts")
             const { ArtifactBudget } = await import("../artifact-policy.ts")
             const {applyProductChange} = await import("../product/change-operations.ts")

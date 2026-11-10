@@ -12,8 +12,9 @@ import type { RuleModel } from '../src/rules/types.ts';
 import { loadConfig, saveConfig } from '../src/services/config-service.ts';
 import {
   AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt,
-  ticketVerificationSignature, type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput
+  type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput
 } from '../src/ticket-operation-types.ts';
+import {ticketVerificationSignature} from '../src/ticket/verification-contract.ts';
 import {resolveTicketGovernance} from '../src/ticket/governance.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import { executeTicketChecks, verifyTicketAcceptance } from '../src/ticket/verification.ts';
@@ -308,7 +309,7 @@ describe('Doctrine Gate 3 deterministic enforcement contracts', () => {
     const input = {criteria: [], aspects: [], rules: [{ruleId: rule.ruleId, revision: rule.revision,
       fingerprint: governance.rules[0].fingerprint, verdict: 'pass' as const,
       evidence: 'One context checked', evidenceIds: ['src/add.ts'], limitations: []}]};
-    const {ruleAcceptanceFailures} = await import('../src/ticket-operation-types.ts');
+    const {ruleAcceptanceFailures} = await import('../src/ticket/verification-contract.ts');
     expect(ruleAcceptanceFailures(governance, input, ['src/add.ts'])).toHaveLength(1);
   });
 
