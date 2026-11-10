@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import {
   initProject,
+  selectInitRoot,
   installGlobalBinary,
   configureMcp,
   replaceTomlServerSection,
@@ -25,6 +26,62 @@ describe('Project Initialization, Global Setup & Diagnostics Engine', () => {
 
   afterEach(() => {
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('selects the current Git project without prompting or looking above it', async () => {
+    const current = path.join(tempDir, 'inside');
+    fs.mkdirSync(path.join(current, '.git'), {recursive: true});
+    let asked = 0;
+    expect(await selectInitRoot(current, async () => {asked++; return true;})).toBe(current);
+    expect(asked).toBe(0);
+  });
+
+  it('confirms intended directory and separately requires consent to initialize its Git parent', async () => {
+    const parent = path.join(tempDir, 'repo');
+    const current = path.join(parent, 'child');
+    fs.mkdirSync(path.join(parent, '.git'), {recursive: true});
+    fs.mkdirSync(current);
+    const questions: string[] = [];
+    const ask = (answers: boolean[]) => async (question: string) => {
+      questions.push(question);
+      return answers.shift()!;
+    };
+
+    expect(await selectInitRoot(current, ask([true, false]))).toBe(current);
+    expect(questions).toHaveLength(2);
+    expect(questions[0]).toContain(current);
+    expect(questions[1]).toContain(parent);
+    questions.length = 0;
+    expect(await selectInitRoot(current, ask([true, true]))).toBe(parent);
+    expect(await selectInitRoot(current, ask([false]))).toBeNull();
+    expect(fs.existsSync(path.join(current, '.ai-workflow'))).toBe(false);
+    expect(fs.existsSync(path.join(parent, '.ai-workflow'))).toBe(false);
+  });
+
+  it('supports an empty, standalone directory without accidentally selecting an ancestor', async () => {
+    const current = path.join(tempDir, 'brand-new');
+    fs.mkdirSync(current);
+    const questions: string[] = [];
+    const selected = await selectInitRoot(current, async question => {
+      questions.push(question);
+      return true;
+    });
+    expect(selected).toBe(current);
+    expect(questions).toHaveLength(1);
+    expect(fs.readdirSync(current)).toEqual([]);
+  });
+
+  it('CLI init in a nested Git working tree completes without moving to its parent', () => {
+    const parent = path.join(tempDir, 'parent');
+    const current = path.join(parent, 'child');
+    fs.mkdirSync(path.join(current, '.git'), {recursive: true});
+    const proc = Bun.spawnSync([process.execPath, path.resolve(import.meta.dir, '../src/cli.ts'), 'init'], {
+      cwd: current, stdout: 'pipe', stderr: 'pipe', stdin: 'ignore',
+    });
+    expect(proc.success).toBe(true);
+    expect(proc.stdout.toString()).toContain('Initializing AI-Workflow in ' + current);
+    expect(fs.existsSync(path.join(current, '.ai-workflow', 'config.json'))).toBe(true);
+    expect(fs.existsSync(path.join(parent, '.ai-workflow'))).toBe(false);
   });
 
   it('should initialize a fresh project with AST indexing and markdown projections', async () => {
