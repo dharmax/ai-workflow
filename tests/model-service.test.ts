@@ -64,9 +64,19 @@ describe("configured model service", () => {
         expect(asker.getRouter().resolve("code")).toEqual({ providerId: "ollama", modelId: "fixture-code" })
     })
 
+    it("routes unconfigured workloads to the actual configured default, never legacy retired cloud models", () => {
+        const models = new ModelService(root)
+        const expected = {providerId: "ollama", modelId: "fixture-default"}
+        for (const task of ["code", "fast", "reasoning", "creative", "summarization", "verification"]) {
+            expect(models.resolveModel(task)).toEqual(expected)
+            expect(models.createAsker(true).getRouter().resolve(task)).toEqual(expected)
+        }
+    })
+
     it("keeps a global default as fallback rather than disguising it as a task override", () => {
         const asker = new ModelService(root).createAsker()
         expect(asker.getRouter().resolve("code")).toEqual({providerId: "ollama", modelId: "fixture-default"})
+        expect(asker.getRouter().resolve("reasoning")).toEqual({providerId: "ollama", modelId: "fixture-default"})
     })
 
     it("reloads configured defaults on the same Actor without cached model names", () => {
