@@ -204,6 +204,22 @@ function ensureLocalAiWorkflowExcludes(projectRoot: string): void {
   fs.writeFileSync(excludePath, (existing ? existing + '\n' : '') + missing.join('\n') + '\n', 'utf8');
 }
 
+/** Init targets the caller's directory; an ancestor Git repository is only an explicit choice. */
+export async function selectInitRoot(currentDirectory: string, confirm: (question: string) => Promise<boolean>): Promise<string | null> {
+  const current = path.resolve(currentDirectory);
+  if (fs.existsSync(path.join(current, '.git'))) return current;
+  if (!await confirm('No .git in ' + current + '. Is this the intended directory?')) return null;
+  let parent = path.dirname(current);
+  while (parent !== path.dirname(parent)) {
+    if (fs.existsSync(path.join(parent, '.git'))) {
+      if (await confirm('Parent Git repository found at ' + parent + '. Initialize AIWF there instead of ' + current + '?')) return parent;
+      break;
+    }
+    parent = path.dirname(parent);
+  }
+  return current;
+}
+
 /**
  * Initializes a repository with .ai-workflow state, AST indexing, and Kanban projections.
  */
