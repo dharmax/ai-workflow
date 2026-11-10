@@ -112,6 +112,28 @@ A well-grounded, one-file technical change should require **one meaningful work 
 | Disk commit succeeds, index reconciliation fails | Existing explicit committed-but-unreconciled status; never falsely verified |
 | CLI / Shell / MCP / REST | Existing external schemas, authority and effects unchanged |
 
+## Mandatory structural cleanup while optimizing (2026-11-10)
+
+**Developer instruction:** Every touched function is assessed for a single suitable owner and placement; do not merely split large files or introduce pass-through managers. Prefer relocating code into a **real existing owner**. A new module is justified only when it establishes a coherent domain boundary. No forest of abstraction, duplicate dispatchers, "temporary" compatibility layers or needless background machinery.
+
+**Observed ownership problems and intended destinations (inspect callers before each move):**
+
+| Current responsibility | Current location | Canonical owner/direction |
+| --- | --- | --- |
+| Effective Ticket governance resolution (rules, decisions, Aspects, code/module ownership, fingerprint) | `src/ticket-operation-types.ts` (mixed with schemas, signatures and acceptance) | Focused `src/ticket/governance.ts`; data contracts remain data-only; migrate real imports rather than adding aliases |
+| Acceptance-rule validation and Ticket verification signature/receipt calculations | `src/ticket-operation-types.ts` | Existing `src/ticket/verification.ts` or one small proof-specific module if it demonstrably tightens responsibility |
+| Graph evidence discovery and investigation classification | `src/services/investigation-evidence.ts` / `investigation-routing.ts` | Keep evidence collection distinct from advisory routing; move contract/ownership decisions into their actual Ticket/Product owner, no second dispatcher |
+| Source scope admission, reviewed effects and freshness checks | `src/ticket/source-scope.ts` plus `src/managers/source-manager.ts` | `source-scope.ts` owns admissibility and governed fingerprints; `SourceManager` owns one host-facing source transaction, not duplicated domain policy |
+| Ticket orchestration (583 lines) | `src/ticket/resolve.ts` | Orchestrate dependencies/attempts only; concrete proof belongs to verification, source mutations to source manager/service, durable lease to store |
+| CLI and Shell domain execution/help | `src/cli.ts` (1028 lines), `src/shell.ts` (1291), `src/artifact-command.ts` (703) | One existing command grammar/registry for both; CLI/Shell only adapt input/output/interaction. Move true domain operations to their owners, not a new universal dispatcher |
+| Persisted entity/graph operations | `src/graph/store.ts` (1089 lines) | Preserve canonical persistence/atomicity owner; relocate unrelated workflow domain logic only if callers and transaction boundaries remain intact |
+
+**Per-function test:** necessity; correct owning domain; invariant enforced exactly once; input/return shape; executable effect; narrow dependency graph; no duplicated scans/reasoning/calls. Review *whole touched method*, not only diff. Avoid cross-domain cycles or aliases added to hide a bad module boundary.
+
+**Order:** (A) diagnose the CLI/Shell help parity failure with complete exact outputs; (B) relocate governance calculation and proof logic to their actual owners **before** attempting governance caching; (C) measure and remove only verified duplicate governance work; (D) simplify the resolver and transport adapters after guarding public parity. Each independent move must pass typecheck, targeted public/authority/stale/receipt regression and a coherent full-suite gate. Do not relocate dozens of methods in one unverifiable patch.
+
+**Current failure state:** user observed one flaky public-help parity failure in full suite, but standalone execution passed. Cause not established. The next failure should include the exact argv and full CLI/Shell outputs (no assertion weakening); do not attribute it to Stage 2 without evidence.
+
 ## Execution and stop rules
 
 - One short-lived implementation branch at a time; small coherent commits; merge/delete promptly after developer acceptance. No branch forest. This document is **not** authority to mutate production code.
