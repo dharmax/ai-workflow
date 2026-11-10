@@ -53,6 +53,8 @@ try:
         for problem in problems:
             header = ' :: '.join(filter(None, [case.get('classname'), case.get('name')])) or 'Unnamed failed test'
             detail = '\n'.join(filter(None, [problem.get('message'), problem.text]))
+            if not detail.strip():
+                raise ValueError('Missing failure details in JUnit report')
             failures.append(f'{header}\n{detail}'.rstrip())
     if not failures:
         raise ValueError('No failed test records in JUnit report')
