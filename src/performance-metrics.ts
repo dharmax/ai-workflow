@@ -11,7 +11,7 @@ declare const LLM_UTILS_BUILD_DIRTY: boolean;
 import { loadConfig } from './services/config-service.ts';
 import type { ArtifactOperationOptions, TicketCompletenessContext } from './artifact-policy.ts';
 
-export type EngineeringCounter = 'artifactVisits' | 'artifactsCreated' | 'artifactsReused' | 'toolCalls' | 'sourceReads' | 'exactSymbolReads' | 'codeEdits' | 'filesTouched' | 'testsRun' | 'testFailures' | 'repairs' | 'criticRounds' | 'criticRevisions' | 'systemOneCalls' | 'reasoningCalls' | 'optionalCandidates' | 'optionalSelected' | 'humanInterventions' | 'astReconciliations' | 'astFilesConsidered';
+export type EngineeringCounter = 'artifactVisits' | 'artifactsCreated' | 'artifactsReused' | 'toolCalls' | 'sourceReads' | 'exactSymbolReads' | 'codeEdits' | 'filesTouched' | 'testsRun' | 'testFailures' | 'repairs' | 'criticRounds' | 'criticRevisions' | 'systemOneCalls' | 'reasoningCalls' | 'optionalCandidates' | 'optionalSelected' | 'humanInterventions' | 'astReconciliations' | 'astFilesConsidered' | 'governanceResolutions';
 export type ResolutionStage = 'preparation' | 'implementation' | 'verification' | 'acceptance'
 export interface OperationSummary {
   traceId: string; spanId?: string; parentSpanId?: string; operation: string; artifactId: string;

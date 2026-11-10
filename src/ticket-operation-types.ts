@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { canonical } from './kb/canonical.ts';
+import { countEngineering } from './performance-metrics.ts';
 import type { WorkflowStore } from './graph/store.ts';
 import type { Ticket, WorkflowEntity } from './model/ontology.ts';
 import type { CompletenessLevel } from './artifact-policy.ts';
@@ -169,6 +170,7 @@ export interface TicketGovernance {
 /** One effective Ticket governance view for investigation, production, verification and proof reuse. */
 export async function resolveTicketGovernance(store: WorkflowStore, ticket: WorkflowEntity, files: readonly string[] = [],
   prior?: Pick<TicketGovernance, 'targets' | 'decisions'>, options: {refreshIndex?: boolean} = {}): Promise<TicketGovernance> {
+  countEngineering('governanceResolutions');
   const { FileNode, SymbolNode, ModuleNode, Decision, Aspect } = await import('./model/ontology.ts');
   const { RuleStore } = await import('./rules/store.ts');
   const { collectProductMeaning } = await import('./product/context.ts');
