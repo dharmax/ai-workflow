@@ -40,7 +40,7 @@ describe('grounded Ticket investigation', () => {
     if (investigation.status !== 'complete') throw Error(JSON.stringify(investigation));
     expect(investigation.value.disposition).toBe('ready');
     expect(investigation.value.evidence.find(e => e.id === relative)).toMatchObject({mandatory:true, source});
-    expect(investigation.value.rationale).toContain('advisory');
+    expect(investigation.value.rationale).toContain('Advisory System-1 routing skipped');
     expect(investigation.value.provenance).toMatchObject({
       systemOne: null, reasoningUsed:false, optionalCandidates:0, optionalSelected:0
     });
