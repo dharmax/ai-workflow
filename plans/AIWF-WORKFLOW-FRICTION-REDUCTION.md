@@ -122,7 +122,7 @@ A well-grounded, one-file technical change should require **one meaningful work 
 - **Rare exceptions:** focused tests of critical internal invariants and skeleton wiring may exist independently, with a stated reason and related Story/engineering obligation. An orphan suite is a review item, not an automatic deletion or permission to manufacture a fictional US.
 - **Refactoring sequence:** before adding or substantially rewriting a test, identify its governing US (or justified exception), preserve the Story-based oracle, ensure existing acceptance remains independently valid, and only then reorganize test files. Do not introduce a mandatory Story for a purely technical maintenance Ticket when no product episode exists; link it to the protected behavior/US where relevant.
 
-## Verification contract extraction — awaiting local gate
+## Verification contract extraction — developer-reported green and merged
 
 - `79da09a` moves `RuleAcceptanceError`, `ruleAssessmentContractFailures`, `ruleAcceptanceFailures`, and `ticketVerificationSignature` out of `src/ticket-operation-types.ts` into the focused `src/ticket/verification-contract.ts` domain owner. The source body is identical after relative-import rebasing; existing receipts, Rule fingerprints, and independent assessment semantics were **not modified**.
 - Internal callers in `ticket/verification.ts`, `ticket/resolve.ts` and one technical Doctrine test now import from that owner. The **existing test assertions are unchanged**. This is a responsibility fix, not a claimed speedup.
