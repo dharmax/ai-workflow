@@ -2,11 +2,11 @@ import {afterEach, describe, expect, it} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {WorkflowStore} from '../src/graph/store.ts';
-import {Ticket} from '../src/model/ontology.ts';
-import {initializeTools,commandRegistry} from '../src/tools/index.ts';
-import {processShellInput} from '../src/shell.ts';
-import {WorkflowActor} from '../src/helpers/actor/engine.ts';
+import {WorkflowStore} from '../../src/graph/store.ts';
+import {Ticket} from '../../src/model/ontology.ts';
+import {initializeTools,commandRegistry} from '../../src/tools/index.ts';
+import {processShellInput} from '../../src/shell.ts';
+import {WorkflowActor} from '../../src/helpers/actor/engine.ts';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 
