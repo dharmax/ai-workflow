@@ -12,7 +12,7 @@
 - `20fc5d2`: existing `withAstSnapshot` encloses host-authorized refresh and subsequent read-only graph navigation; disk-only tools bypass the extra graph refresh. Source mutation, governed scope, preview fingerprints and independent acceptance are unchanged.
 - **Stage 1 local gate:** developer reports all tests passed after the `132768d` check-count correction. No log/elapsed-time data for that latest run were provided; the reported result is accepted as a test-status assertion, not an independently measured performance improvement.
 - **Stage 2 changes:** `7887282` adds test-first cases; `24249ba` adds the narrowly bounded deterministic investigation path; `7e1a227` adds Product-linked coverage. Normal advisory routing remains for Bugs, unanchored targets, optional candidates, Product scope, inspection uncertainty and multi-criterion work. Atomicity cannot be proved solely from one criterion; the existing verification still governs completion. No source authorization, policy or receipt changes.
-- **Next:** developer-run Stage 2 typecheck, targeted investigation + preparation + resolution + authority regressions, followed by full suite. Compare System-1 calls and actual elapsed times with baseline before Stage 3; do not merge based on remote-only static inspection.
+- **Gate:** developer reported Stage 2 and first US migration tests passed; fast-forward merged to `master` at `a7131b1`. Performance measurements still pending; previous intermittent public help mismatch remains unclassified.
 
 ## Goal
 
@@ -114,7 +114,7 @@ A well-grounded, one-file technical change should require **one meaningful work 
 
 ## US-driven test migration (developer directive, 2026-11-10)
 
-- **Audit and first migration:** see `plans/AIWF-US-TEST-OWNERSHIP-AUDIT.md` (all 97 suites) and `plans/AIWF-MISSING-US-DRAFTS.md` (10 proposed episodes, none accepted). Moved two already-labeled public Story suites into `tests/us/`, and one internal fixture suite into `tests/integration/` without changing assertions. Local targeted and full suite gates are pending; do not generalize this move into mass renaming.
+- **Audit and first migration:** see `plans/AIWF-US-TEST-OWNERSHIP-AUDIT.md` (all 97 suites) and `plans/AIWF-MISSING-US-DRAFTS.md` (ten draft names reconciled to existing 30 candidates; no new IDs). Moved two already-labeled public Story suites into `tests/us/`, and one internal fixture suite into `tests/integration/` without changing assertions. Local targeted and full suite gates are pending; do not generalize this move into mass renaming.
 
 - **US first, tests second.** Every new user-visible behavior begins with an official accepted US (Actor, Intent, Initial State, Action, Expected Result), then its genuine acceptance tests. Do not infer the oracle from implementation or green historical tests.
 - **File ownership:** default one cohesive acceptance-test file per US; split into multiple files tied to the *same US* when length/clarity justifies it. Require a clear US ID reference in each file; filenames alone are not semantic authority.
