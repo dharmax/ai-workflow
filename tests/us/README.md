@@ -1,6 +1,6 @@
 # Official User Story acceptance tests
 
-Start with **one primary scenario per User Story**:
+Organize suites by **official accepted User Story**: normally one cohesive test file per US; if it grows unwieldy, use multiple files **for that same US**. Each file names its governing US ID. Start with **one primary scenario per User Story**:
 
 - **Given:** create and accept a complete User Story through public AIWF tools/facades in a fresh test project.
 - **When:** invoke the public user operation (for resolution, `resolve_ticket`).
@@ -9,7 +9,7 @@ Start with **one primary scenario per User Story**:
 Do **not** supply the desired code edits or a passing acceptance verdict to the resolver.
 Add variants only for distinct user outcomes. Internal parsing, indexing, locks,
 receipts and contract mechanisms belong in `tests/integration/` or component tests;
-they cannot substitute for public US acceptance.
+they cannot substitute for public US acceptance. Legacy suites lacking a formal US must be inventoried and mapped before reorganizing: draft and accept genuinely missing US definitions first; retain justified low-level invariant tests as explicit exceptions. Never backfill a Story by copying what an existing test happens to assert.
 
 ## Isolation
 

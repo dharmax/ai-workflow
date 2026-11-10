@@ -112,6 +112,14 @@ A well-grounded, one-file technical change should require **one meaningful work 
 | Disk commit succeeds, index reconciliation fails | Existing explicit committed-but-unreconciled status; never falsely verified |
 | CLI / Shell / MCP / REST | Existing external schemas, authority and effects unchanged |
 
+## US-driven test migration (developer directive, 2026-11-10)
+
+- **US first, tests second.** Every new user-visible behavior begins with an official accepted US (Actor, Intent, Initial State, Action, Expected Result), then its genuine acceptance tests. Do not infer the oracle from implementation or green historical tests.
+- **File ownership:** default one cohesive acceptance-test file per US; split into multiple files tied to the *same US* when length/clarity justifies it. Require a clear US ID reference in each file; filenames alone are not semantic authority.
+- **Historical inventory:** map the existing `tests/**/*.test.ts` files/cases to accepted US IDs and identify genuine gaps. Verify existing `user-stories.md`/canonical graph entries first. Draft missing real-world episodes, secure Product acceptance, and then adjust tests. Preserve valuable legacy coverage throughout migration.
+- **Rare exceptions:** focused tests of critical internal invariants and skeleton wiring may exist independently, with a stated reason and related Story/engineering obligation. An orphan suite is a review item, not an automatic deletion or permission to manufacture a fictional US.
+- **Refactoring sequence:** before adding or substantially rewriting a test, identify its governing US (or justified exception), preserve the Story-based oracle, ensure existing acceptance remains independently valid, and only then reorganize test files. Do not introduce a mandatory Story for a purely technical maintenance Ticket when no product episode exists; link it to the protected behavior/US where relevant.
+
 ## Mandatory structural cleanup while optimizing (2026-11-10)
 
 **Developer instruction:** Every touched function is assessed for a single suitable owner and placement; do not merely split large files or introduce pass-through managers. Prefer relocating code into a **real existing owner**. A new module is justified only when it establishes a coherent domain boundary. No forest of abstraction, duplicate dispatchers, "temporary" compatibility layers or needless background machinery.
