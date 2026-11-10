@@ -14,6 +14,7 @@ import { commandRegistry } from "../tools/registry.ts"
 import {readTechnicalProof,withProofProject,technicalScopeContext,assertTechnicalExecutions,assertTechnicalReviews} from '../graph/technical-proof.ts'
 import {canonical, computeHash} from '../kb/canonical.ts'
 import type { TicketDossier, TicketGovernance, OperationResult } from "../ticket-operation-types.ts"
+import {resolveTicketGovernance} from './governance.ts'
 import type { TechnicalProof } from "../model/test-proof-types.ts"
 import type { WorkflowStore } from "../graph/store.ts"
 import {
@@ -22,7 +23,6 @@ import {
     RuleAcceptanceError,
     ruleAcceptanceFailures,
     ruleAssessmentContractFailures,
-    resolveTicketGovernance,
     readVerificationReceipt,
     ticketVerificationSignature,
     type AcceptanceVerification,

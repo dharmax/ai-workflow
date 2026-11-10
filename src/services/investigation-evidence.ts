@@ -22,7 +22,8 @@ import {
 } from '../model/ontology.ts';
 import { countEngineering, visitMetricArtifact } from '../performance-metrics.ts';
 
-import { resolveTicketGovernance, readVerificationReceipt } from '../ticket-operation-types.ts';
+import { readVerificationReceipt } from '../ticket-operation-types.ts';
+import { resolveTicketGovernance } from '../ticket/governance.ts';
 import { collectProductMeaning } from '../product/context.ts';
 import { getExactSymbolSource } from '../helpers/source-lookup.ts';
 

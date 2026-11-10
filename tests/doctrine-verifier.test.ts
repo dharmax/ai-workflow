@@ -11,9 +11,10 @@ import { RuleStore } from '../src/rules/store.ts';
 import type { RuleModel } from '../src/rules/types.ts';
 import { loadConfig, saveConfig } from '../src/services/config-service.ts';
 import {
-  AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt, resolveTicketGovernance,
+  AcceptanceVerificationSchema, DOCTRINE_VERIFIER_VERSION, readVerificationReceipt,
   ticketVerificationSignature, type AcceptanceVerification, type ResolutionOptions, type ResolutionVerificationInput
 } from '../src/ticket-operation-types.ts';
+import {resolveTicketGovernance} from '../src/ticket/governance.ts';
 import {initializeTools} from '../src/tools/index.ts';
 import { executeTicketChecks, verifyTicketAcceptance } from '../src/ticket/verification.ts';
 import { currentTestEvidence } from '../src/graph/test-artifacts.ts';

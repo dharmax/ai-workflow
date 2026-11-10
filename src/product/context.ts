@@ -161,7 +161,7 @@ export async function buildIntentContext(
         }
     }
     context.existing.push(...evidence.values())
-    const {resolveTicketGovernance} = await import('../ticket-operation-types.ts')
+    const {resolveTicketGovernance} = await import('../ticket/governance.ts')
     const {renderRuleReferences} = await import('../rules/references.ts')
     const governance = await resolveTicketGovernance(store, entity)
     for (const rule of governance.rules) {
